@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WoW Forever Rogue Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="js/main.js"></script>
+  </head>
+  <body>
+    <main class="simulator">
+      <header class="simulator-header">
+        <div>
+          <p class="eyebrow">COMBAT SIMULATOR</p>
+          <h1>Rogue</h1>
+        </div>
+        <div class="header-controls">
+          <div id="simulation-status" class="live-indicator">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="simulation-status-label">Live</span>
+          </div>
+          <button id="pause-button" class="pause-button" type="button" aria-pressed="false">
+            <span id="pause-icon" aria-hidden="true">Ⅱ</span>
+            <span id="pause-label">Pause</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="resources-panel panel" aria-labelledby="resources-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">COMBAT</p>
+          </div>
+          <output id="time-value" class="elapsed-time">00:00</output>
+        </div>
+
+        <div class="resource-grid">
+          <section class="resource-card combo-panel" aria-labelledby="combo-heading">
+            <div class="resource-label">
+              <h3 id="combo-heading">Combo points</h3>
+              <output id="combo-value">0 <span class="value-divider">/</span> 5</output>
+            </div>
+            <div
+              id="combo-meter"
+              class="combo-meter"
+              role="meter"
+              aria-label="Combo points"
+              aria-valuemin="0"
+              aria-valuemax="5"
+              aria-valuenow="0"
+            >
+              <span class="combo-point"></span>
+              <span class="combo-point"></span>
+              <span class="combo-point"></span>
+              <span class="combo-point"></span>
+              <span class="combo-point"></span>
+            </div>
+          </section>
+
+          <section class="resource-card energy-panel" aria-labelledby="energy-heading">
+            <div class="resource-label">
+              <h3 id="energy-heading">Energy</h3>
+              <output id="energy-value">0 <span class="value-divider">/</span> 100</output>
+            </div>
+            <div
+              id="energy-meter"
+              class="energy-meter"
+              role="meter"
+              aria-label="Rogue energy"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <div id="energy-fill" class="energy-fill"></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="gcd-panel" aria-labelledby="gcd-heading">
+          <div class="resource-label">
+            <h3 id="gcd-heading">Global cooldown</h3>
+            <div class="gcd-readout">
+              <span id="gcd-status" class="gcd-status" aria-live="polite">Ready</span>
+              <output id="gcd-value">0.0s</output>
+            </div>
+          </div>
+          <div
+            id="gcd-meter"
+            class="gcd-meter"
+            role="meter"
+            aria-label="Global cooldown remaining"
+            aria-valuemin="0"
+            aria-valuemax="1.5"
+            aria-valuenow="0"
+          >
+            <div id="gcd-fill" class="gcd-fill"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="damage-panel" aria-labelledby="damage-heading">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Total damage</span>
+            <output id="damage-value" class="stat-value">0</output>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Damage per second</span>
+            <output id="dps-value" class="stat-value">0</output>
+            <span class="stat-unit">DPS</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="combat-log-panel panel" aria-labelledby="combat-log-heading">
+        <div class="section-heading combat-log-heading">
+          <div>
+            <p class="eyebrow">EVENTS</p>
+            <h2 id="combat-log-heading">Combat log</h2>
+          </div>
+          <span class="log-caption">Latest events first</span>
+        </div>
+        <div class="combat-log-scroll" role="region" aria-label="Combat log events" tabindex="0">
+          <ol id="combat-log" class="combat-log" aria-live="off">
+            <li id="combat-log-empty" class="combat-log-empty">Waiting for combat events…</li>
+          </ol>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
