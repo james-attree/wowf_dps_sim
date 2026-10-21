@@ -1,5 +1,5 @@
 import { Weapon } from "./weapon.js";
-import { SinisterStrike, Eviscerate } from "./skill.js";
+import * as Skills from "./skill.js";
 
 export class Rogue {
   constructor() {
@@ -13,8 +13,15 @@ export class Rogue {
     this.normalizedWeaponSpeed = 1.7; // Normalized weapon speed for AP contribution
 
     this.abilities = {
-      sinisterStrike: new SinisterStrike(this),
-      eviscerate: new Eviscerate(this)
+      premeditation: new Skills.Premeditation(this),
+      sinisterStrike: new Skills.SinisterStrike(this),
+      eviscerate: new Skills.Eviscerate(this),
+      adrenalineRush: new Skills.AdrenalineRush(this),
+      sliceAndDice: new Skills.SliceAndDice(this),
+      ghostlyStrike: new Skills.GhostlyStrike(this),
+      backstab: new Skills.Backstab(this),
+      ambush: new Skills.Ambush(this),
+      bladeFlurry: new Skills.BladeFlurry(this),
     };
 
     // Weapons
@@ -28,8 +35,8 @@ export class Rogue {
     this.weapons.offHand.swingTimer = 0.5;
   }
 
-  regenerateEnergy(dt) {
-    this.energy = Math.min(this.energy + (10 * dt), this.maxEnergy);
+  regenerateEnergy(dt, rate) {
+    this.energy = Math.min(this.energy + (rate * dt), this.maxEnergy);
   }
 
   getAttackPower() {
@@ -49,18 +56,41 @@ export class Rogue {
   }
 
   rotation(simulation, dt) {
-    // Example rotation logic
-    this.abilities.sinisterStrike.cast(this, simulation);
+
+    if (this.energy <= 25){
+      this.abilities.adrenalineRush.cast(this, simulation); // Cast Adrenaline Rush if energy is low 
+    }
+
+    this.abilities.bladeFlurry.cast(this, simulation); // Cast Blade Flurry if available
+
+    this.abilities.premeditation.cast(this, simulation); // Cast Premeditation if available
+
+    // If we aren't already under the effect of Slice and Dice, or if it's about to expire, and we have enough combo points, cast it
+    if ((!simulation.activeBuffs["Slice and Dice"] || (simulation.activeBuffs["Slice and Dice"] && simulation.activeBuffs["Slice and Dice"].duration <= 3)) && this.comboPoints >= 4) {
+      this.abilities.sliceAndDice.cast(this, simulation);
+    }
 
     if (this.comboPoints >= 4) {
       this.abilities.eviscerate.cast(this, simulation);
     }
 
+    this.abilities.ghostlyStrike.cast(this, simulation); // Cast Ghostly Strike if available
+
+    this.abilities.sinisterStrike.cast(this, simulation);
+
     // Tick weapons
-    this.weapons.mainHand.tick(dt, 1, (weapon) => {
+    let hasteMultiplier = 1; // Placeholder for any haste effects
+    if (simulation.activeBuffs["Slice and Dice"] && simulation.activeBuffs["Slice and Dice"].duration > 0){
+      hasteMultiplier += 0.3; // Example: Slice and Dice increases attack speed by 30%
+    }
+    if (simulation.activeBuffs["Blade Flurry"] && simulation.activeBuffs["Blade Flurry"].duration > 0){
+      hasteMultiplier += 0.2; // Example: Blade Flurry increases attack speed by 20%
+    }
+
+    this.weapons.mainHand.tick(dt, hasteMultiplier, (weapon) => {
         simulation.resolveAttack("Main-hand", "weapon", weapon.rollDamage());
     });
-    this.weapons.offHand.tick(dt, 1, (weapon) => {
+    this.weapons.offHand.tick(dt, hasteMultiplier, (weapon) => {
         simulation.resolveAttack("Off-hand", "weapon", weapon.rollDamage());
     });
   }

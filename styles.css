@@ -234,12 +234,21 @@ h3 {
   height: 9px;
 }
 
-.gcd-panel {
+.cooldown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
   margin-top: 10px;
-  padding: 12px;
-  border: 1px solid #3a3225;
-  border-radius: 13px;
-  background: var(--surface-raised);
+}
+
+.gcd-panel,
+.timed-effects-panel {
+  min-height: 80px;
+  padding: 10px;
+}
+
+.timed-effects-panel > h3 {
+  margin-bottom: 7px;
 }
 
 .gcd-readout {
@@ -280,6 +289,44 @@ h3 {
 
 .gcd-fill {
   background: linear-gradient(90deg, #886327, var(--gcd));
+}
+
+.timed-effects-empty {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.timed-effects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.timed-effect {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.timed-effect img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.timed-effect-time {
+  color: #f3eee2;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.resources-panel {
+  margin-top: 12px;
 }
 
 .damage-panel {
@@ -351,6 +398,11 @@ h3 {
   place-items: center;
   border-radius: 7px;
   font-size: 0.9rem;
+}
+
+.combat-log-icon img {
+  width: 16px;
+  height: 16px;
 }
 
 .weapon-icon {
@@ -458,8 +510,28 @@ h3 {
     grid-template-columns: 1fr;
   }
 
+  .cooldown-grid {
+    grid-template-columns: 1fr;
+  }
+
   .resource-card {
     padding: 10px;
+  }
+
+  .gcd-panel .resource-label {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .gcd-readout {
+    width: 100%;
+    gap: 5px;
+  }
+
+  .gcd-status:not(:empty) {
+    min-width: 0;
+    text-align: left;
   }
 
   .combat-log-scroll {

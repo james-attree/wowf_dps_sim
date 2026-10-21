@@ -59,6 +59,7 @@ export function resolveAttack({
     }
   }
 
+
   const damageMultiplier = {
     miss: 0,
     dodge: 0,

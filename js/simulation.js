@@ -10,6 +10,8 @@ export class Simulation {
         this.combatLog = [];
         this.nextCombatEventId = 0;
         this.lastFrameTime = performance.now();
+        this.cooldowns = {}; // Track cooldowns for skills
+        this.activeBuffs = {}; // Track active buffs
     }
 
     update(currentTime){
@@ -17,10 +19,25 @@ export class Simulation {
         this.lastFrameTime = currentTime;
         this.currentTime += dt;
 
-        this.rogue.regenerateEnergy(dt);
+        if (this.activeBuffs["Adrenaline Rush"] && this.activeBuffs["Adrenaline Rush"].duration > 0) {
+            this.rogue.regenerateEnergy(dt, 20);
+        } else {
+            this.rogue.regenerateEnergy(dt, 10);
+        }
         this.tickGcd(dt);
 
         this.rogue.rotation(this, dt);
+
+        this.activeBuffs = Object.fromEntries(
+            Object.entries(this.activeBuffs).filter(([key, buff]) => {
+                buff.duration -= dt;
+                return buff.duration > 0;
+            })
+        );
+
+        this.cooldowns = Object.fromEntries(
+            Object.entries(this.cooldowns).map(([key, value]) => [key, Math.max(0, value - dt)])
+        );
     }
 
     setGcd(){
@@ -37,7 +54,7 @@ export class Simulation {
         this.damageDone += d;
     }
 
-    resolveAttack(name, attackType, baseDamage){
+    resolveAttack(name, attackType, baseDamage, icon = null){
         const result = resolveAttack({
             attackType,
             baseDamage,
@@ -47,11 +64,11 @@ export class Simulation {
         if(result.damage > 0){
             this.updateDamage(result.damage);
         }
-        this.addCombatEvent(name, attackType, result.damage, result.status, result.outcome);
+        this.addCombatEvent(name, attackType, result.damage, result.status, result.outcome, icon);
         return result;
     }
 
-    addCombatEvent(name, type, damage, status = "Hit", outcome = "hit"){
+    addCombatEvent(name, type, damage, status = "Hit", outcome = "hit", icon = null){
         this.combatLog.unshift({
             id: this.nextCombatEventId++,
             time: this.currentTime,
@@ -59,7 +76,8 @@ export class Simulation {
             type,
             damage,
             status,
-            outcome
+            outcome,
+            icon
         });
         if(this.combatLog.length > 100){
             this.combatLog.pop();

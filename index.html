@@ -26,6 +26,20 @@
         </div>
       </header>
 
+      <section class="damage-panel" aria-labelledby="damage-heading">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Total damage</span>
+            <output id="damage-value" class="stat-value">0</output>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Damage per second</span>
+            <output id="dps-value" class="stat-value">0</output>
+            <span class="stat-unit">DPS</span>
+          </div>
+        </div>
+      </section>
+
       <section class="resources-panel panel" aria-labelledby="resources-heading">
         <div class="section-heading">
           <div>
@@ -76,39 +90,37 @@
           </section>
         </div>
 
-        <section class="gcd-panel" aria-labelledby="gcd-heading">
-          <div class="resource-label">
-            <h3 id="gcd-heading">Global cooldown</h3>
-            <div class="gcd-readout">
-              <span id="gcd-status" class="gcd-status" aria-live="polite">Ready</span>
-              <output id="gcd-value">0.0s</output>
+        <div class="cooldown-grid">
+          <section class="resource-card gcd-panel" aria-labelledby="gcd-heading">
+            <div class="resource-label">
+              <h3 id="gcd-heading">GCD</h3>
+              <div class="gcd-readout">
+                <span id="gcd-status" class="gcd-status" aria-live="polite">Ready</span>
+                <output id="gcd-value">0.0s</output>
+              </div>
             </div>
-          </div>
-          <div
-            id="gcd-meter"
-            class="gcd-meter"
-            role="meter"
-            aria-label="Global cooldown remaining"
-            aria-valuemin="0"
-            aria-valuemax="1.5"
-            aria-valuenow="0"
-          >
-            <div id="gcd-fill" class="gcd-fill"></div>
-          </div>
-        </section>
-      </section>
-
-      <section class="damage-panel" aria-labelledby="damage-heading">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <span class="stat-label">Total damage</span>
-            <output id="damage-value" class="stat-value">0</output>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Damage per second</span>
-            <output id="dps-value" class="stat-value">0</output>
-            <span class="stat-unit">DPS</span>
-          </div>
+            <div
+              id="gcd-meter"
+              class="gcd-meter"
+              role="meter"
+              aria-label="Global cooldown remaining"
+              aria-valuemin="0"
+              aria-valuemax="1.5"
+              aria-valuenow="0"
+            >
+              <div id="gcd-fill" class="gcd-fill"></div>
+            </div>
+          </section>
+          <section class="resource-card timed-effects-panel" aria-labelledby="active-buffs-heading">
+            <h3 id="active-buffs-heading">Active effects</h3>
+            <p id="active-buffs-empty" class="timed-effects-empty">None</p>
+            <div id="active-buffs" class="timed-effects" aria-labelledby="active-buffs-heading"></div>
+          </section>
+          <section class="resource-card timed-effects-panel" aria-labelledby="skill-cooldowns-heading">
+            <h3 id="skill-cooldowns-heading">Cooldowns</h3>
+            <p id="skill-cooldowns-empty" class="timed-effects-empty">None</p>
+            <div id="skill-cooldowns" class="timed-effects" aria-labelledby="skill-cooldowns-heading"></div>
+          </section>
         </div>
       </section>
 

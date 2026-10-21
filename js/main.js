@@ -3,6 +3,7 @@ import { Simulation } from "./simulation.js";
 
 const rogue = new Rogue();
 const simulation = new Simulation(rogue);
+const cooldownSkillsByName = new Map(Object.values(rogue.abilities).map((skill) => [skill.name, skill]));
 const comboValue = document.querySelector("#combo-value");
 const comboMeter = document.querySelector("#combo-meter");
 const comboPoints = document.querySelectorAll(".combo-point");
@@ -13,6 +14,12 @@ const gcdValue = document.querySelector("#gcd-value");
 const gcdMeter = document.querySelector("#gcd-meter");
 const gcdFill = document.querySelector("#gcd-fill");
 const gcdStatus = document.querySelector("#gcd-status");
+const activeBuffs = document.querySelector("#active-buffs");
+const activeBuffsEmpty = document.querySelector("#active-buffs-empty");
+const skillCooldowns = document.querySelector("#skill-cooldowns");
+const skillCooldownsEmpty = document.querySelector("#skill-cooldowns-empty");
+const cooldownItems = new Map();
+const buffItems = new Map();
 const timeValue = document.querySelector("#time-value");
 const damageValue = document.querySelector("#damage-value");
 const dpsValue = document.querySelector("#dps-value");
@@ -48,6 +55,8 @@ function redrawScene(rogue) {
   gcdStatus.classList.toggle("is-active", gcdActive);
   gcdMeter.setAttribute("aria-valuenow", simulation.gcd.toFixed(1));
   gcdFill.style.width = `${gcdPercent}%`;
+  renderTimedEffects(simulation.activeBuffs, activeBuffs, buffItems, activeBuffsEmpty);
+  renderTimedEffects(simulation.cooldowns, skillCooldowns, cooldownItems, skillCooldownsEmpty);
   const elapsedSeconds = Math.floor(simulation.currentTime);
   const minutes = Math.floor(elapsedSeconds / 60);
   const seconds = elapsedSeconds % 60;
@@ -59,6 +68,60 @@ function redrawScene(rogue) {
   dpsValue.value = dps.toFixed(0);
   dpsValue.textContent = dpsValue.value;
   renderCombatLog();
+}
+
+function renderTimedEffects(effects, container, items, emptyState) {
+  const activeEffects = Object.entries(effects)
+    .map(([name, effect]) => {
+      const isBuff = typeof effect === "object";
+      const skill = cooldownSkillsByName.get(name);
+      return {
+        name,
+        icon: isBuff ? effect.icon : skill?.icon,
+        remaining: isBuff ? effect.duration : effect,
+      };
+    })
+    .filter(({ remaining }) => remaining > 0)
+    .sort((a, b) => b.remaining - a.remaining);
+  const activeNames = new Set(activeEffects.map(({ name }) => name));
+
+  items.forEach((item, name) => {
+    if (!activeNames.has(name)) {
+      item.element.remove();
+      items.delete(name);
+    }
+  });
+
+  activeEffects.forEach(({ name, icon: iconSource, remaining }) => {
+    let item = items.get(name);
+    if (!item) {
+      const element = document.createElement("div");
+      element.className = "timed-effect";
+      element.title = name;
+
+      if (iconSource) {
+        const icon = document.createElement("img");
+        icon.src = iconSource;
+        icon.width = 32;
+        icon.height = 32;
+        icon.alt = name;
+        element.append(icon);
+      }
+
+      const time = document.createElement("output");
+      time.className = "timed-effect-time";
+      element.append(time);
+      item = { element, time };
+      items.set(name, item);
+    }
+
+    item.time.value = `${remaining.toFixed(0)}s`;
+    item.time.textContent = item.time.value;
+    item.element.title = `${name}: ${item.time.value}`;
+    container.append(item.element);
+  });
+
+  emptyState.hidden = activeEffects.length > 0;
 }
 
 function renderCombatLog() {
@@ -84,7 +147,16 @@ function renderCombatLog() {
     const icon = document.createElement("span");
     icon.className = `combat-log-icon ${event.type === "skill" ? "skill-icon" : "weapon-icon"}`;
     icon.setAttribute("aria-hidden", "true");
-    icon.textContent = event.type === "skill" ? "✦" : "⚔";
+    if (event.type === "skill" && event.icon) {
+      const image = document.createElement("img");
+      image.src = event.icon;
+      image.width = 16;
+      image.height = 16;
+      image.alt = "";
+      icon.append(image);
+    } else {
+      icon.textContent = event.type === "skill" ? "✦" : "⚔";
+    }
 
     const name = document.createElement("span");
     name.className = "combat-log-name";
