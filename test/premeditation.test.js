@@ -211,40 +211,78 @@ describe("Premeditation combo point expiry", () => {
       assert.equal(builder.landed, false);
       assert.equal(finisher.landed, false);
       assert.equal(rogue.comboPoints, granted);
-      assert.equal(rogue.premeditationCp, granted);
+      assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
 
       sim.update(timeAt(fps, k("premeditation.cpExpiry")));
       assert.equal(rogue.comboPoints, 0, `${fps} fps`);
     }
   });
 
-  it("removes only the combo points Premeditation was able to add", () => {
+  it("removes 2 combo points when 4 becomes 5 on the cast", () => {
     const { rogue, sim } = harness();
-    const room = 1;
-    rogue.comboPoints = k("combo.max") - room;
+    rogue.comboPoints = k("combo.max") - 1;
     rogue.abilities.premeditation.cast(rogue, sim);
 
     assert.equal(rogue.comboPoints, k("combo.max"));
-    assert.equal(rogue.premeditationCp, room);
+    assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
 
     sim.update(timeAt(30, k("premeditation.cpExpiry")));
-    assert.equal(rogue.comboPoints, k("combo.max") - room);
+    assert.equal(
+      rogue.comboPoints,
+      k("combo.max") - k("premeditation.cpRemovedOnExpiry"),
+    );
+    assert.equal(rogue.comboPoints, 3);
+  });
+
+  it("removes 2 combo points when the cast itself added none", () => {
+    const { rogue, sim } = harness();
+    rogue.comboPoints = k("combo.max");
+    rogue.abilities.premeditation.cast(rogue, sim);
+
+    assert.equal(rogue.comboPoints, k("combo.max"));
+    assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
+
+    sim.update(timeAt(30, k("premeditation.cpExpiry")));
+    assert.equal(
+      rogue.comboPoints,
+      k("combo.max") - k("premeditation.cpRemovedOnExpiry"),
+    );
+  });
+
+  it("clamps expiry at 0 combo points", () => {
+    for (const fps of FRAME_RATES) {
+      for (const comboPoints of [0, 1]) {
+        const { rogue, sim } = harness();
+        rogue.abilities.premeditation.cast(rogue, sim);
+        rogue.comboPoints = comboPoints;
+        assert.equal(
+          rogue.premeditationCp,
+          k("premeditation.cpRemovedOnExpiry"),
+        );
+
+        sim.update(timeAt(fps, k("premeditation.cpExpiry")));
+        assert.equal(rogue.comboPoints, 0, `${fps} fps from ${comboPoints}`);
+        assert.equal(rogue.premeditationCp, 0);
+      }
+    }
   });
 
   it("does not treat a capped generator as adding to the Premeditation points", () => {
     mock.method(Math, "random", () => 0.99);
     const { rogue, sim } = harness();
-    const room = 1;
-    rogue.comboPoints = k("combo.max") - room;
+    rogue.comboPoints = k("combo.max") - 1;
     rogue.abilities.premeditation.cast(rogue, sim);
     const capped = rogue.abilities.hemorrhage.cast(rogue, sim);
 
     assert.equal(capped.landed, true);
     assert.equal(rogue.comboPoints, k("combo.max"));
-    assert.equal(rogue.premeditationCp, room);
+    assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
 
     sim.update(timeAt(144, k("premeditation.cpExpiry")));
-    assert.equal(rogue.comboPoints, k("combo.max") - room);
+    assert.equal(
+      rogue.comboPoints,
+      k("combo.max") - k("premeditation.cpRemovedOnExpiry"),
+    );
   });
 });
 
