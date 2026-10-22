@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 
 describe("dev package", () => {
-  it("exposes serve, test, lint, and data:refresh with no runtime dependencies", async () => {
+  it("exposes serve, test, lint, provenance, and data:refresh with no runtime dependencies", async () => {
     const pkg = JSON.parse(
       await readFile(resolve(root, "package.json"), "utf8"),
     );
@@ -21,6 +21,7 @@ describe("dev package", () => {
       pkg.scripts.lint,
       "eslint . --max-warnings 0 && prettier --check .",
     );
+    assert.equal(pkg.scripts.provenance, "node scripts/provenance.mjs");
     assert.equal(pkg.scripts["data:refresh"], "node scripts/refresh-data.mjs");
     // @eslint/js ships the recommended config; ESLint 10 does not bundle it.
     assert.deepEqual(Object.keys(pkg.devDependencies).sort(), [

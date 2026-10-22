@@ -7,6 +7,7 @@
     "serve": "node scripts/serve.mjs",
     "test": "node --test",
     "lint": "eslint . --max-warnings 0 && prettier --check .",
+    "provenance": "node scripts/provenance.mjs",
     "data:refresh": "node scripts/refresh-data.mjs"
   },
   "devDependencies": {
