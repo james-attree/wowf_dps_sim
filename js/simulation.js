@@ -48,7 +48,6 @@ export class Simulation {
 
         if (this.activeBuffs["Hemorrhage"]) {
           dotTickDamage *= 1 + k("hemorrhage.ruptureBonus").bonus;
-          console.log(dotTickDamage);
         }
 
         let dotHitCrit = "Hit";

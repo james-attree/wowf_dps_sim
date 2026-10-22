@@ -322,7 +322,6 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.comboPoints, 3);
 
     mock.restoreAll();
-    mock.method(console, "log", () => {});
     mock.method(Math, "random", () => 0);
     const ticking = new Rogue();
     ticking.rotation = () => {};
