@@ -179,7 +179,7 @@ export class Premeditation extends Skill {
 export class AdrenalineRush extends Skill {
   constructor(rogue) {
     const stats = k("adrenalineRush");
-    super("Adrenaline Rush", stats.energy, k("adrenalineRush.engineCooldown"));
+    super("Adrenaline Rush", stats.energy, stats.cooldown);
     this.duration = stats.duration;
     this.rogue = rogue;
     this.triggersGcd = false; // Adrenaline Rush does not trigger the global cooldown
