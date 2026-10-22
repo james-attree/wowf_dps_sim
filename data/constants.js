@@ -582,7 +582,7 @@ export const CONSTANTS = {
     2,
     "×",
     ASSUMPTION,
-    "James, 22 Oct 2026: DoT and bleed crits use 2x like other crits; retune when WoW Forever data is available.",
+    "James, 22 Oct 2026: DoTs and bleeds crit at 2x like other crits; no WoW Forever data yet, retune when available.",
     "Same multiplier as other crits. The issue constants list had marked 2× as a presumption; the decision is 2×.",
     true,
   ),
