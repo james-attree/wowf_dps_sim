@@ -2,6 +2,18 @@ import { k } from "../data/constants.js";
 import { Weapon } from "./weapon.js";
 import * as Skills from "./skill.js";
 
+// haste.stacking is multiplicative or additive. Any other value is a typo.
+function stackHaste(hasteMultiplier, haste) {
+  const stacking = k("haste.stacking");
+  if (stacking === "multiplicative") {
+    return hasteMultiplier * (1 + haste);
+  }
+  if (stacking === "additive") {
+    return hasteMultiplier + haste;
+  }
+  throw new Error(`Unknown haste.stacking: ${stacking}`);
+}
+
 export class Rogue {
   constructor() {
     this.energy = k("start.state").energy;
@@ -113,16 +125,15 @@ export class Rogue {
 
     this.abilities.premeditation.cast(this, simulation); // Cast Premeditation if available
 
-    // Slice and Dice is not cast. The guard reads rotation.sliceAndDiceRefreshSeconds
-    // and rotation.sliceAndDiceComboPoints; the call stays disabled.
+    // Refresh Slice and Dice at rotation.sliceAndDiceComboPoints when it is
+    // missing or has at most rotation.sliceAndDiceRefreshSeconds left.
+    const sliceAndDice = simulation.activeBuffs["Slice and Dice"];
     if (
-      (!simulation.activeBuffs["Slice and Dice"] ||
-        (simulation.activeBuffs["Slice and Dice"] &&
-          simulation.activeBuffs["Slice and Dice"].duration <=
-            k("rotation.sliceAndDiceRefreshSeconds"))) &&
+      (!sliceAndDice ||
+        sliceAndDice.duration <= k("rotation.sliceAndDiceRefreshSeconds")) &&
       this.comboPoints >= k("rotation.sliceAndDiceComboPoints")
     ) {
-      // this.abilities.sliceAndDice.cast(this, simulation);
+      this.abilities.sliceAndDice.cast(this, simulation);
     }
 
     if (this.comboPoints >= k("combo.max")) {
@@ -133,19 +144,21 @@ export class Rogue {
 
     this.abilities.hemorrhage.cast(this, simulation);
 
-    // Tick weapons
+    // Slice and Dice and Blade Flurry shorten the next swing of both weapons.
+    // haste.stacking chooses the product or the sum. A swing already counting
+    // down keeps its remaining time. wowsims rescales that swing.
     let hasteMultiplier = 1;
     if (
       simulation.activeBuffs["Slice and Dice"] &&
       simulation.activeBuffs["Slice and Dice"].duration > 0
     ) {
-      hasteMultiplier += k("sliceAndDice").haste;
+      hasteMultiplier = stackHaste(hasteMultiplier, k("sliceAndDice").haste);
     }
     if (
       simulation.activeBuffs["Blade Flurry"] &&
       simulation.activeBuffs["Blade Flurry"].duration > 0
     ) {
-      hasteMultiplier += k("bladeFlurry").haste;
+      hasteMultiplier = stackHaste(hasteMultiplier, k("bladeFlurry").haste);
     }
 
     this.weapons.mainHand.tick(dt, hasteMultiplier, (weapon) => {

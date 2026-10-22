@@ -95,7 +95,7 @@ export const CONSTANTS = {
     "energy, ×, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Slice and Dice|Rank 2]",
-    "Duration is 6 + 3 × CP, stored per combo point. The cast is still commented out (Q13). Casting it starts the GCD (gcd.flags).",
+    "Duration is 6 + 3 × CP, stored per combo point. The rotation refreshes it. Haste shortens the next swing of both weapons. The engine does not rescale a swing already counting down. Another attack-speed effect combines through haste.stacking. Casting it starts the GCD (gcd.flags).",
     false,
   ),
   "hemorrhage.ruptureBonus": entry(
@@ -245,6 +245,14 @@ export const CONSTANTS = {
   ),
 
   // classic-1.12: reference values until WoW Forever is measured.
+  "haste.stacking": entry(
+    "multiplicative",
+    "–",
+    CLASSIC,
+    "https://github.com/wowsims/classic/blob/7779ebbf79dc7f1341e6ab939b28a3402c9a730a/sim/core/unit.go#L411-L418",
+    "Attack-speed effects multiply. MultiplyMeleeSpeed multiplies MeleeSpeedMultiplier. Slice and Dice and Blade Flurry each call it, so together they are (1 + sliceAndDice.haste) × (1 + bladeFlurry.haste). wowsims rescales the swing in progress (UpdateSwingTimers); the engine does not.",
+    true,
+  ),
   "gcd.duration": entry(
     1,
     "s",
@@ -738,7 +746,7 @@ export const CONSTANTS = {
     "CP",
     ASSUMPTION,
     SAMPLE_INPUT,
-    "Rotation threshold. The cast is commented out.",
+    "Slice and Dice is refreshed once combo points reach this.",
     true,
   ),
   "rotation.sliceAndDiceRefreshSeconds": entry(
@@ -746,7 +754,7 @@ export const CONSTANTS = {
     "s",
     ASSUMPTION,
     SAMPLE_INPUT,
-    "The cast is commented out, so this does not change damage today.",
+    "Refresh when the remaining duration is at or below this.",
     true,
   ),
 
