@@ -1,0 +1,50 @@
+name: Pages
+
+"on":
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Minimum GITHUB_TOKEN scopes for actions/deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One production deploy at a time. Do not cancel a deploy that is in progress.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      # Publish the static app only. test/, scripts/, and node_modules stay out.
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp index.html styles.css _site/
+          cp -R js data img _site/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
