@@ -59,13 +59,14 @@ const validEntry = (source, ref = "https://example.test/ref") => ({
 });
 
 describe("provenance check", () => {
-  it("allows only the five source tags", () => {
+  it("allows only the known source tags", () => {
     assert.deepEqual(SOURCE_TAGS, [
       "wowf-export",
       "wowf-designer",
       "classic-1.12",
       "cataclysm",
       "assumption",
+      "engineering",
     ]);
   });
 
@@ -75,7 +76,7 @@ describe("provenance check", () => {
         `example.${index}`,
         validEntry(
           source,
-          source === "assumption"
+          source === "assumption" || source === "engineering"
             ? "James, 22 Oct 2026: fixture default"
             : `ref-${source}`,
         ),
@@ -229,6 +230,98 @@ describe("provenance CLI", () => {
     ]);
   });
 
+  it("rejects TBD in any case", () => {
+    const result = checkProvenance({
+      "attack.rollScale": validEntry("engineering", "TBD"),
+      "log.maxEvents": validEntry("engineering", "tbd"),
+      "sim.msPerSecond": validEntry("engineering", "  Tbd  "),
+      "sim.tickEpsilon": validEntry(
+        "engineering",
+        "James, 22 Oct 2026: float tolerance",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "attack.rollScale: placeholder ref",
+      "log.maxEvents: placeholder ref",
+      "sim.msPerSecond: placeholder ref",
+    ]);
+  });
+
+  it("rejects a ref that contains fill in", () => {
+    const result = checkProvenance({
+      latency: validEntry("assumption", "James to fill in the delay"),
+      "fight.duration": validEntry("assumption", "please FILL IN the length"),
+      "target.level": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: Classic raid boss is level 60 + 3",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "latency: placeholder ref",
+      "fight.duration: placeholder ref",
+    ]);
+  });
+
+  it("rejects N/A, a question mark, and tbd later in any case", () => {
+    const result = checkProvenance({
+      "attack.rollScale": validEntry("engineering", "N/A"),
+      "log.maxEvents": validEntry("engineering", "n/a"),
+      "sim.msPerSecond": validEntry("engineering", "  N/a  "),
+      "sim.tickEpsilon": validEntry("engineering", "?"),
+      latency: validEntry("assumption", "  ?  "),
+      "fight.duration": validEntry("assumption", "tbd later"),
+      "fight.iterations": validEntry("assumption", "TBD Later"),
+      "poison.charges": validEntry("assumption", "Tbd later"),
+      "target.level": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: Classic raid boss is level 60 + 3",
+      ),
+      "hackAndSlash.chain": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: why? N/A until tbd later is replaced",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "attack.rollScale: placeholder ref",
+      "log.maxEvents: placeholder ref",
+      "sim.msPerSecond: placeholder ref",
+      "sim.tickEpsilon: placeholder ref",
+      "latency: placeholder ref",
+      "fight.duration: placeholder ref",
+      "fight.iterations: placeholder ref",
+      "poison.charges: placeholder ref",
+    ]);
+  });
+
+  it("rejects a ref that contains No recorded owner decision", () => {
+    const result = checkProvenance({
+      "fight.iterations": validEntry(
+        "assumption",
+        "No recorded owner decision as of 22 Oct 2026. Iteration count.",
+      ),
+      "poison.charges": validEntry(
+        "assumption",
+        "prefix no recorded owner decision suffix",
+      ),
+      "hackAndSlash.chain": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: extra attacks do not chain",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "fight.iterations: placeholder ref",
+      "poison.charges: placeholder ref",
+    ]);
+  });
+
   it("fails when the constants file cannot be loaded", async () => {
     const broken = await writeFixture("export const CONSTANTS = {\n");
     try {
@@ -297,7 +390,7 @@ describe("provenance report", () => {
     );
   });
 
-  it("groups by source and lists only non-export retunes", async () => {
+  it("groups by source and leaves engineering off the retune list", async () => {
     const constants = {
       "energy.regenPerSecond": {
         ...validEntry(
@@ -323,18 +416,24 @@ describe("provenance report", () => {
       },
       "target.armor": validEntry(
         "assumption",
-        "No recorded owner decision as of 22 Oct 2026. Fixture armor.",
+        "James, 22 Oct 2026: fixture armor",
       ),
       "fight.duration": {
+        ...validEntry("assumption", "James, 22 Oct 2026: fixture duration"),
+        retune: false,
+      },
+      "sim.tickEpsilon": {
         ...validEntry(
-          "assumption",
-          "No recorded owner decision as of 22 Oct 2026. Fixture duration.",
+          "engineering",
+          "James, 22 Oct 2026: tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings",
         ),
+        value: 1e-9,
         retune: false,
       },
     };
 
     const markdown = await renderProvenance(constants);
+    assert.match(markdown, /`engineering`/);
     let previous = -1;
     for (const heading of ["Retune list", ...SOURCE_TAGS]) {
       const index = markdown.indexOf(`## ${heading}\n`);
@@ -351,6 +450,7 @@ describe("provenance report", () => {
     assert.equal(hasRow(retune, "energy.regenPerSecond"), false);
     assert.equal(hasRow(retune, "dot.canCrit"), false);
     assert.equal(hasRow(retune, "fight.duration"), false);
+    assert.equal(hasRow(retune, "sim.tickEpsilon"), false);
     assert.match(
       sectionBody(markdown, "wowf-export"),
       /Rogue\\\|Eviscerate\\\|Rank 9/,
@@ -360,6 +460,7 @@ describe("provenance report", () => {
       sectionBody(markdown, "wowf-designer"),
       /`dot\.canCrit`[\s\S]*\| no\s*\|/,
     );
+    assert.match(sectionBody(markdown, "engineering"), /\| no\s*\|/);
     assert.match(sectionBody(markdown, "wowf-export"), /\| yes\s*\|/);
   });
 
@@ -412,7 +513,7 @@ describe("provenance report", () => {
       const badPath = join(dir, "bad-constants.mjs");
       await writeFile(
         badPath,
-        'export const CONSTANTS = { "dodge.target": { source: "classic", ref: "" } };\n',
+        'export const CONSTANTS = { "dodge.target": { source: "classic", ref: "" }, "parry.target": { source: "classic-1.12", ref: "TBD" } };\n',
       );
       const badReport = join(dir, "bad.md");
       const outcome = await runProvenance(badPath, {
@@ -422,6 +523,7 @@ describe("provenance report", () => {
       assert.equal(outcome.status, 1);
       assert.match(outcome.message, /unknown source/);
       assert.match(outcome.message, /missing ref/);
+      assert.match(outcome.message, /placeholder ref/);
       assert.doesNotMatch(outcome.message, /Wrote /);
       await assert.rejects(access(badReport), { code: "ENOENT" });
       assert.equal(
@@ -437,6 +539,7 @@ describe("provenance report", () => {
     const onDisk = await readFile(DEFAULT_REPORT_PATH, "utf8");
     assert.equal(onDisk, await renderProvenance(CONSTANTS));
     assert.match(onDisk, /Do not edit by hand/);
+    assert.match(onDisk, /`engineering`/);
 
     const retune = sectionBody(onDisk, "Retune list");
     // The roadmap's retune examples were dot.critMultiplier and rupture.apByCP.
@@ -444,6 +547,11 @@ describe("provenance report", () => {
     assert.equal(hasRow(retune, "dot.critMultiplier"), true);
     assert.equal(hasRow(retune, "rupture.apByCP"), true);
     assert.equal(hasRow(retune, "dot.canCrit"), false);
+    assert.equal(hasRow(retune, "attack.rollScale"), false);
+    assert.equal(hasRow(retune, "log.maxEvents"), false);
+    assert.equal(hasRow(retune, "sim.msPerSecond"), false);
+    assert.equal(hasRow(retune, "sim.tickEpsilon"), false);
+    assert.equal(hasRow(retune, "rupture.apAtZeroCp"), false);
 
     for (const [id, entry] of Object.entries(CONSTANTS)) {
       const listed = hasRow(retune, id);
