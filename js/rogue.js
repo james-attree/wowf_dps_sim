@@ -22,6 +22,8 @@ export class Rogue {
       backstab: new Skills.Backstab(this),
       ambush: new Skills.Ambush(this),
       bladeFlurry: new Skills.BladeFlurry(this),
+      rupture: new Skills.Rupture(this),
+      hemorrhage: new Skills.Hemorrhage(this)
     };
 
     // Weapons
@@ -67,16 +69,16 @@ export class Rogue {
 
     // If we aren't already under the effect of Slice and Dice, or if it's about to expire, and we have enough combo points, cast it
     if ((!simulation.activeBuffs["Slice and Dice"] || (simulation.activeBuffs["Slice and Dice"] && simulation.activeBuffs["Slice and Dice"].duration <= 3)) && this.comboPoints >= 4) {
-      this.abilities.sliceAndDice.cast(this, simulation);
+      //this.abilities.sliceAndDice.cast(this, simulation);
     }
 
-    if (this.comboPoints >= 4) {
-      this.abilities.eviscerate.cast(this, simulation);
+    if (this.comboPoints >= 5) {
+      this.abilities.rupture.cast(this, simulation);
     }
 
     this.abilities.ghostlyStrike.cast(this, simulation); // Cast Ghostly Strike if available
 
-    this.abilities.sinisterStrike.cast(this, simulation);
+    this.abilities.hemorrhage.cast(this, simulation);
 
     // Tick weapons
     let hasteMultiplier = 1; // Placeholder for any haste effects

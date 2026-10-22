@@ -10,6 +10,7 @@ class Skill {
         this.triggersGcd = true; // Whether this skill triggers the global cooldown
         this.attackSkill = true;
         this.icon = "./img/stealth.jpg"; // Default icon, can be overridden by subclasses
+        this.dot = false;
     }
 
     damage() {
@@ -34,7 +35,14 @@ class Skill {
             let result = null;
 
             if (this.attackSkill) {
-                result = simulation.resolveAttack(this.name, "skill", this.damage(), this.icon);
+                if (this.dot) {
+                    // For DoT skills, we can log the application of the DoT without calculating immediate damage
+                    result = simulation.resolveDotAttack(this.name, "skill", this.damage(), this.duration, this.icon);
+                } else {
+                    result = simulation.resolveAttack(this.name, "skill", this.damage(), this.icon);
+                }
+            } else {
+                simulation.addCombatEvent(this.name, "skill", 0, "Cast", "cast", this.icon);
             }
 
             if (result && !result.landed) {
@@ -222,5 +230,67 @@ export class BladeFlurry extends Skill {
         this.triggersGcd = false; // Blade Flurry does not trigger the global cooldown
         this.attackSkill = false; // Blade Flurry is not an attack skill
         this.icon = "./img/blade_flurry.jpg"; // Set the icon for Blade Flurry
+    }
+}
+
+export class Rupture extends Skill {
+    constructor(rogue) {
+        super("Rupture", 25, 0);
+        this.rogue = rogue;
+        this.spender = true; // Rupture is a combo point spender
+        this.triggersGcd = true; // Rupture triggers the global cooldown
+        this.attackSkill = true; // Rupture is not an attack skill
+        this.icon = "./img/rupture.jpg"; // Set the icon for Rupture
+        this.dot = true; // Rupture is a damage over time skill
+    }
+
+    damage() {
+        const attackPower = this.rogue.getAttackPower();
+        let baseDamage = 0;
+        let duration = 0;
+        let apScaling = 0.1; // Example scaling factor for attack power
+        switch (this.rogue.comboPoints) {
+            case 1:
+                baseDamage = 159;
+                duration = 8;
+                apScaling = 0.06;
+                break;
+            case 2:
+                baseDamage = 222;
+                duration = 10;
+                apScaling = 0.12;
+                break;
+            case 3:
+                baseDamage = 295;
+                duration = 12;
+                apScaling = 0.18;
+                break;
+            case 4:
+                baseDamage = 377;
+                duration = 14;
+                apScaling = 0.24;    
+                break;
+            case 5:
+                baseDamage = 469;
+                duration = 16;
+                apScaling = 0.30;
+                break;
+        }
+        this.duration = duration;
+        return baseDamage + (attackPower * apScaling);
+    }
+}
+
+export class Hemorrhage extends Skill {
+    constructor(rogue) {
+        super("Hemorrhage", 35, 0);
+        this.rogue = rogue;
+        this.duration = 15;
+        this.comboPointsGenerated = 1; // Ghostly Strike generates 1 combo point
+        this.icon = "./img/hemorrhage.jpg"; // Set the icon for Ghostly Strike
+    }
+
+    damage() {
+        return this.rogue.rollWeaponDamageForSkill() * 1.45; // Example base damage for Ghostly Strike
     }
 }

@@ -85,3 +85,7 @@ function clampChance(chance, name) {
   }
   return Math.min(1, Math.max(0, chance));
 }
+
+export function rollCrit(critChance) {
+    return Math.random() < clampChance(critChance, "Critical chance");
+}

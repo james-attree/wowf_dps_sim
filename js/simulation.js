@@ -1,4 +1,4 @@
-import { resolveAttack } from "./attack-resolver.js";
+import { resolveAttack, rollCrit } from "./attack-resolver.js";
 
 export class Simulation {
     constructor(rogue) {
@@ -6,12 +6,13 @@ export class Simulation {
         this.currentTime = 0;
         this.damageDone = 0;
         this.gcd = 0; // Global Cooldown
-        this.gcdDuration = 1.5;
+        this.gcdDuration = 1.0;
         this.combatLog = [];
         this.nextCombatEventId = 0;
         this.lastFrameTime = performance.now();
         this.cooldowns = {}; // Track cooldowns for skills
         this.activeBuffs = {}; // Track active buffs
+        this.activeDots = {}; // Track active damage over time effects
     }
 
     update(currentTime){
@@ -25,6 +26,37 @@ export class Simulation {
             this.rogue.regenerateEnergy(dt, 10);
         }
         this.tickGcd(dt);
+
+        // Handle existing DoTs before rotation so newly cast DoTs start ticking next update.
+        for (const [dotName, dot] of Object.entries(this.activeDots)) {
+            const elapsed = Math.min(dt, dot.duration);
+            dot.duration -= dt;
+            dot.timeUntilNextTick -= elapsed;
+
+            while (dot.timeUntilNextTick <= 1e-9) {
+                let dotTickDamage = dot.tickDamage;
+            
+                if (this.activeBuffs["Hemorrhage"]) {
+                    dotTickDamage *= 1.15;
+                    console.log (dotTickDamage);
+                }
+
+                let dotHitCrit = "Hit";
+                // roll crit for each tick
+                if (rollCrit(this.rogue.critChance))
+                {
+                    dotTickDamage *= 2;
+                    dotHitCrit = "Crit";
+                }
+                this.updateDamage(dotTickDamage);
+                this.addCombatEvent(dotName, "skill", dotTickDamage, dotHitCrit, dotHitCrit, dot.icon);
+                dot.timeUntilNextTick += dot.tickInterval;
+            }
+
+            if (dot.duration <= 0) {
+                delete this.activeDots[dotName];
+            }
+        }
 
         this.rogue.rotation(this, dt);
 
@@ -61,10 +93,31 @@ export class Simulation {
             bonusHitChance: this.rogue.bonusHitChance,
             critChance: this.rogue.critChance
         });
-        if(result.damage > 0){
+        if(result.landed &&result.damage > 0){
             this.updateDamage(result.damage);
         }
         this.addCombatEvent(name, attackType, result.damage, result.status, result.outcome, icon);
+        return result;
+    }
+
+    resolveDotAttack(name, attackType, baseDamage, duration, icon = null){
+        const result = resolveAttack({
+            attackType,
+            baseDamage,
+            bonusHitChance: this.rogue.bonusHitChance,
+            critChance: 0
+        });
+        const tickCount = Math.floor(duration / 2);
+        if(result.landed && result.damage > 0 && tickCount > 0){
+            this.activeDots[name] = {
+                duration,
+                tickInterval: 2,
+                timeUntilNextTick: 2,
+                tickDamage: result.damage / tickCount,
+                icon: icon
+            };
+        }
+        this.addCombatEvent(name, attackType, 0, result.status, result.outcome, icon);
         return result;
     }
 
