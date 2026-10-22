@@ -103,7 +103,7 @@ export const CONSTANTS = {
     "energy, ×, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Slice and Dice|Rank 2]",
-    "Duration is 6 + 3 × CP, stored per combo point. The cast is still commented out (Q13) and off the GCD (Q15).",
+    "Duration is 6 + 3 × CP, stored per combo point. The rotation refreshes it. Haste shortens the next swing of both weapons; the current swing is not rescaled. The engine still leaves it off the GCD (Q15).",
     false,
   ),
   "hemorrhage.ruptureBonus": entry(
@@ -714,7 +714,7 @@ export const CONSTANTS = {
     "CP",
     ASSUMPTION,
     SAMPLE_INPUT,
-    "Rotation threshold. The cast is commented out.",
+    "Slice and Dice is refreshed once combo points reach this.",
     true,
   ),
   "rotation.sliceAndDiceRefreshSeconds": entry(
@@ -722,7 +722,7 @@ export const CONSTANTS = {
     "s",
     ASSUMPTION,
     SAMPLE_INPUT,
-    "The cast is commented out, so this does not change damage today.",
+    "Refresh when the remaining duration is at or below this.",
     true,
   ),
 

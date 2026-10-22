@@ -1,0 +1,169 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { afterEach, describe, it, mock } from "node:test";
+import { CONSTANTS, k } from "../data/constants.js";
+import { Rogue } from "../js/rogue.js";
+import { Simulation } from "../js/simulation.js";
+
+function near(actual, expected) {
+  assert.ok(
+    Number.isFinite(actual) &&
+      Math.abs(actual - expected) <= k("sim.tickEpsilon"),
+    `${actual} is not within tick epsilon of ${expected}`,
+  );
+}
+
+function holdCooldowns(sim) {
+  const held = k("bladeFlurry").cooldown;
+  for (const name of [
+    "Adrenaline Rush",
+    "Blade Flurry",
+    "Premeditation",
+    "Ghostly Strike",
+  ]) {
+    sim.cooldowns[name] = held;
+  }
+}
+
+function pinned() {
+  const rogue = new Rogue();
+  const sim = new Simulation(rogue);
+  sim.lastFrameTime = 0;
+  assert.equal(sim.currentTime, 0);
+  holdCooldowns(sim);
+  rogue.weapons.mainHand.swingTimer = k("sliceAndDice").durationByCp.at(-1);
+  rogue.weapons.offHand.swingTimer = k("sliceAndDice").durationByCp.at(-1);
+  rogue.energy = k("sliceAndDice").energy;
+  return { rogue, sim };
+}
+
+function advance(sim, seconds) {
+  sim.update(sim.lastFrameTime + seconds * k("sim.msPerSecond"));
+}
+
+describe("Slice and Dice export", () => {
+  it("reads Rank 2 attack speed and the per-combo-point durations", async () => {
+    const snapshot = JSON.parse(
+      await readFile(
+        new URL("../data/talentsforever/rogue.json", import.meta.url),
+      ),
+    );
+    const spell = snapshot.spell_desc["Rogue|Slice and Dice|Rank 2"];
+    const hastePct = Number(spell.d.match(/attack speed by (\d+)%/)[1]);
+    const durationByCp = [];
+    for (const match of spell.d.matchAll(
+      /(\d+) points?\s*:\s*(\d+) seconds/g,
+    )) {
+      durationByCp[Number(match[1]) - 1] = Number(match[2]);
+    }
+    const energy = Number(
+      spell.l
+        .flat()
+        .join(" ")
+        .match(/(\d+) Energy/)[1],
+    );
+    const step = durationByCp[1] - durationByCp[0];
+    const base = durationByCp[0] - step;
+
+    assert.equal(durationByCp.length, k("combo.max"));
+    for (let index = 0; index < durationByCp.length; index += 1) {
+      assert.equal(durationByCp[index], base + step * (index + 1));
+    }
+    assert.equal(k("sliceAndDice").haste, hastePct / 100);
+    assert.deepEqual(k("sliceAndDice").durationByCp, durationByCp);
+    assert.equal(k("sliceAndDice").energy, energy);
+    assert.equal(/cooldown/i.test(spell.l.flat().join(" ")), false);
+    assert.equal(k("sliceAndDice").cooldown, 0);
+    assert.equal(CONSTANTS.sliceAndDice.source, "wowf-export");
+    assert.equal(
+      CONSTANTS.sliceAndDice.ref,
+      "rogue.json → spell_desc[Rogue|Slice and Dice|Rank 2]",
+    );
+  });
+});
+
+describe("Slice and Dice rotation", () => {
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
+  it("casts at the combo-point threshold and refreshes inside the window", () => {
+    mock.method(Math, "random", () => 0.5);
+    const { rogue, sim } = pinned();
+    const below = k("rotation.sliceAndDiceComboPoints") - 1;
+    rogue.comboPoints = below;
+    sim.update(0);
+
+    assert.equal(sim.currentTime, 0);
+    assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
+    assert.equal(rogue.comboPoints, below);
+    assert.equal(rogue.energy, k("sliceAndDice").energy);
+
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    sim.update(0);
+    const refreshed =
+      k("sliceAndDice").durationByCp[k("rotation.sliceAndDiceComboPoints") - 1];
+
+    assert.equal(sim.activeBuffs["Slice and Dice"].duration, refreshed);
+    assert.equal(sim.activeDebuffs["Slice and Dice"], undefined);
+    assert.equal(rogue.comboPoints, 0);
+    assert.equal(rogue.energy, 0);
+    assert.equal(sim.gcd, 0);
+
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    rogue.energy = k("sliceAndDice").energy;
+    sim.activeBuffs["Slice and Dice"].duration =
+      k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon");
+    sim.update(0);
+
+    assert.equal(rogue.comboPoints, k("rotation.sliceAndDiceComboPoints"));
+    assert.equal(
+      sim.activeBuffs["Slice and Dice"].duration,
+      k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon"),
+    );
+
+    rogue.comboPoints = k("combo.max");
+    rogue.energy = k("sliceAndDice").energy;
+    sim.activeBuffs["Slice and Dice"].duration = k(
+      "rotation.sliceAndDiceRefreshSeconds",
+    );
+    sim.update(0);
+
+    assert.equal(rogue.comboPoints, 0);
+    assert.equal(sim.activeDots.Rupture, undefined);
+    assert.equal(
+      sim.activeBuffs["Slice and Dice"].duration,
+      k("sliceAndDice").durationByCp.at(-1),
+    );
+  });
+
+  it("shortens the next swing of both weapons and leaves the current one", () => {
+    mock.method(Math, "random", () => 0.5);
+    const { rogue, sim } = pinned();
+    const mainHand = rogue.weapons.mainHand;
+    const offHand = rogue.weapons.offHand;
+    mainHand.swingTimer = mainHand.speed;
+    offHand.swingTimer = offHand.speed;
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    const opened = k("weapon.offHand").initialSwing;
+    const haste = 1 + k("sliceAndDice").haste;
+
+    advance(sim, opened);
+
+    assert.equal(
+      sim.activeBuffs["Slice and Dice"].duration,
+      k("sliceAndDice").durationByCp[k("rotation.sliceAndDiceComboPoints") - 1],
+    );
+    near(mainHand.swingTimer, mainHand.speed - opened);
+    near(offHand.swingTimer, offHand.speed - opened);
+
+    const offLeft = offHand.swingTimer;
+    advance(sim, offLeft);
+    near(offHand.swingTimer, offHand.speed / haste);
+
+    const mainLeft = mainHand.swingTimer;
+    advance(sim, mainLeft);
+    near(mainHand.swingTimer, mainHand.speed / haste);
+    near(offHand.swingTimer, offHand.speed / haste - mainLeft);
+  });
+});
