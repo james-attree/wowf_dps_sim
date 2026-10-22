@@ -77,22 +77,35 @@ against those ids in `docs/mechanics.md`
 
 - `wowf-export` — taken from the talentsforever snapshot. Re-read it when that
   snapshot refreshes.
-- `wowf-designer` — James's knowledge of WoW Forever.
+- `wowf-designer` — James's knowledge of WoW Forever. Sign the `ref` as
+  `<owner>, <date>: <reason>` (for example `James, 22 Oct 2026: ...`).
 - `classic-1.12` — a Classic 1.12 reference value. This is the fallback
   wherever WoW Forever data is missing, and it stays until WoW Forever is
   measured.
 - `cataclysm` — a later mechanic WoW Forever borrows on purpose.
-- `assumption` — a default or sample input. Sign the `ref` as
-  `James, 22 Oct 2026: <reason>`.
+- `assumption` — a default, a sample input, or James's presumption where WoW
+  Forever data is missing. Sign the `ref` the same way.
 - `engineering` — simulator machinery, not a game rule. Leave `retune` off.
 
 `npm run provenance` checks `data/constants.js`, then rewrites
 [`docs/provenance.md`](docs/provenance.md). The command fails if a `ref` is
-missing, is only a dash, or is a placeholder (`TBD`, `N/A`, `?`, `tbd later`,
-or text containing `fill in` or `no recorded owner decision`), or if `source`
-is not one of the tags above. `docs/provenance.md` is generated. Do not edit
-it by hand. Its retune list is every constant whose source is not
-`wowf-export` and whose `retune` flag is on.
+missing, is made only of Unicode dashes (a hyphen, an en dash, an em dash, or
+a run of them; spaces do not count), or is a placeholder, or if `source` is
+not one of the tags above.
+
+A placeholder is judged on the normalized ref: lower-cased, dashes turned into
+spaces, other punctuation and symbols removed, and whitespace collapsed. The
+whole normalized ref `na` or `tbd later` fails, so `N/A`, `NA`, `N.A.`, and
+`tbd-later` fail, and a longer ref such as `Na (sodium)` does not. A ref whose
+first word is `tbd` fails, including `TBD`, `TBD.`, and a ref that starts
+with `TBD:`. A ref that normalizes to nothing fails, which is a ref made only of
+punctuation or symbols, such as `?`, `??`, or `...`. The phrases `fill in` and
+`no recorded owner decision` fail only as whole words, so `fill-in` fails and
+`refill interval` does not.
+
+`docs/provenance.md` is generated. Do not edit it by hand. Its retune list is
+every constant whose source is not `wowf-export` and whose `retune` flag is
+on.
 
 ## Module map
 
@@ -102,14 +115,16 @@ it by hand. Its retune list is every constant whose source is not
 - `styles.css` — Dark layout and meters for that page.
 - `js/main.js` — UI entry: the animation frame, pause control, and DOM updates.
   The only file under `js/` that may use `document` and `window`.
-- `js/simulation.js` — Steps energy, auras, cooldowns, the GCD, DoTs, and
-  Premeditation expiry, runs the rotation, and records damage and the combat
-  log.
+- `js/simulation.js` — Steps energy, buffs, debuffs, cooldowns, the GCD, DoTs,
+  and Premeditation expiry, applies armor to direct hits and to ticks (bleeds
+  and nature damage can skip it), runs the rotation, and records damage and
+  the combat log.
 - `js/rogue.js` — Energy, combo points, crit, hit, weapons, abilities, and the
   priority rotation.
 - `js/skill.js` — Shared `Skill` cast path, plus Sinister Strike, Eviscerate,
   Premeditation, Adrenaline Rush, Slice and Dice, Ghostly Strike, Backstab,
-  Ambush, Blade Flurry, Rupture, and Hemorrhage.
+  Ambush, Blade Flurry, Rupture, and Hemorrhage. Rupture sets `bleed` so its
+  ticks can skip armor.
 - `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
   glancing, crit, hit) for white swings and skills. Chances come from `k(id)`.
 - `js/weapon.js` — Swing timer and damage roll for a main-hand or off-hand
@@ -136,9 +151,9 @@ it by hand. Its retune list is every constant whose source is not
   numeric variable initializer in an engine module fails lint, except `0`,
   `1`, and `-1`.
 - `test/` — Node's built-in tests for the attack table, weapons, finishers,
-  Premeditation, the simulation clock, the GCD meter, constants, provenance,
-  the data refresh, the static server, engine lint, the dev package, the CI
-  workflow, and the Pages deploy.
+  Premeditation, the simulation clock, armor and bleeds, the GCD meter,
+  constants, provenance, the data refresh, the static server, engine lint, the
+  dev package, the CI workflow, and the Pages deploy.
 - `img/` — JPEG ability icons. Skills set their own file; the `Skill`
   default is `img/stealth.jpg`. `img/garotte.jpg` is not referenced.
   `.prettierignore` excludes the directory.
@@ -171,7 +186,7 @@ request merges. If `main` moves, merge `main` into the branch. Do not
 force-push. Peer review comes first, then QA, and the coordinator merges.
 
 New game numbers go in `data/constants.js` and are read with `k(id)`. Sign an
-assumption `ref` as `James, 22 Oct 2026: <reason>`. Use `classic-1.12` where
-WoW Forever data is missing. After a constants change, run
-`npm run provenance` and commit the generated `docs/provenance.md`. Do not
-edit that file by hand.
+`assumption` or `wowf-designer` `ref` as `<owner>, <date>: <reason>` (for
+example `James, 22 Oct 2026: ...`). Use `classic-1.12` where WoW Forever data
+is missing. After a constants change, run `npm run provenance` and commit the
+generated `docs/provenance.md`. Do not edit that file by hand.
