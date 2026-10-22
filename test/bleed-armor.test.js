@@ -101,17 +101,20 @@ describe("DoT crit multiplier", () => {
     }
 
     const poison = tickDot("Deadly Poison");
-    assert.equal(poison.damageDone, TICK_DAMAGE * multiplier * factor);
+    assert.equal(poison.damageDone, TICK_DAMAGE * multiplier);
     assert.equal(poison.combatLog[0].status, "Crit");
-    assert.ok(poison.damageDone < TICK_DAMAGE * multiplier);
+    assert.equal(poison.combatLog[0].damage, poison.damageDone);
+    assert.ok(poison.damageDone > TICK_DAMAGE * multiplier * factor);
 
     const other = k("glancing.damage");
     assert.notEqual(other, multiplier);
-    const changed = withConstant("dot.critMultiplier", other, () =>
-      tickDot("Rupture"),
-    );
-    assert.equal(changed.damageDone, TICK_DAMAGE * other);
-    assert.notEqual(changed.damageDone, TICK_DAMAGE * multiplier);
+    const changed = withConstant("dot.critMultiplier", other, () => ({
+      rupture: tickDot("Rupture").damageDone,
+      poison: tickDot("Deadly Poison").damageDone,
+    }));
+    assert.equal(changed.rupture, TICK_DAMAGE * other);
+    assert.equal(changed.poison, TICK_DAMAGE * other);
+    assert.notEqual(changed.poison, TICK_DAMAGE * multiplier);
 
     const blocked = withConstant("dot.canCrit", false, () =>
       tickDot("Garrote"),
@@ -126,7 +129,7 @@ describe("bleed ticks and armor", () => {
     mock.restoreAll();
   });
 
-  it("does not reduce Rupture or Hemorrhage-type bleed ticks, and does reduce white hits and non-bleed damage", () => {
+  it("does not reduce bleed or Deadly Poison ticks, and does reduce physical hits", () => {
     mock.method(Math, "random", () => 0.5);
     const factor = expectedMultiplier();
     assert.ok(factor < 1);
@@ -145,8 +148,8 @@ describe("bleed ticks and armor", () => {
     assert.equal(garrote.damageDone, TICK_DAMAGE);
     assert.equal(hemorrhageTick.damageDone, TICK_DAMAGE);
     assert.equal(boosted.damageDone, TICK_DAMAGE * bonus);
-    assert.equal(poison.damageDone, TICK_DAMAGE * factor);
-    assert.ok(poison.damageDone < TICK_DAMAGE);
+    assert.equal(poison.damageDone, TICK_DAMAGE);
+    assert.equal(poison.combatLog[0].damage, TICK_DAMAGE);
 
     const unarmored = withConstant("target.armor", 0, () => ({
       rupture: tickDot("Rupture", { critChance: 0 }).damageDone,
@@ -155,25 +158,32 @@ describe("bleed ticks and armor", () => {
       poison: tickDot("Deadly Poison", { critChance: 0 }).damageDone,
       white: directHit("Main-hand", "weapon").result.damage,
       strike: directHit("Hemorrhage", "skill").result.damage,
+      ghostly: directHit("Ghostly Strike", "skill").result.damage,
     }));
     assert.equal(unarmored.rupture, TICK_DAMAGE);
     assert.equal(unarmored.boosted, TICK_DAMAGE * bonus);
     assert.equal(unarmored.poison, TICK_DAMAGE);
     assert.equal(unarmored.white, TICK_DAMAGE);
     assert.equal(unarmored.strike, TICK_DAMAGE);
+    assert.equal(unarmored.ghostly, TICK_DAMAGE);
 
     const white = directHit("Main-hand", "weapon");
     const strike = directHit("Hemorrhage", "skill");
+    const ghostly = directHit("Ghostly Strike", "skill");
     assert.equal(white.result.outcome, "hit");
     assert.equal(strike.result.outcome, "hit");
+    assert.equal(ghostly.result.outcome, "hit");
     assert.equal(white.result.damage, TICK_DAMAGE * factor);
     assert.equal(strike.result.damage, TICK_DAMAGE * factor);
+    assert.equal(ghostly.result.damage, TICK_DAMAGE * factor);
     assert.equal(white.sim.damageDone, white.result.damage);
     assert.equal(white.sim.combatLog[0].damage, white.result.damage);
     assert.ok(white.result.damage < unarmored.white);
     assert.ok(strike.result.damage < unarmored.strike);
+    assert.ok(ghostly.result.damage < unarmored.ghostly);
     assert.equal(rupture.damageDone, unarmored.rupture);
     assert.equal(boosted.damageDone, unarmored.boosted);
+    assert.equal(poison.damageDone, unarmored.poison);
   });
 
   it("reads bleed.ignoresArmor, bleed.spells, target armor, and attacker level", () => {
@@ -191,6 +201,15 @@ describe("bleed ticks and armor", () => {
     }));
     assert.equal(dropped.rupture, TICK_DAMAGE * factor);
     assert.equal(dropped.garrote, TICK_DAMAGE);
+
+    const natureOff = withConstant("nature.ignoresArmor", false, () =>
+      tickDot("Deadly Poison", { critChance: 0 }),
+    );
+    assert.equal(natureOff.damageDone, TICK_DAMAGE * factor);
+    const notNature = withConstant("nature.spells", [], () =>
+      tickDot("Deadly Poison", { critChance: 0 }),
+    );
+    assert.equal(notNature.damageDone, TICK_DAMAGE * factor);
 
     const level = k("target.level");
     assert.notEqual(level, k("character.level"));

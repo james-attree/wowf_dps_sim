@@ -470,7 +470,7 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "Physical periodic damage skips armor.mitigation. Rupture and Garrote are the bleed spells. Direct hits and other ticks, including Deadly Poison, are reduced.",
+    "Physical periodic damage skips armor.mitigation. Rupture and Garrote are the bleed spells. Physical direct hits are reduced. Deadly Poison skips armor as nature damage.",
     true,
   ),
   "bleed.spells": entry(
@@ -478,7 +478,23 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff only increases Rupture. Deadly Poison is not a bleed.",
+    "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff only increases Rupture. Deadly Poison is nature, not a bleed.",
+    true,
+  ),
+  "nature.ignoresArmor": entry(
+    true,
+    "–",
+    CLASSIC,
+    `${WS}core/spell_resistances.go`,
+    "Armor applies to physical damage. Nature damage skips it. Deadly Poison ticks use this. Spell resistance is not modeled.",
+    true,
+  ),
+  "nature.spells": entry(
+    ["Deadly Poison"],
+    "–",
+    CLASSIC,
+    `${WS}core/spell_resistances.go`,
+    "Deadly Poison deals nature damage, so its ticks skip armor when nature.ignoresArmor is set.",
     true,
   ),
   "dot.snapshot": entry(
@@ -510,7 +526,7 @@ export const CONSTANTS = {
     "fraction",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "armor / (armor + constant + perLevel × character.level), capped. At 60 the divisor constant is 5500. Applied to direct hits and to ticks that are not bleeds.",
+    "armor / (armor + constant + perLevel × character.level), capped. At 60 the divisor constant is 5500. Applied to physical direct hits and to ticks that are neither bleeds nor nature.",
     true,
   ),
   "agility.ap": entry(
@@ -592,7 +608,7 @@ export const CONSTANTS = {
     undecided(
       "The roadmap constants table lists 3731 as a common Classic raid-boss armor value before debuffs.",
     ),
-    "Editable input. Direct hits and non-bleed ticks use it with armor.mitigation. Bleed ticks skip it when bleed.ignoresArmor is set.",
+    "Editable input. Physical direct hits use it with armor.mitigation. Bleed ticks skip it when bleed.ignoresArmor is set. Nature ticks skip it when nature.ignoresArmor is set.",
     true,
   ),
   "target.behind": entry(

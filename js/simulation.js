@@ -12,10 +12,17 @@ function tickAuras(auras, dt) {
   );
 }
 
-// Classic physical periodic damage ignores armor. Forever keeps that for the
-// bleed spell list. Direct hits and any other tick use armor.mitigation.
+// Physical periodic damage and nature damage ignore armor. Other ticks and
+// direct hits use armor.mitigation. Spell resistance is not applied.
 function isBleedTick(name, dot) {
   return dot.bleed === true || k("bleed.spells").includes(name);
+}
+
+function tickSkipsArmor(name, dot) {
+  if (isBleedTick(name, dot) && k("bleed.ignoresArmor")) {
+    return true;
+  }
+  return k("nature.spells").includes(name) && k("nature.ignoresArmor");
 }
 
 function armorMultiplier() {
@@ -36,8 +43,8 @@ function armorMultiplier() {
   return 1 - reduction;
 }
 
-function applyArmor(damage, bleed) {
-  if (bleed && k("bleed.ignoresArmor")) {
+function applyArmor(damage, skipArmor) {
+  if (skipArmor) {
     return damage;
   }
   return damage * armorMultiplier();
@@ -112,7 +119,7 @@ export class Simulation {
           dotTickDamage *= k("dot.critMultiplier");
           dotHitCrit = "Crit";
         }
-        dotTickDamage = applyArmor(dotTickDamage, isBleedTick(dotName, dot));
+        dotTickDamage = applyArmor(dotTickDamage, tickSkipsArmor(dotName, dot));
         this.updateDamage(dotTickDamage);
         this.addCombatEvent(
           dotName,
