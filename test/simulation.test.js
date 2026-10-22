@@ -43,10 +43,15 @@ function tickDot({ hemorrhage }) {
   const sim = new Simulation(rogue);
   primeDot(sim, "Rupture");
   if (hemorrhage) {
-    sim.activeBuffs.Hemorrhage = {
+    const aura = {
       duration: k("hemorrhage.ruptureBonus").duration,
       icon: null,
     };
+    if (hemorrhage === "buff") {
+      sim.activeBuffs.Hemorrhage = aura;
+    } else {
+      sim.activeDebuffs.Hemorrhage = aura;
+    }
   }
   sim.lastFrameTime = 0;
   sim.update(k("rupture.tickInterval") * k("sim.msPerSecond"));
@@ -95,6 +100,9 @@ describe("simulation output", () => {
     assert.equal(boosted.combatLog[0].damage, boosted.damageDone);
     assert.equal(boosted.combatLog[0].status, "Crit");
 
+    const misplaced = tickDot({ hemorrhage: "buff" });
+    assert.equal(misplaced.damageDone, plain.damageDone);
+
     assert.deepEqual(calls, []);
   });
 });
@@ -141,13 +149,14 @@ function runGhostlyStrike(fps) {
     sim.update(f * frameMs);
     if (f === lead) {
       assert.equal(sim.cooldowns[skill.name], cooldown);
-      assert.equal(sim.activeBuffs[skill.name].duration, buffDuration);
+      assert.equal(sim.activeDebuffs[skill.name].duration, buffDuration);
+      assert.equal(sim.activeBuffs[skill.name], undefined);
       assert.equal(castTime, sim.currentTime);
     }
     if (f <= lead) {
       continue;
     }
-    const buff = sim.activeBuffs[skill.name];
+    const buff = sim.activeDebuffs[skill.name];
     if (buff) {
       lastBuffDuration = buff.duration;
     } else if (buffGoneAt === null) {
@@ -221,7 +230,7 @@ describe("buff and cooldown duration", () => {
     mock.restoreAll();
   });
 
-  it("is ready at exactly t + 20 and the buff lasts its full duration at 30 and 144 fps", () => {
+  it("is ready at exactly t + 20 and the debuff lasts its full duration at 30 and 144 fps", () => {
     mock.method(Math, "random", () => 0.5);
     assert.equal(k("ghostlyStrike").cooldown, 20);
 
@@ -252,15 +261,25 @@ describe("buff and cooldown duration", () => {
 
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
+      const debuffDuration = k("hemorrhage.ruptureBonus").duration;
+      const runningDebuff = k("rupture").durationByCp[0];
       rogue.rotation = (sim) => {
         sim.cooldowns["Ghostly Strike"] = applied;
         sim.activeBuffs["Blade Flurry"] = {
           duration: buffDuration,
           icon: null,
         };
+        sim.activeDebuffs.Hemorrhage = {
+          duration: debuffDuration,
+          icon: null,
+        };
       };
       const sim = new Simulation(rogue);
       sim.cooldowns.Premeditation = running;
+      sim.activeDebuffs.Rupture = {
+        duration: runningDebuff,
+        icon: null,
+      };
       sim.lastFrameTime = 0;
       const frameMs = k("sim.msPerSecond") / fps;
       sim.update(frameMs);
@@ -271,6 +290,11 @@ describe("buff and cooldown duration", () => {
       );
       assert.equal(sim.cooldowns["Ghostly Strike"], applied);
       assert.equal(sim.activeBuffs["Blade Flurry"].duration, buffDuration);
+      assert.equal(sim.activeDebuffs.Hemorrhage.duration, debuffDuration);
+      near(
+        sim.activeDebuffs.Rupture.duration,
+        runningDebuff - frameMs / k("sim.msPerSecond"),
+      );
     }
   });
 });
@@ -349,6 +373,73 @@ describe("Adrenaline Rush bonus energy", () => {
     for (const bonus of Object.values(bonuses)) {
       near(bonus, bonuses["10 fps"]);
     }
+  });
+});
+
+describe("player buffs and target debuffs", () => {
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
+  it("keeps self buffs off the debuff list and target effects off the player", () => {
+    mock.method(Math, "random", () => 0.99);
+    const rogue = new Rogue();
+    rogue.bonusHitChance = 1;
+    rogue.critChance = 0;
+    rogue.energy = rogue.maxEnergy;
+    const sim = new Simulation(rogue);
+
+    rogue.abilities.adrenalineRush.cast(rogue, sim);
+    rogue.abilities.bladeFlurry.cast(rogue, sim);
+    rogue.comboPoints = k("combo.max");
+    rogue.abilities.sliceAndDice.cast(rogue, sim);
+
+    rogue.energy = rogue.maxEnergy;
+    sim.gcd = 0;
+    const ghostly = rogue.abilities.ghostlyStrike.cast(rogue, sim);
+    assert.equal(ghostly.landed, true);
+
+    rogue.energy = rogue.maxEnergy;
+    sim.gcd = 0;
+    const hemorrhage = rogue.abilities.hemorrhage.cast(rogue, sim);
+    assert.equal(hemorrhage.landed, true);
+
+    rogue.comboPoints = 1;
+    rogue.energy = rogue.maxEnergy;
+    sim.gcd = 0;
+    const rupture = rogue.abilities.rupture.cast(rogue, sim);
+    assert.equal(rupture.landed, true);
+
+    assert.deepEqual(Object.keys(sim.activeBuffs).sort(), [
+      "Adrenaline Rush",
+      "Blade Flurry",
+      "Slice and Dice",
+    ]);
+    assert.deepEqual(Object.keys(sim.activeDebuffs).sort(), [
+      "Ghostly Strike",
+      "Hemorrhage",
+      "Rupture",
+    ]);
+    assert.equal(
+      sim.activeBuffs["Slice and Dice"].duration,
+      k("sliceAndDice").durationByCp.at(-1),
+    );
+    assert.equal(
+      sim.activeDebuffs["Ghostly Strike"].duration,
+      k("ghostlyStrike").duration,
+    );
+    assert.equal(
+      sim.activeDebuffs.Hemorrhage.duration,
+      k("hemorrhage.ruptureBonus").duration,
+    );
+    assert.equal(
+      sim.activeDebuffs.Rupture.duration,
+      k("rupture").durationByCp[0],
+    );
+    assert.equal(
+      sim.activeDots.Rupture.duration,
+      sim.activeDebuffs.Rupture.duration,
+    );
   });
 });
 
