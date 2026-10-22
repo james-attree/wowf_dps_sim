@@ -137,10 +137,11 @@ describe("finishers at 1 combo point", () => {
     assert.equal(rogue.abilities.sliceAndDice.duration, duration);
     assert.equal(sim.activeBuffs["Slice and Dice"].duration, duration);
     assert.equal(sim.activeDebuffs["Slice and Dice"], undefined);
-    assert.equal(sim.gcd, 0);
+    assert.equal(sim.gcd, k("gcd.duration"));
     assert.equal(sim.combatLog[0].name, "Slice and Dice");
     assert.equal(sim.combatLog[0].status, "Cast");
 
+    sim.gcd = 0;
     const rejected = rogue.abilities.sliceAndDice.cast(rogue, sim);
 
     assert.equal(rejected, null);

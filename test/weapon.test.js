@@ -337,8 +337,10 @@ describe("swing timer fight regression", () => {
     // points. Cast and swing counts are unchanged; the cycle ends 3 points
     // lower because those casts no longer begin from 3. Issue #23 scales
     // physical direct hits by armor. Rupture ticks and Deadly Poison skip it.
-    // Deadly Poison is not cast in this fight. This roll does not crit a DoT
-    // tick, so both frame rates still deal the same total.
+    // Deadly Poison is not cast in this fight. Issue #24 puts Blade Flurry
+    // and Adrenaline Rush on the GCD, so the builder after each one waits.
+    // The same finishers still land, and 23 Rupture ticks fit in the minute.
+    // This roll does not crit a DoT tick, so both frame rates deal the same total.
     const casts = {
       "Adrenaline Rush": 1,
       "Blade Flurry": 1,
@@ -346,7 +348,7 @@ describe("swing timer fight regression", () => {
       "Ghostly Strike": 1,
       Hemorrhage: 19,
       Rupture: 4,
-      "Rupture tick": 25,
+      "Rupture tick": 23,
       "Main-hand": 36,
       "Off-hand": 37,
     };

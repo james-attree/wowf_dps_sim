@@ -261,7 +261,7 @@ describe("simulator values other than white miss", () => {
       energyCost: 0,
       cooldown: 300,
       duration: 15,
-      triggersGcd: false,
+      triggersGcd: true,
       attackSkill: false,
       targetAura: false,
     });
@@ -269,7 +269,7 @@ describe("simulator values other than white miss", () => {
       energyCost: 25,
       cooldown: 0,
       spender: true,
-      triggersGcd: false,
+      triggersGcd: true,
       attackSkill: false,
       targetAura: false,
     });
@@ -294,7 +294,7 @@ describe("simulator values other than white miss", () => {
       energyCost: 25,
       cooldown: 120,
       duration: 15,
-      triggersGcd: false,
+      triggersGcd: true,
       attackSkill: false,
       targetAura: false,
     });
