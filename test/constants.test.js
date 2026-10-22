@@ -126,10 +126,10 @@ describe("constants", () => {
     );
     assert.equal(
       CONSTANTS["dot.critMultiplier"].ref,
-      "James, 22 Oct 2026: DoTs and bleeds crit at 2x like other crits; no WoW Forever data yet, retune when available.",
+      "James, 22 Oct 2026: 2x DoT/bleed crit is standard and unlikely to change; update the code if it does",
     );
     assert.equal(CONSTANTS["dot.critMultiplier"].source, "assumption");
-    assert.equal(CONSTANTS["dot.critMultiplier"].retune, true);
+    assert.equal(CONSTANTS["dot.critMultiplier"].retune, false);
     assert.equal(k("dot.canCrit"), true);
     assert.equal(k("dot.critMultiplier"), 2);
     assert.equal(k("bleed.ignoresArmor"), true);
