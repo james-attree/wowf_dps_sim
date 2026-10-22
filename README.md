@@ -93,14 +93,18 @@ missing, is made only of Unicode dashes (a hyphen, an en dash, an em dash, or
 a run of them; spaces do not count), or is a placeholder, or if `source` is
 not one of the tags above.
 
-A placeholder is judged on the normalized ref: lower-cased, dashes turned into
-spaces, other punctuation and symbols removed, and whitespace collapsed. The
-whole normalized ref `na` or `tbd later` fails, so `N/A`, `NA`, `N.A.`, and
-`tbd-later` fail, and a longer ref such as `Na (sodium)` does not. A ref whose
-first word is `tbd` fails, including `TBD`, `TBD.`, and a ref that starts
-with `TBD:`. A ref that normalizes to nothing fails, which is a ref made only of
-punctuation or symbols, such as `?`, `??`, or `...`. The phrases `fill in` and
-`no recorded owner decision` fail only as whole words, so `fill-in` fails and
+A placeholder is judged on the normalized ref: lower-cased, with word
+separators turned into spaces, other punctuation and symbols removed, and
+whitespace collapsed. Dashes, underscores (`_`), colons (`:`), slashes (`/`),
+backslashes (`\`), and vertical bars (`|`) separate words. Other punctuation
+and symbols are deleted, so they do not separate words: `TBD.` becomes `tbd`
+and `N.A.` becomes `na`. The whole normalized ref `na`, `n a`, or `tbd later`
+fails, so `NA`, `N.A.`, `N/A`, `tbd-later`, and `tbd_later` fail, and a longer
+ref such as `Na (sodium)` does not. A ref whose first word is `tbd` fails,
+including `TBD`, `TBD.`, `TBD:x`, and `TBD/James`. A ref that normalizes to
+nothing fails, which is a ref made only of punctuation or symbols, such as
+`?`, `??`, or `...`. The phrases `fill in` and `no recorded owner decision`
+fail only as whole words, so `fill-in` and `fill_in` fail and
 `refill interval` does not.
 
 `docs/provenance.md` is generated. Do not edit it by hand. Its retune list is

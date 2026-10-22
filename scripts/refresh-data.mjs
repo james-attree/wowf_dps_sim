@@ -108,7 +108,7 @@ export function buildManifest(snapshot, fetched) {
     creditUrl: CREDIT_URL,
     license: LICENSE,
     licenseUrl: LICENSE_URL,
-    note: "Talent data from talentsforever.com, used under CC BY 4.0. Game names, icons, and tooltip text belong to Blizzard Entertainment.",
+    note: "Data from talentsforever.com, used under CC BY 4.0. Pretty-printed; values unchanged. Game names, icons, and tooltip text belong to Blizzard Entertainment.",
     generated: snapshot.generated.trim(),
     build: readBuild(snapshot),
     fetched,
@@ -410,14 +410,251 @@ async function readOptional(filePath) {
   }
 }
 
-async function writeAtomic(filePath, text) {
-  await mkdir(dirname(filePath), { recursive: true });
-  const temporary = `${filePath}.${process.pid}.tmp`;
+// JSON.parse keeps the last of two identical keys. Scan the raw text so a
+// refresh cannot drop a talent, spell, or poison that way. The path uses "."
+// between object keys and "[index]" for array elements.
+export function findDuplicateKey(text) {
+  let index = 0;
+
+  function skipWhitespace() {
+    while (index < text.length) {
+      const code = text.charCodeAt(index);
+      if (code !== 0x20 && code !== 0x09 && code !== 0x0a && code !== 0x0d) {
+        return;
+      }
+      index += 1;
+    }
+  }
+
+  function parseString() {
+    if (text[index] !== '"') {
+      throw new Error("Expected a JSON string");
+    }
+    index += 1;
+    let value = "";
+    while (index < text.length) {
+      const character = text[index];
+      if (character === '"') {
+        index += 1;
+        return value;
+      }
+      if (character === "\\") {
+        index += 1;
+        const escaped = text[index];
+        if (escaped === undefined) {
+          throw new Error("Unterminated JSON string");
+        }
+        if (escaped === "u") {
+          const hex = text.slice(index + 1, index + 5);
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) {
+            throw new Error("Bad unicode escape");
+          }
+          value += String.fromCharCode(Number.parseInt(hex, 16));
+          index += 5;
+          continue;
+        }
+        index += 1;
+        if (escaped === '"' || escaped === "\\" || escaped === "/") {
+          value += escaped;
+        } else if (escaped === "b") {
+          value += "\b";
+        } else if (escaped === "f") {
+          value += "\f";
+        } else if (escaped === "n") {
+          value += "\n";
+        } else if (escaped === "r") {
+          value += "\r";
+        } else if (escaped === "t") {
+          value += "\t";
+        } else {
+          throw new Error("Bad escape");
+        }
+        continue;
+      }
+      value += character;
+      index += 1;
+    }
+    throw new Error("Unterminated JSON string");
+  }
+
+  function skipNumber() {
+    if (text[index] === "-") {
+      index += 1;
+    }
+    if (text[index] === "0") {
+      index += 1;
+    } else if (text[index] >= "1" && text[index] <= "9") {
+      while (text[index] >= "0" && text[index] <= "9") {
+        index += 1;
+      }
+    } else {
+      throw new Error("Bad number");
+    }
+    if (text[index] === ".") {
+      index += 1;
+      if (!(text[index] >= "0" && text[index] <= "9")) {
+        throw new Error("Bad number");
+      }
+      while (text[index] >= "0" && text[index] <= "9") {
+        index += 1;
+      }
+    }
+    if (text[index] === "e" || text[index] === "E") {
+      index += 1;
+      if (text[index] === "+" || text[index] === "-") {
+        index += 1;
+      }
+      if (!(text[index] >= "0" && text[index] <= "9")) {
+        throw new Error("Bad number");
+      }
+      while (text[index] >= "0" && text[index] <= "9") {
+        index += 1;
+      }
+    }
+  }
+
+  function skipLiteral(word) {
+    if (!text.startsWith(word, index)) {
+      throw new Error("Bad literal");
+    }
+    index += word.length;
+  }
+
+  function parseObject(path) {
+    index += 1;
+    const keys = new Set();
+    skipWhitespace();
+    if (text[index] === "}") {
+      index += 1;
+      return null;
+    }
+    while (index < text.length) {
+      skipWhitespace();
+      const key = parseString();
+      const child = path === "" ? key : `${path}.${key}`;
+      if (keys.has(key)) {
+        return child;
+      }
+      keys.add(key);
+      skipWhitespace();
+      if (text[index] !== ":") {
+        throw new Error("Expected a colon");
+      }
+      index += 1;
+      const nested = skipValue(child);
+      if (nested !== null) {
+        return nested;
+      }
+      skipWhitespace();
+      if (text[index] === ",") {
+        index += 1;
+        continue;
+      }
+      if (text[index] === "}") {
+        index += 1;
+        return null;
+      }
+      throw new Error("Expected a comma or }");
+    }
+    throw new Error("Unterminated object");
+  }
+
+  function parseArray(path) {
+    index += 1;
+    let item = 0;
+    skipWhitespace();
+    if (text[index] === "]") {
+      index += 1;
+      return null;
+    }
+    while (index < text.length) {
+      const nested = skipValue(`${path}[${item}]`);
+      if (nested !== null) {
+        return nested;
+      }
+      item += 1;
+      skipWhitespace();
+      if (text[index] === ",") {
+        index += 1;
+        continue;
+      }
+      if (text[index] === "]") {
+        index += 1;
+        return null;
+      }
+      throw new Error("Expected a comma or ]");
+    }
+    throw new Error("Unterminated array");
+  }
+
+  function skipValue(path) {
+    skipWhitespace();
+    const character = text[index];
+    if (character === "{") {
+      return parseObject(path);
+    }
+    if (character === "[") {
+      return parseArray(path);
+    }
+    if (character === '"') {
+      parseString();
+      return null;
+    }
+    if (character === "-" || (character >= "0" && character <= "9")) {
+      skipNumber();
+      return null;
+    }
+    if (character === "t") {
+      skipLiteral("true");
+      return null;
+    }
+    if (character === "f") {
+      skipLiteral("false");
+      return null;
+    }
+    if (character === "n") {
+      skipLiteral("null");
+      return null;
+    }
+    throw new Error("Unexpected JSON");
+  }
+
+  return skipValue("");
+}
+
+function parseJsonText(text, invalidMessage) {
+  let value;
   try {
-    await writeFile(temporary, text);
-    await rename(temporary, filePath);
+    value = JSON.parse(text);
+  } catch {
+    throw new Error(invalidMessage);
+  }
+  const duplicate = findDuplicateKey(text);
+  if (duplicate) {
+    throw new Error(`Duplicate key ${duplicate}`);
+  }
+  return value;
+}
+
+// The snapshot and the manifest are one pin. Both temp files are written
+// before either rename, so a failed temp write removes both temps and leaves
+// both targets unchanged.
+async function writeBoth(files, writeFileImpl) {
+  const temps = [];
+  try {
+    for (const file of files) {
+      await mkdir(dirname(file.path), { recursive: true });
+    }
+    for (const file of files) {
+      const temporary = `${file.path}.${process.pid}.tmp`;
+      temps.push(temporary);
+      await writeFileImpl(temporary, file.text);
+    }
+    for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+      await rename(temps[fileIndex], files[fileIndex].path);
+    }
   } catch (error) {
-    await rm(temporary, { force: true });
+    await Promise.all(temps.map((temporary) => rm(temporary, { force: true })));
     throw error;
   }
 }
@@ -449,12 +686,10 @@ async function fetchExport(url, fetchImpl) {
       cause: error,
     });
   }
-  try {
-    return JSON.parse(body);
-  } catch {
-    const snippet = body.trim().slice(0, 80);
-    throw new Error(`Export from ${url} is not JSON: ${snippet}`);
-  }
+  return parseJsonText(
+    body,
+    `Export from ${url} is not JSON: ${body.trim().slice(0, 80)}`,
+  );
 }
 
 export async function refreshData({
@@ -463,6 +698,7 @@ export async function refreshData({
   manifestPath = DEFAULT_MANIFEST_PATH,
   fetchImpl = globalThis.fetch,
   fetched = utcDate(),
+  writeFileImpl = writeFile,
 } = {}) {
   const snapshot = await fetchExport(url, fetchImpl);
   assertSnapshot(snapshot, "Export");
@@ -471,18 +707,22 @@ export async function refreshData({
   const previousText = await readOptional(snapshotPath);
   let previous = null;
   if (previousText !== null) {
-    try {
-      previous = JSON.parse(previousText);
-    } catch {
-      throw new Error(`Existing snapshot ${snapshotPath} is not JSON`);
-    }
+    previous = parseJsonText(
+      previousText,
+      `Existing snapshot ${snapshotPath} is not JSON`,
+    );
     assertSnapshot(previous, "Existing snapshot");
   }
 
   // Diff before writing so a duplicate id cannot replace a good pin.
   const diff = diffSnapshot(previous, snapshot);
-  await writeAtomic(snapshotPath, await formatSnapshot(snapshot));
-  await writeAtomic(manifestPath, await formatSnapshot(manifest));
+  await writeBoth(
+    [
+      { path: snapshotPath, text: await formatSnapshot(snapshot) },
+      { path: manifestPath, text: await formatSnapshot(manifest) },
+    ],
+    writeFileImpl,
+  );
 
   return {
     manifest,

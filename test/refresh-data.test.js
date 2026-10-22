@@ -27,6 +27,7 @@ import {
   collectTalents,
   diffSnapshot,
   formatSnapshot,
+  findDuplicateKey,
   parseArgs,
   poisonNames,
   readBuild,
@@ -166,8 +167,10 @@ describe("manifest", () => {
     assert.equal(manifest.creditUrl, CREDIT_URL);
     assert.equal(manifest.license, LICENSE);
     assert.equal(manifest.licenseUrl, LICENSE_URL);
-    assert.match(manifest.note, /talentsforever\.com/);
-    assert.match(manifest.note, /CC BY 4\.0/);
+    assert.equal(
+      manifest.note,
+      "Data from talentsforever.com, used under CC BY 4.0. Pretty-printed; values unchanged. Game names, icons, and tooltip text belong to Blizzard Entertainment.",
+    );
     assert.equal(manifest.generated, "2026-10-20");
     assert.equal(manifest.build, "1.60.1.70425");
     assert.equal(manifest.fetched, "2026-10-22");
@@ -469,6 +472,174 @@ describe("refreshData", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("rejects a duplicated spell_desc key and leaves the pin unchanged", async () => {
+    const dir = await tempDir();
+    const snapshotPath = join(dir, "rogue.json");
+    const manifestPath = join(dir, "manifest.json");
+    const original = await formatSnapshot(snapshot());
+    const originalManifest = await formatSnapshot(
+      buildManifest(snapshot(), "2026-10-21"),
+    );
+    await writeFile(snapshotPath, original);
+    await writeFile(manifestPath, originalManifest);
+    const body = `{
+      "generated": "2026-10-20",
+      "talents": { "trees": [], "source": "Talent trees from build 1.0.0" },
+      "spellbook": { "build": "1.0.0" },
+      "spell_desc": {},
+      "spell_desc": { "Rogue|Sinister Strike|Rank 8": { "d": "later" } }
+    }`;
+    try {
+      await assert.rejects(
+        refreshData({
+          snapshotPath,
+          manifestPath,
+          fetched: "2026-10-22",
+          fetchImpl: async () => jsonResponse(body),
+        }),
+        { message: "Duplicate key spell_desc" },
+      );
+      assert.equal(await readFile(snapshotPath, "utf8"), original);
+      assert.equal(await readFile(manifestPath, "utf8"), originalManifest);
+      const names = await readdir(dir);
+      assert.equal(
+        names.some((name) => name.includes(".tmp")),
+        false,
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("names a duplicate key nested inside an array", () => {
+    assert.equal(
+      findDuplicateKey('{"talents":{"trees":[{"name":"A","name":"B"}]}}'),
+      "talents.trees[0].name",
+    );
+    assert.equal(
+      findDuplicateKey('{"spell_desc":{"a":1,"\\u0061":2}}'),
+      "spell_desc.a",
+    );
+    assert.equal(
+      findDuplicateKey('{"note":"say \\"spell_desc\\" twice","spell_desc":{}}'),
+      null,
+    );
+  });
+
+  it("rejects a nested duplicate key", async () => {
+    const dir = await tempDir();
+    const snapshotPath = join(dir, "rogue.json");
+    const manifestPath = join(dir, "manifest.json");
+    const original = await formatSnapshot(snapshot());
+    const originalManifest = await formatSnapshot(
+      buildManifest(snapshot(), "2026-10-21"),
+    );
+    await writeFile(snapshotPath, original);
+    await writeFile(manifestPath, originalManifest);
+    const body = `{
+      "generated": "2026-10-20",
+      "talents": { "trees": [], "source": "Talent trees from build 1.0.0" },
+      "spellbook": { "build": "1.0.0" },
+      "spell_desc": {
+        "Rogue|Sinister Strike|Rank 8": { "d": "one" },
+        "Rogue|Sinister Strike|Rank 8": { "d": "two" }
+      }
+    }`;
+    try {
+      await assert.rejects(
+        refreshData({
+          snapshotPath,
+          manifestPath,
+          fetched: "2026-10-22",
+          fetchImpl: async () => jsonResponse(body),
+        }),
+        {
+          message: "Duplicate key spell_desc.Rogue|Sinister Strike|Rank 8",
+        },
+      );
+      assert.equal(await readFile(snapshotPath, "utf8"), original);
+      assert.equal(await readFile(manifestPath, "utf8"), originalManifest);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a duplicate key in the existing snapshot", async () => {
+    const dir = await tempDir();
+    const snapshotPath = join(dir, "rogue.json");
+    const manifestPath = join(dir, "manifest.json");
+    const original = `{
+      "generated": "2026-10-20",
+      "spell_desc": { "Rogue|A|": { "d": "one" } },
+      "spell_desc": { "Rogue|A|": { "d": "two" } }
+    }`;
+    const originalManifest = await formatSnapshot(
+      buildManifest(snapshot(), "2026-10-21"),
+    );
+    await writeFile(snapshotPath, original);
+    await writeFile(manifestPath, originalManifest);
+    try {
+      await assert.rejects(
+        refreshData({
+          snapshotPath,
+          manifestPath,
+          fetched: "2026-10-22",
+          fetchImpl: async () => jsonResponse(snapshot()),
+        }),
+        { message: "Duplicate key spell_desc" },
+      );
+      assert.equal(await readFile(snapshotPath, "utf8"), original);
+      assert.equal(await readFile(manifestPath, "utf8"), originalManifest);
+      const names = await readdir(dir);
+      assert.equal(
+        names.some((name) => name.includes(".tmp")),
+        false,
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves both files unchanged when the manifest temp write fails", async () => {
+    const dir = await tempDir();
+    const snapshotPath = join(dir, "rogue.json");
+    const manifestPath = join(dir, "manifest.json");
+    const original = await formatSnapshot(snapshot());
+    const originalManifest = await formatSnapshot(
+      buildManifest(snapshot(), "2026-10-21"),
+    );
+    await writeFile(snapshotPath, original);
+    await writeFile(manifestPath, originalManifest);
+    const next = snapshot({ talents: [talent("Blade Flurry")] });
+    try {
+      await assert.rejects(
+        refreshData({
+          snapshotPath,
+          manifestPath,
+          fetched: "2026-10-22",
+          fetchImpl: async () => jsonResponse(next),
+          writeFileImpl: async (filePath, text) => {
+            if (String(filePath).includes(`manifest.json.${process.pid}.tmp`)) {
+              throw new Error("manifest write failed");
+            }
+            await writeFile(filePath, text);
+          },
+        }),
+        { message: "manifest write failed" },
+      );
+      assert.equal(await readFile(snapshotPath, "utf8"), original);
+      assert.equal(await readFile(manifestPath, "utf8"), originalManifest);
+      const names = await readdir(dir);
+      assert.equal(
+        names.some((name) => name.includes(".tmp")),
+        false,
+        names.join(", "),
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("refresh CLI", () => {
@@ -575,6 +746,8 @@ describe("vendored snapshot", () => {
     assert.equal(manifest.creditUrl, CREDIT_URL);
     assert.equal(manifest.license, LICENSE);
     assert.equal(manifest.licenseUrl, LICENSE_URL);
+    assert.equal(manifest.note, buildManifest(data, manifest.fetched).note);
+    assert.equal(findDuplicateKey(snapshotText), null);
     assert.equal(manifest.generated, data.generated);
     assert.equal(manifest.build, data.spellbook.build);
     assert.equal(manifest.fetched, "2026-10-22");
