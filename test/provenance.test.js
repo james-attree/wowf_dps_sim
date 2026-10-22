@@ -379,6 +379,56 @@ describe("provenance CLI", () => {
     ]);
   });
 
+  it("rejects TBD, slash, and underscore placeholders", () => {
+    const result = checkProvenance({
+      colon: validEntry("assumption", "TBD:x"),
+      slash: validEntry("assumption", "TBD/James"),
+      underscore: validEntry("assumption", "tbd_later"),
+      fill: validEntry("assumption", "fill_in"),
+      signed: validEntry(
+        "assumption",
+        "James, 22 Oct 2026: sample input until SimConfig (E2)",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "colon: placeholder ref",
+      "slash: placeholder ref",
+      "underscore: placeholder ref",
+      "fill: placeholder ref",
+    ]);
+  });
+
+  it("accepts refill intervals, sodium, signed assumptions, URLs, and export paths", () => {
+    const result = checkProvenance({
+      refill: validEntry(
+        "classic-1.12",
+        "Refill interval per tick (classic-1.12)",
+      ),
+      sodium: validEntry("classic-1.12", "Na (sodium)"),
+      signed: validEntry(
+        "assumption",
+        "James, 22 Oct 2026: sample input until SimConfig (E2)",
+      ),
+      url: validEntry(
+        "classic-1.12",
+        "https://github.com/magey/classic-warrior/wiki/Attack-table",
+      ),
+      slice: validEntry(
+        "wowf-export",
+        "rogue.json → spell_desc[Rogue|Slice and Dice|Rank 2]",
+      ),
+      adrenaline: validEntry(
+        "wowf-export",
+        "rogue.json → spell_desc[Rogue|Adrenaline Rush|]",
+      ),
+    });
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.errors, []);
+  });
+
   it("accepts signed assumption refs, URLs, and citations", () => {
     const result = checkProvenance({
       "hackAndSlash.chain": validEntry(
@@ -450,20 +500,37 @@ describe("provenance CLI", () => {
     }
   });
 
-  it("checks the repository constants file", async () => {
+  it("checks the repository constants file without rewriting the report", async () => {
     await access(DEFAULT_CONSTANTS_PATH);
-    const result = await runCli([]);
-    assert.equal(result.code, 0, result.stdout + result.stderr);
-    assert.match(
-      result.stdout,
-      /Provenance check passed \(\d+ constants\) for data\/constants\.js/,
-    );
-    assert.match(result.stdout, /Wrote docs\/provenance\.md\./);
-    assert.equal(result.stderr, "");
-    assert.equal(
-      await readFile(DEFAULT_REPORT_PATH, "utf8"),
-      await renderProvenance(CONSTANTS),
-    );
+    const before = await readFile(DEFAULT_REPORT_PATH, "utf8");
+    const dir = await mkdtemp(join(tmpdir(), "provenance-repo-"));
+    const reportPath = join(dir, "provenance.md");
+    try {
+      const checked = await runProvenance(DEFAULT_CONSTANTS_PATH, {
+        writeReport: false,
+      });
+      assert.equal(checked.status, 0, checked.message);
+      assert.match(
+        checked.message,
+        /Provenance check passed \(\d+ constants\) for data\/constants\.js/,
+      );
+      assert.doesNotMatch(checked.message, /Wrote /);
+
+      // The default for this path is to write. Point that write at a temp
+      // file so the suite does not touch docs/provenance.md.
+      const written = await runProvenance(DEFAULT_CONSTANTS_PATH, {
+        reportPath,
+      });
+      assert.equal(written.status, 0, written.message);
+      assert.match(written.message, /Wrote /);
+      assert.equal(
+        await readFile(reportPath, "utf8"),
+        await renderProvenance(CONSTANTS),
+      );
+      assert.equal(await readFile(DEFAULT_REPORT_PATH, "utf8"), before);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -653,7 +720,12 @@ describe("provenance report", () => {
 
   it("keeps docs/provenance.md equal to the generated report", async () => {
     const onDisk = await readFile(DEFAULT_REPORT_PATH, "utf8");
-    assert.equal(onDisk, await renderProvenance(CONSTANTS));
+    const generated = await renderProvenance(CONSTANTS);
+    assert.equal(
+      onDisk,
+      generated,
+      "docs/provenance.md is out of date with data/constants.js. Run 'npm run provenance' and commit the result.",
+    );
     assert.match(onDisk, /Do not edit by hand/);
     assert.match(onDisk, /`engineering`/);
 

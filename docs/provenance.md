@@ -7,12 +7,14 @@ Every constant in `data/constants.js`, grouped by source.
 has a ref and a known source tag (`wowf-export`, `wowf-designer`,
 `classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,
 a ref made only of dashes (including an em dash), a placeholder ref,
-or an unknown tag fails the command. The check case-folds the ref,
-strips punctuation, symbols, and dashes, and collapses whitespace, so
-`TBD`, `TBD.`, `N/A`, `NA`, `?`, `??`, `tbd later`, and `tbd-later`
-fail, as does a ref made only of punctuation or symbols, or one whose
-first word is `tbd`. The phrases `fill in` and `No recorded owner
-decision` fail only as whole words.
+or an unknown tag fails the command. The check case-folds the ref.
+Dashes, underscores, colons, slashes, backslashes, and bars separate
+words. Other punctuation and symbols are deleted, and whitespace is
+collapsed. `TBD`, `TBD.`, `TBD:x`, `TBD/James`, `N/A`, `NA`, `?`, `??`,
+`tbd later`, `tbd-later`, `tbd_later`, and `fill_in` fail, as does a ref
+made only of punctuation or symbols, or one whose first word is `tbd`.
+The phrases `fill in` and `No recorded owner decision` fail only as
+whole words.
 
 ## Summary
 
