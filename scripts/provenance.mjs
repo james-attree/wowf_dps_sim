@@ -48,22 +48,33 @@ function isDashOnly(ref) {
   return compact.length > 0 && /^[\p{Pd}]+$/u.test(compact);
 }
 
-// Placeholders are judged on a normalized ref: lower-cased, dashes
-// replaced with spaces, other punctuation and symbols removed, whitespace
-// collapsed. Dashes become spaces so "tbd-later" matches "tbd later";
-// other punctuation is removed so "N/A" and "TBD." match "na" and "tbd".
-// Empty means the ref was only punctuation or symbols. "na" and
-// "tbd later" match the whole ref, so "Na (sodium)" still passes.
+// Placeholders are judged on a normalized ref: lower-cased, word
+// separators turned into spaces, other punctuation and symbols removed,
+// and whitespace collapsed.
+//
+// Separators (become spaces, so they split words): Unicode dashes
+// (\p{Pd}, including "-", the en dash, and the em dash), connector
+// punctuation (\p{Pc}, including "_"), ":", "/", "\", and "|".
+// "tbd-later", "tbd_later", "TBD:x", "TBD/James", and "fill_in" all split.
+//
+// Deleted (do not split words): every remaining punctuation or symbol
+// (\p{P} and \p{S} that is not a separator). "TBD." becomes "tbd",
+// "N.A." becomes "na", and "?" becomes empty. "N/A" does not become
+// "na", because "/" is a separator, so it becomes "n a".
+//
+// "na", "n a", and "tbd later" match the whole ref, so "NA", "N.A.",
+// and "N/A" fail, and a longer ref such as "Na (sodium)" still passes.
 // A ref whose first word is "tbd" is an undecided value. "fill in" and
 // "no recorded owner decision" match only as whole words, so
 // "refill interval" is not a placeholder.
-const PLACEHOLDER_REFS = new Set(["na", "tbd later"]);
+const PLACEHOLDER_REFS = new Set(["na", "n a", "tbd later"]);
 const PLACEHOLDER_PHRASES = ["fill in", "no recorded owner decision"];
+const WORD_SEPARATOR = /[\p{Pd}\p{Pc}:/\\|]/gu;
 
 function normalizeRef(ref) {
   return ref
     .toLowerCase()
-    .replace(/\p{Pd}/gu, " ")
+    .replace(WORD_SEPARATOR, " ")
     .replace(/[\p{P}\p{S}]/gu, "")
     .replace(/\s+/gu, " ")
     .trim();
@@ -294,12 +305,14 @@ function buildMarkdown(constants) {
     "has a ref and a known source tag (`wowf-export`, `wowf-designer`,",
     "`classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,",
     "a ref made only of dashes (including an em dash), a placeholder ref,",
-    "or an unknown tag fails the command. The check case-folds the ref,",
-    "strips punctuation, symbols, and dashes, and collapses whitespace, so",
-    "`TBD`, `TBD.`, `N/A`, `NA`, `?`, `??`, `tbd later`, and `tbd-later`",
-    "fail, as does a ref made only of punctuation or symbols, or one whose",
-    "first word is `tbd`. The phrases `fill in` and `No recorded owner",
-    "decision` fail only as whole words.",
+    "or an unknown tag fails the command. The check case-folds the ref.",
+    "Dashes, underscores, colons, slashes, backslashes, and bars separate",
+    "words. Other punctuation and symbols are deleted, and whitespace is",
+    "collapsed. `TBD`, `TBD.`, `TBD:x`, `TBD/James`, `N/A`, `NA`, `?`, `??`,",
+    "`tbd later`, `tbd-later`, `tbd_later`, and `fill_in` fail, as does a ref",
+    "made only of punctuation or symbols, or one whose first word is `tbd`.",
+    "The phrases `fill in` and `No recorded owner decision` fail only as",
+    "whole words.",
     "",
     "## Summary",
     "",
