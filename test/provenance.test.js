@@ -266,6 +266,39 @@ describe("provenance CLI", () => {
     ]);
   });
 
+  it("rejects N/A, a question mark, and tbd later in any case", () => {
+    const result = checkProvenance({
+      "attack.rollScale": validEntry("engineering", "N/A"),
+      "log.maxEvents": validEntry("engineering", "n/a"),
+      "sim.msPerSecond": validEntry("engineering", "  N/a  "),
+      "sim.tickEpsilon": validEntry("engineering", "?"),
+      latency: validEntry("assumption", "  ?  "),
+      "fight.duration": validEntry("assumption", "tbd later"),
+      "fight.iterations": validEntry("assumption", "TBD Later"),
+      "poison.charges": validEntry("assumption", "Tbd later"),
+      "target.level": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: Classic raid boss is level 60 + 3",
+      ),
+      "hackAndSlash.chain": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: why? N/A until tbd later is replaced",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "attack.rollScale: placeholder ref",
+      "log.maxEvents: placeholder ref",
+      "sim.msPerSecond: placeholder ref",
+      "sim.tickEpsilon: placeholder ref",
+      "latency: placeholder ref",
+      "fight.duration: placeholder ref",
+      "fight.iterations: placeholder ref",
+      "poison.charges: placeholder ref",
+    ]);
+  });
+
   it("rejects a ref that contains No recorded owner decision", () => {
     const result = checkProvenance({
       "fight.iterations": validEntry(

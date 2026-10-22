@@ -6,9 +6,9 @@ Every constant in `data/constants.js`, grouped by source.
 `npm run provenance` rewrites this file after it checks that each constant
 has a ref and a known source tag (`wowf-export`, `wowf-designer`,
 `classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,
-a ref that is only a dash, a placeholder ref (`TBD` in any case, or text
-containing `fill in` or `No recorded owner decision`), or an unknown tag
-fails the command.
+a ref that is only a dash, a placeholder ref (`TBD`, `N/A`, `?`, or
+`tbd later`, in any case, or text containing `fill in` or
+`No recorded owner decision`), or an unknown tag fails the command.
 
 ## Summary
 
