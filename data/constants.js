@@ -710,13 +710,13 @@ export const CONSTANTS = {
     true,
   ),
   "weapon.mainHand": entry(
-    { min: 110, max: 59, speed: 1.8 },
+    { min: 59, max: 110, speed: 1.8 },
     "damage, damage, s",
     ASSUMPTION,
     undecided(
-      "js/rogue.js sample main hand passes min 110 and max 59, which is swapped (Q1), at speed 1.8.",
+      "js/rogue.js sample main hand is 59–110 at speed 1.8. Issue #9 corrected min and max, which had been stored as 110 and 59.",
     ),
-    "Kept swapped so weapon rolls do not change.",
+    "Issue #9 unswaps the sample main hand. SimConfig will own the weapon (E2).",
     true,
   ),
   "weapon.offHand": entry(
