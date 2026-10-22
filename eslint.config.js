@@ -63,12 +63,14 @@ export default defineConfig([
         { ignore: [0, 1, -1], detectObjects: true },
       ],
       "engine-purity/no-numeric-literal": "error",
+      // The DoT loop used to log every Hemorrhage tick. A simulation stays silent.
+      "no-console": "error",
     },
   },
   {
     files: ["js/simulation.js"],
     languageOptions: {
-      globals: readonly(["console", "performance"]),
+      globals: readonly(["performance"]),
     },
   },
   {

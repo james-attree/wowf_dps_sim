@@ -100,6 +100,28 @@ describe("engine lint", () => {
     );
   });
 
+  it("rejects console output in engine code and allows it in scripts and tests", async () => {
+    const engine = await lintSource(
+      "js/event-engine.js",
+      "export const tick = (damage) => console.log(damage);\n",
+    );
+    assert.equal(engine.code, 1, engine.stdout);
+    assert.ok(ruleIds(engine.stdout).includes("no-console"));
+
+    for (const filename of [
+      "scripts/example.mjs",
+      "test/attack-resolver.test.js",
+    ]) {
+      const result = await lintSource(filename, "console.log('ready');\n");
+      assert.equal(
+        result.code,
+        0,
+        `${filename}\n${result.stdout}${result.stderr}`,
+      );
+      assert.equal(ruleIds(result.stdout).includes("no-console"), false);
+    }
+  });
+
   it("rejects document and window, including globalThis property access", async () => {
     const result = await lintSource(
       engine,
