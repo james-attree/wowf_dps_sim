@@ -670,11 +670,11 @@ export const CONSTANTS = {
     true,
   ),
   "weapon.mainHand": entry(
-    { min: 110, max: 59, speed: 1.8 },
+    { min: 59, max: 110, speed: 1.8 },
     "damage, damage, s",
     ASSUMPTION,
     `${SAMPLE_INPUT}; #9 is 59–110 at 1.8s`,
-    "Kept swapped so weapon rolls do not change. #9 records the real range.",
+    "Issue #9 unswaps the sample main hand. SimConfig will own the weapon (E2).",
     true,
   ),
   "weapon.offHand": entry(

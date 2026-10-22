@@ -153,7 +153,7 @@ describe("constants", () => {
       CONSTANTS["weapon.mainHand"].ref,
       `${sampleInput}; #9 is 59–110 at 1.8s`,
     );
-    assert.deepEqual(k("weapon.mainHand"), { min: 110, max: 59, speed: 1.8 });
+    assert.deepEqual(k("weapon.mainHand"), { min: 59, max: 110, speed: 1.8 });
 
     for (const id of [
       "attack.rollScale",
@@ -204,8 +204,13 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.maxComboPoints, 5);
     assert.equal(rogue.normalizedWeaponSpeed, 1.7);
 
-    assert.equal(rogue.weapons.mainHand.minDamage, 110);
-    assert.equal(rogue.weapons.mainHand.maxDamage, 59);
+    assert.deepEqual(k("weapon.mainHand"), {
+      min: 59,
+      max: 110,
+      speed: 1.8,
+    });
+    assert.equal(rogue.weapons.mainHand.minDamage, 59);
+    assert.equal(rogue.weapons.mainHand.maxDamage, 110);
     assert.equal(rogue.weapons.mainHand.speed, 1.8);
     assert.equal(rogue.weapons.offHand.minDamage, 54);
     assert.equal(rogue.weapons.offHand.maxDamage, 101);
@@ -284,10 +289,10 @@ describe("simulator values other than white miss", () => {
     assert.equal(new Simulation(rogue).gcdDuration, 1);
   });
 
-  it("keeps damage formulas, including the swapped main-hand die", () => {
+  it("keeps damage formulas, with the main-hand die at its minimum", () => {
     mock.method(Math, "random", () => 0);
     const rogue = new Rogue();
-    const weaponDie = 110;
+    const weaponDie = 59;
     const apBonus = (speed) => (450 / 14) * speed;
     const normalized = weaponDie + apBonus(1.7);
 

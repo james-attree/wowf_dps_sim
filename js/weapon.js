@@ -2,6 +2,11 @@ import { k } from "../data/constants.js";
 
 export class Weapon {
   constructor(rogue, minDamage, maxDamage, speed, hand) {
+    if (minDamage > maxDamage) {
+      throw new RangeError(
+        `Weapon min damage ${minDamage} is greater than max damage ${maxDamage}.`,
+      );
+    }
     this.rogue = rogue;
     this.minDamage = minDamage;
     this.maxDamage = maxDamage;
