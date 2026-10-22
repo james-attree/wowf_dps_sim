@@ -243,6 +243,14 @@ export const CONSTANTS = {
     "Hand-encoded later in the effects map with a text hash (D5, D6).",
     false,
   ),
+  "character.level": entry(
+    60,
+    "level",
+    WOWF_EXPORT,
+    "rogue.json → spellbook.level",
+    "Attacker level in armor.mitigation. The export spellbook is a level 60 rogue, so the armor divisor's constant term is 5500.",
+    false,
+  ),
 
   // classic-1.12: reference values until WoW Forever is measured.
   "gcd.duration": entry(
@@ -458,7 +466,31 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "Physical DoTs ignore armor. The engine has no armor mitigation yet, so this is not applied (Q11).",
+    "Physical periodic damage skips armor.mitigation. Rupture and Garrote are the bleed spells. Physical direct hits are reduced. Deadly Poison skips armor as nature damage.",
+    true,
+  ),
+  "bleed.spells": entry(
+    ["Rupture", "Garrote"],
+    "–",
+    CLASSIC,
+    `${WS}core/spell_resistances.go`,
+    "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff only increases Rupture. Deadly Poison is nature, not a bleed.",
+    true,
+  ),
+  "nature.ignoresArmor": entry(
+    true,
+    "–",
+    CLASSIC,
+    `${WS}core/spell_resistances.go`,
+    "Armor applies to physical damage. Nature damage skips it. Deadly Poison ticks use this. Spell resistance is not modeled.",
+    true,
+  ),
+  "nature.spells": entry(
+    ["Deadly Poison"],
+    "–",
+    CLASSIC,
+    `${WS}core/spell_resistances.go`,
+    "Deadly Poison deals nature damage, so its ticks skip armor when nature.ignoresArmor is set.",
     true,
   ),
   "dot.snapshot": entry(
@@ -490,7 +522,7 @@ export const CONSTANTS = {
     "fraction",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "armor / (armor + constant + perLevel × attacker level). At 60 the divisor constant is 5500. Not applied yet.",
+    "armor / (armor + constant + perLevel × character.level), capped. At 60 the divisor constant is 5500. Applied to physical direct hits and to ticks that are neither bleeds nor nature.",
     true,
   ),
   "agility.ap": entry(
@@ -545,16 +577,16 @@ export const CONSTANTS = {
     "Rupture, Garrote, and Deadly Poison. This differs from Classic. The per-tick crit roll stays.",
     false,
   ),
+
+  // assumption: defaults James signed on 22 Oct 2026.
   "dot.critMultiplier": entry(
     2,
     "×",
-    WOWF_DESIGNER,
-    "James, 22 Oct 2026: DoTs and bleeds crit at 2×",
-    "Same multiplier as other crits. The roadmap had listed the 2× as a presumption; the owner stated it as the decision.",
-    true,
+    ASSUMPTION,
+    "James, 22 Oct 2026: 2x DoT/bleed crit is standard and unlikely to change; update the code if it does",
+    "Same multiplier as other crits.",
+    false,
   ),
-
-  // assumption: defaults James signed on 22 Oct 2026.
   "target.level": entry(
     63,
     "level",
@@ -568,7 +600,7 @@ export const CONSTANTS = {
     "armor",
     ASSUMPTION,
     `${JAMES}: common Classic raid-boss armor before debuffs`,
-    "Editable input. Not applied, because the engine has no armor mitigation yet.",
+    "Editable input. Physical direct hits use it with armor.mitigation. Bleed ticks skip it when bleed.ignoresArmor is set. Nature ticks skip it when nature.ignoresArmor is set.",
     true,
   ),
   "target.behind": entry(

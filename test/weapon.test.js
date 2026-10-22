@@ -346,6 +346,10 @@ describe("swing timer fight regression", () => {
     // Fixed roll (Math.random is 0.5). Issue #18 starts the fight at 0 combo
     // points. Issue #20 refreshes Slice and Dice at 4 combo points. This roll
     // spends every Slice and Dice there, casts no Eviscerate, and ends at 0.
+    // Issue #23 scales physical direct hits by armor. Rupture ticks and
+    // Deadly Poison skip it. Deadly Poison is not cast in this fight. This
+    // roll does not crit a DoT tick, so both frame rates still deal the same
+    // total.
     const casts = {
       "Adrenaline Rush": 1,
       "Blade Flurry": 1,
