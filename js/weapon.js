@@ -12,21 +12,19 @@ export class Weapon {
     this.maxDamage = maxDamage;
     this.speed = speed; // in seconds
     this.hand = hand; // 'main' or 'off'
-    this.swingTimer = 0; // time since last swing
-  }
-
-  resetTimer(hasteMultiplier) {
-    this.swingTimer = this.speed / hasteMultiplier;
+    this.swingTimer = 0; // seconds until the next swing; 0 means one is due
   }
 
   tick(dt, hasteMultiplier, onSwingTriggered) {
-    if (this.swingTimer > 0) {
-      this.swingTimer = Math.max(0, this.swingTimer - dt);
-    }
-
-    if (this.swingTimer === 0) {
-      onSwingTriggered(this);
-      this.resetTimer(hasteMultiplier);
+    const interval = this.speed / hasteMultiplier;
+    this.swingTimer -= dt;
+    // A step can cover several swings. Time past each one stays on the timer,
+    // so the next swing is not delayed by a full interval.
+    if (interval > 0) {
+      while (this.swingTimer <= k("sim.tickEpsilon")) {
+        onSwingTriggered(this);
+        this.swingTimer += interval;
+      }
     }
   }
 
