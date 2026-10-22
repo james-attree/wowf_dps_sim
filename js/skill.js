@@ -264,16 +264,15 @@ export class Rupture extends Skill {
   damage() {
     const comboPoints = this.rogue.comboPoints;
     const stats = k("rupture");
-    let baseDamage = 0;
-    let duration = 0;
-    let apScaling = k("rupture.apAtZeroCp");
-    if (comboPoints >= 1 && comboPoints <= stats.damageByCp.length) {
-      baseDamage = stats.damageByCp[comboPoints - 1];
-      duration = stats.durationByCp[comboPoints - 1];
-      apScaling = k("rupture.apByCP")[comboPoints - 1];
+    if (comboPoints < 1 || comboPoints > stats.damageByCp.length) {
+      this.duration = 0;
+      return 0;
     }
-    this.duration = duration;
-    return baseDamage + this.rogue.getAttackPower() * apScaling;
+    this.duration = stats.durationByCp[comboPoints - 1];
+    return (
+      stats.damageByCp[comboPoints - 1] +
+      this.rogue.getAttackPower() * k("rupture.apByCP")[comboPoints - 1]
+    );
   }
 }
 

@@ -7,6 +7,10 @@ const WOWF_DESIGNER = "wowf-designer";
 const CLASSIC = "classic-1.12";
 const CATACLYSM = "cataclysm";
 const ASSUMPTION = "assumption";
+const ENGINEERING = "engineering";
+
+const JAMES = "James, 22 Oct 2026";
+const SAMPLE_INPUT = `${JAMES}: sample input until SimConfig (E2)`;
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -21,10 +25,6 @@ const WS = "https://github.com/wowsims/classic/blob/master/sim/";
 
 function entry(value, unit, source, ref, note, retune) {
   return { value, unit, source, ref, note, retune };
-}
-
-function undecided(why) {
-  return `No recorded owner decision as of 22 Oct 2026. ${why} James to fill in who decided this and why.`;
 }
 
 export const CONSTANTS = {
@@ -73,9 +73,7 @@ export const CONSTANTS = {
     180,
     "s",
     ASSUMPTION,
-    undecided(
-      "js/skill.js constructed Adrenaline Rush with a 180s cooldown. The export says 300s, which Q12 tracks.",
-    ),
+    `${JAMES}: the engine still uses 180s; the export says 300s (Q12, #19)`,
     "Kept so this change does not retune the cooldown.",
     true,
   ),
@@ -160,18 +158,8 @@ export const CONSTANTS = {
     "energy, s, damage, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Rupture|Rank 6]",
-    "Base damage and duration by combo point. AP scaling is rupture.apByCP.",
+    "Base damage and duration by combo point. AP scaling is rupture.apByCP. Outside 1–5 combo points the cast deals no damage.",
     false,
-  ),
-  "rupture.apAtZeroCp": entry(
-    0.1,
-    "AP",
-    ASSUMPTION,
-    undecided(
-      "Rupture.damage() initialises AP scaling to 0.1, and a 0-CP cast keeps that factor. It is not a Cataclysm coefficient.",
-    ),
-    "Preserved so a 0-CP Rupture still deals attack power × 0.1 (Q4).",
-    true,
   ),
   ghostlyStrike: entry(
     {
@@ -558,14 +546,12 @@ export const CONSTANTS = {
     true,
   ),
 
-  // assumption: defaults or rules nobody has signed by name.
+  // assumption: defaults James signed on 22 Oct 2026.
   "target.level": entry(
     63,
     "level",
     ASSUMPTION,
-    undecided(
-      "Roadmap OQ4 uses 63, the Classic raid boss (level 60 + 3) from https://github.com/wowsims/classic/blob/master/sim/core/target.go.",
-    ),
+    `${JAMES}: Classic raid boss is level 60 + 3 (OQ4)`,
     "Forever boss levels are unknown. Editable later (D15).",
     true,
   ),
@@ -573,9 +559,7 @@ export const CONSTANTS = {
     3731,
     "armor",
     ASSUMPTION,
-    undecided(
-      "The roadmap constants table lists 3731 as a common Classic raid-boss armor value before debuffs.",
-    ),
+    `${JAMES}: common Classic raid-boss armor before debuffs`,
     "Editable input. Not applied, because the engine has no armor mitigation yet.",
     true,
   ),
@@ -583,9 +567,7 @@ export const CONSTANTS = {
     true,
     "–",
     ASSUMPTION,
-    undecided(
-      "Roadmap OQ4 defaults to behind the target, which removes parry and block.",
-    ),
+    `${JAMES}: behind the target removes parry and block (OQ4)`,
     "Editable input. The engine does not branch on it yet (A7).",
     true,
   ),
@@ -593,9 +575,7 @@ export const CONSTANTS = {
     "unspecified",
     "–",
     ASSUMPTION,
-    undecided(
-      "The roadmap leaves mob type unset so Murder and racial slayer bonuses stay off.",
-    ),
+    `${JAMES}: unspecified so Murder and racial slayer bonuses stay off`,
     "Editable input.",
     true,
   ),
@@ -603,9 +583,7 @@ export const CONSTANTS = {
     180,
     "s",
     ASSUMPTION,
-    undecided(
-      "The roadmap constants table uses 180s while OQ3 (default fight length) is still open.",
-    ),
+    `${JAMES}: 180s roadmap default while OQ3 is open`,
     "Editable input. The live sim runs until pause and does not read this.",
     true,
   ),
@@ -613,9 +591,7 @@ export const CONSTANTS = {
     1000,
     "runs",
     ASSUMPTION,
-    undecided(
-      "The roadmap constants table uses 1000 iterations while OQ3 is still open.",
-    ),
+    `${JAMES}: 1000-run roadmap default while OQ3 is open`,
     "Editable input. There is no batch runner yet.",
     true,
   ),
@@ -623,9 +599,7 @@ export const CONSTANTS = {
     { energy: 100, comboPoints: 0 },
     "energy, CP",
     ASSUMPTION,
-    undecided(
-      "The roadmap start state is full energy and 0 combo points, with no pre-pull Premeditation (OQ7, Q10).",
-    ),
+    `${JAMES}: full energy and 0 combo points, with no pre-pull Premeditation`,
     "The engine reads the energy. Combo points stay on character.startingComboPoints until Q10.",
     true,
   ),
@@ -633,9 +607,7 @@ export const CONSTANTS = {
     5,
     "points",
     ASSUMPTION,
-    undecided(
-      "Roadmap OQ14 uses the Classic 5-points-per-row rule (https://warcraft.wiki.gg/wiki/Talent). It is not in the export.",
-    ),
+    `${JAMES}: Classic 5 points per row, and it is not in the export (OQ14)`,
     "Not enforced yet.",
     true,
   ),
@@ -643,9 +615,7 @@ export const CONSTANTS = {
     0,
     "ms",
     ASSUMPTION,
-    undecided(
-      "The roadmap models a perfect reaction and leaves a configurable delay for later.",
-    ),
+    `${JAMES}: perfect reaction, with no cast delay`,
     "The engine does not delay casts.",
     true,
   ),
@@ -653,9 +623,7 @@ export const CONSTANTS = {
     "unlimited",
     "–",
     ASSUMPTION,
-    undecided(
-      "The roadmap ignores poison charges. The export lists 175–180 per coat.",
-    ),
+    `${JAMES}: charges are ignored; the export lists 175–180`,
     "Poisons are not simulated yet.",
     true,
   ),
@@ -663,21 +631,17 @@ export const CONSTANTS = {
     false,
     "–",
     ASSUMPTION,
-    undecided(
-      "The roadmap says an extra attack cannot trigger another extra attack.",
-    ),
+    `${JAMES}: an extra attack does not trigger another extra attack`,
     "Hack and Slash is not simulated yet.",
     true,
   ),
 
-  // Values the current engine uses that are not rows in the roadmap table.
+  // Sample inputs. SimConfig (E2) will own the character, weapons, and rotation.
   "character.attackPower": entry(
     450,
     "AP",
     ASSUMPTION,
-    undecided(
-      "js/rogue.js hardcodes 450 attack power as the sample character.",
-    ),
+    SAMPLE_INPUT,
     "SimConfig will own this (E2).",
     true,
   ),
@@ -685,9 +649,7 @@ export const CONSTANTS = {
     0.1,
     "chance",
     ASSUMPTION,
-    undecided(
-      "js/rogue.js hardcodes a 10% crit chance as the sample character.",
-    ),
+    SAMPLE_INPUT,
     "SimConfig will own this (E2).",
     true,
   ),
@@ -695,7 +657,7 @@ export const CONSTANTS = {
     0.09,
     "chance",
     ASSUMPTION,
-    undecided("js/rogue.js hardcodes 9% bonus hit as the sample character."),
+    SAMPLE_INPUT,
     "9% matches the Classic hit cap, but the code does not say that. SimConfig will own this (E2).",
     true,
   ),
@@ -703,19 +665,15 @@ export const CONSTANTS = {
     3,
     "CP",
     ASSUMPTION,
-    undecided(
-      "js/rogue.js starts the fight at 3 combo points. start.state and Q10 say 0.",
-    ),
-    "Kept so this change does not alter combo-point uptime.",
+    SAMPLE_INPUT,
+    "The sample fight starts at 3 combo points. start.state and Q10 say 0.",
     true,
   ),
   "weapon.mainHand": entry(
     { min: 59, max: 110, speed: 1.8 },
     "damage, damage, s",
     ASSUMPTION,
-    undecided(
-      "js/rogue.js sample main hand is 59–110 at speed 1.8. Issue #9 corrected min and max, which had been stored as 110 and 59.",
-    ),
+    `${SAMPLE_INPUT}; #9 is 59–110 at 1.8s`,
     "Issue #9 unswaps the sample main hand. SimConfig will own the weapon (E2).",
     true,
   ),
@@ -723,9 +681,7 @@ export const CONSTANTS = {
     { min: 54, max: 101, speed: 1.7, initialSwing: 0.5 },
     "damage, damage, s, s",
     ASSUMPTION,
-    undecided(
-      "js/rogue.js sample off hand is 54–101 at speed 1.7, with the first swing delayed by 0.5s.",
-    ),
+    SAMPLE_INPUT,
     "The delay stops both hands swinging on the first frame. SimConfig will own the weapon (E2).",
     true,
   ),
@@ -733,9 +689,7 @@ export const CONSTANTS = {
     0.8,
     "×",
     ASSUMPTION,
-    undecided(
-      "Skill.cast refunds 80% of the energy cost when an attack does not land. Classic and the export do not describe that refund.",
-    ),
+    `${JAMES}: the code refunds 80% of the energy when an attack does not land; Classic and the export do not describe that refund`,
     "Present since the initial skill code.",
     true,
   ),
@@ -743,9 +697,7 @@ export const CONSTANTS = {
     25,
     "energy",
     ASSUMPTION,
-    undecided(
-      "Rogue.rotation casts Adrenaline Rush when energy is at or below 25.",
-    ),
+    SAMPLE_INPUT,
     "Rotation threshold, not a spell cost.",
     true,
   ),
@@ -753,59 +705,51 @@ export const CONSTANTS = {
     4,
     "CP",
     ASSUMPTION,
-    undecided(
-      "Rogue.rotation considers Slice and Dice from 4 combo points. The cast is commented out.",
-    ),
-    "Rotation threshold.",
+    SAMPLE_INPUT,
+    "Rotation threshold. The cast is commented out.",
     true,
   ),
   "rotation.sliceAndDiceRefreshSeconds": entry(
     3,
     "s",
     ASSUMPTION,
-    undecided(
-      "Rogue.rotation treats Slice and Dice as due for refresh at 3 seconds remaining.",
-    ),
+    SAMPLE_INPUT,
     "The cast is commented out, so this does not change damage today.",
     true,
   ),
+
+  // engineering: simulator machinery. Retune stays off.
   "attack.rollScale": entry(
     100,
     "roll",
-    ASSUMPTION,
-    undecided(
-      "resolveAttack compares an injected roll on a 0–100 scale. The scale came with the resolver so tests can hit each boundary.",
-    ),
+    ENGINEERING,
+    `${JAMES}: injected attack rolls use a 0–100 scale so tests can hit each boundary`,
     "Not a game rule. Callers and the resolver tests depend on it.",
-    true,
+    false,
   ),
   "log.maxEvents": entry(
     100,
     "events",
-    ASSUMPTION,
-    undecided("Simulation keeps the newest 100 combat-log rows."),
+    ENGINEERING,
+    `${JAMES}: the combat log keeps the newest 100 rows`,
     "Display cap, not a game rule.",
-    true,
+    false,
   ),
   "sim.msPerSecond": entry(
     1000,
     "ms/s",
-    ASSUMPTION,
-    undecided(
-      "Simulation converts the performance clock from milliseconds to seconds with 1000.",
-    ),
+    ENGINEERING,
+    `${JAMES}: the performance clock converts milliseconds to seconds`,
     "Unit conversion, not a game rule.",
-    true,
+    false,
   ),
   "sim.tickEpsilon": entry(
     1e-9,
     "s",
-    ASSUMPTION,
-    undecided(
-      "The DoT loop treats a remaining tick time at or below 1e-9 seconds as due, to absorb floating-point error.",
-    ),
-    "Numerical tolerance, not a game rule.",
-    true,
+    ENGINEERING,
+    `${JAMES}: 1e-9s tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings`,
+    "Floating-point tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings.",
+    false,
   ),
 };
 
