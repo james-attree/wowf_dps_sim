@@ -1,3 +1,5 @@
+import { k } from "../data/constants.js";
+
 export class Weapon {
   constructor(rogue, minDamage, maxDamage, speed, hand) {
     this.rogue = rogue;
@@ -33,8 +35,11 @@ export class Weapon {
   rollDamage() {
     let weaponDamage = this.rollWeaponDamage();
     if (this.hand === "off") {
-      weaponDamage *= 0.5; // Off-hand damage is typically reduced
+      // Off-hand penalty hits the weapon die only. Q2 moves it onto the whole hit.
+      weaponDamage *= k("offHand.damageMult");
     }
-    return weaponDamage + (this.rogue.getAttackPower() / 14) * this.speed; // Simplified AP contribution
+    return (
+      weaponDamage + (this.rogue.getAttackPower() / k("ap.perDps")) * this.speed
+    );
   }
 }

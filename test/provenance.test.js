@@ -69,7 +69,12 @@ describe("provenance check", () => {
     const constants = Object.fromEntries(
       SOURCE_TAGS.map((source, index) => [
         `example.${index}`,
-        validEntry(source, source === "assumption" ? "-" : `ref-${source}`),
+        validEntry(
+          source,
+          source === "assumption"
+            ? "James, 22 Oct 2026: fixture default"
+            : `ref-${source}`,
+        ),
       ]),
     );
 
@@ -131,7 +136,7 @@ describe("provenance check", () => {
     const result = checkProvenance({
       "gcd.duration": validEntry("classic-1.12"),
       "dot.critMultiplier": { source: "measured", ref: "James" },
-      latency: validEntry("assumption", "-"),
+      latency: validEntry("assumption", "James, 22 Oct 2026: no input delay"),
     });
 
     assert.equal(result.ok, false);
@@ -180,16 +185,43 @@ describe("provenance CLI", () => {
     }
   });
 
-  it("skips a constants file that is not present", async () => {
+  it("fails when the constants file is not present", async () => {
     const missing = join(tmpdir(), "provenance-missing", "constants.mjs");
     const outcome = await runProvenance(missing);
-    assert.equal(outcome.status, 0);
+    assert.equal(outcome.status, 1);
+    assert.match(outcome.message, /Provenance check failed/);
     assert.match(outcome.message, /is not present/);
+    assert.doesNotMatch(outcome.message, /skipped/i);
 
     const cli = await runCli([missing]);
-    assert.equal(cli.code, 0, cli.stderr);
-    assert.match(cli.stdout, /is not present/);
-    assert.equal(cli.stderr, "");
+    assert.equal(cli.code, 1);
+    assert.equal(cli.stdout, "");
+    assert.match(cli.stderr, /is not present/);
+  });
+
+  it("rejects an empty ref and a bare dash", () => {
+    const result = checkProvenance({
+      "target.armor": validEntry("assumption", ""),
+      "target.behind": validEntry("assumption", "   "),
+      "fight.duration": validEntry("assumption", "-"),
+      latency: validEntry("assumption", "–"),
+      "fight.iterations": validEntry("assumption", " - "),
+      "poison.charges": validEntry("assumption", " – "),
+      "hackAndSlash.chain": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: extra attacks do not chain",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "target.armor: missing ref",
+      "target.behind: missing ref",
+      "fight.duration: bare dash ref",
+      "latency: bare dash ref",
+      "fight.iterations: bare dash ref",
+      "poison.charges: bare dash ref",
+    ]);
   });
 
   it("fails when the constants file cannot be loaded", async () => {
@@ -205,22 +237,13 @@ describe("provenance CLI", () => {
   });
 
   it("checks the repository constants file", async () => {
+    await access(DEFAULT_CONSTANTS_PATH);
     const result = await runCli([]);
     assert.equal(result.code, 0, result.stdout + result.stderr);
-
-    let present = true;
-    try {
-      await access(DEFAULT_CONSTANTS_PATH);
-    } catch (error) {
-      assert.equal(error.code, "ENOENT");
-      present = false;
-    }
-
-    if (present) {
-      assert.match(result.stdout, /Provenance check passed/);
-    } else {
-      assert.match(result.stdout, /data\/constants\.js is not present/);
-    }
+    assert.match(
+      result.stdout,
+      /Provenance check passed \(\d+ constants\) for data\/constants\.js/,
+    );
     assert.equal(result.stderr, "");
   });
 });

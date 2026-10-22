@@ -10,20 +10,20 @@ const STATUS = {
   hit: "Hit",
 };
 
-// Weapon table at 0% bonus hit and 10% crit: miss [0, 24), dodge [24, 30.5),
-// parry [30.5, 30.5), glancing [30.5, 70.5), crit [70.5, 80.5), hit [80.5, 100].
-// Skill table drops glancing: miss [0, 8), dodge [8, 14.5), parry empty,
-// crit [14.5, 24.5), hit [24.5, 100]. Rolls are compared with `<`.
+// Weapon table at 0% bonus hit and 10% crit: miss [0, 27), dodge [27, 33.5),
+// parry [33.5, 33.5), glancing [33.5, 73.5), crit [73.5, 83.5), hit [83.5, 100].
+// White miss is 8% + 19%. Skill table drops glancing: miss [0, 8), dodge
+// [8, 14.5), parry empty, crit [14.5, 24.5), hit [24.5, 100]. Rolls use `<`.
 const WEAPON_BANDS = [
   { roll: 0, outcome: "miss", damage: 0 },
-  { roll: 23.999, outcome: "miss", damage: 0 },
-  { roll: 24, outcome: "dodge", damage: 0 },
-  { roll: 30.499, outcome: "dodge", damage: 0 },
-  { roll: 30.5, outcome: "glancing", damage: 65 },
-  { roll: 70.499, outcome: "glancing", damage: 65 },
-  { roll: 70.5, outcome: "crit", damage: 200 },
-  { roll: 80.499, outcome: "crit", damage: 200 },
-  { roll: 80.5, outcome: "hit", damage: 100 },
+  { roll: 26.999, outcome: "miss", damage: 0 },
+  { roll: 27, outcome: "dodge", damage: 0 },
+  { roll: 33.499, outcome: "dodge", damage: 0 },
+  { roll: 33.5, outcome: "glancing", damage: 65 },
+  { roll: 73.499, outcome: "glancing", damage: 65 },
+  { roll: 73.5, outcome: "crit", damage: 200 },
+  { roll: 83.499, outcome: "crit", damage: 200 },
+  { roll: 83.5, outcome: "hit", damage: 100 },
   { roll: 100, outcome: "hit", damage: 100 },
 ];
 
@@ -95,12 +95,12 @@ describe("resolveAttack outcome bands", () => {
   it("keeps parry on the table at zero width", () => {
     // The dodge threshold and the parry threshold are the same number, so
     // the roll that lands on that boundary is glancing (weapon) or crit (skill).
-    expectBand({ roll: 30.5 }, "glancing", 65);
+    expectBand({ roll: 33.5 }, "glancing", 65);
     expectBand({ attackType: "skill", roll: 14.5 }, "crit", 200);
   });
 
   it("drops the miss band once bonus hit covers the base miss", () => {
-    expectBand({ bonusHitChance: 0.24, roll: 0 }, "dodge", 0);
+    expectBand({ bonusHitChance: 0.27, roll: 0 }, "dodge", 0);
     expectBand(
       { attackType: "skill", bonusHitChance: 0.08, roll: 0 },
       "dodge",
@@ -109,14 +109,14 @@ describe("resolveAttack outcome bands", () => {
   });
 
   it("shrinks weapon miss by bonus hit before the other bands", () => {
-    // 24% base miss minus 4% hit leaves miss on [0, 20).
-    expectBand({ bonusHitChance: 0.04, roll: 19.999 }, "miss", 0);
-    expectBand({ bonusHitChance: 0.04, roll: 20 }, "dodge", 0);
+    // 27% base miss minus 4% hit leaves miss on [0, 23).
+    expectBand({ bonusHitChance: 0.04, roll: 22.999 }, "miss", 0);
+    expectBand({ bonusHitChance: 0.04, roll: 23 }, "dodge", 0);
   });
 
   it("treats a negative bonus hit as zero", () => {
     expectBand({ bonusHitChance: -1, roll: 0 }, "miss", 0);
-    expectBand({ bonusHitChance: -1, roll: 24 }, "dodge", 0);
+    expectBand({ bonusHitChance: -1, roll: 27 }, "dodge", 0);
   });
 
   it("caps bonus hit at 100%", () => {
@@ -125,15 +125,15 @@ describe("resolveAttack outcome bands", () => {
   });
 
   it("drops the crit band when crit chance is zero or negative", () => {
-    expectBand({ critChance: 0, roll: 70.5 }, "hit", 100);
-    expectBand({ critChance: -0.5, roll: 70.5 }, "hit", 100);
+    expectBand({ critChance: 0, roll: 73.5 }, "hit", 100);
+    expectBand({ critChance: -0.5, roll: 73.5 }, "hit", 100);
     expectBand({ attackType: "skill", critChance: 0, roll: 14.5 }, "hit", 100);
   });
 
   it("caps crit chance at 100% and consumes the rest of the table", () => {
-    expectBand({ critChance: 1.5, roll: 70.5 }, "crit", 200);
+    expectBand({ critChance: 1.5, roll: 73.5 }, "crit", 200);
     expectBand({ critChance: 1.5, roll: 100 }, "crit", 200);
-    expectBand({ critChance: 1.5, roll: 70.499 }, "glancing", 65);
+    expectBand({ critChance: 1.5, roll: 73.499 }, "glancing", 65);
   });
 });
 
@@ -314,7 +314,7 @@ describe("resolveAttack default roll", () => {
       throw new Error("Math.random should not be called");
     });
 
-    expectBand({ roll: 80.5 }, "hit", 100);
+    expectBand({ roll: 83.5 }, "hit", 100);
   });
 });
 

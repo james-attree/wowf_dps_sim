@@ -2,10 +2,10 @@ import { access } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-// CI check for data/constants.js (#22). A missing ref or an unknown source
-// tag fails the process. The file itself arrives with #7; until then there
-// is nothing to validate. #22 can extend this command to write
-// docs/provenance.md. Talent coverage (D6) is a separate later check.
+// CI check for data/constants.js (#22, tightened by #7). A missing file, a
+// missing ref, a bare dash ref, or an unknown source tag fails the process.
+// #22 can extend this command to write docs/provenance.md. Talent coverage
+// (D6) is a separate later check.
 
 export const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 export const DEFAULT_CONSTANTS_PATH = resolve(ROOT, "data", "constants.js");
@@ -17,6 +17,9 @@ export const SOURCE_TAGS = [
   "cataclysm",
   "assumption",
 ];
+
+// A ref that is only a hyphen or an en dash names no source.
+const BARE_DASH_REFS = new Set(["-", "\u2013"]);
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -55,6 +58,8 @@ export function checkProvenance(constants) {
     }
     if (typeof entry.ref !== "string" || entry.ref.trim() === "") {
       errors.push(`${id}: missing ref`);
+    } else if (BARE_DASH_REFS.has(entry.ref.trim())) {
+      errors.push(`${id}: bare dash ref`);
     }
   }
 
@@ -88,9 +93,6 @@ export async function loadConstants(filePath) {
 
 export function reportProvenance({ filePath, loaded, result }) {
   const shown = displayPath(filePath);
-  if (!loaded.present) {
-    return `Provenance check skipped: ${shown} is not present, so there are no constants to validate.`;
-  }
   if (!result.ok) {
     const lines = result.errors.map((error) => `- ${error}`);
     return `Provenance check failed for ${shown}:\n${lines.join("\n")}`;
@@ -113,8 +115,8 @@ export async function runProvenance(filePath = DEFAULT_CONSTANTS_PATH) {
 
   if (!loaded.present) {
     return {
-      status: 0,
-      message: reportProvenance({ filePath, loaded, result: null }),
+      status: 1,
+      message: `Provenance check failed: ${displayPath(filePath)} is not present.`,
     };
   }
 

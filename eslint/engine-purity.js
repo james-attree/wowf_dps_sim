@@ -1,7 +1,6 @@
 // Closes the no-magic-numbers gap for engine modules. The core rule allows a
-// numeric literal used as a variable initializer (`const DODGE_CHANCE = 0.065`),
-// which is how game numbers are written today. Those still have to fail lint
-// until they move into data/constants.js (#7).
+// numeric literal used as a variable initializer (`const DODGE_CHANCE = 0.065`).
+// Game numbers belong in data/constants.js, so that initializer still fails lint.
 
 const ALLOWED = new Set([0, 1, -1]);
 

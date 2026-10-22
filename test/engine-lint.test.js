@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -189,6 +189,14 @@ describe("engine lint", () => {
           message.message.includes("0.065"),
       ),
     );
+  });
+});
+
+describe("literal suppressions", () => {
+  it("does not keep eslint-suppressions.json", async () => {
+    await assert.rejects(access(resolve(root, "eslint-suppressions.json")), {
+      code: "ENOENT",
+    });
   });
 });
 

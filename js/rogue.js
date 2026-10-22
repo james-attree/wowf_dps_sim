@@ -1,16 +1,17 @@
+import { k } from "../data/constants.js";
 import { Weapon } from "./weapon.js";
 import * as Skills from "./skill.js";
 
 export class Rogue {
   constructor() {
-    this.energy = 100;
-    this.maxEnergy = 100;
-    this.attackPower = 450;
-    this.critChance = 0.1;
-    this.bonusHitChance = 0.09;
-    this.comboPoints = 3;
-    this.maxComboPoints = 5;
-    this.normalizedWeaponSpeed = 1.7; // Normalized weapon speed for AP contribution
+    this.energy = k("start.state").energy;
+    this.maxEnergy = k("energy.max");
+    this.attackPower = k("character.attackPower");
+    this.critChance = k("character.critChance");
+    this.bonusHitChance = k("character.bonusHitChance");
+    this.comboPoints = k("character.startingComboPoints");
+    this.maxComboPoints = k("combo.max");
+    this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // Normalized weapon speed for AP contribution
 
     this.abilities = {
       premeditation: new Skills.Premeditation(this),
@@ -32,9 +33,23 @@ export class Rogue {
       offHand: null,
     };
 
-    this.weapons.mainHand = new Weapon(this, 110, 59, 1.8, "main"); // Example values
-    this.weapons.offHand = new Weapon(this, 54, 101, 1.7, "off"); // Example values
-    this.weapons.offHand.swingTimer = 0.5;
+    const mainHand = k("weapon.mainHand");
+    const offHand = k("weapon.offHand");
+    this.weapons.mainHand = new Weapon(
+      this,
+      mainHand.min,
+      mainHand.max,
+      mainHand.speed,
+      "main",
+    ); // Example values
+    this.weapons.offHand = new Weapon(
+      this,
+      offHand.min,
+      offHand.max,
+      offHand.speed,
+      "off",
+    ); // Example values
+    this.weapons.offHand.swingTimer = offHand.initialSwing;
   }
 
   regenerateEnergy(dt, rate) {
@@ -56,12 +71,12 @@ export class Rogue {
   rollWeaponDamageForSkill() {
     return (
       this.weapons.mainHand.rollWeaponDamage() +
-      (this.attackPower / 14) * this.normalizedWeaponSpeed
+      (this.attackPower / k("ap.perDps")) * this.normalizedWeaponSpeed
     ); // Simplified AP contribution
   }
 
   rotation(simulation, dt) {
-    if (this.energy <= 25) {
+    if (this.energy <= k("rotation.adrenalineRushEnergy")) {
       this.abilities.adrenalineRush.cast(this, simulation); // Cast Adrenaline Rush if energy is low
     }
 
@@ -73,13 +88,14 @@ export class Rogue {
     if (
       (!simulation.activeBuffs["Slice and Dice"] ||
         (simulation.activeBuffs["Slice and Dice"] &&
-          simulation.activeBuffs["Slice and Dice"].duration <= 3)) &&
-      this.comboPoints >= 4
+          simulation.activeBuffs["Slice and Dice"].duration <=
+            k("rotation.sliceAndDiceRefreshSeconds"))) &&
+      this.comboPoints >= k("rotation.sliceAndDiceComboPoints")
     ) {
       //this.abilities.sliceAndDice.cast(this, simulation);
     }
 
-    if (this.comboPoints >= 5) {
+    if (this.comboPoints >= k("combo.max")) {
       this.abilities.rupture.cast(this, simulation);
     }
 
@@ -93,13 +109,13 @@ export class Rogue {
       simulation.activeBuffs["Slice and Dice"] &&
       simulation.activeBuffs["Slice and Dice"].duration > 0
     ) {
-      hasteMultiplier += 0.3; // Example: Slice and Dice increases attack speed by 30%
+      hasteMultiplier += k("sliceAndDice").haste; // Example: Slice and Dice increases attack speed by 30%
     }
     if (
       simulation.activeBuffs["Blade Flurry"] &&
       simulation.activeBuffs["Blade Flurry"].duration > 0
     ) {
-      hasteMultiplier += 0.2; // Example: Blade Flurry increases attack speed by 20%
+      hasteMultiplier += k("bladeFlurry").haste; // Example: Blade Flurry increases attack speed by 20%
     }
 
     this.weapons.mainHand.tick(dt, hasteMultiplier, (weapon) => {
