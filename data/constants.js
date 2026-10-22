@@ -66,7 +66,7 @@ export const CONSTANTS = {
     "energy, s, CP",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Premeditation|]",
-    "2 min cooldown and 2 combo points. The 20s expiry is premeditation.cpExpiry. The points removed are premeditation.cpRemovedOnExpiry.",
+    "2 min cooldown and 2 combo points. The 20s expiry is premeditation.cpExpiry. The points removed are premeditation.cpRemovedOnExpiry. It does not start the GCD (gcd.flags).",
     false,
   ),
   adrenalineRush: entry(
@@ -74,7 +74,7 @@ export const CONSTANTS = {
     "energy, ×, s, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Adrenaline Rush|]",
-    "Export cooldown is 5 min. The engine still uses adrenalineRush.engineCooldown (180s) until Q12.",
+    "Export cooldown is 5 min. The engine still uses adrenalineRush.engineCooldown (180s) until Q12. Casting it starts the GCD (gcd.flags).",
     false,
   ),
   "adrenalineRush.engineCooldown": entry(
@@ -90,7 +90,7 @@ export const CONSTANTS = {
     "energy, ×, s, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Blade Flurry|]",
-    "Cleave is ignored on a single target. The engine still leaves it off the GCD (Q15).",
+    "Cleave is ignored on a single target. Casting it starts the GCD (gcd.flags).",
     false,
   ),
   sliceAndDice: entry(
@@ -103,7 +103,7 @@ export const CONSTANTS = {
     "energy, ×, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Slice and Dice|Rank 2]",
-    "Duration is 6 + 3 × CP, stored per combo point. The cast is still commented out (Q13) and off the GCD (Q15).",
+    "Duration is 6 + 3 × CP, stored per combo point. The cast is still commented out (Q13). Casting it starts the GCD (gcd.flags).",
     false,
   ),
   "hemorrhage.ruptureBonus": entry(
@@ -265,8 +265,8 @@ export const CONSTANTS = {
     "SnD, BF, AR on GCD; Premeditation off",
     "–",
     CLASSIC,
-    `${WS}rogue/talents.go`,
-    "Not applied. The engine still leaves Blade Flurry, Adrenaline Rush, and Slice and Dice off the GCD (Q15). Premeditation stays off the GCD.",
+    `${WS}rogue/talents.go (Slice and Dice: ${WS}rogue/slice_and_dice.go; Premeditation: ${WS}rogue/premeditation.go)`,
+    "Applied. Blade Flurry and Adrenaline Rush set GCD to 1s in talents.go. Slice and Dice does the same in slice_and_dice.go. Premeditation sets GCD to 0, so it does not start the GCD and can be cast while one is active.",
     true,
   ),
   "ap.perDps": entry(
