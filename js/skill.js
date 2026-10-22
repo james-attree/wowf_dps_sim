@@ -13,6 +13,9 @@ class Skill {
     this.attackSkill = true;
     this.icon = "./img/stealth.jpg"; // Default icon, can be overridden by subclasses
     this.dot = false;
+    // A duration on the player (haste, energy regen) is a buff. A duration on
+    // the target (a DoT, or bonus damage taken) is a debuff.
+    this.targetAura = false;
   }
 
   damage() {
@@ -90,7 +93,10 @@ class Skill {
       }
 
       if (this.duration > 0) {
-        simulation.activeBuffs[this.name] = {
+        const auras = this.targetAura
+          ? simulation.activeDebuffs
+          : simulation.activeBuffs;
+        auras[this.name] = {
           duration: this.duration,
           icon: this.icon,
         };
@@ -195,6 +201,7 @@ export class GhostlyStrike extends Skill {
     this.duration = stats.duration;
     this.comboPointsGenerated = stats.comboPoints; // Ghostly Strike generates 1 combo point
     this.icon = "./img/ghostly_strike.jpg"; // Set the icon for Ghostly Strike
+    // Duration is the self dodge aura from the export. That dodge is not applied.
   }
 
   damage() {
@@ -263,6 +270,7 @@ export class Rupture extends Skill {
     this.attackSkill = true; // Rupture is not an attack skill
     this.icon = "./img/rupture.jpg"; // Set the icon for Rupture
     this.dot = true; // Rupture is a damage over time skill
+    this.targetAura = true;
   }
 
   damage() {
@@ -286,8 +294,9 @@ export class Hemorrhage extends Skill {
     super("Hemorrhage", stats.energy, stats.cooldown);
     this.rogue = rogue;
     this.duration = k("hemorrhage.ruptureBonus").duration;
-    this.comboPointsGenerated = stats.comboPoints; // Ghostly Strike generates 1 combo point
-    this.icon = "./img/hemorrhage.jpg"; // Set the icon for Ghostly Strike
+    this.comboPointsGenerated = stats.comboPoints; // Hemorrhage generates 1 combo point
+    this.icon = "./img/hemorrhage.jpg"; // Set the icon for Hemorrhage
+    this.targetAura = true;
   }
 
   damage() {

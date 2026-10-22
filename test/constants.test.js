@@ -241,6 +241,7 @@ describe("simulator values other than white miss", () => {
       duration: 15,
       triggersGcd: false,
       attackSkill: false,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.sliceAndDice, {
       energyCost: 25,
@@ -248,12 +249,14 @@ describe("simulator values other than white miss", () => {
       spender: true,
       triggersGcd: false,
       attackSkill: false,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.ghostlyStrike, {
       energyCost: 40,
       cooldown: 20,
       duration: 7,
       comboPointsGenerated: 1,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.backstab, {
       energyCost: 60,
@@ -271,6 +274,7 @@ describe("simulator values other than white miss", () => {
       duration: 15,
       triggersGcd: false,
       attackSkill: false,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.rupture, {
       energyCost: 25,
@@ -278,12 +282,14 @@ describe("simulator values other than white miss", () => {
       spender: true,
       dot: true,
       triggersGcd: true,
+      targetAura: true,
     });
     expectSkill(rogue.abilities.hemorrhage, {
       energyCost: 35,
       cooldown: 0,
       duration: 15,
       comboPointsGenerated: 1,
+      targetAura: true,
     });
     assert.equal(k("adrenalineRush").cooldown, 300);
     assert.equal(new Simulation(rogue).gcdDuration, 1);
@@ -393,7 +399,7 @@ describe("simulator values other than white miss", () => {
       tickDamage: 100,
       icon: null,
     };
-    fight.activeBuffs.Hemorrhage = { duration: 15, icon: null };
+    fight.activeDebuffs.Hemorrhage = { duration: 15, icon: null };
     fight.lastFrameTime = 0;
     fight.update(2000);
     assert.equal(fight.damageDone, 100 * 1.15 * 2);

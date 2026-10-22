@@ -1,6 +1,17 @@
 import { k } from "../data/constants.js";
 import { resolveAttack, rollCrit } from "./attack-resolver.js";
 
+// Auras already running lose this frame. One applied during rotation is not
+// in the map yet, so it keeps the duration it was given.
+function tickAuras(auras, dt) {
+  return Object.fromEntries(
+    Object.entries(auras).filter(([, aura]) => {
+      aura.duration -= dt;
+      return aura.duration > k("sim.tickEpsilon");
+    }),
+  );
+}
+
 export class Simulation {
   constructor(rogue) {
     this.rogue = rogue;
@@ -12,7 +23,8 @@ export class Simulation {
     this.nextCombatEventId = 0;
     this.lastFrameTime = performance.now();
     this.cooldowns = {}; // Track cooldowns for skills
-    this.activeBuffs = {}; // Track active buffs
+    this.activeBuffs = {}; // Self buffs: Slice and Dice, Adrenaline Rush, Blade Flurry, Ghostly Strike
+    this.activeDebuffs = {}; // Target debuffs and DoTs
     this.activeDots = {}; // Track active damage over time effects
   }
 
@@ -36,14 +48,10 @@ export class Simulation {
       base * k("adrenalineRush").regenMultiplier,
     );
 
-    // Timers already running lose this frame. A buff or cooldown applied
-    // during rotation keeps its full duration until the next one.
-    this.activeBuffs = Object.fromEntries(
-      Object.entries(this.activeBuffs).filter(([, buff]) => {
-        buff.duration -= dt;
-        return buff.duration > k("sim.tickEpsilon");
-      }),
-    );
+    // Timers already running lose this frame. A buff, debuff, or cooldown
+    // applied during rotation keeps its full duration until the next one.
+    this.activeBuffs = tickAuras(this.activeBuffs, dt);
+    this.activeDebuffs = tickAuras(this.activeDebuffs, dt);
     this.cooldowns = Object.fromEntries(
       Object.entries(this.cooldowns).map(([key, value]) => {
         const remaining = value - dt;
@@ -62,7 +70,7 @@ export class Simulation {
       while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
         let dotTickDamage = dot.tickDamage;
 
-        if (this.activeBuffs["Hemorrhage"]) {
+        if (this.activeDebuffs["Hemorrhage"]) {
           dotTickDamage *= 1 + k("hemorrhage.ruptureBonus").bonus;
         }
 

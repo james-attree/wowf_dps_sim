@@ -19,10 +19,13 @@ const gcdFill = document.querySelector("#gcd-fill");
 const gcdStatus = document.querySelector("#gcd-status");
 const activeBuffs = document.querySelector("#active-buffs");
 const activeBuffsEmpty = document.querySelector("#active-buffs-empty");
+const activeDebuffs = document.querySelector("#active-debuffs");
+const activeDebuffsEmpty = document.querySelector("#active-debuffs-empty");
 const skillCooldowns = document.querySelector("#skill-cooldowns");
 const skillCooldownsEmpty = document.querySelector("#skill-cooldowns-empty");
 const cooldownItems = new Map();
 const buffItems = new Map();
+const debuffItems = new Map();
 const timeValue = document.querySelector("#time-value");
 const damageValue = document.querySelector("#damage-value");
 const dpsValue = document.querySelector("#dps-value");
@@ -65,6 +68,12 @@ function redrawScene(rogue) {
     activeBuffs,
     buffItems,
     activeBuffsEmpty,
+  );
+  renderTimedEffects(
+    simulation.activeDebuffs,
+    activeDebuffs,
+    debuffItems,
+    activeDebuffsEmpty,
   );
   renderTimedEffects(
     simulation.cooldowns,
