@@ -6,9 +6,13 @@ Every constant in `data/constants.js`, grouped by source.
 `npm run provenance` rewrites this file after it checks that each constant
 has a ref and a known source tag (`wowf-export`, `wowf-designer`,
 `classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,
-a ref that is only a dash, a placeholder ref (`TBD`, `N/A`, `?`, or
-`tbd later`, in any case, or text containing `fill in` or
-`No recorded owner decision`), or an unknown tag fails the command.
+a ref made only of dashes (including an em dash), a placeholder ref,
+or an unknown tag fails the command. The check case-folds the ref,
+strips punctuation, symbols, and dashes, and collapses whitespace, so
+`TBD`, `TBD.`, `N/A`, `NA`, `?`, `??`, `tbd later`, and `tbd-later`
+fail, as does a ref made only of punctuation or symbols, or one whose
+first word is `tbd`. The phrases `fill in` and `No recorded owner
+decision` fail only as whole words.
 
 ## Summary
 
