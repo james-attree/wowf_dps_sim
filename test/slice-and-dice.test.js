@@ -166,4 +166,69 @@ describe("Slice and Dice rotation", () => {
     near(mainHand.swingTimer, mainHand.speed / haste);
     near(offHand.swingTimer, offHand.speed / haste - mainLeft);
   });
+
+  it("returns both weapons to normal speed after Slice and Dice expires", () => {
+    mock.method(Math, "random", () => 0.5);
+    const { rogue, sim } = pinned();
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    sim.update(0);
+    assert.equal(sim.currentTime, 0);
+    const duration = sim.activeBuffs["Slice and Dice"].duration;
+    const below = k("rotation.sliceAndDiceComboPoints") - 1;
+
+    rogue.maxEnergy = 0;
+    rogue.energy = 0;
+    rogue.comboPoints = below;
+    const parked = k("premeditation").cooldown;
+    rogue.weapons.mainHand.swingTimer = parked;
+    rogue.weapons.offHand.swingTimer = parked;
+    advance(sim, duration);
+
+    assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
+    assert.equal(sim.activeBuffs["Blade Flurry"], undefined);
+    assert.equal(rogue.comboPoints, below);
+
+    const step = k("weapon.offHand").initialSwing;
+    rogue.weapons.mainHand.swingTimer = step;
+    rogue.weapons.offHand.swingTimer = step;
+    advance(sim, step);
+
+    assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
+    assert.equal(rogue.comboPoints, below);
+    near(rogue.weapons.mainHand.swingTimer, rogue.weapons.mainHand.speed);
+    near(rogue.weapons.offHand.swingTimer, rogue.weapons.offHand.speed);
+  });
+
+  it("multiplies Slice and Dice and Blade Flurry on the next swing", () => {
+    mock.method(Math, "random", () => 0.5);
+    const { rogue, sim } = pinned();
+    delete sim.cooldowns["Blade Flurry"];
+    rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    const mainHand = rogue.weapons.mainHand;
+    const offHand = rogue.weapons.offHand;
+    mainHand.swingTimer = mainHand.speed;
+    offHand.swingTimer = offHand.speed;
+    const haste = (1 + k("sliceAndDice").haste) * (1 + k("bladeFlurry").haste);
+    assert.equal(k("haste.stacking"), "multiplicative");
+
+    sim.update(0);
+    assert.equal(sim.currentTime, 0);
+    assert.ok(sim.activeBuffs["Slice and Dice"].duration > 0);
+    assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
+
+    const opened = k("weapon.offHand").initialSwing;
+    advance(sim, opened);
+    near(mainHand.swingTimer, mainHand.speed - opened);
+    near(offHand.swingTimer, offHand.speed - opened);
+
+    const offLeft = offHand.swingTimer;
+    advance(sim, offLeft);
+    near(offHand.swingTimer, offHand.speed / haste);
+
+    const mainLeft = mainHand.swingTimer;
+    advance(sim, mainLeft);
+    near(mainHand.swingTimer, mainHand.speed / haste);
+    near(offHand.swingTimer, offHand.speed / haste - mainLeft);
+  });
 });

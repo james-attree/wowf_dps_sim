@@ -133,19 +133,20 @@ export class Rogue {
     this.abilities.hemorrhage.cast(this, simulation);
 
     // Slice and Dice and Blade Flurry shorten the next swing of both weapons.
-    // A swing already counting down keeps its remaining time.
+    // haste.stacking multiplies the two. A swing already counting down keeps
+    // its remaining time.
     let hasteMultiplier = 1;
     if (
       simulation.activeBuffs["Slice and Dice"] &&
       simulation.activeBuffs["Slice and Dice"].duration > 0
     ) {
-      hasteMultiplier += k("sliceAndDice").haste;
+      hasteMultiplier *= 1 + k("sliceAndDice").haste;
     }
     if (
       simulation.activeBuffs["Blade Flurry"] &&
       simulation.activeBuffs["Blade Flurry"].duration > 0
     ) {
-      hasteMultiplier += k("bladeFlurry").haste;
+      hasteMultiplier *= 1 + k("bladeFlurry").haste;
     }
 
     this.weapons.mainHand.tick(dt, hasteMultiplier, (weapon) => {

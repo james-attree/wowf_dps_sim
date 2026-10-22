@@ -359,7 +359,7 @@ describe("swing timer fight regression", () => {
       "Slice and Dice": 4,
       Rupture: 1,
       "Rupture tick": 8,
-      "Main-hand": 44,
+      "Main-hand": 45,
       "Off-hand": 47,
     };
     const spent =
