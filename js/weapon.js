@@ -38,13 +38,13 @@ export class Weapon {
   }
 
   rollDamage() {
-    let weaponDamage = this.rollWeaponDamage();
+    // Classic applies the off-hand penalty to the whole hit, AP bonus included.
+    let hit =
+      this.rollWeaponDamage() +
+      (this.rogue.getAttackPower() / k("ap.perDps")) * this.speed;
     if (this.hand === "off") {
-      // Off-hand penalty hits the weapon die only. Q2 moves it onto the whole hit.
-      weaponDamage *= k("offHand.damageMult");
+      hit *= k("offHand.damageMult");
     }
-    return (
-      weaponDamage + (this.rogue.getAttackPower() / k("ap.perDps")) * this.speed
-    );
+    return hit;
   }
 }
