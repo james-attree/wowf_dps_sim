@@ -60,7 +60,7 @@ const ROADMAP = [
   ["energy.max", "classic-1.12"],
   ["rupture.apByCP", "cataclysm"],
   ["dot.canCrit", "wowf-designer"],
-  ["dot.critMultiplier", "wowf-designer"],
+  ["dot.critMultiplier", "assumption"],
   ["target.level", "assumption"],
   ["target.armor", "assumption"],
   ["target.behind", "assumption"],
@@ -102,10 +102,10 @@ describe("constants", () => {
     }
     assert.deepEqual(counts, {
       "wowf-export": 12,
-      "wowf-designer": 2,
+      "wowf-designer": 1,
       "classic-1.12": 35,
       cataclysm: 1,
-      assumption: 11,
+      assumption: 12,
     });
   });
 
@@ -124,10 +124,12 @@ describe("constants", () => {
       CONSTANTS["dot.canCrit"].ref,
       /^James, 22 Oct 2026: all DoTs, bleeds included, can crit/,
     );
-    assert.match(
+    assert.equal(
       CONSTANTS["dot.critMultiplier"].ref,
-      /^Issue #23: DoTs and bleeds crit at 2×/,
+      "James, 22 Oct 2026: 2x DoT/bleed crit is standard and unlikely to change; update the code if it does",
     );
+    assert.equal(CONSTANTS["dot.critMultiplier"].source, "assumption");
+    assert.equal(CONSTANTS["dot.critMultiplier"].retune, false);
     assert.equal(k("dot.canCrit"), true);
     assert.equal(k("dot.critMultiplier"), 2);
     assert.equal(k("bleed.ignoresArmor"), true);

@@ -569,16 +569,16 @@ export const CONSTANTS = {
     "Rupture, Garrote, and Deadly Poison. This differs from Classic. The per-tick crit roll stays.",
     false,
   ),
+
+  // assumption: defaults James signed on 22 Oct 2026.
   "dot.critMultiplier": entry(
     2,
     "×",
-    WOWF_DESIGNER,
-    "Issue #23: DoTs and bleeds crit at 2×. Q11 design decision recorded in the issue.",
-    "Same multiplier as other crits. The issue constants list had marked 2× as a presumption; the decision is 2×.",
-    true,
+    ASSUMPTION,
+    "James, 22 Oct 2026: 2x DoT/bleed crit is standard and unlikely to change; update the code if it does",
+    "Same multiplier as other crits.",
+    false,
   ),
-
-  // assumption: defaults James signed on 22 Oct 2026.
   "target.level": entry(
     63,
     "level",
