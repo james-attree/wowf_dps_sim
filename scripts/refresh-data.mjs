@@ -638,7 +638,9 @@ function parseJsonText(text, invalidMessage) {
 
 // The snapshot and the manifest are one pin. Both temp files are written
 // before either rename, so a failed temp write removes both temps and leaves
-// both targets unchanged.
+// both targets unchanged. The caller renames the snapshot first. If the
+// second rename fails, the new snapshot can sit beside the old manifest;
+// the catch then removes the manifest temp that is still there.
 async function writeBoth(files, writeFileImpl) {
   const temps = [];
   try {

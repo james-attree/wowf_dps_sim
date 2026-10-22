@@ -1,0 +1,540 @@
+# Mechanics
+
+How the engine on `main` resolves attacks, resources, and time. Every
+formula names a constant id from [`data/constants.js`](../data/constants.js).
+Values, units, source tags, refs, and notes are in the generated
+[`docs/provenance.md`](provenance.md). This file does not copy those values
+out as bare numbers.
+
+`k(id)` returns the constant's `value`. A constant is on the retune list
+when its source is not `wowf-export` and its `retune` flag is on. Talent
+ranks in the vendored snapshot are not applied. The behaviour below is what
+the current modules do.
+
+## Attack table
+
+`resolveAttack` in `js/attack-resolver.js` resolves white swings and special
+attacks with one roll. `k("table.white")` (`classic-1.12`, on the retune
+list) records the Classic order miss, dodge, parry, glancing, block, crit,
+hit. The note says the engine uses one roll and omits block, and that a
+glancing blow cannot crit. `k("table.yellow")` (same source, on the retune
+list) records two rolls for specials. The note says that shape is not
+applied: a yellow attack still uses this single roll and does not glance.
+
+The live roll is `Math.random()` times `k("attack.rollScale")`
+(`engineering`, retune off). Callers may inject a roll on that scale. The
+function walks the bands in order, adding each chance times the scale, and
+takes the first band whose running threshold is strictly above the roll. A
+roll that lands on a threshold falls through to the next band. Whatever is
+left is a hit. The chances are not renormalised, so a crit chance at the
+top of the clamp can leave no hit band.
+
+Bonus hit and crit are clamped into the unit interval. A non-finite chance
+throws. The sim passes `Rogue.getBonusHitChance()` and
+`Rogue.getCritChance()`, which are `k("character.bonusHitChance")` and
+`k("character.critChance")`. Both are assumptions on the retune list.
+
+White miss, for `attackType` `"weapon"` (main hand and off hand):
+
+`max(0, k("miss.yellow") + k("miss.dualWieldPenalty") - bonusHit)`
+
+Yellow miss, for `attackType` `"skill"`:
+
+`max(0, k("miss.yellow") - bonusHit)`
+
+`k("miss.yellow")` and `k("miss.dualWieldPenalty")` are `classic-1.12` and
+on the retune list. The dual-wield note says the penalty is for white swings
+only. `k("hit.suppression")` (same source, on the retune list) is not read.
+Its note says the first portion of bonus hit is ignored, and that this is
+not applied until the full table lands. `resolveAttack` subtracts the whole
+clamped bonus hit. `k("weaponSkill.base")` and `k("target.defense")` are not
+read either. Their notes defer that comparison to the same later table.
+
+Dodge is `k("dodge.target")` on every roll (`classic-1.12`, on the retune
+list). Nothing reduces it. Ghostly Strike stores `k("ghostlyStrike").duration`
+as a self buff and does not change this chance.
+
+Parry is a band with zero width. The code passes a zero chance. The note on
+`k("parry.target")` says the same: the engine still passes a zero parry
+chance on the single roll, and the front/behind split is later.
+`k("target.behind")` is an assumption on the retune list. Its note says the
+engine does not branch on it yet.
+
+Block is omitted. The note on `k("block.target")` says it is not on the
+current single-roll table.
+
+Glancing is pushed only for `"weapon"`. The chance is `k("glancing.chance")`
+and the damage factor is `k("glancing.damage")` (both `classic-1.12`, on the
+retune list). The glancing-damage note says the flat average is what is in
+force, and that the low/high range is later. Because glancing is its own
+band, placed before crit, a glancing blow cannot crit.
+
+Crit uses the clamped crit chance it was given. `k("crit.suppressionSkill")`
+and `k("crit.suppressionAura")` are `classic-1.12` and on the retune list.
+Both notes say the suppression is not applied yet, so the roll is not
+reduced by defense or by an aura.
+
+Damage is the base times a multiplier, then `Math.floor`. A miss, dodge, or
+parry multiplies by zero. A glance uses `k("glancing.damage")`. A crit uses
+`k("crit.meleeMultiplier")` (`classic-1.12`, on the retune list). A hit keeps
+the base damage. The result is `landed` for a glance, a crit, or a hit. A
+glance can floor to zero damage and still count as landed.
+
+`Simulation.resolveAttack` then runs that damage through armor (see Armor)
+and adds it to the total when the attack landed and the armored damage is
+still positive.
+
+## Weapon swings and normalised speed
+
+`Weapon` in `js/weapon.js` holds a min, a max, a speed, and a hand
+(`"main"` or `"off"`). The sample weapons are `k("weapon.mainHand")` and
+`k("weapon.offHand")`, both assumptions on the retune list.
+
+The weapon die is an inclusive integer from min through max. The `1` in the
+span is the code's inclusive end, not a constant:
+
+`floor(random * (max - min + 1)) + min`
+
+A white swing's hit, in `Weapon.rollDamage`, is that die plus attack power
+divided by `k("ap.perDps")`, times the weapon's own speed. Attack power is
+`Rogue.getAttackPower()`, the sample `k("character.attackPower")` (assumption,
+on the retune list). `k("ap.perDps")` is `classic-1.12` and on the retune
+list. An off-hand swing then multiplies that whole sum, die and attack-power
+term together, by `k("offHand.damageMult")` (`classic-1.12`, on the retune
+list). The note says Dual Wield Specialization is not applied on top.
+
+Specials that use the weapon call `Rogue.rollWeaponDamageForSkill`. That is
+the main-hand die plus attack power divided by `k("ap.perDps")`, times
+`k("normalizedSpeed.dagger")`. The rogue copies that normalised speed once,
+in the constructor. The note on `k("normalizedSpeed.dagger")`
+(`classic-1.12`, on the retune list) says instant attacks use normalised
+speed for the attack-power term and that the engine assumes a dagger.
+`k("normalizedSpeed.oneHand")` (same source, on the retune list) is not
+selected. Its note says so.
+
+The rotation's weapon builders are Hemorrhage and Ghostly Strike. A landed
+Hemorrhage deals that normalised hit times `k("hemorrhage").weaponMultiplier`
+and applies a target debuff for `k("hemorrhage.ruptureBonus").duration`. A
+landed Ghostly Strike deals the normalised hit times
+`k("ghostlyStrike").weaponMultiplier`.
+Both constants are `wowf-export` and are not on the retune list. Each note
+says the stored multiplier assumes a dagger main hand and that another
+export percent, for a non-dagger, is not selected. Sinister Strike, Backstab,
+and Ambush use the same normalised hit plus their own `k` multipliers and
+flat bonuses (`k("sinisterStrike")`, `k("backstab")`, `k("ambush")`, all
+`wowf-export`). Their notes say dagger, behind, and stealth requirements are
+not enforced. `Rogue.rotation` does not cast those three.
+
+`Weapon.tick` subtracts the frame from `swingTimer`. While the timer is at
+or below `k("sim.tickEpsilon")` and the interval is positive, it fires a
+swing and adds one interval. Time past a swing stays on the timer, so a long
+frame can hold several swings and a short frame does not drop the leftover.
+The interval is weapon speed divided by the haste multiplier passed in from
+`Rogue.rotation` (see Haste stacking). The main-hand timer starts due, so
+the first tick swings it. The off-hand timer starts at
+`k("weapon.offHand").initialSwing`. The note says that delay keeps the hands
+from swinging together on the first frame. Haste does not rewrite a delay
+that is already counting down.
+
+Each swing calls `Simulation.resolveAttack` with attack type `"weapon"`.
+
+## Global cooldown
+
+`Simulation` stores `gcdDuration` from `k("gcd.duration")` (`classic-1.12`,
+on the retune list). The note says this is the rogue GCD and that wowsims
+uses the same length for its minimum. `Simulation.setGcd` sets `gcd` to that
+duration. `Simulation.tickGcd` subtracts the frame and floors at zero. It
+does not compare the remainder with `k("sim.tickEpsilon")`. The note on
+`k("sim.tickEpsilon")` lists the GCD among the timers that use that
+tolerance. The countdown does not.
+
+`Skill.cast` in `js/skill.js` treats `triggersGcd` as on unless a subclass
+turns it off. An ability that triggers the GCD casts only when `gcd` is
+exactly zero, and a cast that proceeds calls `setGcd`. An ability that does
+not trigger it skips that wait, does not start a GCD, and does not clear one
+that is already running. The comment on that branch says a later off-GCD
+ability would inherit the same rule.
+
+`k("gcd.flags")` (`classic-1.12`, on the retune list) records Slice and Dice,
+Blade Flurry, and Adrenaline Rush on the GCD, and Premeditation off. The
+note says this is applied. Premeditation sets `triggersGcd` off. Slice and
+Dice, Blade Flurry, Adrenaline Rush, and the other `Skill` subclasses leave
+it on, so a successful cast starts the GCD. This is the rule from #57.
+
+The GCD is ticked before `Rogue.rotation`, so a GCD started during this
+frame's casts is not reduced until the next frame. The same is true of a
+cooldown, a buff, or a debuff applied during the rotation: `tickAuras` has
+already run.
+
+## Sample rotation
+
+`Rogue.rotation` tries, in order:
+
+1. Adrenaline Rush, when energy is at or below
+   `k("rotation.adrenalineRushEnergy")`.
+2. Blade Flurry.
+3. Premeditation.
+4. Slice and Dice, when it is missing or due to refresh (see Slice and Dice).
+5. Rupture, when combo points are at `k("combo.max")`.
+6. Ghostly Strike.
+7. Hemorrhage.
+8. Both weapon swings, with the haste multiplier from `stackHaste`.
+
+Each cast still has to pass `Skill.cast` (cooldown, combo points for a
+spender, energy, and the GCD). The first ability that starts the GCD blocks
+later on-GCD casts in that frame. Premeditation does not, so it can still
+land beside one of them. Weapon swings run after the casts, whether or not a
+cast succeeded.
+
+## Energy
+
+The fight starts at `k("start.state").energy`. That object is an assumption
+on the retune list. `Rogue.regenerateEnergy` adds `rate * dt` and caps at
+`k("energy.max")` (`classic-1.12`, on the retune list). The note on
+`k("energy.max")` says the cap matches the export's Vigor bonus.
+
+Regen per second is `k("energy.regenPerSecond")` (`wowf-export`, not on the
+retune list). The note says Forever regenerates continuously, and that
+Classic used a periodic tick. The engine adds `rate * dt` every frame. It
+does not wait for a tick.
+
+`Simulation.update` reads Adrenaline Rush's remaining time before buffs are
+counted down. The slice of the frame still inside the buff, including the
+frame the buff runs out, uses
+
+`k("energy.regenPerSecond") * k("adrenalineRush").regenMultiplier`
+
+and the rest of the frame uses `k("energy.regenPerSecond")`. The base-rate
+slice is added first, then the bonus-rate slice. Each add is capped. The
+cast frame itself stays at the base rate, because the buff is applied later,
+inside `Rogue.rotation`.
+
+`Skill.cast` spends `energyCost` before the attack roll. If the attack does
+not land, it refunds `energyCost * k("skill.missEnergyRefund")` and returns
+without a cooldown, combo points, or an aura. The GCD, if this ability
+starts one, is already running. `k("skill.missEnergyRefund")` is an
+assumption on the retune list. Its note says Classic and the export do not
+describe that refund. A glance, a crit, or a hit is landed, so it is not
+refunded. Adrenaline Rush, Blade Flurry, Slice and Dice, and Premeditation
+are not attacks, so they have no miss refund.
+
+## Combo points
+
+The fight starts at `k("character.startingComboPoints")`. `k("start.state")`
+records the same combo-point count and full energy. Both are assumptions on
+the retune list. The starting-combo-point note says there is no pre-pull
+Premeditation. The cap is `k("combo.max")` (`wowf-export`, not on the retune
+list).
+
+A builder adds its `comboPointsGenerated`, capped at `k("combo.max")`. If
+that add actually gained a point, and the ability is not Premeditation,
+`Rogue.clearPremeditation` cancels the expiry timer and leaves the points in
+place. A non-Premeditation builder that gains nothing, because the rogue is
+already capped, leaves the timer alone. A spender sets combo points to none
+and cancels the timer. `Skill.cast` rejects a spender when the rogue has no combo
+points, before it spends energy or starts the GCD.
+
+A landed Hemorrhage adds `k("hemorrhage").comboPoints`. A landed Ghostly
+Strike adds `k("ghostlyStrike").comboPoints` and then sits on
+`k("ghostlyStrike").cooldown`.
+Premeditation is covered below.
+
+## Finishers
+
+Eviscerate, Rupture, and Slice and Dice set `spender`. Each needs a combo
+point, and a successful cast spends all of them and cancels Premeditation
+expiry. Slice and Dice is covered in its own section. It deals no damage.
+The sample rotation's damaging finisher is Rupture, and only when combo
+points are at `k("combo.max")`. Eviscerate is implemented and `Rogue.rotation`
+does not call it.
+
+Eviscerate, in `Eviscerate.damage`, rolls an inclusive integer from min to
+max. The attack-power term is attack power times combo points times
+`k("eviscerate.apPerCP")` (`classic-1.12`, on the retune list). The note says
+a larger coefficient belongs to a later expansion. Min and max each add that
+term to the matching band of `k("eviscerate").damageByCp` (`wowf-export`).
+The note says a cast with no combo points would add no base damage. The
+spender check rejects that cast first. The roll then goes through
+`resolveAttack` as a skill, then armor.
+
+Rupture, in `Rupture.damage`, uses the matching entries of
+`k("rupture").damageByCp` and `k("rupture").durationByCp` (`wowf-export`).
+Outside that table the cast deals no damage and the duration is cleared, so
+no DoT is stored. Inside the table the total is the base damage plus attack
+power times the matching entry of `k("rupture.apByCP")`. That coefficient is
+`cataclysm` and on the retune list. The note says the owner kept the
+Cataclysm totals and that Classic used another series. A landed cast also stores
+a target debuff of that duration. Tick damage is read from the dot, not from
+the debuff. The application and the ticks are under Bleeds and damage over
+time.
+
+A missed Eviscerate or Rupture does not spend combo points. The refund rule
+is under Energy.
+
+## Premeditation
+
+`Premeditation` spends `k("premeditation").energy`, adds
+`k("premeditation").comboPoints`, and starts
+`k("premeditation").cooldown`. The constant is `wowf-export` and is not on
+the retune list. It is not an attack, so the log records a cast. It does not
+start the GCD. The export note on the class, and the note on
+`k("premeditation.cpExpiry")`, say Classic required Stealth. The engine does
+not. There is no Stealth check in `Premeditation` or in `Rogue.rotation`.
+
+On a successful cast `Rogue.armPremeditation` sets the removal amount to
+`k("premeditation.cpRemovedOnExpiry")` and the timer to
+`k("premeditation.cpExpiry")`. A later Premeditation replaces both. The
+expiry constant is `wowf-export` and is not on the retune list. Its note says
+Classic used a shorter expiry. The removal amount is an assumption on the
+retune list. Its note says expiry always removes that many points, even when
+the cap meant fewer were added, and that the result is clamped so combo
+points do not go below zero.
+
+`Rogue.tickPremeditation` runs in `Simulation.update` before the rotation, so
+the cast frame does not count. When the remaining time is at or below
+`k("sim.tickEpsilon")`, combo points drop by the armed amount, clamped at
+zero, and the timer is cleared. A finisher, or a later cast that actually
+adds a combo point, clears the timer first, so those points are not removed
+on top of being spent or folded into a new builder.
+
+## Adrenaline Rush
+
+`AdrenalineRush` spends `k("adrenalineRush").energy`, applies a self buff for
+`k("adrenalineRush").duration`, and starts `k("adrenalineRush").cooldown`.
+The constant is `wowf-export` and is not on the retune list. The note says
+the engine uses the export cooldown, and that casting starts the GCD. It is
+not an attack. It does not generate combo points.
+
+`Rogue.rotation` tries it when energy is at or below
+`k("rotation.adrenalineRushEnergy")`. That threshold is an assumption on the
+retune list. The note says it is a rotation threshold, not a spell cost.
+While the ability is on cooldown, `Skill.cast` returns without refreshing
+the buff. The regen multiplier is under Energy:
+`k("adrenalineRush").regenMultiplier` on the portion of a later frame still
+inside the buff.
+
+## Blade Flurry
+
+`BladeFlurry` spends `k("bladeFlurry").energy`, applies a self buff for
+`k("bladeFlurry").duration`, and starts `k("bladeFlurry").cooldown`. The
+constant is `wowf-export` and is not on the retune list. The note says cleave
+is ignored on a single target, and that casting starts the GCD. It is not an
+attack and it grants no combo points. There is no second target.
+
+`Rogue.rotation` tries it on every frame, before Premeditation and Slice and
+Dice. When the cast succeeds it takes the GCD, so Slice and Dice and the
+builders wait. While the buff's duration is still positive, its haste
+fraction `k("bladeFlurry").haste` is passed to `stackHaste`.
+
+## Slice and Dice
+
+`SliceAndDice` in `js/skill.js` is a spender and not an attack. It spends
+`k("sliceAndDice").energy`, spends every combo point, and clears a
+Premeditation timer. `k("sliceAndDice").cooldown` does not become a cooldown
+entry, because `Skill.cast` records one only when the cooldown is positive.
+The cast is logged as a cast, with no attack roll. The constant is
+`wowf-export` and is not on the retune list. Its ref names the `spell_desc`
+row the export uses for this cast.
+
+`triggersGcd` stays at the `Skill` default, so a cast that proceeds calls
+`Simulation.setGcd`. The `sliceAndDice` note and the `gcd.flags` note both
+say casting it starts the GCD.
+
+Duration is per combo point. When the combo points fall inside
+`k("sliceAndDice").durationByCp`, `SliceAndDice.cast` copies that entry onto
+the buff before `Skill.cast` stores it on `activeBuffs`. The first entry is
+the duration for one combo point. The `sliceAndDice` note says the stored
+series is the export's per-combo-point duration, a base plus a step times
+combo points,
+written out per point so the engine can index it. The engine does not
+evaluate that expression itself. The buff is a player aura, not a debuff,
+and it deals no damage.
+
+`Rogue.rotation` refreshes it before the Rupture check. The cast is attempted
+when the buff is missing, or its remaining duration is at or below
+`k("rotation.sliceAndDiceRefreshSeconds")`, and combo points are at least
+`k("rotation.sliceAndDiceComboPoints")`. Both thresholds are assumptions on
+the retune list. When that cast succeeds it spends the combo points, so the
+Rupture check later in the same call sees none. Blade Flurry is tried earlier
+and also starts the GCD, so when both are ready Blade Flurry takes this frame
+and Slice and Dice waits until the GCD is clear.
+
+While the buff's duration is positive, `Rogue.rotation` passes
+`k("sliceAndDice").haste` through `stackHaste`. The note says that haste
+shortens the next swing of both weapons. A swing already counting down keeps
+its remaining time. The `haste.stacking` note says wowsims rescales that
+swing in `UpdateSwingTimers`. This engine does not. The combination with
+Blade Flurry is the next section.
+
+## Haste stacking
+
+`stackHaste` in `js/rogue.js` reads `k("haste.stacking")`. The shipped value
+is multiplicative. The constant is `classic-1.12` and on the retune list.
+The note says Classic attack-speed effects multiply, as wowsims does in
+`MultiplyMeleeSpeed`, and that Slice and Dice and Blade Flurry each
+contribute.
+
+`Rogue.rotation` starts the swing multiplier at 1, then, for each buff that
+is present with duration still positive, replaces it with `stackHaste` of
+the current multiplier and that buff's haste fraction. Slice and Dice is
+applied first, then Blade Flurry. `Weapon.tick` divides weapon speed by the
+result. Both hands use the same multiplier.
+
+- Multiplicative: `stackHaste` returns the current multiplier times
+  `(1 + haste)`. With both buffs the interval divisor is
+  `(1 + k("sliceAndDice").haste) * (1 + k("bladeFlurry").haste)`. That is
+  the product the `haste.stacking` note describes.
+- Additive: `stackHaste` returns the current multiplier plus the haste
+  fraction. With both buffs the divisor is
+  `1 + k("sliceAndDice").haste + k("bladeFlurry").haste`.
+- Any other value throws `Unknown haste.stacking: …` from `stackHaste`.
+
+One buff alone is `1 + haste` under either setting, because the multiplier
+starts at 1. The `1` there is the unhasted multiplier in `Rogue.rotation`,
+not a constant.
+
+`Weapon.tick` does not multiply `swingTimer` when a buff is applied or
+removed. It subtracts the frame from the time already left and, only after a
+swing fires, adds `speed / hasteMultiplier` using the multiplier on that
+tick. The next swing is the one that shortens. The swing that was already
+counting down keeps its remaining time, including the off-hand's opening
+delay. The notes on `sliceAndDice` and `haste.stacking` both say this. The
+`haste.stacking` note says wowsims rescales the swing in progress in
+`UpdateSwingTimers`. This engine does not.
+
+## Armor
+
+`armorMultiplier` in `js/simulation.js` reads `k("target.armor")` (an
+assumption on the retune list; negative armor is treated as zero) and
+`k("armor.mitigation")` (`classic-1.12`, on the retune list). The reduction
+is
+
+`armor / (armor + k("armor.mitigation").constant + k("armor.mitigation").perLevel * k("character.level"))`
+
+capped at `k("armor.mitigation").cap`, and not below zero. Damage kept is
+the incoming damage times one minus that reduction. If the denominator is
+not positive, the multiplier is one and nothing is removed.
+`k("character.level")` is `wowf-export` and is not on the retune list. The
+notes on `character.level` and `armor.mitigation` describe the divisor's
+constant term at that level. The engine evaluates the expression above.
+
+`Simulation.resolveAttack` always applies this to a direct hit, after
+`resolveAttack` has floored the pre-armor damage. The running total keeps
+the product. `js/main.js` floors a combat-log cell when it draws it.
+
+A tick skips armor when `tickSkipsArmor` says so. A bleed tick skips when
+`k("bleed.ignoresArmor")` is set and the dot is marked `bleed` or its name
+is in `k("bleed.spells")`. A nature tick skips when `k("nature.ignoresArmor")`
+is set and the name is in `k("nature.spells")`. Those four constants are
+`classic-1.12` and on the retune list. The bleed note says physical periodic
+damage skips armor, and that a physical direct hit is reduced. The nature
+note says armor is for physical damage and that spell resistance is not
+modelled. Nothing in `js/simulation.js` applies spell resistance.
+
+`k("bleed.spells")` names Rupture and Garrote. `k("nature.spells")` names
+Deadly Poison. Rupture's cast sets `bleed`, so its ticks skip when
+`k("bleed.ignoresArmor")` is set. Garrote has no skill class. A dot named
+Deadly Poison would skip as nature. The rotation does not create one. See
+Poisons.
+
+## Bleeds and damage over time
+
+`Simulation.resolveDotAttack` rolls the application as a skill with a zero
+crit chance, so the application cannot crit. The log event for that cast
+records no damage. The tick count is the duration divided by
+`k("rupture.tickInterval")`, floored. That interval is `classic-1.12` and on
+the retune list. The note says the dot applicator uses it for every DoT.
+When the attack landed, the floored damage is positive, and the tick count
+is positive, the sim stores
+
+`tickDamage = floored application damage / tick count`
+
+with `timeUntilNextTick` set to one interval. The cast frame does not
+reduce that timer, because the dot is stored after the tick loop. Otherwise
+no dot is stored.
+`k("dot.snapshot")` (`classic-1.12`, on the retune list) says Rupture damage
+is fixed when the cast resolves. The stored `tickDamage` is that snapshot.
+The per-tick crit roll is not part of it.
+
+The tick loop in `Simulation.update` runs before the rotation, so a dot cast
+this frame does not tick until a later frame, and the first tick waits out
+one interval. For each tick still inside the dot's remaining time:
+
+1. Start from `tickDamage`.
+2. If the Hemorrhage debuff is up, multiply by
+   `1 + k("hemorrhage.ruptureBonus").bonus`. The `1` is the code's base, not
+   a constant. `k("hemorrhage.ruptureBonus")` is `wowf-export` and is not on
+   the retune list. Its note says the engine still multiplies every active
+   DoT tick. The note on `k("bleed.spells")` says the debuff is for Rupture.
+   The code uses the debuff for every tick while it is on `activeDebuffs`.
+   A Hemorrhage aura stored on the player does not count. The strike itself
+   is a direct hit and takes armor.
+3. If `k("dot.canCrit")` is set and `rollCrit` succeeds, multiply by
+   `k("dot.critMultiplier")` and mark the tick a crit. `rollCrit` is a
+   separate `Math.random()` check against `Rogue.getCritChance()`, not
+   another attack-table roll. A tick does not miss, dodge, or glance.
+   `k("dot.canCrit")` is `wowf-designer` and is not on the retune list. Its
+   note says every DoT, bleeds included, can crit on WoW Forever, which
+   differs from Classic, and that the per-tick roll stays.
+   `k("dot.critMultiplier")` is an assumption and is not on the retune list.
+   Its note says the multiplier matches other crits and should be updated in
+   the constant if that changes.
+4. Apply armor unless `tickSkipsArmor` skips it.
+5. Add the result to the damage total. Tick damage is not floored here.
+
+The time until the next tick is reduced only by the part of the frame still
+inside the dot (`min(dt, duration)`). A tick that falls due in that window
+deals a full tick. The duration itself loses the whole frame, and the dot is
+removed when duration is at or below `k("sim.tickEpsilon")`. A long frame can
+fire several ticks. Each one schedules the next by adding
+`k("rupture.tickInterval")`.
+
+## Poisons
+
+Instant Poison, Deadly Poison, and the poison hit, proc, tick, and charge
+constants are not used by the rotation. The notes on `k("poison.instant")`,
+`k("poison.deadly")`, `k("poison.hitModel")`, `k("poison.procSource")`,
+`k("poison.deadlyTick")`, `k("poison.instantCrit")`, and `k("poison.charges")`
+say they are not simulated or not applied yet. `k("spell.missTarget")` is
+the same: its note says spell miss is for poisons and is not applied yet.
+There is no poison proc on a white or yellow hit. A tick whose name is in
+`k("nature.spells")` would skip armor, and the deadly-poison tick note says
+those ticks can crit through `k("dot.canCrit")`, but nothing in the engine
+starts that dot.
+
+## Simulation clock
+
+`js/main.js` drives `Simulation.update` from `requestAnimationFrame`. The
+timestamp is the host frame. There is no fixed frame rate in the engine.
+`Simulation.update` sets
+
+`dt = max(0, (currentTime - lastFrameTime) / k("sim.msPerSecond"))`
+
+and adds `dt` to `currentTime`. `k("sim.msPerSecond")` is `engineering` and
+retune is off. Pausing cancels the animation frame. Resume sets
+`lastFrameTime` from `performance.now()`, so the paused gap is not
+simulated. `k("latency")` is an assumption on the retune list. Its note says
+the engine does not delay casts. `k("fight.duration")` is an assumption on
+the retune list. Its note says the live sim runs until pause and does not
+read it.
+
+`k("sim.tickEpsilon")` (`engineering`, retune off) is the tolerance for
+`tickAuras` (buffs and debuffs), cooldown expiry, DoT ticks and DoT expiry,
+`Rogue.tickPremeditation`, and `Weapon.tick`. The note also names the GCD.
+`Simulation.tickGcd` does not read it, and an on-GCD cast waits until `gcd`
+is exactly zero.
+
+One frame, in `Simulation.update`, does this in order:
+
+1. Advance `currentTime` and regenerate energy, using Adrenaline Rush time
+   from before the countdown.
+2. Tick buffs, debuffs, and cooldowns. A cooldown at or below
+   `k("sim.tickEpsilon")` becomes zero.
+3. Tick the GCD, without that tolerance.
+4. Tick dots that were already running.
+5. Tick Premeditation expiry.
+6. Run `Rogue.rotation`, which may cast and then swing. Anything applied
+   here keeps the duration it was given until the next frame.
+
+The combat log keeps the newest `k("log.maxEvents")` rows (`engineering`,
+retune off). That cap is display, not a game rule.
