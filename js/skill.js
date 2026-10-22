@@ -38,12 +38,14 @@ class Skill {
     if (this.spender && rogue.comboPoints < 1) {
       return null;
     }
-    // gcd.flags: an ability on the GCD waits until it is clear. Every off-GCD
+    // gcd.flags: an ability on the GCD waits until it is clear. A remainder
+    // within sim.tickEpsilon counts as clear, the same tolerance buffs,
+    // cooldowns, DoT expiry, and weapon swings already use. Every off-GCD
     // skill skips that wait and does not start one, not only Premeditation.
     // A future off-GCD skill, such as Cold Blood, inherits this.
     if (
       rogue.energy >= this.energyCost &&
-      (simulation.gcd === 0 || !this.triggersGcd)
+      (simulation.gcd <= k("sim.tickEpsilon") || !this.triggersGcd)
     ) {
       rogue.energy -= this.energyCost;
       if (this.triggersGcd) {
