@@ -218,7 +218,7 @@ describe("simulator values other than white miss", () => {
       cooldown: 20,
       duration: 7,
       comboPointsGenerated: 1,
-      targetAura: true,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.backstab, {
       energyCost: 60,

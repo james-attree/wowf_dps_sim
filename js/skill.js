@@ -201,10 +201,7 @@ export class GhostlyStrike extends Skill {
     this.duration = stats.duration;
     this.comboPointsGenerated = stats.comboPoints; // Ghostly Strike generates 1 combo point
     this.icon = "./img/ghostly_strike.jpg"; // Set the icon for Ghostly Strike
-    // Issue #15 groups this duration with target effects. The export text is a
-    // self dodge aura ("increases your chance to dodge"), and that dodge is
-    // not applied.
-    this.targetAura = true;
+    // Duration is the self dodge aura from the export. That dodge is not applied.
   }
 
   damage() {

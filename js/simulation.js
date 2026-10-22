@@ -23,7 +23,7 @@ export class Simulation {
     this.nextCombatEventId = 0;
     this.lastFrameTime = performance.now();
     this.cooldowns = {}; // Track cooldowns for skills
-    this.activeBuffs = {}; // Self buffs: Slice and Dice, Adrenaline Rush, Blade Flurry
+    this.activeBuffs = {}; // Self buffs: Slice and Dice, Adrenaline Rush, Blade Flurry, Ghostly Strike
     this.activeDebuffs = {}; // Target debuffs and DoTs
     this.activeDots = {}; // Track active damage over time effects
   }

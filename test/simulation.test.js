@@ -149,14 +149,14 @@ function runGhostlyStrike(fps) {
     sim.update(f * frameMs);
     if (f === lead) {
       assert.equal(sim.cooldowns[skill.name], cooldown);
-      assert.equal(sim.activeDebuffs[skill.name].duration, buffDuration);
-      assert.equal(sim.activeBuffs[skill.name], undefined);
+      assert.equal(sim.activeBuffs[skill.name].duration, buffDuration);
+      assert.equal(sim.activeDebuffs[skill.name], undefined);
       assert.equal(castTime, sim.currentTime);
     }
     if (f <= lead) {
       continue;
     }
-    const buff = sim.activeDebuffs[skill.name];
+    const buff = sim.activeBuffs[skill.name];
     if (buff) {
       lastBuffDuration = buff.duration;
     } else if (buffGoneAt === null) {
@@ -230,7 +230,7 @@ describe("buff and cooldown duration", () => {
     mock.restoreAll();
   });
 
-  it("is ready at exactly t + 20 and the debuff lasts its full duration at 30 and 144 fps", () => {
+  it("is ready at exactly t + 20 and the buff lasts its full duration at 30 and 144 fps", () => {
     mock.method(Math, "random", () => 0.5);
     assert.equal(k("ghostlyStrike").cooldown, 20);
 
@@ -413,10 +413,10 @@ describe("player buffs and target debuffs", () => {
     assert.deepEqual(Object.keys(sim.activeBuffs).sort(), [
       "Adrenaline Rush",
       "Blade Flurry",
+      "Ghostly Strike",
       "Slice and Dice",
     ]);
     assert.deepEqual(Object.keys(sim.activeDebuffs).sort(), [
-      "Ghostly Strike",
       "Hemorrhage",
       "Rupture",
     ]);
@@ -425,9 +425,10 @@ describe("player buffs and target debuffs", () => {
       k("sliceAndDice").durationByCp.at(-1),
     );
     assert.equal(
-      sim.activeDebuffs["Ghostly Strike"].duration,
+      sim.activeBuffs["Ghostly Strike"].duration,
       k("ghostlyStrike").duration,
     );
+    assert.equal(sim.activeDebuffs["Ghostly Strike"], undefined);
     assert.equal(
       sim.activeDebuffs.Hemorrhage.duration,
       k("hemorrhage.ruptureBonus").duration,
