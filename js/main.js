@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { applyGcdMeterAria } from "./gcd-meter.js";
 import { Rogue } from "./rogue.js";
 import { Simulation } from "./simulation.js";
 
@@ -61,7 +62,7 @@ function redrawScene(rogue) {
   const gcdActive = simulation.gcd > 0;
   gcdStatus.textContent = gcdActive ? "On cooldown" : "Ready";
   gcdStatus.classList.toggle("is-active", gcdActive);
-  gcdMeter.setAttribute("aria-valuenow", simulation.gcd.toFixed(1));
+  applyGcdMeterAria(gcdMeter, simulation);
   gcdFill.style.width = `${gcdPercent}%`;
   renderTimedEffects(
     simulation.activeBuffs,
@@ -245,4 +246,5 @@ pauseButton.addEventListener("click", () => {
   animationFrameId = requestAnimationFrame(update);
 });
 
+applyGcdMeterAria(gcdMeter, simulation);
 animationFrameId = requestAnimationFrame(update);
