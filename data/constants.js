@@ -564,7 +564,7 @@ export const CONSTANTS = {
     "AP total",
     CATACLYSM,
     WH_CATA_RUP,
-    "Owner decision, 22 Oct 2026: keep the Cataclysm totals. Classic was 0.04–0.24. Per tick this is 0.015, 0.024, 0.03, 0.0342857, 0.0375 across 4–8 ticks.",
+    "WoW Forever tooltip says AP scaling; Cata coefficients used as reference. Per tick this is 0.015, 0.024, 0.03, 0.0342857, 0.0375 across 4–8 ticks. Classic was 0.04, 0.10, 0.18, 0.21, 0.24.",
     true,
   ),
 

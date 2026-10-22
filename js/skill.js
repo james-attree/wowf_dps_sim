@@ -38,12 +38,14 @@ class Skill {
     if (this.spender && rogue.comboPoints < 1) {
       return null;
     }
-    // gcd.flags: an ability on the GCD waits until it is clear. Every off-GCD
+    // gcd.flags: an ability on the GCD waits until it is clear. A remainder
+    // within sim.tickEpsilon counts as clear, the same tolerance buffs,
+    // cooldowns, DoT expiry, and weapon swings already use. Every off-GCD
     // skill skips that wait and does not start one, not only Premeditation.
     // A future off-GCD skill, such as Cold Blood, inherits this.
     if (
       rogue.energy >= this.energyCost &&
-      (simulation.gcd === 0 || !this.triggersGcd)
+      (simulation.gcd <= k("sim.tickEpsilon") || !this.triggersGcd)
     ) {
       rogue.energy -= this.energyCost;
       if (this.triggersGcd) {
@@ -294,14 +296,21 @@ export class Rupture extends Skill {
   damage() {
     const comboPoints = this.rogue.comboPoints;
     const stats = k("rupture");
-    if (comboPoints < 1 || comboPoints > stats.damageByCp.length) {
+    // Totals, not per tick. The DoT applicator divides this by the tick count.
+    const apByCp = k("rupture.apByCP");
+    if (
+      comboPoints < 1 ||
+      comboPoints > stats.damageByCp.length ||
+      comboPoints > stats.durationByCp.length ||
+      comboPoints > apByCp.length
+    ) {
       this.duration = 0;
       return 0;
     }
     this.duration = stats.durationByCp[comboPoints - 1];
     return (
       stats.damageByCp[comboPoints - 1] +
-      this.rogue.getAttackPower() * k("rupture.apByCP")[comboPoints - 1]
+      this.rogue.getAttackPower() * apByCp[comboPoints - 1]
     );
   }
 }
