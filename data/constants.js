@@ -577,11 +577,12 @@ export const CONSTANTS = {
     "Rupture, Garrote, and Deadly Poison. This differs from Classic. The per-tick crit roll stays.",
     false,
   ),
+  // assumption: signed until WoW Forever publishes the crit multiplier.
   "dot.critMultiplier": entry(
     2,
     "×",
-    WOWF_DESIGNER,
-    "James, 22 Oct 2026: DoTs and bleeds crit at 2x",
+    ASSUMPTION,
+    "James, 22 Oct 2026: DoT and bleed crits use 2x like other crits; retune when WoW Forever data is available.",
     "Same multiplier as other crits. The issue constants list had marked 2× as a presumption; the decision is 2×.",
     true,
   ),
