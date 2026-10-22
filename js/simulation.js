@@ -12,6 +12,37 @@ function tickAuras(auras, dt) {
   );
 }
 
+// Classic physical periodic damage ignores armor. Forever keeps that for the
+// bleed spell list. Direct hits and any other tick use armor.mitigation.
+function isBleedTick(name, dot) {
+  return dot.bleed === true || k("bleed.spells").includes(name);
+}
+
+function armorMultiplier() {
+  const armor = Math.max(0, k("target.armor"));
+  const mitigation = k("armor.mitigation");
+  const denominator =
+    armor + mitigation.constant + mitigation.perLevel * k("character.level");
+  if (denominator <= 0) {
+    return 1;
+  }
+  let reduction = armor / denominator;
+  if (reduction > mitigation.cap) {
+    reduction = mitigation.cap;
+  }
+  if (reduction < 0) {
+    reduction = 0;
+  }
+  return 1 - reduction;
+}
+
+function applyArmor(damage, bleed) {
+  if (bleed && k("bleed.ignoresArmor")) {
+    return damage;
+  }
+  return damage * armorMultiplier();
+}
+
 export class Simulation {
   constructor(rogue) {
     this.rogue = rogue;
@@ -81,6 +112,7 @@ export class Simulation {
           dotTickDamage *= k("dot.critMultiplier");
           dotHitCrit = "Crit";
         }
+        dotTickDamage = applyArmor(dotTickDamage, isBleedTick(dotName, dot));
         this.updateDamage(dotTickDamage);
         this.addCombatEvent(
           dotName,
@@ -126,26 +158,36 @@ export class Simulation {
       bonusHitChance: this.rogue.getBonusHitChance(),
       critChance: this.rogue.getCritChance(),
     });
-    if (result.landed && result.damage > 0) {
-      this.updateDamage(result.damage);
+    const damage = applyArmor(result.damage, false);
+    if (result.landed && damage > 0) {
+      this.updateDamage(damage);
     }
     this.addCombatEvent(
       name,
       attackType,
-      result.damage,
+      damage,
       result.status,
       result.outcome,
       icon,
     );
-    return result;
+    return { ...result, damage };
   }
 
-  resolveDotAttack(name, attackType, baseDamage, duration, icon = null) {
+  resolveDotAttack(
+    name,
+    attackType,
+    baseDamage,
+    duration,
+    icon = null,
+    bleed = false,
+  ) {
     const result = resolveAttack({
       attackType,
       baseDamage,
       bonusHitChance: this.rogue.getBonusHitChance(),
-      critChance: 0, // The application roll does not crit. Ticks read getCritChance().
+      // The application roll does not crit. Ticks read getCritChance().
+      // tickDamage stays before armor; the tick loop applies it.
+      critChance: 0,
     });
     const tickInterval = k("rupture.tickInterval");
     const tickCount = Math.floor(duration / tickInterval);
@@ -156,6 +198,7 @@ export class Simulation {
         timeUntilNextTick: tickInterval,
         tickDamage: result.damage / tickCount,
         icon: icon,
+        bleed: bleed || k("bleed.spells").includes(name),
       };
     }
     this.addCombatEvent(

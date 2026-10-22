@@ -335,7 +335,9 @@ describe("swing timer fight regression", () => {
     const fast = sampleFight(SWING_FRAME_RATES[1]);
     // Fixed roll (Math.random is 0.5). Issue #18 starts the fight at 0 combo
     // points. Cast and swing counts are unchanged; the cycle ends 3 points
-    // lower because those casts no longer begin from 3.
+    // lower because those casts no longer begin from 3. Issue #23 scales
+    // direct hits by armor and leaves Rupture ticks alone. This roll does not
+    // crit a DoT tick, so both frame rates still deal the same total.
     const casts = {
       "Adrenaline Rush": 1,
       "Blade Flurry": 1,

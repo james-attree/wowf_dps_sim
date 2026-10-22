@@ -247,6 +247,14 @@ export const CONSTANTS = {
     "Hand-encoded later in the effects map with a text hash (D5, D6).",
     false,
   ),
+  "character.level": entry(
+    60,
+    "level",
+    WOWF_EXPORT,
+    "rogue.json → spellbook.level",
+    "Attacker level in armor.mitigation. The export spellbook is a level 60 rogue, so the armor divisor's constant term is 5500.",
+    false,
+  ),
 
   // classic-1.12: reference values until WoW Forever is measured.
   "gcd.duration": entry(
@@ -462,7 +470,15 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "Physical DoTs ignore armor. The engine has no armor mitigation yet, so this is not applied (Q11).",
+    "Physical periodic damage skips armor.mitigation. Rupture and Garrote are the bleed spells. Direct hits and other ticks, including Deadly Poison, are reduced.",
+    true,
+  ),
+  "bleed.spells": entry(
+    ["Rupture", "Garrote"],
+    "–",
+    CLASSIC,
+    `${WS}core/spell_resistances.go`,
+    "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff only increases Rupture. Deadly Poison is not a bleed.",
     true,
   ),
   "dot.snapshot": entry(
@@ -494,7 +510,7 @@ export const CONSTANTS = {
     "fraction",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "armor / (armor + constant + perLevel × attacker level). At 60 the divisor constant is 5500. Not applied yet.",
+    "armor / (armor + constant + perLevel × character.level), capped. At 60 the divisor constant is 5500. Applied to direct hits and to ticks that are not bleeds.",
     true,
   ),
   "agility.ap": entry(
@@ -553,8 +569,8 @@ export const CONSTANTS = {
     2,
     "×",
     WOWF_DESIGNER,
-    "James, 22 Oct 2026: DoTs and bleeds crit at 2×",
-    "Same multiplier as other crits. The roadmap had listed the 2× as a presumption; the owner stated it as the decision.",
+    "Issue #23: DoTs and bleeds crit at 2×. Q11 design decision recorded in the issue.",
+    "Same multiplier as other crits. The issue constants list had marked 2× as a presumption; the decision is 2×.",
     true,
   ),
 
@@ -576,7 +592,7 @@ export const CONSTANTS = {
     undecided(
       "The roadmap constants table lists 3731 as a common Classic raid-boss armor value before debuffs.",
     ),
-    "Editable input. Not applied, because the engine has no armor mitigation yet.",
+    "Editable input. Direct hits and non-bleed ticks use it with armor.mitigation. Bleed ticks skip it when bleed.ignoresArmor is set.",
     true,
   ),
   "target.behind": entry(

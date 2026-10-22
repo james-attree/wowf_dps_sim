@@ -126,7 +126,7 @@ describe("constants", () => {
     );
     assert.match(
       CONSTANTS["dot.critMultiplier"].ref,
-      /^James, 22 Oct 2026: DoTs and bleeds crit at 2×/,
+      /^Issue #23: DoTs and bleeds crit at 2×/,
     );
     assert.equal(k("dot.canCrit"), true);
     assert.equal(k("dot.critMultiplier"), 2);
@@ -345,7 +345,10 @@ describe("simulator values other than white miss", () => {
     fight.activeDebuffs.Hemorrhage = { duration: 15, icon: null };
     fight.lastFrameTime = 0;
     fight.update(2000);
-    assert.equal(fight.damageDone, 100 * 1.15 * 2);
+    assert.equal(
+      fight.damageDone,
+      100 * (1 + k("hemorrhage.ruptureBonus").bonus) * k("dot.critMultiplier"),
+    );
 
     mock.restoreAll();
     mock.method(Math, "random", () => 0.5);
