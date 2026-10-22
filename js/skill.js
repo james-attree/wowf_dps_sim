@@ -15,6 +15,7 @@ class Skill {
     this.attackSkill = true;
     this.icon = "./img/stealth.jpg"; // Default icon, can be overridden by subclasses
     this.dot = false;
+    this.bleed = false;
     // A duration on the player (haste, energy regen) is a buff. A duration on
     // the target (a DoT, or bonus damage taken) is a debuff.
     this.targetAura = false;
@@ -54,6 +55,7 @@ class Skill {
             this.damage(),
             this.duration,
             this.icon,
+            this.bleed,
           );
         } else {
           result = simulation.resolveAttack(
@@ -282,6 +284,7 @@ export class Rupture extends Skill {
     this.attackSkill = true; // Rupture is an attack skill
     this.icon = "./img/rupture.jpg"; // Set the icon for Rupture
     this.dot = true; // Rupture is a damage over time skill
+    this.bleed = true; // Rupture ticks skip armor when bleed.ignoresArmor is set
     this.targetAura = true;
   }
 
