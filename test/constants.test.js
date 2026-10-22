@@ -259,7 +259,7 @@ describe("simulator values other than white miss", () => {
     });
     expectSkill(rogue.abilities.adrenalineRush, {
       energyCost: 0,
-      cooldown: 180,
+      cooldown: 300,
       duration: 15,
       triggersGcd: true,
       attackSkill: false,
