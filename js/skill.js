@@ -294,14 +294,21 @@ export class Rupture extends Skill {
   damage() {
     const comboPoints = this.rogue.comboPoints;
     const stats = k("rupture");
-    if (comboPoints < 1 || comboPoints > stats.damageByCp.length) {
+    // Totals, not per tick. The DoT applicator divides this by the tick count.
+    const apByCp = k("rupture.apByCP");
+    if (
+      comboPoints < 1 ||
+      comboPoints > stats.damageByCp.length ||
+      comboPoints > stats.durationByCp.length ||
+      comboPoints > apByCp.length
+    ) {
       this.duration = 0;
       return 0;
     }
     this.duration = stats.durationByCp[comboPoints - 1];
     return (
       stats.damageByCp[comboPoints - 1] +
-      this.rogue.getAttackPower() * k("rupture.apByCP")[comboPoints - 1]
+      this.rogue.getAttackPower() * apByCp[comboPoints - 1]
     );
   }
 }
