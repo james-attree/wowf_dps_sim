@@ -1,11 +1,18 @@
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
+import enginePurity from "./eslint/engine-purity.js";
 
-// Engine purity and no-magic-numbers are F4 (#3), after values move into
-// data/constants.js (#7). js/main.js stays exempt from both.
+// Engine modules (everything under js/ except the UI entry) must stay free of
+// document/window and of game-number literals. js/main.js is the UI exception.
+// data/constants.js is where those numbers will live (#7), so it is not an
+// engine file. Existing literals are grandfathered in eslint-suppressions.json
+// until #7 moves them; a new literal raises that file's count and fails lint.
 
 const readonly = (names) =>
   Object.fromEntries(names.map((name) => [name, "readonly"]));
+
+const engineDomMessage =
+  "Engine modules must not touch this global so they can run in Node, the browser, and a Web Worker.";
 
 export default defineConfig([
   js.configs.recommended,
@@ -26,6 +33,38 @@ export default defineConfig([
         "requestAnimationFrame",
         "window",
       ]),
+    },
+  },
+  {
+    files: ["js/**/*.js"],
+    ignores: ["js/main.js"],
+    plugins: {
+      "engine-purity": enginePurity,
+    },
+    languageOptions: {
+      // Present in Node, browsers, and workers. Property access such as
+      // globalThis.document is still rejected by no-restricted-globals.
+      globals: readonly(["global", "globalThis", "self"]),
+    },
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          checkGlobalObject: true,
+          globalObjects: ["global"],
+          globals: [
+            { name: "document", message: engineDomMessage },
+            { name: "window", message: engineDomMessage },
+          ],
+        },
+      ],
+      // detectObjects so property values and `this.x = 0.065` count.
+      // Variable initializers are the remaining hole; the local rule covers them.
+      "no-magic-numbers": [
+        "error",
+        { ignore: [0, 1, -1], detectObjects: true },
+      ],
+      "engine-purity/no-numeric-literal": "error",
     },
   },
   {

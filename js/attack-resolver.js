@@ -1,7 +1,7 @@
 // Chances are fractions (0.24 = 24%); rolls are on a 0-100 scale.
 const BASE_MISS_CHANCE = {
   weapon: 0.24,
-  skill: 0.08
+  skill: 0.08,
 };
 
 const DODGE_CHANCE = 0.065;
@@ -16,7 +16,7 @@ const OUTCOME_LABELS = {
   parry: "Parry",
   glancing: "Glance",
   crit: "Crit",
-  hit: "Hit"
+  hit: "Hit",
 };
 
 export function resolveAttack({
@@ -24,7 +24,7 @@ export function resolveAttack({
   baseDamage,
   bonusHitChance,
   critChance,
-  roll = Math.random() * 100
+  roll = Math.random() * 100,
 }) {
   if (!Object.hasOwn(BASE_MISS_CHANCE, attackType)) {
     throw new RangeError(`Unsupported attack type: ${attackType}`);
@@ -36,12 +36,16 @@ export function resolveAttack({
     throw new RangeError("Attack roll must be between 0 and 100.");
   }
 
-  const missChance = Math.max(0, BASE_MISS_CHANCE[attackType] - clampChance(bonusHitChance, "Bonus hit chance"));
+  const missChance = Math.max(
+    0,
+    BASE_MISS_CHANCE[attackType] -
+      clampChance(bonusHitChance, "Bonus hit chance"),
+  );
   const criticalChance = clampChance(critChance, "Critical chance");
   const outcomes = [
     { result: "miss", chance: missChance },
     { result: "dodge", chance: DODGE_CHANCE },
-    { result: "parry", chance: 0 }
+    { result: "parry", chance: 0 },
   ];
 
   if (attackType === "weapon") {
@@ -59,14 +63,13 @@ export function resolveAttack({
     }
   }
 
-
   const damageMultiplier = {
     miss: 0,
     dodge: 0,
     parry: 0,
     glancing: GLANCING_DAMAGE_MULTIPLIER,
     crit: CRITICAL_DAMAGE_MULTIPLIER,
-    hit: 1
+    hit: 1,
   }[outcome];
   const damage = Math.floor(baseDamage * damageMultiplier);
 
@@ -75,7 +78,7 @@ export function resolveAttack({
     status: OUTCOME_LABELS[outcome],
     roll,
     damage,
-    landed: outcome === "glancing" || outcome === "crit" || outcome === "hit"
+    landed: outcome === "glancing" || outcome === "crit" || outcome === "hit",
   };
 }
 
@@ -87,5 +90,5 @@ function clampChance(chance, name) {
 }
 
 export function rollCrit(critChance) {
-    return Math.random() < clampChance(critChance, "Critical chance");
+  return Math.random() < clampChance(critChance, "Critical chance");
 }

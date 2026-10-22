@@ -1,0 +1,33 @@
+{
+  "js/attack-resolver.js": {
+    "engine-purity/no-numeric-literal": {
+      "count": 4
+    },
+    "no-magic-numbers": {
+      "count": 5
+    }
+  },
+  "js/rogue.js": {
+    "no-magic-numbers": {
+      "count": 22
+    }
+  },
+  "js/simulation.js": {
+    "no-magic-numbers": {
+      "count": 10
+    }
+  },
+  "js/skill.js": {
+    "engine-purity/no-numeric-literal": {
+      "count": 1
+    },
+    "no-magic-numbers": {
+      "count": 70
+    }
+  },
+  "js/weapon.js": {
+    "no-magic-numbers": {
+      "count": 2
+    }
+  }
+}
