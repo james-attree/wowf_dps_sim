@@ -11,9 +11,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { format } from "prettier";
 
 // CI check for data/constants.js (#7, #22). A missing file, a missing ref,
-// a bare dash ref, or an unknown source tag fails the process. When the
-// repository file passes, this command rewrites docs/provenance.md.
-// Talent coverage (D6) is a separate later check.
+// a bare dash ref, a placeholder ref, or an unknown source tag fails the
+// process. When the repository file passes, this command rewrites
+// docs/provenance.md. Talent coverage (D6) is a separate later check.
 
 export const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 export const DEFAULT_CONSTANTS_PATH = resolve(ROOT, "data", "constants.js");
@@ -25,6 +25,7 @@ export const SOURCE_TAGS = [
   "classic-1.12",
   "cataclysm",
   "assumption",
+  "engineering",
 ];
 
 const SOURCE_BLURBS = {
@@ -34,11 +35,27 @@ const SOURCE_BLURBS = {
   "classic-1.12":
     "Classic 1.12 reference values, kept until WoW Forever is measured.",
   cataclysm: "A later mechanic WoW Forever borrows on purpose.",
-  assumption: "Defaults or rules with no recorded owner decision.",
+  assumption:
+    "Defaults and sample inputs. James signed each ref on 22 Oct 2026.",
+  engineering:
+    "Simulator machinery, not a game rule. The retune flag stays off, so these rows are not on the retune list.",
 };
 
 // A ref that is only a hyphen or an en dash names no source.
 const BARE_DASH_REFS = new Set(["-", "\u2013"]);
+
+// Placeholder text that does not name a decision. TBD is the whole ref,
+// in any case. The other two phrases are rejected wherever they appear.
+const TBD_REF = /^tbd$/i;
+const FILL_IN_REF = /fill in/i;
+const NO_DECISION_REF = /no recorded owner decision/i;
+
+function isPlaceholderRef(ref) {
+  const text = ref.trim();
+  return (
+    TBD_REF.test(text) || FILL_IN_REF.test(text) || NO_DECISION_REF.test(text)
+  );
+}
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -79,6 +96,8 @@ export function checkProvenance(constants) {
       errors.push(`${id}: missing ref`);
     } else if (BARE_DASH_REFS.has(entry.ref.trim())) {
       errors.push(`${id}: bare dash ref`);
+    } else if (isPlaceholderRef(entry.ref)) {
+      errors.push(`${id}: placeholder ref`);
     }
   }
 
@@ -247,8 +266,10 @@ function buildMarkdown(constants) {
     "Every constant in `data/constants.js`, grouped by source.",
     "`npm run provenance` rewrites this file after it checks that each constant",
     "has a ref and a known source tag (`wowf-export`, `wowf-designer`,",
-    "`classic-1.12`, `cataclysm`, `assumption`). A missing ref, a ref that is",
-    "only a dash, or an unknown tag fails the command.",
+    "`classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,",
+    "a ref that is only a dash, a placeholder ref (`TBD` in any case, or text",
+    "containing `fill in` or `No recorded owner decision`), or an unknown tag",
+    "fails the command.",
     "",
     "## Summary",
     "",
@@ -288,7 +309,7 @@ function buildMarkdown(constants) {
     lines.push(
       "## Unrecognized",
       "",
-      "These entries did not have one of the five source tags,",
+      "These entries did not have one of the known source tags,",
       "so they are not in the groups above.",
       "",
       markdownTable(
