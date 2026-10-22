@@ -31,12 +31,17 @@ describe("dev package", () => {
     ]);
   });
 
-  it("keeps index.html on local files only", async () => {
+  it("keeps index.html assets on local relative URLs", async () => {
     const html = await readFile(resolve(root, "index.html"), "utf8");
 
     assert.match(html, /<script type="module" src="js\/main\.js"><\/script>/);
     assert.match(html, /<link rel="stylesheet" href="styles\.css" \/>/);
     assert.doesNotMatch(html, /node_modules/);
-    assert.doesNotMatch(html, /https?:/);
+    assert.doesNotMatch(html, /\s(?:src|href)=["']\//);
+
+    const withoutCredit = html
+      .replaceAll("https://talentsforever.com/", "")
+      .replaceAll("https://creativecommons.org/licenses/by/4.0/", "");
+    assert.doesNotMatch(withoutCredit, /https?:/);
   });
 });

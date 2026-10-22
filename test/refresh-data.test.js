@@ -614,8 +614,15 @@ describe("vendored snapshot", () => {
         files.push(`js/${name}`);
       }
     }
+    const creditLink =
+      /<a\b[^>]*\bhref="https:\/\/talentsforever\.com\/"[^>]*>\s*talentsforever\.com\s*<\/a>/g;
     for (const file of files) {
-      const text = await readFile(resolve(root, file), "utf8");
+      let text = await readFile(resolve(root, file), "utf8");
+      if (file === "index.html") {
+        // The footer credits the site. It is not a fetch of the export.
+        assert.equal(text.match(creditLink)?.length, 1, file);
+        text = text.replace(creditLink, "");
+      }
       assert.equal(/https?:\/\/talentsforever\.com/.test(text), false, file);
     }
   });
