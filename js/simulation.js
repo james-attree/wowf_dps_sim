@@ -70,13 +70,14 @@ export class Simulation {
       while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
         let dotTickDamage = dot.tickDamage;
 
+        // hemorrhage.ruptureBonus.bonus applies to every active DoT tick.
         if (this.activeDebuffs["Hemorrhage"]) {
           dotTickDamage *= 1 + k("hemorrhage.ruptureBonus").bonus;
         }
 
         let dotHitCrit = "Hit";
         // roll crit for each tick
-        if (k("dot.canCrit") && rollCrit(this.rogue.critChance)) {
+        if (k("dot.canCrit") && rollCrit(this.rogue.getCritChance())) {
           dotTickDamage *= k("dot.critMultiplier");
           dotHitCrit = "Crit";
         }
@@ -118,8 +119,8 @@ export class Simulation {
     const result = resolveAttack({
       attackType,
       baseDamage,
-      bonusHitChance: this.rogue.bonusHitChance,
-      critChance: this.rogue.critChance,
+      bonusHitChance: this.rogue.getBonusHitChance(),
+      critChance: this.rogue.getCritChance(),
     });
     if (result.landed && result.damage > 0) {
       this.updateDamage(result.damage);
@@ -139,8 +140,8 @@ export class Simulation {
     const result = resolveAttack({
       attackType,
       baseDamage,
-      bonusHitChance: this.rogue.bonusHitChance,
-      critChance: 0,
+      bonusHitChance: this.rogue.getBonusHitChance(),
+      critChance: 0, // The application roll does not crit. Ticks read getCritChance().
     });
     const tickInterval = k("rupture.tickInterval");
     const tickCount = Math.floor(duration / tickInterval);
