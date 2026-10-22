@@ -44,16 +44,25 @@ const SOURCE_BLURBS = {
 // A ref that is only a hyphen or an en dash names no source.
 const BARE_DASH_REFS = new Set(["-", "\u2013"]);
 
-// Placeholder text that does not name a decision. TBD is the whole ref,
-// in any case. The other two phrases are rejected wherever they appear.
+// Placeholder text that does not name a decision. These whole refs are
+// rejected in any case, after trimming: "TBD", "N/A", "?", and "tbd later".
+// "fill in" and "no recorded owner decision" are rejected wherever they appear.
 const TBD_REF = /^tbd$/i;
+const NA_REF = /^n\/a$/i;
+const QUESTION_REF = /^\?$/;
+const TBD_LATER_REF = /^tbd later$/i;
 const FILL_IN_REF = /fill in/i;
 const NO_DECISION_REF = /no recorded owner decision/i;
 
 function isPlaceholderRef(ref) {
   const text = ref.trim();
   return (
-    TBD_REF.test(text) || FILL_IN_REF.test(text) || NO_DECISION_REF.test(text)
+    TBD_REF.test(text) ||
+    NA_REF.test(text) ||
+    QUESTION_REF.test(text) ||
+    TBD_LATER_REF.test(text) ||
+    FILL_IN_REF.test(text) ||
+    NO_DECISION_REF.test(text)
   );
 }
 
@@ -267,9 +276,9 @@ function buildMarkdown(constants) {
     "`npm run provenance` rewrites this file after it checks that each constant",
     "has a ref and a known source tag (`wowf-export`, `wowf-designer`,",
     "`classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,",
-    "a ref that is only a dash, a placeholder ref (`TBD` in any case, or text",
-    "containing `fill in` or `No recorded owner decision`), or an unknown tag",
-    "fails the command.",
+    "a ref that is only a dash, a placeholder ref (`TBD`, `N/A`, `?`, or",
+    "`tbd later`, in any case, or text containing `fill in` or",
+    "`No recorded owner decision`), or an unknown tag fails the command.",
     "",
     "## Summary",
     "",

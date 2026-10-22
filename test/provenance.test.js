@@ -266,6 +266,39 @@ describe("provenance CLI", () => {
     ]);
   });
 
+  it("rejects N/A, a question mark, and tbd later in any case", () => {
+    const result = checkProvenance({
+      "attack.rollScale": validEntry("engineering", "N/A"),
+      "log.maxEvents": validEntry("engineering", "n/a"),
+      "sim.msPerSecond": validEntry("engineering", "  N/a  "),
+      "sim.tickEpsilon": validEntry("engineering", "?"),
+      latency: validEntry("assumption", "  ?  "),
+      "fight.duration": validEntry("assumption", "tbd later"),
+      "fight.iterations": validEntry("assumption", "TBD Later"),
+      "poison.charges": validEntry("assumption", "Tbd later"),
+      "target.level": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: Classic raid boss is level 60 + 3",
+      ),
+      "hackAndSlash.chain": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: why? N/A until tbd later is replaced",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "attack.rollScale: placeholder ref",
+      "log.maxEvents: placeholder ref",
+      "sim.msPerSecond: placeholder ref",
+      "sim.tickEpsilon: placeholder ref",
+      "latency: placeholder ref",
+      "fight.duration: placeholder ref",
+      "fight.iterations: placeholder ref",
+      "poison.charges: placeholder ref",
+    ]);
+  });
+
   it("rejects a ref that contains No recorded owner decision", () => {
     const result = checkProvenance({
       "fight.iterations": validEntry(
@@ -480,7 +513,7 @@ describe("provenance report", () => {
       const badPath = join(dir, "bad-constants.mjs");
       await writeFile(
         badPath,
-        'export const CONSTANTS = { "dodge.target": { source: "classic", ref: "TBD" } };\n',
+        'export const CONSTANTS = { "dodge.target": { source: "classic", ref: "" }, "parry.target": { source: "classic-1.12", ref: "TBD" } };\n',
       );
       const badReport = join(dir, "bad.md");
       const outcome = await runProvenance(badPath, {
@@ -488,6 +521,8 @@ describe("provenance report", () => {
         reportPath: badReport,
       });
       assert.equal(outcome.status, 1);
+      assert.match(outcome.message, /unknown source/);
+      assert.match(outcome.message, /missing ref/);
       assert.match(outcome.message, /placeholder ref/);
       assert.doesNotMatch(outcome.message, /Wrote /);
       await assert.rejects(access(badReport), { code: "ENOENT" });
@@ -507,6 +542,8 @@ describe("provenance report", () => {
     assert.match(onDisk, /`engineering`/);
 
     const retune = sectionBody(onDisk, "Retune list");
+    // The roadmap's retune examples were dot.critMultiplier and rupture.apByCP.
+    // dot.canCrit stays off the list because its retune flag is off.
     assert.equal(hasRow(retune, "dot.critMultiplier"), true);
     assert.equal(hasRow(retune, "rupture.apByCP"), true);
     assert.equal(hasRow(retune, "dot.canCrit"), false);
