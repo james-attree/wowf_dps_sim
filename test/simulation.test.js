@@ -48,9 +48,8 @@ function tickDot({ hemorrhage }) {
       icon: null,
     };
   }
-  sim.update(
-    sim.lastFrameTime + k("rupture.tickInterval") * k("sim.msPerSecond"),
-  );
+  sim.lastFrameTime = 0;
+  sim.update(k("rupture.tickInterval") * k("sim.msPerSecond"));
   return sim;
 }
 
@@ -64,7 +63,8 @@ describe("simulation output", () => {
     mock.method(Math, "random", () => 0.5);
 
     const sim = new Simulation(new Rogue());
-    let time = sim.lastFrameTime;
+    sim.lastFrameTime = 0;
+    let time = 0;
     const step = k("sim.msPerSecond") / 10;
     for (let frame = 0; frame < 50; frame += 1) {
       time += step;
