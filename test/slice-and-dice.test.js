@@ -41,6 +41,30 @@ function advance(sim, seconds) {
   sim.update(sim.lastFrameTime + seconds * k("sim.msPerSecond"));
 }
 
+// Blade Flurry starts the GCD, so Slice and Dice lands once that GCD has ticked off.
+function castBothBuffs(rogue, sim) {
+  delete sim.cooldowns["Blade Flurry"];
+  rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
+  rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+  const mainHand = rogue.weapons.mainHand;
+  const offHand = rogue.weapons.offHand;
+  mainHand.swingTimer = mainHand.speed;
+  offHand.swingTimer = offHand.speed;
+
+  sim.update(0);
+  assert.equal(sim.currentTime, 0);
+  assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
+  assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
+  assert.equal(sim.gcd, k("gcd.duration"));
+
+  advance(sim, k("gcd.duration"));
+  assert.ok(sim.activeBuffs["Slice and Dice"].duration > 0);
+  assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
+  near(mainHand.swingTimer, mainHand.speed - k("gcd.duration"));
+  near(offHand.swingTimer, offHand.speed - k("gcd.duration"));
+  return { mainHand, offHand };
+}
+
 describe("Slice and Dice export", () => {
   it("reads Rank 2 attack speed and the per-combo-point durations", async () => {
     const snapshot = JSON.parse(
@@ -108,8 +132,10 @@ describe("Slice and Dice rotation", () => {
     assert.equal(sim.activeDebuffs["Slice and Dice"], undefined);
     assert.equal(rogue.comboPoints, 0);
     assert.equal(rogue.energy, 0);
-    assert.equal(sim.gcd, 0);
+    assert.equal(sim.gcd, k("gcd.duration"));
 
+    // The refresh checks are about the buff timer. Clear the GCD this cast started.
+    sim.gcd = 0;
     rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
     rogue.energy = k("sliceAndDice").energy;
     sim.activeBuffs["Slice and Dice"].duration =
@@ -203,25 +229,9 @@ describe("Slice and Dice rotation", () => {
   it("multiplies Slice and Dice and Blade Flurry on the next swing", () => {
     mock.method(Math, "random", () => 0.5);
     const { rogue, sim } = pinned();
-    delete sim.cooldowns["Blade Flurry"];
-    rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
-    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
-    const mainHand = rogue.weapons.mainHand;
-    const offHand = rogue.weapons.offHand;
-    mainHand.swingTimer = mainHand.speed;
-    offHand.swingTimer = offHand.speed;
     const haste = (1 + k("sliceAndDice").haste) * (1 + k("bladeFlurry").haste);
     assert.equal(k("haste.stacking"), "multiplicative");
-
-    sim.update(0);
-    assert.equal(sim.currentTime, 0);
-    assert.ok(sim.activeBuffs["Slice and Dice"].duration > 0);
-    assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
-
-    const opened = k("weapon.offHand").initialSwing;
-    advance(sim, opened);
-    near(mainHand.swingTimer, mainHand.speed - opened);
-    near(offHand.swingTimer, offHand.speed - opened);
+    const { mainHand, offHand } = castBothBuffs(rogue, sim);
 
     const offLeft = offHand.swingTimer;
     advance(sim, offLeft);
@@ -239,22 +249,9 @@ describe("Slice and Dice rotation", () => {
     try {
       mock.method(Math, "random", () => 0.5);
       const { rogue, sim } = pinned();
-      delete sim.cooldowns["Blade Flurry"];
-      rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
-      rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
-      const mainHand = rogue.weapons.mainHand;
-      const offHand = rogue.weapons.offHand;
-      mainHand.swingTimer = mainHand.speed;
-      offHand.swingTimer = offHand.speed;
       const haste = 1 + k("sliceAndDice").haste + k("bladeFlurry").haste;
+      const { mainHand, offHand } = castBothBuffs(rogue, sim);
 
-      sim.update(0);
-      assert.equal(sim.currentTime, 0);
-      assert.ok(sim.activeBuffs["Slice and Dice"].duration > 0);
-      assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
-
-      const opened = k("weapon.offHand").initialSwing;
-      advance(sim, opened);
       const offLeft = offHand.swingTimer;
       advance(sim, offLeft);
       near(offHand.swingTimer, offHand.speed / haste);

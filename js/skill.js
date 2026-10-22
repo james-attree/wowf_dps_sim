@@ -38,7 +38,13 @@ class Skill {
     if (this.spender && rogue.comboPoints < 1) {
       return null;
     }
-    if (rogue.energy >= this.energyCost && simulation.gcd === 0) {
+    // gcd.flags: an ability on the GCD waits until it is clear. Every off-GCD
+    // skill skips that wait and does not start one, not only Premeditation.
+    // A future off-GCD skill, such as Cold Blood, inherits this.
+    if (
+      rogue.energy >= this.energyCost &&
+      (simulation.gcd === 0 || !this.triggersGcd)
+    ) {
       rogue.energy -= this.energyCost;
       if (this.triggersGcd) {
         simulation.setGcd();
@@ -166,7 +172,7 @@ export class Premeditation extends Skill {
     super("Premeditation", stats.energy, stats.cooldown);
     this.comboPointsGenerated = stats.comboPoints; // premeditation.comboPoints
     this.rogue = rogue;
-    this.triggersGcd = false; // Premeditation does not trigger the global cooldown
+    this.triggersGcd = false; // gcd.flags: Premeditation does not start the GCD
     this.attackSkill = false; // Premeditation is not an attack skill
     // rogue.json spell_desc: no Stealth requirement. Classic required it.
     this.expiresComboPoints = true;
@@ -180,7 +186,6 @@ export class AdrenalineRush extends Skill {
     super("Adrenaline Rush", stats.energy, stats.cooldown);
     this.duration = stats.duration;
     this.rogue = rogue;
-    this.triggersGcd = false; // Adrenaline Rush does not trigger the global cooldown
     this.attackSkill = false; // Adrenaline Rush is not an attack skill
     this.icon = "./img/adrenaline_rush.jpg"; // Set the icon for Adrenaline Rush
   }
@@ -192,7 +197,6 @@ export class SliceAndDice extends Skill {
     super("Slice and Dice", stats.energy, stats.cooldown);
     this.rogue = rogue;
     this.spender = true; // Slice and Dice is a combo point spender
-    this.triggersGcd = false; // Slice and Dice does not trigger the global cooldown
     this.attackSkill = false; // Slice and Dice is not an attack skill
     this.icon = "./img/slice_and_dice.jpg"; // Set the icon for Slice and Dice
   }
@@ -268,7 +272,6 @@ export class BladeFlurry extends Skill {
     super("Blade Flurry", stats.energy, stats.cooldown);
     this.rogue = rogue;
     this.duration = stats.duration;
-    this.triggersGcd = false; // Blade Flurry does not trigger the global cooldown
     this.attackSkill = false; // Blade Flurry is not an attack skill
     this.icon = "./img/blade_flurry.jpg"; // Set the icon for Blade Flurry
   }

@@ -2,9 +2,15 @@
 
 A vanilla JavaScript app, loaded as ES modules, with no build step. It
 simulates rogue DPS on WoW Forever from talents, skills, poisons, and weapon
-and character stats. There is no item database. Static hosting on GitHub Pages
-is planned; this file does not include a public URL while that work is open
-([#5](https://github.com/james-attree/wowf_dps_sim/issues/5)).
+and character stats. There is no item database.
+
+## Hosting
+
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) deploys the static
+site from `main`. The site deploys to
+https://james-attree.github.io/wowf_dps_sim/ once Pages is enabled. Set the
+repository source to GitHub Actions under Settings > Pages. The workflow
+publishes `index.html`, `styles.css`, `js/`, `data/`, and `img/`.
 
 ## Status
 
@@ -147,7 +153,7 @@ on.
 - `test/` — Node's built-in tests for the attack table, weapons, finishers,
   Premeditation, the simulation clock, armor and bleeds, the GCD meter,
   constants, provenance, the data refresh, the static server, engine lint, the
-  dev package, and the CI workflow.
+  dev package, the CI workflow, and the Pages deploy.
 - `img/` — JPEG ability icons. Skills set their own file; the `Skill`
   default is `img/stealth.jpg`. `img/garotte.jpg` is not referenced.
   `.prettierignore` excludes the directory.
@@ -156,6 +162,8 @@ on.
 - `package-lock.json` — Lockfile `npm ci` installs from.
 - `.github/workflows/ci.yml` — The lint, test, and provenance job described
   above.
+- `.github/workflows/pages.yml` — Deploys `index.html`, `styles.css`, `js/`,
+  `data/`, and `img/` from `main` to GitHub Pages.
 - `.gitignore` — Ignores `node_modules/`.
 - `.prettierignore` — Ignores `img/`.
 

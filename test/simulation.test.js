@@ -390,8 +390,10 @@ describe("player buffs and target debuffs", () => {
     const sim = new Simulation(rogue);
 
     rogue.abilities.adrenalineRush.cast(rogue, sim);
+    sim.gcd = 0;
     rogue.abilities.bladeFlurry.cast(rogue, sim);
     rogue.comboPoints = k("combo.max");
+    sim.gcd = 0;
     rogue.abilities.sliceAndDice.cast(rogue, sim);
 
     rogue.energy = rogue.maxEnergy;
