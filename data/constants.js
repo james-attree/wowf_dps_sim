@@ -95,7 +95,7 @@ export const CONSTANTS = {
     "energy, ×, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Slice and Dice|Rank 2]",
-    "Duration is 6 + 3 × CP, stored per combo point. The rotation refreshes it. Haste shortens the next swing of both weapons; the current swing is not rescaled. Combined with another attack-speed effect, the multipliers multiply (haste.stacking). The engine still leaves it off the GCD (Q15).",
+    "Duration is 6 + 3 × CP, stored per combo point. The rotation refreshes it. Haste shortens the next swing of both weapons. The engine does not rescale a swing already counting down. Another attack-speed effect combines through haste.stacking. The engine still leaves it off the GCD (Q15).",
     false,
   ),
   "hemorrhage.ruptureBonus": entry(
@@ -249,8 +249,8 @@ export const CONSTANTS = {
     "multiplicative",
     "–",
     CLASSIC,
-    `${WS}core/unit.go`,
-    "Attack-speed effects multiply. MultiplyMeleeSpeed multiplies MeleeSpeedMultiplier. Slice and Dice and Blade Flurry each call it, so together they are (1 + sliceAndDice.haste) × (1 + bladeFlurry.haste). The current swing is not rescaled.",
+    "https://github.com/wowsims/classic/blob/7779ebbf79dc7f1341e6ab939b28a3402c9a730a/sim/core/unit.go#L411-L418",
+    "Attack-speed effects multiply. MultiplyMeleeSpeed multiplies MeleeSpeedMultiplier. Slice and Dice and Blade Flurry each call it, so together they are (1 + sliceAndDice.haste) × (1 + bladeFlurry.haste). wowsims rescales the swing in progress (UpdateSwingTimers); the engine does not.",
     true,
   ),
   "gcd.duration": entry(

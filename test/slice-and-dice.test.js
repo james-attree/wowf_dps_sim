@@ -179,7 +179,8 @@ describe("Slice and Dice rotation", () => {
     rogue.maxEnergy = 0;
     rogue.energy = 0;
     rogue.comboPoints = below;
-    const parked = k("premeditation").cooldown;
+    // Longer than a Slice and Dice duration, so neither weapon swings while it is up.
+    const parked = 1e6;
     rogue.weapons.mainHand.swingTimer = parked;
     rogue.weapons.offHand.swingTimer = parked;
     advance(sim, duration);
@@ -230,5 +231,59 @@ describe("Slice and Dice rotation", () => {
     advance(sim, mainLeft);
     near(mainHand.swingTimer, mainHand.speed / haste);
     near(offHand.swingTimer, offHand.speed / haste - mainLeft);
+  });
+
+  it("adds Slice and Dice and Blade Flurry when haste.stacking is additive", () => {
+    const saved = CONSTANTS["haste.stacking"].value;
+    CONSTANTS["haste.stacking"].value = "additive";
+    try {
+      mock.method(Math, "random", () => 0.5);
+      const { rogue, sim } = pinned();
+      delete sim.cooldowns["Blade Flurry"];
+      rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
+      rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+      const mainHand = rogue.weapons.mainHand;
+      const offHand = rogue.weapons.offHand;
+      mainHand.swingTimer = mainHand.speed;
+      offHand.swingTimer = offHand.speed;
+      const haste = 1 + k("sliceAndDice").haste + k("bladeFlurry").haste;
+
+      sim.update(0);
+      assert.equal(sim.currentTime, 0);
+      assert.ok(sim.activeBuffs["Slice and Dice"].duration > 0);
+      assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
+
+      const opened = k("weapon.offHand").initialSwing;
+      advance(sim, opened);
+      const offLeft = offHand.swingTimer;
+      advance(sim, offLeft);
+      near(offHand.swingTimer, offHand.speed / haste);
+      const mainLeft = mainHand.swingTimer;
+      advance(sim, mainLeft);
+      near(mainHand.swingTimer, mainHand.speed / haste);
+      near(offHand.swingTimer, offHand.speed / haste - mainLeft);
+    } finally {
+      CONSTANTS["haste.stacking"].value = saved;
+    }
+  });
+
+  it("throws when haste.stacking is neither multiplicative nor additive", () => {
+    const saved = CONSTANTS["haste.stacking"].value;
+    CONSTANTS["haste.stacking"].value = "neither";
+    try {
+      const { rogue, sim } = pinned();
+      assert.equal(sim.currentTime, 0);
+      sim.activeBuffs["Slice and Dice"] = {
+        duration: k("sliceAndDice").durationByCp[0],
+        icon: rogue.abilities.sliceAndDice.icon,
+      };
+      assert.throws(() => rogue.rotation(sim, 0), {
+        name: "Error",
+        message: "Unknown haste.stacking: neither",
+      });
+    } finally {
+      CONSTANTS["haste.stacking"].value = saved;
+    }
+    assert.equal(k("haste.stacking"), "multiplicative");
   });
 });
