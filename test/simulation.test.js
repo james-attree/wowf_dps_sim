@@ -275,6 +275,83 @@ describe("buff and cooldown duration", () => {
   });
 });
 
+function clockUntil(seconds, deltasMs) {
+  const limit = seconds * k("sim.msPerSecond");
+  const times = [];
+  let t = 0;
+  let i = 0;
+  while (t < limit) {
+    t += deltasMs[i % deltasMs.length];
+    times.push(t);
+    i += 1;
+  }
+  return times;
+}
+
+function fpsClock(fps, seconds) {
+  const frameMs = k("sim.msPerSecond") / fps;
+  const frames = Math.ceil(seconds * fps);
+  const times = [];
+  for (let frame = 1; frame <= frames; frame += 1) {
+    times.push(frame * frameMs);
+  }
+  return times;
+}
+
+function adrenalineBonus(times) {
+  const bonusPerSecond =
+    k("energy.regenPerSecond") * (k("adrenalineRush").regenMultiplier - 1);
+
+  function energyAfter(apply) {
+    const rogue = new Rogue();
+    rogue.energy = 0;
+    rogue.maxEnergy = k("energy.max") * k("adrenalineRush").duration;
+    let applied = false;
+    rogue.rotation = (sim) => {
+      if (!apply || applied) {
+        return;
+      }
+      rogue.abilities.adrenalineRush.cast(rogue, sim);
+      applied = true;
+      assert.ok(sim.activeBuffs["Adrenaline Rush"]);
+    };
+    const sim = new Simulation(rogue);
+    sim.lastFrameTime = 0;
+    for (const time of times) {
+      sim.update(time);
+    }
+    assert.equal(applied, apply);
+    assert.ok(rogue.energy < rogue.maxEnergy);
+    return rogue.energy;
+  }
+
+  const bonus = energyAfter(true) - energyAfter(false);
+  near(bonus / bonusPerSecond, k("adrenalineRush").duration);
+  return bonus;
+}
+
+describe("Adrenaline Rush bonus energy", () => {
+  it("is exactly the full duration at 10, 30 and 144 fps and on irregular steps", () => {
+    assert.equal(k("adrenalineRush").duration, 15);
+    const seconds = k("adrenalineRush").duration + k("gcd.duration");
+    const schedules = {
+      "10 fps": fpsClock(10, seconds),
+      "30 fps": fpsClock(30, seconds),
+      "144 fps": fpsClock(144, seconds),
+      "7 ms then 23 ms": clockUntil(seconds, [7, 23]),
+      "250 ms": clockUntil(seconds, [250]),
+      "mixed steps": clockUntil(seconds, [1, 17, 80, 250, 3]),
+    };
+    const bonuses = {};
+    for (const [name, times] of Object.entries(schedules)) {
+      bonuses[name] = adrenalineBonus(times);
+    }
+    for (const bonus of Object.values(bonuses)) {
+      near(bonus, bonuses["10 fps"]);
+    }
+  });
+});
+
 describe("DoT expiry", () => {
   afterEach(() => {
     mock.restoreAll();

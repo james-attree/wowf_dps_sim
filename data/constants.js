@@ -802,7 +802,7 @@ export const CONSTANTS = {
     "s",
     ASSUMPTION,
     undecided(
-      "A remaining time at or below 1e-9 seconds counts as elapsed. DoT ticks and DoT expiry use it, and so do buff and cooldown timers, so floating-point dust does not add a frame.",
+      "The DoT loop treats a remaining tick time at or below 1e-9 seconds as due, to absorb floating-point error.",
     ),
     "Numerical tolerance, not a game rule.",
     true,
