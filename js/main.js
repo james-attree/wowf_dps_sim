@@ -1,3 +1,4 @@
+import { k } from "../data/constants.js";
 import { Rogue } from "./rogue.js";
 import { Simulation } from "./simulation.js";
 
@@ -194,7 +195,7 @@ function renderCombatLog() {
 
       row.append(time, icon, name, damage, status);
       combatLog.insertBefore(row, combatLog.firstChild);
-      if (combatLog.children.length > 100) {
+      if (combatLog.children.length > k("log.maxEvents")) {
         combatLog.lastElementChild.remove();
       }
     });

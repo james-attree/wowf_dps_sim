@@ -4,9 +4,7 @@ import enginePurity from "./eslint/engine-purity.js";
 
 // Engine modules (everything under js/ except the UI entry) must stay free of
 // document/window and of game-number literals. js/main.js is the UI exception.
-// data/constants.js is where those numbers will live (#7), so it is not an
-// engine file. Existing literals are grandfathered in eslint-suppressions.json
-// until #7 moves them; a new literal raises that file's count and fails lint.
+// data/constants.js is where those numbers live, so it is not an engine file.
 
 const readonly = (names) =>
   Object.fromEntries(names.map((name) => [name, "readonly"]));

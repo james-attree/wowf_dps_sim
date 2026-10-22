@@ -31,7 +31,9 @@ jobs:
       - name: Test
         run: npm test
 
-      # Provenance (#22) is the Phase 0 data check. Talent coverage (D6)
-      # is a later check; add its step here when that CLI exists.
+      # Provenance (#7, #22) rewrites docs/provenance.md and fails on a
+      # missing ref, a bare dash, a placeholder ref, or an unknown source
+      # tag. Talent coverage (D6) is a later check; add its step here when
+      # that CLI exists.
       - name: Provenance
         run: npm run provenance

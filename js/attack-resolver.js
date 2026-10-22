@@ -1,14 +1,17 @@
-// Chances are fractions (0.24 = 24%); rolls are on a 0-100 scale.
+import { k } from "../data/constants.js";
+
+// Chances are fractions. White miss is yellow miss plus the dual-wield penalty.
+// Rolls are compared on attack.rollScale (0–100) so callers can inject a roll.
+const ROLL_SCALE = k("attack.rollScale");
 const BASE_MISS_CHANCE = {
-  weapon: 0.24,
-  skill: 0.08,
+  weapon: k("miss.yellow") + k("miss.dualWieldPenalty"),
+  skill: k("miss.yellow"),
 };
 
-const DODGE_CHANCE = 0.065;
-const GLANCING_CHANCE = 0.4;
-const GLANCING_DAMAGE_MULTIPLIER = 0.65;
-// Classic physical crits deal double damage.
-const CRITICAL_DAMAGE_MULTIPLIER = 2;
+const DODGE_CHANCE = k("dodge.target");
+const GLANCING_CHANCE = k("glancing.chance");
+const GLANCING_DAMAGE_MULTIPLIER = k("glancing.damage");
+const CRITICAL_DAMAGE_MULTIPLIER = k("crit.meleeMultiplier");
 
 const OUTCOME_LABELS = {
   miss: "Miss",
@@ -24,7 +27,7 @@ export function resolveAttack({
   baseDamage,
   bonusHitChance,
   critChance,
-  roll = Math.random() * 100,
+  roll = Math.random() * ROLL_SCALE,
 }) {
   if (!Object.hasOwn(BASE_MISS_CHANCE, attackType)) {
     throw new RangeError(`Unsupported attack type: ${attackType}`);
@@ -32,8 +35,8 @@ export function resolveAttack({
   if (!Number.isFinite(baseDamage) || baseDamage < 0) {
     throw new RangeError("Base damage must be a non-negative number.");
   }
-  if (!Number.isFinite(roll) || roll < 0 || roll > 100) {
-    throw new RangeError("Attack roll must be between 0 and 100.");
+  if (!Number.isFinite(roll) || roll < 0 || roll > ROLL_SCALE) {
+    throw new RangeError(`Attack roll must be between 0 and ${ROLL_SCALE}.`);
   }
 
   const missChance = Math.max(
@@ -42,6 +45,7 @@ export function resolveAttack({
       clampChance(bonusHitChance, "Bonus hit chance"),
   );
   const criticalChance = clampChance(critChance, "Critical chance");
+  // Parry stays at 0 until the front/behind table in A7. parry.target records both.
   const outcomes = [
     { result: "miss", chance: missChance },
     { result: "dodge", chance: DODGE_CHANCE },
@@ -56,7 +60,7 @@ export function resolveAttack({
   let threshold = 0;
   let outcome = "hit";
   for (const entry of outcomes) {
-    threshold += entry.chance * 100;
+    threshold += entry.chance * ROLL_SCALE;
     if (roll < threshold) {
       outcome = entry.result;
       break;

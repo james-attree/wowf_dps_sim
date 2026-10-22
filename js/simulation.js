@@ -1,3 +1,4 @@
+import { k } from "../data/constants.js";
 import { resolveAttack, rollCrit } from "./attack-resolver.js";
 
 export class Simulation {
@@ -6,7 +7,7 @@ export class Simulation {
     this.currentTime = 0;
     this.damageDone = 0;
     this.gcd = 0; // Global Cooldown
-    this.gcdDuration = 1.0;
+    this.gcdDuration = k("gcd.duration");
     this.combatLog = [];
     this.nextCombatEventId = 0;
     this.lastFrameTime = performance.now();
@@ -16,7 +17,10 @@ export class Simulation {
   }
 
   update(currentTime) {
-    let dt = Math.max(0, (currentTime - this.lastFrameTime) / 1000); // Convert to seconds
+    let dt = Math.max(
+      0,
+      (currentTime - this.lastFrameTime) / k("sim.msPerSecond"),
+    ); // Convert to seconds
     this.lastFrameTime = currentTime;
     this.currentTime += dt;
 
@@ -24,9 +28,12 @@ export class Simulation {
       this.activeBuffs["Adrenaline Rush"] &&
       this.activeBuffs["Adrenaline Rush"].duration > 0
     ) {
-      this.rogue.regenerateEnergy(dt, 20);
+      this.rogue.regenerateEnergy(
+        dt,
+        k("energy.regenPerSecond") * k("adrenalineRush").regenMultiplier,
+      );
     } else {
-      this.rogue.regenerateEnergy(dt, 10);
+      this.rogue.regenerateEnergy(dt, k("energy.regenPerSecond"));
     }
     this.tickGcd(dt);
 
@@ -36,18 +43,18 @@ export class Simulation {
       dot.duration -= dt;
       dot.timeUntilNextTick -= elapsed;
 
-      while (dot.timeUntilNextTick <= 1e-9) {
+      while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
         let dotTickDamage = dot.tickDamage;
 
         if (this.activeBuffs["Hemorrhage"]) {
-          dotTickDamage *= 1.15;
+          dotTickDamage *= 1 + k("hemorrhage.ruptureBonus").bonus;
           console.log(dotTickDamage);
         }
 
         let dotHitCrit = "Hit";
         // roll crit for each tick
-        if (rollCrit(this.rogue.critChance)) {
-          dotTickDamage *= 2;
+        if (k("dot.canCrit") && rollCrit(this.rogue.critChance)) {
+          dotTickDamage *= k("dot.critMultiplier");
           dotHitCrit = "Crit";
         }
         this.updateDamage(dotTickDamage);
@@ -126,12 +133,13 @@ export class Simulation {
       bonusHitChance: this.rogue.bonusHitChance,
       critChance: 0,
     });
-    const tickCount = Math.floor(duration / 2);
+    const tickInterval = k("rupture.tickInterval");
+    const tickCount = Math.floor(duration / tickInterval);
     if (result.landed && result.damage > 0 && tickCount > 0) {
       this.activeDots[name] = {
         duration,
-        tickInterval: 2,
-        timeUntilNextTick: 2,
+        tickInterval,
+        timeUntilNextTick: tickInterval,
         tickDamage: result.damage / tickCount,
         icon: icon,
       };
@@ -165,7 +173,7 @@ export class Simulation {
       outcome,
       icon,
     });
-    if (this.combatLog.length > 100) {
+    if (this.combatLog.length > k("log.maxEvents")) {
       this.combatLog.pop();
     }
   }
