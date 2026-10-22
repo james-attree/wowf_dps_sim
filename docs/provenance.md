@@ -8,10 +8,11 @@ has a ref and a known source tag (`wowf-export`, `wowf-designer`,
 `classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,
 a ref made only of dashes (including an em dash), a placeholder ref,
 or an unknown tag fails the command. The check case-folds the ref,
-strips punctuation and dashes, and collapses whitespace, so `TBD`,
-`TBD.`, `N/A`, `NA`, `?`, `??`, `tbd later`, and `tbd-later` fail,
-as does a ref made only of punctuation. Text containing `fill in` or
-`No recorded owner decision` fails wherever it appears.
+strips punctuation, symbols, and dashes, and collapses whitespace, so
+`TBD`, `TBD.`, `N/A`, `NA`, `?`, `??`, `tbd later`, and `tbd-later`
+fail, as does a ref made only of punctuation or symbols, or one whose
+first word is `tbd`. The phrases `fill in` and `No recorded owner
+decision` fail only as whole words.
 
 ## Summary
 

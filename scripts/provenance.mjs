@@ -49,20 +49,28 @@ function isDashOnly(ref) {
 }
 
 // Placeholders are judged on a normalized ref: lower-cased, dashes
-// replaced with spaces, other punctuation removed, whitespace collapsed.
-// Dashes become spaces so "tbd-later" matches "tbd later"; other
-// punctuation is removed so "N/A" and "TBD." match "na" and "tbd".
-// Empty means the ref was only punctuation. "fill in" and
-// "no recorded owner decision" are rejected wherever they appear.
-const PLACEHOLDER_REFS = new Set(["tbd", "na", "tbd later"]);
+// replaced with spaces, other punctuation and symbols removed, whitespace
+// collapsed. Dashes become spaces so "tbd-later" matches "tbd later";
+// other punctuation is removed so "N/A" and "TBD." match "na" and "tbd".
+// Empty means the ref was only punctuation or symbols. "na" and
+// "tbd later" match the whole ref, so "Na (sodium)" still passes.
+// A ref whose first word is "tbd" is an undecided value. "fill in" and
+// "no recorded owner decision" match only as whole words, so
+// "refill interval" is not a placeholder.
+const PLACEHOLDER_REFS = new Set(["na", "tbd later"]);
+const PLACEHOLDER_PHRASES = ["fill in", "no recorded owner decision"];
 
 function normalizeRef(ref) {
   return ref
     .toLowerCase()
     .replace(/\p{Pd}/gu, " ")
-    .replace(/\p{P}/gu, "")
+    .replace(/[\p{P}\p{S}]/gu, "")
     .replace(/\s+/gu, " ")
     .trim();
+}
+
+function hasWholePhrase(text, phrase) {
+  return ` ${text} `.includes(` ${phrase} `);
 }
 
 function isPlaceholderRef(ref) {
@@ -70,8 +78,8 @@ function isPlaceholderRef(ref) {
   return (
     text === "" ||
     PLACEHOLDER_REFS.has(text) ||
-    text.includes("fill in") ||
-    text.includes("no recorded owner decision")
+    /^tbd(?: |$)/.test(text) ||
+    PLACEHOLDER_PHRASES.some((phrase) => hasWholePhrase(text, phrase))
   );
 }
 
@@ -287,10 +295,11 @@ function buildMarkdown(constants) {
     "`classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,",
     "a ref made only of dashes (including an em dash), a placeholder ref,",
     "or an unknown tag fails the command. The check case-folds the ref,",
-    "strips punctuation and dashes, and collapses whitespace, so `TBD`,",
-    "`TBD.`, `N/A`, `NA`, `?`, `??`, `tbd later`, and `tbd-later` fail,",
-    "as does a ref made only of punctuation. Text containing `fill in` or",
-    "`No recorded owner decision` fails wherever it appears.",
+    "strips punctuation, symbols, and dashes, and collapses whitespace, so",
+    "`TBD`, `TBD.`, `N/A`, `NA`, `?`, `??`, `tbd later`, and `tbd-later`",
+    "fail, as does a ref made only of punctuation or symbols, or one whose",
+    "first word is `tbd`. The phrases `fill in` and `No recorded owner",
+    "decision` fail only as whole words.",
     "",
     "## Summary",
     "",

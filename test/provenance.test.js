@@ -346,6 +346,39 @@ describe("provenance CLI", () => {
     ]);
   });
 
+  it("matches placeholder phrases on whole words and rejects a leading tbd", () => {
+    const result = checkProvenance({
+      refill: validEntry(
+        "classic-1.12",
+        "Refill interval per tick (classic-1.12)",
+      ),
+      sodium: validEntry("classic-1.12", "Na (sodium)"),
+      decisions: validEntry(
+        "assumption",
+        "No recorded owner decisions were pending",
+      ),
+      fillIn: validEntry(
+        "assumption",
+        "James, 22 Oct 2026: fill-in value until data",
+      ),
+      tbdDecision: validEntry("assumption", "TBD: needs James's decision"),
+      tbdAsk: validEntry("assumption", "TBD - ask James"),
+      arrow: validEntry("wowf-export", "\u2192"),
+      signed: validEntry(
+        "assumption",
+        "James, 22 Oct 2026: extra attacks do not chain",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "fillIn: placeholder ref",
+      "tbdDecision: placeholder ref",
+      "tbdAsk: placeholder ref",
+      "arrow: placeholder ref",
+    ]);
+  });
+
   it("accepts signed assumption refs, URLs, and citations", () => {
     const result = checkProvenance({
       "hackAndSlash.chain": validEntry(
