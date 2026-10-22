@@ -625,9 +625,9 @@ describe("provenance report", () => {
     assert.match(onDisk, /`engineering`/);
 
     const retune = sectionBody(onDisk, "Retune list");
-    // The roadmap's retune examples were dot.critMultiplier and rupture.apByCP.
-    // dot.canCrit stays off the list because its retune flag is off.
-    assert.equal(hasRow(retune, "dot.critMultiplier"), true);
+    // dot.critMultiplier and dot.canCrit stay off the list because their
+    // retune flags are off. rupture.apByCP remains a retune example.
+    assert.equal(hasRow(retune, "dot.critMultiplier"), false);
     assert.equal(hasRow(retune, "rupture.apByCP"), true);
     assert.equal(hasRow(retune, "dot.canCrit"), false);
     assert.equal(hasRow(retune, "attack.rollScale"), false);
