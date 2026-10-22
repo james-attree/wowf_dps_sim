@@ -74,16 +74,8 @@ export const CONSTANTS = {
     "energy, ×, s, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Adrenaline Rush|]",
-    "Export cooldown is 5 min. The engine still uses adrenalineRush.engineCooldown (180s) until Q12.",
+    "Export cooldown is 5 min. The engine uses this cooldown.",
     false,
-  ),
-  "adrenalineRush.engineCooldown": entry(
-    180,
-    "s",
-    ASSUMPTION,
-    `${JAMES}: the engine still uses 180s; the export says 300s (Q12, #19)`,
-    "Kept so this change does not retune the cooldown.",
-    true,
   ),
   bladeFlurry: entry(
     { energy: 25, haste: 0.2, duration: 15, cooldown: 120 },
