@@ -24,17 +24,33 @@ export class Simulation {
     this.lastFrameTime = currentTime;
     this.currentTime += dt;
 
-    if (
-      this.activeBuffs["Adrenaline Rush"] &&
-      this.activeBuffs["Adrenaline Rush"].duration > 0
-    ) {
-      this.rogue.regenerateEnergy(
-        dt,
-        k("energy.regenPerSecond") * k("adrenalineRush").regenMultiplier,
-      );
-    } else {
-      this.rogue.regenerateEnergy(dt, k("energy.regenPerSecond"));
-    }
+    // This frame covers the interval that just ended. Read Adrenaline Rush
+    // before its countdown so the part of the frame still inside the buff
+    // regenerates at the bonus rate, including the frame it runs out.
+    const arLeft = this.activeBuffs["Adrenaline Rush"]?.duration ?? 0;
+    const base = k("energy.regenPerSecond");
+    const arDt = Math.min(dt, Math.max(0, arLeft));
+    this.rogue.regenerateEnergy(dt - arDt, base);
+    this.rogue.regenerateEnergy(
+      arDt,
+      base * k("adrenalineRush").regenMultiplier,
+    );
+
+    // Timers already running lose this frame. A buff or cooldown applied
+    // during rotation keeps its full duration until the next one.
+    this.activeBuffs = Object.fromEntries(
+      Object.entries(this.activeBuffs).filter(([, buff]) => {
+        buff.duration -= dt;
+        return buff.duration > k("sim.tickEpsilon");
+      }),
+    );
+    this.cooldowns = Object.fromEntries(
+      Object.entries(this.cooldowns).map(([key, value]) => {
+        const remaining = value - dt;
+        return [key, remaining <= k("sim.tickEpsilon") ? 0 : remaining];
+      }),
+    );
+
     this.tickGcd(dt);
 
     // Handle existing DoTs before rotation so newly cast DoTs start ticking next update.
@@ -68,26 +84,12 @@ export class Simulation {
         dot.timeUntilNextTick += dot.tickInterval;
       }
 
-      if (dot.duration <= 0) {
+      if (dot.duration <= k("sim.tickEpsilon")) {
         delete this.activeDots[dotName];
       }
     }
 
     this.rogue.rotation(this, dt);
-
-    this.activeBuffs = Object.fromEntries(
-      Object.entries(this.activeBuffs).filter(([, buff]) => {
-        buff.duration -= dt;
-        return buff.duration > 0;
-      }),
-    );
-
-    this.cooldowns = Object.fromEntries(
-      Object.entries(this.cooldowns).map(([key, value]) => [
-        key,
-        Math.max(0, value - dt),
-      ]),
-    );
   }
 
   setGcd() {
