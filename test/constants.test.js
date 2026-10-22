@@ -109,7 +109,7 @@ describe("constants", () => {
     });
   });
 
-  it("rejects an unknown id and only uses the five source tags", () => {
+  it("rejects an unknown id and only uses the known source tags", () => {
     assert.throws(() => k("not.a.constant"), {
       name: "Error",
       message: "Unknown constant: not.a.constant",
@@ -119,7 +119,7 @@ describe("constants", () => {
     }
   });
 
-  it("records owner decisions and leaves unsigned assumptions explicit", () => {
+  it("records a signed reason on every assumption and engineering ref", () => {
     assert.match(
       CONSTANTS["dot.canCrit"].ref,
       /^James, 22 Oct 2026: all DoTs, bleeds included, can crit/,
@@ -133,14 +133,52 @@ describe("constants", () => {
     assert.equal(k("bleed.ignoresArmor"), true);
     assert.deepEqual(k("rupture.apByCP"), [0.06, 0.12, 0.18, 0.24, 0.3]);
     assert.equal(k("miss.yellow") + k("miss.dualWieldPenalty"), 0.27);
+    assert.equal(CONSTANTS["rupture.apAtZeroCp"], undefined);
+
+    const sampleInput = "James, 22 Oct 2026: sample input until SimConfig (E2)";
+    for (const id of [
+      "character.attackPower",
+      "character.critChance",
+      "character.bonusHitChance",
+      "character.startingComboPoints",
+      "weapon.offHand",
+      "rotation.adrenalineRushEnergy",
+      "rotation.sliceAndDiceComboPoints",
+      "rotation.sliceAndDiceRefreshSeconds",
+    ]) {
+      assert.equal(CONSTANTS[id].ref, sampleInput, id);
+      assert.equal(CONSTANTS[id].source, "assumption", id);
+    }
+    assert.equal(
+      CONSTANTS["weapon.mainHand"].ref,
+      `${sampleInput}; #9 is 59–110 at 1.8s`,
+    );
+    assert.deepEqual(k("weapon.mainHand"), { min: 59, max: 110, speed: 1.8 });
+
+    for (const id of [
+      "attack.rollScale",
+      "log.maxEvents",
+      "sim.msPerSecond",
+      "sim.tickEpsilon",
+    ]) {
+      assert.equal(CONSTANTS[id].source, "engineering", id);
+      assert.equal(CONSTANTS[id].retune, false, id);
+    }
+    for (const field of ["ref", "note"]) {
+      const text = CONSTANTS["sim.tickEpsilon"][field];
+      assert.match(text, /buffs/, field);
+      assert.match(text, /cooldowns/, field);
+      assert.match(text, /GCD/, field);
+      assert.match(text, /DoT expiry/, field);
+      assert.match(text, /weapon swings/, field);
+    }
 
     for (const [id, row] of Object.entries(CONSTANTS)) {
-      if (row.source === "assumption") {
-        assert.match(
-          row.ref,
-          /^No recorded owner decision as of 22 Oct 2026\. /,
-          id,
-        );
+      assert.doesNotMatch(row.ref, /^tbd$/i, id);
+      assert.doesNotMatch(row.ref, /fill in/i, id);
+      assert.doesNotMatch(row.ref, /no recorded owner decision/i, id);
+      if (row.source === "assumption" || row.source === "engineering") {
+        assert.match(row.ref, /^James, 22 Oct 2026: /, id);
       } else if (row.source === "wowf-export") {
         assert.match(row.ref, /^rogue\.json → /, id);
       } else if (row.source === "classic-1.12" || row.source === "cataclysm") {
@@ -268,7 +306,7 @@ describe("simulator values other than white miss", () => {
 
     rogue.comboPoints = 0;
     assert.equal(rogue.abilities.eviscerate.damage(), 0);
-    assert.equal(rogue.abilities.rupture.damage(), 450 * 0.1);
+    assert.equal(rogue.abilities.rupture.damage(), 0);
     assert.equal(rogue.abilities.rupture.duration, 0);
 
     rogue.comboPoints = 1;
@@ -306,6 +344,28 @@ describe("simulator values other than white miss", () => {
     rogue.comboPoints = 5;
     rogue.abilities.sliceAndDice.cast(rogue, sim);
     assert.equal(rogue.abilities.sliceAndDice.duration, 21);
+  });
+
+  it("deals no Rupture damage outside 1–5 combo points", () => {
+    const rogue = new Rogue();
+    for (const comboPoints of [0, 6, -1]) {
+      rogue.comboPoints = comboPoints;
+      rogue.abilities.rupture.duration = 16;
+      assert.equal(
+        rogue.abilities.rupture.damage(),
+        0,
+        `damage at ${comboPoints} CP`,
+      );
+      assert.equal(
+        rogue.abilities.rupture.duration,
+        0,
+        `duration at ${comboPoints} CP`,
+      );
+    }
+
+    rogue.comboPoints = 3;
+    assert.equal(rogue.abilities.rupture.damage(), 295 + 450 * 0.18);
+    assert.equal(rogue.abilities.rupture.duration, 12);
   });
 
   it("still refunds 80% energy on a miss and crits DoT ticks at 2×", () => {
