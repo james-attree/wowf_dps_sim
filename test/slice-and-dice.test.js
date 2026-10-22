@@ -1,0 +1,286 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { afterEach, describe, it, mock } from "node:test";
+import { CONSTANTS, k } from "../data/constants.js";
+import { Rogue } from "../js/rogue.js";
+import { Simulation } from "../js/simulation.js";
+
+function near(actual, expected) {
+  assert.ok(
+    Number.isFinite(actual) &&
+      Math.abs(actual - expected) <= k("sim.tickEpsilon"),
+    `${actual} is not within tick epsilon of ${expected}`,
+  );
+}
+
+function holdCooldowns(sim) {
+  const held = k("bladeFlurry").cooldown;
+  for (const name of [
+    "Adrenaline Rush",
+    "Blade Flurry",
+    "Premeditation",
+    "Ghostly Strike",
+  ]) {
+    sim.cooldowns[name] = held;
+  }
+}
+
+function pinned() {
+  const rogue = new Rogue();
+  const sim = new Simulation(rogue);
+  sim.lastFrameTime = 0;
+  assert.equal(sim.currentTime, 0);
+  holdCooldowns(sim);
+  rogue.weapons.mainHand.swingTimer = k("sliceAndDice").durationByCp.at(-1);
+  rogue.weapons.offHand.swingTimer = k("sliceAndDice").durationByCp.at(-1);
+  rogue.energy = k("sliceAndDice").energy;
+  return { rogue, sim };
+}
+
+function advance(sim, seconds) {
+  sim.update(sim.lastFrameTime + seconds * k("sim.msPerSecond"));
+}
+
+// Blade Flurry starts the GCD, so Slice and Dice lands once that GCD has ticked off.
+function castBothBuffs(rogue, sim) {
+  delete sim.cooldowns["Blade Flurry"];
+  rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
+  rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+  const mainHand = rogue.weapons.mainHand;
+  const offHand = rogue.weapons.offHand;
+  mainHand.swingTimer = mainHand.speed;
+  offHand.swingTimer = offHand.speed;
+
+  sim.update(0);
+  assert.equal(sim.currentTime, 0);
+  assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
+  assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
+  assert.equal(sim.gcd, k("gcd.duration"));
+
+  advance(sim, k("gcd.duration"));
+  assert.ok(sim.activeBuffs["Slice and Dice"].duration > 0);
+  assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
+  near(mainHand.swingTimer, mainHand.speed - k("gcd.duration"));
+  near(offHand.swingTimer, offHand.speed - k("gcd.duration"));
+  return { mainHand, offHand };
+}
+
+describe("Slice and Dice export", () => {
+  it("reads Rank 2 attack speed and the per-combo-point durations", async () => {
+    const snapshot = JSON.parse(
+      await readFile(
+        new URL("../data/talentsforever/rogue.json", import.meta.url),
+      ),
+    );
+    const spell = snapshot.spell_desc["Rogue|Slice and Dice|Rank 2"];
+    const hastePct = Number(spell.d.match(/attack speed by (\d+)%/)[1]);
+    const durationByCp = [];
+    for (const match of spell.d.matchAll(
+      /(\d+) points?\s*:\s*(\d+) seconds/g,
+    )) {
+      durationByCp[Number(match[1]) - 1] = Number(match[2]);
+    }
+    const energy = Number(
+      spell.l
+        .flat()
+        .join(" ")
+        .match(/(\d+) Energy/)[1],
+    );
+    const step = durationByCp[1] - durationByCp[0];
+    const base = durationByCp[0] - step;
+
+    assert.equal(durationByCp.length, k("combo.max"));
+    for (let index = 0; index < durationByCp.length; index += 1) {
+      assert.equal(durationByCp[index], base + step * (index + 1));
+    }
+    assert.equal(k("sliceAndDice").haste, hastePct / 100);
+    assert.deepEqual(k("sliceAndDice").durationByCp, durationByCp);
+    assert.equal(k("sliceAndDice").energy, energy);
+    assert.equal(/cooldown/i.test(spell.l.flat().join(" ")), false);
+    assert.equal(k("sliceAndDice").cooldown, 0);
+    assert.equal(CONSTANTS.sliceAndDice.source, "wowf-export");
+    assert.equal(
+      CONSTANTS.sliceAndDice.ref,
+      "rogue.json → spell_desc[Rogue|Slice and Dice|Rank 2]",
+    );
+  });
+});
+
+describe("Slice and Dice rotation", () => {
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
+  it("casts at the combo-point threshold and refreshes inside the window", () => {
+    mock.method(Math, "random", () => 0.5);
+    const { rogue, sim } = pinned();
+    const below = k("rotation.sliceAndDiceComboPoints") - 1;
+    rogue.comboPoints = below;
+    sim.update(0);
+
+    assert.equal(sim.currentTime, 0);
+    assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
+    assert.equal(rogue.comboPoints, below);
+    assert.equal(rogue.energy, k("sliceAndDice").energy);
+
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    sim.update(0);
+    const refreshed =
+      k("sliceAndDice").durationByCp[k("rotation.sliceAndDiceComboPoints") - 1];
+
+    assert.equal(sim.activeBuffs["Slice and Dice"].duration, refreshed);
+    assert.equal(sim.activeDebuffs["Slice and Dice"], undefined);
+    assert.equal(rogue.comboPoints, 0);
+    assert.equal(rogue.energy, 0);
+    assert.equal(sim.gcd, k("gcd.duration"));
+
+    // The refresh checks are about the buff timer. Clear the GCD this cast started.
+    sim.gcd = 0;
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    rogue.energy = k("sliceAndDice").energy;
+    sim.activeBuffs["Slice and Dice"].duration =
+      k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon");
+    sim.update(0);
+
+    assert.equal(rogue.comboPoints, k("rotation.sliceAndDiceComboPoints"));
+    assert.equal(
+      sim.activeBuffs["Slice and Dice"].duration,
+      k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon"),
+    );
+
+    rogue.comboPoints = k("combo.max");
+    rogue.energy = k("sliceAndDice").energy;
+    sim.activeBuffs["Slice and Dice"].duration = k(
+      "rotation.sliceAndDiceRefreshSeconds",
+    );
+    sim.update(0);
+
+    assert.equal(rogue.comboPoints, 0);
+    assert.equal(sim.activeDots.Rupture, undefined);
+    assert.equal(
+      sim.activeBuffs["Slice and Dice"].duration,
+      k("sliceAndDice").durationByCp.at(-1),
+    );
+  });
+
+  it("shortens the next swing of both weapons and leaves the current one", () => {
+    mock.method(Math, "random", () => 0.5);
+    const { rogue, sim } = pinned();
+    const mainHand = rogue.weapons.mainHand;
+    const offHand = rogue.weapons.offHand;
+    mainHand.swingTimer = mainHand.speed;
+    offHand.swingTimer = offHand.speed;
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    const opened = k("weapon.offHand").initialSwing;
+    const haste = 1 + k("sliceAndDice").haste;
+
+    advance(sim, opened);
+
+    assert.equal(
+      sim.activeBuffs["Slice and Dice"].duration,
+      k("sliceAndDice").durationByCp[k("rotation.sliceAndDiceComboPoints") - 1],
+    );
+    near(mainHand.swingTimer, mainHand.speed - opened);
+    near(offHand.swingTimer, offHand.speed - opened);
+
+    const offLeft = offHand.swingTimer;
+    advance(sim, offLeft);
+    near(offHand.swingTimer, offHand.speed / haste);
+
+    const mainLeft = mainHand.swingTimer;
+    advance(sim, mainLeft);
+    near(mainHand.swingTimer, mainHand.speed / haste);
+    near(offHand.swingTimer, offHand.speed / haste - mainLeft);
+  });
+
+  it("returns both weapons to normal speed after Slice and Dice expires", () => {
+    mock.method(Math, "random", () => 0.5);
+    const { rogue, sim } = pinned();
+    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    sim.update(0);
+    assert.equal(sim.currentTime, 0);
+    const duration = sim.activeBuffs["Slice and Dice"].duration;
+    const below = k("rotation.sliceAndDiceComboPoints") - 1;
+
+    rogue.maxEnergy = 0;
+    rogue.energy = 0;
+    rogue.comboPoints = below;
+    // Longer than a Slice and Dice duration, so neither weapon swings while it is up.
+    const parked = 1e6;
+    rogue.weapons.mainHand.swingTimer = parked;
+    rogue.weapons.offHand.swingTimer = parked;
+    advance(sim, duration);
+
+    assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
+    assert.equal(sim.activeBuffs["Blade Flurry"], undefined);
+    assert.equal(rogue.comboPoints, below);
+
+    const step = k("weapon.offHand").initialSwing;
+    rogue.weapons.mainHand.swingTimer = step;
+    rogue.weapons.offHand.swingTimer = step;
+    advance(sim, step);
+
+    assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
+    assert.equal(rogue.comboPoints, below);
+    near(rogue.weapons.mainHand.swingTimer, rogue.weapons.mainHand.speed);
+    near(rogue.weapons.offHand.swingTimer, rogue.weapons.offHand.speed);
+  });
+
+  it("multiplies Slice and Dice and Blade Flurry on the next swing", () => {
+    mock.method(Math, "random", () => 0.5);
+    const { rogue, sim } = pinned();
+    const haste = (1 + k("sliceAndDice").haste) * (1 + k("bladeFlurry").haste);
+    assert.equal(k("haste.stacking"), "multiplicative");
+    const { mainHand, offHand } = castBothBuffs(rogue, sim);
+
+    const offLeft = offHand.swingTimer;
+    advance(sim, offLeft);
+    near(offHand.swingTimer, offHand.speed / haste);
+
+    const mainLeft = mainHand.swingTimer;
+    advance(sim, mainLeft);
+    near(mainHand.swingTimer, mainHand.speed / haste);
+    near(offHand.swingTimer, offHand.speed / haste - mainLeft);
+  });
+
+  it("adds Slice and Dice and Blade Flurry when haste.stacking is additive", () => {
+    const saved = CONSTANTS["haste.stacking"].value;
+    CONSTANTS["haste.stacking"].value = "additive";
+    try {
+      mock.method(Math, "random", () => 0.5);
+      const { rogue, sim } = pinned();
+      const haste = 1 + k("sliceAndDice").haste + k("bladeFlurry").haste;
+      const { mainHand, offHand } = castBothBuffs(rogue, sim);
+
+      const offLeft = offHand.swingTimer;
+      advance(sim, offLeft);
+      near(offHand.swingTimer, offHand.speed / haste);
+      const mainLeft = mainHand.swingTimer;
+      advance(sim, mainLeft);
+      near(mainHand.swingTimer, mainHand.speed / haste);
+      near(offHand.swingTimer, offHand.speed / haste - mainLeft);
+    } finally {
+      CONSTANTS["haste.stacking"].value = saved;
+    }
+  });
+
+  it("throws when haste.stacking is neither multiplicative nor additive", () => {
+    const saved = CONSTANTS["haste.stacking"].value;
+    CONSTANTS["haste.stacking"].value = "neither";
+    try {
+      const { rogue, sim } = pinned();
+      assert.equal(sim.currentTime, 0);
+      sim.activeBuffs["Slice and Dice"] = {
+        duration: k("sliceAndDice").durationByCp[0],
+        icon: rogue.abilities.sliceAndDice.icon,
+      };
+      assert.throws(() => rogue.rotation(sim, 0), {
+        name: "Error",
+        message: "Unknown haste.stacking: neither",
+      });
+    } finally {
+      CONSTANTS["haste.stacking"].value = saved;
+    }
+    assert.equal(k("haste.stacking"), "multiplicative");
+  });
+});
