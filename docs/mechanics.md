@@ -119,11 +119,15 @@ landed Ghostly Strike deals the normalised hit times
 `k("ghostlyStrike").weaponMultiplier`.
 Both constants are `wowf-export` and are not on the retune list. Each note
 says the stored multiplier assumes a dagger main hand and that another
-export percent, for a non-dagger, is not selected. Sinister Strike, Backstab,
-and Ambush use the same normalised hit plus their own `k` multipliers and
-flat bonuses (`k("sinisterStrike")`, `k("backstab")`, `k("ambush")`, all
-`wowf-export`). Their notes say dagger, behind, and stealth requirements are
-not enforced. `Rogue.rotation` does not cast those three.
+export percent, for a non-dagger, is not selected. Sinister Strike is the
+normalised hit plus `k("sinisterStrike").bonusDamage`. It has no weapon
+multiplier. Backstab is that hit times `k("backstab").weaponMultiplier`,
+plus `k("backstab").bonusDamage`. Ambush is that hit times
+`k("ambush").weaponMultiplier`, plus `k("ambush").bonusDamage`. All three
+are `wowf-export`. Only the notes on `k("backstab")` and `k("ambush")` say
+dagger, behind, or stealth requirements are not enforced. The note on
+`k("sinisterStrike")` is weapon damage plus the bonus. `Rogue.rotation`
+does not cast those three.
 
 `Weapon.tick` subtracts the frame from `swingTimer`. While the timer is at
 or below `k("sim.tickEpsilon")` and the interval is positive, it fires a
@@ -144,16 +148,20 @@ Each swing calls `Simulation.resolveAttack` with attack type `"weapon"`.
 on the retune list). The note says this is the rogue GCD and that wowsims
 uses the same length for its minimum. `Simulation.setGcd` sets `gcd` to that
 duration. `Simulation.tickGcd` subtracts the frame and floors at zero. It
-does not compare the remainder with `k("sim.tickEpsilon")`. The note on
-`k("sim.tickEpsilon")` lists the GCD among the timers that use that
-tolerance. The countdown does not.
+does not compare the remainder with `k("sim.tickEpsilon")`, so a positive
+remainder can stay on `gcd`. The note on `k("sim.tickEpsilon")` lists the
+GCD among the timers that use that tolerance. The countdown does not snap
+that remainder. `Skill.cast` is what compares it.
 
 `Skill.cast` in `js/skill.js` treats `triggersGcd` as on unless a subclass
-turns it off. An ability that triggers the GCD casts only when `gcd` is
-exactly zero, and a cast that proceeds calls `setGcd`. An ability that does
-not trigger it skips that wait, does not start a GCD, and does not clear one
-that is already running. The comment on that branch says a later off-GCD
-ability would inherit the same rule.
+turns it off. An ability that triggers the GCD is ready when `simulation.gcd`
+is at or below `k("sim.tickEpsilon")`. A larger remainder still waits. A
+cast that proceeds calls `setGcd`. The stored remainder can still be
+positive on that frame, so the cast can land about one frame earlier than a
+check for exact zero. An ability that does not trigger the GCD skips that
+wait, does not start a GCD, and does not clear one that is already running.
+The comment on that branch says a later off-GCD ability would inherit the
+same rule.
 
 `k("gcd.flags")` (`classic-1.12`, on the retune list) records Slice and Dice,
 Blade Flurry, and Adrenaline Rush on the GCD, and Premeditation off. The
@@ -165,6 +173,11 @@ The GCD is ticked before `Rogue.rotation`, so a GCD started during this
 frame's casts is not reduced until the next frame. The same is true of a
 cooldown, a buff, or a debuff applied during the rotation: `tickAuras` has
 already run.
+
+`js/main.js` sets the GCD status to "On cooldown" while `simulation.gcd > 0`,
+and to "Ready" otherwise. On the frame where the remainder is still positive and
+already within `k("sim.tickEpsilon")`, that label can read "On cooldown"
+while `Skill.cast` treats the GCD as ready.
 
 ## Sample rotation
 
@@ -213,8 +226,9 @@ inside `Rogue.rotation`.
 not land, it refunds `energyCost * k("skill.missEnergyRefund")` and returns
 without a cooldown, combo points, or an aura. The GCD, if this ability
 starts one, is already running. `k("skill.missEnergyRefund")` is an
-assumption on the retune list. Its note says Classic and the export do not
-describe that refund. A glance, a crit, or a hit is landed, so it is not
+assumption on the retune list. Its ref says Classic and the export do not
+describe that refund. Its note says the refund has been present since the
+initial skill code. A glance, a crit, or a hit is landed, so it is not
 refunded. Adrenaline Rush, Blade Flurry, Slice and Dice, and Premeditation
 are not attacks, so they have no miss refund.
 
@@ -222,8 +236,9 @@ are not attacks, so they have no miss refund.
 
 The fight starts at `k("character.startingComboPoints")`. `k("start.state")`
 records the same combo-point count and full energy. Both are assumptions on
-the retune list. The starting-combo-point note says there is no pre-pull
-Premeditation. The cap is `k("combo.max")` (`wowf-export`, not on the retune
+the retune list. The ref on `k("character.startingComboPoints")` says there is no pre-pull
+Premeditation. The note says the sample fight reads this value, and that
+`k("start.state")` records the same combo points and full energy. The cap is `k("combo.max")` (`wowf-export`, not on the retune
 list).
 
 A builder adds its `comboPointsGenerated`, capped at `k("combo.max")`. If
@@ -257,16 +272,23 @@ The note says a cast with no combo points would add no base damage. The
 spender check rejects that cast first. The roll then goes through
 `resolveAttack` as a skill, then armor.
 
-Rupture, in `Rupture.damage`, uses the matching entries of
-`k("rupture").damageByCp` and `k("rupture").durationByCp` (`wowf-export`).
-Outside that table the cast deals no damage and the duration is cleared, so
-no DoT is stored. Inside the table the total is the base damage plus attack
-power times the matching entry of `k("rupture.apByCP")`. That coefficient is
-`cataclysm` and on the retune list. The note says the owner kept the
-Cataclysm totals and that Classic used another series. A landed cast also stores
-a target debuff of that duration. Tick damage is read from the dot, not from
-the debuff. The application and the ticks are under Bleeds and damage over
-time.
+Rupture, in `Rupture.damage`, adds the matching entry of
+`k("rupture").damageByCp` (`wowf-export`) to attack power times the
+`k("rupture.apByCP")` entry for the combo points spent. That entry is the
+total AP fraction for the whole DoT, not a per-tick coefficient. The comment
+in `Rupture.damage` says so, and the dot applicator divides the floored total
+by the tick count, so the fraction is split evenly across the ticks. The
+duration is the matching entry of `k("rupture").durationByCp`. The three
+arrays are length-guarded together. If there are no combo points, or the
+combo points run past `damageByCp`, `durationByCp`, or `k("rupture.apByCP")`,
+the duration is cleared and the cast deals no damage, so no DoT is stored.
+`k("rupture.apByCP")` has source `cataclysm` and is on the retune list. Its
+unit is `AP total`. Its note is: "WoW Forever tooltip says AP scaling; Cata
+coefficients used as reference. Per tick this is 0.015, 0.024, 0.03,
+0.0342857, 0.0375 across 4–8 ticks. Classic was 0.04, 0.10, 0.18, 0.21,
+0.24." A landed cast also stores a target debuff of that duration. Tick
+damage is read from the dot, not from the debuff. The application and the
+ticks are under Bleeds and damage over time.
 
 A missed Eviscerate or Rupture does not spend combo points. The refund rule
 is under Energy.
@@ -277,9 +299,11 @@ is under Energy.
 `k("premeditation").comboPoints`, and starts
 `k("premeditation").cooldown`. The constant is `wowf-export` and is not on
 the retune list. It is not an attack, so the log records a cast. It does not
-start the GCD. The export note on the class, and the note on
-`k("premeditation.cpExpiry")`, say Classic required Stealth. The engine does
-not. There is no Stealth check in `Premeditation` or in `Rogue.rotation`.
+start the GCD. The comment on `Premeditation` in `js/skill.js` says the
+export spell_desc has no Stealth requirement and that Classic required it.
+The note on `k("premeditation.cpExpiry")` says Classic needed Stealth. The
+engine does not check for it. There is no Stealth check in `Premeditation`
+or in `Rogue.rotation`.
 
 On a successful cast `Rogue.armPremeditation` sets the removal amount to
 `k("premeditation.cpRemovedOnExpiry")` and the timer to
@@ -449,9 +473,10 @@ is positive, the sim stores
 
 `tickDamage = floored application damage / tick count`
 
-with `timeUntilNextTick` set to one interval. The cast frame does not
-reduce that timer, because the dot is stored after the tick loop. Otherwise
-no dot is stored.
+with `timeUntilNextTick` set to one interval. That division splits the
+whole-DoT total, including the `k("rupture.apByCP")` term, evenly across
+the ticks. The cast frame does not reduce that timer, because the dot is
+stored after the tick loop. Otherwise no dot is stored.
 `k("dot.snapshot")` (`classic-1.12`, on the retune list) says Rupture damage
 is fixed when the cast resolves. The stored `tickDamage` is that snapshot.
 The per-tick crit roll is not part of it.
@@ -474,11 +499,12 @@ one interval. For each tick still inside the dot's remaining time:
    separate `Math.random()` check against `Rogue.getCritChance()`, not
    another attack-table roll. A tick does not miss, dodge, or glance.
    `k("dot.canCrit")` is `wowf-designer` and is not on the retune list. Its
-   note says every DoT, bleeds included, can crit on WoW Forever, which
-   differs from Classic, and that the per-tick roll stays.
+   ref says all DoTs, bleeds included, can crit in WoW Forever. Its note
+   names Rupture, Garrote, and Deadly Poison, says this differs from Classic,
+   and says the per-tick crit roll stays.
    `k("dot.critMultiplier")` is an assumption and is not on the retune list.
-   Its note says the multiplier matches other crits and should be updated in
-   the constant if that changes.
+   Its note says the multiplier matches other crits. Its ref says to update
+   the code if that changes.
 4. Apply armor unless `tickSkipsArmor` skips it.
 5. Add the result to the damage total. Tick damage is not floored here.
 
@@ -521,8 +547,8 @@ read it.
 `k("sim.tickEpsilon")` (`engineering`, retune off) is the tolerance for
 `tickAuras` (buffs and debuffs), cooldown expiry, DoT ticks and DoT expiry,
 `Rogue.tickPremeditation`, and `Weapon.tick`. The note also names the GCD.
-`Simulation.tickGcd` does not read it, and an on-GCD cast waits until `gcd`
-is exactly zero.
+`Simulation.tickGcd` does not read it. `Skill.cast` treats the GCD as ready
+when the remainder is at or below it. See Global cooldown.
 
 One frame, in `Simulation.update`, does this in order:
 
@@ -530,7 +556,9 @@ One frame, in `Simulation.update`, does this in order:
    from before the countdown.
 2. Tick buffs, debuffs, and cooldowns. A cooldown at or below
    `k("sim.tickEpsilon")` becomes zero.
-3. Tick the GCD, without that tolerance.
+3. Tick the GCD. A remainder inside `k("sim.tickEpsilon")` stays positive
+   until the subtraction reaches zero. `Skill.cast` already treats it as
+   ready.
 4. Tick dots that were already running.
 5. Tick Premeditation expiry.
 6. Run `Rogue.rotation`, which may cast and then swing. Anything applied

@@ -64,11 +64,13 @@ installs with `npm ci`, then runs `npm run lint`, `npm test`, and
 command.
 A stale `docs/provenance.md` fails CI; run `npm run provenance` and commit it.
 On Node 20.19, which the `engines` range allows, that failure in
-`keeps docs/provenance.md equal to the generated report` shows node:test's
-generic message that the values have the same structure but are not
-reference-equal, instead of the assertion's own text (`docs/provenance.md is
-out of date with data/constants.js`). The test name still names the file.
-Node 22, which CI uses, shows the custom message.
+`keeps docs/provenance.md equal to the generated report` can show
+node:test's generic message that the values have the same structure but are
+not reference-equal, instead of the assertion's own text (`docs/provenance.md
+is out of date with data/constants.js`). The generic message appears when
+the change lies past Node's diff truncation point. An edit near the top of
+`docs/provenance.md` still shows the custom message. The test name still
+names the file. Node 22, which CI uses, shows the custom message.
 
 ## Constants and provenance
 
@@ -126,7 +128,8 @@ on.
   as an ES module.
 - `styles.css` — Dark layout and meters for that page.
 - `js/main.js` — UI entry: the animation frame, pause control, and DOM updates.
-  The only file under `js/` that may use `document` and `window`.
+  The GCD status reads "On cooldown" while `gcd > 0`. The only file under
+  `js/` that may use `document` and `window`.
 - `js/simulation.js` — Steps energy, buffs, debuffs, cooldowns, the GCD, DoTs,
   and Premeditation expiry, applies armor to direct hits and to ticks (bleeds
   and nature damage can skip it), rolls DoT crits, runs the rotation, and
@@ -137,7 +140,9 @@ on.
 - `js/skill.js` — Shared `Skill` cast path, plus Sinister Strike, Eviscerate,
   Premeditation, Adrenaline Rush, Slice and Dice, Ghostly Strike, Backstab,
   Ambush, Blade Flurry, Rupture, and Hemorrhage. Premeditation does not start
-  the GCD. Rupture sets `bleed` so its ticks can skip armor.
+  the GCD. `Skill.cast` treats a remainder within `sim.tickEpsilon` as ready.
+  Rupture's AP term is length-guarded with the damage and duration tables,
+  and Rupture sets `bleed` so its ticks can skip armor.
 - `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
   glancing, crit, hit) for white swings and skills. Chances come from `k(id)`.
 - `js/weapon.js` — Swing timer and damage roll for a main-hand or off-hand
@@ -180,6 +185,7 @@ on.
   engine reads.
 - `test/engine-lint.test.js` — The engine-purity rule and Prettier coverage.
 - `test/finisher.test.js` — Finishers need a combo point.
+- `test/gcd-epsilon.test.js` — GCD readiness within `sim.tickEpsilon`.
 - `test/gcd-flags.test.js` — Which abilities start the GCD.
 - `test/gcd-meter.test.js` — The GCD meter's ARIA range.
 - `test/pages.test.js` — The data-credit footer and the Pages workflow.
@@ -189,6 +195,7 @@ on.
   report.
 - `test/refresh-data.test.js` — The talentsforever refresh, manifest, and
   snapshot diff.
+- `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
 - `test/serve.test.js` — The static server's port and path checks.
 - `test/simulation.test.js` — The clock, buff duration, Adrenaline Rush
   energy, debuffs, and DoT expiry.
