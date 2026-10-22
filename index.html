@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WoW Forever Rogue Simulator</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css" />
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
@@ -19,7 +19,12 @@
             <span class="live-dot" aria-hidden="true"></span>
             <span id="simulation-status-label">Live</span>
           </div>
-          <button id="pause-button" class="pause-button" type="button" aria-pressed="false">
+          <button
+            id="pause-button"
+            class="pause-button"
+            type="button"
+            aria-pressed="false"
+          >
             <span id="pause-icon" aria-hidden="true">Ⅱ</span>
             <span id="pause-label">Pause</span>
           </button>
@@ -40,7 +45,10 @@
         </div>
       </section>
 
-      <section class="resources-panel panel" aria-labelledby="resources-heading">
+      <section
+        class="resources-panel panel"
+        aria-labelledby="resources-heading"
+      >
         <div class="section-heading">
           <div>
             <p class="eyebrow">COMBAT</p>
@@ -49,10 +57,15 @@
         </div>
 
         <div class="resource-grid">
-          <section class="resource-card combo-panel" aria-labelledby="combo-heading">
+          <section
+            class="resource-card combo-panel"
+            aria-labelledby="combo-heading"
+          >
             <div class="resource-label">
               <h3 id="combo-heading">Combo points</h3>
-              <output id="combo-value">0 <span class="value-divider">/</span> 5</output>
+              <output id="combo-value"
+                >0 <span class="value-divider">/</span> 5</output
+              >
             </div>
             <div
               id="combo-meter"
@@ -71,10 +84,15 @@
             </div>
           </section>
 
-          <section class="resource-card energy-panel" aria-labelledby="energy-heading">
+          <section
+            class="resource-card energy-panel"
+            aria-labelledby="energy-heading"
+          >
             <div class="resource-label">
               <h3 id="energy-heading">Energy</h3>
-              <output id="energy-value">0 <span class="value-divider">/</span> 100</output>
+              <output id="energy-value"
+                >0 <span class="value-divider">/</span> 100</output
+              >
             </div>
             <div
               id="energy-meter"
@@ -91,11 +109,16 @@
         </div>
 
         <div class="cooldown-grid">
-          <section class="resource-card gcd-panel" aria-labelledby="gcd-heading">
+          <section
+            class="resource-card gcd-panel"
+            aria-labelledby="gcd-heading"
+          >
             <div class="resource-label">
               <h3 id="gcd-heading">GCD</h3>
               <div class="gcd-readout">
-                <span id="gcd-status" class="gcd-status" aria-live="polite">Ready</span>
+                <span id="gcd-status" class="gcd-status" aria-live="polite"
+                  >Ready</span
+                >
                 <output id="gcd-value">0.0s</output>
               </div>
             </div>
@@ -111,20 +134,37 @@
               <div id="gcd-fill" class="gcd-fill"></div>
             </div>
           </section>
-          <section class="resource-card timed-effects-panel" aria-labelledby="active-buffs-heading">
+          <section
+            class="resource-card timed-effects-panel"
+            aria-labelledby="active-buffs-heading"
+          >
             <h3 id="active-buffs-heading">Active effects</h3>
             <p id="active-buffs-empty" class="timed-effects-empty">None</p>
-            <div id="active-buffs" class="timed-effects" aria-labelledby="active-buffs-heading"></div>
+            <div
+              id="active-buffs"
+              class="timed-effects"
+              aria-labelledby="active-buffs-heading"
+            ></div>
           </section>
-          <section class="resource-card timed-effects-panel" aria-labelledby="skill-cooldowns-heading">
+          <section
+            class="resource-card timed-effects-panel"
+            aria-labelledby="skill-cooldowns-heading"
+          >
             <h3 id="skill-cooldowns-heading">Cooldowns</h3>
             <p id="skill-cooldowns-empty" class="timed-effects-empty">None</p>
-            <div id="skill-cooldowns" class="timed-effects" aria-labelledby="skill-cooldowns-heading"></div>
+            <div
+              id="skill-cooldowns"
+              class="timed-effects"
+              aria-labelledby="skill-cooldowns-heading"
+            ></div>
           </section>
         </div>
       </section>
 
-      <section class="combat-log-panel panel" aria-labelledby="combat-log-heading">
+      <section
+        class="combat-log-panel panel"
+        aria-labelledby="combat-log-heading"
+      >
         <div class="section-heading combat-log-heading">
           <div>
             <p class="eyebrow">EVENTS</p>
@@ -132,9 +172,16 @@
           </div>
           <span class="log-caption">Latest events first</span>
         </div>
-        <div class="combat-log-scroll" role="region" aria-label="Combat log events" tabindex="0">
+        <div
+          class="combat-log-scroll"
+          role="region"
+          aria-label="Combat log events"
+          tabindex="0"
+        >
           <ol id="combat-log" class="combat-log" aria-live="off">
-            <li id="combat-log-empty" class="combat-log-empty">Waiting for combat events…</li>
+            <li id="combat-log-empty" class="combat-log-empty">
+              Waiting for combat events…
+            </li>
           </ol>
         </div>
       </section>

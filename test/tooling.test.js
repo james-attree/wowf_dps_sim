@@ -34,7 +34,7 @@ describe("dev package", () => {
     const html = await readFile(resolve(root, "index.html"), "utf8");
 
     assert.match(html, /<script type="module" src="js\/main\.js"><\/script>/);
-    assert.match(html, /<link rel="stylesheet" href="styles\.css">/);
+    assert.match(html, /<link rel="stylesheet" href="styles\.css" \/>/);
     assert.doesNotMatch(html, /node_modules/);
     assert.doesNotMatch(html, /https?:/);
   });

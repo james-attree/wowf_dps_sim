@@ -3,7 +3,9 @@ import { Simulation } from "./simulation.js";
 
 const rogue = new Rogue();
 const simulation = new Simulation(rogue);
-const cooldownSkillsByName = new Map(Object.values(rogue.abilities).map((skill) => [skill.name, skill]));
+const cooldownSkillsByName = new Map(
+  Object.values(rogue.abilities).map((skill) => [skill.name, skill]),
+);
 const comboValue = document.querySelector("#combo-value");
 const comboMeter = document.querySelector("#combo-meter");
 const comboPoints = document.querySelectorAll(".combo-point");
@@ -30,7 +32,9 @@ const pauseButton = document.querySelector("#pause-button");
 const pauseIcon = document.querySelector("#pause-icon");
 const pauseLabel = document.querySelector("#pause-label");
 const simulationStatus = document.querySelector("#simulation-status");
-const simulationStatusLabel = document.querySelector("#simulation-status-label");
+const simulationStatusLabel = document.querySelector(
+  "#simulation-status-label",
+);
 let lastRenderedCombatEventId = -1;
 let isPaused = false;
 let animationFrameId;
@@ -55,8 +59,18 @@ function redrawScene(rogue) {
   gcdStatus.classList.toggle("is-active", gcdActive);
   gcdMeter.setAttribute("aria-valuenow", simulation.gcd.toFixed(1));
   gcdFill.style.width = `${gcdPercent}%`;
-  renderTimedEffects(simulation.activeBuffs, activeBuffs, buffItems, activeBuffsEmpty);
-  renderTimedEffects(simulation.cooldowns, skillCooldowns, cooldownItems, skillCooldownsEmpty);
+  renderTimedEffects(
+    simulation.activeBuffs,
+    activeBuffs,
+    buffItems,
+    activeBuffsEmpty,
+  );
+  renderTimedEffects(
+    simulation.cooldowns,
+    skillCooldowns,
+    cooldownItems,
+    skillCooldownsEmpty,
+  );
   const elapsedSeconds = Math.floor(simulation.currentTime);
   const minutes = Math.floor(elapsedSeconds / 60);
   const seconds = elapsedSeconds % 60;
@@ -64,7 +78,10 @@ function redrawScene(rogue) {
   timeValue.textContent = timeValue.value;
   damageValue.value = String(Math.floor(simulation.damageDone));
   damageValue.textContent = damageValue.value;
-  const dps = simulation.currentTime > 0 ? simulation.damageDone / simulation.currentTime : 0;
+  const dps =
+    simulation.currentTime > 0
+      ? simulation.damageDone / simulation.currentTime
+      : 0;
   dpsValue.value = dps.toFixed(0);
   dpsValue.textContent = dpsValue.value;
   renderCombatLog();
@@ -125,7 +142,9 @@ function renderTimedEffects(effects, container, items, emptyState) {
 }
 
 function renderCombatLog() {
-  const newEvents = simulation.combatLog.filter((event) => event.id > lastRenderedCombatEventId);
+  const newEvents = simulation.combatLog.filter(
+    (event) => event.id > lastRenderedCombatEventId,
+  );
   if (newEvents.length === 0) {
     return;
   }
@@ -135,50 +154,54 @@ function renderCombatLog() {
   if (combatLogEmpty.isConnected) {
     combatLogEmpty.remove();
   }
-  newEvents.slice().reverse().forEach((event) => {
-    const row = document.createElement("li");
-    row.className = "combat-log-entry";
+  newEvents
+    .slice()
+    .reverse()
+    .forEach((event) => {
+      const row = document.createElement("li");
+      row.className = "combat-log-entry";
 
-    const time = document.createElement("time");
-    const totalSeconds = Math.floor(event.time);
-    time.className = "combat-log-time";
-    time.textContent = `${String(Math.floor(totalSeconds / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
+      const time = document.createElement("time");
+      const totalSeconds = Math.floor(event.time);
+      time.className = "combat-log-time";
+      time.textContent = `${String(Math.floor(totalSeconds / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
 
-    const icon = document.createElement("span");
-    icon.className = `combat-log-icon ${event.type === "skill" ? "skill-icon" : "weapon-icon"}`;
-    icon.setAttribute("aria-hidden", "true");
-    if (event.type === "skill" && event.icon) {
-      const image = document.createElement("img");
-      image.src = event.icon;
-      image.width = 16;
-      image.height = 16;
-      image.alt = "";
-      icon.append(image);
-    } else {
-      icon.textContent = event.type === "skill" ? "✦" : "⚔";
-    }
+      const icon = document.createElement("span");
+      icon.className = `combat-log-icon ${event.type === "skill" ? "skill-icon" : "weapon-icon"}`;
+      icon.setAttribute("aria-hidden", "true");
+      if (event.type === "skill" && event.icon) {
+        const image = document.createElement("img");
+        image.src = event.icon;
+        image.width = 16;
+        image.height = 16;
+        image.alt = "";
+        icon.append(image);
+      } else {
+        icon.textContent = event.type === "skill" ? "✦" : "⚔";
+      }
 
-    const name = document.createElement("span");
-    name.className = "combat-log-name";
-    name.textContent = event.name;
+      const name = document.createElement("span");
+      name.className = "combat-log-name";
+      name.textContent = event.name;
 
-    const damage = document.createElement("span");
-    damage.className = "combat-log-damage";
-    damage.textContent = String(Math.floor(event.damage));
+      const damage = document.createElement("span");
+      damage.className = "combat-log-damage";
+      damage.textContent = String(Math.floor(event.damage));
 
-    const status = document.createElement("span");
-    status.className = `combat-log-status outcome-${event.outcome}`;
-    status.textContent = event.status;
+      const status = document.createElement("span");
+      status.className = `combat-log-status outcome-${event.outcome}`;
+      status.textContent = event.status;
 
-    row.append(time, icon, name, damage, status);
-    combatLog.insertBefore(row, combatLog.firstChild);
-    if (combatLog.children.length > 100) {
-      combatLog.lastElementChild.remove();
-    }
-  });
+      row.append(time, icon, name, damage, status);
+      combatLog.insertBefore(row, combatLog.firstChild);
+      if (combatLog.children.length > 100) {
+        combatLog.lastElementChild.remove();
+      }
+    });
 
   if (!isAtLatestEvents) {
-    combatLogScroll.scrollTop += combatLogScroll.scrollHeight - previousScrollHeight;
+    combatLogScroll.scrollTop +=
+      combatLogScroll.scrollHeight - previousScrollHeight;
   }
   lastRenderedCombatEventId = Math.max(...newEvents.map((event) => event.id));
 }
