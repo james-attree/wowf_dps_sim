@@ -37,3 +37,11 @@ jobs:
       # that CLI exists.
       - name: Provenance
         run: npm run provenance
+
+      # Fail when that rewrite differs from the committed report (#52).
+      - name: Provenance is committed
+        run: |
+          git diff --exit-code -- docs/provenance.md || {
+            echo "::error file=docs/provenance.md::docs/provenance.md is out of date with data/constants.js. Run 'npm run provenance' and commit the result."
+            exit 1
+          }

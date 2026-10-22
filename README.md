@@ -56,6 +56,7 @@ do not import ES modules from `file://`.
 installs with `npm ci`, then runs `npm run lint`, `npm test`, and
 `npm run provenance`. Refreshing the talentsforever snapshot stays a local
 command.
+A stale `docs/provenance.md` fails CI; run `npm run provenance` and commit it.
 
 ## Constants and provenance
 
