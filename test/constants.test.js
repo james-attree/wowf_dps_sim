@@ -124,9 +124,9 @@ describe("constants", () => {
       CONSTANTS["dot.canCrit"].ref,
       /^James, 22 Oct 2026: all DoTs, bleeds included, can crit/,
     );
-    assert.match(
+    assert.equal(
       CONSTANTS["dot.critMultiplier"].ref,
-      /^Issue #23: DoTs and bleeds crit at 2×/,
+      "James, 22 Oct 2026: DoTs and bleeds crit at 2x",
     );
     assert.equal(k("dot.canCrit"), true);
     assert.equal(k("dot.critMultiplier"), 2);

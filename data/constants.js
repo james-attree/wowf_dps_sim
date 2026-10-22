@@ -581,7 +581,7 @@ export const CONSTANTS = {
     2,
     "×",
     WOWF_DESIGNER,
-    "Issue #23: DoTs and bleeds crit at 2×. Q11 design decision recorded in the issue.",
+    "James, 22 Oct 2026: DoTs and bleeds crit at 2x",
     "Same multiplier as other crits. The issue constants list had marked 2× as a presumption; the decision is 2×.",
     true,
   ),
