@@ -11,6 +11,9 @@ export class Rogue {
     this.bonusHitChance = k("character.bonusHitChance");
     this.comboPoints = k("character.startingComboPoints");
     this.maxComboPoints = k("combo.max");
+    // Combo points expiry will remove, and the time left before that.
+    this.premeditationCp = 0;
+    this.premeditationCpRemaining = 0;
     this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // normalizedSpeed.dagger for instant-attack AP
 
     this.abilities = {
@@ -54,6 +57,30 @@ export class Rogue {
 
   regenerateEnergy(dt, rate) {
     this.energy = Math.min(this.energy + rate * dt, this.maxEnergy);
+  }
+
+  // Expiry always removes premeditation.cpRemovedOnExpiry, however many were added.
+  armPremeditation() {
+    this.premeditationCp = k("premeditation.cpRemovedOnExpiry");
+    this.premeditationCpRemaining = k("premeditation.cpExpiry");
+  }
+
+  // Adding a combo point, or spending them, keeps the Premeditation points.
+  clearPremeditation() {
+    this.premeditationCp = 0;
+    this.premeditationCpRemaining = 0;
+  }
+
+  tickPremeditation(dt) {
+    if (this.premeditationCpRemaining <= 0) {
+      return;
+    }
+    this.premeditationCpRemaining -= dt;
+    if (this.premeditationCpRemaining > k("sim.tickEpsilon")) {
+      return;
+    }
+    this.comboPoints = Math.max(0, this.comboPoints - this.premeditationCp);
+    this.clearPremeditation();
   }
 
   // Character stats are read through these accessors.

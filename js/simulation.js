@@ -98,6 +98,10 @@ export class Simulation {
       }
     }
 
+    // Points already counting down lose this frame. A Premeditation cast
+    // during rotation keeps the full premeditation.cpExpiry until the next one.
+    this.rogue.tickPremeditation(dt);
+
     this.rogue.rotation(this, dt);
   }
 
