@@ -50,7 +50,7 @@ export const CONSTANTS = {
     "s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Premeditation|]",
-    "Unused combo points are lost after 20s. Classic was 10s and needed Stealth. Not applied yet (Q10).",
+    "The combo points Premeditation added are lost after 20s unless a later cast adds a combo point or a finisher spends them. Classic was 10s and needed Stealth.",
     false,
   ),
   premeditation: entry(
@@ -700,13 +700,11 @@ export const CONSTANTS = {
     true,
   ),
   "character.startingComboPoints": entry(
-    3,
+    0,
     "CP",
     ASSUMPTION,
-    undecided(
-      "js/rogue.js starts the fight at 3 combo points. start.state and Q10 say 0.",
-    ),
-    "Kept so this change does not alter combo-point uptime.",
+    "No recorded owner decision as of 22 Oct 2026. Issue #18: fights start at 0 combo points. The issue's source is an assumption (no pre-pull Premeditation or stealth opener; OQ7).",
+    "The sample fight reads this. start.state records the same 0 combo points and full energy.",
     true,
   ),
   "weapon.mainHand": entry(

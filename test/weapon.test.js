@@ -333,8 +333,9 @@ describe("swing timer fight regression", () => {
   it("keeps a normal 60s fight's casts and deals the same damage at 30 and 144 fps", () => {
     const slow = sampleFight(SWING_FRAME_RATES[0]);
     const fast = sampleFight(SWING_FRAME_RATES[1]);
-    // Fixed roll. Builders, finishers, and the off hand match the pre-fix
-    // fight. The main hand gains one swing, and that swing is the damage change.
+    // Fixed roll (Math.random is 0.5). Issue #18 starts the fight at 0 combo
+    // points. Cast and swing counts are unchanged; the cycle ends 3 points
+    // lower because those casts no longer begin from 3.
     const casts = {
       "Adrenaline Rush": 1,
       "Blade Flurry": 1,
@@ -346,12 +347,19 @@ describe("swing timer fight regression", () => {
       "Main-hand": 36,
       "Off-hand": 37,
     };
+    const spent = casts.Rupture * k("combo.max");
+    const generated =
+      casts.Premeditation * k("premeditation").comboPoints +
+      casts["Ghostly Strike"] * k("ghostlyStrike").comboPoints +
+      casts.Hemorrhage * k("hemorrhage").comboPoints;
+    const comboPoints = k("character.startingComboPoints") + generated - spent;
 
     assert.deepEqual(slow.counts, casts);
     assert.deepEqual(fast.counts, casts);
     assert.equal(slow.damage, fast.damage);
-    assert.equal(slow.comboPoints, k("combo.max"));
-    assert.equal(fast.comboPoints, k("combo.max"));
+    assert.equal(comboPoints, 2);
+    assert.equal(slow.comboPoints, comboPoints);
+    assert.equal(fast.comboPoints, comboPoints);
     assert.ok(slow.damage > 0);
   });
 });

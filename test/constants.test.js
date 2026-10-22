@@ -162,7 +162,9 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.attackPower, 450);
     assert.equal(rogue.critChance, 0.1);
     assert.equal(rogue.bonusHitChance, 0.09);
-    assert.equal(rogue.comboPoints, 3);
+    assert.equal(k("character.startingComboPoints"), 0);
+    assert.equal(k("start.state").comboPoints, 0);
+    assert.equal(rogue.comboPoints, k("character.startingComboPoints"));
     assert.equal(rogue.maxComboPoints, 5);
     assert.equal(rogue.normalizedWeaponSpeed, 1.7);
 
@@ -196,6 +198,7 @@ describe("simulator values other than white miss", () => {
       comboPointsGenerated: 2,
       triggersGcd: false,
       attackSkill: false,
+      expiresComboPoints: true,
     });
     expectSkill(rogue.abilities.adrenalineRush, {
       energyCost: 0,
@@ -325,7 +328,7 @@ describe("simulator values other than white miss", () => {
     const result = rogue.abilities.sinisterStrike.cast(rogue, sim);
     assert.equal(result.outcome, "miss");
     assert.equal(rogue.energy, 100 - 45 + 45 * 0.8);
-    assert.equal(rogue.comboPoints, 3);
+    assert.equal(rogue.comboPoints, k("character.startingComboPoints"));
 
     mock.restoreAll();
     mock.method(Math, "random", () => 0);
