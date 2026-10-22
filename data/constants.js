@@ -168,9 +168,9 @@ export const CONSTANTS = {
     "AP",
     ASSUMPTION,
     undecided(
-      "Rupture.damage() initialises AP scaling to 0.1, and a 0-CP cast keeps that factor. It is not a Cataclysm coefficient.",
+      "Rupture.damage() initialises AP scaling to 0.1 before the per-CP table. It is not a Cataclysm coefficient.",
     ),
-    "Preserved so a 0-CP Rupture still deals attack power × 0.1 (Q4).",
+    "damage() still uses this factor at 0 CP. Skill.cast rejects that cast, so a fight never spends energy or applies it (Q4).",
     true,
   ),
   ghostlyStrike: entry(

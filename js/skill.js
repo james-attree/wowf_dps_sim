@@ -28,6 +28,10 @@ class Skill {
     if (this.onCooldown(rogue, simulation)) {
       return null; // Skill is on cooldown, cannot cast
     }
+    // Eviscerate, Rupture, and Slice and Dice need at least 1 combo point.
+    if (this.spender && rogue.comboPoints < 1) {
+      return null;
+    }
     if (rogue.energy >= this.energyCost && simulation.gcd === 0) {
       rogue.energy -= this.energyCost;
       if (this.triggersGcd) {
