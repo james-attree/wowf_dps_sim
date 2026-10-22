@@ -1,0 +1,20 @@
+{
+  "name": "wowf-dps-sim",
+  "private": true,
+  "description": "WoW Forever rogue DPS simulator",
+  "type": "module",
+  "scripts": {
+    "serve": "node scripts/serve.mjs",
+    "test": "node --test",
+    "lint": "eslint . --max-warnings 0 && prettier --check .",
+    "data:refresh": "node scripts/refresh-data.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
+}

@@ -1,0 +1,6 @@
+# Simulator sources keep their current formatting until F4 (#3)
+# turns formatting on with the engine lint rules.
+index.html
+styles.css
+js
+img
