@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { applyGcdMeterAria } from "./gcd-meter.js";
 import { Rogue } from "./rogue.js";
 import { Simulation } from "./simulation.js";
 
@@ -19,10 +20,13 @@ const gcdFill = document.querySelector("#gcd-fill");
 const gcdStatus = document.querySelector("#gcd-status");
 const activeBuffs = document.querySelector("#active-buffs");
 const activeBuffsEmpty = document.querySelector("#active-buffs-empty");
+const activeDebuffs = document.querySelector("#active-debuffs");
+const activeDebuffsEmpty = document.querySelector("#active-debuffs-empty");
 const skillCooldowns = document.querySelector("#skill-cooldowns");
 const skillCooldownsEmpty = document.querySelector("#skill-cooldowns-empty");
 const cooldownItems = new Map();
 const buffItems = new Map();
+const debuffItems = new Map();
 const timeValue = document.querySelector("#time-value");
 const damageValue = document.querySelector("#damage-value");
 const dpsValue = document.querySelector("#dps-value");
@@ -58,13 +62,19 @@ function redrawScene(rogue) {
   const gcdActive = simulation.gcd > 0;
   gcdStatus.textContent = gcdActive ? "On cooldown" : "Ready";
   gcdStatus.classList.toggle("is-active", gcdActive);
-  gcdMeter.setAttribute("aria-valuenow", simulation.gcd.toFixed(1));
+  applyGcdMeterAria(gcdMeter, simulation);
   gcdFill.style.width = `${gcdPercent}%`;
   renderTimedEffects(
     simulation.activeBuffs,
     activeBuffs,
     buffItems,
     activeBuffsEmpty,
+  );
+  renderTimedEffects(
+    simulation.activeDebuffs,
+    activeDebuffs,
+    debuffItems,
+    activeDebuffsEmpty,
   );
   renderTimedEffects(
     simulation.cooldowns,
@@ -236,4 +246,5 @@ pauseButton.addEventListener("click", () => {
   animationFrameId = requestAnimationFrame(update);
 });
 
+applyGcdMeterAria(gcdMeter, simulation);
 animationFrameId = requestAnimationFrame(update);

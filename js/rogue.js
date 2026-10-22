@@ -11,7 +11,10 @@ export class Rogue {
     this.bonusHitChance = k("character.bonusHitChance");
     this.comboPoints = k("character.startingComboPoints");
     this.maxComboPoints = k("combo.max");
-    this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // Normalized weapon speed for AP contribution
+    // Combo points expiry will remove, and the time left before that.
+    this.premeditationCp = 0;
+    this.premeditationCpRemaining = 0;
+    this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // normalizedSpeed.dagger for instant-attack AP
 
     this.abilities = {
       premeditation: new Skills.Premeditation(this),
@@ -41,14 +44,14 @@ export class Rogue {
       mainHand.max,
       mainHand.speed,
       "main",
-    ); // Example values
+    );
     this.weapons.offHand = new Weapon(
       this,
       offHand.min,
       offHand.max,
       offHand.speed,
       "off",
-    ); // Example values
+    );
     this.weapons.offHand.swingTimer = offHand.initialSwing;
   }
 
@@ -56,6 +59,31 @@ export class Rogue {
     this.energy = Math.min(this.energy + rate * dt, this.maxEnergy);
   }
 
+  // Expiry always removes premeditation.cpRemovedOnExpiry, however many were added.
+  armPremeditation() {
+    this.premeditationCp = k("premeditation.cpRemovedOnExpiry");
+    this.premeditationCpRemaining = k("premeditation.cpExpiry");
+  }
+
+  // Adding a combo point, or spending them, keeps the Premeditation points.
+  clearPremeditation() {
+    this.premeditationCp = 0;
+    this.premeditationCpRemaining = 0;
+  }
+
+  tickPremeditation(dt) {
+    if (this.premeditationCpRemaining <= 0) {
+      return;
+    }
+    this.premeditationCpRemaining -= dt;
+    if (this.premeditationCpRemaining > k("sim.tickEpsilon")) {
+      return;
+    }
+    this.comboPoints = Math.max(0, this.comboPoints - this.premeditationCp);
+    this.clearPremeditation();
+  }
+
+  // Character stats are read through these accessors.
   getAttackPower() {
     return this.attackPower;
   }
@@ -69,22 +97,24 @@ export class Rogue {
   }
 
   rollWeaponDamageForSkill() {
+    // Weapon die plus attack power / ap.perDps, times normalizedSpeed.dagger.
     return (
       this.weapons.mainHand.rollWeaponDamage() +
-      (this.attackPower / k("ap.perDps")) * this.normalizedWeaponSpeed
-    ); // Simplified AP contribution
+      (this.getAttackPower() / k("ap.perDps")) * this.normalizedWeaponSpeed
+    );
   }
 
   rotation(simulation, dt) {
     if (this.energy <= k("rotation.adrenalineRushEnergy")) {
-      this.abilities.adrenalineRush.cast(this, simulation); // Cast Adrenaline Rush if energy is low
+      this.abilities.adrenalineRush.cast(this, simulation); // at or below rotation.adrenalineRushEnergy
     }
 
     this.abilities.bladeFlurry.cast(this, simulation); // Cast Blade Flurry if available
 
     this.abilities.premeditation.cast(this, simulation); // Cast Premeditation if available
 
-    // If we aren't already under the effect of Slice and Dice, or if it's about to expire, and we have enough combo points, cast it
+    // Slice and Dice is not cast. The guard reads rotation.sliceAndDiceRefreshSeconds
+    // and rotation.sliceAndDiceComboPoints; the call stays disabled.
     if (
       (!simulation.activeBuffs["Slice and Dice"] ||
         (simulation.activeBuffs["Slice and Dice"] &&
@@ -92,7 +122,7 @@ export class Rogue {
             k("rotation.sliceAndDiceRefreshSeconds"))) &&
       this.comboPoints >= k("rotation.sliceAndDiceComboPoints")
     ) {
-      //this.abilities.sliceAndDice.cast(this, simulation);
+      // this.abilities.sliceAndDice.cast(this, simulation);
     }
 
     if (this.comboPoints >= k("combo.max")) {
@@ -104,18 +134,18 @@ export class Rogue {
     this.abilities.hemorrhage.cast(this, simulation);
 
     // Tick weapons
-    let hasteMultiplier = 1; // Placeholder for any haste effects
+    let hasteMultiplier = 1;
     if (
       simulation.activeBuffs["Slice and Dice"] &&
       simulation.activeBuffs["Slice and Dice"].duration > 0
     ) {
-      hasteMultiplier += k("sliceAndDice").haste; // Example: Slice and Dice increases attack speed by 30%
+      hasteMultiplier += k("sliceAndDice").haste;
     }
     if (
       simulation.activeBuffs["Blade Flurry"] &&
       simulation.activeBuffs["Blade Flurry"].duration > 0
     ) {
-      hasteMultiplier += k("bladeFlurry").haste; // Example: Blade Flurry increases attack speed by 20%
+      hasteMultiplier += k("bladeFlurry").haste;
     }
 
     this.weapons.mainHand.tick(dt, hasteMultiplier, (weapon) => {

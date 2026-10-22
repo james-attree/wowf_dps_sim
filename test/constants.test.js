@@ -134,13 +134,30 @@ describe("constants", () => {
     assert.deepEqual(k("rupture.apByCP"), [0.06, 0.12, 0.18, 0.24, 0.3]);
     assert.equal(k("miss.yellow") + k("miss.dualWieldPenalty"), 0.27);
     assert.equal(CONSTANTS["rupture.apAtZeroCp"], undefined);
+    assert.equal(
+      CONSTANTS["character.startingComboPoints"].ref,
+      "James, 22 Oct 2026: no pre-pull Premeditation or stealth opener (#18, OQ7)",
+    );
+    assert.equal(
+      CONSTANTS["character.startingComboPoints"].source,
+      "assumption",
+    );
+    assert.equal(
+      CONSTANTS["premeditation.cpRemovedOnExpiry"].ref,
+      "James, 22 Oct 2026: always removes 2 on expiry",
+    );
+    assert.equal(
+      CONSTANTS["premeditation.cpRemovedOnExpiry"].source,
+      "assumption",
+    );
+    assert.equal(CONSTANTS["premeditation.cpRemovedOnExpiry"].retune, true);
+    assert.equal(k("premeditation.cpRemovedOnExpiry"), 2);
 
     const sampleInput = "James, 22 Oct 2026: sample input until SimConfig (E2)";
     for (const id of [
       "character.attackPower",
       "character.critChance",
       "character.bonusHitChance",
-      "character.startingComboPoints",
       "weapon.offHand",
       "rotation.adrenalineRushEnergy",
       "rotation.sliceAndDiceComboPoints",
@@ -200,7 +217,9 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.attackPower, 450);
     assert.equal(rogue.critChance, 0.1);
     assert.equal(rogue.bonusHitChance, 0.09);
-    assert.equal(rogue.comboPoints, 3);
+    assert.equal(k("character.startingComboPoints"), 0);
+    assert.equal(k("start.state").comboPoints, 0);
+    assert.equal(rogue.comboPoints, k("character.startingComboPoints"));
     assert.equal(rogue.maxComboPoints, 5);
     assert.equal(rogue.normalizedWeaponSpeed, 1.7);
 
@@ -234,6 +253,7 @@ describe("simulator values other than white miss", () => {
       comboPointsGenerated: 2,
       triggersGcd: false,
       attackSkill: false,
+      expiresComboPoints: true,
     });
     expectSkill(rogue.abilities.adrenalineRush, {
       energyCost: 0,
@@ -241,6 +261,7 @@ describe("simulator values other than white miss", () => {
       duration: 15,
       triggersGcd: false,
       attackSkill: false,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.sliceAndDice, {
       energyCost: 25,
@@ -248,12 +269,14 @@ describe("simulator values other than white miss", () => {
       spender: true,
       triggersGcd: false,
       attackSkill: false,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.ghostlyStrike, {
       energyCost: 40,
       cooldown: 20,
       duration: 7,
       comboPointsGenerated: 1,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.backstab, {
       energyCost: 60,
@@ -271,6 +294,7 @@ describe("simulator values other than white miss", () => {
       duration: 15,
       triggersGcd: false,
       attackSkill: false,
+      targetAura: false,
     });
     expectSkill(rogue.abilities.rupture, {
       energyCost: 25,
@@ -278,12 +302,14 @@ describe("simulator values other than white miss", () => {
       spender: true,
       dot: true,
       triggersGcd: true,
+      targetAura: true,
     });
     expectSkill(rogue.abilities.hemorrhage, {
       energyCost: 35,
       cooldown: 0,
       duration: 15,
       comboPointsGenerated: 1,
+      targetAura: true,
     });
     assert.equal(k("adrenalineRush").cooldown, 300);
     assert.equal(new Simulation(rogue).gcdDuration, 1);
@@ -379,7 +405,7 @@ describe("simulator values other than white miss", () => {
     const result = rogue.abilities.sinisterStrike.cast(rogue, sim);
     assert.equal(result.outcome, "miss");
     assert.equal(rogue.energy, 100 - 45 + 45 * 0.8);
-    assert.equal(rogue.comboPoints, 3);
+    assert.equal(rogue.comboPoints, k("character.startingComboPoints"));
 
     mock.restoreAll();
     mock.method(Math, "random", () => 0);
@@ -393,7 +419,7 @@ describe("simulator values other than white miss", () => {
       tickDamage: 100,
       icon: null,
     };
-    fight.activeBuffs.Hemorrhage = { duration: 15, icon: null };
+    fight.activeDebuffs.Hemorrhage = { duration: 15, icon: null };
     fight.lastFrameTime = 0;
     fight.update(2000);
     assert.equal(fight.damageDone, 100 * 1.15 * 2);

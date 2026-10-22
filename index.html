@@ -128,7 +128,6 @@
               role="meter"
               aria-label="Global cooldown remaining"
               aria-valuemin="0"
-              aria-valuemax="1.5"
               aria-valuenow="0"
             >
               <div id="gcd-fill" class="gcd-fill"></div>
@@ -144,6 +143,18 @@
               id="active-buffs"
               class="timed-effects"
               aria-labelledby="active-buffs-heading"
+            ></div>
+          </section>
+          <section
+            class="resource-card timed-effects-panel"
+            aria-labelledby="active-debuffs-heading"
+          >
+            <h3 id="active-debuffs-heading">Debuffs</h3>
+            <p id="active-debuffs-empty" class="timed-effects-empty">None</p>
+            <div
+              id="active-debuffs"
+              class="timed-effects"
+              aria-labelledby="active-debuffs-heading"
             ></div>
           </section>
           <section
