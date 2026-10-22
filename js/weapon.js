@@ -36,7 +36,7 @@ export class Weapon {
   }
 
   rollDamage() {
-    // Classic applies the off-hand penalty to the whole hit, AP bonus included.
+    // offHand.damageMult scales the whole hit, weapon roll and the AP bonus.
     let hit =
       this.rollWeaponDamage() +
       (this.rogue.getAttackPower() / k("ap.perDps")) * this.speed;

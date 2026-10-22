@@ -1,7 +1,7 @@
 import { k } from "../data/constants.js";
 
 // Chances are fractions. White miss is yellow miss plus the dual-wield penalty.
-// Rolls are compared on attack.rollScale (0–100) so callers can inject a roll.
+// Rolls are compared on attack.rollScale so callers can inject a roll.
 const ROLL_SCALE = k("attack.rollScale");
 const BASE_MISS_CHANCE = {
   weapon: k("miss.yellow") + k("miss.dualWieldPenalty"),
