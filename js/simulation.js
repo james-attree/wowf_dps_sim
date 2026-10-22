@@ -61,7 +61,7 @@ export class Simulation {
         this.rogue.rotation(this, dt);
 
         this.activeBuffs = Object.fromEntries(
-            Object.entries(this.activeBuffs).filter(([key, buff]) => {
+            Object.entries(this.activeBuffs).filter(([, buff]) => {
                 buff.duration -= dt;
                 return buff.duration > 0;
             })
