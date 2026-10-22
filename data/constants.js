@@ -282,7 +282,7 @@ export const CONSTANTS = {
     "×",
     CLASSIC,
     WH_DW,
-    "The engine still applies this to the weapon die only, not the AP term (Q2).",
+    "Applied to the whole off-hand hit, weapon roll and AP bonus together. Dual Wield Specialization multiplies on top later and is not applied yet.",
     true,
   ),
   "crit.meleeMultiplier": entry(

@@ -302,7 +302,10 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.abilities.ghostlyStrike.damage(), normalized * 1.8);
     assert.equal(rogue.abilities.hemorrhage.damage(), normalized * 1.45);
     assert.equal(rogue.weapons.mainHand.rollDamage(), weaponDie + apBonus(1.8));
-    assert.equal(rogue.weapons.offHand.rollDamage(), 54 * 0.5 + apBonus(1.7));
+    assert.equal(
+      rogue.weapons.offHand.rollDamage(),
+      (54 + apBonus(1.7)) * k("offHand.damageMult"),
+    );
 
     rogue.comboPoints = 0;
     assert.equal(rogue.abilities.eviscerate.damage(), 0);
