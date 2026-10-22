@@ -11,7 +11,7 @@ export class Rogue {
     this.bonusHitChance = k("character.bonusHitChance");
     this.comboPoints = k("character.startingComboPoints");
     this.maxComboPoints = k("combo.max");
-    // Combo points Premeditation added, and the time left before they are removed.
+    // Combo points expiry will remove, and the time left before that.
     this.premeditationCp = 0;
     this.premeditationCpRemaining = 0;
     this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // normalizedSpeed.dagger for instant-attack AP
@@ -59,12 +59,9 @@ export class Rogue {
     this.energy = Math.min(this.energy + rate * dt, this.maxEnergy);
   }
 
-  // points are the combo points this Premeditation cast actually added.
-  armPremeditation(points) {
-    if (points <= 0) {
-      return;
-    }
-    this.premeditationCp = points;
+  // Expiry always removes premeditation.cpRemovedOnExpiry, however many were added.
+  armPremeditation() {
+    this.premeditationCp = k("premeditation.cpRemovedOnExpiry");
     this.premeditationCpRemaining = k("premeditation.cpExpiry");
   }
 

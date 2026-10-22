@@ -133,9 +133,27 @@ describe("constants", () => {
     assert.equal(k("bleed.ignoresArmor"), true);
     assert.deepEqual(k("rupture.apByCP"), [0.06, 0.12, 0.18, 0.24, 0.3]);
     assert.equal(k("miss.yellow") + k("miss.dualWieldPenalty"), 0.27);
+    assert.equal(
+      CONSTANTS["character.startingComboPoints"].ref,
+      "James, 22 Oct 2026: no pre-pull Premeditation or stealth opener (#18, OQ7)",
+    );
+    assert.equal(
+      CONSTANTS["premeditation.cpRemovedOnExpiry"].ref,
+      "James, 22 Oct 2026: always removes 2 on expiry",
+    );
+    assert.equal(
+      CONSTANTS["premeditation.cpRemovedOnExpiry"].source,
+      "assumption",
+    );
+    assert.equal(CONSTANTS["premeditation.cpRemovedOnExpiry"].retune, true);
+    assert.equal(k("premeditation.cpRemovedOnExpiry"), 2);
 
+    const signedAssumptions = new Set([
+      "character.startingComboPoints",
+      "premeditation.cpRemovedOnExpiry",
+    ]);
     for (const [id, row] of Object.entries(CONSTANTS)) {
-      if (row.source === "assumption") {
+      if (row.source === "assumption" && !signedAssumptions.has(id)) {
         assert.match(
           row.ref,
           /^No recorded owner decision as of 22 Oct 2026\. /,
