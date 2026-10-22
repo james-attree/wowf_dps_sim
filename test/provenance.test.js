@@ -299,6 +299,89 @@ describe("provenance CLI", () => {
     ]);
   });
 
+  it("rejects em dashes, NA, tbd-later, and TBD with extra punctuation", () => {
+    const result = checkProvenance({
+      emDash: validEntry("engineering", "\u2014"),
+      emDashPadded: validEntry("engineering", "  \u2014  "),
+      dashRun: validEntry("engineering", "\u2014\u2014"),
+      questions: validEntry("engineering", "??"),
+      questionsPadded: validEntry("engineering", "  ??  "),
+      questionsMixed: validEntry("engineering", "??."),
+      punctOnly: validEntry("engineering", "..."),
+      na: validEntry("assumption", "NA"),
+      naLower: validEntry("assumption", "na"),
+      naPadded: validEntry("assumption", "  Na.  "),
+      naDotted: validEntry("assumption", "N.A."),
+      tbdLater: validEntry("assumption", "tbd-later"),
+      tbdLaterCase: validEntry("assumption", "TBD-LATER"),
+      tbdLaterPadded: validEntry("assumption", "  Tbd-Later.  "),
+      tbd: validEntry("assumption", "TBD"),
+      tbdDot: validEntry("assumption", "TBD."),
+      tbdDotPadded: validEntry("assumption", "  tbd.  "),
+      signed: validEntry(
+        "assumption",
+        "James, 22 Oct 2026: extra attacks do not chain",
+      ),
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.errors, [
+      "emDash: bare dash ref",
+      "emDashPadded: bare dash ref",
+      "dashRun: bare dash ref",
+      "questions: placeholder ref",
+      "questionsPadded: placeholder ref",
+      "questionsMixed: placeholder ref",
+      "punctOnly: placeholder ref",
+      "na: placeholder ref",
+      "naLower: placeholder ref",
+      "naPadded: placeholder ref",
+      "naDotted: placeholder ref",
+      "tbdLater: placeholder ref",
+      "tbdLaterCase: placeholder ref",
+      "tbdLaterPadded: placeholder ref",
+      "tbd: placeholder ref",
+      "tbdDot: placeholder ref",
+      "tbdDotPadded: placeholder ref",
+    ]);
+  });
+
+  it("accepts signed assumption refs, URLs, and citations", () => {
+    const result = checkProvenance({
+      "hackAndSlash.chain": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: extra attacks do not chain",
+      ),
+      "poison.charges": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: charges are ignored; the export lists 175\u2013180",
+      ),
+      "attack.rollScale": validEntry(
+        "engineering",
+        "James, 22 Oct 2026: injected attack rolls use a 0\u2013100 scale so tests can hit each boundary",
+      ),
+      "gcd.duration": validEntry(
+        "classic-1.12",
+        "https://www.wowhead.com/classic/spell=1943/rupture",
+      ),
+      "weaponSkill.base": validEntry(
+        "classic-1.12",
+        "https://github.com/magey/classic-warrior/wiki/Attack-table",
+      ),
+      "combo.max": validEntry(
+        "wowf-export",
+        "rogue.json \u2192 spell_desc[Rogue|Eviscerate|Rank 9]",
+      ),
+      "target.level": validEntry(
+        "assumption",
+        "James, 22 Oct 2026: why? N/A until tbd later is replaced",
+      ),
+    });
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.errors, []);
+  });
+
   it("rejects a ref that contains No recorded owner decision", () => {
     const result = checkProvenance({
       "fight.iterations": validEntry(
