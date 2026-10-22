@@ -27,15 +27,26 @@ describe("CI workflow", () => {
     );
     assert.deepEqual(uses, ["actions/checkout@v7", "actions/setup-node@v7"]);
 
-    const runs = [...workflow.matchAll(/^\s*run:\s*(\S.*)$/gm)].map(
-      (match) => match[1],
-    );
+    const runs = workflow
+      .split("\n")
+      .map((line) => line.match(/^ {8}run: (.*)$/))
+      .filter((match) => match && match[1] !== "|")
+      .map((match) => match[1]);
     assert.deepEqual(runs, [
       "npm ci",
       "npm run lint",
       "npm test",
       "npm run provenance",
     ]);
+
+    const provenance = workflow.indexOf("- name: Provenance\n");
+    const committed = workflow.indexOf("- name: Provenance is committed\n");
+    assert.ok(provenance !== -1 && committed > provenance);
+    assert.match(workflow, /git diff --exit-code -- docs\/provenance\.md/);
+    assert.match(
+      workflow,
+      /::error file=docs\/provenance\.md::docs\/provenance\.md is out of date with data\/constants\.js\. Run 'npm run provenance' and commit the result\./,
+    );
 
     assert.equal(workflow.includes("deploy"), false);
     assert.equal(/pages/i.test(workflow), false);

@@ -10,7 +10,7 @@ import {
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { format } from "prettier";
 
-// CI check for data/constants.js (#7, #22). A missing file, a missing ref,
+// CI check for data/constants.js (#7, #22, #48). A missing file, a missing ref,
 // a bare dash ref, a placeholder ref, or an unknown source tag fails the
 // process. When the repository file passes, this command rewrites
 // docs/provenance.md. Talent coverage (D6) is a separate later check.
@@ -41,28 +41,45 @@ const SOURCE_BLURBS = {
     "Simulator machinery, not a game rule. The retune flag stays off, so these rows are not on the retune list.",
 };
 
-// A ref that is only a hyphen or an en dash names no source.
-const BARE_DASH_REFS = new Set(["-", "\u2013"]);
+// A ref made only of Unicode dashes names no source. That includes a
+// hyphen, an en dash, an em dash, and a run of them. Spaces do not count.
+function isDashOnly(ref) {
+  const compact = ref.replace(/\s+/gu, "");
+  return compact.length > 0 && /^[\p{Pd}]+$/u.test(compact);
+}
 
-// Placeholder text that does not name a decision. These whole refs are
-// rejected in any case, after trimming: "TBD", "N/A", "?", and "tbd later".
-// "fill in" and "no recorded owner decision" are rejected wherever they appear.
-const TBD_REF = /^tbd$/i;
-const NA_REF = /^n\/a$/i;
-const QUESTION_REF = /^\?$/;
-const TBD_LATER_REF = /^tbd later$/i;
-const FILL_IN_REF = /fill in/i;
-const NO_DECISION_REF = /no recorded owner decision/i;
+// Placeholders are judged on a normalized ref: lower-cased, dashes
+// replaced with spaces, other punctuation and symbols removed, whitespace
+// collapsed. Dashes become spaces so "tbd-later" matches "tbd later";
+// other punctuation is removed so "N/A" and "TBD." match "na" and "tbd".
+// Empty means the ref was only punctuation or symbols. "na" and
+// "tbd later" match the whole ref, so "Na (sodium)" still passes.
+// A ref whose first word is "tbd" is an undecided value. "fill in" and
+// "no recorded owner decision" match only as whole words, so
+// "refill interval" is not a placeholder.
+const PLACEHOLDER_REFS = new Set(["na", "tbd later"]);
+const PLACEHOLDER_PHRASES = ["fill in", "no recorded owner decision"];
+
+function normalizeRef(ref) {
+  return ref
+    .toLowerCase()
+    .replace(/\p{Pd}/gu, " ")
+    .replace(/[\p{P}\p{S}]/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function hasWholePhrase(text, phrase) {
+  return ` ${text} `.includes(` ${phrase} `);
+}
 
 function isPlaceholderRef(ref) {
-  const text = ref.trim();
+  const text = normalizeRef(ref);
   return (
-    TBD_REF.test(text) ||
-    NA_REF.test(text) ||
-    QUESTION_REF.test(text) ||
-    TBD_LATER_REF.test(text) ||
-    FILL_IN_REF.test(text) ||
-    NO_DECISION_REF.test(text)
+    text === "" ||
+    PLACEHOLDER_REFS.has(text) ||
+    /^tbd(?: |$)/.test(text) ||
+    PLACEHOLDER_PHRASES.some((phrase) => hasWholePhrase(text, phrase))
   );
 }
 
@@ -103,7 +120,7 @@ export function checkProvenance(constants) {
     }
     if (typeof entry.ref !== "string" || entry.ref.trim() === "") {
       errors.push(`${id}: missing ref`);
-    } else if (BARE_DASH_REFS.has(entry.ref.trim())) {
+    } else if (isDashOnly(entry.ref)) {
       errors.push(`${id}: bare dash ref`);
     } else if (isPlaceholderRef(entry.ref)) {
       errors.push(`${id}: placeholder ref`);
@@ -276,9 +293,13 @@ function buildMarkdown(constants) {
     "`npm run provenance` rewrites this file after it checks that each constant",
     "has a ref and a known source tag (`wowf-export`, `wowf-designer`,",
     "`classic-1.12`, `cataclysm`, `assumption`, `engineering`). A missing ref,",
-    "a ref that is only a dash, a placeholder ref (`TBD`, `N/A`, `?`, or",
-    "`tbd later`, in any case, or text containing `fill in` or",
-    "`No recorded owner decision`), or an unknown tag fails the command.",
+    "a ref made only of dashes (including an em dash), a placeholder ref,",
+    "or an unknown tag fails the command. The check case-folds the ref,",
+    "strips punctuation, symbols, and dashes, and collapses whitespace, so",
+    "`TBD`, `TBD.`, `N/A`, `NA`, `?`, `??`, `tbd later`, and `tbd-later`",
+    "fail, as does a ref made only of punctuation or symbols, or one whose",
+    "first word is `tbd`. The phrases `fill in` and `No recorded owner",
+    "decision` fail only as whole words.",
     "",
     "## Summary",
     "",
