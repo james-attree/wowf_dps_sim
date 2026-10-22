@@ -24,6 +24,21 @@ export class Simulation {
     this.lastFrameTime = currentTime;
     this.currentTime += dt;
 
+    // Timers already running lose this frame. A buff or cooldown applied
+    // during rotation keeps its full duration until the next one.
+    this.activeBuffs = Object.fromEntries(
+      Object.entries(this.activeBuffs).filter(([, buff]) => {
+        buff.duration -= dt;
+        return buff.duration > k("sim.tickEpsilon");
+      }),
+    );
+    this.cooldowns = Object.fromEntries(
+      Object.entries(this.cooldowns).map(([key, value]) => {
+        const remaining = value - dt;
+        return [key, remaining <= k("sim.tickEpsilon") ? 0 : remaining];
+      }),
+    );
+
     if (
       this.activeBuffs["Adrenaline Rush"] &&
       this.activeBuffs["Adrenaline Rush"].duration > 0
@@ -68,26 +83,12 @@ export class Simulation {
         dot.timeUntilNextTick += dot.tickInterval;
       }
 
-      if (dot.duration <= 0) {
+      if (dot.duration <= k("sim.tickEpsilon")) {
         delete this.activeDots[dotName];
       }
     }
 
     this.rogue.rotation(this, dt);
-
-    this.activeBuffs = Object.fromEntries(
-      Object.entries(this.activeBuffs).filter(([, buff]) => {
-        buff.duration -= dt;
-        return buff.duration > 0;
-      }),
-    );
-
-    this.cooldowns = Object.fromEntries(
-      Object.entries(this.cooldowns).map(([key, value]) => [
-        key,
-        Math.max(0, value - dt),
-      ]),
-    );
   }
 
   setGcd() {
