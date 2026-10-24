@@ -47,6 +47,20 @@ function runFrames(sim, fps, seconds) {
   }
 }
 
+// Issue #59. The recast is the first frame these are all true, not a gap of
+// the cooldown plus two GCDs. Cooldown and the GCD are the spell checks.
+// Energy has to cover the cost, and the sample rotation only tries
+// Adrenaline Rush at or below rotation.adrenalineRushEnergy.
+function adrenalineRushRecastReady(rogue, sim) {
+  const skill = rogue.abilities.adrenalineRush;
+  const cooldownReady = !skill.onCooldown(rogue, sim);
+  const gcdClear = sim.gcd <= k("sim.tickEpsilon") || !skill.triggersGcd;
+  const enoughEnergy =
+    rogue.energy >= skill.energyCost &&
+    rogue.energy <= k("rotation.adrenalineRushEnergy");
+  return cooldownReady && gcdClear && enoughEnergy;
+}
+
 describe("Adrenaline Rush export", () => {
   it("uses the 5 min cooldown from rogue.json spell_desc", async () => {
     const snapshot = JSON.parse(
@@ -174,20 +188,31 @@ describe("Adrenaline Rush cooldown", () => {
       sim.lastFrameTime = 0;
       assert.equal(sim.currentTime, 0);
       const casts = watchCasts(sim);
+      const play = rogue.rotation.bind(rogue);
+      let firstReady = null;
+      rogue.rotation = (simulation, dt) => {
+        if (
+          casts.length === 1 &&
+          firstReady === null &&
+          adrenalineRushRecastReady(rogue, simulation)
+        ) {
+          firstReady = simulation.currentTime;
+        }
+        play(simulation, dt);
+      };
       runFrames(sim, fps, LONG_FIGHT_SECONDS);
 
       assert.equal(casts.length, 2, `${fps} fps`);
       const gap = casts[1] - casts[0];
-      // Adrenaline Rush waits out the GCD a builder already started, so the
-      // recast can be the cooldown plus that GCD. Energy can hold it for
-      // about another GCD before that. The limit is the cooldown plus 2 GCDs.
-      const latest =
-        cooldown + k("gcd.duration") + k("gcd.duration") + k("sim.tickEpsilon");
       assert.ok(
         gap + k("sim.tickEpsilon") >= cooldown,
         `${fps} fps recast ${gap}s after use`,
       );
-      assert.ok(gap <= latest, `${fps} fps recast ${gap}s after use`);
+      assert.ok(
+        Number.isFinite(firstReady) &&
+          Math.abs(casts[1] - firstReady) <= k("sim.tickEpsilon"),
+        `${fps} fps recast at ${casts[1]}s, first ready frame was ${firstReady}s`,
+      );
       fights[fps] = { casts, damage: sim.damageDone, gap };
     }
 
