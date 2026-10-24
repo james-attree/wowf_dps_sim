@@ -87,8 +87,11 @@ still positive.
 ## Weapon swings and normalised speed
 
 `Weapon` in `js/weapon.js` holds a min, a max, a speed, and a hand
-(`"main"` or `"off"`). The sample weapons are `k("weapon.mainHand")` and
-`k("weapon.offHand")`, both assumptions on the retune list.
+(`"main"` or `"off"`). The constructor throws a `RangeError` when min
+damage, max damage, or speed is not a finite number, and when speed is not
+greater than 0. Min damage greater than max damage throws the same way.
+The sample weapons are `k("weapon.mainHand")` and `k("weapon.offHand")`,
+both assumptions on the retune list.
 
 The weapon die is an inclusive integer from min through max. The `1` in the
 span is the code's inclusive end, not a constant:

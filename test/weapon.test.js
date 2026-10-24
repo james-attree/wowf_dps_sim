@@ -9,6 +9,20 @@ function rawHit(weapon, attackPower, weaponRoll) {
   return weaponRoll + (attackPower / k("ap.perDps")) * weapon.speed;
 }
 
+function shown(value) {
+  return typeof value === "string" ? JSON.stringify(value) : String(value);
+}
+
+function weaponWith(overrides) {
+  return new Weapon(
+    null,
+    Object.hasOwn(overrides, "minDamage") ? overrides.minDamage : 59,
+    Object.hasOwn(overrides, "maxDamage") ? overrides.maxDamage : 110,
+    Object.hasOwn(overrides, "speed") ? overrides.speed : 1.8,
+    "main",
+  );
+}
+
 describe("Weapon", () => {
   afterEach(() => {
     mock.restoreAll();
@@ -18,6 +32,47 @@ describe("Weapon", () => {
     assert.throws(() => new Weapon(null, 110, 59, 1.8, "main"), {
       name: "RangeError",
       message: "Weapon min damage 110 is greater than max damage 59.",
+    });
+  });
+
+  // Partners stay finite, so the thrown message names this field.
+  const fields = [
+    ["min damage", "minDamage", "Weapon min damage must be a finite number."],
+    ["max damage", "maxDamage", "Weapon max damage must be a finite number."],
+    ["speed", "speed", "Weapon speed must be a finite number."],
+  ];
+  const nonFinite = [
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    "110",
+    undefined,
+  ];
+
+  for (const [label, key, message] of fields) {
+    for (const value of nonFinite) {
+      it(`rejects ${label} ${shown(value)}`, () => {
+        assert.throws(() => weaponWith({ [key]: value }), {
+          name: "RangeError",
+          message,
+        });
+      });
+    }
+  }
+
+  for (const speed of [0, -1]) {
+    it(`rejects speed ${speed}`, () => {
+      assert.throws(() => weaponWith({ speed }), {
+        name: "RangeError",
+        message: "Weapon speed must be greater than 0.",
+      });
+    });
+  }
+
+  it("rejects swapped numeric strings before comparing min and max", () => {
+    assert.throws(() => new Weapon(null, "110", "59", 1.8, "main"), {
+      name: "RangeError",
+      message: "Weapon min damage must be a finite number.",
     });
   });
 
