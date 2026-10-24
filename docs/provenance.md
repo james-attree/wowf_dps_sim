@@ -18,7 +18,7 @@ whole words.
 
 ## Summary
 
-89 constants: 21 `wowf-export`, 1 `wowf-designer`, 39 `classic-1.12`, 1 `cataclysm`, 23 `assumption`, 4 `engineering`.
+90 constants: 21 `wowf-export`, 2 `wowf-designer`, 39 `classic-1.12`, 1 `cataclysm`, 23 `assumption`, 4 `engineering`.
 
 ## Retune list
 
@@ -123,11 +123,12 @@ then the order in `data/constants.js`.
 
 ## wowf-designer
 
-1 constant. James's knowledge of WoW Forever.
+2 constants. James's knowledge of WoW Forever.
 
-| id            | value  | unit | ref                                                                    | note                                                                                          | retune |
-| ------------- | ------ | ---- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------ |
-| `dot.canCrit` | `true` | –    | James, 22 Oct 2026: all DoTs, bleeds included, can crit in WoW Forever | Rupture, Garrote, and Deadly Poison. This differs from Classic. The per-tick crit roll stays. | no     |
+| id                     | value   | unit | ref                                                                        | note                                                                                          | retune |
+| ---------------------- | ------- | ---- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------ |
+| `dot.canCrit`          | `true`  | –    | James, 22 Oct 2026: all DoTs, bleeds included, can crit in WoW Forever     | Rupture, Garrote, and Deadly Poison. This differs from Classic. The per-tick crit roll stays. | no     |
+| `weapon.mainHand.type` | `other` | –    | James, 24 Oct 2026: the sample main-hand isn't a dagger; keep type 'other' | Sample main-hand type. Ghostly Strike and Hemorrhage use the non-dagger percent.              | no     |
 
 ## classic-1.12
 

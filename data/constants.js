@@ -27,6 +27,15 @@ function entry(value, unit, source, ref, note, retune) {
   return { value, unit, source, ref, note, retune };
 }
 
+const MAIN_HAND_TYPE = entry(
+  "other",
+  "–",
+  WOWF_DESIGNER,
+  "James, 24 Oct 2026: the sample main-hand isn't a dagger; keep type 'other'",
+  "Sample main-hand type. Ghostly Strike and Hemorrhage use the non-dagger percent.",
+  false,
+);
+
 export const CONSTANTS = {
   // wowf-export: re-read when the talentsforever snapshot refreshes.
   "energy.regenPerSecond": entry(
@@ -582,6 +591,7 @@ export const CONSTANTS = {
     "Rupture, Garrote, and Deadly Poison. This differs from Classic. The per-tick crit roll stays.",
     false,
   ),
+  "weapon.mainHand.type": MAIN_HAND_TYPE,
 
   // assumption: defaults James signed on 22 Oct 2026.
   "dot.critMultiplier": entry(
@@ -715,7 +725,7 @@ export const CONSTANTS = {
     true,
   ),
   "weapon.mainHand": entry(
-    { min: 59, max: 110, speed: 1.8, type: "other" },
+    { min: 59, max: 110, speed: 1.8, type: MAIN_HAND_TYPE.value },
     "damage, damage, s, –",
     ASSUMPTION,
     `${SAMPLE_INPUT}; #9 is 59–110 at 1.8s`,
