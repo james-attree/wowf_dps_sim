@@ -2,6 +2,19 @@ import { k } from "../data/constants.js";
 
 export class Weapon {
   constructor(rogue, minDamage, maxDamage, speed, hand) {
+    // NaN > x is false, so the range check below does not reject it.
+    if (!Number.isFinite(minDamage)) {
+      throw new RangeError("Weapon min damage must be a finite number.");
+    }
+    if (!Number.isFinite(maxDamage)) {
+      throw new RangeError("Weapon max damage must be a finite number.");
+    }
+    if (!Number.isFinite(speed)) {
+      throw new RangeError("Weapon speed must be a finite number.");
+    }
+    if (speed <= 0) {
+      throw new RangeError("Weapon speed must be greater than 0.");
+    }
     if (minDamage > maxDamage) {
       throw new RangeError(
         `Weapon min damage ${minDamage} is greater than max damage ${maxDamage}.`,
