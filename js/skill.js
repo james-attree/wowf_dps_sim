@@ -213,6 +213,15 @@ export class SliceAndDice extends Skill {
   }
 }
 
+// Main-hand type "dagger" uses weaponMultiplier.dagger. Every other type uses other.
+function mainHandWeaponMultiplier(stats, rogue) {
+  const multipliers = stats.weaponMultiplier;
+  if (rogue.weapons.mainHand.type === "dagger") {
+    return multipliers.dagger;
+  }
+  return multipliers.other;
+}
+
 export class GhostlyStrike extends Skill {
   constructor(rogue) {
     const stats = k("ghostlyStrike");
@@ -227,7 +236,7 @@ export class GhostlyStrike extends Skill {
   damage() {
     return (
       this.rogue.rollWeaponDamageForSkill() *
-      k("ghostlyStrike").weaponMultiplier
+      mainHandWeaponMultiplier(k("ghostlyStrike"), this.rogue)
     );
   }
 }
@@ -328,7 +337,8 @@ export class Hemorrhage extends Skill {
 
   damage() {
     return (
-      this.rogue.rollWeaponDamageForSkill() * k("hemorrhage").weaponMultiplier
+      this.rogue.rollWeaponDamageForSkill() *
+      mainHandWeaponMultiplier(k("hemorrhage"), this.rogue)
     );
   }
 }

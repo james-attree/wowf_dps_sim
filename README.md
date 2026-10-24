@@ -146,8 +146,8 @@ on.
   and Rupture sets `bleed` so its ticks can skip armor.
 - `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
   glancing, crit, hit) for white swings and skills. Chances come from `k(id)`.
-- `js/weapon.js` — Swing timer and damage roll for a main-hand or off-hand
-  weapon.
+- `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
+  off-hand weapon.
 - `js/gcd-meter.js` — Sets the GCD meter's ARIA range from
   `simulation.gcdDuration` (`gcd.duration`).
 - `data/constants.js` — The number table above, exported as `CONSTANTS` and

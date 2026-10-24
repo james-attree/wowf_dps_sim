@@ -172,7 +172,12 @@ describe("constants", () => {
       CONSTANTS["weapon.mainHand"].ref,
       `${sampleInput}; #9 is 59–110 at 1.8s`,
     );
-    assert.deepEqual(k("weapon.mainHand"), { min: 59, max: 110, speed: 1.8 });
+    assert.deepEqual(k("weapon.mainHand"), {
+      min: 59,
+      max: 110,
+      speed: 1.8,
+      type: "other",
+    });
 
     for (const id of [
       "attack.rollScale",
@@ -229,10 +234,13 @@ describe("simulator values other than white miss", () => {
       min: 59,
       max: 110,
       speed: 1.8,
+      type: "other",
     });
     assert.equal(rogue.weapons.mainHand.minDamage, 59);
     assert.equal(rogue.weapons.mainHand.maxDamage, 110);
     assert.equal(rogue.weapons.mainHand.speed, 1.8);
+    assert.equal(rogue.weapons.mainHand.type, "other");
+    assert.equal(rogue.weapons.offHand.type, null);
     assert.equal(rogue.weapons.offHand.minDamage, 54);
     assert.equal(rogue.weapons.offHand.maxDamage, 101);
     assert.equal(rogue.weapons.offHand.speed, 1.7);
@@ -327,8 +335,35 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.abilities.sinisterStrike.damage(), normalized + 68);
     assert.equal(rogue.abilities.backstab.damage(), normalized * 1.5 + 225);
     assert.equal(rogue.abilities.ambush.damage(), normalized * 2.5 + 290);
-    assert.equal(rogue.abilities.ghostlyStrike.damage(), normalized * 1.8);
-    assert.equal(rogue.abilities.hemorrhage.damage(), normalized * 1.45);
+    const ghostly = k("ghostlyStrike").weaponMultiplier;
+    const hemorrhage = k("hemorrhage").weaponMultiplier;
+    assert.equal(rogue.weapons.mainHand.type, "other");
+    assert.equal(
+      rogue.abilities.ghostlyStrike.damage(),
+      normalized * ghostly.other,
+    );
+    assert.equal(
+      rogue.abilities.hemorrhage.damage(),
+      normalized * hemorrhage.other,
+    );
+    rogue.weapons.mainHand.type = "dagger";
+    assert.equal(
+      rogue.abilities.ghostlyStrike.damage(),
+      normalized * ghostly.dagger,
+    );
+    assert.equal(
+      rogue.abilities.hemorrhage.damage(),
+      normalized * hemorrhage.dagger,
+    );
+    rogue.weapons.mainHand.type = "sword";
+    assert.equal(
+      rogue.abilities.ghostlyStrike.damage(),
+      normalized * ghostly.other,
+    );
+    assert.equal(
+      rogue.abilities.hemorrhage.damage(),
+      normalized * hemorrhage.other,
+    );
     assert.equal(rogue.weapons.mainHand.rollDamage(), weaponDie + apBonus(1.8));
     assert.equal(
       rogue.weapons.offHand.rollDamage(),

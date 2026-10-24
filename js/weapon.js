@@ -1,7 +1,7 @@
 import { k } from "../data/constants.js";
 
 export class Weapon {
-  constructor(rogue, minDamage, maxDamage, speed, hand) {
+  constructor(rogue, minDamage, maxDamage, speed, hand, type = null) {
     // NaN > x is false, so the range check below does not reject it.
     if (!Number.isFinite(minDamage)) {
       throw new RangeError("Weapon min damage must be a finite number.");
@@ -25,6 +25,8 @@ export class Weapon {
     this.maxDamage = maxDamage;
     this.speed = speed; // in seconds
     this.hand = hand; // 'main' or 'off'
+    // 'dagger' selects the dagger weapon percent. Any other type does not.
+    this.type = type;
     this.swingTimer = 0; // seconds until the next swing; 0 means one is due
   }
 

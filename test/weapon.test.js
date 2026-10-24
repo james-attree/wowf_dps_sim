@@ -87,6 +87,7 @@ describe("Weapon", () => {
     assert.equal(mainHand.minDamage, 59);
     assert.equal(mainHand.maxDamage, 110);
     assert.equal(mainHand.speed, 1.8);
+    assert.equal(mainHand.type, k("weapon.mainHand").type);
 
     mock.method(Math, "random", () => 0);
     assert.equal(mainHand.rollWeaponDamage(), 59);

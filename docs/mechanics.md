@@ -86,12 +86,14 @@ still positive.
 
 ## Weapon swings and normalised speed
 
-`Weapon` in `js/weapon.js` holds a min, a max, a speed, and a hand
-(`"main"` or `"off"`). The constructor throws a `RangeError` when min
-damage, max damage, or speed is not a finite number, and when speed is not
-greater than 0. Min damage greater than max damage throws the same way.
-The sample weapons are `k("weapon.mainHand")` and `k("weapon.offHand")`,
-both assumptions on the retune list.
+`Weapon` in `js/weapon.js` holds a min, a max, a speed, a hand
+(`"main"` or `"off"`), and a type. The constructor throws a `RangeError`
+when min damage, max damage, or speed is not a finite number, and when
+speed is not greater than 0. Min damage greater than max damage throws the
+same way. The sample weapons are `k("weapon.mainHand")` and
+`k("weapon.offHand")`, both assumptions on the retune list. The main-hand
+type is copied from that constant onto the weapon. The off-hand constant
+has no type, so that weapon's type is null.
 
 The weapon die is an inclusive integer from min through max. The `1` in the
 span is the code's inclusive end, not a constant:
@@ -116,13 +118,13 @@ speed for the attack-power term and that the engine assumes a dagger.
 selected. Its note says so.
 
 The rotation's weapon builders are Hemorrhage and Ghostly Strike. A landed
-Hemorrhage deals that normalised hit times `k("hemorrhage").weaponMultiplier`
-and applies a target debuff for `k("hemorrhage.ruptureBonus").duration`. A
-landed Ghostly Strike deals the normalised hit times
-`k("ghostlyStrike").weaponMultiplier`.
-Both constants are `wowf-export` and are not on the retune list. Each note
-says the stored multiplier assumes a dagger main hand and that another
-export percent, for a non-dagger, is not selected. Sinister Strike is the
+Hemorrhage deals that normalised hit times one entry of
+`k("hemorrhage").weaponMultiplier` and applies a target debuff for
+`k("hemorrhage.ruptureBonus").duration`. A landed Ghostly Strike deals the
+normalised hit times one entry of `k("ghostlyStrike").weaponMultiplier`.
+The main-hand type `"dagger"` selects the `dagger` entry. Every other type,
+including the sample main hand, selects `other`. Both constants are
+`wowf-export` and are not on the retune list. Sinister Strike is the
 normalised hit plus `k("sinisterStrike").bonusDamage`. It has no weapon
 multiplier. Backstab is that hit times `k("backstab").weaponMultiplier`,
 plus `k("backstab").bonusDamage`. Ambush is that hit times
@@ -489,14 +491,13 @@ this frame does not tick until a later frame, and the first tick waits out
 one interval. For each tick still inside the dot's remaining time:
 
 1. Start from `tickDamage`.
-2. If the Hemorrhage debuff is up, multiply by
+2. If the tick is Rupture and the Hemorrhage debuff is up, multiply by
    `1 + k("hemorrhage.ruptureBonus").bonus`. The `1` is the code's base, not
    a constant. `k("hemorrhage.ruptureBonus")` is `wowf-export` and is not on
-   the retune list. Its note says the engine still multiplies every active
-   DoT tick. The note on `k("bleed.spells")` says the debuff is for Rupture.
-   The code uses the debuff for every tick while it is on `activeDebuffs`.
-   A Hemorrhage aura stored on the player does not count. The strike itself
-   is a direct hit and takes armor.
+   the retune list. Its note says only Rupture ticks are increased. Garrote,
+   Deadly Poison, and any other DoT are unchanged. A Hemorrhage aura stored
+   on the player does not count. The strike itself is a direct hit and takes
+   armor.
 3. If `k("dot.canCrit")` is set and `rollCrit` succeeds, multiply by
    `k("dot.critMultiplier")` and mark the tick a crit. `rollCrit` is a
    separate `Math.random()` check against `Rogue.getCritChance()`, not

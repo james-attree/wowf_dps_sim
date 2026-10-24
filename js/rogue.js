@@ -56,6 +56,7 @@ export class Rogue {
       mainHand.max,
       mainHand.speed,
       "main",
+      mainHand.type,
     );
     this.weapons.offHand = new Weapon(
       this,
@@ -63,6 +64,7 @@ export class Rogue {
       offHand.max,
       offHand.speed,
       "off",
+      offHand.type ?? null,
     );
     this.weapons.offHand.swingTimer = offHand.initialSwing;
   }
