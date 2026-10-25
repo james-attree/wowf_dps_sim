@@ -103,6 +103,7 @@ export default defineConfig([
         "performance",
         "process",
         "setTimeout",
+        "structuredClone",
         "URL",
       ]),
     },

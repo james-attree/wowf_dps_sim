@@ -51,6 +51,32 @@ function applyArmor(damage, skipArmor) {
   return damage * armorMultiplier();
 }
 
+// The counter that an attack outcome adds to, in the per-ability record.
+// "cast" has none: a non-attack cast only counts as a cast.
+const OUTCOME_COUNTERS = {
+  hit: "hits",
+  crit: "crits",
+  glancing: "glances",
+  miss: "misses",
+  dodge: "dodges",
+  parry: "parries",
+};
+
+function newAbilityRecord() {
+  return {
+    damage: 0,
+    casts: 0,
+    hits: 0,
+    crits: 0,
+    glances: 0,
+    misses: 0,
+    dodges: 0,
+    parries: 0,
+    ticks: 0,
+    tickCrits: 0,
+  };
+}
+
 export class Simulation {
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
@@ -66,6 +92,9 @@ export class Simulation {
     this.gcdDuration = k("gcd.duration");
     this.combatLog = [];
     this.nextCombatEventId = 0;
+    // Per-ability totals for the whole fight, keyed by ability name. Unlike
+    // combatLog it is never capped. See recordAbility.
+    this.abilityStats = {};
     this.cooldowns = {}; // Track cooldowns for skills
     this.activeBuffs = {}; // Self buffs: Slice and Dice, Adrenaline Rush, Blade Flurry, Ghostly Strike
     this.activeDebuffs = {}; // Target debuffs and DoTs
@@ -132,6 +161,12 @@ export class Simulation {
         }
         dotTickDamage = applyArmor(dotTickDamage, tickSkipsArmor(dotName, dot));
         this.updateDamage(dotTickDamage);
+        this.recordAbility(
+          dotName,
+          dotHitCrit === "Crit" ? "crit" : "hit",
+          dotTickDamage,
+          { tick: true },
+        );
         this.addCombatEvent(
           dotName,
           "skill",
@@ -207,6 +242,7 @@ export class Simulation {
     if (result.landed && damage > 0) {
       this.updateDamage(damage);
     }
+    this.recordAbility(name, result.outcome, result.landed ? damage : 0);
     this.addCombatEvent(
       name,
       attackType,
@@ -247,6 +283,8 @@ export class Simulation {
         bleed: bleed || k("bleed.spells").includes(name),
       };
     }
+    // The application deals no damage; the ticks do.
+    this.recordAbility(name, result.outcome, 0);
     this.addCombatEvent(
       name,
       attackType,
@@ -256,6 +294,30 @@ export class Simulation {
       icon,
     );
     return result;
+  }
+
+  // Add one outcome to the ability's fight totals. An attack, a DoT
+  // application, or a non-attack cast ("cast") counts as one cast and adds its
+  // outcome (hit, crit, glancing, miss, dodge or parry) to the matching
+  // counter, so those counters add up to casts. A DoT tick is not a cast: it
+  // counts under ticks (and tickCrits) instead. damage is what the outcome
+  // dealt after armor, so the abilities' damage adds up to damageDone.
+  recordAbility(name, outcome, damage = 0, { tick = false } = {}) {
+    this.abilityStats[name] ??= newAbilityRecord();
+    const record = this.abilityStats[name];
+    record.damage += damage;
+    if (tick) {
+      record.ticks += 1;
+      if (outcome === "crit") {
+        record.tickCrits += 1;
+      }
+      return;
+    }
+    record.casts += 1;
+    const counter = OUTCOME_COUNTERS[outcome];
+    if (counter) {
+      record[counter] += 1;
+    }
   }
 
   addCombatEvent(
