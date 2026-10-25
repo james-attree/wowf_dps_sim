@@ -620,22 +620,34 @@ after one short step. A `duration` that is negative, `NaN`, or infinite throws
 a `RangeError`, and `0` takes no step. The `run` call does no timing and draws
 no randomness of its own; the seed and the calls decide the fight.
 
-Results depend on the step size. A fight at `k("sim.fixedStep")` can differ
-from the same seed at another step, because swings, casts, and ticks land on
-step boundaries and then the rng can be drawn in a different order. Many seeds
-come out the same, and the average over many seeds barely moves
-(`test/fixed-step.test.js` checks the mean against 60 and 144 fps). That is
-why every headless run uses `k("sim.fixedStep")`, and why changing it can
-change the seeded fights and the golden fixtures.
+Results depend on the step size and on where the steps fall, because swings,
+casts, and ticks land on step boundaries and then the rng can be drawn in a
+different order. QA measured how much, for seeds 1 to 200, by comparing each
+seed's total damage with the `run` result at `k("sim.fixedStep")`:
+
+| Change                                   | 10 s    | 60 s    | 120 s    | 300 s     |
+| ---------------------------------------- | ------- | ------- | -------- | --------- |
+| Step of 0.01 s instead of the fixed step | 0 / 200 | 3 / 200 | 53 / 200 | 142 / 200 |
+| A `run` split 0.1 s in, then the rest    | -       | 1 / 200 | 52 / 200 | 142 / 200 |
+| A `run` split half a step off a boundary | 0 / 200 | 0 / 200 | -        | 120 / 200 |
+
+(Each count is the number of seeds, out of 200, whose total damage differs. A
+dash means that case was not measured. The figures are QA-measured over seeds
+1 to 200; we re-ran them and got the same counts.) So the effect is small for
+short fights and common at 5 minutes. Over many seeds the mean damage barely
+moves: by under 0.04% in those runs, and `test/fixed-step.test.js` holds the
+mean within 2% of 60 and 144 fps. That is
+why every headless run uses `k("sim.fixedStep")` and one `run` call per fight,
+and why changing the step or the way a duration is split can change the seeded
+fights and the golden fixtures.
 
 Splitting a fight over several `run` calls gives the same fight as one call
 when each call but the last is a whole number of steps long, so every split
 lands on a step boundary. A call that ends inside a step takes a short step
 there, which a single long call would not. The short step moves every later
-step boundary by that amount, so the fight can differ from the unsplit one.
-It does not always: a small split can leave the totals unchanged, and a split
-of half a step usually changes them. The total time is the duration asked for
-either way. `runFight` makes one `run` call, so it is never split.
+step boundary by that amount, so the fight can differ from the unsplit one,
+as the table shows. The total time is the duration asked for either way.
+`runFight` makes one `run` call, so it is never split.
 
 ### Live page
 
@@ -783,8 +795,8 @@ the capped log. The files put one ability and one log event on each line, so a
 git diff points at the line that moved.
 
 None of the first three cases casts Eviscerate or Rupture: the placeholder
-rotation never calls Rupture, and it only reaches Eviscerate when Slice and Dice
-has more than `k("rotation.sliceAndDiceRefreshSeconds")` left at the finisher
+rotation never calls Rupture, and it only rarely reaches Eviscerate, when Slice
+and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left at the finisher
 combo points (see `rotation.priority`). So they cannot pin finisher damage, DoT
 ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
 `script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
@@ -883,12 +895,13 @@ fixtures unchanged (see Golden-seed tests).
 
 What a reader should not assume from the sections above:
 
-- **Step size.** Results depend on the step size, so changing
-  `k("sim.fixedStep")` can change seeded fights and the golden fixtures (see
-  Fixed step). The average over many seeds does not move much.
-- **Splits.** Several `run` calls match one call only when every call but the
-  last is a whole number of steps. A split inside a step takes a short step and
-  can change the fight (see Fixed step). The live page never takes a short step.
+- **Step size and splits.** A different step size, or a `run` split that ends
+  inside a step, can change a seeded fight. QA measured seeds 1 to 200: the
+  effect is small for short fights (0 to 3 seeds in 200 up to 60 s) and common
+  at 5 minutes (120 to 142 in 200), while the mean damage over many seeds moves
+  by under 0.04%. Changing `k("sim.fixedStep")` can change the golden
+  fixtures. Use one `run` call per fight at the fixed step, as `runFight` does
+  (see Fixed step for the table). The live page never takes a short step.
 - **First DPS frame.** The live DPS readout reads high at 00:00 (see Live page).
 - **Benchmark numbers are local.** The 22 ms warm and 40 ms cold figures are
   from our box (8 vCPU Xeon, Node 20). The GitHub Actions runner measured about
@@ -902,7 +915,7 @@ What a reader should not assume from the sections above:
   `k("fight.duration")` (see Other time inputs). A page below the frame rate
   that matches `k("sim.maxFrameTime")` runs slower than real time.
 - **Placeholder rotation, no talents.** The rotation is the placeholder Combat
-  priority. It never calls Rupture, and it only reaches Eviscerate when Slice
-  and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left at the
-  finisher combo points. No seeded fight we have run gets there, so the golden
-  tests reach both through a scripted case. Talent ranks are not applied.
+  priority. It never calls Rupture, and it only rarely reaches Eviscerate, when
+  Slice and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left
+  at the finisher combo points. None of 100 seeds (1 to 100) cast it in a 120 s
+  run, so the golden tests reach both through a scripted case. Talent ranks are not applied.
