@@ -14,10 +14,13 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { k } from "../data/constants.js";
+import { resolveAttack } from "../js/attack-resolver.js";
 import { runFight } from "../js/fight.js";
 import {
+  FINISHER_SCRIPT,
   GOLDEN_CASES,
   GOLDEN_DIR,
+  IGNORED_FILES,
   MAX_LISTED_CHANGES,
   UPDATE_COMMAND,
   diffResults,
@@ -28,10 +31,11 @@ import {
   goldenPath,
   parseArgs,
   parseGolden,
+  runGoldenCase,
   updateGolden,
 } from "../scripts/golden-update.mjs";
 
-// Issue #77. The full headless result for a few fixed seeds and durations is
+// Issues #77 and #85. The full headless result for a few fixed seeds and durations is
 // pinned in test/golden/*.json. This file only reads those fixtures. Only
 // `npm run golden:update -- --write` (scripts/golden-update.mjs) rewrites them.
 
@@ -41,8 +45,11 @@ const script = resolve(root, "scripts/golden-update.mjs");
 const FIVE_MINUTES = 300;
 const MAX_FIXTURE_BYTES = 32 * 1024;
 
+// Every file in test/golden/ except the ones that are not fixtures (.DS_Store).
 async function fixtureFiles() {
-  return (await readdir(GOLDEN_DIR)).sort();
+  return (await readdir(GOLDEN_DIR))
+    .filter((file) => !IGNORED_FILES.includes(file))
+    .sort();
 }
 
 async function snapshotFixtures() {
@@ -70,10 +77,7 @@ describe("golden fights match their fixtures", () => {
         throw error;
       }
       const expected = parseGolden(text);
-      const actual = runFight({
-        seed: goldenCase.seed,
-        duration: goldenCase.duration,
-      });
+      const actual = runGoldenCase(goldenCase);
       const changes = diffResults(expected, actual);
       if (changes.length > 0) {
         assert.fail(formatMismatch(goldenCase, changes));
@@ -100,6 +104,9 @@ describe("golden fixtures", () => {
     assert.deepEqual(
       await fixtureFiles(),
       GOLDEN_CASES.map((goldenCase) => `${goldenCase.name}.json`).sort(),
+      "test/golden/ holds a file that is not a golden case. Delete the file, or add its case to GOLDEN_CASES in scripts/golden-update.mjs (then run `" +
+        UPDATE_COMMAND +
+        "`). Only .DS_Store is ignored.",
     );
   });
 
@@ -235,7 +242,10 @@ describe("the golden:update script", () => {
         (await readdir(dir)).sort(),
         GOLDEN_CASES.map((goldenCase) => `${goldenCase.name}.json`).sort(),
       );
-      assert.match(formatReport(wrote), /Wrote 3 fixture files/);
+      assert.match(
+        formatReport(wrote),
+        new RegExp(`Wrote ${GOLDEN_CASES.length} fixture files`),
+      );
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -286,7 +296,7 @@ describe("the golden:update script", () => {
       await updateGolden({ dir, write: true });
       assert.deepEqual(
         parseGolden(await readFile(path, "utf8")),
-        runFight({ seed: goldenCase.seed, duration: goldenCase.duration }),
+        runGoldenCase(goldenCase),
       );
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -304,6 +314,24 @@ describe("the golden:update script", () => {
         /old-case\.json is not a golden case/,
       );
       assert.equal(await readFile(join(dir, "old-case.json"), "utf8"), "{}\n");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not call .DS_Store a stray file, and tells a real stray what to do", async () => {
+    const dir = await tempDir();
+    try {
+      await writeFile(join(dir, ".DS_Store"), "x");
+      assert.deepEqual((await updateGolden({ dir })).stray, []);
+      await writeFile(join(dir, "old-case.json"), "{}\n");
+      const outcome = await updateGolden({ dir });
+      assert.deepEqual(outcome.stray, ["old-case.json"]);
+      assert.match(
+        formatReport(outcome),
+        /Delete the file, or add its case to GOLDEN_CASES/,
+      );
+      assert.doesNotMatch(formatReport(outcome), /DS_Store/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -334,5 +362,144 @@ describe("the golden:update script", () => {
         error.code === 1 && /Unknown argument: --yes/.test(error.stderr),
     );
     assert.deepEqual(await snapshotFixtures(), before);
+  });
+});
+
+// Issue #85. The placeholder rotation never casts Eviscerate or Rupture, so the
+// other cases cannot pin them. This case casts FINISHER_SCRIPT instead.
+describe("the scripted golden case", () => {
+  const scripted = GOLDEN_CASES.filter((goldenCase) => goldenCase.script);
+  const [goldenCase] = scripted;
+
+  async function fixture() {
+    return parseGolden(await readFile(goldenPath(goldenCase.name), "utf8"));
+  }
+
+  it("is the only scripted case, and it casts FINISHER_SCRIPT", () => {
+    assert.equal(scripted.length, 1);
+    assert.deepEqual(goldenCase.script, FINISHER_SCRIPT);
+  });
+
+  it("casts exactly the scripted abilities, never the placeholder rotation", async () => {
+    const { abilities } = await fixture();
+    // 1 cast per script entry, and no Slice and Dice, Blade Flurry or
+    // Adrenaline Rush, which the placeholder rotation would have cast.
+    const scriptedCasts = {
+      "Sinister Strike": 9,
+      Hemorrhage: 1,
+      Rupture: 1,
+      Eviscerate: 1,
+    };
+    assert.equal(
+      FINISHER_SCRIPT.length,
+      Object.values(scriptedCasts).reduce((sum, casts) => sum + casts, 0),
+    );
+    for (const [name, casts] of Object.entries(scriptedCasts)) {
+      assert.equal(abilities[name]?.casts, casts, name);
+    }
+    assert.deepEqual(Object.keys(abilities).sort(), [
+      "Eviscerate",
+      "Hemorrhage",
+      "Main-hand",
+      "Off-hand",
+      "Rupture",
+      "Sinister Strike",
+    ]);
+  });
+
+  it("pins Eviscerate, Rupture, DoT ticks and a tick crit", async () => {
+    const { abilities, log, totalDamage } = await fixture();
+    const eviscerate = abilities.Eviscerate;
+    assert.equal(eviscerate.casts, 1);
+    assert.ok(eviscerate.damage > 0, "Eviscerate landed and dealt damage");
+    // A cast of Rupture deals no damage. Its ticks do.
+    const rupture = abilities.Rupture;
+    assert.equal(rupture.casts, 1);
+    assert.equal(rupture.hits, 1, "the Rupture application landed");
+    assert.ok(rupture.ticks >= 5, "Rupture has several ticks");
+    assert.ok(rupture.tickCrits >= 1, "at least one Rupture tick crit");
+    assert.ok(rupture.tickCrits < rupture.ticks);
+    assert.ok(rupture.damage > 0);
+    // The log is not capped out in this fight, so every Rupture tick is in it.
+    assert.ok(log.length < k("log.maxEvents"));
+    const ticks = log.filter(
+      (event) => event.name === "Rupture" && event.damage > 0,
+    );
+    assert.equal(ticks.length, rupture.ticks);
+    assert.equal(
+      ticks.filter((event) => event.status === "Crit").length,
+      rupture.tickCrits,
+    );
+    const eviscerateEvents = log.filter((event) => event.name === "Eviscerate");
+    assert.equal(eviscerateEvents.length, 1);
+    assert.equal(eviscerateEvents[0].damage, eviscerate.damage);
+    // Ability damage adds up to the fight's total.
+    const sum = Object.values(abilities).reduce(
+      (total, record) => total + record.damage,
+      0,
+    );
+    assert.ok(Math.abs(sum - totalDamage) < 1e-6);
+  });
+
+  it("has Rupture ticks both with and without the Hemorrhage bonus", async () => {
+    // Hemorrhage is cast just before Rupture and lasts hemorrhage.ruptureBonus
+    // .duration, which ends inside the 16 s Rupture. Non-crit tick sizes
+    // therefore take exactly two values, one 1 + bonus times the other.
+    const { log } = await fixture();
+    const plain = new Set(
+      log
+        .filter(
+          (event) =>
+            event.name === "Rupture" &&
+            event.damage > 0 &&
+            event.status === "Hit",
+        )
+        .map((event) => event.damage),
+    );
+    assert.equal(plain.size, 2);
+    const [low, high] = [...plain].sort((a, b) => a - b);
+    assert.ok(
+      Math.abs(high / low - (1 + k("hemorrhage.ruptureBonus").bonus)) < 1e-9,
+    );
+  });
+
+  it("has no parry, because the attack table cannot give one yet", async () => {
+    // js/attack-resolver.js passes a parry chance of 0 until the front/behind
+    // table (A7), so no fight can contain a parry. The golden cases pin
+    // parries at 0 and this test proves the reason. When parry becomes
+    // possible, this test fails: add a case that includes one.
+    for (const attackType of ["skill", "weapon"]) {
+      for (let roll = 0; roll <= k("attack.rollScale"); roll += 0.25) {
+        const { outcome } = resolveAttack({
+          attackType,
+          baseDamage: 100,
+          bonusHitChance: 0,
+          critChance: k("character.critChance"),
+          roll,
+        });
+        assert.notEqual(outcome, "parry", `${attackType} roll ${roll}`);
+      }
+    }
+    for (const goldenCase of GOLDEN_CASES) {
+      const { abilities } = parseGolden(
+        await readFile(goldenPath(goldenCase.name), "utf8"),
+      );
+      for (const [name, record] of Object.entries(abilities)) {
+        assert.equal(record.parries, 0, `${goldenCase.name}: ${name}`);
+      }
+    }
+  });
+
+  it("matches runGoldenCase, and leaves the placeholder rotation as it was", async () => {
+    const plain = GOLDEN_CASES.find(
+      (c) => c.script === undefined && c.duration >= 60,
+    );
+    const before = runGoldenCase(plain);
+    assert.deepEqual(runGoldenCase(goldenCase), await fixture());
+    assert.deepEqual(runGoldenCase(plain), before);
+    assert.ok(
+      before.abilities["Slice and Dice"].casts > 0,
+      "the placeholder rotation still runs for a case with no script",
+    );
   });
 });

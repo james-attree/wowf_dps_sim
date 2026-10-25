@@ -129,7 +129,9 @@ on.
 
 `test/golden.test.js` pins the full `runFight` result for a few fixed seeds and
 durations (a short fight, a 5-minute fight, and another seed) in
-`test/golden/*.json`. A change to a rule, a constant, or the engine that moves
+`test/golden/*.json`. One more case casts a fixed list of abilities instead of
+the placeholder rotation, so it covers Eviscerate, Rupture, DoT ticks, and tick
+crits. A change to a rule, a constant, or the engine that moves
 those numbers fails the test, and the message lists the fields that changed.
 
 Regenerate the fixtures only when a change is meant to move results, in the
@@ -208,6 +210,8 @@ it. [Golden-seed tests](docs/mechanics.md#golden-seed-tests) has the rules.
 - `scripts/golden-update.mjs` — Lists the golden cases (`GOLDEN_CASES`), runs
   them, and compares each with its fixture in `test/golden/`. Dry run by
   default; `--write` rewrites the fixtures that differ. See Golden-seed tests.
+- `scripts/scripted-fight.mjs` — Runs `runFight` with a list of casts in place
+  of the placeholder rotation, for the scripted golden case.
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a
   review diff.
@@ -252,6 +256,8 @@ it. [Golden-seed tests](docs/mechanics.md#golden-seed-tests) has the rules.
   a run in Node with the browser globals poisoned, and rejected inputs
   (including `runFight()` and `runFight(null)`).
 - `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
+- `test/scripted-fight.test.js` — The scripted-cast fight used by the golden
+  cases: cast order, waiting, errors, and restoring the rotation.
 - `test/serve.test.js` — The static server's port and path checks.
 - `test/simulation.test.js` — The clock, buff duration, Adrenaline Rush
   energy, debuffs, and DoT expiry.
