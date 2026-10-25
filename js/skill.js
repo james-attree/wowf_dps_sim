@@ -74,6 +74,7 @@ class Skill {
           );
         }
       } else {
+        simulation.recordAbility(this.name, "cast");
         simulation.addCombatEvent(
           this.name,
           "skill",

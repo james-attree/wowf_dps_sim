@@ -589,12 +589,13 @@ floating point.
    `step(k("sim.fixedStep"))`.
 2. If time is left over, take one shorter step for it.
 
-The leftover is exact, so the fight ends `duration` seconds after the call
-began: a duration of a whole number of steps ends exactly on it, and any other
-duration ends on it after one short step. A `duration` that is negative,
-`NaN`, or infinite throws a `RangeError`, and `0` takes no step. The `run` call
-does no timing and draws no randomness of its own; the seed and the calls
-decide the fight.
+The leftover is exact when the call starts from a step boundary, so the fight
+then ends exactly `duration` seconds after the call began. A call that starts
+between boundaries is exact only up to float rounding. A duration of a whole
+number of steps ends on a step boundary, and any other duration ends on it
+after one short step. A `duration` that is negative, `NaN`, or infinite throws
+a `RangeError`, and `0` takes no step. The `run` call does no timing and draws
+no randomness of its own; the seed and the calls decide the fight.
 
 Results depend on the step size. A fight at `k("sim.fixedStep")` is not the
 same fight as one at another step, because swings, casts, and ticks land on
@@ -625,7 +626,8 @@ paused gap is not simulated. The live page does not use `run` or
 `k("latency")` is an assumption on the retune list. Its note says the engine
 does not delay casts. `k("fight.duration")` is an assumption on the retune
 list. Its note says the live sim runs until pause and does not read it. A
-headless caller passes the duration to `run`.
+headless caller passes the duration to `run`, or to `runFight` (see Headless
+fight).
 
 ### Tolerance and the order inside a step
 
@@ -651,3 +653,59 @@ One step, in `Simulation.step`, does this in order:
 
 The combat log keeps the newest `k("log.maxEvents")` rows (`engineering`,
 retune off). That cap is display, not a game rule.
+
+## Headless fight
+
+`runFight({ seed, duration })` in `js/fight.js` is the one entry point for a
+headless fight. It builds a `Rogue` and a `Simulation` with that seed, makes a
+single `Simulation.run(duration)` call (so every step is `k("sim.fixedStep")`),
+and returns the result as plain data. The module imports only engine files, so
+it loads in Node with no `document`, `window`, `performance`, or other browser
+global, and it reads no clock. The same `seed` and `duration` always give a
+deep-equal result.
+
+`seed` is required and must be an integer; it wraps to an unsigned 32-bit
+value as in Random numbers, and the result reports that wrapped value.
+`duration` is in seconds and follows the rules of `run`: a negative, `NaN`, or
+infinite value throws a `RangeError`, and `0` is an empty fight. A missing or
+non-integer `seed` also throws a `RangeError`.
+
+The result has these fields:
+
+- `seed` — the seed used.
+- `duration` — the simulated seconds, `Simulation.currentTime` after the run.
+- `totalDamage` — `Simulation.damageDone`, after armor.
+- `dps` — `totalDamage / duration`, or `0` for an empty fight.
+- `abilities` — an object keyed by ability name, in the order each first acted.
+  White swings are `Main-hand` and `Off-hand`. Each value has the fields below.
+- `log` — the combat log, newest first, holding at most `k("log.maxEvents")`
+  events. Each event is a copy of the engine's row: `id`, `time`, `name`,
+  `type`, `damage`, `status`, `outcome`, `icon`.
+
+The result is numbers, strings, plain objects and arrays. It holds no
+reference to the `Rogue` or the `Simulation`, so `structuredClone`, JSON, and
+`postMessage` carry it, and changing it changes nothing in another run.
+
+### Per-ability record
+
+`Simulation.abilityStats` keeps one record per ability for the whole fight. It
+is not capped, unlike the log, so a long fight still has full totals.
+`Simulation.recordAbility` adds to it from the places that already resolve an
+attack: `resolveAttack`, `resolveDotAttack`, the DoT tick loop, and the cast
+of a skill that is not an attack. It records and changes no combat rule.
+
+- `damage` — damage dealt, after armor. A miss, dodge, or parry deals none. A
+  DoT application deals none; its ticks do. The abilities' damage adds up to
+  `totalDamage`.
+- `casts` — attempts: one per swing, one per skill cast (a miss counts), and one
+  per DoT application. A DoT tick is not a cast.
+- `hits`, `crits`, `glances`, `misses`, `dodges`, `parries` — the outcome of each
+  attempt, from the attack table. For an attack they add up to `casts`. A cast
+  that is not an attack (Adrenaline Rush, Slice and Dice, Blade Flurry,
+  Premeditation) has an outcome of none, so it only adds to `casts`. `hits` is
+  a plain hit; a crit or a glance is counted under its own field. A DoT
+  application cannot crit.
+- `ticks`, `tickCrits` — DoT ticks, and the ticks that crit (see Bleeds and
+  damage over time).
+
+The attack table never gives a parry yet, so `parries` stays `0`.
