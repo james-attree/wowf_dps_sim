@@ -141,10 +141,11 @@ on.
   `Simulation` owns. Every random draw in the engine goes through it.
 - `js/simulation.js` — `step(dt)` advances the fight by `dt` seconds and reads
   no clock. `run(duration)` repeats the fixed step `sim.fixedStep` for a
-  duration, with a short last step, for headless runs. Steps energy, buffs, debuffs, cooldowns, the GCD, DoTs,
-  and Premeditation expiry, applies armor to direct hits and to ticks (bleeds
-  and nature damage can skip it), rolls DoT crits, runs the rotation, and
-  records damage and the combat log.
+  duration, with a short last step, for headless runs. Each step handles
+  energy, buffs, debuffs, cooldowns, the GCD, DoTs, and Premeditation expiry,
+  applies armor to direct hits and to ticks (bleeds and nature damage can skip
+  it), rolls DoT crits, runs the rotation, and records damage and the combat
+  log.
 - `js/rogue.js` — Energy, combo points, crit, hit, weapons, abilities, the
   placeholder Combat priority (`rotation.priority`), and `stackHaste`
   (`haste.stacking`).
