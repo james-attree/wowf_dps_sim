@@ -489,8 +489,7 @@ describe("simulator values other than white miss", () => {
       icon: null,
     };
     fight.activeDebuffs.Hemorrhage = { duration: 15, icon: null };
-    fight.lastFrameTime = 0;
-    fight.update(2000);
+    fight.step(2);
     assert.equal(
       fight.damageDone,
       100 * (1 + k("hemorrhage.ruptureBonus").bonus) * k("dot.critMultiplier"),
@@ -503,16 +502,14 @@ describe("simulator values other than white miss", () => {
     quiet.rotation = () => {};
     const regen = new Simulation(quiet, { rng: testRng });
     regen.activeBuffs["Adrenaline Rush"] = { duration: 15, icon: null };
-    regen.lastFrameTime = 0;
-    regen.update(1000);
+    regen.step(1);
     assert.equal(quiet.energy, 20);
 
     const plain = new Rogue();
     plain.energy = 0;
     plain.rotation = () => {};
     const base = new Simulation(plain, { rng: testRng });
-    base.lastFrameTime = 0;
-    base.update(1000);
+    base.step(1);
     assert.equal(plain.energy, 10);
   });
 

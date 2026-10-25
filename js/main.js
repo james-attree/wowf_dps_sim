@@ -46,6 +46,8 @@ const simulationStatusLabel = document.querySelector(
 let lastRenderedCombatEventId = -1;
 let isPaused = false;
 let animationFrameId;
+// Browser timestamp of the last step. Resume resets it so a pause is not simulated.
+let lastFrameTime = performance.now();
 
 function redrawScene(rogue) {
   comboValue.value = `${rogue.comboPoints} / ${rogue.maxComboPoints}`;
@@ -225,7 +227,11 @@ function update(time) {
     return;
   }
 
-  simulation.update(time);
+  // The browser's frame timestamp becomes a time step in seconds. The engine
+  // only ever sees the step.
+  const dt = Math.max(0, (time - lastFrameTime) / k("sim.msPerSecond"));
+  lastFrameTime = time;
+  simulation.step(dt);
 
   redrawScene(rogue);
 
@@ -245,7 +251,7 @@ pauseButton.addEventListener("click", () => {
     return;
   }
 
-  simulation.lastFrameTime = performance.now();
+  lastFrameTime = performance.now();
   animationFrameId = requestAnimationFrame(update);
 });
 

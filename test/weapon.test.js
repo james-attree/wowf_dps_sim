@@ -169,11 +169,10 @@ function near(actual, expected) {
 
 function runClock(rogue, fps, seconds) {
   const sim = new Simulation(rogue, { rng: testRng });
-  sim.lastFrameTime = 0;
-  const frameMs = k("sim.msPerSecond") / fps;
+  const dt = 1 / fps;
   const frames = Math.round(seconds * fps);
   for (let frame = 1; frame <= frames; frame += 1) {
-    sim.update(frame * frameMs);
+    sim.step(dt);
   }
   return sim;
 }
@@ -275,14 +274,13 @@ describe("swing timer overshoot", () => {
         swings += 1;
       });
     };
-    const step = speed * 2 + speed / 2;
+    const total = speed * 2 + speed / 2;
     const sim = new Simulation(rogue, { rng: testRng });
-    sim.lastFrameTime = 0;
-    sim.update(step * k("sim.msPerSecond"));
+    sim.step(total);
 
     assert.equal(swings, 3);
     near(weapon.swingTimer, speed / 2);
-    near(sim.currentTime, step);
+    near(sim.currentTime, total);
   });
 
   it("stays within 1 of 60 / speed for 60s at 30 fps and 144 fps", () => {
@@ -376,13 +374,12 @@ function sampleFight(fps) {
     }
     return addCombatEvent(name, type, damage, status, ...rest);
   };
-  sim.lastFrameTime = 0;
-  const frameMs = k("sim.msPerSecond") / fps;
+  const dt = 1 / fps;
   const frames = Math.round(SWING_WINDOW_SECONDS * fps);
   let sliceAndDiceUptime = 0;
   for (let frame = 1; frame <= frames; frame += 1) {
     const before = sim.currentTime;
-    sim.update(frame * frameMs);
+    sim.step(dt);
     if (sim.activeBuffs["Slice and Dice"]) {
       sliceAndDiceUptime += sim.currentTime - before;
     }

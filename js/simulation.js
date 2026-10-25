@@ -2,7 +2,7 @@ import { k } from "../data/constants.js";
 import { resolveAttack, rollCrit } from "./attack-resolver.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
-// Auras already running lose this frame. One applied during rotation is not
+// Auras already running lose this step. One applied during rotation is not
 // in the map yet, so it keeps the duration it was given.
 function tickAuras(auras, dt) {
   return Object.fromEntries(
@@ -66,24 +66,25 @@ export class Simulation {
     this.gcdDuration = k("gcd.duration");
     this.combatLog = [];
     this.nextCombatEventId = 0;
-    this.lastFrameTime = performance.now();
     this.cooldowns = {}; // Track cooldowns for skills
     this.activeBuffs = {}; // Self buffs: Slice and Dice, Adrenaline Rush, Blade Flurry, Ghostly Strike
     this.activeDebuffs = {}; // Target debuffs and DoTs
     this.activeDots = {}; // Track active damage over time effects
   }
 
-  update(currentTime) {
-    let dt = Math.max(
-      0,
-      (currentTime - this.lastFrameTime) / k("sim.msPerSecond"),
-    ); // Convert to seconds
-    this.lastFrameTime = currentTime;
+  // Advance the fight by dt seconds. The engine reads no clock: the host
+  // (js/main.js live, a test or a batch runner headless) decides the step.
+  step(dt) {
+    if (!Number.isFinite(dt) || dt < 0) {
+      throw new RangeError(
+        `Simulation.step needs a finite time step in seconds, 0 or more. Got ${dt}.`,
+      );
+    }
     this.currentTime += dt;
 
-    // This frame covers the interval that just ended. Read Adrenaline Rush
-    // before its countdown so the part of the frame still inside the buff
-    // regenerates at the bonus rate, including the frame it runs out.
+    // This step covers the interval that just ended. Read Adrenaline Rush
+    // before its countdown so the part of the step still inside the buff
+    // regenerates at the bonus rate, including the step it runs out.
     const arLeft = this.activeBuffs["Adrenaline Rush"]?.duration ?? 0;
     const base = k("energy.regenPerSecond");
     const arDt = Math.min(dt, Math.max(0, arLeft));
@@ -93,7 +94,7 @@ export class Simulation {
       base * k("adrenalineRush").regenMultiplier,
     );
 
-    // Timers already running lose this frame. A buff, debuff, or cooldown
+    // Timers already running lose this step. A buff, debuff, or cooldown
     // applied during rotation keeps its full duration until the next one.
     this.activeBuffs = tickAuras(this.activeBuffs, dt);
     this.activeDebuffs = tickAuras(this.activeDebuffs, dt);
@@ -147,7 +148,7 @@ export class Simulation {
       }
     }
 
-    // Points already counting down lose this frame. A Premeditation cast
+    // Points already counting down lose this step. A Premeditation cast
     // during rotation keeps the full premeditation.cpExpiry until the next one.
     this.rogue.tickPremeditation(dt);
 

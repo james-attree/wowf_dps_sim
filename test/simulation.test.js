@@ -54,8 +54,7 @@ function tickDot({ hemorrhage }) {
       sim.activeDebuffs.Hemorrhage = aura;
     }
   }
-  sim.lastFrameTime = 0;
-  sim.update(k("rupture.tickInterval") * k("sim.msPerSecond"));
+  sim.step(k("rupture.tickInterval"));
   return sim;
 }
 
@@ -69,12 +68,9 @@ describe("simulation output", () => {
     setRoll(0.5);
 
     const sim = new Simulation(new Rogue(), { rng: testRng });
-    sim.lastFrameTime = 0;
-    let time = 0;
-    const step = k("sim.msPerSecond") / 10;
+    const dt = 1 / 10;
     for (let frame = 0; frame < 50; frame += 1) {
-      time += step;
-      sim.update(time);
+      sim.step(dt);
     }
 
     assert.ok(sim.damageDone > 0);
@@ -139,15 +135,14 @@ function runGhostlyStrike(fps) {
     assert.ok(result?.landed);
     castTime = sim.currentTime;
   };
-  sim.lastFrameTime = 0;
-  const frameMs = k("sim.msPerSecond") / fps;
+  const dt = 1 / fps;
   const lastFrame = lead + Math.round(cooldown * fps);
   let buffGoneAt = null;
   let readyAt = null;
   let lastBuffDuration = 0;
   let lastCooldown = 0;
   for (let f = 1; f <= lastFrame; f += 1) {
-    sim.update(f * frameMs);
+    sim.step(dt);
     if (f === lead) {
       assert.equal(sim.cooldowns[skill.name], cooldown);
       assert.equal(sim.activeBuffs[skill.name].duration, buffDuration);
@@ -194,8 +189,7 @@ function runDot(fps, duration) {
     tickDamage,
     icon: null,
   };
-  sim.lastFrameTime = 0;
-  const frameMs = k("sim.msPerSecond") / fps;
+  const dt = 1 / fps;
   const frames = Math.round(duration * fps) + 2;
   let ticks = 0;
   const addCombatEvent = sim.addCombatEvent.bind(sim);
@@ -208,7 +202,7 @@ function runDot(fps, duration) {
   let expiredAt = null;
   let previousRemaining = null;
   for (let frame = 1; frame <= frames; frame += 1) {
-    sim.update(frame * frameMs);
+    sim.step(dt);
     const dot = sim.activeDots.Rupture;
     if (dot) {
       previousRemaining = dot.duration;
@@ -281,49 +275,39 @@ describe("buff and cooldown duration", () => {
         duration: runningDebuff,
         icon: null,
       };
-      sim.lastFrameTime = 0;
-      const frameMs = k("sim.msPerSecond") / fps;
-      sim.update(frameMs);
+      const dt = 1 / fps;
+      sim.step(dt);
 
-      near(
-        sim.cooldowns.Premeditation,
-        running - frameMs / k("sim.msPerSecond"),
-      );
+      near(sim.cooldowns.Premeditation, running - dt);
       assert.equal(sim.cooldowns["Ghostly Strike"], applied);
       assert.equal(sim.activeBuffs["Blade Flurry"].duration, buffDuration);
       assert.equal(sim.activeDebuffs.Hemorrhage.duration, debuffDuration);
-      near(
-        sim.activeDebuffs.Rupture.duration,
-        runningDebuff - frameMs / k("sim.msPerSecond"),
-      );
+      near(sim.activeDebuffs.Rupture.duration, runningDebuff - dt);
     }
   });
 });
 
-function clockUntil(seconds, deltasMs) {
+// Each schedule is a list of time steps in seconds.
+function stepsUntil(seconds, deltasMs) {
   const limit = seconds * k("sim.msPerSecond");
-  const times = [];
+  const steps = [];
   let t = 0;
   let i = 0;
   while (t < limit) {
-    t += deltasMs[i % deltasMs.length];
-    times.push(t);
+    const deltaMs = deltasMs[i % deltasMs.length];
+    t += deltaMs;
+    steps.push(deltaMs / k("sim.msPerSecond"));
     i += 1;
   }
-  return times;
+  return steps;
 }
 
-function fpsClock(fps, seconds) {
-  const frameMs = k("sim.msPerSecond") / fps;
+function fpsSteps(fps, seconds) {
   const frames = Math.ceil(seconds * fps);
-  const times = [];
-  for (let frame = 1; frame <= frames; frame += 1) {
-    times.push(frame * frameMs);
-  }
-  return times;
+  return Array.from({ length: frames }, () => 1 / fps);
 }
 
-function adrenalineBonus(times) {
+function adrenalineBonus(steps) {
   const bonusPerSecond =
     k("energy.regenPerSecond") * (k("adrenalineRush").regenMultiplier - 1);
 
@@ -341,9 +325,8 @@ function adrenalineBonus(times) {
       assert.ok(sim.activeBuffs["Adrenaline Rush"]);
     };
     const sim = new Simulation(rogue, { rng: testRng });
-    sim.lastFrameTime = 0;
-    for (const time of times) {
-      sim.update(time);
+    for (const dt of steps) {
+      sim.step(dt);
     }
     assert.equal(applied, apply);
     assert.ok(rogue.energy < rogue.maxEnergy);
@@ -360,16 +343,16 @@ describe("Adrenaline Rush bonus energy", () => {
     assert.equal(k("adrenalineRush").duration, 15);
     const seconds = k("adrenalineRush").duration + k("gcd.duration");
     const schedules = {
-      "10 fps": fpsClock(10, seconds),
-      "30 fps": fpsClock(30, seconds),
-      "144 fps": fpsClock(144, seconds),
-      "7 ms then 23 ms": clockUntil(seconds, [7, 23]),
-      "250 ms": clockUntil(seconds, [250]),
-      "mixed steps": clockUntil(seconds, [1, 17, 80, 250, 3]),
+      "10 fps": fpsSteps(10, seconds),
+      "30 fps": fpsSteps(30, seconds),
+      "144 fps": fpsSteps(144, seconds),
+      "7 ms then 23 ms": stepsUntil(seconds, [7, 23]),
+      "250 ms": stepsUntil(seconds, [250]),
+      "mixed steps": stepsUntil(seconds, [1, 17, 80, 250, 3]),
     };
     const bonuses = {};
-    for (const [name, times] of Object.entries(schedules)) {
-      bonuses[name] = adrenalineBonus(times);
+    for (const [name, steps] of Object.entries(schedules)) {
+      bonuses[name] = adrenalineBonus(steps);
     }
     for (const bonus of Object.values(bonuses)) {
       near(bonus, bonuses["10 fps"]);
@@ -465,8 +448,7 @@ describe("DoT expiry", () => {
       tickDamage,
       icon: null,
     };
-    sim.lastFrameTime = 0;
-    sim.update(0);
+    sim.step(0);
 
     assert.equal(sim.activeDots.Rupture, undefined);
     assert.equal(sim.damageDone, tickDamage);
@@ -485,8 +467,7 @@ describe("DoT expiry", () => {
       tickDamage: 100,
       icon: null,
     };
-    sim.lastFrameTime = 0;
-    sim.update(0);
+    sim.step(0);
 
     assert.equal(sim.activeDots.Rupture, undefined);
     assert.equal(sim.damageDone, 0);
@@ -505,8 +486,7 @@ describe("DoT expiry", () => {
       tickDamage: 100,
       icon: null,
     };
-    sim.lastFrameTime = 0;
-    sim.update(0);
+    sim.step(0);
 
     assert.equal(sim.activeDots.Rupture.duration, duration);
     assert.equal(sim.damageDone, 0);

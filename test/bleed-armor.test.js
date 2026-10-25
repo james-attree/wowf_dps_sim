@@ -68,8 +68,7 @@ function tickDot(name, { hemorrhage = false, bleed = false, critChance } = {}) {
       icon: null,
     };
   }
-  sim.lastFrameTime = 0;
-  sim.update(tickInterval * k("sim.msPerSecond"));
+  sim.step(tickInterval);
   return sim;
 }
 
@@ -265,14 +264,13 @@ describe("bleed ticks and armor", () => {
     );
     const sim = new Simulation(rogue, { rng: testRng });
     sim.gcd = 0;
-    sim.lastFrameTime = 0;
     const cast = rogue.abilities.rupture.cast(rogue, sim);
     assert.equal(cast.landed, true);
     assert.equal(sim.damageDone, 0);
     const dot = sim.activeDots.Rupture;
     assert.equal(dot.bleed, true);
     assert.equal(dot.tickDamage, Math.floor(raw) / ticks);
-    sim.update(k("rupture.tickInterval") * k("sim.msPerSecond"));
+    sim.step(k("rupture.tickInterval"));
     assert.equal(sim.damageDone, dot.tickDamage);
     assert.ok(sim.damageDone > 0);
     assert.ok(sim.damageDone > dot.tickDamage * expectedMultiplier());

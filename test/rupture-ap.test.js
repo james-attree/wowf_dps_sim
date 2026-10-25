@@ -42,7 +42,6 @@ function harness(comboPoints) {
   rogue.comboPoints = comboPoints;
   rogue.energy = k("energy.max");
   const sim = new Simulation(rogue, { rng: testRng });
-  sim.lastFrameTime = 0;
   sim.gcd = 0;
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
@@ -125,10 +124,10 @@ describe("Rupture AP coefficients", () => {
         assert.equal(rogue.comboPoints, 0);
         const dot = sim.activeDots.Rupture;
         assert.equal(dot.tickDamage, Math.floor(raw) / ticks);
-        const step = k("sim.msPerSecond") / fps;
+        const dt = 1 / fps;
         const frames = Math.round(rupture.duration * fps);
         for (let frame = 1; frame <= frames; frame += 1) {
-          sim.update(frame * step);
+          sim.step(dt);
         }
         near(sim.currentTime, stats.durationByCp[comboPoints - 1]);
         const landed = sim.combatLog.filter(

@@ -23,7 +23,6 @@ function harness() {
   const rogue = new Rogue();
   rogue.rotation = () => {};
   const sim = new Simulation(rogue, { rng: testRng });
-  sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
 }
@@ -41,10 +40,10 @@ function watchCasts(sim) {
 }
 
 function runFrames(sim, fps, seconds) {
-  const frameMs = k("sim.msPerSecond") / fps;
+  const dt = 1 / fps;
   const frames = Math.round(seconds * fps);
   for (let frame = 1; frame <= frames; frame += 1) {
-    sim.update(frame * frameMs);
+    sim.step(dt);
   }
 }
 
@@ -131,10 +130,10 @@ describe("Adrenaline Rush cooldown", () => {
         }
       };
 
-      const frameMs = k("sim.msPerSecond") / fps;
+      const dt = 1 / fps;
       const frames = Math.round((cooldown + 1) * fps);
       for (let frame = 1; frame <= frames; frame += 1) {
-        sim.update(frame * frameMs);
+        sim.step(dt);
         if (casts.length >= 2) {
           break;
         }
@@ -145,7 +144,7 @@ describe("Adrenaline Rush cooldown", () => {
         blockedAt < casts[1],
         `${fps} fps was refused before the recast`,
       );
-      near(casts[1] - blockedAt, frameMs / k("sim.msPerSecond"));
+      near(casts[1] - blockedAt, dt);
       near(casts[1] - casts[0], cooldown);
       assert.equal(sim.cooldowns[skill.name], cooldown);
       gaps[fps] = casts[1] - casts[0];
@@ -189,7 +188,6 @@ describe("Adrenaline Rush cooldown", () => {
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
       const sim = new Simulation(rogue, { rng: testRng });
-      sim.lastFrameTime = 0;
       assert.equal(sim.currentTime, 0);
       const casts = watchCasts(sim);
       const play = rogue.rotation.bind(rogue);

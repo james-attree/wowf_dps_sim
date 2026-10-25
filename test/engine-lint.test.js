@@ -141,6 +141,80 @@ describe("engine lint", () => {
     assert.match(result.stdout, /must not touch this global/);
   });
 
+  it("rejects performance and Date in engine code, including globalThis property access", async () => {
+    const result = await lintSource(
+      engine,
+      [
+        "export const now = performance.now();",
+        "export const stamp = Date.now();",
+        "export const created = new Date();",
+        "export const viaGlobal = globalThis.performance.now();",
+        "export const viaBracket = globalThis['Date'].now();",
+        "export const viaSelf = self.performance;",
+        "",
+      ].join("\n"),
+    );
+    assert.equal(result.code, 1, result.stdout);
+    const ids = ruleIds(result.stdout);
+    assert.equal(ids.filter((id) => id === "no-restricted-globals").length, 6);
+    assert.match(result.stdout, /must not read a wall clock/);
+
+    for (const filename of ["js/simulation.js", "js/rogue.js", "js/rng.js"]) {
+      const clock = await lintSource(
+        filename,
+        "export const now = performance.now();\n",
+      );
+      assert.equal(clock.code, 1, `${filename}\n${clock.stdout}`);
+      assert.ok(ruleIds(clock.stdout).includes("no-restricted-globals"));
+    }
+  });
+
+  it("rejects Math.random in engine code, however it is reached", async () => {
+    const forms = [
+      "export const roll = Math.random();",
+      "export const bracket = Math['random']();",
+      "export const viaGlobal = globalThis.Math.random();",
+      "export const viaGlobalBracket = globalThis.Math['random']();",
+      "export const viaSelf = self.Math.random();",
+      "export const viaGlobalObject = global['Math'].random();",
+      "export const { random } = Math;",
+    ];
+    for (const form of forms) {
+      const result = await lintSource(engine, `${form}\n`);
+      assert.equal(result.code, 1, `${form}\n${result.stdout}`);
+      assert.ok(ruleIds(result.stdout).includes("no-restricted-syntax"), form);
+      assert.match(result.stdout, /must not use Math\.random/, form);
+    }
+
+    for (const filename of ["js/simulation.js", "js/rogue.js", "js/rng.js"]) {
+      const result = await lintSource(
+        filename,
+        "export const roll = Math.random();\n",
+      );
+      assert.equal(result.code, 1, `${filename}\n${result.stdout}`);
+      assert.ok(ruleIds(result.stdout).includes("no-restricted-syntax"));
+    }
+  });
+
+  it("allows other Math use in engine code", async () => {
+    const result = await lintSource(
+      engine,
+      [
+        "export const floor = Math.floor(rollTo(1));",
+        "export const bracket = Math['max'](1, 0);",
+        "export const viaGlobal = globalThis.Math.min(1, 0);",
+        "export const { floor: down } = Math;",
+        "export const random = (rng) => rng();",
+        "export const draw = (rng) => rng.random;",
+        "function rollTo(value) {",
+        "  return value;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    assert.equal(result.code, 0, result.stdout + result.stderr);
+  });
+
   it("exempts the UI entry, constants, tests, and dev scripts", async () => {
     const cases = [
       [
@@ -150,6 +224,8 @@ describe("engine lint", () => {
           "const hit = dodge < 0.065;",
           "document.body.dataset.hit = String(hit);",
           "window.addEventListener('load', () => {});",
+          "window.startedAt = performance.now();",
+          "window.seedFallback = Math.random();",
           "",
         ].join("\n"),
       ],
@@ -159,6 +235,10 @@ describe("engine lint", () => {
       ],
       ["test/attack-resolver.test.js", "export const dodge = 0.065;\n"],
       ["scripts/example.mjs", "export const port = 8000;\n"],
+      ["scripts/stamp.mjs", "export const stamp = Date.now();\n"],
+      ["test/clock.test.js", "export const now = Date.now();\n"],
+      ["scripts/random.mjs", "export const roll = Math.random();\n"],
+      ["test/random.test.js", "export const roll = Math.random();\n"],
     ];
 
     for (const [filename, source] of cases) {
@@ -172,6 +252,7 @@ describe("engine lint", () => {
         filename,
       );
       assert.equal(ids.includes("no-restricted-globals"), false, filename);
+      assert.equal(ids.includes("no-restricted-syntax"), false, filename);
     }
   });
 

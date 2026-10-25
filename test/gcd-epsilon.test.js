@@ -19,7 +19,6 @@ function pinnedSim() {
   rogue.critChance = 0;
   rogue.rotation = () => {};
   const sim = new Simulation(rogue, { rng: testRng });
-  sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
 }
@@ -55,16 +54,21 @@ describe("GCD tick epsilon", () => {
     for (const fps of FRAME_RATES) {
       const { rogue, sim } = pinnedSim();
       const frameMs = k("sim.msPerSecond") / fps;
+      // The step js/main.js hands the engine for this frame: the difference of
+      // two browser timestamps in seconds. It carries the same float error the
+      // issue #41 check is about, which a plain 1 / fps would not.
+      const stepAt = (frame) =>
+        (frame * frameMs - (frame - 1) * frameMs) / k("sim.msPerSecond");
       const countdownFrames = Math.round(k("gcd.duration") * fps);
       const readyFrame = ARM_FRAME + countdownFrames;
 
       for (let frame = 1; frame <= ARM_FRAME; frame += 1) {
-        sim.update(frame * frameMs);
+        sim.step(stepAt(frame));
       }
       sim.setGcd();
 
       for (let frame = ARM_FRAME + 1; frame < readyFrame; frame += 1) {
-        sim.update(frame * frameMs);
+        sim.step(stepAt(frame));
       }
       assert.ok(
         sim.gcd > k("sim.tickEpsilon"),
@@ -76,7 +80,7 @@ describe("GCD tick epsilon", () => {
         `${fps} fps cast a frame early`,
       );
 
-      sim.update(readyFrame * frameMs);
+      sim.step(stepAt(readyFrame));
       assert.ok(
         sim.gcd > 0,
         `${fps} fps remainder was exact zero, so it did not exercise tick epsilon`,
