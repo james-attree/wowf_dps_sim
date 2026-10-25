@@ -157,11 +157,20 @@ one, before the engine is warmed up), and the warm median (the runs after it).
 median is not under 50 ms. The numbers depend on the machine and Node version,
 so the report names the Node version.
 
+The 50 ms target is a figure for a development machine, not a CI guarantee. On
+our own box (8 vCPU Xeon, Node 20) a 5-minute fight takes about 22 ms warm and
+about 40 ms cold. The GitHub Actions runner (Node 22.23.3) measured about 60 to
+65 ms per fight, over the target, so no test asserts the 50 ms figure.
+`npm run bench -- --target-ms N` compares the median with `N` ms instead of
+50, which lets a test check the output and the exit status on any machine
+(`--target-ms 0` always exits 1).
+
 `npm test` runs `test/bench.test.js`, which asserts a looser bound (10 times the
-target) so a slow CI runner does not fail the build. It guards against a large
-regression only; the real number is the one `npm run bench` prints. See
-[Benchmark](docs/mechanics.md#benchmark) for why the bound is what it is. Timer
-reads belong in the script and the test; lint rejects them under `js/`.
+target, 500 ms, on the median of 5 fights) so a slow CI runner does not fail the
+build. It guards against a large regression only; the real number is the one
+`npm run bench` prints. See [Benchmark](docs/mechanics.md#benchmark) for why the
+bound is what it is. Timer reads belong in the script and the test; lint
+rejects them under `js/`.
 
 ## Module map
 
@@ -230,8 +239,9 @@ reads belong in the script and the test; lint rejects them under `js/`.
 - `scripts/scripted-fight.mjs` — Runs `runFight` with a list of casts in place
   of the placeholder rotation, for the scripted golden case.
 - `scripts/bench.mjs` — `npm run bench`: times a seeded 5-minute `runFight` over
-  several runs and prints the median and slowest. The only place besides
-  `test/bench.test.js` that reads a timer.
+  several runs and prints the median and slowest. `--target-ms N` changes the
+  target it compares with. The only place besides `test/bench.test.js` that
+  reads a timer.
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a
   review diff.
@@ -248,7 +258,8 @@ reads belong in the script and the test; lint rejects them under `js/`.
 - `test/bleed-armor.test.js` — DoT crits, and armor skipped on bleeds and
   nature ticks.
 - `test/bench.test.js` — The benchmark: the CI bound on a 5-minute fight, the
-  median and report, and the script's arguments.
+  median and report, the script's arguments, and its exit status (with a fake
+  benchmark or a target of 0 or a million ms, never the real 50 ms).
 - `test/ci-workflow.test.js` — CI step order, including a re-indented workflow
   fixture.
 - `test/constants.test.js` — The constant table's shape and the values the

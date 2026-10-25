@@ -20,7 +20,10 @@ import { runFight } from "../js/fight.js";
 export const BENCH_SEED = 1;
 export const BENCH_DURATION = 300; // 5 simulated minutes
 export const DEFAULT_RUNS = 20;
-// The roadmap's exit criterion. The median must stay under it.
+// The roadmap's exit criterion. The median must stay under it. It is a target
+// for a development machine, not a CI guarantee: the GitHub runner measured
+// 60 to 65 ms per fight, so nothing in the test suite may depend on meeting it.
+// `--target-ms` replaces it for one run of the script (the tests use that).
 export const TARGET_MS = 50;
 
 export function median(values) {
@@ -73,11 +76,15 @@ function ms(value) {
   return `${value.toFixed(1)} ms`;
 }
 
-export function formatReport(result) {
-  const verdict =
-    result.medianMs < TARGET_MS
-      ? `under the ${TARGET_MS} ms target`
-      : `NOT under the ${TARGET_MS} ms target`;
+// True when the median meets the target: strictly under it.
+export function meetsTarget(result, targetMs = TARGET_MS) {
+  return result.medianMs < targetMs;
+}
+
+export function formatReport(result, targetMs = TARGET_MS) {
+  const verdict = meetsTarget(result, targetMs)
+    ? `under the ${targetMs} ms target`
+    : `NOT under the ${targetMs} ms target`;
   const lines = [
     `runFight({ seed: ${result.seed}, duration: ${result.duration} }), ${result.runs} run${result.runs === 1 ? "" : "s"}, Node ${process.version}`,
     `median:  ${ms(result.medianMs)} (${verdict})`,
@@ -94,15 +101,24 @@ export function formatReport(result) {
 
 export const HELP_TEXT = `Time a seeded 5-minute fight (runFight) and print the median and slowest run.
 
-Usage: npm run bench [-- --runs N]
+Usage: npm run bench [-- --runs N] [-- --target-ms N]
 
-  --runs N   How many fights to time (a positive integer, default ${DEFAULT_RUNS}).
-  --help     Show this text.
+  --runs N       How many fights to time (a positive integer, default ${DEFAULT_RUNS}).
+  --target-ms N  The target the median is compared with (a number of
+                 milliseconds, 0 or more, default ${TARGET_MS}). Use it to check the
+                 output or the exit status without depending on how fast the
+                 machine is.
+  --help         Show this text.
 
-Exits with status 1 when the median is not under ${TARGET_MS} ms.`;
+Exits with status 1 when the median is not under the target (${TARGET_MS} ms unless
+--target-ms is given). The ${TARGET_MS} ms target is for a development machine; a
+shared CI runner is slower.`;
+
+// Plain decimal digits only: Number("") is 0 and Number("1e1") is 10.
+const DECIMAL = /^[0-9]+(?:\.[0-9]+)?$/;
 
 export function parseArgs(argv) {
-  const options = { runs: DEFAULT_RUNS, help: false };
+  const options = { runs: DEFAULT_RUNS, targetMs: TARGET_MS, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--help" || arg === "-h") {
@@ -117,6 +133,15 @@ export function parseArgs(argv) {
         );
       }
       options.runs = Number(text);
+    } else if (arg === "--target-ms") {
+      index += 1;
+      const text = argv[index];
+      if (text === undefined || !DECIMAL.test(text)) {
+        throw new Error(
+          `--target-ms needs a number of milliseconds, 0 or more, got ${text === undefined ? "nothing" : `"${text}"`}.\n\n${HELP_TEXT}`,
+        );
+      }
+      options.targetMs = Number(text);
     } else {
       throw new Error(`Unknown argument: ${arg}\n\n${HELP_TEXT}`);
     }
@@ -132,26 +157,32 @@ function isDirectRun() {
   return import.meta.url === pathToFileURL(resolve(entry)).href;
 }
 
-function main() {
+// The whole command, with its output and the benchmark passed in so a test can
+// check the exit status without timing anything. Returns the exit status.
+export function cli(
+  argv,
+  {
+    bench = benchmark,
+    log = (text) => console.log(text),
+    logError = (text) => console.error(text),
+  } = {},
+) {
   let options;
   try {
-    options = parseArgs(process.argv.slice(2));
+    options = parseArgs(argv);
   } catch (error) {
-    console.error(error.message);
-    process.exitCode = 1;
-    return;
+    logError(error.message);
+    return 1;
   }
   if (options.help) {
-    console.log(HELP_TEXT);
-    return;
+    log(HELP_TEXT);
+    return 0;
   }
-  const result = benchmark({ runs: options.runs });
-  console.log(formatReport(result));
-  if (result.medianMs >= TARGET_MS) {
-    process.exitCode = 1;
-  }
+  const result = bench({ runs: options.runs });
+  log(formatReport(result, options.targetMs));
+  return meetsTarget(result, options.targetMs) ? 0 : 1;
 }
 
 if (isDirectRun()) {
-  main();
+  process.exitCode = cli(process.argv.slice(2));
 }

@@ -791,15 +791,29 @@ target. The warm median covers the runs after it. The seed and duration are
 fixed, so every run is the same fight and only the timing differs. The report
 names the Node version, because both it and the machine change the number.
 
-`test/bench.test.js` is the check that runs in CI. It takes the median of 5
-runs and asserts it is under `CI_BOUND_MS`, which is 10 times the target
-(500 ms). The bound is loose on purpose. A timing test on shared CI hardware
-must not fail because the runner is slow or one run was stalled, so it uses a
-median, not the slowest run, and a multiple of the target well above the median
-measured on a development machine (about 22 ms warm, about 40 ms cold). It
-catches a change that makes a fight cost many times more, and leaves smaller
-slowdowns to `npm run bench`, which exits with status 1 when the median is not
-under 50 ms.
+The 50 ms target is for a development machine, and must not be read as a CI
+guarantee. Measured on our own box (8 vCPU Xeon, Node 20): about 22 ms warm and
+about 40 ms cold. Measured on the GitHub Actions runner (Ubuntu 24.04, Node
+22.23.3), from the CI logs of PR #87: about 60 to 65 ms per 5-minute fight (the
+five fights of the timing test took 308 and 328 ms in two runs). The runner is
+about three times slower than our box and over the target, so no test asserts
+the 50 ms figure.
+
+`npm run bench` compares the median with `TARGET_MS` (50) and exits with status
+1 when it is not under it. `--target-ms N` compares with `N` instead, so a
+test can check the report and the exit status without depending on the speed
+of the machine it runs on: a target of 0 always fails, and a target of a
+million always passes. `test/bench.test.js` also drives the exit status with a
+fake benchmark, including a 65 ms median against the real 50 ms default.
+
+`test/bench.test.js` has one test that runs real fights and asserts a time: the
+CI bound. It takes the median of 5 runs and asserts it is under `CI_BOUND_MS`,
+which is 10 times the target (500 ms), about 8 times the runner's measured 60 to
+65 ms. The bound is loose on purpose. A timing test on shared CI hardware must
+not fail because the runner is slow or one run was stalled, so it uses a median,
+not the slowest run, and a multiple of the target well above what any machine
+we have measured needs. It catches a change that makes a fight cost many times
+more, and leaves smaller slowdowns to `npm run bench`.
 
 Timer reads (`performance.now()`) live only in `scripts/bench.mjs` and
 `test/bench.test.js`. Lint rejects `performance` and `Date` in every engine
