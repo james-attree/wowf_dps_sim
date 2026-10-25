@@ -2,9 +2,11 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runFight } from "../js/fight.js";
+import { runScriptedFight } from "./scripted-fight.mjs";
 
-// Golden-seed regression fixtures (#77). Each case pins the full result of
-// runFight({ seed, duration }) in a readable JSON file under test/golden/.
+// Golden-seed regression fixtures (#77, #85). Each case pins the full result of
+// runFight({ seed, duration }), or of a scripted-cast fight (see
+// scripts/scripted-fight.mjs), in a readable JSON file under test/golden/.
 // test/golden.test.js compares a fresh run with those files and never writes
 // them. This script is the only thing that does, and it writes nothing unless
 // it is given --write. See "Golden-seed tests" in docs/mechanics.md.
@@ -13,13 +15,54 @@ export const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 export const GOLDEN_DIR = resolve(ROOT, "test", "golden");
 export const UPDATE_COMMAND = "npm run golden:update -- --write";
 
-// One short fight, one 5-minute fight, and one more seed. Keep this list
-// short: every case is a file to review whenever results move on purpose.
+// A scripted case (#85) casts these Rogue.abilities in this order, each as soon
+// as it can be cast, instead of following the placeholder rotation, which never
+// casts Eviscerate or Rupture. Hemorrhage goes last before Rupture so its
+// debuff is up for every Rupture tick. Five builders at 5 combo points feed
+// Eviscerate. The seed was chosen so that the fight has Rupture ticks, tick
+// crits, and an Eviscerate crit; test/golden.test.js checks that it keeps them.
+export const FINISHER_SCRIPT = [
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "hemorrhage",
+  "rupture",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "eviscerate",
+];
+
+// One short fight, one 5-minute fight, one more seed, and one scripted fight.
+// Keep this list short: every case is a file to review whenever results move
+// on purpose. A case with a script runs it (scripts/scripted-fight.mjs) instead
+// of the placeholder rotation; any other case is plain runFight.
 export const GOLDEN_CASES = [
   { name: "short-seed-1-10s", seed: 1, duration: 10 },
   { name: "five-minute-seed-1-300s", seed: 1, duration: 300 },
   { name: "other-seed-12345-90s", seed: 12345, duration: 90 },
+  {
+    name: "scripted-finishers-seed-68-50s",
+    seed: 68,
+    duration: 50,
+    script: FINISHER_SCRIPT,
+  },
 ];
+
+// Files that can turn up in test/golden/ without being a stray case: macOS
+// writes .DS_Store into any folder Finder opens. They are not fixtures.
+export const IGNORED_FILES = [".DS_Store"];
+
+// The fight a case pins: runFight, or the case's script on the real engine.
+export function runGoldenCase(goldenCase) {
+  const { seed, duration, script } = goldenCase;
+  return script === undefined
+    ? runFight({ seed, duration })
+    : runScriptedFight({ seed, duration, script });
+}
 
 // How many changed fields a failure message lists before it says "and N more".
 export const MAX_LISTED_CHANGES = 20;
@@ -116,10 +159,15 @@ function show(value) {
   return value === undefined ? "(missing)" : leaf(value);
 }
 
+// "seed 1, 10s", or "seed 68, 50s, scripted casts" for a case with a script.
+function describeCase({ seed, duration, script }) {
+  return `seed ${seed}, ${duration}s${script === undefined ? "" : ", scripted casts"}`;
+}
+
 // The text a failing golden test prints: which fields changed, then how and
 // when to regenerate.
 export function formatMismatch(goldenCase, changes) {
-  const { name, seed, duration } = goldenCase;
+  const { name } = goldenCase;
   const listed = changes
     .slice(0, MAX_LISTED_CHANGES)
     .map(
@@ -130,7 +178,7 @@ export function formatMismatch(goldenCase, changes) {
     listed.push(`  ... and ${changes.length - MAX_LISTED_CHANGES} more`);
   }
   return [
-    `Golden fight "${name}" (seed ${seed}, ${duration}s) no longer matches test/golden/${name}.json.`,
+    `Golden fight "${name}" (${describeCase(goldenCase)}) no longer matches test/golden/${name}.json.`,
     `${changes.length} field${changes.length === 1 ? "" : "s"} changed (fixture -> now):`,
     ...listed,
     "",
@@ -142,9 +190,9 @@ export function formatMismatch(goldenCase, changes) {
 }
 
 export function formatMissing(goldenCase) {
-  const { name, seed, duration } = goldenCase;
+  const { name } = goldenCase;
   return [
-    `Golden fight "${name}" (seed ${seed}, ${duration}s) has no fixture at test/golden/${name}.json.`,
+    `Golden fight "${name}" (${describeCase(goldenCase)}) has no fixture at test/golden/${name}.json.`,
     `If this case is new, create the file with \`${UPDATE_COMMAND}\`, review it, and commit it.`,
     "If the file was deleted or renamed by accident, restore it from git instead.",
   ].join("\n");
@@ -170,10 +218,7 @@ export async function updateGolden({
 } = {}) {
   const outcomes = [];
   for (const goldenCase of cases) {
-    const result = runFight({
-      seed: goldenCase.seed,
-      duration: goldenCase.duration,
-    });
+    const result = runGoldenCase(goldenCase);
     const path = goldenPath(goldenCase.name, dir);
     const fixture = await readFixture(path);
     const changes = fixture === undefined ? [] : diffResults(fixture, result);
@@ -199,7 +244,10 @@ export async function updateGolden({
       written: write && status !== "unchanged",
     });
   }
-  const known = new Set(cases.map((goldenCase) => `${goldenCase.name}.json`));
+  const known = new Set([
+    ...cases.map((goldenCase) => `${goldenCase.name}.json`),
+    ...IGNORED_FILES,
+  ]);
   let stray = [];
   try {
     stray = (await readdir(dir)).filter((file) => !known.has(file)).sort();
@@ -238,7 +286,7 @@ export function formatReport({ outcomes, stray, write }) {
   }
   for (const file of stray) {
     lines.push(
-      `Warning: test/golden/${file} is not a golden case. Delete it by hand, or add the case to GOLDEN_CASES.`,
+      `Warning: test/golden/${file} is not a golden case. Delete the file, or add its case to GOLDEN_CASES.`,
     );
   }
   const pending = outcomes.filter((outcome) => outcome.status !== "unchanged");

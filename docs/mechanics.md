@@ -718,11 +718,32 @@ The attack table never gives a parry yet, so `parries` stays `0`.
 A golden test pins the whole result of a fixed fight, so a change to a rule, a
 constant, or the engine shows up in review as a diff of numbers. The cases are
 listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
-10 s), a 5-minute fight (seed 1, 300 s), and another seed (12345, 90 s). Each
+10 s), a 5-minute fight (seed 1, 300 s), another seed (12345, 90 s), and a
+scripted-cast fight (seed 68, 50 s, described below). Each
 has a fixture in `test/golden/<name>.json` holding the complete `runFight`
 result: `seed`, `duration`, `totalDamage`, `dps`, every ability's record, and
 the capped log. The files put one ability and one log event on each line, so a
 git diff points at the line that moved.
+
+The placeholder rotation never casts Eviscerate or Rupture (see
+`rotation.priority`), so the first three cases cannot pin finisher damage, DoT
+ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
+`script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
+energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT` is Sinister Strike
+four times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
+Hemorrhage comes just before Rupture, so the fixture has Rupture ticks with
+the Hemorrhage bonus and, after the debuff runs out, without it.
+`scripts/scripted-fight.mjs` runs it on the real `runFight`: it swaps
+`Rogue.prototype.rotation` for the one call so the script casts first, then
+the rogue's own rotation runs with its skill casts switched off, so only the
+weapon swings and the haste buffs are left. Nothing under `js/` changes, and a
+script that has not finished by the end of the fight throws. The fixture has
+8 Rupture ticks (2 of them crits) and an Eviscerate crit.
+
+No golden case contains a parry. The attack table gives a parry chance of 0
+until the front/behind split (A7), so a parry cannot happen. `parries` is
+pinned at 0 in every fixture, and a test checks the attack table. When parry
+becomes possible, add a case that has one.
 
 `npm test` runs `test/golden.test.js`, which runs each case and compares it
 with its fixture, field by field and exactly. It only reads the fixtures. When
@@ -750,6 +771,10 @@ npm run golden:update -- --write # rewrites the fixtures that differ
 Then read the fixture diff in git before committing it. `npm test`, `npm run
 lint`, and `npm run provenance` never write a fixture. To add a case, add it to
 `GOLDEN_CASES` and run the script with `--write`; to remove one, delete its
-entry and its file. A fixture file with no matching case fails the tests.
+entry and its file. A fixture file with no matching case fails the tests, and
+the message says to delete the file or add the case. `.DS_Store` is the one
+file the check ignores. To change the scripted case, edit `FINISHER_SCRIPT` or
+the seed in `scripts/golden-update.mjs`, then regenerate. Keep a seed that
+still has tick crits: `test/golden.test.js` checks for them.
 `.prettierignore` lists `test/golden/`, because Prettier would reflow the
 one-line rows.
