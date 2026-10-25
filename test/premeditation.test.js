@@ -4,6 +4,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 const FRAME_RATES = [30, 144];
 
@@ -20,7 +21,7 @@ function harness({ hit = true } = {}) {
   rogue.bonusHitChance = hit ? 1 : 0;
   rogue.critChance = 0;
   rogue.rotation = () => {};
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
@@ -164,7 +165,7 @@ describe("Premeditation combo point expiry", () => {
   });
 
   it("keeps the points when a later cast adds a combo point", () => {
-    mock.method(Math, "random", () => 0.99);
+    setRoll(0.99);
     for (const fps of FRAME_RATES) {
       const { rogue, sim } = harness();
       rogue.abilities.premeditation.cast(rogue, sim);
@@ -181,7 +182,7 @@ describe("Premeditation combo point expiry", () => {
   });
 
   it("keeps later combo points when a finisher spends the Premeditation points", () => {
-    mock.method(Math, "random", () => 0.99);
+    setRoll(0.99);
     for (const fps of FRAME_RATES) {
       const { rogue, sim } = harness();
       rogue.abilities.premeditation.cast(rogue, sim);
@@ -198,7 +199,7 @@ describe("Premeditation combo point expiry", () => {
   });
 
   it("still expires the points when the following cast misses", () => {
-    mock.method(Math, "random", () => 0);
+    setRoll(0);
     for (const fps of FRAME_RATES) {
       const { rogue, sim } = harness({ hit: false });
       const granted = k("premeditation").comboPoints;
@@ -267,7 +268,7 @@ describe("Premeditation combo point expiry", () => {
   });
 
   it("does not treat a capped generator as adding to the Premeditation points", () => {
-    mock.method(Math, "random", () => 0.99);
+    setRoll(0.99);
     const { rogue, sim } = harness();
     rogue.comboPoints = k("combo.max") - 1;
     rogue.abilities.premeditation.cast(rogue, sim);

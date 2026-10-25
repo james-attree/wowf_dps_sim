@@ -11,6 +11,21 @@ when its source is not `wowf-export` and its `retune` flag is on. Talent
 ranks in the vendored snapshot are not applied. The behaviour below is what
 the current modules do.
 
+## Random numbers
+
+Every random draw in the engine comes from one rng that the `Simulation`
+owns. `js/rng.js` builds it with `createRng(seed)`, a mulberry32 generator
+(`k("rng.mulberry32")`, `engineering`, retune off) that returns a number in
+[0, 1) and gives the same sequence for the same seed on every Node version.
+`new Simulation(rogue, { seed })` seeds it, and `k("rng.defaultSeed")`
+(`engineering`, retune off) is the seed when none is passed. A caller may
+pass `{ rng }` instead to script the draws. The simulation hands the same
+function to its rogue, so the weapon die, Eviscerate's damage roll, the
+attack roll, and each DoT tick's crit roll all draw from it. Nothing under
+`js/` except `js/main.js` uses a platform random source. The live page picks
+a random seed at load and keeps it in `simulation.seed`. A `Rogue` that no
+`Simulation` has adopted has no rng, and a draw throws.
+
 ## Attack table
 
 `resolveAttack` in `js/attack-resolver.js` resolves white swings and special
@@ -21,8 +36,9 @@ glancing blow cannot crit. `k("table.yellow")` (same source, on the retune
 list) records two rolls for specials. The note says that shape is not
 applied: a yellow attack still uses this single roll and does not glance.
 
-The live roll is `Math.random()` times `k("attack.rollScale")`
-(`engineering`, retune off). Callers may inject a roll on that scale. The
+The live roll is one draw from the simulation's rng (see Random numbers)
+times `k("attack.rollScale")` (`engineering`, retune off). Callers may
+inject a roll on that scale, and then no draw is made. The
 function walks the bands in order, adding each chance times the scale, and
 takes the first band whose running threshold is strictly above the roll. A
 roll that lands on a threshold falls through to the next band. Whatever is
@@ -513,7 +529,7 @@ one interval. For each tick still inside the dot's remaining time:
    armor.
 3. If `k("dot.canCrit")` is set and `rollCrit` succeeds, multiply by
    `k("dot.critMultiplier")` and mark the tick a crit. `rollCrit` is a
-   separate `Math.random()` check against `Rogue.getCritChance()`, not
+   separate draw from the simulation's rng, checked against `Rogue.getCritChance()`, not
    another attack-table roll. A tick does not miss, dodge, or glance.
    `k("dot.canCrit")` is `wowf-designer` and is not on the retune list. Its
    ref says all DoTs, bleeds included, can crit in WoW Forever. Its note

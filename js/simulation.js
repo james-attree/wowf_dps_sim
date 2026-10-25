@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { resolveAttack, rollCrit } from "./attack-resolver.js";
+import { createRng, normalizeSeed } from "./rng.js";
 
 // Auras already running lose this frame. One applied during rotation is not
 // in the map yet, so it keeps the duration it was given.
@@ -51,8 +52,14 @@ function applyArmor(damage, skipArmor) {
 }
 
 export class Simulation {
-  constructor(rogue) {
+  // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
+  // rng function (returns [0, 1)) to script the rolls. Without either it uses
+  // rng.defaultSeed. The rogue draws from the same rng.
+  constructor(rogue, { seed = k("rng.defaultSeed"), rng } = {}) {
     this.rogue = rogue;
+    this.seed = normalizeSeed(seed);
+    this.rng = rng ?? createRng(this.seed);
+    rogue.rng = this.rng;
     this.currentTime = 0;
     this.damageDone = 0;
     this.gcd = 0; // Global Cooldown
@@ -115,7 +122,10 @@ export class Simulation {
 
         let dotHitCrit = "Hit";
         // roll crit for each tick
-        if (k("dot.canCrit") && rollCrit(this.rogue.getCritChance())) {
+        if (
+          k("dot.canCrit") &&
+          rollCrit(this.rogue.getCritChance(), this.rng)
+        ) {
           dotTickDamage *= k("dot.critMultiplier");
           dotHitCrit = "Crit";
         }
@@ -164,6 +174,7 @@ export class Simulation {
       baseDamage,
       bonusHitChance: this.rogue.getBonusHitChance(),
       critChance: this.rogue.getCritChance(),
+      rng: this.rng,
     });
     const damage = applyArmor(result.damage, false);
     if (result.landed && damage > 0) {
@@ -195,6 +206,7 @@ export class Simulation {
       // The application roll does not crit. Ticks read getCritChance().
       // tickDamage stays before armor; the tick loop applies it.
       critChance: 0,
+      rng: this.rng,
     });
     const tickInterval = k("rupture.tickInterval");
     const tickCount = Math.floor(duration / tickInterval);

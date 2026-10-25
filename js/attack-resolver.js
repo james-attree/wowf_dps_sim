@@ -22,12 +22,22 @@ const OUTCOME_LABELS = {
   hit: "Hit",
 };
 
+// The roll is the simulation's rng times attack.rollScale. A caller that
+// injects a roll does not need an rng, and no draw is made.
+function drawRoll(rng) {
+  if (typeof rng !== "function") {
+    throw new TypeError("resolveAttack needs an rng function or a roll.");
+  }
+  return rng() * ROLL_SCALE;
+}
+
 export function resolveAttack({
   attackType,
   baseDamage,
   bonusHitChance,
   critChance,
-  roll = Math.random() * ROLL_SCALE,
+  rng,
+  roll = drawRoll(rng),
 }) {
   if (!Object.hasOwn(BASE_MISS_CHANCE, attackType)) {
     throw new RangeError(`Unsupported attack type: ${attackType}`);
@@ -93,6 +103,10 @@ function clampChance(chance, name) {
   return Math.min(1, Math.max(0, chance));
 }
 
-export function rollCrit(critChance) {
-  return Math.random() < clampChance(critChance, "Critical chance");
+export function rollCrit(critChance, rng) {
+  const chance = clampChance(critChance, "Critical chance");
+  if (typeof rng !== "function") {
+    throw new TypeError("rollCrit needs an rng function.");
+  }
+  return rng() < chance;
 }

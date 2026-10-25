@@ -4,6 +4,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 // Issue #19. 30 fps and 144 fps are the two rates the swing-timer fight uses.
 const FRAME_RATES = [30, 144];
@@ -21,7 +22,7 @@ function near(actual, expected) {
 function harness() {
   const rogue = new Rogue();
   rogue.rotation = () => {};
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
@@ -181,13 +182,13 @@ describe("Adrenaline Rush cooldown", () => {
   });
 
   it("does not recast in a sample fight before 300s, at 30 and 144 fps", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const cooldown = k("adrenalineRush").cooldown;
     const fights = {};
 
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
-      const sim = new Simulation(rogue);
+      const sim = new Simulation(rogue, { rng: testRng });
       sim.lastFrameTime = 0;
       assert.equal(sim.currentTime, 0);
       const casts = watchCasts(sim);

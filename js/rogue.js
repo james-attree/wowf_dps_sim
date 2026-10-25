@@ -26,6 +26,8 @@ export class Rogue {
     // Combo points expiry will remove, and the time left before that.
     this.premeditationCp = 0;
     this.premeditationCpRemaining = 0;
+    // The Simulation that owns this rogue sets rng. Until then a draw throws.
+    this.rng = null;
     this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // normalizedSpeed.dagger for instant-attack AP
 
     this.abilities = {
@@ -67,6 +69,17 @@ export class Rogue {
       offHand.type ?? null,
     );
     this.weapons.offHand.swingTimer = offHand.initialSwing;
+  }
+
+  // Every random draw (weapon die, Eviscerate, and the rolls the Simulation
+  // makes) goes through the one rng the Simulation owns.
+  random() {
+    if (typeof this.rng !== "function") {
+      throw new Error(
+        "Rogue has no rng. Create a Simulation for it, or set rogue.rng.",
+      );
+    }
+    return this.rng();
   }
 
   regenerateEnergy(dt, rate) {

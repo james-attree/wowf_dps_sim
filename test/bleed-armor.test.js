@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 const TICK_DAMAGE = 100;
 // 0.9 * attack.rollScale lands in the hit band for a white swing and a yellow
@@ -48,7 +49,7 @@ function tickDot(name, { hemorrhage = false, bleed = false, critChance } = {}) {
   if (critChance !== undefined) {
     rogue.critChance = critChance;
   }
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   const tickInterval = k("rupture.tickInterval");
   const dot = {
     duration: tickInterval,
@@ -73,11 +74,11 @@ function tickDot(name, { hemorrhage = false, bleed = false, critChance } = {}) {
 }
 
 function directHit(name, attackType) {
-  mock.method(Math, "random", () => HIT_ROLL);
+  setRoll(HIT_ROLL);
   const rogue = new Rogue();
   rogue.rotation = () => {};
   rogue.critChance = 0;
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   const result = sim.resolveAttack(name, attackType, TICK_DAMAGE);
   return { result, sim };
 }
@@ -88,7 +89,7 @@ describe("DoT crit multiplier", () => {
   });
 
   it("crits Rupture, Garrote, and Deadly Poison ticks from dot.critMultiplier", () => {
-    mock.method(Math, "random", () => 0);
+    setRoll(0);
     const multiplier = k("dot.critMultiplier");
     const factor = expectedMultiplier();
     assert.ok(factor < 1);
@@ -130,7 +131,7 @@ describe("bleed ticks and armor", () => {
   });
 
   it("does not reduce bleed or Deadly Poison ticks, and does reduce physical hits", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const factor = expectedMultiplier();
     assert.ok(factor < 1);
     const bonus = 1 + k("hemorrhage.ruptureBonus").bonus;
@@ -197,7 +198,7 @@ describe("bleed ticks and armor", () => {
   });
 
   it("reads bleed.ignoresArmor, bleed.spells, target armor, and attacker level", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const factor = expectedMultiplier();
 
     const armoredBleed = withConstant("bleed.ignoresArmor", false, () =>
@@ -252,7 +253,7 @@ describe("bleed ticks and armor", () => {
   });
 
   it("keeps a cast Rupture tick at its pre-armor snapshot", () => {
-    mock.method(Math, "random", () => HIT_ROLL);
+    setRoll(HIT_ROLL);
     const rogue = new Rogue();
     rogue.rotation = () => {};
     rogue.critChance = 0;
@@ -262,7 +263,7 @@ describe("bleed ticks and armor", () => {
     const ticks = Math.floor(
       rogue.abilities.rupture.duration / k("rupture.tickInterval"),
     );
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
     sim.gcd = 0;
     sim.lastFrameTime = 0;
     const cast = rogue.abilities.rupture.cast(rogue, sim);

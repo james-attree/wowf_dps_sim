@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 const FRAME_RATES = [30, 144];
 const OMITTED = ["Ghostly Strike", "Premeditation", "Hemorrhage", "Rupture"];
@@ -10,7 +11,7 @@ const FIGHT_SECONDS = 60;
 
 function pinned() {
   const rogue = new Rogue();
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   rogue.weapons.mainHand.swingTimer = rogue.weapons.mainHand.speed;
@@ -49,7 +50,7 @@ describe("placeholder Combat rotation", () => {
   });
 
   it("casts Blade Flurry before Adrenaline Rush, a finisher, and Sinister Strike", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const { rogue, sim } = pinned();
     rogue.comboPoints = k("rotation.finisherComboPoints");
     atZero(sim);
@@ -69,7 +70,7 @@ describe("placeholder Combat rotation", () => {
   });
 
   it("casts Adrenaline Rush on cooldown once Blade Flurry is down, at full energy", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const priority = k("rotation.priority");
     const resting = pinned();
     hold(resting.sim, resting.rogue, [priority.onCooldown[0]]);
@@ -105,7 +106,7 @@ describe("placeholder Combat rotation", () => {
   });
 
   it("casts Slice and Dice at the finisher combo points when the buff is missing", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     assert.equal(k("rotation.finisherComboPoints"), 5);
     const { rogue, sim } = pinned();
     hold(sim, rogue, k("rotation.priority").onCooldown);
@@ -123,7 +124,7 @@ describe("placeholder Combat rotation", () => {
   });
 
   it("refreshes Slice and Dice at the 10s boundary and below it", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const refresh = k("rotation.sliceAndDiceRefreshSeconds");
     assert.equal(refresh, 10);
     const refreshed = k("sliceAndDice").durationByCp.at(-1);
@@ -146,7 +147,7 @@ describe("placeholder Combat rotation", () => {
   });
 
   it("eviscerates when Slice and Dice has more than 10s left", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const refresh = k("rotation.sliceAndDiceRefreshSeconds");
     const above = [
       refresh + k("sim.tickEpsilon"),
@@ -175,7 +176,7 @@ describe("placeholder Combat rotation", () => {
   });
 
   it("casts Sinister Strike below the finisher combo points", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const threshold = k("rotation.finisherComboPoints");
     assert.equal(threshold, 5);
 
@@ -199,12 +200,12 @@ describe("placeholder Combat rotation", () => {
   });
 
   it("does not cast Ghostly Strike, Premeditation, Hemorrhage, or Rupture", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const fights = {};
 
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
-      const sim = new Simulation(rogue);
+      const sim = new Simulation(rogue, { rng: testRng });
       sim.lastFrameTime = 0;
       assert.equal(sim.currentTime, 0);
       const counts = {};
