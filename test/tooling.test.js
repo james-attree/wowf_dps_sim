@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 
 describe("dev package", () => {
-  it("exposes serve, test, lint, provenance, and data:refresh with no runtime dependencies", async () => {
+  it("exposes serve, test, lint, provenance, data:refresh, and golden:update with no runtime dependencies", async () => {
     const pkg = JSON.parse(
       await readFile(resolve(root, "package.json"), "utf8"),
     );
@@ -23,6 +23,14 @@ describe("dev package", () => {
     );
     assert.equal(pkg.scripts.provenance, "node scripts/provenance.mjs");
     assert.equal(pkg.scripts["data:refresh"], "node scripts/refresh-data.mjs");
+    // Not part of test, lint, or provenance: fixtures change only on purpose.
+    assert.equal(
+      pkg.scripts["golden:update"],
+      "node scripts/golden-update.mjs",
+    );
+    for (const name of ["test", "lint", "provenance"]) {
+      assert.doesNotMatch(pkg.scripts[name], /golden/);
+    }
     // @eslint/js ships the recommended config; ESLint 10 does not bundle it.
     assert.deepEqual(Object.keys(pkg.devDependencies).sort(), [
       "@eslint/js",

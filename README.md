@@ -51,13 +51,14 @@ do not import ES modules from `file://`.
 `npm ci` installs the dev dependencies (`eslint`, `@eslint/js`, and
 `prettier`). The package has no runtime dependencies.
 
-| Script                 | Runs                                                   |
-| ---------------------- | ------------------------------------------------------ |
-| `npm test`             | `node --test` (everything in `test/`)                  |
-| `npm run lint`         | `eslint . --max-warnings 0`, then `prettier --check .` |
-| `npm run provenance`   | `node scripts/provenance.mjs`                          |
-| `npm run data:refresh` | `node scripts/refresh-data.mjs`                        |
-| `npm run serve`        | `node scripts/serve.mjs`                               |
+| Script                  | Runs                                                   |
+| ----------------------- | ------------------------------------------------------ |
+| `npm test`              | `node --test` (everything in `test/`)                  |
+| `npm run lint`          | `eslint . --max-warnings 0`, then `prettier --check .` |
+| `npm run provenance`    | `node scripts/provenance.mjs`                          |
+| `npm run data:refresh`  | `node scripts/refresh-data.mjs`                        |
+| `npm run golden:update` | `node scripts/golden-update.mjs`                       |
+| `npm run serve`         | `node scripts/serve.mjs`                               |
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on `push` and
 `pull_request`, on `ubuntu-latest`, with Node 22. The job checks out the repo,
@@ -124,6 +125,25 @@ refs are rejected, and `:`, `/`, `\`, `|`, `_`, and dashes split words.
 every constant whose source is not `wowf-export` and whose `retune` flag is
 on.
 
+## Golden-seed tests
+
+`test/golden.test.js` pins the full `runFight` result for a few fixed seeds and
+durations (a short fight, a 5-minute fight, and another seed) in
+`test/golden/*.json`. A change to a rule, a constant, or the engine that moves
+those numbers fails the test, and the message lists the fields that changed.
+
+Regenerate the fixtures only when a change is meant to move results, in the
+same pull request, and say why in the description. A refactor or a speed-up
+must leave them alone; if they fail, the change is wrong.
+
+```sh
+npm run golden:update            # dry run: lists changed fields, writes nothing
+npm run golden:update -- --write # rewrites the fixtures that differ
+```
+
+`npm test` never rewrites a fixture. Review the diff in git before you commit
+it. [Golden-seed tests](docs/mechanics.md#golden-seed-tests) has the rules.
+
 ## Module map
 
 - `index.html` — Simulator page (damage, energy, combo points, the GCD,
@@ -175,7 +195,7 @@ on.
 - `docs/mechanics.md` — Attack table, weapons, the GCD, energy, combo points,
   the placeholder Combat rotation, finishers, Premeditation, Adrenaline Rush,
   Blade Flurry, Slice and Dice, haste stacking, armor, bleeds and DoTs, the
-  simulation clock, and the headless fight. Formulas name constant ids. See
+  simulation clock, the headless fight, and the golden-seed tests. Formulas name constant ids. See
   [Mechanics](docs/mechanics.md).
 - `docs/roadmap.md` — Phased plan, theme legend, and the Phase 0 issue
   snapshot. See [Roadmap](docs/roadmap.md).
@@ -185,6 +205,9 @@ on.
   `PORT` is set.
 - `scripts/provenance.mjs` — Checks `data/constants.js` and rewrites
   `docs/provenance.md`.
+- `scripts/golden-update.mjs` — Lists the golden cases (`GOLDEN_CASES`), runs
+  them, and compares each with its fixture in `test/golden/`. Dry run by
+  default; `--write` rewrites the fixtures that differ. See Golden-seed tests.
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a
   review diff.
@@ -211,6 +234,11 @@ on.
 - `test/gcd-epsilon.test.js` — GCD readiness within `sim.tickEpsilon`.
 - `test/gcd-flags.test.js` — Which abilities start the GCD.
 - `test/gcd-meter.test.js` — The GCD meter's ARIA range.
+- `test/golden.test.js` — The golden-seed tests: each case against its fixture,
+  the failure message, and the update script's dry run and `--write`.
+- `test/golden/` — The pinned `runFight` results, one JSON file per golden
+  case. Written only by `npm run golden:update -- --write`. Prettier skips the
+  directory.
 - `test/pages.test.js` — The data-credit footer and the Pages workflow.
 - `test/premeditation.test.js` — Premeditation combo points and expiry.
 - `test/provenance.test.js` — The provenance check, the CLI, and the generated
@@ -221,7 +249,8 @@ on.
   and Dice refresh boundary.
 - `test/run-fight.test.js` — `runFight`: the result shape, the per-ability
   breakdown, the capped log, determinism, different seeds, a 5-minute fight, and
-  a run in Node with the browser globals poisoned.
+  a run in Node with the browser globals poisoned, and rejected inputs
+  (including `runFight()` and `runFight(null)`).
 - `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
 - `test/serve.test.js` — The static server's port and path checks.
 - `test/simulation.test.js` — The clock, buff duration, Adrenaline Rush

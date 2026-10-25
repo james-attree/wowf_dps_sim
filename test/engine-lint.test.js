@@ -304,13 +304,14 @@ describe("literal suppressions", () => {
 });
 
 describe("prettier coverage", () => {
-  it("formats simulator sources and still skips binary icons", async () => {
+  it("formats simulator sources and skips only binary icons and golden fixtures", async () => {
     const ignore = await readFile(resolve(root, ".prettierignore"), "utf8");
     const entries = ignore
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line && !line.startsWith("#"));
-    assert.deepEqual(entries, ["img"]);
+    // test/golden/ holds the generated one-row-per-line fixtures (#77).
+    assert.deepEqual(entries, ["img", "test/golden/"]);
 
     const result = await run(prettierBin, ["--check", "."]);
     assert.equal(result.code, 0, result.stdout + result.stderr);
