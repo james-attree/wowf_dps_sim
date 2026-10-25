@@ -11,8 +11,9 @@ without his go-ahead.
 
 Formulas are in [docs/mechanics.md](mechanics.md). Constants, sources, and
 the retune list are in [docs/provenance.md](provenance.md). This roadmap
-does not copy them. Finisher priority is deferred to Phase 1's rotation
-builder. Later-phase task ids get GitHub issues when that phase starts.
+does not copy them. Finisher priority is deferred to the rotation work (Phase 3,
+rotation as data, and Phase 4, the builder). Later-phase task ids get GitHub
+issues when that phase starts.
 
 ## Phases
 
@@ -37,10 +38,46 @@ builder. Later-phase task ids get GitHub issues when that phase starts.
 - U — UI
 - H — history and persistence
 
+## Phase 1 status
+
+Every Phase 1 issue is merged, and this docs issue (#78) is the last. James has
+not signed the phase off yet, and the next phase does not start without that.
+This is a snapshot as of 2026-10-25. GitHub is the source of truth. This list
+will go stale.
+
+Exit criterion: a seeded 5-minute fight runs in Node in under 50 ms, and live
+mode is a view of it.
+
+- A seeded 5-minute fight (`runFight({ seed: 1, duration: 300 })`) takes about
+  22 ms warm and about 40 ms cold on our box (8 vCPU Xeon, Node 20), measured
+  with `npm run bench`. That meets the target there. The GitHub Actions runner
+  (Node 22) took about 60 to 65 ms per fight, over the target. The 50 ms figure
+  is a development-machine target, not a CI guarantee, and no test asserts it.
+  See [Benchmark](mechanics.md#benchmark).
+- Live mode is a view of the engine. `js/main.js` builds the fight with
+  `createFight`, steps it in whole steps of `sim.fixedStep`, and shows the seed.
+  See [Live page](mechanics.md#live-page).
+
+Issues:
+
+- [#70](https://github.com/james-attree/wowf_dps_sim/issues/70) — docs: refresh the Phase 0 status list in docs/roadmap.md — closed (PR #79)
+- [#71](https://github.com/james-attree/wowf_dps_sim/issues/71) — [P1-1] Seeded random number generator, injected wherever Math.random is used — closed (PR #80)
+- [#72](https://github.com/james-attree/wowf_dps_sim/issues/72) — [P1-2] Remove wall-clock time from the engine: update takes a time step — closed (PR #81)
+- [#73](https://github.com/james-attree/wowf_dps_sim/issues/73) — [P1-3] Fixed-step clock that runs a fight for a set duration — closed (PR #82)
+- [#74](https://github.com/james-attree/wowf_dps_sim/issues/74) — [P1-4] Headless runFight({ seed, duration }) that works in Node with no DOM — closed (PR #83)
+- [#75](https://github.com/james-attree/wowf_dps_sim/issues/75) — [P1-5] Benchmark and test: a seeded 5-minute fight runs in under 50 ms — closed (PR #87)
+- [#76](https://github.com/james-attree/wowf_dps_sim/issues/76) — [P1-6] Live mode becomes a view of the engine — closed (PR #88)
+- [#77](https://github.com/james-attree/wowf_dps_sim/issues/77) — [P1-7] Golden-seed regression tests — closed (PR #84)
+- [#85](https://github.com/james-attree/wowf_dps_sim/issues/85) — [P1-7b] Golden-seed fixture that exercises Eviscerate, Rupture, DoT ticks and parry paths — closed (PR #86). The fixture covers Eviscerate, Rupture, DoT ticks and tick crits. It has no parry, because the attack table gives a parry chance of 0 until the front/behind split (A7).
+- [#78](https://github.com/james-attree/wowf_dps_sim/issues/78) — [P1-8] Docs: simulation clock, headless runner, and roadmap status for Phase 1 — closed when this change merges
+
+Known limits are in [Known limits of Phase 1](mechanics.md#known-limits-of-phase-1).
+
 ## Phase 0 status
 
-Phase 0 is complete: every issue with the `phase-0` label is closed. Phase 1
-is in progress. This is a snapshot of the Phase 0 issues as of 2026-10-25. GitHub is the source of truth. This list will go stale.
+Phase 0 is complete: every issue with the `phase-0` label is closed. This is a
+snapshot of the Phase 0 issues as of 2026-10-25. GitHub is the source of truth.
+This list will go stale.
 
 - [#1](https://github.com/james-attree/wowf_dps_sim/issues/1) — [F2] Add dev-only package.json with serve, test, lint and data:refresh scripts — closed
 - [#2](https://github.com/james-attree/wowf_dps_sim/issues/2) — [F3] Unit tests with node:test, starting with the attack resolver — closed

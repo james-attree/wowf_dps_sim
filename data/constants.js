@@ -829,7 +829,7 @@ export const CONSTANTS = {
     "s",
     ENGINEERING,
     `${LIVE_VIEW}: the most wall-clock time one animation frame may feed the fight, so a hidden tab or a long pause cannot run it forward by the time it missed`,
-    "Not a game rule. The live page takes at most 0.25 s of an animation frame (16 steps of sim.fixedStep) and drops the rest, so a frame that arrives seconds late, as the first frame after a backgrounded tab does, advances the fight by 0.25 s and no more. At 60 fps a frame is about one step, so the cap never acts in normal use; it only starts to slow the fight below 4 frames per second.",
+    "Not a game rule. The live page takes at most 0.25 s of an animation frame (sim.maxFrameTime / sim.fixedStep steps, 16 at these values) and drops the rest, so a frame that arrives seconds late, as the first frame after a backgrounded tab does, advances the fight by 0.25 s and no more. At 60 fps a frame is about one step, so the cap never acts in normal use; it only starts to slow the fight below 4 frames per second.",
     false,
   ),
   "sim.msPerSecond": entry(
