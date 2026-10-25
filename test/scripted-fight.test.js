@@ -106,6 +106,64 @@ describe("runScriptedFight", () => {
     assert.throws(() => runScriptedFight({ seed: 1, duration: 5 }), RangeError);
   });
 
+  it("throws a RangeError when called with no options or a non-object", () => {
+    const original = Rogue.prototype.rotation;
+    for (const options of [
+      undefined,
+      null,
+      "sinisterStrike",
+      42,
+      true,
+      Symbol("options"),
+    ]) {
+      assert.throws(() => runScriptedFight(options), {
+        name: "RangeError",
+        message: /needs an options object/,
+      });
+    }
+    assert.throws(() => runScriptedFight(), RangeError);
+    assert.throws(() => runScriptedFight(null), RangeError);
+    assert.equal(Rogue.prototype.rotation, original);
+  });
+
+  it("rejects inherited property names as ability names", () => {
+    const original = Rogue.prototype.rotation;
+    const inherited = [
+      "constructor",
+      "toString",
+      "hasOwnProperty",
+      "valueOf",
+      "__proto__",
+    ];
+    for (const name of inherited) {
+      assert.throws(
+        () => runScriptedFight({ seed: 1, duration: 5, script: [name] }),
+        {
+          name: "RangeError",
+          message: new RegExp(`"${name}", which is not a Rogue ability`),
+        },
+        name,
+      );
+      // Also when it comes after a real cast, not only as the first entry.
+      assert.throws(
+        () =>
+          runScriptedFight({ seed: 1, duration: 5, script: [BUILDER, name] }),
+        RangeError,
+        name,
+      );
+    }
+    assert.equal(Rogue.prototype.rotation, original);
+  });
+
+  it("rejects an entry that is not a string", () => {
+    for (const entry of [0, null, undefined, {}, Symbol("cast")]) {
+      assert.throws(
+        () => runScriptedFight({ seed: 1, duration: 5, script: [entry] }),
+        { name: "RangeError", message: /not a Rogue ability/ },
+      );
+    }
+  });
+
   it("puts the rotation back, even after a failure", () => {
     const original = Rogue.prototype.rotation;
     runScriptedFight({ seed: 1, duration: 5, script: [BUILDER] });

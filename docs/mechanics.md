@@ -778,3 +778,30 @@ the seed in `scripts/golden-update.mjs`, then regenerate. Keep a seed that
 still has tick crits: `test/golden.test.js` checks for them.
 `.prettierignore` lists `test/golden/`, because Prettier would reflow the
 one-line rows.
+
+## Benchmark
+
+The Phase 1 exit criterion is that a seeded 5-minute fight runs in Node in
+under 50 ms (`TARGET_MS` in `scripts/bench.mjs`). `npm run bench` measures it:
+it calls `runFight({ seed: 1, duration: 300 })` 20 times in one process, timing
+each call, and prints the median, the slowest run, the cold run, and the warm
+median. The cold run is the first call in a fresh process, while the engine is
+still being compiled and cached; it is the slowest and the one closest to the
+target. The warm median covers the runs after it. The seed and duration are
+fixed, so every run is the same fight and only the timing differs. The report
+names the Node version, because both it and the machine change the number.
+
+`test/bench.test.js` is the check that runs in CI. It takes the median of 5
+runs and asserts it is under `CI_BOUND_MS`, which is 10 times the target
+(500 ms). The bound is loose on purpose. A timing test on shared CI hardware
+must not fail because the runner is slow or one run was stalled, so it uses a
+median, not the slowest run, and a multiple of the target well above the median
+measured on a development machine (about 22 ms warm, about 40 ms cold). It
+catches a change that makes a fight cost many times more, and leaves smaller
+slowdowns to `npm run bench`, which exits with status 1 when the median is not
+under 50 ms.
+
+Timer reads (`performance.now()`) live only in `scripts/bench.mjs` and
+`test/bench.test.js`. Lint rejects `performance` and `Date` in every engine
+file, so no timing reaches `js/`. A speed-up to the engine must leave the golden
+fixtures unchanged (see Golden-seed tests).

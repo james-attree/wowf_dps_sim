@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 
 describe("dev package", () => {
-  it("exposes serve, test, lint, provenance, data:refresh, and golden:update with no runtime dependencies", async () => {
+  it("exposes serve, test, lint, provenance, data:refresh, golden:update, and bench with no runtime dependencies", async () => {
     const pkg = JSON.parse(
       await readFile(resolve(root, "package.json"), "utf8"),
     );
@@ -28,8 +28,11 @@ describe("dev package", () => {
       pkg.scripts["golden:update"],
       "node scripts/golden-update.mjs",
     );
+    // Timing is machine dependent, so it is not part of test, lint, or
+    // provenance either. test/bench.test.js has the CI check, with a loose bound.
+    assert.equal(pkg.scripts.bench, "node scripts/bench.mjs");
     for (const name of ["test", "lint", "provenance"]) {
-      assert.doesNotMatch(pkg.scripts[name], /golden/);
+      assert.doesNotMatch(pkg.scripts[name], /golden|bench/);
     }
     // @eslint/js ships the recommended config; ESLint 10 does not bundle it.
     assert.deepEqual(Object.keys(pkg.devDependencies).sort(), [

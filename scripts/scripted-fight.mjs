@@ -29,12 +29,15 @@ export function scriptedRotation(script, original = Rogue.prototype.rotation) {
     },
     rotation(simulation, dt) {
       while (queue.length > 0) {
-        const skill = this.abilities[queue[0]];
-        if (skill === undefined) {
+        // Own keys only: "constructor" and "toString" are on every object but
+        // are not abilities.
+        const name = queue[0];
+        if (typeof name !== "string" || !Object.hasOwn(this.abilities, name)) {
           throw new RangeError(
-            `Golden script names "${queue[0]}", which is not a Rogue ability. Use one of: ${Object.keys(this.abilities).join(", ")}.`,
+            `Golden script names "${String(name)}", which is not a Rogue ability. Use one of: ${Object.keys(this.abilities).join(", ")}.`,
           );
         }
+        const skill = this.abilities[name];
         // A cast that is not an attack returns null even when it happened, so
         // count casts in the ability record instead of reading the return.
         const before = simulation.abilityStats[skill.name]?.casts ?? 0;
@@ -61,7 +64,15 @@ export function scriptedRotation(script, original = Rogue.prototype.rotation) {
   return state;
 }
 
-export function runScriptedFight({ seed, duration, script }) {
+export function runScriptedFight(options) {
+  // null, undefined, and anything that is not an object have no seed, duration,
+  // or script to read, so they get a RangeError like a missing script.
+  if (options === null || typeof options !== "object") {
+    throw new RangeError(
+      "runScriptedFight needs an options object: { seed, duration, script }.",
+    );
+  }
+  const { seed, duration, script } = options;
   if (!Array.isArray(script) || script.length === 0) {
     throw new RangeError("runScriptedFight needs a non-empty script array.");
   }
