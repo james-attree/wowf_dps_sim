@@ -17,7 +17,15 @@ import { Simulation } from "./simulation.js";
 //   totalDamage, dps
 //   abilities  per-ability totals keyed by name (see Simulation.recordAbility)
 //   log        the combat log, newest first, at most k("log.maxEvents") rows
-export function runFight({ seed, duration } = {}) {
+export function runFight(options) {
+  // null, undefined, and anything that is not an object have no seed or
+  // duration to read, so they get the same RangeError as a bad seed.
+  if (options === null || typeof options !== "object") {
+    throw new RangeError(
+      "runFight needs an options object: { seed, duration }.",
+    );
+  }
+  const { seed, duration } = options;
   // A seed is required so no fight is repeatable by accident or random by
   // accident. normalizeSeed rejects anything that is not an integer.
   const fightSeed = normalizeSeed(seed);

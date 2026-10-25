@@ -665,10 +665,13 @@ global, and it reads no clock. The same `seed` and `duration` always give a
 deep-equal result.
 
 `seed` is required and must be an integer; it wraps to an unsigned 32-bit
-value as in Random numbers, and the result reports that wrapped value.
+value as in Random numbers, and the result reports that wrapped value. A seed
+of 2^32 or above wraps and aliases to a small seed (`2 ** 32 + 5` is seed `5`),
+so two such seeds can give the same fight.
 `duration` is in seconds and follows the rules of `run`: a negative, `NaN`, or
 infinite value throws a `RangeError`, and `0` is an empty fight. A missing or
-non-integer `seed` also throws a `RangeError`.
+non-integer `seed` also throws a `RangeError`, as does an argument that is
+not an object (`runFight()` and `runFight(null)`).
 
 The result has these fields:
 
@@ -709,3 +712,44 @@ of a skill that is not an attack. It records and changes no combat rule.
   damage over time).
 
 The attack table never gives a parry yet, so `parries` stays `0`.
+
+## Golden-seed tests
+
+A golden test pins the whole result of a fixed fight, so a change to a rule, a
+constant, or the engine shows up in review as a diff of numbers. The cases are
+listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
+10 s), a 5-minute fight (seed 1, 300 s), and another seed (12345, 90 s). Each
+has a fixture in `test/golden/<name>.json` holding the complete `runFight`
+result: `seed`, `duration`, `totalDamage`, `dps`, every ability's record, and
+the capped log. The files put one ability and one log event on each line, so a
+git diff points at the line that moved.
+
+`npm test` runs `test/golden.test.js`, which runs each case and compares it
+with its fixture, field by field and exactly. It only reads the fixtures. When
+a case fails, the message lists the fields that changed (for example
+`abilities.Sinister Strike.damage: 734.6 -> 801.2`) and says how to regenerate.
+
+When to update them:
+
+- A change meant to move results (a rule fix, a new ability in the rotation, a
+  retuned constant, a different `k("sim.fixedStep")`): regenerate the fixtures
+  in the same pull request, and say in the description what changed and why the
+  new numbers are right.
+- A change that must not move results (a refactor, a speed-up, a rename): the
+  golden tests are what proves that. If they fail, the change is wrong. Do not
+  regenerate.
+- Never regenerate just to make CI pass.
+
+How to update them, on purpose:
+
+```sh
+npm run golden:update            # dry run: lists the changed fields, writes nothing
+npm run golden:update -- --write # rewrites the fixtures that differ
+```
+
+Then read the fixture diff in git before committing it. `npm test`, `npm run
+lint`, and `npm run provenance` never write a fixture. To add a case, add it to
+`GOLDEN_CASES` and run the script with `--write`; to remove one, delete its
+entry and its file. A fixture file with no matching case fails the tests.
+`.prettierignore` lists `test/golden/`, because Prettier would reflow the
+one-line rows.

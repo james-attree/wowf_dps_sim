@@ -86,6 +86,18 @@ describe("runFight result shape", () => {
   });
 });
 
+describe("runFight seeds of 2^32 and above", () => {
+  it("wrap and alias to a small seed, as docs/mechanics.md says", () => {
+    const wrap = 2 ** 32;
+    const small = runFight({ seed: 5, duration: SHORT_FIGHT });
+    assert.deepEqual(
+      runFight({ seed: wrap + 5, duration: SHORT_FIGHT }),
+      small,
+    );
+    assert.equal(runFight({ seed: wrap + 5, duration: 1 }).seed, 5);
+  });
+});
+
 describe("runFight per-ability breakdown", () => {
   const result = runFight({ seed: 1, duration: SHORT_FIGHT });
   const fiveMinutes = runFight({ seed: 1, duration: FIVE_MINUTES });
@@ -366,6 +378,22 @@ describe("runFight inputs", () => {
       );
     }
     assert.throws(() => runFight(), RangeError);
+  });
+
+  it("refuses a missing or non-object argument with a RangeError", () => {
+    assert.throws(() => runFight(null), RangeError);
+    assert.throws(() => runFight(undefined), RangeError);
+    assert.throws(() => runFight(), /options object/);
+    for (const options of [1, "seed", true, Symbol("seed"), () => ({})]) {
+      assert.throws(
+        () => runFight(options),
+        RangeError,
+        String(typeof options),
+      );
+    }
+    // An object without a seed or duration still fails on that field.
+    assert.throws(() => runFight({}), RangeError);
+    assert.throws(() => runFight([]), RangeError);
   });
 });
 

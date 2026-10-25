@@ -1,2 +1,6 @@
 # Binary ability icons. Prettier has no parser for JPEG files.
 img
+
+# Golden-seed fixtures (#77). golden-update.mjs writes them with one ability or
+# log event per line so a git diff shows what moved. Prettier would reflow that.
+test/golden/
