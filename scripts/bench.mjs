@@ -20,6 +20,10 @@ import { runFight } from "../js/fight.js";
 export const BENCH_SEED = 1;
 export const BENCH_DURATION = 300; // 5 simulated minutes
 export const DEFAULT_RUNS = 20;
+// Most runs one invocation may time. 1000 runs of a 5-minute fight take about
+// 20 seconds on a development machine; more than that is a typo, and a huge
+// count would hang the process and fill memory with timings.
+export const MAX_RUNS = 1000;
 // The roadmap's exit criterion. The median must stay under it. It is a target
 // for a development machine, not a CI guarantee: the GitHub runner measured
 // 60 to 65 ms per fight, so nothing in the test suite may depend on meeting it.
@@ -38,8 +42,10 @@ export function median(values) {
 }
 
 function checkRuns(runs) {
-  if (!Number.isInteger(runs) || runs < 1) {
-    throw new RangeError(`runs must be a positive integer, got ${runs}.`);
+  if (!Number.isInteger(runs) || runs < 1 || runs > MAX_RUNS) {
+    throw new RangeError(
+      `runs must be a positive integer, at most ${MAX_RUNS}, got ${runs}.`,
+    );
   }
 }
 
@@ -103,7 +109,8 @@ export const HELP_TEXT = `Time a seeded 5-minute fight (runFight) and print the 
 
 Usage: npm run bench [-- --runs N] [-- --target-ms N]
 
-  --runs N       How many fights to time (a positive integer, default ${DEFAULT_RUNS}).
+  --runs N       How many fights to time (a positive integer, at most ${MAX_RUNS},
+                 default ${DEFAULT_RUNS}).
   --target-ms N  The target the median is compared with (a number of
                  milliseconds, 0 or more, default ${TARGET_MS}). Use it to check the
                  output or the exit status without depending on how fast the
@@ -127,9 +134,14 @@ export function parseArgs(argv) {
       index += 1;
       const text = argv[index];
       // Number("") is 0 and Number("1e1") is 10; accept plain digits only.
-      if (text === undefined || !/^[0-9]+$/.test(text) || Number(text) < 1) {
+      if (
+        text === undefined ||
+        !/^[0-9]+$/.test(text) ||
+        Number(text) < 1 ||
+        Number(text) > MAX_RUNS
+      ) {
         throw new Error(
-          `--runs needs a positive integer, got ${text === undefined ? "nothing" : `"${text}"`}.\n\n${HELP_TEXT}`,
+          `--runs needs a positive integer, at most ${MAX_RUNS}, got ${text === undefined ? "nothing" : `"${text}"`}.\n\n${HELP_TEXT}`,
         );
       }
       options.runs = Number(text);

@@ -2,6 +2,17 @@ import { Rogue } from "./rogue.js";
 import { normalizeSeed } from "./rng.js";
 import { Simulation } from "./simulation.js";
 
+// Build the engine for one fight: a rogue and a simulation that draws from the
+// seed. runFight and the live page (js/main.js) both start here, so they run
+// the same engine. The seed is an integer and wraps to an unsigned 32-bit
+// value; the returned seed is the wrapped one.
+export function createFight(seed) {
+  const fightSeed = normalizeSeed(seed);
+  const rogue = new Rogue();
+  const simulation = new Simulation(rogue, { seed: fightSeed });
+  return { seed: fightSeed, rogue, simulation };
+}
+
 // Headless entry point: build a rogue and a simulation, run one fight, and
 // hand back the result as plain data. It touches no DOM, reads no clock, and
 // draws no randomness except through the seeded rng, so the same seed and
@@ -27,9 +38,8 @@ export function runFight(options) {
   }
   const { seed, duration } = options;
   // A seed is required so no fight is repeatable by accident or random by
-  // accident. normalizeSeed rejects anything that is not an integer.
-  const fightSeed = normalizeSeed(seed);
-  const simulation = new Simulation(new Rogue(), { seed: fightSeed });
+  // accident. createFight rejects anything that is not an integer.
+  const { seed: fightSeed, simulation } = createFight(seed);
   // One run call for the whole fight. It validates the duration.
   simulation.run(duration);
 

@@ -33,8 +33,13 @@ export function scriptedRotation(script, original = Rogue.prototype.rotation) {
         // are not abilities.
         const name = queue[0];
         if (typeof name !== "string" || !Object.hasOwn(this.abilities, name)) {
+          // An array entry would print as its joined items, which can look
+          // like a real ability name, so say what it is.
+          const shown = Array.isArray(name)
+            ? "an array (each entry must be one ability key, not a list)"
+            : `"${String(name)}"`;
           throw new RangeError(
-            `Golden script names "${String(name)}", which is not a Rogue ability. Use one of: ${Object.keys(this.abilities).join(", ")}.`,
+            `Golden script names ${shown}, which is not a Rogue ability. Use one of: ${Object.keys(this.abilities).join(", ")}.`,
           );
         }
         const skill = this.abilities[name];

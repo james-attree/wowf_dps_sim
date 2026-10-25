@@ -15,6 +15,7 @@ const COMBAT_ROTATION =
   "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
 const SEEDED_RNG = "James, 25 Oct 2026, issue #71";
 const FIXED_STEP = "James, 25 Oct 2026, issue #73";
+const LIVE_VIEW = "James, 25 Oct 2026, issue #76";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -821,6 +822,14 @@ export const CONSTANTS = {
     ENGINEERING,
     `${JAMES}: the combat log keeps the newest 100 rows`,
     "Display cap, not a game rule.",
+    false,
+  ),
+  "sim.maxFrameTime": entry(
+    0.25,
+    "s",
+    ENGINEERING,
+    `${LIVE_VIEW}: the most wall-clock time one animation frame may feed the fight, so a hidden tab or a long pause cannot run it forward by the time it missed`,
+    "Not a game rule. The live page takes at most 0.25 s of an animation frame (16 steps of sim.fixedStep) and drops the rest, so a frame that arrives seconds late, as the first frame after a backgrounded tab does, advances the fight by 0.25 s and no more. At 60 fps a frame is about one step, so the cap never acts in normal use; it only starts to slow the fight below 4 frames per second.",
     false,
   ),
   "sim.msPerSecond": entry(

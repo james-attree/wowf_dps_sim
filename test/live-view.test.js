@@ -1,0 +1,420 @@
+import assert from "node:assert/strict";
+import { before, describe, it } from "node:test";
+import { k } from "../data/constants.js";
+import { createFight, runFight } from "../js/fight.js";
+import { FrameClock } from "../js/frame-clock.js";
+import { Rogue } from "../js/rogue.js";
+import { Simulation } from "../js/simulation.js";
+
+// Issue #76. The live page is a view of the engine runFight uses: js/main.js
+// turns animation frames into whole fixed steps (js/frame-clock.js), steps the
+// same Simulation, and draws it. Nothing here reads a real clock: every frame
+// timestamp is made up by the test.
+
+const STEP = k("sim.fixedStep");
+const CAP_STEPS = k("sim.maxFrameTime") / STEP;
+const FRAME_MS = 1000 / 60;
+
+// What a fight looks like from the outside, the fields runFight returns.
+function snapshot(simulation) {
+  return {
+    duration: simulation.currentTime,
+    totalDamage: simulation.damageDone,
+    abilities: simulation.abilityStats,
+    log: simulation.combatLog,
+  };
+}
+
+function fromRunFight(result) {
+  return {
+    duration: result.duration,
+    totalDamage: result.totalDamage,
+    abilities: result.abilities,
+    log: result.log,
+  };
+}
+
+describe("FrameClock", () => {
+  it("takes no step on the first frame, whatever its timestamp", () => {
+    for (const first of [0, 1234.5, 9e9]) {
+      assert.equal(new FrameClock().steps(first), 0, String(first));
+    }
+  });
+
+  it("gives one step for a frame of one step and none for half of one", () => {
+    const clock = new FrameClock();
+    clock.steps(0);
+    assert.equal(clock.steps(STEP * k("sim.msPerSecond")), 1);
+    assert.equal(clock.steps(STEP * k("sim.msPerSecond") * 1.5), 0);
+    assert.equal(clock.steps(STEP * k("sim.msPerSecond") * 2), 1);
+  });
+
+  it("carries the part of a frame that does not fill a step", () => {
+    const clock = new FrameClock();
+    let timestamp = 1000;
+    clock.steps(timestamp);
+    let total = 0;
+    const frames = 600; // 10 s at 60 fps
+    for (let frame = 0; frame < frames; frame++) {
+      timestamp += FRAME_MS;
+      total += clock.steps(timestamp);
+    }
+    // Nothing is lost: the steps taken plus the carry are the time elapsed.
+    const elapsed = (timestamp - 1000) / k("sim.msPerSecond");
+    assert.ok(Math.abs(total * STEP + clock.carry - elapsed) < 1e-9);
+    assert.ok(clock.carry >= 0 && clock.carry < STEP);
+  });
+
+  it("cuts a late frame to k('sim.maxFrameTime') and drops the rest", () => {
+    const clock = new FrameClock();
+    clock.steps(0);
+    // A backgrounded tab: the next frame is ten seconds late.
+    assert.equal(clock.steps(10_000), CAP_STEPS);
+    assert.ok(clock.carry < STEP);
+    // The ten seconds are gone, not owed: the next normal frame is normal.
+    assert.ok(clock.steps(10_000 + FRAME_MS) <= 2);
+    // A long gap of any size gives the same cap.
+    assert.equal(clock.steps(1e12), CAP_STEPS);
+  });
+
+  it("never takes more than the cap in one frame, whatever the gaps", () => {
+    const clock = new FrameClock();
+    let timestamp = 0;
+    clock.steps(timestamp);
+    for (const gap of [1, 16, 17, 250, 251, 1000, 5000, 3.6e6, 0.5, 0, 33]) {
+      timestamp += gap;
+      const steps = clock.steps(timestamp);
+      assert.ok(steps <= CAP_STEPS, `${gap} ms gave ${steps} steps`);
+      assert.ok(Number.isInteger(steps));
+    }
+  });
+
+  it("takes no steps when time does not move forward", () => {
+    const clock = new FrameClock();
+    clock.steps(5000);
+    assert.equal(clock.steps(5000), 0);
+    assert.equal(clock.steps(4000), 0); // backwards: ignored, not negative
+    assert.equal(clock.carry, 0);
+    // Time is measured from the last timestamp seen, so 4000 is the new base.
+    assert.equal(clock.steps(4000 + STEP * k("sim.msPerSecond")), 1);
+  });
+
+  it("restart() drops the gap but keeps the carry", () => {
+    const clock = new FrameClock();
+    clock.steps(0);
+    clock.steps(STEP * k("sim.msPerSecond") * 1.5); // one step, half a step carried
+    const carried = clock.carry;
+    assert.equal(carried, STEP / 2);
+    clock.restart();
+    // An hour later: the first frame after restart takes no step at all.
+    assert.equal(clock.steps(3.6e6), 0);
+    assert.equal(clock.carry, carried);
+    // Then it carries on from that frame.
+    assert.equal(clock.steps(3.6e6 + STEP * k("sim.msPerSecond") * 0.5), 1);
+  });
+
+  it("rejects a timestamp that is not a finite number", () => {
+    const clock = new FrameClock();
+    for (const bad of [Number.NaN, Infinity, -Infinity, undefined, null, "5"]) {
+      assert.throws(() => clock.steps(bad), RangeError, String(bad));
+    }
+  });
+});
+
+describe("createFight", () => {
+  it("builds the rogue and simulation that runFight uses", () => {
+    const { seed, rogue, simulation } = createFight(42);
+    assert.equal(seed, 42);
+    assert.ok(rogue instanceof Rogue);
+    assert.ok(simulation instanceof Simulation);
+    assert.equal(simulation.rogue, rogue);
+    assert.equal(simulation.seed, 42);
+    assert.equal(simulation.currentTime, 0);
+  });
+
+  it("wraps the seed to 32 bits and rejects a seed that is not an integer", () => {
+    assert.equal(createFight(-1).seed, 4294967295);
+    assert.equal(createFight(2 ** 32 + 5).simulation.seed, 5);
+    for (const bad of [undefined, null, 1.5, Number.NaN, "7"]) {
+      assert.throws(() => createFight(bad), RangeError, String(bad));
+    }
+  });
+
+  it("gives runFight's result when stepped the way run steps it", () => {
+    const seed = 7;
+    const { simulation } = createFight(seed);
+    const steps = 64 * 90; // 90 s
+    for (let index = 0; index < steps; index++) {
+      simulation.step(STEP);
+    }
+    assert.deepEqual(
+      snapshot(simulation),
+      fromRunFight(runFight({ seed, duration: steps * STEP })),
+    );
+  });
+});
+
+describe("a live fight driven by uneven frames", () => {
+  // Frame gaps of 4 ms to 40 ms, then a stalled tab (20 s), then 60 fps.
+  function frameTimes() {
+    const times = [1000];
+    let timestamp = 1000;
+    for (let frame = 0; frame < 4000; frame++) {
+      timestamp += 4 + ((frame * 37) % 37);
+      times.push(timestamp);
+    }
+    timestamp += 20_000;
+    times.push(timestamp);
+    for (let frame = 0; frame < 600; frame++) {
+      timestamp += FRAME_MS;
+      times.push(timestamp);
+    }
+    return times;
+  }
+
+  it("matches runFight for the same seed and the same number of steps", () => {
+    for (const seed of [1, 99, 20261025]) {
+      const { simulation } = createFight(seed);
+      const clock = new FrameClock();
+      let steps = 0;
+      for (const timestamp of frameTimes()) {
+        const count = clock.steps(timestamp);
+        assert.ok(count <= CAP_STEPS);
+        for (let index = 0; index < count; index++) {
+          simulation.step(STEP);
+        }
+        steps += count;
+      }
+      assert.equal(simulation.currentTime, steps * STEP, "whole steps only");
+      assert.ok(steps > 0);
+      assert.deepEqual(
+        snapshot(simulation),
+        fromRunFight(runFight({ seed, duration: steps * STEP })),
+        `seed ${seed}`,
+      );
+    }
+  });
+
+  it("does not depend on how the frames are cut", () => {
+    // 60 fps and 144 fps over the same wall time end within one step of each
+    // other, and a fight stepped to the same step count is the same fight.
+    const run = (fps) => {
+      const { simulation } = createFight(5);
+      const clock = new FrameClock();
+      const gap = 1000 / fps;
+      let timestamp = 0;
+      clock.steps(timestamp);
+      for (let frame = 0; frame < fps * 30; frame++) {
+        timestamp += gap;
+        for (let n = clock.steps(timestamp); n > 0; n--) {
+          simulation.step(STEP);
+        }
+      }
+      return simulation;
+    };
+    const slow = run(60);
+    const fast = run(144);
+    assert.ok(Math.abs(slow.currentTime - fast.currentTime) <= STEP);
+    const common = Math.min(slow.currentTime, fast.currentTime);
+    assert.deepEqual(
+      snapshot(slow),
+      fromRunFight(runFight({ seed: 5, duration: slow.currentTime })),
+    );
+    assert.ok(common > 0);
+  });
+});
+
+// The real js/main.js, loaded against a small stand-in for the page. The
+// stand-in hands the test each animation frame callback, so the test decides
+// when a frame happens and what its timestamp is.
+function fakeElement() {
+  const attributes = new Map();
+  const listeners = new Map();
+  return {
+    style: {},
+    classList: { toggle() {} },
+    value: "",
+    textContent: "",
+    className: "",
+    hidden: false,
+    children: [],
+    isConnected: true,
+    scrollTop: 0,
+    scrollHeight: 0,
+    firstChild: null,
+    lastElementChild: { remove() {} },
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+    },
+    getAttribute(name) {
+      return attributes.has(name) ? attributes.get(name) : null;
+    },
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    click() {
+      listeners.get("click")();
+    },
+    append() {},
+    remove() {},
+    insertBefore() {},
+  };
+}
+
+describe("js/main.js on a stand-in page", () => {
+  const SEED = 20261025;
+  const elements = new Map();
+  const stepsSeen = [];
+  let pendingFrame = null;
+  let cancelled = 0;
+  let live;
+  // Off while the test runs runFight, which steps a Simulation too.
+  let recording = true;
+  function reference(duration) {
+    recording = false;
+    try {
+      return fromRunFight(runFight({ seed: SEED, duration }));
+    } finally {
+      recording = true;
+    }
+  }
+
+  const element = (selector) => elements.get(selector);
+  // Run one animation frame at `timestamp` and report how the engine moved.
+  function frame(timestamp) {
+    assert.ok(pendingFrame, "a frame was requested");
+    const callback = pendingFrame;
+    pendingFrame = null;
+    const before = stepsSeen.length;
+    callback(timestamp);
+    return stepsSeen.slice(before);
+  }
+
+  before(async () => {
+    globalThis.document = {
+      querySelector(selector) {
+        if (!elements.has(selector)) {
+          elements.set(selector, fakeElement());
+        }
+        return elements.get(selector);
+      },
+      querySelectorAll: () => [],
+      createElement: () => fakeElement(),
+    };
+    globalThis.requestAnimationFrame = (callback) => {
+      pendingFrame = callback;
+      return 1;
+    };
+    globalThis.cancelAnimationFrame = () => {
+      pendingFrame = null;
+      cancelled += 1;
+    };
+    // The page picks its seed from the platform's random source. Pin it.
+    Object.defineProperty(globalThis, "crypto", {
+      configurable: true,
+      value: {
+        getRandomValues(array) {
+          array[0] = SEED;
+          return array;
+        },
+      },
+    });
+    // Record every step the page gives the engine, and which simulation it is.
+    const original = Simulation.prototype.step;
+    Simulation.prototype.step = function recordedStep(dt) {
+      if (recording) {
+        live = this;
+        stepsSeen.push(dt);
+      }
+      return original.call(this, dt);
+    };
+    await import("../js/main.js");
+  });
+
+  it("shows the seed as plain text in the header, outside any live region", () => {
+    assert.equal(element("#seed-value").textContent, String(SEED));
+    assert.equal(stepsSeen.length, 0, "no step before the first frame");
+  });
+
+  it("takes no step on the first frame, then fixed steps only", () => {
+    assert.deepEqual(frame(1000), []);
+    let timestamp = 1000;
+    let total = 0;
+    for (let index = 0; index < 600; index++) {
+      timestamp += FRAME_MS;
+      const steps = frame(timestamp);
+      assert.ok(steps.every((dt) => dt === STEP));
+      assert.ok(steps.length <= 2);
+      total += steps.length;
+    }
+    assert.ok(
+      total >= 630 && total <= 640,
+      `10 s is about 640 steps: ${total}`,
+    );
+    assert.equal(live.currentTime, total * STEP);
+    assert.equal(live.seed, SEED);
+    assert.match(element("#time-value").textContent, /^00:0[89]$|^00:10$/);
+    // The page and runFight agree for this seed and this many steps.
+    assert.deepEqual(snapshot(live), reference(total * STEP));
+  });
+
+  let paused;
+  it("Pause freezes the fight: no frame is queued and a stale one does nothing", () => {
+    const staleFrame = pendingFrame;
+    const timeBefore = live.currentTime;
+    const damageBefore = live.damageDone;
+    const cancelledBefore = cancelled;
+    element("#pause-button").click();
+    assert.equal(cancelled, cancelledBefore + 1);
+    assert.equal(pendingFrame, null);
+    assert.equal(element("#pause-button").getAttribute("aria-pressed"), "true");
+    assert.equal(element("#pause-label").textContent, "Resume");
+    assert.equal(element("#simulation-status-label").textContent, "Paused");
+    const stepsBefore = stepsSeen.length;
+    staleFrame(1e9);
+    assert.equal(stepsSeen.length, stepsBefore);
+    assert.equal(live.currentTime, timeBefore);
+    assert.equal(live.damageDone, damageBefore);
+    paused = { timeBefore, stepsBefore };
+  });
+
+  it("Resume after a long pause takes no catch-up step", () => {
+    element("#pause-button").click();
+    assert.equal(
+      element("#pause-button").getAttribute("aria-pressed"),
+      "false",
+    );
+    assert.equal(element("#pause-label").textContent, "Pause");
+    assert.equal(element("#simulation-status-label").textContent, "Live");
+    assert.ok(pendingFrame, "resume asks for a frame");
+    // An hour later by the browser's clock.
+    const resumedAt = 1000 + 3.6e6;
+    assert.deepEqual(frame(resumedAt), []);
+    assert.equal(live.currentTime, paused.timeBefore);
+    const steps = frame(resumedAt + FRAME_MS);
+    assert.ok(steps.length <= 2 && steps.every((dt) => dt === STEP));
+    assert.ok(live.currentTime - paused.timeBefore <= 2 * STEP);
+  });
+
+  it("a backgrounded tab's late frame is capped, and is not one huge step", () => {
+    const timeBefore = live.currentTime;
+    // The tab was hidden for 5 minutes: the next frame arrives 300 s late.
+    const steps = frame(1000 + 3.6e6 + 300_000);
+    assert.equal(steps.length, CAP_STEPS);
+    assert.ok(
+      steps.every((dt) => dt === STEP),
+      "every step is a fixed step",
+    );
+    assert.ok(Math.max(...steps) <= STEP);
+    const advanced = live.currentTime - timeBefore;
+    assert.ok(Math.abs(advanced - k("sim.maxFrameTime")) <= STEP);
+    // The next frame is back to normal.
+    const next = frame(1000 + 3.6e6 + 300_000 + FRAME_MS);
+    assert.ok(next.length <= 2);
+  });
+
+  it("still equals runFight after pause, resume, and the late frame", () => {
+    assert.deepEqual(snapshot(live), reference(stepsSeen.length * STEP));
+    assert.equal(live.currentTime, stepsSeen.length * STEP);
+  });
+});

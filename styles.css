@@ -69,6 +69,14 @@ p {
   margin-bottom: 12px;
 }
 
+.seed-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .eyebrow {
   margin-bottom: 6px;
   color: var(--text-muted);
@@ -501,6 +509,22 @@ h3 {
   color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 650;
+}
+
+/* Below this width the seed would squeeze the title, so it drops under the
+   Live and Pause controls instead. Those two stay where they were. */
+@media (max-width: 480px) {
+  .header-controls {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-items: end;
+    gap: 4px 8px;
+  }
+
+  .seed-label {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 @media (max-width: 720px) {
