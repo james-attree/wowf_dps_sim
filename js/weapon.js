@@ -45,7 +45,7 @@ export class Weapon {
 
   rollWeaponDamage() {
     return (
-      Math.floor(Math.random() * (this.maxDamage - this.minDamage + 1)) +
+      Math.floor(this.rogue.random() * (this.maxDamage - this.minDamage + 1)) +
       this.minDamage
     );
   }

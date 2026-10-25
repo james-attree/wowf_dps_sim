@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 // Issue #41. The GCD readiness check uses sim.tickEpsilon. A GCD armed on
 // frame 0 of the 30 fps and 60 fps clocks overshoots and clamps to zero.
@@ -17,7 +18,7 @@ function pinnedSim() {
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
   rogue.rotation = () => {};
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
@@ -33,7 +34,7 @@ describe("GCD tick epsilon", () => {
   });
 
   it("counts the GCD as ready at sim.tickEpsilon and waits above it", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const ready = pinnedSim();
     ready.sim.gcd = k("sim.tickEpsilon");
     const cast = castHemorrhage(ready.rogue, ready.sim);
@@ -49,7 +50,7 @@ describe("GCD tick epsilon", () => {
   });
 
   it("comes ready on the expected frame at 10, 30, 60, and 144 fps", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
 
     for (const fps of FRAME_RATES) {
       const { rogue, sim } = pinnedSim();

@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 // Issue #25. The Cataclysm tooltip prints these per tick. 4 CP is
 // 0.03428571, and 7 × that is within 1e-7 of the stored total 0.24.
@@ -40,7 +41,7 @@ function harness(comboPoints) {
   rogue.critChance = 0;
   rogue.comboPoints = comboPoints;
   rogue.energy = k("energy.max");
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.lastFrameTime = 0;
   sim.gcd = 0;
   assert.equal(sim.currentTime, 0);
@@ -106,7 +107,7 @@ describe("Rupture AP coefficients", () => {
   });
 
   it("splits that total across the ticks, at 30 and 144 fps", () => {
-    mock.method(Math, "random", () => HIT_ROLL);
+    setRoll(HIT_ROLL);
     const stats = k("rupture");
     for (const fps of [30, 144]) {
       for (

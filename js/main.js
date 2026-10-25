@@ -4,7 +4,10 @@ import { Rogue } from "./rogue.js";
 import { Simulation } from "./simulation.js";
 
 const rogue = new Rogue();
-const simulation = new Simulation(rogue);
+// A fresh seed on every page load for now. simulation.seed has it for replays.
+const simulation = new Simulation(rogue, {
+  seed: crypto.getRandomValues(new Uint32Array(1))[0],
+});
 const cooldownSkillsByName = new Map(
   Object.values(rogue.abilities).map((skill) => [skill.name, skill]),
 );

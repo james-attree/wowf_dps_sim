@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 const FINISHERS = ["eviscerate", "rupture", "sliceAndDice"];
 
@@ -12,7 +13,7 @@ function prepare(comboPoints, energy) {
   rogue.energy = energy;
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.gcd = 0;
   return { rogue, sim };
 }
@@ -54,7 +55,7 @@ describe("finishers at 0 combo points", () => {
   }
 
   it("still casts Sinister Strike at 0 combo points", () => {
-    mock.method(Math, "random", () => 0.99);
+    setRoll(0.99);
     const cost = k("sinisterStrike").energy;
     const { rogue, sim } = prepare(0, cost);
 
@@ -74,7 +75,7 @@ describe("finishers at 1 combo point", () => {
   });
 
   it("spends Eviscerate and then rejects the follow-up at 0 combo points", () => {
-    mock.method(Math, "random", () => 0.99);
+    setRoll(0.99);
     const cost = k("eviscerate").energy;
     const { rogue, sim } = prepare(1, cost * 2);
 
@@ -98,7 +99,7 @@ describe("finishers at 1 combo point", () => {
   });
 
   it("spends Rupture and applies the 1-point duration", () => {
-    mock.method(Math, "random", () => 0.99);
+    setRoll(0.99);
     const cost = k("rupture").energy;
     const { rogue, sim } = prepare(1, cost);
     const duration = k("rupture").durationByCp[0];

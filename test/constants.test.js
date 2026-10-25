@@ -4,6 +4,7 @@ import { CONSTANTS, k } from "../data/constants.js";
 import { resolveAttack } from "../js/attack-resolver.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 import { SOURCE_TAGS } from "../scripts/provenance.mjs";
 
 const FIELDS = ["value", "unit", "source", "ref", "note", "retune"];
@@ -179,6 +180,8 @@ describe("constants", () => {
     for (const id of [
       "attack.rollScale",
       "log.maxEvents",
+      "rng.defaultSeed",
+      "rng.mulberry32",
       "sim.msPerSecond",
       "sim.tickEpsilon",
     ]) {
@@ -199,7 +202,7 @@ describe("constants", () => {
       assert.doesNotMatch(row.ref, /fill in/i, id);
       assert.doesNotMatch(row.ref, /no recorded owner decision/i, id);
       if (row.source === "assumption" || row.source === "engineering") {
-        assert.match(row.ref, /^James, 22 Oct 2026: /, id);
+        assert.match(row.ref, /^James, \d+ Oct 2026(, issue #\d+)?: /, id);
       } else if (row.source === "wowf-export") {
         assert.match(row.ref, /^rogue\.json → /, id);
       } else if (row.source === "classic-1.12" || row.source === "cataclysm") {
@@ -350,12 +353,13 @@ describe("simulator values other than white miss", () => {
       targetAura: true,
     });
     assert.equal(k("adrenalineRush").cooldown, 300);
-    assert.equal(new Simulation(rogue).gcdDuration, 1);
+    assert.equal(new Simulation(rogue, { rng: testRng }).gcdDuration, 1);
   });
 
   it("keeps damage formulas, with the main-hand die at its minimum", () => {
-    mock.method(Math, "random", () => 0);
+    setRoll(0);
     const rogue = new Rogue();
+    rogue.rng = testRng;
     const weaponDie = 59;
     const apBonus = (speed) => (450 / 14) * speed;
     const normalized = weaponDie + apBonus(1.7);
@@ -419,7 +423,7 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.abilities.rupture.damage(), 469 + 450 * 0.3);
     assert.equal(rogue.abilities.rupture.duration, 16);
 
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
     rogue.energy = 100;
     sim.gcd = 0;
     rogue.comboPoints = 2;
@@ -463,20 +467,20 @@ describe("simulator values other than white miss", () => {
   });
 
   it("still refunds 80% energy on a miss and crits DoT ticks at 2×", () => {
-    mock.method(Math, "random", () => 0);
+    setRoll(0);
     const rogue = new Rogue();
     rogue.bonusHitChance = 0;
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
     const result = rogue.abilities.sinisterStrike.cast(rogue, sim);
     assert.equal(result.outcome, "miss");
     assert.equal(rogue.energy, 100 - 45 + 45 * 0.8);
     assert.equal(rogue.comboPoints, k("character.startingComboPoints"));
 
     mock.restoreAll();
-    mock.method(Math, "random", () => 0);
+    setRoll(0);
     const ticking = new Rogue();
     ticking.rotation = () => {};
-    const fight = new Simulation(ticking);
+    const fight = new Simulation(ticking, { rng: testRng });
     fight.activeDots.Rupture = {
       duration: 2,
       tickInterval: 2,
@@ -493,11 +497,11 @@ describe("simulator values other than white miss", () => {
     );
 
     mock.restoreAll();
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const quiet = new Rogue();
     quiet.energy = 0;
     quiet.rotation = () => {};
-    const regen = new Simulation(quiet);
+    const regen = new Simulation(quiet, { rng: testRng });
     regen.activeBuffs["Adrenaline Rush"] = { duration: 15, icon: null };
     regen.lastFrameTime = 0;
     regen.update(1000);
@@ -506,7 +510,7 @@ describe("simulator values other than white miss", () => {
     const plain = new Rogue();
     plain.energy = 0;
     plain.rotation = () => {};
-    const base = new Simulation(plain);
+    const base = new Simulation(plain, { rng: testRng });
     base.lastFrameTime = 0;
     base.update(1000);
     assert.equal(plain.energy, 10);

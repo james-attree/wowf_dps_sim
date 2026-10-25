@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 const CONSOLE_METHODS = [
   "assert",
@@ -40,7 +41,7 @@ function primeDot(sim, name) {
 function tickDot({ hemorrhage }) {
   const rogue = new Rogue();
   rogue.rotation = () => {};
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   primeDot(sim, "Rupture");
   if (hemorrhage) {
     const aura = {
@@ -65,9 +66,9 @@ describe("simulation output", () => {
 
   it("does not write to the console during a fight", () => {
     const calls = recordConsole();
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
 
-    const sim = new Simulation(new Rogue());
+    const sim = new Simulation(new Rogue(), { rng: testRng });
     sim.lastFrameTime = 0;
     let time = 0;
     const step = k("sim.msPerSecond") / 10;
@@ -82,7 +83,7 @@ describe("simulation output", () => {
 
   it("does not log a DoT tick, including one boosted by Hemorrhage", () => {
     const calls = recordConsole();
-    mock.method(Math, "random", () => 0);
+    setRoll(0);
 
     const plain = tickDot({});
     assert.equal(plain.damageDone, 100 * k("dot.critMultiplier"));
@@ -122,7 +123,7 @@ function runGhostlyStrike(fps) {
   const rogue = new Rogue();
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   const skill = rogue.abilities.ghostlyStrike;
   const cooldown = skill.cooldown;
   const buffDuration = skill.duration;
@@ -183,7 +184,7 @@ function runDot(fps, duration) {
   const rogue = new Rogue();
   rogue.critChance = 0;
   rogue.rotation = () => {};
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   const tickInterval = k("rupture.tickInterval");
   const tickDamage = 100;
   sim.activeDots.Rupture = {
@@ -231,7 +232,7 @@ describe("buff and cooldown duration", () => {
   });
 
   it("is ready at exactly t + 20 and the buff lasts its full duration at 30 and 144 fps", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     assert.equal(k("ghostlyStrike").cooldown, 20);
 
     const fights = {};
@@ -274,7 +275,7 @@ describe("buff and cooldown duration", () => {
           icon: null,
         };
       };
-      const sim = new Simulation(rogue);
+      const sim = new Simulation(rogue, { rng: testRng });
       sim.cooldowns.Premeditation = running;
       sim.activeDebuffs.Rupture = {
         duration: runningDebuff,
@@ -339,7 +340,7 @@ function adrenalineBonus(times) {
       applied = true;
       assert.ok(sim.activeBuffs["Adrenaline Rush"]);
     };
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
     sim.lastFrameTime = 0;
     for (const time of times) {
       sim.update(time);
@@ -382,12 +383,12 @@ describe("player buffs and target debuffs", () => {
   });
 
   it("keeps self buffs off the debuff list and target effects off the player", () => {
-    mock.method(Math, "random", () => 0.99);
+    setRoll(0.99);
     const rogue = new Rogue();
     rogue.bonusHitChance = 1;
     rogue.critChance = 0;
     rogue.energy = rogue.maxEnergy;
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
 
     rogue.abilities.adrenalineRush.cast(rogue, sim);
     sim.gcd = 0;
@@ -455,7 +456,7 @@ describe("DoT expiry", () => {
     const rogue = new Rogue();
     rogue.critChance = 0;
     rogue.rotation = () => {};
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
     const tickDamage = 100;
     sim.activeDots.Rupture = {
       duration: k("sim.tickEpsilon"),
@@ -476,7 +477,7 @@ describe("DoT expiry", () => {
     const rogue = new Rogue();
     rogue.critChance = 0;
     rogue.rotation = () => {};
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
     sim.activeDots.Rupture = {
       duration: k("sim.tickEpsilon"),
       tickInterval: k("rupture.tickInterval"),
@@ -495,7 +496,7 @@ describe("DoT expiry", () => {
     const rogue = new Rogue();
     rogue.critChance = 0;
     rogue.rotation = () => {};
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
     const duration = k("sim.tickEpsilon") + k("sim.tickEpsilon");
     sim.activeDots.Rupture = {
       duration,

@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 import { Weapon } from "../js/weapon.js";
 
 function rawHit(weapon, attackPower, weaponRoll) {
@@ -77,29 +78,32 @@ describe("Weapon", () => {
   });
 
   it("allows a weapon whose min and max damage are equal", () => {
-    const weapon = new Weapon(null, 80, 80, 1.8, "main");
-    mock.method(Math, "random", () => 0.5);
+    const weapon = new Weapon({ random: testRng }, 80, 80, 1.8, "main");
+    setRoll(0.5);
     assert.equal(weapon.rollWeaponDamage(), 80);
   });
 
   it("gives the sample main hand an inclusive 59–110 die", () => {
-    const mainHand = new Rogue().weapons.mainHand;
+    const rogue = new Rogue();
+    rogue.rng = testRng;
+    const mainHand = rogue.weapons.mainHand;
     assert.equal(mainHand.minDamage, 59);
     assert.equal(mainHand.maxDamage, 110);
     assert.equal(mainHand.speed, 1.8);
     assert.equal(mainHand.type, k("weapon.mainHand").type);
 
-    mock.method(Math, "random", () => 0);
+    setRoll(0);
     assert.equal(mainHand.rollWeaponDamage(), 59);
 
     mock.restoreAll();
-    mock.method(Math, "random", () => 1 - Number.EPSILON);
+    setRoll(1 - Number.EPSILON);
     assert.equal(mainHand.rollWeaponDamage(), 110);
   });
 
   it("halves an off-hand swing after the AP bonus is added", () => {
-    mock.method(Math, "random", () => 0);
+    setRoll(0);
     const rogue = new Rogue();
+    rogue.rng = testRng;
     const attackPower = rogue.getAttackPower();
     const swings = {};
 
@@ -129,9 +133,9 @@ describe("Weapon", () => {
   });
 
   it("halves a mid-range off-hand roll and leaves the same main-hand roll whole", () => {
-    mock.method(Math, "random", () => 0.75);
+    setRoll(0.75);
     const attackPower = 280;
-    const rogue = { getAttackPower: () => attackPower };
+    const rogue = { getAttackPower: () => attackPower, random: testRng };
     const mainHand = new Weapon(rogue, 10, 13, 2, "main");
     const offHand = new Weapon(rogue, 10, 13, 2, "off");
     // floor(0.75 * 4) + 10 = 13, the top of this die.
@@ -164,7 +168,7 @@ function near(actual, expected) {
 }
 
 function runClock(rogue, fps, seconds) {
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.lastFrameTime = 0;
   const frameMs = k("sim.msPerSecond") / fps;
   const frames = Math.round(seconds * fps);
@@ -272,7 +276,7 @@ describe("swing timer overshoot", () => {
       });
     };
     const step = speed * 2 + speed / 2;
-    const sim = new Simulation(rogue);
+    const sim = new Simulation(rogue, { rng: testRng });
     sim.lastFrameTime = 0;
     sim.update(step * k("sim.msPerSecond"));
 
@@ -346,9 +350,9 @@ describe("swing timer overshoot", () => {
 });
 
 function sampleFight(fps) {
-  mock.method(Math, "random", () => 0.5);
+  setRoll(0.5);
   const rogue = new Rogue();
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   const counts = {};
   const add = (name) => {
     counts[name] = (counts[name] ?? 0) + 1;

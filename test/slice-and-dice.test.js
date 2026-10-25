@@ -4,6 +4,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 function near(actual, expected) {
   assert.ok(
@@ -27,7 +28,7 @@ function holdCooldowns(sim) {
 
 function pinned() {
   const rogue = new Rogue();
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   holdCooldowns(sim);
@@ -112,7 +113,7 @@ describe("Slice and Dice rotation", () => {
   });
 
   it("casts at the combo-point threshold and refreshes inside the window", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const { rogue, sim } = pinned();
     const below = k("rotation.finisherComboPoints") - 1;
     rogue.comboPoints = below;
@@ -164,7 +165,7 @@ describe("Slice and Dice rotation", () => {
   });
 
   it("shortens the next swing of both weapons and leaves the current one", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const { rogue, sim } = pinned();
     const mainHand = rogue.weapons.mainHand;
     const offHand = rogue.weapons.offHand;
@@ -194,7 +195,7 @@ describe("Slice and Dice rotation", () => {
   });
 
   it("returns both weapons to normal speed after Slice and Dice expires", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const { rogue, sim } = pinned();
     rogue.comboPoints = k("rotation.finisherComboPoints");
     sim.update(0);
@@ -227,7 +228,7 @@ describe("Slice and Dice rotation", () => {
   });
 
   it("multiplies Slice and Dice and Blade Flurry on the next swing", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     const { rogue, sim } = pinned();
     const haste = (1 + k("sliceAndDice").haste) * (1 + k("bladeFlurry").haste);
     assert.equal(k("haste.stacking"), "multiplicative");
@@ -247,7 +248,7 @@ describe("Slice and Dice rotation", () => {
     const saved = CONSTANTS["haste.stacking"].value;
     CONSTANTS["haste.stacking"].value = "additive";
     try {
-      mock.method(Math, "random", () => 0.5);
+      setRoll(0.5);
       const { rogue, sim } = pinned();
       const haste = 1 + k("sliceAndDice").haste + k("bladeFlurry").haste;
       const { mainHand, offHand } = castBothBuffs(rogue, sim);

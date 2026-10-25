@@ -132,7 +132,10 @@ on.
 - `styles.css` — Dark layout and meters for that page.
 - `js/main.js` — UI entry: the animation frame, pause control, and DOM updates.
   The GCD status reads "On cooldown" while `gcd > 0`. The only file under
-  `js/` that may use `document` and `window`.
+  `js/` that may use `document` and `window`. It picks a random seed at page
+  load for the `Simulation`.
+- `js/rng.js` — `createRng(seed)`, the seeded mulberry32 generator the
+  `Simulation` owns. Every random draw in the engine goes through it.
 - `js/simulation.js` — Steps energy, buffs, debuffs, cooldowns, the GCD, DoTs,
   and Premeditation expiry, applies armor to direct hits and to ticks (bleeds
   and nature damage can skip it), rolls DoT crits, runs the rotation, and

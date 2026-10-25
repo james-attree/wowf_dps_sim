@@ -164,7 +164,7 @@ export class Eviscerate extends Skill {
       min += bands[comboPoints - 1].min;
       max += bands[comboPoints - 1].max;
     }
-    return Math.floor(Math.random() * (max - min + 1) + min);
+    return Math.floor(this.rogue.random() * (max - min + 1) + min);
   }
 }
 

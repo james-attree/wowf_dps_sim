@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { setRoll, testRng } from "./rolls.js";
 
 const FRAME_RATES = [30, 144];
 
@@ -11,7 +12,7 @@ function prepare() {
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
   rogue.energy = k("start.state").energy;
-  const sim = new Simulation(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   sim.gcd = 0;
   sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
@@ -40,7 +41,7 @@ describe("gcd.flags", () => {
   });
 
   it("starts the GCD for Blade Flurry, Adrenaline Rush, and Slice and Dice", () => {
-    mock.method(Math, "random", () => 0.99);
+    setRoll(0.99);
     const { rogue, sim } = prepare();
     const energy = rogue.energy;
 
@@ -127,10 +128,10 @@ describe("gcd.flags", () => {
   });
 
   it("casts Blade Flurry on the opening frame and holds the next on-GCD cast", () => {
-    mock.method(Math, "random", () => 0.5);
+    setRoll(0.5);
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
-      const sim = new Simulation(rogue);
+      const sim = new Simulation(rogue, { rng: testRng });
       sim.lastFrameTime = 0;
       assert.equal(sim.currentTime, 0);
       sim.update(k("sim.msPerSecond") / fps);

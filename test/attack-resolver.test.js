@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { describe, it } from "node:test";
 import { resolveAttack, rollCrit } from "../js/attack-resolver.js";
 
 const STATUS = {
@@ -271,18 +271,13 @@ describe("resolveAttack input validation", () => {
 });
 
 describe("resolveAttack default roll", () => {
-  afterEach(() => {
-    mock.restoreAll();
-  });
-
-  it("draws Math.random() * 100 when roll is omitted", () => {
-    mock.method(Math, "random", () => 0.5);
-
+  it("draws rng() * 100 when roll is omitted", () => {
     const result = resolveAttack({
       attackType: "weapon",
       baseDamage: 100,
       bonusHitChance: 0,
       critChance: 0.1,
+      rng: () => 0.5,
     });
 
     assert.deepEqual(result, {
@@ -295,13 +290,12 @@ describe("resolveAttack default roll", () => {
   });
 
   it("treats an explicit undefined roll as omitted", () => {
-    mock.method(Math, "random", () => 0);
-
     const result = resolveAttack({
       attackType: "weapon",
       baseDamage: 100,
       bonusHitChance: 0,
       critChance: 0.1,
+      rng: () => 0,
       roll: undefined,
     });
 
@@ -309,20 +303,34 @@ describe("resolveAttack default roll", () => {
     assert.equal(result.roll, 0);
   });
 
-  it("does not roll when the caller injects a roll", () => {
-    mock.method(Math, "random", () => {
-      throw new Error("Math.random should not be called");
-    });
+  it("does not draw from the rng when the caller injects a roll", () => {
+    expectBand(
+      {
+        roll: 83.5,
+        rng: () => {
+          throw new Error("rng should not be called");
+        },
+      },
+      "hit",
+      100,
+    );
+  });
 
-    expectBand({ roll: 83.5 }, "hit", 100);
+  it("needs an rng or a roll", () => {
+    assert.throws(
+      () =>
+        resolveAttack({
+          attackType: "weapon",
+          baseDamage: 100,
+          bonusHitChance: 0,
+          critChance: 0.1,
+        }),
+      { name: "TypeError", message: /rng function or a roll/ },
+    );
   });
 });
 
 describe("rollCrit", () => {
-  afterEach(() => {
-    mock.restoreAll();
-  });
-
   for (const [chance, random, expected] of [
     [0.1, 0, true],
     [0.1, 0.1, false],
@@ -332,11 +340,19 @@ describe("rollCrit", () => {
     [-0.2, 0, false],
   ]) {
     it(`crit ${chance} against random ${random} is ${expected}`, () => {
-      mock.method(Math, "random", () => random);
-
-      assert.equal(rollCrit(chance), expected);
+      assert.equal(
+        rollCrit(chance, () => random),
+        expected,
+      );
     });
   }
+
+  it("needs an rng", () => {
+    assert.throws(() => rollCrit(0.1), {
+      name: "TypeError",
+      message: "rollCrit needs an rng function.",
+    });
+  });
 
   for (const critChance of [
     Number.NaN,
@@ -346,7 +362,7 @@ describe("rollCrit", () => {
     "0.1",
   ]) {
     it(`rejects crit chance ${shown(critChance)}`, () => {
-      assert.throws(() => rollCrit(critChance), {
+      assert.throws(() => rollCrit(critChance, () => 0), {
         name: "RangeError",
         message: "Critical chance must be a finite number.",
       });

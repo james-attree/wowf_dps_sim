@@ -26,6 +26,7 @@ export default defineConfig([
     languageOptions: {
       globals: readonly([
         "cancelAnimationFrame",
+        "crypto",
         "document",
         "performance",
         "requestAnimationFrame",

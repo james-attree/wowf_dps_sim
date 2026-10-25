@@ -13,6 +13,7 @@ const JAMES = "James, 22 Oct 2026";
 const SAMPLE_INPUT = `${JAMES}: sample input until SimConfig (E2)`;
 const COMBAT_ROTATION =
   "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
+const SEEDED_RNG = "James, 25 Oct 2026, issue #71";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -788,6 +789,29 @@ export const CONSTANTS = {
     ENGINEERING,
     `${JAMES}: injected attack rolls use a 0–100 scale so tests can hit each boundary`,
     "Not a game rule. Callers and the resolver tests depend on it.",
+    false,
+  ),
+  "rng.defaultSeed": entry(
+    1,
+    "seed",
+    ENGINEERING,
+    `${SEEDED_RNG}: a Simulation built without a seed or an rng starts from this seed, so a bare run is repeatable`,
+    "Not a game rule. Any 32-bit integer is a valid seed. The live page picks its own seed at load.",
+    false,
+  ),
+  "rng.mulberry32": entry(
+    {
+      increment: 1831565813,
+      shiftA: 15,
+      shiftB: 7,
+      mixOr: 61,
+      shiftC: 14,
+      range: 4294967296,
+    },
+    "mulberry32 terms",
+    ENGINEERING,
+    `${SEEDED_RNG}: the published mulberry32 32-bit generator, so a seed gives the same sequence on every Node version and in the browser`,
+    "Not a game rule. The Weyl increment, the three xor-shift widths, the second multiplier's OR term, and the 2^32 divisor that maps the 32-bit result into [0, 1). Changing any of them changes every seeded fight.",
     false,
   ),
   "log.maxEvents": entry(
