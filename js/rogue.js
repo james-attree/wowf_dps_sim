@@ -119,32 +119,28 @@ export class Rogue {
   }
 
   rotation(simulation, dt) {
-    if (this.energy <= k("rotation.adrenalineRushEnergy")) {
-      this.abilities.adrenalineRush.cast(this, simulation); // at or below rotation.adrenalineRushEnergy
+    // rotation.priority is the placeholder Combat list. onCooldown is tried
+    // first, in order. At rotation.finisherComboPoints, Slice and Dice is
+    // used when it is missing or has at most
+    // rotation.sliceAndDiceRefreshSeconds left; otherwise Eviscerate.
+    // Otherwise the builder is used.
+    const priority = k("rotation.priority");
+    for (const id of priority.onCooldown) {
+      this.abilities[id].cast(this, simulation);
     }
 
-    this.abilities.bladeFlurry.cast(this, simulation); // Cast Blade Flurry if available
-
-    this.abilities.premeditation.cast(this, simulation); // Cast Premeditation if available
-
-    // Refresh Slice and Dice at rotation.sliceAndDiceComboPoints when it is
-    // missing or has at most rotation.sliceAndDiceRefreshSeconds left.
-    const sliceAndDice = simulation.activeBuffs["Slice and Dice"];
-    if (
-      (!sliceAndDice ||
-        sliceAndDice.duration <= k("rotation.sliceAndDiceRefreshSeconds")) &&
-      this.comboPoints >= k("rotation.sliceAndDiceComboPoints")
-    ) {
-      this.abilities.sliceAndDice.cast(this, simulation);
+    if (this.comboPoints >= k("rotation.finisherComboPoints")) {
+      const sliceAndDice = this.abilities[priority.sliceAndDice];
+      const active = simulation.activeBuffs[sliceAndDice.name];
+      const refresh =
+        !active || active.duration <= k("rotation.sliceAndDiceRefreshSeconds");
+      const finisher = refresh
+        ? sliceAndDice
+        : this.abilities[priority.eviscerate];
+      finisher.cast(this, simulation);
+    } else {
+      this.abilities[priority.builder].cast(this, simulation);
     }
-
-    if (this.comboPoints >= k("combo.max")) {
-      this.abilities.rupture.cast(this, simulation);
-    }
-
-    this.abilities.ghostlyStrike.cast(this, simulation); // Cast Ghostly Strike if available
-
-    this.abilities.hemorrhage.cast(this, simulation);
 
     // Slice and Dice and Blade Flurry shorten the next swing of both weapons.
     // haste.stacking chooses the product or the sum. A swing already counting

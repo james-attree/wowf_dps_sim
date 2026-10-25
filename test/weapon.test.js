@@ -400,39 +400,36 @@ describe("swing timer fight regression", () => {
     const slow = sampleFight(SWING_FRAME_RATES[0]);
     const fast = sampleFight(SWING_FRAME_RATES[1]);
     // Fixed roll (Math.random is 0.5). Issue #18 starts the fight at 0 combo
-    // points. Issue #20 refreshes Slice and Dice at 4 combo points. This roll
-    // spends every Slice and Dice there, casts no Eviscerate, and ends at 0.
-    // Issue #23 scales physical direct hits by armor. Rupture ticks and
-    // Deadly Poison skip it. Deadly Poison is not cast in this fight. Issue
-    // #24 puts Blade Flurry, Adrenaline Rush, and Slice and Dice on the GCD.
-    // This roll still lands the same finishers and swings. It does not crit a
-    // DoT tick, so both frame rates deal the same total.
+    // points. The placeholder Combat rotation (issue #68) builds with
+    // Sinister Strike and spends rotation.finisherComboPoints on Slice and
+    // Dice. This roll does not cast Eviscerate: the next five builders take
+    // longer than the time a full Slice and Dice stays above
+    // rotation.sliceAndDiceRefreshSeconds. Ghostly Strike, Premeditation,
+    // Hemorrhage, and Rupture are not cast. Issue #23 scales physical direct
+    // hits by armor. Issue #24 puts Blade Flurry, Adrenaline Rush, and Slice
+    // and Dice on the GCD. This roll does not crit a DoT tick, so both frame
+    // rates deal the same total.
     const casts = {
       "Adrenaline Rush": 1,
       "Blade Flurry": 1,
-      Premeditation: 1,
-      "Ghostly Strike": 1,
-      Hemorrhage: 18,
-      "Slice and Dice": 4,
-      Rupture: 1,
-      "Rupture tick": 8,
-      "Main-hand": 45,
-      "Off-hand": 47,
+      "Sinister Strike": 16,
+      "Slice and Dice": 3,
+      "Main-hand": 43,
+      "Off-hand": 46,
     };
-    const spent =
-      casts["Slice and Dice"] * k("rotation.sliceAndDiceComboPoints") +
-      casts.Rupture * k("combo.max");
+    const spent = casts["Slice and Dice"] * k("rotation.finisherComboPoints");
     const generated =
-      casts.Premeditation * k("premeditation").comboPoints +
-      casts["Ghostly Strike"] * k("ghostlyStrike").comboPoints +
-      casts.Hemorrhage * k("hemorrhage").comboPoints;
+      casts["Sinister Strike"] * k("sinisterStrike").comboPoints;
     const comboPoints = k("character.startingComboPoints") + generated - spent;
 
     assert.deepEqual(slow.counts, casts);
     assert.deepEqual(fast.counts, casts);
     assert.equal(slow.counts.Eviscerate, undefined);
+    assert.equal(slow.counts.Premeditation, undefined);
+    assert.equal(slow.counts["Ghostly Strike"], undefined);
+    assert.equal(slow.counts.Hemorrhage, undefined);
+    assert.equal(slow.counts.Rupture, undefined);
     assert.equal(slow.damage, fast.damage);
-    assert.equal(comboPoints, 0);
     assert.equal(slow.comboPoints, comboPoints);
     assert.equal(fast.comboPoints, comboPoints);
     assert.ok(slow.damage > 0);

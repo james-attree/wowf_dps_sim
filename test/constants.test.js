@@ -161,9 +161,6 @@ describe("constants", () => {
       "character.critChance",
       "character.bonusHitChance",
       "weapon.offHand",
-      "rotation.adrenalineRushEnergy",
-      "rotation.sliceAndDiceComboPoints",
-      "rotation.sliceAndDiceRefreshSeconds",
     ]) {
       assert.equal(CONSTANTS[id].ref, sampleInput, id);
       assert.equal(CONSTANTS[id].source, "assumption", id);
@@ -209,6 +206,37 @@ describe("constants", () => {
         assert.match(row.ref, /^https:\/\//, id);
       }
     }
+  });
+
+  it("records the placeholder Combat rotation from issue #68", () => {
+    const ref = "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
+    for (const id of [
+      "rotation.priority",
+      "rotation.finisherComboPoints",
+      "rotation.sliceAndDiceRefreshSeconds",
+    ]) {
+      assert.equal(CONSTANTS[id].source, "wowf-designer", id);
+      assert.equal(CONSTANTS[id].ref, ref, id);
+      assert.equal(CONSTANTS[id].retune, true, id);
+      assert.equal(typeof CONSTANTS[id].unit, "string", id);
+      assert.notEqual(CONSTANTS[id].note.trim(), "", id);
+      assert.equal(k(id), CONSTANTS[id].value, id);
+    }
+    assert.equal(k("rotation.finisherComboPoints"), 5);
+    assert.equal(k("rotation.sliceAndDiceRefreshSeconds"), 10);
+    assert.deepEqual(k("rotation.priority"), {
+      onCooldown: ["bladeFlurry", "adrenalineRush"],
+      sliceAndDice: "sliceAndDice",
+      eviscerate: "eviscerate",
+      builder: "sinisterStrike",
+    });
+    assert.equal(CONSTANTS["rotation.adrenalineRushEnergy"], undefined);
+    assert.equal(CONSTANTS["rotation.sliceAndDiceComboPoints"], undefined);
+    assert.match(CONSTANTS["rotation.priority"].note, /Ghostly Strike/);
+    assert.match(CONSTANTS["rotation.priority"].note, /Premeditation/);
+    assert.match(CONSTANTS["rotation.priority"].note, /Hemorrhage/);
+    assert.match(CONSTANTS["rotation.priority"].note, /Rupture/);
+    assert.match(CONSTANTS["rotation.priority"].note, /4 combo points/);
   });
 });
 

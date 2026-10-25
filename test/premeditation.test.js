@@ -6,7 +6,6 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 
 const FRAME_RATES = [30, 144];
-const FINISHERS = ["eviscerate", "rupture", "sliceAndDice"];
 
 function near(actual, expected) {
   assert.ok(
@@ -283,60 +282,5 @@ describe("Premeditation combo point expiry", () => {
       rogue.comboPoints,
       k("combo.max") - k("premeditation.cpRemovedOnExpiry"),
     );
-  });
-});
-
-describe("sample rotation from 0 combo points", () => {
-  afterEach(() => {
-    mock.restoreAll();
-  });
-
-  it("opens with Premeditation and does not finish at 0 combo points", () => {
-    mock.method(Math, "random", () => 0.5);
-    const rogue = new Rogue();
-    assert.equal(rogue.comboPoints, 0);
-    let finisherAtZero = 0;
-    let ruptures = 0;
-    for (const id of FINISHERS) {
-      const skill = rogue.abilities[id];
-      const cast = skill.cast.bind(skill);
-      skill.cast = (player, simulation) => {
-        if (player.comboPoints < 1) {
-          finisherAtZero += 1;
-        }
-        if (id === "rupture") {
-          ruptures += 1;
-          assert.equal(player.comboPoints, k("combo.max"));
-        }
-        return cast(player, simulation);
-      };
-    }
-
-    const sim = new Simulation(rogue);
-    sim.lastFrameTime = 0;
-    const fps = FRAME_RATES[0];
-    const frameMs = k("sim.msPerSecond") / fps;
-    sim.update(frameMs);
-
-    assert.equal(
-      sim.combatLog.some((event) => event.name === "Premeditation"),
-      true,
-    );
-    assert.equal(
-      sim.combatLog.some((event) => event.name === "Rupture"),
-      false,
-    );
-    assert.ok(rogue.comboPoints > 0);
-    assert.ok(rogue.comboPoints < k("combo.max"));
-    assert.equal(sim.gcd, k("gcd.duration"));
-
-    const frames = Math.round(k("premeditation.cpExpiry") * fps);
-    for (let frame = 2; frame <= frames; frame += 1) {
-      sim.update(frame * frameMs);
-    }
-
-    assert.equal(finisherAtZero, 0);
-    assert.ok(ruptures > 0);
-    assert.ok(sim.damageDone > 0);
   });
 });

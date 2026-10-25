@@ -45,7 +45,7 @@ function advance(sim, seconds) {
 function castBothBuffs(rogue, sim) {
   delete sim.cooldowns["Blade Flurry"];
   rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
-  rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+  rogue.comboPoints = k("rotation.finisherComboPoints");
   const mainHand = rogue.weapons.mainHand;
   const offHand = rogue.weapons.offHand;
   mainHand.swingTimer = mainHand.speed;
@@ -114,7 +114,7 @@ describe("Slice and Dice rotation", () => {
   it("casts at the combo-point threshold and refreshes inside the window", () => {
     mock.method(Math, "random", () => 0.5);
     const { rogue, sim } = pinned();
-    const below = k("rotation.sliceAndDiceComboPoints") - 1;
+    const below = k("rotation.finisherComboPoints") - 1;
     rogue.comboPoints = below;
     sim.update(0);
 
@@ -123,10 +123,10 @@ describe("Slice and Dice rotation", () => {
     assert.equal(rogue.comboPoints, below);
     assert.equal(rogue.energy, k("sliceAndDice").energy);
 
-    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    rogue.comboPoints = k("rotation.finisherComboPoints");
     sim.update(0);
     const refreshed =
-      k("sliceAndDice").durationByCp[k("rotation.sliceAndDiceComboPoints") - 1];
+      k("sliceAndDice").durationByCp[k("rotation.finisherComboPoints") - 1];
 
     assert.equal(sim.activeBuffs["Slice and Dice"].duration, refreshed);
     assert.equal(sim.activeDebuffs["Slice and Dice"], undefined);
@@ -136,13 +136,13 @@ describe("Slice and Dice rotation", () => {
 
     // The refresh checks are about the buff timer. Clear the GCD this cast started.
     sim.gcd = 0;
-    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    rogue.comboPoints = k("rotation.finisherComboPoints");
     rogue.energy = k("sliceAndDice").energy;
     sim.activeBuffs["Slice and Dice"].duration =
       k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon");
     sim.update(0);
 
-    assert.equal(rogue.comboPoints, k("rotation.sliceAndDiceComboPoints"));
+    assert.equal(rogue.comboPoints, k("rotation.finisherComboPoints"));
     assert.equal(
       sim.activeBuffs["Slice and Dice"].duration,
       k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon"),
@@ -170,7 +170,7 @@ describe("Slice and Dice rotation", () => {
     const offHand = rogue.weapons.offHand;
     mainHand.swingTimer = mainHand.speed;
     offHand.swingTimer = offHand.speed;
-    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    rogue.comboPoints = k("rotation.finisherComboPoints");
     const opened = k("weapon.offHand").initialSwing;
     const haste = 1 + k("sliceAndDice").haste;
 
@@ -178,7 +178,7 @@ describe("Slice and Dice rotation", () => {
 
     assert.equal(
       sim.activeBuffs["Slice and Dice"].duration,
-      k("sliceAndDice").durationByCp[k("rotation.sliceAndDiceComboPoints") - 1],
+      k("sliceAndDice").durationByCp[k("rotation.finisherComboPoints") - 1],
     );
     near(mainHand.swingTimer, mainHand.speed - opened);
     near(offHand.swingTimer, offHand.speed - opened);
@@ -196,11 +196,11 @@ describe("Slice and Dice rotation", () => {
   it("returns both weapons to normal speed after Slice and Dice expires", () => {
     mock.method(Math, "random", () => 0.5);
     const { rogue, sim } = pinned();
-    rogue.comboPoints = k("rotation.sliceAndDiceComboPoints");
+    rogue.comboPoints = k("rotation.finisherComboPoints");
     sim.update(0);
     assert.equal(sim.currentTime, 0);
     const duration = sim.activeBuffs["Slice and Dice"].duration;
-    const below = k("rotation.sliceAndDiceComboPoints") - 1;
+    const below = k("rotation.finisherComboPoints") - 1;
 
     rogue.maxEnergy = 0;
     rogue.energy = 0;

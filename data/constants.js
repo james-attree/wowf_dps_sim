@@ -11,6 +11,8 @@ const ENGINEERING = "engineering";
 
 const JAMES = "James, 22 Oct 2026";
 const SAMPLE_INPUT = `${JAMES}: sample input until SimConfig (E2)`;
+const COMBAT_ROTATION =
+  "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -592,6 +594,35 @@ export const CONSTANTS = {
     false,
   ),
   "weapon.mainHand.type": MAIN_HAND_TYPE,
+  "rotation.priority": entry(
+    {
+      onCooldown: ["bladeFlurry", "adrenalineRush"],
+      sliceAndDice: "sliceAndDice",
+      eviscerate: "eviscerate",
+      builder: "sinisterStrike",
+    },
+    "ability ids",
+    WOWF_DESIGNER,
+    COMBAT_ROTATION,
+    "Placeholder Combat priority until talents. Cast onCooldown in order, each when ready. At rotation.finisherComboPoints, cast sliceAndDice when that buff is missing or has at most rotation.sliceAndDiceRefreshSeconds left; otherwise cast eviscerate. Otherwise cast builder. Ghostly Strike, Premeditation, Hemorrhage, and Rupture stay implemented and are not in this list. This replaces the 22 Oct rule that refreshed Slice and Dice at 4 combo points ahead of a 5-point Rupture.",
+    true,
+  ),
+  "rotation.finisherComboPoints": entry(
+    5,
+    "CP",
+    WOWF_DESIGNER,
+    COMBAT_ROTATION,
+    "Combo points at which the placeholder Combat rotation chooses Slice and Dice or Eviscerate.",
+    true,
+  ),
+  "rotation.sliceAndDiceRefreshSeconds": entry(
+    10,
+    "s",
+    WOWF_DESIGNER,
+    COMBAT_ROTATION,
+    "At rotation.finisherComboPoints, refresh Slice and Dice when it is missing or the remaining duration is at or below this. A longer remaining duration spends the combo points on Eviscerate.",
+    true,
+  ),
 
   // assumption: defaults James signed on 22 Oct 2026.
   "dot.critMultiplier": entry(
@@ -691,7 +722,8 @@ export const CONSTANTS = {
     true,
   ),
 
-  // Sample inputs. SimConfig (E2) will own the character, weapons, and rotation.
+  // Sample inputs. SimConfig (E2) will own the character and weapons.
+  // The placeholder Combat rotation is rotation.priority.
   "character.attackPower": entry(
     450,
     "AP",
@@ -746,30 +778,6 @@ export const CONSTANTS = {
     ASSUMPTION,
     `${JAMES}: the code refunds 80% of the energy when an attack does not land; Classic and the export do not describe that refund`,
     "Present since the initial skill code.",
-    true,
-  ),
-  "rotation.adrenalineRushEnergy": entry(
-    25,
-    "energy",
-    ASSUMPTION,
-    SAMPLE_INPUT,
-    "Rotation threshold, not a spell cost.",
-    true,
-  ),
-  "rotation.sliceAndDiceComboPoints": entry(
-    4,
-    "CP",
-    ASSUMPTION,
-    SAMPLE_INPUT,
-    "Slice and Dice is refreshed once combo points reach this.",
-    true,
-  ),
-  "rotation.sliceAndDiceRefreshSeconds": entry(
-    3,
-    "s",
-    ASSUMPTION,
-    SAMPLE_INPUT,
-    "Refresh when the remaining duration is at or below this.",
     true,
   ),
 
