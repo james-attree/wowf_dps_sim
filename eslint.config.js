@@ -3,7 +3,7 @@ import { defineConfig } from "eslint/config";
 import enginePurity from "./eslint/engine-purity.js";
 
 // Engine modules (everything under js/ except the UI entry) must stay free of
-// document/window and of game-number literals. js/main.js is the UI exception.
+// document/window, wall clocks (performance, Date) and game-number literals. js/main.js is the UI exception.
 // data/constants.js is where those numbers live, so it is not an engine file.
 
 const readonly = (names) =>
@@ -11,6 +11,8 @@ const readonly = (names) =>
 
 const engineDomMessage =
   "Engine modules must not touch this global so they can run in Node, the browser, and a Web Worker.";
+const engineClockMessage =
+  "Engine modules must not read a wall clock. Advance time with Simulation.step(dt), and let the host supply dt.";
 
 export default defineConfig([
   js.configs.recommended,
@@ -54,6 +56,8 @@ export default defineConfig([
           globals: [
             { name: "document", message: engineDomMessage },
             { name: "window", message: engineDomMessage },
+            { name: "performance", message: engineClockMessage },
+            { name: "Date", message: engineClockMessage },
           ],
         },
       ],
@@ -69,12 +73,6 @@ export default defineConfig([
     },
   },
   {
-    files: ["js/simulation.js"],
-    languageOptions: {
-      globals: readonly(["performance"]),
-    },
-  },
-  {
     files: ["scripts/**/*.mjs", "test/**/*.js"],
     languageOptions: {
       globals: readonly([
@@ -82,6 +80,7 @@ export default defineConfig([
         "clearTimeout",
         "console",
         "fetch",
+        "performance",
         "process",
         "setTimeout",
         "URL",

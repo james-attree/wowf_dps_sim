@@ -141,6 +141,34 @@ describe("engine lint", () => {
     assert.match(result.stdout, /must not touch this global/);
   });
 
+  it("rejects performance and Date in engine code, including globalThis property access", async () => {
+    const result = await lintSource(
+      engine,
+      [
+        "export const now = performance.now();",
+        "export const stamp = Date.now();",
+        "export const created = new Date();",
+        "export const viaGlobal = globalThis.performance.now();",
+        "export const viaBracket = globalThis['Date'].now();",
+        "export const viaSelf = self.performance;",
+        "",
+      ].join("\n"),
+    );
+    assert.equal(result.code, 1, result.stdout);
+    const ids = ruleIds(result.stdout);
+    assert.equal(ids.filter((id) => id === "no-restricted-globals").length, 6);
+    assert.match(result.stdout, /must not read a wall clock/);
+
+    for (const filename of ["js/simulation.js", "js/rogue.js", "js/rng.js"]) {
+      const clock = await lintSource(
+        filename,
+        "export const now = performance.now();\n",
+      );
+      assert.equal(clock.code, 1, `${filename}\n${clock.stdout}`);
+      assert.ok(ruleIds(clock.stdout).includes("no-restricted-globals"));
+    }
+  });
+
   it("exempts the UI entry, constants, tests, and dev scripts", async () => {
     const cases = [
       [
@@ -150,6 +178,7 @@ describe("engine lint", () => {
           "const hit = dodge < 0.065;",
           "document.body.dataset.hit = String(hit);",
           "window.addEventListener('load', () => {});",
+          "window.startedAt = performance.now();",
           "",
         ].join("\n"),
       ],
@@ -159,6 +188,8 @@ describe("engine lint", () => {
       ],
       ["test/attack-resolver.test.js", "export const dodge = 0.065;\n"],
       ["scripts/example.mjs", "export const port = 8000;\n"],
+      ["scripts/stamp.mjs", "export const stamp = Date.now();\n"],
+      ["test/clock.test.js", "export const now = Date.now();\n"],
     ];
 
     for (const [filename, source] of cases) {

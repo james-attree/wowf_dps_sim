@@ -241,9 +241,9 @@ retune list). The note says Forever regenerates continuously, and that
 Classic used a periodic tick. The engine adds `rate * dt` every frame. It
 does not wait for a tick.
 
-`Simulation.update` reads Adrenaline Rush's remaining time before buffs are
-counted down. The slice of the frame still inside the buff, including the
-frame the buff runs out, uses
+`Simulation.step` reads Adrenaline Rush's remaining time before buffs are
+counted down. The slice of the step still inside the buff, including the
+step the buff runs out, uses
 
 `k("energy.regenPerSecond") * k("adrenalineRush").regenMultiplier`
 
@@ -347,8 +347,8 @@ retune list. Its note says expiry always removes that many points, even when
 the cap meant fewer were added, and that the result is clamped so combo
 points do not go below zero.
 
-`Rogue.tickPremeditation` runs in `Simulation.update` before the rotation, so
-the cast frame does not count. When the remaining time is at or below
+`Rogue.tickPremeditation` runs in `Simulation.step` before the rotation, so
+the cast step does not count. When the remaining time is at or below
 `k("sim.tickEpsilon")`, combo points drop by the armed amount, clamped at
 zero, and the timer is cleared. A finisher, or a later cast that actually
 adds a combo point, clears the timer first, so those points are not removed
@@ -515,8 +515,8 @@ stored after the tick loop. Otherwise no dot is stored.
 is fixed when the cast resolves. The stored `tickDamage` is that snapshot.
 The per-tick crit roll is not part of it.
 
-The tick loop in `Simulation.update` runs before the rotation, so a dot cast
-this frame does not tick until a later frame, and the first tick waits out
+The tick loop in `Simulation.step` runs before the rotation, so a dot cast
+this step does not tick until a later step, and the first tick waits out
 one interval. For each tick still inside the dot's remaining time:
 
 1. Start from `tickDamage`.
@@ -563,16 +563,25 @@ starts that dot.
 
 ## Simulation clock
 
-`js/main.js` drives `Simulation.update` from `requestAnimationFrame`. The
-timestamp is the host frame. There is no fixed frame rate in the engine.
-`Simulation.update` sets
+The engine has no clock. `Simulation.step(dt)` is the only way time moves:
+`dt` is a time step in seconds, and `step` adds it to `currentTime`. No file
+under `js/` except `js/main.js` reads `performance`, `Date`, or any other
+wall clock, and lint rejects `performance` and `Date` there. A `dt` that is
+negative, `NaN`, or infinite throws a `RangeError`. There is no fixed step
+and no fixed frame rate in the engine. Two simulations with the same seed
+that are given the same steps end in the same state.
 
-`dt = max(0, (currentTime - lastFrameTime) / k("sim.msPerSecond"))`
+`js/main.js` is the host for the live page. It calls `step` from
+`requestAnimationFrame` and turns the browser's frame timestamp into the step:
 
-and adds `dt` to `currentTime`. `k("sim.msPerSecond")` is `engineering` and
-retune is off. Pausing cancels the animation frame. Resume sets
-`lastFrameTime` from `performance.now()`, so the paused gap is not
-simulated. `k("latency")` is an assumption on the retune list. Its note says
+`dt = max(0, (time - lastFrameTime) / k("sim.msPerSecond"))`
+
+then sets `lastFrameTime = time`. `k("sim.msPerSecond")` is `engineering` and
+retune is off, and `js/main.js` is its only reader. Pausing cancels the
+animation frame. Resume sets `lastFrameTime` from `performance.now()`, so the
+paused gap is not simulated.
+
+Elsewhere in this document, "frame" is older wording for one `step`. `k("latency")` is an assumption on the retune list. Its note says
 the engine does not delay casts. `k("fight.duration")` is an assumption on
 the retune list. Its note says the live sim runs until pause and does not
 read it.
@@ -583,7 +592,7 @@ read it.
 `Simulation.tickGcd` does not read it. `Skill.cast` treats the GCD as ready
 when the remainder is at or below it. See Global cooldown.
 
-One frame, in `Simulation.update`, does this in order:
+One step, in `Simulation.step`, does this in order:
 
 1. Advance `currentTime` and regenerate energy, using Adrenaline Rush time
    from before the countdown.
@@ -595,7 +604,7 @@ One frame, in `Simulation.update`, does this in order:
 4. Tick dots that were already running.
 5. Tick Premeditation expiry.
 6. Run `Rogue.rotation`, which may cast and then swing. Anything applied
-   here keeps the duration it was given until the next frame.
+   here keeps the duration it was given until the next step.
 
 The combat log keeps the newest `k("log.maxEvents")` rows (`engineering`,
 retune off). That cap is display, not a game rule.

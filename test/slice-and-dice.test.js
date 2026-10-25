@@ -29,7 +29,6 @@ function holdCooldowns(sim) {
 function pinned() {
   const rogue = new Rogue();
   const sim = new Simulation(rogue, { rng: testRng });
-  sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   holdCooldowns(sim);
   rogue.weapons.mainHand.swingTimer = k("sliceAndDice").durationByCp.at(-1);
@@ -39,7 +38,7 @@ function pinned() {
 }
 
 function advance(sim, seconds) {
-  sim.update(sim.lastFrameTime + seconds * k("sim.msPerSecond"));
+  sim.step(seconds);
 }
 
 // Blade Flurry starts the GCD, so Slice and Dice lands once that GCD has ticked off.
@@ -52,7 +51,7 @@ function castBothBuffs(rogue, sim) {
   mainHand.swingTimer = mainHand.speed;
   offHand.swingTimer = offHand.speed;
 
-  sim.update(0);
+  sim.step(0);
   assert.equal(sim.currentTime, 0);
   assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
   assert.ok(sim.activeBuffs["Blade Flurry"].duration > 0);
@@ -117,7 +116,7 @@ describe("Slice and Dice rotation", () => {
     const { rogue, sim } = pinned();
     const below = k("rotation.finisherComboPoints") - 1;
     rogue.comboPoints = below;
-    sim.update(0);
+    sim.step(0);
 
     assert.equal(sim.currentTime, 0);
     assert.equal(sim.activeBuffs["Slice and Dice"], undefined);
@@ -125,7 +124,7 @@ describe("Slice and Dice rotation", () => {
     assert.equal(rogue.energy, k("sliceAndDice").energy);
 
     rogue.comboPoints = k("rotation.finisherComboPoints");
-    sim.update(0);
+    sim.step(0);
     const refreshed =
       k("sliceAndDice").durationByCp[k("rotation.finisherComboPoints") - 1];
 
@@ -141,7 +140,7 @@ describe("Slice and Dice rotation", () => {
     rogue.energy = k("sliceAndDice").energy;
     sim.activeBuffs["Slice and Dice"].duration =
       k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon");
-    sim.update(0);
+    sim.step(0);
 
     assert.equal(rogue.comboPoints, k("rotation.finisherComboPoints"));
     assert.equal(
@@ -154,7 +153,7 @@ describe("Slice and Dice rotation", () => {
     sim.activeBuffs["Slice and Dice"].duration = k(
       "rotation.sliceAndDiceRefreshSeconds",
     );
-    sim.update(0);
+    sim.step(0);
 
     assert.equal(rogue.comboPoints, 0);
     assert.equal(sim.activeDots.Rupture, undefined);
@@ -198,7 +197,7 @@ describe("Slice and Dice rotation", () => {
     setRoll(0.5);
     const { rogue, sim } = pinned();
     rogue.comboPoints = k("rotation.finisherComboPoints");
-    sim.update(0);
+    sim.step(0);
     assert.equal(sim.currentTime, 0);
     const duration = sim.activeBuffs["Slice and Dice"].duration;
     const below = k("rotation.finisherComboPoints") - 1;

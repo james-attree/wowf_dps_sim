@@ -12,7 +12,6 @@ const FIGHT_SECONDS = 60;
 function pinned() {
   const rogue = new Rogue();
   const sim = new Simulation(rogue, { rng: testRng });
-  sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   rogue.weapons.mainHand.swingTimer = rogue.weapons.mainHand.speed;
   rogue.weapons.offHand.swingTimer = rogue.weapons.offHand.speed;
@@ -28,7 +27,7 @@ function hold(sim, rogue, ids) {
 }
 
 function atZero(sim) {
-  sim.update(0);
+  sim.step(0);
   assert.equal(sim.currentTime, 0);
 }
 
@@ -206,7 +205,6 @@ describe("placeholder Combat rotation", () => {
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
       const sim = new Simulation(rogue, { rng: testRng });
-      sim.lastFrameTime = 0;
       assert.equal(sim.currentTime, 0);
       const counts = {};
       const addCombatEvent = sim.addCombatEvent.bind(sim);
@@ -214,10 +212,10 @@ describe("placeholder Combat rotation", () => {
         counts[name] = (counts[name] ?? 0) + 1;
         return addCombatEvent(name, ...rest);
       };
-      const frameMs = k("sim.msPerSecond") / fps;
+      const dt = 1 / fps;
       const frames = Math.round(FIGHT_SECONDS * fps);
       for (let frame = 1; frame <= frames; frame += 1) {
-        sim.update(frame * frameMs);
+        sim.step(dt);
       }
 
       for (const name of OMITTED) {

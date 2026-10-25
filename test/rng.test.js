@@ -25,9 +25,8 @@ function draw(rng, count) {
 function fight(seed, { frames = 600, fps = 60 } = {}) {
   const rogue = new Rogue();
   const sim = new Simulation(rogue, { seed });
-  sim.lastFrameTime = 0;
   for (let frame = 1; frame <= frames; frame++) {
-    sim.update((frame * k("sim.msPerSecond")) / fps);
+    sim.step(1 / fps);
   }
   return sim;
 }
@@ -152,9 +151,8 @@ describe("Simulation rng", () => {
         return value;
       },
     });
-    sim.lastFrameTime = 0;
     for (let frame = 1; frame <= 600; frame++) {
-      sim.update((frame * k("sim.msPerSecond")) / 60);
+      sim.step(1 / 60);
     }
     assert.ok(seen.length > 0);
     assert.equal(sim.damageDone, fight(5).damageDone);
@@ -166,14 +164,13 @@ describe("Simulation rng", () => {
     });
     const rogue = new Rogue();
     const sim = new Simulation(rogue, { seed: 3 });
-    sim.lastFrameTime = 0;
     // Run long enough to swing, cast, and tick Rupture.
     rogue.comboPoints = rogue.maxComboPoints;
     rogue.energy = rogue.maxEnergy;
     const fps = 60;
     const frames = fps * 120;
     for (let frame = 1; frame <= frames; frame++) {
-      sim.update((frame * k("sim.msPerSecond")) / fps);
+      sim.step(1 / fps);
     }
     assert.ok(sim.damageDone > 0);
 

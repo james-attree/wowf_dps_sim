@@ -38,7 +38,6 @@ describe("GCD meter aria attributes", () => {
   it("uses the sim GCD as the max and keeps the value inside that range", () => {
     const meter = meterElement();
     const simulation = new Simulation(new Rogue());
-    simulation.lastFrameTime = 0;
 
     applyGcdMeterAria(meter, simulation);
 

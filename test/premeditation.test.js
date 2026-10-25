@@ -22,14 +22,13 @@ function harness({ hit = true } = {}) {
   rogue.critChance = 0;
   rogue.rotation = () => {};
   const sim = new Simulation(rogue, { rng: testRng });
-  sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
 }
 
+// Whole frames at this fps, as one step in seconds.
 function timeAt(fps, seconds) {
-  const frameMs = k("sim.msPerSecond") / fps;
-  return Math.round(seconds * fps) * frameMs;
+  return Math.round(seconds * fps) / fps;
 }
 
 describe("Premeditation export", () => {
@@ -103,12 +102,12 @@ describe("Premeditation combo point expiry", () => {
     for (const fps of FRAME_RATES) {
       const { rogue, sim } = harness();
       rogue.abilities.premeditation.cast(rogue, sim);
-      const frameMs = k("sim.msPerSecond") / fps;
+      const dt = 1 / fps;
       const frames = Math.round((expiry + 1) * fps);
       let goneAt = null;
       let stillThereAt = null;
       for (let frame = 1; frame <= frames; frame += 1) {
-        sim.update(frame * frameMs);
+        sim.step(dt);
         if (rogue.comboPoints === granted) {
           stillThereAt = sim.currentTime;
         } else if (goneAt === null) {
@@ -140,8 +139,8 @@ describe("Premeditation combo point expiry", () => {
         rogue.abilities.premeditation.cast(rogue, sim);
         cast = true;
       };
-      const frameMs = k("sim.msPerSecond") / fps;
-      sim.update(frameMs);
+      const dt = 1 / fps;
+      sim.step(dt);
 
       assert.equal(cast, true);
       assert.equal(rogue.comboPoints, k("premeditation").comboPoints);
@@ -153,7 +152,7 @@ describe("Premeditation combo point expiry", () => {
       const frames = Math.round((k("premeditation.cpExpiry") + 1) * fps);
       let goneAt = null;
       for (let frame = 2; frame <= frames; frame += 1) {
-        sim.update(frame * frameMs);
+        sim.step(dt);
         if (rogue.comboPoints !== k("premeditation").comboPoints) {
           goneAt = sim.currentTime;
           break;
@@ -176,7 +175,7 @@ describe("Premeditation combo point expiry", () => {
       assert.equal(rogue.comboPoints, kept);
       assert.equal(rogue.premeditationCp, 0);
 
-      sim.update(timeAt(fps, k("premeditation.cpExpiry") + 1));
+      sim.step(timeAt(fps, k("premeditation.cpExpiry") + 1));
       assert.equal(rogue.comboPoints, kept, `${fps} fps`);
     }
   });
@@ -193,7 +192,7 @@ describe("Premeditation combo point expiry", () => {
       assert.equal(rogue.premeditationCp, 0);
       rogue.comboPoints = 1;
 
-      sim.update(timeAt(fps, k("premeditation.cpExpiry") + 1));
+      sim.step(timeAt(fps, k("premeditation.cpExpiry") + 1));
       assert.equal(rogue.comboPoints, 1, `${fps} fps`);
     }
   });
@@ -213,7 +212,7 @@ describe("Premeditation combo point expiry", () => {
       assert.equal(rogue.comboPoints, granted);
       assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
 
-      sim.update(timeAt(fps, k("premeditation.cpExpiry")));
+      sim.step(timeAt(fps, k("premeditation.cpExpiry")));
       assert.equal(rogue.comboPoints, 0, `${fps} fps`);
     }
   });
@@ -226,7 +225,7 @@ describe("Premeditation combo point expiry", () => {
     assert.equal(rogue.comboPoints, k("combo.max"));
     assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
 
-    sim.update(timeAt(30, k("premeditation.cpExpiry")));
+    sim.step(timeAt(30, k("premeditation.cpExpiry")));
     assert.equal(
       rogue.comboPoints,
       k("combo.max") - k("premeditation.cpRemovedOnExpiry"),
@@ -242,7 +241,7 @@ describe("Premeditation combo point expiry", () => {
     assert.equal(rogue.comboPoints, k("combo.max"));
     assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
 
-    sim.update(timeAt(30, k("premeditation.cpExpiry")));
+    sim.step(timeAt(30, k("premeditation.cpExpiry")));
     assert.equal(
       rogue.comboPoints,
       k("combo.max") - k("premeditation.cpRemovedOnExpiry"),
@@ -260,7 +259,7 @@ describe("Premeditation combo point expiry", () => {
           k("premeditation.cpRemovedOnExpiry"),
         );
 
-        sim.update(timeAt(fps, k("premeditation.cpExpiry")));
+        sim.step(timeAt(fps, k("premeditation.cpExpiry")));
         assert.equal(rogue.comboPoints, 0, `${fps} fps from ${comboPoints}`);
         assert.equal(rogue.premeditationCp, 0);
       }
@@ -278,7 +277,7 @@ describe("Premeditation combo point expiry", () => {
     assert.equal(rogue.comboPoints, k("combo.max"));
     assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
 
-    sim.update(timeAt(144, k("premeditation.cpExpiry")));
+    sim.step(timeAt(144, k("premeditation.cpExpiry")));
     assert.equal(
       rogue.comboPoints,
       k("combo.max") - k("premeditation.cpRemovedOnExpiry"),

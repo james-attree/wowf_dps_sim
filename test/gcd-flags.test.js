@@ -14,7 +14,6 @@ function prepare() {
   rogue.energy = k("start.state").energy;
   const sim = new Simulation(rogue, { rng: testRng });
   sim.gcd = 0;
-  sim.lastFrameTime = 0;
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
 }
@@ -132,9 +131,8 @@ describe("gcd.flags", () => {
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
       const sim = new Simulation(rogue, { rng: testRng });
-      sim.lastFrameTime = 0;
       assert.equal(sim.currentTime, 0);
-      sim.update(k("sim.msPerSecond") / fps);
+      sim.step(1 / fps);
 
       assert.equal(sim.gcd, k("gcd.duration"), `${fps} fps`);
       assert.equal(
