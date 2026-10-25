@@ -117,22 +117,23 @@ speed for the attack-power term and that the engine assumes a dagger.
 `k("normalizedSpeed.oneHand")` (same source, on the retune list) is not
 selected. Its note says so.
 
-The rotation's weapon builders are Hemorrhage and Ghostly Strike. A landed
+Sinister Strike is the rotation's builder. It deals the normalised hit plus
+`k("sinisterStrike").bonusDamage` and has no weapon multiplier. Hemorrhage
+and Ghostly Strike stay implemented and are not in the rotation. A landed
 Hemorrhage deals that normalised hit times one entry of
 `k("hemorrhage").weaponMultiplier` and applies a target debuff for
 `k("hemorrhage.ruptureBonus").duration`. A landed Ghostly Strike deals the
 normalised hit times one entry of `k("ghostlyStrike").weaponMultiplier`.
 The main-hand type `"dagger"` selects the `dagger` entry. Every other type,
 including the sample main hand, selects `other`. Both constants are
-`wowf-export` and are not on the retune list. Sinister Strike is the
-normalised hit plus `k("sinisterStrike").bonusDamage`. It has no weapon
-multiplier. Backstab is that hit times `k("backstab").weaponMultiplier`,
-plus `k("backstab").bonusDamage`. Ambush is that hit times
-`k("ambush").weaponMultiplier`, plus `k("ambush").bonusDamage`. All three
-are `wowf-export`. Only the notes on `k("backstab")` and `k("ambush")` say
+`wowf-export` and are not on the retune list. Backstab is that hit times
+`k("backstab").weaponMultiplier`, plus `k("backstab").bonusDamage`. Ambush
+is that hit times `k("ambush").weaponMultiplier`, plus
+`k("ambush").bonusDamage`. Sinister Strike, Backstab, and Ambush are
+`wowf-export`. Only the notes on `k("backstab")` and `k("ambush")` say
 dagger, behind, or stealth requirements are not enforced. The note on
 `k("sinisterStrike")` is weapon damage plus the bonus. `Rogue.rotation`
-does not cast those three.
+does not cast Backstab or Ambush.
 
 `Weapon.tick` subtracts the frame from `swingTimer`. While the timer is at
 or below `k("sim.tickEpsilon")` and the interval is positive, it fires a
@@ -186,23 +187,31 @@ while `Skill.cast` treats the GCD as ready.
 
 ## Sample rotation
 
-`Rogue.rotation` tries, in order:
+`Rogue.rotation` reads `k("rotation.priority")` (`wowf-designer`, on the
+retune list). The ref records the placeholder Combat rotation. It tries, in
+order:
 
-1. Adrenaline Rush, when energy is at or below
-   `k("rotation.adrenalineRushEnergy")`.
-2. Blade Flurry.
-3. Premeditation.
-4. Slice and Dice, when it is missing or due to refresh (see Slice and Dice).
-5. Rupture, when combo points are at `k("combo.max")`.
-6. Ghostly Strike.
-7. Hemorrhage.
-8. Both weapon swings, with the haste multiplier from `stackHaste`.
+1. Each ability in `onCooldown`, in order: Blade Flurry, then Adrenaline
+   Rush. Both are tried whenever they are ready. Adrenaline Rush has no
+   energy threshold.
+2. When combo points are at `k("rotation.finisherComboPoints")`, Slice and
+   Dice if that buff is missing or its remaining duration is at or below
+   `k("rotation.sliceAndDiceRefreshSeconds")`. Otherwise Eviscerate.
+3. Otherwise Sinister Strike.
+4. Both weapon swings, with the haste multiplier from `stackHaste`.
+
+Ghostly Strike, Premeditation, Hemorrhage, and Rupture stay implemented and
+are not in this list. This replaces the earlier rule that refreshed Slice and
+Dice before combo points were full, ahead of a Rupture at `k("combo.max")`.
+Sinister Strike spends its energy cost on the way to the next finisher, so a
+fight can reach `k("rotation.finisherComboPoints")` only after Slice and Dice
+has already fallen to `k("rotation.sliceAndDiceRefreshSeconds")` or less.
+Eviscerate is still the branch taken when the buff is longer than that.
 
 Each cast still has to pass `Skill.cast` (cooldown, combo points for a
-spender, energy, and the GCD). The first ability that starts the GCD blocks
-later on-GCD casts in that frame. Premeditation does not, so it can still
-land beside one of them. Weapon swings run after the casts, whether or not a
-cast succeeded.
+spender, energy, and the GCD). Every ability in the list starts the GCD, so
+the first one that succeeds blocks the rest of that frame. Weapon swings run
+after the casts, whether or not a cast succeeded.
 
 ## Energy
 
@@ -254,19 +263,22 @@ already capped, leaves the timer alone. A spender sets combo points to none
 and cancels the timer. `Skill.cast` rejects a spender when the rogue has no combo
 points, before it spends energy or starts the GCD.
 
-A landed Hemorrhage adds `k("hemorrhage").comboPoints`. A landed Ghostly
-Strike adds `k("ghostlyStrike").comboPoints` and then sits on
-`k("ghostlyStrike").cooldown`.
-Premeditation is covered below.
+A landed Sinister Strike, the rotation's builder, adds
+`k("sinisterStrike").comboPoints`. A landed Hemorrhage adds
+`k("hemorrhage").comboPoints`. A landed Ghostly Strike adds
+`k("ghostlyStrike").comboPoints` and then sits on
+`k("ghostlyStrike").cooldown`. The rotation does not cast Hemorrhage or
+Ghostly Strike. Premeditation is covered below.
 
 ## Finishers
 
 Eviscerate, Rupture, and Slice and Dice set `spender`. Each needs a combo
 point, and a successful cast spends all of them and cancels Premeditation
 expiry. Slice and Dice is covered in its own section. It deals no damage.
-The sample rotation's damaging finisher is Rupture, and only when combo
-points are at `k("combo.max")`. Eviscerate is implemented and `Rogue.rotation`
-does not call it.
+The placeholder Combat rotation's damaging finisher is Eviscerate, when
+combo points are at `k("rotation.finisherComboPoints")` and Slice and Dice
+is present with more than `k("rotation.sliceAndDiceRefreshSeconds")` left.
+Rupture is implemented and `Rogue.rotation` does not call it.
 
 Eviscerate, in `Eviscerate.damage`, rolls an inclusive integer from min to
 max. The attack-power term is attack power times combo points times
@@ -307,8 +319,8 @@ the retune list. It is not an attack, so the log records a cast. It does not
 start the GCD. The comment on `Premeditation` in `js/skill.js` says the
 export spell_desc has no Stealth requirement and that Classic required it.
 The note on `k("premeditation.cpExpiry")` says Classic needed Stealth. The
-engine does not check for it. There is no Stealth check in `Premeditation`
-or in `Rogue.rotation`.
+engine does not check for it. There is no Stealth check in `Premeditation`.
+`Rogue.rotation` does not cast it.
 
 On a successful cast `Rogue.armPremeditation` sets the removal amount to
 `k("premeditation.cpRemovedOnExpiry")` and the timer to
@@ -334,11 +346,10 @@ The constant is `wowf-export` and is not on the retune list. The note says
 the engine uses the export cooldown, and that casting starts the GCD. It is
 not an attack. It does not generate combo points.
 
-`Rogue.rotation` tries it when energy is at or below
-`k("rotation.adrenalineRushEnergy")`. That threshold is an assumption on the
-retune list. The note says it is a rotation threshold, not a spell cost.
-While the ability is on cooldown, `Skill.cast` returns without refreshing
-the buff. The regen multiplier is under Energy:
+`Rogue.rotation` tries it on cooldown, after Blade Flurry, as the second
+`onCooldown` id in `k("rotation.priority")`. It does not wait for an energy
+threshold. While the ability is on cooldown, `Skill.cast` returns without
+refreshing the buff. The regen multiplier is under Energy:
 `k("adrenalineRush").regenMultiplier` on the portion of a later frame still
 inside the buff.
 
@@ -350,10 +361,11 @@ constant is `wowf-export` and is not on the retune list. The note says cleave
 is ignored on a single target, and that casting starts the GCD. It is not an
 attack and it grants no combo points. There is no second target.
 
-`Rogue.rotation` tries it on every frame, before Premeditation and Slice and
-Dice. When the cast succeeds it takes the GCD, so Slice and Dice and the
-builders wait. While the buff's duration is still positive, its haste
-fraction `k("bladeFlurry").haste` is passed to `stackHaste`.
+`Rogue.rotation` tries it on every frame, first in `k("rotation.priority")`.
+When the cast succeeds it takes the GCD, so Adrenaline Rush, Slice and Dice,
+Eviscerate, and Sinister Strike wait. While the buff's duration is still
+positive, its haste fraction `k("bladeFlurry").haste` is passed to
+`stackHaste`.
 
 ## Slice and Dice
 
@@ -379,14 +391,15 @@ written out per point so the engine can index it. The engine does not
 evaluate that expression itself. The buff is a player aura, not a debuff,
 and it deals no damage.
 
-`Rogue.rotation` refreshes it before the Rupture check. The cast is attempted
-when the buff is missing, or its remaining duration is at or below
-`k("rotation.sliceAndDiceRefreshSeconds")`, and combo points are at least
-`k("rotation.sliceAndDiceComboPoints")`. Both thresholds are assumptions on
-the retune list. When that cast succeeds it spends the combo points, so the
-Rupture check later in the same call sees none. Blade Flurry is tried earlier
-and also starts the GCD, so when both are ready Blade Flurry takes this frame
-and Slice and Dice waits until the GCD is clear.
+`Rogue.rotation` considers it only when combo points are at
+`k("rotation.finisherComboPoints")`. The cast is attempted when the buff is
+missing, or its remaining duration is at or below
+`k("rotation.sliceAndDiceRefreshSeconds")`. Both thresholds are
+`wowf-designer` and on the retune list, and `k("rotation.priority")` records
+the same decision. A longer remaining duration spends those combo points on
+Eviscerate instead. Blade Flurry and Adrenaline Rush are tried earlier and
+start the GCD, so when one of them is ready it takes this frame and Slice
+and Dice waits until the GCD is clear.
 
 While the buff's duration is positive, `Rogue.rotation` passes
 `k("sliceAndDice").haste` through `stackHaste`. The note says that haste

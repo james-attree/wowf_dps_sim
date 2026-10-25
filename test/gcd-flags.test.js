@@ -126,7 +126,7 @@ describe("gcd.flags", () => {
     assert.equal(alone.rogue.comboPoints, k("premeditation").comboPoints);
   });
 
-  it("casts Blade Flurry and Premeditation on the opening frame and holds the builder", () => {
+  it("casts Blade Flurry on the opening frame and holds the next on-GCD cast", () => {
     mock.method(Math, "random", () => 0.5);
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
@@ -138,7 +138,7 @@ describe("gcd.flags", () => {
       assert.equal(sim.gcd, k("gcd.duration"), `${fps} fps`);
       assert.equal(
         rogue.comboPoints,
-        k("premeditation").comboPoints,
+        k("character.startingComboPoints"),
         `${fps} fps`,
       );
       assert.equal(
@@ -146,20 +146,20 @@ describe("gcd.flags", () => {
         k("bladeFlurry").duration,
         `${fps} fps`,
       );
-      assert.equal(
-        sim.cooldowns.Premeditation,
-        k("premeditation").cooldown,
-        `${fps} fps`,
-      );
+      assert.equal(sim.cooldowns.Premeditation, undefined, `${fps} fps`);
       assert.equal(sim.activeBuffs["Adrenaline Rush"], undefined, `${fps} fps`);
       assert.equal(sim.activeDebuffs.Hemorrhage, undefined, `${fps} fps`);
       assert.equal(sim.cooldowns["Ghostly Strike"], undefined, `${fps} fps`);
       const names = sim.combatLog.map((event) => event.name);
       assert.equal(names.includes("Blade Flurry"), true, `${fps} fps`);
-      assert.equal(names.includes("Premeditation"), true, `${fps} fps`);
+      assert.equal(names.includes("Premeditation"), false, `${fps} fps`);
+      assert.equal(names.includes("Adrenaline Rush"), false, `${fps} fps`);
       assert.equal(names.includes("Hemorrhage"), false, `${fps} fps`);
       assert.equal(names.includes("Ghostly Strike"), false, `${fps} fps`);
       assert.equal(names.includes("Slice and Dice"), false, `${fps} fps`);
+      assert.equal(names.includes("Sinister Strike"), false, `${fps} fps`);
+      assert.equal(names.includes("Eviscerate"), false, `${fps} fps`);
+      assert.equal(names.includes("Rupture"), false, `${fps} fps`);
     }
   });
 });

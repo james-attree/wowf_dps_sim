@@ -14,8 +14,10 @@ publishes `index.html`, `styles.css`, `js/`, `data/`, and `img/`.
 
 ## Status
 
-Phase 0. Combat is the first spec. The page runs the single rotation in
-`js/rogue.js`. Talent ranks in the vendored snapshot are not applied yet.
+Phase 0. Combat is the first spec. The page runs the placeholder Combat
+rotation in `js/rogue.js`: Blade Flurry, Adrenaline Rush, then Slice and Dice
+or Eviscerate at the finisher combo points, otherwise Sinister Strike. Talent
+ranks in the vendored snapshot are not applied yet.
 
 ## Running locally
 
@@ -136,7 +138,7 @@ on.
   and nature damage can skip it), rolls DoT crits, runs the rotation, and
   records damage and the combat log.
 - `js/rogue.js` — Energy, combo points, crit, hit, weapons, abilities, the
-  priority rotation (including Slice and Dice), and `stackHaste`
+  placeholder Combat priority (`rotation.priority`), and `stackHaste`
   (`haste.stacking`).
 - `js/skill.js` — Shared `Skill` cast path, plus Sinister Strike, Eviscerate,
   Premeditation, Adrenaline Rush, Slice and Dice, Ghostly Strike, Backstab,
@@ -156,7 +158,8 @@ on.
   is the snapshot; `manifest.json` records the source URL, credit, licence,
   generated date, client build, and fetch date. The app never fetches it.
 - `docs/mechanics.md` — Attack table, weapons, the GCD, energy, combo points,
-  finishers, Premeditation, Adrenaline Rush, Blade Flurry, Slice and Dice,
+  the placeholder Combat rotation, finishers, Premeditation, Adrenaline Rush,
+  Blade Flurry, Slice and Dice,
   haste stacking, armor, bleeds and DoTs, and the simulation clock. Formulas
   name constant ids. See [Mechanics](docs/mechanics.md).
 - `docs/roadmap.md` — Phased plan, theme legend, and the Phase 0 issue
@@ -192,12 +195,13 @@ on.
 - `test/gcd-flags.test.js` — Which abilities start the GCD.
 - `test/gcd-meter.test.js` — The GCD meter's ARIA range.
 - `test/pages.test.js` — The data-credit footer and the Pages workflow.
-- `test/premeditation.test.js` — Premeditation combo points, expiry, and fight
-  start.
+- `test/premeditation.test.js` — Premeditation combo points and expiry.
 - `test/provenance.test.js` — The provenance check, the CLI, and the generated
   report.
 - `test/refresh-data.test.js` — The talentsforever refresh, manifest, and
   snapshot diff.
+- `test/rotation.test.js` — Placeholder Combat priority, including the Slice
+  and Dice refresh boundary.
 - `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
 - `test/serve.test.js` — The static server's port and path checks.
 - `test/simulation.test.js` — The clock, buff duration, Adrenaline Rush
