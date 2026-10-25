@@ -108,8 +108,8 @@ export class Simulation {
       while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
         let dotTickDamage = dot.tickDamage;
 
-        // hemorrhage.ruptureBonus.bonus applies to every active DoT tick.
-        if (this.activeDebuffs["Hemorrhage"]) {
+        // hemorrhage.ruptureBonus.bonus applies to Rupture ticks only.
+        if (dotName === "Rupture" && this.activeDebuffs["Hemorrhage"]) {
           dotTickDamage *= 1 + k("hemorrhage.ruptureBonus").bonus;
         }
 

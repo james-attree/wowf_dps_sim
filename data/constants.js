@@ -27,6 +27,15 @@ function entry(value, unit, source, ref, note, retune) {
   return { value, unit, source, ref, note, retune };
 }
 
+const MAIN_HAND_TYPE = entry(
+  "other",
+  "–",
+  WOWF_DESIGNER,
+  "James, 24 Oct 2026: the sample main-hand isn't a dagger; keep type 'other'",
+  "Sample main-hand type. Ghostly Strike and Hemorrhage use the non-dagger percent.",
+  false,
+);
+
 export const CONSTANTS = {
   // wowf-export: re-read when the talentsforever snapshot refreshes.
   "energy.regenPerSecond": entry(
@@ -103,15 +112,20 @@ export const CONSTANTS = {
     "×, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Hemorrhage|]",
-    "Export is +15% Rupture damage for 15s. The engine still multiplies every DoT tick (Q14).",
+    "Export is +15% Rupture damage for 15s. Only Rupture ticks are increased.",
     false,
   ),
   hemorrhage: entry(
-    { energy: 35, cooldown: 0, weaponMultiplier: 1.45, comboPoints: 1 },
+    {
+      energy: 35,
+      cooldown: 0,
+      weaponMultiplier: { dagger: 1.45, other: 1 },
+      comboPoints: 1,
+    },
     "energy, s, ×, CP",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Hemorrhage|]",
-    "145% weapon damage assumes a dagger main hand. Non-dagger is 100% (Q14).",
+    "100% weapon damage, or 145% when the main hand is a dagger.",
     false,
   ),
   "abilities.*": entry(
@@ -166,13 +180,13 @@ export const CONSTANTS = {
       energy: 40,
       cooldown: 20,
       duration: 7,
-      weaponMultiplier: 1.8,
+      weaponMultiplier: { dagger: 1.8, other: 1.25 },
       comboPoints: 1,
     },
     "energy, s, s, ×, CP",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Ghostly Strike|]",
-    "180% assumes a dagger main hand. Otherwise the export says 125% (Q14).",
+    "125% weapon damage, or 180% when the main hand is a dagger.",
     false,
   ),
   backstab: entry(
@@ -577,6 +591,7 @@ export const CONSTANTS = {
     "Rupture, Garrote, and Deadly Poison. This differs from Classic. The per-tick crit roll stays.",
     false,
   ),
+  "weapon.mainHand.type": MAIN_HAND_TYPE,
 
   // assumption: defaults James signed on 22 Oct 2026.
   "dot.critMultiplier": entry(
@@ -710,11 +725,11 @@ export const CONSTANTS = {
     true,
   ),
   "weapon.mainHand": entry(
-    { min: 59, max: 110, speed: 1.8 },
-    "damage, damage, s",
+    { min: 59, max: 110, speed: 1.8, type: MAIN_HAND_TYPE.value },
+    "damage, damage, s, –",
     ASSUMPTION,
     `${SAMPLE_INPUT}; #9 is 59–110 at 1.8s`,
-    "Issue #9 unswaps the sample main hand. SimConfig will own the weapon (E2).",
+    "Issue #9 unswaps the sample main hand. type is not a dagger, so Ghostly Strike and Hemorrhage use the non-dagger percent. SimConfig will own the weapon (E2).",
     true,
   ),
   "weapon.offHand": entry(
