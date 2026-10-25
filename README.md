@@ -153,7 +153,7 @@ Phase 1's exit criterion is a seeded 5-minute fight that runs in Node in under
 50 ms. `npm run bench` times `runFight({ seed: 1, duration: 300 })` 20 times in
 one process and prints the median, the slowest run, the cold run (the first
 one, before the engine is warmed up), and the warm median (the runs after it).
-`npm run bench -- --runs 50` changes the count. It exits with status 1 when the
+`npm run bench -- --runs 50` changes the count (1 to 1000). It exits with status 1 when the
 median is not under 50 ms. The numbers depend on the machine and Node version,
 so the report names the Node version.
 
@@ -179,12 +179,16 @@ rejects them under `js/`.
   as an ES module.
 - `styles.css` — Dark layout and meters for that page.
 - `js/main.js` — UI entry: the animation frame, pause control, and DOM updates.
-  It turns each frame timestamp into a time step in seconds and calls
-  `Simulation.step`. The GCD status reads "On cooldown" while `gcd > 0`. The
-  only file under `js/` that may use `document`, `window`, or the clock
-  (`performance`, `Date`); lint rejects those, and `Math.random`, in every
-  other file under `js/`. It picks a random seed at page load for the
-  `Simulation`.
+  It is a view of the engine: it builds the fight with `createFight`, turns
+  each frame timestamp into whole fixed steps with `FrameClock`, calls
+  `Simulation.step`, and draws. It shows the random seed it picks at page load
+  in the header. The GCD status reads "On cooldown" while `gcd > 0`. The only
+  file under `js/` that may use `document`, `window`, or the clock; lint
+  rejects those, and `Math.random`, in every other file under `js/`.
+- `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
+  milliseconds into a whole number of `sim.fixedStep` steps. It carries the
+  remainder between frames and caps one frame at `sim.maxFrameTime`. It takes
+  timestamps as arguments and reads no clock.
 - `js/rng.js` — `createRng(seed)`, the seeded mulberry32 generator the
   `Simulation` owns. Every random draw in the engine goes through it.
 - `js/simulation.js` — `step(dt)` advances the fight by `dt` seconds and reads
@@ -194,8 +198,9 @@ rejects them under `js/`.
   applies armor to direct hits and to ticks (bleeds and nature damage can skip
   it), rolls DoT crits, runs the rotation, and records damage, the combat log,
   and per-ability totals (`abilityStats`, from `recordAbility`).
-- `js/fight.js` — `runFight({ seed, duration })`, the headless entry point. It
-  builds a `Rogue` and a `Simulation`, makes one `run(duration)` call, and
+- `js/fight.js` — `runFight({ seed, duration })`, the headless entry point, and
+  `createFight(seed)`, the `Rogue` and `Simulation` pair that `runFight` and the
+  live page both build. `runFight` makes one `run(duration)` call, and
   returns a plain object: seed, simulated duration, total damage, DPS, a
   per-ability breakdown (`Simulation.abilityStats`), and the combat log. The
   same seed and duration give a deep-equal result, and it loads in Node with no

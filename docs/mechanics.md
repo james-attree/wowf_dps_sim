@@ -25,7 +25,8 @@ attack roll, and each DoT tick's crit roll all draw from it. Nothing under
 `js/` except `js/main.js` uses a platform random source, and lint rejects
 `Math.random` there, including `Math['random']`, `globalThis.Math.random`, and
 `self.Math.random`. The live page picks
-a random seed at load and keeps it in `simulation.seed`. A `Rogue` that no
+a random seed at load, keeps it in `simulation.seed`, and shows it in the
+header. A `Rogue` that no
 `Simulation` has adopted has no rng, and a draw throws.
 
 ## Attack table
@@ -610,16 +611,33 @@ not.
 
 ### Live page
 
-`js/main.js` is the host for the live page. It calls `step` from
-`requestAnimationFrame` and turns the browser's frame timestamp into the step:
+`js/main.js` is a view of the same engine `runFight` uses. It builds the fight
+with `createFight(seed)` from `js/fight.js`, shows the seed in the header
+(plain text, so the same seed can be replayed in `runFight`), and from each
+animation frame it takes whole steps of `k("sim.fixedStep")` through
+`step`. It holds no combat or timing rule. The conversion from a frame
+timestamp to a number of steps lives in `FrameClock` (`js/frame-clock.js`),
+which reads no clock itself:
 
-`dt = max(0, (time - lastFrameTime) / k("sim.msPerSecond"))`
+1. The first frame, and the first frame after a resume, take no steps. They
+   only record the timestamp.
+2. After that, `elapsed = (time - previousTime) / k("sim.msPerSecond")`,
+   floored at 0 and capped at `k("sim.maxFrameTime")`.
+3. `available = carry + elapsed`, `steps = floor(available / k("sim.fixedStep"))`,
+   and `carry = available - steps * k("sim.fixedStep")`. The leftover under
+   one step carries to the next frame.
 
-then sets `lastFrameTime = time`. `k("sim.msPerSecond")` is `engineering` and
-retune is off, and `js/main.js` is its only reader. Pausing cancels the
-animation frame. Resume sets `lastFrameTime` from `performance.now()`, so the
-paused gap is not simulated. The live page does not use `run` or
-`k("sim.fixedStep")` yet.
+`k("sim.msPerSecond")` and `k("sim.maxFrameTime")` are `engineering` and retune
+is off, and `js/frame-clock.js` is their only reader. The cap is 0.25 s, so one
+frame takes at most 16 steps. A backgrounded tab, a stalled main thread, or a
+long pause never turns into one huge step or a burst of catch-up, and the
+excess time is dropped. It is not a game rule: a 60 or 144 fps display never
+reaches it, and a page below 4 fps runs slower than real time. Pausing cancels
+the animation frame, and resume restarts the frame clock, so the paused gap is
+not simulated.
+
+Every step is the same size as in `run`, so a seed gives the same fight live
+and headless when both take the same steps (`test/live-view.test.js`).
 
 ### Other time inputs
 

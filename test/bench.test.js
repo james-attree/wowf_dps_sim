@@ -8,6 +8,7 @@ import {
   BENCH_DURATION,
   BENCH_SEED,
   DEFAULT_RUNS,
+  MAX_RUNS,
   TARGET_MS,
   benchmark,
   cli,
@@ -156,6 +157,20 @@ describe("benchmark", () => {
     }
   });
 
+  it("rejects a run count above MAX_RUNS before timing anything", () => {
+    let fights = 0;
+    const fight = () => (fights += 1);
+    assert.throws(
+      () => benchmark({ runs: MAX_RUNS + 1, fight }),
+      /at most 1000/,
+    );
+    assert.equal(fights, 0);
+    assert.equal(
+      benchmark({ runs: MAX_RUNS, fight, duration: 0 }).runs,
+      MAX_RUNS,
+    );
+  });
+
   it("gives the same fight on every run, whatever the timings", () => {
     const results = [];
     benchmark({
@@ -235,6 +250,8 @@ describe("parseArgs", () => {
       ["--runs", "-2"],
       ["--runs", "1e1"],
       ["--runs", ""],
+      ["--runs", String(MAX_RUNS + 1)],
+      ["--runs", "99999999999"],
     ]) {
       assert.throws(() => parseArgs(bad), /--runs needs a positive integer/);
     }

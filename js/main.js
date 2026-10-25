@@ -1,13 +1,18 @@
 import { k } from "../data/constants.js";
+import { createFight } from "./fight.js";
+import { FrameClock } from "./frame-clock.js";
 import { applyGcdMeterAria } from "./gcd-meter.js";
-import { Rogue } from "./rogue.js";
-import { Simulation } from "./simulation.js";
 
-const rogue = new Rogue();
-// A fresh seed on every page load for now. simulation.seed has it for replays.
-const simulation = new Simulation(rogue, {
-  seed: crypto.getRandomValues(new Uint32Array(1))[0],
-});
+// The page is a view of the engine runFight uses. This file turns animation
+// frames into engine steps (FrameClock), advances the engine, and draws its
+// state. It holds no combat or timing rules.
+// A fresh seed on every page load for now. The header shows it, so a fight
+// can be repeated with runFight({ seed, duration }).
+const { seed, rogue, simulation } = createFight(
+  crypto.getRandomValues(new Uint32Array(1))[0],
+);
+const frameClock = new FrameClock();
+const fixedStep = k("sim.fixedStep");
 const cooldownSkillsByName = new Map(
   Object.values(rogue.abilities).map((skill) => [skill.name, skill]),
 );
@@ -39,6 +44,7 @@ const combatLogEmpty = document.querySelector("#combat-log-empty");
 const pauseButton = document.querySelector("#pause-button");
 const pauseIcon = document.querySelector("#pause-icon");
 const pauseLabel = document.querySelector("#pause-label");
+const seedValue = document.querySelector("#seed-value");
 const simulationStatus = document.querySelector("#simulation-status");
 const simulationStatusLabel = document.querySelector(
   "#simulation-status-label",
@@ -46,8 +52,7 @@ const simulationStatusLabel = document.querySelector(
 let lastRenderedCombatEventId = -1;
 let isPaused = false;
 let animationFrameId;
-// Browser timestamp of the last step. Resume resets it so a pause is not simulated.
-let lastFrameTime = performance.now();
+seedValue.textContent = String(seed);
 
 function redrawScene(rogue) {
   comboValue.value = `${rogue.comboPoints} / ${rogue.maxComboPoints}`;
@@ -227,11 +232,12 @@ function update(time) {
     return;
   }
 
-  // The browser's frame timestamp becomes a time step in seconds. The engine
-  // only ever sees the step.
-  const dt = Math.max(0, (time - lastFrameTime) / k("sim.msPerSecond"));
-  lastFrameTime = time;
-  simulation.step(dt);
+  // The frame timestamp becomes a whole number of fixed steps, at most
+  // k("sim.maxFrameTime") worth. The engine only ever sees the fixed step.
+  const steps = frameClock.steps(time);
+  for (let index = 0; index < steps; index++) {
+    simulation.step(fixedStep);
+  }
 
   redrawScene(rogue);
 
@@ -251,7 +257,8 @@ pauseButton.addEventListener("click", () => {
     return;
   }
 
-  lastFrameTime = performance.now();
+  // The next frame takes no steps, so the time spent paused is not simulated.
+  frameClock.restart();
   animationFrameId = requestAnimationFrame(update);
 });
 

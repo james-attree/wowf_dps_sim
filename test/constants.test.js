@@ -183,6 +183,7 @@ describe("constants", () => {
       "rng.defaultSeed",
       "rng.mulberry32",
       "sim.fixedStep",
+      "sim.maxFrameTime",
       "sim.msPerSecond",
       "sim.tickEpsilon",
     ]) {

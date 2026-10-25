@@ -308,22 +308,8 @@ describe("project site paths", () => {
       }
     }
     await walk(resolve(root, "js"));
-    // Modules the live page does not import yet. js/fight.js is the headless
-    // entry point (issue #74). The page switches to it in a later Phase 1
-    // issue, and until then it is published but not reachable from main.js.
-    // Remove this allowlist entry (and the set, if it is then empty) once
-    // main.js imports js/fight.js. That happens in #76.
-    const headlessOnly = new Set(["js/fight.js"]);
     for (const file of publishedJs) {
-      if (headlessOnly.has(file)) {
-        continue;
-      }
       assert.ok(seen.has(file), `${file} is published but not imported`);
-    }
-    for (const file of headlessOnly) {
-      assert.ok(publishedJs.includes(file), `${file} no longer exists`);
-      const source = await readFile(resolve(root, file), "utf8");
-      assert.doesNotMatch(source, /main\.js|document|window/, file);
     }
   });
 

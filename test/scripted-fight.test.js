@@ -164,6 +164,25 @@ describe("runScriptedFight", () => {
     }
   });
 
+  it("says an array entry is an array, not the names inside it", () => {
+    const original = Rogue.prototype.rotation;
+    for (const entry of [[BUILDER], [BUILDER, BUILDER], []]) {
+      assert.throws(
+        () => runScriptedFight({ seed: 1, duration: 5, script: [entry] }),
+        {
+          name: "RangeError",
+          message: /names an array \(each entry must be one ability key/,
+        },
+      );
+    }
+    // The message does not print the array's items as if they were a name.
+    assert.throws(
+      () => runScriptedFight({ seed: 1, duration: 5, script: [[BUILDER]] }),
+      (error) => !error.message.includes(`"${BUILDER}"`),
+    );
+    assert.equal(Rogue.prototype.rotation, original);
+  });
+
   it("puts the rotation back, even after a failure", () => {
     const original = Rogue.prototype.rotation;
     runScriptedFight({ seed: 1, duration: 5, script: [BUILDER] });
