@@ -58,6 +58,7 @@ do not import ES modules from `file://`.
 | `npm run provenance`    | `node scripts/provenance.mjs`                          |
 | `npm run data:refresh`  | `node scripts/refresh-data.mjs`                        |
 | `npm run golden:update` | `node scripts/golden-update.mjs`                       |
+| `npm run bench`         | `node scripts/bench.mjs`                               |
 | `npm run serve`         | `node scripts/serve.mjs`                               |
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on `push` and
@@ -146,6 +147,31 @@ npm run golden:update -- --write # rewrites the fixtures that differ
 `npm test` never rewrites a fixture. Review the diff in git before you commit
 it. [Golden-seed tests](docs/mechanics.md#golden-seed-tests) has the rules.
 
+## Benchmark
+
+Phase 1's exit criterion is a seeded 5-minute fight that runs in Node in under
+50 ms. `npm run bench` times `runFight({ seed: 1, duration: 300 })` 20 times in
+one process and prints the median, the slowest run, the cold run (the first
+one, before the engine is warmed up), and the warm median (the runs after it).
+`npm run bench -- --runs 50` changes the count. It exits with status 1 when the
+median is not under 50 ms. The numbers depend on the machine and Node version,
+so the report names the Node version.
+
+The 50 ms target is a figure for a development machine, not a CI guarantee. On
+our own box (8 vCPU Xeon, Node 20) a 5-minute fight takes about 22 ms warm and
+about 40 ms cold. The GitHub Actions runner (Node 22.23.3) measured about 60 to
+65 ms per fight, over the target, so no test asserts the 50 ms figure.
+`npm run bench -- --target-ms N` compares the median with `N` ms instead of
+50, which lets a test check the output and the exit status on any machine
+(`--target-ms 0` always exits 1).
+
+`npm test` runs `test/bench.test.js`, which asserts a looser bound (10 times the
+target, 500 ms, on the median of 5 fights) so a slow CI runner does not fail the
+build. It guards against a large regression only; the real number is the one
+`npm run bench` prints. See [Benchmark](docs/mechanics.md#benchmark) for why the
+bound is what it is. Timer reads belong in the script and the test; lint
+rejects them under `js/`.
+
 ## Module map
 
 - `index.html` — Simulator page (damage, energy, combo points, the GCD,
@@ -212,6 +238,10 @@ it. [Golden-seed tests](docs/mechanics.md#golden-seed-tests) has the rules.
   default; `--write` rewrites the fixtures that differ. See Golden-seed tests.
 - `scripts/scripted-fight.mjs` — Runs `runFight` with a list of casts in place
   of the placeholder rotation, for the scripted golden case.
+- `scripts/bench.mjs` — `npm run bench`: times a seeded 5-minute `runFight` over
+  several runs and prints the median and slowest. `--target-ms N` changes the
+  target it compares with. The only place besides `test/bench.test.js` that
+  reads a timer.
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a
   review diff.
@@ -227,6 +257,9 @@ it. [Golden-seed tests](docs/mechanics.md#golden-seed-tests) has the rules.
   inputs.
 - `test/bleed-armor.test.js` — DoT crits, and armor skipped on bleeds and
   nature ticks.
+- `test/bench.test.js` — The benchmark: the CI bound on a 5-minute fight, the
+  median and report, the script's arguments, and its exit status (with a fake
+  benchmark or a target of 0 or a million ms, never the real 50 ms).
 - `test/ci-workflow.test.js` — CI step order, including a re-indented workflow
   fixture.
 - `test/constants.test.js` — The constant table's shape and the values the
@@ -257,7 +290,8 @@ it. [Golden-seed tests](docs/mechanics.md#golden-seed-tests) has the rules.
   (including `runFight()` and `runFight(null)`).
 - `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
 - `test/scripted-fight.test.js` — The scripted-cast fight used by the golden
-  cases: cast order, waiting, errors, and restoring the rotation.
+  cases: cast order, waiting, errors (a missing or non-object argument, unknown
+  or inherited ability names), and restoring the rotation.
 - `test/serve.test.js` — The static server's port and path checks.
 - `test/simulation.test.js` — The clock, buff duration, Adrenaline Rush
   energy, debuffs, and DoT expiry.
@@ -276,7 +310,7 @@ it. [Golden-seed tests](docs/mechanics.md#golden-seed-tests) has the rules.
   above.
 - `.github/workflows/pages.yml` — Deploys `index.html`, `styles.css`, `js/`,
   `data/`, and `img/` from `main` to GitHub Pages.
-- `.gitignore` — Ignores `node_modules/`.
+- `.gitignore` — Ignores `node_modules/` and macOS's `.DS_Store`.
 - `.prettierignore` — Ignores `img/`.
 
 ## Data credit and licence
