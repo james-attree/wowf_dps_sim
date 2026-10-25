@@ -182,6 +182,7 @@ describe("constants", () => {
       "log.maxEvents",
       "rng.defaultSeed",
       "rng.mulberry32",
+      "sim.fixedStep",
       "sim.msPerSecond",
       "sim.tickEpsilon",
     ]) {

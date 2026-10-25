@@ -155,6 +155,32 @@ export class Simulation {
     this.rogue.rotation(this, dt);
   }
 
+  // Run the fight for `duration` seconds in fixed steps of k("sim.fixedStep"),
+  // then one shorter step for what is left, so the fight ends exactly
+  // `duration` after it started. This is the headless entry point: the same
+  // seed and the same calls give the same fight. A split that lands on a step
+  // boundary gives the same fight as one long call. A split inside a step
+  // does not, because the short step at the end of the call is a step of its
+  // own.
+  run(duration) {
+    if (!Number.isFinite(duration) || duration < 0) {
+      throw new RangeError(
+        `Simulation.run needs a finite duration in seconds, 0 or more. Got ${duration}.`,
+      );
+    }
+    const stepSize = k("sim.fixedStep");
+    // The step is a power of two, so this division is exact and `leftover`
+    // is the exact remainder, never a rounding artefact.
+    const wholeSteps = Math.floor(duration / stepSize);
+    for (let index = 0; index < wholeSteps; index++) {
+      this.step(stepSize);
+    }
+    const leftover = duration - wholeSteps * stepSize;
+    if (leftover > 0) {
+      this.step(leftover);
+    }
+  }
+
   setGcd() {
     this.gcd = this.gcdDuration;
   }

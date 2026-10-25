@@ -14,6 +14,7 @@ const SAMPLE_INPUT = `${JAMES}: sample input until SimConfig (E2)`;
 const COMBAT_ROTATION =
   "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
 const SEEDED_RNG = "James, 25 Oct 2026, issue #71";
+const FIXED_STEP = "James, 25 Oct 2026, issue #73";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -828,6 +829,14 @@ export const CONSTANTS = {
     ENGINEERING,
     `${JAMES}: the performance clock converts milliseconds to seconds`,
     "Unit conversion, not a game rule.",
+    false,
+  ),
+  "sim.fixedStep": entry(
+    0.015625,
+    "s",
+    ENGINEERING,
+    `${FIXED_STEP}: the one time step every headless run uses, so a seed gives one fight`,
+    "Not a game rule. 1/64 s, close to a 60 fps frame and well below every game timer (GCD, swing speeds, DoT tick interval), so sim.tickEpsilon, swing timers and the GCD act as they do at live frame rates. It is a power of two, so adding it up is exact in floating point, a duration that is a whole number of steps lands on exactly that time, and a split at a step boundary reproduces the same fight. Results depend on the step size: changing it changes every seeded fight (the average DPS over many seeds barely moves).",
     false,
   ),
   "sim.tickEpsilon": entry(

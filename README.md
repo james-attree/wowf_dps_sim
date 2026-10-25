@@ -140,10 +140,12 @@ on.
 - `js/rng.js` — `createRng(seed)`, the seeded mulberry32 generator the
   `Simulation` owns. Every random draw in the engine goes through it.
 - `js/simulation.js` — `step(dt)` advances the fight by `dt` seconds and reads
-  no clock. Steps energy, buffs, debuffs, cooldowns, the GCD, DoTs,
-  and Premeditation expiry, applies armor to direct hits and to ticks (bleeds
-  and nature damage can skip it), rolls DoT crits, runs the rotation, and
-  records damage and the combat log.
+  no clock. `run(duration)` repeats the fixed step `sim.fixedStep` for a
+  duration, with a short last step, for headless runs. Each step handles
+  energy, buffs, debuffs, cooldowns, the GCD, DoTs, and Premeditation expiry,
+  applies armor to direct hits and to ticks (bleeds and nature damage can skip
+  it), rolls DoT crits, runs the rotation, and records damage and the combat
+  log.
 - `js/rogue.js` — Energy, combo points, crit, hit, weapons, abilities, the
   placeholder Combat priority (`rotation.priority`), and `stackHaste`
   (`haste.stacking`).
@@ -198,6 +200,8 @@ on.
   engine reads.
 - `test/engine-lint.test.js` — The engine-purity rule and Prettier coverage.
 - `test/finisher.test.js` — Finishers need a combo point.
+- `test/fixed-step.test.js` — `Simulation.run`: the fixed step, total time,
+  a 5-minute fight, and results that do not depend on how a duration is split.
 - `test/gcd-epsilon.test.js` — GCD readiness within `sim.tickEpsilon`.
 - `test/gcd-flags.test.js` — Which abilities start the GCD.
 - `test/gcd-meter.test.js` — The GCD meter's ARIA range.

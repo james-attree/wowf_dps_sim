@@ -565,14 +565,49 @@ starts that dot.
 
 ## Simulation clock
 
-The engine has no clock. `Simulation.step(dt)` is the only way time moves:
-`dt` is a time step in seconds, and `step` adds it to `currentTime`. No file
-under `js/` except `js/main.js` reads `performance`, `Date`, or any other
-wall clock, and lint rejects `performance` and `Date` there (and `Math.random`, see Random
-numbers). A `dt` that is
-negative, `NaN`, or infinite throws a `RangeError`. There is no fixed step
-and no fixed frame rate in the engine. Two simulations with the same seed
-that are given the same steps end in the same state.
+The engine has no clock of its own. `Simulation.step(dt)` is the only way time
+moves: `dt` is a time step in seconds, and `step` adds it to `currentTime`. No
+file under `js/` except `js/main.js` reads `performance`, `Date`, or any other
+wall clock, and lint rejects `performance` and `Date` there (and `Math.random`,
+see Random numbers). A `dt` that is negative, `NaN`, or infinite throws a
+`RangeError`. Two simulations with the same seed that are given the same steps
+end in the same state.
+
+Elsewhere in this document, "frame" is older wording for one `step`.
+
+### Fixed step
+
+Headless runs use one step size, `k("sim.fixedStep")` (`engineering`, retune
+off). It is about a 60 fps frame and far below every game timer, so the GCD,
+swing timers, DoT ticks, and the `k("sim.tickEpsilon")` handling behave as they
+do at live frame rates. It is a power of two, so adding it up is exact in
+floating point.
+
+`Simulation.run(duration)` advances the fight by `duration` seconds:
+
+1. Take `floor(duration / k("sim.fixedStep"))` whole steps, each a
+   `step(k("sim.fixedStep"))`.
+2. If time is left over, take one shorter step for it.
+
+The leftover is exact, so the fight ends `duration` seconds after the call
+began: a duration of a whole number of steps ends exactly on it, and any other
+duration ends on it after one short step. A `duration` that is negative,
+`NaN`, or infinite throws a `RangeError`, and `0` takes no step. The `run` call
+does no timing and draws no randomness of its own; the seed and the calls
+decide the fight.
+
+Results depend on the step size. A fight at `k("sim.fixedStep")` is not the
+same fight as one at another step, because swings, casts, and ticks land on
+step boundaries and the rng is drawn in a different order. The average over
+many seeds barely moves. That is why every headless run uses
+`k("sim.fixedStep")`, and why changing it changes every seeded fight.
+
+Splitting a fight over several `run` calls gives the same fight as one call
+when every call but the last is a whole number of steps long. A call that
+ends inside a step takes a short step there, which a single long call would
+not.
+
+### Live page
 
 `js/main.js` is the host for the live page. It calls `step` from
 `requestAnimationFrame` and turns the browser's frame timestamp into the step:
@@ -582,12 +617,17 @@ that are given the same steps end in the same state.
 then sets `lastFrameTime = time`. `k("sim.msPerSecond")` is `engineering` and
 retune is off, and `js/main.js` is its only reader. Pausing cancels the
 animation frame. Resume sets `lastFrameTime` from `performance.now()`, so the
-paused gap is not simulated.
+paused gap is not simulated. The live page does not use `run` or
+`k("sim.fixedStep")` yet.
 
-Elsewhere in this document, "frame" is older wording for one `step`. `k("latency")` is an assumption on the retune list. Its note says
-the engine does not delay casts. `k("fight.duration")` is an assumption on
-the retune list. Its note says the live sim runs until pause and does not
-read it.
+### Other time inputs
+
+`k("latency")` is an assumption on the retune list. Its note says the engine
+does not delay casts. `k("fight.duration")` is an assumption on the retune
+list. Its note says the live sim runs until pause and does not read it. A
+headless caller passes the duration to `run`.
+
+### Tolerance and the order inside a step
 
 `k("sim.tickEpsilon")` (`engineering`, retune off) is the tolerance for
 `tickAuras` (buffs and debuffs), cooldown expiry, DoT ticks and DoT expiry,
