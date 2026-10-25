@@ -576,6 +576,28 @@ end in the same state.
 
 Elsewhere in this document, "frame" is older wording for one `step`.
 
+### How the pieces fit
+
+A fight is a seed plus the steps it is given. The same seed and the same steps
+end in the same state, whoever drives them.
+
+- `createRng(seed)` (`js/rng.js`) is the one source of randomness. The
+  `Simulation` owns it (see Random numbers).
+- `Simulation.step(dt)` is the only way time moves. `Simulation.run(duration)`
+  calls it with `k("sim.fixedStep")` for a duration (see Fixed step).
+- `createFight(seed)` and `runFight({ seed, duration })` (`js/fight.js`) build
+  the `Rogue` and `Simulation` pair. `runFight` runs it with one `run` call and
+  returns plain data (see Headless fight).
+- The live page (`js/main.js`) builds the same pair with `createFight` and gives
+  it whole fixed steps from `FrameClock` (see Live page). It is a view of the
+  engine and holds no combat rule.
+- The golden tests pin the `runFight` result for four fixed cases, one of them a
+  scripted list of casts (see Golden-seed tests). They fail when anything on
+  this path changes a number.
+- `npm run bench` times a seeded 5-minute `runFight` (see Benchmark).
+
+What the engine does not yet do is under Known limits of Phase 1.
+
 ### Fixed step
 
 Headless runs use one step size, `k("sim.fixedStep")` (`engineering`, retune
@@ -598,16 +620,22 @@ after one short step. A `duration` that is negative, `NaN`, or infinite throws
 a `RangeError`, and `0` takes no step. The `run` call does no timing and draws
 no randomness of its own; the seed and the calls decide the fight.
 
-Results depend on the step size. A fight at `k("sim.fixedStep")` is not the
-same fight as one at another step, because swings, casts, and ticks land on
-step boundaries and the rng is drawn in a different order. The average over
-many seeds barely moves. That is why every headless run uses
-`k("sim.fixedStep")`, and why changing it changes every seeded fight.
+Results depend on the step size. A fight at `k("sim.fixedStep")` can differ
+from the same seed at another step, because swings, casts, and ticks land on
+step boundaries and then the rng can be drawn in a different order. Many seeds
+come out the same, and the average over many seeds barely moves
+(`test/fixed-step.test.js` checks the mean against 60 and 144 fps). That is
+why every headless run uses `k("sim.fixedStep")`, and why changing it can
+change the seeded fights and the golden fixtures.
 
 Splitting a fight over several `run` calls gives the same fight as one call
-when every call but the last is a whole number of steps long. A call that
-ends inside a step takes a short step there, which a single long call would
-not.
+when each call but the last is a whole number of steps long, so every split
+lands on a step boundary. A call that ends inside a step takes a short step
+there, which a single long call would not. The short step moves every later
+step boundary by that amount, so the fight can differ from the unsplit one.
+It does not always: a small split can leave the totals unchanged, and a split
+of half a step usually changes them. The total time is the duration asked for
+either way. `runFight` makes one `run` call, so it is never split.
 
 ### Live page
 
@@ -628,16 +656,27 @@ which reads no clock itself:
    one step carries to the next frame.
 
 `k("sim.msPerSecond")` and `k("sim.maxFrameTime")` are `engineering` and retune
-is off, and `js/frame-clock.js` is their only reader. The cap is 0.25 s, so one
-frame takes at most 16 steps. A backgrounded tab, a stalled main thread, or a
-long pause never turns into one huge step or a burst of catch-up, and the
-excess time is dropped. It is not a game rule: a 60 or 144 fps display never
-reaches it, and a page below 4 fps runs slower than real time. Pausing cancels
-the animation frame, and resume restarts the frame clock, so the paused gap is
-not simulated.
+is off, and `js/frame-clock.js` is their only reader. One frame takes at most
+`k("sim.maxFrameTime") / k("sim.fixedStep")` steps (16 at the values in
+`data/constants.js`; the number follows the two constants and is not stored).
+A backgrounded tab, a stalled main thread, or a long pause never turns into
+one huge step or a burst of catch-up, and the excess time is dropped. It is not
+a game rule: a 60 or 144 fps display never reaches it, and a page that runs
+below the reciprocal of `k("sim.maxFrameTime")` frames per second (4 at these
+values) runs slower than real time. Pausing cancels the animation frame, and
+resume restarts the frame clock, so the paused gap is not simulated.
 
 Every step is the same size as in `run`, so a seed gives the same fight live
-and headless when both take the same steps (`test/live-view.test.js`).
+and headless when both take the same steps (`test/live-view.test.js`). The page
+has no short step, so a live fight always sits on a step boundary.
+
+The DPS readout is high for the first moments. The page's first animation frame
+takes no step. The first step comes with the first frame that fills one. It
+fires the opening casts at fight time `k("sim.fixedStep")`, and the readout is
+`damageDone / currentTime`, so an opening hit that lands is divided by that one
+tiny step while the clock still reads 00:00. It can show thousands of DPS, and falls as
+fight time accumulates. This is display only. Damage, casts, and the headless
+result's `dps` (total damage over the whole duration) are not affected.
 
 ### Other time inputs
 
@@ -743,8 +782,10 @@ result: `seed`, `duration`, `totalDamage`, `dps`, every ability's record, and
 the capped log. The files put one ability and one log event on each line, so a
 git diff points at the line that moved.
 
-The placeholder rotation never casts Eviscerate or Rupture (see
-`rotation.priority`), so the first three cases cannot pin finisher damage, DoT
+None of the first three cases casts Eviscerate or Rupture: the placeholder
+rotation never calls Rupture, and it only reaches Eviscerate when Slice and Dice
+has more than `k("rotation.sliceAndDiceRefreshSeconds")` left at the finisher
+combo points (see `rotation.priority`). So they cannot pin finisher damage, DoT
 ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
 `script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
 energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT` is Sinister Strike
@@ -837,3 +878,31 @@ Timer reads (`performance.now()`) live only in `scripts/bench.mjs` and
 `test/bench.test.js`. Lint rejects `performance` and `Date` in every engine
 file, so no timing reaches `js/`. A speed-up to the engine must leave the golden
 fixtures unchanged (see Golden-seed tests).
+
+## Known limits of Phase 1
+
+What a reader should not assume from the sections above:
+
+- **Step size.** Results depend on the step size, so changing
+  `k("sim.fixedStep")` can change seeded fights and the golden fixtures (see
+  Fixed step). The average over many seeds does not move much.
+- **Splits.** Several `run` calls match one call only when every call but the
+  last is a whole number of steps. A split inside a step takes a short step and
+  can change the fight (see Fixed step). The live page never takes a short step.
+- **First DPS frame.** The live DPS readout reads high at 00:00 (see Live page).
+- **Benchmark numbers are local.** The 22 ms warm and 40 ms cold figures are
+  from our box (8 vCPU Xeon, Node 20). The GitHub Actions runner measured about
+  60 to 65 ms per fight, so the 50 ms target is not a CI guarantee and no test
+  asserts it (see Benchmark).
+- **Parry.** The attack table gives a parry chance of 0 until the front/behind
+  split (A7), so `parries` is `0` in every result and no golden fixture has a
+  parry (see Golden-seed tests).
+- **Live page.** It picks a new random seed on every load and has no way to
+  enter one; replay a seed with `runFight`. It does not stop at
+  `k("fight.duration")` (see Other time inputs). A page below the frame rate
+  that matches `k("sim.maxFrameTime")` runs slower than real time.
+- **Placeholder rotation, no talents.** The rotation is the placeholder Combat
+  priority. It never calls Rupture, and it only reaches Eviscerate when Slice
+  and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left at the
+  finisher combo points. No seeded fight we have run gets there, so the golden
+  tests reach both through a scripted case. Talent ranks are not applied.
