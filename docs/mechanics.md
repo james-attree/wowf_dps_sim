@@ -22,7 +22,9 @@ owns. `js/rng.js` builds it with `createRng(seed)`, a mulberry32 generator
 pass `{ rng }` instead to script the draws. The simulation hands the same
 function to its rogue, so the weapon die, Eviscerate's damage roll, the
 attack roll, and each DoT tick's crit roll all draw from it. Nothing under
-`js/` except `js/main.js` uses a platform random source. The live page picks
+`js/` except `js/main.js` uses a platform random source, and lint rejects
+`Math.random` there, including `Math['random']`, `globalThis.Math.random`, and
+`self.Math.random`. The live page picks
 a random seed at load and keeps it in `simulation.seed`. A `Rogue` that no
 `Simulation` has adopted has no rng, and a draw throws.
 
@@ -566,7 +568,8 @@ starts that dot.
 The engine has no clock. `Simulation.step(dt)` is the only way time moves:
 `dt` is a time step in seconds, and `step` adds it to `currentTime`. No file
 under `js/` except `js/main.js` reads `performance`, `Date`, or any other
-wall clock, and lint rejects `performance` and `Date` there. A `dt` that is
+wall clock, and lint rejects `performance` and `Date` there (and `Math.random`, see Random
+numbers). A `dt` that is
 negative, `NaN`, or infinite throws a `RangeError`. There is no fixed step
 and no fixed frame rate in the engine. Two simulations with the same seed
 that are given the same steps end in the same state.

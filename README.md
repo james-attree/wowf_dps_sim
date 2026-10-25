@@ -134,7 +134,8 @@ on.
   It turns each frame timestamp into a time step in seconds and calls
   `Simulation.step`. The GCD status reads "On cooldown" while `gcd > 0`. The
   only file under `js/` that may use `document`, `window`, or the clock
-  (`performance`, `Date`). It picks a random seed at page load for the
+  (`performance`, `Date`); lint rejects those, and `Math.random`, in every
+  other file under `js/`. It picks a random seed at page load for the
   `Simulation`.
 - `js/rng.js` — `createRng(seed)`, the seeded mulberry32 generator the
   `Simulation` owns. Every random draw in the engine goes through it.
