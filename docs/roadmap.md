@@ -39,8 +39,9 @@ builder. Later-phase task ids get GitHub issues when that phase starts.
 
 ## Phase 0 status
 
-Snapshot of every issue with the `phase-0` label, as of 2026-10-22. GitHub
-is the source of truth. This list will go stale.
+Phase 0 is complete: every issue with the `phase-0` label is closed. Phase 1
+waits for James's go-ahead. This is a snapshot of those issues as of
+2026-10-25. GitHub is the source of truth. This list will go stale.
 
 - [#1](https://github.com/james-attree/wowf_dps_sim/issues/1) — [F2] Add dev-only package.json with serve, test, lint and data:refresh scripts — closed
 - [#2](https://github.com/james-attree/wowf_dps_sim/issues/2) — [F3] Unit tests with node:test, starting with the attack resolver — closed
@@ -62,7 +63,7 @@ is the source of truth. This list will go stale.
 - [#18](https://github.com/james-attree/wowf_dps_sim/issues/18) — [Q10] Premeditation: add 20s combo point expiry and start fights at 0 CP — closed
 - [#19](https://github.com/james-attree/wowf_dps_sim/issues/19) — [Q12] Adrenaline Rush cooldown should be 5 minutes, not 180s — closed
 - [#20](https://github.com/james-attree/wowf_dps_sim/issues/20) — [Q13] Re-enable Slice and Dice in the Combat rotation — closed
-- [#21](https://github.com/james-attree/wowf_dps_sim/issues/21) — [Q14] Ghostly Strike and Hemorrhage: weapon-type multipliers, Hemorrhage boosts Rupture only — open
+- [#21](https://github.com/james-attree/wowf_dps_sim/issues/21) — [Q14] Ghostly Strike and Hemorrhage: weapon-type multipliers, Hemorrhage boosts Rupture only — closed
 - [#22](https://github.com/james-attree/wowf_dps_sim/issues/22) — [D14] Provenance report (npm run provenance) and CI check — closed
 - [#23](https://github.com/james-attree/wowf_dps_sim/issues/23) — [Q11] DoT crits: keep the per-tick crit roll, drive it from constants; bleeds ignore armor — closed
 - [#24](https://github.com/james-attree/wowf_dps_sim/issues/24) — [Q15] Blade Flurry, Adrenaline Rush and Slice and Dice should trigger the 1s GCD — closed
@@ -70,7 +71,8 @@ is the source of truth. This list will go stale.
 - [#26](https://github.com/james-attree/wowf_dps_sim/issues/26) — [F7] docs/mechanics.md: every formula written against constant ids — closed
 - [#41](https://github.com/james-attree/wowf_dps_sim/issues/41) — [Q6 follow-up] Make the global cooldown use sim.tickEpsilon — closed
 - [#48](https://github.com/james-attree/wowf_dps_sim/issues/48) — Tighten the provenance placeholder-ref check — closed
-- [#49](https://github.com/james-attree/wowf_dps_sim/issues/49) — Weapon rejects NaN and non-finite damage inputs — open
+- [#49](https://github.com/james-attree/wowf_dps_sim/issues/49) — Weapon rejects NaN and non-finite damage inputs — closed
 - [#50](https://github.com/james-attree/wowf_dps_sim/issues/50) — Harden the talentsforever refresh: duplicate keys, a single unit for the two writes, and manifest note wording — closed
 - [#52](https://github.com/james-attree/wowf_dps_sim/issues/52) — CI: fail when docs/provenance.md drifts from data/constants.js — closed
-- [#59](https://github.com/james-attree/wowf_dps_sim/issues/59) — Adrenaline Rush recast test margin is fragile (7ms at 144 fps) — open
+- [#59](https://github.com/james-attree/wowf_dps_sim/issues/59) — Adrenaline Rush recast test margin is fragile (7ms at 144 fps) — closed
+- [#68](https://github.com/james-attree/wowf_dps_sim/issues/68) — Update rotation post phase0 to be more "combat" relevant — closed

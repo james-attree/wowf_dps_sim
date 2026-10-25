@@ -14,10 +14,11 @@ publishes `index.html`, `styles.css`, `js/`, `data/`, and `img/`.
 
 ## Status
 
-Phase 0. Combat is the first spec. The page runs the placeholder Combat
-rotation in `js/rogue.js`: Blade Flurry, Adrenaline Rush, then Slice and Dice
-or Eviscerate at the finisher combo points, otherwise Sinister Strike. Talent
-ranks in the vendored snapshot are not applied yet.
+Phase 0 is complete, and Phase 1 waits for James's go-ahead. Combat is the
+first spec. The page runs the placeholder Combat rotation in `js/rogue.js`:
+Blade Flurry, Adrenaline Rush, then Slice and Dice or Eviscerate at the
+finisher combo points, otherwise Sinister Strike. Talent ranks in the vendored
+snapshot are not applied yet.
 
 ## Running locally
 
