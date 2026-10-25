@@ -40,8 +40,7 @@ builder. Later-phase task ids get GitHub issues when that phase starts.
 ## Phase 0 status
 
 Phase 0 is complete: every issue with the `phase-0` label is closed. Phase 1
-waits for James's go-ahead. This is a snapshot of those issues as of
-2026-10-25. GitHub is the source of truth. This list will go stale.
+is in progress. This is a snapshot of the Phase 0 issues as of 2026-10-25. GitHub is the source of truth. This list will go stale.
 
 - [#1](https://github.com/james-attree/wowf_dps_sim/issues/1) — [F2] Add dev-only package.json with serve, test, lint and data:refresh scripts — closed
 - [#2](https://github.com/james-attree/wowf_dps_sim/issues/2) — [F3] Unit tests with node:test, starting with the attack resolver — closed
