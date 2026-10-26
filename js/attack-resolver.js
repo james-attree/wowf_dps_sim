@@ -36,6 +36,9 @@ export function resolveAttack({
   baseDamage,
   bonusHitChance,
   critChance,
+  critMultiplier = CRITICAL_DAMAGE_MULTIPLIER,
+  dodgeReduction = 0,
+  parryReduction = 0,
   rng,
   roll = drawRoll(rng),
 }) {
@@ -55,11 +58,25 @@ export function resolveAttack({
       clampChance(bonusHitChance, "Bonus hit chance"),
   );
   const criticalChance = clampChance(critChance, "Critical chance");
-  // Parry stays at 0 until the front/behind table in A7. parry.target records both.
+  if (!Number.isFinite(critMultiplier) || critMultiplier < 0) {
+    throw new RangeError("Critical multiplier must be a non-negative number.");
+  }
+  // Expertise-style reductions come from the modifier pipeline (A2). Zero,
+  // the default, leaves the chance exactly as it was.
+  const dodgeChance = Math.max(
+    0,
+    DODGE_CHANCE - clampChance(dodgeReduction, "Dodge reduction"),
+  );
+  // Parry stays at 0 until the front/behind table in A7. parry.target records
+  // both. The reduction is read now so A7 only has to raise the base.
+  const parryChance = Math.max(
+    0,
+    0 - clampChance(parryReduction, "Parry reduction"),
+  );
   const outcomes = [
     { result: "miss", chance: missChance },
-    { result: "dodge", chance: DODGE_CHANCE },
-    { result: "parry", chance: 0 },
+    { result: "dodge", chance: dodgeChance },
+    { result: "parry", chance: parryChance },
   ];
 
   if (attackType === "weapon") {
@@ -82,7 +99,7 @@ export function resolveAttack({
     dodge: 0,
     parry: 0,
     glancing: GLANCING_DAMAGE_MULTIPLIER,
-    crit: CRITICAL_DAMAGE_MULTIPLIER,
+    crit: critMultiplier,
     hit: 1,
   }[outcome];
   const damage = Math.floor(baseDamage * damageMultiplier);

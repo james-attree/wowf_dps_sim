@@ -16,10 +16,11 @@ const COMBAT_ROTATION =
 const SEEDED_RNG = "James, 25 Oct 2026, issue #71";
 const FIXED_STEP = "James, 25 Oct 2026, issue #73";
 const LIVE_VIEW = "James, 25 Oct 2026, issue #76";
-const SIM_CONFIG = "James, 26 Oct 2026, issue #92";
-const ABILITY_SCHEMA = "James, 26 Oct 2026, issue #93";
+const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
+const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const DEV_JUDGEMENT = "Developer, 26 Oct 2026, issue #93";
 const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
+const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -832,7 +833,7 @@ export const CONSTANTS = {
     ["dagger", "sword", "mace", "axe", "fist", "other"],
     "weapon types",
     ENGINEERING,
-    `${SIM_CONFIG}: the weapon types a SimConfig accepts`,
+    `${SIM_CONFIG}: an engineering judgement call by the dev, not a decision by James. The weapon types a SimConfig accepts`,
     'Not a game rule. Only "dagger" changes the engine today (the Ghostly Strike and Hemorrhage weapon percent, see weaponMultiplier). The others are accepted so talents and procs that name a weapon type (Hack and Slash, the sword and mace specialisations) have somewhere to read it from; "other" is the sample main hand. A hand may also have no type (null).',
     false,
   ),
@@ -840,7 +841,7 @@ export const CONSTANTS = {
     ["instant", "deadly", "wound", "crippling", "mind-numbing"],
     "poison ids",
     ENGINEERING,
-    `${SIM_CONFIG}: the poisons a SimConfig accepts on a weapon`,
+    `${SIM_CONFIG}: an engineering judgement call by the dev, not a decision by James. The poisons a SimConfig accepts on a weapon`,
     "Not a game rule. The five rogue poisons in the snapshot's spellbook. A SimConfig only stores the choice; no poison is simulated until A5. D9 (poison definitions from the snapshot) may replace this list.",
     false,
   ),
@@ -856,7 +857,7 @@ export const CONSTANTS = {
     ["Assassination", "Combat", "Subtlety"],
     "spellbook tabs",
     ENGINEERING,
-    `${ABILITY_SCHEMA}: the spellbook tabs js/abilities.js builds abilities from`,
+    `${ABILITY_SCHEMA}: an engineering judgement call by the dev, not a decision by James. The spellbook tabs js/abilities.js builds abilities from`,
     "Not a game rule. The snapshot's spellbook has these three class tabs, a Poisons tab and a hand-kept General list (Attack, Pick Lock, passives such as Dodge). Poisons are defined by D9 and the General list holds no rogue ability the simulator models, so neither is parsed here.",
     false,
   ),
@@ -872,7 +873,7 @@ export const CONSTANTS = {
     60,
     "s/min",
     ENGINEERING,
-    `${ABILITY_SCHEMA}: spell_desc writes some cooldowns in minutes ("3 min cooldown")`,
+    `${ABILITY_SCHEMA}: an engineering judgement call by the dev, not a decision by James. The spell_desc text writes some cooldowns in minutes ("3 min cooldown")`,
     "Unit conversion, not a game rule.",
     false,
   ),
@@ -880,7 +881,7 @@ export const CONSTANTS = {
     100,
     "%",
     ENGINEERING,
-    `${ABILITY_SCHEMA}: spell_desc writes weapon damage as a percent ("150% weapon damage"), and the catalogue stores the multiplier (1.5)`,
+    `${ABILITY_SCHEMA}: an engineering judgement call by the dev, not a decision by James. The spell_desc text writes weapon damage as a percent ("150% weapon damage"), and the catalogue stores the multiplier (1.5)`,
     "Unit conversion, not a game rule.",
     false,
   ),
@@ -891,8 +892,28 @@ export const CONSTANTS = {
     },
     "ability id → constant id",
     ENGINEERING,
-    `${ABILITY_SCHEMA}: which constant holds each ability's AP coefficient`,
+    `${ABILITY_SCHEMA}: an engineering judgement call by the dev, not a decision by James. Which constant holds each ability's AP coefficient`,
     'Not a game rule: a pointer, so the number is not written twice. The tooltip says Eviscerate, Rupture and Garrote are "increased by Attack Power" but gives no coefficient, so js/abilities.js reads it from the constant named here (with its own provenance). Eviscerate adds AP × CP × the constant. Rupture adds AP × the constant for the combo points spent, as a total over the whole DoT. Garrote has no coefficient yet, so its catalogue entry has ap: null until a constant exists.',
+    false,
+  ),
+  "modifiers.stacking": entry(
+    {
+      attackPower: "flat",
+      critChance: "flat",
+      hitChance: "flat",
+      dodgeReduction: "flat",
+      parryReduction: "flat",
+      armorIgnore: "flat",
+      energyRegen: "flat",
+      energyCost: "flat",
+      damage: "percent",
+      critDamage: "bonus",
+      haste: "haste",
+    },
+    "modifier kind → stacking form",
+    ENGINEERING,
+    `${DEV_JUDGEMENT_96}: an engineering judgement call by the dev, not a decision by James. How the modifiers of one kind combine (js/modifiers.js)`,
+    'Not a game rule: the stacking model. "flat" is (base + the sum of the add values) × the product of the mult values, so a chance or a cost adds in its own units. "percent" is base × (1 + the sum of the add values) × the product of the mult values, so "+x% damage" talents add together and a separate multiplier multiplies. "bonus" is the same as "percent", applied to the crit bonus (the multiplier minus one), so Lethality-style effects scale the bonus and not the whole hit. "haste" is the product (or sum) that haste.stacking selects, once per stack. These follow the Classic convention that talent percentages add and buffs multiply. If WoW Forever stacks a kind differently, change its form here and nowhere else.',
     false,
   ),
   "abilities.offGcd": entry(

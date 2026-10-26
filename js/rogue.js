@@ -1,19 +1,8 @@
 import { k } from "../data/constants.js";
+import { ModifierPipeline } from "./modifiers.js";
 import { normalizeConfig } from "./sim-config.js";
 import { Weapon } from "./weapon.js";
 import * as Skills from "./skill.js";
-
-// haste.stacking is multiplicative or additive. Any other value is a typo.
-function stackHaste(hasteMultiplier, haste) {
-  const stacking = k("haste.stacking");
-  if (stacking === "multiplicative") {
-    return hasteMultiplier * (1 + haste);
-  }
-  if (stacking === "additive") {
-    return hasteMultiplier + haste;
-  }
-  throw new Error(`Unknown haste.stacking: ${stacking}`);
-}
 
 export class Rogue {
   // `config` is a SimConfig (js/sim-config.js): the character stats, the
@@ -21,8 +10,25 @@ export class Rogue {
   // here, so `new Rogue()` is the default fight and `rogue.config` is always
   // the full form. The talent ranks and the poisons are carried and not read
   // by the engine yet.
-  constructor(config) {
+  //
+  // `options.modifiers` is the static modifier list (js/modifiers.js): what
+  // the talents and gear give, as data. It is not part of the SimConfig, so a
+  // fight's result shape and its goldens do not depend on it. The default is
+  // none, which leaves every stat as the config gave it. D7 (#103) is where a
+  // talent build turns into this list.
+  constructor(config, options = {}) {
+    if (options === null || typeof options !== "object") {
+      throw new TypeError("Rogue options must be an object.");
+    }
+    for (const key of Object.keys(options)) {
+      if (key !== "modifiers") {
+        throw new RangeError(
+          `Unknown Rogue option "${key}". Known: modifiers.`,
+        );
+      }
+    }
     this.config = normalizeConfig(config);
+    this.modifiers = new ModifierPipeline(options.modifiers);
     const { character, weapons } = this.config;
     this.energy = k("start.state").energy;
     this.maxEnergy = k("energy.max");
@@ -120,16 +126,19 @@ export class Rogue {
   }
 
   // Character stats are read through these accessors.
+  // The stat as the character has it, through the modifier pipeline. The
+  // context says which attack is asking (Simulation.attackContext); without
+  // one, only the modifiers with no scope apply.
   getAttackPower() {
-    return this.attackPower;
+    return this.modifiers.resolve("attackPower", this.attackPower);
   }
 
-  getCritChance() {
-    return this.critChance;
+  getCritChance(context) {
+    return this.modifiers.resolve("critChance", this.critChance, context);
   }
 
-  getBonusHitChance() {
-    return this.bonusHitChance;
+  getBonusHitChance(context) {
+    return this.modifiers.resolve("hitChance", this.bonusHitChance, context);
   }
 
   rollWeaponDamageForSkill() {
@@ -164,17 +173,13 @@ export class Rogue {
       this.abilities[priority.builder].cast(this, simulation);
     }
 
-    // Slice and Dice and Blade Flurry shorten the next swing of both weapons.
-    // haste.stacking chooses the product or the sum. A swing already counting
-    // down keeps its remaining time. wowsims rescales that swing.
-    // Which auras give haste is the auras' business (js/auras.js), not
-    // this method's. Each stack of an aura applies its haste again.
-    let hasteMultiplier = 1;
-    for (const { value, stacks } of simulation.auraEffects("haste")) {
-      for (let stack = 0; stack < stacks; stack++) {
-        hasteMultiplier = stackHaste(hasteMultiplier, value);
-      }
-    }
+    // Whatever gives haste (Slice and Dice, Blade Flurry, a talent) shortens
+    // the next swing of both weapons. haste.stacking chooses the product or
+    // the sum. A swing already counting down keeps its remaining time.
+    // wowsims rescales that swing. The pipeline names no source: the haste
+    // modifiers of the auras that are up combine in registry order, each
+    // stack applying again.
+    const hasteMultiplier = simulation.modifiers.resolve("haste", 1);
 
     this.weapons.mainHand.tick(dt, hasteMultiplier, (weapon) => {
       simulation.resolveAttack(weapon.attack, "weapon", weapon.rollDamage());

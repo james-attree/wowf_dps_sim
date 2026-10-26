@@ -256,8 +256,10 @@ rejects them under `js/`.
   `data/talentsforever/manifest.json`. `buildDataVersion(manifest)` validates a
   manifest. Every `runFight` result carries it.
 - `js/rogue.js` — Energy, combo points, crit, hit, weapons, abilities, the
-  placeholder Combat priority (`rotation.priority`), and `stackHaste`
-  (`haste.stacking`).
+  placeholder Combat priority (`rotation.priority`), and the static modifier
+  pipeline (`rogue.modifiers`, from `new Rogue(config, { modifiers })`). Attack
+  power, crit and hit are read through it; swing haste comes from the
+  simulation's pipeline.
 - `js/skill.js` — Shared `Skill` cast path, plus Sinister Strike, Eviscerate,
   Premeditation, Adrenaline Rush, Slice and Dice, Ghostly Strike, Backstab,
   Ambush, Blade Flurry, Rupture, and Hemorrhage. Premeditation does not start
@@ -271,8 +273,17 @@ rejects them under `js/`.
   refresh rule, hooks, effects: `haste`, `energyRegenMultiplier`,
   `dotDamageTaken`, `armorReduction`). Hemorrhage, Expose Armor and Deadly
   Poison are the target debuffs (A6). `defineAura` validates and freezes one. The engine reads effects by kind through
-  `Simulation.auraEffects`, never by name. See
-  [Aura model and ids](docs/mechanics.md#aura-model-and-ids).
+  `Simulation.auraEffects`, never by name. An aura can also carry `modifiers`
+  (the A2 schema), and its `haste` and `energyRegenMultiplier` effects compile
+  into them. See [Aura model and ids](docs/mechanics.md#aura-model-and-ids).
+- `js/modifiers.js` — The modifier schema and pipeline (A2). A modifier is
+  `{ kind, op, value, scope?, source? }`: one stat change for the attacks its
+  scope names. `defineModifier` validates and freezes one, `expandRank` turns a
+  talent's rank table into modifiers (rank 0 gives none), and `ModifierPipeline`
+  combines static modifiers with the auras that are up. A kind with nothing to
+  apply returns its base value untouched, which keeps a run with no modifiers
+  identical to one without. See
+  [Modifiers](docs/mechanics.md#modifiers).
 - `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
   glancing, crit, hit) for white swings and skills. Chances come from `k(id)`.
 - `js/talents.js` — The talent catalogue (D4). `talentCatalogue` is built from
@@ -352,6 +363,15 @@ rejects them under `js/`.
 - `test/auras.test.js` — The aura model: definition validation, refresh rules,
   stacks, hooks, effects by kind (haste, energy regeneration, DoT damage
   taken), the skill ids matching the catalogue, and the id-keyed breakdown.
+- `test/modifiers.test.js` — The modifier schema and pipeline: validation, how
+  each kind stacks, scope and conditions, rank tables, aura modifiers, the
+  engine's hooks (hit table, crit, damage, armor, energy), and that a run with
+  no effective modifiers is identical and draws the same random numbers.
+- `test/combat-talents-as-data.test.js` — Every Combat talent classified, the
+  11 DPS-relevant ones written as data and checked against the snapshot's rank
+  text, and a full build run through a fight.
+- `test/two-tree-modifiers.test.js` — Assassination, Subtlety and Combat
+  modifiers combined in one pipeline.
 - `test/adrenaline-rush.test.js` — Adrenaline Rush cooldown from the export,
   and recast timing.
 - `test/attack-resolver.test.js` — Attack-table bands, damage, and rejected

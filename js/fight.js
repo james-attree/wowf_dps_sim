@@ -14,9 +14,15 @@ import { Simulation } from "./simulation.js";
 // weapons, talent ranks and poisons. Leave it out and the fight is the default
 // one, exactly as before the config existed. The returned `config` is the full
 // form the rogue holds; treat it as read-only.
-export function createFight(seed, config) {
+//
+// `options.modifiers` is a static modifier list (js/modifiers.js) for the
+// rogue. runFight does not take it and the result does not record it: the
+// SimConfig is the whole input of a result until D7 (#103) turns talent ranks
+// into modifiers. Until then it is how a test or a tool runs a fight with
+// modifiers.
+export function createFight(seed, config, options) {
   const fightSeed = normalizeSeed(seed);
-  const rogue = new Rogue(config);
+  const rogue = new Rogue(config, options);
   const simulation = new Simulation(rogue, { seed: fightSeed });
   return {
     seed: fightSeed,
