@@ -112,9 +112,9 @@ export class Simulation {
 
     // This step covers the interval that just ended. Read the auras before
     // their countdown so the part of the step still inside an
-    // energyRegenMultiplier aura (Adrenaline Rush) regenerates at the bonus
-    // rate, including the step it runs out.
-    this.regenerateEnergy(dt);
+    // energyRegen aura (Adrenaline Rush) regenerates at the bonus rate,
+    // including the step it runs out.
+    this.regenerateResources(dt);
 
     // Timers already running lose this step. A buff, debuff, or cooldown
     // applied during rotation keeps its full duration until the next one.
@@ -196,9 +196,9 @@ export class Simulation {
       }
     }
 
-    // Points already counting down lose this step. A Premeditation cast
+    // Points already counting down lose this step (Premeditation). A cast
     // during rotation keeps the full premeditation.cpExpiry until the next one.
-    this.rogue.tickPremeditation(dt);
+    this.rogue.tickResources(dt);
 
     this.rogue.rotation(this, dt);
   }
@@ -229,18 +229,29 @@ export class Simulation {
     }
   }
 
-  // Regenerate energy over a step of dt seconds. The base rate holds for the
-  // part of the step no timed energyRegen modifier covers. Each such modifier
-  // (Adrenaline Rush's) changes the rate for the part of the step its aura
-  // was still up, so the pieces are cut where an aura runs out. One aura gives
-  // two pieces: the base rate, then the boosted rate. Static modifiers (a
-  // talent) apply to every piece. The rate is combined through the pipeline,
-  // so a flat bonus and a multiplier stack as modifiers.stacking says.
-  regenerateEnergy(dt) {
-    const base = k("energy.regenPerSecond");
-    const all = this.modifiers.contributions("energyRegen");
+  // Regenerate every resource that has a regen rule (energy) over a step of dt
+  // seconds. The base rate holds for the part of the step no timed modifier of
+  // the rule's kind covers. Each such modifier (Adrenaline Rush's) changes the
+  // rate for the part of the step its aura was still up, so the pieces are cut
+  // where an aura runs out. One aura gives two pieces: the base rate, then the
+  // boosted rate. Static modifiers (a talent) apply to every piece. The rate is
+  // combined through the pipeline, so a flat bonus and a multiplier stack as
+  // modifiers.stacking says.
+  regenerateResources(dt) {
+    const { resources } = this.rogue;
+    for (const id in resources) {
+      if (resources[id].definition.regen !== undefined) {
+        this.regenerateResource(resources[id], dt);
+      }
+    }
+  }
+
+  regenerateResource(pool, dt) {
+    const { perSecond, modifier } = pool.definition.regen;
+    const base = k(perSecond);
+    const all = this.modifiers.contributions(modifier);
     if (all.length === 0) {
-      this.rogue.regenerateEnergy(dt, base);
+      pool.regenerate(dt, base);
       return;
     }
     const applied = all.filter(({ duration }) => duration === Infinity);
@@ -251,15 +262,15 @@ export class Simulation {
         covered: Math.min(dt, contribution.duration),
       }))
       .sort((a, b) => b.covered - a.covered);
-    let rate = this.modifiers.combine("energyRegen", base, applied);
+    let rate = this.modifiers.combine(modifier, base, applied);
     let remaining = dt;
     for (const { contribution, covered } of timed) {
-      this.rogue.regenerateEnergy(remaining - covered, rate);
+      pool.regenerate(remaining - covered, rate);
       remaining = covered;
       applied.push(contribution);
-      rate = this.modifiers.combine("energyRegen", base, applied);
+      rate = this.modifiers.combine(modifier, base, applied);
     }
-    this.rogue.regenerateEnergy(remaining, rate);
+    pool.regenerate(remaining, rate);
   }
 
   // Put an aura up. `duration` (seconds) defaults to the definition's; a

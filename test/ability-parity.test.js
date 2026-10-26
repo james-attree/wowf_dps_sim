@@ -272,7 +272,7 @@ describe("generic executor", () => {
       assert.equal(abilities[definition.key].name, catalogued.name);
       assert.equal(abilities[definition.key].triggersGcd, catalogued.startsGcd);
       assert.equal(
-        abilities[definition.key].energyCost,
+        abilities[definition.key].cost,
         catalogued.cost?.amount ?? 0,
       );
       assert.equal(abilities[definition.key].cooldown, catalogued.cooldown);
@@ -302,7 +302,20 @@ describe("generic executor", () => {
     );
   });
 
-  it("keeps every definition frozen", () => {
-    assert.ok(Object.isFrozen(ABILITY_DEFINITIONS));
+  it("keeps every definition frozen all the way down", () => {
+    const frozen = (value, path) => {
+      if (value === null || typeof value !== "object") {
+        return;
+      }
+      assert.ok(Object.isFrozen(value), `${path} is not frozen`);
+      for (const [key, inner] of Object.entries(value)) {
+        frozen(inner, `${path}.${key}`);
+      }
+    };
+    frozen(ABILITY_DEFINITIONS, "ABILITY_DEFINITIONS");
+    const [first] = ABILITY_DEFINITIONS;
+    assert.throws(() => {
+      first.cost.resource = "rage";
+    }, TypeError);
   });
 });

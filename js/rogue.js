@@ -3,6 +3,7 @@ import { ModifierPipeline } from "./modifiers.js";
 import { normalizeConfig } from "./sim-config.js";
 import { Weapon } from "./weapon.js";
 import { createAbilities } from "./ability.js";
+import { createResources } from "./resource.js";
 
 export class Rogue {
   // `config` is a SimConfig (js/sim-config.js): the character stats, the
@@ -34,16 +35,13 @@ export class Rogue {
     this.config = normalizeConfig(config);
     this.modifiers = new ModifierPipeline(options.modifiers);
     const { character, weapons } = this.config;
-    this.energy = k("start.state").energy;
-    this.maxEnergy = k("energy.max");
+    // Energy and combo points are resource pools (js/resource.js), described
+    // as data in js/resource-data.js. The pools are made before the abilities,
+    // which name them by id.
+    this.resources = createResources(this.modifiers);
     this.attackPower = character.attackPower;
     this.critChance = character.critChance;
     this.bonusHitChance = character.bonusHitChance;
-    this.comboPoints = k("character.startingComboPoints");
-    this.maxComboPoints = k("combo.max");
-    // Combo points expiry will remove, and the time left before that.
-    this.premeditationCp = 0;
-    this.premeditationCpRemaining = 0;
     // The Simulation that owns this rogue sets rng. Until then a draw throws.
     this.rng = null;
     this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // normalizedSpeed.dagger for instant-attack AP
@@ -89,32 +87,72 @@ export class Rogue {
     return this.rng();
   }
 
-  regenerateEnergy(dt, rate) {
-    this.energy = Math.min(this.energy + rate * dt, this.maxEnergy);
+  // The two resources as the rogue's own fields, for the page, the tests and
+  // a scripted fight. They read and write the pools (this.resources), which are
+  // what the engine uses, so the cap is the one the resourceMax modifiers give.
+  // Setting maxEnergy or maxComboPoints sets the base cap, before modifiers.
+  get energy() {
+    return this.resources.energy.value;
+  }
+
+  set energy(value) {
+    this.resources.energy.value = value;
+  }
+
+  get maxEnergy() {
+    return this.resources.energy.max;
+  }
+
+  set maxEnergy(value) {
+    this.resources.energy.baseMax = value;
+  }
+
+  get comboPoints() {
+    return this.resources.comboPoints.value;
+  }
+
+  set comboPoints(value) {
+    this.resources.comboPoints.value = value;
+  }
+
+  get maxComboPoints() {
+    return this.resources.comboPoints.max;
+  }
+
+  set maxComboPoints(value) {
+    this.resources.comboPoints.baseMax = value;
+  }
+
+  // The combo points a pending expiry will remove, and the seconds left before
+  // it (Premeditation). The expiry is the combo point pool's.
+  get premeditationCp() {
+    return this.resources.comboPoints.expiryAmount;
+  }
+
+  get premeditationCpRemaining() {
+    return this.resources.comboPoints.expiryRemaining;
   }
 
   // Expiry always removes premeditation.cpRemovedOnExpiry, however many were added.
   armPremeditation() {
-    this.premeditationCp = k("premeditation.cpRemovedOnExpiry");
-    this.premeditationCpRemaining = k("premeditation.cpExpiry");
+    this.resources.comboPoints.armExpiry(
+      k("premeditation.cpRemovedOnExpiry"),
+      k("premeditation.cpExpiry"),
+    );
   }
 
   // Adding a combo point, or spending them, keeps the Premeditation points.
   clearPremeditation() {
-    this.premeditationCp = 0;
-    this.premeditationCpRemaining = 0;
+    this.resources.comboPoints.clearExpiry();
   }
 
-  tickPremeditation(dt) {
-    if (this.premeditationCpRemaining <= 0) {
-      return;
+  // Count every resource's timed expiry down. The simulation steps it where it
+  // always stepped Premeditation, before the rotation.
+  tickResources(dt) {
+    const { resources } = this;
+    for (const id in resources) {
+      resources[id].tick(dt);
     }
-    this.premeditationCpRemaining -= dt;
-    if (this.premeditationCpRemaining > k("sim.tickEpsilon")) {
-      return;
-    }
-    this.comboPoints = Math.max(0, this.comboPoints - this.premeditationCp);
-    this.clearPremeditation();
   }
 
   // Character stats are read through these accessors.

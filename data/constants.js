@@ -30,6 +30,7 @@ const DEV_JUDGEMENT_111 = "Developer, 26 Oct 2026, issue #111";
 const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
 const DEV_JUDGEMENT_97 = "Developer, 26 Oct 2026, issue #97";
+const DEV_JUDGEMENT_99 = "Developer, 26 Oct 2026, issue #99";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -71,6 +72,22 @@ export const CONSTANTS = {
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Eviscerate|Rank 9]",
     "Finishers say 1 to 5 combo points.",
+    false,
+  ),
+  "combo.onTargetChange": entry(
+    "clear",
+    "clear | keep",
+    ASSUMPTION,
+    `${DEV_JUDGEMENT_99}: ${NOT_JAMES} What combo points do when the target changes`,
+    "A guess at a game rule: combo points belong to one target, so a target change loses them (Classic behaviour as the dev remembers it, not checked against WoW Forever). The fight has one target and never switches, so no fight reads this yet. Resource.targetChanged (js/resource.js) applies it when a host reports a change.",
+    true,
+  ),
+  "energy.tickMode": entry(
+    "continuous",
+    "continuous",
+    ENGINEERING,
+    `${DEV_JUDGEMENT_99}: ${NOT_JAMES} How energy regeneration is applied`,
+    "Energy regenerates every step in proportion to the step, as energy.regenPerSecond says (1 point per 0.1s), not in 2 s lumps as Classic did. It is the only mode js/resource.js supports, and the row exists so the resource data says it rather than the code assuming it.",
     false,
   ),
   "premeditation.cpExpiry": entry(
@@ -923,6 +940,7 @@ export const CONSTANTS = {
       armorIgnore: "flat",
       energyRegen: "flat",
       energyCost: "flat",
+      resourceMax: "flat",
       damage: "percent",
       critDamage: "bonus",
       haste: "haste",

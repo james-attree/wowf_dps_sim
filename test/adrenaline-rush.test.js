@@ -58,9 +58,9 @@ function adrenalineRushRecastReady(rogue, sim) {
   const flurryTakesTheGcd =
     (sim.gcd <= k("sim.tickEpsilon") || !flurry.triggersGcd) &&
     !flurry.onCooldown(rogue, sim) &&
-    rogue.energy >= flurry.energyCost;
+    rogue.energy >= flurry.cost;
   const cooldownReady = !skill.onCooldown(rogue, sim);
-  const enoughEnergy = rogue.energy >= skill.energyCost;
+  const enoughEnergy = rogue.energy >= skill.cost;
   return cooldownReady && gcdClear && enoughEnergy && !flurryTakesTheGcd;
 }
 
