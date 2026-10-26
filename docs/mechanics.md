@@ -501,17 +501,19 @@ direct hits and ticks alike.
 `resolveAttack` has floored the pre-armor damage. The running total keeps
 the product. `js/main.js` floors a combat-log cell when it draws it.
 
-A tick skips armor when `tickSkipsArmor` says so. A bleed tick skips when
-`k("bleed.ignoresArmor")` is set and the dot is marked `bleed` or its ability
-id is in `k("bleed.spells")`. A nature tick skips when
-`k("nature.ignoresArmor")` is set and the id is in `k("nature.spells")`. Those four constants are
+A hit or a tick skips armor when the event's tags say so (`skipsArmor` in
+`js/simulation.js`; see [Damage tags](#damage-tags)). A bleed skips when
+`k("bleed.ignoresArmor")` is set and the event has the `bleed` tag (the dot is
+marked `bleed` or its ability id is in `k("bleed.spells")`). A nature event
+skips when `k("nature.ignoresArmor")` is set and its school is nature (the id is in
+`k("nature.spells")`). Those four constants are
 `classic-1.12` and on the retune list. The bleed note says physical periodic
 damage skips armor, and that a physical direct hit is reduced. The nature
 note says armor is for physical damage and that spell resistance is not
 modelled. Nothing in `js/simulation.js` applies spell resistance.
 
 `k("bleed.spells")` lists the ids `rupture` and `garrote`. `k("nature.spells")`
-lists `deadly-poison`. Rupture's cast sets `bleed`, so its ticks skip when
+lists `instant-poison` and `deadly-poison`. Rupture's cast sets `bleed`, so its ticks skip when
 `k("bleed.ignoresArmor")` is set. Garrote has no skill class. A dot with the id
 `deadly-poison` would skip as nature. The rotation does not create one. See
 Poisons.
@@ -562,7 +564,7 @@ one interval. For each tick still inside the dot's remaining time:
    `k("dot.critMultiplier")` is an assumption and is not on the retune list.
    Its note says the multiplier matches other crits. Its ref says to update
    the code if that changes.
-4. Apply armor unless `tickSkipsArmor` skips it.
+4. Apply armor unless `skipsArmor` skips it (a bleed or a nature tick).
 5. Add the result to the damage total. Tick damage is not floored here.
 
 The time until the next tick is reduced only by the part of the frame still
@@ -580,7 +582,9 @@ constants are not used by the rotation. The notes on `k("poison.instant")`,
 `k("poison.deadlyTick")`, `k("poison.instantCrit")`, and `k("poison.charges")`
 say they are not simulated or not applied yet. `k("spell.missTarget")` is
 the same: its note says spell miss is for poisons and is not applied yet.
-There is no poison proc on a white or yellow hit. A tick whose id is in
+There is no poison proc on a white or yellow hit. `k("poison.spells")` lists the
+two poisons for the `poison` tag (see [Damage tags](#damage-tags)), so a
+modifier can already name them. A tick whose id is in
 `k("nature.spells")` would skip armor, and the deadly-poison tick note says
 those ticks can crit through `k("dot.canCrit")`, but nothing in the engine
 starts that dot.
@@ -1135,6 +1139,8 @@ needs no engine code. `js/modifiers.js` has the schema and the pipeline.
 { kind: "damage", op: "add", value: 0.1,
   scope: { abilities: ["backstab"], hands: ["mainHand"], weaponTypes: ["dagger"] },
   source: "subtlety.opportunity" }
+{ kind: "damage", op: "add", value: 0.3,
+  scope: { tags: ["bleed"] }, source: "a bleed bonus" }
 ```
 
 - `kind`: what changes. `attackPower`, `critChance`, `hitChance`,
@@ -1147,8 +1153,12 @@ needs no engine code. `js/modifiers.js` has the schema and the pipeline.
 - `scope` (optional): conditions. Every key present must match the attack
   (AND). A key that lists several values matches any of them (OR). A missing
   key is unrestricted, and an absent or empty scope applies to everything.
-  `abilities` are catalogue ids, `hands` are `mainHand` and `offHand`, and
-  `weaponTypes` are the types in `config.weaponTypes`. An unknown key or value,
+  `abilities` are catalogue ids, `hands` are `mainHand` and `offHand`,
+  `weaponTypes` are the types in `config.weaponTypes`, `schools` are `physical`
+  and `nature`, and `tags` are `bleed`, `poison`, `white`, `yellow` and
+  `finisher` (see [Damage tags](#damage-tags)). `schools` and `tags` are
+  accepted by the kinds that are per attack and not tied to a hand
+  (`critChance`, `hitChance`, `armorIgnore`, `damage`, `critDamage`). An unknown key or value,
   an empty list, or a key the kind does not accept is a `RangeError` when the
   modifier is defined.
 - `source` (optional): a label for `explain()` and tests.
@@ -1157,20 +1167,23 @@ needs no engine code. `js/modifiers.js` has the schema and the pipeline.
 talent's per-rank modifier list into the modifiers for a rank. Rank 0, or no
 entry, gives none.
 
-**Context.** An attack passes `{ ability, hand, weaponType }`. A skill attacks
-with the main hand, so it passes `mainHand` and the main-hand weapon's type. A
-weapon swing passes its own hand and weapon. A DoT tick passes its ability's
-main-hand context. A scope condition on a part the context lacks does not
+**Context.** An attack passes `{ ability, hand, weaponType, school, tags }`. A
+skill attacks with the main hand, so it passes `mainHand` and the main-hand
+weapon's type. A weapon swing passes its own hand and weapon. A DoT tick passes
+the context of the cast that applied it (its attack type and bleed flag are
+kept on the DoT), so a tick and its application carry the same tags. A scope condition on a part the context lacks does not
 match (it fails closed), and a call with no context matches only modifiers with
 no scope.
 
 **Where the engine asks.** Attack power (`Rogue.getAttackPower`), crit and hit
 (`getCritChance(context)`, `getBonusHitChance(context)`, so also the crit roll
-for a DoT tick), dodge and parry reduction (the attack table, through
+for a DoT tick, which sees the DoT's tags), dodge and parry reduction (the attack table, through
 `resolveAttack`'s optional arguments), crit damage (the crit multiplier, for
 skills and ticks), damage (before crit and armor), armor ignore
 (`armorMultiplier`), energy regeneration (`regenerateEnergy`), energy cost
-(`Skill.cast`), and haste (`Rogue.rotation`). Parry stays 0 until A7, so
+(`Skill.cast`), and haste (`Rogue.rotation`). The damage modifier is the one
+place a tag changes the damage itself, and it comes first: see
+[Damage tags](#damage-tags) for where in the formula. Parry stays 0 until A7, so
 `parryReduction` is read and has nothing to reduce yet. Damage modifiers on a
 DoT are read once, when the DoT is applied, as the snapshot of its tick damage.
 
@@ -1225,6 +1238,63 @@ and the talent table itself to D5.
 `npm run bench -- --runs 50`). The haste and regen reads go through one index
 that is rebuilt only when auras change, which is the likely reason, though it
 was not profiled. A 9-modifier Combat-style build adds about 3 ms over none.
+
+## Damage tags
+
+Issue #97 (roadmap A3). Every damage event (a white swing, a skill's hit, a
+DoT's application and each of its ticks, and a poison hit when A5 adds one) is
+described to the modifier pipeline by its ability id, one **school**, and some
+**tags**. A modifier names them in its scope (`schools`, `tags`), so a talent
+that says "+20% damage from poisons" is data and needs no engine code.
+`js/damage-tags.js` builds them, `Simulation.attackContext(source, attackType)`
+passes them, and nothing is keyed by a display name.
+
+| Part       | Values               | Comes from                                                                                                                  |
+| ---------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `school`   | `physical`, `nature` | `nature.spells`, else the ability's `school` in the catalogue, else physical (an id the catalogue does not know)            |
+| `bleed`    | tag                  | `bleed.spells`, or a source (a skill, a DoT) that sets `bleed`                                                              |
+| `poison`   | tag                  | `poison.spells` (`instant-poison`, `deadly-poison`)                                                                         |
+| `white`    | tag                  | the attack type `weapon`, an auto attack. A poison is never white                                                           |
+| `yellow`   | tag                  | the attack type `skill`, an ability's attack. A poison is never yellow                                                      |
+| `finisher` | tag                  | the ability's `finisher` field in the catalogue (a combo point cell in the spell data): Eviscerate, Rupture, Slice and Dice |
+
+So Rupture is physical, `bleed`, `yellow` and `finisher`; Garrote is physical,
+`bleed` and `yellow`; Backstab is `yellow`; a main-hand swing is `white`; Deadly
+Poison is nature and `poison`. The constants are read when an event is built,
+not copied at load, so changing `bleed.spells` or `poison.spells` takes effect
+at once. `poison.spells` is a new row (an engineering judgement call by the dev,
+not on the retune list). `nature.spells` now also lists `instant-poison`, which
+deals Nature damage in Classic.
+
+**Matching.** Keys AND and the values in a key OR, as for every scope. For
+`tags` that means an event matches when it has _any_ of the listed tags. A
+modifier cannot ask for two tags at once (Rupture is `bleed` and `finisher`:
+there is no "bleed AND finisher"). Say the ability, or use two modifiers where
+that is what is meant. A context with no `school` or `tags` (a stat read with
+no attack) fails closed.
+
+**Where it applies.** The `damage` modifier is read on the base damage: before
+the crit multiplier, before the glancing reduction and before armor. The order
+for a direct hit is `floor(base × damage modifier × crit multiplier)`, then
+armor. There is no modifier applied after armor: damage is a multiplier and
+armor is a multiplier, so the order only matters through the floor. A DoT reads
+it once, when it is applied (the snapshot, as before), and its ticks then roll
+crit with the DoT's tags (`critChance`, `critDamage`) and take `dotDamageTaken`
+effects.
+
+**Armor.** Both direct hits and ticks now take the armor rule from the tags and
+not from an id list: an event with the `bleed` tag skips armor when
+`bleed.ignoresArmor` is set, and a `nature` event skips it when
+`nature.ignoresArmor` is set. The rotation never produces a nature or a
+bleed-tagged direct hit, so no existing result changes. A direct poison hit
+(A5, #105) will skip armor with no further code.
+
+**Not tags yet.** Aura definitions deal no damage today, so an aura has no
+school or tags of its own. A5 (#105) adds the poison hit and proc, and D9
+(#104) may replace `poison.spells`. Tags are not on the `runFight` result. The
+result shape and the golden fixtures are unchanged, and an event with no
+matching modifier does the same sums and draws the same random numbers as
+before.
 
 ## Aura model and ids
 

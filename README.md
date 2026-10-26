@@ -282,8 +282,17 @@ rejects them under `js/`.
   talent's rank table into modifiers (rank 0 gives none), and `ModifierPipeline`
   combines static modifiers with the auras that are up. A kind with nothing to
   apply returns its base value untouched, which keeps a run with no modifiers
-  identical to one without. See
-  [Modifiers](docs/mechanics.md#modifiers).
+  identical to one without. A scope can name abilities, hands, weapon types,
+  schools and tags. See [Modifiers](docs/mechanics.md#modifiers).
+- `js/damage-tags.js` — The school and tags of a damage event (A3).
+  `damageTags({ id, attackType, bleed })` gives `{ school, tags }`: the school
+  is physical or nature, and the tags are `bleed`, `poison`, `white`, `yellow`
+  and `finisher`. They come from the ability catalogue, `bleed.spells`,
+  `poison.spells`, `nature.spells` and the attack type, never from a name.
+  `Simulation.attackContext` passes them to the modifier scopes
+  (`scope.schools`, `scope.tags`), and the armor skip for bleeds and nature
+  damage reads them. See
+  [Damage tags](docs/mechanics.md#damage-tags).
 - `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
   glancing, crit, hit) for white swings and skills. Chances come from `k(id)`.
 - `js/talents.js` — The talent catalogue (D4). `talentCatalogue` is built from
@@ -367,6 +376,12 @@ rejects them under `js/`.
   each kind stacks, scope and conditions, rank tables, aura modifiers, the
   engine's hooks (hit table, crit, damage, armor, energy), and that a run with
   no effective modifiers is identical and draws the same random numbers.
+- `test/damage-tags.test.js` — Damage modifier hooks by tag (A3): the tags of
+  each kind of event, `scope.schools` and `scope.tags` (validation, OR within a
+  key, fail closed), "+30% Rupture" and "+20% poison" as data through a real
+  cast, a poison hit and tick, white and yellow, finishers, the order against
+  crit and armor, the armor skip following the tags, and a fight with no
+  matching modifier staying identical and rng-neutral.
 - `test/combat-talents-as-data.test.js` — Every Combat talent classified, the
   11 DPS-relevant ones written as data and checked against the snapshot's rank
   text, and a full build run through a fight.

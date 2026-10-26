@@ -557,6 +557,8 @@ describe("the constants that cite the dev, not James", () => {
     "sim.fixedStep",
     "sim.maxFrameTime",
     "config.minWeaponSpeed",
+    "rng.defaultSeed",
+    "rng.mulberry32",
   ];
   for (const id of DEV) {
     it(`${id} is signed by the dev`, () => {
@@ -564,8 +566,11 @@ describe("the constants that cite the dev, not James", () => {
     });
   }
 
-  it("leaves the seed's ref as the issue James wrote", () => {
-    assert.match(CONSTANTS["rng.defaultSeed"].ref, /^James, /);
+  it("says issue #71 only suggested mulberry32 and the rest is the dev's", () => {
+    for (const id of ["rng.defaultSeed", "rng.mulberry32"]) {
+      assert.match(CONSTANTS[id].ref, /^Developer, \d+ Oct 2026, issue #71: /);
+      assert.match(CONSTANTS[id].ref, /not a decision by James/);
+    }
   });
 });
 
