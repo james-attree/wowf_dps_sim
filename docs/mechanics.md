@@ -1599,6 +1599,9 @@ A definition holds constants ids, not numbers:
   `continuous` (`rate * dt` every step, `engineering`), the only mode there is.
 - `costModifier`: the modifier kind that changes what an ability pays from this
   resource (`energyCost`).
+- `whole`: `true` when the pool holds whole units only (combo points). A gain
+  or a spend of a fraction is a `RangeError`, and so is a `gainResource` action
+  with a fractional amount on such a pool (checked when the proc loads).
 - `onTargetChange`: what the pool does when the target changes, `combo.onTargetChange`,
   `clear` (the points go, and any pending expiry), or `keep`. It is an
   assumption on the retune list, since the engine has one target and nothing
@@ -1753,7 +1756,10 @@ throws, and so does an unknown option (`Known: modifiers, procs.`). The
 SimConfig has no procs field and `runFight` does not take any, so a full
 fight has none until D7 (talents) wires them: `procsFromTalents(ranks)` builds
 the list from `PROC_TABLES` in `js/proc-data.js` (Hack and Slash and
-Puncturing Wounds so far) and is not called by `runFight`.
+Puncturing Wounds so far) and is not called by `runFight`. `procsFromTalents`
+takes a plain object: `null`, an array or anything else is a `RangeError`, and
+so is a key that is no talent in the catalogue (a typo would give a build that
+quietly lacks its proc). A talent that exists but gives no proc is ignored.
 
 **Triggers**, in the fixed order they are dispatched (`PROC_TRIGGERS`):
 
@@ -1779,7 +1785,10 @@ The filter is a modifier scope (`abilities`, `hands`, `weaponTypes`, `schools`,
 - `flat`: `value`.
 - `ppm`: `value` times the hand's base weapon speed over
   `proc.secondsPerMinute` (60), capped at 1. Haste does not change it. Not
-  allowed with `onDotTick`, which has no hand.
+  allowed with `onDotTick`, which has no hand. It needs a swing or an attack:
+  a `ppm` proc that meets a cast that does not attack (Adrenaline Rush) is a
+  `RangeError` when it is considered, because a quiet chance of 0 would hide a
+  proc that can never fire.
 - `perSpent`: `value` times the combo points the cast spent, capped at 1, with
   `onAbility` only. `Ability.spendable()` reads the count before the pool
   resets, so Eviscerate at 3 points with `value: 0.2` is a 60% chance, and a

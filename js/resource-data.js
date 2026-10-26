@@ -21,6 +21,9 @@
 //               tick        constants id naming how it applies. Only
 //                           "continuous" is supported: every step adds
 //                           rate * dt
+//   whole     optional, true: the pool holds whole units only (combo points).
+//             A gain or a spend of a fraction is a RangeError, where a proc
+//             or an ability would otherwise leave 0.5 of a point behind
 //   costModifier
 //             optional. The modifier kind (scoped by ability) that changes
 //             what an ability pays in this resource
@@ -48,5 +51,6 @@ export const RESOURCE_DEFINITIONS = Object.freeze([
     max: "combo.max",
     start: Object.freeze({ id: "character.startingComboPoints" }),
     onTargetChange: "combo.onTargetChange",
+    whole: true,
   }),
 ]);

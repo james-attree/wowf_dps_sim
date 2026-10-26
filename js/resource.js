@@ -21,11 +21,18 @@ const TARGET_CHANGES = Object.freeze(["clear", "keep"]);
 
 // A gain or a spend is an amount of 0 or more. A negative amount would be a
 // spend called a gain (or the reverse), and NaN would poison the pool for the
-// rest of the fight, so both fail where they are made.
-function checkAmount(id, verb, amount) {
+// rest of the fight, so both fail where they are made. A pool that holds
+// whole units only (combo points: `whole` in js/resource-data.js) takes a
+// whole number, so no proc or ability can leave half a point behind.
+function checkAmount(definition, verb, amount) {
   if (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) {
     throw new RangeError(
-      `Resource "${id}" cannot ${verb} ${String(amount)}. An amount is a number, 0 or more.`,
+      `Resource "${definition.id}" cannot ${verb} ${String(amount)}. An amount is a number, 0 or more.`,
+    );
+  }
+  if (definition.whole === true && !Number.isInteger(amount)) {
+    throw new RangeError(
+      `Resource "${definition.id}" cannot ${verb} ${String(amount)}. It holds whole units, so an amount is a whole number.`,
     );
   }
 }
@@ -82,7 +89,7 @@ export class Resource {
   // `amount` at the cap. A pool above a cap that has since fallen is brought
   // down to it (as regeneration always did), and has gained nothing.
   gain(amount) {
-    checkAmount(this.id, "gain", amount);
+    checkAmount(this.definition, "gain", amount);
     const before = this.value;
     this.value = Math.min(before + amount, this.max);
     return Math.max(0, this.value - before);
@@ -90,7 +97,7 @@ export class Resource {
 
   // Take `amount` away. The caller has checked has(amount).
   spend(amount) {
-    checkAmount(this.id, "spend", amount);
+    checkAmount(this.definition, "spend", amount);
     this.value -= amount;
     return amount;
   }
