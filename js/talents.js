@@ -1,4 +1,4 @@
-import snapshot from "../data/talentsforever/rogue.json" with { type: "json" };
+import { snapshot } from "./snapshot.js";
 
 // The talent catalogue (roadmap D4). Every field is read from the vendored
 // talentsforever snapshot when the catalogue is built. Nothing about a talent

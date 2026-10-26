@@ -173,12 +173,11 @@ function readWeapon(input, hand, defaults) {
       `${path}.min (${min}) is greater than ${path}.max (${max}).`,
     );
   }
-  const speed = readNumber(given.speed, `${path}.speed`, defaults.speed, {});
-  if (speed <= 0) {
-    throw new RangeError(
-      `${path}.speed must be a number greater than 0, not ${show(speed)}.`,
-    );
-  }
+  // A speed below config.minWeaponSpeed is rejected here, not left to run: the
+  // swing loop does one pass per swing, so a speed near 0 never finishes.
+  const speed = readNumber(given.speed, `${path}.speed`, defaults.speed, {
+    min: k("config.minWeaponSpeed"),
+  });
   const type = readChoice(
     given.type,
     `${path}.type`,
@@ -204,6 +203,9 @@ function readWeapons(input, defaults) {
 // normalise to the same config.
 function readTalents(input, catalogue) {
   const given = readObject(input, "config.talents");
+  // Each given[id] is read once. A rank is validated where it is read, and the
+  // kept ones are collected, so the loop below never reads `given` again.
+  const kept = new Map();
   for (const [id, rank] of Object.entries(given)) {
     const talent = catalogue.get(id);
     if (talent === undefined) {
@@ -217,12 +219,18 @@ function readTalents(input, catalogue) {
         `${path} must be a whole number between 0 and ${talent.max}, not undefined.`,
       );
     }
-    readNumber(rank, path, undefined, { max: talent.max, whole: true });
+    const valid = readNumber(rank, path, undefined, {
+      max: talent.max,
+      whole: true,
+    });
+    if (valid > 0) {
+      kept.set(id, valid);
+    }
   }
   const ranks = {};
   for (const talent of catalogue.talents) {
-    if (Object.hasOwn(given, talent.id) && given[talent.id] > 0) {
-      ranks[talent.id] = given[talent.id];
+    if (kept.has(talent.id)) {
+      ranks[talent.id] = kept.get(talent.id);
     }
   }
   return ranks;

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { createFight, runFight } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
+import { Weapon } from "../js/weapon.js";
 import { Simulation } from "../js/simulation.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 import { talentCatalogue } from "../js/talents.js";
@@ -131,7 +132,12 @@ describe("normalizeConfig defaults and merging", () => {
     const config = normalizeConfig({
       character: { attackPower: 0, critChance: 1, bonusHitChance: 0 },
       weapons: {
-        mainHand: { min: 0, max: 0, speed: 0.1, type: null },
+        mainHand: {
+          min: 0,
+          max: 0,
+          speed: k("config.minWeaponSpeed"),
+          type: null,
+        },
         offHand: { min: 5, max: 5, type: "fist" },
       },
     });
@@ -289,12 +295,12 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { weapons: { mainHand: { speed: 0 } } },
       RangeError,
-      /config\.weapons\.mainHand\.speed must be a number greater than 0, not 0\./,
+      /config\.weapons\.mainHand\.speed must be a number 0\.1 or more, not 0\./,
     );
     rejects(
       { weapons: { mainHand: { speed: "1.8" } } },
       TypeError,
-      /config\.weapons\.mainHand\.speed must be a number 0 or more, not "1\.8"\./,
+      /config\.weapons\.mainHand\.speed must be a number 0\.1 or more, not "1\.8"\./,
     );
   });
 
@@ -452,6 +458,35 @@ describe("normalizeConfig talents", () => {
     );
   });
 
+  it("reads each given rank once", () => {
+    const reads = {};
+    const talents = {};
+    for (const [id, rank] of [
+      ["combat.precision", 2],
+      ["subtlety.premeditation", 1],
+      ["assassination.malice", 0],
+    ]) {
+      reads[id] = 0;
+      Object.defineProperty(talents, id, {
+        enumerable: true,
+        get() {
+          reads[id] += 1;
+          return rank;
+        },
+      });
+    }
+    const config = normalizeConfig({ talents });
+    assert.deepEqual(reads, {
+      "combat.precision": 1,
+      "subtlety.premeditation": 1,
+      "assassination.malice": 1,
+    });
+    assert.deepEqual(config.talents, {
+      "combat.precision": 2,
+      "subtlety.premeditation": 1,
+    });
+  });
+
   it("uses the catalogue it is given", () => {
     const catalogue = {
       get: (id) => (id === "x.y" ? { id, max: 2 } : undefined),
@@ -552,7 +587,10 @@ describe("a config changes the fight it names", () => {
     assert.equal(rogue.bonusHitChance, 0.05);
     assert.equal(rogue.weapons.mainHand.speed, 2.6);
     assert.equal(rogue.weapons.mainHand.minDamage, 100);
+    assert.equal(rogue.weapons.mainHand.maxDamage, 120);
     assert.equal(rogue.weapons.mainHand.type, "dagger");
+    assert.equal(rogue.weapons.offHand.speed, 1.4);
+    assert.equal(rogue.weapons.offHand.minDamage, 80);
     assert.equal(rogue.weapons.offHand.maxDamage, 90);
     assert.equal(rogue.weapons.offHand.type, "sword");
     assert.equal(
@@ -621,6 +659,78 @@ describe("a config changes the fight it names", () => {
       runFight({ seed: 1, duration: 1 }).config,
       defaultConfig(),
     );
+  });
+});
+
+describe("the weapon speed lower bound", () => {
+  const minimum = k("config.minWeaponSpeed");
+  const WINDOW = 60;
+  const TIME_LIMIT_MS = 5000;
+
+  it("is a positive number below the sample weapons", () => {
+    assert.ok(minimum > 0);
+    assert.ok(minimum < k("weapon.mainHand").speed);
+    assert.ok(minimum < k("weapon.offHand").speed);
+  });
+
+  it("rejects a speed below the bound, with the bound in the message", () => {
+    for (const speed of [1e-9, 0.001, minimum / 2]) {
+      assert.throws(
+        () => normalizeConfig({ weapons: { offHand: { speed } } }),
+        {
+          name: "RangeError",
+          message: new RegExp(
+            `^config\\.weapons\\.offHand\\.speed must be a number ${minimum} or more, not `,
+          ),
+        },
+        String(speed),
+      );
+    }
+    assert.equal(
+      normalizeConfig({ weapons: { mainHand: { speed: minimum } } }).weapons
+        .mainHand.speed,
+      minimum,
+    );
+  });
+
+  it("runFight rejects a tiny speed at once instead of hanging", () => {
+    const started = Date.now();
+    assert.throws(
+      () =>
+        runFight({
+          seed: 1,
+          duration: DURATION,
+          config: { weapons: { mainHand: { speed: 1e-9 } } },
+        }),
+      RangeError,
+    );
+    assert.ok(Date.now() - started < TIME_LIMIT_MS);
+  });
+
+  it("a Weapon built directly enforces the bound too", () => {
+    assert.throws(() => new Weapon(null, 1, 2, 1e-9, "main"), {
+      name: "RangeError",
+      message: /Weapon speed must be at least/,
+    });
+    assert.equal(new Weapon(null, 1, 2, minimum, "main").speed, minimum);
+  });
+
+  it("a fight at the legal minimum on both hands still finishes, with swings", () => {
+    const started = Date.now();
+    const result = runFight({
+      seed: 1,
+      duration: WINDOW,
+      config: {
+        weapons: {
+          mainHand: { speed: minimum },
+          offHand: { speed: minimum },
+        },
+      },
+    });
+    assert.ok(Date.now() - started < TIME_LIMIT_MS);
+    assert.ok(result.totalDamage > 0);
+    assert.equal(result.config.weapons.mainHand.speed, minimum);
+    assert.equal(result.config.weapons.offHand.speed, minimum);
   });
 });
 
