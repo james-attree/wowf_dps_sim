@@ -678,9 +678,9 @@ ignored. `k("poison.spells")` lists the two poisons for the `poison` tag (see
 `js/poisons.js` reads each rogue poison from the snapshot (`spell_desc`, the
 spellbook's Poisons tab), rank by rank, the way `js/abilities.js` reads the
 abilities (D1, #93). It builds `poisonCatalogue`, deeply frozen, with no random
-numbers and no clock. The definitions are data only: nothing in the engine
-reads them until A5 (#105, see [Poison procs](#poison-procs-a5-issue-105)),
-and the golden fixtures do not move.
+numbers and no clock. The definitions are data only: the catalogue draws
+nothing. `poisonProcs` (A5, #105, see [Poison procs](#poison-procs-a5-issue-105))
+reads them to build the poison procs, and the golden fixtures do not move.
 
 A poison's text is `COATING EFFECT [STACKS] [CHARGES]`, and each sentence is
 matched whole, so an extra or reworded sentence is an error, not a skip. The
@@ -749,11 +749,23 @@ byte-identical.
 | Deadly (R5)  | `deadly-poison.<hand>`  | 30%    | `applyDot` 23 a tick, every 3 s for 12 s, 5 stacks |
 
 Each proc triggers on a landed hit (`onHit`) of its hand (`scope.hands`). A
-main-hand poison rolls on a main-hand white swing and on every landed skill
-(a skill counts as a main-hand attack, finishers and extra attacks included);
-an off-hand poison rolls on an off-hand white swing. The chance is the
-export's top-rank chance, read from the catalogue, and is flat per hit (no
-weapon speed). Charges are ignored.
+main-hand poison rolls on a main-hand white swing and on every landed skill (a
+skill counts as a main-hand attack, finishers and extra attacks included); an
+off-hand poison rolls on an off-hand white swing. The chance is the export's
+top-rank chance, read from the catalogue, and is flat per hit (no weapon
+speed). Charges are ignored.
+
+**Which attacks roll a poison (a deliberate reference choice).** This follows
+wowsims, whose main-hand mask includes the special attacks: the main-hand poison
+rolls on every landed main-hand melee attack, white or special, so Eviscerate
+and the other damaging finishers roll it as Sinister Strike does. A cast that
+is not a direct attack (Rupture, which only applies a DoT, Slice and Dice,
+Adrenaline Rush, Blade Flurry, Premeditation, Cold Blood) and a DoT tick land no
+hit, so they roll nothing and draw nothing. This is not
+verified against real Classic or WoW Forever, where a finisher might not roll a
+poison; if it is measured to differ, narrow the proc's `scope` (a tag the
+ability data would carry) and nothing else changes. `test/poison-procs.test.js`
+pins the current rule, Eviscerate included.
 
 **Spell hit.** The proc draws the 17% `k("spell.missTarget")` once. On a
 resist nothing is dealt or applied, and the resist shows in the breakdown and
@@ -761,8 +773,28 @@ the log under the poison's name. A hit on the weapon table does not change it.
 
 **Instant Poison** is a direct hit under the id `instant-poison`, display name
 "Instant Poison": the damage is rolled between 76 and 100 (one draw), skips
-armor (Nature, `k("nature.spells")`), and does not crit
-(`k("poison.instantCrit")`: the engine has no spell crit chance to use).
+armor (Nature, `k("nature.spells")`), and can crit (the `canCrit` flag on its
+`dealDamage` action).
+
+**Instant Poison crit (issue #105, an assumption).** A landed
+Instant Poison hit rolls one crit at the rogue's melee crit chance
+(`getCritChance`, with the crit modifiers for the `poison` tag) and a crit
+deals `k("poison.instantCrit")` = 1.5x, the bonus part scaled by the
+`critDamage` modifiers. The 1.5x is wowsims' spell crit multiplier for
+`rogue/poisons.go` (`OutcomeMagicHitAndCrit`); the chance is the melee crit
+chance, not a spell crit chance, because the engine has no spell crit. Both are
+tagged `assumption` with the retune flag on. The 4.8% crit suppression applies
+(`k("poison.instantCritSuppression")`, true, an assumption, retune on): it is
+the same treatment as the swing crit and a DoT tick's
+(`k("dot.critSuppression")`), so one rogue has one crit chance whichever hit
+rolls it. wowsims uses a different spell crit suppression, which is not
+modelled; set the constant to `false` to crit at the full chance. Draw order
+for one Instant Poison: the proc chance, the spell hit, the damage, then the
+crit, and the crit is drawn only when the proc fired and the spell hit landed,
+so a resist, a missed proc roll and a build with no poison draw nothing extra.
+Once the hit has landed the crit always draws one roll, even at a crit chance of
+0, as a swing and a tick do. A crit shows as "Crit" in the log and counts as a
+crit in the breakdown.
 
 **Deadly Poison** is the `applyDot` action (`resolveProcDot` in
 `js/simulation.js`). A landed application adds a stack of the `deadly-poison`
@@ -771,7 +803,8 @@ target aura (up to 5, refreshing it to 12 s) and sets the DoT
 
 - tick damage is one stack's tick (92 / 4 = 23, as the export's 92 over 12 s
   and the tick count `k("poison.deadlyTick")` give) times the stacks, with
-  damage modifiers resolved at each application;
+  damage modifiers resolved at each application (see the known difference
+  below);
 - a refresh sets the duration back to 12 s and keeps the running tick clock,
   as the wowsims DoT does (`ApplyOrRefresh`); resetting it would starve ticks
   at about 0.6 applications a second;
@@ -786,9 +819,20 @@ fill the export's duration, so a retuned tick cannot silently change the
 total. The interval and count (3 s, 4 ticks) are Classic values, verified
 against wowsims `rogue/poisons.go`, and carry the retune flag.
 
+**Known difference from wowsims: stack modifier snapshot.** This sim resolves
+the `damage` modifiers at each application of Deadly Poison, for every stack,
+so each application re-prices the stacks already on the target (the DoT's tick
+damage is stacks x one stack's tick, all resolved at the latest application).
+wowsims snapshots the modifiers on the first stack and keeps them for the DoT's
+life. With no modifier that changes during a fight (the default, and any
+static talent) the two agree; they differ only when a damage modifier changes
+between a DoT's first and later stacks (a timed buff or a debuff). Kept as it
+is, by ruling on PR #133; recorded here so a comparison with wowsims is
+read with it in mind.
+
 **Not in A5.** Vile Poisons, Malice, Improved Poisons and Venom (talent
-build, #106 and later); a `procChance` modifier kind; poison charges; Instant
-Poison crits. No poison counter is in the `runFight` result.
+build, #106 and later); a `procChance` modifier kind; poison charges. No
+poison counter is in the `runFight` result.
 
 ## Simulation clock
 
@@ -2002,11 +2046,14 @@ The filter is a modifier scope (`abilities`, `hands`, `weaponTypes`, `schools`,
   is checked when the `Simulation` is built.
 - `applyAura { aura, duration?, stacks? }`: `Simulation.applyAura` of an aura id
   in `js/auras.js`, checked at load.
-- `dealDamage { id, name?, min, max?, spellHit? }`: damage from a source of its
+- `dealDamage { id, name?, min, max?, spellHit?, canCrit? }`: damage from a source of its
   own, in the ability record and the combat log. The damage modifiers, armor and
   the damage tags of the `id` apply (a poison id is a nature spell). With
   `spellHit` it first rolls a spell hit (no bonus hit), and a resist deals
-  nothing. It does not crit and fires no procs.
+  nothing. With `canCrit: true` a landed hit then rolls one crit at the melee
+  crit chance (suppression per its constant, see Poison procs) for the crit
+  multiplier given by `poison.instantCrit`; without it, the damage never crits.
+  It fires no procs.
 - `extraAttack`: one more white swing in the hand that triggered it, resolved
   by `resolveAttack` like any swing, so its own triggers run, depth first.
 
@@ -2045,7 +2092,7 @@ hand's ability record (`main-hand` or `off-hand`), so its `casts` count includes
 the extra swings.
 
 **Known limits.** There is no `procChance` modifier kind yet (Improved Poisons,
-D8a, will need one); `dealDamage` does not crit; `ppm` uses the unhasted weapon
+D8a, will need one); `dealDamage` crits only with `canCrit` (Instant Poison); `ppm` uses the unhasted weapon
 speed; nothing in `runFight` supplies talent procs until D7.
 
 ## Talent effects

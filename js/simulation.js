@@ -664,10 +664,14 @@ export class Simulation {
 
   // Damage a proc deals from a source of its own (js/procs.js, dealDamage).
   // `spell.missTarget` applies when it is a spell hit, with one draw, before
-  // the damage. Then the damage roll, one draw, when min and max differ. The
-  // damage modifiers, armor, the fight totals and the log work as for an
-  // attack. It does not crit and it fires no procs.
-  resolveProcDamage({ id, name, min, max, spellHit }) {
+  // the damage. Then the damage roll, one draw, when min and max differ. Then,
+  // when the action `canCrit` and the hit landed, one crit draw (Instant
+  // Poison): the melee crit chance, less the crit suppression when
+  // poison.instantCritSuppression says so, and the damage times
+  // poison.instantCrit through the critDamage modifiers. A resist draws no
+  // crit. The damage modifiers, armor, the fight totals and the log work as for
+  // an attack. It fires no procs.
+  resolveProcDamage({ id, name, min, max, spellHit, canCrit }) {
     const source = { id, name, icon: null };
     const context = this.attackContext(source, "skill");
     let hit = { outcome: "hit", status: "Hit", landed: true };
@@ -675,19 +679,37 @@ export class Simulation {
       hit = resolveSpellHit({ rng: this.rng });
     }
     let damage = 0;
+    let outcome = hit.outcome;
+    let status = hit.status;
     if (hit.landed) {
       const rolled =
         max === min ? min : Math.floor(this.rng() * (max - min + 1)) + min;
-      damage = this.applyArmor(
-        this.modifiers.resolve("damage", rolled, context),
-        skipsArmor(context),
-        context,
-      );
+      let modified = this.modifiers.resolve("damage", rolled, context);
+      if (canCrit) {
+        const critChance = this.rogue.getCritChance(context);
+        if (
+          rollCrit(
+            k("poison.instantCritSuppression")
+              ? suppressCrit(critChance)
+              : critChance,
+            this.rng,
+          )
+        ) {
+          modified *= this.modifiers.resolve(
+            "critDamage",
+            k("poison.instantCrit"),
+            context,
+          );
+          outcome = "crit";
+          status = "Crit";
+        }
+      }
+      damage = this.applyArmor(modified, skipsArmor(context), context);
       this.updateDamage(damage);
     }
-    this.recordAbility(source, hit.outcome, damage);
-    this.addCombatEvent(name, "skill", damage, hit.status, hit.outcome);
-    return { ...hit, damage };
+    this.recordAbility(source, outcome, damage);
+    this.addCombatEvent(name, "skill", damage, status, outcome);
+    return { ...hit, outcome, status, damage };
   }
 
   // A damage over time a proc applies (js/procs.js, applyDot), under a source

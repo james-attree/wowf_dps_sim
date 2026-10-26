@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { k } from "../data/constants.js";
+import { CONSTANTS, k } from "../data/constants.js";
 import { createFight, runFight } from "../js/fight.js";
 import { poisonCatalogue, poisonProcs } from "../js/poisons.js";
 import { defineProc } from "../js/procs.js";
@@ -38,6 +38,18 @@ function harness({ poisons, rolls, seed = 1, modifiers, procs }) {
 function swing(sim, hand = "mainHand") {
   const weapon = sim.rogue.weapons[hand];
   return sim.resolveAttack(weapon.attack, "weapon", 100);
+}
+
+// Run `run` with a constant swapped, and put it back.
+function withConstant(id, value, run) {
+  const row = CONSTANTS[id];
+  const saved = row.value;
+  row.value = value;
+  try {
+    return run();
+  } finally {
+    row.value = saved;
+  }
 }
 
 const INSTANT_MAIN = { mainHand: "instant", offHand: null };
@@ -100,6 +112,7 @@ describe("poisonProcs", () => {
         min: 76,
         max: 100,
         spellHit: true,
+        canCrit: true,
       },
     ]);
   });
@@ -181,7 +194,7 @@ describe("Instant Poison", () => {
     ]) {
       const { sim, tape } = harness({
         poisons: INSTANT_MAIN,
-        rolls: [HIT, 0.1, 0.5, damageRoll],
+        rolls: [HIT, 0.1, 0.5, damageRoll, NO_CRIT],
       });
       swing(sim);
       assert.equal(tape.left(), 0);
@@ -198,7 +211,7 @@ describe("Instant Poison", () => {
     assert.ok(k("target.armor") > 0);
     const { sim } = harness({
       poisons: INSTANT_MAIN,
-      rolls: [HIT, 0.1, 0.5, 0],
+      rolls: [HIT, 0.1, 0.5, 0, NO_CRIT],
     });
     swing(sim);
     assert.equal(sim.abilityStats["instant-poison"].damage, 76);
@@ -241,7 +254,7 @@ describe("Instant Poison", () => {
     assert.equal(tape.left(), 0);
     const off = harness({
       poisons: { mainHand: null, offHand: "instant" },
-      rolls: [HIT, 0.1, 0.5, 0],
+      rolls: [HIT, 0.1, 0.5, 0, NO_CRIT],
     });
     swing(off.sim, "offHand");
     assert.equal(off.sim.abilityStats["instant-poison"].damage, 76);
@@ -254,6 +267,264 @@ describe("Instant Poison", () => {
       const stats = sim.procs.stats["instant-poison.mainHand"];
       assert.equal(stats.rolls, result.landed ? 1 : 0, `seed ${seed}`);
     }
+  });
+});
+
+describe("Instant Poison crits", () => {
+  const MELEE_CRIT = 0.5;
+  const SUPPRESSED = MELEE_CRIT - 0.048; // 0.03 skill + 0.018 aura, as the ticks
+
+  // One white swing at a melee crit chance of 0.5 whose poison fires, with the
+  // given crit roll. The swing's own roll is 0.99, a hit and not a crit.
+  function crit(roll, { modifiers } = {}) {
+    const { rogue, sim, tape } = harness({
+      poisons: INSTANT_MAIN,
+      modifiers,
+      rolls: [HIT, 0.1, 0.5, 0, roll],
+    });
+    rogue.critChance = MELEE_CRIT;
+    swing(sim);
+    return { sim, tape };
+  }
+
+  it("draws the crit last: the chance, the spell hit, the damage, then the crit", () => {
+    const { sim, tape } = crit(0.99);
+    assert.equal(tape.left(), 0);
+    assert.equal(sim.abilityStats["instant-poison"].damage, 76);
+  });
+
+  it("crits at the melee crit chance less the 4.8% suppression, for 1.5x", () => {
+    assert.equal(k("poison.instantCrit"), 1.5);
+    assert.equal(k("poison.instantCritSuppression"), true);
+    const hit = crit(SUPPRESSED + 0.001);
+    assert.equal(hit.sim.abilityStats["instant-poison"].damage, 76);
+    assert.equal(hit.sim.combatLog[0].status, "Hit");
+    const edge = crit(SUPPRESSED - 0.001);
+    assert.equal(edge.sim.abilityStats["instant-poison"].damage, 114);
+    assert.equal(edge.sim.combatLog[0].status, "Crit");
+    assert.equal(edge.sim.combatLog[0].damage, 114);
+    assert.equal(edge.sim.abilityStats["instant-poison"].crits, 1);
+    assert.equal(hit.sim.abilityStats["instant-poison"].crits, 0);
+  });
+
+  it("is not suppressed when poison.instantCritSuppression is off, and then crits at the full chance", () => {
+    const { sim } = withConstant("poison.instantCritSuppression", false, () =>
+      crit(MELEE_CRIT - 0.001),
+    );
+    assert.equal(sim.abilityStats["instant-poison"].damage, 114);
+    const miss = withConstant("poison.instantCritSuppression", false, () =>
+      crit(MELEE_CRIT + 0.001),
+    );
+    assert.equal(miss.sim.abilityStats["instant-poison"].damage, 76);
+    // With it on, the same roll is a hit: the suppression is what separates them.
+    assert.equal(crit(MELEE_CRIT - 0.001).sim.combatLog[0].status, "Hit");
+  });
+
+  it("reads poison.instantCrit for the multiplier, and a poison critDamage modifier scales its bonus", () => {
+    const x2 = withConstant("poison.instantCrit", 2, () => crit(0));
+    assert.equal(x2.sim.abilityStats["instant-poison"].damage, 152);
+    const modified = crit(0, {
+      modifiers: [
+        { kind: "critDamage", value: 1, scope: { tags: ["poison"] } },
+      ],
+    });
+    assert.equal(modified.sim.abilityStats["instant-poison"].damage, 152);
+    const other = crit(0, {
+      modifiers: [{ kind: "critDamage", value: 1, scope: { tags: ["bleed"] } }],
+    });
+    assert.equal(other.sim.abilityStats["instant-poison"].damage, 114);
+  });
+
+  it("takes the melee crit chance's modifiers, and a crit modifier for poison adds to it", () => {
+    const { rogue, sim } = harness({
+      poisons: INSTANT_MAIN,
+      modifiers: [
+        { kind: "critChance", value: 0.2, scope: { tags: ["poison"] } },
+      ],
+      rolls: [HIT, 0.1, 0.5, 0, 0.6],
+    });
+    rogue.critChance = MELEE_CRIT;
+    swing(sim);
+    // 0.5 + 0.2 - 0.048 = 0.652, so 0.6 crits
+    assert.equal(sim.abilityStats["instant-poison"].damage, 114);
+  });
+
+  it("hands back the outcome and status of the hit it dealt", () => {
+    const { rogue, sim } = harness({
+      poisons: INSTANT_MAIN,
+      rolls: [0.5, 0.5, 0, 0.5],
+    });
+    rogue.critChance = 1;
+    const dealt = sim.resolveProcDamage({
+      id: "instant-poison",
+      name: "Instant Poison",
+      min: 76,
+      max: 100,
+      spellHit: true,
+      canCrit: true,
+    });
+    assert.equal(dealt.outcome, "crit");
+    assert.equal(dealt.status, "Crit");
+    assert.equal(dealt.damage, 132);
+    const plain = sim.resolveProcDamage({
+      id: "instant-poison",
+      name: "Instant Poison",
+      min: 76,
+      max: 100,
+      spellHit: false,
+      canCrit: false,
+    });
+    assert.equal(plain.outcome, "hit");
+    assert.equal(plain.status, "Hit");
+  });
+
+  it("skips armor on a crit as it does on a hit", () => {
+    assert.equal(crit(0).sim.abilityStats["instant-poison"].damage, 114);
+  });
+
+  it("draws no crit for a resist, and none when the poison does not fire", () => {
+    const resist = harness({
+      poisons: INSTANT_MAIN,
+      rolls: [HIT, 0.1, 0.1],
+    });
+    resist.rogue.critChance = MELEE_CRIT;
+    swing(resist.sim);
+    assert.equal(resist.tape.left(), 0);
+    const quiet = harness({ poisons: INSTANT_MAIN, rolls: [HIT, 0.9] });
+    quiet.rogue.critChance = MELEE_CRIT;
+    swing(quiet.sim);
+    assert.equal(quiet.tape.left(), 0);
+  });
+
+  it("draws exactly one crit roll for a landed poison hit, even at a crit chance of 0", () => {
+    const { sim, tape } = harness({
+      poisons: INSTANT_MAIN,
+      rolls: [HIT, 0.1, 0.5, 0, 0],
+    });
+    swing(sim);
+    assert.equal(tape.left(), 0);
+    assert.equal(sim.abilityStats["instant-poison"].damage, 76);
+  });
+
+  it("leaves a build with no poison on the same draws: nothing extra is rolled", () => {
+    for (const poisons of [undefined, { mainHand: null, offHand: null }]) {
+      const draws = (config) => {
+        const rogue = new Rogue(config);
+        const sim = new Simulation(rogue, { seed: 7 });
+        for (let i = 0; i < 20; i++) {
+          sim.resolveAttack(rogue.weapons.mainHand.attack, "weapon", 100);
+        }
+        return sim.rng();
+      };
+      assert.equal(draws({ poisons }), draws({}));
+    }
+  });
+});
+
+describe("which attacks roll a poison", () => {
+  // The rule follows wowsims (its main-hand mask includes the specials) and is
+  // a deliberate reference choice, unverified against real Classic: the
+  // main-hand poison rolls on every landed main-hand attack, a finisher too.
+  const MAIN = { mainHand: "instant", offHand: null };
+  const OFF = { mainHand: null, offHand: "instant" };
+  const BOTH = { mainHand: "instant", offHand: "instant" };
+
+  // The skill on the rogue by ability id (the keys are camelCase).
+  const skill = (rogue, id) =>
+    Object.values(rogue.abilities).find((ability) => ability.id === id);
+
+  function cast(id, poisons, seed) {
+    const { rogue, sim } = harness({ poisons, seed });
+    rogue.resources.comboPoints.gain(5);
+    const result = skill(rogue, id).cast(rogue, sim);
+    return { rogue, sim, result };
+  }
+
+  const rolls = (sim, hand = "mainHand") =>
+    sim.procs.stats[`instant-poison.${hand}`].rolls;
+
+  for (const id of [
+    "sinister-strike",
+    "backstab",
+    "ambush",
+    "ghostly-strike",
+    "hemorrhage",
+    "eviscerate",
+  ]) {
+    it(`${id} is a direct main-hand attack: a landed one rolls the poison, once`, () => {
+      let landed = 0;
+      for (let seed = 1; seed <= 20; seed++) {
+        const { sim, result } = cast(id, MAIN, seed);
+        landed += result.landed ? 1 : 0;
+        assert.equal(rolls(sim), result.landed ? 1 : 0, `${id} seed ${seed}`);
+      }
+      assert.ok(landed > 0, `${id} landed in no seed`);
+    });
+  }
+
+  it("a finisher rolls the poison as a strike does (wowsims; pinned deliberately)", () => {
+    // Eviscerate is a finisher and not a weapon strike, and still rolls.
+    let rolled = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const { sim, result } = cast("eviscerate", MAIN, seed);
+      assert.equal(rolls(sim), result.landed ? 1 : 0);
+      rolled += sim.abilityStats["instant-poison"] === undefined ? 0 : 1;
+    }
+    assert.ok(rolled > 0, "no Eviscerate fired the poison in 40 seeds");
+  });
+
+  it("an attack rolls the main hand's poison and not the off hand's", () => {
+    for (const id of ["sinister-strike", "eviscerate"]) {
+      for (let seed = 1; seed <= 6; seed++) {
+        const { sim } = cast(id, OFF, seed);
+        assert.equal(sim.procs.stats["instant-poison.offHand"].rolls, 0, id);
+      }
+      const { sim } = cast(id, BOTH, 3);
+      assert.equal(sim.procs.stats["instant-poison.offHand"].rolls, 0, id);
+    }
+  });
+
+  it("white swings roll the poison of their own hand", () => {
+    const { sim } = harness({ poisons: BOTH, seed: 2 });
+    for (let i = 0; i < 10; i++) {
+      swing(sim, "mainHand");
+    }
+    assert.ok(rolls(sim, "mainHand") > 0);
+    assert.equal(rolls(sim, "offHand"), 0);
+    for (let i = 0; i < 10; i++) {
+      swing(sim, "offHand");
+    }
+    assert.ok(rolls(sim, "offHand") > 0);
+  });
+
+  for (const id of [
+    "rupture",
+    "slice-and-dice",
+    "blade-flurry",
+    "adrenaline-rush",
+    "premeditation",
+    "cold-blood",
+  ]) {
+    it(`${id} is not a direct attack: it rolls no poison and draws nothing for one`, () => {
+      for (let seed = 1; seed <= 20; seed++) {
+        const poisoned = cast(id, BOTH, seed);
+        const bare = cast(id, {}, seed);
+        assert.equal(rolls(poisoned.sim, "mainHand"), 0, `${id} ${seed}`);
+        assert.equal(rolls(poisoned.sim, "offHand"), 0, `${id} ${seed}`);
+        assert.equal(poisoned.sim.rng(), bare.sim.rng(), `${id} ${seed}`);
+      }
+    });
+  }
+
+  it("DoT ticks and poison damage roll no poison", () => {
+    const { rogue, sim } = harness({ poisons: BOTH, seed: 5 });
+    rogue.resources.comboPoints.gain(5);
+    skill(rogue, "rupture").cast(rogue, sim);
+    for (let i = 0; i < 10; i++) {
+      sim.step(2);
+    }
+    assert.equal(rolls(sim, "mainHand"), 0);
+    assert.equal(rolls(sim, "offHand"), 0);
   });
 });
 
@@ -396,7 +667,7 @@ describe("modifiers and tags on the poisons", () => {
     const instant = harness({
       poisons: INSTANT_MAIN,
       modifiers: [poisonDamage(1)],
-      rolls: [HIT, 0.1, 0.5, 0],
+      rolls: [HIT, 0.1, 0.5, 0, NO_CRIT],
     });
     swing(instant.sim);
     assert.equal(instant.sim.abilityStats["instant-poison"].damage, 152);

@@ -26,6 +26,7 @@ const NOT_JAMES =
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
+const DEV_JUDGEMENT_105 = "Developer, 26 Oct 2026, issue #105";
 const DEV_JUDGEMENT_111 = "Developer, 26 Oct 2026, issue #111";
 const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
@@ -302,7 +303,7 @@ export const CONSTANTS = {
     "chance, damage, charges",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Instant Poison|Rank 6]",
-    "Instant Poison VI, the export's top rank. A landed strike of the weapon rolls the 20%, then a spell hit, then the direct Nature damage (A5, #105). It does not crit (poison.instantCrit). Charges are ignored (poison.charges).",
+    "Instant Poison VI, the export's top rank. A landed strike of the weapon rolls the 20%, then a spell hit, then the direct Nature damage (A5, #105). It can crit (poison.instantCrit). Charges are ignored (poison.charges).",
     false,
   ),
   "poison.deadly": entry(
@@ -597,9 +598,17 @@ export const CONSTANTS = {
   "poison.instantCrit": entry(
     1.5,
     "×",
-    CLASSIC,
-    `${WS}rogue/poisons.go`,
-    "Instant Poison crits as a spell in wowsims (OutcomeMagicHitAndCrit). Not applied in A5 (#105): nothing in the sources gives the spell crit chance a Rogue has here, and the engine only has the melee chance. Instant Poison does not crit until that is decided.",
+    ASSUMPTION,
+    `${DEV_JUDGEMENT_105}: issue #105 asks for an Instant Poison crit of 1.5x at the melee crit chance, as an assumption on the retune list; the multiplier is wowsims' spell crit multiplier (${WS}rogue/poisons.go: OutcomeMagicHitAndCrit)`,
+    "Instant Poison's crit damage multiplier (A5, #105). A landed Instant Poison hit rolls one crit (poison.instantCritSuppression says whether the 4.8% comes off) at the Rogue's melee crit chance, and a crit deals this multiple of the damage, through the critDamage modifiers. wowsims crits Instant Poison as a spell (OutcomeMagicHitAndCrit) with the spell crit multiplier, 1.5x. The spell crit chance is not modelled, so the melee chance stands in for it. Deadly Poison's ticks crit through the DoT loop instead (dot.canCrit, dot.critMultiplier).",
+    true,
+  ),
+  "poison.instantCritSuppression": entry(
+    true,
+    "–",
+    ASSUMPTION,
+    `${DEV_JUDGEMENT_105}: the sources give crit suppression for swings and the project owner ruled that DoT crits take it (dot.critSuppression); none says whether a poison's direct hit does, and issue #105 does not say, so this is the dev's call`,
+    "Instant Poison's crit chance loses the same 4.8% as a swing and a DoT tick (crit.suppressionSkill and crit.suppressionAura), like dot.critSuppression, so the three crit rolls of a poisoned build are on one footing. wowsims takes spell crit suppression from a different (smaller) table; that is not modelled. false would leave the hit at the full crit chance.",
     true,
   ),
   "bleed.ignoresArmor": entry(

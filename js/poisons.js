@@ -479,6 +479,11 @@ export const poisonCatalogue = buildPoisonCatalogue(snapshot);
 function poisonProc(poison, hand, read) {
   const { chance, effect } = poison.top;
   const id = `${poison.id}.${hand}`;
+  // A poison rolls on every landed hit of its hand: a white swing, and any
+  // ability, finishers included (they count as main-hand attacks). That is how
+  // wowsims does it: its main-hand mask includes the specials. It is a
+  // deliberate reference choice, not verified against real Classic. See
+  // "Poison procs" in docs/mechanics.md.
   const scope = { hands: [hand] };
   const rule = { mode: "flat", value: chance };
   if (effect.kind === "damage") {
@@ -495,6 +500,7 @@ function poisonProc(poison, hand, read) {
           min: effect.min,
           max: effect.max,
           spellHit: true,
+          canCrit: true,
         },
       ],
     });

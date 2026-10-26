@@ -1270,6 +1270,21 @@ describe("guards a quick run of the suite has to see (#123 review)", () => {
     );
   });
 
+  it("refuses a canCrit that is not true or false, and defaults it to false", () => {
+    for (const canCrit of [1, 0, "yes", null, {}]) {
+      bad(
+        { actions: [{ type: "dealDamage", id: "gouge", min: 1, canCrit }] },
+        /canCrit must be true or false/,
+      );
+    }
+    for (const canCrit of [true, false, undefined]) {
+      const defined = proc({
+        actions: [{ type: "dealDamage", id: "gouge", min: 1, canCrit }],
+      });
+      assert.equal(defined.actions[0].canCrit, canCrit === true);
+    }
+  });
+
   it("refuses a spellHit that is not true or false", () => {
     for (const spellHit of [1, 0, "yes", null, {}]) {
       bad(

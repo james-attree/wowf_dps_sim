@@ -57,11 +57,13 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //                 pending expiry, as a builder's do.
 //   applyAura     { aura, duration?, stacks? }: Simulation.applyAura of an
 //                 aura in js/auras.js, by id.
-//   dealDamage    { id, name?, min, max?, spellHit? }: damage from a source of
-//                 its own. The damage modifiers, armor and the damage tags of
-//                 the id apply (a poison id is a nature spell). With
-//                 spellHit it first rolls a spell hit, and a resist deals
-//                 nothing. It does not crit, and it fires no procs.
+//   dealDamage    { id, name?, min, max?, spellHit?, canCrit? }: damage from a
+//                 source of its own. The damage modifiers, armor and the
+//                 damage tags of the id apply (a poison id is a nature
+//                 spell). With spellHit it first rolls a spell hit, and a
+//                 resist deals nothing. With canCrit a landed hit then rolls
+//                 a crit (Instant Poison: poison.instantCrit); without it the
+//                 damage never crits. It fires no procs.
 //   applyDot      { id, name?, tickDamage, interval, duration, aura?,
 //                 spellHit? }: a damage over time from a source of its own
 //                 (Deadly Poison). It rolls the spell hit first (if asked), and
@@ -90,7 +92,8 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //   4. then the actions in order, depth first: an extraAttack draws the
 //      weapon damage, the attack table and so on, and runs its own triggers
 //      before the next action; dealDamage draws the spell hit (if any), then
-//      the damage if min and max differ; applyDot draws the spell hit (if
+//      the damage if min and max differ, then the crit if it can crit and the
+//      hit landed (always one draw, as a DoT tick's crit is); applyDot draws the spell hit (if
 //      any) and nothing more (its ticks draw their own crit rolls).
 // Draws by ability: a cast fires its triggers after everything it did, so its
 // draws come last. A swing fires them right after its own.
@@ -244,7 +247,15 @@ function defineAction(label, action, index) {
     return Object.freeze({ ...action });
   }
   if (action.type === "dealDamage") {
-    checkKeys(at, action, ["type", "id", "name", "min", "max", "spellHit"]);
+    checkKeys(at, action, [
+      "type",
+      "id",
+      "name",
+      "min",
+      "max",
+      "spellHit",
+      "canCrit",
+    ]);
     if (typeof action.id !== "string" || action.id === "") {
       fail(at, "id must be a non-empty string.");
     }
@@ -258,11 +269,15 @@ function defineAction(label, action, index) {
     if (action.spellHit !== undefined && typeof action.spellHit !== "boolean") {
       fail(at, "spellHit must be true or false.");
     }
+    if (action.canCrit !== undefined && typeof action.canCrit !== "boolean") {
+      fail(at, "canCrit must be true or false.");
+    }
     return Object.freeze({
       ...action,
       name: catalogued?.name ?? action.name,
       max,
       spellHit: action.spellHit === true,
+      canCrit: action.canCrit === true,
     });
   }
   if (action.type === "applyDot") {
