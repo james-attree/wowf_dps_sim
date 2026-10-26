@@ -442,10 +442,7 @@ export class Simulation {
   // attack, the one that reached the crit roll, as a target aura's does: a
   // miss, dodge or parry keeps it for the next try. Nothing here names an aura.
   consumeUseCharges(context) {
-    for (const [id, aura] of Object.entries(this.activeBuffs)) {
-      if (typeof aura.charges !== "number") {
-        continue;
-      }
+    for (const id of Object.keys(this.activeBuffs)) {
       const definition = this.auraDefinitions.get(id);
       if (
         definition?.modifiers.some((modifier) =>
