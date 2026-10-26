@@ -293,8 +293,16 @@ rejects them under `js/`.
   `dealDamage`, `extraAttack`). `ProcRunner` runs them, drawing only when a
   proc could fire. Hosts pass them as `options.procs` to `Rogue` or
   `createFight`; `runFight` and its result are unchanged. `js/proc-data.js`
-  has the rank tables of Hack and Slash and Puncturing Wounds. See
-  [Procs](docs/mechanics.md#procs).
+  reads the rank tables of Hack and Slash and Puncturing Wounds from
+  `data/talent-effects.js`. See [Procs](docs/mechanics.md#procs).
+- `data/talent-effects.js` and `js/talent-build.js` — What each talent does, as
+  data (D5). One entry per talent id: modifier rank tables, procs, a granted
+  ability or a `noDpsEffect` reason, and a hash of the rank text it was written
+  from. All 17 Combat talents are in; the Assassination ones are D8a.
+  `expandTalents({ talent id: rank })` gives the `modifiers` and `procs` to pass
+  to `createFight`, and lists the talents with points but no effect or no entry.
+  `runFight` does not read `config.talents` until D7. See
+  [Talent effects](docs/mechanics.md#talent-effects).
 - `js/auras.js` — The aura model (A1). `AURAS` holds each buff and debuff as a
   definition (id, name, target, duration, stacks and stack rule, charges,
   refresh rule, hooks, effects: `haste`, `energyRegenMultiplier`,
@@ -432,8 +440,14 @@ rejects them under `js/`.
   crit and armor, the armor skip following the tags, and a fight with no
   matching modifier staying identical and rng-neutral.
 - `test/combat-talents-as-data.test.js` — Every Combat talent classified, the
-  11 DPS-relevant ones written as data and checked against the snapshot's rank
-  text, and a full build run through a fight.
+  11 DPS-relevant ones in `data/talent-effects.js` checked against the snapshot's
+  rank text, and a full build run through a fight.
+- `test/talent-effects.test.js` — The talent effects data (shape, text hashes,
+  proc chances against the text), `expandTalents` (ranks, order, rank 0 drawing
+  nothing, bad input), the data check refusing a bad entry, the Assassination
+  shapes of D8a, and the 18/33/0 reference build decoded from its
+  talentsforever.com link (`test/talentsforever.js`) and run through
+  `createFight`.
 - `test/two-tree-modifiers.test.js` — Assassination, Subtlety and Combat
   modifiers combined in one pipeline.
 - `test/adrenaline-rush.test.js` — Adrenaline Rush cooldown from the export,

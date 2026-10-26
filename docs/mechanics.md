@@ -1755,8 +1755,9 @@ defineProc({
 throws, and so does an unknown option (`Known: modifiers, procs.`). The
 SimConfig has no procs field and `runFight` does not take any, so a full
 fight has none until D7 (talents) wires them: `procsFromTalents(ranks)` builds
-the list from `PROC_TABLES` in `js/proc-data.js` (Hack and Slash and
-Puncturing Wounds so far) and is not called by `runFight`. `procsFromTalents`
+the list from `PROC_TABLES` in `js/proc-data.js` (the `procs` of the entries in
+`data/talent-effects.js`: Puncturing Wounds and Hack and Slash so far, in the
+catalogue's order) and is not called by `runFight`. `procsFromTalents`
 takes a plain object: `null`, an array or anything else is a `RangeError`, and
 so is a key that is no talent in the catalogue (a typo would give a build that
 quietly lacks its proc). A talent that exists but gives no proc is ignored.
@@ -1848,3 +1849,105 @@ the extra swings.
 **Known limits.** There is no `procChance` modifier kind yet (Improved Poisons,
 D8a, will need one); `dealDamage` does not crit; `ppm` uses the unhasted weapon
 speed; nothing in `runFight` supplies procs until D7.
+
+## Talent effects
+
+Roadmap D5 (issue #102). What a talent does is data in `data/talent-effects.js`,
+one entry per talent id, written by hand from the snapshot's rank text. The
+Combat tree is done (17 entries). The engine names no talent: `expandTalents`
+(`js/talent-build.js`, also exported by `js/fight.js`) turns a map
+`{ talent id: rank }` into what a fight takes, and the modifier pipeline and the
+proc runner do the rest.
+
+An entry has `textHash` and then one or more of these, or `noDpsEffect` alone:
+
+- `modifiers`: rank tables for `expandRank`, `{ kind, op, values: [rank 1, ...],
+scope? }`, with the kinds and scopes of [Modifiers](#modifiers).
+- `procs`: proc specs for `defineRankedProc` with `chance.values` by rank (see
+  [Procs](#procs)), their chances read from `data/constants.js`.
+- `ability`: the id of the ability the talent grants (Blade Flurry, Adrenaline
+  Rush). What it does is the ability's and its aura's definition.
+- `noDpsEffect`: a one-line reason the talent does nothing in a damage fight.
+
+`textHash` is the SHA-256 of the talent's rank texts joined with a newline. A
+test recomputes it from the snapshot, so a refreshed snapshot that rewords or
+renumbers a talent fails until its entry is read again. The same tests read every
+modifier value and proc chance out of the text, at every rank
+(`test/combat-talents-as-data.test.js`, `test/talent-effects.test.js`). Refusing
+a stale entry when the data loads is D6 (#103).
+
+```js
+import { createFight, expandTalents } from "./js/fight.js";
+
+const build = expandTalents(config.talents); // or { "combat.precision": 3, ... }
+const { modifiers, procs } = build;
+createFight(seed, config, { modifiers, procs });
+```
+
+**The result of `expandTalents`** (frozen): `modifiers` and `procs` for the two
+options of `Rogue`, and three lists for the host: `abilities` (the granted
+abilities of talents at rank 1 or more), `noDps` (talents with points and no
+effect) and `unmapped` (talents with points and no entry: all of the
+Assassination and Subtlety trees until D8a and D8b; they do nothing, so say so).
+Rank 0, or a talent left out, expands to nothing: no modifier and no proc, so it
+changes no number and draws no random number. Everything comes in catalogue
+order whatever the order of the map, and the procs are rolled in that order. An
+unknown talent id, a map that is not a plain object, and a rank that is not an
+integer from 0 to the talent's maximum are a `RangeError`. The data is checked
+against the catalogue when `js/talent-build.js` loads (`checkTalentEffects`):
+shape, one value or chance per rank, unique proc ids, a real ability, and every
+table through the pipeline at every rank, rank 0 too.
+
+`runFight` does not call `expandTalents`: the engine does not read
+`config.talents` until D7 (#103), so the talents of a full fight are the two
+lists passed to `createFight`. The granted abilities (Blade Flurry, Adrenaline
+Rush) are already in the default rotation without a talent; D7 gates them.
+`js/proc-data.js` is a view of the `procs` fields.
+
+**The Combat tree: 11 with an effect, 6 without.**
+
+| Talent                    | Max | What it is in the data                                                                                  |
+| ------------------------- | --- | ------------------------------------------------------------------------------------------------------- |
+| Improved Eviscerate       | 3   | `damage` +7/13/20%, Eviscerate                                                                          |
+| Improved Sinister Strike  | 2   | `energyCost` -3/-5, Sinister Strike                                                                     |
+| Lightning Reflexes        | 5   | none: dodge, nothing attacks the rogue                                                                  |
+| Puncturing Wounds         | 3   | `critChance` +10/20/30% Backstab, +5/10/15% Mutilate; proc: Backstab adds a combo point 15/30/45%       |
+| Deflection                | 3   | none: parry, nothing attacks the rogue                                                                  |
+| Precision                 | 3   | `hitChance` +1/2/3%                                                                                     |
+| Endurance                 | 2   | none: Sprint and Evasion cooldowns are not cast                                                         |
+| Riposte                   | 1   | none: needs a parry; block and parry are out of scope (project owner ruling 2026-10-26)                 |
+| Improved Sprint           | 2   | none: movement                                                                                          |
+| Improved Kick             | 2   | none: interrupts                                                                                        |
+| Flawless Execution        | 1   | `energyCost` -10, Eviscerate                                                                            |
+| Dual Wield Specialization | 5   | `damage` +5..25%, off hand                                                                              |
+| Blade Flurry              | 1   | grants the ability (haste aura)                                                                         |
+| Hack and Slash            | 5   | `critChance` +1..5% (dagger, fist), `armorIgnore` +3..15% (mace); proc: extra attack 1..5% (sword, axe) |
+| Weapon Expertise          | 2   | `dodgeReduction` and `parryReduction` +1/2%                                                             |
+| Aggression                | 3   | `damage` +2/4/6%, Sinister Strike, Backstab, Eviscerate                                                 |
+| Adrenaline Rush           | 1   | grants the ability (energy regeneration aura)                                                           |
+
+**11 or 12.** The roadmap and the issue say 11 or 12 DPS-relevant Combat
+talents, and the classification above gives 11. Which would be a twelfth is not
+settled: of the six without an effect, Riposte (a 150% weapon damage strike after
+a parry), Endurance and Improved Sprint are the ones a count could include, and
+none acts in a fight from behind with no incoming attack. The six are marked
+`noDpsEffect`, each with its reason, so adding a twelfth is a change to one
+entry. Two talents that do work only in some builds are counted as DPS: Hack and
+Slash (a sword or axe, a dagger or fist, or a mace in the hand) and Puncturing
+Wounds (Backstab, which the placeholder rotation never casts).
+
+**What D8a (#119) adds, with no change here.** Malice and Lethality are
+`modifiers` entries (`critChance`, and `critDamage` scoped to abilities).
+Ruthlessness and Relentless Strikes are `procs` entries (an `onAbility` proc
+with `scope.tags: ["finisher"]`, a `flat` or `perSpent` chance, and a
+`gainResource` action for the combo point or the energy). Cold Blood is an
+`ability` entry. Improved Slice and Dice is a `modifiers` entry whose kind is
+`duration`, which is the one engine change of D8a: a new kind in
+`js/modifiers.js` and its use where an aura's duration is set. A test builds the
+others from made-up numbers and runs a fight with them.
+
+**Shape.** `runFight` and its result are unchanged, `SimConfig` has no new
+field, and the golden fixtures are byte-identical. New: `data/talent-effects.js`,
+`js/talent-build.js` and `expandTalents`. `PROC_TABLES` is now derived from the
+data (its keys are in the catalogue's order, so `procsFromTalents` lists
+Puncturing Wounds before Hack and Slash).
