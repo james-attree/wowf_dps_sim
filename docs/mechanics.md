@@ -208,7 +208,7 @@ Hemorrhage deals that normalised hit times one entry of
 `k("hemorrhage.ruptureBonus").duration`. A landed Ghostly Strike deals the
 normalised hit times one entry of `k("ghostlyStrike").weaponMultiplier`.
 The main-hand type `"dagger"` selects the `dagger` entry. Every other type,
-including the sample main hand, selects `other`. Both constants are
+including the default Vis'kag (a sword), selects `other`. Both constants are
 `wowf-export` and are not on the retune list. Backstab is that hit times
 `k("backstab").weaponMultiplier`, plus `k("backstab").bonusDamage`. Ambush
 is that hit times `k("ambush").weaponMultiplier`, plus
@@ -912,7 +912,8 @@ the talent ranks and the poison on each hand (roadmap E2-lite, issue #92).
 `createFight(seed, config)` and `runFight({ seed, duration, config })` take it.
 It is optional, and with none the fight is the one the engine ran before there
 was a config: the defaults are the sample inputs in `data/constants.js`
-(`character.*` and `weapon.*`), so every golden fixture is unchanged.
+(`character.*` and `weapon.*`). The default is the level 60 Tier 1 rogue below
+(issue #127), which moved the golden fixtures once, on purpose.
 `js/sim-config.js` has `defaultConfig()` and `normalizeConfig(config)`.
 
 ```js
@@ -979,6 +980,53 @@ that config again. The result's `config` therefore reproduces its fight.
 The two id lists are engineering constants (`config.weaponTypes`,
 `config.poisonIds`), not game data. D9 may replace the poison list with ids from
 the snapshot.
+
+### Default character (issue #127)
+
+The default config is a level 60 Classic Human rogue in the wowsims Phase 1
+Combat BiS preset (Nightslayer set, two Bloodfang pieces, `combat_sinister_strike_p1_bis`),
+with sword/sword, no buffs. The project owner asked for it on 2026-10-26 (relayed
+via Scout). The character sheet holds only what the talents do not already add,
+so nothing is counted twice: Malice (+5% crit) and Precision (+5% hit) are talent
+modifiers on top of it, and are not in `character.critChance` or
+`character.bonusHitChance`.
+
+| Row                        | Default (sword/sword)                                     | Dagger/dagger                                                       | What it is                                                                                                             |
+| -------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Strength                   | 183                                                       | 174                                                                 | 95 base + 73 gear + 15 enchants (without Brutality Blade's 9 for daggers)                                              |
+| Agility                    | 442                                                       | 433                                                                 | 160 base + 252 gear + 30 enchants (without Brutality Blade's 9 for daggers)                                            |
+| Gear attack power          | 82                                                        | 102                                                                 | Cape of the Black Baron 20, Hand of Justice 20, Blackstone Ring 20, Striker's Mark 22; daggers add Core Hound Tooth 20 |
+| `character.attackPower`    | 807                                                       | 809                                                                 | 100 (2 x level - 20) + Str + Agi + gear AP                                                                             |
+| `character.critChance`     | 0.2324                                                    | 0.2293                                                              | Agi / 29 + 8% gear crit (swords: Brutality Blade 1%; daggers: Core Hound Tooth 1%)                                     |
+| `character.bonusHitChance` | 0.07                                                      | 0.07                                                                | 7% gear hit                                                                                                            |
+| Weapons                    | Vis'kag 100-187 at 2.6 s, Brutality Blade 90-168 at 2.5 s | Perdition's Blade 73-137 at 1.8 s, Core Hound Tooth 57-107 at 1.6 s | Wowhead Classic item tooltips                                                                                          |
+
+Sources: the item numbers are Wowhead Classic tooltips (`classic-1.12` on the
+weapon rows). The base Str 95 and Agi 160, the +15 Str and +30 Agi enchants, and
+the 1 AP per Str and Agi and 1% crit per 29 Agi conversions are estimates the
+sheet rows record as `assumption` on the retune list. The dagger set is
+`defaultDaggerConfig()` in `js/sim-config.js` (the default config with the dagger
+sheet and dagger weapons).
+
+With the build's talents the sheet reads (reference only): crit 0.2324 + Malice
+0.05 = 28.2% and hit 0.07 + Precision 0.05 = 12%. Raid buffs and consumables are
+not applied; they would add roughly 600 AP and 10% crit (Scout's estimate, unverified)
+only (the engine has no buff slot for them).
+
+What the default character does not model: the Chance on hit effects of Vis'kag
+the Bloodletter (a 240 damage fatal wound) and Perdition's Blade (40 to 56 Fire
+damage); the Crusader enchant procs; Hand of Justice's extra attack; the
+Nightslayer set bonuses; and weapon skill. A Human gets +5 sword skill, which
+would lower the miss and crit suppression a little, and the attack table has no
+skill term, so the sheet's hit and crit are the ones it reads.
+
+Hit above the cap: the table takes `bonusHitChance` less 1% (the engine's
+suppression term, `miss.yellow` of 8% plus 1% is the 9% cap), so a yellow attack
+(Sinister Strike and the other abilities) gains nothing above 9% hit, while a
+white swing, which starts from 27% miss (8% plus the 19% dual-wield penalty),
+still loses 1% of miss for each 1% of hit up to 27%. The default 7% sheet plus
+Precision's 5% is 12%: yellow is capped at 9%, and white misses 16%. The engine
+already did this, so there is no code change for it.
 
 ## Data version
 

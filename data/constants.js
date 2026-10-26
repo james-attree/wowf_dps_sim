@@ -10,7 +10,6 @@ const ASSUMPTION = "assumption";
 const ENGINEERING = "engineering";
 
 const JAMES = "James, 22 Oct 2026";
-const SAMPLE_INPUT = `${JAMES}: sample input until SimConfig (E2)`;
 const COMBAT_ROTATION =
   "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
 // Issue #71 only suggests mulberry32; the seed and the generator's terms are the
@@ -49,20 +48,13 @@ const ATTACK_WIKI = "https://vanilla-wow-archive.fandom.com/wiki/Attack_table";
 const WH_DW = "https://www.wowhead.com/classic/spell=674/dual-wield";
 const WH_RUP = "https://www.wowhead.com/classic/spell=1943/rupture";
 const WH_CATA_RUP = "https://www.wowhead.com/cata/spell=1943/rupture";
+const WH_ITEM = "https://www.wowhead.com/classic/item=";
+const CHAR_REF = `${DEVELOPER}, issue #127: project owner request 2026-10-26, relayed via Scout; items from the wowsims Classic combat_sinister_strike_p1_bis gear preset and Wowhead Classic item tooltips`;
 const WS = "https://github.com/wowsims/classic/blob/master/sim/";
 
 function entry(value, unit, source, ref, note, retune) {
   return { value, unit, source, ref, note, retune };
 }
-
-const MAIN_HAND_TYPE = entry(
-  "other",
-  "–",
-  WOWF_DESIGNER,
-  "James, 24 Oct 2026: the sample main-hand isn't a dagger; keep type 'other'",
-  "Sample main-hand type. Ghostly Strike and Hemorrhage use the non-dagger percent.",
-  false,
-);
 
 export const CONSTANTS = {
   // wowf-export: re-read when the talentsforever snapshot refreshes.
@@ -695,7 +687,6 @@ export const CONSTANTS = {
     "A DoT tick's crit chance loses the same 4.8% as a swing (crit.suppressionSkill and crit.suppressionAura). Classic ticks do not crit, and WoW Forever's DoT crits (dot.canCrit) are outside the Classic table, so this is an assumption. The 2x multiplier is dot.critMultiplier. false would leave a tick at the full crit chance.",
     true,
   ),
-  "weapon.mainHand.type": MAIN_HAND_TYPE,
   "rotation.priority": entry(
     {
       onCooldown: ["bladeFlurry", "adrenalineRush"],
@@ -886,27 +877,43 @@ export const CONSTANTS = {
   // Sample inputs. They are the defaults of the SimConfig (js/sim-config.js).
   // The placeholder Combat rotation is rotation.priority.
   "character.attackPower": entry(
-    450,
+    807,
     "AP",
     ASSUMPTION,
-    SAMPLE_INPUT,
-    "The default for config.character.attackPower (SimConfig, js/sim-config.js). A fight reads it through its config.",
+    CHAR_REF,
+    "Level 60 Human rogue, Nightslayer + Phase 1 Combat BiS, sword/sword, enchants, no buffs and no talents. 807 = 100 (2 x level - 20) + 183 Str + 442 Agi (1 AP each) + 82 gear AP (Cape of the Black Baron 20, Hand of Justice 20, Blackstone Ring 20, Striker's Mark 22). Str 183 = 95 base + 73 gear + 15 enchants; Agi 442 = 160 base + 252 gear + 30 enchants. The 95 and 160 base values and the enchants are unsourced estimates, so this row is an assumption. The default for config.character.attackPower (SimConfig, js/sim-config.js). docs/mechanics.md has the full table.",
     true,
   ),
   "character.critChance": entry(
-    0.1,
+    0.2324,
     "chance",
     ASSUMPTION,
-    SAMPLE_INPUT,
-    "The default for config.character.critChance (SimConfig, js/sim-config.js). A fight reads it through its config.",
+    CHAR_REF,
+    "Non-talent crit only: Malice (+5%) comes from the talent, so it is not here. 0.2324 = 442 Agi / 29 (15.24%) + 8% gear crit (Nightslayer Chestpiece, Nightslayer Belt, Bloodfang Hood, Bloodfang Pants, Onyxia Tooth Pendant 1% each, Blackhand's Breadth 2%, Brutality Blade 1%). The agility and enchants are the estimates in character.attackPower. The default for config.character.critChance (SimConfig, js/sim-config.js).",
     true,
   ),
   "character.bonusHitChance": entry(
-    0.09,
+    0.07,
     "chance",
     ASSUMPTION,
-    SAMPLE_INPUT,
-    "9% matches the Classic hit cap, but the code does not say that. The default for config.character.bonusHitChance (SimConfig, js/sim-config.js); a fight reads it through its config.",
+    CHAR_REF,
+    "Non-talent hit only: Precision (+5%) comes from the talent, so it is not here. 0.07 = 7% gear hit (Nightslayer Shoulder Pads 1%, Nightslayer Gloves 1%, Onyxia Tooth Pendant 1%, Band of Accuria 2%, Blackstone Ring 1%, Striker's Mark 1%). 9% is the yellow-attack cap, 1% of it is the engine's suppression term (attackChances). The default for config.character.bonusHitChance (SimConfig, js/sim-config.js).",
+    true,
+  ),
+  "character.dagger.attackPower": entry(
+    809,
+    "AP",
+    ASSUMPTION,
+    CHAR_REF,
+    "The dagger/dagger alternate (defaultDaggerConfig). 809 = 100 + 174 Str + 433 Agi + 102 gear AP (the sword set's 82 plus Core Hound Tooth 20). Str 174 = 95 + 64 + 15 (no Brutality Blade); Agi 433 = 160 + 243 + 30.",
+    true,
+  ),
+  "character.dagger.critChance": entry(
+    0.2293,
+    "chance",
+    ASSUMPTION,
+    CHAR_REF,
+    "The dagger/dagger alternate. 0.2293 = 433 Agi / 29 (14.93%) + 8% gear crit (the sword set's 8% less Brutality Blade 1% plus Core Hound Tooth 1%). Malice is not here.",
     true,
   ),
   "character.startingComboPoints": entry(
@@ -918,20 +925,36 @@ export const CONSTANTS = {
     true,
   ),
   "weapon.mainHand": entry(
-    { min: 59, max: 110, speed: 1.8, type: MAIN_HAND_TYPE.value },
+    { min: 100, max: 187, speed: 2.6, type: "sword" },
     "damage, damage, s, –",
-    ASSUMPTION,
-    `${SAMPLE_INPUT}; #9 is 59–110 at 1.8s`,
-    "Issue #9 unswaps the sample main hand. type is not a dagger, so Ghostly Strike and Hemorrhage use the non-dagger percent. The default for config.weapons.mainHand (SimConfig, js/sim-config.js); a fight reads it through its config.",
-    true,
+    CLASSIC,
+    `${WH_ITEM}17075/viskag-the-bloodletter; ${CHAR_REF}`,
+    "Vis'kag the Bloodletter: sword, 100-187 at 2.6s. Its Chance on hit (a 240 damage fatal wound) is not modelled. A sword, so Hack and Slash applies and Ghostly Strike and Hemorrhage use the non-dagger percent. The default for config.weapons.mainHand (SimConfig, js/sim-config.js); a fight reads it through its config.",
+    false,
   ),
   "weapon.offHand": entry(
-    { min: 54, max: 101, speed: 1.7, initialSwing: 0.5 },
-    "damage, damage, s, s",
-    ASSUMPTION,
-    SAMPLE_INPUT,
-    "The delay stops both hands swinging on the first frame. min, max and speed are the default for config.weapons.offHand (SimConfig, js/sim-config.js); a fight reads them through its config. initialSwing is not part of the config. The off hand has no type by default (null).",
-    true,
+    { min: 90, max: 168, speed: 2.5, initialSwing: 0.5, type: "sword" },
+    "damage, damage, s, s, –",
+    CLASSIC,
+    `${WH_ITEM}18832/brutality-blade; ${CHAR_REF}`,
+    "Brutality Blade: sword, 90-168 at 2.5s (+9 Str, +9 Agi, +1% crit are in the character sheet). The initialSwing delay (0.5 s) stops both hands swinging on the first frame; it is an engine choice, not a game value, and is not part of the config. min, max, speed and type are the default for config.weapons.offHand (SimConfig, js/sim-config.js).",
+    false,
+  ),
+  "weapon.dagger.mainHand": entry(
+    { min: 73, max: 137, speed: 1.8, type: "dagger" },
+    "damage, damage, s, –",
+    CLASSIC,
+    `${WH_ITEM}18816/perditions-blade; ${CHAR_REF}`,
+    "Perdition's Blade: dagger, 73-137 at 1.8s. Its Chance on hit (40 to 56 Fire damage) is not modelled. The main hand of the dagger/dagger alternate (defaultDaggerConfig).",
+    false,
+  ),
+  "weapon.dagger.offHand": entry(
+    { min: 57, max: 107, speed: 1.6, type: "dagger" },
+    "damage, damage, s, –",
+    CLASSIC,
+    `${WH_ITEM}18805/core-hound-tooth; ${CHAR_REF}`,
+    "Core Hound Tooth: dagger, 57-107 at 1.6s (+1% crit and +20 AP are in character.dagger.*). The off hand of the dagger/dagger alternate (defaultDaggerConfig).",
+    false,
   ),
   "skill.missEnergyRefund": entry(
     0.8,

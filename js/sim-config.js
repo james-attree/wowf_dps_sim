@@ -55,6 +55,21 @@ export function defaultConfig() {
   };
 }
 
+// The dagger/dagger alternate (issue #127): Perdition's Blade and Core Hound
+// Tooth, with the character sheet that goes with them (no Brutality Blade stats,
+// Core Hound Tooth's crit and AP). Everything else is the default config.
+export function defaultDaggerConfig() {
+  const config = defaultConfig();
+  const dagger = (hand) => {
+    const { min, max, speed, type } = k(`weapon.dagger.${hand}`);
+    return { min, max, speed, type };
+  };
+  config.character.attackPower = k("character.dagger.attackPower");
+  config.character.critChance = k("character.dagger.critChance");
+  config.weapons = { mainHand: dagger("mainHand"), offHand: dagger("offHand") };
+  return config;
+}
+
 // How a bad value reads in a message: JSON.stringify hides NaN and Infinity as
 // "null" and undefined as nothing, so numbers and undefined use String().
 function show(value) {

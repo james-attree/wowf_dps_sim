@@ -157,26 +157,38 @@ describe("constants", () => {
     assert.equal(CONSTANTS["premeditation.cpRemovedOnExpiry"].retune, true);
     assert.equal(k("premeditation.cpRemovedOnExpiry"), 2);
 
-    const sampleInput = "James, 22 Oct 2026: sample input until SimConfig (E2)";
+    // The default character (issue #127): a request of the project owner,
+    // relayed. The ref says so and names no statement James made.
+    const relayed = /issue #127: project owner request 2026-10-26, relayed/;
     for (const id of [
       "character.attackPower",
       "character.critChance",
       "character.bonusHitChance",
+      "character.dagger.attackPower",
+      "character.dagger.critChance",
+      "weapon.mainHand",
       "weapon.offHand",
+      "weapon.dagger.mainHand",
+      "weapon.dagger.offHand",
     ]) {
-      assert.equal(CONSTANTS[id].ref, sampleInput, id);
-      assert.equal(CONSTANTS[id].source, "assumption", id);
+      assert.match(CONSTANTS[id].ref, relayed, id);
     }
-    assert.equal(
-      CONSTANTS["weapon.mainHand"].ref,
-      `${sampleInput}; #9 is 59–110 at 1.8s`,
-    );
+    for (const id of [
+      "character.attackPower",
+      "character.critChance",
+      "character.dagger.attackPower",
+      "character.dagger.critChance",
+    ]) {
+      assert.equal(CONSTANTS[id].source, "assumption", id);
+      assert.equal(CONSTANTS[id].retune, true, id);
+    }
     assert.deepEqual(k("weapon.mainHand"), {
-      min: 59,
-      max: 110,
-      speed: 1.8,
-      type: "other",
+      min: 100,
+      max: 187,
+      speed: 2.6,
+      type: "sword",
     });
+    assert.equal(CONSTANTS["weapon.mainHand.type"], undefined);
 
     for (const id of [
       "attack.rollScale",
@@ -259,9 +271,9 @@ describe("simulator values other than white miss", () => {
     const rogue = new Rogue();
     assert.equal(rogue.energy, 100);
     assert.equal(rogue.maxEnergy, 100);
-    assert.equal(rogue.attackPower, 450);
-    assert.equal(rogue.critChance, 0.1);
-    assert.equal(rogue.bonusHitChance, 0.09);
+    assert.equal(rogue.attackPower, 807);
+    assert.equal(rogue.critChance, 0.2324);
+    assert.equal(rogue.bonusHitChance, 0.07);
     assert.equal(k("character.startingComboPoints"), 0);
     assert.equal(k("start.state").comboPoints, 0);
     assert.equal(rogue.comboPoints, k("character.startingComboPoints"));
@@ -269,19 +281,19 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.normalizedWeaponSpeed, 1.7);
 
     assert.deepEqual(k("weapon.mainHand"), {
-      min: 59,
-      max: 110,
-      speed: 1.8,
-      type: "other",
+      min: 100,
+      max: 187,
+      speed: 2.6,
+      type: "sword",
     });
-    assert.equal(rogue.weapons.mainHand.minDamage, 59);
-    assert.equal(rogue.weapons.mainHand.maxDamage, 110);
-    assert.equal(rogue.weapons.mainHand.speed, 1.8);
-    assert.equal(rogue.weapons.mainHand.type, "other");
-    assert.equal(rogue.weapons.offHand.type, null);
-    assert.equal(rogue.weapons.offHand.minDamage, 54);
-    assert.equal(rogue.weapons.offHand.maxDamage, 101);
-    assert.equal(rogue.weapons.offHand.speed, 1.7);
+    assert.equal(rogue.weapons.mainHand.minDamage, 100);
+    assert.equal(rogue.weapons.mainHand.maxDamage, 187);
+    assert.equal(rogue.weapons.mainHand.speed, 2.6);
+    assert.equal(rogue.weapons.mainHand.type, "sword");
+    assert.equal(rogue.weapons.offHand.type, "sword");
+    assert.equal(rogue.weapons.offHand.minDamage, 90);
+    assert.equal(rogue.weapons.offHand.maxDamage, 168);
+    assert.equal(rogue.weapons.offHand.speed, 2.5);
     assert.equal(rogue.weapons.offHand.swingTimer, 0.5);
 
     expectSkill(rogue.abilities.sinisterStrike, {
@@ -370,8 +382,8 @@ describe("simulator values other than white miss", () => {
     setRoll(0);
     const rogue = new Rogue();
     rogue.rng = testRng;
-    const weaponDie = 59;
-    const apBonus = (speed) => (450 / 14) * speed;
+    const weaponDie = 100;
+    const apBonus = (speed) => (807 / 14) * speed;
     const normalized = weaponDie + apBonus(1.7);
 
     assert.equal(rogue.abilities.sinisterStrike.damage(), normalized + 68);
@@ -379,7 +391,7 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.abilities.ambush.damage(), normalized * 2.5 + 290);
     const ghostly = k("ghostlyStrike").weaponMultiplier;
     const hemorrhage = k("hemorrhage").weaponMultiplier;
-    assert.equal(rogue.weapons.mainHand.type, "other");
+    assert.equal(rogue.weapons.mainHand.type, "sword");
     assert.equal(
       rogue.abilities.ghostlyStrike.damage(),
       normalized * ghostly.other,
@@ -406,10 +418,10 @@ describe("simulator values other than white miss", () => {
       rogue.abilities.hemorrhage.damage(),
       normalized * hemorrhage.other,
     );
-    assert.equal(rogue.weapons.mainHand.rollDamage(), weaponDie + apBonus(1.8));
+    assert.equal(rogue.weapons.mainHand.rollDamage(), weaponDie + apBonus(2.6));
     assert.equal(
       rogue.weapons.offHand.rollDamage(),
-      (54 + apBonus(1.7)) * k("offHand.damageMult"),
+      (90 + apBonus(2.5)) * k("offHand.damageMult"),
     );
 
     rogue.comboPoints = 0;
@@ -420,17 +432,17 @@ describe("simulator values other than white miss", () => {
     rogue.comboPoints = 1;
     assert.equal(
       rogue.abilities.eviscerate.damage(),
-      Math.floor(450 * 0.03 + 224),
+      Math.floor(807 * 0.03 + 224),
     );
-    assert.equal(rogue.abilities.rupture.damage(), 159 + 450 * 0.06);
+    assert.equal(rogue.abilities.rupture.damage(), 159 + 807 * 0.06);
     assert.equal(rogue.abilities.rupture.resolve().duration, 8);
 
     rogue.comboPoints = 5;
     assert.equal(
       rogue.abilities.eviscerate.damage(),
-      Math.floor(450 * 5 * 0.03 + 904),
+      Math.floor(807 * 5 * 0.03 + 904),
     );
-    assert.equal(rogue.abilities.rupture.damage(), 469 + 450 * 0.3);
+    assert.equal(rogue.abilities.rupture.damage(), 469 + 807 * 0.3);
     assert.equal(rogue.abilities.rupture.resolve().duration, 16);
 
     const sim = new Simulation(rogue, { rng: testRng });
@@ -474,7 +486,7 @@ describe("simulator values other than white miss", () => {
     }
 
     rogue.comboPoints = 3;
-    assert.equal(rogue.abilities.rupture.damage(), 295 + 450 * 0.18);
+    assert.equal(rogue.abilities.rupture.damage(), 295 + 807 * 0.18);
     assert.equal(rogue.abilities.rupture.resolve().duration, 12);
   });
 
