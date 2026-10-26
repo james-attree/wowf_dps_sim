@@ -298,10 +298,11 @@ rejects them under `js/`.
 - `data/talent-effects.js` and `js/talent-build.js` — What each talent does, as
   data (D5). One entry per talent id: modifier rank tables, procs, a granted
   ability or a `noDpsEffect` reason, and a hash of the rank text it was written
-  from. All 17 Combat talents are in, and Malice, Improved Slice and Dice and
-  Lethality of the Assassination ones (D8a PR 1); the other three are PR 2.
-  `expandTalents({ talent id: rank })` gives the `modifiers` and `procs` to pass
-  to `createFight`, and lists the talents with points but no effect or no entry.
+  from. All 17 Combat talents are in, and the six Assassination talents of the
+  reference build (D8a: Malice, Improved Slice and Dice and Lethality in PR 1,
+  Ruthlessness, Relentless Strikes and Cold Blood in PR 2).
+  `expandTalents({ talent id: rank })` gives the `modifiers`, `procs` and
+  `abilities` to pass to `createFight`, and lists the talents with points but no effect or no entry.
   `runFight` does not read `config.talents` until D7. See
   [Talent effects](docs/mechanics.md#talent-effects).
 - `js/auras.js` — The aura model (A1). `AURAS` holds each buff and debuff as a
@@ -454,6 +455,10 @@ rejects them under `js/`.
   `duration` modifier kind (scope, floor, stacking), the Slice and Dice length
   by rank, Lethality's 2.0 to 2.2 crit multiplier, and untalented fights
   unchanged.
+- `test/assassination-procs-as-data.test.js` — Ruthlessness, Relentless Strikes
+  and Cold Blood (D8a PR 2) against the snapshot's rank text, the procs'
+  chances and draws, Cold Blood's sure crit and when its charge is spent, the
+  rotation rule (only when granted), and the Rogue `abilities` option.
 - `test/carry-overs-124.test.js` — The Puncturing Wounds `onAbility` trigger,
   `expandTalents` refusing inherited keys and an unknown id at rank 0, and the
   import-time data check observed from a subprocess.

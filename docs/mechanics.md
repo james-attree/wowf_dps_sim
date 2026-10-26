@@ -131,13 +131,19 @@ hand gives the amount), so a block does full damage. Blocks are counted under
 **Where wowsims differs.** wowsims/classic draws a glancing-damage roll on
 every white swing, and does not clamp the crit chance. This engine draws the
 glancing roll only when the swing is a glancing blow, and clamps the crit
-chance (to 0 to 1, before the suppression comes off). The outcome bands are the
+chance (to 0 to 1, after the suppression comes off: see below). The outcome bands are the
 same; the difference is in how many draws a fight takes, and in a crit chance
 that would go below 0 or above 1 (noted in the #121 QA review).
 
 **Crit suppression.** The crit chance a white swing or a yellow second roll
-reads is the clamped chance less 3% (the skill gap, 0.2% per point) and less
-1.8% (the aura term, a flat reduction Magey notes), never below 0. A DoT tick
+reads is the chance less 3% (the skill gap, 0.2% per point) and less
+1.8% (the aura term, a flat reduction Magey notes), then clamped to 0 to 1. The
+suppression comes off before the clamp (D8a PR 2, #119), so a raw crit chance of
+104.8% or more is a sure crit once the suppression is paid, which Cold Blood's
++100% needs; clamped first, it would have given 95.2%. A raw chance of 100% or
+less is as it always was, so only a raw chance above 1 behaves differently, and
+no golden fixture has one. The crit roll is still drawn at any chance above 0
+after a `hit`, so the draw count does not depend on the chance. A DoT tick
 reads the same suppressed chance (`dot.canCrit`), so its crit chance drops by
 4.8% too. That is `k("dot.critSuppression")`, an assumption on the retune list:
 no source says whether a tick takes the suppression, and `false` leaves a tick
@@ -1863,8 +1869,8 @@ speed; nothing in `runFight` supplies procs until D7.
 
 Roadmap D5 (issue #102). What a talent does is data in `data/talent-effects.js`,
 one entry per talent id, written by hand from the snapshot's rank text. The
-Combat tree is done (17 entries), and
-three of the six Assassination talents (D8a PR 1, #119). The engine names no talent: `expandTalents`
+Combat tree is done (17 entries), and so are the six Assassination talents of
+the reference build (D8a, #119: three in PR 1, three in PR 2). The engine names no talent: `expandTalents`
 (`js/talent-build.js`, also exported by `js/fight.js`) turns a map
 `{ talent id: rank }` into what a fight takes, and the modifier pipeline and the
 proc runner do the rest.
@@ -1890,15 +1896,17 @@ a stale entry when the data loads is D6 (#103).
 import { createFight, expandTalents } from "./js/fight.js";
 
 const build = expandTalents(config.talents); // or { "combat.precision": 3, ... }
-const { modifiers, procs } = build;
-createFight(seed, config, { modifiers, procs });
+const { modifiers, procs, abilities } = build;
+createFight(seed, config, { modifiers, procs, abilities });
 ```
 
-**The result of `expandTalents`** (frozen): `modifiers` and `procs` for the two
-options of `Rogue`, and three lists for the host: `abilities` (the granted
-abilities of talents at rank 1 or more), `noDps` (talents with points and no
-effect) and `unmapped` (talents with points and no entry: three of the
-Assassination talents until D8a PR 2, and the Subtlety tree until D8b; they do nothing, so say so).
+**The result of `expandTalents`** (frozen): `modifiers` and `procs`, and
+`abilities` (the granted abilities of talents at rank 1 or more), which are the
+three options of `Rogue`, and two lists for the host: `noDps` (talents with
+points and no effect) and `unmapped` (talents with points and no entry: the
+Subtlety tree and the Assassination talents the reference build does not take,
+until D8b and later; they do nothing, so say so). For the reference build
+`unmapped` is empty.
 Rank 0, or a talent left out, expands to nothing: no modifier and no proc, so it
 changes no number and draws no random number. Everything comes in catalogue
 order whatever the order of the map, and the procs are rolled in that order. An
@@ -1910,8 +1918,9 @@ table through the pipeline at every rank, rank 0 too.
 
 `runFight` does not call `expandTalents`: the engine does not read
 `config.talents` until D7 (#103), so the talents of a full fight are the two
-lists passed to `createFight`. The granted abilities (Blade Flurry, Adrenaline
-Rush) are already in the default rotation without a talent; D7 gates them.
+lists passed to `createFight`. Blade Flurry and Adrenaline Rush are already in
+the default rotation without a talent; D7 gates them. Cold Blood is not: it is
+cast only when the build grants it (below).
 `js/proc-data.js` is a view of the `procs` fields.
 
 **The Combat tree: 11 with an effect, 6 without.**
@@ -1949,26 +1958,84 @@ entry. Two talents that do work only in some builds are counted as DPS: Hack and
 Slash (a sword or axe, a dagger or fist, or a mace in the hand) and Puncturing
 Wounds (Backstab, which the placeholder rotation never casts).
 
-**The Assassination talents in D8a PR 1 (#119): 3 of 6.**
+**The Assassination talents in D8a (#119): 6 of 6 for the reference build.**
 
-| Talent                  | Max | What it is in the data                                                                                         |
-| ----------------------- | --- | -------------------------------------------------------------------------------------------------------------- |
-| Malice                  | 5   | `critChance` +1..5%, all attacks. "and Poisons" is inert: a poison never crits                                 |
-| Improved Slice and Dice | 3   | `duration` +15/30/45% of the aura length, Slice and Dice (9 to 21 s becomes 13.05 to 30.45 s at 3/3)           |
-| Lethality               | 5   | `critDamage` +4..20%, the six abilities of the text (Gouge and Mutilate have no engine definition: never cast) |
+| Talent                  | Max | What it is in the data                                                                                          |
+| ----------------------- | --- | --------------------------------------------------------------------------------------------------------------- |
+| Malice                  | 5   | `critChance` +1..5%, all attacks. "and Poisons" is inert: a poison never crits                                  |
+| Ruthlessness            | 3   | proc: `onAbility`, `scope.tags: ["finisher"]`, `flat` chance 20/40/60%, `gainResource` 1 combo point            |
+| Improved Slice and Dice | 3   | `duration` +15/30/45% of the aura length, Slice and Dice (9 to 21 s becomes 13.05 to 30.45 s at 3/3)            |
+| Relentless Strikes      | 1   | proc: `onAbility`, finisher tag, `perSpent` chance 20% per point, `gainResource` 25 energy                      |
+| Lethality               | 5   | `critDamage` +4..20%, the six abilities of the text (Gouge and Mutilate have no engine definition: never cast)  |
+| Cold Blood              | 1   | grants the ability `cold-blood` (instant, 3 minute cooldown, off the GCD); its aura is one charge of +100% crit |
 
 `critDamage` stacks as `bonus`, `1 + (base - 1)(1 + A)`, so Lethality 5/5 takes
 the 2.0 crit multiplier of melee to 2.2 (+20% of the crit bonus, not +20% of
-the damage), and rank 1 to 2.04. Ruthlessness and Relentless Strikes are
-`procs` entries (an `onAbility` proc with `scope.tags: ["finisher"]`, a `flat`
-or `perSpent` chance, and a `gainResource` action for the combo point or the
-energy). Cold Blood is an `ability` entry. These three are PR 2 and stay
-`unmapped` until then. A test builds them from made-up numbers and runs a
-fight with them.
+the damage), and rank 1 to 2.04.
+
+**Ruthlessness and Relentless Strikes (PR 2).** Both are `onAbility` procs that
+fire at the end of a cast, after the finisher has spent its points, filtered by
+the `finisher` tag (Slice and Dice, Rupture and Eviscerate carry it; a Slice and
+Dice cast, which is not an attack, fires them too). Ruthlessness' text says
+"add a Combo Point to your target", and the point goes to the rogue's combo
+pool as a point does here: because it comes after the spend, it is the first
+point of the next set (wowsims `AddComboPointsIgnoreTarget` does the same). Its
+chance is 20/40/60% flat by rank. Relentless Strikes' text says "20% chance per
+Combo Point" to restore 25 energy: `perSpent` is 0.2 times the points the
+finisher spent, capped at 1, so one roll per finisher, at 5 points a sure
+thing. The roll is drawn whenever the chance is above 0, so a 5-point finisher
+still draws. A talent at rank 0 has no proc and draws nothing. The numbers are
+the constants rows `ruthlessness.comboPoint` and `relentlessStrikes.energy`.
+
+**Cold Blood (PR 2).** The talent grants the ability through the existing
+`abilities` mechanism: `expandTalents` lists `"cold-blood"`, and the host passes
+that list as the Rogue option `abilities` (below). The ability
+(`js/ability-data.js`, row `coldBlood`) has no cost, a 180 s cooldown, and is off
+the GCD (`abilities.offGcd`), so it can go in the same step as a finisher. Its
+aura (`js/auras.js`, `cold-blood`) has one charge and a `critChance` add of +1.0
+scoped to the abilities its text names: Sinister Strike, Backstab, Ambush,
+Eviscerate and Mutilate, by catalogue id (a test reads them out of the text).
+Mutilate has no engine definition, so its entry is inert until it has one. The
+text says "until used", so the aura's 3600 s duration stands in for no expiry.
+
+The charge is spent by a generic step (`Simulation.consumeUseCharges`, called
+from `resolveAttack` for a landed attack): a landed attack uses one charge of
+every charged self aura whose modifiers' scope matches the attack, so nothing
+there names Cold Blood. A white swing, a Slice and Dice, an ability outside the
+scope, and an attack that misses, dodges or is parried leave the charge (the
+wowsims behaviour: Cold Blood is consumed by the attack that reaches the crit
+roll). The crit chance goes through the pipeline, so +100% on the rogue's crit
+chance is a raw chance above 1 and, with the suppression order above, a sure
+crit. The crit roll is still drawn, so the draws are the same as without it.
+
+**The Cold Blood rotation rule.** A rule from the Scout, for James to adjust:
+cast Cold Blood right before the next 5-combo-point Eviscerate, when it is off
+cooldown. It lives apart from the rotation, in `js/rotation-rules.js`
+(`beforeFinisher`), which `Rogue.rotation` calls with the finisher it has
+chosen, just before the cast. It reads one constants row, `rotation.coldBlood`
+(`{ ability: "coldBlood", beforeFinisher: "eviscerate" }`, ability keys), and
+applies only when the build granted the ability, so a fight without the talent
+is the fight it was. The rest of the rotation is unchanged. To change it: edit
+the row to move it to another finisher; edit `beforeFinisher` for another
+condition (for example, hold it for a Rupture or a proc); or remove the call in
+`Rogue.rotation` to stop casting it. A Cold Blood cast that cannot be followed by
+an affordable Eviscerate still starts the cooldown, and its charge waits for
+the next scoped attack. Note that the default rotation reaches Eviscerate rarely
+without the talents (it refreshes Slice and Dice at every 5 points while that
+has 10 s or less left): in the reference build it casts about 8 Eviscerates
+and 2 Cold Bloods in 300 s.
+
+**Rogue option `abilities`.** `new Rogue(config, { modifiers, procs, abilities })`:
+`abilities` is an array of ability catalogue ids the build grants (a `TypeError`
+for anything else, a `RangeError` for an id the catalogue does not know). The
+rogue keeps it as `granted`. The engine's own abilities are all defined; the
+option gates only rules that wait for a grant, today Cold Blood's.
 
 **Shape.** `runFight` and its result are unchanged, `SimConfig` has no new
 field, and the golden fixtures are byte-identical. New: `data/talent-effects.js`,
 `js/talent-build.js` and `expandTalents`; D8a PR 1 adds the `duration` modifier
-kind and three entries, nothing else. `PROC_TABLES` is now derived from the
+kind and three entries; PR 2 adds three entries, the Cold Blood ability and
+aura, `consumeUseCharges`, `js/rotation-rules.js`, the Rogue option `abilities`
+and the crit suppression order above, and no `runFight` or `SimConfig` change. `PROC_TABLES` is now derived from the
 data (its keys are in the catalogue's order, so `procsFromTalents` lists
 Puncturing Wounds before Hack and Slash).
