@@ -375,7 +375,7 @@ export const CONSTANTS = {
     "s",
     CLASSIC,
     ZUG,
-    "Instant attacks use normalized speed for the AP bonus. The engine assumes a dagger.",
+    "Instant attacks use normalized speed for the AP bonus. Used when the main-hand type is dagger. Project owner confirmed 1.7 dagger / 2.4 other one-hand, relayed by Scout, issue #129.",
     true,
   ),
   "normalizedSpeed.oneHand": entry(
@@ -383,7 +383,7 @@ export const CONSTANTS = {
     "s",
     CLASSIC,
     ZUG,
-    "Swords, maces, and fist weapons. Axes are assumed the same. Not selected by the engine yet.",
+    "Swords, maces, and fist weapons. Axes are assumed the same. Used when the main-hand type is anything but dagger, or none. Project owner confirmed 1.7 dagger / 2.4 other one-hand, relayed by Scout, issue #129.",
     true,
   ),
   "offHand.damageMult": entry(

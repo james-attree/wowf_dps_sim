@@ -4,6 +4,7 @@ import { CONSTANTS, k } from "../data/constants.js";
 import { resolveAttack } from "../js/attack-resolver.js";
 import { AURAS } from "../js/auras.js";
 import { Rogue } from "../js/rogue.js";
+import { defaultConfig, defaultDaggerConfig } from "../js/sim-config.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
 import { SOURCE_TAGS } from "../scripts/provenance.mjs";
@@ -292,7 +293,7 @@ describe("simulator values other than white miss", () => {
     assert.equal(k("start.state").comboPoints, 0);
     assert.equal(rogue.comboPoints, k("character.startingComboPoints"));
     assert.equal(rogue.maxComboPoints, 5);
-    assert.equal(rogue.normalizedWeaponSpeed, 1.7);
+    assert.equal(rogue.normalizedWeaponSpeed, 2.4); // the sword default
 
     assert.deepEqual(k("weapon.mainHand"), {
       min: 100,
@@ -392,13 +393,57 @@ describe("simulator values other than white miss", () => {
     assert.equal(new Simulation(rogue, { rng: testRng }).gcdDuration, 1);
   });
 
+  it("normalizes by main-hand type: dagger 1.7, any other one-hand 2.4 (issue #129)", () => {
+    assert.equal(k("normalizedSpeed.dagger"), 1.7);
+    assert.equal(k("normalizedSpeed.oneHand"), 2.4);
+    const withType = (type) => {
+      const config = defaultConfig();
+      config.weapons.mainHand.type = type;
+      return new Rogue(config).normalizedWeaponSpeed;
+    };
+    assert.equal(withType("dagger"), 1.7);
+    for (const type of ["sword", "mace", "axe", "fist", "other", null]) {
+      assert.equal(withType(type), 2.4, String(type));
+    }
+    // Literal Sinister Strike, die at its minimum (setRoll(0)), plus its
+    // 68 flat bonus. Sword: 100 + 767 x 2.4 / 14 + 68.
+    setRoll(0);
+    const sword = new Rogue();
+    sword.rng = testRng;
+    assert.equal(sword.normalizedWeaponSpeed, 2.4);
+    assert.equal(
+      sword.abilities.sinisterStrike.damage(),
+      100 + (767 * 2.4) / 14 + 68,
+    );
+    assert.ok(
+      Math.abs(sword.abilities.sinisterStrike.damage() - 299.4857142857) < 1e-9,
+    );
+    // Dagger: 73 + 769 x 1.7 / 14 + 68. The off-hand type does not matter:
+    // abilities roll the main hand only.
+    const dagger = new Rogue(defaultDaggerConfig());
+    dagger.rng = testRng;
+    assert.equal(dagger.normalizedWeaponSpeed, 1.7);
+    assert.equal(
+      dagger.abilities.sinisterStrike.damage(),
+      73 + (769 * 1.7) / 14 + 68,
+    );
+    assert.ok(
+      Math.abs(dagger.abilities.sinisterStrike.damage() - 234.3785714286) <
+        1e-9,
+    );
+    const mixed = defaultDaggerConfig();
+    mixed.weapons.offHand.type = "sword";
+    assert.equal(new Rogue(mixed).normalizedWeaponSpeed, 1.7);
+  });
+
   it("keeps damage formulas, with the main-hand die at its minimum", () => {
     setRoll(0);
     const rogue = new Rogue();
     rogue.rng = testRng;
     const weaponDie = 100;
     const apBonus = (speed) => (767 / 14) * speed;
-    const normalized = weaponDie + apBonus(1.7);
+    // The default main hand is a sword, so the normalized speed is 2.4.
+    const normalized = weaponDie + apBonus(2.4);
 
     assert.equal(rogue.abilities.sinisterStrike.damage(), normalized + 68);
     assert.equal(rogue.abilities.backstab.damage(), normalized * 1.5 + 225);
