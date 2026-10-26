@@ -487,6 +487,102 @@ describe("combo points through the executor", () => {
     const cost = k("sinisterStrike").energy;
     assert.equal(rogue.energy, 100 - cost + cost * k("skill.missEnergyRefund"));
   });
+
+  it("caps the miss refund at the max, so a pool above it cannot end up higher", () => {
+    // 121 is over the cap of 100 (a host or a test can set the pool by hand).
+    // The cast pays the cost and the refund then cannot take the pool past the
+    // cap: 121 - 45 + 36 would be 112, and it is 100.
+    const { rogue, sim } = harness();
+    rogue.bonusHitChance = -1;
+    setRoll(0);
+    rogue.energy = 121;
+    assert.equal(rogue.resources.energy.max, 100);
+    const cost = k("sinisterStrike").energy;
+    const refund = cost * k("skill.missEnergyRefund");
+    assert.ok(
+      121 - cost + refund > 100,
+      "the uncapped refund would exceed 100",
+    );
+    const result = rogue.abilities.sinisterStrike.cast(rogue, sim);
+    assert.equal(result.landed, false);
+    assert.equal(rogue.energy, 100);
+    assert.ok(rogue.energy <= rogue.resources.energy.max);
+  });
+
+  it("caps the refund at a cap a modifier raised, not at the base cap", () => {
+    const { rogue, sim } = harness({
+      modifiers: [
+        { kind: "resourceMax", value: 20, scope: { resources: ["energy"] } },
+      ],
+    });
+    rogue.bonusHitChance = -1;
+    setRoll(0);
+    rogue.energy = 140;
+    rogue.abilities.sinisterStrike.cast(rogue, sim);
+    assert.equal(rogue.resources.energy.max, 120);
+    assert.equal(rogue.energy, 120);
+  });
+});
+
+describe("more combo points than the finisher tables cover", () => {
+  // A resourceMax modifier through the Rogue options raises the cap to 7, so a
+  // pool can hold 6 or 7 points. The tables cover 1 to 5.
+  const rogueWithMax7 = () => {
+    const { rogue, sim } = harness({
+      modifiers: [
+        {
+          kind: "resourceMax",
+          value: 2,
+          scope: { resources: ["comboPoints"] },
+        },
+      ],
+    });
+    assert.equal(rogue.resources.comboPoints.max, 7);
+    rogue.energy = 100;
+    return { rogue, sim };
+  };
+
+  for (const points of [6, 7]) {
+    it(`Slice and Dice spends ${points} points and applies no buff`, () => {
+      const { rogue, sim } = rogueWithMax7();
+      rogue.comboPoints = points;
+      rogue.abilities.sliceAndDice.cast(rogue, sim);
+      assert.equal(rogue.comboPoints, 0);
+      assert.equal(sim.activeBuffs["slice-and-dice"], undefined);
+    });
+
+    it(`Rupture spends ${points} points and applies no DoT`, () => {
+      const { rogue, sim } = rogueWithMax7();
+      rogue.comboPoints = points;
+      rogue.abilities.rupture.cast(rogue, sim);
+      assert.equal(rogue.comboPoints, 0);
+      assert.equal(sim.activeDots.rupture, undefined);
+    });
+
+    it(`Eviscerate spends ${points} points, with the attack power part and no band`, () => {
+      const { rogue, sim } = rogueWithMax7();
+      rogue.comboPoints = points;
+      // The roll between a zero-width band is floor(0.5 + the AP part): the
+      // harness rolls 0.5 and the min and max are both the AP part.
+      const expected = Math.floor(
+        0.5 + rogue.getAttackPower() * points * k("eviscerate.apPerCP"),
+      );
+      assert.equal(rogue.abilities.eviscerate.resolve().damage, expected);
+      rogue.abilities.eviscerate.cast(rogue, sim);
+      assert.equal(rogue.comboPoints, 0);
+    });
+  }
+
+  it("still gives a 5-point cast its buff, DoT and band", () => {
+    const { rogue, sim } = rogueWithMax7();
+    rogue.comboPoints = 5;
+    rogue.abilities.sliceAndDice.cast(rogue, sim);
+    assert.ok(sim.activeBuffs["slice-and-dice"]);
+    rogue.comboPoints = 5;
+    sim.gcd = 0;
+    rogue.abilities.rupture.cast(rogue, sim);
+    assert.ok(sim.activeDots.rupture);
+  });
 });
 
 describe("Premeditation on the resource", () => {

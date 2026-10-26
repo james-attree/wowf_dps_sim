@@ -18,10 +18,11 @@ import { slugify } from "./talents.js";
 // taken. The checks are listed on parseSpell and buildAbilityCatalogue.
 //
 // This module is pure: no DOM, no clock, no random numbers, no fetch. It
-// reads the JSON module through js/snapshot.js. The generic executor (js/ability.js, D2 #98) reads two things
-// from it: an ability's display name and whether it starts the GCD. The costs
-// and the other numbers still come from the constants, and
-// test/abilities.test.js checks that the catalogue agrees with them.
+// reads the JSON module through js/snapshot.js. The generic executor
+// (js/ability.js, D2 #98) reads two things from it: an ability's display name
+// and whether it starts the GCD. The costs and the other numbers still come
+// from the constants, and test/abilities.test.js checks that the catalogue
+// agrees with them.
 //
 // What is deliberately not parsed in D1: buff and debuff magnitudes and
 // lengths (Slice and Dice's haste %, Adrenaline Rush's energy %, Ghostly
@@ -232,7 +233,10 @@ function parseTable(description, fail) {
 // ---- sentences ----------------------------------------------------------
 
 const WEAPON_PERCENT = new RegExp(
-  `(?<base>${NUMBER})%(?: \\((?<first>${NUMBER})% if a Dagger is equipped[^)]*\\))? weapon damage(?: \\((?<second>${NUMBER})% if a Dagger is equipped[^)]*\\))?`,
+  `(?<base>${NUMBER})%` +
+    `(?: \\((?<first>${NUMBER})% if a Dagger is equipped[^)]*\\))?` +
+    " weapon damage" +
+    `(?: \\((?<second>${NUMBER})% if a Dagger is equipped[^)]*\\))?`,
   "i",
 );
 

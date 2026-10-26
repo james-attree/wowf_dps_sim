@@ -669,7 +669,9 @@ describe("data-only damage modifiers by tag, through the engine", () => {
   });
 
   it("applies the damage modifier before the crit multiplier, the floor and armor", () => {
-    setRoll(HIT);
+    // 0.5 clears the miss and dodge bands, and is under the crit chance's
+    // 95.2% (100% less the 4.8% suppression) for the second, crit roll.
+    setRoll(0.5);
     const { sim } = build(
       [
         DAMAGE_UP(0.37, { tags: ["yellow"] }),

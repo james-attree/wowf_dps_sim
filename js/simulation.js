@@ -1,5 +1,5 @@
 import { k } from "../data/constants.js";
-import { resolveAttack, rollCrit } from "./attack-resolver.js";
+import { resolveAttack, rollCrit, suppressCrit } from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { ModifierPipeline, isNeutral } from "./modifiers.js";
 import { damageTags } from "./damage-tags.js";
@@ -42,6 +42,7 @@ const OUTCOME_COUNTERS = {
   miss: "misses",
   dodge: "dodges",
   parry: "parries",
+  block: "blocks",
 };
 
 function newAbilityRecord() {
@@ -54,6 +55,7 @@ function newAbilityRecord() {
     misses: 0,
     dodges: 0,
     parries: 0,
+    blocks: 0,
     ticks: 0,
     tickCrits: 0,
   };
@@ -156,9 +158,15 @@ export class Simulation {
 
         let dotHitCrit = "Hit";
         // roll crit for each tick
+        const tickCritChance = this.rogue.getCritChance(dotContext);
         if (
           k("dot.canCrit") &&
-          rollCrit(this.rogue.getCritChance(dotContext), this.rng)
+          rollCrit(
+            k("dot.critSuppression")
+              ? suppressCrit(tickCritChance)
+              : tickCritChance,
+            this.rng,
+          )
         ) {
           dotTickDamage *= this.modifiers.resolve(
             "critDamage",
@@ -589,6 +597,7 @@ export class Simulation {
       ),
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
+      behind: this.rogue.config.target.behind,
       rng: this.rng,
     });
     const damage = this.applyArmor(result.damage, skipsArmor(context), context);
@@ -625,8 +634,10 @@ export class Simulation {
       // The application roll does not crit. Ticks read getCritChance().
       // tickDamage stays before armor; the tick loop applies it.
       critChance: 0,
+      canCrit: false,
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
+      behind: this.rogue.config.target.behind,
       rng: this.rng,
     });
     const tickInterval = k("rupture.tickInterval");
@@ -659,7 +670,7 @@ export class Simulation {
 
   // Add one outcome to the ability's fight totals, under source.id. An attack, a DoT
   // application, or a non-attack cast ("cast") counts as one cast and adds its
-  // outcome (hit, crit, glancing, miss, dodge or parry) to the matching
+  // outcome (hit, crit, glancing, miss, dodge, parry or block) to the matching
   // counter, so those counters add up to casts. A DoT tick is not a cast: it
   // counts under ticks (and tickCrits) instead. damage is what the outcome
   // dealt after armor, so the abilities' damage adds up to damageDone.

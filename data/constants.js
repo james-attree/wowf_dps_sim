@@ -31,7 +31,14 @@ const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
 const DEV_JUDGEMENT_97 = "Developer, 26 Oct 2026, issue #97";
 const DEV_JUDGEMENT_99 = "Developer, 26 Oct 2026, issue #99";
+const DEV_JUDGEMENT_100 = "Developer, 26 Oct 2026, issue #100";
 
+// The attack table rows (A7, #100) cite the Magey classic-warrior wiki page
+// (MAGEY) as the Classic reference for the table. Where a number is not
+// defined, the Classic value is used, tagged assumption with retune on (see
+// block.value and dot.critSuppression). The page is for warriors; a
+// rogue-specific cross-check would be a later task. wowsims/classic's
+// sim/core/target.go agrees with the values it covers, noted on each row.
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
   "https://us.forums.blizzard.com/en/wow/t/bug-hit-tables/185675/12";
@@ -372,7 +379,7 @@ export const CONSTANTS = {
     "skill",
     CLASSIC,
     MAGEY,
-    "Level × 5 at 60. The full attack table is A7.",
+    "Level \u00d7 5 at 60. The attack table (A7) reads it with target.defense for the hit-suppression gap.",
     true,
   ),
   "target.defense": entry(
@@ -380,7 +387,7 @@ export const CONSTANTS = {
     "defense",
     CLASSIC,
     MAGEY,
-    "Target level × 5. Not applied until A7.",
+    "Target level \u00d7 5 (63 \u00d7 5). The attack table (A7) reads it with weaponSkill.base for the hit-suppression gap.",
     true,
   ),
   "miss.yellow": entry(
@@ -388,7 +395,7 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     BLIZZ_HIT,
-    "5% + 0.2% per point when defense − skill > 10, else 0.1%. 8% at 300 skill, 6% at 305.",
+    "5% + 0.2% per point when defense \u2212 skill > 10, else 0.1%. 8% at 300 skill, 6% at 305. A7 reads this row as the miss chance at 300 skill against defense 315; a different skill gap does not re-derive it. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
     true,
   ),
   "hit.suppression": entry(
@@ -396,7 +403,15 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     BLIZZ_HIT,
-    "First 1% of +hit is ignored when defense − skill > 10, so the hit cap is 9%. Not applied until A7.",
+    "First 1% of +hit is ignored when defense \u2212 skill > hit.suppressionGap, so the hit cap is 9%. The attack table (A7) takes it off the bonus hit. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
+    true,
+  ),
+  "hit.suppressionGap": entry(
+    10,
+    "skill points",
+    CLASSIC,
+    MAGEY,
+    "Hit suppression applies when target defense − weapon skill is above this: 315 − 300 = 15 is above 10. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
     true,
   ),
   "miss.dualWieldPenalty": entry(
@@ -412,7 +427,7 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     BLIZZ_HIT,
-    "5% + 0.1% per point of defense over skill.",
+    "5% + 0.1% per point of defense over skill. Read by the attack table (A7) on every yellow and white roll; the dodgeReduction modifier takes it off. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
     true,
   ),
   "parry.target": entry(
@@ -420,7 +435,7 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     BLIZZ_HIT,
-    "Behind removes parry and block. The engine still passes a 0 parry chance on the single roll; the front/behind split is A7.",
+    "Front 14% (Blizzard, +3 creature); behind removes parry. The attack table (A7) reads front or behind from config.target.behind; the parryReduction modifier takes it off. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
     true,
   ),
   "block.target": entry(
@@ -428,7 +443,15 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     MAGEY,
-    "Mob block is capped at 5%. Not on the current single-roll table (A7).",
+    "Mob block is capped at 5%. Behind removes block. The attack table (A7) reads front or behind from config.target.behind. The value of a block is block.value. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
+    true,
+  ),
+  "block.value": entry(
+    0,
+    "damage",
+    ASSUMPTION,
+    `${DEV_JUDGEMENT_100}: no source in hand gives how much damage a mob block takes off`,
+    "Flat damage a blocked swing loses. 0 makes a block a separate outcome that still deals full damage. A block needs the target in front (config.target.behind false). Retune when a source is found.",
     true,
   ),
   "glancing.chance": entry(
@@ -436,15 +459,15 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     MAGEY,
-    "10% + 2% per point of defense over capped skill. White swings only.",
+    "10% + 2% per point of defense over capped skill. White swings only. Read by the attack table (A7). Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
     true,
   ),
   "glancing.damage": entry(
-    0.65,
+    { low: 0.55, high: 0.75 },
     "×",
     CLASSIC,
     MAGEY,
-    "Flat average in force today. Magey range is 0.55–0.75 (low 1.3 − 0.05Δ, max 0.91; high 1.2 − 0.03Δ, max 0.99). The range is A7.",
+    "Magey range at 300 skill against defense 315: low 1.3 \u2212 0.05\u0394 (max 0.91) = 0.55 and high 1.2 \u2212 0.03\u0394 (min 0.2, max 0.99) = 0.75, with \u0394 = defense \u2212 skill = 15. A glancing blow draws a factor between them (A7). The mean is 0.65. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
     true,
   ),
   "table.white": entry(
@@ -452,7 +475,7 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     ATTACK_WIKI,
-    "Miss, dodge, parry, glancing, block, crit, hit. The engine uses one roll and omits block. Glancing cannot crit.",
+    "Miss, dodge, parry, glancing, block, crit, hit. Applied by the attack table (A7) on one roll, in this order, for white swings. A glancing blow takes one more draw for its damage and cannot crit.",
     true,
   ),
   "table.yellow": entry(
@@ -460,7 +483,7 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     HIT_WIKI,
-    "Not applied. Yellow attacks still share the single roll and do not glance (A7).",
+    "Roll 1: miss, dodge, parry, block, else hit. Roll 2 (only after a hit, and only when the attack can crit): crit or hit. Applied by the attack table (A7); yellow attacks do not glance.",
     true,
   ),
   "crit.suppressionSkill": entry(
@@ -468,7 +491,7 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     MAGEY,
-    "0.2% per point of defense over capped skill (315 − 300). Not applied until A7.",
+    "0.2% per point of defense over capped skill (315 \u2212 300). Taken off the crit chance by the attack table (A7), for swings and for DoT ticks. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
     true,
   ),
   "crit.suppressionAura": entry(
@@ -476,7 +499,7 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     MAGEY,
-    "Test estimate for crit from auras against +3 targets. With the skill term, total suppression is 4.8%. Not applied until A7.",
+    "Test estimate for crit from auras against +3 targets. With the skill term, total suppression is 4.8%. The attack table (A7) takes the whole 1.8% off every crit chance, because the config does not say how much of its crit comes from auras; with no aura crit the true figure would be 3%. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
     true,
   ),
   "spell.missTarget": entry(
@@ -484,7 +507,7 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     `${WS}core/target.go`,
-    "Spell miss used for poisons. Not applied yet.",
+    "Spell miss used for poisons: 17% at +3 levels, floor 1%. Read by spellHitOutcome in js/attack-resolver.js (A7); the poison procs (A5) are what will call it.",
     true,
   ),
   "poison.hitModel": entry(
@@ -643,6 +666,14 @@ export const CONSTANTS = {
     "Rupture, Garrote, and Deadly Poison. This differs from Classic. The per-tick crit roll stays.",
     false,
   ),
+  "dot.critSuppression": entry(
+    true,
+    "–",
+    ASSUMPTION,
+    `${DEV_JUDGEMENT_100}: the sources give crit suppression for swings; none says whether a DoT tick takes it`,
+    "A DoT tick's crit chance loses the same 4.8% as a swing (crit.suppressionSkill and crit.suppressionAura). Classic ticks do not crit, and WoW Forever's DoT crits (dot.canCrit) are outside the Classic table, so this is an assumption. The 2x multiplier is dot.critMultiplier. false would leave a tick at the full crit chance.",
+    true,
+  ),
   "weapon.mainHand.type": MAIN_HAND_TYPE,
   "rotation.priority": entry(
     {
@@ -704,7 +735,7 @@ export const CONSTANTS = {
     "–",
     ASSUMPTION,
     `${JAMES}: behind the target removes parry and block (OQ4)`,
-    "Editable input. The engine does not branch on it yet (A7).",
+    "Editable input. The default of config.target.behind (SimConfig). Behind removes parry and block on the attack table (A7).",
     true,
   ),
   "target.mobType": entry(

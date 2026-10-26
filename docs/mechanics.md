@@ -21,7 +21,10 @@ owns. `js/rng.js` builds it with `createRng(seed)`, a mulberry32 generator
 (`engineering`, retune off) is the seed when none is passed. A caller may
 pass `{ rng }` instead to script the draws. The simulation hands the same
 function to its rogue, so the weapon die, Eviscerate's damage roll, the
-attack roll, and each DoT tick's crit roll all draw from it. Nothing under
+attack roll, the glancing-damage draw, the second (crit) roll of a yellow hit, and
+each DoT tick's crit roll all draw from it. A yellow hit that can crit takes two
+draws and a glancing blow takes two since A7 (#100): that is the one change to
+the draw order the attack table made (see Attack table). Nothing under
 `js/` except `js/main.js` uses a platform random source, and lint rejects
 `Math.random` there, including `Math['random']`, `globalThis.Math.random`, and
 `self.Math.random`. The live page picks
@@ -31,73 +34,114 @@ header. A `Rogue` that no
 
 ## Attack table
 
-`resolveAttack` in `js/attack-resolver.js` resolves white swings and special
-attacks with one roll. `k("table.white")` (`classic-1.12`, on the retune
-list) records the Classic order miss, dodge, parry, glancing, block, crit,
-hit. The note says the engine uses one roll and omits block, and that a
-glancing blow cannot crit. `k("table.yellow")` (same source, on the retune
-list) records two rolls for specials. The note says that shape is not
-applied: a yellow attack still uses this single roll and does not glance.
+`resolveAttack` in `js/attack-resolver.js` is the Classic 1.12 melee attack
+table (A7, #100), at 300 weapon skill against a level 63 target. The numbers
+are the Magey Classic Warrior wiki's "Attack table" page, read as constants
+(source `classic-1.12`, on the retune list; the page is the `ref`). They are
+not re-derived from a skill gap: a change of `k("weaponSkill.base")` or
+`k("target.defense")` moves only the hit suppression (below), and the other
+rows would have to be retuned by hand.
 
-The live roll is one draw from the simulation's rng (see Random numbers)
-times `k("attack.rollScale")` (`engineering`, retune off). Callers may
-inject a roll on that scale, and then no draw is made. The
-function walks the bands in order, adding each chance times the scale, and
-takes the first band whose running threshold is strictly above the roll. A
-roll that lands on a threshold falls through to the next band. Whatever is
-left is a hit. The chances are not renormalised, so a crit chance at the
-top of the clamp can leave no hit band.
+The page is written for warriors and is cited as the Classic reference for the
+table. Where a number is not defined, the row uses the Classic value (or 0)
+tagged as an assumption with retune on: `block.value` and `dot.critSuppression`
+are the two. A rogue-specific cross-check would be a good later task.
+wowsims/classic's `sim/core/target.go` (`NewAttackTable`, which cites the same
+page) gives the same miss, hit suppression, dodge, parry, block, glancing
+chance, glancing damage range and crit suppression at these levels (read 26 Oct
+2026); each row's note says so.
 
-Bonus hit and crit are clamped into the unit interval. A non-finite chance
-throws. The sim passes `Rogue.getBonusHitChance()` and
-`Rogue.getCritChance()`, which are `k("character.bonusHitChance")` and
-`k("character.critChance")`. Both are assumptions on the retune list.
+**Two shapes.** A white swing (`attackType` `"weapon"`, main hand and off
+hand) is one roll over the bands, in this order (`k("table.white")`): miss,
+dodge, parry, glancing, block, crit, hit. A yellow attack (`"skill"`) is two
+rolls (`k("table.yellow")`). The first walks miss, dodge, parry, block and is
+a hit when none of them takes it. A hit then rolls again for the crit, against
+the crit chance alone. So a white crit is a slice of the one roll and takes
+its share of the table, and a yellow crit is its own chance on top of a hit.
+There is no glancing band for a yellow attack, and a glancing blow cannot crit.
 
-White miss, for `attackType` `"weapon"` (main hand and off hand):
+**The roll and the draws.** The roll is one draw from the simulation's rng
+(see Random numbers) times `k("attack.rollScale")` (`engineering`, retune
+off). The function walks the bands in order, adding each chance times the
+scale, and takes the first band whose running threshold is strictly above the
+roll; a roll that lands on a threshold falls through. Whatever is left is a
+hit. The chances are not renormalised, so a crit chance at the top of the clamp
+can leave no hit band. The draws, in order:
 
-`max(0, k("miss.yellow") + k("miss.dualWieldPenalty") - bonusHit)`
+1. the table roll (always);
+2. on a glancing blow, the glancing-damage draw;
+3. on a yellow hit that can crit, the crit roll (even when the crit chance is
+   0, so the number of draws does not depend on gear).
 
-Yellow miss, for `attackType` `"skill"`:
+Callers may inject any of the three (`roll`, `glanceRoll`, `critRoll`, on the
+rollScale), and then no draw is made for it. An attack with `canCrit: false`,
+which is a DoT's application, takes no crit roll.
 
-`max(0, k("miss.yellow") - bonusHit)`
+**The chances.** Bonus hit and crit are clamped into the unit interval. A
+non-finite chance throws. The sim passes `Rogue.getBonusHitChance()` and
+`Rogue.getCritChance()` (the `k("character.bonusHitChance")` and
+`k("character.critChance")` assumptions).
 
-`k("miss.yellow")` and `k("miss.dualWieldPenalty")` are `classic-1.12` and
-on the retune list. The dual-wield note says the penalty is for white swings
-only. `k("hit.suppression")` (same source, on the retune list) is not read.
-Its note says the first portion of bonus hit is ignored, and that this is
-not applied until the full table lands. `resolveAttack` subtracts the whole
-clamped bonus hit. `k("weaponSkill.base")` and `k("target.defense")` are not
-read either. Their notes defer that comparison to the same later table.
+| Band                  | Chance                                                                                           | At 300 against 315                         |
+| --------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| Yellow miss           | `max(0, k("miss.yellow") - hit)`                                                                 | 8% (5% + 15 x 0.2%)                        |
+| White miss            | `max(0, k("miss.yellow") + k("miss.dualWieldPenalty") - hit)`                                    | 27% (8% + the flat 19% dual-wield penalty) |
+| Dodge                 | `max(0, k("dodge.target") - dodgeReduction)`                                                     | 6.5%                                       |
+| Parry (front only)    | `max(0, k("parry.target").front - parryReduction)`, 0 from behind                                | 14%                                        |
+| Glancing (white only) | `k("glancing.chance")`                                                                           | 40%                                        |
+| Block (front only)    | `k("block.target").front`, 0 from behind                                                         | 5%                                         |
+| Crit                  | the clamped crit chance less `k("crit.suppressionSkill")` and `k("crit.suppressionAura")`, min 0 | 4.8% less (3% skill + 1.8% aura)           |
 
-Dodge is `k("dodge.target")` on every roll (`classic-1.12`, on the retune
-list). Nothing reduces it. Ghostly Strike stores `k("ghostlyStrike").duration`
-as a self buff and does not change this chance.
+`hit` is the clamped bonus hit less `k("hit.suppression")` (1%), floored at 0. The suppression applies only while `k("target.defense")` is more than
+`k("hit.suppressionGap")` (10) above `k("weaponSkill.base")`, which is true
+here (315 against 300). That is why the hit cap is 9% for a yellow attack
+(8% miss plus the 1% that does not count) and 28% for a white one. A dodge or
+parry reduction comes from the modifier pipeline, comes off its own band only,
+and never takes the band below 0, so it cannot move another band.
+`k("target.behind")` is the default position (see SimConfig, `target.behind`).
+Ghostly Strike stores `k("ghostlyStrike").duration` as a self buff and does
+not change the dodge chance.
 
-Parry is a band with zero width. The code passes a zero chance. The note on
-`k("parry.target")` says the same: the engine still passes a zero parry
-chance on the single roll, and the front/behind split is later.
-`k("target.behind")` is an assumption on the retune list. Its note says the
-engine does not branch on it yet.
+**Position.** `config.target.behind` (default `true`, `k("target.behind")`)
+says where the rogue stands. Behind the target the parry and block bands have
+zero width, so the default fight has no parry and no block. From the front
+they are `k("parry.target").front` and `k("block.target").front`. The
+position is read for every attack and DoT application, and the golden cases
+all use the default.
 
-Block is omitted. The note on `k("block.target")` says it is not on the
-current single-roll table.
+**Glancing damage.** A glancing blow does `k("glancing.damage")`, a range
+`{ low, high }` (0.55 to 0.75 at this skill gap, the Magey formulas
+`min(0.91, 1.3 - 0.05 x gap)` and `min(0.99, max(0.2, 1.2 - 0.03 x gap))`),
+and the factor is the glancing draw spread evenly across it:
+`low + (high - low) x draw / rollScale`. The result has `glanceFactor`; it is
+null for anything else.
 
-Glancing is pushed only for `"weapon"`. The chance is `k("glancing.chance")`
-and the damage factor is `k("glancing.damage")` (both `classic-1.12`, on the
-retune list). The glancing-damage note says the flat average is what is in
-force, and that the low/high range is later. Because glancing is its own
-band, placed before crit, a glancing blow cannot crit.
+**Block.** A block is a landed hit that loses `k("block.value")` damage, never
+below 0, and cannot crit. `k("block.value")` is 0 (an assumption, no source in
+hand gives the amount), so a block does full damage. Blocks are counted under
+`blocks` in an ability's record, next to `parries`.
 
-Crit uses the clamped crit chance it was given. `k("crit.suppressionSkill")`
-and `k("crit.suppressionAura")` are `classic-1.12` and on the retune list.
-Both notes say the suppression is not applied yet, so the roll is not
-reduced by defense or by an aura.
+**Crit suppression.** The crit chance a white swing or a yellow second roll
+reads is the clamped chance less 3% (the skill gap, 0.2% per point) and less
+1.8% (the aura term, a flat reduction Magey notes), never below 0. A DoT tick
+reads the same suppressed chance (`dot.canCrit`), so its crit chance drops by
+4.8% too. That is `k("dot.critSuppression")`, an assumption on the retune list:
+no source says whether a tick takes the suppression, and `false` leaves a tick
+at the full chance. The 2x tick crit multiplier is `dot.critMultiplier`. A
+DoT's application never crits.
 
-Damage is the base times a multiplier, then `Math.floor`. A miss, dodge, or
-parry multiplies by zero. A glance uses `k("glancing.damage")`. A crit uses
+**Spell hit table.** `spellMissChance` and `resolveSpellHit` give the 17%
+miss, floored at 1%, that a poison proc will use (A5, `k("spell.missTarget")`),
+with status "Resist". Nothing in the engine calls them yet; they are tested on
+their own.
+
+Damage is the base times a multiplier, then `Math.floor`. A miss, dodge or
+parry multiplies by zero. A glance uses the glancing factor. A crit uses
 `k("crit.meleeMultiplier")` (`classic-1.12`, on the retune list). A hit keeps
-the base damage. The result is `landed` for a glance, a crit, or a hit. A
-glance can floor to zero damage and still count as landed.
+the base damage. The result is `landed` for a glance, a block, a crit or a
+hit. A glance can floor to zero damage and still count as landed. The result
+is `{ outcome, status, roll, critRoll, glanceFactor, damage, landed }`, with
+`critRoll` null when no crit roll was made.
 
 `Simulation.resolveAttack` then runs that damage through armor (see Armor)
 and adds it to the total when the attack landed and the armored damage is
@@ -203,7 +247,7 @@ already run.
 `js/main.js` sets the GCD status to "On cooldown" while `simulation.gcd > 0`,
 and to "Ready" otherwise. On the frame where the remainder is still positive and
 already within `k("sim.tickEpsilon")`, that label can read "On cooldown"
-while `Skill.cast` treats the GCD as ready.
+while `Ability.cast` treats the GCD as ready.
 
 ## Sample rotation
 
@@ -228,7 +272,7 @@ fight can reach `k("rotation.finisherComboPoints")` only after Slice and Dice
 has already fallen to `k("rotation.sliceAndDiceRefreshSeconds")` or less.
 Eviscerate is still the branch taken when the buff is longer than that.
 
-Each cast still has to pass `Skill.cast` (cooldown, combo points for a
+Each cast still has to pass `Ability.cast` (cooldown, combo points for a
 spender, energy, and the GCD). Every ability in the list starts the GCD, so
 the first one that succeeds blocks the rest of that frame. Weapon swings run
 after the casts, whether or not a cast succeeded.
@@ -274,7 +318,7 @@ without a cooldown, combo points, or an aura. The GCD, if this ability
 starts one, is already running. `k("skill.missEnergyRefund")` is an
 assumption on the retune list. Its ref says Classic and the export do not
 describe that refund. Its note says the refund has been present since the
-initial skill code. A glance, a crit, or a hit is landed, so it is not
+initial skill code. A glance, a block, a crit, or a hit is landed, so it is not
 refunded. Adrenaline Rush, Blade Flurry, Slice and Dice, and Premeditation
 are not attacks, so they have no miss refund.
 
@@ -383,7 +427,7 @@ not an attack. It does not generate combo points.
 
 `Rogue.rotation` tries it on cooldown, after Blade Flurry, as the second
 `onCooldown` id in `k("rotation.priority")`. It does not wait for an energy
-threshold. While the ability is on cooldown, `Skill.cast` returns without
+threshold. While the ability is on cooldown, `Ability.cast` returns without
 refreshing the buff. The regen multiplier is under Energy:
 `k("adrenalineRush").regenMultiplier` on the portion of a later frame still
 inside the buff.
@@ -739,8 +783,8 @@ fight).
 
 `k("sim.tickEpsilon")` (`engineering`, retune off) is the tolerance for
 `tickAuras` (buffs and debuffs), cooldown expiry, DoT ticks and DoT expiry,
-`Rogue.tickPremeditation`, and `Weapon.tick`. The note also names the GCD.
-`Simulation.tickGcd` does not read it. `Skill.cast` treats the GCD as ready
+`Rogue.tickResources` (Premeditation expiry), and `Weapon.tick`. The note also names the GCD.
+`Simulation.tickGcd` does not read it. `Ability.cast` treats the GCD as ready
 when the remainder is at or below it. See Global cooldown.
 
 One step, in `Simulation.step`, does this in order:
@@ -750,10 +794,10 @@ One step, in `Simulation.step`, does this in order:
 2. Tick buffs, debuffs, and cooldowns. A cooldown at or below
    `k("sim.tickEpsilon")` becomes zero.
 3. Tick the GCD. A remainder inside `k("sim.tickEpsilon")` stays positive
-   until the subtraction reaches zero. `Skill.cast` already treats it as
+   until the subtraction reaches zero. `Ability.cast` already treats it as
    ready.
 4. Tick dots that were already running.
-5. Tick Premeditation expiry.
+5. Tick the resources (`Rogue.tickResources`: Premeditation expiry).
 6. Run `Rogue.rotation`, which may cast and then swing. Anything applied
    here keeps the duration it was given until the next step.
 
@@ -822,7 +866,7 @@ of a skill that is not an attack. It records and changes no combat rule.
   `totalDamage`.
 - `casts` — attempts: one per swing, one per skill cast (a miss counts), and one
   per DoT application. A DoT tick is not a cast.
-- `hits`, `crits`, `glances`, `misses`, `dodges`, `parries` — the outcome of each
+- `hits`, `crits`, `glances`, `misses`, `dodges`, `parries`, `blocks` — the outcome of each
   attempt, from the attack table. For an attack they add up to `casts`. A cast
   that is not an attack (Adrenaline Rush, Slice and Dice, Blade Flurry,
   Premeditation) has an outcome of none, so it only adds to `casts`. `hits` is
@@ -831,7 +875,8 @@ of a skill that is not an attack. It records and changes no combat rule.
 - `ticks`, `tickCrits` — DoT ticks, and the ticks that crit (see Bleeds and
   damage over time).
 
-The attack table never gives a parry yet, so `parries` stays `0`.
+The default fight is behind the target (`config.target.behind`), so `parries`
+and `blocks` stay `0` there; from the front they count.
 
 ## SimConfig
 
@@ -850,6 +895,7 @@ was a config: the defaults are the sample inputs in `data/constants.js`
     mainHand: { min, max, speed, type },
     offHand: { min, max, speed, type },
   },
+  target: { behind },                        // true (default): no parry, no block
   talents: { "combat.precision": 3 },        // talent id -> rank
   poisons: { mainHand: "instant", offHand: "deadly" },   // a poison id, or null
 }
@@ -865,6 +911,11 @@ default. A section is merged field by field, so `{ character: { attackPower:
   `"dagger"`, and normalised swing speed is still the dagger one. The
   off hand's first-swing delay (`weapon.offHand.initialSwing`) and the starting
   combo points are not part of the config.
+- **Target position changes the attack table.** `target.behind` (a boolean,
+  default `k("target.behind")`, true) is read by every attack and DoT
+  application. Behind, the parry and block bands have zero width. From the front
+  (`false`) they are 14% and 5% (see Attack table). Nothing keys off a weapon
+  type for it; the default is the same for every weapon.
 - **Talents and poisons are carried only.** They are validated, normalised and
   returned in the result, and no engine code reads them yet. Talent effects
   come with D5 and D7, and poison effects with A5. A rank of 0, or a talent
@@ -877,6 +928,7 @@ message that names the field and the value. A value of the wrong type is a
 
 - The config and each section must be a plain object. A key that is not in the
   list above is rejected, at every level, and the message lists the allowed ones.
+- `target.behind` is `true` or `false`; anything else is a `TypeError`.
 - `attackPower` is a finite number of 0 or more. `critChance` and
   `bonusHitChance` are numbers from 0 to 1.
 - A weapon's `min` and `max` are whole numbers of 0 or more with `min` not above
@@ -923,6 +975,12 @@ Adding the field did not change any number. The golden fixtures do not hold it
 
 ## Golden-seed tests
 
+A7 (#100) changed every fixture on purpose: the attack table moved the white
+miss and crit chances, added a crit draw to every yellow hit and a damage draw
+to every glance (so the rng stream differs from the first yellow hit on), and
+added `blocks` to each ability's record. The fixtures were rewritten in their
+own commit, so the diff of the numbers can be read apart from the engine change.
+
 A golden test pins the whole result of a fixed fight, so a change to a rule, a
 constant, or the engine shows up in review as a diff of numbers. The cases are
 listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
@@ -946,7 +1004,7 @@ combo points (see `rotation.priority`). So they cannot pin finisher damage, DoT
 ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
 `script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
 energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT` is Sinister Strike
-four times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
+seven times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
 Hemorrhage comes just before Rupture, so the fixture has Rupture ticks with
 the Hemorrhage bonus and, after the debuff runs out, without it.
 `scripts/scripted-fight.mjs` runs it on the real `runFight`: it swaps
@@ -954,12 +1012,12 @@ the Hemorrhage bonus and, after the debuff runs out, without it.
 the rogue's own rotation runs with its skill casts switched off, so only the
 weapon swings and the haste buffs are left. Nothing under `js/` changes, and a
 script that has not finished by the end of the fight throws. The fixture has
-8 Rupture ticks (2 of them crits) and an Eviscerate crit.
+8 Rupture ticks (3 of them crits) and an Eviscerate that hits without a crit.
 
-No golden case contains a parry. The attack table gives a parry chance of 0
-until the front/behind split (A7), so a parry cannot happen. `parries` is
-pinned at 0 in every fixture, and a test checks the attack table. When parry
-becomes possible, add a case that has one.
+No golden case contains a parry or a block. Every case is behind the target
+(the default `target.behind`), where both bands have zero width. `parries` and
+`blocks` are pinned at 0 in every fixture, and `test/attack-table-engine.test.js`
+runs the front position. If a case from the front is wanted, add one.
 
 `npm test` runs `test/golden.test.js`, which runs each case and compares it
 with its fixture, field by field and exactly. It only reads the fixtures. When
@@ -1052,9 +1110,10 @@ What a reader should not assume from the sections above:
   from our box (8 vCPU Xeon, Node 20). The GitHub Actions runner measured about
   60 to 65 ms per fight, so the 50 ms target is not a CI guarantee and no test
   asserts it (see Benchmark).
-- **Parry.** The attack table gives a parry chance of 0 until the front/behind
-  split (A7), so `parries` is `0` in every result and no golden fixture has a
-  parry (see Golden-seed tests).
+- **Parry and block.** The default fight is behind the target, so `parries` and
+  `blocks` are `0` in the default results and no golden fixture has either (see
+  Golden-seed tests). `k("block.value")` is 0 for lack of a source, so a block
+  does full damage.
 - **Live page.** It picks a new random seed on every load and has no way to
   enter one; replay a seed with `runFight`. It does not stop at
   `k("fight.duration")` (see Other time inputs). A page below the frame rate
@@ -1200,8 +1259,8 @@ skills and ticks), damage (before crit and armor), armor ignore
 (`armorMultiplier`), energy regeneration (`regenerateResources`), energy cost
 (`Ability.cast`), a resource's cap (`Resource.max`, kind `resourceMax`), and haste (`Rogue.rotation`). The damage modifier is the one
 place a tag changes the damage itself, and it comes first: see
-[Damage tags](#damage-tags) for where in the formula. Parry stays 0 until A7, so
-`parryReduction` is read and has nothing to reduce yet. Damage modifiers on a
+[Damage tags](#damage-tags) for where in the formula. `parryReduction` is read for the parry band, which has width only from the
+front (`config.target.behind` false). Damage modifiers on a
 DoT are read once, when the DoT is applied, as the snapshot of its tick damage.
 
 **Stacking.** Sources are collected in a fixed order: static modifiers (talents,
@@ -1592,7 +1651,7 @@ An entry holds no number and no display name:
 The display name and whether the ability starts the GCD come from the catalogue
 (`name`, `startsGcd`). A definition whose `id` is not in the catalogue throws.
 
-**One cast path.** `Ability.cast` is the cast `Skill.cast` was: on cooldown, or
+**One cast path.** `Ability.cast` is the one cast, in place of the old per-skill `cast` methods: on cooldown, or
 a spender with no combo points, returns null. It then resolves the cost through
 the cost modifiers of the resource it is paid from and needs that much of the
 resource and a clear GCD (or no GCD).
@@ -1611,8 +1670,21 @@ holds the last Rupture or Slice and Dice length. `ability.resolve()` returns
 `{ damage, duration }` for the rogue's current combo points, and the aura
 records on `Simulation` hold what a cast applied. A Slice and Dice cast outside
 the combo points its table covers applies no buff (before, it reused the last
-length). With `combo.max` at 5 and a table of 5 that cannot happen via config
-(only via the instance seam, `rogue.comboPoints = 6`).
+length). With `combo.max` at 5 and tables of 5 that cannot happen in a default
+fight. It can with more points than the tables cover: a `resourceMax` modifier
+scoped to `comboPoints` (through `createFight` options, or `new Rogue(config,
+{ modifiers })`) raises the cap to 6 or 7, and so does setting the pool by hand
+(`rogue.resources.comboPoints.value = 6`). At 6 or 7 points the finishers do
+this, and the code is `Ability.resolve` and the `DAMAGE` kinds in
+`js/ability.js`:
+
+- Slice and Dice spends all the points and applies no buff (its table gives a
+  duration of 0).
+- Rupture spends all the points, rolls the attack table, and applies no DoT
+  (its damage is 0 outside 1 to 5 points, so there is nothing to tick).
+- Eviscerate spends all the points and has no base damage band, because the
+  bands cover 1 to 5. It still adds its attack-power term, `apPerCP` times the
+  points spent, so 6 points hit for the attack-power part alone.
 
 **Result shape.** Unchanged. `runFight` and `createFight` return the same
 fields, and the four golden fixtures, including the scripted one, are

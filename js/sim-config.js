@@ -20,6 +20,7 @@ import { talentCatalogue } from "./talents.js";
 //       mainHand: { min, max, speed, type },
 //       offHand:  { min, max, speed, type },
 //     },
+//     target: { behind },                        // true: no parry, no block
 //     talents: { "combat.precision": 5, ... },   // talent id -> rank
 //     poisons: { mainHand: "instant", offHand: "deadly" },   // an id, or null
 //   }
@@ -31,7 +32,8 @@ import { talentCatalogue } from "./talents.js";
 const HANDS = ["mainHand", "offHand"];
 const CHARACTER_FIELDS = ["attackPower", "critChance", "bonusHitChance"];
 const WEAPON_FIELDS = ["min", "max", "speed", "type"];
-const SECTIONS = ["character", "weapons", "talents", "poisons"];
+const TARGET_FIELDS = ["behind"];
+const SECTIONS = ["character", "weapons", "target", "talents", "poisons"];
 
 // The config every fight uses when it is given none, built fresh from the
 // constants each call so nobody can change another fight's defaults.
@@ -47,6 +49,7 @@ export function defaultConfig() {
       bonusHitChance: k("character.bonusHitChance"),
     },
     weapons: { mainHand: weapon("mainHand"), offHand: weapon("offHand") },
+    target: { behind: k("target.behind") },
     talents: {},
     poisons: { mainHand: null, offHand: null },
   };
@@ -195,6 +198,18 @@ function readWeapons(input, defaults) {
   );
 }
 
+// Where the rogue stands. Behind the target, the attack table has no parry and
+// no block (A7).
+function readTarget(input, defaults) {
+  const given = readObject(input, "config.target", TARGET_FIELDS);
+  if (given.behind !== undefined && typeof given.behind !== "boolean") {
+    throw new TypeError(
+      `config.target.behind must be true or false, not ${show(given.behind)}.`,
+    );
+  }
+  return { behind: given.behind ?? defaults.behind };
+}
+
 // Talent ranks by catalogue id. Only the rank is checked here (a whole number
 // from 0 to the talent's max, and the id must exist). The 51-point total, the
 // row gating and the prerequisites are checked when a build is applied (D7).
@@ -262,6 +277,7 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
   return {
     character: readCharacter(given.character, defaults.character),
     weapons: readWeapons(given.weapons, defaults.weapons),
+    target: readTarget(given.target, defaults.target),
     talents: readTalents(given.talents, catalogue),
     poisons: readPoisons(given.poisons, defaults.poisons),
   };
