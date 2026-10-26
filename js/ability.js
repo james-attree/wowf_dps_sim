@@ -7,6 +7,13 @@ import { AURAS } from "./auras.js";
 // entry of js/ability-data.js and casts it. Every ability goes through the
 // same cast, so a new ability is a new entry and no new class.
 //
+// The executor knows no resource by name. What an ability pays, gains and
+// spends is data (js/ability-data.js: cost, gain, spend, expires), each naming
+// a resource by id, and the pools are the host's `resources` (js/resource.js,
+// js/resource-data.js). A cost, a gain or a spend is a call on a pool, so a
+// second resource needs a data row and no change here, and a proc (A4) can
+// make the same calls.
+//
 // An ability is identified by its id, the catalogue's id for it (js/abilities.js,
 // slugify(name)). Its name is read from the catalogue for display: the page,
 // the combat log and the result's per-ability breakdown. Nothing compares it.
@@ -21,9 +28,10 @@ function weaponMultiplier(value, rogue) {
 }
 
 // How each damage kind is worked out. Each gets the entry's `damage` spec, the
-// row's constants and the rogue, and returns the damage or, for a dot, the
-// damage and the duration. The weapon and finisherRoll kinds draw one number
-// from the rogue's rng, and the dot kind none.
+// row's constants, the rogue and the amount the cast spends (what the spent
+// resource holds before the cast resets it), and returns the damage or, for a
+// dot, the total. The weapon and finisherRoll kinds draw one number from the
+// rogue's rng, and the dot kind none.
 const DAMAGE = {
   weapon(spec, stats, rogue) {
     const multiplier =
@@ -34,34 +42,32 @@ const DAMAGE = {
     return rogue.rollWeaponDamageForSkill() * multiplier + bonus;
   },
 
-  finisherRoll(spec, stats, rogue) {
-    const comboPoints = rogue.comboPoints;
-    const modifier = rogue.getAttackPower() * comboPoints * k(spec.apPerCp);
+  finisherRoll(spec, stats, rogue, spent) {
+    const modifier = rogue.getAttackPower() * spent * k(spec.apPerCp);
     let min = modifier;
     let max = modifier;
     const bands = stats[spec.bands];
-    if (comboPoints >= 1 && comboPoints <= bands.length) {
-      min += bands[comboPoints - 1].min;
-      max += bands[comboPoints - 1].max;
+    if (spent >= 1 && spent <= bands.length) {
+      min += bands[spent - 1].min;
+      max += bands[spent - 1].max;
     }
     return Math.floor(rogue.random() * (max - min + 1) + min);
   },
 
-  dot(spec, stats, rogue, durations) {
+  dot(spec, stats, rogue, spent, durations) {
     // Totals, not per tick. The DoT applicator divides this by the tick count.
-    const comboPoints = rogue.comboPoints;
-    const apByCp = k(spec.ap);
+    const apBySpent = k(spec.ap);
     if (
-      comboPoints < 1 ||
-      comboPoints > stats.damageByCp.length ||
-      comboPoints > durations.length ||
-      comboPoints > apByCp.length
+      spent < 1 ||
+      spent > stats.damageByCp.length ||
+      spent > durations.length ||
+      spent > apBySpent.length
     ) {
       return null;
     }
     return (
-      stats.damageByCp[comboPoints - 1] +
-      rogue.getAttackPower() * apByCp[comboPoints - 1]
+      stats.damageByCp[spent - 1] +
+      rogue.getAttackPower() * apBySpent[spent - 1]
     );
   },
 };
@@ -79,8 +85,14 @@ export class Ability {
       );
     }
     this.name = catalogued.name;
-    this.energyCost = stats.energy;
-    // What an energyCost modifier's scope sees of this ability. An ability
+    // What a cast pays, and in which resource (resource-data.js ids).
+    this.cost =
+      definition.cost === undefined ? 0 : stats[definition.cost.field];
+    this.costResource = definition.cost?.resource ?? null;
+    // The share of the cost a cast that does not land gives back.
+    this.refund =
+      definition.cost?.refund === undefined ? 0 : k(definition.cost.refund);
+    // What a cost modifier's scope sees of this ability. An ability
     // attacks with the main hand (Simulation.attackContext reads `hand`).
     this.hand = "mainHand";
     this.costContext = Object.freeze({ ability: this.id });
@@ -89,12 +101,22 @@ export class Ability {
     // Whether a cast starts the global cooldown. An off-GCD ability skips the
     // wait for a clear GCD and does not start one.
     this.triggersGcd = catalogued.startsGcd;
-    this.spender = definition.comboPoints === "spend";
-    this.comboPointsGenerated =
-      definition.comboPoints === "gain" ? stats.comboPoints : 0;
-    // Premeditation only. Expiry removes premeditation.cpRemovedOnExpiry
-    // unless a later cast adds a combo point or a finisher spends them.
-    this.expiresComboPoints = definition.expiresComboPoints === true;
+    // A spender needs at least one of its resource and spends all of it.
+    this.spender = definition.spend !== undefined;
+    this.spendResource = definition.spend?.resource ?? null;
+    // What a landed cast adds, and to which resource.
+    this.gain =
+      definition.gain === undefined ? 0 : stats[definition.gain.field];
+    this.gainResource = definition.gain?.resource ?? null;
+    // A gift that expires: the points a cast adds are removed `after` seconds
+    // later, unless a later cast adds some or a spend takes them first.
+    this.expires =
+      definition.expires === undefined
+        ? null
+        : Object.freeze({
+            amount: k(definition.expires.amount),
+            after: k(definition.expires.after),
+          });
     this.attackSkill = definition.damage !== undefined;
     this.dot = definition.damage?.kind === "dot";
     this.bleed = definition.damage?.bleed === true;
@@ -111,29 +133,53 @@ export class Ability {
     }
   }
 
-  // The damage and aura length of a cast now: { damage, duration }. A damage
-  // kind that draws from the rng does it here, once per call. A length by combo
-  // points is 0 outside the combo points the table covers, and so is the damage
-  // of a dot.
-  resolve() {
+  // The resource pool an id names on the host. An id the host has no pool for
+  // is a data error, said when it is first needed.
+  pool(id) {
+    const pool = this.rogue.resources?.[id];
+    if (pool === undefined) {
+      throw new RangeError(
+        `Ability "${this.id}" names the resource "${id}", which the rogue does not have.`,
+      );
+    }
+    return pool;
+  }
+
+  // The damage and aura length of a cast now: { damage, duration }. `spent` is
+  // what the cast spends, by default what the spend resource holds now, which
+  // is read before a cast resets it. A damage kind that draws from the rng does
+  // it here, once per call. A length by amount spent is 0 outside the amounts
+  // the table covers, and so is the damage of a dot.
+  resolve(spent = this.spendable()) {
     const { definition, rogue } = this;
     const stats = k(definition.row);
     let duration = this.duration;
-    const table = definition.aura?.duration.byComboPoints;
+    const table = definition.aura?.duration.bySpent;
     if (table !== undefined) {
       const durations = stats[table];
-      const comboPoints = rogue.comboPoints;
       duration =
-        comboPoints >= 1 && comboPoints <= durations.length
-          ? durations[comboPoints - 1]
-          : 0;
+        spent >= 1 && spent <= durations.length ? durations[spent - 1] : 0;
     }
     const spec = definition.damage;
     if (spec === undefined) {
       return { damage: 0, duration };
     }
-    const damage = DAMAGE[spec.kind](spec, stats, rogue, stats[table] ?? []);
+    const damage = DAMAGE[spec.kind](
+      spec,
+      stats,
+      rogue,
+      spent,
+      stats[table] ?? [],
+    );
     return damage === null ? { damage: 0, duration: 0 } : { damage, duration };
+  }
+
+  // What the spend resource holds now, the most a cast could spend. 0 for an
+  // ability that spends nothing.
+  spendable() {
+    return this.spendResource === null
+      ? 0
+      : this.pool(this.spendResource).value;
   }
 
   damage() {
@@ -148,8 +194,10 @@ export class Ability {
     if (this.onCooldown(rogue, simulation)) {
       return null; // On cooldown, cannot cast
     }
-    // Spenders (Eviscerate, Rupture, Slice and Dice) need a combo point.
-    if (this.spender && rogue.comboPoints < 1) {
+    // A spender (Eviscerate, Rupture, Slice and Dice) needs at least one of
+    // the resource it spends.
+    const spends = this.spender ? this.pool(this.spendResource) : null;
+    if (spends !== null && spends.value < 1) {
       return null;
     }
     // gcd.flags: an ability on the GCD waits until it is clear. A remainder
@@ -157,18 +205,23 @@ export class Ability {
     // cooldowns, DoT expiry, and weapon swings already use. Every off-GCD
     // ability skips that wait and does not start one, not only Premeditation.
     // A future off-GCD ability, such as Cold Blood, inherits this.
-    // The cost after energyCost modifiers (Improved Sinister Strike). With
-    // none, it is this.energyCost as it stands.
-    const energyCost = simulation.modifiers.resolve(
-      "energyCost",
-      this.energyCost,
-      this.costContext,
-    );
+    // The cost after the cost modifiers of its resource (Improved Sinister
+    // Strike). With none, it is this.cost as it stands.
+    const paid =
+      this.costResource === null ? null : this.pool(this.costResource);
+    const cost =
+      paid?.definition.costModifier === undefined
+        ? this.cost
+        : simulation.modifiers.resolve(
+            paid.definition.costModifier,
+            this.cost,
+            this.costContext,
+          );
     if (
-      rogue.energy >= energyCost &&
+      (paid === null || paid.has(cost)) &&
       (simulation.gcd <= k("sim.tickEpsilon") || !this.triggersGcd)
     ) {
-      rogue.energy -= energyCost;
+      paid?.spend(cost);
       if (this.triggersGcd) {
         simulation.setGcd();
       }
@@ -202,25 +255,22 @@ export class Ability {
       }
 
       if (result && !result.landed) {
-        // A miss refunds skill.missEnergyRefund of the energy and does not start the cooldown.
-        rogue.energy += energyCost * k("skill.missEnergyRefund");
+        // A miss refunds skill.missEnergyRefund of the cost and does not start the cooldown.
+        paid?.gain(cost * this.refund);
         return result; // Return the result of the attack attempt
       }
 
-      if (this.spender) {
-        rogue.comboPoints = 0; // Reset combo points after spending
-        rogue.clearPremeditation();
-      } else {
-        const before = rogue.comboPoints;
-        rogue.comboPoints = Math.min(
-          rogue.comboPoints + this.comboPointsGenerated,
-          rogue.maxComboPoints,
-        );
-        const gained = rogue.comboPoints - before;
-        if (this.expiresComboPoints) {
-          rogue.armPremeditation();
+      if (spends !== null) {
+        spends.spendAll(); // The amount spent is what resolve() read above
+        // A spend takes the points a gift would have removed.
+        spends.clearExpiry();
+      } else if (this.gainResource !== null) {
+        const gains = this.pool(this.gainResource);
+        const gained = gains.gain(this.gain);
+        if (this.expires !== null) {
+          gains.armExpiry(this.expires.amount, this.expires.after);
         } else if (gained > 0) {
-          rogue.clearPremeditation();
+          gains.clearExpiry();
         }
       }
 

@@ -727,10 +727,10 @@ describe("modifiers at the engine's hooks", () => {
       return 100 - rogue.energy;
     };
     const { sinisterStrike, backstab } = rogue.abilities;
-    assert.equal(spent(sinisterStrike), sinisterStrike.energyCost - 3);
-    assert.equal(spent(backstab), backstab.energyCost);
+    assert.equal(spent(sinisterStrike), sinisterStrike.cost - 3);
+    assert.equal(spent(backstab), backstab.cost);
     // The skill's own cost is left as the constants gave it.
-    assert.equal(sinisterStrike.energyCost, k("sinisterStrike").energy);
+    assert.equal(sinisterStrike.cost, k("sinisterStrike").energy);
   });
 
   it("does not let a cost modifier take the cost below 0 or let a skill start without the energy", () => {
@@ -740,7 +740,7 @@ describe("modifiers at the engine's hooks", () => {
     assert.ok(rogue.abilities.sinisterStrike.cast(rogue, sim));
     assert.equal(rogue.energy, 0);
     const dearer = fresh([{ kind: "energyCost", value: 10 }]);
-    dearer.rogue.energy = dearer.rogue.abilities.sinisterStrike.energyCost;
+    dearer.rogue.energy = dearer.rogue.abilities.sinisterStrike.cost;
     assert.equal(
       dearer.rogue.abilities.sinisterStrike.cast(dearer.rogue, dearer.sim),
       null,

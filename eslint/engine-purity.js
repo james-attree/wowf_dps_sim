@@ -65,7 +65,7 @@ const noNumericLiteral = {
 
 // Issue #94 (A1). A spell, aura, cooldown or weapon is identified by its
 // catalogue id, never by its display name. A name appears in one place, the
-// definition (js/skill.js, js/auras.js, js/weapon.js), and everything else
+// definition (js/ability.js, js/auras.js, js/weapon.js), and everything else
 // reads the id. This rule reports a string that is exactly a display name, and
 // an identifier key or property that is one (`activeDots.Rupture`,
 // `{ Rupture: 1 }`), in a file that is not a definition site. An id such as

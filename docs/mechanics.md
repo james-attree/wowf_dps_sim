@@ -235,18 +235,23 @@ after the casts, whether or not a cast succeeded.
 
 ## Energy
 
-The fight starts at `k("start.state").energy`. That object is an assumption
-on the retune list. `Rogue.regenerateEnergy` adds `rate * dt` and caps at
-`k("energy.max")` (`classic-1.12`, on the retune list). The note on
-`k("energy.max")` says the cap matches the export's Vigor bonus.
+Energy is a resource, a pool described as data in `js/resource-data.js` (see
+[Resources](#resources)). The fight starts at `k("start.state").energy`. That
+object is an assumption on the retune list. `Resource.regenerate` adds
+`rate * dt` and caps at the pool's cap, which is `k("energy.max")`
+(`classic-1.12`, on the retune list) through any `resourceMax` modifiers. The
+note on `k("energy.max")` says the cap matches the export's Vigor bonus.
+`rogue.energy` and `rogue.maxEnergy` read and set the pool, so the page and the
+tests use the names they always did.
 
 Regen per second is `k("energy.regenPerSecond")` (`wowf-export`, not on the
 retune list). The note says Forever regenerates continuously, and that
 Classic used a periodic tick. The engine adds `rate * dt` every frame. It
 does not wait for a tick.
 
-`Simulation.regenerateEnergy` asks the modifier pipeline for the
-`energyRegen` contributions (see Modifiers). Adrenaline Rush's
+`Simulation.regenerateResources` runs once per step over every pool that has a
+regen rule (today energy; combo points have none) and asks the modifier
+pipeline for the contributions of the kind that rule names, `energyRegen` (see Modifiers). Adrenaline Rush's
 `energyRegenMultiplier` effect compiles into an `energyRegen` `mult` modifier
 (`k("adrenalineRush").regenMultiplier`, once per stack). With none, the step is
 `k("energy.regenPerSecond") * dt`, as before. Static contributions (a talent's
@@ -259,10 +264,12 @@ itself stays at the base rate, because the buff is applied later, inside
 each runs out, and each applies to the part it covers. One aura gives exactly
 the two slices of the earlier model, so the golden fixtures are unchanged.
 
-`Skill.cast` spends `energyCost` before the attack roll. The cost is the
+`Ability.cast` spends the cost before the attack roll. The cost is the
 base cost resolved through the `energyCost` modifiers for that ability (never
-below 0), so a talent that lowers a cost is data. If the attack does
-not land, it refunds `energyCost * k("skill.missEnergyRefund")` and returns
+below 0, the cost kind the energy pool's definition names), so a talent that
+lowers a cost is data. If the attack does
+not land, it refunds `cost * k("skill.missEnergyRefund")` (a gain on the pool,
+so it stops at the cap) and returns
 without a cooldown, combo points, or an aura. The GCD, if this ability
 starts one, is already running. `k("skill.missEnergyRefund")` is an
 assumption on the retune list. Its ref says Classic and the export do not
@@ -280,13 +287,15 @@ Premeditation. The note says the sample fight reads this value, and that
 `k("start.state")` records the same combo points and full energy. The cap is `k("combo.max")` (`wowf-export`, not on the retune
 list).
 
-A builder adds its `comboPointsGenerated`, capped at `k("combo.max")`. If
-that add actually gained a point, and the ability is not Premeditation,
-`Rogue.clearPremeditation` cancels the expiry timer and leaves the points in
+Combo points are a resource too (see [Resources](#resources)). A builder
+gains its `gain` amount on the pool, capped at `k("combo.max")` through any
+`resourceMax` modifiers. If
+that gain actually added a point, and the ability is not Premeditation,
+the pool's expiry timer is cancelled (`Rogue.clearPremeditation`) and the points stay in
 place. A non-Premeditation builder that gains nothing, because the rogue is
-already capped, leaves the timer alone. A spender sets combo points to none
-and cancels the timer. `Skill.cast` rejects a spender when the rogue has no combo
-points, before it spends energy or starts the GCD.
+already capped, leaves the timer alone. A spender spends all of the pool (`Resource.spendAll`, which returns the
+count it took, read before the reset) and cancels the timer. `Ability.cast`
+rejects a spender when the pool holds none, before it spends energy or starts the GCD.
 
 A landed Sinister Strike, the rotation's builder, adds
 `k("sinisterStrike").comboPoints`. A landed Hemorrhage adds
@@ -347,7 +356,8 @@ The note on `k("premeditation.cpExpiry")` says Classic needed Stealth. The
 engine does not check for it. There is no Stealth check in `Premeditation`.
 `Rogue.rotation` does not cast it.
 
-On a successful cast `Rogue.armPremeditation` sets the removal amount to
+On a successful cast the executor arms the combo point pool's expiry
+(`Resource.armExpiry`, from the ability's `expires` data) and sets the removal amount to
 `k("premeditation.cpRemovedOnExpiry")` and the timer to
 `k("premeditation.cpExpiry")`. A later Premeditation replaces both. The
 expiry constant is `wowf-export` and is not on the retune list. Its note says
@@ -356,7 +366,7 @@ retune list. Its note says expiry always removes that many points, even when
 the cap meant fewer were added, and that the result is clamped so combo
 points do not go below zero.
 
-`Rogue.tickPremeditation` runs in `Simulation.step` before the rotation, so
+`Rogue.tickResources` (each pool's `tick`) runs in `Simulation.step` before the rotation, so
 the cast step does not count. When the remaining time is at or below
 `k("sim.tickEpsilon")`, combo points drop by the armed amount, clamped at
 zero, and the timer is cleared. A finisher, or a later cast that actually
@@ -1147,10 +1157,11 @@ needs no engine code. `js/modifiers.js` has the schema and the pipeline.
 
 - `kind`: what changes. `attackPower`, `critChance`, `hitChance`,
   `dodgeReduction`, `parryReduction`, `armorIgnore`, `energyRegen`,
-  `energyCost`, `damage`, `critDamage`, `haste`. Each kind lists which scope
+  `energyCost`, `resourceMax`, `damage`, `critDamage`, `haste`. Each kind lists which scope
   keys it accepts (attack power, regen and haste are not per attack, so they
   accept none) and a floor for the result where a negative would be nonsense
-  (attack power, regen, cost and damage 0; the crit multiplier 1).
+  (attack power, regen, cost, a resource's cap and damage 0; the crit
+  multiplier 1).
 - `op`: `add` or `mult`. `value` is a finite number, and a `mult` must be above 0.
 - `scope` (optional): conditions. Every key present must match the attack
   (AND). A key that lists several values matches any of them (OR). A missing
@@ -1158,7 +1169,11 @@ needs no engine code. `js/modifiers.js` has the schema and the pipeline.
   `abilities` are catalogue ids, `hands` are `mainHand` and `offHand`,
   `weaponTypes` are the types in `config.weaponTypes`, `schools` are `physical`
   and `nature`, and `tags` are `bleed`, `poison`, `white`, `yellow` and
-  `finisher` (see [Damage tags](#damage-tags)). `schools` and `tags` are
+  `finisher` (see [Damage tags](#damage-tags)), and `resources` are resource ids
+  (`energy`, `comboPoints`, from `js/resource-data.js`). `resources` is accepted by
+  `resourceMax` and by nothing else, and `resourceMax` accepts nothing else
+  (the context for a cap is `{ resource: id }`; a `resourceMax` with no
+  `resources` key changes the cap of every resource). `schools` and `tags` are
   accepted by the kinds that are per attack and not tied to a hand
   (`critChance`, `hitChance`, `armorIgnore`, `damage`, `critDamage`). An unknown key or value,
   an empty list, or a key the kind does not accept is a `RangeError` when the
@@ -1182,8 +1197,8 @@ no scope.
 for a DoT tick, which sees the DoT's tags), dodge and parry reduction (the attack table, through
 `resolveAttack`'s optional arguments), crit damage (the crit multiplier, for
 skills and ticks), damage (before crit and armor), armor ignore
-(`armorMultiplier`), energy regeneration (`regenerateEnergy`), energy cost
-(`Skill.cast`), and haste (`Rogue.rotation`). The damage modifier is the one
+(`armorMultiplier`), energy regeneration (`regenerateResources`), energy cost
+(`Ability.cast`), a resource's cap (`Resource.max`, kind `resourceMax`), and haste (`Rogue.rotation`). The damage modifier is the one
 place a tag changes the damage itself, and it comes first: see
 [Damage tags](#damage-tags) for where in the formula. Parry stays 0 until A7, so
 `parryReduction` is read and has nothing to reduce yet. Damage modifiers on a
@@ -1195,12 +1210,12 @@ kind combines its contributions in the form `modifiers.stacking` gives it
 (`data/constants.js`, an engineering judgement on the retune list). `A` is the
 sum of the `add` values and `M` the product of the `mult` values:
 
-| Form      | Kinds                                                                                                    | Result                                                     |
-| --------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `flat`    | attackPower, critChance, hitChance, dodgeReduction, parryReduction, armorIgnore, energyRegen, energyCost | `(base + A) × M`                                           |
-| `percent` | damage                                                                                                   | `base × (1 + A) × M`                                       |
-| `bonus`   | critDamage                                                                                               | `1 + (base − 1) × (1 + A) × M`                             |
-| `haste`   | haste                                                                                                    | one step per modifier, by `haste.stacking`, once per stack |
+| Form      | Kinds                                                                                                                 | Result                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `flat`    | attackPower, critChance, hitChance, dodgeReduction, parryReduction, armorIgnore, energyRegen, energyCost, resourceMax | `(base + A) × M`                                           |
+| `percent` | damage                                                                                                                | `base × (1 + A) × M`                                       |
+| `bonus`   | critDamage                                                                                                            | `1 + (base − 1) × (1 + A) × M`                             |
+| `haste`   | haste                                                                                                                 | one step per modifier, by `haste.stacking`, once per stack |
 
 So "+x% damage" talents add together, a separate multiplier (a buff) multiplies,
 and a Lethality-style effect scales the crit bonus and not the whole hit. A
@@ -1489,6 +1504,58 @@ bonus), the poisons (D9) and the talent modifiers (D6). They stay in
 `data/constants.js` until the issue that needs them. The catalogue is deeply
 frozen, and building it draws no random numbers.
 
+## Resources
+
+Roadmap D3 (issue #99). Energy and combo points are resources: a class
+describes each as data in `js/resource-data.js` (`RESOURCE_DEFINITIONS`,
+deep-frozen), and `js/resource.js` turns one into a `Resource`, the pool a
+rogue holds in `rogue.resources` by id. Neither the model nor the generic
+executor (`js/ability.js`) names energy, combo points or Premeditation; a test
+reads their source for those names, and another runs an ability against a
+second resource ("rage", defined in the test) with no engine change.
+
+A definition holds constants ids, not numbers:
+
+- `max`: the cap before modifiers (`energy.max`, `combo.max`).
+- `start`: the value at the start of a fight (`start.state` field `energy`,
+  `character.startingComboPoints`).
+- `regen`: `{ perSecond, modifier, tick }`. `perSecond` is the base rate,
+  `modifier` the kind of the modifiers that change it (`energyRegen`, so
+  Adrenaline Rush's bonus stays exact for the part of a step inside the buff,
+  as in [Energy](#energy)), and `tick` how it is applied. `energy.tickMode` is
+  `continuous` (`rate * dt` every step, `engineering`), the only mode there is.
+- `costModifier`: the modifier kind that changes what an ability pays from this
+  resource (`energyCost`).
+- `onTargetChange`: what the pool does when the target changes, `combo.onTargetChange`,
+  `clear` (the points go, and any pending expiry), or `keep`. It is an
+  assumption on the retune list, since the engine has one target and nothing
+  calls `Resource.targetChanged` yet; target swapping will.
+
+`Resource` has `gain(amount)` (capped, returns what it added), `spend(amount)`,
+`spendAll()` (returns the count it took, read before the reset), `has`,
+`regenerate(dt, rate)`, an expiry (`armExpiry`, `clearExpiry`, `tick`, which is
+Premeditation's rule: points that go unless a later gain or a spend cancels
+them), and `targetChanged()`. The cap, `max`, is
+`modifiers.resolve("resourceMax", baseMax, { resource: id })`, so a max-energy
+talent is a modifier with `scope: { resources: ["energy"] }`.
+
+These are the operations a proc (A4, #101) will call. "Restore 25 energy"
+is `gain(25)` on `energy`, "add a combo point" is `gain(1)` on `comboPoints`,
+and a finisher's proc that depends on how many points it spent can read the
+count `spendAll()` returns. Nothing here is a proc yet.
+
+`rogue.energy`, `rogue.maxEnergy`, `rogue.comboPoints` and
+`rogue.maxComboPoints` stay, as views on the pools. Setting a `max` sets the
+base cap, before modifiers. `Rogue.armPremeditation`, `clearPremeditation`,
+`premeditationCp` and `premeditationCpRemaining` are views on the combo point
+pool's expiry.
+
+**Result shape.** Unchanged. `runFight` and `createFight` return the same
+fields, the four golden fixtures are byte-identical, and the random numbers
+are drawn in the same places. `Simulation.regenerateEnergy` is now
+`Simulation.regenerateResources` (it has one caller, `step`), and the `Ability`
+fields were renamed to generic ones (`cost`, `gain`, `spender`, `expires`).
+
 ## Ability executor
 
 `js/ability-data.js` lists the abilities the engine casts as data, and
@@ -1502,9 +1569,13 @@ An entry holds no number and no display name:
 - `key` is the property on `Rogue.abilities` (`sinisterStrike`), `id` the
   catalogue id, `row` the `data/constants.js` row with the ability's numbers
   and `icon` the image path.
-- `comboPoints` is `"gain"` (adds the row's `comboPoints`) or `"spend"` (needs
-  one and clears them). `expiresComboPoints` is Premeditation's: the points
-  it added expire unless a later cast adds one or a finisher spends them.
+- `cost` is `{ resource, field, refund }`: the amount is the row's `field`,
+  paid from the resource with that id, and `refund` is the constants id of the
+  share a miss gives back. `gain` is `{ resource, field }` (a landed cast adds
+  the row's `field`). `spend` is `{ resource }` (needs one and spends all of it).
+  `expires` is Premeditation's, `{ amount, after }`: the points it added expire
+  unless a later cast adds one or a finisher spends them. Every entry is
+  deep-frozen.
 - `damage` is absent for an ability that is not an attack (the log records a
   "Cast"), or one of three kinds. `weapon` is the weapon roll times a
   multiplier plus a bonus. A multiplier is a number or `{ dagger, other }`,
@@ -1516,18 +1587,20 @@ An entry holds no number and no display name:
   with `bleed` so the ticks skip armor.
 - `aura` is the aura the cast applies (an `AURAS` key) and its length, a field of
   the row, of another row (Hemorrhage's 15 s is `hemorrhage.ruptureBonus`), or
-  a table by combo points (Slice and Dice, Rupture).
+  a table by the amount spent (`bySpent`: Slice and Dice, Rupture).
 
 The display name and whether the ability starts the GCD come from the catalogue
 (`name`, `startsGcd`). A definition whose `id` is not in the catalogue throws.
 
 **One cast path.** `Ability.cast` is the cast `Skill.cast` was: on cooldown, or
 a spender with no combo points, returns null. It then resolves the cost through
-the `energyCost` modifiers and needs the energy and a clear GCD (or no GCD).
-It spends the energy, starts the GCD, resolves the damage and the aura length
-once (`Ability.resolve`), and makes the attack, the DoT or the cast. A miss
-refunds `skill.missEnergyRefund` of the cost and stops. Otherwise it spends or
-adds combo points (arming or clearing Premeditation), starts the cooldown and
+the cost modifiers of the resource it is paid from and needs that much of the
+resource and a clear GCD (or no GCD).
+It spends the cost, starts the GCD, resolves the damage and the aura length
+once (`Ability.resolve`, which reads what the spend resource holds before the
+reset), and makes the attack, the DoT or the cast. A miss
+refunds `skill.missEnergyRefund` of the cost and stops. Otherwise it spends the
+spend resource or gains the gain resource (arming or clearing an expiry), starts the cooldown and
 applies the aura. The random numbers are drawn in the same places as before:
 one for the weapon roll or the Eviscerate roll inside `resolve`, then the
 attack's own rolls. A zero-rank talent or a proc never draws.
@@ -1538,7 +1611,8 @@ holds the last Rupture or Slice and Dice length. `ability.resolve()` returns
 `{ damage, duration }` for the rogue's current combo points, and the aura
 records on `Simulation` hold what a cast applied. A Slice and Dice cast outside
 the combo points its table covers applies no buff (before, it reused the last
-length). With `combo.max` at 5 and a table of 5 that cannot happen in a fight.
+length). With `combo.max` at 5 and a table of 5 that cannot happen via config
+(only via the instance seam, `rogue.comboPoints = 6`).
 
 **Result shape.** Unchanged. `runFight` and `createFight` return the same
 fields, and the four golden fixtures, including the scripted one, are

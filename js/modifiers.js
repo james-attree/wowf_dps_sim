@@ -1,6 +1,7 @@
 import { k } from "../data/constants.js";
 import { abilityCatalogue } from "./abilities.js";
 import { DAMAGE_TAGS, SCHOOLS } from "./damage-tags.js";
+import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 
 // The modifier schema and pipeline (A2). A modifier is a piece of data that
 // changes one stat for the attacks it is scoped to: a talent rank, an aura
@@ -26,6 +27,10 @@ import { DAMAGE_TAGS, SCHOOLS } from "./damage-tags.js";
 //             tags         "bleed", "poison", "white", "yellow" or "finisher"
 //                          (js/damage-tags.js). An event with several tags
 //                          matches when it has any one of the listed tags.
+//             resources    resource ids (js/resource-data.js, e.g. "energy").
+//                          Only a resourceMax modifier takes it: the cap it
+//                          changes is that resource's, and without it every
+//                          resource's.
 //   source  an optional label for explain() and tests ("combat.precision").
 //
 // The context an attack passes is { ability, hand, weaponType, school, tags }.
@@ -41,6 +46,7 @@ import { DAMAGE_TAGS, SCHOOLS } from "./damage-tags.js";
 
 export const MODIFIER_OPS = Object.freeze(["add", "mult"]);
 export const SCOPE_KEYS = Object.freeze([
+  "resources",
   "abilities",
   "hands",
   "weaponTypes",
@@ -49,7 +55,10 @@ export const SCOPE_KEYS = Object.freeze([
 ]);
 export const HANDS = Object.freeze(["mainHand", "offHand"]);
 
-const EVERY_SCOPE = SCOPE_KEYS;
+// The scope keys of an attack. A resource cap takes resources instead.
+const EVERY_SCOPE = Object.freeze(
+  SCOPE_KEYS.filter((key) => key !== "resources"),
+);
 const HAND_SCOPES = Object.freeze(["hands", "weaponTypes"]);
 const NO_SCOPE = Object.freeze([]);
 
@@ -63,6 +72,7 @@ const NO_SCOPE = Object.freeze([]);
 //   armorIgnore     fraction of the target's armor ignored after reductions
 //   energyRegen     energy per second (add) or a multiplier (mult)
 //   energyCost      energy a skill costs, never below 0
+//   resourceMax     the cap of a resource (js/resource.js), in its own units
 //   damage          a fraction of the attack's damage before crit and armor
 //   critDamage      the crit multiplier's bonus part (2 - 1 = 1) scales
 //   haste           fraction of attack speed, stacked by haste.stacking
@@ -75,6 +85,7 @@ export const MODIFIER_KINDS = Object.freeze({
   armorIgnore: Object.freeze({ scope: EVERY_SCOPE }),
   energyRegen: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
   energyCost: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
+  resourceMax: Object.freeze({ scope: Object.freeze(["resources"]), floor: 0 }),
   damage: Object.freeze({ scope: EVERY_SCOPE, floor: 0 }),
   critDamage: Object.freeze({ scope: EVERY_SCOPE, floor: 1 }),
   haste: Object.freeze({ scope: NO_SCOPE }),
@@ -197,6 +208,15 @@ export function defineScope(label, kind, scope) {
       scope.tags,
       (tag) => DAMAGE_TAGS.includes(tag),
       (tag) => `${JSON.stringify(tag)}. Known: ${DAMAGE_TAGS.join(", ")}`,
+    );
+  }
+  if (Object.hasOwn(scope, "resources")) {
+    checked.resources = checkList(
+      label,
+      "resources",
+      scope.resources,
+      (id) => RESOURCE_DEFINITIONS.some((resource) => resource.id === id),
+      (id) => `an unknown resource id ${JSON.stringify(id)}`,
     );
   }
   return Object.keys(checked).length === 0 ? null : Object.freeze(checked);
@@ -330,6 +350,12 @@ function matches(scope, context) {
   if (
     scope.abilities !== undefined &&
     !scope.abilities.includes(context?.ability)
+  ) {
+    return false;
+  }
+  if (
+    scope.resources !== undefined &&
+    !scope.resources.includes(context?.resource)
   ) {
     return false;
   }

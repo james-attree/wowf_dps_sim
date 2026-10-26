@@ -285,26 +285,29 @@ describe("simulator values other than white miss", () => {
     assert.equal(rogue.weapons.offHand.swingTimer, 0.5);
 
     expectSkill(rogue.abilities.sinisterStrike, {
-      energyCost: 45,
+      cost: 45,
       cooldown: 0,
-      comboPointsGenerated: 1,
+      gain: 1,
       triggersGcd: true,
     });
     expectSkill(rogue.abilities.eviscerate, {
-      energyCost: 35,
+      cost: 35,
       cooldown: 0,
       spender: true,
     });
     expectSkill(rogue.abilities.premeditation, {
-      energyCost: 0,
+      cost: 0,
       cooldown: 120,
-      comboPointsGenerated: 2,
+      gain: 2,
       triggersGcd: false,
       attackSkill: false,
-      expiresComboPoints: true,
+    });
+    assert.deepEqual(rogue.abilities.premeditation.expires, {
+      amount: k("premeditation.cpRemovedOnExpiry"),
+      after: k("premeditation.cpExpiry"),
     });
     expectSkill(rogue.abilities.adrenalineRush, {
-      energyCost: 0,
+      cost: 0,
       cooldown: 300,
       duration: 15,
       triggersGcd: true,
@@ -312,7 +315,7 @@ describe("simulator values other than white miss", () => {
       aura: AURAS.adrenalineRush, // on the self
     });
     expectSkill(rogue.abilities.sliceAndDice, {
-      energyCost: 25,
+      cost: 25,
       cooldown: 0,
       spender: true,
       triggersGcd: true,
@@ -320,24 +323,24 @@ describe("simulator values other than white miss", () => {
       aura: AURAS.sliceAndDice, // on the self
     });
     expectSkill(rogue.abilities.ghostlyStrike, {
-      energyCost: 40,
+      cost: 40,
       cooldown: 20,
       duration: 7,
-      comboPointsGenerated: 1,
+      gain: 1,
       aura: AURAS.ghostlyStrike, // on the self
     });
     expectSkill(rogue.abilities.backstab, {
-      energyCost: 60,
+      cost: 60,
       cooldown: 0,
-      comboPointsGenerated: 1,
+      gain: 1,
     });
     expectSkill(rogue.abilities.ambush, {
-      energyCost: 60,
+      cost: 60,
       cooldown: 0,
-      comboPointsGenerated: 1,
+      gain: 1,
     });
     expectSkill(rogue.abilities.bladeFlurry, {
-      energyCost: 25,
+      cost: 25,
       cooldown: 120,
       duration: 15,
       triggersGcd: true,
@@ -345,7 +348,7 @@ describe("simulator values other than white miss", () => {
       aura: AURAS.bladeFlurry, // on the self
     });
     expectSkill(rogue.abilities.rupture, {
-      energyCost: 25,
+      cost: 25,
       cooldown: 0,
       spender: true,
       dot: true,
@@ -353,10 +356,10 @@ describe("simulator values other than white miss", () => {
       aura: AURAS.rupture, // on the target
     });
     expectSkill(rogue.abilities.hemorrhage, {
-      energyCost: 35,
+      cost: 35,
       cooldown: 0,
       duration: 15,
-      comboPointsGenerated: 1,
+      gain: 1,
       aura: AURAS.hemorrhage, // on the target
     });
     assert.equal(k("adrenalineRush").cooldown, 300);
@@ -437,12 +440,15 @@ describe("simulator values other than white miss", () => {
     rogue.abilities.sliceAndDice.cast(rogue, sim);
     assert.equal(sim.activeBuffs["slice-and-dice"].duration, 12);
 
-    // Out of the table's combo points, nothing is applied or changed.
+    // Out of the table's combo points (6 of a table of 5, set by hand: only
+    // the instance seam can hold more than the cap), the cast spends them but
+    // applies no buff and changes none.
     rogue.energy = 100;
     sim.gcd = 0;
-    rogue.comboPoints = 0;
+    rogue.comboPoints = 6;
     rogue.abilities.sliceAndDice.cast(rogue, sim);
     assert.equal(sim.activeBuffs["slice-and-dice"].duration, 12);
+    assert.equal(rogue.comboPoints, 0);
 
     rogue.energy = 100;
     sim.gcd = 0;

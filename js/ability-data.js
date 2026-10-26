@@ -12,15 +12,23 @@
 //   key           the property on Rogue.abilities ("sinisterStrike")
 //   id            the catalogue id (slugify of the name); the engine keys
 //                 cooldowns, auras and the result's breakdown by it
-//   row           the constants row with the ability's numbers: its energy
-//                 cost, cooldown and combo points are read from it
+//   row           the constants row with the ability's numbers: its cost,
+//                 cooldown and gain are read from it
 //   icon          the page's icon for the ability, the combat log and its aura
-//   comboPoints   "gain" adds the row's `comboPoints`; "spend" needs at least
-//                 one and clears them. Absent: the cast neither adds nor spends
-//   expiresComboPoints
-//                 Premeditation: the points it added expire (Rogue.arm/clear/
-//                 tickPremeditation) unless a later cast adds one or a finisher
-//                 spends them
+//   cost          { resource, field, refund? } what a cast pays: the amount is
+//                 the row's `field`, taken from the resource with that id
+//                 (js/resource-data.js), after that resource's cost modifiers.
+//                 `refund` is a constants id: the share of the cost a cast
+//                 that does not land gives back
+//   gain          { resource, field } a landed cast adds the row's `field` to
+//                 the resource, up to its cap
+//   spend         { resource } a landed cast needs at least one of the
+//                 resource and spends all of it. The amount spent is what
+//                 the damage kind and the aura table read ("by spent")
+//   expires       { amount, after } constants ids. What `gain` added is not
+//                 permanent: after `after` seconds the resource loses `amount`
+//                 (Premeditation) unless a later cast adds some or a spend
+//                 takes it first
 //   damage        absent: the cast is not an attack and logs a "Cast" event.
 //                 Otherwise one of:
 //                   { kind: "weapon", multiplier?, bonus? }
@@ -39,27 +47,49 @@
 //   aura          the aura (js/auras.js, AURAS key) a landed cast puts up and
 //                 `duration` says for how long: { field } is a field of
 //                 the row, { row, field } a field of another constants row, and
-//                 { byComboPoints } a table in the row, one entry per combo
-//                 point spent. No entry for the combo points means no aura
+//                 { bySpent } a table in the row, one entry per unit of the
+//                 spend resource spent. No entry for the amount means no aura
 //
 // Whether an ability starts the global cooldown comes from the catalogue
 // (startsGcd, which is abilities.offGcd). The order here is the order of
 // Rogue.abilities.
-export const ABILITY_DEFINITIONS = Object.freeze([
+const ENERGY = {
+  resource: "energy",
+  field: "energy",
+  refund: "skill.missEnergyRefund",
+};
+const COMBO_POINTS = { resource: "comboPoints", field: "comboPoints" };
+
+// Freeze an entry and everything inside it, so one caller cannot change what
+// another reads. The constants ids in it are strings, so this is plain data.
+function deepFreeze(value) {
+  if (value !== null && typeof value === "object") {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+export const ABILITY_DEFINITIONS = deepFreeze([
   {
     key: "premeditation",
     id: "premeditation",
     row: "premeditation",
     icon: "./img/premeditation.jpg",
-    comboPoints: "gain",
-    expiresComboPoints: true,
+    cost: ENERGY,
+    gain: COMBO_POINTS,
+    expires: {
+      amount: "premeditation.cpRemovedOnExpiry",
+      after: "premeditation.cpExpiry",
+    },
   },
   {
     key: "sinisterStrike",
     id: "sinister-strike",
     row: "sinisterStrike",
     icon: "./img/sinister_strike.jpg",
-    comboPoints: "gain",
+    cost: ENERGY,
+    gain: COMBO_POINTS,
     damage: { kind: "weapon", bonus: "bonusDamage" },
   },
   {
@@ -67,7 +97,8 @@ export const ABILITY_DEFINITIONS = Object.freeze([
     id: "eviscerate",
     row: "eviscerate",
     icon: "./img/eviscerate.jpg",
-    comboPoints: "spend",
+    cost: ENERGY,
+    spend: { resource: "comboPoints" },
     damage: {
       kind: "finisherRoll",
       apPerCp: "eviscerate.apPerCP",
@@ -79,6 +110,7 @@ export const ABILITY_DEFINITIONS = Object.freeze([
     id: "adrenaline-rush",
     row: "adrenalineRush",
     icon: "./img/adrenaline_rush.jpg",
+    cost: ENERGY,
     aura: { id: "adrenalineRush", duration: { field: "duration" } },
   },
   {
@@ -86,15 +118,17 @@ export const ABILITY_DEFINITIONS = Object.freeze([
     id: "slice-and-dice",
     row: "sliceAndDice",
     icon: "./img/slice_and_dice.jpg",
-    comboPoints: "spend",
-    aura: { id: "sliceAndDice", duration: { byComboPoints: "durationByCp" } },
+    cost: ENERGY,
+    spend: { resource: "comboPoints" },
+    aura: { id: "sliceAndDice", duration: { bySpent: "durationByCp" } },
   },
   {
     key: "ghostlyStrike",
     id: "ghostly-strike",
     row: "ghostlyStrike",
     icon: "./img/ghostly_strike.jpg",
-    comboPoints: "gain",
+    cost: ENERGY,
+    gain: COMBO_POINTS,
     damage: { kind: "weapon", multiplier: "weaponMultiplier" },
     aura: { id: "ghostlyStrike", duration: { field: "duration" } },
   },
@@ -103,7 +137,8 @@ export const ABILITY_DEFINITIONS = Object.freeze([
     id: "backstab",
     row: "backstab",
     icon: "./img/backstab.jpg",
-    comboPoints: "gain",
+    cost: ENERGY,
+    gain: COMBO_POINTS,
     damage: {
       kind: "weapon",
       multiplier: "weaponMultiplier",
@@ -115,7 +150,8 @@ export const ABILITY_DEFINITIONS = Object.freeze([
     id: "ambush",
     row: "ambush",
     icon: "./img/ambush.jpg",
-    comboPoints: "gain",
+    cost: ENERGY,
+    gain: COMBO_POINTS,
     damage: {
       kind: "weapon",
       multiplier: "weaponMultiplier",
@@ -127,6 +163,7 @@ export const ABILITY_DEFINITIONS = Object.freeze([
     id: "blade-flurry",
     row: "bladeFlurry",
     icon: "./img/blade_flurry.jpg",
+    cost: ENERGY,
     aura: { id: "bladeFlurry", duration: { field: "duration" } },
   },
   {
@@ -134,16 +171,18 @@ export const ABILITY_DEFINITIONS = Object.freeze([
     id: "rupture",
     row: "rupture",
     icon: "./img/rupture.jpg",
-    comboPoints: "spend",
+    cost: ENERGY,
+    spend: { resource: "comboPoints" },
     damage: { kind: "dot", ap: "rupture.apByCP", bleed: true },
-    aura: { id: "rupture", duration: { byComboPoints: "durationByCp" } },
+    aura: { id: "rupture", duration: { bySpent: "durationByCp" } },
   },
   {
     key: "hemorrhage",
     id: "hemorrhage",
     row: "hemorrhage",
     icon: "./img/hemorrhage.jpg",
-    comboPoints: "gain",
+    cost: ENERGY,
+    gain: COMBO_POINTS,
     damage: { kind: "weapon", multiplier: "weaponMultiplier" },
     aura: {
       id: "hemorrhage",

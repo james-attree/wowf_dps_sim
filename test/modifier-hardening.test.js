@@ -273,7 +273,7 @@ describe("a skill's miss refund uses the cost it paid", () => {
     setRoll(0.01);
     const result = skill.cast(rogue, sim);
     assert.equal(result.outcome, "miss");
-    const paid = skill.energyCost - 3;
+    const paid = skill.cost - 3;
     close(rogue.energy, 100 - paid * (1 - k("skill.missEnergyRefund")));
   });
 });
@@ -447,7 +447,7 @@ describe("aura modifiers with more than one stack", () => {
     rogue.energy = 0;
     sim.applyAura(boost("short-boost", 2), { duration: 0.1 });
     sim.applyAura(boost("long-boost", 3), { duration: 0.2 });
-    sim.regenerateEnergy(0.2);
+    sim.regenerateResources(0.2);
     const base = k("energy.regenPerSecond");
     close(rogue.energy, base * (6 * 0.1 + 3 * 0.1));
   });

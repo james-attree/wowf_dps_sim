@@ -384,6 +384,7 @@ describe("scope.schools and scope.tags", () => {
       "energyRegen",
       "haste",
       "energyCost",
+      "resourceMax",
       "dodgeReduction",
       "parryReduction",
     ]) {

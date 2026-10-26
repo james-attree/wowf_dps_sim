@@ -264,17 +264,27 @@ rejects them under `js/`.
   Sinister Strike, Eviscerate, Premeditation, Adrenaline Rush, Slice and Dice,
   Ghostly Strike, Backstab, Ambush, Blade Flurry, Rupture, and Hemorrhage. Each
   entry names its catalogue `id`, the constants row with its numbers, its icon,
-  whether it gains or spends combo points, its damage formula (`weapon`,
+  what it costs, gains and spends (each by resource id), its damage formula (`weapon`,
   `finisherRoll` or `dot`) and the aura it applies. It holds no number and no
   display name.
 - `js/ability.js` — The one generic executor (D2). `Ability.cast` runs every
-  ability: cooldown, combo points, energy (after `energyCost` modifiers), the
-  GCD (a remainder within `sim.tickEpsilon` counts as clear), the attack or DoT
-  roll, the miss refund, combo points, Premeditation, the cooldown and the aura.
+  ability: cooldown, the resource it spends, its cost (after the cost
+  modifiers of that resource), the GCD (a remainder within `sim.tickEpsilon`
+  counts as clear), the attack or DoT roll, the miss refund, the gain or spend,
+  an expiring gift, the cooldown and the aura. It names no resource; it reads
+  the entry (D3).
   `createAbilities(rogue)` builds `rogue.abilities` from the entries. An ability
   has an `id` (the catalogue's) and a display `name` read from the catalogue,
   and the engine keys cooldowns, auras and DoTs by id. There is no class per
   ability.
+- `js/resource-data.js` — Energy and combo points as class data (D3): each
+  resource's cap, start value, regen rule, cost modifier kind and what a target
+  change does, all constants ids.
+- `js/resource.js` — The `Resource` pool (D3). `gain`, `spend`, `spendAll` (the
+  count it took, before the reset), `regenerate`, an expiry (Premeditation's
+  rule) and `targetChanged`. The cap goes through `resourceMax` modifiers. The
+  generic executor and, later, procs use these by resource id. See
+  [Resources](docs/mechanics.md#resources).
 - `js/auras.js` — The aura model (A1). `AURAS` holds each buff and debuff as a
   definition (id, name, target, duration, stacks and stack rule, charges,
   refresh rule, hooks, effects: `haste`, `energyRegenMultiplier`,
@@ -290,7 +300,8 @@ rejects them under `js/`.
   combines static modifiers with the auras that are up. A kind with nothing to
   apply returns its base value untouched, which keeps a run with no modifiers
   identical to one without. A scope can name abilities, hands, weapon types,
-  schools and tags. See [Modifiers](docs/mechanics.md#modifiers).
+  schools, tags and, for a resource's cap (`resourceMax`), resource ids. See
+  [Modifiers](docs/mechanics.md#modifiers).
 - `js/damage-tags.js` — The school and tags of a damage event (A3).
   `damageTags({ id, attackType, bleed })` gives `{ school, tags }`: the school
   is physical or nature, and the tags are `bleed`, `poison`, `white`, `yellow`
@@ -391,6 +402,16 @@ rejects them under `js/`.
   each kind stacks, scope and conditions, rank tables, aura modifiers, the
   engine's hooks (hit table, crit, damage, armor, energy), and that a run with
   no effective modifiers is identical and draws the same random numbers.
+- `test/modifier-hardening.test.js` — Tests added after the QA of the modifier
+  pipeline (PR #115), each pinning something the first tests left open: a DoT's
+  damage modifier at cast, the hit table and the tick's crit read with the
+  attack's context, armor ignore, the miss refund of the cost paid, a swing's
+  hand, aura modifiers with several stacks, regeneration over a step that
+  straddles an aura, the `modifiers.stacking` rows, and the rejected shapes.
+- `test/resources.test.js` — Resources as data (D3): no energy or combo point
+  names in the executor, a second resource run through it, the max-energy
+  modifier, `Resource` gain, spend, regen, expiry and target change, and
+  Premeditation on the pool.
 - `test/damage-tags.test.js` — Damage modifier hooks by tag (A3): the tags of
   each kind of event, `scope.schools` and `scope.tags` (validation, OR within a
   key, fail closed), "+30% Rupture" and "+20% poison" as data through a real
