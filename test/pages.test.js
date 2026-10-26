@@ -191,7 +191,7 @@ describe("Pages workflow", () => {
         "index.html",
         "styles.css",
         "js/main.js",
-        "js/skill.js",
+        "js/ability.js",
         "data/constants.js",
         "data/talentsforever/rogue.json",
         "data/talentsforever/manifest.json",
@@ -292,7 +292,7 @@ describe("project site paths", () => {
       }
     }
 
-    assert.ok(seen.has("js/skill.js"));
+    assert.ok(seen.has("js/ability.js"));
     assert.ok(seen.has("js/simulation.js"));
     assert.ok(seen.has("data/constants.js"));
 
@@ -308,13 +308,7 @@ describe("project site paths", () => {
       }
     }
     await walk(resolve(root, "js"));
-    // Modules that ship before anything imports them. js/abilities.js (D1,
-    // #93) is read by the engine from D2 (#98), which removes this entry.
-    const notYetImported = new Set(["js/abilities.js"]);
     for (const file of publishedJs) {
-      if (notYetImported.has(file)) {
-        continue;
-      }
       assert.ok(seen.has(file), `${file} is published but not imported`);
     }
   });

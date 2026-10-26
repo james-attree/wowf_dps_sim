@@ -109,7 +109,6 @@ describe("finishers at 1 combo point", () => {
     assert.equal(landed.landed, true);
     assert.equal(rogue.comboPoints, 0);
     assert.equal(rogue.energy, 0);
-    assert.equal(rogue.abilities.rupture.duration, duration);
     assert.equal(sim.activeDots.rupture.duration, duration);
     assert.equal(sim.activeDebuffs.rupture.duration, duration);
     assert.equal(sim.activeBuffs.rupture, undefined);
@@ -135,7 +134,6 @@ describe("finishers at 1 combo point", () => {
     assert.equal(cast, null);
     assert.equal(rogue.comboPoints, 0);
     assert.equal(rogue.energy, cost);
-    assert.equal(rogue.abilities.sliceAndDice.duration, duration);
     assert.equal(sim.activeBuffs["slice-and-dice"].duration, duration);
     assert.equal(sim.activeDebuffs["slice-and-dice"], undefined);
     assert.equal(sim.gcd, k("gcd.duration"));

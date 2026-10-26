@@ -260,14 +260,21 @@ rejects them under `js/`.
   pipeline (`rogue.modifiers`, from `new Rogue(config, { modifiers })`). Attack
   power, crit and hit are read through it; swing haste comes from the
   simulation's pipeline.
-- `js/skill.js` — Shared `Skill` cast path, plus Sinister Strike, Eviscerate,
-  Premeditation, Adrenaline Rush, Slice and Dice, Ghostly Strike, Backstab,
-  Ambush, Blade Flurry, Rupture, and Hemorrhage. Premeditation does not start
-  the GCD. `Skill.cast` treats a remainder within `sim.tickEpsilon` as ready.
-  Rupture's AP term is length-guarded with the damage and duration tables,
-  and Rupture sets `bleed` so its ticks can skip armor. A skill has an `id`
-  (the catalogue's) and a display `name`, and the engine keys cooldowns, auras
-  and DoTs by id.
+- `js/ability-data.js` — The abilities the engine casts, as data (D2):
+  Sinister Strike, Eviscerate, Premeditation, Adrenaline Rush, Slice and Dice,
+  Ghostly Strike, Backstab, Ambush, Blade Flurry, Rupture, and Hemorrhage. Each
+  entry names its catalogue `id`, the constants row with its numbers, its icon,
+  whether it gains or spends combo points, its damage formula (`weapon`,
+  `finisherRoll` or `dot`) and the aura it applies. It holds no number and no
+  display name.
+- `js/ability.js` — The one generic executor (D2). `Ability.cast` runs every
+  ability: cooldown, combo points, energy (after `energyCost` modifiers), the
+  GCD (a remainder within `sim.tickEpsilon` counts as clear), the attack or DoT
+  roll, the miss refund, combo points, Premeditation, the cooldown and the aura.
+  `createAbilities(rogue)` builds `rogue.abilities` from the entries. An ability
+  has an `id` (the catalogue's) and a display `name` read from the catalogue,
+  and the engine keys cooldowns, auras and DoTs by id. There is no class per
+  ability.
 - `js/auras.js` — The aura model (A1). `AURAS` holds each buff and debuff as a
   definition (id, name, target, duration, stacks and stack rule, charges,
   refresh rule, hooks, effects: `haste`, `energyRegenMultiplier`,
@@ -312,8 +319,10 @@ rejects them under `js/`.
   damage, per-combo-point damage and duration tables. What the text leaves out
   comes from `k(id)` (`abilities.apCoefficients`, `abilities.offGcd`,
   `bleed.spells`). `parseSpell` throws an `AbilityParseError` naming the spell
-  and rank on text it cannot read. Data only: the engine does not read it until
-  D2. See [Ability schema](docs/mechanics.md#ability-schema).
+  and rank on text it cannot read. The engine reads an ability's display name
+  and whether it starts the GCD from it (D2); the numbers still come from
+  `k(id)`. See [Ability schema](docs/mechanics.md#ability-schema) and
+  [Ability executor](docs/mechanics.md#ability-executor).
 - `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
   off-hand weapon. A speed below `config.minWeaponSpeed` throws a `RangeError`.
   `WEAPON_ATTACKS` gives the `main-hand` and `off-hand` ids and their labels.
@@ -360,8 +369,8 @@ rejects them under `js/`.
 - `eslint/engine-purity.js` — Rule `engine-purity/no-numeric-literal`. A
   numeric variable initializer in an engine module fails lint, except `0`,
   `1`, and `-1`. Rule `engine-purity/no-display-name` fails a spell, aura or
-  weapon display name used as a string or key in `js/`, outside `js/skill.js`,
-  `js/auras.js` and `js/weapon.js`.
+  weapon display name used as a string or key in `js/`, outside `js/auras.js`
+  and `js/weapon.js`.
 - `test/abilities.test.js` — The ability schema: Sinister Strike R8, Eviscerate
   R9, Rupture R6 and Slice and Dice R2 against a pinned snapshot of their
   values, every other ability's shape, parity with the hand-set constants the
@@ -369,6 +378,12 @@ rejects them under `js/`.
   text rejected with the spell and rank named (including an unknown cost unit,
   min damage above max and an unread damage sentence), a refreshed snapshot, deep
   freezing, and a failed import of `js/abilities.js`.
+- `test/ability-parity.test.js` — The generic executor (D2) against the skill
+  classes it replaced, kept word for word in `test/legacy-skills.js`: the same
+  totals, log, auras, cooldowns and random draws, in the same order, over four
+  seeds, daggers, stats, modifiers and a fight that casts every ability in a
+  changing order. Also: damage and duration at 0 to 6 combo points, one class
+  for every ability, and every entry matching the catalogue.
 - `test/auras.test.js` — The aura model: definition validation, refresh rules,
   stacks, hooks, effects by kind (haste, energy regeneration, DoT damage
   taken), the skill ids matching the catalogue, and the id-keyed breakdown.
@@ -424,8 +439,7 @@ rejects them under `js/`.
   case. Written only by `npm run golden:update -- --write`. Prettier skips the
   directory.
 - `test/pages.test.js` — The data-credit footer and the Pages workflow. Every
-  published `js` file must be imported by the page, except `js/abilities.js`
-  until D2 reads it.
+  published `js` file must be imported by the page.
 - `test/live-view.test.js` — The live page as a view of the engine: `FrameClock`
   (the first frame, the carry, the frame cap, `restart`), `createFight`, a live
   fight against `runFight`, and `js/main.js` on a stand-in page (the seed in the
@@ -471,8 +485,8 @@ rejects them under `js/`.
 - `test/tooling.test.js` — The dev package's scripts and Node `engines` range.
 - `test/weapon.test.js` — Weapon damage, the off-hand penalty, and swing-timer
   overshoot.
-- `img/` — JPEG ability icons. Skills set their own file; the `Skill`
-  default is `img/stealth.jpg`. `img/garotte.jpg` is not referenced.
+- `img/` — JPEG ability icons. Each entry in `js/ability-data.js` sets its own
+  file. `img/garotte.jpg` is not referenced.
   `.prettierignore` excludes the directory.
 - `package.json` — `"type": "module"`, the npm scripts, the Node `engines`
   range, and the dev dependencies. No runtime dependencies.

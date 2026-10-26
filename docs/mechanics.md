@@ -176,10 +176,11 @@ duration. `Simulation.tickGcd` subtracts the frame and floors at zero. It
 does not compare the remainder with `k("sim.tickEpsilon")`, so a positive
 remainder can stay on `gcd`. The note on `k("sim.tickEpsilon")` lists the
 GCD among the timers that use that tolerance. The countdown does not snap
-that remainder. `Skill.cast` is what compares it.
+that remainder. `Ability.cast` is what compares it.
 
-`Skill.cast` in `js/skill.js` treats `triggersGcd` as on unless a subclass
-turns it off. An ability that triggers the GCD is ready when `simulation.gcd`
+`Ability.cast` in `js/ability.js` treats `triggersGcd` as on unless the
+catalogue says the ability does not start the GCD (`startsGcd`, from
+`abilities.offGcd`). An ability that triggers the GCD is ready when `simulation.gcd`
 is at or below `k("sim.tickEpsilon")`. A larger remainder still waits. A
 cast that proceeds calls `setGcd`. The stored remainder can still be
 positive on that frame, so the cast can land about one frame earlier than a
@@ -190,9 +191,9 @@ same rule.
 
 `k("gcd.flags")` (`classic-1.12`, on the retune list) records Slice and Dice,
 Blade Flurry, and Adrenaline Rush on the GCD, and Premeditation off. The
-note says this is applied. Premeditation sets `triggersGcd` off. Slice and
-Dice, Blade Flurry, Adrenaline Rush, and the other `Skill` subclasses leave
-it on, so a successful cast starts the GCD. This is the rule from #57.
+note says this is applied. Premeditation has `triggersGcd` off. Slice and
+Dice, Blade Flurry, Adrenaline Rush, and the other abilities have it
+on, so a successful cast starts the GCD. This is the rule from #57.
 
 The GCD is ticked before `Rogue.rotation`, so a GCD started during this
 frame's casts is not reduced until the next frame. The same is true of a
@@ -340,7 +341,7 @@ is under Energy.
 `k("premeditation").comboPoints`, and starts
 `k("premeditation").cooldown`. The constant is `wowf-export` and is not on
 the retune list. It is not an attack, so the log records a cast. It does not
-start the GCD. The comment on `Premeditation` in `js/skill.js` says the
+start the GCD. The `premeditation` constant's note says the
 export spell_desc has no Stealth requirement and that Classic required it.
 The note on `k("premeditation.cpExpiry")` says Classic needed Stealth. The
 engine does not check for it. There is no Stealth check in `Premeditation`.
@@ -393,21 +394,22 @@ positive, its haste fraction `k("bladeFlurry").haste` is passed to
 
 ## Slice and Dice
 
-`SliceAndDice` in `js/skill.js` is a spender and not an attack. It spends
+Slice and Dice (`js/ability-data.js`) is a spender and not an attack. It spends
 `k("sliceAndDice").energy`, spends every combo point, and clears a
 Premeditation timer. `k("sliceAndDice").cooldown` does not become a cooldown
-entry, because `Skill.cast` records one only when the cooldown is positive.
+entry, because `Ability.cast` records one only when the cooldown is positive.
 The cast is logged as a cast, with no attack roll. The constant is
 `wowf-export` and is not on the retune list. Its ref names the `spell_desc`
 row the export uses for this cast.
 
-`triggersGcd` stays at the `Skill` default, so a cast that proceeds calls
+`triggersGcd` stays on (the catalogue's `startsGcd`), so a cast that proceeds calls
 `Simulation.setGcd`. The `sliceAndDice` note and the `gcd.flags` note both
 say casting it starts the GCD.
 
 Duration is per combo point. When the combo points fall inside
-`k("sliceAndDice").durationByCp`, `SliceAndDice.cast` copies that entry onto
-the buff before `Skill.cast` stores it on `activeBuffs`. The first entry is
+`k("sliceAndDice").durationByCp`, `Ability.resolve` reads that entry as the
+length of the buff `Ability.cast` stores on `activeBuffs`. Outside those combo
+points the length is 0 and no buff is applied. The first entry is
 the duration for one combo point. The `sliceAndDice` note says the stored
 series is the export's per-combo-point duration, a base plus a step times
 combo points,
@@ -1393,7 +1395,7 @@ catalogue id (`slugify(name)`): `sinister-strike`, `slice-and-dice`,
 display name is carried beside the id for the page, the combat log
 (`event.name`) and the result's `abilities` keys, and is never compared. The
 Main-hand and Off-hand labels are the `WEAPON_ATTACKS` entries in `js/weapon.js`.
-A name is written once, at the definition site (`js/skill.js`, `js/auras.js`,
+A name is written once, at the definition site (the spell data for an ability, `js/auras.js`,
 `js/weapon.js`).
 
 **Guard.** The lint rule `engine-purity/no-display-name` (`eslint/engine-purity.js`,
@@ -1420,12 +1422,12 @@ rank, `Rogue|Name|Passive` for a passive). `js/snapshot.js` imports the JSON, so
 the module needs no `fetch` or `fs`, and `npm run data:refresh` changes the
 catalogue with no code change.
 
-**D1 is data only.** The engine does not read the catalogue. The hand-written
-skill classes in `js/skill.js` still run every fight, so no `runFight` result,
-event or golden fixture changes. D2 (#98) switches the engine over.
-`test/abilities.test.js` compares the catalogue with the constants the skills
-use (`sinisterStrike`, `eviscerate`, `rupture`, `sliceAndDice` and the rest), so
-the switch cannot move a number.
+**D1 was data only.** D2 (#98) is the first reader: the executor takes an
+ability's display name and `startsGcd` from the catalogue (see
+[Ability executor](#ability-executor)). The numbers still come from the
+constants, and `test/abilities.test.js` compares the catalogue with them
+(`sinisterStrike`, `eviscerate`, `rupture`, `sliceAndDice` and the rest), so
+the two cannot drift apart.
 
 Each ability has:
 
@@ -1486,3 +1488,65 @@ Adrenaline Rush's energy %, Ghostly Strike's dodge, Hemorrhage's Rupture
 bonus), the poisons (D9) and the talent modifiers (D6). They stay in
 `data/constants.js` until the issue that needs them. The catalogue is deeply
 frozen, and building it draws no random numbers.
+
+## Ability executor
+
+`js/ability-data.js` lists the abilities the engine casts as data, and
+`js/ability.js` casts them with one class (roadmap D2, issue #98). The
+subclasses of the old `js/skill.js` are gone. A new ability is a new entry and
+no new code, unless it needs a damage kind or a rule the executor does not have
+yet.
+
+An entry holds no number and no display name:
+
+- `key` is the property on `Rogue.abilities` (`sinisterStrike`), `id` the
+  catalogue id, `row` the `data/constants.js` row with the ability's numbers
+  and `icon` the image path.
+- `comboPoints` is `"gain"` (adds the row's `comboPoints`) or `"spend"` (needs
+  one and clears them). `expiresComboPoints` is Premeditation's: the points
+  it added expire unless a later cast adds one or a finisher spends them.
+- `damage` is absent for an ability that is not an attack (the log records a
+  "Cast"), or one of three kinds. `weapon` is the weapon roll times a
+  multiplier plus a bonus. A multiplier is a number or `{ dagger, other }`,
+  chosen by `config.weapons.mainHand.type` and nothing else (Ghostly Strike
+  and Hemorrhage). `finisherRoll` is Eviscerate: attack power times combo
+  points times `eviscerate.apPerCP`, plus a roll inside the band for the combo
+  points. `dot` is Rupture: the row's damage plus attack power times
+  `rupture.apByCP`, as a total the DoT applicator divides by the tick count,
+  with `bleed` so the ticks skip armor.
+- `aura` is the aura the cast applies (an `AURAS` key) and its length, a field of
+  the row, of another row (Hemorrhage's 15 s is `hemorrhage.ruptureBonus`), or
+  a table by combo points (Slice and Dice, Rupture).
+
+The display name and whether the ability starts the GCD come from the catalogue
+(`name`, `startsGcd`). A definition whose `id` is not in the catalogue throws.
+
+**One cast path.** `Ability.cast` is the cast `Skill.cast` was: on cooldown, or
+a spender with no combo points, returns null. It then resolves the cost through
+the `energyCost` modifiers and needs the energy and a clear GCD (or no GCD).
+It spends the energy, starts the GCD, resolves the damage and the aura length
+once (`Ability.resolve`), and makes the attack, the DoT or the cast. A miss
+refunds `skill.missEnergyRefund` of the cost and stops. Otherwise it spends or
+adds combo points (arming or clearing Premeditation), starts the cooldown and
+applies the aura. The random numbers are drawn in the same places as before:
+one for the weapon roll or the Eviscerate roll inside `resolve`, then the
+attack's own rolls. A zero-rank talent or a proc never draws.
+
+**What changed on the object.** `ability.damage()` still returns the damage.
+`ability.duration` is the fixed length of an aura that has one. It no longer
+holds the last Rupture or Slice and Dice length. `ability.resolve()` returns
+`{ damage, duration }` for the rogue's current combo points, and the aura
+records on `Simulation` hold what a cast applied. A Slice and Dice cast outside
+the combo points its table covers applies no buff (before, it reused the last
+length). With `combo.max` at 5 and a table of 5 that cannot happen in a fight.
+
+**Result shape.** Unchanged. `runFight` and `createFight` return the same
+fields, and the four golden fixtures, including the scripted one, are
+byte-identical. The seams `Rogue.prototype.rotation`, a per-instance
+`skill.cast` and the `rogue.abilities` keys work as before, so
+`scripts/scripted-fight.mjs` is unchanged.
+
+**Parity.** `test/legacy-skills.js` keeps the old classes word for word.
+`test/ability-parity.test.js` runs the old and the new abilities on the same
+seeds and compares the draws, totals, log, auras, cooldowns and Premeditation
+state, including a fight that casts every ability in a changing order.

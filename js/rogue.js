@@ -2,7 +2,7 @@ import { k } from "../data/constants.js";
 import { ModifierPipeline } from "./modifiers.js";
 import { normalizeConfig } from "./sim-config.js";
 import { Weapon } from "./weapon.js";
-import * as Skills from "./skill.js";
+import { createAbilities } from "./ability.js";
 
 export class Rogue {
   // `config` is a SimConfig (js/sim-config.js): the character stats, the
@@ -48,19 +48,7 @@ export class Rogue {
     this.rng = null;
     this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // normalizedSpeed.dagger for instant-attack AP
 
-    this.abilities = {
-      premeditation: new Skills.Premeditation(this),
-      sinisterStrike: new Skills.SinisterStrike(this),
-      eviscerate: new Skills.Eviscerate(this),
-      adrenalineRush: new Skills.AdrenalineRush(this),
-      sliceAndDice: new Skills.SliceAndDice(this),
-      ghostlyStrike: new Skills.GhostlyStrike(this),
-      backstab: new Skills.Backstab(this),
-      ambush: new Skills.Ambush(this),
-      bladeFlurry: new Skills.BladeFlurry(this),
-      rupture: new Skills.Rupture(this),
-      hemorrhage: new Skills.Hemorrhage(this),
-    };
+    this.abilities = createAbilities(this);
 
     // Weapons
     this.weapons = {

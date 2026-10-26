@@ -27,6 +27,17 @@ function withAp(value, run) {
   }
 }
 
+function withRupture(changes, run) {
+  const row = CONSTANTS.rupture;
+  const saved = row.value;
+  row.value = { ...saved, ...changes };
+  try {
+    return run();
+  } finally {
+    row.value = saved;
+  }
+}
+
 function near(actual, expected) {
   assert.ok(
     Number.isFinite(actual) &&
@@ -92,7 +103,7 @@ describe("Rupture AP coefficients", () => {
       const rupture = rogue.abilities.rupture;
       const bonus = ap * k("rupture.apByCP")[index];
       assert.equal(rupture.damage(), stats.damageByCp[index] + bonus);
-      assert.equal(rupture.duration, stats.durationByCp[index]);
+      assert.equal(rupture.resolve().duration, stats.durationByCp[index]);
       assert.equal(bonus, ap * CATA_TOTALS[index]);
       if (CATA_TOTALS[index] === CLASSIC_TOTALS[index]) {
         assert.equal(bonus, ap * CLASSIC_TOTALS[index]);
@@ -117,7 +128,8 @@ describe("Rupture AP coefficients", () => {
         const { rogue, sim } = harness(comboPoints);
         const rupture = rogue.abilities.rupture;
         const raw = rupture.damage();
-        const ticks = Math.floor(rupture.duration / k("rupture.tickInterval"));
+        const duration = rupture.resolve().duration;
+        const ticks = Math.floor(duration / k("rupture.tickInterval"));
         const cast = rupture.cast(rogue, sim);
         assert.equal(cast.landed, true, `${fps} fps CP ${comboPoints}`);
         assert.equal(sim.damageDone, 0);
@@ -125,7 +137,7 @@ describe("Rupture AP coefficients", () => {
         const dot = sim.activeDots.rupture;
         assert.equal(dot.tickDamage, Math.floor(raw) / ticks);
         const dt = 1 / fps;
-        const frames = Math.round(rupture.duration * fps);
+        const frames = Math.round(duration * fps);
         for (let frame = 1; frame <= frames; frame += 1) {
           sim.step(dt);
         }
@@ -164,9 +176,8 @@ describe("Rupture AP coefficients", () => {
       }
       withAp(replaced.slice(0, 2), () => {
         const { rogue } = harness(3);
-        rogue.abilities.rupture.duration = stats.durationByCp[2];
         assert.equal(rogue.abilities.rupture.damage(), 0);
-        assert.equal(rogue.abilities.rupture.duration, 0);
+        assert.equal(rogue.abilities.rupture.resolve().duration, 0);
         rogue.comboPoints = 2;
         assert.equal(
           rogue.abilities.rupture.damage(),
@@ -174,5 +185,25 @@ describe("Rupture AP coefficients", () => {
         );
       });
     });
+  });
+
+  it("applies nothing past the end of the damage or duration table", () => {
+    const stats = k("rupture");
+    const ap = k("character.attackPower");
+    for (const field of ["damageByCp", "durationByCp"]) {
+      withRupture({ [field]: stats[field].slice(0, 2) }, () => {
+        const { rogue } = harness(3);
+        assert.equal(rogue.abilities.rupture.damage(), 0, field);
+        assert.equal(rogue.abilities.rupture.resolve().duration, 0, field);
+        rogue.comboPoints = 2;
+        const resolved = rogue.abilities.rupture.resolve();
+        assert.equal(
+          resolved.damage,
+          stats.damageByCp[1] + ap * k("rupture.apByCP")[1],
+          field,
+        );
+        assert.equal(resolved.duration, stats.durationByCp[1], field);
+      });
+    }
   });
 });

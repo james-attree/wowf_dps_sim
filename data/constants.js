@@ -160,7 +160,7 @@ export const CONSTANTS = {
     "–",
     WOWF_EXPORT,
     "rogue.json → spell_desc (max rank)",
-    "Umbrella row for costs, cooldowns, weapon percents, and per-CP tables. js/abilities.js (D1) now parses these from spell_desc into a catalogue, and test/abilities.test.js checks that catalogue against the per-ability constants below. The engine still reads the per-ability constants until D2 switches over.",
+    "Umbrella row for costs, cooldowns, weapon percents, and per-CP tables. js/abilities.js (D1) now parses these from spell_desc into a catalogue, and test/abilities.test.js checks that catalogue against the per-ability constants below. The engine reads the numbers from the per-ability constants below. D2 (#98) takes only each ability's display name and GCD flag from the catalogue.",
     false,
   ),
   sinisterStrike: entry(
@@ -938,7 +938,7 @@ export const CONSTANTS = {
     "ability ids",
     CLASSIC,
     `${WS}rogue/premeditation.go (the same source as gcd.flags)`,
-    "The abilities that do not start the global cooldown. Premeditation is the only one the engine models today (gcd.flags). Every other ability in the catalogue defaults to starting the GCD, which is not yet checked against the game for abilities the engine does not cast (Cold Blood, Preparation, Sprint, Stealth, Vanish and others). D2 should review that before it relies on the flag for them.",
+    "The abilities that do not start the global cooldown. Premeditation is the only one the engine models today (gcd.flags). Every other ability in the catalogue defaults to starting the GCD, which is not yet checked against the game for abilities the engine does not cast (Cold Blood, Preparation, Sprint, Stealth, Vanish and others). D2 (#98) reads the flag for the eleven abilities the engine casts and defines no other, so the rest still wait for review.",
     true,
   ),
   "log.maxEvents": entry(

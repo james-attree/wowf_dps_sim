@@ -174,7 +174,7 @@ describe("static server", () => {
       }
     }
     assert.ok(seen.has("/js/attack-resolver.js"));
-    assert.ok(seen.has("/js/skill.js"));
+    assert.ok(seen.has("/js/ability.js"));
     assert.ok(seen.has("/js/weapon.js"));
     assert.ok(seen.has("/data/talentsforever/manifest.json"));
 

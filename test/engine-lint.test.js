@@ -340,7 +340,7 @@ describe("no display names in the engine (issue #94)", () => {
   it("scans js/main.js, and leaves the definition sites alone", async () => {
     const source = 'export const a = (x) => x.cooldowns["Rupture"];\n';
     assert.ok((await reported("js/main.js", source)).length > 0);
-    for (const file of ["js/skill.js", "js/auras.js", "js/weapon.js"]) {
+    for (const file of ["js/auras.js", "js/weapon.js"]) {
       assert.deepEqual(await reported(file, source), [], file);
     }
   });
