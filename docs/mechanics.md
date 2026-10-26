@@ -194,12 +194,17 @@ list). The note says Dual Wield Specialization is not applied on top.
 
 Specials that use the weapon call `Rogue.rollWeaponDamageForSkill`. That is
 the main-hand die plus attack power divided by `k("ap.perDps")`, times
-`k("normalizedSpeed.dagger")`. The rogue copies that normalised speed once,
-in the constructor. The note on `k("normalizedSpeed.dagger")`
-(`classic-1.12`, on the retune list) says instant attacks use normalised
-speed for the attack-power term and that the engine assumes a dagger.
-`k("normalizedSpeed.oneHand")` (same source, on the retune list) is not
-selected. Its note says so.
+the normalised speed of the main-hand weapon type (issue #129). The rogue
+picks it once, in the constructor, from `config.weapons.mainHand.type`:
+`k("normalizedSpeed.dagger")` (1.7 s) for `"dagger"`, and
+`k("normalizedSpeed.oneHand")` (2.4 s) for any other type, including none.
+Both are `classic-1.12` and on the retune list; the project owner confirmed
+1.7 for daggers and 2.4 for the other one-hand weapons (relayed by Scout).
+Only the main hand matters: every special rolls the main-hand weapon, and
+the off-hand type and the off-hand swing (a white swing, which uses the
+weapon's own speed) never use a normalised speed. The pick is made at
+construction, so changing `weapons.mainHand.type` afterwards changes only
+the Ghostly Strike and Hemorrhage weapon percent, not the normalised speed.
 
 Sinister Strike is the rotation's builder. It deals the normalised hit plus
 `k("sinisterStrike").bonusDamage` and has no weapon multiplier. Hemorrhage
@@ -937,7 +942,8 @@ default. A section is merged field by field, so `{ character: { attackPower:
 - **Character and weapons change the fight.** They go straight into the
   `Rogue`, where the constants used to be read. The dagger weapon percent for
   Ghostly Strike and Hemorrhage still depends on the main-hand `type` being
-  `"dagger"`, and normalised swing speed is still the dagger one. The
+  `"dagger"`, and the normalised swing speed of the specials is 1.7 for a dagger and 2.4 for
+  any other type. The
   off hand's first-swing delay (`weapon.offHand.initialSwing`) and the starting
   combo points are not part of the config.
 - **Target position changes the attack table.** `target.behind` (a boolean,
@@ -1025,13 +1031,7 @@ the Bloodletter (a 240 damage fatal wound) and Perdition's Blade (40 to 56 Fire
 damage); the Crusader enchant procs; Hand of Justice's extra attack; the
 Nightslayer set bonuses; and weapon skill. A Human gets +5 sword skill, which
 would lower the miss and crit suppression a little, and the attack table has no
-skill term, so the sheet's hit and crit are the ones it reads. Weapon
-normalisation is also still 1.7 s for every weapon (`k("normalizedSpeed.dagger")`):
-Classic normalises non-daggers to 2.4 s (`k("normalizedSpeed.oneHand")`, not
-selected by the engine yet), so with swords the weapon-damage part of Sinister
-Strike and the other instants is about 0.7 x attack power / 14, roughly 38
-damage, too low. The fix is a one-line choice by main-hand type in `js/rogue.js`,
-not a data-only change, so it is left for a later issue.
+skill term, so the sheet's hit and crit are the ones it reads.
 
 Hit above the cap: the table takes `bonusHitChance` less 1% (the engine's
 suppression term, `miss.yellow` of 8% plus 1% is the 9% cap), so a yellow attack

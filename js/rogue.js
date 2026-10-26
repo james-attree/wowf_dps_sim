@@ -69,7 +69,14 @@ export class Rogue {
     this.bonusHitChance = character.bonusHitChance;
     // The Simulation that owns this rogue sets rng. Until then a draw throws.
     this.rng = null;
-    this.normalizedWeaponSpeed = k("normalizedSpeed.dagger"); // normalizedSpeed.dagger for instant-attack AP
+    // Instant attacks use the normalized speed of the main-hand weapon for the
+    // AP bonus: normalizedSpeed.dagger for a dagger, normalizedSpeed.oneHand for
+    // any other type (or none). Abilities roll the main hand only (issue #129).
+    this.normalizedWeaponSpeed = k(
+      weapons.mainHand.type === "dagger"
+        ? "normalizedSpeed.dagger"
+        : "normalizedSpeed.oneHand",
+    );
 
     this.abilities = createAbilities(this);
 
@@ -198,7 +205,8 @@ export class Rogue {
   }
 
   rollWeaponDamageForSkill() {
-    // Weapon die plus attack power / ap.perDps, times normalizedSpeed.dagger.
+    // Weapon die plus attack power / ap.perDps, times the normalized speed of
+    // the main-hand type (the dagger or the one-hand constant, set above).
     return (
       this.weapons.mainHand.rollWeaponDamage() +
       (this.getAttackPower() / k("ap.perDps")) * this.normalizedWeaponSpeed
