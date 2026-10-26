@@ -242,6 +242,12 @@ rejects them under `js/`.
   and Rupture sets `bleed` so its ticks can skip armor.
 - `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
   glancing, crit, hit) for white swings and skills. Chances come from `k(id)`.
+- `js/talents.js` — The talent catalogue (D4). `talentCatalogue` is built from
+  `data/talentsforever/rogue.json` when the module loads: 53 talents with
+  `tree.slug` ids, row, column, max rank, prerequisite (`req`), icon name and
+  the text of every rank. `buildTalentCatalogue(snapshot)` builds one from any
+  parsed export, and `slugify(name)` is the id rule. The live page does not
+  import it yet.
 - `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
   off-hand weapon.
 - `js/gcd-meter.js` — Sets the GCD meter's ARIA range from
@@ -343,6 +349,9 @@ rejects them under `js/`.
   `haste.stacking`.
 - `test/step.test.js` — `Simulation.step(dt)`: time moves only by `dt`, rejected
   steps, no wall-clock reads, and the same state for the same seed and steps.
+- `test/talents.test.js` — The talent catalogue: the 17, 17 and 19 tree counts,
+  unique ids, every field against the snapshot, known talents end to end, the
+  lookups, and rejected bad data.
 - `test/tooling.test.js` — The dev package's scripts and Node `engines` range.
 - `test/weapon.test.js` — Weapon damage, the off-hand penalty, and swing-timer
   overshoot.

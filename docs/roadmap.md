@@ -38,6 +38,15 @@ issues when that phase starts.
 - U — UI
 - H — history and persistence
 
+## Phase 2 status
+
+Phase 2 is in progress. The tracker is
+[#108](https://github.com/james-attree/wowf_dps_sim/issues/108), and its issues
+(#90 to #107) land in the order listed there, one PR each. GitHub is the source
+of truth, and this list will go stale.
+
+- [#90](https://github.com/james-attree/wowf_dps_sim/issues/90) — [P2-1] D4: Talent catalogue loaded straight from the snapshot — closed when this change merges. See [Talent catalogue](mechanics.md#talent-catalogue).
+
 ## Phase 1 status
 
 Every Phase 1 issue is merged, and this docs issue (#78) is the last. James has

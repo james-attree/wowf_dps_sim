@@ -919,3 +919,46 @@ What a reader should not assume from the sections above:
   Slice and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left
   at the finisher combo points. None of 100 seeds (1 to 100) cast it in a 120 s
   run, so the golden tests reach both through a scripted case. Talent ranks are not applied.
+
+## Talent catalogue
+
+`js/talents.js` reads the talent trees from the vendored snapshot,
+`data/talentsforever/rogue.json`, into one lookup (roadmap D4). It holds no
+talent number of its own. Every field below comes from the snapshot when the
+module loads, so `npm run data:refresh` changes the catalogue with no code
+change. Nothing in the engine or the live page uses it yet; the later Phase 2
+issues build on it.
+
+Each talent has:
+
+- `id`: `tree.slug`, for example `combat.precision` or
+  `combat.dual-wield-specialization`.
+- `tree`, `name`, `row`, `col` (the snapshot's 1-based grid position) and `max`
+  (the rank cap).
+- `req`: the id of the prerequisite talent in the same tree, or `null`. The
+  snapshot names the prerequisite by talent name, and the loader resolves it.
+- `icon`: the snapshot's icon name. It is a name only. Resolving it to a picture
+  is a later issue.
+- `ranks`: the tooltip text of each rank, rank 1 first (`ranks.length` is
+  `max`).
+- `passive`, `cost` and `fixed`: the snapshot's own fields. `cost` is the cost
+  line of an active talent such as Blade Flurry, and `fixed` is a list the
+  snapshot carries for Quietus. Both are `null` when the snapshot has none.
+
+The slug rule is in `slugify`: lower-case the name, delete apostrophes, turn each
+run of other characters into one hyphen, and strip hyphens from the ends. The
+tree part of an id is the slug of the tree's name (`assassination`, `combat`,
+`subtlety`).
+
+The snapshot holds 53 talents: 17 Assassination, 17 Combat and 19 Subtlety. Its
+`removed` lists (Classic talents that this build does not have) are not
+loaded, and neither are the `classic` comparison fields. The loader rejects a
+duplicate id, a duplicate tree, a missing field and a `req` that is not in the
+same tree, and it does not check that a talent has `max` rank texts; that check
+belongs to the load-time validation issue (D11, #91).
+
+The lookups are `get(id)`, `byTree(treeId)`, `byName(name, treeId?)` (ignoring
+case) and `rankText(id, rank)`. The catalogue is deeply frozen, because one
+object is shared by every caller. Loading it draws no random numbers, and the
+module reads the JSON through an import attribute, so it needs no `fetch` or
+`fs` and runs in Node and in the browser.
