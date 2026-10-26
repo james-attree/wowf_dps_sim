@@ -80,6 +80,27 @@ describe("aura definitions", () => {
     assert.throws(() => defineAura(), TypeError);
   });
 
+  it('reserves the id "__proto__", which would set a prototype and not an aura', () => {
+    assert.throws(() => define({ id: "__proto__" }), /"__proto__" is reserved/);
+    // Other names that exist on every object are fine as ids; the engine reads
+    // its aura tables with own-property checks.
+    for (const id of ["constructor", "toString", "hasOwnProperty"]) {
+      assert.equal(define({ id }).id, id);
+    }
+  });
+
+  it("takes effects given as an object with no prototype", () => {
+    const effects = Object.assign(Object.create(null), { haste: 0.2 });
+    const aura = define({ effects });
+    assert.equal(aura.effects.haste, 0.2);
+    assert.equal(aura.modifiers[0].value, 0.2);
+    assert.throws(
+      () =>
+        define({ effects: Object.assign(Object.create(null), { hast: 1 }) }),
+      /unknown effect "hast"/,
+    );
+  });
+
   it("lists the effect kinds and refresh rules the engine knows", () => {
     assert.deepEqual(
       [...EFFECT_KINDS],
@@ -177,6 +198,27 @@ describe("applying an aura", () => {
       RangeError,
     );
     assert.deepEqual(sim.activeBuffs, {});
+  });
+
+  it("needs a whole number of stacks, 1 or more, so no NaN reaches the maths", () => {
+    const aura = define({ target: "target", duration: 5, maxStacks: 5 });
+    for (const stacks of [0, -1, 1.5, Number.NaN, Infinity, "2", null]) {
+      const { sim } = fresh();
+      const known = sim.auraDefinitions.size;
+      assert.throws(
+        () => sim.applyAura(aura, { stacks }),
+        /whole number of stacks/,
+        String(stacks),
+      );
+      assert.deepEqual(sim.activeDebuffs, {}, String(stacks));
+      assert.equal(sim.auraDefinitions.size, known, String(stacks));
+    }
+    // Armor stays finite, and a valid stack count still works afterwards.
+    const { sim } = fresh();
+    const before = sim.armorMultiplier();
+    sim.applyAura(AURAS.exposeArmor, { stacks: 2 });
+    assert.ok(Number.isFinite(sim.armorMultiplier()));
+    assert.ok(sim.armorMultiplier() > before);
   });
 
   it("follows the refresh rule on a second application", () => {

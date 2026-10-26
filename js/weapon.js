@@ -4,8 +4,19 @@ import { k } from "../data/constants.js";
 // totals and a display name for the combat log. Not catalogue abilities, so
 // their ids are these two.
 const WEAPON_ATTACKS = Object.freeze({
-  main: Object.freeze({ id: "main-hand", name: "Main-hand", icon: null }),
-  off: Object.freeze({ id: "off-hand", name: "Off-hand", icon: null }),
+  // `hand` is the modifier scope's name for the hand (js/modifiers.js).
+  main: Object.freeze({
+    id: "main-hand",
+    name: "Main-hand",
+    icon: null,
+    hand: "mainHand",
+  }),
+  off: Object.freeze({
+    id: "off-hand",
+    name: "Off-hand",
+    icon: null,
+    hand: "offHand",
+  }),
 });
 
 export class Weapon {

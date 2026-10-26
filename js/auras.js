@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { defineModifier } from "./modifiers.js";
 
 // The aura model (A1). An aura is a timed effect on the player (a buff) or on
 // the target (a debuff or a DoT's marker). Each one is a definition: an id,
@@ -6,6 +7,15 @@ import { k } from "../data/constants.js";
 // it has while it is up. The engine asks for effects by kind
 // (Simulation.auraEffects) and never by the aura's name, so a new aura is a
 // new definition and no change to the engine.
+//
+// What an aura changes while it is up is data of two kinds. Its effects
+// are the engine-read kinds below. Its modifiers are the A2 schema
+// (js/modifiers.js): { kind, op, value, scope? } entries that the modifier
+// pipeline combines with talents and every other source. A haste or
+// energyRegenMultiplier effect is shorthand for the matching modifier
+// (haste add, energyRegen mult); defineAura writes that modifier for it, and
+// the engine reads the modifier. The effects stay as written so an aura
+// definition keeps one obvious place for its number.
 //
 // A target aura can have stacks (up to maxStacks, by its stackRule) and
 // charges. A charged aura (charges set) ends after that many landed
@@ -111,11 +121,17 @@ export function defineAura(spec) {
     charges = null,
     refresh = "refresh",
     effects = {},
+    modifiers = [],
     onApply = null,
     onExpire = null,
   } = spec ?? {};
   if (typeof id !== "string" || id === "") {
     fail(id, "needs a non-empty string id.");
+  }
+  // Auras are looked up by id in plain objects. "__proto__" would set a
+  // prototype and not a key.
+  if (id === "__proto__") {
+    fail(id, 'the id "__proto__" is reserved.');
   }
   if (typeof name !== "string" || name === "") {
     fail(id, "needs a display name.");
@@ -174,6 +190,29 @@ export function defineAura(spec) {
     }
     checked[kind] = checkEffect(id, kind, value);
   }
+  if (!Array.isArray(modifiers)) {
+    fail(id, "modifiers must be an array of modifiers.");
+  }
+  // Effects that are shorthand for modifiers come first, then the explicit
+  // ones, so the order is the same on every load.
+  const derived = [];
+  if (Object.hasOwn(checked, "haste")) {
+    derived.push({ kind: "haste", op: "add", value: checked.haste });
+  }
+  if (Object.hasOwn(checked, "energyRegenMultiplier")) {
+    derived.push({
+      kind: "energyRegen",
+      op: "mult",
+      value: checked.energyRegenMultiplier,
+    });
+  }
+  const compiled = [...derived, ...modifiers].map((modifier) => {
+    try {
+      return defineModifier({ ...modifier, source: id });
+    } catch (error) {
+      throw new TypeError(`Aura "${id}": ${error.message}`, { cause: error });
+    }
+  });
   return Object.freeze({
     id,
     name,
@@ -185,6 +224,7 @@ export function defineAura(spec) {
     charges,
     refresh,
     effects: Object.freeze(checked),
+    modifiers: Object.freeze(compiled),
     onApply,
     onExpire,
   });

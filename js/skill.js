@@ -9,6 +9,10 @@ class Skill {
     this.id = id;
     this.name = name;
     this.energyCost = energyCost;
+    // What an energyCost modifier's scope sees of this skill. A skill attacks
+    // with the main hand (Simulation.attackContext reads `hand`).
+    this.hand = "mainHand";
+    this.costContext = Object.freeze({ ability: id });
     this.cooldown = cooldown;
     this.duration = 0;
     this.spender = false; // Whether this skill is a combo point spender
@@ -49,11 +53,18 @@ class Skill {
     // cooldowns, DoT expiry, and weapon swings already use. Every off-GCD
     // skill skips that wait and does not start one, not only Premeditation.
     // A future off-GCD skill, such as Cold Blood, inherits this.
+    // The cost after energyCost modifiers (Improved Sinister Strike). With
+    // none, it is this.energyCost as it stands.
+    const energyCost = simulation.modifiers.resolve(
+      "energyCost",
+      this.energyCost,
+      this.costContext,
+    );
     if (
-      rogue.energy >= this.energyCost &&
+      rogue.energy >= energyCost &&
       (simulation.gcd <= k("sim.tickEpsilon") || !this.triggersGcd)
     ) {
-      rogue.energy -= this.energyCost;
+      rogue.energy -= energyCost;
       if (this.triggersGcd) {
         simulation.setGcd();
       }
@@ -87,7 +98,7 @@ class Skill {
 
       if (result && !result.landed) {
         // A miss refunds skill.missEnergyRefund of the energy and does not start the cooldown.
-        rogue.energy += this.energyCost * k("skill.missEnergyRefund");
+        rogue.energy += energyCost * k("skill.missEnergyRefund");
         return result; // Return the result of the attack attempt
       }
 

@@ -244,20 +244,23 @@ retune list). The note says Forever regenerates continuously, and that
 Classic used a periodic tick. The engine adds `rate * dt` every frame. It
 does not wait for a tick.
 
-`Simulation.regenerateEnergy` reads the `energyRegenMultiplier` effects
-(Adrenaline Rush's) before auras are counted down. The slice of the step still
-inside the aura, including the step the aura runs out, uses
+`Simulation.regenerateEnergy` asks the modifier pipeline for the
+`energyRegen` contributions (see Modifiers). Adrenaline Rush's
+`energyRegenMultiplier` effect compiles into an `energyRegen` `mult` modifier
+(`k("adrenalineRush").regenMultiplier`, once per stack). With none, the step is
+`k("energy.regenPerSecond") * dt`, as before. Static contributions (a talent's
+`add` or `mult`) apply for the whole step. A timed one applies to the slice of
+the step still inside its aura, including the step the aura runs out, and the
+rest of the frame uses the rate without it. The base-rate slice is added first,
+then each longer-covered rate in turn. Each add is capped. The cast frame
+itself stays at the base rate, because the buff is applied later, inside
+`Rogue.rotation`. With more than one timed contribution the step is cut where
+each runs out, and each applies to the part it covers. One aura gives exactly
+the two slices of the earlier model, so the golden fixtures are unchanged.
 
-`k("energy.regenPerSecond") * k("adrenalineRush").regenMultiplier`
-
-and the rest of the frame uses `k("energy.regenPerSecond")`. The base-rate
-slice is added first, then the bonus-rate slice. Each add is capped. The
-cast frame itself stays at the base rate, because the buff is applied later,
-inside `Rogue.rotation`. With more than one such aura the step is cut where
-each runs out, and each multiplies the rate for the part it covers. One aura
-is exactly the two slices above.
-
-`Skill.cast` spends `energyCost` before the attack roll. If the attack does
+`Skill.cast` spends `energyCost` before the attack roll. The cost is the
+base cost resolved through the `energyCost` modifiers for that ability (never
+below 0), so a talent that lowers a cost is data. If the attack does
 not land, it refunds `energyCost * k("skill.missEnergyRefund")` and returns
 without a cooldown, combo points, or an aura. The GCD, if this ability
 starts one, is already running. `k("skill.missEnergyRefund")` is an
@@ -437,13 +440,16 @@ The note says Classic attack-speed effects multiply, as wowsims does in
 `MultiplyMeleeSpeed`, and that Slice and Dice and Blade Flurry each
 contribute.
 
-`Rogue.rotation` starts the swing multiplier at 1, then, for each `haste`
-effect from `Simulation.auraEffects("haste")` (an aura that is up with duration
-still positive), replaces it with `stackHaste` of the current multiplier and
-that effect's haste fraction, once per stack. It names no aura. The effects
-come in the registry order of `js/auras.js`, Slice and Dice then Blade Flurry,
-whichever was cast first. `Weapon.tick` divides weapon speed by the result.
-Both hands use the same multiplier.
+`Rogue.rotation` sets the swing multiplier to
+`simulation.modifiers.resolve("haste", 1)`. The `haste` kind has the `haste`
+stacking form: the pipeline starts at 1 and, for each `haste` modifier in
+order, replaces the multiplier with `stackHaste` of the current multiplier and
+the modifier's value, once per stack (an aura's `haste` effect compiles into a
+`haste` `add` modifier, and its stacks repeat it). Static haste modifiers come
+first, then the auras in the registry order of `js/auras.js`, Slice and Dice
+then Blade Flurry, whichever was cast first. It names no aura. With no haste
+modifier the multiplier is exactly 1. `Weapon.tick` divides weapon speed by
+the result. Both hands use the same multiplier.
 
 - Multiplicative: `stackHaste` returns the current multiplier times
   `(1 + haste)`. With both buffs the interval divisor is
@@ -469,19 +475,27 @@ delay. The notes on `sliceAndDice` and `haste.stacking` both say this. The
 
 ## Armor
 
-`armorMultiplier` in `js/simulation.js` reads `k("target.armor")` (an
-assumption on the retune list; negative armor is treated as zero) and
-`k("armor.mitigation")` (`classic-1.12`, on the retune list). The reduction
-is
+`Simulation.armorMultiplier(context)` (a method, in `js/simulation.js`) reads
+`k("target.armor")` (an assumption on the retune list; negative armor is
+treated as zero), subtracts the armor the target's auras take off (the
+`armorReduction` effects, such as Expose Armor, A6) and floors the result at
+zero. Then it applies `k("armor.mitigation")` (`classic-1.12`, on the retune
+list). The reduction is
 
 `armor / (armor + k("armor.mitigation").constant + k("armor.mitigation").perLevel * k("character.level"))`
 
-capped at `k("armor.mitigation").cap`, and not below zero. Damage kept is
-the incoming damage times one minus that reduction. If the denominator is
-not positive, the multiplier is one and nothing is removed.
+where `armor` is the figure left after the auras and after armor ignore. Armor
+ignore is the `armorIgnore` modifier for the attack's context (a mace talent,
+say): a fraction of the armor left after the auras, taken off before the
+formula, and capped at 1. The reduction is capped at
+`k("armor.mitigation").cap` and not below zero. Damage kept is the incoming
+damage times one minus the reduction. If the denominator is not
+positive, the multiplier is one and nothing is removed.
 `k("character.level")` is `wowf-export` and is not on the retune list. The
 notes on `character.level` and `armor.mitigation` describe the divisor's
 constant term at that level. The engine evaluates the expression above.
+`applyArmor(damage, skip, context)` is the one place damage meets it, for
+direct hits and ticks alike.
 
 `Simulation.resolveAttack` always applies this to a direct hit, after
 `resolveAttack` has floored the pre-armor damage. The running total keeps
@@ -1109,6 +1123,109 @@ module itself fails to load.
 `byName` reports what it was given when it throws: `byName needs a talent name
 as a string, not null.`
 
+## Modifiers
+
+Issue #96 (roadmap A2). A **modifier** is one piece of data that changes one
+stat for the attacks it is scoped to. A talent rank, an aura stack, and later a
+set bonus or a proc each give modifiers. The engine asks the pipeline for a
+stat and never names a talent, a tree or an aura, so a new source is data and
+needs no engine code. `js/modifiers.js` has the schema and the pipeline.
+
+```js
+{ kind: "damage", op: "add", value: 0.1,
+  scope: { abilities: ["backstab"], hands: ["mainHand"], weaponTypes: ["dagger"] },
+  source: "subtlety.opportunity" }
+```
+
+- `kind`: what changes. `attackPower`, `critChance`, `hitChance`,
+  `dodgeReduction`, `parryReduction`, `armorIgnore`, `energyRegen`,
+  `energyCost`, `damage`, `critDamage`, `haste`. Each kind lists which scope
+  keys it accepts (attack power, regen and haste are not per attack, so they
+  accept none) and a floor for the result where a negative would be nonsense
+  (attack power, regen, cost and damage 0; the crit multiplier 1).
+- `op`: `add` or `mult`. `value` is a finite number, and a `mult` must be above 0.
+- `scope` (optional): conditions. Every key present must match the attack
+  (AND). A key that lists several values matches any of them (OR). A missing
+  key is unrestricted, and an absent or empty scope applies to everything.
+  `abilities` are catalogue ids, `hands` are `mainHand` and `offHand`, and
+  `weaponTypes` are the types in `config.weaponTypes`. An unknown key or value,
+  an empty list, or a key the kind does not accept is a `RangeError` when the
+  modifier is defined.
+- `source` (optional): a label for `explain()` and tests.
+
+`defineModifier` validates and freezes one. `expandRank(table, rank)` turns a
+talent's per-rank modifier list into the modifiers for a rank. Rank 0, or no
+entry, gives none.
+
+**Context.** An attack passes `{ ability, hand, weaponType }`. A skill attacks
+with the main hand, so it passes `mainHand` and the main-hand weapon's type. A
+weapon swing passes its own hand and weapon. A DoT tick passes its ability's
+main-hand context. A scope condition on a part the context lacks does not
+match (it fails closed), and a call with no context matches only modifiers with
+no scope.
+
+**Where the engine asks.** Attack power (`Rogue.getAttackPower`), crit and hit
+(`getCritChance(context)`, `getBonusHitChance(context)`, so also the crit roll
+for a DoT tick), dodge and parry reduction (the attack table, through
+`resolveAttack`'s optional arguments), crit damage (the crit multiplier, for
+skills and ticks), damage (before crit and armor), armor ignore
+(`armorMultiplier`), energy regeneration (`regenerateEnergy`), energy cost
+(`Skill.cast`), and haste (`Rogue.rotation`). Parry stays 0 until A7, so
+`parryReduction` is read and has nothing to reduce yet. Damage modifiers on a
+DoT are read once, when the DoT is applied, as the snapshot of its tick damage.
+
+**Stacking.** Sources are collected in a fixed order: static modifiers (talents,
+gear) in the order given, then aura modifiers in aura registry order. Each
+kind combines its contributions in the form `modifiers.stacking` gives it
+(`data/constants.js`, an engineering judgement on the retune list). `A` is the
+sum of the `add` values and `M` the product of the `mult` values:
+
+| Form      | Kinds                                                                                                    | Result                                                     |
+| --------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `flat`    | attackPower, critChance, hitChance, dodgeReduction, parryReduction, armorIgnore, energyRegen, energyCost | `(base + A) × M`                                           |
+| `percent` | damage                                                                                                   | `base × (1 + A) × M`                                       |
+| `bonus`   | critDamage                                                                                               | `1 + (base − 1) × (1 + A) × M`                             |
+| `haste`   | haste                                                                                                    | one step per modifier, by `haste.stacking`, once per stack |
+
+So "+x% damage" talents add together, a separate multiplier (a buff) multiplies,
+and a Lethality-style effect scales the crit bonus and not the whole hit. A
+stack count repeats an aura's modifier that many times. The classic convention
+(talents add, buffs multiply) is the assumption; if WoW Forever differs, change
+the form for the kind in `modifiers.stacking` and nowhere else. The result of a
+chance is clamped by whoever rolls it, not by the pipeline.
+
+**No modifier, no change.** A modifier that does nothing (`add` 0, `mult` 1) is
+dropped when it is built, and a kind with nothing left returns `base` itself,
+with no arithmetic. A run with no modifiers (or only rank-0 talents, which
+expand to none) therefore does the same sums as the code before A2: the
+fixtures are byte-identical, and no random number is drawn or skipped, because
+the pipeline never draws one and never changes whether a roll happens. A
+zero-rank talent or proc consumes no rng. Tests check both.
+
+**Supplying modifiers.** `new Rogue(config, { modifiers })` owns the static
+list, and `createFight(seed, config, { modifiers })` passes it through. An
+unknown option is a `RangeError`. The `Simulation` attaches itself to the
+rogue's pipeline as the provider of the aura modifiers (`auraModifiers(kind)`),
+and keeps an index that it rebuilds only when auras change. There is no way to
+supply modifiers from `runFight` or the SimConfig yet: the talent effect
+table (D5) and the config-to-fight wiring (D7) come next. The `runFight` result
+does not record modifiers, so its shape and the golden fixtures are unchanged.
+`explain(kind, context)` lists each contribution (source, op, value, stacks),
+for tests and later for the UI.
+
+**What is data and what is not.** The tests express the 11 DPS-relevant Combat
+talents as modifier data (`test/combat-talents-as-data.test.js`), and combine
+Assassination, Subtlety and Combat modifiers in one pipeline
+(`test/two-tree-modifiers.test.js`). The effects that need a new roll, not a
+number (a proc, such as an extra combo point or an extra attack) belong to A4,
+and the talent table itself to D5.
+
+**Cost.** A fight with no modifiers measured about 2 ms faster than before A2 on the
+5-minute benchmark (22 ms against 24 ms warm median, five interleaved runs of
+`npm run bench -- --runs 50`). The haste and regen reads go through one index
+that is rebuilt only when auras change, which is the likely reason, though it
+was not profiled. A 9-modifier Combat-style build adds about 3 ms over none.
+
 ## Aura model and ids
 
 Issue #94 (roadmap A1). A timed effect is an **aura**, defined once in
@@ -1127,6 +1244,15 @@ fails when the module loads.
   number of armor points on the target, A6). The engine asks for effects by kind with `Simulation.auraEffects(kind)` and
   never by an aura's name, so a new aura with one of these effects needs no
   engine change.
+- `modifiers` (A2): an aura may also list modifiers, in the schema of the next
+  section. They apply while the aura is up, once per stack, in registry order.
+  `haste` and `energyRegenMultiplier` effects are compiled into modifiers when
+  the aura is defined (`haste` becomes a `haste` `add`, `energyRegenMultiplier`
+  an `energyRegen` `mult`), so the pipeline is the only place that reads them.
+  `dotDamageTaken` and `armorReduction` stay effects for now (a target-side
+  change, which A3 will take). `'__proto__'` is reserved and `defineAura`
+  rejects it as an id.
+- `applyAura` checks `stacks`: a whole number of 1 or more.
 - `Simulation.applyAura(definition, { duration, stacks, icon })` puts one up and
   returns its record `{ id, name, icon, duration, stacks, charges }`. `hasAura(id)` asks
   whether one is up. The first definition seen for an id is the one used, and a

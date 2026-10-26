@@ -1,6 +1,7 @@
 import { k } from "../data/constants.js";
 import { resolveAttack, rollCrit } from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
+import { ModifierPipeline, isNeutral } from "./modifiers.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
 // Auras already running lose this step. One applied during rotation is not
@@ -60,6 +61,8 @@ function newAbilityRecord() {
   };
 }
 
+const NO_MODIFIERS = Object.freeze([]);
+
 export class Simulation {
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
@@ -87,6 +90,15 @@ export class Simulation {
     this.activeDots = {}; // Track active damage over time effects
     // The definition of every aura this fight knows (js/auras.js), by id.
     this.auraDefinitions = auraRegistry();
+    // The modifier pipeline (js/modifiers.js) belongs to the rogue, which
+    // holds the static modifiers (talents). The fight attaches itself as the
+    // provider of the timed ones (the auras that are up). A rogue without a
+    // pipeline gets an empty one.
+    this.modifiers = rogue.modifiers ?? new ModifierPipeline();
+    this.modifiers.attach(this);
+    // The auras that carry modifiers, by kind. Built on first use and again
+    // when a new aura definition is registered.
+    this.auraModifierIndex = null;
   }
 
   // Advance the fight by dt seconds. The engine reads no clock: the host
@@ -131,6 +143,7 @@ export class Simulation {
       dot.duration -= dt;
       dot.timeUntilNextTick -= elapsed;
 
+      const dotContext = this.abilityContext(dotId);
       while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
         let dotTickDamage = dot.tickDamage;
 
@@ -146,14 +159,19 @@ export class Simulation {
         // roll crit for each tick
         if (
           k("dot.canCrit") &&
-          rollCrit(this.rogue.getCritChance(), this.rng)
+          rollCrit(this.rogue.getCritChance(dotContext), this.rng)
         ) {
-          dotTickDamage *= k("dot.critMultiplier");
+          dotTickDamage *= this.modifiers.resolve(
+            "critDamage",
+            k("dot.critMultiplier"),
+            dotContext,
+          );
           dotHitCrit = "Crit";
         }
         dotTickDamage = this.applyArmor(
           dotTickDamage,
           tickSkipsArmor(dotId, dot),
+          dotContext,
         );
         this.updateDamage(dotTickDamage);
         const dotSource = { id: dotId, name: dot.name ?? dotId };
@@ -213,23 +231,34 @@ export class Simulation {
   }
 
   // Regenerate energy over a step of dt seconds. The base rate holds for the
-  // part of the step no energyRegenMultiplier aura covers. Each such aura
-  // multiplies the rate for the part of the step it was still up, so the
-  // pieces are cut where an aura runs out. One aura (Adrenaline Rush) gives
-  // two pieces: the base rate, then the multiplied rate.
+  // part of the step no timed energyRegen modifier covers. Each such modifier
+  // (Adrenaline Rush's) changes the rate for the part of the step its aura
+  // was still up, so the pieces are cut where an aura runs out. One aura gives
+  // two pieces: the base rate, then the boosted rate. Static modifiers (a
+  // talent) apply to every piece. The rate is combined through the pipeline,
+  // so a flat bonus and a multiplier stack as modifiers.stacking says.
   regenerateEnergy(dt) {
-    let rate = k("energy.regenPerSecond");
-    let remaining = dt;
-    const boosts = this.auraEffects("energyRegenMultiplier")
-      .map(({ value, stacks, duration }) => ({
-        covered: Math.min(dt, duration),
-        multiplier: value ** stacks,
+    const base = k("energy.regenPerSecond");
+    const all = this.modifiers.contributions("energyRegen");
+    if (all.length === 0) {
+      this.rogue.regenerateEnergy(dt, base);
+      return;
+    }
+    const applied = all.filter(({ duration }) => duration === Infinity);
+    const timed = all
+      .filter(({ duration }) => duration !== Infinity)
+      .map((contribution) => ({
+        contribution,
+        covered: Math.min(dt, contribution.duration),
       }))
       .sort((a, b) => b.covered - a.covered);
-    for (const { covered, multiplier } of boosts) {
+    let rate = this.modifiers.combine("energyRegen", base, applied);
+    let remaining = dt;
+    for (const { contribution, covered } of timed) {
       this.rogue.regenerateEnergy(remaining - covered, rate);
       remaining = covered;
-      rate *= multiplier;
+      applied.push(contribution);
+      rate = this.modifiers.combine("energyRegen", base, applied);
     }
     this.rogue.regenerateEnergy(remaining, rate);
   }
@@ -241,6 +270,12 @@ export class Simulation {
   // { id, name, icon, duration, stacks, charges }, with charges null when the
   // definition has none.
   applyAura(definition, { duration, stacks = 1, icon } = {}) {
+    // NaN would reach the stack maths (armorMultiplier, haste) and spread.
+    if (!Number.isInteger(stacks) || stacks < 1) {
+      throw new RangeError(
+        `Simulation.applyAura needs a whole number of stacks, 1 or more, for "${definition.id}". Got ${stacks}.`,
+      );
+    }
     const length = duration ?? definition.duration;
     if (!Number.isFinite(length) || length <= 0) {
       throw new RangeError(
@@ -253,6 +288,7 @@ export class Simulation {
     const known = this.auraDefinitions.get(definition.id);
     if (known === undefined) {
       this.auraDefinitions.set(definition.id, definition);
+      this.auraModifierIndex = null;
     } else if (known !== definition) {
       throw new Error(
         `Simulation.applyAura got a second definition for the aura "${definition.id}".`,
@@ -295,13 +331,19 @@ export class Simulation {
 
   // The share of a physical hit that armor lets through. The target's armor
   // is target.armor less any armorReduction aura on it (Expose Armor), and
-  // never below 0. Spell resistance is not applied.
-  armorMultiplier() {
+  // never below 0. Then any armorIgnore modifier for this attack's context
+  // takes that fraction of what is left (Serrated Blades, Hack and Slash with a
+  // mace). Spell resistance is not applied.
+  armorMultiplier(context) {
     let reduction = 0;
     for (const { value, stacks } of this.auraEffects("armorReduction")) {
       reduction += value * stacks;
     }
-    const armor = Math.max(0, k("target.armor") - reduction);
+    let armor = Math.max(0, k("target.armor") - reduction);
+    const ignored = this.modifiers.resolve("armorIgnore", 0, context);
+    if (ignored > 0) {
+      armor *= 1 - Math.min(ignored, 1);
+    }
     const mitigation = k("armor.mitigation");
     const denominator =
       armor + mitigation.constant + mitigation.perLevel * k("character.level");
@@ -318,11 +360,11 @@ export class Simulation {
     return 1 - share;
   }
 
-  applyArmor(damage, skipArmor) {
+  applyArmor(damage, skipArmor, context) {
     if (skipArmor) {
       return damage;
     }
-    return damage * this.armorMultiplier();
+    return damage * this.armorMultiplier(context);
   }
 
   // Use up `count` charges of an aura (by id), as a landed hit does. The aura
@@ -401,6 +443,68 @@ export class Simulation {
     return found;
   }
 
+  // The modifiers the auras that are up give for one kind, as the pipeline's
+  // contributions { modifier, stacks, duration, source }, in registry order.
+  // Each aura counts once per modifier, scaled by its stacks (add: value ×
+  // stacks, mult: value ** stacks, haste: once per stack). An aura is up while
+  // it has time left.
+  auraModifiers(kind) {
+    if (this.auraModifierIndex === null) {
+      this.auraModifierIndex = new Map();
+      for (const definition of this.auraDefinitions.values()) {
+        for (const modifier of definition.modifiers) {
+          if (isNeutral(modifier)) {
+            continue;
+          }
+          const list = this.auraModifierIndex.get(modifier.kind) ?? [];
+          list.push({ definition, modifier });
+          this.auraModifierIndex.set(modifier.kind, list);
+        }
+      }
+    }
+    const entries = this.auraModifierIndex.get(kind);
+    if (entries === undefined) {
+      return NO_MODIFIERS;
+    }
+    let found = NO_MODIFIERS;
+    for (const { definition, modifier } of entries) {
+      const auras =
+        definition.target === "target" ? this.activeDebuffs : this.activeBuffs;
+      const aura = Object.hasOwn(auras, definition.id)
+        ? auras[definition.id]
+        : undefined;
+      if (aura !== undefined && aura.duration > 0) {
+        if (found === NO_MODIFIERS) {
+          found = [];
+        }
+        found.push({
+          modifier,
+          stacks: aura.stacks ?? 1,
+          duration: aura.duration,
+          source: definition.id,
+        });
+      }
+    }
+    return found;
+  }
+
+  // What the modifier scopes see of an attack: { ability, hand, weaponType }.
+  // A source names its hand (a weapon's swing does; a skill is main hand).
+  attackContext(source) {
+    const hand = source.hand ?? "mainHand";
+    return {
+      ability: source.id,
+      hand,
+      weaponType: this.rogue.weapons?.[hand]?.type ?? null,
+    };
+  }
+
+  // The context of an ability by id, for what has no source object to hand
+  // (a DoT tick): the ability's own main-hand attack.
+  abilityContext(id) {
+    return this.attackContext({ id });
+  }
+
   // Whether the aura is up, by id.
   hasAura(id) {
     const definition = this.auraDefinitions.get(id);
@@ -444,14 +548,22 @@ export class Simulation {
   // so is a weapon's swing (Weapon.attack). The id keys the totals, the name
   // and icon go in the combat log.
   resolveAttack(source, attackType, baseDamage) {
+    const context = this.attackContext(source);
     const result = resolveAttack({
       attackType,
-      baseDamage,
-      bonusHitChance: this.rogue.getBonusHitChance(),
-      critChance: this.rogue.getCritChance(),
+      baseDamage: this.modifiers.resolve("damage", baseDamage, context),
+      bonusHitChance: this.rogue.getBonusHitChance(context),
+      critChance: this.rogue.getCritChance(context),
+      critMultiplier: this.modifiers.resolve(
+        "critDamage",
+        k("crit.meleeMultiplier"),
+        context,
+      ),
+      dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
+      parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       rng: this.rng,
     });
-    const damage = this.applyArmor(result.damage, false);
+    const damage = this.applyArmor(result.damage, false, context);
     if (result.landed && damage > 0) {
       this.updateDamage(damage);
     }
@@ -472,13 +584,18 @@ export class Simulation {
   }
 
   resolveDotAttack(source, attackType, baseDamage, duration, bleed = false) {
+    const context = this.attackContext(source);
     const result = resolveAttack({
       attackType,
-      baseDamage,
-      bonusHitChance: this.rogue.getBonusHitChance(),
+      // The damage modifiers apply to the whole DoT when it is cast, the same
+      // moment attack power is read (dot.snapshot).
+      baseDamage: this.modifiers.resolve("damage", baseDamage, context),
+      bonusHitChance: this.rogue.getBonusHitChance(context),
       // The application roll does not crit. Ticks read getCritChance().
       // tickDamage stays before armor; the tick loop applies it.
       critChance: 0,
+      dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
+      parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       rng: this.rng,
     });
     const tickInterval = k("rupture.tickInterval");

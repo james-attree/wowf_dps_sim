@@ -318,6 +318,37 @@ describe("charges", () => {
     assert.equal(sim.consumeCharge("test-aura"), null);
   });
 
+  it("are used a count at a time, and stop at 0", () => {
+    const { sim } = fresh();
+    const onExpire = mock.fn();
+    const aura = define({
+      target: "target",
+      duration: 10,
+      charges: 3,
+      onExpire,
+    });
+    sim.applyAura(aura);
+    assert.equal(sim.consumeCharge("test-aura", 2), 1);
+    assert.equal(onExpire.mock.callCount(), 0);
+    // More than are left: down to 0, once, and the aura is gone.
+    assert.equal(sim.consumeCharge("test-aura", 2), 0);
+    assert.equal(onExpire.mock.callCount(), 1);
+    assert.equal(sim.hasAura("test-aura"), false);
+    assert.equal(sim.consumeCharge("test-aura", 2), null);
+    assert.equal(onExpire.mock.callCount(), 1);
+  });
+
+  it("are left alone by a bad count", () => {
+    const { sim } = fresh();
+    sim.applyAura(charged());
+    for (const bad of [0, -1, 1.5, Number.NaN, Infinity, "1", null]) {
+      assert.throws(() => sim.consumeCharge("test-aura", bad), RangeError);
+    }
+    assert.equal(sim.activeDebuffs["test-aura"].charges, 3);
+    // A bad count is rejected even when no aura is up to use it on.
+    assert.throws(() => sim.consumeCharge("no-such-aura", 0), RangeError);
+  });
+
   it("run onExpire when the last one goes", () => {
     const { sim } = fresh();
     const onExpire = mock.fn();
