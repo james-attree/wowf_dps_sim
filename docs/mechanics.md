@@ -1936,7 +1936,10 @@ Rush) are already in the default rotation without a talent; D7 gates them.
 | Aggression                | 3   | `damage` +2/4/6%, Sinister Strike, Backstab, Eviscerate                                                 |
 | Adrenaline Rush           | 1   | grants the ability (energy regeneration aura)                                                           |
 
-**11 or 12.** The roadmap and the issue say 11 or 12 DPS-relevant Combat
+**11 or 12.** Settled: 11 is confirmed (project owner confirmation 2026-10-26,
+relayed), so there is no twelfth; the likely candidate, Riposte, needs a parry
+and cannot trigger from behind. The open question that follows is kept for the
+record. The roadmap and the issue say 11 or 12 DPS-relevant Combat
 talents, and the classification above gives 11. Which would be a twelfth is not
 settled: of the six without an effect, Riposte (a 150% weapon damage strike after
 a parry), Endurance and Improved Sprint are the ones a count could include, and
