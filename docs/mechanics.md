@@ -109,6 +109,13 @@ they are `k("parry.target").front` and `k("block.target").front`. The
 position is read for every attack and DoT application, and the golden cases
 all use the default.
 
+**Scope: behind only.** This is a simulator for attacking from behind, where
+neither parry nor block applies (project owner ruling 2026-10-26). The front
+table (`target.behind = false`, with its parry and block bands) is retained in
+the engine and covered by tests, but it is out of scope and unsupported for
+tuning: its constants are not retuned and no result from the front should be
+relied on. `k("block.value")` stays 0.
+
 **Glancing damage.** A glancing blow does `k("glancing.damage")`, a range
 `{ low, high }` (0.55 to 0.75 at this skill gap, the Magey formulas
 `min(0.91, 1.3 - 0.05 x gap)` and `min(0.99, max(0.2, 1.2 - 0.03 x gap))`),
