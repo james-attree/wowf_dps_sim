@@ -60,9 +60,13 @@ const RUN_FIGHT_OPTIONS = ["seed", "duration", "config"];
 // any other name is a RangeError, so a misspelt "confg" cannot quietly run the
 // default fight.
 export function runFight(options) {
-  // null, undefined, and anything that is not an object have no seed or
-  // duration to read, so they get the same RangeError as a bad seed.
-  if (options === null || typeof options !== "object") {
+  // null, undefined, an array, and anything that is not an object have no seed
+  // or duration to read, so they get the same RangeError as a bad seed.
+  if (
+    options === null ||
+    typeof options !== "object" ||
+    Array.isArray(options)
+  ) {
     throw new RangeError(
       "runFight needs an options object: { seed, duration }.",
     );

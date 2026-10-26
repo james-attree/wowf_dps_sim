@@ -14,11 +14,17 @@ const SAMPLE_INPUT = `${JAMES}: sample input until SimConfig (E2)`;
 const COMBAT_ROTATION =
   "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
 const SEEDED_RNG = "James, 25 Oct 2026, issue #71";
-const FIXED_STEP = "James, 25 Oct 2026, issue #73";
-const LIVE_VIEW = "James, 25 Oct 2026, issue #76";
+// Engineering rows the dev chose. Issues #73 and #76 set the approach (fixed
+// small steps, a capped live frame) and not these numbers; the rows that cited
+// James for a number he never gave cite the dev instead.
+const DEVELOPER = "Developer, 26 Oct 2026";
+const FIXED_STEP = "Developer, 26 Oct 2026, issue #73";
+const LIVE_VIEW = "Developer, 26 Oct 2026, issue #76";
+const NOT_JAMES =
+  "an engineering judgement call by the dev, not a decision by James.";
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
-const DEV_JUDGEMENT = "Developer, 26 Oct 2026, issue #93";
+const DEV_JUDGEMENT_111 = "Developer, 26 Oct 2026, issue #111";
 const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
 
@@ -802,7 +808,7 @@ export const CONSTANTS = {
     100,
     "roll",
     ENGINEERING,
-    `${JAMES}: injected attack rolls use a 0–100 scale so tests can hit each boundary`,
+    `${DEVELOPER}: ${NOT_JAMES} Injected attack rolls use a 0–100 scale so tests can hit each boundary`,
     "Not a game rule. Callers and the resolver tests depend on it.",
     false,
   ),
@@ -849,7 +855,7 @@ export const CONSTANTS = {
     0.1,
     "s",
     ENGINEERING,
-    `${DEV_JUDGEMENT}: an engineering judgement call by the dev, not a decision by James. The shortest swing time a SimConfig weapon (and a Weapon) may have, because the #111 QA found a 1e-9 s speed made runFight hang`,
+    `${DEV_JUDGEMENT_111}: an engineering judgement call by the dev, not a decision by James. The shortest swing time a SimConfig weapon (and a Weapon) may have, because the #111 QA found a 1e-9 s speed made runFight hang`,
     "Not a game rule. A weapon swings once per speed / haste seconds, and a swing of a billionth of a second means a billion swings a second, so the fight never finishes. 0.1 s is far below any real weapon (the sample weapons are 1.7 s and 1.8 s) and above sim.fixedStep, so one step never holds more than a handful of swings even with haste. Raise or lower it here if a test bench needs it.",
     false,
   ),
@@ -911,10 +917,10 @@ export const CONSTANTS = {
       haste: "haste",
     },
     "modifier kind → stacking form",
-    ENGINEERING,
-    `${DEV_JUDGEMENT_96}: an engineering judgement call by the dev, not a decision by James. How the modifiers of one kind combine (js/modifiers.js)`,
-    'Not a game rule: the stacking model. "flat" is (base + the sum of the add values) × the product of the mult values, so a chance or a cost adds in its own units. "percent" is base × (1 + the sum of the add values) × the product of the mult values, so "+x% damage" talents add together and a separate multiplier multiplies. "bonus" is the same as "percent", applied to the crit bonus (the multiplier minus one), so Lethality-style effects scale the bonus and not the whole hit. "haste" is the product (or sum) that haste.stacking selects, once per stack. These follow the Classic convention that talent percentages add and buffs multiply. If WoW Forever stacks a kind differently, change its form here and nowhere else.',
-    false,
+    ASSUMPTION,
+    `${DEV_JUDGEMENT_96}: a judgement call by the dev, not a decision by James. A guess at how WoW Forever combines the modifiers of one kind (js/modifiers.js)`,
+    'A guess at a game rule, the stacking model, so it is on the retune list. "flat" is (base + the sum of the add values) × the product of the mult values, so a chance or a cost adds in its own units. "percent" is base × (1 + the sum of the add values) × the product of the mult values, so "+x% damage" talents add together and a separate multiplier multiplies. "bonus" is the same as "percent", applied to the crit bonus (the multiplier minus one), so Lethality-style effects scale the bonus and not the whole hit. "haste" is the product (or sum) that haste.stacking selects, once per stack. These follow the Classic convention that talent percentages add and buffs multiply. If WoW Forever stacks a kind differently, change its form here and nowhere else.',
+    true,
   ),
   "abilities.offGcd": entry(
     ["premeditation"],
@@ -928,7 +934,7 @@ export const CONSTANTS = {
     100,
     "events",
     ENGINEERING,
-    `${JAMES}: the combat log keeps the newest 100 rows`,
+    `${DEVELOPER}: ${NOT_JAMES} The combat log keeps the newest 100 rows`,
     "Display cap, not a game rule.",
     false,
   ),
@@ -936,7 +942,7 @@ export const CONSTANTS = {
     0.25,
     "s",
     ENGINEERING,
-    `${LIVE_VIEW}: the most wall-clock time one animation frame may feed the fight, so a hidden tab or a long pause cannot run it forward by the time it missed`,
+    `${LIVE_VIEW}: ${NOT_JAMES} The issue asked for a live view on the same engine; the 0.25 s cap on the time one animation frame may feed the fight is the dev's number, so a hidden tab or a long pause cannot run it forward by the time it missed`,
     "Not a game rule. The live page takes at most 0.25 s of an animation frame (sim.maxFrameTime / sim.fixedStep steps, 16 at these values) and drops the rest, so a frame that arrives seconds late, as the first frame after a backgrounded tab does, advances the fight by 0.25 s and no more. At 60 fps a frame is about one step, so the cap never acts in normal use; it only starts to slow the fight below 4 frames per second.",
     false,
   ),
@@ -944,7 +950,7 @@ export const CONSTANTS = {
     1000,
     "ms/s",
     ENGINEERING,
-    `${JAMES}: the performance clock converts milliseconds to seconds`,
+    `${DEVELOPER}: ${NOT_JAMES} The performance clock converts milliseconds to seconds`,
     "Unit conversion, not a game rule.",
     false,
   ),
@@ -952,7 +958,7 @@ export const CONSTANTS = {
     0.015625,
     "s",
     ENGINEERING,
-    `${FIXED_STEP}: the one time step every headless run uses, so a seed gives one fight`,
+    `${FIXED_STEP}: ${NOT_JAMES} The issue chose one fixed small step so a seed gives one fight; 1/64 s is the dev's value, the one time step every headless run uses`,
     "Not a game rule. 1/64 s, close to a 60 fps frame and well below every game timer (GCD, swing speeds, DoT tick interval), so sim.tickEpsilon, swing timers and the GCD act as they do at live frame rates. It is a power of two, so adding it up is exact in floating point, a duration that is a whole number of steps lands on exactly that time, and a split at a step boundary reproduces the same fight. Results depend on the step size: changing it changes every seeded fight (the average DPS over many seeds barely moves).",
     false,
   ),
@@ -960,7 +966,7 @@ export const CONSTANTS = {
     1e-9,
     "s",
     ENGINEERING,
-    `${JAMES}: 1e-9s tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings`,
+    `${DEVELOPER}: ${NOT_JAMES} 1e-9s tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings`,
     "Floating-point tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings.",
     false,
   ),
