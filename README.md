@@ -298,7 +298,8 @@ rejects them under `js/`.
 - `data/talent-effects.js` and `js/talent-build.js` — What each talent does, as
   data (D5). One entry per talent id: modifier rank tables, procs, a granted
   ability or a `noDpsEffect` reason, and a hash of the rank text it was written
-  from. All 17 Combat talents are in; the Assassination ones are D8a.
+  from. All 17 Combat talents are in, and Malice, Improved Slice and Dice and
+  Lethality of the Assassination ones (D8a PR 1); the other three are PR 2.
   `expandTalents({ talent id: rank })` gives the `modifiers` and `procs` to pass
   to `createFight`, and lists the talents with points but no effect or no entry.
   `runFight` does not read `config.talents` until D7. See
@@ -448,6 +449,14 @@ rejects them under `js/`.
   shapes of D8a, and the 18/33/0 reference build decoded from its
   talentsforever.com link (`test/talentsforever.js`) and run through
   `createFight`.
+- `test/assassination-talents-as-data.test.js` — Malice, Lethality and Improved
+  Slice and Dice (D8a PR 1) against the snapshot's rank text at every rank, the
+  `duration` modifier kind (scope, floor, stacking), the Slice and Dice length
+  by rank, Lethality's 2.0 to 2.2 crit multiplier, and untalented fights
+  unchanged.
+- `test/carry-overs-124.test.js` — The Puncturing Wounds `onAbility` trigger,
+  `expandTalents` refusing inherited keys and an unknown id at rank 0, and the
+  import-time data check observed from a subprocess.
 - `test/two-tree-modifiers.test.js` — Assassination, Subtlety and Combat
   modifiers combined in one pipeline.
 - `test/adrenaline-rush.test.js` — Adrenaline Rush cooldown from the export,
