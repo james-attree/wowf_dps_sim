@@ -58,6 +58,7 @@ describe("runFight result shape", () => {
   it("returns the seed, simulated duration, total damage, DPS, abilities and log", () => {
     assert.deepEqual(Object.keys(result).sort(), [
       "abilities",
+      "config",
       "dataVersion",
       "dps",
       "duration",

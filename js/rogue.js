@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { normalizeConfig } from "./sim-config.js";
 import { Weapon } from "./weapon.js";
 import * as Skills from "./skill.js";
 
@@ -15,12 +16,19 @@ function stackHaste(hasteMultiplier, haste) {
 }
 
 export class Rogue {
-  constructor() {
+  // `config` is a SimConfig (js/sim-config.js): the character stats, the
+  // weapons, the talent ranks and the poisons. It is validated and filled in
+  // here, so `new Rogue()` is the default fight and `rogue.config` is always
+  // the full form. The talent ranks and the poisons are carried and not read
+  // by the engine yet.
+  constructor(config) {
+    this.config = normalizeConfig(config);
+    const { character, weapons } = this.config;
     this.energy = k("start.state").energy;
     this.maxEnergy = k("energy.max");
-    this.attackPower = k("character.attackPower");
-    this.critChance = k("character.critChance");
-    this.bonusHitChance = k("character.bonusHitChance");
+    this.attackPower = character.attackPower;
+    this.critChance = character.critChance;
+    this.bonusHitChance = character.bonusHitChance;
     this.comboPoints = k("character.startingComboPoints");
     this.maxComboPoints = k("combo.max");
     // Combo points expiry will remove, and the time left before that.
@@ -50,8 +58,7 @@ export class Rogue {
       offHand: null,
     };
 
-    const mainHand = k("weapon.mainHand");
-    const offHand = k("weapon.offHand");
+    const { mainHand, offHand } = weapons;
     this.weapons.mainHand = new Weapon(
       this,
       mainHand.min,
@@ -66,9 +73,11 @@ export class Rogue {
       offHand.max,
       offHand.speed,
       "off",
-      offHand.type ?? null,
+      offHand.type,
     );
-    this.weapons.offHand.swingTimer = offHand.initialSwing;
+    // The delay is not part of the config: it only stops both hands from
+    // swinging on the first frame.
+    this.weapons.offHand.swingTimer = k("weapon.offHand").initialSwing;
   }
 
   // Every random draw (weapon die, Eviscerate, and the rolls the Simulation

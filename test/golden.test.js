@@ -16,6 +16,7 @@ import { promisify } from "node:util";
 import { k } from "../data/constants.js";
 import { resolveAttack } from "../js/attack-resolver.js";
 import { dataVersion } from "../js/data-version.js";
+import { defaultConfig } from "../js/sim-config.js";
 import { runFight } from "../js/fight.js";
 import {
   FINISHER_SCRIPT,
@@ -136,23 +137,29 @@ describe("golden fixtures", () => {
     }
   });
 
-  it("do not pin dataVersion, but every result carries the current one (#91)", async () => {
+  it("do not pin dataVersion or config, but every result carries the current version and the default config (#91, #92)", async () => {
     for (const goldenCase of GOLDEN_CASES) {
       const text = await readFile(goldenPath(goldenCase.name), "utf8");
       assert.doesNotMatch(text, /dataVersion/, goldenCase.name);
+      assert.doesNotMatch(text, /"config"/, goldenCase.name);
       assert.ok(!("dataVersion" in runGoldenCase(goldenCase)));
+      assert.ok(!("config" in runGoldenCase(goldenCase)));
       const full = goldenCase.script
         ? runScriptedFight(goldenCase)
-        : runFight(goldenCase);
+        : runFight({ seed: goldenCase.seed, duration: goldenCase.duration });
       assert.equal(full.dataVersion, dataVersion, goldenCase.name);
+      assert.deepEqual(full.config, defaultConfig(), goldenCase.name);
       assert.deepEqual(pinnedPart(full), runGoldenCase(goldenCase));
     }
-    assert.deepEqual(UNPINNED_FIELDS, ["dataVersion"]);
+    assert.deepEqual(UNPINNED_FIELDS, ["dataVersion", "config"]);
   });
 
   it("do not change when only the data version changes", () => {
     const [goldenCase] = GOLDEN_CASES;
-    const result = runFight(goldenCase);
+    const result = runFight({
+      seed: goldenCase.seed,
+      duration: goldenCase.duration,
+    });
     const refreshed = { ...result, dataVersion: "2099-01-01+9.9.9" };
     assert.deepEqual(pinnedPart(refreshed), pinnedPart(result));
     assert.equal(

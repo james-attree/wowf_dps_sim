@@ -249,6 +249,17 @@ describe("talent catalogue from the vendored snapshot", () => {
         /byName needs a talent name as a string/,
       );
     }
+    // The message says what it got: "object" for null was no help (#92).
+    assert.throws(
+      () => talentCatalogue.byName(null),
+      /byName needs a talent name as a string, not null\./,
+    );
+    assert.throws(
+      () => talentCatalogue.byName(["Precision"]),
+      /not an array\./,
+    );
+    assert.throws(() => talentCatalogue.byName(undefined), /not undefined\./);
+    assert.throws(() => talentCatalogue.byName(7), /not number\./);
     assert.equal(
       talentCatalogue.byName("\t Precision\n"),
       talentCatalogue.get("combat.precision"),
@@ -338,6 +349,52 @@ describe("buildTalentCatalogue load-time validation (D11)", () => {
         String(max),
       );
     }
+  });
+
+  it("names NaN and Infinity in the error, not null (#92 carry-over)", () => {
+    for (const max of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      assert.throws(
+        () => buildTalentCatalogue(outlaw(raw("A", { max }))),
+        new RegExp(`"max" must be a whole number of 1 or more, not ${max}\\.`),
+        String(max),
+      );
+    }
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("A", { row: Number.NaN }))),
+      /"row" must be a whole number of 1 or more, not NaN\./,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), max: undefined })),
+      /"max" must be a number, not undefined\./,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), max: "3" })),
+      /"max" must be a number, not "3"\./,
+    );
+  });
+
+  it("says where a talent or tree that is not an object sits, and what it was (#92 carry-over)", () => {
+    for (const [bad, kind] of [
+      [null, "null"],
+      [7, "number"],
+      [["A"], "an array"],
+    ]) {
+      assert.throws(
+        () => buildTalentCatalogue(outlaw(raw("A"), bad)),
+        new RegExp(
+          `Talent at index 1 in outlaw: a talent must be an object, not ${kind}\\.`,
+        ),
+        kind,
+      );
+    }
+    assert.throws(
+      () => buildTalentCatalogue(fixture([null])),
+      /Tree at index 0: a tree must be an object, not null\./,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), name: undefined })),
+      /Talent at index 0 in outlaw: "name" must be a string, not undefined\./,
+    );
   });
 
   it("rejects a max that differs from the number of rank texts", () => {

@@ -16,6 +16,7 @@ const COMBAT_ROTATION =
 const SEEDED_RNG = "James, 25 Oct 2026, issue #71";
 const FIXED_STEP = "James, 25 Oct 2026, issue #73";
 const LIVE_VIEW = "James, 25 Oct 2026, issue #76";
+const SIM_CONFIG = "James, 26 Oct 2026, issue #92";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -725,14 +726,14 @@ export const CONSTANTS = {
     true,
   ),
 
-  // Sample inputs. SimConfig (E2) will own the character and weapons.
+  // Sample inputs. They are the defaults of the SimConfig (js/sim-config.js).
   // The placeholder Combat rotation is rotation.priority.
   "character.attackPower": entry(
     450,
     "AP",
     ASSUMPTION,
     SAMPLE_INPUT,
-    "SimConfig will own this (E2).",
+    "The default for config.character.attackPower (SimConfig, js/sim-config.js). A fight reads it through its config.",
     true,
   ),
   "character.critChance": entry(
@@ -740,7 +741,7 @@ export const CONSTANTS = {
     "chance",
     ASSUMPTION,
     SAMPLE_INPUT,
-    "SimConfig will own this (E2).",
+    "The default for config.character.critChance (SimConfig, js/sim-config.js). A fight reads it through its config.",
     true,
   ),
   "character.bonusHitChance": entry(
@@ -748,7 +749,7 @@ export const CONSTANTS = {
     "chance",
     ASSUMPTION,
     SAMPLE_INPUT,
-    "9% matches the Classic hit cap, but the code does not say that. SimConfig will own this (E2).",
+    "9% matches the Classic hit cap, but the code does not say that. The default for config.character.bonusHitChance (SimConfig, js/sim-config.js); a fight reads it through its config.",
     true,
   ),
   "character.startingComboPoints": entry(
@@ -764,7 +765,7 @@ export const CONSTANTS = {
     "damage, damage, s, –",
     ASSUMPTION,
     `${SAMPLE_INPUT}; #9 is 59–110 at 1.8s`,
-    "Issue #9 unswaps the sample main hand. type is not a dagger, so Ghostly Strike and Hemorrhage use the non-dagger percent. SimConfig will own the weapon (E2).",
+    "Issue #9 unswaps the sample main hand. type is not a dagger, so Ghostly Strike and Hemorrhage use the non-dagger percent. The default for config.weapons.mainHand (SimConfig, js/sim-config.js); a fight reads it through its config.",
     true,
   ),
   "weapon.offHand": entry(
@@ -772,7 +773,7 @@ export const CONSTANTS = {
     "damage, damage, s, s",
     ASSUMPTION,
     SAMPLE_INPUT,
-    "The delay stops both hands swinging on the first frame. SimConfig will own the weapon (E2).",
+    "The delay stops both hands swinging on the first frame. min, max and speed are the default for config.weapons.offHand (SimConfig, js/sim-config.js); a fight reads them through its config. initialSwing is not part of the config. The off hand has no type by default (null).",
     true,
   ),
   "skill.missEnergyRefund": entry(
@@ -814,6 +815,22 @@ export const CONSTANTS = {
     ENGINEERING,
     `${SEEDED_RNG}: the published mulberry32 32-bit generator, so a seed gives the same sequence on every Node version and in the browser`,
     "Not a game rule. The Weyl increment, the three xor-shift widths, the second multiplier's OR term, and the 2^32 divisor that maps the 32-bit result into [0, 1). Changing any of them changes every seeded fight.",
+    false,
+  ),
+  "config.weaponTypes": entry(
+    ["dagger", "sword", "mace", "axe", "fist", "other"],
+    "weapon types",
+    ENGINEERING,
+    `${SIM_CONFIG}: the weapon types a SimConfig accepts`,
+    'Not a game rule. Only "dagger" changes the engine today (the Ghostly Strike and Hemorrhage weapon percent, see weaponMultiplier). The others are accepted so talents and procs that name a weapon type (Hack and Slash, the sword and mace specialisations) have somewhere to read it from; "other" is the sample main hand. A hand may also have no type (null).',
+    false,
+  ),
+  "config.poisonIds": entry(
+    ["instant", "deadly", "wound", "crippling", "mind-numbing"],
+    "poison ids",
+    ENGINEERING,
+    `${SIM_CONFIG}: the poisons a SimConfig accepts on a weapon`,
+    "Not a game rule. The five rogue poisons in the snapshot's spellbook. A SimConfig only stores the choice; no poison is simulated until A5. D9 (poison definitions from the snapshot) may replace this list.",
     false,
   ),
   "log.maxEvents": entry(

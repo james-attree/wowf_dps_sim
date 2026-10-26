@@ -725,8 +725,9 @@ retune off). That cap is display, not a game rule.
 
 ## Headless fight
 
-`runFight({ seed, duration })` in `js/fight.js` is the one entry point for a
-headless fight. It builds a `Rogue` and a `Simulation` with that seed, makes a
+`runFight({ seed, duration, config })` in `js/fight.js` is the one entry point
+for a headless fight. `config` is optional (see SimConfig). It builds a `Rogue`
+and a `Simulation` with that seed, makes a
 single `Simulation.run(duration)` call (so every step is `k("sim.fixedStep")`),
 and returns the result as plain data. The module imports only engine files, so
 it loads in Node with no `document`, `window`, `performance`, or other browser
@@ -740,7 +741,9 @@ so two such seeds can give the same fight.
 `duration` is in seconds and follows the rules of `run`: a negative, `NaN`, or
 infinite value throws a `RangeError`, and `0` is an empty fight. A missing or
 non-integer `seed` also throws a `RangeError`, as does an argument that is
-not an object (`runFight()` and `runFight(null)`).
+not an object (`runFight()` and `runFight(null)`). An option other than `seed`,
+`duration` and `config` is a `RangeError` that names it, so a misspelt `confg`
+cannot quietly run the default fight.
 
 The result has these fields:
 
@@ -754,7 +757,10 @@ The result has these fields:
   events. Each event is a copy of the engine's row: `id`, `time`, `name`,
   `type`, `damage`, `status`, `outcome`, `icon`.
 - `dataVersion` — which data produced the result (see Data version). It is a
-  string and the last field. It does not change any number in the result.
+  string. It does not change any number in the result.
+- `config` — the SimConfig the fight ran with, in full form (see SimConfig),
+  and the last field. It is a copy, so changing it changes nothing in another
+  run. Passing it back as `config` repeats the fight exactly.
 
 The result is numbers, strings, plain objects and arrays. It holds no
 reference to the `Rogue` or the `Simulation`, so `structuredClone`, JSON, and
@@ -784,28 +790,68 @@ of a skill that is not an attack. It records and changes no combat rule.
 
 The attack table never gives a parry yet, so `parries` stays `0`.
 
-### Load-time validation
+## SimConfig
 
-`buildTalentCatalogue` checks the data as it builds, and throws on the first
-problem. The catalogue for the vendored snapshot is built when `js/talents.js`
-loads, so bad data fails that import loudly. The checks (roadmap D11):
+A SimConfig is the input of one fight: the character's stats, the two weapons,
+the talent ranks and the poison on each hand (roadmap E2-lite, issue #92).
+`createFight(seed, config)` and `runFight({ seed, duration, config })` take it.
+It is optional, and with none the fight is the one the engine ran before there
+was a config: the defaults are the sample inputs in `data/constants.js`
+(`character.*` and `weapon.*`), so every golden fixture is unchanged.
+`js/sim-config.js` has `defaultConfig()` and `normalizeConfig(config)`.
 
-- Every tree and talent has a non-empty `name` and `icon`, and a talent has
-  `row`, `col`, `max` and `desc`.
-- `row`, `col` and `max` are whole numbers of 1 or more.
-- `max` equals the number of rank texts in `desc`, and each rank text is
-  non-empty.
-- Ids are unique, trees are unique, and no two talents in a tree share a row and
-  column.
-- A `req` names a talent in the same tree, on an earlier row, and not the talent
-  itself. A `req` that names a talent in another tree is rejected, with a
-  message that says so. A talent with no `req` is fine: Adrenaline Rush has none
-  in the snapshot.
+```js
+{
+  character: { attackPower, critChance, bonusHitChance },
+  weapons: {
+    mainHand: { min, max, speed, type },
+    offHand: { min, max, speed, type },
+  },
+  talents: { "combat.precision": 3 },        // talent id -> rank
+  poisons: { mainHand: "instant", offHand: "deadly" },   // a poison id, or null
+}
+```
 
-`test/talents.test.js` feeds each of these broken data and checks the message,
-and checks the vendored snapshot passes. It also imports a copy of
-`js/talents.js` beside a broken snapshot in a fresh Node process, to prove the
-module itself fails to load.
+Every field is optional, and a missing one (or one set to `undefined`) takes its
+default. A section is merged field by field, so `{ character: { attackPower:
+900 } }` changes only the attack power. This is what the engine does with it:
+
+- **Character and weapons change the fight.** They go straight into the
+  `Rogue`, where the constants used to be read. The dagger weapon percent for
+  Ghostly Strike and Hemorrhage still depends on the main-hand `type` being
+  `"dagger"`, and normalised swing speed is still the dagger one. The
+  off hand's first-swing delay (`weapon.offHand.initialSwing`) and the starting
+  combo points are not part of the config.
+- **Talents and poisons are carried only.** They are validated, normalised and
+  returned in the result, and no engine code reads them yet. Talent effects
+  come with D5 and D7, and poison effects with A5. A rank of 0, or a talent
+  that is not named, therefore changes nothing and draws no random number.
+
+`normalizeConfig` validates strictly and throws on the first problem, with a
+message that names the field and the value. A value of the wrong type is a
+`TypeError`; a value out of range, an unknown field and an unknown talent are a
+`RangeError`.
+
+- The config and each section must be a plain object. A key that is not in the
+  list above is rejected, at every level, and the message lists the allowed ones.
+- `attackPower` is a finite number of 0 or more. `critChance` and
+  `bonusHitChance` are numbers from 0 to 1.
+- A weapon's `min` and `max` are whole numbers of 0 or more with `min` not above
+  `max`, and `speed` is a finite number above 0. `type` is one of
+  `k("config.weaponTypes")` or `null`.
+- A talent key must be an id in the talent catalogue, and its rank a whole
+  number from 0 to that talent's `max`. The 51-point total, the row gating and
+  the prerequisites are not checked yet (D7 does that when it applies a build).
+- A poison is one of `k("config.poisonIds")` or `null`.
+
+The result is a new plain object that shares nothing with the input. Talents are
+listed in catalogue order with the zero ranks left out, so two spellings of one
+build give the same config, and `normalizeConfig` of a normalised config is
+that config again. The result's `config` therefore reproduces its fight.
+
+The two id lists are engineering constants (`config.weaponTypes`,
+`config.poisonIds`), not game data. D9 may replace the poison list with ids from
+the snapshot.
 
 ## Data version
 
@@ -816,9 +862,10 @@ Every result says which data it came from. `js/data-version.js` builds
 Neither part may be empty or contain a `+`, and a manifest that fails this stops
 the module loading. A refresh changes the version with no code change.
 
-`runFight` returns it as the last field, `dataVersion`, and `createFight`
-returns it beside `seed`. The module reads the small manifest only, so the live
-page does not load the 170 KB snapshot just to know its version.
+`runFight` returns it as `dataVersion`, just before `config`, and `createFight`
+returns it beside `seed`. `js/data-version.js` reads the small manifest only.
+(The live page now loads the 170 KB snapshot anyway, because a SimConfig checks
+its talent ids against the catalogue.)
 `test/data-version.test.js` checks that the manifest agrees with `rogue.json`
 (`generated` and `spellbook.build`), and with what `buildManifest` would write
 for it.
@@ -976,8 +1023,9 @@ What a reader should not assume from the sections above:
 `data/talentsforever/rogue.json`, into one lookup (roadmap D4). It holds no
 talent number of its own. Every field below comes from the snapshot when the
 module loads, so `npm run data:refresh` changes the catalogue with no code
-change. Nothing in the engine or the live page uses it yet; the later Phase 2
-issues build on it. It is validated when it loads (see Load-time validation).
+change. The engine reads it only to check the talent ids and ranks of a
+SimConfig (see SimConfig); no talent has an effect yet. It is validated when it
+loads (see Load-time validation below).
 
 Each talent has:
 
@@ -1011,3 +1059,34 @@ caller: `trees`, each tree, each tree's `talents` (the same array `byTree`
 returns), `talents` and each talent are read-only. Loading it draws no random numbers, and the
 module reads the JSON through an import attribute, so it needs no `fetch` or
 `fs` and runs in Node and in the browser.
+
+### Load-time validation
+
+`buildTalentCatalogue` checks the data as it builds, and throws on the first
+problem. The catalogue for the vendored snapshot is built when `js/talents.js`
+loads, so bad data fails that import loudly. The checks (roadmap D11):
+
+- Every tree and talent has a non-empty `name` and `icon`, and a talent has
+  `row`, `col`, `max` and `desc`.
+- `row`, `col` and `max` are whole numbers of 1 or more.
+- `max` equals the number of rank texts in `desc`, and each rank text is
+  non-empty.
+- Ids are unique, trees are unique, and no two talents in a tree share a row and
+  column.
+- A tree or a talent that is not an object (null, a number, an array) is
+  rejected, and the message gives its position and what it was, for example
+  `Talent at index 3 in assassination: a talent must be an object, not null.`
+- A bad value is shown as it is. `NaN` and `Infinity` are written as `NaN` and
+  `Infinity`, and a missing field as `undefined`, not as `null`.
+- A `req` names a talent in the same tree, on an earlier row, and not the talent
+  itself. A `req` that names a talent in another tree is rejected, with a
+  message that says so. A talent with no `req` is fine: Adrenaline Rush has none
+  in the snapshot.
+
+`test/talents.test.js` feeds each of these broken data and checks the message,
+and checks the vendored snapshot passes. It also imports a copy of
+`js/talents.js` beside a broken snapshot in a fresh Node process, to prove the
+module itself fails to load.
+
+`byName` reports what it was given when it throws: `byName needs a talent name
+as a string, not null.`

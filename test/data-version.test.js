@@ -86,13 +86,14 @@ describe("every sim result records the data version", () => {
     );
   });
 
-  it("is a plain string in the plain-data result, last, and does not move the numbers", () => {
+  it("is a plain string in the plain-data result, just before config, and does not move the numbers", () => {
     const result = runFight({ seed: 1, duration: 20 });
     assert.equal(typeof result.dataVersion, "string");
-    assert.equal(Object.keys(result).at(-1), "dataVersion");
+    assert.equal(Object.keys(result).at(-2), "dataVersion");
+    assert.equal(Object.keys(result).at(-1), "config");
     assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
     assert.deepEqual(structuredClone(result), result);
-    assert.deepEqual(Object.keys(result).slice(0, -1), [
+    assert.deepEqual(Object.keys(result).slice(0, -2), [
       "seed",
       "duration",
       "totalDamage",
