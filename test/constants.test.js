@@ -179,7 +179,14 @@ describe("constants", () => {
       "character.dagger.attackPower",
       "character.dagger.critChance",
     ]) {
-      assert.equal(CONSTANTS[id].source, "assumption", id);
+      // Classic 1.12 reference values (wowsims base stats and preset), with
+      // an https ref, and on the retune list until WoW Forever is measured.
+      assert.equal(CONSTANTS[id].source, "classic-1.12", id);
+      assert.match(
+        CONSTANTS[id].ref,
+        /^https:\/\/github\.com\/wowsims\/classic\//,
+        id,
+      );
       assert.equal(CONSTANTS[id].retune, true, id);
     }
     assert.deepEqual(k("weapon.mainHand"), {
@@ -188,7 +195,14 @@ describe("constants", () => {
       speed: 2.6,
       type: "sword",
     });
-    assert.equal(CONSTANTS["weapon.mainHand.type"], undefined);
+    // The main-hand type row records the project owner's sword/sword request.
+    assert.equal(k("weapon.mainHand.type"), "sword");
+    assert.equal(CONSTANTS["weapon.mainHand.type"].source, "wowf-designer");
+    assert.match(
+      CONSTANTS["weapon.mainHand.type"].ref,
+      /^James, 26 Oct 2026, issue #127: the project owner asked for the standard Tier 1 sword\/sword default \(relayed by Scout/,
+    );
+    assert.equal(k("weapon.mainHand").type, k("weapon.mainHand.type"));
 
     for (const id of [
       "attack.rollScale",
@@ -271,8 +285,8 @@ describe("simulator values other than white miss", () => {
     const rogue = new Rogue();
     assert.equal(rogue.energy, 100);
     assert.equal(rogue.maxEnergy, 100);
-    assert.equal(rogue.attackPower, 807);
-    assert.equal(rogue.critChance, 0.2324);
+    assert.equal(rogue.attackPower, 767);
+    assert.equal(rogue.critChance, 0.2245);
     assert.equal(rogue.bonusHitChance, 0.07);
     assert.equal(k("character.startingComboPoints"), 0);
     assert.equal(k("start.state").comboPoints, 0);
@@ -383,7 +397,7 @@ describe("simulator values other than white miss", () => {
     const rogue = new Rogue();
     rogue.rng = testRng;
     const weaponDie = 100;
-    const apBonus = (speed) => (807 / 14) * speed;
+    const apBonus = (speed) => (767 / 14) * speed;
     const normalized = weaponDie + apBonus(1.7);
 
     assert.equal(rogue.abilities.sinisterStrike.damage(), normalized + 68);
@@ -432,17 +446,17 @@ describe("simulator values other than white miss", () => {
     rogue.comboPoints = 1;
     assert.equal(
       rogue.abilities.eviscerate.damage(),
-      Math.floor(807 * 0.03 + 224),
+      Math.floor(767 * 0.03 + 224),
     );
-    assert.equal(rogue.abilities.rupture.damage(), 159 + 807 * 0.06);
+    assert.equal(rogue.abilities.rupture.damage(), 159 + 767 * 0.06);
     assert.equal(rogue.abilities.rupture.resolve().duration, 8);
 
     rogue.comboPoints = 5;
     assert.equal(
       rogue.abilities.eviscerate.damage(),
-      Math.floor(807 * 5 * 0.03 + 904),
+      Math.floor(767 * 5 * 0.03 + 904),
     );
-    assert.equal(rogue.abilities.rupture.damage(), 469 + 807 * 0.3);
+    assert.equal(rogue.abilities.rupture.damage(), 469 + 767 * 0.3);
     assert.equal(rogue.abilities.rupture.resolve().duration, 16);
 
     const sim = new Simulation(rogue, { rng: testRng });
@@ -486,7 +500,7 @@ describe("simulator values other than white miss", () => {
     }
 
     rogue.comboPoints = 3;
-    assert.equal(rogue.abilities.rupture.damage(), 295 + 807 * 0.18);
+    assert.equal(rogue.abilities.rupture.damage(), 295 + 767 * 0.18);
     assert.equal(rogue.abilities.rupture.resolve().duration, 12);
   });
 

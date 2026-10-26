@@ -35,6 +35,27 @@ describe("defaultDaggerConfig", () => {
     assert.deepEqual(defaultDaggerConfig(), expected);
     assert.equal(defaultDaggerConfig().weapons.mainHand.type, "dagger");
     assert.equal(defaultDaggerConfig().weapons.offHand.type, "dagger");
+    // The recomputed values, as literals (issue #127): 100 + 157 Str + 410 Agi
+    // + 102 gear AP, and 410 Agi / 29 + 8% gear crit.
+    const dagger = defaultDaggerConfig();
+    assert.equal(dagger.character.attackPower, 769);
+    assert.equal(dagger.character.critChance, 0.2214);
+    assert.equal(dagger.character.bonusHitChance, 0.07);
+    assert.deepEqual(dagger.weapons.mainHand, {
+      min: 73,
+      max: 137,
+      speed: 1.8,
+      type: "dagger",
+    });
+    assert.deepEqual(dagger.weapons.offHand, {
+      min: 57,
+      max: 107,
+      speed: 1.6,
+      type: "dagger",
+    });
+    // The sword default, as literals too: 100 + 166 Str + 419 Agi + 82.
+    assert.equal(defaultConfig().character.attackPower, 767);
+    assert.equal(defaultConfig().character.critChance, 0.2245);
     // The fight accepts it and records it.
     const result = runFight({
       seed: 3,

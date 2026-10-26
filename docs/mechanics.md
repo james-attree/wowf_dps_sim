@@ -173,10 +173,11 @@ still positive.
 (`"main"` or `"off"`), and a type. The constructor throws a `RangeError`
 when min damage, max damage, or speed is not a finite number, and when
 speed is not greater than 0. Min damage greater than max damage throws the
-same way. The sample weapons are `k("weapon.mainHand")` and
-`k("weapon.offHand")`, both assumptions on the retune list. The main-hand
-type is copied from that constant onto the weapon. The off-hand constant
-has no type, so that weapon's type is null.
+same way. The default weapons are `k("weapon.mainHand")` and
+`k("weapon.offHand")` (Vis'kag and Brutality Blade, Classic reference values;
+the dagger set is `weapon.dagger.*`). The main-hand type is `k("weapon.mainHand.type")`
+(`"sword"`, the project owner's request 2026-10-26, relayed), copied onto the
+weapon. The off-hand constant carries its own type, `"sword"`.
 
 The weapon die is an inclusive integer from min through max. The `1` in the
 span is the code's inclusive end, not a constant:
@@ -911,7 +912,7 @@ A SimConfig is the input of one fight: the character's stats, the two weapons,
 the talent ranks and the poison on each hand (roadmap E2-lite, issue #92).
 `createFight(seed, config)` and `runFight({ seed, duration, config })` take it.
 It is optional, and with none the fight is the one the engine ran before there
-was a config: the defaults are the sample inputs in `data/constants.js`
+was a config: the defaults are the default character and weapons in `data/constants.js`
 (`character.*` and `weapon.*`). The default is the level 60 Tier 1 rogue below
 (issue #127), which moved the golden fixtures once, on purpose.
 `js/sim-config.js` has `defaultConfig()` and `normalizeConfig(config)`.
@@ -987,46 +988,57 @@ The default config is a level 60 Classic Human rogue in the wowsims Phase 1
 Combat BiS preset (Nightslayer set, two Bloodfang pieces, `combat_sinister_strike_p1_bis`),
 with sword/sword, no buffs. The project owner asked for it on 2026-10-26 (relayed
 via Scout). The character sheet holds only what the talents do not already add,
-so nothing is counted twice: Malice (+5% crit) and Precision (+5% hit) are talent
-modifiers on top of it, and are not in `character.critChance` or
-`character.bonusHitChance`.
+so nothing is counted twice: Malice (+5% crit) and Precision (up to +3% hit, three
+ranks of 1% in the snapshot) are talent modifiers on top of it, and are not in
+`character.critChance` or `character.bonusHitChance`.
 
 | Row                        | Default (sword/sword)                                     | Dagger/dagger                                                       | What it is                                                                                                             |
 | -------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Strength                   | 183                                                       | 174                                                                 | 95 base + 73 gear + 15 enchants (without Brutality Blade's 9 for daggers)                                              |
-| Agility                    | 442                                                       | 433                                                                 | 160 base + 252 gear + 30 enchants (without Brutality Blade's 9 for daggers)                                            |
+| Strength                   | 166                                                       | 157                                                                 | 80 base + 73 gear + 13 enchants (daggers: 64 gear, without Brutality Blade's 9)                                        |
+| Agility                    | 419                                                       | 410                                                                 | 130 base + 252 gear + 37 enchants (daggers: 243 gear, without Brutality Blade's 9)                                     |
 | Gear attack power          | 82                                                        | 102                                                                 | Cape of the Black Baron 20, Hand of Justice 20, Blackstone Ring 20, Striker's Mark 22; daggers add Core Hound Tooth 20 |
-| `character.attackPower`    | 807                                                       | 809                                                                 | 100 (2 x level - 20) + Str + Agi + gear AP                                                                             |
-| `character.critChance`     | 0.2324                                                    | 0.2293                                                              | Agi / 29 + 8% gear crit (swords: Brutality Blade 1%; daggers: Core Hound Tooth 1%)                                     |
+| `character.attackPower`    | 767                                                       | 769                                                                 | 100 (2 x level - 20) + Str + Agi + gear AP                                                                             |
+| `character.critChance`     | 0.2245                                                    | 0.2214                                                              | Agi / 29 + 8% gear crit (swords: Brutality Blade 1%; daggers: Core Hound Tooth 1%)                                     |
 | `character.bonusHitChance` | 0.07                                                      | 0.07                                                                | 7% gear hit                                                                                                            |
 | Weapons                    | Vis'kag 100-187 at 2.6 s, Brutality Blade 90-168 at 2.5 s | Perdition's Blade 73-137 at 1.8 s, Core Hound Tooth 57-107 at 1.6 s | Wowhead Classic item tooltips                                                                                          |
 
-Sources: the item numbers are Wowhead Classic tooltips (`classic-1.12` on the
-weapon rows). The base Str 95 and Agi 160, the +15 Str and +30 Agi enchants, and
-the 1 AP per Str and Agi and 1% crit per 29 Agi conversions are estimates the
-sheet rows record as `assumption` on the retune list. The dagger set is
-`defaultDaggerConfig()` in `js/sim-config.js` (the default config with the dagger
-sheet and dagger weapons).
+Sources (all `classic-1.12`, reference values on the retune list for the
+character rows): base Str 80 and Agi 130, 1 AP per Str and per Agi, 100 base AP,
+and crit per Agi (about 1 per 29) are from wowsims `sim/core/base_stats.go`; the
+same level 60 Human rogue base is in the docs.rs `wow_world_base` table. Gear is
+the wowsims preset, checked against its item database. The enchants are the
+preset's: Greater Stats on the chest (+4 to each of the five stats), Superior
+Strength on the bracers (+9 Str), Greater Agility on the gloves and boots (+7
+Agi each), Lesser Arcanum of Voracity on the head and legs (+8 Agi each) and
+Lesser Agility on the cloak (+3 Agi), which makes +13 Str and +37 Agi. The weapon
+rows are Wowhead Classic item tooltips. The dagger set is `defaultDaggerConfig()`
+in `js/sim-config.js` (the default config with the dagger sheet and dagger weapons).
 
-With the build's talents the sheet reads (reference only): crit 0.2324 + Malice
-0.05 = 28.2% and hit 0.07 + Precision 0.05 = 12%. Raid buffs and consumables are
-not applied; they would add roughly 600 AP and 10% crit (Scout's estimate, unverified)
-only (the engine has no buff slot for them).
+With the build's talents the sheet reads (reference only): crit 0.2245 + Malice
+0.05 = 27.5% and hit 0.07 + Precision 3/3 0.03 = 10%. Raid buffs and consumables
+are not applied; they would add roughly 600 AP and 10% crit (Scout's estimate,
+unverified) only (the engine has no buff slot for them).
 
 What the default character does not model: the Chance on hit effects of Vis'kag
 the Bloodletter (a 240 damage fatal wound) and Perdition's Blade (40 to 56 Fire
 damage); the Crusader enchant procs; Hand of Justice's extra attack; the
 Nightslayer set bonuses; and weapon skill. A Human gets +5 sword skill, which
 would lower the miss and crit suppression a little, and the attack table has no
-skill term, so the sheet's hit and crit are the ones it reads.
+skill term, so the sheet's hit and crit are the ones it reads. Weapon
+normalisation is also still 1.7 s for every weapon (`k("normalizedSpeed.dagger")`):
+Classic normalises non-daggers to 2.4 s (`k("normalizedSpeed.oneHand")`, not
+selected by the engine yet), so with swords the weapon-damage part of Sinister
+Strike and the other instants is about 0.7 x attack power / 14, roughly 38
+damage, too low. The fix is a one-line choice by main-hand type in `js/rogue.js`,
+not a data-only change, so it is left for a later issue.
 
 Hit above the cap: the table takes `bonusHitChance` less 1% (the engine's
 suppression term, `miss.yellow` of 8% plus 1% is the 9% cap), so a yellow attack
 (Sinister Strike and the other abilities) gains nothing above 9% hit, while a
 white swing, which starts from 27% miss (8% plus the 19% dual-wield penalty),
 still loses 1% of miss for each 1% of hit up to 27%. The default 7% sheet plus
-Precision's 5% is 12%: yellow is capped at 9%, and white misses 16%. The engine
-already did this, so there is no code change for it.
+Precision 3/3 is 10%: yellow is capped at 9% (1% spare), and white misses
+27% - 9% = 18%. The engine already did this, so there is no code change for it.
 
 ## Data version
 
