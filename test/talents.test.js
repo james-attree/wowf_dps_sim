@@ -516,10 +516,12 @@ describe("buildTalentCatalogue load-time validation (D11)", () => {
       await mkdir(join(dir, "js"));
       await mkdir(join(dir, "data/talentsforever"), { recursive: true });
       await writeFile(join(dir, "package.json"), '{"type":"module"}');
-      await copyFile(
-        new URL("../js/talents.js", import.meta.url),
-        join(dir, "js/talents.js"),
-      );
+      for (const file of ["talents.js", "snapshot.js"]) {
+        await copyFile(
+          new URL(`../js/${file}`, import.meta.url),
+          join(dir, "js", file),
+        );
+      }
       const importIt = () =>
         execFileAsync(process.execPath, [
           "--input-type=module",

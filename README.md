@@ -73,9 +73,9 @@ do not import ES modules from `file://`.
 
 The code imports JSON files with import attributes (`import data from
 "./x.json" with { type: "json" }`). The live page does it for
-`data/talentsforever/manifest.json` (the data version), and `js/talents.js` does
+`data/talentsforever/manifest.json` (the data version), and `js/snapshot.js` does
 it for `rogue.json`, which the live page now loads too (a SimConfig checks its
-talent ids against the catalogue). That needs Chrome or Edge 123+, Safari 17.2+, or Firefox
+talent ids against the catalogue, through `js/talents.js`). That needs Chrome or Edge 123+, Safari 17.2+, or Firefox
 138+ (the `engines` range in `package.json` is `^20.19.0 || ^22.13.0 || >=24`).
 An older browser fails to load the page.
 
@@ -246,6 +246,8 @@ rejects them under `js/`.
   default fight's inputs from `data/constants.js`, and `normalizeConfig(config)`
   validates a config (unknown keys, ranges, weapon types, poison ids, talent ids
   and ranks against the catalogue) and returns it in full form as a new object.
+  A weapon speed below `config.minWeaponSpeed` (0.1 s) is rejected, because a
+  speed near 0 never finishes a fight.
   `Rogue` takes the config. The character and weapons change the fight; talents
   and poisons are only carried until their effects land. See
   [SimConfig](docs/mechanics.md#simconfig).
@@ -270,9 +272,21 @@ rejects them under `js/`.
   the text of every rank. `buildTalentCatalogue(snapshot)` builds one from any
   parsed export and validates it (D11): unique ids, `req` resolves in the same
   tree, `max` equals the rank texts, sane positions. `slugify(name)` is the id
-  rule. `js/sim-config.js` uses it, so the live page loads it.
+  rule. `js/sim-config.js` uses it, so the live page loads it. It reads the
+  snapshot through `js/snapshot.js`.
+- `js/snapshot.js` — The one place the page and the engine import
+  `data/talentsforever/rogue.json` (an import attribute). `js/talents.js` and
+  `js/abilities.js` read it from here.
+- `js/abilities.js` — The ability schema (D1). `abilityCatalogue` is built from
+  the `spell_desc` text of each rogue ability's highest rank when the module
+  loads: cost, cooldown, cast time, combo points awarded, % weapon damage, flat
+  damage, per-combo-point damage and duration tables. What the text leaves out
+  comes from `k(id)` (`abilities.apCoefficients`, `abilities.offGcd`,
+  `bleed.spells`). `parseSpell` throws an `AbilityParseError` naming the spell
+  and rank on text it cannot read. Data only: the engine does not read it until
+  D2. See [Ability schema](docs/mechanics.md#ability-schema).
 - `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
-  off-hand weapon.
+  off-hand weapon. A speed below `config.minWeaponSpeed` throws a `RangeError`.
 - `js/gcd-meter.js` — Sets the GCD meter's ARIA range from
   `simulation.gcdDuration` (`gcd.duration`).
 - `data/constants.js` — The number table above, exported as `CONSTANTS` and
@@ -316,6 +330,12 @@ rejects them under `js/`.
 - `eslint/engine-purity.js` — Rule `engine-purity/no-numeric-literal`. A
   numeric variable initializer in an engine module fails lint, except `0`,
   `1`, and `-1`.
+- `test/abilities.test.js` — The ability schema: Sinister Strike R8, Eviscerate
+  R9, Rupture R6 and Slice and Dice R2 against a pinned snapshot of their
+  values, every other ability's shape, parity with the hand-set constants the
+  engine still uses, the constants each missing number comes from, malformed
+  text rejected with the spell and rank named, a refreshed snapshot, deep
+  freezing, and a failed import of `js/abilities.js`.
 - `test/adrenaline-rush.test.js` — Adrenaline Rush cooldown from the export,
   and recast timing.
 - `test/attack-resolver.test.js` — Attack-table bands, damage, and rejected
@@ -346,7 +366,9 @@ rejects them under `js/`.
 - `test/golden/` — The pinned `runFight` results, one JSON file per golden
   case. Written only by `npm run golden:update -- --write`. Prettier skips the
   directory.
-- `test/pages.test.js` — The data-credit footer and the Pages workflow.
+- `test/pages.test.js` — The data-credit footer and the Pages workflow. Every
+  published `js` file must be imported by the page, except `js/abilities.js`
+  until D2 reads it.
 - `test/live-view.test.js` — The live page as a view of the engine: `FrameClock`
   (the first frame, the carry, the frame cap, `restart`), `createFight`, a live
   fight against `runFight`, and `js/main.js` on a stand-in page (the seed in the
@@ -377,7 +399,8 @@ rejects them under `js/`.
 - `test/sim-config.test.js` — The SimConfig: defaults, merging, strict
   validation of every field with its message, talent ranks, idempotence, the
   default fight being unchanged, a config reaching the rogue, the result's
-  `config` repeating a fight, and `runFight`'s unknown-option check.
+  `config` repeating a fight, `runFight`'s unknown-option check, `given[id]`
+  read once, and the weapon speed lower bound (a minimum-speed fight finishes).
 - `test/simulation.test.js` — Console silence, buff and cooldown duration,
   Adrenaline Rush energy, buff and debuff lists, and DoT expiry.
 - `test/slice-and-dice.test.js` — Slice and Dice refresh, swing haste, and
@@ -387,7 +410,7 @@ rejects them under `js/`.
 - `test/talents.test.js` — The talent catalogue: the 17, 17 and 19 tree counts,
   unique ids, every field against the snapshot, known talents end to end, the
   lookups, the freeze, and the load-time validation with deliberately broken
-  data (including a failed import of `js/talents.js`).
+  data (including a failed import of `js/talents.js` with `js/snapshot.js`).
 - `test/tooling.test.js` — The dev package's scripts and Node `engines` range.
 - `test/weapon.test.js` — Weapon damage, the off-hand penalty, and swing-timer
   overshoot.

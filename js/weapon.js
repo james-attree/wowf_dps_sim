@@ -15,6 +15,13 @@ export class Weapon {
     if (speed <= 0) {
       throw new RangeError("Weapon speed must be greater than 0.");
     }
+    // The swing loop does one pass per swing, so a speed near 0 never
+    // finishes a fight (#111 QA: 1e-9 s hung runFight).
+    if (speed < k("config.minWeaponSpeed")) {
+      throw new RangeError(
+        `Weapon speed must be at least ${k("config.minWeaponSpeed")} seconds, not ${speed}.`,
+      );
+    }
     if (minDamage > maxDamage) {
       throw new RangeError(
         `Weapon min damage ${minDamage} is greater than max damage ${maxDamage}.`,

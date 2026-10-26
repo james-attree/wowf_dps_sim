@@ -837,10 +837,15 @@ message that names the field and the value. A value of the wrong type is a
 - `attackPower` is a finite number of 0 or more. `critChance` and
   `bonusHitChance` are numbers from 0 to 1.
 - A weapon's `min` and `max` are whole numbers of 0 or more with `min` not above
-  `max`, and `speed` is a finite number above 0. `type` is one of
+  `max`, and `speed` is a finite number of `config.minWeaponSpeed` (0.1 s) or
+  more. The swing loop does one pass per swing, so a speed of 1e-9 s made
+  `runFight` run for more than 10 s. 0.1 s is above the fixed step, well under
+  any real weapon, and a 60 s fight with both hands at it takes about 20 ms. The
+  `Weapon` constructor enforces the same bound. `config.minWeaponSpeed` is an
+  engineering constant, not game data. `type` is one of
   `k("config.weaponTypes")` or `null`.
 - A talent key must be an id in the talent catalogue, and its rank a whole
-  number from 0 to that talent's `max`. The 51-point total, the row gating and
+  number from 0 to that talent's `max`. Each rank is read from the input once. The 51-point total, the row gating and
   the prerequisites are not checked yet (D7 does that when it applies a build).
 - A poison is one of `k("config.poisonIds")` or `null`.
 
@@ -1090,3 +1095,68 @@ module itself fails to load.
 
 `byName` reports what it was given when it throws: `byName needs a talent name
 as a string, not null.`
+
+## Ability schema
+
+`js/abilities.js` turns the `spell_desc` text of the vendored snapshot into one
+record per rogue ability (roadmap D1, issue #93). It reads the highest rank
+of each spell on the Assassination, Combat and Subtlety tabs: 34 abilities,
+for example Sinister Strike rank 8, Eviscerate rank 9, Rupture rank 6 and Slice
+and Dice rank 2. The snapshot's `spellbook` lists the ranks and `spell_desc` holds the
+text under the key `Rogue|Name|Rank N` (`Rogue|Name|` for a spell with one
+rank, `Rogue|Name|Passive` for a passive). `js/snapshot.js` imports the JSON, so
+the module needs no `fetch` or `fs`, and `npm run data:refresh` changes the
+catalogue with no code change.
+
+**D1 is data only.** The engine does not read the catalogue. The hand-written
+skill classes in `js/skill.js` still run every fight, so no `runFight` result,
+event or golden fixture changes. D2 (#98) switches the engine over.
+`test/abilities.test.js` compares the catalogue with the constants the skills
+use (`sinisterStrike`, `eviscerate`, `rupture`, `sliceAndDice` and the rest), so
+the switch cannot move a number.
+
+Each ability has:
+
+- `id` (`slugify(name)`), `name`, `rank`, `spellId`, `tab`, `school`
+  (lower-case) and `passive`.
+- `cost`: `{ resource, amount }`, or `null` for no cost. `cooldown` in seconds
+  (0 for none). `castTime`: 0 for an instant spell, seconds, or `null` when the
+  text gives none (passives).
+- `comboPointsAwarded` (a builder's points), and `finisher`: `{ min, max }`
+  combo points, or `null`.
+- `weaponPercent`: `{ base, dagger }` as multipliers (150% is 1.5), `dagger`
+  being `null` unless the text gives a separate dagger figure. `flatDamage`:
+  the bonus damage, or `null`.
+- `dot`: `{ damage, duration }` for a plain periodic effect, or `null`.
+- `perComboPoint`: the 1 to 5 point table, each row
+  `{ comboPoints, damage: { min, max } | null, duration | null, armorReduction |
+null }`. Eviscerate carries damage, Rupture damage and duration, Slice and
+  Dice duration.
+- `scalesWithAttackPower` and `ap`: `{ kind, constant, value }`, naming the
+  constant the coefficient came from.
+- `bleed`, `startsGcd` and `requires` (`"stealth"`, `"daggers"`).
+- `text`: the source description.
+
+**What the text does not say comes from `data/constants.js`.** The AP
+coefficients are not in the tooltips: `abilities.apCoefficients` points at the
+existing `eviscerate.apPerCP` and `rupture.apByCP` instead of copying them.
+`abilities.offGcd` lists the abilities that do not start the GCD
+(Premeditation; passives never do). `bleed.spells` marks bleeds. The unit
+scales are `abilities.secondsPerMinute` and `abilities.percentScale`, and
+`abilities.tabs` names the tabs read. Each has a `source` tag in
+`docs/provenance.md`.
+
+**Malformed text fails loudly.** Every cell and table row of `l` and every
+number sentence the parser knows is read, and one it does not understand throws
+an `AbilityParseError`. Its message starts with the spell and rank, for example
+`Cannot read Rupture rank 6 from the spell data: ...`, and `.spell` and `.rank`
+carry them. The catalogue is built when `js/abilities.js` loads, so a refreshed
+snapshot with a reworded tooltip fails that import, not a fight. Sentences
+that hold no number to read (for example "Must be stealthed") are skipped, and
+numbers inside them are not taken.
+
+**Not parsed yet.** Buff and debuff magnitudes (Slice and Dice's haste %,
+Adrenaline Rush's energy %, Ghostly Strike's dodge, Hemorrhage's Rupture
+bonus), the poisons (D9) and the talent modifiers (D6). They stay in
+`data/constants.js` until the issue that needs them. The catalogue is deeply
+frozen, and building it draws no random numbers.
