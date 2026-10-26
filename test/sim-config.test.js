@@ -620,14 +620,13 @@ describe("a fight with no config is the fight there was before", () => {
     assert.deepEqual(rogue.config, defaultConfig());
   });
 
-  it("talents and poisons are carried, and do not change the fight or use rng", () => {
+  it("talents are carried, and do not change the fight or use rng", () => {
     const plain = runFight({ seed: 11, duration: DURATION });
     const dressed = runFight({
       seed: 11,
       duration: DURATION,
       config: {
         talents: { "combat.precision": 3, "subtlety.premeditation": 1 },
-        poisons: { mainHand: "instant", offHand: "deadly" },
       },
     });
     const { config, ...rest } = dressed;
@@ -638,10 +637,40 @@ describe("a fight with no config is the fight there was before", () => {
       "combat.precision": 3,
       "subtlety.premeditation": 1,
     });
-    assert.deepEqual(config.poisons, {
+  });
+
+  it("no poison, and a poison that deals no DPS here, leave the fight and the rng alone", () => {
+    const plain = createFight(11);
+    plain.simulation.run(DURATION);
+    const next = plain.simulation.rng();
+    for (const poisons of [
+      { mainHand: null, offHand: null },
+      { mainHand: "wound", offHand: "crippling" },
+      { mainHand: "mind-numbing" },
+    ]) {
+      const dressed = createFight(11, { poisons });
+      dressed.simulation.run(DURATION);
+      assert.equal(dressed.simulation.rng(), next);
+      assert.equal(
+        dressed.simulation.damageDone,
+        plain.simulation.damageDone,
+        JSON.stringify(poisons),
+      );
+    }
+  });
+
+  it("Instant and Deadly Poison are read: they deal damage (A5)", () => {
+    const poisoned = runFight({
+      seed: 11,
+      duration: DURATION,
+      config: { poisons: { mainHand: "instant", offHand: "deadly" } },
+    });
+    assert.deepEqual(poisoned.config.poisons, {
       mainHand: "instant",
       offHand: "deadly",
     });
+    assert.ok(poisoned.abilities["Instant Poison"].damage > 0);
+    assert.ok(poisoned.abilities["Deadly Poison"].damage > 0);
   });
 
   it("zero-rank talents leave the rng stream where it was", () => {

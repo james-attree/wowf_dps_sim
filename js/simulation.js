@@ -690,6 +690,47 @@ export class Simulation {
     return { ...hit, damage };
   }
 
+  // A damage over time a proc applies (js/procs.js, applyDot), under a source
+  // of its own: the spell hit first (one draw, when asked), then, if it
+  // landed, one more stack of the action's target aura (if it names one) and
+  // the DoT in activeDots under `id`, with its own tick interval. A second
+  // landed application refreshes the DoT to `duration` and keeps its tick
+  // clock (wowsims ApplyOrRefresh: the aura is refreshed, the ticks go on), and
+  // each tick is the stacks × tickDamage. The application deals no damage and
+  // is logged like a DoT cast (0 damage; Hit or Resist). The ticks are in
+  // step().
+  resolveProcDot({ id, name, tickDamage, interval, duration, aura, spellHit }) {
+    const source = { id, name, icon: null };
+    const context = this.attackContext(source, "skill");
+    let hit = { outcome: "hit", status: "Hit", landed: true };
+    if (spellHit) {
+      hit = resolveSpellHit({ rng: this.rng });
+    }
+    if (hit.landed) {
+      const stacks =
+        aura === undefined
+          ? 1
+          : this.applyAura(this.auraDefinitions.get(aura), { duration }).stacks;
+      const running = Object.hasOwn(this.activeDots, id)
+        ? this.activeDots[id]
+        : undefined;
+      this.activeDots[id] = {
+        name,
+        duration,
+        tickInterval: interval,
+        timeUntilNextTick: running?.timeUntilNextTick ?? interval,
+        tickDamage:
+          this.modifiers.resolve("damage", tickDamage, context) * stacks,
+        icon: null,
+        attackType: "skill",
+        bleed: false,
+      };
+    }
+    this.recordAbility(source, hit.outcome, 0);
+    this.addCombatEvent(name, "skill", 0, hit.status, hit.outcome);
+    return hit;
+  }
+
   resolveDotAttack(source, attackType, baseDamage, duration, bleed = false) {
     const context = this.attackContext(
       bleed ? { ...source, bleed: true } : source,

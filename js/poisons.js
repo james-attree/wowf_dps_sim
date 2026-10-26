@@ -8,14 +8,15 @@ import {
   toNumber,
 } from "./abilities.js";
 import { snapshot } from "./snapshot.js";
+import { defineProc } from "./procs.js";
 import { slugify } from "./talents.js";
 
 // The poison definitions (roadmap D9, #104). Each rogue poison is read from the
 // vendored talentsforever snapshot's `spell_desc` text, rank by rank: the
 // chance to apply per strike, the direct damage range or the damage over time,
 // the duration, the most stacks, and the charges. Definitions are data only.
-// Nothing here rolls a chance, deals damage or puts up an aura. Poisons that
-// proc in a fight are A5 (#105), which reads this catalogue.
+// The catalogue rolls nothing. poisonProcs (below, A5 #105) turns the poisons a
+// SimConfig puts on the weapons into procs (js/procs.js) that the fight runs.
 //
 // The parser follows the ability parser (js/abilities.js, D1 #93). It reads
 // every sentence it understands and throws on text it does not, with an
@@ -460,3 +461,95 @@ export function buildPoisonCatalogue(source, read = k) {
 
 // The catalogue for the vendored snapshot, built once when the module loads.
 export const poisonCatalogue = buildPoisonCatalogue(snapshot);
+
+// ---- the poisons on the weapons, as procs --------------------------------
+
+// The proc of one DPS poison on one hand, from its top rank (the export's
+// highest: Instant Poison VI, Deadly Poison V). A strike of the hand that lands
+// rolls the poison's chance (flat, one draw: js/procs.js), then the poison's
+// action rolls the spell hit (spell.missTarget, one draw).
+//   damage  a direct hit: the damage range, from its own source (the id of the
+//           poison, a nature spell that skips armor).
+//   dot     a stacking damage over time: the export gives its total for one
+//           application, which the Classic tick count (poison.deadlyTick) splits
+//           into ticks, `interval` apart. Each stack adds one tick of that
+//           size. The poison's own target aura (js/auras.js, same id) counts
+//           the stacks, up to the export's most.
+// A charge is never used up (poison.charges is "unlimited").
+function poisonProc(poison, hand, read) {
+  const { chance, effect } = poison.top;
+  const id = `${poison.id}.${hand}`;
+  const scope = { hands: [hand] };
+  const rule = { mode: "flat", value: chance };
+  if (effect.kind === "damage") {
+    return defineProc({
+      id,
+      trigger: "onHit",
+      scope,
+      chance: rule,
+      actions: [
+        {
+          type: "dealDamage",
+          id: poison.id,
+          name: poison.name,
+          min: effect.min,
+          max: effect.max,
+          spellHit: true,
+        },
+      ],
+    });
+  }
+  if (effect.kind === "dot") {
+    const { interval, ticks } = read("poison.deadlyTick");
+    if (effect.duration !== interval * ticks) {
+      throw new RangeError(
+        `${poison.name} lasts ${effect.duration} s in the export, and poison.deadlyTick gives ${ticks} ticks ${interval} s apart.`,
+      );
+    }
+    return defineProc({
+      id,
+      trigger: "onHit",
+      scope,
+      chance: rule,
+      actions: [
+        {
+          type: "applyDot",
+          id: poison.id,
+          name: poison.name,
+          tickDamage: effect.damage / ticks,
+          interval,
+          duration: effect.duration,
+          aura: poison.id,
+          spellHit: true,
+        },
+      ],
+    });
+  }
+  throw new RangeError(
+    `${poison.name} is a DPS poison with a "${effect.kind}" effect, which poisonProcs does not simulate.`,
+  );
+}
+
+// The procs for a SimConfig's poisons ({ mainHand, offHand }: a poison key or
+// null for each hand, as normalizeConfig gives them), main hand first. A hand
+// with none, and a poison that deals no DPS here (Wound, Crippling and
+// Mind-numbing: poison.noDpsReasons), gives no proc, so a build without a DPS
+// poison has no procs and draws no extra random numbers.
+export function poisonProcs(poisons, catalogue = poisonCatalogue, read = k) {
+  const procs = [];
+  for (const [hand, key] of Object.entries(poisons ?? {})) {
+    if (key === null || key === undefined) {
+      continue;
+    }
+    const poison = catalogue.byKey(key);
+    if (poison === undefined) {
+      throw new RangeError(
+        `poisons.${hand} names "${String(key)}", which is not a poison in the catalogue.`,
+      );
+    }
+    if (poison.dps) {
+      procs.push(poisonProc(poison, hand, read));
+    }
+  }
+  return procs;
+}

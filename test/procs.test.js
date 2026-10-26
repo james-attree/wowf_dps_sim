@@ -89,6 +89,7 @@ describe("defining a proc", () => {
       "gainResource",
       "applyAura",
       "dealDamage",
+      "applyDot",
       "extraAttack",
     ]);
   });
@@ -1282,6 +1283,37 @@ describe("guards a quick run of the suite has to see (#123 review)", () => {
       });
       assert.equal(defined.actions[0].spellHit, spellHit === true);
     }
+  });
+
+  it("checks an applyDot action (#105)", () => {
+    const dot = {
+      type: "applyDot",
+      id: "deadly-poison",
+      tickDamage: 23,
+      interval: 3,
+      duration: 12,
+    };
+    const withDot = (changes) => ({ actions: [{ ...dot, ...changes }] });
+    for (const field of ["tickDamage", "interval", "duration"]) {
+      for (const value of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, "3"]) {
+        assert.throws(() => proc(withDot({ name: "P", [field]: value })), {
+          name: "RangeError",
+        });
+      }
+    }
+    bad(withDot({ name: "P", duration: 2 }), /at least one interval/);
+    assert.doesNotThrow(() => proc(withDot({ name: "P", duration: 3 })));
+    bad(withDot({ name: "P", id: "" }), /id must be a non-empty string/);
+    bad(withDot({}), /needs a name/);
+    bad(withDot({ name: "P", aura: "no-such-aura" }), /target aura/);
+    bad(withDot({ name: "P", aura: "blade-flurry" }), /target aura/);
+    bad(withDot({ name: "P", spellHit: 1 }), /spellHit must be true or false/);
+    bad(withDot({ name: "P", extra: 1 }), /extra/);
+    const defined = proc(withDot({ name: "P", aura: "deadly-poison" }))
+      .actions[0];
+    assert.equal(defined.spellHit, false);
+    assert.equal(defined.name, "P");
+    assert.ok(Object.isFrozen(defined));
   });
 
   it("refuses a proc spec that is an instance of a class", () => {

@@ -151,9 +151,9 @@ at the full chance. The 2x tick crit multiplier is `dot.critMultiplier`. A
 DoT's application never crits.
 
 **Spell hit table.** `spellMissChance` and `resolveSpellHit` give the 17%
-miss, floored at 1%, that a poison proc will use (A5, `k("spell.missTarget")`),
-with status "Resist". Nothing in the engine calls them yet; they are tested on
-their own.
+miss, floored at 1%, that a poison proc uses (A5, `k("spell.missTarget")`),
+with status "Resist". A `dealDamage` or `applyDot` proc action with `spellHit`
+draws one roll from it (see [Poison procs](#poison-procs-a5-issue-105)).
 
 Damage is the base times a multiplier, then `Math.floor`. A miss, dodge or
 parry multiplies by zero. A glance uses the glancing factor. A crit uses
@@ -604,8 +604,8 @@ modelled. Nothing in `js/simulation.js` applies spell resistance.
 `k("bleed.spells")` lists the ids `rupture` and `garrote`. `k("nature.spells")`
 lists `instant-poison` and `deadly-poison`. Rupture's cast sets `bleed`, so its ticks skip when
 `k("bleed.ignoresArmor")` is set. Garrote has no skill class. A dot with the id
-`deadly-poison` would skip as nature. The rotation does not create one. See
-Poisons.
+`deadly-poison` skips as nature: Deadly Poison's ticks do skip armor. The
+rotation does not create one; the poison procs do. See Poisons.
 
 ## Bleeds and damage over time
 
@@ -665,18 +665,13 @@ fire several ticks. Each one schedules the next by adding
 
 ## Poisons
 
-Instant Poison, Deadly Poison, and the poison hit, proc, tick, and charge
-constants are not used by the rotation. The notes on `k("poison.instant")`,
-`k("poison.deadly")`, `k("poison.hitModel")`, `k("poison.procSource")`,
-`k("poison.deadlyTick")`, `k("poison.instantCrit")`, and `k("poison.charges")`
-say they are not simulated or not applied yet. `k("spell.missTarget")` is
-the same: its note says spell miss is for poisons and is not applied yet.
-There is no poison proc on a white or yellow hit. `k("poison.spells")` lists the
-two poisons for the `poison` tag (see [Damage tags](#damage-tags)), so a
-modifier can already name them. A tick whose id is in
-`k("nature.spells")` would skip armor, and the deadly-poison tick note says
-those ticks can crit through `k("dot.canCrit")`, but nothing in the engine
-starts that dot.
+Instant Poison and Deadly Poison are applied through the proc pipeline when
+`config.poisons` names them (A5, #105; see
+[Poison procs](#poison-procs-a5-issue-105)). The default config names none, so
+the default fight is the same as before. `k("poison.charges")` says charges are
+ignored. `k("poison.spells")` lists the two poisons for the `poison` tag (see
+[Damage tags](#damage-tags)), so a modifier can name them, and
+`k("nature.spells")` makes their hits and ticks skip armor.
 
 ### Poison definitions (D9, issue #104)
 
@@ -684,8 +679,8 @@ starts that dot.
 spellbook's Poisons tab), rank by rank, the way `js/abilities.js` reads the
 abilities (D1, #93). It builds `poisonCatalogue`, deeply frozen, with no random
 numbers and no clock. The definitions are data only: nothing in the engine
-reads them yet (A5, #105, wires them to the fight), and the golden fixtures do
-not move.
+reads them until A5 (#105, see [Poison procs](#poison-procs-a5-issue-105)),
+and the golden fixtures do not move.
 
 A poison's text is `COATING EFFECT [STACKS] [CHARGES]`, and each sentence is
 matched whole, so an extra or reworded sentence is an error, not a skip. The
@@ -731,12 +726,69 @@ reduction for 15 s, 5 stacks, 160 charges), Crippling Poison 2 (30%, 70% slow
 for 12 s) and Mind-numbing Poison 3 (20%, 60% longer casts for 14 s, 150
 charges).
 
-`k("poison.instant")` and `k("poison.deadly")` stay where the engine reads them
-until A5; `test/poisons.test.js` checks them against the parsed top ranks, and
+`k("poison.instant")` and `k("poison.deadly")` stay in the constants, and A5
+reads the proc chance and the numbers from the catalogue; `test/poisons.test.js` checks them against the parsed top ranks, and
 checks the poison ids in `config.poisonIds`, `poison.spells` and `nature.spells`
 against the catalogue. `k("poison.charges")` stays `"unlimited"`: the parsed
-`charges` are not used up in a fight yet. The values are the Forever text
+`charges` are not used up in a fight. The values are the Forever text
 (`d`), not the Classic text (`cd`).
+
+### Poison procs (A5, issue #105)
+
+`poisonProcs(config.poisons)` in `js/poisons.js` turns the two hand slots into
+procs, and `js/rogue.js` adds them after any procs the host passed. A slot
+that is `null`, or names a poison with no DPS here (Wound, Crippling,
+Mind-numbing), makes none. A slot that names a poison the catalogue does not
+know is a `RangeError`. With no poison the proc list is empty and nothing
+draws a random number, so the default fight and the four golden fixtures are
+byte-identical.
+
+| Poison       | Proc id                 | Chance | Action                                             |
+| ------------ | ----------------------- | ------ | -------------------------------------------------- |
+| Instant (R6) | `instant-poison.<hand>` | 20%    | `dealDamage` 76 to 100, Nature, with `spellHit`    |
+| Deadly (R5)  | `deadly-poison.<hand>`  | 30%    | `applyDot` 23 a tick, every 3 s for 12 s, 5 stacks |
+
+Each proc triggers on a landed hit (`onHit`) of its hand (`scope.hands`). A
+main-hand poison rolls on a main-hand white swing and on every landed skill
+(a skill counts as a main-hand attack, finishers and extra attacks included);
+an off-hand poison rolls on an off-hand white swing. The chance is the
+export's top-rank chance, read from the catalogue, and is flat per hit (no
+weapon speed). Charges are ignored.
+
+**Spell hit.** The proc draws the 17% `k("spell.missTarget")` once. On a
+resist nothing is dealt or applied, and the resist shows in the breakdown and
+the log under the poison's name. A hit on the weapon table does not change it.
+
+**Instant Poison** is a direct hit under the id `instant-poison`, display name
+"Instant Poison": the damage is rolled between 76 and 100 (one draw), skips
+armor (Nature, `k("nature.spells")`), and does not crit
+(`k("poison.instantCrit")`: the engine has no spell crit chance to use).
+
+**Deadly Poison** is the `applyDot` action (`resolveProcDot` in
+`js/simulation.js`). A landed application adds a stack of the `deadly-poison`
+target aura (up to 5, refreshing it to 12 s) and sets the DoT
+`activeDots["deadly-poison"]`:
+
+- tick damage is one stack's tick (92 / 4 = 23, as the export's 92 over 12 s
+  and the tick count `k("poison.deadlyTick")` give) times the stacks, with
+  damage modifiers resolved at each application;
+- a refresh sets the duration back to 12 s and keeps the running tick clock,
+  as the wowsims DoT does (`ApplyOrRefresh`); resetting it would starve ticks
+  at about 0.6 applications a second;
+- ticks go through the existing DoT loop: every 3 s, Nature so they skip
+  armor, a tick can crit (`k("dot.canCrit")`) for 2x at the melee crit chance
+  with the crit suppression, and each tick shows as a tick in the breakdown
+  and log under "Deadly Poison";
+- the application itself deals no damage and does not crit.
+
+`poisonProcs` throws a `RangeError` if the tick count and interval do not
+fill the export's duration, so a retuned tick cannot silently change the
+total. The interval and count (3 s, 4 ticks) are Classic values, verified
+against wowsims `rogue/poisons.go`, and carry the retune flag.
+
+**Not in A5.** Vile Poisons, Malice, Improved Poisons and Venom (talent
+build, #106 and later); a `procChance` modifier kind; poison charges; Instant
+Poison crits. No poison counter is in the `runFight` result.
 
 ## Simulation clock
 
@@ -1011,10 +1063,13 @@ default. A section is merged field by field, so `{ character: { attackPower:
   application. Behind, the parry and block bands have zero width. From the front
   (`false`) they are 14% and 5% (see Attack table). Nothing keys off a weapon
   type for it; the default is the same for every weapon.
-- **Talents and poisons are carried only.** They are validated, normalised and
-  returned in the result, and no engine code reads them yet. Talent effects
-  come with D5 and D7, and poison effects with A5. A rank of 0, or a talent
-  that is not named, therefore changes nothing and draws no random number.
+- **Talents are carried only; poisons are opt-in.** They are validated,
+  normalised and returned in the result. No engine code reads the talents yet
+  (talent effects come with D5 and D7), so a rank of 0, or a talent that is not
+  named, changes nothing and draws no random number. `poisons` is read by
+  `js/rogue.js` (A5, #105): `instant` and `deadly` add a proc to that hand,
+  and `null`, `wound`, `crippling` and `mind-numbing` add none, so they change
+  nothing and draw no random number. The default is `null` for both hands.
 
 `normalizeConfig` validates strictly and throws on the first problem, with a
 message that names the field and the value. A value of the wrong type is a
@@ -1470,7 +1525,7 @@ was not profiled. A 9-modifier Combat-style build adds about 3 ms over none.
 ## Damage tags
 
 Issue #97 (roadmap A3). Every damage event (a white swing, a skill's hit, a
-DoT's application and each of its ticks, and a poison hit when A5 adds one) is
+DoT's application and each of its ticks, and a poison hit or tick) is
 described to the modifier pipeline by its ability id, one **school**, and some
 **tags**. A modifier names them in its scope (`schools`, `tags`), so a talent
 that says "+20% damage from poisons" is data and needs no engine code.
@@ -1524,10 +1579,10 @@ not from an id list: an event with the `bleed` tag skips armor when
 `bleed.ignoresArmor` is set, and a `nature` event skips it when
 `nature.ignoresArmor` is set. The rotation never produces a nature or a
 bleed-tagged direct hit, so no existing result changes. A direct poison hit
-(A5, #105) will skip armor with no further code.
+(A5, #105) skips armor with no further code.
 
 **Not tags yet.** Aura definitions deal no damage today, so an aura has no
-school or tags of its own. A5 (#105) adds the poison hit and proc, and
+school or tags of its own. A5 (#105) added the poison hit and proc, and
 `poison.spells` is checked against the poison catalogue (D9, #104). Tags are
 not on the `runFight` result. The
 result shape and the golden fixtures are unchanged, and an event with no
@@ -1600,8 +1655,9 @@ its own.
   Deadly Poison ticks skip armor, so it does not change them. Nothing in the
   rotation casts it yet.
 - `Deadly Poison` (`k("poison.deadly")`): a target debuff with 5 stacks and 12 s,
-  where each proc adds a stack and refreshes the time. It has no effect yet.
-  The proc, the poison's damage and the instant-poison hit are A5 (#105). The
+  where each proc adds a stack and refreshes the time. The proc's `applyDot`
+  action applies it and sets the DoT's damage to the number of stacks times one
+  tick (A5, #105). The
   id is `deadly-poison`, the slug the poison's DoT uses. The poison catalogue
   (`js/poisons.js`, D9) lists the poisons; they are not in the ability
   catalogue.
@@ -1893,8 +1949,10 @@ defineProc({
 `createFight(seed, config, { procs })`, the way it passes `modifiers`. A `null`
 (rank 0) is skipped, a duplicate id or an object `defineProc` did not make
 throws, and so does an unknown option (`Known: modifiers, procs.`). The
-SimConfig has no procs field and `runFight` does not take any, so a full
-fight has none until D7 (talents) wires them: `procsFromTalents(ranks)` builds
+SimConfig has no procs field and `runFight` does not take any. The only
+procs a full fight has are the poison procs `config.poisons` builds
+(`poisonProcs` in `js/poisons.js`, A5, #105; see
+[Poison procs](#poison-procs-a5-issue-105)), and the talent procs wait for D7: `procsFromTalents(ranks)` builds
 the list from `PROC_TABLES` in `js/proc-data.js` (the `procs` of the entries in
 `data/talent-effects.js`: Puncturing Wounds and Hack and Slash so far, in the
 catalogue's order) and is not called by `runFight`. `procsFromTalents`
@@ -1988,7 +2046,7 @@ the extra swings.
 
 **Known limits.** There is no `procChance` modifier kind yet (Improved Poisons,
 D8a, will need one); `dealDamage` does not crit; `ppm` uses the unhasted weapon
-speed; nothing in `runFight` supplies procs until D7.
+speed; nothing in `runFight` supplies talent procs until D7.
 
 ## Talent effects
 

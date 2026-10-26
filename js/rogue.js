@@ -3,6 +3,7 @@ import { ModifierPipeline } from "./modifiers.js";
 import { normalizeConfig } from "./sim-config.js";
 import { Weapon } from "./weapon.js";
 import { createAbilities } from "./ability.js";
+import { poisonProcs } from "./poisons.js";
 import { checkProcs } from "./procs.js";
 import { abilityCatalogue } from "./abilities.js";
 import { beforeFinisher } from "./rotation-rules.js";
@@ -12,8 +13,8 @@ export class Rogue {
   // `config` is a SimConfig (js/sim-config.js): the character stats, the
   // weapons, the talent ranks and the poisons. It is validated and filled in
   // here, so `new Rogue()` is the default fight and `rogue.config` is always
-  // the full form. The talent ranks and the poisons are carried and not read
-  // by the engine yet.
+  // the full form. The talent ranks are carried and not read by the engine
+  // yet. The poisons are read here: each becomes a proc (js/poisons.js).
   //
   // `options.modifiers` is the static modifier list (js/modifiers.js): what
   // the talents and gear give, as data. It is not part of the SimConfig, so a
@@ -45,8 +46,13 @@ export class Rogue {
     this.config = normalizeConfig(config);
     // null means none, as it does for procs and abilities.
     this.modifiers = new ModifierPipeline(options.modifiers ?? []);
-    // The procs (js/procs.js) the fight runs. None by default.
-    this.procs = checkProcs(options.procs ?? []);
+    // The procs (js/procs.js) the fight runs: the host's, then the poisons on
+    // the weapons (config.poisons; js/poisons.js). None by default: the default
+    // config has no poison, so it adds none.
+    this.procs = checkProcs([
+      ...(options.procs ?? []),
+      ...poisonProcs(this.config.poisons),
+    ]);
     // The ids of the abilities the build grants, checked against the catalogue.
     const granted = options.abilities ?? [];
     if (!Array.isArray(granted)) {
