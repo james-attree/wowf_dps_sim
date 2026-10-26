@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { k } from "../data/constants.js";
+import { CONSTANTS, k } from "../data/constants.js";
 import { createFight, runFight } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { Weapon } from "../js/weapon.js";
@@ -41,6 +41,7 @@ describe("defaultConfig", () => {
           type: null,
         },
       },
+      target: { behind: k("target.behind") },
       talents: {},
       poisons: { mainHand: null, offHand: null },
     });
@@ -184,7 +185,7 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { charcter: {} },
       RangeError,
-      /config has an unknown field "charcter"\. Allowed fields: character, weapons, talents, poisons\./,
+      /config has an unknown field "charcter"\. Allowed fields: character, weapons, target, talents, poisons\./,
     );
     rejects(
       { character: { ap: 5 } },
@@ -211,6 +212,43 @@ describe("normalizeConfig strict validation", () => {
       RangeError,
       /unknown field "__proto__"/,
     );
+  });
+
+  it("rejects a target that is not a position, and an unknown target field", () => {
+    for (const behind of ["yes", 1, 0, null, {}]) {
+      rejects(
+        { target: { behind } },
+        TypeError,
+        /^config\.target\.behind must be true or false, not /,
+        String(behind),
+      );
+    }
+    rejects(
+      { target: { front: true } },
+      RangeError,
+      /config\.target has an unknown field "front"\. Allowed fields: behind\./,
+    );
+    assert.equal(
+      normalizeConfig({ target: { behind: false } }).target.behind,
+      false,
+    );
+    assert.equal(normalizeConfig({ target: {} }).target.behind, true);
+  });
+
+  it("takes the default position from target.behind, not from a literal", () => {
+    const before = CONSTANTS["target.behind"].value;
+    CONSTANTS["target.behind"].value = false;
+    try {
+      assert.equal(defaultConfig().target.behind, false);
+      assert.equal(normalizeConfig({}).target.behind, false);
+      assert.equal(normalizeConfig({ target: {} }).target.behind, false);
+      assert.equal(
+        normalizeConfig({ target: { behind: true } }).target.behind,
+        true,
+      );
+    } finally {
+      CONSTANTS["target.behind"].value = before;
+    }
   });
 
   it("rejects a section that is not an object", () => {

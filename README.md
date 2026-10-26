@@ -311,8 +311,11 @@ rejects them under `js/`.
   (`scope.schools`, `scope.tags`), and the armor skip for bleeds and nature
   damage reads them. See
   [Damage tags](docs/mechanics.md#damage-tags).
-- `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
-  glancing, crit, hit) for white swings and skills. Chances come from `k(id)`.
+- `js/attack-resolver.js` — The Classic 1.12 melee attack table (A7): a white
+  swing is one roll over miss, dodge, parry, glancing, block, crit and hit; a
+  skill is a roll for miss, dodge, parry and block, then a crit roll. Parry and
+  block exist only from the front (`config.target.behind`). Chances come from
+  `k(id)`.
 - `js/talents.js` — The talent catalogue (D4). `talentCatalogue` is built from
   `data/talentsforever/rogue.json` when the module loads: 53 talents with
   `tree.slug` ids, row, column, max rank, prerequisite (`req`), icon name and

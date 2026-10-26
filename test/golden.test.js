@@ -495,11 +495,12 @@ describe("the scripted golden case", () => {
     );
   });
 
-  it("has no parry, because the attack table cannot give one yet", async () => {
-    // js/attack-resolver.js passes a parry chance of 0 until the front/behind
-    // table (A7), so no fight can contain a parry. The golden cases pin
-    // parries at 0 and this test proves the reason. When parry becomes
-    // possible, this test fails: add a case that includes one.
+  it("has no parry or block, because every golden case fights from behind", async () => {
+    // The default config puts the rogue behind the target (target.behind), and
+    // the attack table (A7) gives parry and block to the front only. The
+    // golden cases pin parries and blocks at 0 and this test proves the
+    // reason. A case that fights from the front needs its own fixture.
+    assert.equal(defaultConfig().target.behind, true);
     for (const attackType of ["skill", "weapon"]) {
       for (let roll = 0; roll <= k("attack.rollScale"); roll += 0.25) {
         const { outcome } = resolveAttack({
@@ -508,8 +509,11 @@ describe("the scripted golden case", () => {
           bonusHitChance: 0,
           critChance: k("character.critChance"),
           roll,
+          glanceRoll: 50,
+          critRoll: 50,
         });
         assert.notEqual(outcome, "parry", `${attackType} roll ${roll}`);
+        assert.notEqual(outcome, "block", `${attackType} roll ${roll}`);
       }
     }
     for (const goldenCase of GOLDEN_CASES) {
@@ -518,6 +522,7 @@ describe("the scripted golden case", () => {
       );
       for (const [name, record] of Object.entries(abilities)) {
         assert.equal(record.parries, 0, `${goldenCase.name}: ${name}`);
+        assert.equal(record.blocks, 0, `${goldenCase.name}: ${name}`);
       }
     }
   });

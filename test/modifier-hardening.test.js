@@ -17,7 +17,7 @@ import { setRoll, testRng } from "./rolls.js";
 // something the first tests left open: a mutated copy of the engine that
 // drops the hook, reads it without the context, keys it by display name or
 // swaps two values must fail one of them. They go through the engine's own
-// seams (resolveAttack, resolveDotAttack, the tick loop, Skill.cast, a weapon
+// seams (resolveAttack, resolveDotAttack, the tick loop, Ability.cast, a weapon
 // swing) and not through pipeline.resolve alone.
 
 const TICKS = Math.floor(12 / k("rupture.tickInterval"));
@@ -671,31 +671,46 @@ describe("options that are not an object are refused", () => {
 });
 
 describe("the attack resolver's reductions and multiplier", () => {
+  // 0.098 crit is 5% once the 4.8% suppression comes off. A yellow hit rolls
+  // its crit separately, so the crit roll is injected here.
   const skill = {
     attackType: "skill",
     baseDamage: 100,
     bonusHitChance: 1,
-    critChance: 0.05,
+    critChance: 0.098,
+    critRoll: 100,
   };
 
-  it("never takes the dodge chance below 0, so the crit band does not move", () => {
-    // Dodge is 0 and the crit band is [0, 5) however large the reduction.
+  it("never takes the dodge chance below 0, so the hit band does not move", () => {
+    // Dodge is 0 however large the reduction, so roll 0 is a hit, not a
+    // negative band's leftover. The crit is the separate roll.
+    for (const roll of [0, 1, 6]) {
+      assert.equal(
+        resolveAttack({ ...skill, dodgeReduction: 1, roll }).outcome,
+        "hit",
+      );
+    }
     assert.equal(
-      resolveAttack({ ...skill, dodgeReduction: 1, roll: 1 }).outcome,
+      resolveAttack({ ...skill, dodgeReduction: 1, roll: 6, critRoll: 4 })
+        .outcome,
       "crit",
     );
     assert.equal(
-      resolveAttack({ ...skill, dodgeReduction: 1, roll: 6 }).outcome,
+      resolveAttack({ ...skill, dodgeReduction: 1, roll: 6, critRoll: 6 })
+        .outcome,
       "hit",
     );
   });
 
   it("does not turn a parry reduction into a parry chance", () => {
-    for (const roll of [0, 1, 50]) {
-      assert.notEqual(
-        resolveAttack({ ...skill, parryReduction: 0.5, roll }).outcome,
-        "parry",
-      );
+    for (const behind of [true, false]) {
+      for (const roll of [0, 1, 14.4, 20, 50]) {
+        assert.notEqual(
+          resolveAttack({ ...skill, behind, parryReduction: 0.5, roll })
+            .outcome,
+          "parry",
+        );
+      }
     }
   });
 
@@ -707,7 +722,8 @@ describe("the attack resolver's reductions and multiplier", () => {
       );
     }
     assert.equal(
-      resolveAttack({ ...skill, critMultiplier: 3, roll: 10 }).damage,
+      resolveAttack({ ...skill, critMultiplier: 3, roll: 10, critRoll: 0 })
+        .damage,
       300,
     );
   });

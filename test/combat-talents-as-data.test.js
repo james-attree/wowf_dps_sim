@@ -359,13 +359,19 @@ describe("a Combat build, as data, in the engine", () => {
     const plain = draws(undefined);
     const full = draws(buildModifiers(maxRanks));
     assert.ok(full.damage > plain.damage);
-    // Every roll in this fight is a swing or a skill's own roll. A talent only
-    // moves the thresholds, so the number of rolls follows from the timeline.
-    // (It can differ if a faster rotation fits in more casts, so compare a
-    // build that changes numbers and not the timeline.)
+    // Every roll in this fight is a swing or a skill's own roll, plus the
+    // second draw of a glancing blow or of a yellow hit's crit. A talent that
+    // only moves damage or crit numbers changes no outcome, so the number of
+    // draws follows from the timeline. (A faster rotation fits in more casts,
+    // and a dodge or parry reduction moves which rolls glance or hit, which
+    // moves the count, so compare a build that changes numbers only.)
     const numbersOnly = draws(
       buildModifiers(maxRanks).filter(
-        (m) => m.kind !== "energyCost" && m.kind !== "hitChance",
+        (m) =>
+          m.kind !== "energyCost" &&
+          m.kind !== "hitChance" &&
+          m.kind !== "dodgeReduction" &&
+          m.kind !== "parryReduction",
       ),
     );
     assert.equal(numbersOnly.count, plain.count);

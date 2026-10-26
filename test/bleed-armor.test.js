@@ -121,7 +121,7 @@ describe("DoT crit multiplier", () => {
     assert.equal(poison.combatLog[0].damage, poison.damageDone);
     assert.ok(poison.damageDone > TICK_DAMAGE * multiplier * factor);
 
-    const other = k("glancing.damage");
+    const other = k("glancing.damage").high;
     assert.notEqual(other, multiplier);
     const changed = withConstant("dot.critMultiplier", other, () => ({
       rupture: tickDot("rupture").damageDone,
