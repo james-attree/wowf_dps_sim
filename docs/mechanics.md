@@ -2350,8 +2350,10 @@ problem and naming talents by id:
   ids and ranks) and an illegal fight;
 - a talent with a `req` needs that talent at its full rank (the Classic rule; it
   needs no constant);
-- a talent on row `r` of a tree needs `k("talents.rowGating")` (5, an
-  `ASSUMPTION`, open question 14) times `r - 1` points spent on the rows above it in the same tree.
+- a talent on row `r` of a tree needs `k("talents.rowGating")` (5 points a row, the
+  Classic rule; the export does not state the number, so the constant is tagged
+  `ASSUMPTION`, open question 14) times `r - 1` points spent on the rows above it
+  in the same tree.
 
 For example: `Talent build is not valid: the build spends 50 talent points, and
 exactly 51 are needed (talents.maxPoints); "combat.dual-wield-specialization"

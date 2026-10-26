@@ -158,7 +158,7 @@ function checkRanks(ranks, catalogue, who = "expandTalents") {
     }
     if (!Number.isInteger(rank) || rank < 0 || rank > talent.max) {
       throw new RangeError(
-        `Talent "${id}" has ranks 0 to ${talent.max}. Got ${String(rank)}.`,
+        `Talent "${id}" has ranks 0 to ${talent.max}. Got ${typeof rank === "string" ? JSON.stringify(rank) : String(rank)}.`,
       );
     }
   }
@@ -239,8 +239,8 @@ function spending(ranks, catalogue) {
 //   - a talent with a prerequisite (`req`, the talent it hangs below) has its
 //     prerequisite at full rank, as in the Classic tree;
 //   - a talent on row r needs k("talents.rowGating") * (r - 1) points spent in
-//     its own tree on the rows above it (an assumption: the export does not
-//     say, OQ14).
+//     its own tree on the rows above it (the Classic rule of 5 points a row;
+//     the export does not state the number, OQ14).
 // Ids and ranks are checked first, as expandTalents does. It returns the points
 // spent. A build with no ranks is not a build: applyBuild does not call this for
 // it, and a direct call reports its 0 points like any other total.

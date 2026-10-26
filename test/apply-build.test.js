@@ -221,6 +221,19 @@ describe("validateBuild: what a character can have", () => {
     });
     assert.throws(() => validateBuild(null), RangeError);
   });
+
+  it('shows a string rank in quotes, so "3" is not mistaken for 3', () => {
+    assert.throws(() => validateBuild({ "combat.precision": "3" }), {
+      name: "RangeError",
+      message: /"combat\.precision" has ranks 0 to 3\. Got "3"\./,
+    });
+    assert.throws(() => validateBuild({ "combat.precision": 3.5 }), {
+      message: /Got 3\.5\./,
+    });
+    assert.throws(() => validateBuild({ "combat.precision": 4 }), {
+      message: /Got 4\./,
+    });
+  });
 });
 
 describe("applyBuild", () => {
@@ -259,6 +272,25 @@ describe("applyBuild", () => {
       assert.deepEqual(
         [build.modifiers, build.procs, build.abilities],
         [[], [], []],
+      );
+    }
+  });
+
+  it("a build of one or two points is a selected build, and is rejected", () => {
+    for (const ranks of [
+      { "combat.improved-eviscerate": 1 },
+      { "combat.improved-eviscerate": 2 },
+      { "combat.improved-eviscerate": 1, "combat.improved-sinister-strike": 1 },
+    ]) {
+      const small = points(ranks);
+      assert.ok(small >= 1 && small <= 2);
+      assert.throws(() => applyBuild(ranks), {
+        name: "RangeError",
+        message: new RegExp(`the build spends ${small} talent points`),
+      });
+      assert.throws(
+        () => runFight({ seed: 1, duration: 1, config: { talents: ranks } }),
+        RangeError,
       );
     }
   });
