@@ -108,6 +108,18 @@ export class Ability {
     this.gain =
       definition.gain === undefined ? 0 : stats[definition.gain.field];
     this.gainResource = definition.gain?.resource ?? null;
+    // Every resource the definition names must be one the rogue has, said
+    // here and not in the middle of a cast. A pool is only looked up, never
+    // read, so this costs no draw.
+    for (const id of [
+      this.costResource,
+      this.spendResource,
+      this.gainResource,
+    ]) {
+      if (id !== null) {
+        this.pool(id);
+      }
+    }
     // A gift that expires: the points a cast adds are removed `after` seconds
     // later, unless a later cast adds some or a spend takes them first.
     this.expires =
@@ -136,7 +148,12 @@ export class Ability {
   // The resource pool an id names on the host. An id the host has no pool for
   // is a data error, said when it is first needed.
   pool(id) {
-    const pool = this.rogue.resources?.[id];
+    // Own pools only: an inherited name ("toString") is not a resource.
+    const { resources } = this.rogue;
+    const pool =
+      resources !== undefined && Object.hasOwn(resources, id)
+        ? resources[id]
+        : undefined;
     if (pool === undefined) {
       throw new RangeError(
         `Ability "${this.id}" names the resource "${id}", which the rogue does not have.`,
@@ -227,6 +244,7 @@ export class Ability {
       }
 
       let result = null;
+      let spent = 0;
       const { damage, duration } = this.resolve();
 
       if (this.attackSkill) {
@@ -261,7 +279,8 @@ export class Ability {
       }
 
       if (spends !== null) {
-        spends.spendAll(); // The amount spent is what resolve() read above
+        // The amount spent is what resolve() read above.
+        spent = spends.spendAll();
         // A spend takes the points a gift would have removed.
         spends.clearExpiry();
       } else if (this.gainResource !== null) {
@@ -283,6 +302,9 @@ export class Ability {
         simulation.applyAura(this.aura, { duration, icon: this.icon });
       }
 
+      // The procs this cast triggers (js/procs.js) fire last, so they see the
+      // cast as it stands: its points gained or spent, its cooldown, its aura.
+      simulation.procs.onCast(this, result, spent);
       return result;
     }
     return null;

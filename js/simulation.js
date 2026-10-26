@@ -1,8 +1,14 @@
 import { k } from "../data/constants.js";
-import { resolveAttack, rollCrit, suppressCrit } from "./attack-resolver.js";
+import {
+  resolveAttack,
+  resolveSpellHit,
+  rollCrit,
+  suppressCrit,
+} from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { ModifierPipeline, isNeutral } from "./modifiers.js";
 import { damageTags } from "./damage-tags.js";
+import { ProcRunner } from "./procs.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
 // Auras already running lose this step. One applied during rotation is not
@@ -100,6 +106,9 @@ export class Simulation {
     // The auras that carry modifiers, by kind. Built on first use and again
     // when a new aura definition is registered.
     this.auraModifierIndex = null;
+    // The procs the rogue was given (js/procs.js), with their cooldowns and
+    // counts. Empty unless the host listed some.
+    this.procs = new ProcRunner(this, rogue.procs ?? []);
   }
 
   // Advance the fight by dt seconds. The engine reads no clock: the host
@@ -197,6 +206,7 @@ export class Simulation {
           dot.icon,
         );
         dot.timeUntilNextTick += dot.tickInterval;
+        this.procs.onDotTick(dotContext);
       }
 
       if (dot.duration <= k("sim.tickEpsilon")) {
@@ -582,8 +592,10 @@ export class Simulation {
 
   // `source` is who made the attack: { id, name, icon? }. A skill is one, and
   // so is a weapon's swing (Weapon.attack). The id keys the totals, the name
-  // and icon go in the combat log.
-  resolveAttack(source, attackType, baseDamage) {
+  // and icon go in the combat log. A white swing then fires its procs
+  // (js/procs.js); a skill's fire at the end of its cast. `extra` marks a swing
+  // an extra attack made (it is recorded under the hand like any swing).
+  resolveAttack(source, attackType, baseDamage, { extra = false } = {}) {
     const context = this.attackContext(source, attackType);
     const result = resolveAttack({
       attackType,
@@ -617,7 +629,39 @@ export class Simulation {
       // After armor, so the hit that uses the last charge still gets it.
       this.consumeHitCharges();
     }
-    return { ...result, damage };
+    const resolved = { ...result, damage };
+    if (attackType === "weapon") {
+      this.procs.onSwing(source, resolved, extra);
+    }
+    return resolved;
+  }
+
+  // Damage a proc deals from a source of its own (js/procs.js, dealDamage).
+  // `spell.missTarget` applies when it is a spell hit, with one draw, before
+  // the damage. Then the damage roll, one draw, when min and max differ. The
+  // damage modifiers, armor, the fight totals and the log work as for an
+  // attack. It does not crit and it fires no procs.
+  resolveProcDamage({ id, name, min, max, spellHit }) {
+    const source = { id, name, icon: null };
+    const context = this.attackContext(source, "skill");
+    let hit = { outcome: "hit", status: "Hit", landed: true };
+    if (spellHit) {
+      hit = resolveSpellHit({ rng: this.rng });
+    }
+    let damage = 0;
+    if (hit.landed) {
+      const rolled =
+        max === min ? min : Math.floor(this.rng() * (max - min + 1)) + min;
+      damage = this.applyArmor(
+        this.modifiers.resolve("damage", rolled, context),
+        skipsArmor(context),
+        context,
+      );
+      this.updateDamage(damage);
+    }
+    this.recordAbility(source, hit.outcome, damage);
+    this.addCombatEvent(name, "skill", damage, hit.status, hit.outcome);
+    return { ...hit, damage };
   }
 
   resolveDotAttack(source, attackType, baseDamage, duration, bleed = false) {

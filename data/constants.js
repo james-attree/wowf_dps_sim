@@ -32,6 +32,7 @@ const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
 const DEV_JUDGEMENT_97 = "Developer, 26 Oct 2026, issue #97";
 const DEV_JUDGEMENT_99 = "Developer, 26 Oct 2026, issue #99";
 const DEV_JUDGEMENT_100 = "Developer, 26 Oct 2026, issue #100";
+const DEV_JUDGEMENT_101 = "Developer, 26 Oct 2026, issue #101";
 
 // The attack table rows (A7, #100) cite the Magey classic-warrior wiki page
 // (MAGEY) as the Classic reference for the table. Where a number is not
@@ -799,8 +800,43 @@ export const CONSTANTS = {
     "–",
     ASSUMPTION,
     `${JAMES}: an extra attack does not trigger another extra attack`,
-    "Hack and Slash is not simulated yet.",
+    "Read by the proc runner (js/procs.js): a proc that holds an extraAttack action does not roll on a swing that is itself an extra attack. Turn it on and the same procs roll again, down to proc.maxChainDepth. Hack and Slash (hackAndSlash.extraAttack) is the one data-defined extra attack; D7 turns it on from a talent rank.",
     true,
+  ),
+  "hackAndSlash.extraAttack": entry(
+    {
+      chance: [0.01, 0.02, 0.03, 0.04, 0.05],
+      weaponTypes: ["sword", "axe"],
+    },
+    "chance per rank, weapon types",
+    WOWF_EXPORT,
+    "rogue.json → talents[Combat|Hack and Slash] desc, Axe/Sword",
+    "Your successful melee attacks have this chance to trigger an extra attack on the target. A proc on a landed hit (onHit: white or yellow), main hand or off hand, with a Sword or Axe in the hand that swung. The Dagger/Fist crit and Mace armor lines of the same talent are modifiers (D7).",
+    false,
+  ),
+  "puncturingWounds.comboPoint": entry(
+    { chance: [0.15, 0.3, 0.45], comboPoints: 1 },
+    "chance per rank, combo points",
+    WOWF_EXPORT,
+    "rogue.json → talents[Combat|Puncturing Wounds] desc",
+    "Backstab has this chance to add an additional combo point. A proc on a landed Backstab cast (onAbility). The crit lines of the same talent are modifiers (D7).",
+    false,
+  ),
+  "proc.secondsPerMinute": entry(
+    60,
+    "s",
+    ENGINEERING,
+    `${DEV_JUDGEMENT_101}: ${NOT_JAMES} The seconds in the minute a procs-per-minute chance divides by`,
+    "Not a game rule. A ppm proc's chance is ppm × weapon speed ÷ this, so a 1 ppm proc on a 3 s weapon is 5% a swing.",
+    false,
+  ),
+  "proc.maxChainDepth": entry(
+    64,
+    "extra attacks",
+    ENGINEERING,
+    `${DEV_JUDGEMENT_101}: ${NOT_JAMES} How many extra attacks may follow one another before the proc runner stops`,
+    "Not a game rule. With hackAndSlash.chain on, an extra attack can proc another. A proc that cannot fail (chance 1) would never stop, so a chain deeper than this throws a RangeError, and the config is wrong. At 5% a link the chance of reaching it is nil.",
+    false,
   ),
 
   // Sample inputs. They are the defaults of the SimConfig (js/sim-config.js).

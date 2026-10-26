@@ -283,8 +283,18 @@ rejects them under `js/`.
 - `js/resource.js` — The `Resource` pool (D3). `gain`, `spend`, `spendAll` (the
   count it took, before the reset), `regenerate`, an expiry (Premeditation's
   rule) and `targetChanged`. The cap goes through `resourceMax` modifiers. The
-  generic executor and, later, procs use these by resource id. See
+  generic executor and the procs use these by resource id. See
   [Resources](docs/mechanics.md#resources).
+- `js/procs.js` — The proc system (A4). `defineProc` and `defineRankedProc`
+  validate and freeze a proc: a trigger (`onHit`, `onCrit`, `onWhiteHit`,
+  `onAbility` by ability id or tag, `onDotTick`), a chance (`flat`, `ppm`,
+  `perSpent` by the combo points spent), an optional internal cooldown, a
+  filter (a modifier scope) and actions (`gainResource`, `applyAura`,
+  `dealDamage`, `extraAttack`). `ProcRunner` runs them, drawing only when a
+  proc could fire. Hosts pass them as `options.procs` to `Rogue` or
+  `createFight`; `runFight` and its result are unchanged. `js/proc-data.js`
+  has the rank tables of Hack and Slash and Puncturing Wounds. See
+  [Procs](docs/mechanics.md#procs).
 - `js/auras.js` — The aura model (A1). `AURAS` holds each buff and debuff as a
   definition (id, name, target, duration, stacks and stack rule, charges,
   refresh rule, hooks, effects: `haste`, `energyRegenMultiplier`,

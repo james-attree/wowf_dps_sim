@@ -69,7 +69,7 @@ const MODIFIER_TALENTS = {
       text: /your Mutilate by (\d+)%/,
       scale: PERCENT,
     },
-    // The 15/30/45% chance of an extra combo point is a proc: A4 and D7.
+    // The 15/30/45% chance of an extra combo point is a proc: A4 built it (js/proc-data.js), D7 wires it.
   ],
   "combat.precision": [
     {
@@ -119,7 +119,7 @@ const MODIFIER_TALENTS = {
       text: /Mace:[\s\S]*?ignore (\d+)%/,
       scale: PERCENT,
     },
-    // The axe and sword extra attack (1 to 5%) is a proc: A4 and D7.
+    // The axe and sword extra attack (1 to 5%) is a proc: A4 built it (js/proc-data.js), D7 wires it.
   ],
   "combat.weapon-expertise": [
     {

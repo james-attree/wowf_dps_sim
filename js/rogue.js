@@ -3,6 +3,7 @@ import { ModifierPipeline } from "./modifiers.js";
 import { normalizeConfig } from "./sim-config.js";
 import { Weapon } from "./weapon.js";
 import { createAbilities } from "./ability.js";
+import { checkProcs } from "./procs.js";
 import { createResources } from "./resource.js";
 
 export class Rogue {
@@ -26,14 +27,16 @@ export class Rogue {
       throw new TypeError("Rogue options must be an object.");
     }
     for (const key of Object.keys(options)) {
-      if (key !== "modifiers") {
+      if (key !== "modifiers" && key !== "procs") {
         throw new RangeError(
-          `Unknown Rogue option "${key}". Known: modifiers.`,
+          `Unknown Rogue option "${key}". Known: modifiers, procs.`,
         );
       }
     }
     this.config = normalizeConfig(config);
     this.modifiers = new ModifierPipeline(options.modifiers);
+    // The procs (js/procs.js) the fight runs. None by default.
+    this.procs = checkProcs(options.procs ?? []);
     const { character, weapons } = this.config;
     // Energy and combo points are resource pools (js/resource.js), described
     // as data in js/resource-data.js. The pools are made before the abilities,
@@ -151,6 +154,7 @@ export class Rogue {
   tickResources(dt) {
     const { resources } = this;
     for (const id in resources) {
+      resources[id].clamp();
       resources[id].tick(dt);
     }
   }

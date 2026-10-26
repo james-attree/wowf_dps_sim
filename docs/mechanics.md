@@ -1605,10 +1605,24 @@ them), and `targetChanged()`. The cap, `max`, is
 `modifiers.resolve("resourceMax", baseMax, { resource: id })`, so a max-energy
 talent is a modifier with `scope: { resources: ["energy"] }`.
 
-These are the operations a proc (A4, #101) will call. "Restore 25 energy"
-is `gain(25)` on `energy`, "add a combo point" is `gain(1)` on `comboPoints`,
-and a finisher's proc that depends on how many points it spent can read the
-count `spendAll()` returns. Nothing here is a proc yet.
+These are the operations a proc (A4, #101) calls: "restore 25 energy" is
+`gain(25)` on `energy`, "add a combo point" is `gain(1)` on `comboPoints`, and
+a finisher's proc that depends on how many points it spent reads the count
+`spendAll()` returned. See [Procs](#procs).
+
+An amount must be a finite number of 0 or more: `gain` and `spend` throw a
+`RangeError` for a negative, NaN, infinite or non-number amount, so a bad
+data row fails where it is used and cannot add a resource by spending a
+negative. `Resource.clamp()` brings a pool down to its cap. `Rogue` calls it
+each step before the regeneration, so a cap that falls (a `resourceMax`
+modifier that goes with an aura) takes the excess with it, and a cast that
+neither gains nor spends no longer leaves it in place for ever. A default
+fight never has a pool above its cap, so nothing changes there. An ability's
+`cost`, `spend` and `gain` resource ids are checked when the `Ability` is built
+(a `RangeError` naming the id, not a `TypeError` in the middle of a cast).
+`Ability.pool` and `createResources` look ids up with `Object.hasOwn`, so
+`"toString"` or `"__proto__"` is an unknown id and not a function on the
+prototype.
 
 `rogue.energy`, `rogue.maxEnergy`, `rogue.comboPoints` and
 `rogue.maxComboPoints` stay, as views on the pools. Setting a `max` sets the
@@ -1703,3 +1717,118 @@ byte-identical. The seams `Rogue.prototype.rotation`, a per-instance
 `test/ability-parity.test.js` runs the old and the new abilities on the same
 seeds and compares the draws, totals, log, auras, cooldowns and Premeditation
 state, including a fight that casts every ability in a changing order.
+
+## Procs
+
+Roadmap A4 (issue #101). A proc is data in `js/procs.js`: a trigger, a chance,
+an optional internal cooldown (ICD), a filter and an ordered list of actions.
+`defineProc` checks it when it loads (an unknown key, trigger, mode, action,
+aura, resource or ability id, or a chance outside 0 to 1 throws a `RangeError`)
+and freezes it. `defineRankedProc(spec, rank)` takes a chance as a `values`
+table by rank and returns `null` at rank 0, like `expandRank` for modifiers;
+every rank is checked even at rank 0. The engine names no talent, poison or
+ability to run them.
+
+```js
+defineProc({
+  id: "hack-and-slash",
+  trigger: "onHit",
+  scope: { weaponTypes: ["sword", "axe"] },
+  chance: { mode: "flat", value: 0.05 },
+  actions: [{ type: "extraAttack" }],
+});
+```
+
+**Who has them.** The host passes them to `new Rogue(config, { procs })` or
+`createFight(seed, config, { procs })`, the way it passes `modifiers`. A `null`
+(rank 0) is skipped, a duplicate id or an object `defineProc` did not make
+throws, and so does an unknown option (`Known: modifiers, procs.`). The
+SimConfig has no procs field and `runFight` does not take any, so a full
+fight has none until D7 (talents) wires them: `procsFromTalents(ranks)` builds
+the list from `PROC_TABLES` in `js/proc-data.js` (Hack and Slash and
+Puncturing Wounds so far) and is not called by `runFight`.
+
+**Triggers**, in the fixed order they are dispatched (`PROC_TRIGGERS`):
+
+- `onHit`: a direct attack hit. A white swing, or an ability that attacks, and
+  whatever the roll gave: hit, crit, glancing or block. Not a DoT application
+  (it deals nothing yet) and not a tick.
+- `onCrit`: a direct attack that crit.
+- `onWhiteHit`: a white swing that hit (it fires `onHit` too).
+- `onAbility`: a cast that went through, by ability id (`scope.abilities`) or
+  by tag (`scope.tags: ["finisher"]`, from `js/damage-tags.js`). It fires at the
+  end of the cast, after the cost, the gain or spend, the cooldown and the
+  aura. A DoT application and a cast that does not attack (Adrenaline Rush) fire
+  it; a cast that missed does not. A cast that does not attack has neither the
+  `white` nor the `yellow` tag.
+- `onDotTick`: one tick of a DoT, crit or not (`scope.tags: ["bleed"]` or
+  `abilities: ["rupture"]`).
+
+The filter is a modifier scope (`abilities`, `hands`, `weaponTypes`, `schools`,
+`tags`), matched with `scopeMatches`. A scope with two keys needs both.
+
+**Chance modes.** The chance is worked out before any draw.
+
+- `flat`: `value`.
+- `ppm`: `value` times the hand's base weapon speed over
+  `proc.secondsPerMinute` (60), capped at 1. Haste does not change it. Not
+  allowed with `onDotTick`, which has no hand.
+- `perSpent`: `value` times the combo points the cast spent, capped at 1, with
+  `onAbility` only. `Ability.spendable()` reads the count before the pool
+  resets, so Eviscerate at 3 points with `value: 0.2` is a 60% chance, and a
+  cast that spent none has chance 0.
+
+**Actions**, run in the order given when the proc fires:
+
+- `gainResource { resource, amount }`: `Resource.gain` on a pool of
+  `rogue.resources` by id. `comboPoints` is an extra combo point, `energy` is
+  an energy restore. The cap applies, and `stats.gained` counts what was added.
+  Points gained clear a pending Premeditation expiry, as a builder's do. The id
+  is checked when the `Simulation` is built.
+- `applyAura { aura, duration?, stacks? }`: `Simulation.applyAura` of an aura id
+  in `js/auras.js`, checked at load.
+- `dealDamage { id, name?, min, max?, spellHit? }`: damage from a source of its
+  own, in the ability record and the combat log. The damage modifiers, armor and
+  the damage tags of the `id` apply (a poison id is a nature spell). With
+  `spellHit` it first rolls a spell hit (no bonus hit), and a resist deals
+  nothing. It does not crit and fires no procs.
+- `extraAttack`: one more white swing in the hand that triggered it, resolved
+  by `resolveAttack` like any swing, so its own triggers run, depth first.
+
+**Chains.** An extra attack that can itself trigger an extra attack is the
+`hackAndSlash.chain` assumption (off, a retune item): a proc that holds an
+`extraAttack` does not roll on an extra swing. With it on, a chain that goes
+deeper than `proc.maxChainDepth` (64) throws a `RangeError` instead of looping.
+
+**Random numbers, in order.** Procs draw only when they could fire.
+
+1. The attack's own draws (table, crit, glance, weapon damage), as always.
+2. Then the triggers in the order above; inside one trigger, the procs in the
+   order the host listed them. A white swing fires `onHit`, `onCrit`,
+   `onWhiteHit` right after its own draws. A cast fires its triggers last,
+   after everything it did. A tick fires `onDotTick` after the tick's own draw.
+3. Per proc, no draw when the filter does not match, the proc is on its ICD,
+   the chain rule stops it, or its chance is 0 (a zero-rank talent is no proc at
+   all). Otherwise one draw, and it fires when the draw is below the chance.
+4. Then the actions, depth first: an `extraAttack` draws its weapon damage and
+   table and runs its own triggers before the next action; `dealDamage` draws
+   the spell hit (if any), then the damage if `min` and `max` differ.
+
+A fight with no procs, or only `null` ones, draws what it always did: the four
+golden fixtures are byte-identical.
+
+**Counters.** `Simulation.procs.stats[id]` is `{ rolls, fires, blocked,
+gained }` (draws made, procs that fired, ICD refusals, resource gained). It is
+not in the `runFight` result.
+
+**Result shape.** Unchanged: `runFight` and `createFight` return the same
+fields, `SimConfig` has no new field, and the golden fixtures are byte-identical.
+What was added is the `procs` option on `Rogue` and `createFight`, the
+`Simulation.procs` runner and `scopeMatches` (the modifier module's scope
+matcher, now exported). Extra-attack damage is recorded under the swinging
+hand's ability record (`main-hand` or `off-hand`), so its `casts` count includes
+the extra swings.
+
+**Known limits.** There is no `procChance` modifier kind yet (Improved Poisons,
+D8a, will need one); `dealDamage` does not crit; `ppm` uses the unhasted weapon
+speed; nothing in `runFight` supplies procs until D7.
