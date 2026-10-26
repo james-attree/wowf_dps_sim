@@ -25,6 +25,7 @@ const NOT_JAMES =
   "an engineering judgement call by the dev, not a decision by James.";
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
+const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
 const DEV_JUDGEMENT_111 = "Developer, 26 Oct 2026, issue #111";
 const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
@@ -538,6 +539,37 @@ export const CONSTANTS = {
     "Spell miss used for poisons: 17% at +3 levels, floor 1%. Read by spellHitOutcome in js/attack-resolver.js (A7); the poison procs (A5) are what will call it.",
     true,
   ),
+  "poison.tab": entry(
+    "Poisons",
+    "spellbook tab",
+    ENGINEERING,
+    `${POISON_DEFINITIONS}: an engineering judgement call by the dev, not a decision by James. The spellbook tab js/poisons.js builds the poison definitions from`,
+    "Not a game rule. The snapshot's spellbook keeps the five rogue poisons, every rank, in their own tab (abilities.tabs leaves it out).",
+    false,
+  ),
+  "poison.tabSkip": entry(
+    ["blinding-powder"],
+    "spell ids",
+    ENGINEERING,
+    `${POISON_DEFINITIONS}: an engineering judgement call by the dev, not a decision by James. The spells in the poison tab that are not poisons`,
+    "Not a game rule. The snapshot's Poisons tab also lists Blinding Powder, a reagent for Blind with no chance, damage or charges. It is skipped by id, and any other spell in the tab that is not a poison fails the import.",
+    false,
+  ),
+  "poison.noDpsReasons": entry(
+    {
+      "wound-poison":
+        "no DPS effect in this sim: it reduces healing received, and does no damage",
+      "crippling-poison":
+        "no DPS effect in this sim: it slows the target's movement, and does no damage",
+      "mind-numbing-poison":
+        "no DPS effect in this sim: it slows the target's casting, and does no damage",
+    },
+    "poison id → reason",
+    ENGINEERING,
+    `${POISON_DEFINITIONS}: the issue asks for Wound, Crippling and Mind-numbing Poison to be explicit no-ops with a reason such as "no DPS effect in this sim"; the exact wording is an engineering judgement call by the dev, not a decision by James`,
+    "Not a game rule. Every poison in the snapshot's poison tab is either in poison.spells (a DPS poison) or here, and the catalogue refuses to load if one is in neither or both. Add a poison to poison.spells, and remove it from here, to make it a DPS poison.",
+    false,
+  ),
   "poison.hitModel": entry(
     "spell hit",
     "–",
@@ -607,7 +639,7 @@ export const CONSTANTS = {
     "ability ids",
     ENGINEERING,
     `${DEV_JUDGEMENT_97}: ${NOT_JAMES} Which damage events carry the poison tag`,
-    "Not a game rule. The ids of the poisons that deal damage in this sim (issue #105: Instant and Deadly), the slug of the poison's name, the same form as bleed.spells. A poison gets the poison tag, and is neither white nor yellow. Its Nature school comes from nature.spells, which lists the same ids (a test keeps the two in step). Wound, Crippling and Mind-numbing are not listed because they deal no DPS here. D9 (#104) may replace this list.",
+    "Not a game rule. The ids of the poisons that deal damage in this sim (issue #105: Instant and Deadly), the slug of the poison's name, the same form as bleed.spells. A poison gets the poison tag, and is neither white nor yellow. Its Nature school comes from nature.spells, which lists the same ids (a test keeps the two in step). Wound, Crippling and Mind-numbing are not listed because they deal no DPS here (see poison.noDpsReasons). The poison catalogue (js/poisons.js, D9 #104) flags its DPS poisons from this list, and a test keeps the two in step.",
     false,
   ),
   "dot.snapshot": entry(
@@ -1026,7 +1058,7 @@ export const CONSTANTS = {
     "poison ids",
     ENGINEERING,
     `${SIM_CONFIG}: an engineering judgement call by the dev, not a decision by James. The poisons a SimConfig accepts on a weapon`,
-    "Not a game rule. The five rogue poisons in the snapshot's spellbook. A SimConfig only stores the choice; no poison is simulated until A5. D9 (poison definitions from the snapshot) may replace this list.",
+    "Not a game rule. The five rogue poisons in the snapshot's spellbook. A SimConfig only stores the choice; no poison is simulated until A5. The poison catalogue (js/poisons.js, D9 #104) is read from the snapshot, and a test keeps its poisons in step with this list.",
     false,
   ),
   "config.minWeaponSpeed": entry(

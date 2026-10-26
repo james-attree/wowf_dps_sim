@@ -31,9 +31,9 @@ import { slugify } from "./talents.js";
 // modifiers were later written by hand in data/talent-effects.js (D5, #102).
 
 // A spell_desc number: "9", "1,012", "0.5". Thousands commas are dropped.
-const NUMBER = String.raw`\d[\d,]*(?:\.\d+)?`;
+export const NUMBER = String.raw`\d[\d,]*(?:\.\d+)?`;
 
-function toNumber(text) {
+export function toNumber(text) {
   return Number(text.replaceAll(",", ""));
 }
 
@@ -52,11 +52,11 @@ export class AbilityParseError extends Error {
   }
 }
 
-function isObject(value) {
+export function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function deepFreeze(value) {
+export function deepFreeze(value) {
   if (value !== null && typeof value === "object") {
     Object.values(value).forEach(deepFreeze);
     Object.freeze(value);
@@ -475,7 +475,7 @@ export function parseSpell({ name, rank, label, tab, key, entry }, read = k) {
 // ---- the catalogue ------------------------------------------------------
 
 // "Rank 9" is rank 9. "" and "Passive" are the one and only rank, 1.
-function rankOf(label, name, fail) {
+export function rankOf(label, name, fail) {
   if (label === "" || label === "Passive") {
     return 1;
   }
