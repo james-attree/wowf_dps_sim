@@ -13,7 +13,8 @@ import { format } from "prettier";
 // CI check for data/constants.js (#7, #22, #48). A missing file, a missing ref,
 // a bare dash ref, a placeholder ref, or an unknown source tag fails the
 // process. When the repository file passes, this command rewrites
-// docs/provenance.md. Talent coverage (D6) is a separate later check.
+// docs/provenance.md. Talent coverage (D6) is a separate check:
+// scripts/talent-coverage.mjs.
 
 export const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 export const DEFAULT_CONSTANTS_PATH = resolve(ROOT, "data", "constants.js");

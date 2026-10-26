@@ -1949,8 +1949,38 @@ scope? }`, with the kinds and scopes of [Modifiers](#modifiers).
 test recomputes it from the snapshot, so a refreshed snapshot that rewords or
 renumbers a talent fails until its entry is read again. The same tests read every
 modifier value and proc chance out of the text, at every rank
-(`test/combat-talents-as-data.test.js`, `test/talent-effects.test.js`). Refusing
-a stale entry when the data loads is D6 (#103).
+(`test/combat-talents-as-data.test.js`, `test/talent-effects.test.js`). The
+coverage check (D6, below) lists the talents with no effect and the entries whose
+text changed.
+
+**Talent coverage check (D6, #103).** `npm run talents:coverage`
+(`scripts/talent-coverage.mjs`, with `test/talent-coverage.test.js`) reads the
+catalogue and the effects map and reports, by talent id:
+
+| Finding   | What it is                                                                    | Status                               |
+| --------- | ----------------------------------------------------------------------------- | ------------------------------------ |
+| uncovered | no entry, or an entry with no modifiers, procs, ability or `noDpsEffect`      | **fails** in Combat, warns elsewhere |
+| changed   | the entry's `textHash` is not the hash of the catalogue's rank texts any more | **fails** in every tree              |
+| orphan    | an entry for a talent id the catalogue does not have                          | **fails**                            |
+
+The rule is the interim one of the Phase 2 plan: the Assassination and Subtlety
+talents without an effect are expected until Phase 4 (D8), so they are warnings
+and the command still exits 0. A Combat talent must be covered. A changed text is
+a failure because the entry's numbers were read from the old text, so they may be
+wrong; `test/talent-effects.test.js` already fails on the same condition, and the
+command names the talent with the stored and current hash and every current rank
+text. (It cannot name the rank that changed: the stored hash covers all of a
+talent's rank texts together.) After a refresh, re-read the entry against the
+text, then set `textHash` to the current hash the command prints. Which tree must
+be fully covered is `FULL_COVERAGE_TREES` in the script (`combat`); when D8 covers
+a tree, add it there.
+
+Under GitHub Actions (`GITHUB_ACTIONS=true`) the command also writes one
+`::warning` annotation listing the uncovered ids and an `::error` per failure, so
+they show on the run. It is not a step of `.github/workflows/ci.yml` yet: the push
+of a workflow file needs a token with the `workflow` scope, which this work did
+not have, so the step (`run: npm run talents:coverage`, after the provenance
+steps) is the one change left. Exit status: 0 with no failure, 1 with one, 2 for an unknown argument.
 
 ```js
 import { createFight, expandTalents } from "./js/fight.js";
