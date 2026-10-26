@@ -943,8 +943,9 @@ default. A section is merged field by field, so `{ character: { attackPower:
   `Rogue`, where the constants used to be read. The dagger weapon percent for
   Ghostly Strike and Hemorrhage still depends on the main-hand `type` being
   `"dagger"`, and the normalised swing speed of the specials is 1.7 for a
-  dagger and 2.4 for any other type. The off hand's first-swing delay (`weapon.offHand.initialSwing`) and the starting
-  combo points are not part of the config.
+  dagger and 2.4 for any other type. The off hand's first-swing delay
+  (`weapon.offHand.initialSwing`) and the starting combo points are not part of
+  the config.
 - **Target position changes the attack table.** `target.behind` (a boolean,
   default `k("target.behind")`, true) is read by every attack and DoT
   application. Behind, the parry and block bands have zero width. From the front
@@ -1647,10 +1648,11 @@ Three checks make the parser stricter than a first read (issue #94, from the
   weapon damage" and a sentence with no number are not damage numbers.
 
 **Not parsed yet.** Buff and debuff magnitudes (Slice and Dice's haste %,
-Adrenaline Rush's energy %, Ghostly Strike's dodge, Hemorrhage's Rupture
-bonus) and the poisons (D9). They stay in `data/constants.js` until the issue
-that needs them. The talent modifiers were written later, by hand, in
-`data/talent-effects.js` (D5, #102). The catalogue is deeply frozen, and building it draws no random numbers.
+Adrenaline Rush's energy %, Ghostly Strike's dodge, Hemorrhage's Rupture bonus)
+and the poisons (D9). They stay in `data/constants.js` until the issue that
+needs them. The talent modifiers were written later, by hand, in
+`data/talent-effects.js` (D5, #102). The catalogue is deeply frozen, and
+building it draws no random numbers.
 
 ## Resources
 
@@ -1947,11 +1949,11 @@ scope? }`, with the kinds and scopes of [Modifiers](#modifiers).
 
 `textHash` is the SHA-256 of the talent's rank texts joined with a newline. A
 test recomputes it from the snapshot, so a refreshed snapshot that rewords or
-renumbers a talent fails until its entry is read again. The same tests read every
-modifier value and proc chance out of the text, at every rank
+renumbers a talent fails until its entry is read again. The same tests read
+every modifier value and proc chance out of the text, at every rank
 (`test/combat-talents-as-data.test.js`, `test/talent-effects.test.js`). The
-coverage check (D6, below) lists the talents with no effect and the entries whose
-text changed.
+coverage check (D6, below) lists the talents with no effect and the entries
+whose text changed.
 
 **Talent coverage check (D6, #103).** `npm run talents:coverage`
 (`scripts/talent-coverage.mjs`, with `test/talent-coverage.test.js`) reads the
@@ -1965,22 +1967,23 @@ catalogue and the effects map and reports, by talent id:
 
 The rule is the interim one of the Phase 2 plan: the Assassination and Subtlety
 talents without an effect are expected until Phase 4 (D8), so they are warnings
-and the command still exits 0. A Combat talent must be covered. A changed text is
-a failure because the entry's numbers were read from the old text, so they may be
-wrong; `test/talent-effects.test.js` already fails on the same condition, and the
-command names the talent with the stored and current hash and every current rank
-text. (It cannot name the rank that changed: the stored hash covers all of a
-talent's rank texts together.) After a refresh, re-read the entry against the
-text, then set `textHash` to the current hash the command prints. Which tree must
-be fully covered is `FULL_COVERAGE_TREES` in the script (`combat`); when D8 covers
-a tree, add it there.
+and the command still exits 0. A Combat talent must be covered. A changed text
+is a failure because the entry's numbers were read from the old text, so they
+may be wrong; `test/talent-effects.test.js` already fails on the same condition,
+and the command names the talent with the stored and current hash and every
+current rank text. (It cannot name the rank that changed: the stored hash covers
+all of a talent's rank texts together.) After a refresh, re-read the entry
+against the text, then set `textHash` to the current hash the command prints.
+Which tree must be fully covered is `FULL_COVERAGE_TREES` in the script
+(`combat`); when D8 covers a tree, add it there.
 
 Under GitHub Actions (`GITHUB_ACTIONS=true`) the command also writes one
-`::warning` annotation listing the uncovered ids and an `::error` per failure, so
-they show on the run. It is not a step of `.github/workflows/ci.yml` yet: the push
-of a workflow file needs a token with the `workflow` scope, which this work did
-not have, so the step (`run: npm run talents:coverage`, after the provenance
-steps) is the one change left. Exit status: 0 with no failure, 1 with one, 2 for an unknown argument.
+`::warning` annotation listing the uncovered ids and an `::error` per failure,
+so they show on the run. It is not a step of `.github/workflows/ci.yml` yet: the
+push of a workflow file needs a token with the `workflow` scope, which this work
+did not have, so the step (`run: npm run talents:coverage`, after the provenance
+steps) is the one change left. Exit status: 0 with no failure, 1 with one, 2 for
+an unknown argument.
 
 ```js
 import { createFight, expandTalents } from "./js/fight.js";
@@ -2093,20 +2096,25 @@ from `resolveAttack` for a landed attack): a landed attack uses one charge of
 every charged self aura whose modifiers' scope matches the attack, so nothing
 there names Cold Blood. A white swing, a Slice and Dice, an ability outside the
 scope, and an attack that misses, dodges, is parried or is blocked (from the
-front) leave the charge (the
-wowsims behaviour: Cold Blood is consumed by the attack that reaches the crit
-roll). The crit chance goes through the pipeline, so +100% on the rogue's crit
-chance is a raw chance above 1 and, with the suppression order above, a sure
-crit. The crit roll is still drawn, so the draws are the same as without it.
+front) leave the charge. The crit chance goes through the pipeline, so +100% on
+the rogue's crit chance is a raw chance above 1 and, with the suppression order
+above, a sure crit. The crit roll is still drawn, so the draws are the same as
+without it.
 
-**Assumption: a front block keeps the charge.** That a block does not spend the
-charge is an assumption, not a verified Classic rule. It follows from the rule
-above (the charge goes to the attack that reaches the crit roll, and a block
-never does), and it was accepted by the coordinator on #131. Its test is in
-`test/carry-overs-103.test.js`. It does not touch the default fight, which is
-behind the target and cannot be blocked, so no golden fixture depends on it. If
-real Classic spends the charge on a block, change the one condition in
-`resolveAttack` (`js/simulation.js`) and that test.
+**Assumption: an attack that does not land keeps the charge.** That a miss,
+dodge, parry or block does not spend the charge is our design choice ("the next
+Eviscerate that lands"), an assumption that is not verified against Classic. It
+is not what wowsims does: there the aura is dropped in `OnSpellHitDealt` after
+the next flagged spell whatever its outcome, so a miss or dodge spends it too
+(`sim/rogue/talents.go`, `registerColdBloodCD`, read 26 Oct 2026). Parry and
+block cannot happen while the sim is behind-only, so for them it changes
+nothing. A miss or dodge can happen behind, so a fight with Cold Blood granted
+(Rogue option `abilities`) differs from wowsims there. No golden fixture
+depends on it: the default fight does not grant Cold Blood. The front-block case
+is tested in `test/carry-overs-103.test.js`; the front-block part was accepted
+by the coordinator on #131. If real Classic spends the charge on a miss or a
+block, change the condition where `resolveAttack` (`js/simulation.js`) calls
+`consumeUseCharges`, and the tests that pin it.
 
 **The Cold Blood rotation rule.** A rule from the Scout, for James to adjust:
 cast Cold Blood right before the next 5-combo-point Eviscerate, when it is off

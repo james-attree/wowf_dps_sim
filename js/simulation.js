@@ -440,7 +440,9 @@ export class Simulation {
   // matches every attack). Cold Blood's crit is "the next" Eviscerate, not the
   // next swing, so a white swing leaves it up. The charge goes on a landed
   // attack that reached the crit roll: a miss, dodge, parry or block keeps it
-  // for the next try. Nothing here names an aura.
+  // for the next try. That is our design choice, not verified against Classic,
+  // and not what wowsims does (it drops the aura after the next flagged spell
+  // whatever its outcome). Nothing here names an aura.
   consumeUseCharges(context) {
     for (const id of Object.keys(this.activeBuffs)) {
       const definition = this.auraDefinitions.get(id);
