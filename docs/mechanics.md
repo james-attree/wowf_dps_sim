@@ -782,8 +782,13 @@ Instant Poison hit rolls one crit at the rogue's melee crit chance
 deals `k("poison.instantCrit")` = 1.5x, the bonus part scaled by the
 `critDamage` modifiers. The 1.5x is wowsims' spell crit multiplier for
 `rogue/poisons.go` (`OutcomeMagicHitAndCrit`); the chance is the melee crit
-chance, not a spell crit chance, because the engine has no spell crit. Both are
-tagged `assumption` with the retune flag on. The 4.8% crit suppression applies
+chance, not a spell crit chance, because the engine has no spell crit. Issue
+#105 gives the 1.5x; the melee chance is the developer's assumption. Both are
+tagged `assumption` with the retune flag on. The crit context is the main
+hand's for either hand's Instant Poison (the proc has no hand of its own in
+`attackContext`), so a dagger main hand gets the +5% dagger/fist crit on
+Instant Poison, including an Instant applied by the off hand. That is an
+assumption too, not a verified Classic rule. The 4.8% crit suppression applies
 (`k("poison.instantCritSuppression")`, true, an assumption, retune on): it is
 the same treatment as the swing crit and a DoT tick's
 (`k("dot.critSuppression")`), so one rogue has one crit chance whichever hit
@@ -2218,14 +2223,14 @@ Wounds (Backstab, which the placeholder rotation never casts).
 
 **The Assassination talents in D8a (#119): 6 of 6 for the reference build.**
 
-| Talent                  | Max | What it is in the data                                                                                          |
-| ----------------------- | --- | --------------------------------------------------------------------------------------------------------------- |
-| Malice                  | 5   | `critChance` +1..5%, all attacks. "and Poisons" is inert: a poison never crits                                  |
-| Ruthlessness            | 3   | proc: `onAbility`, `scope.tags: ["finisher"]`, `flat` chance 20/40/60%, `gainResource` 1 combo point            |
-| Improved Slice and Dice | 3   | `duration` +15/30/45% of the aura length, Slice and Dice (9 to 21 s becomes 13.05 to 30.45 s at 3/3)            |
-| Relentless Strikes      | 1   | proc: `onAbility`, finisher tag, `perSpent` chance 20% per point, `gainResource` 25 energy                      |
-| Lethality               | 5   | `critDamage` +4..20%, the six abilities of the text (Gouge and Mutilate have no engine definition: never cast)  |
-| Cold Blood              | 1   | grants the ability `cold-blood` (instant, 3 minute cooldown, off the GCD); its aura is one charge of +100% crit |
+| Talent                  | Max | What it is in the data                                                                                                                                                 |
+| ----------------------- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Malice                  | 5   | `critChance` +1..5%, all attacks. "and Poisons" needs no extra entry: the modifier is unscoped, so it adds to Instant Poison's crit roll, and to Deadly Poison's ticks |
+| Ruthlessness            | 3   | proc: `onAbility`, `scope.tags: ["finisher"]`, `flat` chance 20/40/60%, `gainResource` 1 combo point                                                                   |
+| Improved Slice and Dice | 3   | `duration` +15/30/45% of the aura length, Slice and Dice (9 to 21 s becomes 13.05 to 30.45 s at 3/3)                                                                   |
+| Relentless Strikes      | 1   | proc: `onAbility`, finisher tag, `perSpent` chance 20% per point, `gainResource` 25 energy                                                                             |
+| Lethality               | 5   | `critDamage` +4..20%, the six abilities of the text (Gouge and Mutilate have no engine definition: never cast)                                                         |
+| Cold Blood              | 1   | grants the ability `cold-blood` (instant, 3 minute cooldown, off the GCD); its aura is one charge of +100% crit                                                        |
 
 `critDamage` stacks as `bonus`, `1 + (base - 1)(1 + A)`, so Lethality 5/5 takes
 the 2.0 crit multiplier of melee to 2.2 (+20% of the crit bonus, not +20% of
