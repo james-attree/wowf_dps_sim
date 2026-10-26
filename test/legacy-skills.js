@@ -1,5 +1,10 @@
+// The skill classes js/skill.js held before D2 (#98), kept here word for word
+// as the reference for test/ability-parity.test.js. Nothing under js/ imports
+// it. Only the import paths changed, and `AURAS`/`k` come from the real
+// modules. Do not edit it: it is what the generic executor (js/ability.js)
+// must match, draw for draw.
 import { k } from "../data/constants.js";
-import { AURAS } from "./auras.js";
+import { AURAS } from "../js/auras.js";
 
 // A skill is identified by its id, the ability catalogue's id for it
 // (js/abilities.js, slugify(name)). The name is for display: the page, the
@@ -354,4 +359,21 @@ export class Hemorrhage extends Skill {
       mainHandWeaponMultiplier(k("hemorrhage"), this.rogue)
     );
   }
+}
+
+// The rogue's abilities the way Rogue built them before D2.
+export function legacyAbilities(rogue) {
+  return {
+    premeditation: new Premeditation(rogue),
+    sinisterStrike: new SinisterStrike(rogue),
+    eviscerate: new Eviscerate(rogue),
+    adrenalineRush: new AdrenalineRush(rogue),
+    sliceAndDice: new SliceAndDice(rogue),
+    ghostlyStrike: new GhostlyStrike(rogue),
+    backstab: new Backstab(rogue),
+    ambush: new Ambush(rogue),
+    bladeFlurry: new BladeFlurry(rogue),
+    rupture: new Rupture(rogue),
+    hemorrhage: new Hemorrhage(rogue),
+  };
 }

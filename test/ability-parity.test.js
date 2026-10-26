@@ -1,0 +1,308 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { createRng } from "../js/rng.js";
+import { Rogue } from "../js/rogue.js";
+import { Simulation } from "../js/simulation.js";
+import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
+import { Ability, createAbilities } from "../js/ability.js";
+import { abilityCatalogue } from "../js/abilities.js";
+import { k } from "../data/constants.js";
+import { legacyAbilities } from "./legacy-skills.js";
+
+// Issue #98. The generic executor (js/ability.js) must do what the skill
+// classes did: the same totals, the same log, and the same random numbers in
+// the same order. test/legacy-skills.js is the old code, kept as the
+// reference. Each case runs one fight with the old abilities and one with the
+// new, on the same seed, and compares everything a fight produces.
+
+const DURATION = 120;
+const SEEDS = [1, 7, 42, 2024];
+const DAGGERS = {
+  weapons: { mainHand: { type: "dagger" }, offHand: { type: "dagger" } },
+};
+
+// Every ability, in a changing order, so each one is cast at many combo point
+// counts, energy levels, cooldown states and GCD states. The order comes from
+// a small generator of its own, so it never touches the fight's rng. Energy is
+// topped up every few steps, so the expensive finishers get their turn. The
+// weapon swings and the haste work come from the real rotation with its casts
+// switched off, the way scripts/scripted-fight.mjs does it.
+const TOP_UP_EVERY = 6;
+const ORDER_MULTIPLIER = 1103515245;
+const ORDER_INCREMENT = 12345;
+const ORDER_MODULUS = 2 ** 31;
+
+function castEverything(rogue, simulation, dt, order) {
+  const skills = Object.values(rogue.abilities);
+  const step = Math.round(simulation.currentTime / dt);
+  if (step % TOP_UP_EVERY === 0) {
+    rogue.energy = rogue.maxEnergy;
+  }
+  const queue = [...skills];
+  while (queue.length > 0) {
+    order.state =
+      (order.state * ORDER_MULTIPLIER + ORDER_INCREMENT) % ORDER_MODULUS;
+    const [skill] = queue.splice(order.state % queue.length, 1);
+    skill.cast(rogue, simulation);
+  }
+  for (const skill of skills) {
+    skill.cast = () => null;
+  }
+  try {
+    Rogue.prototype.rotation.call(rogue, simulation, dt);
+  } finally {
+    for (const skill of skills) {
+      delete skill.cast;
+    }
+  }
+}
+
+function fight({ seed, config, options, legacy, everything }) {
+  const rogue = new Rogue(config, options);
+  if (legacy) {
+    rogue.abilities = legacyAbilities(rogue);
+  }
+  const draws = [];
+  const source = createRng(seed);
+  const rng = () => {
+    const value = source();
+    draws.push(value);
+    return value;
+  };
+  const simulation = new Simulation(rogue, { rng });
+  if (everything) {
+    const order = { state: seed };
+    rogue.rotation = function rotation(sim, dt) {
+      castEverything(this, sim, dt, order);
+    };
+  }
+  simulation.run(DURATION);
+  return {
+    draws,
+    damage: simulation.damageDone,
+    breakdown: simulation.abilityBreakdown(),
+    stats: simulation.abilityStats,
+    log: simulation.combatLog,
+    buffs: simulation.activeBuffs,
+    debuffs: simulation.activeDebuffs,
+    dots: simulation.activeDots,
+    cooldowns: simulation.cooldowns,
+    energy: rogue.energy,
+    comboPoints: rogue.comboPoints,
+    premeditation: [rogue.premeditationCp, rogue.premeditationCpRemaining],
+  };
+}
+
+const CASES = [
+  { name: "the placeholder rotation", config: undefined },
+  { name: "the placeholder rotation with daggers", config: DAGGERS },
+  {
+    name: "the placeholder rotation with stats",
+    config: {
+      character: { attackPower: 1200, critChance: 0.3, bonusHitChance: 0.05 },
+    },
+  },
+  { name: "every ability, every step", config: undefined, everything: true },
+  {
+    name: "every ability, every step, with daggers",
+    config: DAGGERS,
+    everything: true,
+  },
+  {
+    name: "every ability, every step, with modifiers",
+    config: undefined,
+    everything: true,
+    options: {
+      modifiers: [
+        { kind: "energyCost", value: -5 },
+        { kind: "attackPower", value: 300 },
+        { kind: "damage", value: 0.1 },
+      ],
+    },
+  },
+  {
+    name: "every ability, every step, with hand and weapon scoped modifiers",
+    config: { weapons: { mainHand: { type: "dagger" } } },
+    everything: true,
+    options: {
+      modifiers: [
+        {
+          kind: "damage",
+          value: 0.2,
+          scope: { hands: ["mainHand"], weaponTypes: ["dagger"] },
+        },
+        { kind: "damage", value: 0.5, scope: { hands: ["offHand"] } },
+        { kind: "damage", value: 0.3, scope: { abilities: ["rupture"] } },
+        { kind: "damage", value: 0.4, scope: { tags: ["bleed"] } },
+      ],
+    },
+  },
+];
+
+describe("generic executor parity with the skill classes", () => {
+  for (const testCase of CASES) {
+    it(`matches the old abilities: ${testCase.name}`, () => {
+      for (const seed of SEEDS) {
+        const input = { seed, ...testCase };
+        const before = fight({ ...input, legacy: true });
+        const after = fight({ ...input, legacy: false });
+        assert.ok(before.draws.length > 0, "the fight drew numbers");
+        assert.deepEqual(after.draws, before.draws, `draws, seed ${seed}`);
+        assert.deepEqual(after, before, `fight, seed ${seed}`);
+      }
+    });
+  }
+
+  it("casts every ability in the every-ability fights", () => {
+    const { stats } = fight({ seed: 1, config: undefined, everything: true });
+    for (const definition of ABILITY_DEFINITIONS) {
+      assert.ok(
+        stats[definition.id]?.casts > 0,
+        `${definition.id} was never cast`,
+      );
+    }
+  });
+
+  it("deals the same damage and duration for every combo point count", () => {
+    for (const config of [undefined, DAGGERS]) {
+      for (let comboPoints = 0; comboPoints <= 6; comboPoints += 1) {
+        const oldRogue = new Rogue(config);
+        const newRogue = new Rogue(config);
+        oldRogue.abilities = legacyAbilities(oldRogue);
+        for (const rogue of [oldRogue, newRogue]) {
+          rogue.comboPoints = comboPoints;
+          new Simulation(rogue, { seed: 5 });
+        }
+        for (const key of Object.keys(oldRogue.abilities)) {
+          const before = oldRogue.abilities[key];
+          const after = newRogue.abilities[key];
+          // One resolve per ability, so both rngs stay in step.
+          const resolved = after.resolve();
+          assert.equal(
+            resolved.damage,
+            before.damage(),
+            `${key} ${comboPoints}`,
+          );
+          // The old classes keep the length of the last damage() as a field.
+          // Slice and Dice's old length is only set by a cast, so a fight
+          // covers it instead.
+          if (key !== "sliceAndDice") {
+            assert.equal(
+              resolved.duration,
+              before.duration,
+              `${key} duration ${comboPoints}`,
+            );
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("generic executor", () => {
+  it("has no aura and no damage for combo points a table does not cover", () => {
+    // combo.max is 5 and every table has 5 entries, so a fight never gets
+    // here. A rogue with more combo points shows what the executor does.
+    const rogue = new Rogue();
+    rogue.maxComboPoints = 6;
+    const simulation = new Simulation(rogue, { seed: 3 });
+    for (const comboPoints of [0, 6]) {
+      rogue.comboPoints = comboPoints;
+      assert.deepEqual(rogue.abilities.sliceAndDice.resolve(), {
+        damage: 0,
+        duration: 0,
+      });
+      assert.deepEqual(rogue.abilities.rupture.resolve(), {
+        damage: 0,
+        duration: 0,
+      });
+    }
+    rogue.comboPoints = 6;
+    rogue.energy = 100;
+    rogue.abilities.sliceAndDice.cast(rogue, simulation);
+    assert.equal(simulation.activeBuffs["slice-and-dice"], undefined);
+    assert.equal(rogue.comboPoints, 0, "the points are still spent");
+    rogue.comboPoints = 5;
+    assert.equal(rogue.abilities.sliceAndDice.resolve().duration, 21);
+  });
+
+  it("marks Rupture's ticks as bleeds, and nothing else", () => {
+    const rogue = new Rogue();
+    for (const [key, ability] of Object.entries(rogue.abilities)) {
+      assert.equal(ability.bleed, key === "rupture", key);
+      assert.equal(ability.dot, key === "rupture", key);
+    }
+    const simulation = new Simulation(rogue, { seed: 3 });
+    const calls = [];
+    const original = simulation.resolveDotAttack.bind(simulation);
+    simulation.resolveDotAttack = (...args) => {
+      calls.push(args);
+      return original(...args);
+    };
+    rogue.comboPoints = 5;
+    rogue.energy = 100;
+    rogue.abilities.rupture.cast(rogue, simulation);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][4], true, "the bleed flag reaches the DoT");
+  });
+
+  it("attacks with the main hand", () => {
+    for (const ability of Object.values(new Rogue().abilities)) {
+      assert.equal(ability.hand, "mainHand", ability.id);
+    }
+  });
+
+  it("builds one ability per definition, in order, from one class", () => {
+    const rogue = new Rogue();
+    const keys = Object.keys(rogue.abilities);
+    assert.deepEqual(
+      keys,
+      ABILITY_DEFINITIONS.map((definition) => definition.key),
+    );
+    for (const ability of Object.values(rogue.abilities)) {
+      assert.equal(Object.getPrototypeOf(ability), Ability.prototype);
+    }
+  });
+
+  it("has a catalogue entry for every definition and takes its name from it", () => {
+    const abilities = createAbilities(new Rogue());
+    for (const definition of ABILITY_DEFINITIONS) {
+      const catalogued = abilityCatalogue.get(definition.id);
+      assert.ok(catalogued, definition.id);
+      assert.equal(abilities[definition.key].name, catalogued.name);
+      assert.equal(abilities[definition.key].triggersGcd, catalogued.startsGcd);
+      assert.equal(
+        abilities[definition.key].energyCost,
+        catalogued.cost?.amount ?? 0,
+      );
+      assert.equal(abilities[definition.key].cooldown, catalogued.cooldown);
+    }
+  });
+
+  it("has unique keys and ids, and only constants rows that exist", () => {
+    const keys = new Set(
+      ABILITY_DEFINITIONS.map((definition) => definition.key),
+    );
+    const ids = new Set(ABILITY_DEFINITIONS.map((definition) => definition.id));
+    assert.equal(keys.size, ABILITY_DEFINITIONS.length);
+    assert.equal(ids.size, ABILITY_DEFINITIONS.length);
+    for (const definition of ABILITY_DEFINITIONS) {
+      assert.ok(k(definition.row), definition.row);
+    }
+  });
+
+  it("refuses a definition the catalogue does not know", () => {
+    assert.throws(
+      () =>
+        new Ability(
+          { key: "x", id: "no-such-ability", row: "backstab", icon: "x.jpg" },
+          new Rogue(),
+        ),
+      /no-such-ability.*catalogue/,
+    );
+  });
+
+  it("keeps every definition frozen", () => {
+    assert.ok(Object.isFrozen(ABILITY_DEFINITIONS));
+  });
+});

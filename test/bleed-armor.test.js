@@ -275,7 +275,7 @@ describe("bleed ticks and armor", () => {
     rogue.energy = k("energy.max");
     const raw = rogue.abilities.rupture.damage();
     const ticks = Math.floor(
-      rogue.abilities.rupture.duration / k("rupture.tickInterval"),
+      rogue.abilities.rupture.resolve().duration / k("rupture.tickInterval"),
     );
     const sim = new Simulation(rogue, { rng: testRng });
     sim.gcd = 0;

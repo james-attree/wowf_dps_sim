@@ -412,7 +412,7 @@ describe("simulator values other than white miss", () => {
     rogue.comboPoints = 0;
     assert.equal(rogue.abilities.eviscerate.damage(), 0);
     assert.equal(rogue.abilities.rupture.damage(), 0);
-    assert.equal(rogue.abilities.rupture.duration, 0);
+    assert.equal(rogue.abilities.rupture.resolve().duration, 0);
 
     rogue.comboPoints = 1;
     assert.equal(
@@ -420,7 +420,7 @@ describe("simulator values other than white miss", () => {
       Math.floor(450 * 0.03 + 224),
     );
     assert.equal(rogue.abilities.rupture.damage(), 159 + 450 * 0.06);
-    assert.equal(rogue.abilities.rupture.duration, 8);
+    assert.equal(rogue.abilities.rupture.resolve().duration, 8);
 
     rogue.comboPoints = 5;
     assert.equal(
@@ -428,41 +428,40 @@ describe("simulator values other than white miss", () => {
       Math.floor(450 * 5 * 0.03 + 904),
     );
     assert.equal(rogue.abilities.rupture.damage(), 469 + 450 * 0.3);
-    assert.equal(rogue.abilities.rupture.duration, 16);
+    assert.equal(rogue.abilities.rupture.resolve().duration, 16);
 
     const sim = new Simulation(rogue, { rng: testRng });
     rogue.energy = 100;
     sim.gcd = 0;
     rogue.comboPoints = 2;
     rogue.abilities.sliceAndDice.cast(rogue, sim);
-    assert.equal(rogue.abilities.sliceAndDice.duration, 12);
+    assert.equal(sim.activeBuffs["slice-and-dice"].duration, 12);
 
-    const kept = rogue.abilities.sliceAndDice.duration;
+    // Out of the table's combo points, nothing is applied or changed.
     rogue.energy = 100;
     sim.gcd = 0;
     rogue.comboPoints = 0;
     rogue.abilities.sliceAndDice.cast(rogue, sim);
-    assert.equal(rogue.abilities.sliceAndDice.duration, kept);
+    assert.equal(sim.activeBuffs["slice-and-dice"].duration, 12);
 
     rogue.energy = 100;
     sim.gcd = 0;
     rogue.comboPoints = 5;
     rogue.abilities.sliceAndDice.cast(rogue, sim);
-    assert.equal(rogue.abilities.sliceAndDice.duration, 21);
+    assert.equal(sim.activeBuffs["slice-and-dice"].duration, 21);
   });
 
   it("deals no Rupture damage outside 1–5 combo points", () => {
     const rogue = new Rogue();
     for (const comboPoints of [0, 6, -1]) {
       rogue.comboPoints = comboPoints;
-      rogue.abilities.rupture.duration = 16;
       assert.equal(
         rogue.abilities.rupture.damage(),
         0,
         `damage at ${comboPoints} CP`,
       );
       assert.equal(
-        rogue.abilities.rupture.duration,
+        rogue.abilities.rupture.resolve().duration,
         0,
         `duration at ${comboPoints} CP`,
       );
@@ -470,7 +469,7 @@ describe("simulator values other than white miss", () => {
 
     rogue.comboPoints = 3;
     assert.equal(rogue.abilities.rupture.damage(), 295 + 450 * 0.18);
-    assert.equal(rogue.abilities.rupture.duration, 12);
+    assert.equal(rogue.abilities.rupture.resolve().duration, 12);
   });
 
   it("still refunds 80% energy on a miss and crits DoT ticks at 2×", () => {

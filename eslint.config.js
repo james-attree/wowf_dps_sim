@@ -110,7 +110,7 @@ export default defineConfig([
     // js/main.js is scanned too: the page reads ids as well. The definition
     // sites are where a display name is written once.
     files: ["js/**/*.js"],
-    ignores: ["js/skill.js", "js/auras.js", "js/weapon.js"],
+    ignores: ["js/auras.js", "js/weapon.js"],
     plugins: {
       "engine-purity": enginePurity,
     },
