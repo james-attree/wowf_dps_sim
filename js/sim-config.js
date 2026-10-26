@@ -9,9 +9,9 @@ import { talentCatalogue } from "./talents.js";
 //
 // The config is parsed, validated, normalised and carried. The character stats
 // and the weapons change the fight, and so do the poisons (Instant and Deadly
-// Poison become procs in js/rogue.js, A5, #105). The talent ranks are stored and
-// handed back in the result, and the engine ignores them here: a host expands
-// them with expandTalents (js/fight.js) until runFight does (D7, #106).
+// Poison become procs in js/rogue.js, A5, #105) and the talent ranks: a
+// selected build is checked and applied by the Rogue (js/talent-build.js
+// applyBuild, D7, #106). This file checks only the shape of the ranks.
 //
 // The shape (every field is optional; a missing one takes its default):
 //
@@ -228,7 +228,9 @@ function readTarget(input, defaults) {
 
 // Talent ranks by catalogue id. Only the rank is checked here (a whole number
 // from 0 to the talent's max, and the id must exist). The 51-point total, the
-// row gating and the prerequisites are checked when a build is applied (D7).
+// row gating and the prerequisites are checked when a build is applied
+// (validateBuild in js/talent-build.js, D7), so a partial build is a valid
+// config and an illegal fight.
 // A rank of 0 is the same as not naming the talent, so it is left out. The
 // result lists the talents in catalogue order, so two spellings of one build
 // normalise to the same config.

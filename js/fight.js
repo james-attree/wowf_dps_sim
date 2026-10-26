@@ -4,9 +4,11 @@ import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
 import { Simulation } from "./simulation.js";
 
-// A talent build for a fight: expandTalents(config.talents) gives the
-// `modifiers`, `procs` and `abilities` options below (js/talent-build.js).
-export { expandTalents } from "./talent-build.js";
+// A talent build is expanded by hand only in a test or a tool that wants one
+// talent on its own: expandTalents(ranks) gives `modifiers`, `procs` and
+// `abilities` for the options below. A selected build in config.talents needs
+// none of that (see createFight). applyBuild is the validated form.
+export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 
 // Build the engine for one fight: a rogue and a simulation that draws from the
 // seed. runFight and the live page (js/main.js) both start here, so they run
@@ -19,21 +21,20 @@ export { expandTalents } from "./talent-build.js";
 // one, exactly as before the config existed. The returned `config` is the full
 // form the rogue holds; treat it as read-only.
 //
-// `options.modifiers` is a static modifier list (js/modifiers.js) for the
-// rogue, and `options.procs` a list of procs (js/procs.js; a rank 0 is null and
-// is left out). `options.abilities` is the ids of the abilities the build
-// grants, which the rotation rules (js/rotation-rules.js) read: Cold Blood is
-// cast only when it is there. A talented fight is the three lists from
-// expandTalents, which reads the talent effects data
-// (data/talent-effects.js):
+// `config.talents` is applied here (D7, #106): a selected build is validated
+// (exactly 51 points, ranks within the maximum, prerequisites, row gating; an
+// illegal one is a RangeError that names the talent ids) and its modifiers,
+// procs and granted abilities are the rogue's, so runFight and the live page
+// run a talented fight from the SimConfig alone. The rotation casts Blade
+// Flurry and Adrenaline Rush only when the build has the talent. No ranks is no
+// build: the fight is the default one, as before talents, and the rotation
+// casts everything on its list. The returned `build` is what was applied
+// (js/talent-build.js applyBuild), including `unmapped`, the talents of the
+// build the simulator does not model yet.
 //
-//   const { modifiers, procs, abilities } = expandTalents(config.talents);
-//   createFight(seed, config, { modifiers, procs, abilities });
-//
-// runFight takes none of them and the result records neither: the SimConfig is the
-// whole input of a result until D7 (#106) makes runFight do this itself, with
-// the rotation's use of the talents that grant an ability. Until then this is
-// how a test or a tool runs a fight with talents.
+// `options.modifiers`, `options.procs` and `options.abilities` are extras for a
+// host or a test, added to the build's (js/rogue.js). They are not part of the
+// SimConfig, so the result of a fight does not record them.
 export function createFight(seed, config, options) {
   const fightSeed = normalizeSeed(seed);
   const rogue = new Rogue(config, options);
@@ -42,6 +43,7 @@ export function createFight(seed, config, options) {
     seed: fightSeed,
     dataVersion,
     config: rogue.config,
+    build: rogue.build,
     rogue,
     simulation,
   };

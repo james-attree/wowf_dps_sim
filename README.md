@@ -29,7 +29,7 @@ randomness. `Simulation.step(dt)` is the only way time moves, and
 `Simulation.run(duration)` calls it with the fixed step `sim.fixedStep`.
 `runFight({ seed, duration, config })` in `js/fight.js` builds a fight, runs it and
 returns plain data, with no DOM. `config` is an optional SimConfig (character,
-weapons, talent ranks, poisons); leave it out for the default fight. The live page builds the same fight with
+weapons, a talent build, poisons); leave it out for the default fight. The live page builds the same fight with
 `createFight` and feeds it whole fixed steps, so a seed gives the same fight
 live and headless. The golden tests pin four `runFight` results, and
 `npm run bench` times one. [Mechanics](docs/mechanics.md#simulation-clock) has
@@ -259,8 +259,7 @@ rejects them under `js/`.
   A weapon speed below `config.minWeaponSpeed` (0.1 s) is rejected, because a
   speed near 0 never finishes a fight.
   `Rogue` takes the config. The character and weapons change the fight; Instant
-  and Deadly Poison in `poisons` add procs (A5, #105); talents are only carried
-  until their effects land. See
+  and Deadly Poison in `poisons` add procs (A5, #105); a selected talent build is validated and applied (D7, #106). See
   [SimConfig](docs/mechanics.md#simconfig).
 - `js/data-version.js` — The data version (D11): `dataVersion`, a string
   `<generated>+<build>` such as `2026-10-20+1.60.1.70425`, read from
@@ -317,9 +316,11 @@ rejects them under `js/`.
   reference build (D8a: Malice, Improved Slice and Dice and Lethality in PR 1,
   Ruthlessness, Relentless Strikes and Cold Blood in PR 2).
   `expandTalents({ talent id: rank })` gives the `modifiers`, `procs` and
-  `abilities` to pass to `createFight`, and lists the talents with points but no effect or no entry.
-  `runFight` does not read `config.talents` until D7. See
-  [Talent effects](docs/mechanics.md#talent-effects).
+  `abilities`, and lists the talents with points but no effect or no entry.
+  `validateBuild` and `applyBuild` (D7, #106) check a build (51 points,
+  prerequisites, row gating) and apply it: `runFight` reads `config.talents`. See
+  [Talent effects](docs/mechanics.md#talent-effects) and
+  [Applying a talent build](docs/mechanics.md#applying-a-talent-build-d7-issue-106).
 - `js/auras.js` — The aura model (A1). `AURAS` holds each buff and debuff as a
   definition (id, name, target, duration, stacks and stack rule, charges,
   refresh rule, hooks, effects: `haste`, `energyRegenMultiplier`,

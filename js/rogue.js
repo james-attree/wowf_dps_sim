@@ -7,27 +7,34 @@ import { poisonProcs } from "./poisons.js";
 import { checkProcs } from "./procs.js";
 import { abilityCatalogue } from "./abilities.js";
 import { beforeFinisher } from "./rotation-rules.js";
+import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { createResources } from "./resource.js";
 
 export class Rogue {
   // `config` is a SimConfig (js/sim-config.js): the character stats, the
   // weapons, the talent ranks and the poisons. It is validated and filled in
   // here, so `new Rogue()` is the default fight and `rogue.config` is always
-  // the full form. The talent ranks are carried and not read by the engine
-  // yet. The poisons are read here: each becomes a proc (js/poisons.js).
+  // the full form. The talent ranks are applied here (D7, #106): a selected
+  // build is validated and expanded (js/talent-build.js applyBuild), and its
+  // modifiers, procs and granted abilities are the rogue's, in front of any
+  // the host passes. An illegal build is a RangeError. No ranks is no build
+  // (`rogue.build.selected` is false), and the fight is the one it was before
+  // talents. The poisons are read here too: each becomes a proc
+  // (js/poisons.js).
   //
-  // `options.modifiers` is the static modifier list (js/modifiers.js): what
-  // the talents and gear give, as data. It is not part of the SimConfig, so a
-  // fight's result shape and its goldens do not depend on it. The default is
-  // none (undefined or null), which leaves every stat as the config gave it.
-  // D7 (#106) is where a talent build turns into this list.
+  // `options.modifiers` is a static modifier list (js/modifiers.js) the host
+  // adds to the build's: what gear gives, or a talent expanded by hand in a
+  // test (expandTalents). It is not part of the SimConfig, so a fight's result
+  // shape and its goldens do not depend on it. The default is none (undefined
+  // or null).
   //
-  // `options.procs` is the proc list (js/procs.js), also none by default.
-  // `options.abilities` is the ids of the abilities the build grants (what
-  // expandTalents gives as `abilities`), none by default. Only the rotation
-  // rules (js/rotation-rules.js) read it; the rotation casts what a rule
-  // names only when it is granted. Like the other two it is not part of the
-  // SimConfig or the result.
+  // `options.procs` is a proc list (js/procs.js), also none by default. The
+  // procs run in this order: the build's, the host's, the poisons'. That is
+  // also the order of their random draws.
+  // `options.abilities` is the ids of the abilities the host grants, none by
+  // default, added to the ones the build grants. Only the rotation rules
+  // (js/rotation-rules.js) and the rotation read it. Like the other two it is
+  // not part of the SimConfig or the result.
   constructor(config, options = {}) {
     if (
       options === null ||
@@ -44,20 +51,30 @@ export class Rogue {
       }
     }
     this.config = normalizeConfig(config);
+    // The selected talent build: validated, then expanded (D7). Frozen.
+    this.build = applyBuild(this.config.talents);
     // null means none, as it does for procs and abilities.
-    this.modifiers = new ModifierPipeline(options.modifiers ?? []);
-    // The procs (js/procs.js) the fight runs: the host's, then the poisons on
-    // the weapons (config.poisons; js/poisons.js). None by default: the default
-    // config has no poison, so it adds none.
+    const hostModifiers = options.modifiers ?? [];
+    this.modifiers = new ModifierPipeline(
+      this.build.modifiers.length === 0
+        ? hostModifiers
+        : [...this.build.modifiers, ...hostModifiers],
+    );
+    // The procs (js/procs.js) the fight runs: the build's, the host's, then the
+    // poisons on the weapons (config.poisons; js/poisons.js). None by default:
+    // the default config has no talent and no poison, so it adds none.
     this.procs = checkProcs([
+      ...this.build.procs,
       ...(options.procs ?? []),
       ...poisonProcs(this.config.poisons),
     ]);
-    // The ids of the abilities the build grants, checked against the catalogue.
-    const granted = options.abilities ?? [];
-    if (!Array.isArray(granted)) {
+    // The ids of the abilities the build and the host grant, checked against
+    // the catalogue.
+    const hostGranted = options.abilities ?? [];
+    if (!Array.isArray(hostGranted)) {
       throw new TypeError("Rogue option abilities must be an array of ids.");
     }
+    const granted = [...this.build.abilities, ...hostGranted];
     for (const id of granted) {
       if (abilityCatalogue.get(id) === undefined) {
         throw new RangeError(
@@ -220,6 +237,17 @@ export class Rogue {
     );
   }
 
+  // True when a build is selected, a talent grants the ability, and the build
+  // does not have that talent. With no build the rotation casts everything on
+  // its list, as it did before talents (D7, #106).
+  lockedByBuild(ability) {
+    return (
+      this.build.selected &&
+      talentGrantedAbilities.has(ability.id) &&
+      !this.granted.has(ability.id)
+    );
+  }
+
   rotation(simulation, dt) {
     // rotation.priority is the placeholder Combat list. onCooldown is tried
     // first, in order. At rotation.finisherComboPoints, Slice and Dice is
@@ -228,7 +256,12 @@ export class Rogue {
     // Otherwise the builder is used.
     const priority = k("rotation.priority");
     for (const id of priority.onCooldown) {
-      this.abilities[id].cast(this, simulation);
+      const ability = this.abilities[id];
+      // With a build selected, an ability a talent grants (Blade Flurry,
+      // Adrenaline Rush) is cast only when the build has the talent.
+      if (!this.lockedByBuild(ability)) {
+        ability.cast(this, simulation);
+      }
     }
 
     if (this.comboPoints >= k("rotation.finisherComboPoints")) {

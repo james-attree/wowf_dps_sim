@@ -835,8 +835,9 @@ between a DoT's first and later stacks (a timed buff or a debuff). Kept as it
 is, by ruling on PR #133; recorded here so a comparison with wowsims is
 read with it in mind.
 
-**Not in A5.** Vile Poisons, Malice, Improved Poisons and Venom (talent
-build, #106 and later); a `procChance` modifier kind; poison charges. No
+**Not in A5.** Vile Poisons, Improved Poisons and Venom (no entry in the
+talent data yet; Malice has one and reaches poison crit, see
+[Applying a talent build](#applying-a-talent-build-d7-issue-106)); a `procChance` modifier kind; poison charges. No
 poison counter is in the `runFight` result.
 
 ## Simulation clock
@@ -1112,10 +1113,12 @@ default. A section is merged field by field, so `{ character: { attackPower:
   application. Behind, the parry and block bands have zero width. From the front
   (`false`) they are 14% and 5% (see Attack table). Nothing keys off a weapon
   type for it; the default is the same for every weapon.
-- **Talents are carried only; poisons are opt-in.** They are validated,
-  normalised and returned in the result. No engine code reads the talents yet
-  (talent effects come with D5 and D7), so a rank of 0, or a talent that is not
-  named, changes nothing and draws no random number. `poisons` is read by
+- **Talents are applied once a point is spent; poisons are opt-in.** They are
+  validated, normalised and returned in the result. A config with no rank above 0
+  has no build: nothing is checked, nothing changes and no random number is drawn.
+  A config with any point is a selected build, and it must be a legal 51-point
+  build (D7, #106, see [Applying a talent build](#applying-a-talent-build-d7-issue-106)).
+  A rank of 0, or a talent that is not named, adds nothing. `poisons` is read by
   `js/rogue.js` (A5, #105): `instant` and `deadly` add a proc to that hand,
   and `null`, `wound`, `crippling` and `mind-numbing` add none, so they change
   nothing and draw no random number. The default is `null` for both hands.
@@ -1140,7 +1143,7 @@ message that names the field and the value. A value of the wrong type is a
   `k("config.weaponTypes")` or `null`.
 - A talent key must be an id in the talent catalogue, and its rank a whole
   number from 0 to that talent's `max`. Each rank is read from the input once. The 51-point total, the row gating and
-  the prerequisites are not checked yet (D7 does that when it applies a build).
+  the prerequisites are checked when a build is applied (D7, `validateBuild`).
 - A poison is one of `k("config.poisonIds")` or `null`.
 
 The result is a new plain object that shares nothing with the input. Talents are
@@ -1374,7 +1377,7 @@ What a reader should not assume from the sections above:
   priority. It never calls Rupture, and it only rarely reaches Eviscerate, when
   Slice and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left
   at the finisher combo points. None of 100 seeds (1 to 100) cast it in a 120 s
-  run, so the golden tests reach both through a scripted case. Talent ranks are not applied.
+  run, so the golden tests reach both through a scripted case. A selected talent build is applied (D7).
 
 ## Talent catalogue
 
@@ -1382,8 +1385,9 @@ What a reader should not assume from the sections above:
 `data/talentsforever/rogue.json`, into one lookup (roadmap D4). It holds no
 talent number of its own. Every field below comes from the snapshot when the
 module loads, so `npm run data:refresh` changes the catalogue with no code
-change. The engine reads it only to check the talent ids and ranks of a
-SimConfig (see SimConfig); no talent has an effect yet. It is validated when it
+change. The engine reads it to check the talent ids and ranks of a
+SimConfig (see SimConfig) and to validate a build (`validateBuild`: the
+prerequisites and row gating); the effects are in the data of the next section. It is validated when it
 loads (see Load-time validation below).
 
 Each talent has:
@@ -1551,10 +1555,11 @@ unknown option is a `RangeError`. The `Simulation` attaches itself to the
 rogue's pipeline as the provider of the aura modifiers (`auraModifiers(kind)`),
 and keeps an index that it rebuilds only when auras change. A `Rogue` (and so
 its pipeline) can back only one `Simulation`: a second `new Simulation(sameRogue)`
-throws, so build a new `Rogue` for each fight. There is no way to
-supply modifiers from `runFight` or the SimConfig yet: the talent effect
-table (D5) and the config-to-fight wiring (D7) come next. The `runFight` result
-does not record modifiers, so its shape and the golden fixtures are unchanged.
+throws, so build a new `Rogue` for each fight. A
+selected talent build in `config.talents` supplies its modifiers from `runFight`
+(D7, see [Applying a talent build](#applying-a-talent-build-d7-issue-106)); the
+`runFight` result does not record modifiers, so its shape and the golden
+fixtures are unchanged.
 `explain(kind, context)` lists each contribution (source, op, value, stacks),
 for tests and later for the UI.
 
@@ -2001,7 +2006,7 @@ throws, and so does an unknown option (`Known: modifiers, procs.`). The
 SimConfig has no procs field and `runFight` does not take any. The only
 procs a full fight has are the poison procs `config.poisons` builds
 (`poisonProcs` in `js/poisons.js`, A5, #105; see
-[Poison procs](#poison-procs-a5-issue-105)), and the talent procs wait for D7: `procsFromTalents(ranks)` builds
+[Poison procs](#poison-procs-a5-issue-105)), and a selected talent build adds its own (D7): `procsFromTalents(ranks)` builds
 the list from `PROC_TABLES` in `js/proc-data.js` (the `procs` of the entries in
 `data/talent-effects.js`: Puncturing Wounds and Hack and Slash so far, in the
 catalogue's order) and is not called by `runFight`. `procsFromTalents`
@@ -2098,7 +2103,7 @@ the extra swings.
 
 **Known limits.** There is no `procChance` modifier kind yet (Improved Poisons,
 D8a, will need one); `dealDamage` crits only with `canCrit` (Instant Poison); `ppm` uses the unhasted weapon
-speed; nothing in `runFight` supplies talent procs until D7.
+speed; a selected talent build in `config.talents` supplies the talent procs (D7).
 
 ## Talent effects
 
@@ -2179,11 +2184,13 @@ against the catalogue when `js/talent-build.js` loads (`checkTalentEffects`):
 shape, one value or chance per rank, unique proc ids, a real ability, and every
 table through the pipeline at every rank, rank 0 too.
 
-`runFight` does not call `expandTalents`: the engine does not read
-`config.talents` until D7 (#106), so the talents of a full fight are the two
-lists passed to `createFight`. Blade Flurry and Adrenaline Rush are already in
-the default rotation without a talent; D7 gates them. Cold Blood is not: it is
-cast only when the build grants it (below).
+Since D7 (#106) the engine applies `config.talents` itself (`applyBuild`, see
+[Applying a talent build](#applying-a-talent-build-d7-issue-106)), so a host no
+longer has to call `expandTalents` and pass the lists to `createFight`; those
+`createFight` options remain for extra modifiers, procs and abilities. With no
+build, Blade Flurry and Adrenaline Rush stay in the default rotation without a
+talent; with a selected build they are cast only when it has the talent. Cold
+Blood is cast only when the build grants it (below).
 `js/proc-data.js` is a view of the `procs` fields.
 
 **The Combat tree: 11 with an effect, 6 without.**
@@ -2318,3 +2325,71 @@ aura, `consumeUseCharges`, `js/rotation-rules.js`, the Rogue option `abilities`
 and the crit suppression order above, and no `runFight` or `SimConfig` change. `PROC_TABLES` is now derived from the
 data (its keys are in the catalogue's order, so `procsFromTalents` lists
 Puncturing Wounds before Hack and Slash).
+
+## Applying a talent build (D7, issue #106)
+
+`config.talents` is applied by the engine. `new Rogue(config)` (so `runFight` and
+`createFight`) calls `applyBuild(config.talents)` in `js/talent-build.js`, and the
+build's `modifiers`, `procs` and granted `abilities` are put in front of the
+host's own `options.modifiers`, `options.procs` and `options.abilities`, which
+still add to them. `createFight` returns the applied build as `fight.build`
+(`selected`, `points`, `modifiers`, `procs`, `abilities`, `noDps`, `unmapped`),
+which is where a host reads the talents that did nothing. `runFight`'s result is
+unchanged.
+
+**No build, and a build.** A map with no rank above 0 (or none) is no build. It is
+legal, it changes nothing, it draws no random number, and the rotation is the
+default one (Blade Flurry and Adrenaline Rush cast without a talent, as before
+D7), so the goldens and the older tests are byte-identical. Any rank above 0 makes it a
+selected build, and `validateBuild(ranks)` must pass. A selected build that fails
+is a `RangeError` from `runFight`, `createFight` and `new Rogue`, listing every
+problem and naming talents by id:
+
+- exactly `k("talents.maxPoints")` (51) points, not fewer. A partial map such as
+  `{ "combat.precision": 3 }` is a valid SimConfig (`normalizeConfig` only checks
+  ids and ranks) and an illegal fight;
+- a talent with a `req` needs that talent at its full rank (the Classic rule; it
+  needs no constant);
+- a talent on row `r` of a tree needs `k("talents.rowGating")` (5 points a row, the
+  Classic rule; the export does not state the number, so the constant is tagged
+  `ASSUMPTION`, open question 14) times `r - 1` points spent on the rows above it
+  in the same tree.
+
+For example: `Talent build is not valid: the build spends 50 talent points, and
+exactly 51 are needed (talents.maxPoints); "combat.dual-wield-specialization"
+needs its prerequisite "combat.precision" at rank 3, and it is at rank 2`.
+Rank and id errors (an unknown id, a display name, a rank above `max`) come first,
+as from `expandTalents`.
+
+**Gating the granted abilities.** With a selected build, an ability a talent
+grants (`talentGrantedAbilities`, read from the `ability` fields of
+`data/talent-effects.js`: Cold Blood, Blade Flurry, Adrenaline Rush) is cast
+only when the build has that talent. Without a build the default rotation
+casts Blade Flurry and Adrenaline Rush (never Cold Blood), as it did before. A
+host that passes the ability in `options.abilities` still grants it to a build
+that lacks the talent. `Rogue.lockedByBuild(ability)` is the test the rotation
+makes.
+
+**Weapons.** The build never changes `config.weapons`: the weapons are the
+character's and the build only reads them. Hack and Slash's crit bonus is
+scoped to daggers and fists, its armor ignore to maces, and its extra attack to
+swords and axes (`k("hackAndSlash.extraAttack")`), with the weapon type on the
+attack context. So the sword/sword reference build gets the extra attack and no
+crit bonus, and a dagger config gets the crit and no extra attack. The weapon
+default is the config's (sword), and the build decides only whether the talent
+is on. Backstab's dagger requirement is parsed and not enforced (the notes on
+`k("backstab")` say so): a sword can cast it, and #106 does not ask for more.
+
+**Poison damage.** Modifiers apply to Instant Poison and Deadly Poison ticks
+through their ability context, with the scopes the talent data gives. Malice
+(`critChance`, every attack) reaches Instant Poison's crit and Deadly Poison's
+tick crit. Lethality (`critDamage`, Sinister Strike, Backstab and the like),
+Aggression and Improved Eviscerate (`damage`, scoped to their abilities) do not.
+Vile Poisons, Improved Poisons and Venom have no entry in the talent data, so a
+build with points in them lists them under `fight.build.unmapped` and they change
+nothing. They are out of scope for Phase 2 (tracker #108).
+
+**Shape.** `runFight` and its result are unchanged and `SimConfig` has no new
+field. New exports: `validateBuild`, `applyBuild`, `talentGrantedAbilities`
+(`js/talent-build.js`; `js/fight.js` re-exports `validateBuild` and `applyBuild`),
+`Rogue.build` and `Rogue.lockedByBuild`, and `createFight(...).build`.
