@@ -56,12 +56,17 @@ export function hitSuppression() {
 }
 
 // A crit chance after the level-difference suppression: the skill term and the
-// aura term (crit.suppressionSkill and crit.suppressionAura), never below 0.
+// aura term (crit.suppressionSkill and crit.suppressionAura), then held between
+// 0 and 1. The suppression comes off before the cap, so a chance of 100% or more
+// still crits for sure (Cold Blood's +100%) once the suppression is paid. A
+// chance of 1 or less is as it always was.
 export function suppressCrit(critChance) {
-  const chance = clampChance(critChance, "Critical chance");
-  return Math.max(
-    0,
-    chance - k("crit.suppressionSkill") - k("crit.suppressionAura"),
+  if (!Number.isFinite(critChance)) {
+    throw new RangeError("Critical chance must be a finite number.");
+  }
+  return clampChance(
+    critChance - k("crit.suppressionSkill") - k("crit.suppressionAura"),
+    "Critical chance",
   );
 }
 

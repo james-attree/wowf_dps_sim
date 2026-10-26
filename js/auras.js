@@ -256,6 +256,25 @@ export const AURAS = Object.freeze({
     name: "Ghostly Strike",
     duration: k("ghostlyStrike").duration,
   }),
+  // Cold Blood: the next attack of the listed abilities crits for sure, then
+  // the aura is gone. The crit is a flat add to the crit chance, scoped to the
+  // abilities of the talent text; the one charge is used by the first of them
+  // to land (Simulation.consumeUseCharges). No timer in the game: duration is
+  // an hour, longer than any fight.
+  coldBlood: defineAura({
+    id: "cold-blood",
+    name: "Cold Blood",
+    duration: k("coldBlood").duration,
+    charges: 1,
+    modifiers: [
+      {
+        kind: "critChance",
+        op: "add",
+        value: k("coldBlood").critChance,
+        scope: { abilities: [...k("coldBlood").abilities] },
+      },
+    ],
+  }),
   // The marker for the Rupture DoT on the target. Its duration is the DoT's,
   // which depends on the combo points spent, so each cast gives it.
   rupture: defineAura({

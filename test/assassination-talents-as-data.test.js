@@ -131,7 +131,7 @@ describe("the Assassination modifier tables match the snapshot's rank text", () 
     assert.deepEqual(expandTalents({}).modifiers, []);
   });
 
-  it("reports the other three Assassination talents of the build as unmapped", () => {
+  it("leaves the three PR 2 talents to their own tables: modifiers only here", () => {
     const build = expandTalents({
       [MALICE]: 5,
       [IMPROVED_SND]: 3,
@@ -148,13 +148,7 @@ describe("the Assassination modifier tables match the snapshot's rank text", () 
         ["critDamage", LETHALITY],
       ],
     );
-    assert.deepEqual(build.unmapped, [
-      "assassination.ruthlessness",
-      "assassination.relentless-strikes",
-      "assassination.cold-blood",
-    ]);
-    assert.deepEqual(build.procs, []);
-    assert.deepEqual(build.abilities, []);
+    assert.deepEqual(build.unmapped, []);
   });
 });
 

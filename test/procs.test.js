@@ -905,6 +905,8 @@ describe("Hack and Slash and Puncturing Wounds", () => {
     // The tables are the `procs` of the talent effects data (D5), so they
     // come in the catalogue's order.
     assert.deepEqual(Object.keys(PROC_TABLES), [
+      "assassination.ruthlessness",
+      "assassination.relentless-strikes",
       "combat.puncturing-wounds",
       "combat.hack-and-slash",
     ]);
@@ -912,8 +914,10 @@ describe("Hack and Slash and Puncturing Wounds", () => {
       "combat.hack-and-slash": 3,
       "assassination.malice": 5,
     });
-    assert.equal(procs[0], null);
-    assert.equal(procs[1].chance.value, 0.03);
+    const hackAndSlash =
+      procs[Object.keys(PROC_TABLES).indexOf("combat.hack-and-slash")];
+    assert.equal(procs.filter((one) => one !== null).length, 1);
+    assert.equal(hackAndSlash.chance.value, 0.03);
     assert.equal(
       procsFromTalents().every((one) => one === null),
       true,

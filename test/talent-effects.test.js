@@ -51,9 +51,9 @@ const REFERENCE_COMBAT = {
 };
 const POINTS_AT_LEVEL_60 = 51;
 
-// The two lists of a build, which are all Rogue takes as options.
-function onlyLists({ modifiers, procs }) {
-  return { modifiers, procs };
+// The three lists of a build that Rogue takes as options.
+function onlyLists({ modifiers, procs, abilities }) {
+  return { modifiers, procs, abilities };
 }
 
 function sum(ranks) {
@@ -90,24 +90,22 @@ function counted(seed, config, options) {
   };
 }
 
-// The Assassination talents D8a PR 1 (#119) maps; Ruthlessness, Relentless
-// Strikes and Cold Blood are PR 2.
+// The six Assassination talents of the reference build (D8a, #119) are all
+// mapped; the talents it does not spend points on have no entry.
 const ASSASSINATION_MAPPED = [
   "assassination.malice",
-  "assassination.improved-slice-and-dice",
-  "assassination.lethality",
-];
-const ASSASSINATION_UNMAPPED = [
   "assassination.ruthlessness",
+  "assassination.improved-slice-and-dice",
   "assassination.relentless-strikes",
+  "assassination.lethality",
   "assassination.cold-blood",
 ];
 const MAPPED = talentCatalogue.talents.filter(
   (talent) => TALENT_EFFECTS[talent.id] !== undefined,
 );
 
-describe("the talent effects data covers the Combat tree and three Assassination talents", () => {
-  it("has an entry for each of the 17 Combat talents and three Assassination ones, in catalogue order, and no others", () => {
+describe("the talent effects data covers the Combat tree and six Assassination talents", () => {
+  it("has an entry for each of the 17 Combat talents and six Assassination ones, in catalogue order, and no others", () => {
     assert.equal(COMBAT.length, 17);
     assert.deepEqual(Object.keys(TALENT_EFFECTS), [
       ...ASSASSINATION_MAPPED,
@@ -126,7 +124,7 @@ describe("the talent effects data covers the Combat tree and three Assassination
   });
 
   it("says which text each entry was written from, and the snapshot still has that text", () => {
-    assert.equal(MAPPED.length, 20);
+    assert.equal(MAPPED.length, 23);
     for (const talent of MAPPED) {
       const hash = createHash("sha256")
         .update(talent.ranks.join("\n"))
@@ -152,9 +150,9 @@ describe("the talent effects data covers the Combat tree and three Assassination
     const ids = Object.keys(PROC_TABLES);
     assert.deepEqual(
       ids,
-      COMBAT.filter(
-        (talent) => TALENT_EFFECTS[talent.id].procs !== undefined,
-      ).map((talent) => talent.id),
+      talentCatalogue.talents
+        .filter((talent) => TALENT_EFFECTS[talent.id]?.procs !== undefined)
+        .map((talent) => talent.id),
     );
     for (const id of ids) {
       assert.equal(PROC_TABLES[id], TALENT_EFFECTS[id].procs);
@@ -314,14 +312,14 @@ describe("expandTalents", () => {
       "combat.riposte": 1,
       "combat.blade-flurry": 1,
       "combat.adrenaline-rush": 0,
-      "assassination.ruthlessness": 2,
+      "assassination.murder": 2,
       "subtlety.premeditation": 1,
       "combat.precision": 0,
     });
     assert.deepEqual(build.noDps, ["combat.endurance", "combat.riposte"]);
     assert.deepEqual(build.abilities, ["blade-flurry"]);
     assert.deepEqual(build.unmapped, [
-      "assassination.ruthlessness",
+      "assassination.murder",
       "subtlety.premeditation",
     ]);
     assert.deepEqual(build.modifiers, []);
@@ -517,104 +515,6 @@ describe("the data is checked when it loads, and the check refuses a bad entry",
   });
 });
 
-describe("the Assassination talents of D8a (#119) fit the same shapes, with no change here", () => {
-  // Made-up numbers on the real Assassination ids, in the shapes #119 names,
-  // to show the shapes PR 2 needs (procs, an ability) pass the check today.
-  // Improved Slice and Dice is left out: its `duration` kind is in the real
-  // data since PR 1.
-  const hash = "0".repeat(64);
-  const effects = {
-    "assassination.malice": {
-      textHash: hash,
-      modifiers: [
-        {
-          kind: "critChance",
-          op: "add",
-          values: [0.01, 0.02, 0.03, 0.04, 0.05],
-        },
-      ],
-    },
-    "assassination.ruthlessness": {
-      textHash: hash,
-      procs: [
-        {
-          id: "ruthlessness",
-          trigger: "onAbility",
-          scope: { tags: ["finisher"] },
-          chance: { mode: "flat", values: [0.2, 0.4, 0.6] },
-          actions: [
-            { type: "gainResource", resource: "comboPoints", amount: 1 },
-          ],
-        },
-      ],
-    },
-    "assassination.relentless-strikes": {
-      textHash: hash,
-      procs: [
-        {
-          id: "relentless-strikes",
-          trigger: "onAbility",
-          scope: { tags: ["finisher"] },
-          chance: { mode: "perSpent", values: [0.2] },
-          actions: [{ type: "gainResource", resource: "energy", amount: 25 }],
-        },
-      ],
-    },
-    "assassination.lethality": {
-      textHash: hash,
-      modifiers: [
-        {
-          kind: "critDamage",
-          op: "add",
-          values: [0.06, 0.12, 0.18, 0.24, 0.3],
-          scope: { abilities: ["backstab", "sinister-strike"] },
-        },
-      ],
-    },
-    "assassination.cold-blood": { textHash: hash, ability: "cold-blood" },
-  };
-
-  it("passes the check, expands, and runs in a fight", () => {
-    assert.doesNotThrow(() => checkTalentEffects(effects));
-    const ranks = {
-      "assassination.malice": 5,
-      "assassination.ruthlessness": 3,
-      "assassination.relentless-strikes": 1,
-      "assassination.lethality": 5,
-      "assassination.cold-blood": 1,
-    };
-    const build = expandTalents(ranks, effects);
-    assert.deepEqual(
-      build.modifiers.map((m) => m.kind),
-      ["critChance", "critDamage"],
-    );
-    assert.deepEqual(
-      build.procs.map((p) => p.id),
-      ["ruthlessness", "relentless-strikes"],
-    );
-    assert.deepEqual(build.abilities, ["cold-blood"]);
-    assert.deepEqual(build.unmapped, []);
-    const run = counted(SEED, undefined, {
-      modifiers: build.modifiers,
-      procs: build.procs,
-    });
-    assert.ok(run.fight.simulation.damageDone > 0);
-  });
-
-  it("covers every Assassination talent the reference build spends points on", () => {
-    // The six talents #119 maps, and no more of the build.
-    assert.deepEqual(
-      Object.keys(REFERENCE_ASSASSINATION).sort(),
-      Object.keys(effects)
-        .concat("assassination.improved-slice-and-dice")
-        .sort(),
-    );
-    for (const id of Object.keys(effects)) {
-      assert.ok(ASSASSINATION.some((talent) => talent.id === id));
-    }
-  });
-});
-
 describe("the reference build (18/33/0), decoded from its link", () => {
   const decoded = decodeBuildLink(REFERENCE_LINK);
 
@@ -652,15 +552,18 @@ describe("the reference build (18/33/0), decoded from its link", () => {
     assert.deepEqual(nonZero(decodeBuildLink(link("--")).ranks), {});
   });
 
-  it("expands to the Combat talents' and three Assassination talents' modifiers and procs, and reports the rest", () => {
+  it("expands to the Combat talents' and six Assassination talents' modifiers, procs and abilities, and reports nothing unmapped", () => {
     const build = expandTalents(decoded.ranks);
     // Three Assassination modifier talents (D8a PR 1), then nine Combat ones,
     // three of them with two tables (Puncturing Wounds, Hack and Slash, Weapon
-    // Expertise).
+    // Expertise). Ruthlessness, Relentless Strikes and Cold Blood (D8a PR 2)
+    // are procs and an ability, so they add no modifier.
     assert.deepEqual(
       [...new Set(build.modifiers.map((m) => m.source))],
       [
-        ...ASSASSINATION_MAPPED,
+        "assassination.malice",
+        "assassination.improved-slice-and-dice",
+        "assassination.lethality",
         "combat.improved-eviscerate",
         "combat.improved-sinister-strike",
         "combat.puncturing-wounds",
@@ -685,25 +588,33 @@ describe("the reference build (18/33/0), decoded from its link", () => {
     );
     assert.deepEqual(
       build.procs.map((proc) => proc.id),
-      ["puncturing-wounds", "hack-and-slash"],
+      [
+        "ruthlessness",
+        "relentless-strikes",
+        "puncturing-wounds",
+        "hack-and-slash",
+      ],
     );
-    assert.deepEqual(build.abilities, ["blade-flurry", "adrenaline-rush"]);
+    assert.deepEqual(build.abilities, [
+      "cold-blood",
+      "blade-flurry",
+      "adrenaline-rush",
+    ]);
     assert.deepEqual(build.noDps, [
       "combat.endurance",
       "combat.improved-sprint",
     ]);
-    // The other three Assassination talents are D8a PR 2 (#119): no entry yet.
-    assert.deepEqual(build.unmapped, ASSASSINATION_UNMAPPED);
+    assert.deepEqual(build.unmapped, []);
     assert.deepEqual(
       Object.keys(REFERENCE_ASSASSINATION).sort(),
-      [...ASSASSINATION_MAPPED, ...ASSASSINATION_UNMAPPED].sort(),
+      [...ASSASSINATION_MAPPED].sort(),
     );
   });
 });
 
 describe("a talented fight through createFight", () => {
   const build = expandTalents(decodeBuildLink(REFERENCE_LINK).ranks);
-  const options = { modifiers: build.modifiers, procs: build.procs };
+  const options = onlyLists(build);
   const swords = {
     weapons: { mainHand: { type: "sword" }, offHand: { type: "sword" } },
   };

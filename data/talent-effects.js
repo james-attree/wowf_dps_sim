@@ -36,15 +36,17 @@ import { k } from "./constants.js";
 // A modifier's numbers are written here and checked against the percentage or
 // amount in the snapshot's own rank text by test/talent-effects.test.js, at
 // every rank. A proc's chance reads the constants row that records it
-// (hackAndSlash.extraAttack, puncturingWounds.comboPoint), and the same test
-// checks those against the text too. So the numbers live in data/, none in
+// (hackAndSlash.extraAttack, puncturingWounds.comboPoint, ruthlessness.comboPoint,
+// relentlessStrikes.energy), and the same test checks those against the text too. So the numbers live in data/, none in
 // js/, and the provenance is the `talents.*` row of data/constants.js.
 //
-// The Assassination talents are added by D8a (#119) in parts. Malice,
-// Improved Slice and Dice and Lethality (PR 1) are modifier tables: Malice
-// `critChance`, Lethality `critDamage` scoped to the abilities its text names,
-// Improved Slice and Dice a `duration` modifier on Slice and Dice. Ruthlessness
-// and Relentless Strikes (procs) and Cold Blood (an `ability`) come in PR 2. A
+// The six Assassination talents the reference build spends points on are D8a
+// (#119). Malice, Improved Slice and Dice and Lethality (PR 1) are modifier
+// tables: Malice `critChance`, Lethality `critDamage` scoped to the abilities
+// its text names, Improved Slice and Dice a `duration` modifier on Slice and
+// Dice. Ruthlessness and Relentless Strikes (PR 2) are procs on the finisher
+// tag, one with a flat chance by rank and one with a perSpent chance, and
+// Cold Blood (PR 2) is the ability it grants, whose aura carries the crit. A
 // talent with no entry and a rank above 0 is reported by expandTalents as
 // `unmapped`.
 
@@ -60,6 +62,28 @@ const RAW = {
       },
     ],
   },
+  "assassination.ruthlessness": {
+    textHash:
+      "ed34820e2c6513f8d2d5e5a769589366fcd62c0dbae85dac071d30bcab729a15",
+    procs: [
+      {
+        id: "ruthlessness",
+        trigger: "onAbility",
+        scope: { tags: ["finisher"] },
+        chance: {
+          mode: "flat",
+          values: [...k("ruthlessness.comboPoint").chance],
+        },
+        actions: [
+          {
+            type: "gainResource",
+            resource: "comboPoints",
+            amount: k("ruthlessness.comboPoint").comboPoints,
+          },
+        ],
+      },
+    ],
+  },
   "assassination.improved-slice-and-dice": {
     textHash:
       "ff51ea59688681eef5c6b5a3eb0ea378d85e65928f838fdd908a1ab7840d6f4b",
@@ -69,6 +93,28 @@ const RAW = {
         op: "add",
         values: [0.15, 0.3, 0.45],
         scope: { abilities: ["slice-and-dice"] },
+      },
+    ],
+  },
+  "assassination.relentless-strikes": {
+    textHash:
+      "43cd64cecd1646ad869e4d9ef60a036980689e8e53f407b753ec742c3f01ead9",
+    procs: [
+      {
+        id: "relentless-strikes",
+        trigger: "onAbility",
+        scope: { tags: ["finisher"] },
+        chance: {
+          mode: "perSpent",
+          values: [k("relentlessStrikes.energy").chancePerComboPoint],
+        },
+        actions: [
+          {
+            type: "gainResource",
+            resource: "energy",
+            amount: k("relentlessStrikes.energy").energy,
+          },
+        ],
       },
     ],
   },
@@ -92,6 +138,11 @@ const RAW = {
         },
       },
     ],
+  },
+  "assassination.cold-blood": {
+    textHash:
+      "b1adbe8487451b905ff2fbdf485f350745f66c3049d08505f00cfada8b163a09",
+    ability: "cold-blood",
   },
   "combat.improved-eviscerate": {
     textHash:

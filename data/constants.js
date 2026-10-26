@@ -122,6 +122,26 @@ export const CONSTANTS = {
     "2 min cooldown and 2 combo points. The 20s expiry is premeditation.cpExpiry. The points removed are premeditation.cpRemovedOnExpiry. It does not start the GCD (gcd.flags).",
     false,
   ),
+  coldBlood: entry(
+    {
+      energy: 0,
+      cooldown: 180,
+      duration: 3600,
+      critChance: 1,
+      abilities: [
+        "sinister-strike",
+        "backstab",
+        "ambush",
+        "eviscerate",
+        "mutilate",
+      ],
+    },
+    "energy, s, s, chance, ability ids",
+    WOWF_EXPORT,
+    "rogue.json → spell_desc[Rogue|Cold Blood|]; talents[Assassination|Cold Blood] desc. Cross-check: wowsims/classic sim/rogue/talents.go registerColdBloodCD (read 26 Oct 2026)",
+    "3 min cooldown, instant, and +100% crit chance on the next Sinister Strike, Backstab, Ambush, Eviscerate or Mutilate (the talent text; the export's own Classic text, cd, leaves Mutilate out). It does not start the GCD (abilities.offGcd). Cold Blood has no timer in the game: it lasts until it is used (wowsims: NeverExpires, deactivated by the next flagged spell that hits). The engine needs a length, so duration is an hour, longer than any fight, and the aura's one charge ends it. The +100% is a flat add to the crit chance (modifiers.stacking), taken before the 4.8% crit suppression, so it is a sure crit. Mutilate has no ability definition yet, so its entry is inert until one exists.",
+    false,
+  ),
   adrenalineRush: entry(
     { energy: 0, regenMultiplier: 2, duration: 15, cooldown: 300 },
     "energy, ×, s, s",
@@ -298,7 +318,7 @@ export const CONSTANTS = {
     "–",
     WOWF_EXPORT,
     "rogue.json → talents.trees[].talents[].desc",
-    "Hand-encoded in data/talent-effects.js (D5, #102), one entry per talent: its modifiers, procs, granted ability or a reason it has no DPS effect, and a SHA-256 of the rank text it was written from. The tests read each number back out of the snapshot text, at every rank, and fail on a changed text. The Combat tree is done; of the Assassination talents Malice, Improved Slice and Dice and Lethality are done (D8a PR 1, #119) and Ruthlessness, Relentless Strikes and Cold Blood are PR 2; the Subtlety ones are D8b.",
+    "Hand-encoded in data/talent-effects.js (D5, #102), one entry per talent: its modifiers, procs, granted ability or a reason it has no DPS effect, and a SHA-256 of the rank text it was written from. The tests read each number back out of the snapshot text, at every rank, and fail on a changed text. The Combat tree is done, and so are the six Assassination talents the reference build spends points on (D8a, #119: Malice, Improved Slice and Dice and Lethality in PR 1, Ruthlessness, Relentless Strikes and Cold Blood in PR 2); the other Assassination talents and the Subtlety ones are D8b and later.",
     false,
   ),
   "character.level": entry(
@@ -697,6 +717,14 @@ export const CONSTANTS = {
     "Combo points at which the placeholder Combat rotation chooses Slice and Dice or Eviscerate.",
     true,
   ),
+  "rotation.coldBlood": entry(
+    { ability: "coldBlood", beforeFinisher: "eviscerate" },
+    "ability key, ability key",
+    ASSUMPTION,
+    `${DEVELOPER}: ${NOT_JAMES} The rule is the Scout's (Cold Blood right before the next Eviscerate when it is off cooldown), to be adjusted`,
+    "Only when the build grants Cold Blood (Rogue option abilities), so a fight without the talent is unchanged. It is cast when the rotation has chosen Eviscerate at rotation.finisherComboPoints and Cold Blood is ready. It is off the GCD, but it does not make the Eviscerate go next: the charge waits for energy to afford the Eviscerate (median 2.5 s, max 6.5 s, over 400 default casts) and sometimes lands on a Sinister Strike first (21 of 400 charges). js/rotation-rules.js.",
+    true,
+  ),
   "rotation.sliceAndDiceRefreshSeconds": entry(
     10,
     "s",
@@ -820,6 +848,22 @@ export const CONSTANTS = {
     WOWF_EXPORT,
     "rogue.json → talents[Combat|Puncturing Wounds] desc",
     "Backstab has this chance to add an additional combo point. A proc on a landed Backstab cast (onAbility). The crit lines of the same talent are modifiers, in the same entry of data/talent-effects.js.",
+    false,
+  ),
+  "ruthlessness.comboPoint": entry(
+    { chance: [0.2, 0.4, 0.6], comboPoints: 1 },
+    "chance per rank, combo points",
+    WOWF_EXPORT,
+    "rogue.json → talents[Assassination|Ruthlessness] desc. Cross-check: wowsims/classic sim/rogue/talents.go applyRuthlessness, 0.2 per rank (read 26 Oct 2026)",
+    "Finishing moves have this chance to add a combo point to the target. A proc on a landed finisher cast (onAbility, tag finisher), flat chance. The cast has already spent its points, so the point is the first of the next set.",
+    false,
+  ),
+  "relentlessStrikes.energy": entry(
+    { chancePerComboPoint: 0.2, energy: 25 },
+    "chance per combo point, energy",
+    WOWF_EXPORT,
+    "rogue.json → talents[Assassination|Relentless Strikes] desc. Cross-check: wowsims/classic sim/rogue/talents.go applyRelentlessStrikes, 0.2 per combo point and 25 energy (read 26 Oct 2026)",
+    "Finishing moves have 20% chance per combo point to restore 25 energy. A proc on a landed finisher cast (onAbility, tag finisher), chance mode perSpent: 20% times the points the cast spent, capped at 100%, so one draw per finisher.",
     false,
   ),
   "proc.secondsPerMinute": entry(
@@ -1020,11 +1064,11 @@ export const CONSTANTS = {
     true,
   ),
   "abilities.offGcd": entry(
-    ["premeditation"],
+    ["premeditation", "cold-blood"],
     "ability ids",
     CLASSIC,
-    `${WS}rogue/premeditation.go (the same source as gcd.flags)`,
-    "The abilities that do not start the global cooldown. Premeditation is the only one the engine models today (gcd.flags). Every other ability in the catalogue defaults to starting the GCD, which is not yet checked against the game for abilities the engine does not cast (Cold Blood, Preparation, Sprint, Stealth, Vanish and others). D2 (#98) reads the flag for the eleven abilities the engine casts and defines no other, so the rest still wait for review.",
+    `${WS}rogue/premeditation.go (the same source as gcd.flags); Cold Blood: ${WS}rogue/talents.go (registerColdBloodCD)`,
+    "The abilities that do not start the global cooldown. Premeditation and Cold Blood are the ones the engine models (gcd.flags; Cold Blood: D8a PR 2, #119, its wowsims spell has no GCD config). Every other ability in the catalogue defaults to starting the GCD, which is not yet checked against the game for abilities the engine does not cast (Preparation, Sprint, Stealth, Vanish and others). D2 (#98) reads the flag for the eleven abilities the engine casts and defines no other, so the rest still wait for review.",
     true,
   ),
   "log.maxEvents": entry(
