@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runFight } from "../js/fight.js";
 import { runScriptedFight } from "./scripted-fight.mjs";
+import { referenceBuild } from "../test/talentsforever.js";
 
 // Golden-seed regression fixtures (#77, #85). Each case pins the full result of
 // runFight({ seed, duration }), or of a scripted-cast fight (see
@@ -66,6 +67,27 @@ export const GOLDEN_CASES = [
     seed: 68,
     duration: 50,
     script: FINISHER_SCRIPT,
+  },
+  // Issue #107. The two cases below run the reference build (Combat 18/33/0,
+  // the talentsforever.com link in test/talentsforever.js, the same one the
+  // talent coverage check uses) through applyBuild, and they share a seed.
+  // The first has the talents and no poisons. The second adds Instant Poison
+  // on the main hand and Deadly Poison on the off hand. The build is read from
+  // the test helper so that the link is written down in one place.
+  {
+    name: "talented-build-seed-107-60s",
+    seed: 107,
+    duration: 60,
+    config: { talents: referenceBuild() },
+  },
+  {
+    name: "poisons-instant-deadly-seed-107-60s",
+    seed: 107,
+    duration: 60,
+    config: {
+      talents: referenceBuild(),
+      poisons: { mainHand: "instant", offHand: "deadly" },
+    },
   },
 ];
 
