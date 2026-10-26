@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
+import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { AURAS } from "../js/auras.js";
 import { createFight } from "../js/fight.js";
@@ -17,12 +18,11 @@ function withoutText(entry) {
 }
 
 // A2's done-when: every DPS-relevant Combat talent is expressible as data, with
-// no engine code. These tables are that proof. They live in the test, not in
-// data/talent-effects.js: that file is D5 (#102), which also decides how talent
-// ranks reach a fight. Here a table is a list of rank-table entries
-// ({ kind, op, values, scope? }) that expandRank turns into modifiers, and each
-// number is checked against the percentage or amount in the snapshot's own
-// rank text, so a refreshed snapshot that changes a talent fails here.
+// no engine code. The data is data/talent-effects.js (D5, #102). Here each
+// number in it is checked against the percentage or amount in the snapshot's own
+// rank text, so a refreshed snapshot that changes a talent fails here, and the
+// tables are put through expandRank and the pipeline on their own, without the
+// talent expansion (test/talent-effects.test.js has that).
 //
 // `text` reads the number out of a rank's text and `scale` turns it into the
 // modifier's unit (a percentage into a fraction). The engine knows none of
@@ -31,123 +31,93 @@ function withoutText(entry) {
 const PERCENT = 100;
 const AMOUNT = 1;
 
-const MODIFIER_TALENTS = {
+const READINGS = {
   "combat.improved-eviscerate": [
     {
-      kind: "damage",
-      op: "add",
-      values: [0.07, 0.13, 0.2],
-      scope: { abilities: ["eviscerate"] },
       text: /Eviscerate ability by (\d+)%/,
       scale: PERCENT,
     },
   ],
   "combat.improved-sinister-strike": [
     {
-      kind: "energyCost",
-      op: "add",
-      values: [-3, -5],
-      scope: { abilities: ["sinister-strike"] },
       text: /Energy cost of your Sinister Strike ability by (\d+)/,
       scale: -AMOUNT,
     },
   ],
   "combat.puncturing-wounds": [
     {
-      kind: "critChance",
-      op: "add",
-      values: [0.1, 0.2, 0.3],
-      scope: { abilities: ["backstab"] },
       text: /of your Backstab by (\d+)%/,
       scale: PERCENT,
     },
     {
-      kind: "critChance",
-      op: "add",
-      values: [0.05, 0.1, 0.15],
-      scope: { abilities: ["mutilate"] },
       text: /your Mutilate by (\d+)%/,
       scale: PERCENT,
     },
-    // The 15/30/45% chance of an extra combo point is a proc: A4 built it (js/proc-data.js), D7 wires it.
   ],
   "combat.precision": [
     {
-      kind: "hitChance",
-      op: "add",
-      values: [0.01, 0.02, 0.03],
       text: /chance to hit by (\d+)%/,
       scale: PERCENT,
     },
   ],
   "combat.flawless-execution": [
     {
-      kind: "energyCost",
-      op: "add",
-      values: [-10],
-      scope: { abilities: ["eviscerate"] },
       text: /Eviscerate ability by (\d+)/,
       scale: -AMOUNT,
     },
   ],
   "combat.dual-wield-specialization": [
     {
-      kind: "damage",
-      op: "add",
-      values: [0.05, 0.1, 0.15, 0.2, 0.25],
-      scope: { hands: ["offHand"] },
       text: /off-hand weapon by (\d+)%/,
       scale: PERCENT,
     },
   ],
   "combat.hack-and-slash": [
     {
-      kind: "critChance",
-      op: "add",
-      values: [0.01, 0.02, 0.03, 0.04, 0.05],
-      scope: { weaponTypes: ["dagger", "fist"] },
       label: "Dagger/Fist",
       text: /Dagger\/Fist:[\s\S]*?chance by (\d+)%/,
       scale: PERCENT,
     },
     {
-      kind: "armorIgnore",
-      op: "add",
-      values: [0.03, 0.06, 0.09, 0.12, 0.15],
-      scope: { weaponTypes: ["mace"] },
       label: "Mace",
       text: /Mace:[\s\S]*?ignore (\d+)%/,
       scale: PERCENT,
     },
-    // The axe and sword extra attack (1 to 5%) is a proc: A4 built it (js/proc-data.js), D7 wires it.
   ],
   "combat.weapon-expertise": [
     {
-      kind: "dodgeReduction",
-      op: "add",
-      values: [0.01, 0.02],
       text: /Dodged or Parried by (\d+)%/,
       scale: PERCENT,
     },
     {
-      kind: "parryReduction",
-      op: "add",
-      values: [0.01, 0.02],
       text: /Dodged or Parried by (\d+)%/,
       scale: PERCENT,
     },
   ],
   "combat.aggression": [
     {
-      kind: "damage",
-      op: "add",
-      values: [0.02, 0.04, 0.06],
-      scope: { abilities: ["sinister-strike", "backstab", "eviscerate"] },
       text: /Eviscerate abilities by (\d+)%/,
       scale: PERCENT,
     },
   ],
 };
+
+// The numbers and scopes are data/talent-effects.js's; each reading is the one
+// that goes with the entry of the same place in that talent's `modifiers`.
+const MODIFIER_TALENTS = Object.fromEntries(
+  Object.entries(READINGS).map(([id, readings]) => {
+    const { modifiers } = TALENT_EFFECTS[id];
+    assert.equal(
+      modifiers.length,
+      readings.length,
+      `${id}: one reading for each modifier table`,
+    );
+    return [
+      id,
+      modifiers.map((table, index) => ({ ...table, ...readings[index] })),
+    ];
+  }),
+);
 
 // Active talents: the cast puts an aura up, and the aura holds the modifier.
 const AURA_TALENTS = {
@@ -165,15 +135,13 @@ const AURA_TALENTS = {
   },
 };
 
-// Not DPS: defence, utility, or a strike the simulator does not cast.
-const NOT_DPS = {
-  "combat.lightning-reflexes": "dodge chance: nothing attacks the rogue",
-  "combat.deflection": "parry chance: nothing attacks the rogue",
-  "combat.endurance": "Sprint and Evasion cooldowns: not simulated",
-  "combat.riposte": "needs a parry; there is no incoming attack",
-  "combat.improved-sprint": "movement: not simulated",
-  "combat.improved-kick": "interrupts: not simulated",
-};
+// Not DPS: defence, utility, or a strike the simulator does not cast. The
+// reasons are the data's own (`noDpsEffect`).
+const NOT_DPS = Object.fromEntries(
+  Object.entries(TALENT_EFFECTS)
+    .filter(([, effect]) => effect.noDpsEffect !== undefined)
+    .map(([id, effect]) => [id, effect.noDpsEffect]),
+);
 
 const COMBAT = talentCatalogue.byTree("combat");
 
@@ -209,6 +177,22 @@ describe("every Combat talent has a place", () => {
       11,
       "11 of 17 are DPS-relevant",
     );
+  });
+
+  it("is in the data under the group the test reads it as", () => {
+    const withData = (field) =>
+      COMBAT.filter((talent) => TALENT_EFFECTS[talent.id][field] !== undefined)
+        .map((talent) => talent.id)
+        .sort();
+    assert.deepEqual(
+      withData("modifiers"),
+      Object.keys(MODIFIER_TALENTS).sort(),
+    );
+    assert.deepEqual(withData("ability"), Object.keys(AURA_TALENTS).sort());
+    for (const id of Object.keys(AURA_TALENTS)) {
+      const ability = abilityCatalogue.get(TALENT_EFFECTS[id].ability);
+      assert.equal(ability.name, talentCatalogue.get(id).name, id);
+    }
   });
 });
 

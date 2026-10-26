@@ -3,6 +3,7 @@ import { auraRegistry } from "./auras.js";
 import { abilityCatalogue } from "./abilities.js";
 import { defineScope, scopeMatches } from "./modifiers.js";
 import { PROC_TABLES } from "./proc-data.js";
+import { talentCatalogue } from "./talents.js";
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 
 // The proc system (roadmap A4). A proc is data: a trigger, a chance, an
@@ -42,6 +43,9 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //   flat      value
 //   ppm       value × the swinging hand's base weapon speed ÷ 60. Haste does
 //             not change it (the weapon speed is the unhasted one).
+//             Only a swing or an attack has a hand: a ppm proc that meets a cast
+//             that does not attack (Adrenaline Rush) is a RangeError, not a
+//             chance of 0.
 //   perSpent  value × the points the cast spent, capped at 1. Only onAbility
 //             can know the points (Ability.spendable() reads them before the
 //             cast resets the pool). A cast that spent none has chance 0.
@@ -187,10 +191,17 @@ function defineAction(label, action, index) {
   }
   if (action.type === "gainResource") {
     checkKeys(at, action, ["type", "resource", "amount"]);
-    if (!RESOURCE_DEFINITIONS.some(({ id }) => id === action.resource)) {
+    const pool = RESOURCE_DEFINITIONS.find(({ id }) => id === action.resource);
+    if (pool === undefined) {
       fail(at, `unknown resource id ${JSON.stringify(action.resource)}.`);
     }
     finite(at, "amount", action.amount);
+    if (pool.whole === true && !Number.isInteger(action.amount)) {
+      fail(
+        at,
+        `${action.resource} holds whole units, so amount must be a whole number. Got ${action.amount}.`,
+      );
+    }
     return Object.freeze({ ...action });
   }
   if (action.type === "applyAura") {
@@ -315,11 +326,30 @@ export function defineRankedProc(spec, rank) {
 
 // The procs for a set of talent ranks { "<talent id>": rank }, from the rank
 // tables in js/proc-data.js. A talent at rank 0, or left out, gives null. An id
-// that is not a proc talent is ignored (most talents are modifiers). The result
-// is a list for Rogue's `procs` option.
+// that is a talent but not a proc talent is ignored (most talents are
+// modifiers); an id that is no talent at all, `null`, an array or anything
+// that is not a plain object is a RangeError. The result is a list for Rogue's
+// `procs` option.
 export function procsFromTalents(ranks = {}) {
-  return Object.keys(PROC_TABLES).map((id) =>
-    defineRankedProc(PROC_TABLES[id], Object.hasOwn(ranks, id) ? ranks[id] : 0),
+  if (!plainObject(ranks)) {
+    throw new RangeError(
+      `procsFromTalents needs an object of { talent id: rank }, not ${ranks === null ? "null" : Array.isArray(ranks) ? "an array" : typeof ranks}.`,
+    );
+  }
+  // A key that is no talent in the catalogue is a typo, and a typo would give
+  // a build that quietly lacks its proc. A talent that is not a proc talent
+  // (most are modifiers) is fine and is ignored.
+  for (const id of Object.keys(ranks)) {
+    if (talentCatalogue.get(id) === undefined) {
+      throw new RangeError(
+        `procsFromTalents got an unknown talent id ${JSON.stringify(id)}. Use a catalogue id such as "combat.hack-and-slash".`,
+      );
+    }
+  }
+  return Object.keys(PROC_TABLES).flatMap((id) =>
+    PROC_TABLES[id].map((spec) =>
+      defineRankedProc(spec, Object.hasOwn(ranks, id) ? ranks[id] : 0),
+    ),
   );
 }
 
@@ -399,6 +429,7 @@ export class ProcRunner {
       context: this.simulation.attackContext(source, "weapon"),
       hand: source.hand,
       spent: 0,
+      attacks: true,
       extra,
     });
   }
@@ -423,7 +454,14 @@ export class ProcRunner {
     if (result === null) {
       context.tags = context.tags.filter((tag) => !ATTACK_TAGS.includes(tag));
     }
-    this.dispatch({ kinds, context, hand: ability.hand, spent, extra: false });
+    this.dispatch({
+      kinds,
+      context,
+      hand: ability.hand,
+      spent,
+      attacks: result !== null,
+      extra: false,
+    });
   }
 
   // One DoT tick (Simulation.step), with the context of the DoT.
@@ -436,6 +474,7 @@ export class ProcRunner {
       context,
       hand: context.hand,
       spent: 0,
+      attacks: true,
       extra: false,
     });
   }
@@ -468,6 +507,14 @@ export class ProcRunner {
       return value;
     }
     if (mode === PPM) {
+      // Procs per minute is a rate of weapon swings. A cast that does not
+      // attack has no swing, and a quiet 0 would hide a proc that can never
+      // fire, so it is an error.
+      if (!event.attacks) {
+        throw new RangeError(
+          `Proc "${proc.id}" has a ppm chance and met a cast that does not attack. A ppm chance needs a swing or an attack.`,
+        );
+      }
       const weapon = this.simulation.rogue.weapons[event.hand];
       return Math.min(1, (value * weapon.speed) / k("proc.secondsPerMinute"));
     }

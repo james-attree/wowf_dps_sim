@@ -4,6 +4,10 @@ import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
 import { Simulation } from "./simulation.js";
 
+// A talent build for a fight: expandTalents(config.talents) gives the
+// `modifiers` and `procs` options below (js/talent-build.js).
+export { expandTalents } from "./talent-build.js";
+
 // Build the engine for one fight: a rogue and a simulation that draws from the
 // seed. runFight and the live page (js/main.js) both start here, so they run
 // the same engine. The seed is an integer and wraps to an unsigned 32-bit
@@ -17,10 +21,16 @@ import { Simulation } from "./simulation.js";
 //
 // `options.modifiers` is a static modifier list (js/modifiers.js) for the
 // rogue, and `options.procs` a list of procs (js/procs.js; a rank 0 is null and
-// is left out). runFight takes neither and the result records neither: the
-// SimConfig is the whole input of a result until D7 (#103) turns talent ranks
-// into modifiers. Until then it is how a test or a tool runs a fight with
-// modifiers.
+// is left out). A talented fight is the two lists from expandTalents, which
+// reads the talent effects data (data/talent-effects.js):
+//
+//   const { modifiers, procs } = expandTalents(config.talents);
+//   createFight(seed, config, { modifiers, procs });
+//
+// runFight takes neither and the result records neither: the SimConfig is the
+// whole input of a result until D7 (#103) makes runFight do this itself, with
+// the rotation's use of the talents that grant an ability. Until then this is
+// how a test or a tool runs a fight with talents.
 export function createFight(seed, config, options) {
   const fightSeed = normalizeSeed(seed);
   const rogue = new Rogue(config, options);

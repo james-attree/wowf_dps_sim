@@ -3,6 +3,7 @@ import { afterEach, describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Ability } from "../js/ability.js";
 import { createFight } from "../js/fight.js";
+import { expandRank } from "../js/modifiers.js";
 import { PROC_TABLES } from "../js/proc-data.js";
 import {
   ACTION_TYPES,
@@ -901,16 +902,18 @@ describe("Hack and Slash and Puncturing Wounds", () => {
   });
 
   it("gives the talents' procs from a rank table and ignores other talents", () => {
+    // The tables are the `procs` of the talent effects data (D5), so they
+    // come in the catalogue's order.
     assert.deepEqual(Object.keys(PROC_TABLES), [
-      "combat.hack-and-slash",
       "combat.puncturing-wounds",
+      "combat.hack-and-slash",
     ]);
     const procs = procsFromTalents({
       "combat.hack-and-slash": 3,
       "assassination.malice": 5,
     });
-    assert.equal(procs[0].chance.value, 0.03);
-    assert.equal(procs[1], null);
+    assert.equal(procs[0], null);
+    assert.equal(procs[1].chance.value, 0.03);
     assert.equal(
       procsFromTalents().every((one) => one === null),
       true,
@@ -1021,5 +1024,223 @@ describe("the #120 follow-ups", () => {
     rogue.resources.energy.value = 0;
     rogue.resources.energy.clamp();
     assert.equal(rogue.resources.energy.value, 0);
+  });
+});
+
+describe("the #123 follow-ups", () => {
+  it("takes the catalogue's name for a dealDamage on a catalogue id, and its own otherwise", () => {
+    const damage = (action) =>
+      proc({
+        actions: [{ type: "dealDamage", min: 1, ...action }],
+      }).actions[0];
+    // The catalogue wins, whether or not a name is given.
+    assert.equal(damage({ id: "eviscerate" }).name, "Eviscerate");
+    assert.equal(
+      damage({ id: "eviscerate", name: "Something else" }).name,
+      "Eviscerate",
+    );
+    // An id outside it keeps the name it was given, and needs one.
+    assert.equal(
+      damage({ id: "proc-strike", name: "Proc strike" }).name,
+      "Proc strike",
+    );
+    assert.throws(() => damage({ id: "proc-strike" }), /needs a name/);
+  });
+
+  it("copies a gainResource action and freezes the copy, not the caller's object", () => {
+    const given = { type: "gainResource", resource: "energy", amount: 25 };
+    const defined = proc({ actions: [given] });
+    const action = defined.actions[0];
+    assert.notEqual(action, given);
+    assert.equal(Object.isFrozen(action), true);
+    assert.equal(Object.isFrozen(given), false);
+    given.amount = 99;
+    assert.equal(action.amount, 25);
+    assert.deepEqual(action, {
+      type: "gainResource",
+      resource: "energy",
+      amount: 25,
+    });
+  });
+
+  it("copies and freezes an applyAura action the same way", () => {
+    const given = { type: "applyAura", aura: "blade-flurry", duration: 4 };
+    const action = proc({ actions: [given] }).actions[0];
+    assert.notEqual(action, given);
+    assert.equal(Object.isFrozen(action), true);
+    assert.equal(Object.isFrozen(given), false);
+    given.duration = 99;
+    assert.equal(action.duration, 4);
+  });
+
+  it("refuses an empty rank table, in a ranked proc and in expandRank", () => {
+    const spec = {
+      id: "ranked",
+      trigger: "onHit",
+      chance: { mode: "flat", values: [] },
+      actions: [{ type: "extraAttack" }],
+    };
+    for (const rank of [0, 1]) {
+      assert.throws(() => defineRankedProc(spec, rank), {
+        name: "RangeError",
+        message: /needs a values array/,
+      });
+      assert.throws(
+        () =>
+          expandRank([{ kind: "damage", op: "add", values: [] }], rank, "x"),
+        { name: "RangeError", message: /needs a values array/ },
+      );
+    }
+  });
+
+  it("runs the actions in the order they are listed", () => {
+    const longer = (first, second) =>
+      proc({
+        chance: { mode: "flat", value: 1 },
+        actions: [
+          { type: "applyAura", aura: "blade-flurry", duration: first },
+          { type: "applyAura", aura: "blade-flurry", duration: second },
+        ],
+      });
+    assert.deepEqual(
+      longer(3, 7).actions.map(({ duration }) => duration),
+      [3, 7],
+    );
+    // The aura refreshes to the later action's duration, so the order shows.
+    for (const [first, second] of [
+      [3, 7],
+      [7, 3],
+    ]) {
+      const { sim } = harness({
+        procs: [longer(first, second)],
+        rolls: [HIT, 0],
+      });
+      swing(sim);
+      assert.equal(sim.activeBuffs["blade-flurry"].duration, second);
+    }
+  });
+
+  it("applies an aura at the stacks the action gives, up to the aura's cap", () => {
+    const stacked = (stacks) =>
+      proc({
+        chance: { mode: "flat", value: 1 },
+        actions: [{ type: "applyAura", aura: "expose-armor", stacks }],
+      });
+    const stacksAfter = (procs) => {
+      const { sim } = harness({ procs, rolls: [HIT, 0] });
+      swing(sim);
+      return sim.activeDebuffs["expose-armor"].stacks;
+    };
+    assert.equal(stacksAfter([stacked(3)]), 3);
+    assert.equal(stacksAfter([stacked(undefined)]), 1);
+    assert.equal(stacksAfter([stacked(k("combo.max") + 4)]), k("combo.max"));
+  });
+
+  it("refuses procsFromTalents an unknown key, null, an array or a non-object", () => {
+    for (const bad of [null, [], "combat.hack-and-slash", 5, true]) {
+      assert.throws(() => procsFromTalents(bad), {
+        name: "RangeError",
+        message: /needs an object/,
+      });
+    }
+    for (const id of [
+      "combat.hack-and-slsh",
+      "hack-and-slash",
+      "",
+      "toString",
+      "__proto__",
+    ]) {
+      assert.throws(() => procsFromTalents({ [id]: 1 }), {
+        name: "RangeError",
+        message: /unknown talent id/,
+      });
+    }
+    // One bad key among good ones still fails, whatever its position.
+    assert.throws(
+      () => procsFromTalents({ "combat.hack-and-slash": 1, "combat.nope": 1 }),
+      /"combat.nope"/,
+    );
+    // A real talent that is not a proc talent is ignored, and rank 0 is none.
+    assert.equal(
+      procsFromTalents({ "combat.precision": 3 }).every((one) => one === null),
+      true,
+    );
+    assert.equal(procsFromTalents({}).length, Object.keys(PROC_TABLES).length);
+  });
+
+  it("refuses a ppm chance on a cast that does not attack, and only then", () => {
+    const ppm = (scope) =>
+      proc({
+        trigger: "onAbility",
+        scope,
+        chance: { mode: "ppm", value: 2 },
+      });
+    const nonAttack = harness({
+      procs: [ppm({ abilities: ["adrenaline-rush"] })],
+      rolls: [],
+    });
+    assert.throws(
+      () =>
+        nonAttack.rogue.abilities.adrenalineRush.cast(
+          nonAttack.rogue,
+          nonAttack.sim,
+        ),
+      {
+        name: "RangeError",
+        message: /ppm chance and met a cast that does not attack/,
+      },
+    );
+    // A proc the cast does not match never gets as far as the chance.
+    const other = harness({
+      procs: [ppm({ abilities: ["sinister-strike"] })],
+      rolls: [],
+    });
+    other.rogue.abilities.adrenalineRush.cast(other.rogue, other.sim);
+    // An attacking cast has a hand, so the chance is worked out. A cast that
+    // missed fires no onAbility, so the seeds that land are the ones counted.
+    let rolled = 0;
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const attack = harness({
+        procs: [ppm({ abilities: ["sinister-strike"] })],
+        seed,
+      });
+      attack.rogue.abilities.sinisterStrike.cast(attack.rogue, attack.sim);
+      rolled += attack.sim.procs.stats["test-proc"].rolls;
+    }
+    assert.ok(rolled > 0);
+  });
+
+  it("holds combo points to whole numbers, and leaves energy fractional", () => {
+    const { rogue } = harness();
+    const combo = rogue.resources.comboPoints;
+    for (const bad of [0.5, 1.5, 1e-9]) {
+      assert.throws(() => combo.gain(bad), {
+        name: "RangeError",
+        message: /whole units/,
+      });
+      assert.throws(() => combo.spend(bad), /whole units/);
+    }
+    combo.gain(2);
+    assert.equal(combo.value, 2);
+    combo.spend(1);
+    assert.equal(combo.value, 1);
+    rogue.energy = 10;
+    assert.equal(rogue.resources.energy.gain(0.5), 0.5);
+    // A proc cannot be defined to add half a combo point.
+    assert.throws(
+      () =>
+        proc({
+          actions: [
+            { type: "gainResource", resource: "comboPoints", amount: 0.5 },
+          ],
+        }),
+      /holds whole units/,
+    );
+    assert.equal(
+      proc({
+        actions: [{ type: "gainResource", resource: "energy", amount: 12.5 }],
+      }).actions[0].amount,
+      12.5,
+    );
   });
 });
