@@ -18,8 +18,8 @@ export class Rogue {
   // `options.modifiers` is the static modifier list (js/modifiers.js): what
   // the talents and gear give, as data. It is not part of the SimConfig, so a
   // fight's result shape and its goldens do not depend on it. The default is
-  // none, which leaves every stat as the config gave it. D7 (#103) is where a
-  // talent build turns into this list.
+  // none (undefined or null), which leaves every stat as the config gave it.
+  // D7 (#106) is where a talent build turns into this list.
   //
   // `options.procs` is the proc list (js/procs.js), also none by default.
   // `options.abilities` is the ids of the abilities the build grants (what
@@ -43,7 +43,8 @@ export class Rogue {
       }
     }
     this.config = normalizeConfig(config);
-    this.modifiers = new ModifierPipeline(options.modifiers);
+    // null means none, as it does for procs and abilities.
+    this.modifiers = new ModifierPipeline(options.modifiers ?? []);
     // The procs (js/procs.js) the fight runs. None by default.
     this.procs = checkProcs(options.procs ?? []);
     // The ids of the abilities the build grants, checked against the catalogue.

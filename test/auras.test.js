@@ -115,7 +115,7 @@ describe("aura definitions", () => {
   it("gives the catalogue's id and name to every aura an ability applies", () => {
     for (const [key, aura] of Object.entries(AURAS)) {
       if (key === "deadlyPoison") {
-        // Poisons join the catalogue in D9 (#103). Until then the id is the
+        // Poisons join the catalogue in D9 (#104). Until then the id is the
         // slug of the poison's DoT, which other tests already use.
         assert.equal(abilityCatalogue.get(aura.id), undefined);
         continue;

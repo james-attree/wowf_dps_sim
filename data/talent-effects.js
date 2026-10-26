@@ -14,8 +14,9 @@ import { k } from "./constants.js";
 //                (the `ranks` of the catalogue entry). It says which text the
 //                entry was written from. A test recomputes it from the snapshot
 //                and fails when they differ, so a refreshed snapshot that
-//                rewords or renumbers a talent cannot go unseen; a load-time
-//                refusal of a stale entry is D6 (#103).
+//                rewords or renumbers a talent cannot go unseen. The coverage
+//                check (npm run talents:coverage, D6 #103) lists the same
+//                thing with the old and new hash.
 //   modifiers    rank tables for expandRank (js/modifiers.js):
 //                { kind, op, values: [rank 1, rank 2, ...], scope? }, one value
 //                per rank. The kinds and scopes are the pipeline's own. A new

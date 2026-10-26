@@ -84,21 +84,31 @@ An older browser fails to load the page.
 `npm ci` installs the dev dependencies (`eslint`, `@eslint/js`, and
 `prettier`). The package has no runtime dependencies.
 
-| Script                  | Runs                                                   |
-| ----------------------- | ------------------------------------------------------ |
-| `npm test`              | `node --test` (everything in `test/`)                  |
-| `npm run lint`          | `eslint . --max-warnings 0`, then `prettier --check .` |
-| `npm run provenance`    | `node scripts/provenance.mjs`                          |
-| `npm run data:refresh`  | `node scripts/refresh-data.mjs`                        |
-| `npm run golden:update` | `node scripts/golden-update.mjs`                       |
-| `npm run bench`         | `node scripts/bench.mjs`                               |
-| `npm run serve`         | `node scripts/serve.mjs`                               |
+| Script                     | Runs                                                   |
+| -------------------------- | ------------------------------------------------------ |
+| `npm test`                 | `node --test` (everything in `test/`)                  |
+| `npm run lint`             | `eslint . --max-warnings 0`, then `prettier --check .` |
+| `npm run provenance`       | `node scripts/provenance.mjs`                          |
+| `npm run talents:coverage` | `node scripts/talent-coverage.mjs`                     |
+| `npm run data:refresh`     | `node scripts/refresh-data.mjs`                        |
+| `npm run golden:update`    | `node scripts/golden-update.mjs`                       |
+| `npm run bench`            | `node scripts/bench.mjs`                               |
+| `npm run serve`            | `node scripts/serve.mjs`                               |
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on `push` and
 `pull_request`, on `ubuntu-latest`, with Node 22. The job checks out the repo,
-installs with `npm ci`, then runs `npm run lint`, `npm test`, and
-`npm run provenance`. Refreshing the talentsforever snapshot stays a local
-command.
+installs with `npm ci`, then runs `npm run lint`, `npm test`,
+`npm run provenance`, then `npm run talents:coverage`. Refreshing the
+talentsforever snapshot stays a local command.
+`npm run talents:coverage` checks the talent effects (`data/talent-effects.js`)
+against the snapshot. It warns, listing each Assassination or Subtlety talent
+that has no effect yet (expected until Phase 4), and fails (exit 1) for a Combat
+talent with no effect and no `noDpsEffect`, for an effect whose stored rank-text
+hash no longer matches the snapshot (printed with the old and new hash and the
+current rank texts), and for an effect of a talent that is gone. See
+[Talent effects](docs/mechanics.md#talent-effects). Run it after
+`npm run data:refresh`.
+
 A stale `docs/provenance.md` fails CI; run `npm run provenance` and commit it.
 On Node 20.19, which the `engines` range allows, that failure in
 `keeps docs/provenance.md equal to the generated report` can show

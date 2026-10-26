@@ -26,9 +26,9 @@ import { slugify } from "./talents.js";
 //
 // What is deliberately not parsed in D1: buff and debuff magnitudes and
 // lengths (Slice and Dice's haste %, Adrenaline Rush's energy %, Ghostly
-// Strike's dodge, Hemorrhage's Rupture bonus), the poisons (D9) and the
-// talent modifiers (D6). They stay in constants.js until the issues that need
-// them.
+// Strike's dodge, Hemorrhage's Rupture bonus), and the poisons (D9).
+// They stay in constants.js until the issues that need them. The talent
+// modifiers were later written by hand in data/talent-effects.js (D5, #102).
 
 // A spell_desc number: "9", "1,012", "0.5". Thousands commas are dropped.
 const NUMBER = String.raw`\d[\d,]*(?:\.\d+)?`;

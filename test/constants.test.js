@@ -434,6 +434,18 @@ describe("simulator values other than white miss", () => {
     const mixed = defaultDaggerConfig();
     mixed.weapons.offHand.type = "sword";
     assert.equal(new Rogue(mixed).normalizedWeaponSpeed, 1.7);
+    // And the other way round: a sword main hand with a dagger off hand is
+    // 2.4, because the main-hand type governs.
+    const swordDagger = defaultConfig();
+    swordDagger.weapons.offHand.type = "dagger";
+    assert.equal(swordDagger.weapons.mainHand.type, "sword");
+    const mixedRogue = new Rogue(swordDagger);
+    mixedRogue.rng = testRng;
+    assert.equal(mixedRogue.normalizedWeaponSpeed, 2.4);
+    assert.equal(
+      mixedRogue.abilities.sinisterStrike.damage(),
+      100 + (767 * 2.4) / 14 + 68,
+    );
   });
 
   it("keeps damage formulas, with the main-hand die at its minimum", () => {

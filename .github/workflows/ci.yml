@@ -33,8 +33,7 @@ jobs:
 
       # Provenance (#7, #22) rewrites docs/provenance.md and fails on a
       # missing ref, a bare dash, a placeholder ref, or an unknown source
-      # tag. Talent coverage (D6) is a later check; add its step here when
-      # that CLI exists.
+      # tag.
       - name: Provenance
         run: npm run provenance
 
@@ -45,3 +44,11 @@ jobs:
             echo "::error file=docs/provenance.md::docs/provenance.md is out of date with data/constants.js. Run 'npm run provenance' and commit the result."
             exit 1
           }
+
+      # Talent coverage (D6, #103). Warns, in the log and as an annotation,
+      # for each Assassination or Subtlety talent with no effect yet (expected
+      # until Phase 4). Fails for a Combat talent with no effect, for an
+      # encoded effect whose rank text changed, and for an effect of a talent
+      # that is gone.
+      - name: Talent coverage
+        run: npm run talents:coverage

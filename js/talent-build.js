@@ -14,7 +14,7 @@ import { talentCatalogue } from "./talents.js";
 //   createFight(seed, config, { modifiers: build.modifiers, procs: build.procs });
 //
 // runFight does not do this yet. Reading config.talents into a fight, and the
-// rotation's use of the talents that grant an ability, is D7 (#103).
+// rotation's use of the talents that grant an ability, is D7 (#106).
 //
 // The result lists things in catalogue order, whatever the order of the map, so
 // the same build is the same fight. That order is also the order the procs are
