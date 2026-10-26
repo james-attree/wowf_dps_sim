@@ -1,6 +1,6 @@
 import { k } from "../data/constants.js";
 import { resolveAttack, rollCrit } from "./attack-resolver.js";
-import { auraRegistry } from "./auras.js";
+import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
 // Auras already running lose this step. One applied during rotation is not
@@ -32,31 +32,6 @@ function tickSkipsArmor(id, dot) {
     return true;
   }
   return k("nature.spells").includes(id) && k("nature.ignoresArmor");
-}
-
-function armorMultiplier() {
-  const armor = Math.max(0, k("target.armor"));
-  const mitigation = k("armor.mitigation");
-  const denominator =
-    armor + mitigation.constant + mitigation.perLevel * k("character.level");
-  if (denominator <= 0) {
-    return 1;
-  }
-  let reduction = armor / denominator;
-  if (reduction > mitigation.cap) {
-    reduction = mitigation.cap;
-  }
-  if (reduction < 0) {
-    reduction = 0;
-  }
-  return 1 - reduction;
-}
-
-function applyArmor(damage, skipArmor) {
-  if (skipArmor) {
-    return damage;
-  }
-  return damage * armorMultiplier();
 }
 
 // The counter that an attack outcome adds to, in the per-ability record.
@@ -176,7 +151,10 @@ export class Simulation {
           dotTickDamage *= k("dot.critMultiplier");
           dotHitCrit = "Crit";
         }
-        dotTickDamage = applyArmor(dotTickDamage, tickSkipsArmor(dotId, dot));
+        dotTickDamage = this.applyArmor(
+          dotTickDamage,
+          tickSkipsArmor(dotId, dot),
+        );
         this.updateDamage(dotTickDamage);
         const dotSource = { id: dotId, name: dot.name ?? dotId };
         this.recordAbility(
@@ -257,10 +235,11 @@ export class Simulation {
   }
 
   // Put an aura up. `duration` (seconds) defaults to the definition's; a
-  // second application follows the definition's refresh rule and adds a stack
-  // up to maxStacks. The aura goes in activeBuffs (target "self") or
-  // activeDebuffs (target "target"), keyed by id. Returns the aura record:
-  // { id, name, icon, duration, stacks }.
+  // second application follows the definition's refresh rule and its stack
+  // rule (up to maxStacks), and restores the charges. The aura goes in
+  // activeBuffs (target "self") or activeDebuffs (target "target"), keyed by id. Returns the aura record:
+  // { id, name, icon, duration, stacks, charges }, with charges null when the
+  // definition has none.
   applyAura(definition, { duration, stacks = 1, icon } = {}) {
     const length = duration ?? definition.duration;
     if (!Number.isFinite(length) || length <= 0) {
@@ -281,7 +260,9 @@ export class Simulation {
     }
     const auras =
       definition.target === "target" ? this.activeDebuffs : this.activeBuffs;
-    const current = auras[definition.id];
+    const current = Object.hasOwn(auras, definition.id)
+      ? auras[definition.id]
+      : undefined;
     if (current === undefined) {
       auras[definition.id] = {
         id: definition.id,
@@ -289,6 +270,7 @@ export class Simulation {
         icon: icon ?? definition.icon,
         duration: length,
         stacks: Math.min(stacks, definition.maxStacks),
+        charges: definition.charges,
       };
       definition.onApply?.(this, auras[definition.id], { refreshed: false });
       return auras[definition.id];
@@ -300,28 +282,113 @@ export class Simulation {
     } else {
       current.duration = length;
     }
-    current.stacks = Math.min(
-      (current.stacks ?? 1) + stacks,
-      definition.maxStacks,
-    );
+    const wanted =
+      definition.stackRule === "highest"
+        ? Math.max(current.stacks ?? 1, stacks)
+        : (current.stacks ?? 1) + stacks;
+    current.stacks = Math.min(wanted, definition.maxStacks);
+    // Every application restores the charges.
+    current.charges = definition.charges;
     definition.onApply?.(this, current, { refreshed: true });
     return current;
   }
 
-  // The effects of one kind (haste, energyRegenMultiplier, dotDamageTaken)
+  // The share of a physical hit that armor lets through. The target's armor
+  // is target.armor less any armorReduction aura on it (Expose Armor), and
+  // never below 0. Spell resistance is not applied.
+  armorMultiplier() {
+    let reduction = 0;
+    for (const { value, stacks } of this.auraEffects("armorReduction")) {
+      reduction += value * stacks;
+    }
+    const armor = Math.max(0, k("target.armor") - reduction);
+    const mitigation = k("armor.mitigation");
+    const denominator =
+      armor + mitigation.constant + mitigation.perLevel * k("character.level");
+    if (denominator <= 0) {
+      return 1;
+    }
+    let share = armor / denominator;
+    if (share > mitigation.cap) {
+      share = mitigation.cap;
+    }
+    if (share < 0) {
+      share = 0;
+    }
+    return 1 - share;
+  }
+
+  applyArmor(damage, skipArmor) {
+    if (skipArmor) {
+      return damage;
+    }
+    return damage * this.armorMultiplier();
+  }
+
+  // Use up `count` charges of an aura (by id), as a landed hit does. The aura
+  // ends when none are left, the same as running out of time: it is removed
+  // and its onExpire hook runs. Returns the charges left, or null when the
+  // aura is not up or has no charges.
+  consumeCharge(id, count = 1) {
+    if (!Number.isInteger(count) || count < 1) {
+      throw new RangeError(
+        `Simulation.consumeCharge needs a whole number of charges, 1 or more. Got ${count}.`,
+      );
+    }
+    const definition = this.auraDefinitions.get(id);
+    const auras =
+      definition?.target === "target" ? this.activeDebuffs : this.activeBuffs;
+    // Own properties only: an inherited name ("toString") is not an aura.
+    const aura = Object.hasOwn(auras, id) ? auras[id] : undefined;
+    if (
+      definition === undefined ||
+      aura === undefined ||
+      aura.duration <= 0 ||
+      typeof aura.charges !== "number"
+    ) {
+      return null;
+    }
+    aura.charges = Math.max(0, aura.charges - count);
+    if (aura.charges === 0) {
+      delete auras[id];
+      definition.onExpire?.(this, aura);
+    }
+    return aura.charges;
+  }
+
+  // A landed hit on the target uses one charge of every charged aura on it.
+  consumeHitCharges() {
+    for (const [id, aura] of Object.entries(this.activeDebuffs)) {
+      if (typeof aura.charges === "number") {
+        this.consumeCharge(id);
+      }
+    }
+  }
+
+  // The effects of one kind (haste, energyRegenMultiplier, dotDamageTaken,
+  // armorReduction)
   // from every aura that is up, as { id, value, stacks, duration }, in the
   // order the definitions were registered. An aura is up while it has time
   // left. The engine asks by kind, so it names no aura.
   auraEffects(kind) {
+    // A kind nobody defines would give [] for ever, so a typo in an engine
+    // call fails here and not as a missing bonus.
+    if (!EFFECT_KINDS.includes(kind)) {
+      throw new RangeError(
+        `Simulation.auraEffects: unknown effect kind "${kind}". Known: ${EFFECT_KINDS.join(", ")}.`,
+      );
+    }
     const found = [];
     for (const definition of this.auraDefinitions.values()) {
-      const value = definition.effects[kind];
-      if (value === undefined) {
+      if (!Object.hasOwn(definition.effects, kind)) {
         continue;
       }
+      const value = definition.effects[kind];
       const auras =
         definition.target === "target" ? this.activeDebuffs : this.activeBuffs;
-      const aura = auras[definition.id];
+      const aura = Object.hasOwn(auras, definition.id)
+        ? auras[definition.id]
+        : undefined;
       if (aura !== undefined && aura.duration > 0) {
         found.push({
           id: definition.id,
@@ -339,7 +406,8 @@ export class Simulation {
     const definition = this.auraDefinitions.get(id);
     const auras =
       definition?.target === "target" ? this.activeDebuffs : this.activeBuffs;
-    return (auras[id]?.duration ?? 0) > 0;
+    const aura = Object.hasOwn(auras, id) ? auras[id] : undefined;
+    return (aura?.duration ?? 0) > 0;
   }
 
   // The per-ability totals by display name: the shape runFight returns. The
@@ -383,7 +451,7 @@ export class Simulation {
       critChance: this.rogue.getCritChance(),
       rng: this.rng,
     });
-    const damage = applyArmor(result.damage, false);
+    const damage = this.applyArmor(result.damage, false);
     if (result.landed && damage > 0) {
       this.updateDamage(damage);
     }
@@ -396,6 +464,10 @@ export class Simulation {
       result.outcome,
       source.icon ?? null,
     );
+    if (result.landed) {
+      // After armor, so the hit that uses the last charge still gets it.
+      this.consumeHitCharges();
+    }
     return { ...result, damage };
   }
 

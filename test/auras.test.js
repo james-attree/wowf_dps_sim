@@ -83,7 +83,7 @@ describe("aura definitions", () => {
   it("lists the effect kinds and refresh rules the engine knows", () => {
     assert.deepEqual(
       [...EFFECT_KINDS],
-      ["haste", "energyRegenMultiplier", "dotDamageTaken"],
+      ["haste", "energyRegenMultiplier", "dotDamageTaken", "armorReduction"],
     );
     assert.deepEqual(
       [...REFRESH_RULES],
@@ -93,6 +93,12 @@ describe("aura definitions", () => {
 
   it("gives the catalogue's id and name to every aura an ability applies", () => {
     for (const [key, aura] of Object.entries(AURAS)) {
+      if (key === "deadlyPoison") {
+        // Poisons join the catalogue in D9 (#103). Until then the id is the
+        // slug of the poison's DoT, which other tests already use.
+        assert.equal(abilityCatalogue.get(aura.id), undefined);
+        continue;
+      }
       const ability = abilityCatalogue.get(aura.id);
       assert.ok(ability, `${key} is not in the ability catalogue`);
       assert.equal(ability.name, aura.name, key);
@@ -154,6 +160,7 @@ describe("applying an aura", () => {
       icon: null,
       duration: 9,
       stacks: 1,
+      charges: null,
     });
     assert.equal(debuff.duration, k("hemorrhage.ruptureBonus").duration);
     assert.equal(sim.hasAura("slice-and-dice"), true);

@@ -528,8 +528,10 @@ one interval. For each tick still inside the dot's remaining time:
 
 1. Start from `tickDamage`.
 2. For each `dotDamageTaken` effect on the target that names this DoT's id
-   (Hemorrhage's names `rupture`), multiply by `1 + bonus`, once per stack.
-   For Hemorrhage that is `1 + k("hemorrhage.ruptureBonus").bonus`. The `1` is
+   (Hemorrhage's names `rupture`), multiply by `1 + bonus × stacks`. Stacks
+   add, they do not compound: two stacks of a +15% effect give `1.30`, not
+   `1.3225`. For Hemorrhage (one stack) that is
+   `1 + k("hemorrhage.ruptureBonus").bonus`. The `1` is
    the code's base, not a constant. `k("hemorrhage.ruptureBonus")` is `wowf-export` and is not on
    the retune list. Its note says only Rupture ticks are increased. Garrote,
    Deadly Poison, and any other DoT are unchanged. A Hemorrhage aura stored
@@ -1120,17 +1122,61 @@ fails when the module loads.
   (`extend`), or keeps the longer (`replace-if-longer`). A stackable aura gains a
   stack up to `maxStacks`.
 - Effect kinds: `haste` (a fraction, once per stack), `energyRegenMultiplier`
-  (once per stack), and `dotDamageTaken` (`{ ids, bonus }` on the target). The
-  engine asks for effects by kind with `Simulation.auraEffects(kind)` and
+  (once per stack), `dotDamageTaken` (`{ ids, bonus }` on the target, a
+  multiplier of `1 + bonus × stacks` on the named DoTs) and `armorReduction` (a
+  number of armor points on the target, A6). The engine asks for effects by kind with `Simulation.auraEffects(kind)` and
   never by an aura's name, so a new aura with one of these effects needs no
   engine change.
 - `Simulation.applyAura(definition, { duration, stacks, icon })` puts one up and
-  returns its record `{ id, name, icon, duration, stacks }`. `hasAura(id)` asks
+  returns its record `{ id, name, icon, duration, stacks, charges }`. `hasAura(id)` asks
   whether one is up. The first definition seen for an id is the one used, and a
   second, different definition for the same id throws.
 - A skill with `aura` set applies it after a landed cast with a positive
   `duration`. The effects are read in the registry order of `AURAS`, so the
   order the haste multipliers combine in never depends on which was cast first.
+
+**Target debuffs, stacks and charges (A6, issue #95).** A target aura can have
+stacks, charges, or both. They are separate counts and every debuff id tracks
+its own.
+
+- Stacks: `maxStacks` and a `stackRule`. `add` (the default) adds the stacks of
+  each application, so each Deadly Poison proc is one more stack. `highest`
+  takes the larger of the current and new count, so a 2-point Expose Armor
+  does not weaken a 5-point one. Both stop at `maxStacks`. A new application
+  also refreshes the duration by the `refresh` rule.
+- Charges: `charges` (a whole number, or `null` for none). A charged aura
+  ends when its charges run out as well as when its time does. Each landed
+  direct attack on the target (a hit, glancing blow or crit from a skill or a
+  white swing) uses one charge of every charged debuff on it, after the hit's
+  armor is applied, so the hit that uses the last charge still gets the
+  effect. A miss, dodge or parry, a DoT application and a DoT tick use none.
+  A new application restores the charges to the full count. Using a charge
+  draws no random number. `Simulation.consumeCharge(id, count)` is the one
+  place charges go down; it returns the charges left, or `null` for an aura
+  that is not up or has none. No aura in the data has charges yet: the game
+  data in #95 does not give one, so this is the mechanism for later.
+- `Hemorrhage`: +15% to Rupture ticks only, 15 s, from
+  `k("hemorrhage.ruptureBonus")`. A landed Hemorrhage refreshes it to the full
+  15 s. It is gone at 15 s (one fixed step before, it still counts).
+- `Expose Armor` (`k("exposeArmor")`): one stack per combo point spent (up to
+  `k("combo.max")`, rule `highest`), 30 s, and each stack is an
+  `armorReduction` of `armorPerComboPoint` (450) armor. Armor mitigation uses
+  `max(0, target.armor − Σ armorReduction × stacks)`, so with no Expose Armor
+  up the number is `target.armor − 0` and every result is unchanged. Bleeds and
+  Deadly Poison ticks skip armor, so it does not change them. Nothing in the
+  rotation casts it yet.
+- `Deadly Poison` (`k("poison.deadly")`): a target debuff with 5 stacks and 12 s,
+  where each proc adds a stack and refreshes the time. It has no effect yet.
+  The proc, the poison's damage and the instant-poison hit are A5 (#105). The
+  id is `deadly-poison`, the slug the poison's DoT uses; poisons join the
+  ability catalogue in D9.
+
+**Checks on lookups.** An aura map, `auraEffects` and the weapon hand check
+only use own properties, so an inherited name (`__proto__`, `constructor`,
+`toString`) is never an aura, an effect or a hand. `auraEffects(kind)` throws
+on a kind that is not in `EFFECT_KINDS`, and `defineAura` throws on an unknown
+kind or an `effects` value that is not a plain object. Before this a typo gave
+no effect and no error.
 
 **Identifiers.** A spell, aura, cooldown or weapon is identified by its
 catalogue id (`slugify(name)`): `sinister-strike`, `slice-and-dice`,
@@ -1152,7 +1198,8 @@ tests it.
 **Result shape.** Unchanged. `runFight` and `createFight` still return
 `abilities` keyed by display name and a log with `name`. The `Simulation`
 internals changed (id keys, `resolveAttack(source, ...)` taking `{ id, name }`),
-which is not part of the result.
+which is not part of the result. A6 (#95) adds `charges` to an aura record,
+which is internal too. The golden fixtures are byte-identical.
 
 ## Ability schema
 
