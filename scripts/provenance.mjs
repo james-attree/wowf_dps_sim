@@ -36,7 +36,7 @@ const SOURCE_BLURBS = {
     "Classic 1.12 reference values, kept until WoW Forever is measured.",
   cataclysm: "A later mechanic WoW Forever borrows on purpose.",
   assumption:
-    "Defaults and sample inputs. James signed each ref on 22 Oct 2026.",
+    "Defaults and sample inputs. James signed each ref dated 22 Oct 2026. A guess the dev made at a game rule carries the dev's name on its ref, and is on the retune list.",
   engineering:
     "Simulator machinery, not a game rule. The retune flag stays off, so these rows are not on the retune list.",
 };

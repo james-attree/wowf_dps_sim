@@ -52,7 +52,7 @@ describe("sim.fixedStep", () => {
     assert.equal(row.source, "engineering");
     assert.equal(row.unit, "s");
     assert.equal(row.retune, false);
-    assert.match(row.ref, /^James, \d+ Oct 2026, issue #73: /);
+    assert.match(row.ref, /^Developer, \d+ Oct 2026, issue #73: /);
     assert.match(row.note, /sim\.tickEpsilon/);
     assert.match(row.note, /swing timers/);
     assert.match(row.note, /GCD/);

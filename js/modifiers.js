@@ -220,10 +220,20 @@ export function isNeutral(modifier) {
   return modifier.op === "add" ? modifier.value === 0 : modifier.value === 1;
 }
 
+function typeLabel(value) {
+  if (value === null) {
+    return "null";
+  }
+  return Array.isArray(value) ? "an array" : typeof value;
+}
+
 // A talent's modifiers by rank. The data is a rank table:
 //   { kind, op, values: [rank 1, rank 2, ...], scope? }
 // and the rank is the number of points spent. Rank 0 is no modifiers at all,
-// so a talent the build skips adds nothing and draws nothing.
+// so a talent the build skips adds nothing and draws nothing. The whole table
+// is checked on every call, rank 0 included: a typo in a talent the build
+// leaves at rank 0 fails when the table loads, not at the first build that
+// spends a point in it. A missing (null or sparse) entry is a RangeError.
 export function expandRank(definitions, rank, source = null) {
   if (!Array.isArray(definitions)) {
     throw new TypeError("expandRank needs an array of rank-table entries.");
@@ -234,7 +244,18 @@ export function expandRank(definitions, rank, source = null) {
     );
   }
   const modifiers = [];
-  for (const definition of definitions) {
+  for (let index = 0; index < definitions.length; index += 1) {
+    const definition = definitions[index];
+    if (
+      definition === null ||
+      typeof definition !== "object" ||
+      Array.isArray(definition)
+    ) {
+      fail(
+        source ?? "rank table",
+        `rank-table entry ${index} must be an object, not ${typeLabel(definition)}.`,
+      );
+    }
     const { values, ...rest } = definition;
     if (!Array.isArray(values) || values.length === 0) {
       fail(source ?? definition.kind, "a rank table needs a values array.");
@@ -245,10 +266,14 @@ export function expandRank(definitions, rank, source = null) {
         `rank ${rank} is above the table's ${values.length} ranks.`,
       );
     }
+    // Define every rank's modifier so a bad value or scope at any rank is
+    // found now, then keep the one for this rank (none at rank 0).
+    const perRank = [];
+    for (let at = 0; at < values.length; at += 1) {
+      perRank.push(defineModifier({ ...rest, value: values[at], source }));
+    }
     if (rank > 0) {
-      modifiers.push(
-        defineModifier({ ...rest, value: values[rank - 1], source }),
-      );
+      modifiers.push(perRank[rank - 1]);
     }
   }
   return modifiers;
@@ -380,7 +405,16 @@ export class ModifierPipeline {
     }
   }
 
+  // The fight that owns this pipeline's timed modifiers. One fight at a time:
+  // a second Simulation on the same rogue would otherwise take the provider
+  // over, and the first would then read the second's auras. Attaching the same
+  // provider again is harmless.
   attach(provider) {
+    if (this.#provider !== null && this.#provider !== provider) {
+      throw new Error(
+        "This modifier pipeline already belongs to another Simulation. Build a new Rogue (and pipeline) for each fight.",
+      );
+    }
     this.#provider = provider;
   }
 

@@ -71,6 +71,13 @@ export class Simulation {
     this.rogue = rogue;
     this.seed = normalizeSeed(seed);
     this.rng = rng ?? createRng(this.seed);
+    // The modifier pipeline (js/modifiers.js) belongs to the rogue, which
+    // holds the static modifiers (talents). The fight attaches itself as the
+    // provider of the timed ones (the auras that are up). A rogue without a
+    // pipeline gets an empty one. A pipeline serves one fight: a second
+    // Simulation on the same rogue throws here, before it touches the rogue.
+    this.modifiers = rogue.modifiers ?? new ModifierPipeline();
+    this.modifiers.attach(this);
     rogue.rng = this.rng;
     this.currentTime = 0;
     this.damageDone = 0;
@@ -90,12 +97,6 @@ export class Simulation {
     this.activeDots = {}; // Track active damage over time effects
     // The definition of every aura this fight knows (js/auras.js), by id.
     this.auraDefinitions = auraRegistry();
-    // The modifier pipeline (js/modifiers.js) belongs to the rogue, which
-    // holds the static modifiers (talents). The fight attaches itself as the
-    // provider of the timed ones (the auras that are up). A rogue without a
-    // pipeline gets an empty one.
-    this.modifiers = rogue.modifiers ?? new ModifierPipeline();
-    this.modifiers.attach(this);
     // The auras that carry modifiers, by kind. Built on first use and again
     // when a new aura definition is registered.
     this.auraModifierIndex = null;

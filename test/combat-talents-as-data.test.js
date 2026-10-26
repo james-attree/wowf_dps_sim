@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
+import { abilityCatalogue } from "../js/abilities.js";
 import { AURAS } from "../js/auras.js";
 import { createFight } from "../js/fight.js";
 import { ModifierPipeline, expandRank } from "../js/modifiers.js";
@@ -11,6 +12,7 @@ function withoutText(entry) {
   const rest = { ...entry };
   delete rest.text;
   delete rest.scale;
+  delete rest.label;
   return rest;
 }
 
@@ -104,6 +106,7 @@ const MODIFIER_TALENTS = {
       op: "add",
       values: [0.01, 0.02, 0.03, 0.04, 0.05],
       scope: { weaponTypes: ["dagger", "fist"] },
+      label: "Dagger/Fist",
       text: /Dagger\/Fist:[\s\S]*?chance by (\d+)%/,
       scale: PERCENT,
     },
@@ -112,6 +115,7 @@ const MODIFIER_TALENTS = {
       op: "add",
       values: [0.03, 0.06, 0.09, 0.12, 0.15],
       scope: { weaponTypes: ["mace"] },
+      label: "Mace",
       text: /Mace:[\s\S]*?ignore (\d+)%/,
       scale: PERCENT,
     },
@@ -223,6 +227,43 @@ describe("the Combat modifier tables match the snapshot's rank text", () => {
         });
       }
     });
+  }
+
+  // The values are checked above; this is the scope. A table that scoped a
+  // talent to the wrong ability or weapon would still match its numbers.
+  for (const [id, entries] of Object.entries(MODIFIER_TALENTS)) {
+    const talent = talentCatalogue.get(id);
+    const [first] = talent.ranks;
+    const scoped = entries.filter((entry) => entry.scope?.abilities);
+    if (scoped.length > 0) {
+      it(`${id} is scoped to the abilities its text names, and only those`, () => {
+        const named = abilityCatalogue.abilities
+          .filter((ability) => first.includes(ability.name))
+          .map((ability) => ability.id)
+          .sort();
+        const scopedIds = scoped
+          .flatMap((entry) => entry.scope.abilities)
+          .sort();
+        assert.ok(named.length > 0, `${first} names no ability`);
+        assert.deepEqual(scopedIds, named);
+      });
+    }
+    for (const entry of entries.filter((item) => item.scope?.weaponTypes)) {
+      it(`${id} is scoped to the weapons its text names (${entry.label})`, () => {
+        assert.ok(entry.label, "a weapon scope needs a label from the text");
+        assert.ok(first.includes(`${entry.label}:`), first);
+        assert.deepEqual(
+          entry.scope.weaponTypes,
+          entry.label.toLowerCase().split("/"),
+        );
+      });
+    }
+    for (const entry of entries.filter((item) => item.scope?.hands)) {
+      it(`${id} is scoped to the hand its text names`, () => {
+        assert.match(first, /off-hand weapon/);
+        assert.deepEqual(entry.scope.hands, ["offHand"]);
+      });
+    }
   }
 
   for (const [id, entry] of Object.entries(AURA_TALENTS)) {

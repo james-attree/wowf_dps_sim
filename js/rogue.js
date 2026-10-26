@@ -17,7 +17,11 @@ export class Rogue {
   // none, which leaves every stat as the config gave it. D7 (#103) is where a
   // talent build turns into this list.
   constructor(config, options = {}) {
-    if (options === null || typeof options !== "object") {
+    if (
+      options === null ||
+      typeof options !== "object" ||
+      Array.isArray(options)
+    ) {
       throw new TypeError("Rogue options must be an object.");
     }
     for (const key of Object.keys(options)) {
