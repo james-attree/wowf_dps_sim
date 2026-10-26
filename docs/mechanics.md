@@ -485,6 +485,13 @@ written out per point so the engine can index it. The engine does not
 evaluate that expression itself. The buff is a player aura, not a debuff,
 and it deals no damage.
 
+`Ability.resolve` then passes the length through the `duration` modifiers
+scoped to the ability (Improved Slice and Dice, +15% of the length per rank, so
+x1.15, x1.3 and x1.45; see [Modifiers](#modifiers)). The stored length is the
+modified one, so the refresh check and the time left follow with no other
+change. A length of 0 stays 0, and with no `duration` modifier the length is
+untouched, so an untalented fight is unchanged.
+
 `Rogue.rotation` considers it only when combo points are at
 `k("rotation.finisherComboPoints")`. The cast is attempted when the buff is
 missing, or its remaining duration is at or below
@@ -1230,11 +1237,13 @@ needs no engine code. `js/modifiers.js` has the schema and the pipeline.
 
 - `kind`: what changes. `attackPower`, `critChance`, `hitChance`,
   `dodgeReduction`, `parryReduction`, `armorIgnore`, `energyRegen`,
-  `energyCost`, `resourceMax`, `damage`, `critDamage`, `haste`. Each kind lists which scope
+  `energyCost`, `resourceMax`, `damage`, `critDamage`, `haste`, `duration`. Each kind lists which scope
   keys it accepts (attack power, regen and haste are not per attack, so they
   accept none) and a floor for the result where a negative would be nonsense
-  (attack power, regen, cost, a resource's cap and damage 0; the crit
-  multiplier 1).
+  (attack power, regen, cost, a resource's cap, damage and a duration 0; the
+  crit multiplier 1). `duration` is the length in seconds of an aura an ability
+  applies, scoped by `abilities` only; `Ability.resolve` is the one place that
+  applies it. Its stacking form is `percent` (`modifiers.stacking.duration`).
 - `op`: `add` or `mult`. `value` is a finite number, and a `mult` must be above 0.
 - `scope` (optional): conditions. Every key present must match the attack
   (AND). A key that lists several values matches any of them (OR). A missing
@@ -1854,7 +1863,8 @@ speed; nothing in `runFight` supplies procs until D7.
 
 Roadmap D5 (issue #102). What a talent does is data in `data/talent-effects.js`,
 one entry per talent id, written by hand from the snapshot's rank text. The
-Combat tree is done (17 entries). The engine names no talent: `expandTalents`
+Combat tree is done (17 entries), and
+three of the six Assassination talents (D8a PR 1, #119). The engine names no talent: `expandTalents`
 (`js/talent-build.js`, also exported by `js/fight.js`) turns a map
 `{ talent id: rank }` into what a fight takes, and the modifier pipeline and the
 proc runner do the rest.
@@ -1887,8 +1897,8 @@ createFight(seed, config, { modifiers, procs });
 **The result of `expandTalents`** (frozen): `modifiers` and `procs` for the two
 options of `Rogue`, and three lists for the host: `abilities` (the granted
 abilities of talents at rank 1 or more), `noDps` (talents with points and no
-effect) and `unmapped` (talents with points and no entry: all of the
-Assassination and Subtlety trees until D8a and D8b; they do nothing, so say so).
+effect) and `unmapped` (talents with points and no entry: three of the
+Assassination talents until D8a PR 2, and the Subtlety tree until D8b; they do nothing, so say so).
 Rank 0, or a talent left out, expands to nothing: no modifier and no proc, so it
 changes no number and draws no random number. Everything comes in catalogue
 order whatever the order of the map, and the procs are rolled in that order. An
@@ -1926,7 +1936,10 @@ Rush) are already in the default rotation without a talent; D7 gates them.
 | Aggression                | 3   | `damage` +2/4/6%, Sinister Strike, Backstab, Eviscerate                                                 |
 | Adrenaline Rush           | 1   | grants the ability (energy regeneration aura)                                                           |
 
-**11 or 12.** The roadmap and the issue say 11 or 12 DPS-relevant Combat
+**11 or 12.** Settled: 11 is confirmed (project owner confirmation 2026-10-26,
+relayed), so there is no twelfth; the likely candidate, Riposte, needs a parry
+and cannot trigger from behind. The open question that follows is kept for the
+record. The roadmap and the issue say 11 or 12 DPS-relevant Combat
 talents, and the classification above gives 11. Which would be a twelfth is not
 settled: of the six without an effect, Riposte (a 150% weapon damage strike after
 a parry), Endurance and Improved Sprint are the ones a count could include, and
@@ -1936,18 +1949,26 @@ entry. Two talents that do work only in some builds are counted as DPS: Hack and
 Slash (a sword or axe, a dagger or fist, or a mace in the hand) and Puncturing
 Wounds (Backstab, which the placeholder rotation never casts).
 
-**What D8a (#119) adds, with no change here.** Malice and Lethality are
-`modifiers` entries (`critChance`, and `critDamage` scoped to abilities).
-Ruthlessness and Relentless Strikes are `procs` entries (an `onAbility` proc
-with `scope.tags: ["finisher"]`, a `flat` or `perSpent` chance, and a
-`gainResource` action for the combo point or the energy). Cold Blood is an
-`ability` entry. Improved Slice and Dice is a `modifiers` entry whose kind is
-`duration`, which is the one engine change of D8a: a new kind in
-`js/modifiers.js` and its use where an aura's duration is set. A test builds the
-others from made-up numbers and runs a fight with them.
+**The Assassination talents in D8a PR 1 (#119): 3 of 6.**
+
+| Talent                  | Max | What it is in the data                                                                                         |
+| ----------------------- | --- | -------------------------------------------------------------------------------------------------------------- |
+| Malice                  | 5   | `critChance` +1..5%, all attacks. "and Poisons" is inert: a poison never crits                                 |
+| Improved Slice and Dice | 3   | `duration` +15/30/45% of the aura length, Slice and Dice (9 to 21 s becomes 13.05 to 30.45 s at 3/3)           |
+| Lethality               | 5   | `critDamage` +4..20%, the six abilities of the text (Gouge and Mutilate have no engine definition: never cast) |
+
+`critDamage` stacks as `bonus`, `1 + (base - 1)(1 + A)`, so Lethality 5/5 takes
+the 2.0 crit multiplier of melee to 2.2 (+20% of the crit bonus, not +20% of
+the damage), and rank 1 to 2.04. Ruthlessness and Relentless Strikes are
+`procs` entries (an `onAbility` proc with `scope.tags: ["finisher"]`, a `flat`
+or `perSpent` chance, and a `gainResource` action for the combo point or the
+energy). Cold Blood is an `ability` entry. These three are PR 2 and stay
+`unmapped` until then. A test builds them from made-up numbers and runs a
+fight with them.
 
 **Shape.** `runFight` and its result are unchanged, `SimConfig` has no new
 field, and the golden fixtures are byte-identical. New: `data/talent-effects.js`,
-`js/talent-build.js` and `expandTalents`. `PROC_TABLES` is now derived from the
+`js/talent-build.js` and `expandTalents`; D8a PR 1 adds the `duration` modifier
+kind and three entries, nothing else. `PROC_TABLES` is now derived from the
 data (its keys are in the catalogue's order, so `procsFromTalents` lists
 Puncturing Wounds before Hack and Slash).
