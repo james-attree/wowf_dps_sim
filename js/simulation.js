@@ -671,8 +671,8 @@ export class Simulation {
   // poison.instantCrit through the critDamage modifiers. A resist draws no
   // crit. The damage modifiers, armor, the fight totals and the log work as for
   // an attack. It fires no procs.
-  resolveProcDamage({ id, name, min, max, spellHit, canCrit }) {
-    const source = { id, name, icon: null };
+  resolveProcDamage({ id, name, icon = null, min, max, spellHit, canCrit }) {
+    const source = { id, name, icon };
     const context = this.attackContext(source, "skill");
     let hit = { outcome: "hit", status: "Hit", landed: true };
     if (spellHit) {
@@ -708,7 +708,7 @@ export class Simulation {
       this.updateDamage(damage);
     }
     this.recordAbility(source, outcome, damage);
-    this.addCombatEvent(name, "skill", damage, status, outcome);
+    this.addCombatEvent(name, "skill", damage, status, outcome, icon);
     return { ...hit, outcome, status, damage };
   }
 
@@ -721,8 +721,17 @@ export class Simulation {
   // each tick is the stacks × tickDamage. The application deals no damage and
   // is logged like a DoT cast (0 damage; Hit or Resist). The ticks are in
   // step().
-  resolveProcDot({ id, name, tickDamage, interval, duration, aura, spellHit }) {
-    const source = { id, name, icon: null };
+  resolveProcDot({
+    id,
+    name,
+    icon = null,
+    tickDamage,
+    interval,
+    duration,
+    aura,
+    spellHit,
+  }) {
+    const source = { id, name, icon };
     const context = this.attackContext(source, "skill");
     let hit = { outcome: "hit", status: "Hit", landed: true };
     if (spellHit) {
@@ -732,7 +741,8 @@ export class Simulation {
       const stacks =
         aura === undefined
           ? 1
-          : this.applyAura(this.auraDefinitions.get(aura), { duration }).stacks;
+          : this.applyAura(this.auraDefinitions.get(aura), { duration, icon })
+              .stacks;
       const running = Object.hasOwn(this.activeDots, id)
         ? this.activeDots[id]
         : undefined;
@@ -743,13 +753,13 @@ export class Simulation {
         timeUntilNextTick: running?.timeUntilNextTick ?? interval,
         tickDamage:
           this.modifiers.resolve("damage", tickDamage, context) * stacks,
-        icon: null,
+        icon,
         attackType: "skill",
         bleed: false,
       };
     }
     this.recordAbility(source, hit.outcome, 0);
-    this.addCombatEvent(name, "skill", 0, hit.status, hit.outcome);
+    this.addCombatEvent(name, "skill", 0, hit.status, hit.outcome, icon);
     return hit;
   }
 

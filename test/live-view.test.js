@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { before, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { createFight, runFight } from "../js/fight.js";
 import { FrameClock } from "../js/frame-clock.js";
+import { iconUrl } from "../js/icons.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 
@@ -416,5 +417,196 @@ describe("js/main.js on a stand-in page", () => {
   it("still equals runFight after pause, resume, and the late frame", () => {
     assert.deepEqual(snapshot(live), reference(stepsSeen.length * STEP));
     assert.equal(live.currentTime, stepsSeen.length * STEP);
+  });
+});
+
+// Issue #107 follow-up. js/main.js only runs in a page, so this gives it a
+// stand-in document that records what it builds, imports it, and drives its
+// animation frames by hand. It checks the wiring that icons.test.js cannot see:
+// that every icon <img> the page makes gets the fallback listener and a
+// no-referrer policy before its src is set, and that a load error swaps in the
+// fallback icon and then hides the image.
+describe("icons on the live page (stub DOM)", () => {
+  const FALLBACK = iconUrl(null);
+  const created = [];
+  const frames = [];
+  let combatLog;
+
+  class StubElement {
+    constructor(tag) {
+      this.tag = tag;
+      this.children = [];
+      this.listeners = new Map();
+      this.operations = [];
+      this.attributes = new Map();
+      this.parent = null;
+      this.style = {};
+      this.hidden = false;
+      this.isConnected = true;
+      this.scrollTop = 0;
+      this.scrollHeight = 0;
+      this.textContent = "";
+      this.classList = { toggle() {} };
+    }
+
+    set src(value) {
+      this.operations.push("src");
+      this.source = value;
+    }
+
+    get src() {
+      return this.source;
+    }
+
+    set referrerPolicy(value) {
+      this.operations.push("referrerPolicy");
+      this.policy = value;
+    }
+
+    get referrerPolicy() {
+      return this.policy;
+    }
+
+    get firstChild() {
+      return this.children[0] ?? null;
+    }
+
+    get lastElementChild() {
+      return this.children.at(-1) ?? null;
+    }
+
+    addEventListener(type, listener) {
+      this.operations.push(`listen:${type}`);
+      this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+    }
+
+    fire(type) {
+      for (const listener of this.listeners.get(type) ?? []) {
+        listener();
+      }
+    }
+
+    setAttribute(name, value) {
+      this.attributes.set(name, value);
+    }
+
+    append(...nodes) {
+      for (const node of nodes) {
+        node.remove();
+        node.parent = this;
+        this.children.push(node);
+      }
+    }
+
+    insertBefore(node, before) {
+      node.parent = this;
+      this.children.splice(before ? this.children.indexOf(before) : 0, 0, node);
+    }
+
+    remove() {
+      if (this.parent) {
+        this.parent.children = this.parent.children.filter(
+          (child) => child !== this,
+        );
+        this.parent = null;
+      }
+      this.isConnected = false;
+    }
+  }
+
+  const named = new Map();
+  const stubDocument = {
+    querySelector(selector) {
+      if (!named.has(selector)) {
+        named.set(selector, new StubElement(selector));
+      }
+      return named.get(selector);
+    },
+    querySelectorAll() {
+      return [new StubElement("combo-point")];
+    },
+    createElement(tag) {
+      const element = new StubElement(tag);
+      created.push(element);
+      return element;
+    },
+  };
+
+  // Frame timestamps are made up, 60 fps from 1000 ms.
+  function frame(timestamp) {
+    const callback = frames.pop();
+    assert.ok(callback, "main.js asked for a frame");
+    callback(timestamp);
+  }
+
+  before(async () => {
+    globalThis.document = stubDocument;
+    globalThis.requestAnimationFrame = (callback) => frames.push(callback);
+    globalThis.cancelAnimationFrame = () => {};
+    await import("../js/main.js?icons-stub-dom");
+    let timestamp = 1000;
+    frame(timestamp);
+    // Four seconds of fight: Blade Flurry and Adrenaline Rush are cast, so
+    // there are timed effects and log rows with icons.
+    for (let index = 0; index < 240; index++) {
+      timestamp += FRAME_MS;
+      frame(timestamp);
+    }
+    combatLog = stubDocument.querySelector("#combat-log");
+  });
+
+  after(() => {
+    delete globalThis.document;
+    delete globalThis.requestAnimationFrame;
+    delete globalThis.cancelAnimationFrame;
+  });
+
+  function icons() {
+    return created.filter((element) => element.tag === "img");
+  }
+
+  it("draws icons in the combat log and in the timed effects", () => {
+    assert.ok(combatLog.children.length > 0, "the log has rows");
+    const inLog = icons().filter((image) => image.width === 16);
+    const inEffects = icons().filter((image) => image.width === 32);
+    assert.ok(inLog.length > 0, "a log row has an icon");
+    assert.ok(inEffects.length > 0, "a timed effect has an icon");
+  });
+
+  it("listens for the load error on every icon, before the src is set", () => {
+    for (const image of icons()) {
+      assert.equal(image.listeners.get("error")?.length, 1, image.src);
+      assert.ok(
+        image.operations.indexOf("listen:error") <
+          image.operations.indexOf("src"),
+        image.src,
+      );
+    }
+  });
+
+  it("sends no referrer for any icon, set before the src", () => {
+    for (const image of icons()) {
+      assert.equal(image.referrerPolicy, "no-referrer", image.src);
+      assert.ok(
+        image.operations.indexOf("referrerPolicy") <
+          image.operations.indexOf("src"),
+        image.src,
+      );
+    }
+  });
+
+  it("swaps in the fallback on the first error, then hides the image", () => {
+    for (const image of icons()) {
+      const original = image.src;
+      assert.notEqual(original, FALLBACK, "a real icon to start with");
+      image.fire("error");
+      assert.equal(image.src, FALLBACK, original);
+      assert.equal(image.hidden, false, original);
+      image.fire("error");
+      assert.equal(image.src, FALLBACK, original);
+      assert.equal(image.hidden, true, original);
+      image.fire("error");
+      assert.equal(image.src, FALLBACK, "never loops");
+    }
   });
 });

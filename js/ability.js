@@ -2,6 +2,7 @@ import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { AURAS } from "./auras.js";
+import { spellIconUrl } from "./icons.js";
 
 // The generic ability executor (roadmap D2). An Ability is built from one
 // entry of js/ability-data.js and casts it. Every ability goes through the
@@ -97,7 +98,9 @@ export class Ability {
     this.hand = "mainHand";
     this.costContext = Object.freeze({ ability: this.id });
     this.cooldown = stats.cooldown;
-    this.icon = definition.icon;
+    // A hand-made file in img/ where the entry has one; else the spell's icon
+    // from the icon CDN (js/icons.js), the question mark if it has none.
+    this.icon = definition.icon ?? spellIconUrl(this.name);
     // Whether a cast starts the global cooldown. An off-GCD ability skips the
     // wait for a clear GCD and does not start one.
     this.triggersGcd = catalogued.startsGcd;

@@ -109,6 +109,7 @@ describe("poisonProcs", () => {
         type: "dealDamage",
         id: "instant-poison",
         name: "Instant Poison",
+        icon: "https://wow.zamimg.com/images/wow/icons/large/ability_poisons.jpg",
         min: 76,
         max: 100,
         spellHit: true,
@@ -127,6 +128,7 @@ describe("poisonProcs", () => {
         type: "applyDot",
         id: "deadly-poison",
         name: "Deadly Poison",
+        icon: "https://wow.zamimg.com/images/wow/icons/large/ability_rogue_dualweild.jpg",
         tickDamage: 23,
         interval: 3,
         duration: 12,
@@ -540,6 +542,10 @@ describe("Deadly Poison", () => {
     assert.equal(dot.tickInterval, 3);
     assert.equal(dot.duration, 12);
     assert.equal(sim.activeDebuffs["deadly-poison"].stacks, 1);
+    assert.equal(
+      sim.activeDebuffs["deadly-poison"].icon,
+      "https://wow.zamimg.com/images/wow/icons/large/ability_rogue_dualweild.jpg",
+    );
     assert.equal(sim.combatLog[0].name, "Deadly Poison");
     assert.equal(sim.combatLog[0].damage, 0);
     assert.equal(sim.damageDone, sim.abilityStats["main-hand"].damage);

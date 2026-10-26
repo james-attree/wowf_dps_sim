@@ -39,6 +39,7 @@ import {
   updateGolden,
 } from "../scripts/golden-update.mjs";
 import { runScriptedFight } from "../scripts/scripted-fight.mjs";
+import { referenceBuild } from "./talentsforever.js";
 
 // Issues #77 and #85. The full headless result for a few fixed seeds and durations is
 // pinned in test/golden/*.json. This file only reads those fixtures. Only
@@ -146,9 +147,27 @@ describe("golden fixtures", () => {
       assert.ok(!("config" in runGoldenCase(goldenCase)));
       const full = goldenCase.script
         ? runScriptedFight(goldenCase)
-        : runFight({ seed: goldenCase.seed, duration: goldenCase.duration });
+        : runFight({
+            seed: goldenCase.seed,
+            duration: goldenCase.duration,
+            config: goldenCase.config,
+          });
       assert.equal(full.dataVersion, dataVersion, goldenCase.name);
-      assert.deepEqual(full.config, defaultConfig(), goldenCase.name);
+      if (goldenCase.config === undefined) {
+        assert.deepEqual(full.config, defaultConfig(), goldenCase.name);
+      } else {
+        // A case with a config ran with it, and the rest is the defaults.
+        const defaults = defaultConfig();
+        assert.deepEqual(
+          full.config,
+          {
+            ...defaults,
+            talents: goldenCase.config.talents ?? defaults.talents,
+            poisons: { ...defaults.poisons, ...goldenCase.config.poisons },
+          },
+          goldenCase.name,
+        );
+      }
       assert.deepEqual(pinnedPart(full), runGoldenCase(goldenCase));
     }
     assert.deepEqual(UNPINNED_FIELDS, ["dataVersion", "config"]);
@@ -539,5 +558,94 @@ describe("the scripted golden case", () => {
       before.abilities["Slice and Dice"].casts > 0,
       "the placeholder rotation still runs for a case with no script",
     );
+  });
+});
+
+// Issue #107. A case may carry a config, which runFight gets like any
+// caller's. The first four cases carry none.
+describe("a golden case with a config", () => {
+  const config = {
+    talents: referenceBuild(),
+    poisons: { mainHand: "instant", offHand: "deadly" },
+  };
+  const withConfig = {
+    name: "config-case",
+    seed: 3,
+    duration: 20,
+    config,
+  };
+  const plain = { name: "plain-case", seed: 3, duration: 20 };
+
+  it("runs the fight with that config, and without one runs the defaults", () => {
+    assert.deepEqual(
+      runGoldenCase(withConfig),
+      pinnedPart(runFight({ seed: 3, duration: 20, config })),
+    );
+    assert.deepEqual(
+      runGoldenCase(plain),
+      pinnedPart(runFight({ seed: 3, duration: 20 })),
+    );
+    assert.notDeepEqual(runGoldenCase(withConfig), runGoldenCase(plain));
+  });
+
+  it("passes the config to a scripted case too", () => {
+    const scripted = { ...withConfig, script: ["sinisterStrike"] };
+    assert.deepEqual(
+      runGoldenCase(scripted),
+      pinnedPart(runScriptedFight({ ...scripted })),
+    );
+    assert.notDeepEqual(
+      runGoldenCase(scripted),
+      runGoldenCase({ ...scripted, config: undefined }),
+    );
+  });
+
+  it("says what the case ran with in a mismatch or missing message", () => {
+    const missing = formatMissing(withConfig);
+    assert.match(
+      missing,
+      /seed 3, 20s, \d+ talents, poisons instant\/deadly\)/,
+    );
+    assert.match(formatMissing(plain), /\(seed 3, 20s\)/);
+    assert.match(
+      formatMismatch(
+        { ...withConfig, config: { poisons: { mainHand: "deadly" } } },
+        [],
+      ),
+      /poisons deadly\/none/,
+    );
+  });
+
+  it("writes and reads back its fixture like any case, and a plain case is unaffected", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "wowf-golden-config-"));
+    try {
+      const cases = [plain, withConfig];
+      const wrote = await updateGolden({ dir, cases, write: true });
+      assert.deepEqual(
+        wrote.outcomes.map((outcome) => outcome.status),
+        ["missing", "missing"],
+      );
+      const again = await updateGolden({ dir, cases });
+      assert.deepEqual(
+        again.outcomes.map((outcome) => outcome.status),
+        ["unchanged", "unchanged"],
+      );
+      const fixture = parseGolden(
+        await readFile(goldenPath("config-case", dir), "utf8"),
+      );
+      assert.deepEqual(Object.keys(fixture), [
+        "seed",
+        "duration",
+        "totalDamage",
+        "dps",
+        "abilities",
+        "log",
+      ]);
+      // The poisons of the config proc, so they are in the breakdown.
+      assert.ok(fixture.abilities["Instant Poison"]);
+      assert.ok(fixture.abilities["Deadly Poison"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

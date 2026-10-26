@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runFight } from "../js/fight.js";
 import { runScriptedFight } from "./scripted-fight.mjs";
+import { referenceBuild } from "../test/talentsforever.js";
 
 // Golden-seed regression fixtures (#77, #85). Each case pins the full result of
 // runFight({ seed, duration }), or of a scripted-cast fight (see
@@ -48,6 +49,11 @@ export const FINISHER_SCRIPT = [
   "eviscerate",
 ];
 
+// A case may also carry a `config` (issue #107): a partial SimConfig, such as
+// { talents, poisons }, passed to runFight like any caller's. A case without
+// one runs the defaults, as the first four do. The config is not pinned (see
+// UNPINNED_FIELDS), but it is in this file, so a case says what it ran with.
+//
 // One short fight, one 5-minute fight, one more seed, and one scripted fight.
 // Keep this list short: every case is a file to review whenever results move
 // on purpose. A case with a script runs it (scripts/scripted-fight.mjs) instead
@@ -62,6 +68,28 @@ export const GOLDEN_CASES = [
     duration: 50,
     script: FINISHER_SCRIPT,
   },
+  // Issue #107. The two cases below run the reference build (Assassination 18
+  // / Combat 33 / Subtlety 0, the talentsforever.com link in
+  // test/talentsforever.js, the same one the talent coverage check uses)
+  // through applyBuild, and they share a seed.
+  // The first has the talents and no poisons. The second adds Instant Poison
+  // on the main hand and Deadly Poison on the off hand. The build is read from
+  // the test helper so that the link is written down in one place.
+  {
+    name: "talented-build-seed-107-60s",
+    seed: 107,
+    duration: 60,
+    config: { talents: referenceBuild() },
+  },
+  {
+    name: "poisons-instant-deadly-seed-107-60s",
+    seed: 107,
+    duration: 60,
+    config: {
+      talents: referenceBuild(),
+      poisons: { mainHand: "instant", offHand: "deadly" },
+    },
+  },
 ];
 
 // Files that can turn up in test/golden/ without being a stray case: macOS
@@ -74,11 +102,12 @@ export const IGNORED_FILES = [".DS_Store"];
 // on each refresh. test/golden.test.js checks it separately: every result must
 // carry the current dataVersion.
 //
-// `config` (E2-lite, #92) is the SimConfig the fight ran with. A golden case
-// passes no config, so it is always the defaults, which come from constants
-// the fixtures already pin through their numbers. It is left out so a result
-// field added for the config does not rewrite the fixtures. test/golden.test.js
-// checks it separately: it must be the default config.
+// `config` (E2-lite, #92) is the SimConfig the fight ran with. A case with no
+// config runs the defaults, which come from constants the fixtures already pin
+// through their numbers. It is left out so a result field added for the config
+// does not rewrite the fixtures. test/golden.test.js checks it separately: it
+// is the default config, or for a case that has a config, that config's talents
+// and poisons (issue #107).
 export const UNPINNED_FIELDS = ["dataVersion", "config"];
 
 // A result without the unpinned fields: the payload a fixture holds.
@@ -91,11 +120,11 @@ export function pinnedPart(result) {
 // The fight a case pins: runFight, or the case's script on the real engine,
 // without the unpinned fields.
 export function runGoldenCase(goldenCase) {
-  const { seed, duration, script } = goldenCase;
+  const { seed, duration, script, config } = goldenCase;
   return pinnedPart(
     script === undefined
-      ? runFight({ seed, duration })
-      : runScriptedFight({ seed, duration, script }),
+      ? runFight({ seed, duration, config })
+      : runScriptedFight({ seed, duration, script, config }),
   );
 }
 
@@ -195,8 +224,20 @@ function show(value) {
 }
 
 // "seed 1, 10s", or "seed 68, 50s, scripted casts" for a case with a script.
-function describeCase({ seed, duration, script }) {
-  return `seed ${seed}, ${duration}s${script === undefined ? "" : ", scripted casts"}`;
+function describeCase({ seed, duration, script, config }) {
+  const parts = [`seed ${seed}`, `${duration}s`];
+  if (script !== undefined) {
+    parts.push("scripted casts");
+  }
+  const talents = Object.keys(config?.talents ?? {}).length;
+  if (talents > 0) {
+    parts.push(`${talents} talents`);
+  }
+  const { mainHand, offHand } = config?.poisons ?? {};
+  if (mainHand || offHand) {
+    parts.push(`poisons ${mainHand ?? "none"}/${offHand ?? "none"}`);
+  }
+  return parts.join(", ");
 }
 
 // The text a failing golden test prints: which fields changed, then how and

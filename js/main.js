@@ -2,6 +2,7 @@ import { k } from "../data/constants.js";
 import { createFight } from "./fight.js";
 import { FrameClock } from "./frame-clock.js";
 import { applyGcdMeterAria } from "./gcd-meter.js";
+import { attachIconFallback } from "./icons.js";
 
 // The page is a view of the engine runFight uses. This file turns animation
 // frames into engine steps (FrameClock), advances the engine, and draws its
@@ -144,6 +145,7 @@ function renderTimedEffects(effects, container, items, emptyState) {
 
       if (iconSource) {
         const icon = document.createElement("img");
+        attachIconFallback(icon);
         icon.src = iconSource;
         icon.width = 32;
         icon.height = 32;
@@ -197,6 +199,7 @@ function renderCombatLog() {
       icon.setAttribute("aria-hidden", "true");
       if (event.type === "skill" && event.icon) {
         const image = document.createElement("img");
+        attachIconFallback(image);
         image.src = event.icon;
         image.width = 16;
         image.height = 16;

@@ -515,7 +515,7 @@ describe("the data is checked when it loads, and the check refuses a bad entry",
   });
 });
 
-describe("the reference build (18/33/0), decoded from its link", () => {
+describe("the reference build (Assassination 18 / Combat 33 / Subtlety 0), decoded from its link", () => {
   const decoded = decodeBuildLink(REFERENCE_LINK);
 
   it("decodes to the ranks the issue lists, and no others", () => {

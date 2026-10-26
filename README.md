@@ -15,12 +15,19 @@ publishes `index.html`, `styles.css`, `js/`, `data/`, and `img/`.
 ## Status
 
 Phase 0 is complete. Phase 1, the deterministic headless engine, is built and
-merged; it is complete once James signs it off. Combat is the first spec. The
-page runs the placeholder Combat rotation in `js/rogue.js`:
-Blade Flurry, Adrenaline Rush, then Slice and Dice or Eviscerate at the
-finisher combo points, otherwise Sinister Strike. Talent ranks in the vendored
-snapshot are not applied yet. The [roadmap](docs/roadmap.md#phase-1-status) has
-the Phase 1 issue list and the benchmark result.
+merged; it is complete once James signs it off. Phase 2 (abilities, resources,
+the attack table, auras, modifiers, procs, Combat and the reference
+Assassination talents as data, applying a selected build, Instant and Deadly
+Poison, and icons by hot-link) is built; #107 is the last issue and the phase
+is for James to review. Combat is the first spec. A fight is `runFight` with an
+optional SimConfig: weapons, a talent build (51 points, validated), and a
+poison per hand. With no config the page and `runFight` run the placeholder
+Combat rotation in `js/rogue.js`: Blade Flurry, Adrenaline Rush, then Slice and
+Dice or Eviscerate at the finisher combo points, otherwise Sinister Strike.
+The page has no talent or poison controls yet (Phase 3 and 4). The
+[roadmap](docs/roadmap.md#phase-2-status) has the Phase 2 issue list, the exit
+criteria and what is left open for review, and
+[mechanics](docs/mechanics.md#known-limits-at-the-end-of-phase-2) the known limits.
 
 ## How the engine fits together
 
@@ -29,9 +36,9 @@ randomness. `Simulation.step(dt)` is the only way time moves, and
 `Simulation.run(duration)` calls it with the fixed step `sim.fixedStep`.
 `runFight({ seed, duration, config })` in `js/fight.js` builds a fight, runs it and
 returns plain data, with no DOM. `config` is an optional SimConfig (character,
-weapons, a talent build, poisons); leave it out for the default fight. The live page builds the same fight with
-`createFight` and feeds it whole fixed steps, so a seed gives the same fight
-live and headless. The golden tests pin four `runFight` results, and
+weapons, a talent build, poisons); leave it out for the default fight. The live
+page builds the same fight with `createFight` and feeds it whole fixed steps, so
+a seed gives the same fight live and headless. The golden tests pin six `runFight` results, and
 `npm run bench` times one. [Mechanics](docs/mechanics.md#simulation-clock) has
 the details, and [Known limits of Phase 1](docs/mechanics.md#known-limits-of-phase-1)
 says what to keep in mind.
@@ -92,6 +99,7 @@ An older browser fails to load the page.
 | `npm run talents:coverage` | `node scripts/talent-coverage.mjs`                     |
 | `npm run data:refresh`     | `node scripts/refresh-data.mjs`                        |
 | `npm run golden:update`    | `node scripts/golden-update.mjs`                       |
+| `npm run icons:check`      | `node scripts/check-icons.mjs`                         |
 | `npm run bench`            | `node scripts/bench.mjs`                               |
 | `npm run serve`            | `node scripts/serve.mjs`                               |
 
@@ -175,8 +183,11 @@ on.
 durations (a short fight, a 5-minute fight, and another seed) in
 `test/golden/*.json`. One more case casts a fixed list of abilities instead of
 the placeholder rotation, so it covers Eviscerate, Rupture, DoT ticks, and tick
-crits. A change to a rule, a constant, or the engine that moves
-those numbers fails the test, and the message lists the fields that changed.
+crits. Two cases carry a `config`: the reference build (Assassination 18 /
+Combat 33 / Subtlety 0), and the same build with Instant Poison on the main hand
+and Deadly Poison on the off hand. A change to a rule, a constant, or the engine
+that moves those numbers fails the test, and the message lists the fields that
+changed.
 
 Regenerate the fixtures only when a change is meant to move results, in the
 same pull request, and say why in the description. A refactor or a speed-up
@@ -413,6 +424,9 @@ rejects them under `js/`.
 - `scripts/golden-update.mjs` — Lists the golden cases (`GOLDEN_CASES`), runs
   them, and compares each with its fixture in `test/golden/`. Dry run by
   default; `--write` rewrites the fixtures that differ. See Golden-seed tests.
+- `scripts/check-icons.mjs` — `npm run icons:check`: sends a HEAD request for
+  every icon name in the snapshot and reports the ones the CDN does not have;
+  `--write` records them in `data/icons.json`. Not run in CI or by `npm test`.
 - `scripts/scripted-fight.mjs` — Runs `runFight` with a list of casts in place
   of the placeholder rotation, for the scripted golden case.
 - `scripts/bench.mjs` — `npm run bench`: times a seeded 5-minute `runFight` over
@@ -485,9 +499,9 @@ rejects them under `js/`.
 - `test/talent-effects.test.js` — The talent effects data (shape, text hashes,
   proc chances against the text), `expandTalents` (ranks, order, rank 0 drawing
   nothing, bad input), the data check refusing a bad entry, the Assassination
-  shapes of D8a, and the 18/33/0 reference build decoded from its
-  talentsforever.com link (`test/talentsforever.js`) and run through
-  `createFight`.
+  shapes of D8a, and the reference build (Assassination 18 / Combat 33 /
+  Subtlety 0) decoded from its talentsforever.com link
+  (`test/talentsforever.js`) and run through `createFight`.
 - `test/assassination-talents-as-data.test.js` — Malice, Lethality and Improved
   Slice and Dice (D8a PR 1) against the snapshot's rank text at every rank, the
   `duration` modifier kind (scope, floor, stacking), the Slice and Dice length
@@ -585,8 +599,11 @@ rejects them under `js/`.
 - `test/tooling.test.js` — The dev package's scripts and Node `engines` range.
 - `test/weapon.test.js` — Weapon damage, the off-hand penalty, and swing-timer
   overshoot.
+- `js/icons.js` — Icon names to hot-link URLs, the fallback icon, and the
+  `attachIconFallback` image handler (D10). See [docs/icons.md](docs/icons.md).
+- `data/icons.json` — The icon names `npm run icons:check` found missing (none).
 - `img/` — JPEG ability icons. Each entry in `js/ability-data.js` sets its own
-  file. `img/garotte.jpg` is not referenced.
+  file. `img/garotte.jpg` and `img/stealth.jpg` are not referenced.
   `.prettierignore` excludes the directory.
 - `package.json` — `"type": "module"`, the npm scripts, the Node `engines`
   range, and the dev dependencies. No runtime dependencies.
@@ -604,6 +621,9 @@ Talent, spell, and poison data comes from
 [talentsforever.com](https://talentsforever.com/) and is used under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The vendored copy
 in `data/talentsforever/` is pretty-printed, with values unchanged.
+
+Icons are hot-linked from a public image CDN and are not part of this
+repository or its CC BY 4.0 licence ([docs/icons.md](docs/icons.md)).
 
 World of Warcraft names, icons, and tooltip text belong to Blizzard
 Entertainment. This project is not affiliated with Blizzard Entertainment or

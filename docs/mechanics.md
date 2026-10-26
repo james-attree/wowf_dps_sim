@@ -867,12 +867,13 @@ end in the same state, whoever drives them.
 - The live page (`js/main.js`) builds the same pair with `createFight` and gives
   it whole fixed steps from `FrameClock` (see Live page). It is a view of the
   engine and holds no combat rule.
-- The golden tests pin the `runFight` result for four fixed cases, one of them a
-  scripted list of casts (see Golden-seed tests). They fail when anything on
+- The golden tests pin the `runFight` result for six fixed cases, one of them a
+  scripted list of casts and two of them a talent build (see Golden-seed tests). They fail when anything on
   this path changes a number.
 - `npm run bench` times a seeded 5-minute `runFight` (see Benchmark).
 
-What the engine does not yet do is under Known limits of Phase 1.
+What a reader should not assume is under Known limits of Phase 1 (written at the
+end of Phase 1, still true) and Known limits at the end of Phase 2.
 
 ### Fixed step
 
@@ -1239,8 +1240,9 @@ own commit, so the diff of the numbers can be read apart from the engine change.
 A golden test pins the whole result of a fixed fight, so a change to a rule, a
 constant, or the engine shows up in review as a diff of numbers. The cases are
 listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
-10 s), a 5-minute fight (seed 1, 300 s), another seed (12345, 90 s), and a
-scripted-cast fight (seed 68, 50 s, described below). Each
+10 s), a 5-minute fight (seed 1, 300 s), another seed (12345, 90 s), a
+scripted-cast fight (seed 68, 50 s, described below), and the two config cases
+added by #107 (the talented build, the poison fight, described below). Each
 has a fixture in `test/golden/<name>.json` holding the `runFight` result:
 `seed`, `duration`, `totalDamage`, `dps`, every ability's record, and the capped
 log. The one result field it leaves out is `dataVersion` (see Data version).
@@ -1268,6 +1270,34 @@ the rogue's own rotation runs with its skill casts switched off, so only the
 weapon swings and the haste buffs are left. Nothing under `js/` changes, and a
 script that has not finished by the end of the fight throws. The fixture has
 8 Rupture ticks (3 of them crits) and an Eviscerate that hits without a crit.
+
+**Config cases (#107).** A case may carry `config`, a partial SimConfig that
+`runGoldenCase` passes to `runFight` (or `runScriptedFight`) like any caller's.
+The first four cases have none and run the defaults, as before. Both new cases
+run the reference build (Assassination 18 / Combat 33 / Subtlety 0, the
+talentsforever link in `test/talentsforever.js`, applied through `applyBuild`)
+at seed 107 for 60 s:
+
+- `talented-build-seed-107-60s`: the talents and no poisons. 15,291.68 damage,
+  254.86 DPS, 292 random draws, 92 log rows. It casts Blade Flurry, Adrenaline
+  Rush, Cold Blood, Slice and Dice and two Eviscerates, and Ruthlessness,
+  Relentless Strikes and Hack and Slash all fire.
+- `poisons-instant-deadly-seed-107-60s`: the same build with Instant Poison on
+  the main hand and Deadly Poison on the off hand. 14,029.47 damage, 233.82
+  DPS, 409 draws, 100 log rows (the cap). Instant Poison rolls 49 times and
+  fires 9; Deadly Poison rolls 19 times and fires 4, with 10 ticks.
+
+The poison fight deals less than the talented one although it adds poison
+damage. That is the rng, not a rule: the poison rolls draw numbers between the
+swings, so from the first poison roll the two fights are different draws of the
+same seed (here the off-hand misses 12 of 32 swings). Do not compare the pair as
+a poison's worth. The config is unpinned like `dataVersion`: `test/golden.test.js`
+checks that a result's `config` is the default one, or for a config case the
+case's talents and poisons laid over the defaults. Both fixtures log CDN icon
+URLs (see Icons), so a change to `icons.cdn` rewrites the poison fixture, and
+the talented one where a skill row carries a CDN icon (Cold Blood). The reference
+build is read from the test helper (`scripts/golden-update.mjs` imports it) so
+that the link is in one place.
 
 No golden case contains a parry or a block. Every case is behind the target
 (the default `target.behind`), where both bands have zero width. `parries` and
@@ -1307,6 +1337,18 @@ the seed in `scripts/golden-update.mjs`, then regenerate. Keep a seed that
 still has tick crits: `test/golden.test.js` checks for them.
 `.prettierignore` lists `test/golden/`, because Prettier would reflow the
 one-line rows.
+
+## Icons (D10, issue #107)
+
+Icons are hot-linked from a public image CDN, never vendored. `js/icons.js` turns
+an icon name from the snapshot into a URL (constant `icons.cdn`, not Blizzard
+hosted), and a missing name, an unchecked name or a failed load shows
+`icons.fallback`. Instant and Deadly Poison's proc actions carry their icon, so
+their log rows, DoT and debuff have one; `Ability.icon` is the hand-made `img/`
+file where there is one and the CDN otherwise. The result shape gains no field,
+but an `icon` that was `null` on a poison event is now a URL. `data/icons.json`
+records which names `npm run icons:check` found missing (none), and nothing
+fetches at test time. See [docs/icons.md](icons.md).
 
 ## Benchmark
 
@@ -1351,7 +1393,9 @@ fixtures unchanged (see Golden-seed tests).
 
 ## Known limits of Phase 1
 
-What a reader should not assume from the sections above:
+What a reader should not assume from the sections above. These were written at
+the end of Phase 1; the limits Phase 2 adds or changes are under Known limits
+at the end of Phase 2.
 
 - **Step size and splits.** A different step size, or a `run` split that ends
   inside a step, can change a seeded fight. QA measured seeds 1 to 200: the
@@ -1373,11 +1417,42 @@ What a reader should not assume from the sections above:
   enter one; replay a seed with `runFight`. It does not stop at
   `k("fight.duration")` (see Other time inputs). A page below the frame rate
   that matches `k("sim.maxFrameTime")` runs slower than real time.
-- **Placeholder rotation, no talents.** The rotation is the placeholder Combat
+- **Placeholder rotation.** The rotation is the placeholder Combat
   priority. It never calls Rupture, and it only rarely reaches Eviscerate, when
   Slice and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left
   at the finisher combo points. None of 100 seeds (1 to 100) cast it in a 120 s
-  run, so the golden tests reach both through a scripted case. A selected talent build is applied (D7).
+  run, so the golden tests reach both through a scripted case. A selected talent build is applied (D7), but the page has no way to choose one.
+
+## Known limits at the end of Phase 2
+
+What a reader should not assume from the talent and poison sections. These are
+open for James's review, not defects found by a test:
+
+- **Backstab's dagger requirement** is parsed and not enforced. A sword can cast
+  it. A Phase 3 candidate.
+- **Cold Blood** keeps its charge when the attack does not land (a miss, a
+  dodge, and in front a parry or block). That is a design choice, not what
+  wowsims does and not verified against Classic, and the front-block case is
+  tested but out of scope behind-only. The cast-before-Eviscerate rule is the
+  Scout's (`js/rotation-rules.js`). See "Assumption: an attack that does not
+  land keeps the charge".
+- **Instant Poison's crit and suppression** are assumptions: the crit uses the
+  rogue's melee crit chance (the engine has no spell crit) at 1.5x, and the
+  4.8% crit suppression applies to it. Both are tagged `assumption` with the
+  retune flag on (`poison.instantCrit`, `poison.instantCritSuppression`).
+- **Poisons roll on finishers** as in wowsims. That is not verified against Classic.
+- **Unmapped talents.** Eleven Assassination talents (Improved Gouge, Remorseless
+  Attacks, Murder, Improved Expose Armor, Vile Poisons, Improved Poisons, Vigor,
+  Mutilate, Improved Kidney Shot, Seal Fate, Venom) and all nineteen Subtlety talents
+  have no entry. A build that spends points in them is legal and lists them in
+  `fight.build.unmapped`. Improved Poisons, Vile Poisons and Venom do nothing, and
+  so does Mutilate. D8 is Phase 4.
+- **Partial builds are rejected.** A selected build must spend exactly 51 points
+  and satisfy the gating, so a one-talent map is a `RangeError`.
+- **No talent UI.** Talent icons resolve and are tested but are not drawn.
+- **The Rogue's `energy`, `maxEnergy`, `comboPoints` and `maxComboPoints`**
+  accessors are still views on `rogue.resources`. Tests use them about 400 times
+  in 32 files, so they were left.
 
 ## Talent catalogue
 
@@ -2287,10 +2362,15 @@ the next flagged spell whatever its outcome, so a miss or dodge spends it too
 block cannot happen while the sim is behind-only, so for them it changes
 nothing. A miss or dodge can happen behind, so a fight with Cold Blood granted
 (Rogue option `abilities`) differs from wowsims there. No golden fixture
-depends on it: the default fight does not grant Cold Blood. The front-block case
-is tested in `test/carry-overs-103.test.js`. If real Classic spends the charge
-on a miss or a block, change the condition where `resolveAttack`
-(`js/simulation.js`) calls `consumeUseCharges`, and the tests that pin it.
+depends on it: the two config cases added by #107 grant Cold Blood, but seed 107
+has no miss or dodge on a Cold Blood attack in either, so they would not move
+if this rule changed. Three tests pin it (the Cold Blood test in
+`test/assassination-procs-as-data.test.js`, and the front-block cases in
+`test/carry-overs-103.test.js`); with the rule changed to spend the charge on
+every outcome, those fail and the six golden fixtures do not. If real Classic
+spends the charge on a miss or a block, change the condition where
+`resolveAttack` (`js/simulation.js`) calls `consumeUseCharges`, and the tests
+that pin it.
 
 **The Cold Blood rotation rule.** A rule from the Scout, for James to adjust:
 cast Cold Blood right before the next 5-combo-point Eviscerate, when it is off
