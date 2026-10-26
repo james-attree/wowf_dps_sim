@@ -4,6 +4,8 @@ import { normalizeConfig } from "./sim-config.js";
 import { Weapon } from "./weapon.js";
 import { createAbilities } from "./ability.js";
 import { checkProcs } from "./procs.js";
+import { abilityCatalogue } from "./abilities.js";
+import { beforeFinisher } from "./rotation-rules.js";
 import { createResources } from "./resource.js";
 
 export class Rogue {
@@ -18,6 +20,13 @@ export class Rogue {
   // fight's result shape and its goldens do not depend on it. The default is
   // none, which leaves every stat as the config gave it. D7 (#103) is where a
   // talent build turns into this list.
+  //
+  // `options.procs` is the proc list (js/procs.js), also none by default.
+  // `options.abilities` is the ids of the abilities the build grants (what
+  // expandTalents gives as `abilities`), none by default. Only the rotation
+  // rules (js/rotation-rules.js) read it; the rotation casts what a rule
+  // names only when it is granted. Like the other two it is not part of the
+  // SimConfig or the result.
   constructor(config, options = {}) {
     if (
       options === null ||
@@ -27,9 +36,9 @@ export class Rogue {
       throw new TypeError("Rogue options must be an object.");
     }
     for (const key of Object.keys(options)) {
-      if (key !== "modifiers" && key !== "procs") {
+      if (key !== "modifiers" && key !== "procs" && key !== "abilities") {
         throw new RangeError(
-          `Unknown Rogue option "${key}". Known: modifiers, procs.`,
+          `Unknown Rogue option "${key}". Known: modifiers, procs, abilities.`,
         );
       }
     }
@@ -37,6 +46,19 @@ export class Rogue {
     this.modifiers = new ModifierPipeline(options.modifiers);
     // The procs (js/procs.js) the fight runs. None by default.
     this.procs = checkProcs(options.procs ?? []);
+    // The ids of the abilities the build grants, checked against the catalogue.
+    const granted = options.abilities ?? [];
+    if (!Array.isArray(granted)) {
+      throw new TypeError("Rogue option abilities must be an array of ids.");
+    }
+    for (const id of granted) {
+      if (abilityCatalogue.get(id) === undefined) {
+        throw new RangeError(
+          `Rogue option abilities names "${String(id)}", which is not in the ability catalogue.`,
+        );
+      }
+    }
+    this.granted = new Set(granted);
     const { character, weapons } = this.config;
     // Energy and combo points are resource pools (js/resource.js), described
     // as data in js/resource-data.js. The pools are made before the abilities,
@@ -202,6 +224,8 @@ export class Rogue {
       const finisher = refresh
         ? sliceAndDice
         : this.abilities[priority.eviscerate];
+      // A rule for a granted ability (Cold Blood) may cast first.
+      beforeFinisher(this, simulation, finisher);
       finisher.cast(this, simulation);
     } else {
       this.abilities[priority.builder].cast(this, simulation);

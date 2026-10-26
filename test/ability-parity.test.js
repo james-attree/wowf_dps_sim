@@ -61,6 +61,10 @@ function fight({ seed, config, options, legacy, everything }) {
   const rogue = new Rogue(config, options);
   if (legacy) {
     rogue.abilities = legacyAbilities(rogue);
+  } else {
+    // Cold Blood postdates the skill classes, so there is nothing to compare it
+    // with; test/assassination-procs-as-data.test.js covers it.
+    delete rogue.abilities.coldBlood;
   }
   const draws = [];
   const source = createRng(seed);
@@ -155,7 +159,9 @@ describe("generic executor parity with the skill classes", () => {
 
   it("casts every ability in the every-ability fights", () => {
     const { stats } = fight({ seed: 1, config: undefined, everything: true });
-    for (const definition of ABILITY_DEFINITIONS) {
+    for (const definition of ABILITY_DEFINITIONS.filter(
+      (definition) => definition.id !== "cold-blood",
+    )) {
       assert.ok(
         stats[definition.id]?.casts > 0,
         `${definition.id} was never cast`,

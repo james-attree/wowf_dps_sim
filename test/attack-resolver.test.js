@@ -237,7 +237,10 @@ describe("the attack table matches Magey's Classic table at 300 skill against le
     assert.equal(suppressCrit(0.04), 0);
     assert.equal(suppressCrit(0), 0);
     assert.equal(suppressCrit(-1), 0);
-    near(suppressCrit(1), 0.952, "the clamp comes first");
+    near(suppressCrit(1), 0.952, "100% raw is 95.2%");
+    near(suppressCrit(1.048), 1, "104.8% raw is a sure crit");
+    assert.equal(suppressCrit(1.5), 1);
+    assert.throws(() => suppressCrit(Infinity), RangeError);
     for (const attackType of ["weapon", "skill"]) {
       near(
         attackChances({ ...base, attackType, critChance: 0.148 }).crit,
@@ -393,21 +396,21 @@ describe("resolveAttack outcome bands", () => {
     }
   });
 
-  it("caps crit chance at 100% less the suppression and consumes the rest of the table", () => {
-    // White: crit takes [73.5, 100) at 95.2%, so no hit band is left.
+  it("takes the suppression off the crit chance before it caps at 100%, so a raw 100% or more is a sure crit", () => {
+    // White: crit takes [73.5, 100) at 100% raw, so no hit band is left.
     expectBand({ critChance: 1.5, roll: 73.5 }, "crit", 200);
     expectBand({ critChance: 1.5, roll: 99.999 }, "crit", 200);
     expectBand({ critChance: 1.5, roll: 73.499 }, "glancing", 65);
-    expectBand(
-      { attackType: "skill", critChance: 1.5, roll: 50, critRoll: 95.1 },
-      "crit",
-      200,
-    );
-    expectBand(
-      { attackType: "skill", critChance: 1.5, roll: 50, critRoll: 95.3 },
-      "hit",
-      100,
-    );
+    // Yellow: 104.8% raw is 100% after the suppression, and more stays 100%.
+    for (const critChance of [1.048, 1.5]) {
+      for (const critRoll of [0, 95.1, 95.3, 99.999]) {
+        expectBand(
+          { attackType: "skill", critChance, roll: 50, critRoll },
+          "crit",
+          200,
+        );
+      }
+    }
   });
 
   it("can not crit on a yellow attack that missed, dodged, parried or blocked", () => {

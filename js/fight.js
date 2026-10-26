@@ -5,7 +5,7 @@ import { normalizeConfig } from "./sim-config.js";
 import { Simulation } from "./simulation.js";
 
 // A talent build for a fight: expandTalents(config.talents) gives the
-// `modifiers` and `procs` options below (js/talent-build.js).
+// `modifiers`, `procs` and `abilities` options below (js/talent-build.js).
 export { expandTalents } from "./talent-build.js";
 
 // Build the engine for one fight: a rogue and a simulation that draws from the
@@ -21,13 +21,16 @@ export { expandTalents } from "./talent-build.js";
 //
 // `options.modifiers` is a static modifier list (js/modifiers.js) for the
 // rogue, and `options.procs` a list of procs (js/procs.js; a rank 0 is null and
-// is left out). A talented fight is the two lists from expandTalents, which
-// reads the talent effects data (data/talent-effects.js):
+// is left out). `options.abilities` is the ids of the abilities the build
+// grants, which the rotation rules (js/rotation-rules.js) read: Cold Blood is
+// cast only when it is there. A talented fight is the three lists from
+// expandTalents, which reads the talent effects data
+// (data/talent-effects.js):
 //
-//   const { modifiers, procs } = expandTalents(config.talents);
-//   createFight(seed, config, { modifiers, procs });
+//   const { modifiers, procs, abilities } = expandTalents(config.talents);
+//   createFight(seed, config, { modifiers, procs, abilities });
 //
-// runFight takes neither and the result records neither: the SimConfig is the
+// runFight takes none of them and the result records neither: the SimConfig is the
 // whole input of a result until D7 (#103) makes runFight do this itself, with
 // the rotation's use of the talents that grant an ability. Until then this is
 // how a test or a tool runs a fight with talents.

@@ -6,7 +6,7 @@ import {
   suppressCrit,
 } from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
-import { ModifierPipeline, isNeutral } from "./modifiers.js";
+import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
 import { damageTags } from "./damage-tags.js";
 import { ProcRunner } from "./procs.js";
 import { createRng, normalizeSeed } from "./rng.js";
@@ -435,6 +435,28 @@ export class Simulation {
     }
   }
 
+  // A landed attack uses one charge of every charged self aura that had a say
+  // in it: one whose modifiers' scope matches the attack (an unscoped modifier
+  // matches every attack). Cold Blood's crit is "the next" Eviscerate, not the
+  // next swing, so a white swing leaves it up. The charge goes on a landed
+  // attack, the one that reached the crit roll, as a target aura's does: a
+  // miss, dodge or parry keeps it for the next try. Nothing here names an aura.
+  consumeUseCharges(context) {
+    for (const [id, aura] of Object.entries(this.activeBuffs)) {
+      if (typeof aura.charges !== "number") {
+        continue;
+      }
+      const definition = this.auraDefinitions.get(id);
+      if (
+        definition?.modifiers.some((modifier) =>
+          scopeMatches(modifier.scope, context),
+        )
+      ) {
+        this.consumeCharge(id);
+      }
+    }
+  }
+
   // The effects of one kind (haste, energyRegenMultiplier, dotDamageTaken,
   // armorReduction)
   // from every aura that is up, as { id, value, stacks, duration }, in the
@@ -628,6 +650,7 @@ export class Simulation {
     if (result.landed) {
       // After armor, so the hit that uses the last charge still gets it.
       this.consumeHitCharges();
+      this.consumeUseCharges(context);
     }
     const resolved = { ...result, damage };
     if (attackType === "weapon") {
