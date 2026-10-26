@@ -158,9 +158,15 @@ export class Simulation {
 
         let dotHitCrit = "Hit";
         // roll crit for each tick
+        const tickCritChance = this.rogue.getCritChance(dotContext);
         if (
           k("dot.canCrit") &&
-          rollCrit(suppressCrit(this.rogue.getCritChance(dotContext)), this.rng)
+          rollCrit(
+            k("dot.critSuppression")
+              ? suppressCrit(tickCritChance)
+              : tickCritChance,
+            this.rng,
+          )
         ) {
           dotTickDamage *= this.modifiers.resolve(
             "critDamage",

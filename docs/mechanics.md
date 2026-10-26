@@ -42,6 +42,15 @@ not re-derived from a skill gap: a change of `k("weaponSkill.base")` or
 `k("target.defense")` moves only the hit suppression (below), and the other
 rows would have to be retuned by hand.
 
+The page is written for warriors and is cited as the Classic reference for the
+table. Where a number is not defined, the row uses the Classic value (or 0)
+tagged as an assumption with retune on: `block.value` and `dot.critSuppression`
+are the two. A rogue-specific cross-check would be a good later task.
+wowsims/classic's `sim/core/target.go` (`NewAttackTable`, which cites the same
+page) gives the same miss, hit suppression, dodge, parry, block, glancing
+chance, glancing damage range and crit suppression at these levels (read 26 Oct
+2026); each row's note says so.
+
 **Two shapes.** A white swing (`attackType` `"weapon"`, main hand and off
 hand) is one roll over the bands, in this order (`k("table.white")`): miss,
 dodge, parry, glancing, block, crit, hit. A yellow attack (`"skill"`) is two
@@ -116,7 +125,10 @@ hand gives the amount), so a block does full damage. Blocks are counted under
 reads is the clamped chance less 3% (the skill gap, 0.2% per point) and less
 1.8% (the aura term, a flat reduction Magey notes), never below 0. A DoT tick
 reads the same suppressed chance (`dot.canCrit`), so its crit chance drops by
-4.8% too. A DoT's application never crits.
+4.8% too. That is `k("dot.critSuppression")`, an assumption on the retune list:
+no source says whether a tick takes the suppression, and `false` leaves a tick
+at the full chance. The 2x tick crit multiplier is `dot.critMultiplier`. A
+DoT's application never crits.
 
 **Spell hit table.** `spellMissChance` and `resolveSpellHit` give the 17%
 miss, floored at 1%, that a poison proc will use (A5, `k("spell.missTarget")`),
@@ -992,7 +1004,7 @@ combo points (see `rotation.priority`). So they cannot pin finisher damage, DoT
 ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
 `script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
 energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT` is Sinister Strike
-four times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
+seven times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
 Hemorrhage comes just before Rupture, so the fixture has Rupture ticks with
 the Hemorrhage bonus and, after the debuff runs out, without it.
 `scripts/scripted-fight.mjs` runs it on the real `runFight`: it swaps
@@ -1000,7 +1012,7 @@ the Hemorrhage bonus and, after the debuff runs out, without it.
 the rogue's own rotation runs with its skill casts switched off, so only the
 weapon swings and the haste buffs are left. Nothing under `js/` changes, and a
 script that has not finished by the end of the fight throws. The fixture has
-8 Rupture ticks (2 of them crits) and an Eviscerate crit.
+8 Rupture ticks (3 of them crits) and an Eviscerate that hits without a crit.
 
 No golden case contains a parry or a block. Every case is behind the target
 (the default `target.behind`), where both bands have zero width. `parries` and

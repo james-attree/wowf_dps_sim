@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { k } from "../data/constants.js";
+import { CONSTANTS, k } from "../data/constants.js";
 import { createFight, runFight } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
@@ -116,6 +116,19 @@ describe("the draws of a swing and a skill through the engine", () => {
     assert.equal(tick(0.148, 0.101), "Hit");
     // Under 4.8% there is no crit left, whatever the draw.
     assert.equal(tick(0.04, 0), "Hit");
+
+    // dot.critSuppression is the assumption behind that: false leaves a tick
+    // at the full chance.
+    const original = CONSTANTS["dot.critSuppression"].value;
+    CONSTANTS["dot.critSuppression"].value = false;
+    try {
+      assert.equal(tick(0.148, 0.101), "Crit");
+      assert.equal(tick(0.04, 0.039), "Crit");
+      assert.equal(tick(0.04, 0.041), "Hit");
+    } finally {
+      CONSTANTS["dot.critSuppression"].value = original;
+    }
+    assert.equal(k("dot.critSuppression"), true);
   });
 });
 
