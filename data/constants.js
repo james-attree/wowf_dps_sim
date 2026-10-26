@@ -298,7 +298,7 @@ export const CONSTANTS = {
     "–",
     WOWF_EXPORT,
     "rogue.json → talents.trees[].talents[].desc",
-    "Hand-encoded later in the effects map with a text hash (D5, D6).",
+    "Hand-encoded in data/talent-effects.js (D5, #102), one entry per talent: its modifiers, procs, granted ability or a reason it has no DPS effect, and a SHA-256 of the rank text it was written from. The tests read each number back out of the snapshot text, at every rank, and fail on a changed text. The Combat tree is done; the Assassination talents are D8a (#119) and the Subtlety ones D8b.",
     false,
   ),
   "character.level": entry(
@@ -800,7 +800,7 @@ export const CONSTANTS = {
     "–",
     ASSUMPTION,
     `${JAMES}: an extra attack does not trigger another extra attack`,
-    "Read by the proc runner (js/procs.js): a proc that holds an extraAttack action does not roll on a swing that is itself an extra attack. Turn it on and the same procs roll again, down to proc.maxChainDepth. Hack and Slash (hackAndSlash.extraAttack) is the one data-defined extra attack; D7 turns it on from a talent rank.",
+    "Read by the proc runner (js/procs.js): a proc that holds an extraAttack action does not roll on a swing that is itself an extra attack. Turn it on and the same procs roll again, down to proc.maxChainDepth. Hack and Slash (hackAndSlash.extraAttack) is the one data-defined extra attack; expandTalents (js/talent-build.js) turns it on from a talent rank, and D7 does that from a config.",
     true,
   ),
   "hackAndSlash.extraAttack": entry(
@@ -811,7 +811,7 @@ export const CONSTANTS = {
     "chance per rank, weapon types",
     WOWF_EXPORT,
     "rogue.json → talents[Combat|Hack and Slash] desc, Axe/Sword",
-    "Your successful melee attacks have this chance to trigger an extra attack on the target. A proc on a landed hit (onHit: white or yellow), main hand or off hand, with a Sword or Axe in the hand that swung. The Dagger/Fist crit and Mace armor lines of the same talent are modifiers (D7).",
+    "Your successful melee attacks have this chance to trigger an extra attack on the target. A proc on a landed hit (onHit: white or yellow), main hand or off hand, with a Sword or Axe in the hand that swung. The Dagger/Fist crit and Mace armor lines of the same talent are modifiers, in the same entry of data/talent-effects.js.",
     false,
   ),
   "puncturingWounds.comboPoint": entry(
@@ -819,7 +819,7 @@ export const CONSTANTS = {
     "chance per rank, combo points",
     WOWF_EXPORT,
     "rogue.json → talents[Combat|Puncturing Wounds] desc",
-    "Backstab has this chance to add an additional combo point. A proc on a landed Backstab cast (onAbility). The crit lines of the same talent are modifiers (D7).",
+    "Backstab has this chance to add an additional combo point. A proc on a landed Backstab cast (onAbility). The crit lines of the same talent are modifiers, in the same entry of data/talent-effects.js.",
     false,
   ),
   "proc.secondsPerMinute": entry(

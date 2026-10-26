@@ -346,8 +346,10 @@ export function procsFromTalents(ranks = {}) {
       );
     }
   }
-  return Object.keys(PROC_TABLES).map((id) =>
-    defineRankedProc(PROC_TABLES[id], Object.hasOwn(ranks, id) ? ranks[id] : 0),
+  return Object.keys(PROC_TABLES).flatMap((id) =>
+    PROC_TABLES[id].map((spec) =>
+      defineRankedProc(spec, Object.hasOwn(ranks, id) ? ranks[id] : 0),
+    ),
   );
 }
 
