@@ -267,9 +267,10 @@ rejects them under `js/`.
   (the catalogue's) and a display `name`, and the engine keys cooldowns, auras
   and DoTs by id.
 - `js/auras.js` — The aura model (A1). `AURAS` holds each buff and debuff as a
-  definition (id, name, target, duration, stacks, refresh rule, hooks, effects:
-  `haste`, `energyRegenMultiplier`, `dotDamageTaken`). `defineAura` validates
-  and freezes one. The engine reads effects by kind through
+  definition (id, name, target, duration, stacks and stack rule, charges,
+  refresh rule, hooks, effects: `haste`, `energyRegenMultiplier`,
+  `dotDamageTaken`, `armorReduction`). Hemorrhage, Expose Armor and Deadly
+  Poison are the target debuffs (A6). `defineAura` validates and freezes one. The engine reads effects by kind through
   `Simulation.auraEffects`, never by name. See
   [Aura model and ids](docs/mechanics.md#aura-model-and-ids).
 - `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
@@ -355,6 +356,11 @@ rejects them under `js/`.
   and recast timing.
 - `test/attack-resolver.test.js` — Attack-table bands, damage, and rejected
   inputs.
+- `test/target-debuffs.test.js` — Target debuffs (A6): Hemorrhage's +15% on
+  Rupture only and its 15 s expiry and refresh, stacks (cap, refresh, the
+  `highest` rule, separate ids), charges (use, restore, expiry), Expose Armor
+  and Deadly Poison in the data, and inherited names and unknown effect kinds
+  rejected.
 - `test/bleed-armor.test.js` — DoT crits, and armor skipped on bleeds and
   nature ticks.
 - `test/bench.test.js` — The benchmark: the CI bound on a 5-minute fight, the

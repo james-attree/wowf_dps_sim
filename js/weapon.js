@@ -41,10 +41,11 @@ export class Weapon {
     this.speed = speed; // in seconds
     this.hand = hand; // 'main' or 'off'
     // The source Simulation.resolveAttack records this hand's swings under.
-    this.attack = WEAPON_ATTACKS[hand];
-    if (this.attack === undefined) {
+    // Own keys only: "toString" or "__proto__" is not a hand.
+    if (!Object.hasOwn(WEAPON_ATTACKS, hand)) {
       throw new RangeError(`Weapon hand must be 'main' or 'off', not ${hand}.`);
     }
+    this.attack = WEAPON_ATTACKS[hand];
     // 'dagger' selects the dagger weapon percent. Any other type does not.
     this.type = type;
     this.swingTimer = 0; // seconds until the next swing; 0 means one is due

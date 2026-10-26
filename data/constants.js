@@ -19,6 +19,7 @@ const LIVE_VIEW = "James, 25 Oct 2026, issue #76";
 const SIM_CONFIG = "James, 26 Oct 2026, issue #92";
 const ABILITY_SCHEMA = "James, 26 Oct 2026, issue #93";
 const DEV_JUDGEMENT = "Developer, 26 Oct 2026, issue #93";
+const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -134,6 +135,14 @@ export const CONSTANTS = {
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Hemorrhage|]",
     "100% weapon damage, or 145% when the main hand is a dagger.",
+    false,
+  ),
+  exposeArmor: entry(
+    { armorPerComboPoint: 450, duration: 30 },
+    "armor per CP, s",
+    WOWF_EXPORT,
+    "rogue.json → spell_desc[Rogue|Expose Armor|Rank 5]",
+    "Max rank: 450 armor per combo point spent (2,250 at 5 points) for 30 s. The aura (js/auras.js) has one stack per combo point, up to combo.max. Expose Armor is not in the rotation, so only a test applies it.",
     false,
   ),
   "abilities.*": entry(
@@ -855,7 +864,7 @@ export const CONSTANTS = {
     ["energy"],
     "resource names",
     ENGINEERING,
-    `${ABILITY_SCHEMA}: the resources a spell_desc cost cell may name ("45 Energy"), lower case`,
+    `${DEV_JUDGEMENT_94}: an engineering judgement call by the dev, not a decision by James. The resources a spell_desc cost cell may name ("45 Energy"), lower case`,
     'Not a game rule. Every cost cell in the Assassination, Combat and Subtlety tabs reads "N Energy". A cell like "45 sec" has the same shape but is a time, so js/abilities.js reads only the units listed here as costs and rejects the rest. Add a resource here when a class that spends it is parsed.',
     false,
   ),
