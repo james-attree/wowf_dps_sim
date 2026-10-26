@@ -1,11 +1,25 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
+import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import {
   buildTalentCatalogue,
   slugify,
   talentCatalogue,
 } from "../js/talents.js";
+
+const execFileAsync = promisify(execFile);
 
 const snapshot = JSON.parse(
   await readFile(
@@ -206,6 +220,42 @@ describe("talent catalogue from the vendored snapshot", () => {
     }, TypeError);
   });
 
+  it("freezes trees, each tree and each tree's talents, not just the lookups (#91)", () => {
+    assert.ok(Object.isFrozen(talentCatalogue.trees));
+    for (const tree of talentCatalogue.trees) {
+      assert.ok(Object.isFrozen(tree), tree.id);
+      assert.ok(Object.isFrozen(tree.talents), tree.id);
+      assert.equal(talentCatalogue.byTree(tree.id), tree.talents);
+      assert.throws(() => tree.talents.push(tree.talents[0]), TypeError);
+      assert.throws(() => {
+        tree.name = "Changed";
+      }, TypeError);
+    }
+    assert.throws(() => talentCatalogue.trees.pop(), TypeError);
+    assert.throws(() => talentCatalogue.talents.pop(), TypeError);
+    assert.throws(() => {
+      talentCatalogue.trees[0].talents[0] = null;
+    }, TypeError);
+    assert.throws(() => {
+      talentCatalogue.get = () => undefined;
+    }, TypeError);
+    assert.equal(talentCatalogue.talents.length, 53);
+  });
+
+  it("refuses a name that is not a string, and trims one that is", () => {
+    for (const bad of [undefined, null, 7, {}, ["Precision"]]) {
+      assert.throws(
+        () => talentCatalogue.byName(bad),
+        /byName needs a talent name as a string/,
+      );
+    }
+    assert.equal(
+      talentCatalogue.byName("\t Precision\n"),
+      talentCatalogue.get("combat.precision"),
+    );
+    assert.equal(talentCatalogue.byName("   "), undefined);
+  });
+
   it("does not change when the snapshot object it was built from changes", () => {
     const copy = structuredClone(snapshot);
     const catalogue = buildTalentCatalogue(copy);
@@ -214,6 +264,228 @@ describe("talent catalogue from the vendored snapshot", () => {
       catalogue.get("combat.improved-eviscerate").ranks[0],
       snapshot.talents.trees[1].talents[0].desc[0],
     );
+  });
+});
+
+// Adrenaline Rush has no `req` in the snapshot, and that is legitimate: it is a
+// row 7 talent with no prerequisite. A missing `req` is not an error.
+
+function outlaw(...talents) {
+  return fixture([{ name: "Outlaw", icon: "i", talents }]);
+}
+
+describe("buildTalentCatalogue load-time validation (D11)", () => {
+  it("loads the vendored snapshot, which passes every check", () => {
+    assert.doesNotThrow(() => buildTalentCatalogue(snapshot));
+    assert.equal(talentCatalogue.get("combat.adrenaline-rush").req, null);
+  });
+
+  it("rejects a bad or missing name", () => {
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), name: undefined })),
+      /"name" must be a string/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), name: 5 })),
+      /"name" must be a string/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("   "))),
+      /"name" must be a non-empty string/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(fixture([{ icon: "i", talents: [raw("A")] }])),
+      /"name" must be a non-empty string/,
+    );
+    assert.throws(() => buildTalentCatalogue(outlaw(null)), TypeError);
+  });
+
+  it("rejects a bad or missing icon, on a talent or a tree", () => {
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), icon: undefined })),
+      /"icon" must be a string/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), icon: 3 })),
+      /"icon" must be a string/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("A", { icon: "" }))),
+      /"icon" must be a non-empty string/,
+    );
+    assert.throws(
+      () =>
+        buildTalentCatalogue(
+          fixture([{ name: "Outlaw", talents: [raw("A")] }]),
+        ),
+      /"icon" must be a non-empty string/,
+    );
+  });
+
+  it("rejects a max that is missing, not a whole number, or below 1", () => {
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), max: undefined })),
+      /"max" must be a number/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw({ ...raw("A"), max: "1" })),
+      /"max" must be a number/,
+    );
+    for (const max of [0, -1, 1.5, Number.NaN]) {
+      assert.throws(
+        () => buildTalentCatalogue(outlaw(raw("A", { max }))),
+        /"max" must be a whole number of 1 or more/,
+        String(max),
+      );
+    }
+  });
+
+  it("rejects a max that differs from the number of rank texts", () => {
+    assert.throws(
+      () =>
+        buildTalentCatalogue(
+          outlaw(raw("A", { max: 3, desc: ["One.", "Two."] })),
+        ),
+      /"max" is 3 but "desc" has 2 rank texts/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("A", { max: 1, desc: [] }))),
+      /"max" is 1 but "desc" has 0 rank texts/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("A", { desc: ["One.", "Two."] }))),
+      /"max" is 1 but "desc" has 2 rank texts/,
+    );
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("A", { desc: [""] }))),
+      /"desc\[0\]" must be a non-empty string/,
+    );
+  });
+
+  it("rejects a row or column that is not a whole number of 1 or more", () => {
+    for (const field of ["row", "col"]) {
+      for (const bad of [0, -2, 1.5]) {
+        assert.throws(
+          () => buildTalentCatalogue(outlaw(raw("A", { [field]: bad }))),
+          new RegExp(`"${field}" must be a whole number of 1 or more`),
+          `${field} ${bad}`,
+        );
+      }
+    }
+  });
+
+  it("rejects two talents on the same row and column of a tree", () => {
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("A"), raw("B"))),
+      /row 1, col 1 is already taken in outlaw/,
+    );
+    assert.doesNotThrow(() =>
+      buildTalentCatalogue(outlaw(raw("A"), raw("B", { col: 2 }))),
+    );
+    // The same cell in another tree is fine: every tree has its own grid.
+    assert.doesNotThrow(() =>
+      buildTalentCatalogue(
+        fixture([
+          { name: "Outlaw", icon: "i", talents: [raw("A")] },
+          { name: "Ranger", icon: "i", talents: [raw("B")] },
+        ]),
+      ),
+    );
+  });
+
+  it("rejects a prerequisite in another tree, with a message that says so", () => {
+    assert.throws(
+      () =>
+        buildTalentCatalogue(
+          fixture([
+            { name: "Outlaw", icon: "i", talents: [raw("Quick Draw")] },
+            {
+              name: "Ranger",
+              icon: "i",
+              talents: [raw("Aim", { row: 2, req: "Quick Draw" })],
+            },
+          ]),
+        ),
+      /"ranger\.aim" requires "Quick Draw", which is in outlaw\. A prerequisite must be in the same tree\./,
+    );
+  });
+
+  it("rejects a prerequisite that is the talent itself or not on an earlier row", () => {
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("A", { req: "A" }))),
+      /"outlaw\.a" requires "A", which is not on an earlier row/,
+    );
+    assert.throws(
+      () =>
+        buildTalentCatalogue(
+          outlaw(raw("A", { row: 2 }), raw("B", { row: 2, col: 2, req: "A" })),
+        ),
+      /not on an earlier row/,
+    );
+    assert.throws(
+      () =>
+        buildTalentCatalogue(
+          outlaw(raw("A", { row: 1, req: "B" }), raw("B", { row: 2, col: 2 })),
+        ),
+      /not on an earlier row/,
+    );
+    assert.doesNotThrow(() =>
+      buildTalentCatalogue(outlaw(raw("A"), raw("B", { row: 2, req: "A" }))),
+    );
+  });
+
+  it("rejects a prerequisite that is not text", () => {
+    assert.throws(
+      () => buildTalentCatalogue(outlaw(raw("A", { req: 4 }))),
+      /"req" must be a non-empty string/,
+    );
+  });
+
+  it("rejects a tree whose talents are not a list", () => {
+    assert.throws(
+      () =>
+        buildTalentCatalogue(
+          fixture([{ name: "Outlaw", icon: "i", talents: {} }]),
+        ),
+      /"talents" must be an array/,
+    );
+  });
+
+  it("fails the import of js/talents.js itself when the snapshot is bad", async () => {
+    // talentCatalogue is built when the module loads. Copy the module next to
+    // a broken snapshot and import it in a fresh Node process.
+    const dir = await mkdtemp(join(tmpdir(), "wowf-talents-"));
+    try {
+      await mkdir(join(dir, "js"));
+      await mkdir(join(dir, "data/talentsforever"), { recursive: true });
+      await writeFile(join(dir, "package.json"), '{"type":"module"}');
+      await copyFile(
+        new URL("../js/talents.js", import.meta.url),
+        join(dir, "js/talents.js"),
+      );
+      const importIt = () =>
+        execFileAsync(process.execPath, [
+          "--input-type=module",
+          "-e",
+          `import(${JSON.stringify(pathToFileURL(join(dir, "js/talents.js")).href)})`,
+        ]);
+
+      await writeFile(
+        join(dir, "data/talentsforever/rogue.json"),
+        JSON.stringify(snapshot),
+      );
+      await importIt();
+
+      const broken = structuredClone(snapshot);
+      broken.talents.trees[1].talents[0].max += 1;
+      await writeFile(
+        join(dir, "data/talentsforever/rogue.json"),
+        JSON.stringify(broken),
+      );
+      await assert.rejects(importIt(), /"max" is \d+ but "desc" has \d+ rank/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 

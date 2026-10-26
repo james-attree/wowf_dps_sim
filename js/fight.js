@@ -1,3 +1,4 @@
+import { dataVersion } from "./data-version.js";
 import { Rogue } from "./rogue.js";
 import { normalizeSeed } from "./rng.js";
 import { Simulation } from "./simulation.js";
@@ -5,12 +6,13 @@ import { Simulation } from "./simulation.js";
 // Build the engine for one fight: a rogue and a simulation that draws from the
 // seed. runFight and the live page (js/main.js) both start here, so they run
 // the same engine. The seed is an integer and wraps to an unsigned 32-bit
-// value; the returned seed is the wrapped one.
+// value; the returned seed is the wrapped one. `dataVersion` names the data
+// snapshot the fight runs on (js/data-version.js).
 export function createFight(seed) {
   const fightSeed = normalizeSeed(seed);
   const rogue = new Rogue();
   const simulation = new Simulation(rogue, { seed: fightSeed });
-  return { seed: fightSeed, rogue, simulation };
+  return { seed: fightSeed, dataVersion, rogue, simulation };
 }
 
 // Headless entry point: build a rogue and a simulation, run one fight, and
@@ -28,6 +30,8 @@ export function createFight(seed) {
 //   totalDamage, dps
 //   abilities  per-ability totals keyed by name (see Simulation.recordAbility)
 //   log        the combat log, newest first, at most k("log.maxEvents") rows
+//   dataVersion  which data produced the result: the snapshot's generated date
+//              and client build, "<generated>+<build>" (js/data-version.js)
 export function runFight(options) {
   // null, undefined, and anything that is not an object have no seed or
   // duration to read, so they get the same RangeError as a bad seed.
@@ -56,5 +60,6 @@ export function runFight(options) {
       ]),
     ),
     log: simulation.combatLog.map((event) => ({ ...event })),
+    dataVersion,
   };
 }

@@ -70,6 +70,13 @@ Open the page through one of those servers. A `file://` URL will not load it.
 `index.html` pulls in `js/main.js` with `<script type="module">`, and browsers
 do not import ES modules from `file://`.
 
+The code imports JSON files with import attributes (`import data from
+"./x.json" with { type: "json" }`). The live page does it for
+`data/talentsforever/manifest.json` (the data version), and `js/talents.js` does
+it for `rogue.json`. That needs Chrome or Edge 123+, Safari 17.2+, or Firefox
+138+ (Node 20.19+ is the `engines` range). An older browser fails to load the
+page.
+
 ## Development
 
 `npm ci` installs the dev dependencies (`eslint`, `@eslint/js`, and
@@ -228,9 +235,14 @@ rejects them under `js/`.
   `createFight(seed)`, the `Rogue` and `Simulation` pair that `runFight` and the
   live page both build. `runFight` makes one `run(duration)` call, and
   returns a plain object: seed, simulated duration, total damage, DPS, a
-  per-ability breakdown (`Simulation.abilityStats`), and the combat log. The
-  same seed and duration give a deep-equal result, and it loads in Node with no
-  DOM.
+  per-ability breakdown (`Simulation.abilityStats`), the combat log, and
+  `dataVersion`, which data snapshot the fight ran on. `createFight` returns
+  `dataVersion` too. The same seed and duration give a deep-equal result, and it
+  loads in Node with no DOM.
+- `js/data-version.js` — The data version (D11): `dataVersion`, a string
+  `<generated>+<build>` such as `2026-10-20+1.60.1.70425`, read from
+  `data/talentsforever/manifest.json`. `buildDataVersion(manifest)` validates a
+  manifest. Every `runFight` result carries it.
 - `js/rogue.js` — Energy, combo points, crit, hit, weapons, abilities, the
   placeholder Combat priority (`rotation.priority`), and `stackHaste`
   (`haste.stacking`).
@@ -246,8 +258,9 @@ rejects them under `js/`.
   `data/talentsforever/rogue.json` when the module loads: 53 talents with
   `tree.slug` ids, row, column, max rank, prerequisite (`req`), icon name and
   the text of every rank. `buildTalentCatalogue(snapshot)` builds one from any
-  parsed export, and `slugify(name)` is the id rule. The live page does not
-  import it yet.
+  parsed export and validates it (D11): unique ids, `req` resolves in the same
+  tree, `max` equals the rank texts, sane positions. `slugify(name)` is the id
+  rule. The live page does not import it yet.
 - `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
   off-hand weapon.
 - `js/gcd-meter.js` — Sets the GCD meter's ARIA range from
@@ -256,7 +269,9 @@ rejects them under `js/`.
   `k`.
 - `data/talentsforever/` — Vendored talentsforever rogue export. `rogue.json`
   is the snapshot; `manifest.json` records the source URL, credit, licence,
-  generated date, client build, and fetch date. The app never fetches it.
+  generated date, client build, and fetch date. The app never calls `fetch` for
+  it. The live page imports `manifest.json` (for the data version) through
+  `js/data-version.js`, and does not load `rogue.json` yet.
 - `docs/mechanics.md` — Attack table, weapons, the GCD, energy, combo points,
   the placeholder Combat rotation, finishers, Premeditation, Adrenaline Rush,
   Blade Flurry, Slice and Dice, haste stacking, armor, bleeds and DoTs, the
@@ -304,6 +319,9 @@ rejects them under `js/`.
   fixture.
 - `test/constants.test.js` — The constant table's shape and the values the
   engine reads.
+- `test/data-version.test.js` — `dataVersion`: its format, that it matches the
+  manifest and the snapshot, bad manifests, and that `runFight`, `createFight`
+  and the scripted harness all carry it.
 - `test/engine-lint.test.js` — The engine lint rules (numeric literals, console,
   `document` and `window`, clocks, `Math.random`) and Prettier coverage.
 - `test/finisher.test.js` — Finishers need a combo point.
@@ -312,8 +330,9 @@ rejects them under `js/`.
 - `test/gcd-epsilon.test.js` — GCD readiness within `sim.tickEpsilon`.
 - `test/gcd-flags.test.js` — Which abilities start the GCD.
 - `test/gcd-meter.test.js` — The GCD meter's ARIA range.
-- `test/golden.test.js` — The golden-seed tests: each case against its fixture,
-  the failure message, and the update script's dry run and `--write`.
+- `test/golden.test.js` — The golden-seed tests: each case against its fixture
+  (without `dataVersion`, which is not pinned), the failure message, and the
+  update script's dry run and `--write`.
 - `test/golden/` — The pinned `runFight` results, one JSON file per golden
   case. Written only by `npm run golden:update -- --write`. Prettier skips the
   directory.
@@ -342,7 +361,9 @@ rejects them under `js/`.
 - `test/scripted-fight.test.js` — The scripted-cast fight used by the golden
   cases: cast order, waiting, errors (a missing or non-object argument, unknown
   or inherited ability names), and restoring the rotation.
-- `test/serve.test.js` — The static server's port and path checks.
+- `test/serve.test.js` — The static server's port and path checks, and that the
+  page's script graph, including the JSON module, is served with the right
+  content types.
 - `test/simulation.test.js` — Console silence, buff and cooldown duration,
   Adrenaline Rush energy, buff and debuff lists, and DoT expiry.
 - `test/slice-and-dice.test.js` — Slice and Dice refresh, swing haste, and
@@ -351,7 +372,8 @@ rejects them under `js/`.
   steps, no wall-clock reads, and the same state for the same seed and steps.
 - `test/talents.test.js` — The talent catalogue: the 17, 17 and 19 tree counts,
   unique ids, every field against the snapshot, known talents end to end, the
-  lookups, and rejected bad data.
+  lookups, the freeze, and the load-time validation with deliberately broken
+  data (including a failed import of `js/talents.js`).
 - `test/tooling.test.js` — The dev package's scripts and Node `engines` range.
 - `test/weapon.test.js` — Weapon damage, the off-hand penalty, and swing-timer
   overshoot.

@@ -753,6 +753,8 @@ The result has these fields:
 - `log` — the combat log, newest first, holding at most `k("log.maxEvents")`
   events. Each event is a copy of the engine's row: `id`, `time`, `name`,
   `type`, `damage`, `status`, `outcome`, `icon`.
+- `dataVersion` — which data produced the result (see Data version). It is a
+  string and the last field. It does not change any number in the result.
 
 The result is numbers, strings, plain objects and arrays. It holds no
 reference to the `Rogue` or the `Simulation`, so `structuredClone`, JSON, and
@@ -782,6 +784,48 @@ of a skill that is not an attack. It records and changes no combat rule.
 
 The attack table never gives a parry yet, so `parries` stays `0`.
 
+### Load-time validation
+
+`buildTalentCatalogue` checks the data as it builds, and throws on the first
+problem. The catalogue for the vendored snapshot is built when `js/talents.js`
+loads, so bad data fails that import loudly. The checks (roadmap D11):
+
+- Every tree and talent has a non-empty `name` and `icon`, and a talent has
+  `row`, `col`, `max` and `desc`.
+- `row`, `col` and `max` are whole numbers of 1 or more.
+- `max` equals the number of rank texts in `desc`, and each rank text is
+  non-empty.
+- Ids are unique, trees are unique, and no two talents in a tree share a row and
+  column.
+- A `req` names a talent in the same tree, on an earlier row, and not the talent
+  itself. A `req` that names a talent in another tree is rejected, with a
+  message that says so. A talent with no `req` is fine: Adrenaline Rush has none
+  in the snapshot.
+
+`test/talents.test.js` feeds each of these broken data and checks the message,
+and checks the vendored snapshot passes. It also imports a copy of
+`js/talents.js` beside a broken snapshot in a fresh Node process, to prove the
+module itself fails to load.
+
+## Data version
+
+Every result says which data it came from. `js/data-version.js` builds
+`dataVersion` from `data/talentsforever/manifest.json`, the file
+`npm run data:refresh` writes: the snapshot's `generated` date and the client
+`build`, joined as `<generated>+<build>`, for example `2026-10-20+1.60.1.70425`.
+Neither part may be empty or contain a `+`, and a manifest that fails this stops
+the module loading. A refresh changes the version with no code change.
+
+`runFight` returns it as the last field, `dataVersion`, and `createFight`
+returns it beside `seed`. The module reads the small manifest only, so the live
+page does not load the 170 KB snapshot just to know its version.
+`test/data-version.test.js` checks that the manifest agrees with `rogue.json`
+(`generated` and `spellbook.build`), and with what `buildManifest` would write
+for it.
+
+Adding the field did not change any number. The golden fixtures do not hold it
+(see Golden-seed tests), so they stayed byte-identical.
+
 ## Golden-seed tests
 
 A golden test pins the whole result of a fixed fight, so a change to a rule, a
@@ -789,9 +833,15 @@ constant, or the engine shows up in review as a diff of numbers. The cases are
 listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
 10 s), a 5-minute fight (seed 1, 300 s), another seed (12345, 90 s), and a
 scripted-cast fight (seed 68, 50 s, described below). Each
-has a fixture in `test/golden/<name>.json` holding the complete `runFight`
-result: `seed`, `duration`, `totalDamage`, `dps`, every ability's record, and
-the capped log. The files put one ability and one log event on each line, so a
+has a fixture in `test/golden/<name>.json` holding the `runFight` result:
+`seed`, `duration`, `totalDamage`, `dps`, every ability's record, and the capped
+log. The one result field it leaves out is `dataVersion` (see Data version).
+`runGoldenCase` drops it before comparing and before writing (`UNPINNED_FIELDS`
+in `scripts/golden-update.mjs`), because it changes on every
+`npm run data:refresh`, even when no number in a fight moves, and pinning it
+would rewrite every fixture each time. `test/golden.test.js` checks it
+separately: no fixture mentions it, and every result carries the current
+`dataVersion`. The files put one ability and one log event on each line, so a
 git diff points at the line that moved.
 
 None of the first three cases casts Eviscerate or Rupture: the placeholder
@@ -927,7 +977,7 @@ What a reader should not assume from the sections above:
 talent number of its own. Every field below comes from the snapshot when the
 module loads, so `npm run data:refresh` changes the catalogue with no code
 change. Nothing in the engine or the live page uses it yet; the later Phase 2
-issues build on it.
+issues build on it. It is validated when it loads (see Load-time validation).
 
 Each talent has:
 
@@ -952,13 +1002,12 @@ tree part of an id is the slug of the tree's name (`assassination`, `combat`,
 
 The snapshot holds 53 talents: 17 Assassination, 17 Combat and 19 Subtlety. Its
 `removed` lists (Classic talents that this build does not have) are not
-loaded, and neither are the `classic` comparison fields. The loader rejects a
-duplicate id, a duplicate tree, a missing field and a `req` that is not in the
-same tree, and it does not check that a talent has `max` rank texts; that check
-belongs to the load-time validation issue (D11, #91).
-
-The lookups are `get(id)`, `byTree(treeId)`, `byName(name, treeId?)` (ignoring
-case) and `rankText(id, rank)`. The catalogue is deeply frozen, because one
-object is shared by every caller. Loading it draws no random numbers, and the
+loaded, and neither are the `classic` comparison fields. The lookups are
+`get(id)`, `byTree(treeId)`, `byName(name, treeId?)` and `rankText(id, rank)`.
+`byName` ignores case and leading and trailing whitespace (`" premeditation\n"`
+finds Premeditation), and it throws a `TypeError` for a name that is not a
+string. The catalogue is deeply frozen, because one object is shared by every
+caller: `trees`, each tree, each tree's `talents` (the same array `byTree`
+returns), `talents` and each talent are read-only. Loading it draws no random numbers, and the
 module reads the JSON through an import attribute, so it needs no `fetch` or
 `fs` and runs in Node and in the browser.

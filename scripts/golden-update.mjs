@@ -56,12 +56,29 @@ export const GOLDEN_CASES = [
 // writes .DS_Store into any folder Finder opens. They are not fixtures.
 export const IGNORED_FILES = [".DS_Store"];
 
-// The fight a case pins: runFight, or the case's script on the real engine.
+// Result fields that are not pinned by a fixture. `dataVersion` (D11, #91)
+// names the data snapshot, so it changes whenever `npm run data:refresh` runs,
+// even when no number in a fight moves. Pinning it would rewrite every fixture
+// on each refresh. test/golden.test.js checks it separately: every result must
+// carry the current dataVersion.
+export const UNPINNED_FIELDS = ["dataVersion"];
+
+// A result without the unpinned fields: the payload a fixture holds.
+export function pinnedPart(result) {
+  return Object.fromEntries(
+    Object.entries(result).filter(([key]) => !UNPINNED_FIELDS.includes(key)),
+  );
+}
+
+// The fight a case pins: runFight, or the case's script on the real engine,
+// without the unpinned fields.
 export function runGoldenCase(goldenCase) {
   const { seed, duration, script } = goldenCase;
-  return script === undefined
-    ? runFight({ seed, duration })
-    : runScriptedFight({ seed, duration, script });
+  return pinnedPart(
+    script === undefined
+      ? runFight({ seed, duration })
+      : runScriptedFight({ seed, duration, script }),
+  );
 }
 
 // How many changed fields a failure message lists before it says "and N more".
