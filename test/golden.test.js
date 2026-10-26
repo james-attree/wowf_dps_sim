@@ -417,7 +417,7 @@ describe("the scripted golden case", () => {
     // 1 cast per script entry, and no Slice and Dice, Blade Flurry or
     // Adrenaline Rush, which the placeholder rotation would have cast.
     const scriptedCasts = {
-      "Sinister Strike": 9,
+      "Sinister Strike": 12,
       Hemorrhage: 1,
       Rupture: 1,
       Eviscerate: 1,

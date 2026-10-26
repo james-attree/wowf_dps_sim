@@ -18,10 +18,20 @@ export const UPDATE_COMMAND = "npm run golden:update -- --write";
 // A scripted case (#85) casts these Rogue.abilities in this order, each as soon
 // as it can be cast, instead of following the placeholder rotation, which never
 // casts Eviscerate or Rupture. Hemorrhage goes last before Rupture so its
-// debuff is up for every Rupture tick. Five builders at 5 combo points feed
-// Eviscerate. The seed was chosen so that the fight has Rupture ticks, tick
-// crits, and an Eviscerate crit; test/golden.test.js checks that it keeps them.
+// debuff is up for every Rupture tick, and Rupture needs 5 combo points for its
+// full 16 s, which outlasts the debuff, so the fixture has ticks both with and
+// without the bonus. Five builders at 5 combo points feed Eviscerate. The seed
+// was chosen so that the fight has Rupture ticks and a tick crit;
+// test/golden.test.js checks that it keeps them. After A7 (#100) the attack
+// table moved the draws and the crit chance: two of the first four Sinister
+// Strikes dodged, so Rupture went out at 3 combo points and lost the ticks
+// without the bonus. The script now opens with seven Sinister Strikes, so
+// Rupture still goes out at 5 combo points when two dodge (a landed extra only
+// wastes a point, as combo points stop at 5), and the seed was kept. Eviscerate is a plain hit here, not a crit.
 export const FINISHER_SCRIPT = [
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
   "sinisterStrike",
   "sinisterStrike",
   "sinisterStrike",
