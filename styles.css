@@ -460,7 +460,8 @@ h3 {
   color: #ed7167;
 }
 
-.combat-log-status.outcome-glancing {
+.combat-log-status.outcome-glancing,
+.combat-log-status.outcome-block {
   color: #e9aa4d;
 }
 

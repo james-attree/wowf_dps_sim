@@ -27,7 +27,8 @@ export const UPDATE_COMMAND = "npm run golden:update -- --write";
 // Strikes dodged, so Rupture went out at 3 combo points and lost the ticks
 // without the bonus. The script now opens with seven Sinister Strikes, so
 // Rupture still goes out at 5 combo points when two dodge (a landed extra only
-// wastes a point, as combo points stop at 5), and the seed was kept. Eviscerate is a plain hit here, not a crit.
+// wastes a point, as combo points stop at 5), and the seed was kept.
+// Eviscerate is a plain hit here, not a crit.
 export const FINISHER_SCRIPT = [
   "sinisterStrike",
   "sinisterStrike",

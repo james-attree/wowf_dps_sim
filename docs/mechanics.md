@@ -121,6 +121,13 @@ below 0, and cannot crit. `k("block.value")` is 0 (an assumption, no source in
 hand gives the amount), so a block does full damage. Blocks are counted under
 `blocks` in an ability's record, next to `parries`.
 
+**Where wowsims differs.** wowsims/classic draws a glancing-damage roll on
+every white swing, and does not clamp the crit chance. This engine draws the
+glancing roll only when the swing is a glancing blow, and clamps the crit
+chance (to 0 to 1, before the suppression comes off). The outcome bands are the
+same; the difference is in how many draws a fight takes, and in a crit chance
+that would go below 0 or above 1 (noted in the #121 QA review).
+
 **Crit suppression.** The crit chance a white swing or a yellow second roll
 reads is the clamped chance less 3% (the skill gap, 0.2% per point) and less
 1.8% (the aura term, a flat reduction Magey notes), never below 0. A DoT tick
