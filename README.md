@@ -263,7 +263,15 @@ rejects them under `js/`.
   Ambush, Blade Flurry, Rupture, and Hemorrhage. Premeditation does not start
   the GCD. `Skill.cast` treats a remainder within `sim.tickEpsilon` as ready.
   Rupture's AP term is length-guarded with the damage and duration tables,
-  and Rupture sets `bleed` so its ticks can skip armor.
+  and Rupture sets `bleed` so its ticks can skip armor. A skill has an `id`
+  (the catalogue's) and a display `name`, and the engine keys cooldowns, auras
+  and DoTs by id.
+- `js/auras.js` — The aura model (A1). `AURAS` holds each buff and debuff as a
+  definition (id, name, target, duration, stacks, refresh rule, hooks, effects:
+  `haste`, `energyRegenMultiplier`, `dotDamageTaken`). `defineAura` validates
+  and freezes one. The engine reads effects by kind through
+  `Simulation.auraEffects`, never by name. See
+  [Aura model and ids](docs/mechanics.md#aura-model-and-ids).
 - `js/attack-resolver.js` — One-roll melee outcomes (miss, dodge, parry,
   glancing, crit, hit) for white swings and skills. Chances come from `k(id)`.
 - `js/talents.js` — The talent catalogue (D4). `talentCatalogue` is built from
@@ -287,6 +295,7 @@ rejects them under `js/`.
   D2. See [Ability schema](docs/mechanics.md#ability-schema).
 - `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
   off-hand weapon. A speed below `config.minWeaponSpeed` throws a `RangeError`.
+  `WEAPON_ATTACKS` gives the `main-hand` and `off-hand` ids and their labels.
 - `js/gcd-meter.js` — Sets the GCD meter's ARIA range from
   `simulation.gcdDuration` (`gcd.duration`).
 - `data/constants.js` — The number table above, exported as `CONSTANTS` and
@@ -329,13 +338,19 @@ rejects them under `js/`.
   not contain game-number literals.
 - `eslint/engine-purity.js` — Rule `engine-purity/no-numeric-literal`. A
   numeric variable initializer in an engine module fails lint, except `0`,
-  `1`, and `-1`.
+  `1`, and `-1`. Rule `engine-purity/no-display-name` fails a spell, aura or
+  weapon display name used as a string or key in `js/`, outside `js/skill.js`,
+  `js/auras.js` and `js/weapon.js`.
 - `test/abilities.test.js` — The ability schema: Sinister Strike R8, Eviscerate
   R9, Rupture R6 and Slice and Dice R2 against a pinned snapshot of their
   values, every other ability's shape, parity with the hand-set constants the
   engine still uses, the constants each missing number comes from, malformed
-  text rejected with the spell and rank named, a refreshed snapshot, deep
+  text rejected with the spell and rank named (including an unknown cost unit,
+  min damage above max and an unread damage sentence), a refreshed snapshot, deep
   freezing, and a failed import of `js/abilities.js`.
+- `test/auras.test.js` — The aura model: definition validation, refresh rules,
+  stacks, hooks, effects by kind (haste, energy regeneration, DoT damage
+  taken), the skill ids matching the catalogue, and the id-keyed breakdown.
 - `test/adrenaline-rush.test.js` — Adrenaline Rush cooldown from the export,
   and recast timing.
 - `test/attack-resolver.test.js` — Attack-table bands, damage, and rejected
@@ -353,7 +368,8 @@ rejects them under `js/`.
   manifest and the snapshot, bad manifests, and that `runFight`, `createFight`
   and the scripted harness all carry it.
 - `test/engine-lint.test.js` — The engine lint rules (numeric literals, console,
-  `document` and `window`, clocks, `Math.random`) and Prettier coverage.
+  `document` and `window`, clocks, `Math.random`, display names) and Prettier
+  coverage.
 - `test/finisher.test.js` — Finishers need a combo point.
 - `test/fixed-step.test.js` — `Simulation.run`: the fixed step, total time,
   a 5-minute fight, and results that do not depend on how a duration is split.

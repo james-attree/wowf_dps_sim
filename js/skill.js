@@ -1,7 +1,12 @@
 import { k } from "../data/constants.js";
+import { AURAS } from "./auras.js";
 
+// A skill is identified by its id, the ability catalogue's id for it
+// (js/abilities.js, slugify(name)). The name is for display: the page, the
+// combat log and the result's per-ability breakdown. Nothing compares it.
 class Skill {
-  constructor(name, energyCost, cooldown) {
+  constructor(id, name, energyCost, cooldown) {
+    this.id = id;
     this.name = name;
     this.energyCost = energyCost;
     this.cooldown = cooldown;
@@ -16,9 +21,10 @@ class Skill {
     this.icon = "./img/stealth.jpg"; // Default icon, can be overridden by subclasses
     this.dot = false;
     this.bleed = false;
-    // A duration on the player (haste, energy regen) is a buff. A duration on
-    // the target (a DoT, or bonus damage taken) is a debuff.
-    this.targetAura = false;
+    // The aura (js/auras.js) a cast puts up for `duration` seconds, if any. An
+    // aura on the player (haste, energy regen) is a buff, one on the target (a
+    // DoT, or bonus damage taken) a debuff: the definition says which.
+    this.aura = null;
   }
 
   damage() {
@@ -27,7 +33,7 @@ class Skill {
   }
 
   onCooldown(rogue, simulation) {
-    return simulation.cooldowns[this.name] > 0;
+    return simulation.cooldowns[this.id] > 0;
   }
 
   cast(rogue, simulation) {
@@ -58,23 +64,17 @@ class Skill {
         if (this.dot) {
           // DoTs log the application with no immediate damage. Ticks use the resolved amount.
           result = simulation.resolveDotAttack(
-            this.name,
+            this,
             "skill",
             this.damage(),
             this.duration,
-            this.icon,
             this.bleed,
           );
         } else {
-          result = simulation.resolveAttack(
-            this.name,
-            "skill",
-            this.damage(),
-            this.icon,
-          );
+          result = simulation.resolveAttack(this, "skill", this.damage());
         }
       } else {
-        simulation.recordAbility(this.name, "cast");
+        simulation.recordAbility(this, "cast");
         simulation.addCombatEvent(
           this.name,
           "skill",
@@ -110,17 +110,14 @@ class Skill {
 
       //  Put this attack on CD
       if (this.cooldown > 0) {
-        simulation.cooldowns[this.name] = this.cooldown; // Set the skill's cooldown
+        simulation.cooldowns[this.id] = this.cooldown; // Set the skill's cooldown
       }
 
-      if (this.duration > 0) {
-        const auras = this.targetAura
-          ? simulation.activeDebuffs
-          : simulation.activeBuffs;
-        auras[this.name] = {
+      if (this.duration > 0 && this.aura) {
+        simulation.applyAura(this.aura, {
           duration: this.duration,
           icon: this.icon,
-        };
+        });
       }
 
       return result;
@@ -132,7 +129,7 @@ class Skill {
 export class SinisterStrike extends Skill {
   constructor(rogue) {
     const stats = k("sinisterStrike");
-    super("Sinister Strike", stats.energy, stats.cooldown);
+    super("sinister-strike", "Sinister Strike", stats.energy, stats.cooldown);
     this.rogue = rogue;
     this.comboPointsGenerated = stats.comboPoints; // sinisterStrike.comboPoints
     this.icon = "./img/sinister_strike.jpg"; // Set the icon for Sinister Strike
@@ -148,7 +145,7 @@ export class SinisterStrike extends Skill {
 export class Eviscerate extends Skill {
   constructor(rogue) {
     const stats = k("eviscerate");
-    super("Eviscerate", stats.energy, stats.cooldown);
+    super("eviscerate", "Eviscerate", stats.energy, stats.cooldown);
     this.rogue = rogue;
     this.spender = true; // Eviscerate is a combo point spender
     this.icon = "./img/eviscerate.jpg"; // Set the icon for Eviscerate
@@ -172,7 +169,7 @@ export class Eviscerate extends Skill {
 export class Premeditation extends Skill {
   constructor(rogue) {
     const stats = k("premeditation");
-    super("Premeditation", stats.energy, stats.cooldown);
+    super("premeditation", "Premeditation", stats.energy, stats.cooldown);
     this.comboPointsGenerated = stats.comboPoints; // premeditation.comboPoints
     this.rogue = rogue;
     this.triggersGcd = false; // gcd.flags: Premeditation does not start the GCD
@@ -186,8 +183,9 @@ export class Premeditation extends Skill {
 export class AdrenalineRush extends Skill {
   constructor(rogue) {
     const stats = k("adrenalineRush");
-    super("Adrenaline Rush", stats.energy, stats.cooldown);
+    super("adrenaline-rush", "Adrenaline Rush", stats.energy, stats.cooldown);
     this.duration = stats.duration;
+    this.aura = AURAS.adrenalineRush;
     this.rogue = rogue;
     this.attackSkill = false; // Adrenaline Rush is not an attack skill
     this.icon = "./img/adrenaline_rush.jpg"; // Set the icon for Adrenaline Rush
@@ -197,7 +195,8 @@ export class AdrenalineRush extends Skill {
 export class SliceAndDice extends Skill {
   constructor(rogue) {
     const stats = k("sliceAndDice");
-    super("Slice and Dice", stats.energy, stats.cooldown);
+    super("slice-and-dice", "Slice and Dice", stats.energy, stats.cooldown);
+    this.aura = AURAS.sliceAndDice;
     this.rogue = rogue;
     this.spender = true; // Slice and Dice is a combo point spender
     this.attackSkill = false; // Slice and Dice is not an attack skill
@@ -226,7 +225,8 @@ function mainHandWeaponMultiplier(stats, rogue) {
 export class GhostlyStrike extends Skill {
   constructor(rogue) {
     const stats = k("ghostlyStrike");
-    super("Ghostly Strike", stats.energy, stats.cooldown);
+    super("ghostly-strike", "Ghostly Strike", stats.energy, stats.cooldown);
+    this.aura = AURAS.ghostlyStrike;
     this.rogue = rogue;
     // ghostlyStrike.duration is stored as a self buff. The dodge chance is not applied.
     this.duration = stats.duration;
@@ -245,7 +245,7 @@ export class GhostlyStrike extends Skill {
 export class Backstab extends Skill {
   constructor(rogue) {
     const stats = k("backstab");
-    super("Backstab", stats.energy, stats.cooldown);
+    super("backstab", "Backstab", stats.energy, stats.cooldown);
     this.rogue = rogue;
     this.comboPointsGenerated = stats.comboPoints; // backstab.comboPoints
     this.icon = "./img/backstab.jpg"; // Set the icon for Backstab
@@ -263,7 +263,7 @@ export class Backstab extends Skill {
 export class Ambush extends Skill {
   constructor(rogue) {
     const stats = k("ambush");
-    super("Ambush", stats.energy, stats.cooldown);
+    super("ambush", "Ambush", stats.energy, stats.cooldown);
     this.rogue = rogue;
     this.comboPointsGenerated = stats.comboPoints; // ambush.comboPoints
     this.icon = "./img/ambush.jpg"; // Set the icon for Ambush
@@ -281,7 +281,8 @@ export class Ambush extends Skill {
 export class BladeFlurry extends Skill {
   constructor(rogue) {
     const stats = k("bladeFlurry");
-    super("Blade Flurry", stats.energy, stats.cooldown);
+    super("blade-flurry", "Blade Flurry", stats.energy, stats.cooldown);
+    this.aura = AURAS.bladeFlurry;
     this.rogue = rogue;
     this.duration = stats.duration;
     this.attackSkill = false; // Blade Flurry is not an attack skill
@@ -292,7 +293,8 @@ export class BladeFlurry extends Skill {
 export class Rupture extends Skill {
   constructor(rogue) {
     const stats = k("rupture");
-    super("Rupture", stats.energy, stats.cooldown);
+    super("rupture", "Rupture", stats.energy, stats.cooldown);
+    this.aura = AURAS.rupture;
     this.rogue = rogue;
     this.spender = true; // Rupture is a combo point spender
     this.triggersGcd = true; // Rupture triggers the global cooldown
@@ -300,7 +302,6 @@ export class Rupture extends Skill {
     this.icon = "./img/rupture.jpg"; // Set the icon for Rupture
     this.dot = true; // Rupture is a damage over time skill
     this.bleed = true; // Rupture ticks skip armor when bleed.ignoresArmor is set
-    this.targetAura = true;
   }
 
   damage() {
@@ -328,12 +329,12 @@ export class Rupture extends Skill {
 export class Hemorrhage extends Skill {
   constructor(rogue) {
     const stats = k("hemorrhage");
-    super("Hemorrhage", stats.energy, stats.cooldown);
+    super("hemorrhage", "Hemorrhage", stats.energy, stats.cooldown);
+    this.aura = AURAS.hemorrhage;
     this.rogue = rogue;
     this.duration = k("hemorrhage.ruptureBonus").duration;
     this.comboPointsGenerated = stats.comboPoints; // hemorrhage.comboPoints
     this.icon = "./img/hemorrhage.jpg"; // Set the icon for Hemorrhage
-    this.targetAura = true;
   }
 
   damage() {

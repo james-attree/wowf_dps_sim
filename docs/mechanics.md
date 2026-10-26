@@ -244,16 +244,18 @@ retune list). The note says Forever regenerates continuously, and that
 Classic used a periodic tick. The engine adds `rate * dt` every frame. It
 does not wait for a tick.
 
-`Simulation.step` reads Adrenaline Rush's remaining time before buffs are
-counted down. The slice of the step still inside the buff, including the
-step the buff runs out, uses
+`Simulation.regenerateEnergy` reads the `energyRegenMultiplier` effects
+(Adrenaline Rush's) before auras are counted down. The slice of the step still
+inside the aura, including the step the aura runs out, uses
 
 `k("energy.regenPerSecond") * k("adrenalineRush").regenMultiplier`
 
 and the rest of the frame uses `k("energy.regenPerSecond")`. The base-rate
 slice is added first, then the bonus-rate slice. Each add is capped. The
 cast frame itself stays at the base rate, because the buff is applied later,
-inside `Rogue.rotation`.
+inside `Rogue.rotation`. With more than one such aura the step is cut where
+each runs out, and each multiplies the rate for the part it covers. One aura
+is exactly the two slices above.
 
 `Skill.cast` spends `energyCost` before the attack roll. If the attack does
 not land, it refunds `energyCost * k("skill.missEnergyRefund")` and returns
@@ -435,11 +437,13 @@ The note says Classic attack-speed effects multiply, as wowsims does in
 `MultiplyMeleeSpeed`, and that Slice and Dice and Blade Flurry each
 contribute.
 
-`Rogue.rotation` starts the swing multiplier at 1, then, for each buff that
-is present with duration still positive, replaces it with `stackHaste` of
-the current multiplier and that buff's haste fraction. Slice and Dice is
-applied first, then Blade Flurry. `Weapon.tick` divides weapon speed by the
-result. Both hands use the same multiplier.
+`Rogue.rotation` starts the swing multiplier at 1, then, for each `haste`
+effect from `Simulation.auraEffects("haste")` (an aura that is up with duration
+still positive), replaces it with `stackHaste` of the current multiplier and
+that effect's haste fraction, once per stack. It names no aura. The effects
+come in the registry order of `js/auras.js`, Slice and Dice then Blade Flurry,
+whichever was cast first. `Weapon.tick` divides weapon speed by the result.
+Both hands use the same multiplier.
 
 - Multiplicative: `stackHaste` returns the current multiplier times
   `(1 + haste)`. With both buffs the interval divisor is
@@ -484,18 +488,18 @@ constant term at that level. The engine evaluates the expression above.
 the product. `js/main.js` floors a combat-log cell when it draws it.
 
 A tick skips armor when `tickSkipsArmor` says so. A bleed tick skips when
-`k("bleed.ignoresArmor")` is set and the dot is marked `bleed` or its name
-is in `k("bleed.spells")`. A nature tick skips when `k("nature.ignoresArmor")`
-is set and the name is in `k("nature.spells")`. Those four constants are
+`k("bleed.ignoresArmor")` is set and the dot is marked `bleed` or its ability
+id is in `k("bleed.spells")`. A nature tick skips when
+`k("nature.ignoresArmor")` is set and the id is in `k("nature.spells")`. Those four constants are
 `classic-1.12` and on the retune list. The bleed note says physical periodic
 damage skips armor, and that a physical direct hit is reduced. The nature
 note says armor is for physical damage and that spell resistance is not
 modelled. Nothing in `js/simulation.js` applies spell resistance.
 
-`k("bleed.spells")` names Rupture and Garrote. `k("nature.spells")` names
-Deadly Poison. Rupture's cast sets `bleed`, so its ticks skip when
-`k("bleed.ignoresArmor")` is set. Garrote has no skill class. A dot named
-Deadly Poison would skip as nature. The rotation does not create one. See
+`k("bleed.spells")` lists the ids `rupture` and `garrote`. `k("nature.spells")`
+lists `deadly-poison`. Rupture's cast sets `bleed`, so its ticks skip when
+`k("bleed.ignoresArmor")` is set. Garrote has no skill class. A dot with the id
+`deadly-poison` would skip as nature. The rotation does not create one. See
 Poisons.
 
 ## Bleeds and damage over time
@@ -523,9 +527,10 @@ this step does not tick until a later step, and the first tick waits out
 one interval. For each tick still inside the dot's remaining time:
 
 1. Start from `tickDamage`.
-2. If the tick is Rupture and the Hemorrhage debuff is up, multiply by
-   `1 + k("hemorrhage.ruptureBonus").bonus`. The `1` is the code's base, not
-   a constant. `k("hemorrhage.ruptureBonus")` is `wowf-export` and is not on
+2. For each `dotDamageTaken` effect on the target that names this DoT's id
+   (Hemorrhage's names `rupture`), multiply by `1 + bonus`, once per stack.
+   For Hemorrhage that is `1 + k("hemorrhage.ruptureBonus").bonus`. The `1` is
+   the code's base, not a constant. `k("hemorrhage.ruptureBonus")` is `wowf-export` and is not on
    the retune list. Its note says only Rupture ticks are increased. Garrote,
    Deadly Poison, and any other DoT are unchanged. A Hemorrhage aura stored
    on the player does not count. The strike itself is a direct hit and takes
@@ -559,7 +564,7 @@ constants are not used by the rotation. The notes on `k("poison.instant")`,
 `k("poison.deadlyTick")`, `k("poison.instantCrit")`, and `k("poison.charges")`
 say they are not simulated or not applied yet. `k("spell.missTarget")` is
 the same: its note says spell miss is for poisons and is not applied yet.
-There is no poison proc on a white or yellow hit. A tick whose name is in
+There is no poison proc on a white or yellow hit. A tick whose id is in
 `k("nature.spells")` would skip armor, and the deadly-poison tick note says
 those ticks can crit through `k("dot.canCrit")`, but nothing in the engine
 starts that dot.
@@ -751,8 +756,12 @@ The result has these fields:
 - `duration` — the simulated seconds, `Simulation.currentTime` after the run.
 - `totalDamage` — `Simulation.damageDone`, after armor.
 - `dps` — `totalDamage / duration`, or `0` for an empty fight.
-- `abilities` — an object keyed by ability name, in the order each first acted.
-  White swings are `Main-hand` and `Off-hand`. Each value has the fields below.
+- `abilities` — an object keyed by ability **display name**, in the order each
+  first acted. White swings are `Main-hand` and `Off-hand`. Each value has the
+  fields below. The engine keys its own maps by id (see Aura model and ids);
+  `Simulation.abilityBreakdown()` turns them into this name-keyed shape, so the
+  result's shape and every golden fixture are unchanged. It throws if two ids
+  share a name.
 - `log` — the combat log, newest first, holding at most `k("log.maxEvents")`
   events. Each event is a copy of the engine's row: `id`, `time`, `name`,
   `type`, `damage`, `status`, `outcome`, `icon`.
@@ -768,7 +777,9 @@ reference to the `Rogue` or the `Simulation`, so `structuredClone`, JSON, and
 
 ### Per-ability record
 
-`Simulation.abilityStats` keeps one record per ability for the whole fight. It
+`Simulation.abilityStats` keeps one record per ability id (`sinister-strike`,
+`main-hand`) for the whole fight, with the display name in
+`Simulation.abilityNames`. It
 is not capped, unlike the log, so a long fight still has full totals.
 `Simulation.recordAbility` adds to it from the places that already resolve an
 attack: `resolveAttack`, `resolveDotAttack`, the DoT tick loop, and the cast
@@ -1096,6 +1107,53 @@ module itself fails to load.
 `byName` reports what it was given when it throws: `byName needs a talent name
 as a string, not null.`
 
+## Aura model and ids
+
+Issue #94 (roadmap A1). A timed effect is an **aura**, defined once in
+`js/auras.js`: an `id`, a display `name`, an `icon`, `target` (`self` goes in
+`Simulation.activeBuffs`, `target` in `Simulation.activeDebuffs`), an optional
+default `duration`, `maxStacks`, a `refresh` rule, `onApply` and `onExpire`
+hooks, and `effects`. `defineAura` checks and freezes a definition, so a typo
+fails when the module loads.
+
+- `refresh`: a second cast sets the duration (`refresh`), adds to what is left
+  (`extend`), or keeps the longer (`replace-if-longer`). A stackable aura gains a
+  stack up to `maxStacks`.
+- Effect kinds: `haste` (a fraction, once per stack), `energyRegenMultiplier`
+  (once per stack), and `dotDamageTaken` (`{ ids, bonus }` on the target). The
+  engine asks for effects by kind with `Simulation.auraEffects(kind)` and
+  never by an aura's name, so a new aura with one of these effects needs no
+  engine change.
+- `Simulation.applyAura(definition, { duration, stacks, icon })` puts one up and
+  returns its record `{ id, name, icon, duration, stacks }`. `hasAura(id)` asks
+  whether one is up. The first definition seen for an id is the one used, and a
+  second, different definition for the same id throws.
+- A skill with `aura` set applies it after a landed cast with a positive
+  `duration`. The effects are read in the registry order of `AURAS`, so the
+  order the haste multipliers combine in never depends on which was cast first.
+
+**Identifiers.** A spell, aura, cooldown or weapon is identified by its
+catalogue id (`slugify(name)`): `sinister-strike`, `slice-and-dice`,
+`main-hand`, `off-hand`. `Simulation.cooldowns`, `activeBuffs`, `activeDebuffs`,
+`activeDots` and `abilityStats` are keyed by id, and the constants `bleed.spells`,
+`nature.spells`, `abilities.offGcd` and `abilities.apCoefficients` hold ids. The
+display name is carried beside the id for the page, the combat log
+(`event.name`) and the result's `abilities` keys, and is never compared. The
+Main-hand and Off-hand labels are the `WEAPON_ATTACKS` entries in `js/weapon.js`.
+A name is written once, at the definition site (`js/skill.js`, `js/auras.js`,
+`js/weapon.js`).
+
+**Guard.** The lint rule `engine-purity/no-display-name` (`eslint/engine-purity.js`,
+configured in `eslint.config.js`) fails `npm run lint` on a string, template or
+identifier key equal to an ability name, `Main-hand`, `Off-hand` or
+`Deadly Poison` anywhere in `js/` outside those three files. `test/engine-lint.test.js`
+tests it.
+
+**Result shape.** Unchanged. `runFight` and `createFight` still return
+`abilities` keyed by display name and a log with `name`. The `Simulation`
+internals changed (id keys, `resolveAttack(source, ...)` taking `{ id, name }`),
+which is not part of the result.
+
 ## Ability schema
 
 `js/abilities.js` turns the `spell_desc` text of the vendored snapshot into one
@@ -1140,8 +1198,10 @@ null }`. Eviscerate carries damage, Rupture damage and duration, Slice and
 **What the text does not say comes from `data/constants.js`.** The AP
 coefficients are not in the tooltips: `abilities.apCoefficients` points at the
 existing `eviscerate.apPerCP` and `rupture.apByCP` instead of copying them.
-`abilities.offGcd` lists the abilities that do not start the GCD
-(Premeditation; passives never do). `bleed.spells` marks bleeds. The unit
+`abilities.offGcd` lists the ids of the abilities that do not start the GCD
+(Premeditation; passives never do). `bleed.spells` lists the bleed ids.
+`abilities.apCoefficients` is keyed by id too. `abilities.resources` lists the
+resources a cost cell may name (`energy`). The unit
 scales are `abilities.secondsPerMinute` and `abilities.percentScale`, and
 `abilities.tabs` names the tabs read. Each has a `source` tag in
 `docs/provenance.md`.
@@ -1154,6 +1214,18 @@ carry them. The catalogue is built when `js/abilities.js` loads, so a refreshed
 snapshot with a reworded tooltip fails that import, not a fight. Sentences
 that hold no number to read (for example "Must be stealthed") are skipped, and
 numbers inside them are not taken.
+
+Three checks make the parser stricter than a first read (issue #94, from the
+#111 QA):
+
+- A cost cell is `<amount> <resource>` only for a resource in
+  `abilities.resources`. A cell such as `45 sec` or `45 Rage` is an
+  unrecognised cell, not a cost.
+- A table row with min damage above max damage throws.
+- A damage-over-time sentence (`damage over <n>`) that the parser did not read,
+  or a `<n> damage` number outside the table that neither the flat-damage nor
+  the DoT reader took, throws, instead of becoming a silent `null`. "150%
+  weapon damage" and a sentence with no number are not damage numbers.
 
 **Not parsed yet.** Buff and debuff magnitudes (Slice and Dice's haste %,
 Adrenaline Rush's energy %, Ghostly Strike's dodge, Hemorrhage's Rupture

@@ -358,13 +358,13 @@ function sampleFight(fps) {
   const resolveAttack = sim.resolveAttack.bind(sim);
   const resolveDotAttack = sim.resolveDotAttack.bind(sim);
   const addCombatEvent = sim.addCombatEvent.bind(sim);
-  sim.resolveAttack = (name, ...args) => {
-    add(name);
-    return resolveAttack(name, ...args);
+  sim.resolveAttack = (source, ...args) => {
+    add(source.name);
+    return resolveAttack(source, ...args);
   };
-  sim.resolveDotAttack = (name, ...args) => {
-    add(name);
-    return resolveDotAttack(name, ...args);
+  sim.resolveDotAttack = (source, ...args) => {
+    add(source.name);
+    return resolveDotAttack(source, ...args);
   };
   sim.addCombatEvent = (name, type, damage, status, ...rest) => {
     if (status === "Cast") {
@@ -380,7 +380,7 @@ function sampleFight(fps) {
   for (let frame = 1; frame <= frames; frame += 1) {
     const before = sim.currentTime;
     sim.step(dt);
-    if (sim.activeBuffs["Slice and Dice"]) {
+    if (sim.activeBuffs["slice-and-dice"]) {
       sliceAndDiceUptime += sim.currentTime - before;
     }
   }

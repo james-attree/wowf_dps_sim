@@ -295,6 +295,66 @@ describe("engine lint", () => {
   });
 });
 
+describe("no display names in the engine (issue #94)", () => {
+  const rule = "engine-purity/no-display-name";
+
+  async function reported(filename, source) {
+    const result = await lintSource(filename, source);
+    return JSON.parse(result.stdout).flatMap((file) =>
+      file.messages.filter((message) => message.ruleId === rule),
+    );
+  }
+
+  it("rejects a spell name as a string, a template, or a key", async () => {
+    for (const source of [
+      'export const a = (x) => x.activeBuffs["Slice and Dice"];\n',
+      'export const a = (x) => x.name === "Rupture";\n',
+      "export const a = (x) => x.cooldowns[`Blade Flurry`];\n",
+      "export const a = (x) => x.activeDots.Rupture;\n",
+      "export const a = { Hemorrhage: 1 };\n",
+      'export const a = ["Garrote", "Rupture"];\n',
+      'export const a = (hand) => (hand === "Main-hand" ? 1 : 0);\n',
+      'export const a = (x) => x.poison === "Deadly Poison";\n',
+    ]) {
+      const found = await reported("js/event-engine.js", source);
+      assert.ok(found.length > 0, source);
+    }
+  });
+
+  it("lets an id, a class on Skills, and unrelated text through", async () => {
+    for (const source of [
+      'export const a = (x) => x.activeBuffs["slice-and-dice"];\n',
+      "export const a = (x) => x.activeDots.rupture;\n",
+      "export const a = (S) => new Skills.Rupture(S);\n",
+      'export const a = "Rupture ticks";\n',
+    ]) {
+      const found = await reported("js/event-engine.js", source);
+      assert.deepEqual(found, [], source);
+    }
+  });
+
+  it("scans js/main.js, and leaves the definition sites alone", async () => {
+    const source = 'export const a = (x) => x.cooldowns["Rupture"];\n';
+    assert.ok((await reported("js/main.js", source)).length > 0);
+    for (const file of ["js/skill.js", "js/auras.js", "js/weapon.js"]) {
+      assert.deepEqual(await reported(file, source), [], file);
+    }
+  });
+
+  it("names every spell the catalogue builds", async () => {
+    const config = await import("../eslint.config.js");
+    const entry = config.default.find(
+      (block) => block.rules?.[rule] !== undefined,
+    );
+    const [, options] = entry.rules[rule];
+    for (const name of ["Sinister Strike", "Eviscerate", "Slice and Dice"]) {
+      assert.ok(options.names.includes(name), name);
+    }
+    assert.ok(options.names.includes("Main-hand"));
+    assert.ok(options.names.includes("Off-hand"));
+  });
+});
+
 describe("literal suppressions", () => {
   it("does not keep eslint-suppressions.json", async () => {
     await assert.rejects(access(resolve(root, "eslint-suppressions.json")), {

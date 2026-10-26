@@ -47,14 +47,14 @@ describe("gcd.flags", () => {
     assert.equal(rogue.abilities.bladeFlurry.cast(rogue, sim), null);
     assert.equal(sim.gcd, k("gcd.duration"));
     assert.equal(
-      sim.activeBuffs["Blade Flurry"].duration,
+      sim.activeBuffs["blade-flurry"].duration,
       k("bladeFlurry").duration,
     );
     assert.equal(rogue.energy, energy - k("bladeFlurry").energy);
 
     const duringBladeFlurry = rogue.abilities.hemorrhage.cast(rogue, sim);
     assert.equal(duringBladeFlurry, null);
-    assert.equal(sim.activeDebuffs.Hemorrhage, undefined);
+    assert.equal(sim.activeDebuffs.hemorrhage, undefined);
     assert.equal(sim.gcd, k("gcd.duration"));
     assert.equal(rogue.energy, energy - k("bladeFlurry").energy);
 
@@ -63,7 +63,7 @@ describe("gcd.flags", () => {
     assert.equal(hemorrhage.landed, true);
     assert.equal(sim.gcd, k("gcd.duration"));
     assert.equal(
-      sim.activeDebuffs.Hemorrhage.duration,
+      sim.activeDebuffs.hemorrhage.duration,
       k("hemorrhage.ruptureBonus").duration,
     );
 
@@ -74,14 +74,14 @@ describe("gcd.flags", () => {
     );
     assert.equal(fresh.sim.gcd, k("gcd.duration"));
     assert.equal(
-      fresh.sim.activeBuffs["Adrenaline Rush"].duration,
+      fresh.sim.activeBuffs["adrenaline-rush"].duration,
       k("adrenalineRush").duration,
     );
     assert.equal(
       fresh.rogue.abilities.bladeFlurry.cast(fresh.rogue, fresh.sim),
       null,
     );
-    assert.equal(fresh.sim.activeBuffs["Blade Flurry"], undefined);
+    assert.equal(fresh.sim.activeBuffs["blade-flurry"], undefined);
     assert.equal(fresh.sim.gcd, k("gcd.duration"));
 
     const dice = prepare();
@@ -93,7 +93,7 @@ describe("gcd.flags", () => {
     );
     assert.equal(dice.sim.gcd, k("gcd.duration"));
     assert.equal(dice.rogue.comboPoints, 0);
-    assert.equal(dice.sim.activeBuffs["Slice and Dice"].duration, duration);
+    assert.equal(dice.sim.activeBuffs["slice-and-dice"].duration, duration);
 
     dice.rogue.comboPoints = 1;
     dice.rogue.energy = k("start.state").energy;
@@ -103,7 +103,7 @@ describe("gcd.flags", () => {
     );
     assert.equal(dice.rogue.comboPoints, 1);
     assert.equal(dice.sim.gcd, k("gcd.duration"));
-    assert.equal(dice.sim.activeBuffs["Slice and Dice"].duration, duration);
+    assert.equal(dice.sim.activeBuffs["slice-and-dice"].duration, duration);
   });
 
   it("lets Premeditation cast during a GCD without starting or clearing one", () => {
@@ -118,7 +118,7 @@ describe("gcd.flags", () => {
     assert.equal(rogue.energy, energy);
     assert.equal(sim.gcd, gcd);
     assert.equal(sim.combatLog[0].name, "Premeditation");
-    assert.equal(sim.cooldowns.Premeditation, k("premeditation").cooldown);
+    assert.equal(sim.cooldowns.premeditation, k("premeditation").cooldown);
 
     const alone = prepare();
     alone.rogue.abilities.premeditation.cast(alone.rogue, alone.sim);
@@ -141,14 +141,14 @@ describe("gcd.flags", () => {
         `${fps} fps`,
       );
       assert.equal(
-        sim.activeBuffs["Blade Flurry"].duration,
+        sim.activeBuffs["blade-flurry"].duration,
         k("bladeFlurry").duration,
         `${fps} fps`,
       );
-      assert.equal(sim.cooldowns.Premeditation, undefined, `${fps} fps`);
-      assert.equal(sim.activeBuffs["Adrenaline Rush"], undefined, `${fps} fps`);
-      assert.equal(sim.activeDebuffs.Hemorrhage, undefined, `${fps} fps`);
-      assert.equal(sim.cooldowns["Ghostly Strike"], undefined, `${fps} fps`);
+      assert.equal(sim.cooldowns.premeditation, undefined, `${fps} fps`);
+      assert.equal(sim.activeBuffs["adrenaline-rush"], undefined, `${fps} fps`);
+      assert.equal(sim.activeDebuffs.hemorrhage, undefined, `${fps} fps`);
+      assert.equal(sim.cooldowns["ghostly-strike"], undefined, `${fps} fps`);
       const names = sim.combatLog.map((event) => event.name);
       assert.equal(names.includes("Blade Flurry"), true, `${fps} fps`);
       assert.equal(names.includes("Premeditation"), false, `${fps} fps`);

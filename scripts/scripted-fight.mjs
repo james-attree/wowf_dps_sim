@@ -45,9 +45,9 @@ export function scriptedRotation(script, original = Rogue.prototype.rotation) {
         const skill = this.abilities[name];
         // A cast that is not an attack returns null even when it happened, so
         // count casts in the ability record instead of reading the return.
-        const before = simulation.abilityStats[skill.name]?.casts ?? 0;
+        const before = simulation.abilityStats[skill.id]?.casts ?? 0;
         skill.cast(this, simulation);
-        if ((simulation.abilityStats[skill.name]?.casts ?? 0) === before) {
+        if ((simulation.abilityStats[skill.id]?.casts ?? 0) === before) {
           break; // not castable yet: try again next step
         }
         queue.shift();

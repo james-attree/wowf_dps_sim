@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
+import { abilityCatalogue } from "./js/abilities.js";
 import enginePurity from "./eslint/engine-purity.js";
 
 // Engine modules (everything under js/ except the UI entry) must stay free of
@@ -9,6 +10,16 @@ import enginePurity from "./eslint/engine-purity.js";
 
 const readonly = (names) =>
   Object.fromEntries(names.map((name) => [name, "readonly"]));
+
+// Display names the engine must not key on (issue #94). Every ability the
+// catalogue builds, the two weapon labels, and the poison, which the catalogue
+// does not parse. A name belongs in a definition site only (see the block below).
+const DISPLAY_NAMES = [
+  ...abilityCatalogue.abilities.map((ability) => ability.name),
+  "Main-hand",
+  "Off-hand",
+  "Deadly Poison",
+];
 
 const engineDomMessage =
   "Engine modules must not touch this global so they can run in Node, the browser, and a Web Worker.";
@@ -90,6 +101,21 @@ export default defineConfig([
       "engine-purity/no-numeric-literal": "error",
       // The DoT loop used to log every Hemorrhage tick. A simulation stays silent.
       "no-console": "error",
+    },
+  },
+  {
+    // js/main.js is scanned too: the page reads ids as well. The definition
+    // sites are where a display name is written once.
+    files: ["js/**/*.js"],
+    ignores: ["js/skill.js", "js/auras.js", "js/weapon.js"],
+    plugins: {
+      "engine-purity": enginePurity,
+    },
+    rules: {
+      "engine-purity/no-display-name": [
+        "error",
+        { names: DISPLAY_NAMES, namespaces: ["Skills"] },
+      ],
     },
   },
   {

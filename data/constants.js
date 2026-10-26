@@ -18,6 +18,7 @@ const FIXED_STEP = "James, 25 Oct 2026, issue #73";
 const LIVE_VIEW = "James, 25 Oct 2026, issue #76";
 const SIM_CONFIG = "James, 26 Oct 2026, issue #92";
 const ABILITY_SCHEMA = "James, 26 Oct 2026, issue #93";
+const DEV_JUDGEMENT = "Developer, 26 Oct 2026, issue #93";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -491,8 +492,8 @@ export const CONSTANTS = {
     true,
   ),
   "bleed.spells": entry(
-    ["Rupture", "Garrote"],
-    "–",
+    ["rupture", "garrote"],
+    "ability ids",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
     "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff only increases Rupture. Deadly Poison is nature, not a bleed.",
@@ -507,8 +508,8 @@ export const CONSTANTS = {
     true,
   ),
   "nature.spells": entry(
-    ["Deadly Poison"],
-    "–",
+    ["deadly-poison"],
+    "ability ids",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
     "Deadly Poison deals nature damage, so its ticks skip armor when nature.ignoresArmor is set.",
@@ -838,7 +839,7 @@ export const CONSTANTS = {
     0.1,
     "s",
     ENGINEERING,
-    `${ABILITY_SCHEMA}: the shortest swing time a SimConfig weapon (and a Weapon) may have, from the #111 QA that a 1e-9 s speed made runFight hang`,
+    `${DEV_JUDGEMENT}: an engineering judgement call by the dev, not a decision by James. The shortest swing time a SimConfig weapon (and a Weapon) may have, because the #111 QA found a 1e-9 s speed made runFight hang`,
     "Not a game rule. A weapon swings once per speed / haste seconds, and a swing of a billionth of a second means a billion swings a second, so the fight never finishes. 0.1 s is far below any real weapon (the sample weapons are 1.7 s and 1.8 s) and above sim.fixedStep, so one step never holds more than a handful of swings even with haste. Raise or lower it here if a test bench needs it.",
     false,
   ),
@@ -848,6 +849,14 @@ export const CONSTANTS = {
     ENGINEERING,
     `${ABILITY_SCHEMA}: the spellbook tabs js/abilities.js builds abilities from`,
     "Not a game rule. The snapshot's spellbook has these three class tabs, a Poisons tab and a hand-kept General list (Attack, Pick Lock, passives such as Dodge). Poisons are defined by D9 and the General list holds no rogue ability the simulator models, so neither is parsed here.",
+    false,
+  ),
+  "abilities.resources": entry(
+    ["energy"],
+    "resource names",
+    ENGINEERING,
+    `${ABILITY_SCHEMA}: the resources a spell_desc cost cell may name ("45 Energy"), lower case`,
+    'Not a game rule. Every cost cell in the Assassination, Combat and Subtlety tabs reads "N Energy". A cell like "45 sec" has the same shape but is a time, so js/abilities.js reads only the units listed here as costs and rejects the rest. Add a resource here when a class that spends it is parsed.',
     false,
   ),
   "abilities.secondsPerMinute": entry(
@@ -868,18 +877,18 @@ export const CONSTANTS = {
   ),
   "abilities.apCoefficients": entry(
     {
-      Eviscerate: { kind: "perCp", constant: "eviscerate.apPerCP" },
-      Rupture: { kind: "totalByCp", constant: "rupture.apByCP" },
+      eviscerate: { kind: "perCp", constant: "eviscerate.apPerCP" },
+      rupture: { kind: "totalByCp", constant: "rupture.apByCP" },
     },
-    "ability name → constant id",
+    "ability id → constant id",
     ENGINEERING,
     `${ABILITY_SCHEMA}: which constant holds each ability's AP coefficient`,
     'Not a game rule: a pointer, so the number is not written twice. The tooltip says Eviscerate, Rupture and Garrote are "increased by Attack Power" but gives no coefficient, so js/abilities.js reads it from the constant named here (with its own provenance). Eviscerate adds AP × CP × the constant. Rupture adds AP × the constant for the combo points spent, as a total over the whole DoT. Garrote has no coefficient yet, so its catalogue entry has ap: null until a constant exists.',
     false,
   ),
   "abilities.offGcd": entry(
-    ["Premeditation"],
-    "ability names",
+    ["premeditation"],
+    "ability ids",
     CLASSIC,
     `${WS}rogue/premeditation.go (the same source as gcd.flags)`,
     "The abilities that do not start the global cooldown. Premeditation is the only one the engine models today (gcd.flags). Every other ability in the catalogue defaults to starting the GCD, which is not yet checked against the game for abilities the engine does not cast (Cold Blood, Preparation, Sprint, Stealth, Vanish and others). D2 should review that before it relies on the flag for them.",

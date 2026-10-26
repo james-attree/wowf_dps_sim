@@ -63,7 +63,7 @@ describe("Premeditation export", () => {
     assert.match(CONSTANTS.premeditation.ref, /Rogue\|Premeditation\|/);
 
     const { rogue, sim } = harness();
-    assert.equal(sim.activeBuffs.Stealth, undefined);
+    assert.equal(sim.activeBuffs.stealth, undefined);
     rogue.abilities.premeditation.cast(rogue, sim);
 
     assert.equal(rogue.comboPoints, added);
@@ -71,10 +71,10 @@ describe("Premeditation export", () => {
     near(rogue.premeditationCpRemaining, expiry);
     assert.equal(sim.gcd, 0);
     assert.equal(rogue.energy, k("start.state").energy);
-    assert.equal(sim.cooldowns.Premeditation, k("premeditation").cooldown);
+    assert.equal(sim.cooldowns.premeditation, k("premeditation").cooldown);
     assert.equal(sim.combatLog[0].name, "Premeditation");
     assert.equal(sim.combatLog[0].status, "Cast");
-    assert.equal(sim.activeBuffs.Stealth, undefined);
+    assert.equal(sim.activeBuffs.stealth, undefined);
   });
 });
 

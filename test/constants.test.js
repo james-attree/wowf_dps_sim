@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { resolveAttack } from "../js/attack-resolver.js";
+import { AURAS } from "../js/auras.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
@@ -204,7 +205,11 @@ describe("constants", () => {
       assert.doesNotMatch(row.ref, /fill in/i, id);
       assert.doesNotMatch(row.ref, /no recorded owner decision/i, id);
       if (row.source === "assumption" || row.source === "engineering") {
-        assert.match(row.ref, /^James, \d+ Oct 2026(, issue #\d+)?: /, id);
+        assert.match(
+          row.ref,
+          /^(?:James|Developer), \d+ Oct 2026(, issue #\d+)?: /,
+          id,
+        );
       } else if (row.source === "wowf-export") {
         assert.match(row.ref, /^rogue\.json → /, id);
       } else if (row.source === "classic-1.12" || row.source === "cataclysm") {
@@ -304,7 +309,7 @@ describe("simulator values other than white miss", () => {
       duration: 15,
       triggersGcd: true,
       attackSkill: false,
-      targetAura: false,
+      aura: AURAS.adrenalineRush, // on the self
     });
     expectSkill(rogue.abilities.sliceAndDice, {
       energyCost: 25,
@@ -312,14 +317,14 @@ describe("simulator values other than white miss", () => {
       spender: true,
       triggersGcd: true,
       attackSkill: false,
-      targetAura: false,
+      aura: AURAS.sliceAndDice, // on the self
     });
     expectSkill(rogue.abilities.ghostlyStrike, {
       energyCost: 40,
       cooldown: 20,
       duration: 7,
       comboPointsGenerated: 1,
-      targetAura: false,
+      aura: AURAS.ghostlyStrike, // on the self
     });
     expectSkill(rogue.abilities.backstab, {
       energyCost: 60,
@@ -337,7 +342,7 @@ describe("simulator values other than white miss", () => {
       duration: 15,
       triggersGcd: true,
       attackSkill: false,
-      targetAura: false,
+      aura: AURAS.bladeFlurry, // on the self
     });
     expectSkill(rogue.abilities.rupture, {
       energyCost: 25,
@@ -345,14 +350,14 @@ describe("simulator values other than white miss", () => {
       spender: true,
       dot: true,
       triggersGcd: true,
-      targetAura: true,
+      aura: AURAS.rupture, // on the target
     });
     expectSkill(rogue.abilities.hemorrhage, {
       energyCost: 35,
       cooldown: 0,
       duration: 15,
       comboPointsGenerated: 1,
-      targetAura: true,
+      aura: AURAS.hemorrhage, // on the target
     });
     assert.equal(k("adrenalineRush").cooldown, 300);
     assert.equal(new Simulation(rogue, { rng: testRng }).gcdDuration, 1);
@@ -483,14 +488,14 @@ describe("simulator values other than white miss", () => {
     const ticking = new Rogue();
     ticking.rotation = () => {};
     const fight = new Simulation(ticking, { rng: testRng });
-    fight.activeDots.Rupture = {
+    fight.activeDots.rupture = {
       duration: 2,
       tickInterval: 2,
       timeUntilNextTick: 2,
       tickDamage: 100,
       icon: null,
     };
-    fight.activeDebuffs.Hemorrhage = { duration: 15, icon: null };
+    fight.activeDebuffs.hemorrhage = { duration: 15, icon: null };
     fight.step(2);
     assert.equal(
       fight.damageDone,
@@ -503,7 +508,7 @@ describe("simulator values other than white miss", () => {
     quiet.energy = 0;
     quiet.rotation = () => {};
     const regen = new Simulation(quiet, { rng: testRng });
-    regen.activeBuffs["Adrenaline Rush"] = { duration: 15, icon: null };
+    regen.activeBuffs["adrenaline-rush"] = { duration: 15, icon: null };
     regen.step(1);
     assert.equal(quiet.energy, 20);
 

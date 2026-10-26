@@ -122,7 +122,7 @@ describe("Rupture AP coefficients", () => {
         assert.equal(cast.landed, true, `${fps} fps CP ${comboPoints}`);
         assert.equal(sim.damageDone, 0);
         assert.equal(rogue.comboPoints, 0);
-        const dot = sim.activeDots.Rupture;
+        const dot = sim.activeDots.rupture;
         assert.equal(dot.tickDamage, Math.floor(raw) / ticks);
         const dt = 1 / fps;
         const frames = Math.round(rupture.duration * fps);
@@ -140,7 +140,7 @@ describe("Rupture AP coefficients", () => {
         const dealt = landed.reduce((sum, event) => sum + event.damage, 0);
         assert.equal(sim.damageDone, dealt);
         near(dealt, Math.floor(raw));
-        assert.equal(sim.activeDots.Rupture, undefined);
+        assert.equal(sim.activeDots.rupture, undefined);
       }
     }
   });
