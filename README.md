@@ -97,10 +97,9 @@ An older browser fails to load the page.
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on `push` and
 `pull_request`, on `ubuntu-latest`, with Node 22. The job checks out the repo,
-installs with `npm ci`, then runs `npm run lint`, `npm test`, and
-`npm run provenance`. Refreshing the talentsforever snapshot stays a local
-command. The coverage command is not a CI step yet; the step is one `run:` line
-in that file, waiting on a token with the `workflow` scope (#103).
+installs with `npm ci`, then runs `npm run lint`, `npm test`,
+`npm run provenance`, then `npm run talents:coverage`. Refreshing the
+talentsforever snapshot stays a local command.
 `npm run talents:coverage` checks the talent effects (`data/talent-effects.js`)
 against the snapshot. It warns, listing each Assassination or Subtlety talent
 that has no effect yet (expected until Phase 4), and fails (exit 1) for a Combat

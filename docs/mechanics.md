@@ -1977,13 +1977,10 @@ against the text, then set `textHash` to the current hash the command prints.
 Which tree must be fully covered is `FULL_COVERAGE_TREES` in the script
 (`combat`); when D8 covers a tree, add it there.
 
-Under GitHub Actions (`GITHUB_ACTIONS=true`) the command also writes one
-`::warning` annotation listing the uncovered ids and an `::error` per failure,
-so they show on the run. It is not a step of `.github/workflows/ci.yml` yet: the
-push of a workflow file needs a token with the `workflow` scope, which this work
-did not have, so the step (`run: npm run talents:coverage`, after the provenance
-steps) is the one change left. Exit status: 0 with no failure, 1 with one, 2 for
-an unknown argument.
+In CI the command runs after the provenance steps and prints every finding,
+and under GitHub Actions it also writes one `::warning` annotation listing the
+uncovered ids and an `::error` per failure, so they show on the run. Exit
+status: 0 with no failure, 1 with one, 2 for an unknown argument.
 
 ```js
 import { createFight, expandTalents } from "./js/fight.js";

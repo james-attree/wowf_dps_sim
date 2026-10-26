@@ -11,6 +11,7 @@ const EXPECTED_RUNS = [
   "npm run lint",
   "npm test",
   "npm run provenance",
+  "npm run talents:coverage",
 ];
 
 // Single-line `run:` values at any indent. A block scalar (`run: |` or
@@ -75,6 +76,11 @@ describe("CI workflow", () => {
     const provenance = workflow.indexOf("- name: Provenance\n");
     const committed = workflow.indexOf("- name: Provenance is committed\n");
     assert.ok(provenance !== -1 && committed > provenance);
+    // The coverage step fails the job on a failure, so it must not be allowed
+    // to; its warnings do not fail it (exit 0) and need no such flag.
+    const coverage = workflow.indexOf("- name: Talent coverage\n");
+    assert.ok(coverage > committed);
+    assert.equal(workflow.includes("continue-on-error"), false);
     assert.match(workflow, /run: \|/);
     assert.match(workflow, /git diff --exit-code -- docs\/provenance\.md/);
     assert.match(
@@ -117,6 +123,8 @@ describe("CI workflow", () => {
       "        git diff --exit-code -- docs/provenance.md || {",
       "          exit 1",
       "        }",
+      "      - name: Talent coverage",
+      "      run: npm run talents:coverage",
     ].join("\n");
     const fourSpace = sixSpace.replaceAll("\n      ", "\n    ");
     assert.deepEqual(singleLineRuns(sixSpace), EXPECTED_RUNS);
@@ -141,6 +149,8 @@ describe("CI workflow", () => {
       "    - name: Provenance is committed",
       "      run: |",
       "        git diff --exit-code -- docs/provenance.md",
+      "    - name: Talent coverage",
+      "      run: npm run talents:coverage",
     ].join("\n");
     assert.deepEqual(singleLineRuns(fixture), EXPECTED_RUNS);
 
@@ -156,6 +166,7 @@ describe("CI workflow", () => {
       "npm test",
       "npm run lint",
       "npm run provenance",
+      "npm run talents:coverage",
     ]);
     assert.notDeepEqual(singleLineRuns(reordered), EXPECTED_RUNS);
   });
