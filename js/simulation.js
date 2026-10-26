@@ -2,6 +2,7 @@ import { k } from "../data/constants.js";
 import { resolveAttack, rollCrit } from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { ModifierPipeline, isNeutral } from "./modifiers.js";
+import { damageTags } from "./damage-tags.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
 // Auras already running lose this step. One applied during rotation is not
@@ -21,18 +22,15 @@ function tickAuras(auras, dt) {
   return { kept, expired };
 }
 
-// Physical periodic damage and nature damage ignore armor. Other ticks and
-// direct hits use armor.mitigation. Spell resistance is not applied. The DoT
-// is named by its id, the ability catalogue's id.
-function isBleedTick(id, dot) {
-  return dot.bleed === true || k("bleed.spells").includes(id);
-}
-
-function tickSkipsArmor(id, dot) {
-  if (isBleedTick(id, dot) && k("bleed.ignoresArmor")) {
+// Bleeds (physical periodic damage) and nature damage ignore armor. Other
+// damage uses armor.mitigation. The event's tags say which it is
+// (js/damage-tags.js: the bleed tag, the nature school), so a direct hit and a
+// tick follow the same rule. Spell resistance is not applied.
+function skipsArmor(context) {
+  if (context.tags.includes("bleed") && k("bleed.ignoresArmor")) {
     return true;
   }
-  return k("nature.spells").includes(id) && k("nature.ignoresArmor");
+  return context.school === "nature" && k("nature.ignoresArmor");
 }
 
 // The counter that an attack outcome adds to, in the per-ability record.
@@ -144,7 +142,7 @@ export class Simulation {
       dot.duration -= dt;
       dot.timeUntilNextTick -= elapsed;
 
-      const dotContext = this.abilityContext(dotId);
+      const dotContext = this.abilityContext(dotId, dot);
       while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
         let dotTickDamage = dot.tickDamage;
 
@@ -171,7 +169,7 @@ export class Simulation {
         }
         dotTickDamage = this.applyArmor(
           dotTickDamage,
-          tickSkipsArmor(dotId, dot),
+          skipsArmor(dotContext),
           dotContext,
         );
         this.updateDamage(dotTickDamage);
@@ -489,21 +487,39 @@ export class Simulation {
     return found;
   }
 
-  // What the modifier scopes see of an attack: { ability, hand, weaponType }.
-  // A source names its hand (a weapon's swing does; a skill is main hand).
-  attackContext(source) {
+  // What the modifier scopes see of an attack:
+  // { ability, hand, weaponType, school, tags }. A source names its hand (a
+  // weapon's swing does; a skill is main hand). The school and tags come from
+  // js/damage-tags.js: the id picks the school, finisher, bleed and poison,
+  // and the attack type picks white ("weapon") or yellow ("skill"). A source
+  // may say `bleed: true`. The result is built fresh for each attack.
+  attackContext(source, attackType = "skill") {
     const hand = source.hand ?? "mainHand";
+    const { school, tags } = damageTags({
+      id: source.id,
+      attackType,
+      bleed: source.bleed === true,
+    });
     return {
       ability: source.id,
       hand,
       weaponType: this.rogue.weapons?.[hand]?.type ?? null,
+      school,
+      tags,
     };
   }
 
   // The context of an ability by id, for what has no source object to hand
-  // (a DoT tick): the ability's own main-hand attack.
-  abilityContext(id) {
-    return this.attackContext({ id });
+  // (a DoT tick): the ability's own main-hand attack, with the attack type and
+  // bleed flag the DoT was applied with.
+  abilityContext(id, options = {}) {
+    if (options === null || typeof options !== "object") {
+      throw new RangeError(
+        `abilityContext options must be an object { attackType, bleed }, not ${options === null ? "null" : typeof options}.`,
+      );
+    }
+    const { attackType, bleed } = options;
+    return this.attackContext({ id, bleed }, attackType);
   }
 
   // Whether the aura is up, by id.
@@ -549,7 +565,7 @@ export class Simulation {
   // so is a weapon's swing (Weapon.attack). The id keys the totals, the name
   // and icon go in the combat log.
   resolveAttack(source, attackType, baseDamage) {
-    const context = this.attackContext(source);
+    const context = this.attackContext(source, attackType);
     const result = resolveAttack({
       attackType,
       baseDamage: this.modifiers.resolve("damage", baseDamage, context),
@@ -564,7 +580,7 @@ export class Simulation {
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       rng: this.rng,
     });
-    const damage = this.applyArmor(result.damage, false, context);
+    const damage = this.applyArmor(result.damage, skipsArmor(context), context);
     if (result.landed && damage > 0) {
       this.updateDamage(damage);
     }
@@ -585,7 +601,10 @@ export class Simulation {
   }
 
   resolveDotAttack(source, attackType, baseDamage, duration, bleed = false) {
-    const context = this.attackContext(source);
+    const context = this.attackContext(
+      bleed ? { ...source, bleed: true } : source,
+      attackType,
+    );
     const result = resolveAttack({
       attackType,
       // The damage modifiers apply to the whole DoT when it is cast, the same
@@ -609,7 +628,9 @@ export class Simulation {
         timeUntilNextTick: tickInterval,
         tickDamage: result.damage / tickCount,
         icon: source.icon ?? null,
-        bleed: bleed || k("bleed.spells").includes(source.id),
+        // What the ticks need to build the same context as the application.
+        attackType,
+        bleed: context.tags.includes("bleed"),
       };
     }
     // The application deals no damage; the ticks do.

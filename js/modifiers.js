@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { abilityCatalogue } from "./abilities.js";
+import { DAMAGE_TAGS, SCHOOLS } from "./damage-tags.js";
 
 // The modifier schema and pipeline (A2). A modifier is a piece of data that
 // changes one stat for the attacks it is scoped to: a talent rank, an aura
@@ -21,10 +22,14 @@ import { abilityCatalogue } from "./abilities.js";
 //             hands        "mainHand" and/or "offHand"
 //             weaponTypes  weapon types from config.weaponTypes, the type of
 //                          the weapon making the attack
+//             schools      "physical" or "nature" (js/damage-tags.js)
+//             tags         "bleed", "poison", "white", "yellow" or "finisher"
+//                          (js/damage-tags.js). An event with several tags
+//                          matches when it has any one of the listed tags.
 //   source  an optional label for explain() and tests ("combat.precision").
 //
-// The context an attack passes is { ability, hand, weaponType }. A condition
-// on a part the context does not have does not match. An ability's context is
+// The context an attack passes is { ability, hand, weaponType, school, tags }.
+// A condition on a part the context does not have does not match. An ability's context is
 // its main hand, because every skill the rogue models attacks with it.
 //
 // Sources combine in a fixed order: static modifiers (talents, gear) in the
@@ -35,7 +40,13 @@ import { abilityCatalogue } from "./abilities.js";
 // rank-0 talent (which expands to no modifiers) costs nothing.
 
 export const MODIFIER_OPS = Object.freeze(["add", "mult"]);
-export const SCOPE_KEYS = Object.freeze(["abilities", "hands", "weaponTypes"]);
+export const SCOPE_KEYS = Object.freeze([
+  "abilities",
+  "hands",
+  "weaponTypes",
+  "schools",
+  "tags",
+]);
 export const HANDS = Object.freeze(["mainHand", "offHand"]);
 
 const EVERY_SCOPE = SCOPE_KEYS;
@@ -168,6 +179,24 @@ export function defineScope(label, kind, scope) {
       scope.weaponTypes,
       (type) => k("config.weaponTypes").includes(type),
       (type) => `an unknown weapon type ${JSON.stringify(type)}`,
+    );
+  }
+  if (Object.hasOwn(scope, "schools")) {
+    checked.schools = checkList(
+      label,
+      "schools",
+      scope.schools,
+      (school) => SCHOOLS.includes(school),
+      (school) => `${JSON.stringify(school)}. Known: ${SCHOOLS.join(", ")}`,
+    );
+  }
+  if (Object.hasOwn(scope, "tags")) {
+    checked.tags = checkList(
+      label,
+      "tags",
+      scope.tags,
+      (tag) => DAMAGE_TAGS.includes(tag),
+      (tag) => `${JSON.stringify(tag)}. Known: ${DAMAGE_TAGS.join(", ")}`,
     );
   }
   return Object.keys(checked).length === 0 ? null : Object.freeze(checked);
@@ -307,9 +336,19 @@ function matches(scope, context) {
   if (scope.hands !== undefined && !scope.hands.includes(context?.hand)) {
     return false;
   }
+  if (
+    scope.weaponTypes !== undefined &&
+    !scope.weaponTypes.includes(context?.weaponType)
+  ) {
+    return false;
+  }
+  if (scope.schools !== undefined && !scope.schools.includes(context?.school)) {
+    return false;
+  }
   return (
-    scope.weaponTypes === undefined ||
-    scope.weaponTypes.includes(context?.weaponType)
+    scope.tags === undefined ||
+    (Array.isArray(context?.tags) &&
+      scope.tags.some((tag) => context.tags.includes(tag)))
   );
 }
 

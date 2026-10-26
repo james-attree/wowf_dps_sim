@@ -13,7 +13,9 @@ const JAMES = "James, 22 Oct 2026";
 const SAMPLE_INPUT = `${JAMES}: sample input until SimConfig (E2)`;
 const COMBAT_ROTATION =
   "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
-const SEEDED_RNG = "James, 25 Oct 2026, issue #71";
+// Issue #71 only suggests mulberry32; the seed and the generator's terms are the
+// dev's choice (Kira's #115 QA), so the rows cite the dev.
+const SEEDED_RNG = "Developer, 26 Oct 2026, issue #71";
 // Engineering rows the dev chose. Issues #73 and #76 set the approach (fixed
 // small steps, a capped live frame) and not these numbers; the rows that cited
 // James for a number he never gave cite the dev instead.
@@ -27,6 +29,7 @@ const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const DEV_JUDGEMENT_111 = "Developer, 26 Oct 2026, issue #111";
 const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
+const DEV_JUDGEMENT_97 = "Developer, 26 Oct 2026, issue #97";
 
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
@@ -524,12 +527,20 @@ export const CONSTANTS = {
     true,
   ),
   "nature.spells": entry(
-    ["deadly-poison"],
+    ["instant-poison", "deadly-poison"],
     "ability ids",
     CLASSIC,
-    `${WS}core/spell_resistances.go`,
-    "Deadly Poison deals nature damage, so its ticks skip armor when nature.ignoresArmor is set.",
+    `${WS}rogue/poisons.go`,
+    "Instant Poison and Deadly Poison deal nature damage (both are registered with SpellSchoolNature in rogue/poisons.go), so their damage skips armor when nature.ignoresArmor is set. The school of a damage event (js/damage-tags.js) comes from this list.",
     true,
+  ),
+  "poison.spells": entry(
+    ["instant-poison", "deadly-poison"],
+    "ability ids",
+    ENGINEERING,
+    `${DEV_JUDGEMENT_97}: ${NOT_JAMES} Which damage events carry the poison tag`,
+    "Not a game rule. The ids of the poisons that deal damage in this sim (issue #105: Instant and Deadly), the slug of the poison's name, the same form as bleed.spells. A poison gets the poison tag, and is neither white nor yellow. Its Nature school comes from nature.spells, which lists the same ids (a test keeps the two in step). Wound, Crippling and Mind-numbing are not listed because they deal no DPS here. D9 (#104) may replace this list.",
+    false,
   ),
   "dot.snapshot": entry(
     "at application",
@@ -816,7 +827,7 @@ export const CONSTANTS = {
     1,
     "seed",
     ENGINEERING,
-    `${SEEDED_RNG}: a Simulation built without a seed or an rng starts from this seed, so a bare run is repeatable`,
+    `${SEEDED_RNG}: ${NOT_JAMES} A Simulation built without a seed or an rng starts from this seed, so a bare run is repeatable`,
     "Not a game rule. Any 32-bit integer is a valid seed. The live page picks its own seed at load.",
     false,
   ),
@@ -831,7 +842,7 @@ export const CONSTANTS = {
     },
     "mulberry32 terms",
     ENGINEERING,
-    `${SEEDED_RNG}: the published mulberry32 32-bit generator, so a seed gives the same sequence on every Node version and in the browser`,
+    `${SEEDED_RNG}: ${NOT_JAMES} The published mulberry32 32-bit generator, so a seed gives the same sequence on every Node version and in the browser`,
     "Not a game rule. The Weyl increment, the three xor-shift widths, the second multiplier's OR term, and the 2^32 divisor that maps the 32-bit result into [0, 1). Changing any of them changes every seeded fight.",
     false,
   ),

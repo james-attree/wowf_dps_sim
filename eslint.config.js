@@ -12,13 +12,16 @@ const readonly = (names) =>
   Object.fromEntries(names.map((name) => [name, "readonly"]));
 
 // Display names the engine must not key on (issue #94). Every ability the
-// catalogue builds, the two weapon labels, and the poison, which the catalogue
+// catalogue builds, the two weapon labels, and the poisons, which the catalogue
 // does not parse. A name belongs in a definition site only (see the block below).
 const DISPLAY_NAMES = [
   ...abilityCatalogue.abilities.map((ability) => ability.name),
   "Main-hand",
   "Off-hand",
   "Deadly Poison",
+  "Instant Poison",
+  "Wound Poison",
+  "Crippling Poison",
 ];
 
 const engineDomMessage =

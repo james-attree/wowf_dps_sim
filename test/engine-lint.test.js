@@ -315,6 +315,9 @@ describe("no display names in the engine (issue #94)", () => {
       'export const a = ["Garrote", "Rupture"];\n',
       'export const a = (hand) => (hand === "Main-hand" ? 1 : 0);\n',
       'export const a = (x) => x.poison === "Deadly Poison";\n',
+      'export const a = (x) => x.poison === "Instant Poison";\n',
+      'export const a = (x) => x.poison === "Wound Poison";\n',
+      "export const a = (x) => x.activeDots[`Crippling Poison`];\n",
     ]) {
       const found = await reported("js/event-engine.js", source);
       assert.ok(found.length > 0, source);
@@ -327,6 +330,7 @@ describe("no display names in the engine (issue #94)", () => {
       "export const a = (x) => x.activeDots.rupture;\n",
       "export const a = (S) => new Skills.Rupture(S);\n",
       'export const a = "Rupture ticks";\n',
+      'export const a = (x) => x.poison === "instant-poison";\n',
     ]) {
       const found = await reported("js/event-engine.js", source);
       assert.deepEqual(found, [], source);
