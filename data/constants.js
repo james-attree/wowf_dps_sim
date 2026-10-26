@@ -720,9 +720,9 @@ export const CONSTANTS = {
   "rotation.coldBlood": entry(
     { ability: "coldBlood", beforeFinisher: "eviscerate" },
     "ability key, ability key",
-    WOWF_DESIGNER,
-    `${COMBAT_ROTATION}: Cold Blood is cast right before the next Eviscerate when it is off cooldown (the Scout's rule, to be adjusted)`,
-    "Only when the build grants Cold Blood (Rogue option abilities), so a fight without the talent is unchanged. It is cast when the rotation has chosen Eviscerate at rotation.finisherComboPoints and Cold Blood is ready. It is off the GCD, so Eviscerate follows in the same step. js/rotation-rules.js.",
+    ASSUMPTION,
+    `${DEVELOPER}: ${NOT_JAMES} The rule is the Scout's (Cold Blood right before the next Eviscerate when it is off cooldown), to be adjusted`,
+    "Only when the build grants Cold Blood (Rogue option abilities), so a fight without the talent is unchanged. It is cast when the rotation has chosen Eviscerate at rotation.finisherComboPoints and Cold Blood is ready. It is off the GCD, but it does not make the Eviscerate go next: the charge waits for energy to afford the Eviscerate (median 2.5 s, max 6.5 s, over 400 default casts) and sometimes lands on a Sinister Strike first (21 of 400 charges). js/rotation-rules.js.",
     true,
   ),
   "rotation.sliceAndDiceRefreshSeconds": entry(

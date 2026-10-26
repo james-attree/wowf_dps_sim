@@ -12,9 +12,12 @@ import { k } from "../data/constants.js";
 //   Cold Blood (row rotation.coldBlood): when the rotation has chosen to cast
 //   Eviscerate, cast Cold Blood first, if the build grants it and it is off
 //   cooldown. At the finisher combo points that is a 5-point Eviscerate. Cold
-//   Blood is off the GCD, so both go in the same step. It is cast before the
-//   Eviscerate lands, and the aura waits for the next Sinister Strike,
-//   Backstab, Ambush, Eviscerate or Mutilate that lands, whichever is first.
+//   Blood is off the GCD, but the Eviscerate does not necessarily go in the
+//   same step: it may lack the energy. The aura waits for the next Sinister
+//   Strike, Backstab, Ambush, Eviscerate or Mutilate that lands, whichever is
+//   first, so the charge waits for the energy to afford the Eviscerate (median
+//   2.5 s, max 6.5 s, over 400 default casts) and sometimes lands on a Sinister
+//   Strike (21 of 400 charges).
 //   The rule is "the Scout's, to be adjusted": see docs/mechanics.md.
 
 // Called by Rogue.rotation with the finisher it has chosen, before the cast.

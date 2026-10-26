@@ -260,6 +260,10 @@ rejects them under `js/`.
   pipeline (`rogue.modifiers`, from `new Rogue(config, { modifiers })`). Attack
   power, crit and hit are read through it; swing haste comes from the
   simulation's pipeline.
+- `js/rotation-rules.js` — The rules for abilities a talent grants (D8a). Today
+  one: `beforeFinisher` casts Cold Blood before the Eviscerate the rotation has
+  chosen, only when the build granted it (Rogue option `abilities`). Its numbers
+  are the `rotation.coldBlood` row.
 - `js/ability-data.js` — The abilities the engine casts, as data (D2):
   Sinister Strike, Eviscerate, Premeditation, Adrenaline Rush, Slice and Dice,
   Ghostly Strike, Backstab, Ambush, Blade Flurry, Rupture, and Hemorrhage. Each

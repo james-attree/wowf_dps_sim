@@ -1991,7 +1991,7 @@ the constants rows `ruthlessness.comboPoint` and `relentlessStrikes.energy`.
 `abilities` mechanism: `expandTalents` lists `"cold-blood"`, and the host passes
 that list as the Rogue option `abilities` (below). The ability
 (`js/ability-data.js`, row `coldBlood`) has no cost, a 180 s cooldown, and is off
-the GCD (`abilities.offGcd`), so it can go in the same step as a finisher. Its
+the GCD (`abilities.offGcd`), so it does not wait for one. Its
 aura (`js/auras.js`, `cold-blood`) has one charge and a `critChance` add of +1.0
 scoped to the abilities its text names: Sinister Strike, Backstab, Ambush,
 Eviscerate and Mutilate, by catalogue id (a test reads them out of the text).
@@ -2018,9 +2018,11 @@ applies only when the build granted the ability, so a fight without the talent
 is the fight it was. The rest of the rotation is unchanged. To change it: edit
 the row to move it to another finisher; edit `beforeFinisher` for another
 condition (for example, hold it for a Rupture or a proc); or remove the call in
-`Rogue.rotation` to stop casting it. A Cold Blood cast that cannot be followed by
-an affordable Eviscerate still starts the cooldown, and its charge waits for
-the next scoped attack. Note that the default rotation reaches Eviscerate rarely
+`Rogue.rotation` to stop casting it. Cold Blood does not make the Eviscerate go
+next: when the rogue cannot afford it yet, the charge waits for the energy
+(median 2.5 s, max 6.5 s over 400 default casts, Kira's measurement) and
+sometimes lands on a Sinister Strike instead (21 of 400 charges). The cooldown
+starts at the cast either way. Note that the default rotation reaches Eviscerate rarely
 without the talents (it refreshes Slice and Dice at every 5 points while that
 has 10 s or less left): in the reference build it casts about 8 Eviscerates
 and 2 Cold Bloods in 300 s.
