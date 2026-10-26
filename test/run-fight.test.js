@@ -164,13 +164,13 @@ describe("runFight per-ability breakdown", () => {
       candidate.rogue.energy = candidate.rogue.maxEnergy;
       candidate.rogue.comboPoints = candidate.rogue.maxComboPoints;
       candidate.rogue.abilities.rupture.cast(candidate.rogue, candidate);
-      if (candidate.activeDots["Rupture"]) {
+      if (candidate.activeDots.rupture) {
         sim = candidate;
       }
     }
     assert.ok(sim, "no seed landed Rupture");
     sim.run(Math.max(...k("rupture").durationByCp));
-    const record = sim.abilityStats["Rupture"];
+    const record = sim.abilityStats.rupture;
     assert.equal(record.casts, 1);
     assert.equal(record.hits, 1);
     assert.equal(record.crits, 0);
@@ -183,7 +183,7 @@ describe("runFight per-ability breakdown", () => {
       Math.abs(sum(events.map((event) => event.damage)) - record.damage) <=
         1e-9 * record.damage,
     );
-    assert.equal(sim.activeDots["Rupture"], undefined);
+    assert.equal(sim.activeDots.rupture, undefined);
   });
 
   it("matches the combat log when the log has not been capped", () => {
@@ -277,13 +277,16 @@ describe("runFight determinism", () => {
       const result = runFight({ seed: 3, duration: SHORT_FIGHT });
       const [sim] = sims;
       assert.notEqual(result.log, sim.combatLog);
+      const inside = sim.abilityBreakdown();
       assert.notEqual(result.abilities, sim.abilityStats);
+      assert.notEqual(result.abilities, inside);
       for (const event of result.log) {
         assert.ok(!sim.combatLog.includes(event));
       }
-      for (const [name, record] of Object.entries(result.abilities)) {
-        assert.notEqual(record, sim.abilityStats[name]);
-        assert.deepEqual(record, sim.abilityStats[name]);
+      for (const [id, record] of Object.entries(sim.abilityStats)) {
+        const copy = result.abilities[sim.abilityNames[id]];
+        assert.notEqual(copy, record);
+        assert.deepEqual(copy, record);
       }
     } finally {
       spy.mock.restore();

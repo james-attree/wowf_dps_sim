@@ -20,7 +20,7 @@ function snapshot(simulation) {
   return {
     duration: simulation.currentTime,
     totalDamage: simulation.damageDone,
-    abilities: simulation.abilityStats,
+    abilities: simulation.abilityBreakdown(),
     log: simulation.combatLog,
   };
 }

@@ -42,7 +42,8 @@ const RUN_FIGHT_OPTIONS = ["seed", "duration", "config"];
 //   seed       the seed the fight used, as an unsigned 32-bit integer
 //   duration   simulated seconds (sim.currentTime after the run)
 //   totalDamage, dps
-//   abilities  per-ability totals keyed by name (see Simulation.recordAbility)
+//   abilities  per-ability totals keyed by display name (Simulation.abilityBreakdown;
+//              the engine keys them by id)
 //   log        the combat log, newest first, at most k("log.maxEvents") rows
 //   dataVersion  which data produced the result: the snapshot's generated date
 //              and client build, "<generated>+<build>" (js/data-version.js)
@@ -84,12 +85,7 @@ export function runFight(options) {
     duration: simulated,
     totalDamage: simulation.damageDone,
     dps: simulated > 0 ? simulation.damageDone / simulated : 0,
-    abilities: Object.fromEntries(
-      Object.entries(simulation.abilityStats).map(([name, record]) => [
-        name,
-        { ...record },
-      ]),
-    ),
+    abilities: simulation.abilityBreakdown(),
     log: simulation.combatLog.map((event) => ({ ...event })),
     dataVersion,
     // A copy, so changing the result cannot change the rogue's config.

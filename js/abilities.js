@@ -68,10 +68,9 @@ function deepFreeze(value) {
 // `l` is a list of [left, right] cells. Which row holds the cost, the
 // cooldown or "Instant" changes from spell to spell, so every cell is matched
 // on its own text and not on its position.
-const REQUIREMENTS = new Map([
-  ["Stealth", "stealth"],
-  ["Daggers", "daggers"],
-]);
+// A requirement is read as the slug of its text ("Requires Stealth" is
+// "stealth"), the same slug the ability ids use.
+const REQUIREMENTS = new Set(["stealth", "daggers"]);
 
 function parseCells(cells, fail) {
   const found = {
@@ -102,8 +101,11 @@ function parseCells(cells, fail) {
     } else if (
       (match = cell.match(
         new RegExp(`^(?<amount>${NUMBER}) (?<unit>\\p{L}+)$`, "u"),
-      ))
+      )) &&
+      k("abilities.resources").includes(match.groups.unit.toLowerCase())
     ) {
+      // Only a known resource is a cost. "45 sec" and the like are not, and
+      // fall through to the other cells (or to "unrecognised cell").
       once(
         "cost",
         {
@@ -143,8 +145,8 @@ function parseCells(cells, fail) {
     } else if (/^(?:Reagents|Tools|Makes): /.test(cell)) {
       // Crafting inputs are not modelled.
     } else if ((match = cell.match(/^Requires (?<what>.+)$/))) {
-      const requirement = REQUIREMENTS.get(match.groups.what);
-      if (requirement === undefined) {
+      const requirement = slugify(match.groups.what);
+      if (!REQUIREMENTS.has(requirement)) {
         fail(`unknown requirement ${JSON.stringify(cell)}`);
       }
       found.requires.push(requirement);
@@ -168,14 +170,12 @@ function parseTableValue(value, fail, line) {
       new RegExp(`^(?<min>${NUMBER})-(?<max>${NUMBER}) damage$`),
     ))
   ) {
-    return {
-      damage: {
-        min: toNumber(match.groups.min),
-        max: toNumber(match.groups.max),
-      },
-      duration: null,
-      armorReduction: null,
-    };
+    const min = toNumber(match.groups.min);
+    const max = toNumber(match.groups.max);
+    if (min > max) {
+      fail(`the table row ${JSON.stringify(line)} has min damage above max`);
+    }
+    return { damage: { min, max }, duration: null, armorReduction: null };
   }
   if (
     (match = value.match(
@@ -212,12 +212,12 @@ function parseTableValue(value, fail, line) {
   return fail(`unrecognised table row ${JSON.stringify(line)}`);
 }
 
+const TABLE_LINE = /^\s*(?<points>\d+) points?\s*:\s*(?<value>.+?)\s*$/;
+
 function parseTable(description, fail) {
   const rows = [];
   for (const line of description.split("\n")) {
-    const match = line.match(
-      /^\s*(?<points>\d+) points?\s*:\s*(?<value>.+?)\s*$/,
-    );
+    const match = line.match(TABLE_LINE);
     if (match === null) {
       continue;
     }
@@ -287,6 +287,34 @@ function parseDot(description) {
       };
 }
 
+// The text outside the per-combo-point table, which has its own parser.
+function proseOf(description) {
+  return description
+    .split("\n")
+    .filter((line) => !TABLE_LINE.test(line))
+    .join("\n");
+}
+
+// Every damage number or damage-over-time sentence in the prose has to have
+// been read by parseFlatDamage or parseDot, so a reworded tooltip fails here
+// and does not become a silent null. "150% weapon damage" is the weapon
+// percent's, and "damage" with no number ("causing no damage", "causes damage
+// over time") holds nothing to read.
+function checkDamageSentences(description, flatDamage, dot, fail) {
+  const prose = proseOf(description);
+  if (/\bdamage over \d/i.test(prose) && dot === null) {
+    fail("it describes damage over time in a form the parser does not know");
+  }
+  const read = new Set([flatDamage, dot?.damage]);
+  for (const match of prose.matchAll(
+    new RegExp(`(?<![\\d.,-])(?<n>${NUMBER})(?!%|\\d)\\s+damage\\b`, "gi"),
+  )) {
+    if (!read.has(toNumber(match.groups.n))) {
+      fail(`it has a damage number the parser does not read: ${match[0]}`);
+    }
+  }
+}
+
 function parseComboPointsAwarded(description) {
   const match = description.match(
     /\b(?:awards|adds) (?<n>\d+) combo points?\b/i,
@@ -301,14 +329,14 @@ function parseComboPointsAwarded(description) {
 // but never gives the number, so an ability the text marks but the map does
 // not name gets null. A map entry for an ability the text does not mark is an
 // error: the two sources disagree.
-function readApCoefficient(name, scalesWithAttackPower, read, fail) {
-  const named = read("abilities.apCoefficients")[name];
+function readApCoefficient(id, scalesWithAttackPower, read, fail) {
+  const named = read("abilities.apCoefficients")[id];
   if (named === undefined) {
     return null;
   }
   if (!scalesWithAttackPower) {
     return fail(
-      `abilities.apCoefficients names ${name}, but its text does not say it scales with Attack Power`,
+      `abilities.apCoefficients names ${id}, but its text does not say it scales with Attack Power`,
     );
   }
   return {
@@ -330,6 +358,9 @@ function readApCoefficient(name, scalesWithAttackPower, read, fail) {
 //   - a table with no finisher cell, or text that says "Finishing move" with
 //     no finisher cell (or the other way round);
 //   - "weapon damage" in a form the parser does not know;
+//   - a cost cell whose unit is not in abilities.resources, a table row with
+//     min damage above max, and a damage number or damage-over-time sentence
+//     that parseFlatDamage and parseDot did not read;
 //   - a coefficient in abilities.apCoefficients for an ability the text does
 //     not say scales with Attack Power.
 export function parseSpell({ name, rank, label, tab, key, entry }, read = k) {
@@ -399,14 +430,20 @@ export function parseSpell({ name, rank, label, tab, key, entry }, read = k) {
   const weaponPercent = parseWeaponPercent(description, (problem) =>
     fail(problem, description),
   );
+  const flatDamage = parseFlatDamage(description);
   const dot = parseDot(description);
-  const bleed = read("bleed.spells").includes(name);
-  const ap = readApCoefficient(name, scalesWithAttackPower, read, (problem) =>
+  checkDamageSentences(description, flatDamage, dot, (problem) =>
+    fail(problem, description),
+  );
+  // The constants name an ability by its id, never its display name.
+  const id = slugify(name);
+  const bleed = read("bleed.spells").includes(id);
+  const ap = readApCoefficient(id, scalesWithAttackPower, read, (problem) =>
     fail(problem),
   );
 
   return {
-    id: slugify(name),
+    id,
     name,
     rank,
     spellId: entry.id,
@@ -419,13 +456,13 @@ export function parseSpell({ name, rank, label, tab, key, entry }, read = k) {
     comboPointsAwarded: parseComboPointsAwarded(description),
     finisher: found.finisher,
     weaponPercent,
-    flatDamage: parseFlatDamage(description),
+    flatDamage,
     dot,
     perComboPoint: table.length === 0 ? null : table,
     scalesWithAttackPower,
     ap,
     bleed,
-    startsGcd: !passive && !read("abilities.offGcd").includes(name),
+    startsGcd: !passive && !read("abilities.offGcd").includes(id),
     requires: found.requires,
     text: description,
   };

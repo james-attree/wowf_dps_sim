@@ -153,7 +153,7 @@ export class Rogue {
 
     if (this.comboPoints >= k("rotation.finisherComboPoints")) {
       const sliceAndDice = this.abilities[priority.sliceAndDice];
-      const active = simulation.activeBuffs[sliceAndDice.name];
+      const active = simulation.activeBuffs[sliceAndDice.id];
       const refresh =
         !active || active.duration <= k("rotation.sliceAndDiceRefreshSeconds");
       const finisher = refresh
@@ -167,25 +167,20 @@ export class Rogue {
     // Slice and Dice and Blade Flurry shorten the next swing of both weapons.
     // haste.stacking chooses the product or the sum. A swing already counting
     // down keeps its remaining time. wowsims rescales that swing.
+    // Which auras give haste is the auras' business (js/auras.js), not
+    // this method's. Each stack of an aura applies its haste again.
     let hasteMultiplier = 1;
-    if (
-      simulation.activeBuffs["Slice and Dice"] &&
-      simulation.activeBuffs["Slice and Dice"].duration > 0
-    ) {
-      hasteMultiplier = stackHaste(hasteMultiplier, k("sliceAndDice").haste);
-    }
-    if (
-      simulation.activeBuffs["Blade Flurry"] &&
-      simulation.activeBuffs["Blade Flurry"].duration > 0
-    ) {
-      hasteMultiplier = stackHaste(hasteMultiplier, k("bladeFlurry").haste);
+    for (const { value, stacks } of simulation.auraEffects("haste")) {
+      for (let stack = 0; stack < stacks; stack++) {
+        hasteMultiplier = stackHaste(hasteMultiplier, value);
+      }
     }
 
     this.weapons.mainHand.tick(dt, hasteMultiplier, (weapon) => {
-      simulation.resolveAttack("Main-hand", "weapon", weapon.rollDamage());
+      simulation.resolveAttack(weapon.attack, "weapon", weapon.rollDamage());
     });
     this.weapons.offHand.tick(dt, hasteMultiplier, (weapon) => {
-      simulation.resolveAttack("Off-hand", "weapon", weapon.rollDamage());
+      simulation.resolveAttack(weapon.attack, "weapon", weapon.rollDamage());
     });
   }
 }

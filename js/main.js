@@ -13,8 +13,10 @@ const { seed, rogue, simulation } = createFight(
 );
 const frameClock = new FrameClock();
 const fixedStep = k("sim.fixedStep");
-const cooldownSkillsByName = new Map(
-  Object.values(rogue.abilities).map((skill) => [skill.name, skill]),
+// Cooldowns are keyed by skill id, so the page looks the skill up for its name
+// and icon.
+const skillsById = new Map(
+  Object.values(rogue.abilities).map((skill) => [skill.id, skill]),
 );
 const comboValue = document.querySelector("#combo-value");
 const comboMeter = document.querySelector("#combo-meter");
@@ -110,28 +112,31 @@ function redrawScene(rogue) {
 
 function renderTimedEffects(effects, container, items, emptyState) {
   const activeEffects = Object.entries(effects)
-    .map(([name, effect]) => {
-      const isBuff = typeof effect === "object";
-      const skill = cooldownSkillsByName.get(name);
+    .map(([id, effect]) => {
+      // An aura is a record with its own name and icon. A cooldown is the
+      // seconds left, and the skill with that id has the name and icon.
+      const isAura = typeof effect === "object";
+      const skill = skillsById.get(id);
       return {
-        name,
-        icon: isBuff ? effect.icon : skill?.icon,
-        remaining: isBuff ? effect.duration : effect,
+        id,
+        name: isAura ? effect.name : skill?.name,
+        icon: isAura ? effect.icon : skill?.icon,
+        remaining: isAura ? effect.duration : effect,
       };
     })
     .filter(({ remaining }) => remaining > 0)
     .sort((a, b) => b.remaining - a.remaining);
-  const activeNames = new Set(activeEffects.map(({ name }) => name));
+  const activeIds = new Set(activeEffects.map(({ id }) => id));
 
-  items.forEach((item, name) => {
-    if (!activeNames.has(name)) {
+  items.forEach((item, id) => {
+    if (!activeIds.has(id)) {
       item.element.remove();
-      items.delete(name);
+      items.delete(id);
     }
   });
 
-  activeEffects.forEach(({ name, icon: iconSource, remaining }) => {
-    let item = items.get(name);
+  activeEffects.forEach(({ id, name, icon: iconSource, remaining }) => {
+    let item = items.get(id);
     if (!item) {
       const element = document.createElement("div");
       element.className = "timed-effect";
@@ -150,7 +155,7 @@ function renderTimedEffects(effects, container, items, emptyState) {
       time.className = "timed-effect-time";
       element.append(time);
       item = { element, time };
-      items.set(name, item);
+      items.set(id, item);
     }
 
     item.time.value = `${remaining.toFixed(0)}s`;

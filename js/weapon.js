@@ -1,5 +1,13 @@
 import { k } from "../data/constants.js";
 
+// What a weapon's swing is called to the engine: an id for the per-ability
+// totals and a display name for the combat log. Not catalogue abilities, so
+// their ids are these two.
+const WEAPON_ATTACKS = Object.freeze({
+  main: Object.freeze({ id: "main-hand", name: "Main-hand", icon: null }),
+  off: Object.freeze({ id: "off-hand", name: "Off-hand", icon: null }),
+});
+
 export class Weapon {
   constructor(rogue, minDamage, maxDamage, speed, hand, type = null) {
     // NaN > x is false, so the range check below does not reject it.
@@ -32,6 +40,11 @@ export class Weapon {
     this.maxDamage = maxDamage;
     this.speed = speed; // in seconds
     this.hand = hand; // 'main' or 'off'
+    // The source Simulation.resolveAttack records this hand's swings under.
+    this.attack = WEAPON_ATTACKS[hand];
+    if (this.attack === undefined) {
+      throw new RangeError(`Weapon hand must be 'main' or 'off', not ${hand}.`);
+    }
     // 'dagger' selects the dagger weapon percent. Any other type does not.
     this.type = type;
     this.swingTimer = 0; // seconds until the next swing; 0 means one is due

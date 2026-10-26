@@ -409,7 +409,7 @@ describe("the catalogue agrees with the constants the engine reads", () => {
     assert.deepEqual(
       abilityCatalogue.abilities
         .filter((a) => a.bleed)
-        .map((a) => a.name)
+        .map((a) => a.id)
         .sort(),
       [...k("bleed.spells")].sort(),
     );
@@ -464,6 +464,61 @@ describe("the parser rejects text it does not understand", () => {
       entry.d = entry.d.replace(" 2 points:", " 3 points:");
     });
     failsWith(source, "Eviscerate", 9, /table row 2 is for 3 combo points/);
+  });
+
+  it("a cost cell with a unit that is not a resource, such as 45 sec", () => {
+    const source = mutated((copy) => {
+      entryOf(copy, strike).l[0][0] = "45 sec";
+    });
+    failsWith(source, "Sinister Strike", 8, /unrecognised cell "45 sec"/);
+  });
+
+  it("a cost cell for a resource the constants do not list", () => {
+    const source = mutated((copy) => {
+      entryOf(copy, strike).l[0][0] = "45 Rage";
+    });
+    failsWith(source, "Sinister Strike", 8, /unrecognised cell "45 Rage"/);
+  });
+
+  it("a table row with min damage above max damage", () => {
+    const source = mutated((copy) => {
+      const entry = entryOf(copy, evis);
+      entry.d = entry.d.replace("564-672 damage", "672-564 damage");
+    });
+    failsWith(
+      source,
+      "Eviscerate",
+      9,
+      /the table row "3 points: 672-564 damage" has min damage above max/,
+    );
+  });
+
+  it("a damage-over-time sentence the parser does not read", () => {
+    const source = mutated((copy) => {
+      const entry = entryOf(copy, "Rogue|Garrote|Rank 6");
+      entry.d = entry.d.replace(
+        /causing (\d+) damage over/,
+        "dealing $1 damage over",
+      );
+    });
+    failsWith(
+      source,
+      "Garrote",
+      6,
+      /describes damage over time in a form the parser does not know/,
+    );
+  });
+
+  it("a damage number the parser does not read", () => {
+    const source = mutated((copy) => {
+      entryOf(copy, "Rogue|Garrote|Rank 6").d += " Also deals 77 damage.";
+    });
+    failsWith(
+      source,
+      "Garrote",
+      6,
+      /a damage number the parser does not read: 77 damage/,
+    );
   });
 
   it("two cooldown cells", () => {
@@ -588,7 +643,7 @@ describe("the parser rejects text it does not understand", () => {
       id === "abilities.apCoefficients"
         ? {
             ...k(id),
-            Backstab: { kind: "perCp", constant: "eviscerate.apPerCP" },
+            backstab: { kind: "perCp", constant: "eviscerate.apPerCP" },
           }
         : k(id);
     failsWith(
@@ -672,15 +727,15 @@ describe("constants added for the schema", () => {
   });
 
   it("the AP coefficient map names real constants and real abilities", () => {
-    for (const [name, { kind, constant }] of Object.entries(
+    for (const [id, { kind, constant }] of Object.entries(
       k("abilities.apCoefficients"),
     )) {
-      assert.ok(abilityCatalogue.byName(name), name);
-      assert.ok(["perCp", "totalByCp"].includes(kind), name);
+      assert.ok(abilityCatalogue.get(id), id);
+      assert.ok(["perCp", "totalByCp"].includes(kind), id);
       assert.ok(CONSTANTS[constant], constant);
     }
-    for (const name of k("abilities.offGcd")) {
-      assert.ok(abilityCatalogue.byName(name), name);
+    for (const id of k("abilities.offGcd")) {
+      assert.ok(abilityCatalogue.get(id), id);
     }
   });
 });

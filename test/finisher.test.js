@@ -110,9 +110,9 @@ describe("finishers at 1 combo point", () => {
     assert.equal(rogue.comboPoints, 0);
     assert.equal(rogue.energy, 0);
     assert.equal(rogue.abilities.rupture.duration, duration);
-    assert.equal(sim.activeDots.Rupture.duration, duration);
-    assert.equal(sim.activeDebuffs.Rupture.duration, duration);
-    assert.equal(sim.activeBuffs.Rupture, undefined);
+    assert.equal(sim.activeDots.rupture.duration, duration);
+    assert.equal(sim.activeDebuffs.rupture.duration, duration);
+    assert.equal(sim.activeBuffs.rupture, undefined);
     assert.equal(sim.gcd, k("gcd.duration"));
     assert.equal(sim.damageDone, 0);
 
@@ -120,8 +120,8 @@ describe("finishers at 1 combo point", () => {
     const rejected = rogue.abilities.rupture.cast(rogue, sim);
     assert.equal(rejected, null);
     assert.equal(rogue.energy, 0);
-    assert.equal(sim.activeDots.Rupture.duration, duration);
-    assert.equal(sim.activeDebuffs.Rupture.duration, duration);
+    assert.equal(sim.activeDots.rupture.duration, duration);
+    assert.equal(sim.activeDebuffs.rupture.duration, duration);
     assert.equal(sim.combatLog.length, 1);
   });
 
@@ -136,8 +136,8 @@ describe("finishers at 1 combo point", () => {
     assert.equal(rogue.comboPoints, 0);
     assert.equal(rogue.energy, cost);
     assert.equal(rogue.abilities.sliceAndDice.duration, duration);
-    assert.equal(sim.activeBuffs["Slice and Dice"].duration, duration);
-    assert.equal(sim.activeDebuffs["Slice and Dice"], undefined);
+    assert.equal(sim.activeBuffs["slice-and-dice"].duration, duration);
+    assert.equal(sim.activeDebuffs["slice-and-dice"], undefined);
     assert.equal(sim.gcd, k("gcd.duration"));
     assert.equal(sim.combatLog[0].name, "Slice and Dice");
     assert.equal(sim.combatLog[0].status, "Cast");
@@ -148,7 +148,7 @@ describe("finishers at 1 combo point", () => {
     assert.equal(rejected, null);
     assert.equal(rogue.energy, cost);
     assert.equal(rogue.comboPoints, 0);
-    assert.equal(sim.activeBuffs["Slice and Dice"].duration, duration);
+    assert.equal(sim.activeBuffs["slice-and-dice"].duration, duration);
     assert.equal(sim.combatLog.length, 1);
     assert.equal(sim.gcd, 0);
   });

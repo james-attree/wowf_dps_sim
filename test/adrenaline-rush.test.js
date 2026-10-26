@@ -116,14 +116,14 @@ describe("Adrenaline Rush cooldown", () => {
       const casts = watchCasts(sim);
       let blockedAt = null;
       rogue.rotation = () => {
-        const remaining = sim.cooldowns[skill.name] ?? 0;
+        const remaining = sim.cooldowns[skill.id] ?? 0;
         const events = sim.combatLog.length;
         skill.cast(rogue, sim);
         if (casts.length === 0) {
           return;
         }
         if (remaining > 0) {
-          assert.equal(sim.cooldowns[skill.name], remaining, `${fps} fps`);
+          assert.equal(sim.cooldowns[skill.id], remaining, `${fps} fps`);
           assert.equal(sim.combatLog.length, events, `${fps} fps`);
           assert.equal(skill.onCooldown(rogue, sim), true, `${fps} fps`);
           blockedAt = sim.currentTime;
@@ -146,7 +146,7 @@ describe("Adrenaline Rush cooldown", () => {
       );
       near(casts[1] - blockedAt, dt);
       near(casts[1] - casts[0], cooldown);
-      assert.equal(sim.cooldowns[skill.name], cooldown);
+      assert.equal(sim.cooldowns[skill.id], cooldown);
       gaps[fps] = casts[1] - casts[0];
     }
 

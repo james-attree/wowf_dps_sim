@@ -22,7 +22,7 @@ function pinned() {
 function hold(sim, rogue, ids) {
   const held = k("bladeFlurry").cooldown;
   for (const id of ids) {
-    sim.cooldowns[rogue.abilities[id].name] = held;
+    sim.cooldowns[rogue.abilities[id].id] = held;
   }
 }
 
@@ -37,7 +37,7 @@ function names(sim) {
 
 function armSliceAndDice(rogue, sim, duration) {
   const sliceAndDice = rogue.abilities.sliceAndDice;
-  sim.activeBuffs[sliceAndDice.name] = {
+  sim.activeBuffs[sliceAndDice.id] = {
     duration,
     icon: sliceAndDice.icon,
   };
@@ -56,14 +56,11 @@ describe("placeholder Combat rotation", () => {
 
     assert.deepEqual(names(sim), [rogue.abilities.bladeFlurry.name]);
     assert.equal(
-      sim.activeBuffs[rogue.abilities.bladeFlurry.name].duration,
+      sim.activeBuffs[rogue.abilities.bladeFlurry.id].duration,
       k("bladeFlurry").duration,
     );
-    assert.equal(
-      sim.activeBuffs[rogue.abilities.adrenalineRush.name],
-      undefined,
-    );
-    assert.equal(sim.activeBuffs[rogue.abilities.sliceAndDice.name], undefined);
+    assert.equal(sim.activeBuffs[rogue.abilities.adrenalineRush.id], undefined);
+    assert.equal(sim.activeBuffs[rogue.abilities.sliceAndDice.id], undefined);
     assert.equal(rogue.comboPoints, k("rotation.finisherComboPoints"));
     assert.equal(sim.gcd, k("gcd.duration"));
   });
@@ -80,7 +77,7 @@ describe("placeholder Combat rotation", () => {
       resting.rogue.abilities.adrenalineRush.name,
     ]);
     assert.equal(
-      resting.sim.activeBuffs[resting.rogue.abilities.adrenalineRush.name]
+      resting.sim.activeBuffs[resting.rogue.abilities.adrenalineRush.id]
         .duration,
       k("adrenalineRush").duration,
     );
@@ -95,7 +92,7 @@ describe("placeholder Combat rotation", () => {
       finishing.rogue.abilities.adrenalineRush.name,
     ]);
     assert.equal(
-      finishing.sim.activeBuffs[finishing.rogue.abilities.sliceAndDice.name],
+      finishing.sim.activeBuffs[finishing.rogue.abilities.sliceAndDice.id],
       undefined,
     );
     assert.equal(
@@ -115,10 +112,10 @@ describe("placeholder Combat rotation", () => {
     assert.deepEqual(names(sim), [rogue.abilities.sliceAndDice.name]);
     assert.equal(rogue.comboPoints, 0);
     assert.equal(
-      sim.activeBuffs[rogue.abilities.sliceAndDice.name].duration,
+      sim.activeBuffs[rogue.abilities.sliceAndDice.id].duration,
       k("sliceAndDice").durationByCp.at(-1),
     );
-    assert.equal(sim.activeDots.Rupture, undefined);
+    assert.equal(sim.activeDots.rupture, undefined);
     assert.equal(sim.gcd, k("gcd.duration"));
   });
 
@@ -138,10 +135,10 @@ describe("placeholder Combat rotation", () => {
       assert.deepEqual(names(sim), [rogue.abilities.sliceAndDice.name]);
       assert.equal(rogue.comboPoints, 0);
       assert.equal(
-        sim.activeBuffs[rogue.abilities.sliceAndDice.name].duration,
+        sim.activeBuffs[rogue.abilities.sliceAndDice.id].duration,
         refreshed,
       );
-      assert.equal(sim.activeDots.Rupture, undefined);
+      assert.equal(sim.activeDots.rupture, undefined);
     }
   });
 
@@ -163,10 +160,10 @@ describe("placeholder Combat rotation", () => {
       assert.deepEqual(names(sim), [rogue.abilities.eviscerate.name]);
       assert.equal(rogue.comboPoints, 0);
       assert.equal(
-        sim.activeBuffs[rogue.abilities.sliceAndDice.name].duration,
+        sim.activeBuffs[rogue.abilities.sliceAndDice.id].duration,
         duration,
       );
-      assert.equal(sim.activeDots.Rupture, undefined);
+      assert.equal(sim.activeDots.rupture, undefined);
       assert.equal(
         names(sim).includes(rogue.abilities.sinisterStrike.name),
         false,
@@ -190,11 +187,8 @@ describe("placeholder Combat rotation", () => {
         rogue.comboPoints,
         comboPoints + k("sinisterStrike").comboPoints,
       );
-      assert.equal(
-        sim.activeBuffs[rogue.abilities.sliceAndDice.name],
-        undefined,
-      );
-      assert.equal(sim.activeDots.Rupture, undefined);
+      assert.equal(sim.activeBuffs[rogue.abilities.sliceAndDice.id], undefined);
+      assert.equal(sim.activeDots.rupture, undefined);
     }
   });
 

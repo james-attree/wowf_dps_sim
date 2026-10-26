@@ -27,9 +27,10 @@ function recordConsole() {
   return calls;
 }
 
-function primeDot(sim, name) {
+function primeDot(sim, id, name) {
   const tickInterval = k("rupture.tickInterval");
-  sim.activeDots[name] = {
+  sim.activeDots[id] = {
+    name,
     duration: tickInterval,
     tickInterval,
     timeUntilNextTick: tickInterval,
@@ -42,16 +43,16 @@ function tickDot({ hemorrhage }) {
   const rogue = new Rogue();
   rogue.rotation = () => {};
   const sim = new Simulation(rogue, { rng: testRng });
-  primeDot(sim, "Rupture");
+  primeDot(sim, "rupture", "Rupture");
   if (hemorrhage) {
     const aura = {
       duration: k("hemorrhage.ruptureBonus").duration,
       icon: null,
     };
     if (hemorrhage === "buff") {
-      sim.activeBuffs.Hemorrhage = aura;
+      sim.activeBuffs.hemorrhage = aura;
     } else {
-      sim.activeDebuffs.Hemorrhage = aura;
+      sim.activeDebuffs.hemorrhage = aura;
     }
   }
   sim.step(k("rupture.tickInterval"));
@@ -83,7 +84,7 @@ describe("simulation output", () => {
 
     const plain = tickDot({});
     assert.equal(plain.damageDone, 100 * k("dot.critMultiplier"));
-    assert.equal(plain.activeDots.Rupture, undefined);
+    assert.equal(plain.activeDots.rupture, undefined);
     assert.equal(plain.combatLog[0].damage, plain.damageDone);
     assert.equal(plain.combatLog[0].status, "Crit");
 
@@ -93,7 +94,7 @@ describe("simulation output", () => {
     const boosted = tickDot({ hemorrhage: true });
     assert.equal(boosted.damageDone, boostedDamage);
     assert.ok(boosted.damageDone > plain.damageDone);
-    assert.equal(boosted.activeDots.Rupture, undefined);
+    assert.equal(boosted.activeDots.rupture, undefined);
     assert.equal(boosted.combatLog[0].damage, boosted.damageDone);
     assert.equal(boosted.combatLog[0].status, "Crit");
 
@@ -144,22 +145,22 @@ function runGhostlyStrike(fps) {
   for (let f = 1; f <= lastFrame; f += 1) {
     sim.step(dt);
     if (f === lead) {
-      assert.equal(sim.cooldowns[skill.name], cooldown);
-      assert.equal(sim.activeBuffs[skill.name].duration, buffDuration);
-      assert.equal(sim.activeDebuffs[skill.name], undefined);
+      assert.equal(sim.cooldowns[skill.id], cooldown);
+      assert.equal(sim.activeBuffs[skill.id].duration, buffDuration);
+      assert.equal(sim.activeDebuffs[skill.id], undefined);
       assert.equal(castTime, sim.currentTime);
     }
     if (f <= lead) {
       continue;
     }
-    const buff = sim.activeBuffs[skill.name];
+    const buff = sim.activeBuffs[skill.id];
     if (buff) {
       lastBuffDuration = buff.duration;
     } else if (buffGoneAt === null) {
       buffGoneAt = sim.currentTime;
     }
     if (skill.onCooldown(rogue, sim)) {
-      lastCooldown = sim.cooldowns[skill.name];
+      lastCooldown = sim.cooldowns[skill.id];
     } else if (readyAt === null) {
       readyAt = sim.currentTime;
     }
@@ -182,7 +183,8 @@ function runDot(fps, duration) {
   const sim = new Simulation(rogue, { rng: testRng });
   const tickInterval = k("rupture.tickInterval");
   const tickDamage = 100;
-  sim.activeDots.Rupture = {
+  sim.activeDots.rupture = {
+    name: "Rupture",
     duration,
     tickInterval,
     timeUntilNextTick: tickInterval,
@@ -203,7 +205,7 @@ function runDot(fps, duration) {
   let previousRemaining = null;
   for (let frame = 1; frame <= frames; frame += 1) {
     sim.step(dt);
-    const dot = sim.activeDots.Rupture;
+    const dot = sim.activeDots.rupture;
     if (dot) {
       previousRemaining = dot.duration;
     } else if (expiredAt === null) {
@@ -259,30 +261,30 @@ describe("buff and cooldown duration", () => {
       const debuffDuration = k("hemorrhage.ruptureBonus").duration;
       const runningDebuff = k("rupture").durationByCp[0];
       rogue.rotation = (sim) => {
-        sim.cooldowns["Ghostly Strike"] = applied;
-        sim.activeBuffs["Blade Flurry"] = {
+        sim.cooldowns["ghostly-strike"] = applied;
+        sim.activeBuffs["blade-flurry"] = {
           duration: buffDuration,
           icon: null,
         };
-        sim.activeDebuffs.Hemorrhage = {
+        sim.activeDebuffs.hemorrhage = {
           duration: debuffDuration,
           icon: null,
         };
       };
       const sim = new Simulation(rogue, { rng: testRng });
-      sim.cooldowns.Premeditation = running;
-      sim.activeDebuffs.Rupture = {
+      sim.cooldowns.premeditation = running;
+      sim.activeDebuffs.rupture = {
         duration: runningDebuff,
         icon: null,
       };
       const dt = 1 / fps;
       sim.step(dt);
 
-      near(sim.cooldowns.Premeditation, running - dt);
-      assert.equal(sim.cooldowns["Ghostly Strike"], applied);
-      assert.equal(sim.activeBuffs["Blade Flurry"].duration, buffDuration);
-      assert.equal(sim.activeDebuffs.Hemorrhage.duration, debuffDuration);
-      near(sim.activeDebuffs.Rupture.duration, runningDebuff - dt);
+      near(sim.cooldowns.premeditation, running - dt);
+      assert.equal(sim.cooldowns["ghostly-strike"], applied);
+      assert.equal(sim.activeBuffs["blade-flurry"].duration, buffDuration);
+      assert.equal(sim.activeDebuffs.hemorrhage.duration, debuffDuration);
+      near(sim.activeDebuffs.rupture.duration, runningDebuff - dt);
     }
   });
 });
@@ -322,7 +324,7 @@ function adrenalineBonus(steps) {
       }
       rogue.abilities.adrenalineRush.cast(rogue, sim);
       applied = true;
-      assert.ok(sim.activeBuffs["Adrenaline Rush"]);
+      assert.ok(sim.activeBuffs["adrenaline-rush"]);
     };
     const sim = new Simulation(rogue, { rng: testRng });
     for (const dt of steps) {
@@ -397,35 +399,35 @@ describe("player buffs and target debuffs", () => {
     assert.equal(rupture.landed, true);
 
     assert.deepEqual(Object.keys(sim.activeBuffs).sort(), [
-      "Adrenaline Rush",
-      "Blade Flurry",
-      "Ghostly Strike",
-      "Slice and Dice",
+      "adrenaline-rush",
+      "blade-flurry",
+      "ghostly-strike",
+      "slice-and-dice",
     ]);
     assert.deepEqual(Object.keys(sim.activeDebuffs).sort(), [
-      "Hemorrhage",
-      "Rupture",
+      "hemorrhage",
+      "rupture",
     ]);
     assert.equal(
-      sim.activeBuffs["Slice and Dice"].duration,
+      sim.activeBuffs["slice-and-dice"].duration,
       k("sliceAndDice").durationByCp.at(-1),
     );
     assert.equal(
-      sim.activeBuffs["Ghostly Strike"].duration,
+      sim.activeBuffs["ghostly-strike"].duration,
       k("ghostlyStrike").duration,
     );
-    assert.equal(sim.activeDebuffs["Ghostly Strike"], undefined);
+    assert.equal(sim.activeDebuffs["ghostly-strike"], undefined);
     assert.equal(
-      sim.activeDebuffs.Hemorrhage.duration,
+      sim.activeDebuffs.hemorrhage.duration,
       k("hemorrhage.ruptureBonus").duration,
     );
     assert.equal(
-      sim.activeDebuffs.Rupture.duration,
+      sim.activeDebuffs.rupture.duration,
       k("rupture").durationByCp[0],
     );
     assert.equal(
-      sim.activeDots.Rupture.duration,
-      sim.activeDebuffs.Rupture.duration,
+      sim.activeDots.rupture.duration,
+      sim.activeDebuffs.rupture.duration,
     );
   });
 });
@@ -441,7 +443,7 @@ describe("DoT expiry", () => {
     rogue.rotation = () => {};
     const sim = new Simulation(rogue, { rng: testRng });
     const tickDamage = 100;
-    sim.activeDots.Rupture = {
+    sim.activeDots.rupture = {
       duration: k("sim.tickEpsilon"),
       tickInterval: k("rupture.tickInterval"),
       timeUntilNextTick: k("sim.tickEpsilon"),
@@ -450,7 +452,7 @@ describe("DoT expiry", () => {
     };
     sim.step(0);
 
-    assert.equal(sim.activeDots.Rupture, undefined);
+    assert.equal(sim.activeDots.rupture, undefined);
     assert.equal(sim.damageDone, tickDamage);
     assert.equal(sim.currentTime, 0);
   });
@@ -460,7 +462,7 @@ describe("DoT expiry", () => {
     rogue.critChance = 0;
     rogue.rotation = () => {};
     const sim = new Simulation(rogue, { rng: testRng });
-    sim.activeDots.Rupture = {
+    sim.activeDots.rupture = {
       duration: k("sim.tickEpsilon"),
       tickInterval: k("rupture.tickInterval"),
       timeUntilNextTick: k("rupture.tickInterval"),
@@ -469,7 +471,7 @@ describe("DoT expiry", () => {
     };
     sim.step(0);
 
-    assert.equal(sim.activeDots.Rupture, undefined);
+    assert.equal(sim.activeDots.rupture, undefined);
     assert.equal(sim.damageDone, 0);
   });
 
@@ -479,7 +481,7 @@ describe("DoT expiry", () => {
     rogue.rotation = () => {};
     const sim = new Simulation(rogue, { rng: testRng });
     const duration = k("sim.tickEpsilon") + k("sim.tickEpsilon");
-    sim.activeDots.Rupture = {
+    sim.activeDots.rupture = {
       duration,
       tickInterval: k("rupture.tickInterval"),
       timeUntilNextTick: k("rupture.tickInterval"),
@@ -488,7 +490,7 @@ describe("DoT expiry", () => {
     };
     sim.step(0);
 
-    assert.equal(sim.activeDots.Rupture.duration, duration);
+    assert.equal(sim.activeDots.rupture.duration, duration);
     assert.equal(sim.damageDone, 0);
   });
 
