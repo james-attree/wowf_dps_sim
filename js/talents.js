@@ -12,6 +12,11 @@ import snapshot from "../data/talentsforever/rogue.json" with { type: "json" };
 // module imported above (Node 20.19+ and current browsers support import
 // attributes), so it needs no fetch and no fs. Nothing in the live page
 // imports it yet; the engine starts using it in later Phase 2 issues.
+//
+// Load-time validation (roadmap D11). buildTalentCatalogue checks the data and
+// throws on the first problem, and the catalogue for the vendored snapshot is
+// built when this module loads, so bad data fails the import loudly instead of
+// giving a quietly wrong talent. The checks are listed on buildTalentCatalogue.
 
 // The slug rule, in order:
 //   1. lower-case the name;
@@ -43,6 +48,7 @@ function deepFreeze(value) {
   return value;
 }
 
+// byName ignores case and leading or trailing whitespace.
 function nameKey(name) {
   return name.trim().toLowerCase();
 }
@@ -53,8 +59,33 @@ function requireField(talent, field, type, where) {
   }
 }
 
-// Builds a catalogue from a parsed talentsforever export. The result is deeply
-// frozen. Lookups are by id, by tree and by name:
+function requireText(value, field, where) {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new TypeError(`${where}: "${field}" must be a non-empty string.`);
+  }
+}
+
+function requirePositiveInteger(value, field, where) {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new RangeError(
+      `${where}: "${field}" must be a whole number of 1 or more, not ${JSON.stringify(value)}.`,
+    );
+  }
+}
+
+// Builds a catalogue from a parsed talentsforever export, and validates it as
+// it goes. It throws on the first of these:
+//   - a missing or empty tree or talent name, tree icon or talent icon, or a
+//     missing row, col, max or desc;
+//   - a row, col or max that is not a whole number of 1 or more;
+//   - a `max` that differs from the number of rank texts in `desc`, or a rank
+//     text that is not a non-empty string;
+//   - a duplicate tree, a duplicate talent id, or two talents in one tree on
+//     the same row and column;
+//   - a `req` that names no talent, names a talent in another tree, names the
+//     talent itself, or names a talent that is not on an earlier row.
+// The result is deeply frozen, so `trees`, every tree's `talents`, `talents`
+// and each talent are read-only. Lookups are by id, by tree and by name:
 //
 //   catalogue.trees               [{ id, name, icon, talents: [talent...] }]
 //   catalogue.talents             every talent, tree by tree, in snapshot order
@@ -80,6 +111,23 @@ export function buildTalentCatalogue(source) {
   const byTreeId = new Map();
   const byNameKey = new Map();
 
+  // Which tree each talent name is in, so a prerequisite in another tree gets
+  // its own message rather than "not found".
+  const treeOfName = new Map();
+  for (const snapshotTree of snapshotTrees) {
+    const label = `Tree ${JSON.stringify(snapshotTree?.name)}`;
+    requireText(snapshotTree?.name, "name", label);
+    requireText(snapshotTree.icon, "icon", label);
+    if (!Array.isArray(snapshotTree.talents)) {
+      throw new TypeError(`${label}: "talents" must be an array.`);
+    }
+    for (const raw of snapshotTree.talents) {
+      if (typeof raw?.name === "string") {
+        treeOfName.set(raw.name, slugify(snapshotTree.name));
+      }
+    }
+  }
+
   for (const snapshotTree of snapshotTrees) {
     const treeId = slugify(snapshotTree.name);
     if (byTreeId.has(treeId)) {
@@ -87,22 +135,48 @@ export function buildTalentCatalogue(source) {
     }
     const treeTalents = [];
     const nameToId = new Map();
+    const nameToRow = new Map();
+    const positions = new Set();
 
     const drafts = snapshotTree.talents.map((raw) => {
       const where = `Talent ${JSON.stringify(raw?.name)} in ${treeId}`;
+      if (raw === null || typeof raw !== "object") {
+        throw new TypeError(`${where}: a talent must be an object.`);
+      }
       requireField(raw, "name", "string", where);
+      requireText(raw.name, "name", where);
       requireField(raw, "row", "number", where);
       requireField(raw, "col", "number", where);
       requireField(raw, "max", "number", where);
       requireField(raw, "icon", "string", where);
+      requireText(raw.icon, "icon", where);
       if (!Array.isArray(raw.desc)) {
         throw new TypeError(`${where}: "desc" must be an array.`);
       }
+      requirePositiveInteger(raw.row, "row", where);
+      requirePositiveInteger(raw.col, "col", where);
+      requirePositiveInteger(raw.max, "max", where);
+      if (raw.desc.length !== raw.max) {
+        throw new RangeError(
+          `${where}: "max" is ${raw.max} but "desc" has ${raw.desc.length} rank texts.`,
+        );
+      }
+      raw.desc.forEach((text, index) => {
+        requireText(text, `desc[${index}]`, where);
+      });
       const id = `${treeId}.${slugify(raw.name)}`;
       if (byId.has(id) || nameToId.has(raw.name)) {
         throw new RangeError(`Duplicate talent id "${id}".`);
       }
+      const position = `${raw.row},${raw.col}`;
+      if (positions.has(position)) {
+        throw new RangeError(
+          `${where}: row ${raw.row}, col ${raw.col} is already taken in ${treeId}.`,
+        );
+      }
+      positions.add(position);
       nameToId.set(raw.name, id);
+      nameToRow.set(raw.name, raw.row);
       byId.set(id, null);
       return { raw, id };
     });
@@ -110,10 +184,19 @@ export function buildTalentCatalogue(source) {
     for (const { raw, id } of drafts) {
       let req = null;
       if (raw.req !== undefined) {
+        requireText(raw.req, "req", `Talent "${id}"`);
         req = nameToId.get(raw.req) ?? null;
         if (req === null) {
+          const elsewhere = treeOfName.get(raw.req);
           throw new RangeError(
-            `Talent "${id}" requires "${raw.req}", which is not in ${treeId}.`,
+            elsewhere === undefined
+              ? `Talent "${id}" requires "${raw.req}", which is not in ${treeId}.`
+              : `Talent "${id}" requires "${raw.req}", which is in ${elsewhere}. A prerequisite must be in the same tree.`,
+          );
+        }
+        if (req === id || nameToRow.get(raw.req) >= raw.row) {
+          throw new RangeError(
+            `Talent "${id}" requires "${raw.req}", which is not on an earlier row.`,
           );
         }
       }
@@ -162,6 +245,11 @@ export function buildTalentCatalogue(source) {
       return found;
     },
     byName(name, treeId) {
+      if (typeof name !== "string") {
+        throw new TypeError(
+          `byName needs a talent name as a string, not ${typeof name}.`,
+        );
+      }
       const matches = byNameKey.get(nameKey(name)) ?? [];
       return matches.find(
         (talent) => treeId === undefined || talent.tree === treeId,

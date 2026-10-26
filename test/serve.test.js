@@ -155,12 +155,20 @@ describe("static server", () => {
       seen.add(pathname);
       const response = await fetch(`${base}${pathname}`);
       assert.equal(response.status, 200, pathname);
+      // A JSON module (import ... with { type: "json" }) must come back as
+      // application/json, or the browser refuses to import it.
       assert.match(
         response.headers.get("content-type"),
-        /^text\/javascript\b/,
+        pathname.endsWith(".json")
+          ? /^application\/json\b/
+          : /^text\/javascript\b/,
         pathname,
       );
       const source = await response.text();
+      if (pathname.endsWith(".json")) {
+        JSON.parse(source);
+        continue;
+      }
       for (const match of source.matchAll(/from\s+["'](\.[^"']+)["']/g)) {
         pending.push(new URL(match[1], `${base}${pathname}`).pathname);
       }
@@ -168,6 +176,7 @@ describe("static server", () => {
     assert.ok(seen.has("/js/attack-resolver.js"));
     assert.ok(seen.has("/js/skill.js"));
     assert.ok(seen.has("/js/weapon.js"));
+    assert.ok(seen.has("/data/talentsforever/manifest.json"));
 
     const image = await fetch(`${base}/img/backstab.jpg`);
     assert.equal(image.status, 200);

@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { k } from "../data/constants.js";
 import { resolveAttack } from "../js/attack-resolver.js";
+import { dataVersion } from "../js/data-version.js";
 import { runFight } from "../js/fight.js";
 import {
   FINISHER_SCRIPT,
@@ -22,6 +23,7 @@ import {
   GOLDEN_DIR,
   IGNORED_FILES,
   MAX_LISTED_CHANGES,
+  UNPINNED_FIELDS,
   UPDATE_COMMAND,
   diffResults,
   formatGolden,
@@ -31,9 +33,11 @@ import {
   goldenPath,
   parseArgs,
   parseGolden,
+  pinnedPart,
   runGoldenCase,
   updateGolden,
 } from "../scripts/golden-update.mjs";
+import { runScriptedFight } from "../scripts/scripted-fight.mjs";
 
 // Issues #77 and #85. The full headless result for a few fixed seeds and durations is
 // pinned in test/golden/*.json. This file only reads those fixtures. Only
@@ -132,6 +136,31 @@ describe("golden fixtures", () => {
     }
   });
 
+  it("do not pin dataVersion, but every result carries the current one (#91)", async () => {
+    for (const goldenCase of GOLDEN_CASES) {
+      const text = await readFile(goldenPath(goldenCase.name), "utf8");
+      assert.doesNotMatch(text, /dataVersion/, goldenCase.name);
+      assert.ok(!("dataVersion" in runGoldenCase(goldenCase)));
+      const full = goldenCase.script
+        ? runScriptedFight(goldenCase)
+        : runFight(goldenCase);
+      assert.equal(full.dataVersion, dataVersion, goldenCase.name);
+      assert.deepEqual(pinnedPart(full), runGoldenCase(goldenCase));
+    }
+    assert.deepEqual(UNPINNED_FIELDS, ["dataVersion"]);
+  });
+
+  it("do not change when only the data version changes", () => {
+    const [goldenCase] = GOLDEN_CASES;
+    const result = runFight(goldenCase);
+    const refreshed = { ...result, dataVersion: "2099-01-01+9.9.9" };
+    assert.deepEqual(pinnedPart(refreshed), pinnedPart(result));
+    assert.equal(
+      formatGolden(pinnedPart(refreshed)),
+      formatGolden(pinnedPart(result)),
+    );
+  });
+
   it("are readable and small: one line per ability and per log event", async () => {
     for (const goldenCase of GOLDEN_CASES) {
       const text = await readFile(goldenPath(goldenCase.name), "utf8");
@@ -155,11 +184,7 @@ describe("golden fixtures", () => {
 
 describe("a golden mismatch message", () => {
   const goldenCase = GOLDEN_CASES[0];
-  const fixture = parseGolden(
-    formatGolden(
-      runFight({ seed: goldenCase.seed, duration: goldenCase.duration }),
-    ),
-  );
+  const fixture = parseGolden(formatGolden(runGoldenCase(goldenCase)));
 
   it("lists the fields that changed, and how to regenerate on purpose", () => {
     const changed = structuredClone(fixture);
