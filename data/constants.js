@@ -530,8 +530,8 @@ export const CONSTANTS = {
     ["instant-poison", "deadly-poison"],
     "ability ids",
     CLASSIC,
-    `${WS}core/spell_resistances.go`,
-    "Instant Poison and Deadly Poison deal nature damage, so their damage skips armor when nature.ignoresArmor is set. The school of a damage event (js/damage-tags.js) comes from this list.",
+    `${WS}rogue/poisons.go`,
+    "Instant Poison and Deadly Poison deal nature damage (both are registered with SpellSchoolNature in rogue/poisons.go), so their damage skips armor when nature.ignoresArmor is set. The school of a damage event (js/damage-tags.js) comes from this list.",
     true,
   ),
   "poison.spells": entry(

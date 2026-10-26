@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, it, mock } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import { CONSTANTS, k } from "../data/constants.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { createFight } from "../js/fight.js";
@@ -21,6 +27,7 @@ import { setRoll, testRng } from "./rolls.js";
 // the scope as well as the value: what a modifier must change and what it must
 // leave alone.
 
+const execFileAsync = promisify(execFile);
 const TICKS = Math.floor(12 / k("rupture.tickInterval"));
 const NEAR = 1e-9;
 const HIT = 0.99;
@@ -136,6 +143,51 @@ describe("the tags of a damage event", () => {
     }
   });
 
+  it("has exactly these schools and tags, frozen, in this order", () => {
+    assert.deepEqual([...SCHOOLS], ["physical", "nature"]);
+    assert.deepEqual(
+      [...DAMAGE_TAGS],
+      ["bleed", "poison", "white", "yellow", "finisher"],
+    );
+    assert.ok(Object.isFrozen(SCHOOLS));
+    assert.ok(Object.isFrozen(DAMAGE_TAGS));
+    assert.throws(() => DAMAGE_TAGS.push("fire"), TypeError);
+    assert.throws(() => SCHOOLS.push("fire"), TypeError);
+  });
+
+  it("fails the import of js/damage-tags.js when the catalogue has a school it does not know", async () => {
+    // The check runs when the module loads. Copy js/ and data/ next to a
+    // snapshot that gives Rupture a school nobody listed, and import the copy
+    // in a fresh Node process.
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const dir = await mkdtemp(join(tmpdir(), "wowf-schools-"));
+    try {
+      await writeFile(join(dir, "package.json"), '{"type":"module"}');
+      await cp(join(root, "js"), join(dir, "js"), { recursive: true });
+      await cp(join(root, "data"), join(dir, "data"), { recursive: true });
+      const importIt = () =>
+        execFileAsync(process.execPath, [
+          "--input-type=module",
+          "-e",
+          `import(${JSON.stringify(pathToFileURL(join(dir, "js/damage-tags.js")).href)})`,
+        ]);
+      await importIt();
+
+      const file = join(dir, "data/talentsforever/rogue.json");
+      const broken = JSON.parse(await readFile(file, "utf8"));
+      broken.spell_desc["Rogue|Rupture|Rank 6"].sc = "Fire";
+      await writeFile(file, JSON.stringify(broken));
+      await assert.rejects(importIt(), (error) => {
+        assert.match(error.stderr, /RangeError/);
+        assert.match(error.stderr, /school "fire"/);
+        assert.match(error.stderr, /Known: physical, nature/);
+        return true;
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("lists every poison as a Nature spell, so the poison tag and the school agree", () => {
     for (const id of k("poison.spells")) {
       assert.ok(k("nature.spells").includes(id), id);
@@ -173,21 +225,51 @@ describe("the tags of a damage event", () => {
     );
   });
 
-  it("gives an unknown attack type no white or yellow tag, and keeps the tags in DAMAGE_TAGS order", () => {
-    assert.deepEqual(
-      damageTags({ id: "made-up-by-a-test", attackType: "spell" }).tags,
-      [],
-    );
-    assert.deepEqual(
-      damageTags({ id: "constructor", attackType: "constructor" }).tags,
-      [],
-    );
+  it("keeps the tags in DAMAGE_TAGS order", () => {
     const all = withConstant("poison.spells", ["rupture"], () =>
       damageTags({ id: "rupture", attackType: "skill" }),
     );
     assert.deepEqual(all.tags, ["bleed", "poison", "finisher"]);
     const order = all.tags.map((tag) => DAMAGE_TAGS.indexOf(tag));
     assert.deepEqual(order, [...order].sort());
+  });
+
+  it("throws a RangeError for an attack type it does not know", () => {
+    for (const attackType of [
+      "spell",
+      "constructor",
+      "toString",
+      "Skill",
+      "",
+      undefined,
+      null,
+      1,
+    ]) {
+      assert.throws(
+        () => damageTags({ id: "backstab", attackType }),
+        (error) =>
+          error instanceof RangeError &&
+          /Unknown attack type/.test(error.message),
+        String(attackType),
+      );
+    }
+    // The throw comes before any tag is built, poison or not.
+    assert.throws(
+      () => damageTags({ id: "deadly-poison", attackType: "spell" }),
+      RangeError,
+    );
+  });
+
+  it("throws a RangeError for a missing or non-object event", () => {
+    for (const event of [undefined, null, "rupture", 1, true]) {
+      assert.throws(
+        () => damageTags(event),
+        (error) =>
+          error instanceof RangeError && /needs an event/.test(error.message),
+        String(event),
+      );
+    }
+    assert.throws(() => damageTags(), RangeError);
   });
 
   it("returns a fresh list each time", () => {
@@ -243,6 +325,30 @@ describe("the context an attack passes", () => {
     ]);
     // With no application to read, a bare id is a yellow, non-bleed attack.
     assert.deepEqual(sim.abilityContext("made-up-by-a-test").tags, ["yellow"]);
+  });
+});
+
+describe("abilityContext input", () => {
+  it("takes no options, or an object, and throws a RangeError for anything else", () => {
+    const { sim } = build();
+    assert.deepEqual(sim.abilityContext("backstab").tags, ["yellow"]);
+    assert.deepEqual(
+      sim.abilityContext("main-hand", { attackType: "weapon" }).tags,
+      ["white"],
+    );
+    for (const options of [null, "weapon", 1, true]) {
+      assert.throws(
+        () => sim.abilityContext("backstab", options),
+        (error) =>
+          error instanceof RangeError &&
+          /options must be an object/.test(error.message),
+        String(options),
+      );
+    }
+    assert.throws(
+      () => sim.abilityContext("backstab", { attackType: "spell" }),
+      RangeError,
+    );
   });
 });
 
@@ -339,6 +445,66 @@ describe("scope.schools and scope.tags", () => {
     );
     assert.equal(school.resolve("damage", 100, { ability: "x" }), 100);
     assert.equal(school.resolve("damage", 100), 100);
+  });
+
+  it("match a school that is not first in the list", () => {
+    const both = new ModifierPipeline([
+      damage({ schools: ["physical", "nature"] }),
+    ]);
+    const only = new ModifierPipeline([damage({ schools: ["nature"] })]);
+    const reversed = new ModifierPipeline([
+      damage({ schools: ["nature", "physical"] }),
+    ]);
+    for (const school of ["physical", "nature"]) {
+      const context = { ability: "x", school };
+      assert.equal(both.resolve("damage", 100, context), 150, school);
+      assert.equal(reversed.resolve("damage", 100, context), 150, school);
+    }
+    assert.equal(
+      only.resolve("damage", 100, { ability: "x", school: "physical" }),
+      100,
+    );
+    // A school outside the list, even one that is a prefix of a listed one.
+    for (const school of ["fire", "natur", "", null, undefined]) {
+      assert.equal(
+        both.resolve("damage", 100, { ability: "x", school }),
+        100,
+        String(school),
+      );
+    }
+  });
+
+  it("treat an explicit undefined as a mistake, not as unrestricted", () => {
+    for (const scope of [
+      { tags: undefined },
+      { schools: undefined },
+      { abilities: ["rupture"], tags: undefined },
+      { hands: ["mainHand"], schools: undefined },
+    ]) {
+      assert.throws(
+        () => damage(scope),
+        /scope\.(schools|tags) must be a non-empty array/,
+        JSON.stringify(scope),
+      );
+    }
+    // And a context whose tags or school is explicitly undefined fails closed.
+    const pipeline = new ModifierPipeline([
+      damage({ tags: ["yellow"] }),
+      defineModifier({
+        kind: "damage",
+        op: "add",
+        value: 0.25,
+        scope: { schools: ["physical"] },
+      }),
+    ]);
+    assert.equal(
+      pipeline.resolve("damage", 100, {
+        ability: "x",
+        school: undefined,
+        tags: undefined,
+      }),
+      100,
+    );
   });
 
   it("and with the other keys: every key present must match", () => {
@@ -501,7 +667,7 @@ describe("data-only damage modifiers by tag, through the engine", () => {
     close(main, 1000 * (1 + 0.2 + 0.4) * throughArmor());
   });
 
-  it("applies the damage modifier before the crit multiplier and before armor", () => {
+  it("applies the damage modifier before the crit multiplier, the floor and armor", () => {
     setRoll(HIT);
     const { sim } = build(
       [
@@ -510,11 +676,21 @@ describe("data-only damage modifiers by tag, through the engine", () => {
       ],
       { crit: 1 },
     );
-    const hit = sim.resolveAttack(source("backstab"), "skill", 1000);
+    // An odd base, so the floor tells the orders apart.
+    const base = 1001;
+    const hit = sim.resolveAttack(source("backstab"), "skill", base);
     assert.equal(hit.outcome, "crit");
-    // floor(base × (1 + 0.37)) = 1370, then × (1 + (2 - 1) × 1.5), then armor.
     const crit = 1 + (k("crit.meleeMultiplier") - 1) * 1.5;
-    close(hit.damage, Math.floor(1370 * crit) * throughArmor());
+    const factor = 1 + 0.37;
+    const expected = Math.floor(base * factor * crit) * throughArmor();
+    close(hit.damage, expected, "damage, crit, floor, armor");
+    // The orders the engine must not use give other numbers.
+    const afterFloor = Math.floor(base * crit) * factor * throughArmor();
+    const afterArmor = Math.floor(base * crit) * throughArmor() * factor;
+    const floorFirst = Math.floor(base * factor) * crit * throughArmor();
+    for (const wrong of [afterFloor, afterArmor, floorFirst]) {
+      assert.ok(Math.abs(wrong - expected) > 1e-6, `${wrong} vs ${expected}`);
+    }
   });
 
   it("reads the crit chance of a tick with the DoT's tags", () => {

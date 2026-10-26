@@ -512,7 +512,13 @@ export class Simulation {
   // The context of an ability by id, for what has no source object to hand
   // (a DoT tick): the ability's own main-hand attack, with the attack type and
   // bleed flag the DoT was applied with.
-  abilityContext(id, { attackType, bleed } = {}) {
+  abilityContext(id, options = {}) {
+    if (options === null || typeof options !== "object") {
+      throw new RangeError(
+        `abilityContext options must be an object { attackType, bleed }, not ${options === null ? "null" : typeof options}.`,
+      );
+    }
+    const { attackType, bleed } = options;
     return this.attackContext({ id, bleed }, attackType);
   }
 

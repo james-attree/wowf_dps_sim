@@ -1219,7 +1219,9 @@ zero-rank talent or proc consumes no rng. Tests check both.
 list, and `createFight(seed, config, { modifiers })` passes it through. An
 unknown option is a `RangeError`. The `Simulation` attaches itself to the
 rogue's pipeline as the provider of the aura modifiers (`auraModifiers(kind)`),
-and keeps an index that it rebuilds only when auras change. There is no way to
+and keeps an index that it rebuilds only when auras change. A `Rogue` (and so
+its pipeline) can back only one `Simulation`: a second `new Simulation(sameRogue)`
+throws, so build a new `Rogue` for each fight. There is no way to
 supply modifiers from `runFight` or the SimConfig yet: the talent effect
 table (D5) and the config-to-fight wiring (D7) come next. The `runFight` result
 does not record modifiers, so its shape and the golden fixtures are unchanged.
@@ -1249,14 +1251,14 @@ that says "+20% damage from poisons" is data and needs no engine code.
 `js/damage-tags.js` builds them, `Simulation.attackContext(source, attackType)`
 passes them, and nothing is keyed by a display name.
 
-| Part       | Values               | Comes from                                                                                                                  |
-| ---------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `school`   | `physical`, `nature` | `nature.spells`, else the ability's `school` in the catalogue, else physical (an id the catalogue does not know)            |
-| `bleed`    | tag                  | `bleed.spells`, or a source (a skill, a DoT) that sets `bleed`                                                              |
-| `poison`   | tag                  | `poison.spells` (`instant-poison`, `deadly-poison`)                                                                         |
-| `white`    | tag                  | the attack type `weapon`, an auto attack. A poison is never white                                                           |
-| `yellow`   | tag                  | the attack type `skill`, an ability's attack. A poison is never yellow                                                      |
-| `finisher` | tag                  | the ability's `finisher` field in the catalogue (a combo point cell in the spell data): Eviscerate, Rupture, Slice and Dice |
+| Part       | Values               | Comes from                                                                                                                                                                                |
+| ---------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `school`   | `physical`, `nature` | `nature.spells`, else the ability's `school` in the catalogue, else physical (an id the catalogue does not know)                                                                          |
+| `bleed`    | tag                  | `bleed.spells`, or a source (a skill, a DoT) that sets `bleed`                                                                                                                            |
+| `poison`   | tag                  | `poison.spells` (`instant-poison`, `deadly-poison`)                                                                                                                                       |
+| `white`    | tag                  | the attack type `weapon`, an auto attack. A poison is never white                                                                                                                         |
+| `yellow`   | tag                  | the attack type `skill`, an ability's attack. A poison is never yellow                                                                                                                    |
+| `finisher` | tag                  | the ability's `finisher` field in the catalogue (a combo point cell in the spell data). The catalogue gives six: Eviscerate, Expose Armor, Kidney Shot, Rupture, Slice and Dice and Venom |
 
 So Rupture is physical, `bleed`, `yellow` and `finisher`; Garrote is physical,
 `bleed` and `yellow`; Backstab is `yellow`; a main-hand swing is `white`; Deadly
@@ -1265,6 +1267,15 @@ not copied at load, so changing `bleed.spells` or `poison.spells` takes effect
 at once. `poison.spells` is a new row (an engineering judgement call by the dev,
 not on the retune list). `nature.spells` now also lists `instant-poison`, which
 deals Nature damage in Classic.
+
+`damageTags` throws a `RangeError` for an event that is missing or not an
+object, and for an `attackType` other than `"weapon"` or `"skill"`, rather than
+returning an event with no `white` or `yellow` tag. `Simulation.abilityContext(id,
+options)` takes no options or an object `{ attackType, bleed }`, and throws a
+`RangeError` for `null`. A scope key given as an explicit `undefined`
+(`{ tags: undefined }`) is rejected when the modifier is defined; it does not
+mean "unrestricted". The module also fails to load if the catalogue has a school
+that `SCHOOLS` does not list.
 
 **Matching.** Keys AND and the values in a key OR, as for every scope. For
 `tags` that means an event matches when it has _any_ of the listed tags. A

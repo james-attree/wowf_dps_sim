@@ -58,11 +58,23 @@ for (const ability of abilityCatalogue.abilities) {
 
 // The school and tags of one damage event.
 //   id          the ability id (the catalogue's slug), or a poison's id
-//   attackType  "weapon" (white) or "skill" (yellow)
+//   attackType  "weapon" (white) or "skill" (yellow); anything else is a
+//               RangeError, so a typo cannot silently drop the white/yellow tag
 //   bleed       true when the source says it is a bleed, whatever its id
 // Returns { school, tags }, tags in DAMAGE_TAGS order. The result is fresh,
-// so a caller may keep it.
-export function damageTags({ id, attackType, bleed = false }) {
+// so a caller may keep it. A missing or non-object event is a RangeError.
+export function damageTags(event) {
+  if (event === null || typeof event !== "object") {
+    throw new RangeError(
+      `damageTags needs an event { id, attackType, bleed }, not ${event === null ? "null" : typeof event}.`,
+    );
+  }
+  const { id, attackType, bleed = false } = event;
+  if (!Object.hasOwn(ATTACK_TAGS, attackType)) {
+    throw new RangeError(
+      `Unknown attack type ${JSON.stringify(attackType) ?? String(attackType)}. Known: ${Object.keys(ATTACK_TAGS).join(", ")}.`,
+    );
+  }
   const ability = abilityCatalogue.get(id);
   const isPoison = k("poison.spells").includes(id);
   const tags = [];
@@ -71,7 +83,7 @@ export function damageTags({ id, attackType, bleed = false }) {
   }
   if (isPoison) {
     tags.push("poison");
-  } else if (Object.hasOwn(ATTACK_TAGS, attackType)) {
+  } else {
     tags.push(ATTACK_TAGS[attackType]);
   }
   if (ability !== undefined && ability.finisher !== null) {
