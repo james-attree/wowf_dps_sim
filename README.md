@@ -371,6 +371,15 @@ rejects them under `js/`.
   and whether it starts the GCD from it (D2); the numbers still come from
   `k(id)`. See [Ability schema](docs/mechanics.md#ability-schema) and
   [Ability executor](docs/mechanics.md#ability-executor).
+- `js/poisons.js` — The poison definitions (D9). `poisonCatalogue` is built from
+  the `spell_desc` text of every rank of each rogue poison when the module
+  loads: the chance per strike, the coating time, the charges and one effect
+  (`damage`, `dot`, `healingReduction`, `slow` or `castSlow`). `poison.spells`
+  says which poisons deal damage (Instant and Deadly); each other poison needs a
+  reason in `poison.noDpsReasons`. `parsePoison` throws an `AbilityParseError`
+  naming the poison and rank on text it cannot read. The engine does not read it
+  yet (A5, #105). See
+  [Poison definitions](docs/mechanics.md#poison-definitions-d9-issue-104).
 - `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
   off-hand weapon. A speed below `config.minWeaponSpeed` throws a `RangeError`.
   `WEAPON_ATTACKS` gives the `main-hand` and `off-hand` ids and their labels.
@@ -426,6 +435,13 @@ rejects them under `js/`.
   text rejected with the spell and rank named (including an unknown cost unit,
   min damage above max and an unread damage sentence), a refreshed snapshot, deep
   freezing, and a failed import of `js/abilities.js`.
+- `test/poisons.test.js` — The poison definitions: Instant Poison R6 and Deadly
+  Poison R5 against the snapshot text, the other three top ranks, every rank
+  against an independent number reader, which poisons are DPS and which are
+  no-ops with a reason, the ids kept in step with `config.poisonIds`,
+  `poison.spells`, `nature.spells` and the `poison.instant` and `poison.deadly`
+  constants, and malformed text, tabs, ranks and constants rejected with the
+  poison and rank named.
 - `test/ability-parity.test.js` — The generic executor (D2) against the skill
   classes it replaced, kept word for word in `test/legacy-skills.js`: the same
   totals, log, auras, cooldowns and random draws, in the same order, over four

@@ -1,5 +1,9 @@
 import { k } from "../data/constants.js";
 import { talentCatalogue } from "./talents.js";
+// Loading the poison catalogue checks config.poisonIds against the spell data
+// (js/poisons.js), the way the talent catalogue checks the talents. Nothing
+// reads it here yet: the engine uses it from #105.
+import "./poisons.js";
 
 // SimConfig (roadmap E2-lite, issue #92): the inputs of one fight. It names the
 // character's stats, the two weapons, the talent ranks and the poison on each

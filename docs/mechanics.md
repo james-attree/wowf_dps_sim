@@ -678,6 +678,66 @@ modifier can already name them. A tick whose id is in
 those ticks can crit through `k("dot.canCrit")`, but nothing in the engine
 starts that dot.
 
+### Poison definitions (D9, issue #104)
+
+`js/poisons.js` reads each rogue poison from the snapshot (`spell_desc`, the
+spellbook's Poisons tab), rank by rank, the way `js/abilities.js` reads the
+abilities (D1, #93). It builds `poisonCatalogue`, deeply frozen, with no random
+numbers and no clock. The definitions are data only: nothing in the engine
+reads them yet (A5, #105, wires them to the fight), and the golden fixtures do
+not move.
+
+A poison's text is `COATING EFFECT [STACKS] [CHARGES]`, and each sentence is
+matched whole, so an extra or reworded sentence is an error, not a skip. The
+error is an `AbilityParseError` that names the poison and the rank ("Cannot
+read Wound Poison rank 3 from the spell data: ..."). A rank's result is
+`{ id, name, rank, spellId, chance, coatingDuration, charges, effect, text }`:
+
+- `chance` is the chance per strike (0.2 for 20%), above 0 and at most 1.
+- `coatingDuration` is the time the coating lasts, in seconds (the text says
+  minutes; `abilities.secondsPerMinute` converts it).
+- `charges` is the number of charges, or `null` when the text gives none
+  (Crippling Poison has none).
+- `effect` is one of five kinds:
+
+| `effect.kind`      | Fields                                      | Poison         |
+| ------------------ | ------------------------------------------- | -------------- |
+| `damage`           | `school`, `min`, `max` (a direct hit)       | Instant Poison |
+| `dot`              | `school`, `damage`, `duration`, `maxStacks` | Deadly Poison  |
+| `healingReduction` | `amount`, `duration`, `maxStacks`           | Wound Poison   |
+| `slow`             | `fraction`, `duration` (movement speed)     | Crippling      |
+| `castSlow`         | `fraction`, `duration` (casting time)       | Mind-numbing   |
+
+A kind that can stack (`dot`, `healingReduction`) reads "Stacks up to N times";
+with no such sentence it has one stack. The school in the text must be the
+spell entry's own school (`sc`).
+
+A poison is `{ id, key, name, dps, noDpsReason, ranks, top }`. `id` is the slug
+of its name (`deadly-poison`), `key` is the config id (`deadly`, one of
+`config.poisonIds`), and `top` is the highest rank. The catalogue has
+`poisons`, `dps`, `noOps`, `get(id)`, `byKey(key)` and `rank(id, number)`.
+Ranks must run 1 to N with no gap or duplicate. The tab's Blinding Powder is
+not a poison and is skipped by id (`k("poison.tabSkip")`).
+
+Which poisons deal damage in this sim is a decision, not something the text
+says: `k("poison.spells")` lists them (Instant and Deadly) and `dps` is true
+for those. Every other poison needs a reason in `k("poison.noDpsReasons")`
+(Wound, Crippling and Mind-numbing), and the catalogue throws for a poison with
+neither or both. A no-op poison is still fully parsed, so its numbers are there
+when a later phase wants them. The top ranks on the Forever beta text are
+Instant Poison 6 (20%, 76 to 100 Nature, 175 charges), Deadly Poison 5 (30%,
+92 Nature over 12 s, 5 stacks, 180 charges), Wound Poison 4 (30%, 165 healing
+reduction for 15 s, 5 stacks, 160 charges), Crippling Poison 2 (30%, 70% slow
+for 12 s) and Mind-numbing Poison 3 (20%, 60% longer casts for 14 s, 150
+charges).
+
+`k("poison.instant")` and `k("poison.deadly")` stay where the engine reads them
+until A5; `test/poisons.test.js` checks them against the parsed top ranks, and
+checks the poison ids in `config.poisonIds`, `poison.spells` and `nature.spells`
+against the catalogue. `k("poison.charges")` stays `"unlimited"`: the parsed
+`charges` are not used up in a fight yet. The values are the Forever text
+(`d`), not the Classic text (`cd`).
+
 ## Simulation clock
 
 The engine has no clock of its own. `Simulation.step(dt)` is the only way time
@@ -985,8 +1045,8 @@ build give the same config, and `normalizeConfig` of a normalised config is
 that config again. The result's `config` therefore reproduces its fight.
 
 The two id lists are engineering constants (`config.weaponTypes`,
-`config.poisonIds`), not game data. D9 may replace the poison list with ids from
-the snapshot.
+`config.poisonIds`), not game data. The poison catalogue (D9, #104) is read
+from the snapshot and a test keeps its ids equal to `config.poisonIds`.
 
 ### Default character (issue #127)
 
@@ -1467,8 +1527,9 @@ bleed-tagged direct hit, so no existing result changes. A direct poison hit
 (A5, #105) will skip armor with no further code.
 
 **Not tags yet.** Aura definitions deal no damage today, so an aura has no
-school or tags of its own. A5 (#105) adds the poison hit and proc, and D9
-(#104) may replace `poison.spells`. Tags are not on the `runFight` result. The
+school or tags of its own. A5 (#105) adds the poison hit and proc, and
+`poison.spells` is checked against the poison catalogue (D9, #104). Tags are
+not on the `runFight` result. The
 result shape and the golden fixtures are unchanged, and an event with no
 matching modifier does the same sums and draws the same random numbers as
 before.
@@ -1541,8 +1602,9 @@ its own.
 - `Deadly Poison` (`k("poison.deadly")`): a target debuff with 5 stacks and 12 s,
   where each proc adds a stack and refreshes the time. It has no effect yet.
   The proc, the poison's damage and the instant-poison hit are A5 (#105). The
-  id is `deadly-poison`, the slug the poison's DoT uses; poisons join the
-  ability catalogue in D9.
+  id is `deadly-poison`, the slug the poison's DoT uses. The poison catalogue
+  (`js/poisons.js`, D9) lists the poisons; they are not in the ability
+  catalogue.
 
 **Checks on lookups.** An aura map, `auraEffects` and the weapon hand check
 only use own properties, so an inherited name (`__proto__`, `constructor`,
@@ -1648,11 +1710,12 @@ Three checks make the parser stricter than a first read (issue #94, from the
   weapon damage" and a sentence with no number are not damage numbers.
 
 **Not parsed yet.** Buff and debuff magnitudes (Slice and Dice's haste %,
-Adrenaline Rush's energy %, Ghostly Strike's dodge, Hemorrhage's Rupture bonus)
-and the poisons (D9). They stay in `data/constants.js` until the issue that
-needs them. The talent modifiers were written later, by hand, in
-`data/talent-effects.js` (D5, #102). The catalogue is deeply frozen, and
-building it draws no random numbers.
+Adrenaline Rush's energy %, Ghostly Strike's dodge, Hemorrhage's Rupture
+bonus). They stay in `data/constants.js` until the issue that needs them. The
+poisons are read the same way in `js/poisons.js` (D9, #104, see
+[Poisons](#poison-definitions-d9-issue-104)), and the talent modifiers were
+written later, by hand, in `data/talent-effects.js` (D5, #102). The catalogue is
+deeply frozen, and building it draws no random numbers.
 
 ## Resources
 
@@ -2108,10 +2171,9 @@ block cannot happen while the sim is behind-only, so for them it changes
 nothing. A miss or dodge can happen behind, so a fight with Cold Blood granted
 (Rogue option `abilities`) differs from wowsims there. No golden fixture
 depends on it: the default fight does not grant Cold Blood. The front-block case
-is tested in `test/carry-overs-103.test.js`; the front-block part was accepted
-by the coordinator on #131. If real Classic spends the charge on a miss or a
-block, change the condition where `resolveAttack` (`js/simulation.js`) calls
-`consumeUseCharges`, and the tests that pin it.
+is tested in `test/carry-overs-103.test.js`. If real Classic spends the charge
+on a miss or a block, change the condition where `resolveAttack`
+(`js/simulation.js`) calls `consumeUseCharges`, and the tests that pin it.
 
 **The Cold Blood rotation rule.** A rule from the Scout, for James to adjust:
 cast Cold Blood right before the next 5-combo-point Eviscerate, when it is off
