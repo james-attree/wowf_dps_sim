@@ -942,9 +942,8 @@ default. A section is merged field by field, so `{ character: { attackPower:
 - **Character and weapons change the fight.** They go straight into the
   `Rogue`, where the constants used to be read. The dagger weapon percent for
   Ghostly Strike and Hemorrhage still depends on the main-hand `type` being
-  `"dagger"`, and the normalised swing speed of the specials is 1.7 for a dagger and 2.4 for
-  any other type. The
-  off hand's first-swing delay (`weapon.offHand.initialSwing`) and the starting
+  `"dagger"`, and the normalised swing speed of the specials is 1.7 for a
+  dagger and 2.4 for any other type. The off hand's first-swing delay (`weapon.offHand.initialSwing`) and the starting
   combo points are not part of the config.
 - **Target position changes the attack table.** `target.behind` (a boolean,
   default `k("target.behind")`, true) is read by every attack and DoT
@@ -1978,7 +1977,7 @@ shape, one value or chance per rank, unique proc ids, a real ability, and every
 table through the pipeline at every rank, rank 0 too.
 
 `runFight` does not call `expandTalents`: the engine does not read
-`config.talents` until D7 (#103), so the talents of a full fight are the two
+`config.talents` until D7 (#106), so the talents of a full fight are the two
 lists passed to `createFight`. Blade Flurry and Adrenaline Rush are already in
 the default rotation without a talent; D7 gates them. Cold Blood is not: it is
 cast only when the build grants it (below).
@@ -2063,7 +2062,8 @@ The charge is spent by a generic step (`Simulation.consumeUseCharges`, called
 from `resolveAttack` for a landed attack): a landed attack uses one charge of
 every charged self aura whose modifiers' scope matches the attack, so nothing
 there names Cold Blood. A white swing, a Slice and Dice, an ability outside the
-scope, and an attack that misses, dodges or is parried leave the charge (the
+scope, and an attack that misses, dodges, is parried or is blocked (from the
+front) leave the charge (the
 wowsims behaviour: Cold Blood is consumed by the attack that reaches the crit
 roll). The crit chance goes through the pipeline, so +100% on the rogue's crit
 chance is a raw chance above 1 and, with the suppression order above, a sure

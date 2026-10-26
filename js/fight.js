@@ -31,7 +31,7 @@ export { expandTalents } from "./talent-build.js";
 //   createFight(seed, config, { modifiers, procs, abilities });
 //
 // runFight takes none of them and the result records neither: the SimConfig is the
-// whole input of a result until D7 (#103) makes runFight do this itself, with
+// whole input of a result until D7 (#106) makes runFight do this itself, with
 // the rotation's use of the talents that grant an ability. Until then this is
 // how a test or a tool runs a fight with talents.
 export function createFight(seed, config, options) {

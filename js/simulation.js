@@ -439,8 +439,8 @@ export class Simulation {
   // in it: one whose modifiers' scope matches the attack (an unscoped modifier
   // matches every attack). Cold Blood's crit is "the next" Eviscerate, not the
   // next swing, so a white swing leaves it up. The charge goes on a landed
-  // attack, the one that reached the crit roll, as a target aura's does: a
-  // miss, dodge or parry keeps it for the next try. Nothing here names an aura.
+  // attack that reached the crit roll: a miss, dodge, parry or block keeps it
+  // for the next try. Nothing here names an aura.
   consumeUseCharges(context) {
     for (const id of Object.keys(this.activeBuffs)) {
       const definition = this.auraDefinitions.get(id);
@@ -647,7 +647,11 @@ export class Simulation {
     if (result.landed) {
       // After armor, so the hit that uses the last charge still gets it.
       this.consumeHitCharges();
-      this.consumeUseCharges(context);
+      // A block is a landed hit that never reaches the crit roll, so it does
+      // not use up the charge of an aura that asked for one (Cold Blood).
+      if (result.outcome !== "block") {
+        this.consumeUseCharges(context);
+      }
     }
     const resolved = { ...result, damage };
     if (attackType === "weapon") {
