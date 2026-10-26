@@ -53,22 +53,49 @@ function nameKey(name) {
   return name.trim().toLowerCase();
 }
 
+// A value as an error message shows it. JSON.stringify turns NaN and Infinity
+// into "null" and undefined into nothing, which hides the real problem, so
+// numbers and undefined are written with String().
+function show(value) {
+  if (value === undefined || typeof value === "number") {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+// What kind of value this is, for "not an array" style messages.
+function kindOf(value) {
+  if (value === null) {
+    return "null";
+  }
+  return Array.isArray(value) ? "an array" : typeof value;
+}
+
+// A plain-data object: not null, not an array.
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function requireField(talent, field, type, where) {
   if (typeof talent[field] !== type) {
-    throw new TypeError(`${where}: "${field}" must be a ${type}.`);
+    throw new TypeError(
+      `${where}: "${field}" must be a ${type}, not ${show(talent[field])}.`,
+    );
   }
 }
 
 function requireText(value, field, where) {
   if (typeof value !== "string" || value.trim() === "") {
-    throw new TypeError(`${where}: "${field}" must be a non-empty string.`);
+    throw new TypeError(
+      `${where}: "${field}" must be a non-empty string, not ${show(value)}.`,
+    );
   }
 }
 
 function requirePositiveInteger(value, field, where) {
   if (!Number.isInteger(value) || value < 1) {
     throw new RangeError(
-      `${where}: "${field}" must be a whole number of 1 or more, not ${JSON.stringify(value)}.`,
+      `${where}: "${field}" must be a whole number of 1 or more, not ${show(value)}.`,
     );
   }
 }
@@ -114,9 +141,17 @@ export function buildTalentCatalogue(source) {
   // Which tree each talent name is in, so a prerequisite in another tree gets
   // its own message rather than "not found".
   const treeOfName = new Map();
-  for (const snapshotTree of snapshotTrees) {
-    const label = `Tree ${JSON.stringify(snapshotTree?.name)}`;
-    requireText(snapshotTree?.name, "name", label);
+  snapshotTrees.forEach((snapshotTree, index) => {
+    if (!isObject(snapshotTree)) {
+      throw new TypeError(
+        `Tree at index ${index}: a tree must be an object, not ${kindOf(snapshotTree)}.`,
+      );
+    }
+    const label =
+      typeof snapshotTree.name === "string"
+        ? `Tree ${JSON.stringify(snapshotTree.name)}`
+        : `Tree at index ${index}`;
+    requireText(snapshotTree.name, "name", label);
     requireText(snapshotTree.icon, "icon", label);
     if (!Array.isArray(snapshotTree.talents)) {
       throw new TypeError(`${label}: "talents" must be an array.`);
@@ -126,7 +161,7 @@ export function buildTalentCatalogue(source) {
         treeOfName.set(raw.name, slugify(snapshotTree.name));
       }
     }
-  }
+  });
 
   for (const snapshotTree of snapshotTrees) {
     const treeId = slugify(snapshotTree.name);
@@ -138,11 +173,16 @@ export function buildTalentCatalogue(source) {
     const nameToRow = new Map();
     const positions = new Set();
 
-    const drafts = snapshotTree.talents.map((raw) => {
-      const where = `Talent ${JSON.stringify(raw?.name)} in ${treeId}`;
-      if (raw === null || typeof raw !== "object") {
-        throw new TypeError(`${where}: a talent must be an object.`);
+    const drafts = snapshotTree.talents.map((raw, index) => {
+      if (!isObject(raw)) {
+        throw new TypeError(
+          `Talent at index ${index} in ${treeId}: a talent must be an object, not ${kindOf(raw)}.`,
+        );
       }
+      const where =
+        typeof raw.name === "string"
+          ? `Talent ${JSON.stringify(raw.name)} in ${treeId}`
+          : `Talent at index ${index} in ${treeId}`;
       requireField(raw, "name", "string", where);
       requireText(raw.name, "name", where);
       requireField(raw, "row", "number", where);
@@ -151,7 +191,9 @@ export function buildTalentCatalogue(source) {
       requireField(raw, "icon", "string", where);
       requireText(raw.icon, "icon", where);
       if (!Array.isArray(raw.desc)) {
-        throw new TypeError(`${where}: "desc" must be an array.`);
+        throw new TypeError(
+          `${where}: "desc" must be an array, not ${kindOf(raw.desc)}.`,
+        );
       }
       requirePositiveInteger(raw.row, "row", where);
       requirePositiveInteger(raw.col, "col", where);
@@ -247,7 +289,7 @@ export function buildTalentCatalogue(source) {
     byName(name, treeId) {
       if (typeof name !== "string") {
         throw new TypeError(
-          `byName needs a talent name as a string, not ${typeof name}.`,
+          `byName needs a talent name as a string, not ${kindOf(name)}.`,
         );
       }
       const matches = byNameKey.get(nameKey(name)) ?? [];

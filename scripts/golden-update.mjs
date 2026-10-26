@@ -61,7 +61,13 @@ export const IGNORED_FILES = [".DS_Store"];
 // even when no number in a fight moves. Pinning it would rewrite every fixture
 // on each refresh. test/golden.test.js checks it separately: every result must
 // carry the current dataVersion.
-export const UNPINNED_FIELDS = ["dataVersion"];
+//
+// `config` (E2-lite, #92) is the SimConfig the fight ran with. A golden case
+// passes no config, so it is always the defaults, which come from constants
+// the fixtures already pin through their numbers. It is left out so a result
+// field added for the config does not rewrite the fixtures. test/golden.test.js
+// checks it separately: it must be the default config.
+export const UNPINNED_FIELDS = ["dataVersion", "config"];
 
 // A result without the unpinned fields: the payload a fixture holds.
 export function pinnedPart(result) {

@@ -308,21 +308,8 @@ describe("project site paths", () => {
       }
     }
     await walk(resolve(root, "js"));
-    // Modules the live page does not import yet. js/talents.js is the talent
-    // catalogue (issue #90). Later Phase 2 issues give the engine and the page
-    // a reason to import it. Remove this entry (and the set, if it is then
-    // empty) once main.js reaches js/talents.js.
-    const catalogueOnly = new Set(["js/talents.js"]);
     for (const file of publishedJs) {
-      if (catalogueOnly.has(file)) {
-        continue;
-      }
       assert.ok(seen.has(file), `${file} is published but not imported`);
-    }
-    for (const file of catalogueOnly) {
-      assert.ok(publishedJs.includes(file), `${file} no longer exists`);
-      const source = await readFile(resolve(root, file), "utf8");
-      assert.doesNotMatch(source, /main\.js|document|window/, file);
     }
   });
 

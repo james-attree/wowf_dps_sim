@@ -47,6 +47,7 @@ of truth, and this list will go stale.
 
 - [#90](https://github.com/james-attree/wowf_dps_sim/issues/90) — [P2-1] D4: Talent catalogue loaded straight from the snapshot — closed. See [Talent catalogue](mechanics.md#talent-catalogue).
 - [#91](https://github.com/james-attree/wowf_dps_sim/issues/91) — [P2-2] D11: Load-time data validation and `dataVersion` on every sim result — closed when this change merges. See [Load-time validation](mechanics.md#load-time-validation) and [Data version](mechanics.md#data-version).
+- [#92](https://github.com/james-attree/wowf_dps_sim/issues/92) — [P2-3] E2-lite: minimal SimConfig and `createFight` options — closed when this change merges. See [SimConfig](mechanics.md#simconfig).
 
 ## Phase 1 status
 

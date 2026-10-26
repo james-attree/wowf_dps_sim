@@ -77,7 +77,7 @@ export function runScriptedFight(options) {
       "runScriptedFight needs an options object: { seed, duration, script }.",
     );
   }
-  const { seed, duration, script } = options;
+  const { seed, duration, script, config } = options;
   if (!Array.isArray(script) || script.length === 0) {
     throw new RangeError("runScriptedFight needs a non-empty script array.");
   }
@@ -85,7 +85,7 @@ export function runScriptedFight(options) {
   const scripted = scriptedRotation(script, original);
   Rogue.prototype.rotation = scripted.rotation;
   try {
-    const result = runFight({ seed, duration });
+    const result = runFight({ seed, duration, config });
     if (scripted.remaining > 0) {
       throw new Error(
         `The golden script did not finish: ${scripted.remaining} cast${scripted.remaining === 1 ? "" : "s"} still waiting after ${duration}s, next "${scripted.queue[0]}". A constant that changed an energy cost, a cooldown, or the GCD can cause this. Lengthen the case's duration, or shorten its script.`,

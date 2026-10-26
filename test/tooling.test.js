@@ -6,6 +6,21 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
+describe("README and package.json agree on Node", () => {
+  it("quotes the engines range exactly (#92 carry-over)", async () => {
+    const pkg = JSON.parse(
+      await readFile(resolve(root, "package.json"), "utf8"),
+    );
+    const readme = await readFile(resolve(root, "README.md"), "utf8");
+    assert.ok(pkg.engines.node.length > 0);
+    assert.ok(
+      readme.includes(`\`${pkg.engines.node}\``),
+      `README.md should quote the engines range ${pkg.engines.node}`,
+    );
+    assert.doesNotMatch(readme, /Node 20\.19\+ is the/);
+  });
+});
+
 describe("dev package", () => {
   it("exposes serve, test, lint, provenance, data:refresh, golden:update, and bench with no runtime dependencies", async () => {
     const pkg = JSON.parse(

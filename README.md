@@ -27,8 +27,9 @@ the Phase 1 issue list and the benchmark result.
 A fight is a seed plus the steps it is given. `js/rng.js` is the one source of
 randomness. `Simulation.step(dt)` is the only way time moves, and
 `Simulation.run(duration)` calls it with the fixed step `sim.fixedStep`.
-`runFight({ seed, duration })` in `js/fight.js` builds a fight, runs it and
-returns plain data, with no DOM. The live page builds the same fight with
+`runFight({ seed, duration, config })` in `js/fight.js` builds a fight, runs it and
+returns plain data, with no DOM. `config` is an optional SimConfig (character,
+weapons, talent ranks, poisons); leave it out for the default fight. The live page builds the same fight with
 `createFight` and feeds it whole fixed steps, so a seed gives the same fight
 live and headless. The golden tests pin four `runFight` results, and
 `npm run bench` times one. [Mechanics](docs/mechanics.md#simulation-clock) has
@@ -73,9 +74,10 @@ do not import ES modules from `file://`.
 The code imports JSON files with import attributes (`import data from
 "./x.json" with { type: "json" }`). The live page does it for
 `data/talentsforever/manifest.json` (the data version), and `js/talents.js` does
-it for `rogue.json`. That needs Chrome or Edge 123+, Safari 17.2+, or Firefox
-138+ (Node 20.19+ is the `engines` range). An older browser fails to load the
-page.
+it for `rogue.json`, which the live page now loads too (a SimConfig checks its
+talent ids against the catalogue). That needs Chrome or Edge 123+, Safari 17.2+, or Firefox
+138+ (the `engines` range in `package.json` is `^20.19.0 || ^22.13.0 || >=24`).
+An older browser fails to load the page.
 
 ## Development
 
@@ -231,14 +233,22 @@ rejects them under `js/`.
   applies armor to direct hits and to ticks (bleeds and nature damage can skip
   it), rolls DoT crits, runs the rotation, and records damage, the combat log,
   and per-ability totals (`abilityStats`, from `recordAbility`).
-- `js/fight.js` — `runFight({ seed, duration })`, the headless entry point, and
-  `createFight(seed)`, the `Rogue` and `Simulation` pair that `runFight` and the
-  live page both build. `runFight` makes one `run(duration)` call, and
-  returns a plain object: seed, simulated duration, total damage, DPS, a
-  per-ability breakdown (`Simulation.abilityStats`), the combat log, and
-  `dataVersion`, which data snapshot the fight ran on. `createFight` returns
-  `dataVersion` too. The same seed and duration give a deep-equal result, and it
+- `js/fight.js` — `runFight({ seed, duration, config })`, the headless entry
+  point, and `createFight(seed, config)`, the `Rogue` and `Simulation` pair that
+  `runFight` and the live page both build. `runFight` makes one `run(duration)`
+  call, and returns a plain object: seed, simulated duration, total damage, DPS,
+  a per-ability breakdown (`Simulation.abilityStats`), the combat log,
+  `dataVersion` (which data snapshot the fight ran on), and `config` (the
+  SimConfig it used). An option other than `seed`, `duration` and `config` is a
+  `RangeError`. `createFight` returns `dataVersion` and `config` too. The same seed and duration give a deep-equal result, and it
   loads in Node with no DOM.
+- `js/sim-config.js` — The SimConfig (E2-lite): `defaultConfig()` builds the
+  default fight's inputs from `data/constants.js`, and `normalizeConfig(config)`
+  validates a config (unknown keys, ranges, weapon types, poison ids, talent ids
+  and ranks against the catalogue) and returns it in full form as a new object.
+  `Rogue` takes the config. The character and weapons change the fight; talents
+  and poisons are only carried until their effects land. See
+  [SimConfig](docs/mechanics.md#simconfig).
 - `js/data-version.js` — The data version (D11): `dataVersion`, a string
   `<generated>+<build>` such as `2026-10-20+1.60.1.70425`, read from
   `data/talentsforever/manifest.json`. `buildDataVersion(manifest)` validates a
@@ -260,7 +270,7 @@ rejects them under `js/`.
   the text of every rank. `buildTalentCatalogue(snapshot)` builds one from any
   parsed export and validates it (D11): unique ids, `req` resolves in the same
   tree, `max` equals the rank texts, sane positions. `slugify(name)` is the id
-  rule. The live page does not import it yet.
+  rule. `js/sim-config.js` uses it, so the live page loads it.
 - `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
   off-hand weapon.
 - `js/gcd-meter.js` — Sets the GCD meter's ARIA range from
@@ -364,6 +374,10 @@ rejects them under `js/`.
 - `test/serve.test.js` — The static server's port and path checks, and that the
   page's script graph, including the JSON module, is served with the right
   content types.
+- `test/sim-config.test.js` — The SimConfig: defaults, merging, strict
+  validation of every field with its message, talent ranks, idempotence, the
+  default fight being unchanged, a config reaching the rogue, the result's
+  `config` repeating a fight, and `runFight`'s unknown-option check.
 - `test/simulation.test.js` — Console silence, buff and cooldown duration,
   Adrenaline Rush energy, buff and debuff lists, and DoT expiry.
 - `test/slice-and-dice.test.js` — Slice and Dice refresh, swing haste, and
