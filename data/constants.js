@@ -851,7 +851,7 @@ export const CONSTANTS = {
     "points",
     ASSUMPTION,
     `${JAMES}: Classic 5 points per row, and it is not in the export (OQ14)`,
-    "Not enforced yet.",
+    "Enforced when a talent build is applied (D7, #106; validateBuild in js/talent-build.js): a talent on row r needs 5 * (r - 1) points in its own tree on the rows above it. The prerequisite (req) rule needs no number: the required talent must be at full rank.",
     true,
   ),
   latency: entry(

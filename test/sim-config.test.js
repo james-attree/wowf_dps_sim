@@ -12,8 +12,10 @@ import {
 } from "../js/sim-config.js";
 import { talentCatalogue } from "../js/talents.js";
 import { runScriptedFight } from "../scripts/scripted-fight.mjs";
+import { referenceBuild } from "./talentsforever.js";
 
 const DURATION = 30;
+const REFERENCE_BUILD = referenceBuild();
 
 function rejects(config, error, pattern, label) {
   assert.throws(
@@ -620,23 +622,18 @@ describe("a fight with no config is the fight there was before", () => {
     assert.deepEqual(rogue.config, defaultConfig());
   });
 
-  it("talents are carried, and do not change the fight or use rng", () => {
-    const plain = runFight({ seed: 11, duration: DURATION });
-    const dressed = runFight({
-      seed: 11,
-      duration: DURATION,
-      config: {
-        talents: { "combat.precision": 3, "subtlety.premeditation": 1 },
-      },
-    });
-    const { config, ...rest } = dressed;
-    const { config: plainConfig, ...plainRest } = plain;
-    assert.deepEqual(rest, plainRest);
-    assert.notDeepEqual(config, plainConfig);
-    assert.deepEqual(config.talents, {
+  it("a partial talent list is a valid config and an illegal fight (D7)", () => {
+    // normalizeConfig checks ids and ranks only; the 51 points, the prerequisites
+    // and the row gating are checked when the build is applied, in the Rogue.
+    const partial = { talents: { "combat.precision": 3 } };
+    assert.deepEqual(normalizeConfig(partial).talents, {
       "combat.precision": 3,
-      "subtlety.premeditation": 1,
     });
+    assert.throws(
+      () => runFight({ seed: 11, duration: DURATION, config: partial }),
+      { name: "RangeError", message: /combat\.precision/ },
+    );
+    assert.throws(() => createFight(11, partial), RangeError);
   });
 
   it("no poison, and a poison that deals no DPS here, leave the fight and the rng alone", () => {
@@ -731,7 +728,7 @@ describe("a config changes the fight it names", () => {
       config: {
         character: { critChance: 0.4 },
         weapons: { mainHand: { type: "dagger" } },
-        talents: { "combat.precision": 3 },
+        talents: REFERENCE_BUILD,
       },
     });
     const again = runFight({

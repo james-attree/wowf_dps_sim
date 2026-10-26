@@ -47,3 +47,18 @@ export function decodeBuildLink(link, catalogue = talentCatalogue) {
   });
   return { className, level: Number(level), ranks };
 }
+
+// The reference build: Assassination 18, Combat 33, Subtlety 0 (the link in
+// issue #106). It is a legal 51-point build, and every talent in it has an
+// entry in data/talent-effects.js.
+export const REFERENCE_LINK =
+  "https://talentsforever.com/rogue/60/00530310501-32030320201515231--CD1FDGISRUWZXbc4defg2hgcK-8?b=70425h&d=261026";
+
+// The reference build as a SimConfig talent map: { talent id: rank } with the
+// zero ranks left out, the form config.talents takes.
+export function referenceBuild() {
+  const { ranks } = decodeBuildLink(REFERENCE_LINK);
+  return Object.fromEntries(
+    Object.entries(ranks).filter(([, rank]) => rank > 0),
+  );
+}
