@@ -20,7 +20,7 @@ import { k } from "./constants.js";
 //                { kind, op, values: [rank 1, rank 2, ...], scope? }, one value
 //                per rank. The kinds and scopes are the pipeline's own. A new
 //                kind (D8a's `duration`) is a new MODIFIER_KINDS entry and
-//                needs nothing here.
+//                a modifiers.stacking row, and needs nothing here.
 //   procs        raw proc specs for defineRankedProc (js/procs.js), with
 //                chance.values in place of chance.value. Triggers, scopes and
 //                actions are the proc system's, so a proc on a finisher by
@@ -40,13 +40,59 @@ import { k } from "./constants.js";
 // checks those against the text too. So the numbers live in data/, none in
 // js/, and the provenance is the `talents.*` row of data/constants.js.
 //
-// The Assassination talents are not here: D8a (#119) adds them, and each is one
-// of the shapes above (Malice and Lethality are `critChance` and `critDamage`
-// modifiers, Improved Slice and Dice a `duration` modifier, Ruthlessness and
-// Relentless Strikes procs, Cold Blood an `ability`). A talent with no entry
-// and a rank above 0 is reported by expandTalents as `unmapped`.
+// The Assassination talents are added by D8a (#119) in parts. Malice,
+// Improved Slice and Dice and Lethality (PR 1) are modifier tables: Malice
+// `critChance`, Lethality `critDamage` scoped to the abilities its text names,
+// Improved Slice and Dice a `duration` modifier on Slice and Dice. Ruthlessness
+// and Relentless Strikes (procs) and Cold Blood (an `ability`) come in PR 2. A
+// talent with no entry and a rank above 0 is reported by expandTalents as
+// `unmapped`.
 
 const RAW = {
+  "assassination.malice": {
+    textHash:
+      "b6f605a788c6f69c3b1f01d974ebc845b2300d103dccd2d084079950115958b4",
+    modifiers: [
+      {
+        kind: "critChance",
+        op: "add",
+        values: [0.01, 0.02, 0.03, 0.04, 0.05],
+      },
+    ],
+  },
+  "assassination.improved-slice-and-dice": {
+    textHash:
+      "ff51ea59688681eef5c6b5a3eb0ea378d85e65928f838fdd908a1ab7840d6f4b",
+    modifiers: [
+      {
+        kind: "duration",
+        op: "add",
+        values: [0.15, 0.3, 0.45],
+        scope: { abilities: ["slice-and-dice"] },
+      },
+    ],
+  },
+  "assassination.lethality": {
+    textHash:
+      "0f6498f9390e119a5005c63f535f814544feb5193f3ee58e5e84a39893ecab37",
+    modifiers: [
+      {
+        kind: "critDamage",
+        op: "add",
+        values: [0.04, 0.08, 0.12, 0.16, 0.2],
+        scope: {
+          abilities: [
+            "sinister-strike",
+            "gouge",
+            "backstab",
+            "mutilate",
+            "ghostly-strike",
+            "hemorrhage",
+          ],
+        },
+      },
+    ],
+  },
   "combat.improved-eviscerate": {
     textHash:
       "38bb3ab89f86629b00fb85655e8f136a81e7700cfa37bb3a98029567cbfb4d10",

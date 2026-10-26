@@ -166,7 +166,10 @@ export class Ability {
   // what the cast spends, by default what the spend resource holds now, which
   // is read before a cast resets it. A damage kind that draws from the rng does
   // it here, once per call. A length by amount spent is 0 outside the amounts
-  // the table covers, and so is the damage of a dot.
+  // the table covers, and so is the damage of a dot. The length then goes
+  // through the "duration" modifiers scoped to this ability (Improved Slice and
+  // Dice), so the refresh and the time left follow it with no other change; a
+  // length of 0 stays 0, and with no such modifier the length is untouched.
   resolve(spent = this.spendable()) {
     const { definition, rogue } = this;
     const stats = k(definition.row);
@@ -177,6 +180,7 @@ export class Ability {
       duration =
         spent >= 1 && spent <= durations.length ? durations[spent - 1] : 0;
     }
+    duration = rogue.modifiers.resolve("duration", duration, this.costContext);
     const spec = definition.damage;
     if (spec === undefined) {
       return { damage: 0, duration };

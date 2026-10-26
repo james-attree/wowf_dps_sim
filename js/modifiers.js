@@ -76,6 +76,8 @@ const NO_SCOPE = Object.freeze([]);
 //   damage          a fraction of the attack's damage before crit and armor
 //   critDamage      the crit multiplier's bonus part (2 - 1 = 1) scales
 //   haste           fraction of attack speed, stacked by haste.stacking
+//   duration        seconds an ability's aura lasts, never below 0 (Improved
+//                   Slice and Dice). Scoped by ability; Ability.resolve applies it
 export const MODIFIER_KINDS = Object.freeze({
   attackPower: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
   critChance: Object.freeze({ scope: EVERY_SCOPE }),
@@ -89,6 +91,7 @@ export const MODIFIER_KINDS = Object.freeze({
   damage: Object.freeze({ scope: EVERY_SCOPE, floor: 0 }),
   critDamage: Object.freeze({ scope: EVERY_SCOPE, floor: 1 }),
   haste: Object.freeze({ scope: NO_SCOPE }),
+  duration: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
 });
 
 export const STACKING_FORMS = Object.freeze([

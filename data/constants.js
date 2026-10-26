@@ -298,7 +298,7 @@ export const CONSTANTS = {
     "–",
     WOWF_EXPORT,
     "rogue.json → talents.trees[].talents[].desc",
-    "Hand-encoded in data/talent-effects.js (D5, #102), one entry per talent: its modifiers, procs, granted ability or a reason it has no DPS effect, and a SHA-256 of the rank text it was written from. The tests read each number back out of the snapshot text, at every rank, and fail on a changed text. The Combat tree is done; the Assassination talents are D8a (#119) and the Subtlety ones D8b.",
+    "Hand-encoded in data/talent-effects.js (D5, #102), one entry per talent: its modifiers, procs, granted ability or a reason it has no DPS effect, and a SHA-256 of the rank text it was written from. The tests read each number back out of the snapshot text, at every rank, and fail on a changed text. The Combat tree is done; of the Assassination talents Malice, Improved Slice and Dice and Lethality are done (D8a PR 1, #119) and Ruthlessness, Relentless Strikes and Cold Blood are PR 2; the Subtlety ones are D8b.",
     false,
   ),
   "character.level": entry(
@@ -1011,11 +1011,12 @@ export const CONSTANTS = {
       damage: "percent",
       critDamage: "bonus",
       haste: "haste",
+      duration: "percent",
     },
     "modifier kind → stacking form",
     ASSUMPTION,
     `${DEV_JUDGEMENT_96}: a judgement call by the dev, not a decision by James. A guess at how WoW Forever combines the modifiers of one kind (js/modifiers.js)`,
-    'A guess at a game rule, the stacking model, so it is on the retune list. "flat" is (base + the sum of the add values) × the product of the mult values, so a chance or a cost adds in its own units. "percent" is base × (1 + the sum of the add values) × the product of the mult values, so "+x% damage" talents add together and a separate multiplier multiplies. "bonus" is the same as "percent", applied to the crit bonus (the multiplier minus one), so Lethality-style effects scale the bonus and not the whole hit. "haste" is the product (or sum) that haste.stacking selects, once per stack. These follow the Classic convention that talent percentages add and buffs multiply. If WoW Forever stacks a kind differently, change its form here and nowhere else.',
+    'A guess at a game rule, the stacking model, so it is on the retune list. "flat" is (base + the sum of the add values) × the product of the mult values, so a chance or a cost adds in its own units. "percent" is base × (1 + the sum of the add values) × the product of the mult values, so "+x% damage" talents add together and a separate multiplier multiplies. "bonus" is the same as "percent", applied to the crit bonus (the multiplier minus one), so Lethality-style effects scale the bonus and not the whole hit. "haste" is the product (or sum) that haste.stacking selects, once per stack. "duration" is "percent" on the length of an aura, so the +15% a rank of Improved Slice and Dice multiplies the 9 to 21 seconds of the table (+45% at 3/3 is 9 × 1.45), and a separate multiplier would multiply (D8a, #119). These follow the Classic convention that talent percentages add and buffs multiply. If WoW Forever stacks a kind differently, change its form here and nowhere else.',
     true,
   ),
   "abilities.offGcd": entry(
