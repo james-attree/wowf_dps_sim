@@ -21,7 +21,7 @@ import { talentCatalogue } from "./talents.js";
 //       offHand:  { min, max, speed, type },
 //     },
 //     target: { behind },                        // true: no parry, no block
-//     talents: { "combat.precision": 5, ... },   // talent id -> rank
+//     talents: { "combat.precision": 3, ... },   // talent id -> rank
 //     poisons: { mainHand: "instant", offHand: "deadly" },   // an id, or null
 //   }
 //

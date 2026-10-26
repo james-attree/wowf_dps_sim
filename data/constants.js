@@ -66,7 +66,7 @@ const MAIN_HAND_TYPE = entry(
   "sword",
   "–",
   WOWF_DESIGNER,
-  "James, 26 Oct 2026, issue #127: the project owner asked for the standard Tier 1 sword/sword default (relayed by Scout; documented in the issue #127 body)",
+  "James, 26 Oct 2026, issue #127: the project owner asked for the standard Tier 1 stats and weapon damage; the sword/sword pairing is Scout's recommendation from the research (relayed), not James's explicit choice",
   "Default main-hand type. A sword, so Hack and Slash applies and Ghostly Strike and Hemorrhage use the non-dagger percent.",
   false,
 );

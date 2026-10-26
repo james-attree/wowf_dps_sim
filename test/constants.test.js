@@ -195,12 +195,12 @@ describe("constants", () => {
       speed: 2.6,
       type: "sword",
     });
-    // The main-hand type row records the project owner's sword/sword request.
+    // The main-hand type row records the project owner's Tier 1 request and that the sword pairing is Scout's recommendation.
     assert.equal(k("weapon.mainHand.type"), "sword");
     assert.equal(CONSTANTS["weapon.mainHand.type"].source, "wowf-designer");
     assert.match(
       CONSTANTS["weapon.mainHand.type"].ref,
-      /^James, 26 Oct 2026, issue #127: the project owner asked for the standard Tier 1 sword\/sword default \(relayed by Scout/,
+      /^James, 26 Oct 2026, issue #127: the project owner asked for the standard Tier 1 stats and weapon damage; the sword\/sword pairing is Scout's recommendation from the research \(relayed\), not James's explicit choice/,
     );
     assert.equal(k("weapon.mainHand").type, k("weapon.mainHand.type"));
 

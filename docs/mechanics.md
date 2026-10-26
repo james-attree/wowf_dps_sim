@@ -80,7 +80,7 @@ which is a DoT's application, takes no crit roll.
 **The chances.** Bonus hit and crit are clamped into the unit interval. A
 non-finite chance throws. The sim passes `Rogue.getBonusHitChance()` and
 `Rogue.getCritChance()` (the `k("character.bonusHitChance")` and
-`k("character.critChance")` assumptions).
+`k("character.critChance")` rows, `classic-1.12` and on the retune list).
 
 | Band                  | Chance                                                                                           | At 300 against 315                         |
 | --------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------ |
@@ -176,7 +176,7 @@ speed is not greater than 0. Min damage greater than max damage throws the
 same way. The default weapons are `k("weapon.mainHand")` and
 `k("weapon.offHand")` (Vis'kag and Brutality Blade, Classic reference values;
 the dagger set is `weapon.dagger.*`). The main-hand type is `k("weapon.mainHand.type")`
-(`"sword"`, the project owner's request 2026-10-26, relayed), copied onto the
+(`"sword"`, Scout's recommendation from the research, relayed; the project owner asked for the Tier 1 stats), copied onto the
 weapon. The off-hand constant carries its own type, `"sword"`.
 
 The weapon die is an inclusive integer from min through max. The `1` in the
@@ -186,7 +186,7 @@ span is the code's inclusive end, not a constant:
 
 A white swing's hit, in `Weapon.rollDamage`, is that die plus attack power
 divided by `k("ap.perDps")`, times the weapon's own speed. Attack power is
-`Rogue.getAttackPower()`, the sample `k("character.attackPower")` (assumption,
+`Rogue.getAttackPower()`, the default `k("character.attackPower")` (`classic-1.12`,
 on the retune list). `k("ap.perDps")` is `classic-1.12` and on the retune
 list. An off-hand swing then multiplies that whole sum, die and attack-power
 term together, by `k("offHand.damageMult")` (`classic-1.12`, on the retune
@@ -986,8 +986,9 @@ the snapshot.
 
 The default config is a level 60 Classic Human rogue in the wowsims Phase 1
 Combat BiS preset (Nightslayer set, two Bloodfang pieces, `combat_sinister_strike_p1_bis`),
-with sword/sword, no buffs. The project owner asked for it on 2026-10-26 (relayed
-via Scout). The character sheet holds only what the talents do not already add,
+with sword/sword, no buffs. The project owner asked for the standard Tier 1 stats and
+weapon damage on 2026-10-26 (issue #127, relayed via Scout); the sword/sword pairing is
+Scout's recommendation from the research, not the project owner's explicit choice. The character sheet holds only what the talents do not already add,
 so nothing is counted twice: Malice (+5% crit) and Precision (up to +3% hit, three
 ranks of 1% in the snapshot) are talent modifiers on top of it, and are not in
 `character.critChance` or `character.bonusHitChance`.
