@@ -1648,9 +1648,9 @@ Three checks make the parser stricter than a first read (issue #94, from the
 
 **Not parsed yet.** Buff and debuff magnitudes (Slice and Dice's haste %,
 Adrenaline Rush's energy %, Ghostly Strike's dodge, Hemorrhage's Rupture
-bonus), the poisons (D9) and the talent modifiers (D6). They stay in
-`data/constants.js` until the issue that needs them. The catalogue is deeply
-frozen, and building it draws no random numbers.
+bonus) and the poisons (D9). They stay in `data/constants.js` until the issue
+that needs them. The talent modifiers were written later, by hand, in
+`data/talent-effects.js` (D5, #102). The catalogue is deeply frozen, and building it draws no random numbers.
 
 ## Resources
 
@@ -2098,6 +2098,15 @@ wowsims behaviour: Cold Blood is consumed by the attack that reaches the crit
 roll). The crit chance goes through the pipeline, so +100% on the rogue's crit
 chance is a raw chance above 1 and, with the suppression order above, a sure
 crit. The crit roll is still drawn, so the draws are the same as without it.
+
+**Assumption: a front block keeps the charge.** That a block does not spend the
+charge is an assumption, not a verified Classic rule. It follows from the rule
+above (the charge goes to the attack that reaches the crit roll, and a block
+never does), and it was accepted by the coordinator on #131. Its test is in
+`test/carry-overs-103.test.js`. It does not touch the default fight, which is
+behind the target and cannot be blocked, so no golden fixture depends on it. If
+real Classic spends the charge on a block, change the one condition in
+`resolveAttack` (`js/simulation.js`) and that test.
 
 **The Cold Blood rotation rule.** A rule from the Scout, for James to adjust:
 cast Cold Blood right before the next 5-combo-point Eviscerate, when it is off
