@@ -12,7 +12,7 @@ import { SOURCE_TAGS } from "../scripts/provenance.mjs";
 const FIELDS = ["value", "unit", "source", "ref", "note", "retune"];
 const BARE_DASH = new Set(["-", "–"]);
 
-// The 61 roadmap rows, in table order, with the source tag each one carries.
+// The 62 roadmap rows, in table order, with the source tag each one carries.
 const ROADMAP = [
   ["energy.regenPerSecond", "wowf-export"],
   ["combo.max", "wowf-export"],
@@ -51,7 +51,8 @@ const ROADMAP = [
   ["poison.hitModel", "classic-1.12"],
   ["poison.procSource", "classic-1.12"],
   ["poison.deadlyTick", "classic-1.12"],
-  ["poison.instantCrit", "classic-1.12"],
+  ["poison.instantCrit", "assumption"],
+  ["poison.instantCritSuppression", "assumption"],
   ["bleed.ignoresArmor", "classic-1.12"],
   ["dot.snapshot", "classic-1.12"],
   ["rupture.tickInterval", "classic-1.12"],
@@ -85,7 +86,7 @@ function expectSkill(skill, fields) {
 
 describe("constants", () => {
   it("includes every roadmap row with all six fields", () => {
-    assert.equal(ROADMAP.length, 61);
+    assert.equal(ROADMAP.length, 62);
     const counts = {};
     for (const [id, source] of ROADMAP) {
       const row = CONSTANTS[id];
@@ -106,9 +107,9 @@ describe("constants", () => {
     assert.deepEqual(counts, {
       "wowf-export": 12,
       "wowf-designer": 1,
-      "classic-1.12": 35,
+      "classic-1.12": 34,
       cataclysm: 1,
-      assumption: 12,
+      assumption: 14,
     });
   });
 

@@ -26,6 +26,7 @@ const NOT_JAMES =
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
+const DEV_JUDGEMENT_105 = "Developer, 26 Oct 2026, issue #105";
 const DEV_JUDGEMENT_111 = "Developer, 26 Oct 2026, issue #111";
 const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
@@ -302,7 +303,7 @@ export const CONSTANTS = {
     "chance, damage, charges",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Instant Poison|Rank 6]",
-    "Not simulated yet.",
+    "Instant Poison VI, the export's top rank. A landed strike of the weapon rolls the 20%, then a spell hit, then the direct Nature damage (A5, #105). It can crit (poison.instantCrit). Charges are ignored (poison.charges).",
     false,
   ),
   "poison.deadly": entry(
@@ -310,7 +311,7 @@ export const CONSTANTS = {
     "chance, damage, s, stacks, charges",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Deadly Poison|Rank 5]",
-    "Not simulated yet.",
+    "Deadly Poison V, the export's top rank. A landed strike of the weapon rolls the 30%, then a spell hit, then adds a stack (up to 5) and refreshes the 12 s (A5, #105). 92 is the damage of one stack over the whole duration: poison.deadlyTick splits it into ticks. Charges are ignored (poison.charges).",
     false,
   ),
   "talents.maxPoints": entry(
@@ -536,7 +537,7 @@ export const CONSTANTS = {
     "chance",
     CLASSIC,
     `${WS}core/target.go`,
-    "Spell miss used for poisons: 17% at +3 levels, floor 1%. Read by spellHitOutcome in js/attack-resolver.js (A7); the poison procs (A5) are what will call it.",
+    "Spell miss used for poisons: 17% at +3 levels, floor 1%. Read by resolveSpellHit in js/attack-resolver.js (A7). Each Instant Poison and Deadly Poison proc rolls it once (A5, #105), so a poison can resist. Bonus spell hit is not modelled, so it is 0.",
     true,
   ),
   "poison.tab": entry(
@@ -575,7 +576,7 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     `${WS}rogue/poisons.go`,
-    "Melee hit does not reduce poison misses. Uncertain, and not applied yet.",
+    "Melee hit does not reduce poison misses: a poison proc rolls spell.missTarget with no bonus hit (A5, #105). Uncertain.",
     true,
   ),
   "poison.procSource": entry(
@@ -583,7 +584,7 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     WH_DW,
-    "White and yellow. Yellow attacks count as main hand. Not applied yet.",
+    "White and yellow. Yellow attacks count as main hand. A poison is a proc on onHit scoped to its weapon's hand (A5, #105), so it fires on a landed swing of that hand and on any landed skill for the main hand (including finishers and extra attacks).",
     true,
   ),
   "poison.deadlyTick": entry(
@@ -591,15 +592,23 @@ export const CONSTANTS = {
     "s × ticks",
     CLASSIC,
     `${WS}rogue/poisons.go`,
-    "Ticks can crit in Forever (dot.canCrit). Not simulated yet.",
+    `Interval 3 s, 4 ticks: the export gives only 92 damage over 12 s and no tick length, so this row fills the gap (issue #105: Classic values for numbers the text does not define). Read 26 Oct 2026 from the wowsims Classic source: deadlyPoisonTick has TickLength 3 s, NumberOfTicks 4, an aura of 12 s and at most 5 stacks, which is the export's 12 s. Each stack adds one tick of its own size (92 ÷ 4 = 23 at 1 stack); a refresh sets the duration back to 12 s and keeps the tick clock (ApplyOrRefresh). Ticks can crit in Forever (dot.canCrit, dot.critMultiplier).`,
     true,
   ),
   "poison.instantCrit": entry(
     1.5,
     "×",
-    CLASSIC,
-    `${WS}rogue/poisons.go`,
-    "Instant Poison crits as a spell. Uncertain, and not applied yet.",
+    ASSUMPTION,
+    `${DEV_JUDGEMENT_105}: issue #105 gives the 1.5x crit multiplier (wowsims' spell crit multiplier, ${WS}rogue/poisons.go: OutcomeMagicHitAndCrit); that the chance is the melee crit chance is the developer's assumption (the engine has no spell crit), on the retune list`,
+    "Instant Poison's crit damage multiplier (A5, #105). A landed Instant Poison hit rolls one crit (poison.instantCritSuppression says whether the 4.8% comes off) at the Rogue's melee crit chance, and a crit deals this multiple of the damage, through the critDamage modifiers. wowsims crits Instant Poison as a spell (OutcomeMagicHitAndCrit) with the spell crit multiplier, 1.5x. The spell crit chance is not modelled, so the melee chance stands in for it (an assumption). The crit context is the main hand's, for either hand's Instant: a dagger main hand gets the +5% dagger/fist crit on Instant Poison, including an Instant applied by the off hand (an assumption). Deadly Poison's ticks crit through the DoT loop instead (dot.canCrit, dot.critMultiplier).",
+    true,
+  ),
+  "poison.instantCritSuppression": entry(
+    true,
+    "–",
+    ASSUMPTION,
+    `${DEV_JUDGEMENT_105}: the sources give crit suppression for swings; none says whether a poison's direct hit takes it, and issue #105 does not say, so this is a developer judgement. dot.critSuppression is itself a developer judgement (issue #100); the project owner only said he is happy with the current DoT crit and suppression handling, not a ruling on poison hits`,
+    "Instant Poison's crit chance loses the same 4.8% as a swing and a DoT tick (crit.suppressionSkill and crit.suppressionAura), like dot.critSuppression, so the three crit rolls of a poisoned build are on one footing. wowsims takes spell crit suppression from a different (smaller) table; that is not modelled. false would leave the hit at the full crit chance.",
     true,
   ),
   "bleed.ignoresArmor": entry(
@@ -623,7 +632,7 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "Armor applies to physical damage. Nature damage skips it. Deadly Poison ticks use this. Spell resistance is not modeled.",
+    "Armor applies to physical damage. Nature damage skips it. Instant Poison and Deadly Poison use this. Spell resistance is not modeled.",
     true,
   ),
   "nature.spells": entry(
@@ -858,7 +867,7 @@ export const CONSTANTS = {
     "–",
     ASSUMPTION,
     `${JAMES}: charges are ignored; the export lists 175–180`,
-    "Poisons are not simulated yet.",
+    "A poison proc never uses up a charge.",
     true,
   ),
   "hackAndSlash.chain": entry(
@@ -1058,7 +1067,7 @@ export const CONSTANTS = {
     "poison ids",
     ENGINEERING,
     `${SIM_CONFIG}: an engineering judgement call by the dev, not a decision by James. The poisons a SimConfig accepts on a weapon`,
-    "Not a game rule. The five rogue poisons in the snapshot's spellbook. A SimConfig only stores the choice; no poison is simulated until A5. The poison catalogue (js/poisons.js, D9 #104) is read from the snapshot, and a test keeps its poisons in step with this list.",
+    "Not a game rule. The five rogue poisons in the snapshot's spellbook. A SimConfig stores the choice; Rogue turns Instant and Deadly Poison into procs (A5, #105), and the other three do nothing (poison.noDpsReasons). The poison catalogue (js/poisons.js, D9 #104) is read from the snapshot, and a test keeps its poisons in step with this list.",
     false,
   ),
   "config.minWeaponSpeed": entry(

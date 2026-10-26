@@ -57,11 +57,25 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //                 pending expiry, as a builder's do.
 //   applyAura     { aura, duration?, stacks? }: Simulation.applyAura of an
 //                 aura in js/auras.js, by id.
-//   dealDamage    { id, name?, min, max?, spellHit? }: damage from a source of
-//                 its own. The damage modifiers, armor and the damage tags of
-//                 the id apply (a poison id is a nature spell). With
-//                 spellHit it first rolls a spell hit, and a resist deals
-//                 nothing. It does not crit, and it fires no procs.
+//   dealDamage    { id, name?, min, max?, spellHit?, canCrit? }: damage from a
+//                 source of its own. The damage modifiers, armor and the
+//                 damage tags of the id apply (a poison id is a nature
+//                 spell). With spellHit it first rolls a spell hit, and a
+//                 resist deals nothing. With canCrit a landed hit then rolls
+//                 a crit (Instant Poison: poison.instantCrit); without it the
+//                 damage never crits. It fires no procs.
+//   applyDot      { id, name?, tickDamage, interval, duration, aura?,
+//                 spellHit? }: a damage over time from a source of its own
+//                 (Deadly Poison). It rolls the spell hit first (if asked), and
+//                 a resist applies nothing. A landed application adds one stack
+//                 of `aura` (js/auras.js, by id; none means one stack, always),
+//                 starts the damage over time or refreshes it to `duration`,
+//                 and sets each tick to stacks × tickDamage. A refresh keeps
+//                 the tick clock, so the ticks stay `interval` apart.
+//                 The damage modifiers apply to tickDamage at the application,
+//                 and the ticks take armor, crit and the damage tags of the id
+//                 as any damage over time does. The roll is the one spell
+//                 hit draw and nothing else. It fires no procs.
 //   extraAttack   a white swing of the hand that triggered the proc, rolled
 //                 and resolved like any swing and fired through the same
 //                 triggers, unless hackAndSlash.chain is off, when a proc that
@@ -78,7 +92,9 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //   4. then the actions in order, depth first: an extraAttack draws the
 //      weapon damage, the attack table and so on, and runs its own triggers
 //      before the next action; dealDamage draws the spell hit (if any), then
-//      the damage if min and max differ.
+//      the damage if min and max differ, then the crit if it can crit and the
+//      hit landed (always one draw, as a DoT tick's crit is); applyDot draws the spell hit (if
+//      any) and nothing more (its ticks draw their own crit rolls).
 // Draws by ability: a cast fires its triggers after everything it did, so its
 // draws come last. A swing fires them right after its own.
 
@@ -103,6 +119,7 @@ export const ACTION_TYPES = Object.freeze([
   "gainResource",
   "applyAura",
   "dealDamage",
+  "applyDot",
   EXTRA_ATTACK,
 ]);
 
@@ -230,7 +247,15 @@ function defineAction(label, action, index) {
     return Object.freeze({ ...action });
   }
   if (action.type === "dealDamage") {
-    checkKeys(at, action, ["type", "id", "name", "min", "max", "spellHit"]);
+    checkKeys(at, action, [
+      "type",
+      "id",
+      "name",
+      "min",
+      "max",
+      "spellHit",
+      "canCrit",
+    ]);
     if (typeof action.id !== "string" || action.id === "") {
       fail(at, "id must be a non-empty string.");
     }
@@ -244,10 +269,59 @@ function defineAction(label, action, index) {
     if (action.spellHit !== undefined && typeof action.spellHit !== "boolean") {
       fail(at, "spellHit must be true or false.");
     }
+    if (action.canCrit !== undefined && typeof action.canCrit !== "boolean") {
+      fail(at, "canCrit must be true or false.");
+    }
     return Object.freeze({
       ...action,
       name: catalogued?.name ?? action.name,
       max,
+      spellHit: action.spellHit === true,
+      canCrit: action.canCrit === true,
+    });
+  }
+  if (action.type === "applyDot") {
+    checkKeys(at, action, [
+      "type",
+      "id",
+      "name",
+      "tickDamage",
+      "interval",
+      "duration",
+      "aura",
+      "spellHit",
+    ]);
+    if (typeof action.id !== "string" || action.id === "") {
+      fail(at, "id must be a non-empty string.");
+    }
+    const catalogued = abilityCatalogue.get(action.id);
+    if (catalogued === undefined && typeof action.name !== "string") {
+      fail(at, `an id outside the ability catalogue needs a name.`);
+    }
+    for (const field of ["tickDamage", "interval", "duration"]) {
+      if (!(action[field] > 0)) {
+        fail(at, `${field} must be above 0. Got ${action[field]}.`);
+      }
+      finite(at, field, action[field]);
+    }
+    if (action.duration < action.interval) {
+      fail(
+        at,
+        `duration (${action.duration}) must be at least one interval (${action.interval}).`,
+      );
+    }
+    if (
+      action.aura !== undefined &&
+      auraRegistry().get(action.aura)?.target !== "target"
+    ) {
+      fail(at, `aura must be the id of a target aura. Got ${action.aura}.`);
+    }
+    if (action.spellHit !== undefined && typeof action.spellHit !== "boolean") {
+      fail(at, "spellHit must be true or false.");
+    }
+    return Object.freeze({
+      ...action,
+      name: catalogued?.name ?? action.name,
       spellHit: action.spellHit === true,
     });
   }
@@ -567,6 +641,8 @@ export class ProcRunner {
       });
     } else if (action.type === "dealDamage") {
       simulation.resolveProcDamage(action);
+    } else if (action.type === "applyDot") {
+      simulation.resolveProcDot(action);
     } else {
       this.extraAttack(event);
     }

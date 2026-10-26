@@ -307,11 +307,11 @@ export const AURAS = Object.freeze({
     stackRule: "highest",
     effects: { armorReduction: k("exposeArmor").armorPerComboPoint },
   }),
-  // The Deadly Poison stacks on the target. Each proc adds a stack and
-  // restarts the duration. The poison's damage over time is a DoT of its own
-  // (nature, so it skips armor); procs are wired in A5 (#105), so nothing
-  // applies this aura yet. The poisons are not in the ability catalogue until
-  // D9, so the id is the slug the poison's DoT already uses.
+  // The Deadly Poison stacks on the target. Each landed proc adds a stack and
+  // restarts the duration (the applyDot action, js/procs.js; A5, #105). The
+  // poison's damage over time is a DoT of its own (nature, so it skips armor),
+  // each tick the stacks × one stack's tick. The id is the slug of the poison's
+  // name (js/poisons.js), which is also the id of its DoT.
   deadlyPoison: defineAura({
     id: "deadly-poison",
     name: "Deadly Poison",

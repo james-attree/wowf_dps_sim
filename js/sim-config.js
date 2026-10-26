@@ -1,9 +1,5 @@
 import { k } from "../data/constants.js";
 import { talentCatalogue } from "./talents.js";
-// Loading the poison catalogue checks config.poisonIds against the spell data
-// (js/poisons.js), the way the talent catalogue checks the talents. Nothing
-// reads it here yet: the engine uses it from #105.
-import "./poisons.js";
 
 // SimConfig (roadmap E2-lite, issue #92): the inputs of one fight. It names the
 // character's stats, the two weapons, the talent ranks and the poison on each
@@ -11,10 +7,11 @@ import "./poisons.js";
 // take it; with none, the defaults below reproduce the fight the engine ran
 // before there was a config.
 //
-// The config is only parsed, validated, normalised and carried. The character
-// stats and the weapons change the fight. The talent ranks and the poisons are
-// stored and handed back in the result, and the engine ignores them until the
-// issues that wire them in (talent effects D5/D7, poisons A5).
+// The config is parsed, validated, normalised and carried. The character stats
+// and the weapons change the fight, and so do the poisons (Instant and Deadly
+// Poison become procs in js/rogue.js, A5, #105). The talent ranks are stored and
+// handed back in the result, and the engine ignores them here: a host expands
+// them with expandTalents (js/fight.js) until runFight does (D7, #106).
 //
 // The shape (every field is optional; a missing one takes its default):
 //

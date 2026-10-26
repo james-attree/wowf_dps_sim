@@ -664,10 +664,14 @@ export class Simulation {
 
   // Damage a proc deals from a source of its own (js/procs.js, dealDamage).
   // `spell.missTarget` applies when it is a spell hit, with one draw, before
-  // the damage. Then the damage roll, one draw, when min and max differ. The
-  // damage modifiers, armor, the fight totals and the log work as for an
-  // attack. It does not crit and it fires no procs.
-  resolveProcDamage({ id, name, min, max, spellHit }) {
+  // the damage. Then the damage roll, one draw, when min and max differ. Then,
+  // when the action `canCrit` and the hit landed, one crit draw (Instant
+  // Poison): the melee crit chance, less the crit suppression when
+  // poison.instantCritSuppression says so, and the damage times
+  // poison.instantCrit through the critDamage modifiers. A resist draws no
+  // crit. The damage modifiers, armor, the fight totals and the log work as for
+  // an attack. It fires no procs.
+  resolveProcDamage({ id, name, min, max, spellHit, canCrit }) {
     const source = { id, name, icon: null };
     const context = this.attackContext(source, "skill");
     let hit = { outcome: "hit", status: "Hit", landed: true };
@@ -675,19 +679,78 @@ export class Simulation {
       hit = resolveSpellHit({ rng: this.rng });
     }
     let damage = 0;
+    let outcome = hit.outcome;
+    let status = hit.status;
     if (hit.landed) {
       const rolled =
         max === min ? min : Math.floor(this.rng() * (max - min + 1)) + min;
-      damage = this.applyArmor(
-        this.modifiers.resolve("damage", rolled, context),
-        skipsArmor(context),
-        context,
-      );
+      let modified = this.modifiers.resolve("damage", rolled, context);
+      if (canCrit) {
+        const critChance = this.rogue.getCritChance(context);
+        if (
+          rollCrit(
+            k("poison.instantCritSuppression")
+              ? suppressCrit(critChance)
+              : critChance,
+            this.rng,
+          )
+        ) {
+          modified *= this.modifiers.resolve(
+            "critDamage",
+            k("poison.instantCrit"),
+            context,
+          );
+          outcome = "crit";
+          status = "Crit";
+        }
+      }
+      damage = this.applyArmor(modified, skipsArmor(context), context);
       this.updateDamage(damage);
     }
-    this.recordAbility(source, hit.outcome, damage);
-    this.addCombatEvent(name, "skill", damage, hit.status, hit.outcome);
-    return { ...hit, damage };
+    this.recordAbility(source, outcome, damage);
+    this.addCombatEvent(name, "skill", damage, status, outcome);
+    return { ...hit, outcome, status, damage };
+  }
+
+  // A damage over time a proc applies (js/procs.js, applyDot), under a source
+  // of its own: the spell hit first (one draw, when asked), then, if it
+  // landed, one more stack of the action's target aura (if it names one) and
+  // the DoT in activeDots under `id`, with its own tick interval. A second
+  // landed application refreshes the DoT to `duration` and keeps its tick
+  // clock (wowsims ApplyOrRefresh: the aura is refreshed, the ticks go on), and
+  // each tick is the stacks × tickDamage. The application deals no damage and
+  // is logged like a DoT cast (0 damage; Hit or Resist). The ticks are in
+  // step().
+  resolveProcDot({ id, name, tickDamage, interval, duration, aura, spellHit }) {
+    const source = { id, name, icon: null };
+    const context = this.attackContext(source, "skill");
+    let hit = { outcome: "hit", status: "Hit", landed: true };
+    if (spellHit) {
+      hit = resolveSpellHit({ rng: this.rng });
+    }
+    if (hit.landed) {
+      const stacks =
+        aura === undefined
+          ? 1
+          : this.applyAura(this.auraDefinitions.get(aura), { duration }).stacks;
+      const running = Object.hasOwn(this.activeDots, id)
+        ? this.activeDots[id]
+        : undefined;
+      this.activeDots[id] = {
+        name,
+        duration,
+        tickInterval: interval,
+        timeUntilNextTick: running?.timeUntilNextTick ?? interval,
+        tickDamage:
+          this.modifiers.resolve("damage", tickDamage, context) * stacks,
+        icon: null,
+        attackType: "skill",
+        bleed: false,
+      };
+    }
+    this.recordAbility(source, hit.outcome, 0);
+    this.addCombatEvent(name, "skill", 0, hit.status, hit.outcome);
+    return hit;
   }
 
   resolveDotAttack(source, attackType, baseDamage, duration, bleed = false) {

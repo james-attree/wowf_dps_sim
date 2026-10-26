@@ -258,8 +258,9 @@ rejects them under `js/`.
   and ranks against the catalogue) and returns it in full form as a new object.
   A weapon speed below `config.minWeaponSpeed` (0.1 s) is rejected, because a
   speed near 0 never finishes a fight.
-  `Rogue` takes the config. The character and weapons change the fight; talents
-  and poisons are only carried until their effects land. See
+  `Rogue` takes the config. The character and weapons change the fight; Instant
+  and Deadly Poison in `poisons` add procs (A5, #105); talents are only carried
+  until their effects land. See
   [SimConfig](docs/mechanics.md#simconfig).
 - `js/data-version.js` — The data version (D11): `dataVersion`, a string
   `<generated>+<build>` such as `2026-10-20+1.60.1.70425`, read from
@@ -377,9 +378,10 @@ rejects them under `js/`.
   (`damage`, `dot`, `healingReduction`, `slow` or `castSlow`). `poison.spells`
   says which poisons deal damage (Instant and Deadly); each other poison needs a
   reason in `poison.noDpsReasons`. `parsePoison` throws an `AbilityParseError`
-  naming the poison and rank on text it cannot read. The engine does not read it
-  yet (A5, #105). See
-  [Poison definitions](docs/mechanics.md#poison-definitions-d9-issue-104).
+  naming the poison and rank on text it cannot read. `poisonProcs(config.poisons)`
+  turns the Instant and Deadly Poison definitions into procs (A5, #105). See
+  [Poison definitions](docs/mechanics.md#poison-definitions-d9-issue-104) and
+  [Poison procs](docs/mechanics.md#poison-procs-a5-issue-105).
 - `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
   off-hand weapon. A speed below `config.minWeaponSpeed` throws a `RangeError`.
   `WEAPON_ATTACKS` gives the `main-hand` and `off-hand` ids and their labels.
@@ -442,6 +444,11 @@ rejects them under `js/`.
   `poison.spells`, `nature.spells` and the `poison.instant` and `poison.deadly`
   constants, and malformed text, tabs, ranks and constants rejected with the
   poison and rank named.
+- `test/poison-procs.test.js` — The poison procs (A5): `poisonProcs` for each
+  slot and poison, Instant Poison's chance, spell hit and damage draws, Deadly
+  Poison's stacks, refresh, tick clock and tick damage, armor skipped, the
+  proc rates and resist rate over many seeded fights, and a build with no
+  poison drawing nothing extra.
 - `test/ability-parity.test.js` — The generic executor (D2) against the skill
   classes it replaced, kept word for word in `test/legacy-skills.js`: the same
   totals, log, auras, cooldowns and random draws, in the same order, over four
