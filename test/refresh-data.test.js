@@ -345,6 +345,11 @@ describe("refreshData", () => {
       assert.match(outcome.report, /generated: 2026-10-20/);
       assert.match(outcome.report, /build: 1\.60\.1\.70425/);
       assert.match(outcome.report, /fetched: 2026-10-22/);
+      // The icon step: one more icon name than before, and where to check it.
+      assert.match(
+        outcome.report,
+        /Icons: \d+ distinct icon names \(1 not in the previous snapshot\)\. Run `npm run icons:check -- --write`/,
+      );
       assert.match(
         outcome.report,
         /credit: talentsforever\.com \(https:\/\/talentsforever\.com\/\) under CC BY 4\.0/,
@@ -396,6 +401,10 @@ describe("refreshData", () => {
       assert.match(outcome.report, /\+ Rogue\|Sinister Strike\|Rank 8/);
       assert.match(outcome.report, /\+ Rogue\|Instant Poison\|Rank 6/);
       assert.match(outcome.report, /Other sections: \(no previous snapshot\)/);
+      assert.match(
+        outcome.report,
+        /Icons: \d+ distinct icon names \(\d+ not in/,
+      );
       await access(snapshotPath);
       await access(manifestPath);
     } finally {

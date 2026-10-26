@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { format } from "prettier";
+import { collectIconNames } from "../js/icons.js";
 import { displayPath } from "./provenance.mjs";
 
 // Pinned talentsforever.com rogue export (#6). The app never fetches it.
@@ -368,6 +369,7 @@ export function formatRefreshReport({
   manifest,
   diff,
   previousPresent,
+  icons,
 }) {
   const lines = [
     `Updated ${displayPath(snapshotPath)}`,
@@ -395,6 +397,12 @@ export function formatRefreshReport({
     lines.push("Other sections: (none)");
   } else {
     lines.push(`Other sections: ${diff.sections.join(", ")}`);
+  }
+  if (icons) {
+    lines.push("");
+    lines.push(
+      `Icons: ${icons.names.length} distinct icon names (${icons.added.length} not in the previous snapshot). Run \`npm run icons:check -- --write\` to check them against the CDN and update data/icons.json.`,
+    );
   }
   return lines.join("\n");
 }
@@ -717,6 +725,8 @@ export async function refreshData({
     assertSnapshot(previous, "Existing snapshot");
   }
 
+  const previousNames = new Set(previous ? collectIconNames(previous) : []);
+
   // Diff before writing so a duplicate id cannot replace a good pin.
   const diff = diffSnapshot(previous, snapshot);
   await writeBoth(
@@ -736,6 +746,12 @@ export async function refreshData({
       manifest,
       diff,
       previousPresent: previousText !== null,
+      icons: {
+        names: collectIconNames(snapshot),
+        added: collectIconNames(snapshot).filter(
+          (name) => !previousNames.has(name),
+        ),
+      },
     }),
   };
 }

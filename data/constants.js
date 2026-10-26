@@ -28,6 +28,7 @@ const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
 const DEV_JUDGEMENT_105 = "Developer, 26 Oct 2026, issue #105";
 const DEV_JUDGEMENT_111 = "Developer, 26 Oct 2026, issue #111";
+const ICONS_107 = "Developer, 26 Oct 2026, issue #107";
 const DEV_JUDGEMENT_94 = "Developer, 26 Oct 2026, issue #94";
 const DEV_JUDGEMENT_96 = "Developer, 26 Oct 2026, issue #96";
 const DEV_JUDGEMENT_97 = "Developer, 26 Oct 2026, issue #97";
@@ -1189,6 +1190,26 @@ export const CONSTANTS = {
     ENGINEERING,
     `${DEVELOPER}: ${NOT_JAMES} 1e-9s tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings`,
     "Floating-point tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings.",
+    false,
+  ),
+  "icons.cdn": entry(
+    {
+      base: "https://wow.zamimg.com/images/wow/icons/",
+      size: "large",
+      extension: ".jpg",
+    },
+    "URL parts",
+    ENGINEERING,
+    `${ICONS_107}: ${NOT_JAMES} OQ13 (hot-link icons from a public CDN, vendor nothing) is decided in the issue. Which CDN, and the URL pattern, is the developer's proposal for the coordinator to confirm, not James's choice`,
+    "Not a game rule. Where an icon name from the talentsforever snapshot is loaded from at view time: Wowhead's image CDN (wow.zamimg.com), as base + size + / + name + extension. It is a third-party host behind CloudFront that sends access-control-allow-origin: *. It is not hosted by Blizzard. No icon file is stored in the repo and no test or script of the engine fetches one. scripts/check-icons.mjs HEAD-checks every name against this CDN when the data is refreshed and writes the names that are missing to data/icons.json. See docs/icons.md.",
+    false,
+  ),
+  "icons.fallback": entry(
+    "inv_misc_questionmark",
+    "icon name",
+    ENGINEERING,
+    `${ICONS_107}: ${NOT_JAMES} An icon that is missing from the CDN, or has no name, shows the question-mark icon`,
+    "Not a game rule. The icon shown when a name is on the missing list in data/icons.json, when a spell or talent has no icon name, and when the browser cannot load the real icon (js/icons.js, attachIconFallback). A CDN icon, like any of them, so it can fail to load too, and then the image is hidden.",
     false,
   ),
 };

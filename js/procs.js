@@ -57,15 +57,15 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //                 pending expiry, as a builder's do.
 //   applyAura     { aura, duration?, stacks? }: Simulation.applyAura of an
 //                 aura in js/auras.js, by id.
-//   dealDamage    { id, name?, min, max?, spellHit?, canCrit? }: damage from a
+//   dealDamage    { id, name?, icon?, min, max?, spellHit?, canCrit? }: damage from a
 //                 source of its own. The damage modifiers, armor and the
 //                 damage tags of the id apply (a poison id is a nature
 //                 spell). With spellHit it first rolls a spell hit, and a
 //                 resist deals nothing. With canCrit a landed hit then rolls
 //                 a crit (Instant Poison: poison.instantCrit); without it the
 //                 damage never crits. It fires no procs.
-//   applyDot      { id, name?, tickDamage, interval, duration, aura?,
-//                 spellHit? }: a damage over time from a source of its own
+//   applyDot      { id, name?, icon?, tickDamage, interval, duration,
+//                 aura?, spellHit? }: a damage over time from a source of its own
 //                 (Deadly Poison). It rolls the spell hit first (if asked), and
 //                 a resist applies nothing. A landed application adds one stack
 //                 of `aura` (js/auras.js, by id; none means one stack, always),
@@ -251,6 +251,7 @@ function defineAction(label, action, index) {
       "type",
       "id",
       "name",
+      "icon",
       "min",
       "max",
       "spellHit",
@@ -262,6 +263,9 @@ function defineAction(label, action, index) {
     const catalogued = abilityCatalogue.get(action.id);
     if (catalogued === undefined && typeof action.name !== "string") {
       fail(at, `an id outside the ability catalogue needs a name.`);
+    }
+    if (action.icon !== undefined && typeof action.icon !== "string") {
+      fail(at, "icon must be a URL string.");
     }
     finite(at, "min", action.min);
     const max = action.max ?? action.min;
@@ -285,6 +289,7 @@ function defineAction(label, action, index) {
       "type",
       "id",
       "name",
+      "icon",
       "tickDamage",
       "interval",
       "duration",
@@ -297,6 +302,9 @@ function defineAction(label, action, index) {
     const catalogued = abilityCatalogue.get(action.id);
     if (catalogued === undefined && typeof action.name !== "string") {
       fail(at, `an id outside the ability catalogue needs a name.`);
+    }
+    if (action.icon !== undefined && typeof action.icon !== "string") {
+      fail(at, "icon must be a URL string.");
     }
     for (const field of ["tickDamage", "interval", "duration"]) {
       if (!(action[field] > 0)) {

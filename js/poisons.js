@@ -7,6 +7,7 @@ import {
   rankOf,
   toNumber,
 } from "./abilities.js";
+import { spellIconUrl } from "./icons.js";
 import { snapshot } from "./snapshot.js";
 import { defineProc } from "./procs.js";
 import { slugify } from "./talents.js";
@@ -497,6 +498,7 @@ function poisonProc(poison, hand, read) {
           type: "dealDamage",
           id: poison.id,
           name: poison.name,
+          icon: spellIconUrl(poison.name),
           min: effect.min,
           max: effect.max,
           spellHit: true,
@@ -522,6 +524,7 @@ function poisonProc(poison, hand, read) {
           type: "applyDot",
           id: poison.id,
           name: poison.name,
+          icon: spellIconUrl(poison.name),
           tickDamage: effect.damage / ticks,
           interval,
           duration: effect.duration,
