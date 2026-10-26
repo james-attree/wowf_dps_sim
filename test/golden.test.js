@@ -228,6 +228,7 @@ describe("a golden mismatch message", () => {
     const shifted = structuredClone(fixture);
     for (const event of shifted.log) {
       event.damage += 1;
+      event.time += 1;
     }
     const changes = diffResults(fixture, shifted);
     assert.ok(changes.length > MAX_LISTED_CHANGES);
