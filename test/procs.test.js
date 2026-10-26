@@ -545,24 +545,64 @@ describe("chance", () => {
   });
 
   it("works out procs per minute from the hand's base weapon speed", () => {
-    const ppm = proc({ chance: { mode: "ppm", value: 2 } });
-    const main = harness({ procs: [ppm], rolls: [HIT, 0.5] });
-    const speed = main.rogue.weapons.mainHand.speed;
-    const chance = (2 * speed) / k("proc.secondsPerMinute");
-    // Just under the chance fires, at the chance does not.
-    let h = harness({ procs: [ppm], rolls: [HIT, chance - 1e-9] });
-    swing(h.sim);
-    assert.equal(h.sim.procs.stats["test-proc"].fires, 1);
-    h = harness({ procs: [ppm], rolls: [HIT, chance] });
-    swing(h.sim);
-    assert.equal(h.sim.procs.stats["test-proc"].fires, 0);
-    // The off hand uses its own speed.
-    const offSpeed = h.rogue.weapons.offHand.speed;
-    assert.notEqual(offSpeed, speed);
-    const offChance = (2 * offSpeed) / k("proc.secondsPerMinute");
-    h = harness({ procs: [ppm], rolls: [HIT, offChance - 1e-9] });
-    swing(h.sim, "offHand");
-    assert.equal(h.sim.procs.stats["test-proc"].fires, 1);
+    const rogue = harness().rogue;
+    const per = (hand) =>
+      (2 * rogue.weapons[hand].speed) / k("proc.secondsPerMinute");
+    assert.notEqual(per("mainHand"), per("offHand"));
+    const ppmProc = proc({ chance: { mode: "ppm", value: 2 } });
+    const fires = (hand, roll) => {
+      const h = harness({ procs: [ppmProc], rolls: [HIT, roll] });
+      swing(h.sim, hand);
+      return h.sim.procs.stats["test-proc"].fires;
+    };
+    for (const hand of ["mainHand", "offHand"]) {
+      const other = hand === "mainHand" ? "offHand" : "mainHand";
+      const own = per(hand);
+      // Just under this hand's chance fires and at it does not, whichever
+      // hand is the quicker.
+      assert.equal(fires(hand, own - 1e-9), 1, `${hand} below`);
+      assert.equal(fires(hand, own), 0, `${hand} at`);
+      // A roll between the two chances tells the hands apart.
+      const between = (own + per(other)) / 2;
+      assert.equal(fires(hand, between), own > per(other) ? 1 : 0, hand);
+    }
+  });
+
+  it("rolls on an extra swing for a proc that has no extra attack", () => {
+    const gain = proc({ id: "gain", chance: { mode: "flat", value: 1 } });
+    const extra = defineProc({
+      id: "extra",
+      trigger: "onHit",
+      chance: { mode: "flat", value: 1 },
+      actions: [{ type: "extraAttack" }],
+    });
+    const { rogue, sim, tape } = harness({
+      procs: [gain, extra],
+      // swing, gain, extra, weapon damage, swing, gain (rolls), extra (not).
+      rolls: [HIT, 0, 0, 0.5, HIT, 0],
+    });
+    rogue.comboPoints = 0;
+    swing(sim);
+    assert.equal(tape.left(), 0);
+    assert.equal(sim.procs.stats.gain.rolls, 2);
+    assert.equal(sim.procs.stats.extra.rolls, 1);
+    assert.equal(rogue.comboPoints, 2);
+  });
+
+  it("counts a time within the tick epsilon of the end as ready", () => {
+    const icd = proc({ chance: { mode: "flat", value: 1 }, cooldown: 3 });
+    const { sim } = harness({
+      procs: [icd],
+      rolls: [HIT, 0, HIT, 0, HIT],
+    });
+    swing(sim);
+    sim.currentTime = 3 - k("sim.tickEpsilon") / 2;
+    swing(sim);
+    assert.equal(sim.procs.stats["test-proc"].fires, 2);
+    // The second fired at 3 - eps/2, so it is held back until 6 - eps/2.
+    sim.currentTime = 6 - 10 * k("sim.tickEpsilon");
+    swing(sim);
+    assert.equal(sim.procs.stats["test-proc"].blocked, 1);
   });
 
   it("holds a proc back during its internal cooldown, without a draw", () => {
@@ -659,6 +699,31 @@ describe("actions", () => {
     assert.equal(sim.abilityBreakdown()["Proc strike"].damage, dealt);
     // It fired no proc of its own.
     assert.equal(sim.procs.stats["test-proc"].rolls, 1);
+  });
+
+  it("applies armor to a physical source and the damage modifiers to any", () => {
+    const dealt = (id, options = {}) => {
+      const strike = proc({
+        chance: { mode: "flat", value: 1 },
+        actions: [{ type: "dealDamage", id, name: "Source", min: 1000 }],
+      });
+      const rogue = new Rogue(undefined, { procs: [strike], ...options });
+      rogue.bonusHitChance = 1;
+      rogue.critChance = 0;
+      rogue.rotation = () => {};
+      const sim = new Simulation(rogue, { rng: scripted([HIT, 0]).rng });
+      swing(sim);
+      return sim.abilityStats[id].damage;
+    };
+    // A physical source pays armor; a nature one (a poison id) does not.
+    assert.ok(dealt("proc-strike") < 1000);
+    assert.ok(dealt("proc-strike") > 0);
+    assert.equal(dealt("deadly-poison"), 1000);
+    const modifiers = [
+      { kind: "damage", value: 0.5, scope: { tags: ["poison"] } },
+      { kind: "damage", value: 9, scope: { tags: ["bleed"] } },
+    ];
+    assert.equal(dealt("deadly-poison", { modifiers }), 1500);
   });
 
   it("rolls a spell hit before the damage, and a resist deals none", () => {
