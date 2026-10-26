@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
+import { defineAura } from "../js/auras.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { suppressCrit } from "../js/attack-resolver.js";
@@ -313,6 +314,28 @@ describe("Cold Blood", () => {
     abilityOf(miss.rogue, "sinister-strike").cast(miss.rogue, miss.simulation);
     assert.equal(miss.simulation.activeBuffs["cold-blood"].charges, 1);
     assert.equal(miss.tape.left(), 0, "a miss draws no crit roll");
+  });
+
+  it("spends one charge of every charged aura in scope and none of an uncharged one", () => {
+    const run = harness(lists({}), [DAMAGE, 0.5, 0.5]);
+    const scope = { abilities: ["sinister-strike"] };
+    const aura = (id, charges) =>
+      defineAura({
+        id,
+        name: id,
+        duration: 60,
+        charges,
+        modifiers: [{ kind: "critChance", op: "add", value: 0.1, scope }],
+      });
+    for (const definition of [
+      aura("a", 1),
+      aura("b", 1),
+      aura("c", undefined),
+    ]) {
+      run.simulation.applyAura(definition);
+    }
+    abilityOf(run.rogue, "sinister-strike").cast(run.rogue, run.simulation);
+    assert.deepEqual(Object.keys(run.simulation.activeBuffs), ["c"]);
   });
 
   it("changes no crit chance of an ability it does not name", () => {
