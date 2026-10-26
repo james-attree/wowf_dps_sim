@@ -542,6 +542,10 @@ describe("Deadly Poison", () => {
     assert.equal(dot.tickInterval, 3);
     assert.equal(dot.duration, 12);
     assert.equal(sim.activeDebuffs["deadly-poison"].stacks, 1);
+    assert.equal(
+      sim.activeDebuffs["deadly-poison"].icon,
+      "https://wow.zamimg.com/images/wow/icons/large/ability_rogue_dualweild.jpg",
+    );
     assert.equal(sim.combatLog[0].name, "Deadly Poison");
     assert.equal(sim.combatLog[0].damage, 0);
     assert.equal(sim.damageDone, sim.abilityStats["main-hand"].damage);

@@ -131,6 +131,29 @@ describe("every icon in the snapshot", () => {
     assert.equal(iconCheck.checked.names, names.length);
   });
 
+  it("collects from each place a name can be, and never an empty one", () => {
+    const source = {
+      talents: {
+        trees: [{ icon: "tree_icon", talents: [{ icon: "talent_icon" }] }],
+      },
+      spellbook: {
+        icons: { Spell: "spell_icon", None: "" },
+        tabs: [{ icon: "tab_icon" }, { icon: "" }, {}],
+      },
+    };
+    assert.deepEqual(collectIconNames(source), [
+      "spell_icon",
+      "tab_icon",
+      "talent_icon",
+      "tree_icon",
+    ]);
+    assert.deepEqual(
+      collectIconNames({ talents: { trees: [{ icon: "" }] } }),
+      [],
+    );
+    assert.deepEqual(collectIconNames({}), []);
+  });
+
   it("resolves every name to a CDN URL, or to the fallback if listed missing", () => {
     for (const name of names) {
       const url = iconUrl(name);
@@ -353,6 +376,12 @@ describe("scripts/check-icons.mjs", () => {
     assert.equal(report.names, names.length);
     assert.equal(report.written, false);
     assert.equal(report.changed, iconCheck.missing.length !== 0);
+  });
+
+  it("does not write the manifest when it is already right, even with --write", async () => {
+    const report = await checkIcons({ write: true, fetchImpl: respond({}) });
+    assert.equal(report.changed, false);
+    assert.equal(report.written, false);
   });
 
   it("reports in plain words", () => {

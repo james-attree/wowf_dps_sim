@@ -1324,6 +1324,16 @@ describe("guards a quick run of the suite has to see (#123 review)", () => {
     bad(withDot({ name: "P", aura: "blade-flurry" }), /target aura/);
     bad(withDot({ name: "P", spellHit: 1 }), /spellHit must be true or false/);
     bad(withDot({ name: "P", extra: 1 }), /extra/);
+    bad(withDot({ name: "P", icon: 3 }), /icon must be a URL string/);
+    bad(
+      {
+        actions: [{ type: "dealDamage", id: "x", name: "X", min: 1, icon: 3 }],
+      },
+      /icon must be a URL string/,
+    );
+    assert.doesNotThrow(() =>
+      proc(withDot({ name: "P", icon: "https://x/y" })),
+    );
     const defined = proc(withDot({ name: "P", aura: "deadly-poison" }))
       .actions[0];
     assert.equal(defined.spellHit, false);
