@@ -180,6 +180,32 @@ describe("the position of the rogue", () => {
     assert.ok(blocks > 0, "some blocks");
   });
 
+  it("reads the position for a DoT application too (resolveDotAttack)", () => {
+    // 0.25 is in the parry band of the yellow table from the front, and a hit
+    // from behind, where the band has no width. Only the position differs.
+    const apply = (config) => {
+      const fight = scripted([0.25, 0.5], config);
+      const result = fight.sim.resolveDotAttack(
+        source("rupture"),
+        "skill",
+        1600,
+        16,
+        true,
+      );
+      return { result, sim: fight.sim };
+    };
+    const front = apply({ target: { behind: false } });
+    assert.equal(front.result.outcome, "parry");
+    assert.equal(front.result.landed, false);
+    assert.equal(front.sim.activeDots.rupture, undefined);
+    assert.equal(front.sim.abilityStats.rupture.parries, 1);
+
+    const behind = apply({ target: { behind: true } });
+    assert.equal(behind.result.landed, true);
+    assert.ok(behind.sim.activeDots.rupture);
+    assert.equal(behind.sim.abilityStats.rupture.parries, 0);
+  });
+
   it("counts a block as a landed hit that deals damage and a parry as one that does not", () => {
     // 0.9 clears dodge and parry at the front and is in the block band
     // [0.875, 0.925) of the white table, so the hit is blocked.

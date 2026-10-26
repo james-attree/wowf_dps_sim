@@ -19,6 +19,17 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 const TICK_MODES = Object.freeze(["continuous"]);
 const TARGET_CHANGES = Object.freeze(["clear", "keep"]);
 
+// A gain or a spend is an amount of 0 or more. A negative amount would be a
+// spend called a gain (or the reverse), and NaN would poison the pool for the
+// rest of the fight, so both fail where they are made.
+function checkAmount(id, verb, amount) {
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) {
+    throw new RangeError(
+      `Resource "${id}" cannot ${verb} ${String(amount)}. An amount is a number, 0 or more.`,
+    );
+  }
+}
+
 function startValue(start) {
   const row = k(start.id);
   return start.field === undefined ? row : row[start.field];
@@ -71,6 +82,7 @@ export class Resource {
   // `amount` at the cap. A pool above a cap that has since fallen is brought
   // down to it (as regeneration always did), and has gained nothing.
   gain(amount) {
+    checkAmount(this.id, "gain", amount);
     const before = this.value;
     this.value = Math.min(before + amount, this.max);
     return Math.max(0, this.value - before);
@@ -78,6 +90,7 @@ export class Resource {
 
   // Take `amount` away. The caller has checked has(amount).
   spend(amount) {
+    checkAmount(this.id, "spend", amount);
     this.value -= amount;
     return amount;
   }
@@ -106,6 +119,14 @@ export class Resource {
   clearExpiry() {
     this.expiryAmount = 0;
     this.expiryRemaining = 0;
+  }
+
+  // Bring a pool that is above its cap down to it. The cap can fall while the
+  // pool holds more (a resourceMax aura running out), and a cast that neither
+  // gains nor spends would otherwise leave the excess in place. The host calls
+  // this once a step (Rogue.tickResources). It never raises a pool.
+  clamp() {
+    this.value = Math.min(this.value, this.max);
   }
 
   // Count the expiry down by dt. When it runs out (within sim.tickEpsilon) the
@@ -137,6 +158,13 @@ export class Resource {
 export function createResources(modifiers, definitions = RESOURCE_DEFINITIONS) {
   const resources = {};
   for (const definition of definitions) {
+    // The pools are a plain object keyed by id: "__proto__" would set a
+    // prototype and not a pool.
+    if (typeof definition.id !== "string" || definition.id === "__proto__") {
+      throw new RangeError(
+        `A resource id must be a string other than "__proto__", not ${String(definition.id)}.`,
+      );
+    }
     if (Object.hasOwn(resources, definition.id)) {
       throw new RangeError(`Duplicate resource id "${definition.id}".`);
     }

@@ -340,10 +340,11 @@ function stackHaste(multiplier, haste) {
   throw new Error(`Unknown haste.stacking: ${stacking}`);
 }
 
-// Does the attack meet every condition in the scope? A scope of null always
+// Does the attack meet every condition in the scope? (Exported for the proc
+// filters, js/procs.js, which read a scope the same way.) A scope of null always
 // does. The context may be undefined (a stat read with no attack, like energy
 // regeneration): then only an unscoped modifier matches.
-function matches(scope, context) {
+export function scopeMatches(scope, context) {
   if (scope === null) {
     return true;
   }
@@ -492,12 +493,12 @@ export class ModifierPipeline {
     }
     const found = [];
     for (const entry of statics ?? NONE) {
-      if (matches(entry.modifier.scope, context)) {
+      if (scopeMatches(entry.modifier.scope, context)) {
         found.push(entry);
       }
     }
     for (const entry of timed) {
-      if (matches(entry.modifier.scope, context)) {
+      if (scopeMatches(entry.modifier.scope, context)) {
         found.push(entry);
       }
     }

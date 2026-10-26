@@ -168,17 +168,20 @@ describe("the generic executor", () => {
     assert.equal(rogue.energy, k("start.state").energy);
   });
 
-  it("names the resource a rogue lacks, when the ability first needs it", () => {
-    const { rogue, sim } = harness();
-    const ability = new Ability(
-      {
-        ...definitionOf("sinister-strike"),
-        key: "x",
-        cost: { resource: "focus", field: "energy" },
-      },
-      rogue,
+  it("names the resource a rogue lacks when the ability is built", () => {
+    const { rogue } = harness();
+    assert.throws(
+      () =>
+        new Ability(
+          {
+            ...definitionOf("sinister-strike"),
+            key: "x",
+            cost: { resource: "focus", field: "energy" },
+          },
+          rogue,
+        ),
+      { name: "RangeError", message: /"focus"/ },
     );
-    assert.throws(() => ability.cast(rogue, sim), /"focus"/);
   });
 
   it("refunds nothing on a miss when the cost names no refund", () => {

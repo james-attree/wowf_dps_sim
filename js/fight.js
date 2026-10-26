@@ -16,7 +16,8 @@ import { Simulation } from "./simulation.js";
 // form the rogue holds; treat it as read-only.
 //
 // `options.modifiers` is a static modifier list (js/modifiers.js) for the
-// rogue. runFight does not take it and the result does not record it: the
+// rogue, and `options.procs` a list of procs (js/procs.js; a rank 0 is null and
+// is left out). runFight takes neither and the result records neither: the
 // SimConfig is the whole input of a result until D7 (#103) turns talent ranks
 // into modifiers. Until then it is how a test or a tool runs a fight with
 // modifiers.
