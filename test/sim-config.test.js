@@ -5,7 +5,11 @@ import { createFight, runFight } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { Weapon } from "../js/weapon.js";
 import { Simulation } from "../js/simulation.js";
-import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
+import {
+  defaultConfig,
+  defaultDaggerConfig,
+  normalizeConfig,
+} from "../js/sim-config.js";
 import { talentCatalogue } from "../js/talents.js";
 import { runScriptedFight } from "../scripts/scripted-fight.mjs";
 
@@ -18,6 +22,49 @@ function rejects(config, error, pattern, label) {
     label,
   );
 }
+
+describe("defaultDaggerConfig", () => {
+  it("is the default config with the dagger sheet and the dagger pair", () => {
+    const expected = defaultConfig();
+    expected.character.attackPower = k("character.dagger.attackPower");
+    expected.character.critChance = k("character.dagger.critChance");
+    for (const hand of ["mainHand", "offHand"]) {
+      const { min, max, speed, type } = k(`weapon.dagger.${hand}`);
+      expected.weapons[hand] = { min, max, speed, type };
+    }
+    assert.deepEqual(defaultDaggerConfig(), expected);
+    assert.equal(defaultDaggerConfig().weapons.mainHand.type, "dagger");
+    assert.equal(defaultDaggerConfig().weapons.offHand.type, "dagger");
+    // The recomputed values, as literals (issue #127): 100 + 157 Str + 410 Agi
+    // + 102 gear AP, and 410 Agi / 29 + 8% gear crit.
+    const dagger = defaultDaggerConfig();
+    assert.equal(dagger.character.attackPower, 769);
+    assert.equal(dagger.character.critChance, 0.2214);
+    assert.equal(dagger.character.bonusHitChance, 0.07);
+    assert.deepEqual(dagger.weapons.mainHand, {
+      min: 73,
+      max: 137,
+      speed: 1.8,
+      type: "dagger",
+    });
+    assert.deepEqual(dagger.weapons.offHand, {
+      min: 57,
+      max: 107,
+      speed: 1.6,
+      type: "dagger",
+    });
+    // The sword default, as literals too: 100 + 166 Str + 419 Agi + 82.
+    assert.equal(defaultConfig().character.attackPower, 767);
+    assert.equal(defaultConfig().character.critChance, 0.2245);
+    // The fight accepts it and records it.
+    const result = runFight({
+      seed: 3,
+      duration: 20,
+      config: defaultDaggerConfig(),
+    });
+    assert.deepEqual(result.config, defaultDaggerConfig());
+  });
+});
 
 describe("defaultConfig", () => {
   it("is built from the constants, in full form", () => {
@@ -38,7 +85,7 @@ describe("defaultConfig", () => {
           min: k("weapon.offHand").min,
           max: k("weapon.offHand").max,
           speed: k("weapon.offHand").speed,
-          type: null,
+          type: k("weapon.offHand").type,
         },
       },
       target: { behind: k("target.behind") },
@@ -568,7 +615,7 @@ describe("a fight with no config is the fight there was before", () => {
     assert.equal(mainHand.speed, k("weapon.mainHand").speed);
     assert.equal(mainHand.type, k("weapon.mainHand").type);
     assert.equal(offHand.speed, k("weapon.offHand").speed);
-    assert.equal(offHand.type, null);
+    assert.equal(offHand.type, k("weapon.offHand").type);
     assert.equal(offHand.swingTimer, k("weapon.offHand").initialSwing);
     assert.deepEqual(rogue.config, defaultConfig());
   });

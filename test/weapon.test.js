@@ -83,21 +83,21 @@ describe("Weapon", () => {
     assert.equal(weapon.rollWeaponDamage(), 80);
   });
 
-  it("gives the sample main hand an inclusive 59–110 die", () => {
+  it("gives the default main hand an inclusive 100–187 die", () => {
     const rogue = new Rogue();
     rogue.rng = testRng;
     const mainHand = rogue.weapons.mainHand;
-    assert.equal(mainHand.minDamage, 59);
-    assert.equal(mainHand.maxDamage, 110);
-    assert.equal(mainHand.speed, 1.8);
+    assert.equal(mainHand.minDamage, 100);
+    assert.equal(mainHand.maxDamage, 187);
+    assert.equal(mainHand.speed, 2.6);
     assert.equal(mainHand.type, k("weapon.mainHand").type);
 
     setRoll(0);
-    assert.equal(mainHand.rollWeaponDamage(), 59);
+    assert.equal(mainHand.rollWeaponDamage(), 100);
 
     mock.restoreAll();
     setRoll(1 - Number.EPSILON);
-    assert.equal(mainHand.rollWeaponDamage(), 110);
+    assert.equal(mainHand.rollWeaponDamage(), 187);
   });
 
   it("halves an off-hand swing after the AP bonus is added", () => {
@@ -415,8 +415,8 @@ describe("swing timer fight regression", () => {
       "Blade Flurry": 1,
       "Sinister Strike": 16,
       "Slice and Dice": 3,
-      "Main-hand": 43,
-      "Off-hand": 46,
+      "Main-hand": 30,
+      "Off-hand": 31,
     };
     const spent = casts["Slice and Dice"] * k("rotation.finisherComboPoints");
     const generated =
