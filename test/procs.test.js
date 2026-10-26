@@ -1244,3 +1244,93 @@ describe("the #123 follow-ups", () => {
     );
   });
 });
+
+describe("guards a quick run of the suite has to see (#123 review)", () => {
+  const bad = (overrides, pattern) =>
+    assert.throws(() => proc(overrides), {
+      name: "RangeError",
+      message: pattern,
+    });
+
+  it("refuses an aura that lasts 0 seconds, or less, or no time at all", () => {
+    for (const duration of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, "3"]) {
+      bad(
+        { actions: [{ type: "applyAura", aura: "blade-flurry", duration }] },
+        /duration must be above 0/,
+      );
+    }
+    // The aura's own length is used when the action gives none.
+    assert.doesNotThrow(() =>
+      proc({ actions: [{ type: "applyAura", aura: "blade-flurry" }] }),
+    );
+  });
+
+  it("refuses a spellHit that is not true or false", () => {
+    for (const spellHit of [1, 0, "yes", null, {}]) {
+      bad(
+        { actions: [{ type: "dealDamage", id: "gouge", min: 1, spellHit }] },
+        /spellHit must be true or false/,
+      );
+    }
+    for (const spellHit of [true, false, undefined]) {
+      const defined = proc({
+        actions: [{ type: "dealDamage", id: "gouge", min: 1, spellHit }],
+      });
+      assert.equal(defined.actions[0].spellHit, spellHit === true);
+    }
+  });
+
+  it("refuses a proc spec that is an instance of a class", () => {
+    class Spec {
+      constructor() {
+        this.id = "from-a-class";
+        this.trigger = "onHit";
+        this.chance = { mode: "flat", value: 0.5 };
+        this.actions = [
+          { type: "gainResource", resource: "comboPoints", amount: 1 },
+        ];
+      }
+    }
+    assert.throws(() => defineProc(new Spec()), {
+      name: "RangeError",
+      message: /must be an object/,
+    });
+    assert.throws(() => defineProc([]), RangeError);
+    assert.throws(() => defineProc(null), RangeError);
+    // An object with no prototype is plain data, and is accepted.
+    const bare = Object.assign(Object.create(null), {
+      id: "bare",
+      trigger: "onHit",
+      chance: { mode: "flat", value: 0.5 },
+      actions: [{ type: "gainResource", resource: "comboPoints", amount: 1 }],
+    });
+    assert.equal(defineProc(bare).id, "bare");
+  });
+
+  it("starts the internal cooldown on a roll that fires, not on one that fails", () => {
+    const icd = proc({ chance: { mode: "flat", value: 0.5 }, cooldown: 3 });
+    // Swing, failed roll; a second later: swing, roll fires.
+    const { rogue, sim, tape } = harness({
+      procs: [icd],
+      rolls: [HIT, 0.9, HIT, 0, HIT],
+    });
+    rogue.comboPoints = 0;
+    swing(sim);
+    assert.deepEqual(sim.procs.stats["test-proc"], {
+      rolls: 1,
+      fires: 0,
+      blocked: 0,
+      gained: 0,
+    });
+    sim.currentTime += 1;
+    swing(sim);
+    assert.equal(sim.procs.stats["test-proc"].fires, 1);
+    assert.equal(sim.procs.stats["test-proc"].blocked, 0);
+    assert.equal(rogue.comboPoints, 1);
+    // That one fired, so now the cooldown holds.
+    sim.currentTime += 1;
+    swing(sim);
+    assert.equal(sim.procs.stats["test-proc"].blocked, 1);
+    assert.equal(tape.left(), 0);
+  });
+});
