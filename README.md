@@ -36,9 +36,9 @@ randomness. `Simulation.step(dt)` is the only way time moves, and
 `Simulation.run(duration)` calls it with the fixed step `sim.fixedStep`.
 `runFight({ seed, duration, config })` in `js/fight.js` builds a fight, runs it and
 returns plain data, with no DOM. `config` is an optional SimConfig (character,
-weapons, a talent build, poisons); leave it out for the default fight. The live page builds the same fight with
-`createFight` and feeds it whole fixed steps, so a seed gives the same fight
-live and headless. The golden tests pin six `runFight` results, and
+weapons, a talent build, poisons); leave it out for the default fight. The live
+page builds the same fight with `createFight` and feeds it whole fixed steps, so
+a seed gives the same fight live and headless. The golden tests pin six `runFight` results, and
 `npm run bench` times one. [Mechanics](docs/mechanics.md#simulation-clock) has
 the details, and [Known limits of Phase 1](docs/mechanics.md#known-limits-of-phase-1)
 says what to keep in mind.
@@ -183,9 +183,11 @@ on.
 durations (a short fight, a 5-minute fight, and another seed) in
 `test/golden/*.json`. One more case casts a fixed list of abilities instead of
 the placeholder rotation, so it covers Eviscerate, Rupture, DoT ticks, and tick
-crits. Two cases carry a `config`: the reference Combat 18/33/0 build, and the
-same build with Instant Poison on the main hand and Deadly Poison on the off hand. A change to a rule, a constant, or the engine that moves
-those numbers fails the test, and the message lists the fields that changed.
+crits. Two cases carry a `config`: the reference build (Assassination 18 /
+Combat 33 / Subtlety 0), and the same build with Instant Poison on the main hand
+and Deadly Poison on the off hand. A change to a rule, a constant, or the engine
+that moves those numbers fails the test, and the message lists the fields that
+changed.
 
 Regenerate the fixtures only when a change is meant to move results, in the
 same pull request, and say why in the description. A refactor or a speed-up
@@ -497,9 +499,9 @@ rejects them under `js/`.
 - `test/talent-effects.test.js` — The talent effects data (shape, text hashes,
   proc chances against the text), `expandTalents` (ranks, order, rank 0 drawing
   nothing, bad input), the data check refusing a bad entry, the Assassination
-  shapes of D8a, and the 18/33/0 reference build decoded from its
-  talentsforever.com link (`test/talentsforever.js`) and run through
-  `createFight`.
+  shapes of D8a, and the reference build (Assassination 18 / Combat 33 /
+  Subtlety 0) decoded from its talentsforever.com link
+  (`test/talentsforever.js`) and run through `createFight`.
 - `test/assassination-talents-as-data.test.js` — Malice, Lethality and Improved
   Slice and Dice (D8a PR 1) against the snapshot's rank text at every rank, the
   `duration` modifier kind (scope, floor, stacking), the Slice and Dice length

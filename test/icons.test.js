@@ -292,6 +292,12 @@ describe("attachIconFallback", () => {
     };
   }
 
+  it("asks for no referrer", () => {
+    const image = fakeImage();
+    attachIconFallback(image);
+    assert.equal(image.referrerPolicy, "no-referrer");
+  });
+
   it("swaps in the fallback on the first load error", () => {
     const image = attachIconFallback(fakeImage());
     image.fail();

@@ -867,12 +867,13 @@ end in the same state, whoever drives them.
 - The live page (`js/main.js`) builds the same pair with `createFight` and gives
   it whole fixed steps from `FrameClock` (see Live page). It is a view of the
   engine and holds no combat rule.
-- The golden tests pin the `runFight` result for four fixed cases, one of them a
-  scripted list of casts (see Golden-seed tests). They fail when anything on
+- The golden tests pin the `runFight` result for six fixed cases, one of them a
+  scripted list of casts and two of them a talent build (see Golden-seed tests). They fail when anything on
   this path changes a number.
 - `npm run bench` times a seeded 5-minute `runFight` (see Benchmark).
 
-What the engine does not yet do is under Known limits of Phase 1.
+What a reader should not assume is under Known limits of Phase 1 (written at the
+end of Phase 1, still true) and Known limits at the end of Phase 2.
 
 ### Fixed step
 
@@ -1273,8 +1274,9 @@ script that has not finished by the end of the fight throws. The fixture has
 **Config cases (#107).** A case may carry `config`, a partial SimConfig that
 `runGoldenCase` passes to `runFight` (or `runScriptedFight`) like any caller's.
 The first four cases have none and run the defaults, as before. Both new cases
-run the reference build (Combat 18/33/0, the talentsforever link in
-`test/talentsforever.js`, applied through `applyBuild`) at seed 107 for 60 s:
+run the reference build (Assassination 18 / Combat 33 / Subtlety 0, the
+talentsforever link in `test/talentsforever.js`, applied through `applyBuild`)
+at seed 107 for 60 s:
 
 - `talented-build-seed-107-60s`: the talents and no poisons. 15,291.68 damage,
   254.86 DPS, 292 random draws, 92 log rows. It casts Blade Flurry, Adrenaline
@@ -1391,7 +1393,9 @@ fixtures unchanged (see Golden-seed tests).
 
 ## Known limits of Phase 1
 
-What a reader should not assume from the sections above:
+What a reader should not assume from the sections above. These were written at
+the end of Phase 1; the limits Phase 2 adds or changes are under Known limits
+at the end of Phase 2.
 
 - **Step size and splits.** A different step size, or a `run` split that ends
   inside a step, can change a seeded fight. QA measured seeds 1 to 200: the
@@ -1413,11 +1417,11 @@ What a reader should not assume from the sections above:
   enter one; replay a seed with `runFight`. It does not stop at
   `k("fight.duration")` (see Other time inputs). A page below the frame rate
   that matches `k("sim.maxFrameTime")` runs slower than real time.
-- **Placeholder rotation, no talents.** The rotation is the placeholder Combat
+- **Placeholder rotation.** The rotation is the placeholder Combat
   priority. It never calls Rupture, and it only rarely reaches Eviscerate, when
   Slice and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left
   at the finisher combo points. None of 100 seeds (1 to 100) cast it in a 120 s
-  run, so the golden tests reach both through a scripted case. A selected talent build is applied (D7).
+  run, so the golden tests reach both through a scripted case. A selected talent build is applied (D7), but the page has no way to choose one.
 
 ## Known limits at the end of Phase 2
 
@@ -2358,11 +2362,15 @@ the next flagged spell whatever its outcome, so a miss or dodge spends it too
 block cannot happen while the sim is behind-only, so for them it changes
 nothing. A miss or dodge can happen behind, so a fight with Cold Blood granted
 (Rogue option `abilities`) differs from wowsims there. No golden fixture
-depends on it, except the two config cases added by #107: they run the
-reference build, which grants Cold Blood, so they would move if this rule did. The front-block case
-is tested in `test/carry-overs-103.test.js`. If real Classic spends the charge
-on a miss or a block, change the condition where `resolveAttack`
-(`js/simulation.js`) calls `consumeUseCharges`, and the tests that pin it.
+depends on it: the two config cases added by #107 grant Cold Blood, but seed 107
+has no miss or dodge on a Cold Blood attack in either, so they would not move
+if this rule changed. Three tests pin it (the Cold Blood test in
+`test/assassination-procs-as-data.test.js`, and the front-block cases in
+`test/carry-overs-103.test.js`); with the rule changed to spend the charge on
+every outcome, those fail and the six golden fixtures do not. If real Classic
+spends the charge on a miss or a block, change the condition where
+`resolveAttack` (`js/simulation.js`) calls `consumeUseCharges`, and the tests
+that pin it.
 
 **The Cold Blood rotation rule.** A rule from the Scout, for James to adjust:
 cast Cold Blood right before the next 5-combo-point Eviscerate, when it is off

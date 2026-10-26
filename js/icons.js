@@ -67,8 +67,11 @@ export function collectIconNames(source = snapshot) {
 // Show the fallback when an <img> cannot load its icon (a missing file, an
 // offline page, a blocked host). The first failure swaps in the fallback icon.
 // If that fails too, the image is hidden, so it never loops and never shows
-// the browser's broken-image glyph.
+// the browser's broken-image glyph. It also asks the browser to send no
+// Referer to the icon host, so a hot-linked icon never tells the CDN which page
+// it was shown on. Every icon <img> goes through here, before its src is set.
 export function attachIconFallback(image, fallbackUrl = iconUrl(null)) {
+  image.referrerPolicy = "no-referrer";
   let swapped = false;
   image.addEventListener("error", () => {
     if (swapped) {
