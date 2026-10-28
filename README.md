@@ -273,6 +273,11 @@ rejects them under `js/`.
   handler), `RingLog` (the combat log's ring buffer), and `SIM_EVENT_TYPES`
   (`cast`, `hit`, `resource`, `aura`, `proc`, `end`). `Simulation.on` and
   `SimRunner.on` use it. See [Events](docs/events.md).
+- `js/rotation-schema.js` — The RotationRule JSON shape (R1, #138): a
+  `{ schemaVersion, name, rules: [{ action, conditions }] }` list in priority
+  order, and `rotationShapeProblems`, `isRotationShape` and
+  `assertRotationShape`, a shape check (not the R4 validator). Not used by the
+  engine or the live page yet. See [Rotation as data](docs/rotation.md).
 - `js/sim-config.js` — The SimConfig (E2-lite): `defaultConfig()` builds the
   default fight's inputs from `data/constants.js`, and `normalizeConfig(config)`
   validates a config (unknown keys, ranges, weapon types, poison ids, talent ids
@@ -597,6 +602,10 @@ rejects them under `js/`.
   actions, state subscriptions, a run to the end equal to `runFight`, pause and
   resume, Stop then Run and the rng draws, the driver, options, and the public
   names (no steps).
+- `test/rotation-schema.test.js` — The RotationRule shape check: the examples
+  in `docs/rotation.md` pass, the Combat example matches the rotation
+  constants, each wrong shape is rejected with a message that names it, the
+  four documented decisions, and the limits.
 - `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
 - `test/scripted-fight.test.js` — The scripted-cast fight used by the golden
   cases: cast order, waiting, errors (a missing or non-object argument, unknown

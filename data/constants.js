@@ -24,6 +24,7 @@ const LIVE_VIEW = "Developer, 26 Oct 2026, issue #76";
 const NOT_JAMES =
   "an engineering judgement call by the dev, not a decision by James.";
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
+const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
 const DEV_JUDGEMENT_105 = "Developer, 26 Oct 2026, issue #105";
@@ -772,6 +773,30 @@ export const CONSTANTS = {
     `${DEVELOPER}: ${NOT_JAMES} The rule is the Scout's (Cold Blood right before the next Eviscerate when it is off cooldown), to be adjusted`,
     "Only when the build grants Cold Blood (Rogue option abilities), so a fight without the talent is unchanged. It is cast when the rotation has chosen Eviscerate at rotation.finisherComboPoints and Cold Blood is ready. It is off the GCD, but it does not make the Eviscerate go next: the charge waits for energy to afford the Eviscerate (median 2.5 s, max 6.5 s, over 400 default casts) and sometimes lands on a Sinister Strike first (21 of 400 charges). js/rotation-rules.js.",
     true,
+  ),
+  "rotation.maxRules": entry(
+    50,
+    "rules",
+    ENGINEERING,
+    `${ROTATION_SCHEMA}: ${NOT_JAMES} The issue asks for limits and gives no numbers`,
+    "Most rules in one RotationRule list that the shape check (js/rotation-schema.js) accepts. The placeholder Combat rotation has 6. The cap keeps an imported file small and the interpreter's walk short; it is not a game rule.",
+    false,
+  ),
+  "rotation.maxConditionsPerRule": entry(
+    10,
+    "conditions",
+    ENGINEERING,
+    `${ROTATION_SCHEMA}: ${NOT_JAMES} The issue asks for limits and gives no numbers`,
+    "Most conditions in one rule's AND list that the shape check accepts. The most any rule in the documented examples has is 3.",
+    false,
+  ),
+  "rotation.maxNameLength": entry(
+    80,
+    "characters",
+    ENGINEERING,
+    `${ROTATION_SCHEMA}: ${NOT_JAMES} The issue asks for limits and gives no numbers`,
+    "Longest rotation name the shape check accepts, counted in UTF-16 code units (string length). A display limit, not a game rule.",
+    false,
   ),
   "rotation.sliceAndDiceRefreshSeconds": entry(
     10,
