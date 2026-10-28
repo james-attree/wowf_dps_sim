@@ -114,16 +114,16 @@ A proc fired (its chance roll succeeded). Its actions' own events follow.
 
 ### `end`
 
-The fight is over. Sent once, last, by `runFight` and by `SimRunner` (before it
-moves to `finished`), at the fight duration.
+The fight is over. Sent once, last, at the end of `Simulation.run(duration)` and
+by `SimRunner` (before it moves to `finished`), at the fight duration.
 
 | field         | meaning                                          |
 | ------------- | ------------------------------------------------ |
 | `totalDamage` | the fight's total damage                         |
 | `dps`         | `totalDamage / time`, 0 for a fight of no length |
 
-`time` is the fight duration. `Simulation.end()` sends it, once; a host that
-drives a `Simulation` itself calls it.
+`time` is the fight duration. A host that moves a `Simulation` with `step()`
+itself calls `Simulation.end()` when it is done; it sends the event once.
 
 ## Delivery rules
 

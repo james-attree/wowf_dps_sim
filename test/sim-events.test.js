@@ -134,7 +134,6 @@ function eventsOf({ seed, duration, config }) {
   const events = [];
   fight.simulation.on("*", (event) => events.push(event));
   fight.simulation.run(duration);
-  fight.simulation.end();
   return { events, fight };
 }
 
@@ -153,7 +152,6 @@ function countedFight({ seed, duration, config }, subscribe) {
   simulation.rogue.rng = simulation.rng;
   subscribe?.(simulation);
   simulation.run(duration);
-  simulation.end();
   return { values, result: fightResult(fight) };
 }
 
@@ -433,7 +431,6 @@ describe("what the stream is not allowed to change", () => {
       return publish(type, fields);
     };
     fight.simulation.run(SHORT);
-    fight.simulation.end();
     // The combat log is the one subscriber a fight has of its own.
     assert.deepEqual([...new Set(built)], ["hit"]);
     built.length = 0;
@@ -821,6 +818,44 @@ describe("a handler that calls the runner during an event", () => {
     assert.equal(target.state, "finished");
     assert.deepEqual(target.result, reference);
     assert.deepEqual(events, eventsOf({ seed: 1, duration: SHORT }).events);
+  });
+
+  it("drops what is left of the old fight's move when a cast handler stops and runs again", () => {
+    const target = runner();
+    const events = [];
+    let again = false;
+    target.on("*", (event) => events.push(event));
+    target.on("cast", () => {
+      if (!again) {
+        again = true;
+        events.length = 0;
+        target.stop();
+        target.run();
+      }
+    });
+    target.run();
+    target.advance(Infinity);
+    finish(target);
+    assert.deepEqual(target.result, reference);
+    assert.deepEqual(events, eventsOf({ seed: 1, duration: SHORT }).events);
+  });
+
+  it("leaves time given from a handler after stop and run to the new fight, not the old one", () => {
+    const target = runner();
+    let again = false;
+    target.on("hit", () => {
+      if (!again) {
+        again = true;
+        target.stop();
+        target.run();
+        target.advance(Infinity);
+      }
+    });
+    target.run();
+    target.advance(Infinity);
+    assert.equal(target.state, "running");
+    finish(target);
+    assert.deepEqual(target.result, reference);
   });
 
   it("spends time given from inside a handler once, in the call that is running", () => {

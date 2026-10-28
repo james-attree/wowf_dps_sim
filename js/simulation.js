@@ -374,6 +374,7 @@ export class Simulation {
     if (leftover > 0) {
       this.step(leftover);
     }
+    this.end();
   }
 
   // Regenerate every resource that has a regen rule (energy) over a step of dt
