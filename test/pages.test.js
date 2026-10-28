@@ -308,7 +308,15 @@ describe("project site paths", () => {
       }
     }
     await walk(resolve(root, "js"));
+    // Modules the page does not import yet. js/sim-runner.js (#136) is
+    // wired into the live page by the UI issues (#149, #150); remove it
+    // from this list then.
+    const notWiredYet = new Set(["js/sim-runner.js"]);
     for (const file of publishedJs) {
+      if (notWiredYet.has(file)) {
+        assert.equal(seen.has(file), false, `${file} is wired: drop it above`);
+        continue;
+      }
       assert.ok(seen.has(file), `${file} is published but not imported`);
     }
   });

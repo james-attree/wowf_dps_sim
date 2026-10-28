@@ -263,6 +263,11 @@ rejects them under `js/`.
   SimConfig it used). An option other than `seed`, `duration` and `config` is a
   `RangeError`. `createFight` returns `dataVersion` and `config` too. The same seed and duration give a deep-equal result, and it
   loads in Node with no DOM.
+- `js/sim-runner.js` — `SimRunner` (P3-1, #136), the run controller over the
+  fight: states `idle`, `running`, `paused`, `finished`; `run`, `pause`,
+  `resume`, `stop`, `reset`, `advance(seconds)`, `onStateChange`. Not yet used
+  by the live page. See the Run controller section of
+  [Mechanics](docs/mechanics.md).
 - `js/sim-config.js` — The SimConfig (E2-lite): `defaultConfig()` builds the
   default fight's inputs from `data/constants.js`, and `normalizeConfig(config)`
   validates a config (unknown keys, ranges, weapon types, poison ids, talent ids
@@ -576,6 +581,10 @@ rejects them under `js/`.
   breakdown, the capped log, determinism, different seeds, a 5-minute fight, and
   a run in Node with the browser globals poisoned, and rejected inputs
   (including `runFight()` and `runFight(null)`).
+- `test/sim-runner.test.js` — `SimRunner`: the transition table, invalid
+  actions, state subscriptions, a run to the end equal to `runFight`, pause and
+  resume, Stop then Run and the rng draws, the driver, options, and the public
+  names (no steps).
 - `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
 - `test/scripted-fight.test.js` — The scripted-cast fight used by the golden
   cases: cast order, waiting, errors (a missing or non-object argument, unknown

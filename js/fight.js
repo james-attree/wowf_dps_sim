@@ -49,6 +49,26 @@ export function createFight(seed, config, options) {
   };
 }
 
+// The plain-data result of a fight that has been run: the shape runFight
+// returns, documented there. `fight` is what createFight returned. runFight and
+// SimRunner (js/sim-runner.js) both build their result here, so a fight run
+// through the runner is the fight runFight gives, field for field.
+export function fightResult(fight) {
+  const { seed, config, simulation } = fight;
+  const simulated = simulation.currentTime;
+  return {
+    seed,
+    duration: simulated,
+    totalDamage: simulation.damageDone,
+    dps: simulated > 0 ? simulation.damageDone / simulated : 0,
+    abilities: simulation.abilityBreakdown(),
+    log: simulation.combatLog.map((event) => ({ ...event })),
+    dataVersion,
+    // A copy, so changing the result cannot change the rogue's config.
+    config: normalizeConfig(config),
+  };
+}
+
 const RUN_FIGHT_OPTIONS = ["seed", "duration", "config"];
 
 // Headless entry point: build a rogue and a simulation, run one fight, and
@@ -97,24 +117,8 @@ export function runFight(options) {
   const { seed, duration, config } = options;
   // A seed is required so no fight is repeatable by accident or random by
   // accident. createFight rejects anything that is not an integer.
-  const {
-    seed: fightSeed,
-    config: fightConfig,
-    simulation,
-  } = createFight(seed, config);
+  const fight = createFight(seed, config);
   // One run call for the whole fight. It validates the duration.
-  simulation.run(duration);
-
-  const simulated = simulation.currentTime;
-  return {
-    seed: fightSeed,
-    duration: simulated,
-    totalDamage: simulation.damageDone,
-    dps: simulated > 0 ? simulation.damageDone / simulated : 0,
-    abilities: simulation.abilityBreakdown(),
-    log: simulation.combatLog.map((event) => ({ ...event })),
-    dataVersion,
-    // A copy, so changing the result cannot change the rogue's config.
-    config: normalizeConfig(fightConfig),
-  };
+  fight.simulation.run(duration);
+  return fightResult(fight);
 }
