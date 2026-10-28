@@ -2473,3 +2473,36 @@ nothing. They are out of scope for Phase 2 (tracker #108).
 field. New exports: `validateBuild`, `applyBuild`, `talentGrantedAbilities`
 (`js/talent-build.js`; `js/fight.js` re-exports `validateBuild` and `applyBuild`),
 `Rogue.build` and `Rogue.lockedByBuild`, and `createFight(...).build`.
+
+## Run controller (P3-1, issue #136)
+
+`SimRunner` (`js/sim-runner.js`) owns one fight and a state:
+`idle`, `running`, `paused`, `finished`. It has no DOM and reads no clock; the
+host (the page, a test, a script) supplies time through `advance(seconds)` or an
+injected `driver` object (`{ start(advance), stop() }`).
+
+| Action   | From                | To        |
+| -------- | ------------------- | --------- |
+| `run`    | `idle`, `finished`  | `running` |
+| `pause`  | `running`           | `paused`  |
+| `resume` | `paused`            | `running` |
+| `stop`   | `running`, `paused` | `idle`    |
+| `reset`  | any state           | `idle`    |
+
+An action from any other state throws an `Error` naming the action, the state
+and the states that allow it. The state does not change. Reaching the fight
+length (the `duration` option, default `fight.duration`) moves `running` to
+`finished` and sets `result`, in the shape `runFight` returns. `advance` is not
+a transition; it does nothing unless the state is `running`.
+
+`run` builds a fresh fight from the stored seed and SimConfig (`createFight`), so
+`stop` then `run` reproduces the same fight: the same totals, log and rng draws.
+Pause and resume only stop time from passing. A fight advanced in any chunk
+sizes, with or without pauses, equals `runFight` for the same seed, duration and
+config. The interface says nothing about how the engine moves through time (no
+step or frame events, no pause by frame), so the engine core can change behind it
+(Phase 3.5).
+
+**Shape.** `runFight`'s result and `SimConfig` are unchanged. `js/fight.js`
+gains the export `fightResult(fight)`, the code `runFight` already used to build
+its result.
