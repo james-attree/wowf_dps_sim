@@ -1,4 +1,9 @@
 import { k } from "../data/constants.js";
+import {
+  EventStream,
+  SIM_EVENT_TYPES,
+  createErrorReporter,
+} from "./event-stream.js";
 import { createFight, fightResult } from "./fight.js";
 import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
@@ -44,6 +49,27 @@ import { normalizeConfig } from "./sim-config.js";
 //             identical seeded fight again.
 //   reset()   Like stop(), but allowed from any state, and it also clears a
 //             finished result.
+//
+// Events. on(type, handler) hands the host what happens in the fight (cast, hit,
+// resource, aura, proc, end: docs/events.md), whichever run() made it, so a
+// subscription made once stays for every run. State changes (onStateChange) and
+// events share the delivery rules of js/event-stream.js:
+//
+//   - Order. Delivery never nests. A handler that calls run(), pause() or
+//     stop() while it is being called has the resulting events queued behind
+//     the one in hand, and every handler sees them in the order they happened.
+//     The runner's `state` is always the live one: a handler told about
+//     running -> paused may already find it "running" again.
+//   - Errors. A handler that throws cannot stop the others, the fight, or the
+//     driver start or stop of the change it was told about. The error goes to
+//     onError handlers as { error, type, event }; with none, it is rethrown
+//     from a microtask.
+//   - Time. pause() or stop() from inside an event handler takes effect once
+//     the engine has finished the move it is in the middle of (events of that
+//     move are still delivered after pause(), none after stop()). advance()
+//     called from a handler only adds its time to what the outer advance() is
+//     spending, so the engine is never entered twice.
+//   - The "end" event comes before the move to "finished".
 //
 // The fight ends when it has been given `duration` seconds. The runner moves to
 // "finished" and `result` holds the plain data runFight returns for the same
@@ -106,8 +132,11 @@ export class SimRunner {
   // same fight.
   #pending = 0;
   #stepsTaken = 0;
-  #handlers = new Set();
   #driving = false;
+  #advancing = false;
+  #errors = createErrorReporter();
+  #states = new EventStream({ types: ["state"], errors: this.#errors });
+  #events = new EventStream({ types: SIM_EVENT_TYPES, errors: this.#errors });
 
   // Options:
   //   seed      required, an integer (wraps to unsigned 32 bits like runFight).
@@ -184,14 +213,26 @@ export class SimRunner {
   // change, in subscription order, once the new state is in place (so the
   // handler can read it, and can call the runner). Rejected actions and
   // reset() from "idle" are not changes. Returns the unsubscribe function.
+  // A throwing handler goes to onError (see the header).
   onStateChange(handler) {
     if (typeof handler !== "function") {
       throw new TypeError("onStateChange needs a handler function.");
     }
-    this.#handlers.add(handler);
-    return () => {
-      this.#handlers.delete(handler);
-    };
+    return this.#states.on("state", handler);
+  }
+
+  // Subscribe handler(event, type) to one event type of the fight (cast, hit,
+  // resource, aura, proc, end), or to all with "*". Events of a run begin once
+  // the run() has built the fight; the subscription outlives runs. Returns the
+  // unsubscribe function. Events are frozen plain data (docs/events.md).
+  on(type, handler) {
+    return this.#events.on(type, handler);
+  }
+
+  // Subscribe to the errors event and state handlers throw:
+  // handler({ error, type, event }). Returns the unsubscribe function.
+  onError(handler) {
+    return this.#errors.subscribe(handler);
   }
 
   run() {
@@ -228,30 +269,60 @@ export class SimRunner {
       return this.#state;
     }
     this.#pending += seconds;
+    // Called from an event handler, in the middle of the outer call's engine
+    // move: the time is banked and the outer call spends it.
+    if (this.#advancing) {
+      return this.#state;
+    }
     const stepSize = k("sim.fixedStep");
     // The same plan Simulation.run follows: whole steps, then one shorter
     // step for what is left, so the fight ends exactly at `duration`.
     const wholeSteps = Math.floor(this.#duration / stepSize);
     const leftover = this.#duration - wholeSteps * stepSize;
     const totalSteps = leftover > 0 ? wholeSteps + 1 : wholeSteps;
-    const { simulation } = this.#fight;
-    while (this.#stepsTaken < totalSteps) {
-      const size = this.#stepsTaken < wholeSteps ? stepSize : leftover;
-      if (this.#pending < size) {
-        break;
+    const fight = this.#fight;
+    const { simulation } = fight;
+    this.#advancing = true;
+    try {
+      // A handler may pause, stop, or stop and run again: then this fight is
+      // not the runner's to spend time on.
+      while (
+        this.#state === "running" &&
+        this.#fight === fight &&
+        this.#stepsTaken < totalSteps
+      ) {
+        const size = this.#stepsTaken < wholeSteps ? stepSize : leftover;
+        if (this.#pending < size) {
+          break;
+        }
+        this.#pending -= size;
+        // Counted before the move: a handler that stops and runs again in it
+        // starts the count of a new fight.
+        this.#stepsTaken += 1;
+        simulation.step(size);
       }
-      this.#pending -= size;
-      simulation.step(size);
-      this.#stepsTaken += 1;
+    } finally {
+      this.#advancing = false;
+    }
+    if (this.#fight !== fight) {
+      return this.#state;
     }
     this.#time = simulation.currentTime;
-    if (this.#stepsTaken === totalSteps) {
+    // A fight that was paused as its last move ends when it is resumed.
+    if (this.#state === "running" && this.#stepsTaken === totalSteps) {
       this.#finish();
     }
     return this.#state;
   }
 
   #finish() {
+    const fight = this.#fight;
+    fight.simulation.end();
+    // A handler of the "end" event may have paused or stopped the runner. A
+    // paused one finishes when it is resumed.
+    if (this.#fight !== fight || this.#state !== "running") {
+      return;
+    }
     this.#result = fightResult(this.#fight);
     this.#fight = null;
     this.#move("finished");
@@ -268,7 +339,15 @@ export class SimRunner {
       );
     }
     if (action === "run") {
-      this.#fight = createFight(this.#seed, normalizeConfig(this.#config));
+      const fight = createFight(this.#seed, normalizeConfig(this.#config));
+      this.#fight = fight;
+      // Events of a fight the runner has let go of (stopped, or run again) are
+      // not passed on.
+      fight.simulation.on("*", (event, type) => {
+        if (this.#fight === fight) {
+          this.#events.emit(type, event);
+        }
+      });
       this.#result = null;
       this.#time = 0;
       this.#pending = 0;
@@ -296,9 +375,7 @@ export class SimRunner {
       return;
     }
     this.#state = target;
-    for (const handler of [...this.#handlers]) {
-      handler({ from, to: target });
-    }
+    this.#states.emit("state", { from, to: target });
     this.#syncDriver();
   }
 

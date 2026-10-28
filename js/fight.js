@@ -120,5 +120,6 @@ export function runFight(options) {
   const fight = createFight(seed, config);
   // One run call for the whole fight. It validates the duration.
   fight.simulation.run(duration);
+  fight.simulation.end();
   return fightResult(fight);
 }

@@ -8,6 +8,7 @@ import {
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
 import { damageTags } from "./damage-tags.js";
+import { EventStream, RingLog, SIM_EVENT_TYPES } from "./event-stream.js";
 import { ProcRunner } from "./procs.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
@@ -89,8 +90,28 @@ export class Simulation {
     this.damageDone = 0;
     this.gcd = 0; // Global Cooldown
     this.gcdDuration = k("gcd.duration");
-    this.combatLog = [];
+    // The event stream (js/event-stream.js, docs/events.md). Everything the
+    // fight reports goes through it, and so does the combat log: a ring of the
+    // newest k("log.maxEvents") rows, fed by the "hit" events. It subscribes
+    // first, so a handler that reads the log sees the row of the hit it was
+    // told about.
+    this.events = new EventStream({ types: SIM_EVENT_TYPES });
+    this.log = new RingLog(k("log.maxEvents"));
+    this.events.on("hit", (event) => {
+      this.log.push({
+        id: event.id,
+        time: event.time,
+        name: event.name,
+        type: event.attack,
+        damage: event.damage,
+        status: event.status,
+        // The log has always shown a DoT tick's outcome as its status.
+        outcome: event.origin === "dot" ? event.status : event.outcome,
+        icon: event.icon,
+      });
+    });
     this.nextCombatEventId = 0;
+    this.ended = false;
     // Per-ability totals for the whole fight, keyed by ability id. Unlike
     // combatLog it is never capped. See recordAbility. abilityNames holds the
     // display name of each id, for abilityBreakdown and nothing else.
@@ -109,6 +130,108 @@ export class Simulation {
     // The procs the rogue was given (js/procs.js), with their cooldowns and
     // counts. Empty unless the host listed some.
     this.procs = new ProcRunner(this, rogue.procs ?? []);
+    // The pools tell the fight when they move (Resource.onChange); it tells
+    // the stream, when anyone listens.
+    for (const pool of Object.values(rogue.resources ?? {})) {
+      pool.onChange = (change, before, source) => {
+        this.emitResource(pool, change, before, source);
+      };
+    }
+  }
+
+  // Subscribe handler(event, type) to one event type (SIM_EVENT_TYPES), or to
+  // all of them with "*". Returns the unsubscribe function. See
+  // js/event-stream.js for the delivery rules and docs/events.md for events.
+  on(type, handler) {
+    return this.events.on(type, handler);
+  }
+
+  // Subscribe to the errors that handlers throw: handler({ error, type, event }).
+  onError(handler) {
+    return this.events.onError(handler);
+  }
+
+  // The combat log, newest first, as a new array of the rows. The rows are
+  // the same objects each call. Holds at most k("log.maxEvents") of them.
+  get combatLog() {
+    return this.log.toArray();
+  }
+
+  // Build an event (frozen, plain data, stamped with the fight time) and
+  // deliver it. The callers ask events.has(type) first, so a fight nobody
+  // listens to builds none of them.
+  publish(type, fields) {
+    this.events.emit(
+      type,
+      Object.freeze({ type, time: this.currentTime, ...fields }),
+    );
+  }
+
+  emitCast(ability, cost) {
+    if (this.events.has("cast")) {
+      this.publish("cast", {
+        ability: ability.id,
+        name: ability.name,
+        icon: ability.icon ?? null,
+        resource: ability.costResource,
+        cost,
+        onGcd: ability.triggersGcd,
+      });
+    }
+  }
+
+  emitResource(pool, change, before, source) {
+    if (this.events.has("resource")) {
+      this.publish("resource", {
+        resource: pool.id,
+        change,
+        before,
+        after: pool.value,
+        source,
+      });
+    }
+  }
+
+  emitProc(proc, event) {
+    if (this.events.has("proc")) {
+      this.publish("proc", {
+        proc: proc.id,
+        trigger: proc.trigger,
+        ability: event.context.ability,
+      });
+    }
+  }
+
+  emitAura(definition, aura, change, { source = null, reason = null } = {}) {
+    if (this.events.has("aura")) {
+      this.publish("aura", {
+        aura: definition.id,
+        name: aura.name,
+        target: definition.target === "target" ? "target" : "self",
+        change,
+        stacks: aura.stacks ?? 1,
+        duration: aura.duration,
+        charges: aura.charges ?? null,
+        source,
+        reason,
+      });
+    }
+  }
+
+  // The fight is over: tell the stream once, with the summary. The host that
+  // ran the fight calls this (runFight and SimRunner do). A second call does
+  // nothing.
+  end() {
+    if (this.ended) {
+      return;
+    }
+    this.ended = true;
+    if (this.events.has("end")) {
+      this.publish("end", {
+        totalDamage: this.damageDone,
+        dps: this.currentTime > 0 ? this.damageDone / this.currentTime : 0,
+      });
+    }
   }
 
   // Advance the fight by dt seconds. The engine reads no clock: the host
@@ -136,7 +259,11 @@ export class Simulation {
     // Expiry hooks run once both maps are settled, so a hook sees the fight
     // as it is after this step's countdown.
     for (const [id, aura] of [...buffs.expired, ...debuffs.expired]) {
-      this.auraDefinitions.get(id)?.onExpire?.(this, aura);
+      const definition = this.auraDefinitions.get(id);
+      if (definition !== undefined) {
+        this.emitAura(definition, aura, "expire", { reason: "time" });
+      }
+      definition?.onExpire?.(this, aura);
     }
     this.cooldowns = Object.fromEntries(
       Object.entries(this.cooldowns).map(([key, value]) => {
@@ -202,8 +329,10 @@ export class Simulation {
           "skill",
           dotTickDamage,
           dotHitCrit,
-          dotHitCrit,
+          dotHitCrit === "Crit" ? "crit" : "hit",
           dot.icon,
+          dotId,
+          "dot",
         );
         dot.timeUntilNextTick += dot.tickInterval;
         this.procs.onDotTick(dotContext);
@@ -297,7 +426,7 @@ export class Simulation {
   // activeBuffs (target "self") or activeDebuffs (target "target"), keyed by id. Returns the aura record:
   // { id, name, icon, duration, stacks, charges }, with charges null when the
   // definition has none.
-  applyAura(definition, { duration, stacks = 1, icon } = {}) {
+  applyAura(definition, { duration, stacks = 1, icon, source = null } = {}) {
     // NaN would reach the stack maths (armorMultiplier, haste) and spread.
     if (!Number.isInteger(stacks) || stacks < 1) {
       throw new RangeError(
@@ -337,6 +466,7 @@ export class Simulation {
         charges: definition.charges,
       };
       definition.onApply?.(this, auras[definition.id], { refreshed: false });
+      this.emitAura(definition, auras[definition.id], "apply", { source });
       return auras[definition.id];
     }
     if (definition.refresh === "extend") {
@@ -350,10 +480,15 @@ export class Simulation {
       definition.stackRule === "highest"
         ? Math.max(current.stacks ?? 1, stacks)
         : (current.stacks ?? 1) + stacks;
+    const stacked =
+      Math.min(wanted, definition.maxStacks) > (current.stacks ?? 1);
     current.stacks = Math.min(wanted, definition.maxStacks);
     // Every application restores the charges.
     current.charges = definition.charges;
     definition.onApply?.(this, current, { refreshed: true });
+    this.emitAura(definition, current, stacked ? "stack" : "refresh", {
+      source,
+    });
     return current;
   }
 
@@ -421,6 +556,7 @@ export class Simulation {
     aura.charges = Math.max(0, aura.charges - count);
     if (aura.charges === 0) {
       delete auras[id];
+      this.emitAura(definition, aura, "expire", { reason: "charges" });
       definition.onExpire?.(this, aura);
     }
     return aura.charges;
@@ -645,6 +781,7 @@ export class Simulation {
       result.status,
       result.outcome,
       source.icon ?? null,
+      source.id,
     );
     if (result.landed) {
       // After armor, so the hit that uses the last charge still gets it.
@@ -708,7 +845,16 @@ export class Simulation {
       this.updateDamage(damage);
     }
     this.recordAbility(source, outcome, damage);
-    this.addCombatEvent(name, "skill", damage, status, outcome, icon);
+    this.addCombatEvent(
+      name,
+      "skill",
+      damage,
+      status,
+      outcome,
+      icon,
+      id,
+      "poison",
+    );
     return { ...hit, outcome, status, damage };
   }
 
@@ -741,8 +887,11 @@ export class Simulation {
       const stacks =
         aura === undefined
           ? 1
-          : this.applyAura(this.auraDefinitions.get(aura), { duration, icon })
-              .stacks;
+          : this.applyAura(this.auraDefinitions.get(aura), {
+              duration,
+              icon,
+              source: id,
+            }).stacks;
       const running = Object.hasOwn(this.activeDots, id)
         ? this.activeDots[id]
         : undefined;
@@ -759,7 +908,16 @@ export class Simulation {
       };
     }
     this.recordAbility(source, hit.outcome, 0);
-    this.addCombatEvent(name, "skill", 0, hit.status, hit.outcome, icon);
+    this.addCombatEvent(
+      name,
+      "skill",
+      0,
+      hit.status,
+      hit.outcome,
+      icon,
+      id,
+      "poison",
+    );
     return hit;
   }
 
@@ -807,6 +965,7 @@ export class Simulation {
       result.status,
       result.outcome,
       source.icon ?? null,
+      source.id,
     );
     return result;
   }
@@ -836,6 +995,10 @@ export class Simulation {
     }
   }
 
+  // One result on the target: a "hit" event (docs/events.md), and through it
+  // a row of the combat log. `ability` is the id of who made it, and `origin`
+  // is white, yellow, poison or dot. Left out, the origin follows `type`:
+  // "weapon" is white and anything else yellow.
   addCombatEvent(
     name,
     type,
@@ -843,19 +1006,19 @@ export class Simulation {
     status = "Hit",
     outcome = "hit",
     icon = null,
+    ability = null,
+    origin = null,
   ) {
-    this.combatLog.unshift({
+    this.publish("hit", {
       id: this.nextCombatEventId++,
-      time: this.currentTime,
+      ability,
       name,
-      type,
-      damage,
-      status,
-      outcome,
       icon,
+      origin: origin ?? (type === "weapon" ? "white" : "yellow"),
+      attack: type,
+      outcome,
+      status,
+      damage,
     });
-    if (this.combatLog.length > k("log.maxEvents")) {
-      this.combatLog.pop();
-    }
   }
 }

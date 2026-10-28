@@ -1000,6 +1000,9 @@ One step, in `Simulation.step`, does this in order:
 The combat log keeps the newest `k("log.maxEvents")` rows (`engineering`,
 retune off). That cap is display, not a game rule.
 
+It is a ring buffer fed by the fight's `hit` events. The events, with their
+fields and the rules for handlers, are in [Events](events.md).
+
 ## Headless fight
 
 `runFight({ seed, duration, config })` in `js/fight.js` is the one entry point
@@ -2502,6 +2505,12 @@ sizes, with or without pauses, equals `runFight` for the same seed, duration and
 config. The interface says nothing about how the engine moves through time (no
 step or frame events, no pause by frame), so the engine core can change behind it
 (Phase 3.5).
+
+`SimRunner.on(type, handler)` and `onError(handler)` hand the host the fight's
+events ([Events](events.md)), and `onStateChange` handlers follow the same
+rules: delivery is queued and in order when a handler calls the runner, and a
+handler that throws goes to `onError` without costing the driver its start or
+stop.
 
 **Shape.** `runFight`'s result and `SimConfig` are unchanged. `js/fight.js`
 gains the export `fightResult(fight)`, the code `runFight` already used to build

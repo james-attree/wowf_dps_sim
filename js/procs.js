@@ -625,6 +625,7 @@ export class ProcRunner {
       return;
     }
     stats.fires += 1;
+    this.simulation.emitProc(proc, event);
     if (proc.cooldown > 0) {
       this.readyAt.set(proc.id, currentTime + proc.cooldown);
     }
@@ -637,7 +638,7 @@ export class ProcRunner {
     const simulation = this.simulation;
     if (action.type === "gainResource") {
       const pool = simulation.rogue.resources[action.resource];
-      const gained = pool.gain(action.amount);
+      const gained = pool.gain(action.amount, proc.id);
       if (gained > 0) {
         pool.clearExpiry();
       }
@@ -646,6 +647,7 @@ export class ProcRunner {
       simulation.applyAura(simulation.auraDefinitions.get(action.aura), {
         duration: action.duration,
         stacks: action.stacks,
+        source: proc.id,
       });
     } else if (action.type === "dealDamage") {
       simulation.resolveProcDamage(action);

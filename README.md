@@ -268,6 +268,11 @@ rejects them under `js/`.
   `resume`, `stop`, `reset`, `advance(seconds)`, `onStateChange`. Not yet used
   by the live page. See the Run controller section of
   [Mechanics](docs/mechanics.md).
+- `js/event-stream.js` — The event stream (P3-2, #137): `EventStream` (`on`,
+  the `"*"` wildcard, `onError`, queued in-order delivery, errors isolated per
+  handler), `RingLog` (the combat log's ring buffer), and `SIM_EVENT_TYPES`
+  (`cast`, `hit`, `resource`, `aura`, `proc`, `end`). `Simulation.on` and
+  `SimRunner.on` use it. See [Events](docs/events.md).
 - `js/sim-config.js` — The SimConfig (E2-lite): `defaultConfig()` builds the
   default fight's inputs from `data/constants.js`, and `normalizeConfig(config)`
   validates a config (unknown keys, ranges, weapon types, poison ids, talent ids
@@ -548,6 +553,13 @@ rejects them under `js/`.
   `document` and `window`, clocks, `Math.random`, display names) and Prettier
   coverage.
 - `test/finisher.test.js` — Finishers need a combo point.
+- `test/event-stream.test.js` — `EventStream` and `RingLog`: subscribe, the
+  wildcard, unsubscribe, queued delivery under re-entrancy, error isolation and
+  surfacing, the ring's bound and order.
+- `test/sim-events.test.js` — The events of a fight: a payload-shape test for
+  each type, `hit` damage adding up to `totalDamage`, results and rng draws
+  equal with and without subscribers, the ring-buffer log, and the runner's
+  `on` (pause, stop and run from handlers, state handlers that throw or re-enter).
 - `test/fixed-step.test.js` — `Simulation.run`: the fixed step, total time,
   a 5-minute fight, and results that do not depend on how a duration is split.
 - `test/gcd-epsilon.test.js` — GCD readiness within `sim.tickEpsilon`.
