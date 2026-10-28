@@ -278,6 +278,20 @@ rejects them under `js/`.
   order, and `rotationShapeProblems`, `isRotationShape` and
   `assertRotationShape`, a shape check (not the R4 validator). Not used by the
   engine or the live page yet. See [Rotation as data](docs/rotation.md).
+- `js/rotation-conditions.js` — The rotation condition vocabulary (R2, #139):
+  the types a rule's conditions can use (`resource`, `comboPoints`,
+  `auraActive`, `auraRemaining`, `debuffActive`, `debuffRemaining`,
+  `debuffStacks`, `cooldownReady`, `fightTime`, `fightTimeRemaining`,
+  `energyToCap`, `abilityGranted`, `abilityUnlocked`), `conditionProblems` and
+  `assertCondition` for their params, and the pure `evaluate(condition, state)`
+  and `evaluateAll`. An aura or debuff that is not up counts as 0 s remaining.
+  Not used by the engine or the live page yet. See
+  [Rotation as data](docs/rotation.md).
+- `js/rotation-state.js` — `rotationState(rogue, simulation, { duration })`: the
+  frozen, read-only state view the conditions read (time, resources, auras,
+  debuffs, cooldowns, build and granted abilities), built from a fight without
+  changing it. In seconds, no steps. Not used by the engine or the live page
+  yet.
 - `js/sim-config.js` — The SimConfig (E2-lite): `defaultConfig()` builds the
   default fight's inputs from `data/constants.js`, and `normalizeConfig(config)`
   validates a config (unknown keys, ranges, weapon types, poison ids, talent ids
@@ -606,6 +620,12 @@ rejects them under `js/`.
   in `docs/rotation.md` pass, the Combat example matches the rotation
   constants, each wrong shape is rejected with a message that names it, the
   four documented decisions, and the limits.
+- `test/rotation-conditions.test.js` — The condition vocabulary: the examples
+  in `docs/rotation.md` are checked, every comparing type at its boundary for
+  every operator, an aura or debuff that is not up counts as 0, granted and
+  unlocked with and without a build, every bad param rejected with its name,
+  `evaluate` pure, and the conditions agree with the code rotation's questions
+  on every step of real fights.
 - `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
 - `test/scripted-fight.test.js` — The scripted-cast fight used by the golden
   cases: cast order, waiting, errors (a missing or non-object argument, unknown

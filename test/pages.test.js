@@ -311,8 +311,14 @@ describe("project site paths", () => {
     // Modules the page does not import yet. js/sim-runner.js (#136) is
     // wired into the live page by the UI issues (#149, #150); remove it
     // from this list then. js/rotation-schema.js (#138) is wired in by the
-    // rotation builder and interpreter (R3, the builder); remove it then.
-    const notWiredYet = new Set(["js/sim-runner.js", "js/rotation-schema.js"]);
+    // rotation builder and interpreter (R3, the builder); remove it then. So
+    // are js/rotation-conditions.js and js/rotation-state.js (#139).
+    const notWiredYet = new Set([
+      "js/sim-runner.js",
+      "js/rotation-schema.js",
+      "js/rotation-conditions.js",
+      "js/rotation-state.js",
+    ]);
     for (const file of publishedJs) {
       if (notWiredYet.has(file)) {
         assert.equal(seen.has(file), false, `${file} is wired: drop it above`);

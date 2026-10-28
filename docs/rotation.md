@@ -1,15 +1,19 @@
-# Rotation as data (R1, issue #138)
+# Rotation as data (R1, issue #138; R2, issue #139)
 
 A rotation is a priority list of rules, written as JSON. The rotation the Rogue
 casts today is code (`Rogue.rotation` in `js/rogue.js`, with its numbers in
 `data/constants.js`). The rotation builder, presets and import/export need the
 same rotation as data, and this page fixes what that data looks like.
 
-This is roadmap R1. It fixes the **shape**. The conditions a rule can use
-(R2, [#139](https://github.com/james-attree/wowf_dps_sim/issues/139)), the
-validator (R4) and the interpreter that casts from a list (R3) come later. The
-shape check is in `js/rotation-schema.js`. Nothing in the engine or the live
-page reads it yet, so no fight changes.
+R1 ([#138](https://github.com/james-attree/wowf_dps_sim/issues/138)) fixed the
+**shape**. R2 ([#139](https://github.com/james-attree/wowf_dps_sim/issues/139))
+fixes the **condition vocabulary**: the condition types a rule can use, their
+params, and the state they read. The validator (R4) and the interpreter that
+casts from a list (R3,
+[#140](https://github.com/james-attree/wowf_dps_sim/issues/140)) come later.
+The shape check is in `js/rotation-schema.js`, the vocabulary in
+`js/rotation-conditions.js` and the state view in `js/rotation-state.js`.
+Nothing in the engine or the live page reads them yet, so no fight changes.
 
 ## The model
 
@@ -51,19 +55,32 @@ problem, so a missing list is never read as "always" by accident.
 
 **How list order sets priority.** The list is the priority: the first rule is
 the highest. At a decision point (the engine is asked what to cast now) the
-interpreter walks the list from the top and, for each rule whose conditions all
-hold, casts its ability. If that ability is on the global cooldown, the rule is
-the pick and the walk stops. If it is off the global cooldown (Blade Flurry,
-Adrenaline Rush, Cold Blood), the walk goes on to the next rule, as the code
-does now. A rule whose conditions hold but whose ability cannot be afforded yet
-still ends the walk: nothing lower is cast, so the rogue pools energy for a
-finisher and does not fall through to a builder. A rule that should be skipped
-while its ability is on cooldown says so with a condition (R2 has a "cooldown
-ready" type). A rule is never reordered by a field of its own: there is no
-`priority` number, so the list order is the only order. This restates the
-"cast the first rule whose conditions pass" line of the
-[Phase 3.5 plan](phase-3.5-engine-rewrite.md); R3 confirms the off-GCD rule when
-it builds the interpreter.
+interpreter walks the list from the top. A rule whose conditions do not all
+hold is passed over. For a rule whose conditions hold, what happens depends on
+whether its ability is on the global cooldown:
+
+- **An off-GCD ability** (Blade Flurry, Adrenaline Rush, Cold Blood): if it can
+  be cast right now it is cast, and the walk goes on to the next rule. If it
+  **cannot** be cast right now (it is on cooldown, the build holds it back, or
+  there is not the energy), the rule is **skipped and the walk goes on**,
+  exactly as if its conditions had failed. This holds with an empty
+  `conditions` list: Blade Flurry on cooldown, with no conditions at all, does
+  not stop the walk. The code does the same now (`Rogue.rotation` casts the
+  off-GCD abilities that are ready and goes on).
+- **An on-GCD ability** (Slice and Dice, Eviscerate, Sinister Strike, ...):
+  if it can be cast it is the pick, and the walk stops. If its conditions hold
+  but it **cannot be afforded** yet, the rule still **ends the walk**: nothing
+  lower is cast, so the rogue pools energy for a finisher and does not fall
+  through to a builder. This is the only kind of rule that ends the walk
+  without a cast. A rule that should be passed over while its on-GCD ability is
+  on cooldown says so with a condition (`cooldownReady`, as the dagger example
+  does for Ghostly Strike).
+
+A rule is never reordered by a field of its own: there is no `priority`
+number, so the list order is the only order. This restates the "cast the first
+rule whose conditions pass" line of the
+[Phase 3.5 plan](phase-3.5-engine-rewrite.md) and fixes the off-GCD case that
+line left open. R3 builds the interpreter to this wording.
 
 **How `schemaVersion` is checked.** Exactly. The value must be the number the
 build reads (`ROTATION_SCHEMA_VERSION`, `1`). Any other value, higher or lower,
@@ -77,8 +94,10 @@ the version before.
 above is a problem that names the key and the allowed ones, so a typo such as
 `condtions` is caught and a field a later version added is not silently
 dropped. This is how `SimConfig` and the Rogue options already treat unknown
-keys. The one open place is a condition: its keys other than `type` are the
-type's params, and R2 says which each type allows.
+keys. The one place the shape check leaves open is a condition: its keys other than
+`type` are the type's params, and the
+[vocabulary](#the-condition-vocabulary) says which each type allows. A param a
+type does not list is rejected there, by the same rule.
 
 ## The shape check
 
@@ -100,22 +119,170 @@ the three limits; and no unknown fields.
 
 It does **not** check whether an `action` is a real ability, whether a `type`
 exists, whether a condition's params are right, whether a number is in range,
-or whether a rule is unreachable. That is the validator (R4). A rotation can
-pass the shape check and still be rejected there.
+or whether a rule is unreachable. That is the validator (R4), which uses
+`conditionProblems` for the types and params. A rotation can pass the shape
+check and still be rejected there.
+
+## The condition vocabulary
+
+A condition is `{ "type": "...", ...params }`. All of a rule's conditions must
+hold (AND). `js/rotation-conditions.js` is the vocabulary: `CONDITION_TYPES`,
+`conditionProblems(condition)` (every problem, as strings that name the param),
+`assertCondition(condition)` (throws a `RangeError`), `evaluate(condition,
+state)` and `evaluateAll(conditions, state)`. A condition is checked every time
+it is evaluated: the type must be known, every required param present and
+right, and no param the type does not list.
+
+**Operators.** A comparing type has `op`, one of `>=`, `>`, `<=`, `<`, `==`, and
+`value`, a finite number. The comparison is exact, with no tolerance, as the
+code rotation's `<=` is. **Time is seconds** of fight time, never steps.
+**Ids** are ability and aura ids (`slice-and-dice`), never display names. A
+resource is named by its resource id (`energy`, `comboPoints`). Whether an
+ability or aura id exists is the validator's check (R4), not this one's.
+
+**What is not up counts as zero.** An aura, a debuff or a cooldown that is not
+in the fight has 0 s remaining, and a debuff that is not up has 0 stacks.
+`auraRemaining` `<= 10` is therefore true when Slice and Dice is missing and
+when it has at most 10 s left, which is the code rotation's refresh test
+(`!active || active.duration <= 10`) in one condition. `auraRemaining` `> 10`
+is false when it is missing. `auraActive` is the way to ask "is it up" itself.
+
+| Type                 | Params                    | True when                                                                                        |
+| -------------------- | ------------------------- | ------------------------------------------------------------------------------------------------ |
+| `resource`           | `resource`, `op`, `value` | The pool's current value compares (`energy >= 40`).                                              |
+| `comboPoints`        | `op`, `value`             | Combo points compare. The same as `resource` with `comboPoints`.                                 |
+| `auraActive`         | `aura`, `active`?         | The self buff is up (`active` defaults to `true`; `false` means "is not up").                    |
+| `auraRemaining`      | `aura`, `op`, `value`     | Seconds left on a self buff compare. Not up is 0.                                                |
+| `debuffActive`       | `debuff`, `active`?       | The target debuff is up (or, with `active: false`, is not).                                      |
+| `debuffRemaining`    | `debuff`, `op`, `value`   | Seconds left on a target debuff compare. Not up is 0.                                            |
+| `debuffStacks`       | `debuff`, `op`, `value`   | Stacks of a target debuff compare. Not up is 0.                                                  |
+| `cooldownReady`      | `ability`, `ready`?       | The ability's own cooldown is over (`ready` defaults to `true`; `false` means "is on cooldown"). |
+| `fightTime`          | `op`, `value`             | Seconds of fight time so far compare.                                                            |
+| `fightTimeRemaining` | `op`, `value`             | Seconds of fight left compare. With no fight length known it is `Infinity`.                      |
+| `energyToCap`        | `op`, `value`             | Seconds until energy reaches its cap at the current regeneration rate compare. 0 at the cap.     |
+| `abilityGranted`     | `ability`                 | The build or the host grants the ability. Strict: see below.                                     |
+| `abilityUnlocked`    | `ability`                 | The build does not hold the ability back. See below.                                             |
+
+`cooldownReady` is about the ability's own cooldown only. It says nothing about
+the global cooldown or the energy: whether a rule can be cast right now is the
+interpreter's check, and the walk rule above says what happens when it cannot.
+
+One example of each type:
+
+```json
+{ "type": "resource", "resource": "energy", "op": ">=", "value": 40 }
+```
+
+```json
+{ "type": "comboPoints", "op": ">=", "value": 5 }
+```
+
+```json
+{ "type": "auraActive", "aura": "adrenaline-rush" }
+```
+
+```json
+{ "type": "auraRemaining", "aura": "slice-and-dice", "op": "<=", "value": 10 }
+```
+
+```json
+{ "type": "debuffActive", "debuff": "rupture", "active": false }
+```
+
+```json
+{ "type": "debuffRemaining", "debuff": "rupture", "op": "<=", "value": 2 }
+```
+
+```json
+{ "type": "debuffStacks", "debuff": "deadly-poison", "op": ">=", "value": 5 }
+```
+
+```json
+{ "type": "cooldownReady", "ability": "ghostly-strike" }
+```
+
+```json
+{ "type": "fightTime", "op": ">=", "value": 5 }
+```
+
+```json
+{ "type": "fightTimeRemaining", "op": "<", "value": 20 }
+```
+
+```json
+{ "type": "energyToCap", "op": "<=", "value": 1 }
+```
+
+```json
+{ "type": "abilityGranted", "ability": "cold-blood" }
+```
+
+```json
+{ "type": "abilityUnlocked", "ability": "blade-flurry" }
+```
+
+### Granted and unlocked: no build selected
+
+Three of the Combat rogue's abilities come from talents: Blade Flurry,
+Adrenaline Rush and Cold Blood. The code rotation treats them in two different
+ways, and a rotation as data has to say both:
+
+- **Cold Blood** is cast only when it is granted. With no build selected and no
+  host grant, it is never cast.
+- **Blade Flurry and Adrenaline Rush** are skipped only when a build is selected
+  and lacks their talent (`Rogue.lockedByBuild`). With **no build selected**
+  they are cast, as the fight did before talents (D7, #106). That is the
+  default config, and the goldens depend on it.
+
+So there are two conditions, because one meaning cannot be both:
+
+- `abilityGranted` is **strict**. It is true only when the ability is in the
+  rogue's granted set: the build's grants plus the host's `abilities` option.
+  With no build selected and no host grant, **no talent ability is granted**
+  (the untalented rogue has none), so `abilityGranted` for Blade Flurry is
+  `false` there. Cold Blood uses it, and so behaves exactly as today.
+- `abilityUnlocked` is **the negation of `Rogue.lockedByBuild`**. It is `false`
+  only when a build is selected, a talent grants the ability, and the build does
+  not have it. In every other case it is `true`: with no build selected, for an
+  ability no talent grants, and when the build has the talent.
+
+Blade Flurry and Adrenaline Rush therefore carry `abilityUnlocked` in the
+Combat example below, not `abilityGranted`. Writing `abilityGranted` on them
+would be the cleaner reading ("no build means untalented") but it would stop
+the default fight from casting them, which changes every golden. That is a
+change of behaviour, not of vocabulary, so it is left out. R3 proves the
+default config is unchanged with a fixed-seed fight, and decides whether the
+interpreter's own "can it be cast" check also holds back an ability a build
+locks, which would make `abilityUnlocked` redundant on those two rules.
+
+### The state a condition reads
+
+`evaluate(condition, state)` reads a plain, frozen state view and nothing else:
+no `Rogue`, no `Simulation`. `rotationState(rogue, simulation, { duration })` in
+`js/rotation-state.js` builds it from a fight without changing the fight:
+
+| Field             | Meaning                                                                                                                     |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `time`            | Seconds of fight time so far.                                                                                               |
+| `duration`        | The fight's length in seconds, or `null` when the host did not say. Only `fightTimeRemaining` reads it.                     |
+| `resources`       | By resource id: `{ value, max, regenPerSecond }`. `regenPerSecond` is the rate now (Adrenaline Rush doubles it); 0 if none. |
+| `auras`           | The self buffs that are up, by id: `{ remaining, stacks }`.                                                                 |
+| `debuffs`         | The target debuffs that are up, by id: `{ remaining, stacks }`.                                                             |
+| `cooldowns`       | Seconds left by ability id, only for those above 0.                                                                         |
+| `build.selected`  | A talent build is selected.                                                                                                 |
+| `granted`         | The ids of the abilities the build and the host grant.                                                                      |
+| `talentAbilities` | The ids of the abilities some talent grants (Blade Flurry, Adrenaline Rush, Cold Blood, ...).                               |
+
+The view names no step, frame or tick, so a different engine core can build
+the same view and the vocabulary does not change.
 
 ## Examples
 
-The three below are checked by `test/rotation-schema.test.js`: each must pass
-the shape check, and the Combat one must match the constants the code rotation
-reads (`rotation.priority`, `rotation.finisherComboPoints`,
-`rotation.sliceAndDiceRefreshSeconds`).
-
-The condition types in them (`comboPoints`, `auraRemaining`, `abilityGranted`,
-`debuffRemaining`) are **illustrative**. The shape check does not read them,
-and #139 fixes the real vocabulary and the names. When it does, these examples
-change with it. Where a condition says an aura has `<= 10` seconds left, an aura
-that is not up counts as 0 seconds left, so one condition covers "missing or at
-most 10 s left".
+The three below are checked by `test/rotation-schema.test.js` (the shape) and
+`test/rotation-conditions.test.js` (every condition in them, and each example in
+the vocabulary above, must pass `conditionProblems`). The Combat one must match
+the constants the code rotation reads (`rotation.priority`,
+`rotation.finisherComboPoints`, `rotation.sliceAndDiceRefreshSeconds`).
 
 ### 1. Today's placeholder Combat rotation
 
@@ -134,8 +301,16 @@ What `Rogue.rotation` does now (issue #68), including the Cold Blood rule of
   "schemaVersion": 1,
   "name": "Combat (placeholder)",
   "rules": [
-    { "action": "blade-flurry", "conditions": [] },
-    { "action": "adrenaline-rush", "conditions": [] },
+    {
+      "action": "blade-flurry",
+      "conditions": [{ "type": "abilityUnlocked", "ability": "blade-flurry" }]
+    },
+    {
+      "action": "adrenaline-rush",
+      "conditions": [
+        { "type": "abilityUnlocked", "ability": "adrenaline-rush" }
+      ]
+    },
     {
       "action": "slice-and-dice",
       "conditions": [
@@ -170,14 +345,14 @@ What `Rogue.rotation` does now (issue #68), including the Cold Blood rule of
 }
 ```
 
-Read with the order rule above: Blade Flurry, Adrenaline Rush and Cold Blood
-are off the global cooldown, so the walk goes past them. Slice and Dice,
-Eviscerate and Sinister Strike are on it, so the first of them whose conditions
-hold is the pick. Two things the code does that this JSON does not say yet, both
-for #139: the code skips Blade Flurry and Adrenaline Rush when a selected build
-lacks their talents (`Rogue.lockedByBuild`), which the `abilityGranted`
-condition on Cold Blood would also express for them, and what "granted" means
-when no build is selected.
+Read with the walk rule above: Blade Flurry, Adrenaline Rush and Cold Blood
+are off the global cooldown, so the walk goes past them, whether or not they
+could be cast (on cooldown, for one). Slice and Dice, Eviscerate and Sinister
+Strike are on it, so the first of them whose conditions hold is the pick.
+Blade Flurry and Adrenaline Rush are skipped when a selected build lacks their
+talents (`abilityUnlocked`, which is true when no build is selected), and Cold
+Blood is cast only when granted (`abilityGranted`). See "Granted and unlocked"
+above.
 
 ### 2. The smallest rotation
 
