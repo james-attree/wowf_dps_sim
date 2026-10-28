@@ -91,7 +91,13 @@ describe("RotationRule shape check: the documented examples", () => {
         k("rotation.sliceAndDiceRefreshSeconds"),
       ]);
     }
-    assert.deepEqual(combat.rules[0].conditions, []);
+    // Blade Flurry and Adrenaline Rush are held back by a build that lacks
+    // the talent (abilityUnlocked); the builder has no condition.
+    for (const rule of combat.rules.slice(0, 2)) {
+      assert.deepEqual(rule.conditions, [
+        { type: "abilityUnlocked", ability: rule.action },
+      ]);
+    }
     assert.deepEqual(combat.rules.at(-1).conditions, []);
   });
 
