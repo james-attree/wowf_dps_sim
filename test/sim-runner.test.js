@@ -244,6 +244,17 @@ describe("SimRunner state subscriptions", () => {
     assert.deepEqual(calls, ["a", "b", "b"]);
   });
 
+  it("does not call a handler added during a change until the next one", () => {
+    const target = runner();
+    const calls = [];
+    target.onStateChange(() => {
+      calls.push("a");
+      target.onStateChange(() => calls.push("late"));
+    });
+    target.run();
+    assert.deepEqual(calls, ["a"]);
+  });
+
   it("rejects a handler that is not a function", () => {
     assert.throws(() => runner().onStateChange("nope"), TypeError);
   });
@@ -358,6 +369,20 @@ describe("SimRunner pause and resume", () => {
     assert.equal(done.result, result);
   });
 
+  it("simulates all the time given, in whole pieces or in small ones", () => {
+    const whole = runner({ duration: LONG });
+    whole.run();
+    whole.advance(1);
+    assert.equal(whole.time, 1);
+    const small = runner({ duration: LONG });
+    small.run();
+    const pieces = 200;
+    for (let i = 0; i < pieces; i += 1) {
+      small.advance(0.01);
+    }
+    assert.ok(small.time > 1.9 && small.time <= 2);
+  });
+
   it("reports the time simulated, never more than was given", () => {
     const target = runner({ duration: LONG });
     target.run();
@@ -469,6 +494,15 @@ describe("SimRunner driver", () => {
       "start",
       "stop",
     ]);
+  });
+
+  it("is stopped once when a paused fight is stopped", () => {
+    const driver = manualDriver();
+    const target = runner({ driver });
+    target.run();
+    target.pause();
+    target.stop();
+    assert.deepEqual(driver.calls, ["start", "stop"]);
   });
 
   it("feeds time through the advance it is given, and stops when the fight ends", () => {
