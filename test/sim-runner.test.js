@@ -607,6 +607,8 @@ describe("SimRunner interface", () => {
       "config",
       "constructor",
       "duration",
+      "on",
+      "onError",
       "onStateChange",
       "pause",
       "reset",

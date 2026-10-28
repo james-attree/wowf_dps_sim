@@ -73,6 +73,18 @@ export class Resource {
     // time before they do.
     this.expiryAmount = 0;
     this.expiryRemaining = 0;
+    // The host's ear for the changes it wants told: onChange(change, before,
+    // source) after a gain, a spend, a gift running out or a target change
+    // clears the pool, only when the value moved. Regeneration and clamp() are
+    // not reported: they are continuous, and a stream of them would be the
+    // engine's step in disguise. The host reads the value when it wants it.
+    this.onChange = null;
+  }
+
+  report(change, before, source) {
+    if (this.onChange !== null && this.value !== before) {
+      this.onChange(change, before, source);
+    }
   }
 
   // The cap now: the base cap through the resourceMax modifiers for this
@@ -88,26 +100,31 @@ export class Resource {
   // Add up to the cap. Returns how much was added, which is less than
   // `amount` at the cap. A pool above a cap that has since fallen is brought
   // down to it (as regeneration always did), and has gained nothing.
-  gain(amount) {
+  // `source` is the id of what caused it, for the host's report (null: none).
+  gain(amount, source = null) {
     checkAmount(this.definition, "gain", amount);
     const before = this.value;
     this.value = Math.min(before + amount, this.max);
+    this.report("gain", before, source);
     return Math.max(0, this.value - before);
   }
 
   // Take `amount` away. The caller has checked has(amount).
-  spend(amount) {
+  spend(amount, source = null) {
     checkAmount(this.definition, "spend", amount);
+    const before = this.value;
     this.value -= amount;
+    this.report("spend", before, source);
     return amount;
   }
 
   // Spend everything, as a finisher does, and return how much that was. The
   // count is read before the pool is reset, so the effect of the spend (a
   // finisher's damage, a proc's chance per point) can use it.
-  spendAll() {
+  spendAll(source = null) {
     const spent = this.value;
     this.value = 0;
+    this.report("spend", spent, source);
     return spent;
   }
 
@@ -146,8 +163,10 @@ export class Resource {
     if (this.expiryRemaining > k("sim.tickEpsilon")) {
       return;
     }
+    const before = this.value;
     this.value = Math.max(0, this.value - this.expiryAmount);
     this.clearExpiry();
+    this.report("expire", before, null);
   }
 
   // A host reports a new target. What happens is the resource's data: "clear"
@@ -155,8 +174,10 @@ export class Resource {
   targetChanged() {
     const rule = this.definition.onTargetChange;
     if (rule !== undefined && k(rule) === "clear") {
+      const before = this.value;
       this.value = 0;
       this.clearExpiry();
+      this.report("clear", before, null);
     }
   }
 }

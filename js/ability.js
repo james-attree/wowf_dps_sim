@@ -245,7 +245,9 @@ export class Ability {
       (paid === null || paid.has(cost)) &&
       (simulation.gcd <= k("sim.tickEpsilon") || !this.triggersGcd)
     ) {
-      paid?.spend(cost);
+      // The cast is told first: what it does follows it.
+      simulation.emitCast(this, paid === null ? 0 : cost);
+      paid?.spend(cost, this.id);
       if (this.triggersGcd) {
         simulation.setGcd();
       }
@@ -276,23 +278,24 @@ export class Ability {
           "Cast",
           "cast",
           this.icon,
+          this.id,
         );
       }
 
       if (result && !result.landed) {
         // A miss refunds skill.missEnergyRefund of the cost and does not start the cooldown.
-        paid?.gain(cost * this.refund);
+        paid?.gain(cost * this.refund, this.id);
         return result; // Return the result of the attack attempt
       }
 
       if (spends !== null) {
         // The amount spent is what resolve() read above.
-        spent = spends.spendAll();
+        spent = spends.spendAll(this.id);
         // A spend takes the points a gift would have removed.
         spends.clearExpiry();
       } else if (this.gainResource !== null) {
         const gains = this.pool(this.gainResource);
-        const gained = gains.gain(this.gain);
+        const gained = gains.gain(this.gain, this.id);
         if (this.expires !== null) {
           gains.armExpiry(this.expires.amount, this.expires.after);
         } else if (gained > 0) {
@@ -306,7 +309,11 @@ export class Ability {
       }
 
       if (duration > 0 && this.aura) {
-        simulation.applyAura(this.aura, { duration, icon: this.icon });
+        simulation.applyAura(this.aura, {
+          duration,
+          icon: this.icon,
+          source: this.id,
+        });
       }
 
       // The procs this cast triggers (js/procs.js) fire last, so they see the
