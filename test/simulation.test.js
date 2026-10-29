@@ -558,4 +558,39 @@ describe("Adrenaline Rush running out inside a step", () => {
     near(rogue.energy, boosted * 0.5 + base * 0.5);
     assert.equal(rogue.resources.energy.cappedTime, 0);
   });
+
+  it("two timed contributions: one piece per expiry, in order of time", () => {
+    const { sim } = ready();
+    const calls = [];
+    const pool = {
+      definition: {
+        regen: { perSecond: "energy.regenPerSecond", modifier: "m" },
+      },
+      regenerate: (dt, rate) => calls.push([dt, rate]),
+    };
+    const pieces = [];
+    sim.modifiers = {
+      contributions: () => [
+        { id: "short", duration: 0.25, bonus: 1 },
+        { id: "static", duration: Infinity, bonus: 100 },
+        { id: "long", duration: 0.75, bonus: 10 },
+      ],
+      combine: (modifier, rate, active) => {
+        pieces.push(active.map(({ id }) => id).join(","));
+        return active.reduce((sum, { bonus }) => sum + bonus, rate);
+      },
+    };
+    sim.regenerateResource(pool, 1);
+    assert.deepEqual(pieces, ["static,long,short", "static,long", "static"]);
+    assert.equal(calls.length, 3);
+    const expected = [
+      [0.25, base + 111],
+      [0.5, base + 110],
+      [0.25, base + 100],
+    ];
+    calls.forEach(([dt, rate], index) => {
+      near(dt, expected[index][0]);
+      assert.equal(rate, expected[index][1]);
+    });
+  });
 });
