@@ -38,10 +38,52 @@ issues when that phase starts.
 - U — UI
 - H — history and persistence
 
+## Phase 3 status
+
+Phase 3 is rotation as data, stats and poison inputs, run controls and batch
+results. James approved the plan on the tracker,
+[#156](https://github.com/james-attree/wowf_dps_sim/issues/156), with the
+event-queue engine rewrite to follow as Phase 3.5
+([proposal](phase-3.5-engine-rewrite.md); planned, not started). The headless
+issues (#136 to #148) came first, then a review checkpoint before the UI issues
+(#149 onwards). The phase ends with a larger review by James. This is a
+snapshot as of 2026-10-29. GitHub is the source of truth, and this list will go
+stale.
+
+- [#136](https://github.com/james-attree/wowf_dps_sim/issues/136) — [P3-1] E8-lite: SimRunner state machine over the fixed-step engine — merged (PR #158)
+- [#137](https://github.com/james-attree/wowf_dps_sim/issues/137) — [P3-2] E7-lite: event stream (`sim.on`) with a ring-buffer log — merged (PR #159)
+- [#138](https://github.com/james-attree/wowf_dps_sim/issues/138) — [P3-3] R1: RotationRule JSON schema — merged (PR #160)
+- [#139](https://github.com/james-attree/wowf_dps_sim/issues/139) — [P3-4] R2: rotation condition vocabulary — merged (PR #161)
+- [#140](https://github.com/james-attree/wowf_dps_sim/issues/140) — [P3-5] R3: rotation interpreter — merged (PR #162)
+- [#141](https://github.com/james-attree/wowf_dps_sim/issues/141) — [P3-6] R4: rotation validation and human-readable summary — merged (PR #163)
+- [#142](https://github.com/james-attree/wowf_dps_sim/issues/142) — [P3-7] R5: Combat preset rotations, plus #122 and Backstab dagger-only — merged (PR #164)
+- [#143](https://github.com/james-attree/wowf_dps_sim/issues/143) — [P3-8] R6: rotation import and export — merged (PR #165)
+- [#144](https://github.com/james-attree/wowf_dps_sim/issues/144) — [P3-9] S1: batch runner (derived seeds, mean, SD, min, max, 95% CI) — merged (PR #166)
+- [#145](https://github.com/james-attree/wowf_dps_sim/issues/145) — [P3-10] S2: per-ability breakdown — merged (PR #167)
+- [#146](https://github.com/james-attree/wowf_dps_sim/issues/146) — [P3-11] S3: aura uptime, energy-capped time and combo point waste — merged (PRs #168, #169)
+- [#147](https://github.com/james-attree/wowf_dps_sim/issues/147) — [P3-12] S4: batch in a Web Worker with progress and cancel — merged (PR #170)
+- [#148](https://github.com/james-attree/wowf_dps_sim/issues/148) — [P3-13] S5: DPS histogram and damage-over-time charts — merged (PR #171)
+- [#149](https://github.com/james-attree/wowf_dps_sim/issues/149) — [P3-14] U1: split main.js into views and a small pub/sub store — merged (PR #174)
+- [#150](https://github.com/james-attree/wowf_dps_sim/issues/150) — [P3-15] U8: rewire the live visualiser to the event stream — merged (PRs #175, #176)
+- [#151](https://github.com/james-attree/wowf_dps_sim/issues/151) — [P3-16] U2: character and weapon stats form bound to SimConfig — merged (PR #177)
+- [#152](https://github.com/james-attree/wowf_dps_sim/issues/152) — [P3-17] U3: poison selector per weapon — merged (PR #178)
+- [#153](https://github.com/james-attree/wowf_dps_sim/issues/153) — [P3-18] U4: Run, Pause, Stop and Reset controls, with a live and batch mode toggle — merged (PRs #179, #180)
+- [#154](https://github.com/james-attree/wowf_dps_sim/issues/154) — [P3-19] U5: results panel — merged (PR #182; #181 was closed in its favour)
+- [#155](https://github.com/james-attree/wowf_dps_sim/issues/155) — [P3-20] Docs, golden fixtures and Phase 3 wrap-up — in progress: PRs #172 and #173 merged; the engine, docs and UI wrap-up PRs are open
+
+**Batch defaults (OQ3).** OQ3 is closed: issue #153 records James's decision of
+1,000 iterations of 300 s fights (`fight.iterations` and `batch.duration` in
+[provenance](provenance.md)). The page's Fight length field accepts more than
+0 and at most 3,600 s (#153); the #155 UI pull request raises the minimum to
+1 s.
+
+**Exit criterion:** the user sets stats and poisons, runs a Combat batch with
+Run, Pause and Stop, and sees the breakdown. The tracker (#156) checks it off;
+this roadmap does not.
+
 ## Phase 2 status
 
-Phase 2 is feature complete with #107 (PR pending James's review; the roadmap
-does not say merged until it is). The tracker is
+Phase 2 is feature complete with #107, closed on 2026-10-26. The tracker is
 [#108](https://github.com/james-attree/wowf_dps_sim/issues/108), and its issues
 (#90 to #107) land in the order listed there, one PR each. GitHub is the source
 of truth, and this list will go stale.
@@ -65,7 +107,7 @@ of truth, and this list will go stale.
 - [#104](https://github.com/james-attree/wowf_dps_sim/issues/104) — [P2-15] D9: Poison definitions from the snapshot — merged (PR #132). `js/poisons.js` reads each rogue poison's numbers from `spell_desc`; Instant and Deadly deal damage and the others are no-ops with a reason. See [Poison definitions](mechanics.md#poison-definitions-d9-issue-104).
 - [#105](https://github.com/james-attree/wowf_dps_sim/issues/105) — [P2-16] A5: Instant and Deadly Poison through procs — merged (PR #133). `config.poisons` per hand adds the poison's proc, so each weapon rolls its own. See [Poison procs](mechanics.md#poison-procs-a5-issue-105).
 - [#106](https://github.com/james-attree/wowf_dps_sim/issues/106) — [P2-17] D7: Apply a selected build, with validation — merged (PR #134). `config.talents` is validated (51 points, requirements, row gating) and applied. See [Applying a talent build](mechanics.md#applying-a-talent-build-d7-issue-106).
-- [#107](https://github.com/james-attree/wowf_dps_sim/issues/107) — [P2-18] D10: Icons by hot-link, plus Phase 2 wrap-up — in review. Icons for talents, abilities and poisons resolve to a CDN URL or a fallback, with no file added; two golden fixtures are new (the reference talented build, and an Instant/Deadly poison fight) and the four existing ones are byte-identical; the docs describe the Phase 2 end state. See [Icons](mechanics.md#icons-d10-issue-107) and [Config cases](mechanics.md#golden-seed-tests).
+- [#107](https://github.com/james-attree/wowf_dps_sim/issues/107) — [P2-18] D10: Icons by hot-link, plus Phase 2 wrap-up — closed. Icons for talents, abilities and poisons resolve to a CDN URL or a fallback, with no file added; two golden fixtures are new (the reference talented build, and an Instant/Deadly poison fight) and the four existing ones are byte-identical; the docs describe the Phase 2 end state. See [Icons](mechanics.md#icons-d10-issue-107) and [Config cases](mechanics.md#golden-seed-tests).
 
 **Phase 2 exit criteria** (rechecked for #107, with the commands in its pull request):
 
@@ -74,6 +116,8 @@ of truth, and this list will go stale.
 3. No name-keyed lookups in the engine: the `no-display-name` lint rule and a search of `js/`.
 
 **Left for James's review** (full list in [Known limits at the end of Phase 2](mechanics.md#known-limits-at-the-end-of-phase-2)): Backstab's dagger requirement is not enforced, Cold Blood's rotation placement is a design choice, Instant Poison's crit and suppression and poison rolls on finishers are unverified, and the unmapped Assassination and Subtlety talents (Phase 4, D8) do nothing. Phase 3 does not start without his go-ahead.
+
+Since then, in Phase 3: Backstab is dagger-only (#142, PR #164), and Cold Blood is a rotation rule that must hold only when the build grants it (#155, PR #173).
 
 **Scope (project owner ruling 2026-10-26).** Block and parry are out of scope: the sim is for attacking from behind, where neither applies. The front attack table (`config.target.behind = false`, with its parry and block bands) is retained in the engine and tests but is unsupported for tuning, and `block.value` stays 0. See [Position](mechanics.md#attack-table).
 

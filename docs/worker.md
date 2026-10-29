@@ -23,7 +23,8 @@ The worker and the client are hosts, like `js/main.js`: they may read a clock
 and use `self`, `URL`, `queueMicrotask` and `Worker`. They may not use the DOM
 (`document`, `window`), `Math.random` or `console`, and the no-magic-numbers
 rule applies. A Worker is created only in `js/batch-client.js`; no engine module
-names one. The page does not use the client yet (the batch UI is #149 onwards).
+names one. The page runs its batches through the client (`js/main.js`, #153
+and #154).
 
 ## Using it
 

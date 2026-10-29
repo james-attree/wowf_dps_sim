@@ -18,19 +18,27 @@ Phase 0 is complete. Phase 1, the deterministic headless engine, is built and
 merged; it is complete once James signs it off. Phase 2 (abilities, resources,
 the attack table, auras, modifiers, procs, Combat and the reference
 Assassination talents as data, applying a selected build, Instant and Deadly
-Poison, and icons by hot-link) is built; #107 is the last issue and the phase
-is for James to review. Combat is the first spec. A fight is `runFight` with an
+Poison, and icons by hot-link) is built; its last issue, #107, closed on
+2026-10-26. Phase 3 (rotation as data, the stats and poison form, run controls,
+batch runs in a Web Worker and the results panel) is built; #155 is its
+wrap-up, and the phase ends with a review by James. Phase 3.5, an event-queue
+engine, is [a proposal](docs/phase-3.5-engine-rewrite.md). Combat is the first
+spec. A fight is `runFight` with an
 optional SimConfig: weapons, a talent build (51 points, validated), a
 poison per hand, and a rotation. With no config `runFight` runs, and the page
 starts with, the placeholder
 Combat rotation (`config.rotation`, `js/rotation-default.js`, cast by
-`js/rotation-interpreter.js`): Blade Flurry, Adrenaline Rush, then Slice and
-Dice or Eviscerate at the finisher combo points, otherwise Sinister Strike.
+`js/rotation-interpreter.js`): Blade Flurry, Adrenaline Rush, then at the
+finisher combo points Slice and Dice when it has less than 1 s left, or 5 s or
+less with full energy (the combat-swords preset's rules, #173), else Cold Blood
+when the build grants it and Eviscerate; otherwise Sinister Strike. A rotation
+that casts Cold Blood must say "when granted" (`abilityGranted`), or the
+validator rejects it (#173).
 The page's first fight adds Instant Poison on the main hand and Deadly Poison
 on the off hand (`pageDefaultConfig()`, #152); `runFight`'s default has no
 poisons, so the goldens do not move. The page's "Fight setup" form (Phase 3)
 edits the stats, weapons, talents, rotation and poisons. The
-[roadmap](docs/roadmap.md#phase-2-status) has the Phase 2 issue list, the exit
+[roadmap](docs/roadmap.md#phase-3-status) has the Phase 3 issue list, the exit
 criteria and what is left open for review, and
 [mechanics](docs/mechanics.md#known-limits-at-the-end-of-phase-2) the known limits.
 
@@ -43,7 +51,7 @@ randomness. `Simulation.step(dt)` is the only way time moves, and
 returns plain data, with no DOM. `config` is an optional SimConfig (character,
 weapons, a talent build, poisons); leave it out for the default fight. The live
 page builds the same fight with `createFight` and feeds it whole fixed steps, so
-a seed gives the same fight live and headless. The golden tests pin six `runFight` results, and
+a seed gives the same fight live and headless. The golden tests pin seven `runFight` results, and
 `npm run bench` times one. [Mechanics](docs/mechanics.md#simulation-clock) has
 the details, and [Known limits of Phase 1](docs/mechanics.md#known-limits-of-phase-1)
 says what to keep in mind.
@@ -190,7 +198,8 @@ durations (a short fight, a 5-minute fight, and another seed) in
 the placeholder rotation, so it covers Eviscerate, Rupture, DoT ticks, and tick
 crits. Two cases carry a `config`: the reference build (Assassination 18 /
 Combat 33 / Subtlety 0), and the same build with Instant Poison on the main hand
-and Deadly Poison on the off hand. A change to a rule, a constant, or the engine
+and Deadly Poison on the off hand. A third runs the reference build with the
+combat-swords preset rotation (#164). A change to a rule, a constant, or the engine
 that moves those numbers fails the test, and the message lists the fields that
 changed.
 
@@ -351,7 +360,9 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
 - `js/sim-runner.js` — `SimRunner` (P3-1, #136), the run controller over the
   fight: states `idle`, `running`, `paused`, `finished`; `run`, `pause`,
   `resume`, `stop`, `reset`, `advance(seconds)`, `onStateChange`, and `fight` (the
-  running fight's rogue and simulation, for the live feed). The live page runs
+  running fight's rogue and simulation, for the live feed; read-only: the
+  handle is frozen but the rogue and simulation are the live engine objects,
+  so a caller reads them and never writes or steps them). The live page runs
   on it since #153 (`js/live-run.js`). Its default length is `batch.duration`
   (300 s). See the Run controller section of
   [Mechanics](docs/mechanics.md).

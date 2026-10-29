@@ -503,8 +503,9 @@ calls it the same way:
 Every preset passes `validateRotation` when the module is imported, so a bad
 preset in the data never reaches a fight. **The default fight keeps the
 placeholder rotation** (example 1 below) unless a preset is loaded, so a fight
-with no preset is the fight it was before. The page does not call `listPresets`
-yet: it has no config UI (the UI issues, #149 and #150, wire it).
+with no preset is the fight it was before. The page's "Fight setup" form lists
+the presets with `listPresets` and loads one with `presetRotation`
+(`js/config-form.js`, #151).
 
 A preset's numbers are read from `data/constants.js` (the finisher's combo
 points, the Blade Flurry cost, the energy cap, `rotation.pooling`), so they keep
@@ -584,7 +585,8 @@ protected: it lapses until the points are built (a known gap, not handled here).
 R6 ([#143](https://github.com/james-attree/wowf_dps_sim/issues/143)) writes a
 rotation as text and reads it back. `js/rotation-io.js` is pure (text in, text
 or a result out) and reads no file, the clipboard or the DOM; a page or a tool
-does that and hands the text over (the UI issues, #149 and #150).
+does that and hands the text over: the page's "Fight setup" form does
+(`js/config-form.js`, #151).
 
 - `exportRotation(rotation)`: the canonical JSON text of a valid rotation. An
   invalid one is a `RangeError` (`Bad rotation:` and one message per line), so a
@@ -795,9 +797,9 @@ the pick. Blade Flurry and Adrenaline Rush start the GCD, so each says when it
 can be cast: a rule for one that is not ready, or that a selected build lacks
 (`abilityUnlocked`, which is true when no build is selected), or that Blade
 Flurry cannot pay for, is passed over and does not hold the walk. The energy
-condition is the Blade Flurry cost (the `bladeFlurry` row, 25), written as a number
-in the JSON; Adrenaline Rush costs none. Cold Blood is cast only when granted
-(`abilityGranted`). See "Granted and unlocked" above.
+condition is the Blade Flurry cost (the `bladeFlurry` row, 25), written as a
+number in the JSON; Adrenaline Rush costs none. Cold Blood is cast only when
+granted (`abilityGranted`). See "Granted and unlocked" above.
 
 ### 2. The smallest rotation
 
