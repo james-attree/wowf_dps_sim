@@ -151,6 +151,13 @@ export function createVisualiserView(doc, store, { clock } = {}) {
     announceMoment();
   }
 
+  // Each list's order as last drawn, by its ids (U9 polish): the items are
+  // put in place only when it changes.
+  const drawnOrder = new Map();
+
+  // #active-buffs, #active-debuffs and #skill-cooldowns are rewritten only
+  // when their content changes (U9 polish, Fran's #220 check): an identical
+  // frame writes nothing.
   function renderTimedEffects(effects, container, items, emptyState, isAura) {
     const activeEffects = effects
       .filter(({ remaining }) => remaining > 0)
@@ -209,12 +216,20 @@ export function createVisualiserView(doc, store, { clock } = {}) {
       writeAria(item.element, { "aria-label": reading.label });
       item.element.classList.toggle("is-low", reading.low);
       write(item.stacks, reading.stacks);
-      item.stacks.hidden = reading.stacks === "";
-      item.fill.style.width = `${reading.percent}%`;
-      container.append(item.element);
+      setHidden(item.stacks, reading.stacks === "");
+      const width = `${reading.percent}%`;
+      if (item.width !== width) {
+        item.width = width;
+        item.fill.style.width = width;
+      }
     });
 
-    emptyState.hidden = activeEffects.length > 0;
+    const order = activeEffects.map(({ id }) => id).join("\n");
+    if (drawnOrder.get(container) !== order) {
+      drawnOrder.set(container, order);
+      container.append(...activeEffects.map(({ id }) => items.get(id).element));
+    }
+    setHidden(emptyState, activeEffects.length > 0);
   }
 
   // One chip per proc, in the order each first fired; a chip never moves.
@@ -250,22 +265,65 @@ export function createVisualiserView(doc, store, { clock } = {}) {
     );
   }
 
+  // #log-readout, the step announcer: emptied, then written on the next
+  // frame, so the same words twice ("Start of log" at the start) are said
+  // twice (U9 polish, as #run-announce does). One message per key press.
+  let stepFrame = null;
+  function sayStep(text) {
+    if (stepFrame !== null) {
+      view.cancelAnimationFrame?.(stepFrame);
+      stepFrame = null;
+    }
+    logReadout.textContent = "";
+    if (text === "") {
+      return;
+    }
+    if (typeof view?.requestAnimationFrame !== "function") {
+      logReadout.textContent = text;
+      return;
+    }
+    stepFrame = view.requestAnimationFrame(() => {
+      stepFrame = null;
+      logReadout.textContent = text;
+    });
+  }
+
   // Paused, Left and Right step through the log rows (Left is earlier) and the
-  // readout under the log says which; focus stays where it is.
+  // readout under the log says which; focus stays where it is. Home goes to
+  // the earliest row and End to the latest (U9 polish, Fran's #220 check):
+  // they, and an arrow past either end, say "Start of log" or "End of log"
+  // instead of the row. The log is newest first, so row 0 is the end.
   function step(key) {
     const { run, log } = store.get();
     const delta = { ArrowLeft: 1, ArrowRight: -1 }[key];
-    if (run.state !== "paused" || delta === undefined || log.length === 0) {
+    const jump = { Home: "start", End: "end" }[key];
+    if (
+      run.state !== "paused" ||
+      (delta === undefined && jump === undefined) ||
+      log.length === 0
+    ) {
       return false;
     }
-    const next =
-      selectedRow < 0
-        ? 0
-        : Math.min(Math.max(selectedRow + delta, 0), log.length - 1);
+    const first = log.length - 1;
+    let next;
+    let edge = null;
+    if (jump !== undefined) {
+      next = jump === "start" ? first : 0;
+      edge = jump;
+    } else if (selectedRow < 0) {
+      next = 0;
+    } else {
+      next = selectedRow + delta;
+      if (next > first || next < 0) {
+        edge = next > first ? "start" : "end";
+        next = Math.min(Math.max(next, 0), first);
+      }
+    }
     selectRow(next);
-    write(logHint, "");
+    // The hint stays the log's description, out of sight once a row shows.
+    logHint.classList.toggle("visually-hidden", true);
     write(logStep, logRowReading(log[next]));
-    write(logReadout, logRowSpoken(log[next]));
+    sayStep(edge === null ? logRowSpoken(log[next]) : LOG_EDGE[edge]);
     return true;
   }
 
@@ -301,8 +359,9 @@ export function createVisualiserView(doc, store, { clock } = {}) {
       selectRow(-1);
       write(logHint, "");
     }
+    logHint.classList.toggle("visually-hidden", false);
     write(logStep, "");
-    write(logReadout, "");
+    sayStep("");
   }
 
   function renderCombatLog(log) {
@@ -434,12 +493,16 @@ export function timedEffectReading(
   };
 }
 
-// "00:41.2 · Sinister Strike · Crit · 412" for one log row.
+// What the step announcer says at the ends of the log (U9 polish).
+const LOG_EDGE = { start: "Start of log", end: "End of log" };
+
+// "00:41.2 · Sinister Strike · Crit · 1,412" for one log row: the damage
+// with commas, as #log-readout says it (U9 polish, Fran's #220 check).
 export function logRowReading({ time, name, status, damage }) {
   const tenths = Math.floor(time * 10);
   const minutes = Math.floor(tenths / 600);
   const seconds = ((tenths % 600) / 10).toFixed(1).padStart(4, "0");
-  return `${String(minutes).padStart(2, "0")}:${seconds} · ${name} · ${status} · ${Math.floor(damage)}`;
+  return `${String(minutes).padStart(2, "0")}:${seconds} · ${name} · ${status} · ${formatNumber(Math.floor(damage), 0)}`;
 }
 
 // "41.2 seconds, Sinister Strike, crit, 412 damage" (#45, Fran and Scout):
@@ -452,6 +515,13 @@ export function logRowSpoken({ time, name, status, damage }) {
 // wrote there (#45). The first write always lands, as each frame's did
 // before (the page's "0 / 5" markup is replaced by the first frame's).
 const written = new WeakMap();
+
+// Sets `hidden` only when it changes: setting it again is still a DOM write.
+function setHidden(node, hidden) {
+  if (node.hidden !== hidden) {
+    node.hidden = hidden;
+  }
+}
 function write(node, text) {
   if (written.get(node) !== text) {
     written.set(node, text);
