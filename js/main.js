@@ -1,242 +1,48 @@
 import { k } from "../data/constants.js";
 import { createFight } from "./fight.js";
 import { FrameClock } from "./frame-clock.js";
-import { applyGcdMeterAria } from "./gcd-meter.js";
-import { attachIconFallback } from "./icons.js";
+import { defaultConfig } from "./sim-config.js";
+import { createStore } from "./store.js";
+import { createControlsView } from "./views/controls.js";
+import { createResultsView } from "./views/results.js";
+import { createVisualiserView } from "./views/visualiser.js";
 
-// The page is a view of the engine runFight uses. This file turns animation
-// frames into engine steps (FrameClock), advances the engine, and draws its
-// state. It holds no combat or timing rules.
+// The page's bootstrap (#149). It builds the fight, puts it and its config in
+// the store (js/store.js), hands the store to the views (js/views/), and turns
+// animation frames into engine steps (FrameClock). Each view owns its own part
+// of the page and draws from the store; none reaches into another's. This file
+// holds no combat or timing rules and draws nothing itself.
 // A fresh seed on every page load for now. The header shows it, so a fight
 // can be repeated with runFight({ seed, duration }).
-const { seed, rogue, simulation } = createFight(
+const fight = createFight(
   crypto.getRandomValues(new Uint32Array(1))[0],
+  defaultConfig(),
 );
+const { simulation } = fight;
 const frameClock = new FrameClock();
 const fixedStep = k("sim.fixedStep");
-// Cooldowns are keyed by skill id, so the page looks the skill up for its name
-// and icon.
-const skillsById = new Map(
-  Object.values(rogue.abilities).map((skill) => [skill.id, skill]),
-);
-const comboValue = document.querySelector("#combo-value");
-const comboMeter = document.querySelector("#combo-meter");
-const comboPoints = document.querySelectorAll(".combo-point");
-const energyValue = document.querySelector("#energy-value");
-const energyMeter = document.querySelector("#energy-meter");
-const energyFill = document.querySelector("#energy-fill");
-const gcdValue = document.querySelector("#gcd-value");
-const gcdMeter = document.querySelector("#gcd-meter");
-const gcdFill = document.querySelector("#gcd-fill");
-const gcdStatus = document.querySelector("#gcd-status");
-const activeBuffs = document.querySelector("#active-buffs");
-const activeBuffsEmpty = document.querySelector("#active-buffs-empty");
-const activeDebuffs = document.querySelector("#active-debuffs");
-const activeDebuffsEmpty = document.querySelector("#active-debuffs-empty");
-const skillCooldowns = document.querySelector("#skill-cooldowns");
-const skillCooldownsEmpty = document.querySelector("#skill-cooldowns-empty");
-const cooldownItems = new Map();
-const buffItems = new Map();
-const debuffItems = new Map();
-const timeValue = document.querySelector("#time-value");
-const damageValue = document.querySelector("#damage-value");
-const dpsValue = document.querySelector("#dps-value");
-const combatLog = document.querySelector("#combat-log");
-const combatLogScroll = document.querySelector(".combat-log-scroll");
-const combatLogEmpty = document.querySelector("#combat-log-empty");
-const pauseButton = document.querySelector("#pause-button");
-const pauseIcon = document.querySelector("#pause-icon");
-const pauseLabel = document.querySelector("#pause-label");
-const seedValue = document.querySelector("#seed-value");
-const simulationStatus = document.querySelector("#simulation-status");
-const simulationStatusLabel = document.querySelector(
-  "#simulation-status-label",
-);
-let lastRenderedCombatEventId = -1;
-let isPaused = false;
 let animationFrameId;
-seedValue.textContent = String(seed);
 
-function redrawScene(rogue) {
-  comboValue.value = `${rogue.comboPoints} / ${rogue.maxComboPoints}`;
-  comboValue.textContent = comboValue.value;
-  comboMeter.setAttribute("aria-valuenow", String(rogue.comboPoints));
-  comboPoints.forEach((point, index) => {
-    point.classList.toggle("is-filled", index < rogue.comboPoints);
-  });
-  const energyPercent = (rogue.energy / rogue.maxEnergy) * 100;
-  const gcdPercent = (simulation.gcd / simulation.gcdDuration) * 100;
-  energyValue.value = `${Math.floor(rogue.energy)} / ${rogue.maxEnergy}`;
-  energyValue.textContent = energyValue.value;
-  energyMeter.setAttribute("aria-valuenow", String(Math.floor(rogue.energy)));
-  energyFill.style.width = `${energyPercent}%`;
-  gcdValue.value = `${simulation.gcd.toFixed(1)}s`;
-  gcdValue.textContent = gcdValue.value;
-  const gcdActive = simulation.gcd > 0;
-  gcdStatus.textContent = gcdActive ? "On cooldown" : "Ready";
-  gcdStatus.classList.toggle("is-active", gcdActive);
-  applyGcdMeterAria(gcdMeter, simulation);
-  gcdFill.style.width = `${gcdPercent}%`;
-  renderTimedEffects(
-    simulation.activeBuffs,
-    activeBuffs,
-    buffItems,
-    activeBuffsEmpty,
-  );
-  renderTimedEffects(
-    simulation.activeDebuffs,
-    activeDebuffs,
-    debuffItems,
-    activeDebuffsEmpty,
-  );
-  renderTimedEffects(
-    simulation.cooldowns,
-    skillCooldowns,
-    cooldownItems,
-    skillCooldownsEmpty,
-  );
-  const elapsedSeconds = Math.floor(simulation.currentTime);
-  const minutes = Math.floor(elapsedSeconds / 60);
-  const seconds = elapsedSeconds % 60;
-  timeValue.value = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  timeValue.textContent = timeValue.value;
-  damageValue.value = String(Math.floor(simulation.damageDone));
-  damageValue.textContent = damageValue.value;
-  const dps =
-    simulation.currentTime > 0
-      ? simulation.damageDone / simulation.currentTime
-      : 0;
-  dpsValue.value = dps.toFixed(0);
-  dpsValue.textContent = dpsValue.value;
-  renderCombatLog();
-}
+const resultsOf = () => ({
+  time: simulation.currentTime,
+  damage: simulation.damageDone,
+});
 
-function renderTimedEffects(effects, container, items, emptyState) {
-  const activeEffects = Object.entries(effects)
-    .map(([id, effect]) => {
-      // An aura is a record with its own name and icon. A cooldown is the
-      // seconds left, and the skill with that id has the name and icon.
-      const isAura = typeof effect === "object";
-      const skill = skillsById.get(id);
-      return {
-        id,
-        name: isAura ? effect.name : skill?.name,
-        icon: isAura ? effect.icon : skill?.icon,
-        remaining: isAura ? effect.duration : effect,
-      };
-    })
-    .filter(({ remaining }) => remaining > 0)
-    .sort((a, b) => b.remaining - a.remaining);
-  const activeIds = new Set(activeEffects.map(({ id }) => id));
+const store = createStore({
+  config: fight.config,
+  rotation: fight.config.rotation,
+  run: { state: "running", seed: fight.seed },
+  frame: 0,
+  results: resultsOf(),
+  fight: { rogue: fight.rogue, simulation },
+});
 
-  items.forEach((item, id) => {
-    if (!activeIds.has(id)) {
-      item.element.remove();
-      items.delete(id);
-    }
-  });
-
-  activeEffects.forEach(({ id, name, icon: iconSource, remaining }) => {
-    let item = items.get(id);
-    if (!item) {
-      const element = document.createElement("div");
-      element.className = "timed-effect";
-      element.title = name;
-
-      if (iconSource) {
-        const icon = document.createElement("img");
-        attachIconFallback(icon);
-        icon.src = iconSource;
-        icon.width = 32;
-        icon.height = 32;
-        icon.alt = name;
-        element.append(icon);
-      }
-
-      const time = document.createElement("output");
-      time.className = "timed-effect-time";
-      element.append(time);
-      item = { element, time };
-      items.set(id, item);
-    }
-
-    item.time.value = `${remaining.toFixed(0)}s`;
-    item.time.textContent = item.time.value;
-    item.element.title = `${name}: ${item.time.value}`;
-    container.append(item.element);
-  });
-
-  emptyState.hidden = activeEffects.length > 0;
-}
-
-function renderCombatLog() {
-  const newEvents = simulation.combatLog.filter(
-    (event) => event.id > lastRenderedCombatEventId,
-  );
-  if (newEvents.length === 0) {
-    return;
-  }
-
-  const previousScrollHeight = combatLogScroll.scrollHeight;
-  const isAtLatestEvents = combatLogScroll.scrollTop <= 1;
-  if (combatLogEmpty.isConnected) {
-    combatLogEmpty.remove();
-  }
-  newEvents
-    .slice()
-    .reverse()
-    .forEach((event) => {
-      const row = document.createElement("li");
-      row.className = "combat-log-entry";
-
-      const time = document.createElement("time");
-      const totalSeconds = Math.floor(event.time);
-      time.className = "combat-log-time";
-      time.textContent = `${String(Math.floor(totalSeconds / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
-
-      const icon = document.createElement("span");
-      icon.className = `combat-log-icon ${event.type === "skill" ? "skill-icon" : "weapon-icon"}`;
-      icon.setAttribute("aria-hidden", "true");
-      if (event.type === "skill" && event.icon) {
-        const image = document.createElement("img");
-        attachIconFallback(image);
-        image.src = event.icon;
-        image.width = 16;
-        image.height = 16;
-        image.alt = "";
-        icon.append(image);
-      } else {
-        icon.textContent = event.type === "skill" ? "✦" : "⚔";
-      }
-
-      const name = document.createElement("span");
-      name.className = "combat-log-name";
-      name.textContent = event.name;
-
-      const damage = document.createElement("span");
-      damage.className = "combat-log-damage";
-      damage.textContent = String(Math.floor(event.damage));
-
-      const status = document.createElement("span");
-      status.className = `combat-log-status outcome-${event.outcome}`;
-      status.textContent = event.status;
-
-      row.append(time, icon, name, damage, status);
-      combatLog.insertBefore(row, combatLog.firstChild);
-      if (combatLog.children.length > k("log.maxEvents")) {
-        combatLog.lastElementChild.remove();
-      }
-    });
-
-  if (!isAtLatestEvents) {
-    combatLogScroll.scrollTop +=
-      combatLogScroll.scrollHeight - previousScrollHeight;
-  }
-  lastRenderedCombatEventId = Math.max(...newEvents.map((event) => event.id));
-}
+createControlsView(document, store);
+createVisualiserView(document, store);
+createResultsView(document, store);
 
 function update(time) {
-  if (isPaused) {
+  if (store.get().run.state !== "running") {
     return;
   }
 
@@ -247,28 +53,23 @@ function update(time) {
     simulation.step(fixedStep);
   }
 
-  redrawScene(rogue);
+  store.update(({ frame }) => ({ frame: frame + 1, results: resultsOf() }));
 
   animationFrameId = requestAnimationFrame(update);
 }
 
-pauseButton.addEventListener("click", () => {
-  isPaused = !isPaused;
-  pauseButton.setAttribute("aria-pressed", String(isPaused));
-  pauseIcon.textContent = isPaused ? "▶" : "Ⅱ";
-  pauseLabel.textContent = isPaused ? "Resume" : "Pause";
-  simulationStatusLabel.textContent = isPaused ? "Paused" : "Live";
-  simulationStatus.classList.toggle("is-paused", isPaused);
-
-  if (isPaused) {
+// Pause and resume come from the controls view through the run slice.
+store.subscribe(({ state, changed }) => {
+  if (!changed.includes("run")) {
+    return;
+  }
+  if (state.run.state !== "running") {
     cancelAnimationFrame(animationFrameId);
     return;
   }
-
   // The next frame takes no steps, so the time spent paused is not simulated.
   frameClock.restart();
   animationFrameId = requestAnimationFrame(update);
 });
 
-applyGcdMeterAria(gcdMeter, simulation);
 animationFrameId = requestAnimationFrame(update);

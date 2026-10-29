@@ -272,7 +272,7 @@ frame's casts is not reduced until the next frame. The same is true of a
 cooldown, a buff, or a debuff applied during the rotation: `tickAuras` has
 already run.
 
-`js/main.js` sets the GCD status to "On cooldown" while `simulation.gcd > 0`,
+The live page (`js/views/visualiser.js`) sets the GCD status to "On cooldown" while `simulation.gcd > 0`,
 and to "Ready" otherwise. On the frame where the remainder is still positive and
 already within `k("sim.tickEpsilon")`, that label can read "On cooldown"
 while `Ability.cast` treats the GCD as ready.
@@ -590,7 +590,8 @@ direct hits and ticks alike.
 
 `Simulation.resolveAttack` always applies this to a direct hit, after
 `resolveAttack` has floored the pre-armor damage. The running total keeps
-the product. `js/main.js` floors a combat-log cell when it draws it.
+the product. The live page's combat log (`js/views/visualiser.js`) floors a cell when it
+draws it.
 
 A hit or a tick skips armor when the event's tags say so (`skipsArmor` in
 `js/simulation.js`; see [Damage tags](#damage-tags)). A bleed skips when
@@ -930,7 +931,12 @@ as the table shows. The total time is the duration asked for either way.
 
 ### Live page
 
-`js/main.js` is a view of the same engine `runFight` uses. It builds the fight
+`js/main.js` is a view of the same engine `runFight` uses. Since #149 it is a
+bootstrap: it puts the fight in the page's store (`js/store.js`), and the views
+in `js/views/` draw from the store (the visualiser on each frame, the totals
+when the results change, the controls when the run state changes). The pause
+button changes the store's `run` slice, and `js/main.js` starts or stops the
+frame loop from that. It builds the fight
 with `createFight(seed)` from `js/fight.js`, shows the seed in the header
 (plain text, so the same seed can be replayed in `runFight`), and from each
 animation frame it takes whole steps of `k("sim.fixedStep")` through

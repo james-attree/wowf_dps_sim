@@ -5,7 +5,8 @@ import enginePurity from "./eslint/engine-purity.js";
 
 // Engine modules (everything under js/ except the UI entry) must stay free of
 // document/window, wall clocks (performance, Date), Math.random and
-// game-number literals. js/main.js is the UI exception.
+// game-number literals. js/main.js and the views it loads (js/views/, #149)
+// are the UI exception.
 // data/constants.js is where those numbers live, so it is not an engine file.
 
 const readonly = (names) =>
@@ -30,6 +31,10 @@ const engineRandomMessage =
   "Engine modules must not use Math.random. Draw from the simulation's seeded rng (js/rng.js) so a fight repeats for the same seed.";
 const engineClockMessage =
   "Engine modules must not read a wall clock. Advance time with Simulation.step(dt), and let the host supply dt.";
+
+// The page: its bootstrap and its view modules (issue #149). They touch the
+// DOM and draw, so the engine rules do not apply; the display-name rule does.
+const UI_FILES = ["js/main.js", "js/views/**/*.js"];
 
 // Host modules under js/ (issue #147): see their block below.
 const WORKER_HOSTS = ["js/batch-worker.js", "js/batch-client.js"];
@@ -90,7 +95,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["js/main.js"],
+    files: UI_FILES,
     languageOptions: {
       globals: readonly([
         "cancelAnimationFrame",
@@ -104,7 +109,7 @@ export default defineConfig([
   },
   {
     files: ["js/**/*.js"],
-    ignores: ["js/main.js", ...WORKER_HOSTS],
+    ignores: [...UI_FILES, ...WORKER_HOSTS],
     plugins: {
       "engine-purity": enginePurity,
     },
@@ -143,7 +148,7 @@ export default defineConfig([
     },
   },
   {
-    // js/main.js is scanned too: the page reads ids as well. The definition
+    // js/main.js and js/views/ are scanned too: the page reads ids as well. The definition
     // sites are where a display name is written once.
     files: ["js/**/*.js"],
     ignores: ["js/auras.js", "js/weapon.js"],

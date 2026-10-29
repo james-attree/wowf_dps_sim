@@ -229,6 +229,15 @@ describe("engine lint", () => {
           "",
         ].join("\n"),
       ],
+      // The view modules js/main.js loads (#149) are page code too.
+      [
+        "js/views/visualiser.js",
+        [
+          "const width = 32;",
+          "document.body.dataset.width = String(width);",
+          "",
+        ].join("\n"),
+      ],
       [
         "data/constants.js",
         'export const CONSTANTS = { "dodge.target": { value: 0.065 } };\n',
@@ -254,6 +263,16 @@ describe("engine lint", () => {
       assert.equal(ids.includes("no-restricted-globals"), false, filename);
       assert.equal(ids.includes("no-restricted-syntax"), false, filename);
     }
+  });
+
+  it("holds the page's store to the engine rules (#149)", async () => {
+    const result = await lintSource(
+      "js/store.js",
+      "export const frames = 60;\nexport const page = document.title;\n",
+    );
+    const ids = ruleIds(result.stdout);
+    assert.ok(ids.includes("engine-purity/no-numeric-literal"), result.stdout);
+    assert.ok(ids.includes("no-restricted-globals"), result.stdout);
   });
 
   it("lets the batch worker hosts read a clock, and nothing else (#147)", async () => {
@@ -366,9 +385,10 @@ describe("no display names in the engine (issue #94)", () => {
     }
   });
 
-  it("scans js/main.js, and leaves the definition sites alone", async () => {
+  it("scans js/main.js and js/views/, and leaves the definition sites alone", async () => {
     const source = 'export const a = (x) => x.cooldowns["Rupture"];\n';
     assert.ok((await reported("js/main.js", source)).length > 0);
+    assert.ok((await reported("js/views/controls.js", source)).length > 0);
     for (const file of ["js/auras.js", "js/weapon.js"]) {
       assert.deepEqual(await reported(file, source), [], file);
     }
