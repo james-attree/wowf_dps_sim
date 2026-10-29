@@ -4,6 +4,7 @@ import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { compileRotation, decide } from "../js/rotation-interpreter.js";
 import { rotationProblems } from "../js/rotation-validator.js";
+import { talentGrantedAbilities } from "../js/talent-build.js";
 
 // R3 (#140): the interpreter on its own, with a host written by hand. No Rogue,
 // no Simulation, no step: the walk rule of docs/rotation.md.
@@ -437,7 +438,14 @@ describe("compileRotation", () => {
       assert.deepEqual(
         rotationProblems(
           rotation(
-            definition.id === "cold-blood" ? coldBlood() : rule(definition.id),
+            definition.id === "cold-blood"
+              ? coldBlood()
+              : talentGrantedAbilities.has(definition.id)
+                ? rule(definition.id, {
+                    type: "abilityUnlocked",
+                    ability: definition.id,
+                  })
+                : rule(definition.id),
           ),
         ),
         [],

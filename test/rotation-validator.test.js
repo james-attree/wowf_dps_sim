@@ -18,6 +18,7 @@ import {
   validateRotation,
 } from "../js/rotation-validator.js";
 import { SimRunner } from "../js/sim-runner.js";
+import { talentGrantedAbilities } from "../js/talent-build.js";
 
 // R4 (#141): the validator. Each invalid case in the issue is rejected with a
 // message that names the rule index and the problem; the path says where.
@@ -26,10 +27,17 @@ const rule = (action, ...conditions) => ({ action, conditions });
 const rotation = (...rules) => ({ schemaVersion: 1, name: "Test", rules });
 const valid = rotation(rule("sinister-strike"));
 const GRANTED_COLD_BLOOD = { type: "abilityGranted", ability: "cold-blood" };
-// The least rule that casts an ability: none needs a condition, except Cold
-// Blood, which needs its abilityGranted condition (issue #155).
-const onlyRule = (id) =>
-  id === "cold-blood" ? rule(id, GRANTED_COLD_BLOOD) : rule(id);
+// The least rule that casts an ability: none needs a condition, except one a
+// talent grants (issue #188): Cold Blood needs its abilityGranted condition
+// (issue #155), and until #199 the others take abilityUnlocked.
+const onlyRule = (id) => {
+  if (id === "cold-blood") {
+    return rule(id, GRANTED_COLD_BLOOD);
+  }
+  return talentGrantedAbilities.has(id)
+    ? rule(id, { type: "abilityUnlocked", ability: id })
+    : rule(id);
+};
 
 // The one error a rotation with a single rule and condition gives.
 function only(errors) {
@@ -592,13 +600,13 @@ describe("assertValidRotation and rotationProblems", () => {
 
 describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
   const MESSAGE =
-    'casts cold-blood without the condition { "type": "abilityGranted", "ability": "cold-blood" }: Cold Blood is a talent, so its rule must hold only when the build grants it.';
+    ': Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.';
   const five = { type: "comboPoints", op: ">=", value: 5 };
 
   it("rejects a Cold Blood rule with no conditions, as an error on its conditions", () => {
     assert.deepEqual(
       validateRotation(rotation(rule("sinister-strike"), rule("cold-blood"))),
-      [{ path: "rules[1].conditions", message: `rules[1] ${MESSAGE}` }],
+      [{ path: "rules[1].conditions", message: `rules[1]${MESSAGE}` }],
     );
   });
 
@@ -617,7 +625,7 @@ describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
         "rules[0].conditions",
         JSON.stringify(conditions),
       );
-      assert.equal(error.message, `rules[0] ${MESSAGE}`);
+      assert.equal(error.message, `rules[0]${MESSAGE}`);
     }
   });
 
@@ -681,7 +689,7 @@ describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
     );
     assert.throws(
       () => runFight({ seed: 1, duration: 5, config }),
-      /rules\[0\] casts cold-blood without the condition/,
+      /rules\[0\]: Cold Blood \(cold-blood\) comes from a talent/,
     );
   });
 

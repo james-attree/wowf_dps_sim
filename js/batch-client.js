@@ -95,7 +95,8 @@ function defaultTimer(callback, ms) {
 
 // A serialized error (js/batch-host.js serializeError) as an Error again. An
 // object without a name or a message reads as a plain Error with no text, not
-// as the text "undefined" (#155).
+// as the text "undefined" (#155). A field that is there but falsy (an empty
+// name, a message of 0) is kept, which is why these are ?? and not || (#187).
 export function deserializeError(data) {
   const isObject = data !== null && typeof data === "object";
   const name = isObject ? (data.name ?? "Error") : "Error";
