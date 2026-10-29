@@ -164,9 +164,8 @@ export class SimRunner {
         );
       }
     }
-    if (!Number.isInteger(options.seed)) {
-      throw new RangeError("SimRunner needs an integer seed: { seed }.");
-    }
+    // normalizeSeed is the one seed check, so a bad seed has the same
+    // RangeError text here as in runFight and runBatch (#187).
     this.#seed = normalizeSeed(options.seed);
     this.#duration = readDuration(
       options.duration === undefined ? k("batch.duration") : options.duration,

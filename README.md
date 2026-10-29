@@ -346,6 +346,9 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   timestamps as arguments and reads no clock.
 - `js/rng.js` — `createRng(seed)`, the seeded mulberry32 generator the
   `Simulation` owns. Every random draw in the engine goes through it.
+  `normalizeSeed(seed)` is the one seed check: every entry point that takes a
+  seed throws the same `RangeError`, "A seed must be an integer; got <value>."
+  (#187).
 - `js/simulation.js` — `step(dt)` advances the fight by `dt` seconds and reads
   no clock. `run(duration)` repeats the fixed step `sim.fixedStep` for a
   duration, with a short last step, for headless runs. Each step handles
