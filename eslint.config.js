@@ -195,7 +195,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["scripts/**/*.mjs", "test/**/*.js"],
+    files: ["scripts/**/*.mjs", "test/**/*.js", "browser-tests/**/*.mjs"],
     languageOptions: {
       globals: readonly([
         "Buffer",
@@ -210,6 +210,13 @@ export default defineConfig([
         "structuredClone",
         "URL",
       ]),
+    },
+  },
+  {
+    // The browser tests (#204): their page.evaluate callbacks run in Chrome.
+    files: ["browser-tests/**/*.mjs"],
+    languageOptions: {
+      globals: readonly(["document"]),
     },
   },
 ]);

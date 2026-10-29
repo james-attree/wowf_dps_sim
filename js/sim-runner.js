@@ -364,7 +364,10 @@ export class SimRunner {
       );
     }
     if (action === "run") {
-      const fight = createFight(this.#seed, normalizeConfig(this.#config));
+      // The rotation is told the length the runner runs (#191).
+      const fight = createFight(this.#seed, normalizeConfig(this.#config), {
+        duration: this.#duration,
+      });
       this.#fight = fight;
       // Events of a fight the runner has let go of (stopped, or run again) are
       // not passed on.

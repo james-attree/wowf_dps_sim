@@ -891,7 +891,9 @@ end in the same state, whoever drives them.
   calls it with `k("sim.fixedStep")` for a duration (see Fixed step).
 - `createFight(seed)` and `runFight({ seed, duration })` (`js/fight.js`) build
   the `Rogue` and `Simulation` pair. `runFight` runs it with one `run` call and
-  returns plain data (see Headless fight).
+  returns plain data (see Headless fight). `createFight`'s `options.duration`
+  is the fight length the rotation reads as `fightTimeRemaining` (#191); it does
+  not end the fight, and `runFight` and `SimRunner` pass the duration they run.
 - The live page (`js/main.js`, through `js/live-run.js`) runs the same pair in
   a `SimRunner`, which gives it whole fixed steps from `FrameClock` (see Live
   page). It is a view of the
@@ -2603,7 +2605,8 @@ true), so a partial build without Blade Flurry or Adrenaline Rush locks them
 (`lockedByBuild`), and the default rotation and the presets fall through to
 the next rule. `decodeBuildLink` already decodes a partial talentsforever link
 and its level. The build label (`js/build-label.js`) adds the points out of the
-cap to a partial build, "Combat 0/5/0 (5/51)", and a full build reads as before.
+cap to every build, "Combat 0/5/0 · 5/51", and the level below 60, "Combat
+0/31/0 · level 40 · 31/31" (#204, Fran's U6 spec D17).
 
 **Gating the granted abilities.** With a selected build, an ability a talent
 grants (`talentGrantedAbilities`, read from the `ability` fields of

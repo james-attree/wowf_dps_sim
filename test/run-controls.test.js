@@ -809,10 +809,63 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
   });
 });
 
+describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => {
+  const overCap = (page) =>
+    page.store.set({
+      talents: { ...page.store.get().talents, error: "Over the cap." },
+    });
+
+  it("the reason names the talents when they are the only blocker", () => {
+    const page = setup();
+    overCap(page);
+    assert.equal(page.model().reason, "Can't run · Talents over the level cap");
+    assert.equal(page.model().status, "Can't run · Talents over the level cap");
+    assert.equal(page.model().run.disabled, true);
+    page.actions.setMode("batch");
+    assert.equal(page.model().reason, "Can't run · Talents over the level cap");
+  });
+
+  it("with another blocker too, the reason counts the settings", () => {
+    const page = setup();
+    overCap(page);
+    page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
+    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+  });
+
+  it("Fix 1 setting opens the talent tree and focuses its Level input", () => {
+    const page = setup();
+    const { doc, el } = standIn({
+      absent: ['#config-form [aria-invalid="true"]'],
+    });
+    const edit = el("talents-edit");
+    edit.setAttribute("aria-expanded", "false");
+    let opened = 0;
+    edit.click = () => {
+      opened += 1;
+      edit.setAttribute("aria-expanded", "true");
+    };
+    createControlsView(doc, page.store, page.actions);
+    overCap(page);
+    const link = el("run-errors-link");
+    assert.equal(link.hidden, false);
+    assert.equal(link.textContent, "Fix 1 setting");
+    assert.equal(
+      el("run-reason").textContent,
+      "Can't run · Talents over the level cap",
+    );
+    assert.equal(link.fire("click").prevented, 1);
+    assert.equal(opened, 1, "the tree opens");
+    assert.equal(el("talents-level").focused, 1, "Level has the focus");
+    link.fire("click");
+    assert.equal(opened, 1, "an open tree is not toggled shut");
+    assert.equal(el("talents-level").focused, 2);
+  });
+});
+
 // The view on a small stand-in document. `order` is the bar's three parts in
 // document order (index.html: settings, row, help); after() and before() move
 // them. `media` is a matchMedia query result, or none.
-function standIn({ media = null } = {}) {
+function standIn({ media = null, absent = [] } = {}) {
   const elements = new Map();
   const order = ["run-settings", "run-bar", "run-help"];
   const move = (id, next, offset) => {
@@ -879,6 +932,9 @@ function standIn({ media = null } = {}) {
     activeElement: null,
     defaultView: media === null ? {} : { matchMedia: () => media },
     querySelector(selector) {
+      if (absent.includes(selector)) {
+        return null;
+      }
       if (!elements.has(selector)) {
         elements.set(selector, make(selector.slice(1)));
       }

@@ -6,6 +6,7 @@
     <title>WoW Forever Rogue Simulator</title>
     <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="talent-tree.css" />
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
@@ -155,9 +156,27 @@
         <div class="config-grid">
           <fieldset class="config-fieldset build-fieldset">
             <legend>Build</legend>
-            <div class="field">
-              <label for="cfg-talents">Talents</label>
-              <select id="cfg-talents" name="talents"></select>
+            <!-- The talent tree's summary row (#204); js/views/talent-tree.js
+                 owns it and the #talent-tree section under the form. -->
+            <div class="field talents-summary">
+              <div>
+                <span class="talents-summary-label" id="talents-summary-label"
+                  >Talents</span
+                >
+                <span class="talents-summary-value" id="talents-summary"
+                  >No talents</span
+                >
+              </div>
+              <button
+                id="talents-edit"
+                class="pill-button"
+                type="button"
+                aria-expanded="false"
+                aria-controls="talent-tree"
+                aria-describedby="talents-summary-label talents-summary"
+              >
+                Edit talents
+              </button>
             </div>
             <div class="field">
               <label for="cfg-rotation">Rotation</label>
@@ -249,6 +268,8 @@
                   id="cfg-character-critChance"
                   name="character.critChance"
                   data-field="character.critChance"
+                  aria-describedby="cfg-character-talent-help"
+                  data-help="cfg-character-talent-help"
                   type="number"
                   inputmode="decimal"
                   step="0.01"
@@ -275,6 +296,8 @@
                   id="cfg-character-bonusHitChance"
                   name="character.bonusHitChance"
                   data-field="character.bonusHitChance"
+                  aria-describedby="cfg-character-talent-help"
+                  data-help="cfg-character-talent-help"
                   type="number"
                   inputmode="decimal"
                   step="0.01"
@@ -290,6 +313,9 @@
                 hidden
               ></p>
             </div>
+            <p class="field-help" id="cfg-character-talent-help">
+              Without talents (the talent tree adds its own).
+            </p>
           </fieldset>
           <div class="hands">
             <fieldset class="config-fieldset hand-fieldset">
@@ -579,6 +605,69 @@
           </div>
         </div>
       </form>
+
+      <section
+        id="talent-tree"
+        class="panel talents-panel"
+        aria-labelledby="talents-heading"
+        hidden
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">BUILD</p>
+            <h2 id="talents-heading">Talents</h2>
+          </div>
+          <div class="talents-actions">
+            <button id="talents-reset" class="pill-button" type="button">
+              Reset all
+            </button>
+            <button id="talents-close" class="pill-button" type="button">
+              Close talents
+            </button>
+          </div>
+        </div>
+        <div class="talents-bar">
+          <div class="field talents-level">
+            <label for="talents-level">Level</label>
+            <div class="field-control">
+              <input
+                id="talents-level"
+                type="number"
+                inputmode="numeric"
+                step="1"
+                aria-describedby="talents-level-help"
+              />
+            </div>
+          </div>
+          <div class="talents-points" id="talents-points"></div>
+          <p class="field-error" id="talents-level-error" hidden></p>
+          <p class="talents-help" id="talents-level-help">
+            Level sets your talent points (level − 9) and nothing else. Enter
+            that character's own stats under Character.
+          </p>
+        </div>
+        <div class="talents-message" id="talents-message"></div>
+        <div
+          class="talents-tabs"
+          id="talents-tabs"
+          role="tablist"
+          aria-label="Talent trees"
+          hidden
+        ></div>
+        <div class="talent-trees" id="talents-trees"></div>
+        <ul class="talents-legend" id="talents-legend" aria-label="Key"></ul>
+        <aside
+          class="talent-detail"
+          id="talents-detail"
+          aria-labelledby="talents-detail-heading"
+        ></aside>
+        <div class="talents-effects" id="talents-effects"></div>
+        <p class="visually-hidden" id="talents-keys">
+          Arrow keys move between talents. Enter, Space or plus adds a point.
+          Minus, Backspace or Delete removes one.
+        </p>
+        <p class="visually-hidden" id="talents-live" role="status"></p>
+      </section>
 
       <section
         id="damage-panel"
