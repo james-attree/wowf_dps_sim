@@ -283,16 +283,18 @@ simulation })` with `read()` and `stop()`. The combat log rows (from `hit`
 store)` that owns its own elements, draws from the store when its slices
   change, and returns its unsubscribe: `controls.js` (#153: the sticky run
   control bar, the only home of Run, Pause, Stop and Reset, with the Live and
-  Batch toggle, the fight length, fights and seed fields, the status line, a
-  polite announcement on each state change and the batch's own progress;
+  Batch toggle, the fight length, fights and seed fields, the status line ("Can't run · N
+  settings to fix" and a "Fix N settings" link while Run is blocked, #155), a
+  polite announcement on each live state change (in batch mode only Ready: the
+  results panel announces the batch, #155) and the batch's own progress;
   below 520 px one compact sticky row with a settings summary and a closed
   "Run settings" section under it; it draws `js/views/run-model.js` and calls the run actions, and never writes the
   store), `run-model.js` (what each control shows in each state, the field
   checks and their messages, the narrow summary and errors link; pure), `visualiser.js` (combo
   points, energy, the GCD meter, effects, cooldowns, procs, the combat log and
-  its announcements; redraws on `frame`, from the feed's slices only), `results.js` (time, damage, DPS; redraws on `results`; in batch mode the
-  Total damage and DPS tiles show the batch's mean fight, a partial Stop
-  included, #154), `results-panel.js` and `results-render.js` (#154: the
+  its announcements; redraws on `frame`, from the feed's slices only), `results.js` (time, damage, DPS; redraws on `results`; hidden in batch
+  mode, where the results panel is the one place a batch's numbers show,
+  #155), `results-panel.js` and `results-render.js` (#154: the
   batch results panel from Fran's spec on the issue: the empty, running
   "0 of N", previous result greyed, done, partial, "Stopped, 0 fights" and
   error states; the headline with its 95% CI and SE, the per-fight damage
@@ -324,7 +326,8 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   same seed from 0:00. Batch mode runs `BatchClient` and writes the `batch`
   slice as #154 §10 says (0 of N at once, late progress ignored, `done`,
   `cancelled` with the partial result, or `error`); Stop keeps the partial
-  result. `emptyBatch(mode)` is the idle slice. Engine lint applies.
+  result. `tick()`, which the page calls about once a second, moves a running
+  batch's elapsed time between progress messages (#155). `emptyBatch(mode)` is the idle slice. Engine lint applies.
 - `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
   milliseconds into a whole number of `sim.fixedStep` steps. It carries the
   remainder between frames and caps one frame at `sim.maxFrameTime`, which is

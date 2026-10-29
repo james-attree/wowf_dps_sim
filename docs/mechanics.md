@@ -943,8 +943,7 @@ loop through its driver, and every state change is written to the store's
 `run.state` (in live mode `js/live-run.js` is its one writer; the views only
 read it). The page starts idle with an empty fight at 0:00; nothing runs
 until Run. The fight is the Fight length field long (`k("batch.duration")`,
-300 s, by default, the same default as a batch; more than 0 and at most
-3,600 s); the runner then moves to `finished`, the frame loop stops, the
+300 s, by default, the same default as a batch; 1 to 3,600 s, #155); the runner then moves to `finished`, the frame loop stops, the
 status reads "Finished" with the fight's DPS, and Run reads "Run again".
 Stop discards the fight (the last picture stays, dimmed) and Run replays the
 same seed from 0:00; Reset ends it and empties the picture. Batch mode runs
