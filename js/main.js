@@ -73,6 +73,18 @@ const actions = createRunActions({
   drawSeed,
   now: () => performance.now(),
 });
+// The running batch's elapsed time between progress messages (#155): a
+// once-a-second tick, only while a batch runs.
+let ticking = null;
+store.subscribe(({ state }) => {
+  const running = state.batch.status === "running";
+  if (running && ticking === null) {
+    ticking = window.setInterval(() => actions.tick(), 1000);
+  } else if (!running && ticking !== null) {
+    window.clearInterval(ticking);
+    ticking = null;
+  }
+});
 
 createConfigFormView(document, store, createConfigForm(store));
 createControlsView(document, store, actions);

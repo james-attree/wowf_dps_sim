@@ -325,32 +325,11 @@ describe("project site paths", () => {
       }
     }
     await walk(resolve(root, "js"));
-    // Modules the page does not import yet. js/sim-runner.js (#136) drives
-    // the live page since #153 (through js/live-run.js). js/rotation-schema.js (#138) is wired in by the
-    // rotation builder and interpreter (R3, the builder); remove it then. So
-    // are js/rotation-conditions.js and js/rotation-state.js (#139).
-    // js/rotation-summary.js (R4, #141) is the display-edge text for a rule;
-    // the rotation builder imports it (through js/rotation-presets.js, for the
-    // preset list), so remove it then. js/rotation-presets.js (R5, #142) is the
-    // preset list's API: the page has no config UI to call it yet (#149,
-    // #150).
-    // js/rotation-io.js (R6, #143) is the text side of a rotation: the page has
-    // no file or clipboard UI to call it yet (#149, #150).
-    // The control bar's batch mode (#153) wires js/batch-client.js, and with
-    // it js/batch-host.js, js/batch-runner.js, js/running-stats.js,
-    // js/ability-breakdown.js, js/fight-metrics.js and js/damage-timeline.js.
-    // The worker js/batch-worker.js is loaded by URL from the client (new
-    // URL(..., import.meta.url)), which the walk above follows. The batch
-    // results panel (#154) wires js/charts.js and js/svg.js (#148).
-    // js/rotation-validator.js is wired through the interpreter. The stats
-    // form (#151, js/config-form.js) wires js/rotation-summary.js,
-    // js/rotation-presets.js and js/rotation-io.js.
-    const notWiredYet = new Set();
+    // Every published module is on the page's import graph (#155: the last
+    // not-yet-wired modules were wired by #149-#154, so the list of
+    // exceptions is gone). The batch worker is loaded by URL from its client
+    // (new URL(..., import.meta.url)), which the walk above follows.
     for (const file of publishedJs) {
-      if (notWiredYet.has(file)) {
-        assert.equal(seen.has(file), false, `${file} is wired: drop it above`);
-        continue;
-      }
       assert.ok(seen.has(file), `${file} is published but not imported`);
     }
   });

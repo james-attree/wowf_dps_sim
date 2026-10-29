@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WoW Forever Rogue Simulator</title>
+    <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="js/main.js"></script>
   </head>
@@ -129,6 +130,7 @@
             <span class="live-dot" aria-hidden="true"></span>
             <span id="run-status-text" aria-hidden="true"></span>
           </div>
+          <span id="run-reason" class="visually-hidden"></span>
           <p id="run-announce" class="visually-hidden" role="status"></p>
           <div id="run-progress-row" class="run-progress" hidden>
             <progress id="run-progress" max="1" value="0"></progress>
@@ -570,7 +572,12 @@
         </div>
       </form>
 
-      <section class="damage-panel" aria-labelledby="damage-heading">
+      <section
+        id="damage-panel"
+        class="damage-panel"
+        aria-labelledby="damage-heading"
+      >
+        <h2 id="damage-heading" class="visually-hidden">Fight totals</h2>
         <div class="stats-grid">
           <div class="stat-card">
             <span class="stat-label">Total damage</span>

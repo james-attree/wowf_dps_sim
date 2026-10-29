@@ -906,7 +906,7 @@ export const CONSTANTS = {
     "s",
     ASSUMPTION,
     `${BATCH_RUNNER}: the issue says "Defaults from James's decisions: 300 s fights and 1,000 iterations". ${RUN_CONTROLS}: issue #153 makes 300 s the default in both live and batch mode and removes the older 180 s fight.duration`,
-    "Editable input. The one default fight length, a 5-minute fight: the batch runner's (js/batch-runner.js, #144), SimRunner's (js/sim-runner.js) and the page's Fight length field in both modes (#153). The page accepts more than 0 and at most 3,600 s.",
+    "Editable input. The one default fight length, a 5-minute fight: the batch runner's (js/batch-runner.js, #144), SimRunner's (js/sim-runner.js) and the page's Fight length field in both modes (#153). The page accepts 1 to 3,600 s (#155).",
     true,
   ),
   "batch.maxIterations": entry(
