@@ -585,6 +585,28 @@
       </section>
 
       <section
+        id="results-panel"
+        class="panel results-panel"
+        aria-labelledby="results-heading"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">BATCH RESULTS</p>
+            <h2 id="results-heading">Results</h2>
+            <p id="results-meta" class="results-meta" hidden></p>
+          </div>
+        </div>
+        <div id="results-body"></div>
+        <p
+          id="results-announce"
+          class="visually-hidden"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        ></p>
+      </section>
+
+      <section
         data-fight-frame
         class="resources-panel panel"
         aria-labelledby="resources-heading"

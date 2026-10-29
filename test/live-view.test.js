@@ -260,6 +260,9 @@ function fakeElement() {
       listeners.get("click")();
     },
     append() {},
+    appendChild(node) {
+      return node;
+    },
     remove() {},
     insertBefore() {},
     // What the stats form view (#151) calls while it fills itself.
@@ -312,6 +315,9 @@ describe("js/main.js on a stand-in page", () => {
       },
       querySelectorAll: () => [],
       createElement: () => fakeElement(),
+      // The results panel (#154) builds its body with js/svg.js toDom.
+      createElementNS: () => fakeElement(),
+      createTextNode: (text) => ({ text }),
     };
     globalThis.requestAnimationFrame = (callback) => {
       pendingFrame = callback;
@@ -667,6 +673,11 @@ describe("icons on the live page (stub DOM)", () => {
       }
     }
 
+    appendChild(node) {
+      this.append(node);
+      return node;
+    }
+
     insertBefore(node, before) {
       node.parent = this;
       this.children.splice(before ? this.children.indexOf(before) : 0, 0, node);
@@ -698,6 +709,13 @@ describe("icons on the live page (stub DOM)", () => {
       const element = new StubElement(tag);
       created.push(element);
       return element;
+    },
+    // The results panel (#154) builds its body with js/svg.js toDom.
+    createElementNS: (namespace, tag) => new StubElement(tag),
+    createTextNode(text) {
+      const node = new StubElement("#text");
+      node.textContent = text;
+      return node;
     },
   };
 

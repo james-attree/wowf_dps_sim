@@ -340,14 +340,12 @@ describe("project site paths", () => {
     // it js/batch-host.js, js/batch-runner.js, js/running-stats.js,
     // js/ability-breakdown.js, js/fight-metrics.js and js/damage-timeline.js.
     // The worker js/batch-worker.js is loaded by URL from the client (new
-    // URL(..., import.meta.url)), which the walk above follows. js/charts.js and
-    // js/svg.js (#148) draw the batch charts: the results UI (#149, #150)
-    // puts them on the page; until then only the demo harness
-    // demo/charts.html (not deployed) uses them.
+    // URL(..., import.meta.url)), which the walk above follows. The batch
+    // results panel (#154) wires js/charts.js and js/svg.js (#148).
     // js/rotation-validator.js is wired through the interpreter. The stats
     // form (#151, js/config-form.js) wires js/rotation-summary.js,
     // js/rotation-presets.js and js/rotation-io.js.
-    const notWiredYet = new Set(["js/charts.js", "js/svg.js"]);
+    const notWiredYet = new Set();
     for (const file of publishedJs) {
       if (notWiredYet.has(file)) {
         assert.equal(seen.has(file), false, `${file} is wired: drop it above`);

@@ -37,7 +37,7 @@ const engineClockMessage =
 const UI_FILES = ["js/main.js", "js/views/**/*.js"];
 
 const viewImportMessage =
-  "A view draws the store's plain slices (#150): it may import other views, js/gcd-meter.js, js/icons.js and data/constants.js, never the engine. Put what it needs in the store through js/live-feed.js.";
+  "A view draws the store's plain slices (#150): it may import other views, js/gcd-meter.js, js/icons.js, the #148 markup and chart helpers (js/svg.js, js/charts.js; #154) and data/constants.js, never the engine. Put what it needs in the store through js/live-feed.js, or have js/main.js hand it in.";
 
 // Host modules under js/ (issue #147): see their block below.
 const WORKER_HOSTS = ["js/batch-worker.js", "js/batch-client.js"];
@@ -122,7 +122,7 @@ export default defineConfig([
           patterns: [
             {
               regex:
-                "^(?!(\\./[\\w-]+|\\.\\./(gcd-meter|icons)|\\.\\./\\.\\./data/constants)\\.js$)",
+                "^(?!(\\./[\\w-]+|\\.\\./(gcd-meter|icons|svg|charts)|\\.\\./\\.\\./data/constants)\\.js$)",
               message: viewImportMessage,
             },
           ],

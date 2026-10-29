@@ -19,9 +19,9 @@ Each has a table alternative: `histogramTable` (one row per bin) and
 `timelineTable` (the mean, lowest and highest damage dealt every
 `chart.timelineTableStep` seconds, 30 s, and at the end of the fight).
 
-The page does not show them yet. The results UI (#149, #150) puts them on the
-page; until then `test/pages.test.js` lists `js/charts.js`, `js/svg.js` and
-`js/damage-timeline.js` as not wired yet. `demo/charts.html` is a development
+The batch results panel (#154) builds its tables and states with `js/svg.js`
+and formats its numbers with `formatNumber`; it puts the two charts on the
+page in its second part. `demo/charts.html` is a development
 harness that runs a real batch through `BatchClient` and draws both charts
 without a reload. It is not deployed (Pages copies only `index.html`,
 `styles.css`, `js/`, `data/` and `img/`). Run `npm run serve` and open

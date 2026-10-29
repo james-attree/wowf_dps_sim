@@ -39,6 +39,11 @@ const POISON_SELECTOR_UX =
 const RUN_CONTROLS =
   "Developer, 29 Oct 2026, issue #153: Fran's run controls notes (design), relayed via Scout";
 const BATCH_FIXES = "Developer, 29 Oct 2026, issue #155";
+// The batch results panel (#154). Fran's spec (design, 29 Oct 2026) gave the
+// numbers and Scout resolved them (relayed); they are display choices, not
+// game rules, and not decisions by James.
+const RESULTS_PANEL_UX =
+  "Developer, 29 Oct 2026, issue #154: Fran's results panel spec (design), resolved by Scout and relayed";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
@@ -1383,6 +1388,46 @@ export const CONSTANTS = {
     ENGINEERING,
     `${POISON_SELECTOR_UX}: Scout resolved the page defaults as Instant Poison on the main hand and Deadly Poison on the off hand, the usual raid setup`,
     "Page default, not a game rule and not the engine's default: defaultConfig() keeps no poisons, so goldens and engine tests are unchanged. The page's first fight and the stats form's Reset to defaults use these (pageDefaultConfig() in js/config-form.js). Changing the engine default instead remains an option.",
+    false,
+  ),
+  "ui.energyCapWarnFraction": entry(
+    0.05,
+    "fraction of fight time",
+    ENGINEERING,
+    `${RESULTS_PANEL_UX}: decision 4, flag energy-cap time over 5% of the fight (ENERGY_CAP_WARN_FRACTION in the spec)`,
+    "Display threshold, not a game rule. The results panel's Time at energy cap card is flagged HIGH when the pooled resources.energyCappedFraction is strictly greater than this (exactly 5% is not flagged), and only with ui.energyCapWarnMinFights fights or more (js/views/results-panel.js).",
+    false,
+  ),
+  "ui.energyCapWarnMinFights": entry(
+    10,
+    "fights",
+    ENGINEERING,
+    `${RESULTS_PANEL_UX}: decision 4a, no energy-cap flag on a result of fewer than 10 fights (ENERGY_CAP_WARN_MIN_FIGHTS in the spec)`,
+    "Display threshold, not a game rule. A partial result, or a full batch, of fewer fights shows the card's numbers with no flag.",
+    false,
+  ),
+  "ui.batchEstimateMinFraction": entry(
+    0.05,
+    "fraction of fights",
+    ENGINEERING,
+    `${RESULTS_PANEL_UX}: section 7, the running state hides its time estimate until 5% of the fights or 2 s have passed`,
+    'Display choice, not a game rule. The results panel\'s "about N s left" appears once this share of the fights has finished (or ui.batchEstimateMinSeconds have passed), so an estimate from the first few fights is not shown.',
+    false,
+  ),
+  "ui.batchEstimateMinSeconds": entry(
+    2,
+    "s",
+    ENGINEERING,
+    `${RESULTS_PANEL_UX}: section 7, the running state hides its time estimate until 5% of the fights or 2 s have passed`,
+    "Display timing, not a game rule. Wall-clock seconds since Run after which the results panel shows its time estimate even below ui.batchEstimateMinFraction.",
+    false,
+  ),
+  "ui.batchAnnounceStep": entry(
+    0.25,
+    "fraction of fights",
+    ENGINEERING,
+    `${RESULTS_PANEL_UX}: section 9, the live region announces a batch's progress only at the 25%, 50% and 75% crossings`,
+    'Accessibility choice, not a game rule. The results panel\'s role=status region says "Batch 50% done, …" once per crossing of a multiple of this share, below 100%.',
     false,
   ),
   "sim.maxFrameTime": entry(

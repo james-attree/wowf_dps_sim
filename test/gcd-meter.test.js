@@ -35,6 +35,7 @@ function pageElement() {
   element.removeAttribute = () => {};
   element.replaceChildren = () => {};
   element.append = () => {};
+  element.appendChild = (node) => node;
   return element;
 }
 
@@ -115,6 +116,9 @@ describe("GCD meter aria attributes", () => {
         return [];
       },
       createElement: () => pageElement(),
+      // The results panel (#154) builds its body with js/svg.js toDom.
+      createElementNS: () => pageElement(),
+      createTextNode: (text) => ({ text }),
     };
     globalThis.requestAnimationFrame = () => 0;
     globalThis.cancelAnimationFrame = () => {};
