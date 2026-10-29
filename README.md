@@ -119,6 +119,7 @@ dependencies.
 | `npm run golden:update`    | `node scripts/golden-update.mjs`                       |
 | `npm run icons:check`      | `node scripts/check-icons.mjs`                         |
 | `npm run bench`            | `node scripts/bench.mjs`                               |
+| `npm run parity`           | `node scripts/parity.mjs`                              |
 | `npm run serve`            | `node scripts/serve.mjs`                               |
 
 `npm run test:browser` needs a local Chrome or Chromium; `npm ci` does not
@@ -714,6 +715,11 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   several runs and prints the median and slowest. `--target-ms N` changes the
   target it compares with. The only place besides `test/bench.test.js` that
   reads a timer.
+- `scripts/parity.mjs` — `npm run parity`: runs two engines over seeds 1 to N
+  on the golden configs and prints mean DPS, per-ability means and the paired
+  95% interval of the difference. Only the legacy engine exists until Phase
+  3.5, so it compares legacy with itself. See
+  [Parity harness](docs/mechanics.md#parity-harness).
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a
   review diff.

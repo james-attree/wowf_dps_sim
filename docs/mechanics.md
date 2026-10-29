@@ -903,6 +903,9 @@ end in the same state, whoever drives them.
   (one with poisons, one with the combat-swords preset; see Golden-seed tests).
   They fail when anything on this path changes a number.
 - `npm run bench` times a seeded 5-minute `runFight` (see Benchmark).
+- `npm run parity` runs two named engines over seeds 1 to N on the golden
+  configs and reports the DPS difference (see Parity harness). Until Phase 3.5
+  adds a second engine, it compares the legacy engine with itself.
 
 What a reader should not assume is under Known limits of Phase 1 (written at the
 end of Phase 1, still true) and Known limits at the end of Phase 2.
@@ -1073,6 +1076,48 @@ retune off). That cap is display, not a game rule.
 
 It is a ring buffer fed by the fight's `hit` events. The events, with their
 fields and the rules for handlers, are in [Events](events.md).
+
+## Planned: event-queue engine (Phase 3.5)
+
+**Planned, not current behaviour.** This records the decisions the Phase 3.5
+rewrite builds on (#192; the proposal is
+[docs/phase-3.5-engine-rewrite.md](phase-3.5-engine-rewrite.md)). The engine
+described in the rest of this document is still the fixed-step one, and this
+section changes when the new core lands.
+
+**Time.** Times stay plain doubles in seconds, as `currentTime` is now. An
+event's time is computed from its anchor and never by adding a delta to the
+previous event, so floating-point error does not build up over a fight:
+
+- a DoT's n-th tick is at `applied_at + n * interval`;
+- an expiry (an aura, a cooldown, the GCD, Premeditation's points) is at
+  `start + duration`.
+
+Swings keep the legacy haste rule (a swing in progress keeps its remaining
+time); how their times are anchored is for #195.
+
+Times that should coincide must compare equal; where the legacy engine compares
+with `k("sim.tickEpsilon")`, the new one does too. Integer ticks of a fine unit
+were the alternative the proposal named. #192 chose doubles with anchored
+times.
+
+**Order at one timestamp.** Events due at the same time run in a fixed order:
+by `time`, then by an order class, then by `seq`, the order they were scheduled
+in. The classes follow the order of a fixed step (see Tolerance and the order
+inside a step), so the rotation sees the state after everything due at that
+instant:
+
+1. energy and regeneration changes;
+2. expiries: auras (buffs and debuffs), cooldowns, the GCD, and
+   Premeditation's points;
+3. DoT ticks (and a DoT's expiry after its last tick);
+4. swings;
+5. decision points, last: the rotation runs once per timestamp.
+
+The fixed step casts before it swings (step 6, `Rogue.rotation`), while the
+classes above put a swing before a decision at the same time. Which of the two
+the new core keeps is for the scheduler issue (#193) to settle and write here;
+parity is measured over many seeds, so either is allowed.
 
 ## Headless fight
 
@@ -1464,6 +1509,40 @@ but an `icon` that was `null` on a poison event is now a URL. `data/icons.json`
 records which names `npm run icons:check` found missing (none), and nothing
 fetches at test time. See [docs/icons.md](icons.md).
 
+## Parity harness
+
+`npm run parity` (`scripts/parity.mjs`, #192) is the E11 harness the Phase 3.5
+switch-over is gated on (#199). It runs two named engines, A (`--engine`) and B
+(`--against`), over seeds 1 to N (`--seeds`, default 200) for each golden case's
+config and duration (`--cases` picks some by name), and prints for each case:
+
+- the mean and the sample standard deviation of DPS for each engine;
+- the per-ability mean damage and mean casts for each, and their difference
+  (an ability one engine never used counts as 0 for it);
+- the difference A - B, paired by seed (both engines run the same seeds): its
+  mean and the 95% Student t interval `mean ± t(0.975, N - 1) · sd / √N`, and
+  how many seeds gave a different DPS.
+
+`--json` prints the same report as JSON. For each seed, A runs before B, so a
+fight that leaves state behind for the next one shows as a difference.
+
+The engines are listed in `ENGINES`; the only one today is `legacy`
+(`runFight`). Legacy against legacy must give a difference of exactly 0 with a
+[0, 0] interval on every case, and `test/parity.test.js` checks it, which is
+what shows the harness works before a second engine exists.
+
+The default fight is `five-minute-seed-1-300s` (the default config at 300 s).
+The scripted case, `scripted-finishers-seed-68-50s`, runs its config (the
+default) for its 50 s without its script, and the report says so: the script
+replaces `Rogue.prototype.rotation`, which only the legacy engine has, and it
+was written for seed 68. On most other seeds it does not finish (79 of seeds 1
+to 200), so it cannot run over a range of seeds.
+
+Running every case on 200 seeds with both engines took about 31 s on our box
+(Node v24.22.1, with other jobs running), about 15 s per engine.
+The harness reports and always exits 0 after a run; a bad flag, engine or case
+exits 1. The pass mark (within 2% of the legacy mean DPS) belongs to #199.
+
 ## Benchmark
 
 The Phase 1 exit criterion is that a seeded 5-minute fight runs in Node in
@@ -1483,6 +1562,14 @@ about 40 ms cold. Measured on the GitHub Actions runner (Ubuntu 24.04, Node
 five fights of the timing test took 308 and 328 ms in two runs). The runner is
 about three times slower than our box and over the target, so no test asserts
 the 50 ms figure.
+
+Re-measured for Phase 3.5 (#192) on `main` at 74f1c57, on our box (8 vCPU
+Intel Xeon, Node v24.22.1) while other jobs were running (load average about 5
+to 6): over ten `npm run bench` runs, the median warm median was 27.5 ms (25.3
+to 42.4 ms) and the median cold run 57.6 ms (54.6 to 78.7 ms). This is the
+legacy baseline the new core is compared with at Phase 3.5 issues 6 and 8, on
+the same machine and with the same bench. It was not measured on Node 22, the
+CI version, which this box does not have.
 
 `npm run bench` compares the median with `TARGET_MS` (50) and exits with status
 1 when it is not under it. `--target-ms N` compares with `N` instead, so a
