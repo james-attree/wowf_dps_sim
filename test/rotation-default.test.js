@@ -4,13 +4,16 @@ import { readFile } from "node:fs/promises";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { CONSTANTS } from "../data/constants.js";
+import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import { compileRotation } from "../js/rotation-interpreter.js";
 import { rotationShapeProblems } from "../js/rotation-schema.js";
 
 // R3 (#140): the default rotation is today's placeholder Combat rotation as
 // data. docs/rotation.md example 1 is that rotation, so it is held equal to
-// defaultRotation(). That the rotation casts what the code rotation cast is
+// defaultRotation(). Since issue #155 its Slice and Dice rules are the
+// combat-swords preset's; that the interpreter casts what the code rotation
+// cast, for the rotation as it was before that, is
 // test/rotation-equivalence.test.js.
 
 const doc = await readFile(
@@ -44,7 +47,7 @@ describe("defaultRotation", () => {
 
   it("passes the shape check and compiles", () => {
     assert.deepEqual(rotationShapeProblems(defaultRotation()), []);
-    assert.deepEqual(compileRotation(defaultRotation()).rules.length, 6);
+    assert.deepEqual(compileRotation(defaultRotation()).rules.length, 7);
   });
 
   it("is a new object each call, plain JSON", () => {
@@ -82,7 +85,36 @@ describe("defaultRotation", () => {
     assert.equal(rush.action, "adrenaline-rush");
     assert.deepEqual(
       rest.map((rule) => rule.action),
-      ["slice-and-dice", "cold-blood", "eviscerate", "sinister-strike"],
+      [
+        "slice-and-dice",
+        "slice-and-dice",
+        "cold-blood",
+        "eviscerate",
+        "sinister-strike",
+      ],
     );
+  });
+
+  it("refreshes Slice and Dice with the combat-swords preset's rules (#155)", () => {
+    const preset = ROTATION_PRESETS.find(
+      (entry) => entry.id === "combat-swords",
+    );
+    const ofSliceAndDice = (rotation) =>
+      rotation.rules.filter((rule) => rule.action === "slice-and-dice");
+    const rules = ofSliceAndDice(defaultRotation());
+    assert.equal(rules.length, 2);
+    assert.deepEqual(rules, ofSliceAndDice(preset.rotation));
+    // Only those rules changed: the rest is the rotation before #155.
+    const rest = defaultRotation().rules.filter(
+      (rule) => rule.action !== "slice-and-dice",
+    );
+    assert.deepEqual(rest.at(-1), {
+      action: "sinister-strike",
+      conditions: [],
+    });
+    assert.deepEqual(rest.at(-2), {
+      action: "eviscerate",
+      conditions: [{ type: "comboPoints", op: ">=", value: 5 }],
+    });
   });
 });
