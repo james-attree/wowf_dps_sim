@@ -4,7 +4,13 @@ import { describe, it } from "node:test";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { k } from "../data/constants.js";
-import { applyGcdMeterAria } from "../js/gcd-meter.js";
+import {
+  applyGcdMeterAria,
+  gcdMeterAria,
+  gcdReading,
+  gcdReady,
+  writeAria,
+} from "../js/gcd-meter.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 
@@ -46,7 +52,7 @@ describe("GCD meter aria attributes", () => {
 
     applyGcdMeterAria(meter, simulation);
 
-    assert.equal(meter.getAttribute("aria-valuemin"), "0");
+    assert.equal(meter.getAttribute("aria-valuemin"), null, "static (#45)");
     assert.equal(
       meter.getAttribute("aria-valuemax"),
       String(simulation.gcdDuration),
@@ -87,17 +93,80 @@ describe("GCD meter aria attributes", () => {
     assert.ok(Number(meter.getAttribute("aria-valuenow")) >= 0);
   });
 
-  it("does not hardcode a range on the GCD meter", async () => {
+  // #45 (Fran, Scout): each meter's aria-valuemax is in the markup, equal to
+  // its constant, so the page need not write it every frame.
+  it("the meters' static aria-valuemax equals their constants", async () => {
     const html = await readFile(resolve(root, "index.html"), "utf8");
-    const openTag = html.match(/<div\s+id="gcd-meter"[\s\S]*?>/);
+    const meters = {
+      "gcd-meter": [k("gcd.duration"), "Global cooldown remaining", "Ready"],
+      "combo-meter": [k("combo.max"), "Combo points", "0 of 5"],
+      "energy-meter": [k("energy.max"), "Rogue energy", "0 of 100"],
+    };
+    for (const [id, [max, label, text]] of Object.entries(meters)) {
+      const openTag = html.match(new RegExp(`<div\\s+id="${id}"[\\s\\S]*?>`));
+      assert.ok(openTag, id);
+      assert.match(openTag[0], /role="meter"/);
+      assert.match(openTag[0], new RegExp(`aria-label="${label}"`));
+      assert.match(openTag[0], /aria-valuemin="0"/);
+      assert.match(openTag[0], /aria-valuenow="0"/);
+      assert.equal(
+        openTag[0].match(/aria-valuemax="([^"]*)"/)?.[1],
+        String(max),
+        id,
+      );
+      assert.equal(openTag[0].match(/aria-valuetext="([^"]*)"/)?.[1], text, id);
+    }
+    assert.equal(k("combo.max"), 5, "the valuetext above says 5");
+    assert.equal(k("energy.max"), 100, "the valuetext above says 100");
+  });
 
-    assert.ok(openTag);
-    assert.match(openTag[0], /role="meter"/);
-    assert.match(openTag[0], /aria-label="Global cooldown remaining"/);
-    assert.match(openTag[0], /aria-valuemin="0"/);
-    assert.match(openTag[0], /aria-valuenow="0"/);
-    assert.doesNotMatch(openTag[0], /aria-valuemax/);
-    assert.doesNotMatch(openTag[0], /1\.5/);
+  // #45 (Scout): one ready test, shared by the meter and #gcd-status, at the
+  // edges of the one-decimal reading.
+  it("the GCD's one ready test and its valuetext at the edges", () => {
+    const edges = [
+      [0, "0.0", true, "Ready"],
+      [0.04, "0.0", true, "Ready"],
+      [0.05, "0.1", false, "0.1 seconds remaining"],
+      [0.06, "0.1", false, "0.1 seconds remaining"],
+      [1.0, "1.0", false, "1 second remaining"],
+      [1.5, "1.5", false, "1.5 seconds remaining"],
+    ];
+    for (const [remaining, reading, ready, text] of edges) {
+      assert.equal(gcdReading(remaining), reading, `${remaining}`);
+      assert.equal(gcdReady(remaining), ready, `${remaining}`);
+      const aria = gcdMeterAria({ gcd: remaining, gcdDuration: 1.5 });
+      assert.equal(aria["aria-valuenow"], reading, `${remaining}`);
+      assert.equal(aria["aria-valuetext"], text, `${remaining}`);
+    }
+    assert.equal(gcdReading(-0.01), "0.0", "never -0.0");
+    assert.equal(gcdReady(-0.01), true);
+  });
+
+  it("writes aria only when it changes, with a spoken valuetext (#45)", () => {
+    const meter = meterElement({ "aria-valuemax": "1" });
+    const writes = [];
+    const set = meter.setAttribute;
+    meter.setAttribute = (name, value) => {
+      writes.push(name);
+      set(name, value);
+    };
+    applyGcdMeterAria(meter, { gcd: 0.62, gcdDuration: 1 });
+    assert.deepEqual(writes, ["aria-valuenow", "aria-valuetext"]);
+    assert.equal(meter.getAttribute("aria-valuetext"), "0.6 seconds remaining");
+    writes.length = 0;
+    applyGcdMeterAria(meter, { gcd: 0.58, gcdDuration: 1 });
+    assert.deepEqual(writes, [], "the same 0.6: nothing written");
+    applyGcdMeterAria(meter, { gcd: 0.04, gcdDuration: 1 });
+    assert.equal(meter.getAttribute("aria-valuetext"), "Ready");
+    assert.deepEqual(gcdMeterAria({ gcd: 1, gcdDuration: 1 }), {
+      "aria-valuemax": "1",
+      "aria-valuenow": "1.0",
+      "aria-valuetext": "1 second remaining",
+    });
+    writes.length = 0;
+    writeAria(meter, { "aria-valuemax": 1.5 });
+    writeAria(meter, { "aria-valuemax": "1.5" });
+    assert.deepEqual(writes, ["aria-valuemax"]);
   });
 
   it("sets aria-valuemax from the simulation GCD at startup", async () => {
@@ -128,7 +197,6 @@ describe("GCD meter aria attributes", () => {
 
       const meter = elements.get("#gcd-meter");
       assert.ok(meter);
-      assert.equal(meter.getAttribute("aria-valuemin"), "0");
       assert.equal(
         meter.getAttribute("aria-valuemax"),
         String(k("gcd.duration")),

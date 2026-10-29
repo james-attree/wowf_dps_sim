@@ -1,6 +1,13 @@
 import { k } from "../../data/constants.js";
-import { applyGcdMeterAria } from "../gcd-meter.js";
+import { formatNumber } from "../charts.js";
+import {
+  applyGcdMeterAria,
+  gcdReading,
+  gcdReady,
+  writeAria,
+} from "../gcd-meter.js";
 import { attachIconFallback } from "../icons.js";
+import { spokenTenths } from "./run-model.js";
 
 // The visualiser (#149, #150): combo points, energy, the GCD meter, the active
 // buffs and debuffs, the skill cooldowns, the procs and the combat log. This
@@ -20,6 +27,13 @@ import { attachIconFallback } from "../icons.js";
 // region that announces a buff coming up or going and the pause, at most one
 // message every k("ui.announceIntervalSeconds"), only when "Announce key
 // events" is ticked (off by default). `clock` (seconds) is for tests.
+//
+// #45 (Fran, Scout): every readout here is aria-live="off" and written only
+// when its text changes; the meters' aria-valuenow and aria-valuetext too.
+// The pause is said once, by #run-announce (js/views/controls.js): the key
+// events queue clears on Pause, Finish and Stop. The log's hint is #log-hint,
+// a description of the log and not live; #log-readout says only the
+// arrow-step readings, in spoken words, while #log-step shows them.
 export function createVisualiserView(doc, store, { clock } = {}) {
   const comboValue = doc.querySelector("#combo-value");
   const comboMeter = doc.querySelector("#combo-meter");
@@ -33,6 +47,8 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   const procsEmpty = doc.querySelector("#procs-empty");
   const procItems = new Map();
   const logReadout = doc.querySelector("#log-readout");
+  const logStep = doc.querySelector("#log-step");
+  const logHint = doc.querySelector("#log-hint");
   const announceToggle = doc.querySelector("#announce-toggle");
   const liveAnnouncer = doc.querySelector("#live-announcer");
   const gcdValue = doc.querySelector("#gcd-value");
@@ -69,9 +85,12 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   function redrawScene() {
     const { resources, gcd, effects, procs, spend, results, log } = store.get();
     const { comboPoints, energy } = resources;
-    comboValue.value = `${comboPoints.value} / ${comboPoints.max}`;
-    comboValue.textContent = comboValue.value;
-    comboMeter.setAttribute("aria-valuenow", String(comboPoints.value));
+    write(comboValue, `${comboPoints.value} / ${comboPoints.max}`);
+    writeAria(comboMeter, {
+      "aria-valuemax": comboPoints.max,
+      "aria-valuenow": comboPoints.value,
+      "aria-valuetext": `${comboPoints.value} of ${comboPoints.max}`,
+    });
     const elapsed = spend === null ? Infinity : results.time - spend.time;
     const flashing = elapsed >= 0 && elapsed < k("ui.spendFlashSeconds");
     comboPointElements.forEach((point, index) => {
@@ -84,22 +103,25 @@ export function createVisualiserView(doc, store, { clock } = {}) {
     const spendText = flashing
       ? `${spend.name} · ${spend.before - spend.after}`
       : "";
-    if (comboSpend.textContent !== spendText) {
-      comboSpend.textContent = spendText;
-    }
+    write(comboSpend, spendText);
     const capped = energy.value >= energy.max;
     energyFill.classList.toggle("is-capped", capped);
     energyCap.hidden = !capped;
     const energyPercent = (energy.value / energy.max) * 100;
     const gcdPercent = (gcd.remaining / gcd.duration) * 100;
-    energyValue.value = `${Math.floor(energy.value)} / ${energy.max}`;
-    energyValue.textContent = energyValue.value;
-    energyMeter.setAttribute("aria-valuenow", String(Math.floor(energy.value)));
+    const energyNow = Math.floor(energy.value);
+    write(energyValue, `${energyNow} / ${energy.max}`);
+    // The max moves only with talents: written when it changes.
+    writeAria(energyMeter, {
+      "aria-valuemax": energy.max,
+      "aria-valuenow": energyNow,
+      "aria-valuetext": `${energyNow} of ${energy.max}`,
+    });
     energyFill.style.width = `${energyPercent}%`;
-    gcdValue.value = `${gcd.remaining.toFixed(1)}s`;
-    gcdValue.textContent = gcdValue.value;
-    const gcdActive = gcd.remaining > 0;
-    gcdStatus.textContent = gcdActive ? "On cooldown" : "Ready";
+    write(gcdValue, `${gcdReading(gcd.remaining)}s`);
+    // The meter's own ready test (#45), so "Ready" here and there agree.
+    const gcdActive = !gcdReady(gcd.remaining);
+    write(gcdStatus, gcdActive ? "On cooldown" : "Ready");
     gcdStatus.classList.toggle("is-active", gcdActive);
     applyGcdMeterAria(gcdMeter, gcdMeterReading(gcd));
     gcdFill.style.width = `${gcdPercent}%`;
@@ -172,18 +194,21 @@ export function createVisualiserView(doc, store, { clock } = {}) {
         bar.append(fill);
         const time = doc.createElement("output");
         time.className = "timed-effect-time";
+        time.setAttribute("aria-live", "off");
         element.append(stacks, bar, time);
         item = { element, time, stacks, fill };
         items.set(id, item);
       }
 
       const reading = timedEffectReading(effect, isAura);
-      item.time.value = reading.time;
-      item.time.textContent = item.time.value;
-      item.element.title = `${name}: ${item.time.value}`;
-      item.element.setAttribute("aria-label", reading.label);
+      write(item.time, reading.time);
+      const title = `${name}: ${reading.time}`;
+      if (item.element.title !== title) {
+        item.element.title = title;
+      }
+      writeAria(item.element, { "aria-label": reading.label });
       item.element.classList.toggle("is-low", reading.low);
-      item.stacks.textContent = reading.stacks;
+      write(item.stacks, reading.stacks);
       item.stacks.hidden = reading.stacks === "";
       item.fill.style.width = `${reading.percent}%`;
       container.append(item.element);
@@ -238,7 +263,9 @@ export function createVisualiserView(doc, store, { clock } = {}) {
         ? 0
         : Math.min(Math.max(selectedRow + delta, 0), log.length - 1);
     selectRow(next);
-    logReadout.textContent = logRowReading(log[next]);
+    write(logHint, "");
+    write(logStep, logRowReading(log[next]));
+    write(logReadout, logRowSpoken(log[next]));
     return true;
   }
 
@@ -256,21 +283,26 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   }
 
   function onRunChange() {
-    const { run, results } = store.get();
+    const { run } = store.get();
     // A stopped fight is discarded (#153): its last frame stays, dimmed,
     // until Run or Reset.
     const discarded = run.state === "idle" && (run.stoppedAt ?? null) !== null;
     for (const frame of fightFrames) {
       frame.classList.toggle("is-discarded", discarded);
     }
+    // #run-announce says the pause, the finish and the stop: a key event
+    // waiting in the queue is dropped, not said after them.
+    if (run.state === "paused" || run.state === "finished" || discarded) {
+      announcer.clear();
+    }
     if (run.state === "paused") {
-      logReadout.textContent =
-        "Paused. Left and Right arrow keys step through the log.";
-      announcer.say(pausedReading(results));
+      write(logHint, "Paused. Left and Right arrow keys step through the log.");
     } else {
       selectRow(-1);
-      logReadout.textContent = "";
+      write(logHint, "");
     }
+    write(logStep, "");
+    write(logReadout, "");
   }
 
   function renderCombatLog(log) {
@@ -410,13 +442,21 @@ export function logRowReading({ time, name, status, damage }) {
   return `${String(minutes).padStart(2, "0")}:${seconds} · ${name} · ${status} · ${Math.floor(damage)}`;
 }
 
-// "Paused at 01:23, 18,450 damage, 222 DPS", with the results view's sums.
-export function pausedReading({ time, damage }) {
-  const totalSeconds = Math.floor(time);
-  const clock = `${String(Math.floor(totalSeconds / 60)).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}`;
-  const dps = time > 0 ? Math.floor(damage / time) : 0;
-  const total = Math.floor(damage).toLocaleString("en-GB");
-  return `Paused at ${clock}, ${total} damage, ${dps.toLocaleString("en-GB")} DPS`;
+// "41.2 seconds, Sinister Strike, crit, 412 damage" (#45, Fran and Scout):
+// what #log-readout says for the row #log-step shows.
+export function logRowSpoken({ time, name, status, damage }) {
+  return `${spokenTenths(time)}, ${name}, ${status.toLowerCase()}, ${formatNumber(Math.floor(damage), 0)} damage`;
+}
+
+// Writes `text` into `node` only when it differs from what this view last
+// wrote there (#45). The first write always lands, as each frame's did
+// before (the page's "0 / 5" markup is replaced by the first frame's).
+const written = new WeakMap();
+function write(node, text) {
+  if (written.get(node) !== text) {
+    written.set(node, text);
+    node.textContent = text;
+  }
 }
 
 // At most one message every k("ui.announceIntervalSeconds") of now(); a

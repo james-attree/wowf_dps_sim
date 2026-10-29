@@ -21,9 +21,11 @@ import {
   fieldErrors,
   grouped,
   parseRunField,
+  spokenTenths,
   spokenTime,
   summaryText,
 } from "../js/views/run-model.js";
+import { formatNumber } from "../js/charts.js";
 
 // Issue #153 (U4). The run control bar: one home for Run, Pause, Stop and
 // Reset, a live and a batch mode, and the fight length, fights and seed
@@ -218,6 +220,18 @@ describe("run bar fields (#153)", () => {
     assert.equal(spokenTime(12), "12 seconds");
     assert.equal(spokenTime(1), "1 second");
     assert.equal(spokenTime(150), "2 minutes 30");
+    // On the minute (#45, Fran): "5 minutes", not "5 minutes 0".
+    assert.equal(spokenTime(300), "5 minutes");
+    assert.equal(spokenTime(60.9), "1 minute");
+    assert.equal(spokenTime(0), "0 seconds");
+    // The arrow-step readout's time, to the tenth the log shows (#45).
+    assert.equal(spokenTenths(41.25), "41.2 seconds");
+    assert.equal(spokenTenths(41), "41 seconds");
+    assert.equal(spokenTenths(1.04), "1 second");
+    assert.equal(spokenTenths(0.5), "0.5 seconds");
+    assert.equal(spokenTenths(72.46), "1 minute 12.4");
+    assert.equal(spokenTenths(300.02), "5 minutes");
+    assert.equal(spokenTenths(60.3), "1 minute 0.3");
     assert.equal(grouped(100000), "100,000");
     assert.equal(grouped(4294967295), "4,294,967,295");
   });
@@ -250,7 +264,7 @@ function assertControls(model, [run, pause, stop, reset], where) {
   assert.equal(pauseOff, pause === null, `${where} pause`);
   if (pause !== null) {
     assert.equal(model.pause.label, pause, `${where} pause label`);
-    assert.equal(model.pause.pressed, pause === "Resume");
+    assert.equal(model.pause.resume, pause === "Resume");
   }
   assert.equal(model.stop.disabled, !stop, `${where} stop`);
   assert.equal(model.reset.disabled, !reset, `${where} reset`);
@@ -349,13 +363,21 @@ describe("live mode walks every state and transition (#153)", () => {
     assert.equal(page.model().announce, "Running");
     page.actions.pause();
     assert.equal(page.model().status, "Paused at 00:02");
-    assert.equal(page.model().announce, "Paused at 2 seconds");
+    // #45 (Fran's copy): one sentence with the totals and the resources.
+    const at = page.store.get();
+    assert.equal(
+      page.model().announce,
+      `Paused at 2 seconds. Total damage ${formatNumber(Math.floor(at.results.damage), 0)}. ${formatNumber(at.results.damage / at.results.time, 0)} DPS. Energy ${Math.floor(at.resources.energy.value)} of ${at.resources.energy.max}. Combo points ${at.resources.comboPoints.value} of ${at.resources.comboPoints.max}.`,
+    );
     page.actions.stop();
     assert.equal(
       page.model().status,
       `Stopped at 00:02 · fight discarded · Run replays seed ${SEED} from 0:00`,
     );
-    assert.equal(page.model().announce, "Stopped");
+    assert.equal(
+      page.model().announce,
+      "Stopped at 2 seconds. Fight discarded.",
+    );
     page.actions.run();
     page.toEnd();
     const result = reference(DURATION);
@@ -363,9 +385,10 @@ describe("live mode walks every state and transition (#153)", () => {
       page.model().status,
       `Finished · 3 s · ${result.dps.toFixed(1)} DPS`,
     );
+    const done = page.store.get().results;
     assert.equal(
       page.model().announce,
-      `Finished, ${result.dps.toFixed(1)} DPS`,
+      `Finished at 3 seconds. Total damage ${formatNumber(Math.floor(done.damage), 0)}. ${formatNumber(result.dps, 1)} DPS.`,
     );
   });
 
@@ -1091,17 +1114,72 @@ describe("the control bar view (#153)", () => {
     assert.equal(el("run-status-text").textContent, "Running · 00:01 / 00:03");
 
     el("pause-button").fire("click");
-    assert.equal(el("run-announce").textContent, "Paused at 1 second");
-    assert.equal(el("pause-button").getAttribute("aria-pressed"), "true");
+    assert.match(
+      el("run-announce").textContent,
+      /^Paused at 1 second\. Total damage [\d,]+\. [\d,]+ DPS\. Energy \d+ of 100\. Combo points \d of 5\.$/,
+    );
+    // The label swap says it (#45, Scout): no aria-pressed.
+    assert.equal(el("pause-button").getAttribute("aria-pressed"), null);
+    assert.equal(el("pause-label").textContent, "Resume");
+    // Resume says Running, as Run does (#45, Scout).
+    el("pause-button").fire("click");
+    assert.equal(page.store.get().run.state, "running");
+    assert.equal(el("run-announce").textContent, "Running");
+    el("pause-button").fire("click");
+    assert.match(el("run-announce").textContent, /^Paused at 1 second\./);
     el("stop-button").fire("click");
     assert.equal(page.store.get().run.state, "idle");
     assert.equal(doc.activeElement, el("run-button"), "focus to Run");
-    assert.equal(el("run-announce").textContent, "Stopped");
+    assert.equal(
+      el("run-announce").textContent,
+      "Stopped at 1 second. Fight discarded.",
+    );
     el("reset-button").focus();
     el("reset-button").fire("click");
     assert.equal(el("reset-button").disabled, true);
     assert.equal(doc.activeElement, el("run-button"), "off a disabled Reset");
     assert.equal(el("run-status-text").textContent, `Ready · seed ${SEED}`);
+    assert.equal(el("run-announce").textContent, "Ready");
+  });
+
+  it("#run-announce: emptied, then written on the next frame, once per change (#45)", () => {
+    const page = setup();
+    const { doc, el } = standIn();
+    const queued = [];
+    doc.defaultView.requestAnimationFrame = (run) => queued.push(run);
+    doc.defaultView.cancelAnimationFrame = (id) => (queued[id - 1] = null);
+    const next = () => {
+      const runs = queued.splice(0).filter(Boolean);
+      runs.forEach((run) => run());
+      return runs.length;
+    };
+    createControlsView(doc, page.store, page.actions);
+    el("run-button").fire("click");
+    assert.equal(el("run-announce").textContent, "", "emptied first");
+    assert.equal(next(), 1);
+    assert.equal(el("run-announce").textContent, "Running");
+    page.play(1);
+    assert.equal(queued.length, 0, "ticks queue nothing");
+
+    el("pause-button").fire("click");
+    assert.equal(el("run-announce").textContent, "");
+    next();
+    const paused = el("run-announce").textContent;
+    assert.match(paused, /^Paused at 1 second\./);
+    el("pause-button").fire("click");
+    assert.equal(el("run-announce").textContent, "", "Resume empties it");
+    assert.equal(next(), 1, "then writes on the next frame");
+    assert.equal(el("run-announce").textContent, "Running", "as Run does");
+    // The same words again are a fresh change.
+    el("pause-button").fire("click");
+    assert.equal(el("run-announce").textContent, "");
+    next();
+    assert.equal(el("run-announce").textContent, paused);
+
+    // A change before the frame replaces the waiting message.
+    el("stop-button").fire("click");
+    el("reset-button").fire("click");
+    assert.equal(next(), 1);
     assert.equal(el("run-announce").textContent, "Ready");
   });
 

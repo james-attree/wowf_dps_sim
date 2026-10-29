@@ -1,4 +1,5 @@
 import { k } from "../../data/constants.js";
+import { formatNumber } from "../charts.js";
 
 // What the run control bar (#153) shows, as plain data: the field rules, the
 // buttons' labels and states, the status line, what a screen reader hears on
@@ -41,15 +42,49 @@ export function clock(seconds) {
   return `${pad(Math.floor(whole / 60))}:${pad(whole % 60)}`;
 }
 
-// "1 minute 12" for 72.4 s, "12 seconds" under a minute: what is announced.
+// "1 minute 12" for 72.4 s, "12 seconds" under a minute, "5 minutes" on the
+// minute (#45, Fran: not "5 minutes 0"): what is announced.
 export function spokenTime(seconds) {
   const whole = Math.floor(Math.max(seconds, 0));
-  const minutes = Math.floor(whole / 60);
-  const rest = whole % 60;
+  return spokenParts(Math.floor(whole / 60), whole % 60, String(whole % 60));
+}
+
+// The same to the tenth the combat log shows (#45, Scout: the arrow-step
+// readout): "41.2 seconds", "1 minute 12.4", "5 minutes". A whole second
+// drops its ".0": "41 seconds", "1 second".
+export function spokenTenths(seconds) {
+  const tenths = Math.floor(Math.max(seconds, 0) * 10);
+  const minutes = Math.floor(tenths / 600);
+  const rest = (tenths % 600) / 10;
+  return spokenParts(minutes, rest, String(rest));
+}
+
+function spokenParts(minutes, rest, restText) {
   if (minutes === 0) {
-    return `${rest} ${rest === 1 ? "second" : "seconds"}`;
+    return `${restText} ${rest === 1 ? "second" : "seconds"}`;
   }
-  return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ${rest}`;
+  const lead = `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+  return rest === 0 ? lead : `${lead} ${restText}`;
+}
+
+// #run-announce's numbers (#45, Fran's copy): damage whole with commas, DPS
+// with commas to `decimals`.
+function damageText(damage) {
+  return formatNumber(Math.floor(damage), 0);
+}
+
+function dpsNumber(damage, time, decimals) {
+  return formatNumber(time > 0 ? damage / time : 0, decimals);
+}
+
+// "Paused at 1 minute 23. Total damage 18,450. 219 DPS. Energy 41 of 100.
+// Combo points 3 of 5." (#45, Fran): the one pause message, said once.
+function pausedAnnouncement(state, time, damage) {
+  const energy = state.resources?.energy;
+  const combo = state.resources?.comboPoints;
+  const energyText = `${Math.floor(energy?.value ?? 0)} of ${energy?.max ?? k("energy.max")}`;
+  const comboText = `${combo?.value ?? 0} of ${combo?.max ?? k("combo.max")}`;
+  return `Paused at ${spokenTime(time)}. Total damage ${damageText(damage)}. ${dpsNumber(damage, time, 0)} DPS. Energy ${energyText}. Combo points ${comboText}.`;
 }
 
 function dpsText(damage, time) {
@@ -246,13 +281,14 @@ function liveModel(state) {
     announce = "Running";
   } else if (status === "paused") {
     text = `Paused at ${clock(time)}`;
-    announce = `Paused at ${spokenTime(time)}`;
+    announce = pausedAnnouncement(state, time, damage);
   } else if (status === "finished") {
     text = `Finished · ${secondsText(time)} s · ${dpsText(damage, time)} DPS`;
-    announce = `Finished, ${dpsText(damage, time)} DPS`;
+    // A natural finish says the set fight length (#45, Scout).
+    announce = `Finished at ${spokenTime(run.duration)}. Total damage ${damageText(damage)}. ${dpsNumber(damage, time, 1)} DPS.`;
   } else if (run.stoppedAt !== null) {
     text = `Stopped at ${clock(run.stoppedAt)} · fight discarded · Run replays seed ${seedText(run.seed)} from 0:00`;
-    announce = "Stopped";
+    announce = `Stopped at ${spokenTime(run.stoppedAt)}. Fight discarded.`;
   } else {
     text = `Ready · seed ${seedText(run.seed)}`;
     announce = "Ready";
@@ -266,7 +302,7 @@ function liveModel(state) {
     reason,
     pause: {
       label: status === "paused" ? "Resume" : "Pause",
-      pressed: status === "paused",
+      resume: status === "paused",
       disabled: !active,
       inert: false,
     },
@@ -320,7 +356,7 @@ function batchModel(state) {
     reason,
     // Visible, never pressable: aria-disabled with the help line as the
     // reason, so a screen reader finds it and hears why.
-    pause: { label: "Pause", pressed: false, disabled: false, inert: true },
+    pause: { label: "Pause", resume: false, disabled: false, inert: true },
     stop: { label: "Stop and keep partial", disabled: !running },
     reset: {
       disabled: running || (result === null && batch.error === null),

@@ -14,7 +14,7 @@ import {
   createAnnouncer,
   createVisualiserView,
   logRowReading,
-  pausedReading,
+  logRowSpoken,
   timedEffectReading,
 } from "../js/views/visualiser.js";
 
@@ -267,7 +267,7 @@ describe("page views", () => {
       store.update(({ run }) => ({ run: { ...run, state } }));
     setState("paused");
     assert.equal(store.get().run.seed, SEED, "the seed is kept");
-    assert.equal(doc.el("#pause-button").getAttribute("aria-pressed"), "true");
+    assert.equal(doc.el("#pause-button").getAttribute("aria-pressed"), null);
     assert.equal(doc.el("#pause-label").textContent, "Resume");
     assert.equal(doc.el("#pause-icon").textContent, "▶");
     assert.equal(doc.el("#run-status-text").textContent, "Paused at 00:00");
@@ -276,7 +276,7 @@ describe("page views", () => {
     assert.deepEqual(calls, ["pause", "resume"]);
 
     setState("running");
-    assert.equal(doc.el("#pause-button").getAttribute("aria-pressed"), "false");
+    assert.equal(doc.el("#pause-button").getAttribute("aria-pressed"), null);
     assert.equal(doc.el("#pause-label").textContent, "Pause");
     assert.equal(doc.el("#pause-icon").textContent, "Ⅱ");
     assert.equal(doc.el("#run-status").classes.has("is-paused"), false);
@@ -306,9 +306,14 @@ describe("page views", () => {
 
     store.set({ results: { time: 125.9, damage: 25_180.7 } });
     assert.equal(doc.el("#time-value").textContent, "02:05");
-    assert.equal(doc.el("#damage-value").textContent, "25180");
+    assert.equal(doc.el("#damage-value").textContent, "25,180", "#45 commas");
     assert.equal(doc.el("#dps-value").textContent, "200");
-    assert.equal(doc.el("#dps-value").value, "200");
+
+    // Only on a change (#45): the same text is not written again.
+    const damageWrites = doc.el("#damage-value").writes;
+    store.set({ results: { time: 125.95, damage: 25_180.9 } });
+    assert.equal(doc.el("#damage-value").writes, damageWrites);
+    assert.equal(doc.el("#time-value").textContent, "02:05");
 
     store.set({ results: { time: 3000.5, damage: 0 } });
     assert.equal(doc.el("#time-value").textContent, "50:00");
@@ -316,6 +321,11 @@ describe("page views", () => {
     store.set({ results: { time: 0, damage: 0 } });
     assert.equal(doc.el("#time-value").textContent, "00:00");
     assert.equal(doc.el("#dps-value").textContent, "0");
+
+    // The DPS tile has commas too (#45, Scout), as the pause says it.
+    store.set({ results: { time: 10, damage: 12_345 } });
+    assert.equal(doc.el("#dps-value").textContent, "1,235");
+    assert.equal(doc.el("#damage-value").textContent, "12,345");
 
     const writes = doc.el("#dps-value").writes;
     store.set({ frame: 1, run: pageRun({ state: "paused" }) });
@@ -463,6 +473,134 @@ describe("page views", () => {
     assert.equal(doc.el("#energy-cap").hidden, true, "not at cap");
     assert.equal(doc.el("#combo-spend").textContent, "");
     assert.equal(doc.el("#procs-empty").hidden, false);
+  });
+
+  it("#45: readouts and meters are written only when their text changes", () => {
+    const doc = recordingDocument();
+    const reading = plainReading({
+      effects: {
+        buffs: [
+          {
+            id: "snd",
+            name: "Slice and Dice",
+            icon: null,
+            remaining: 7.4,
+            duration: 9,
+            stacks: 1,
+          },
+        ],
+        debuffs: [],
+        cooldowns: [],
+      },
+    });
+    const store = createStore({ frame: 0, ...reading });
+    createVisualiserView(doc, store);
+    const attributeWrites = new Map();
+    for (const id of ["#combo-meter", "#energy-meter", "#gcd-meter"]) {
+      const meter = doc.el(id);
+      const set = meter.setAttribute;
+      attributeWrites.set(id, []);
+      meter.setAttribute = (name, value) => {
+        attributeWrites.get(id).push(name);
+        set(name, value);
+      };
+    }
+    store.set({ frame: 1 });
+    assert.equal(
+      doc.el("#combo-meter").getAttribute("aria-valuetext"),
+      "3 of 5",
+    );
+    assert.equal(
+      doc.el("#energy-meter").getAttribute("aria-valuetext"),
+      "41 of 100",
+    );
+    assert.equal(
+      doc.el("#gcd-meter").getAttribute("aria-valuetext"),
+      "0.8 seconds remaining",
+    );
+    const time = doc.el("#active-buffs").children[0].children[2];
+    assert.equal(time.getAttribute("aria-live"), "off", "timed effects too");
+    const counts = () =>
+      ["#combo-value", "#energy-value", "#gcd-value", "#gcd-status"].map(
+        (id) => doc.el(id).writes,
+      );
+    const before = counts();
+    const timeWrites = time.writes;
+    for (const list of attributeWrites.values()) {
+      list.length = 0;
+    }
+
+    // A frame that moves nothing a readout shows: nothing written.
+    store.set({
+      frame: 2,
+      resources: {
+        comboPoints: { value: 3, max: 5 },
+        energy: { value: 41.9, max: 100 },
+      },
+      gcd: { remaining: 0.76, duration: 1.5 },
+      effects: {
+        ...reading.effects,
+        buffs: [{ ...reading.effects.buffs[0], remaining: 7.3 }],
+      },
+    });
+    assert.deepEqual(counts(), before);
+    assert.equal(time.writes, timeWrites);
+    for (const [id, list] of attributeWrites) {
+      assert.deepEqual(list, [], id);
+    }
+
+    // One that does: only what changed, and the max only with talents.
+    store.set({
+      frame: 3,
+      resources: {
+        comboPoints: { value: 3, max: 5 },
+        energy: { value: 45, max: 110 },
+      },
+      gcd: { remaining: 0, duration: 1.5 },
+    });
+    assert.deepEqual(attributeWrites.get("#combo-meter"), []);
+    assert.deepEqual(attributeWrites.get("#energy-meter"), [
+      "aria-valuemax",
+      "aria-valuenow",
+      "aria-valuetext",
+    ]);
+    assert.equal(
+      doc.el("#energy-meter").getAttribute("aria-valuetext"),
+      "45 of 110",
+    );
+    assert.deepEqual(attributeWrites.get("#gcd-meter"), [
+      "aria-valuenow",
+      "aria-valuetext",
+    ]);
+    assert.equal(doc.el("#gcd-meter").getAttribute("aria-valuetext"), "Ready");
+    assert.equal(doc.el("#gcd-status").textContent, "Ready");
+
+    // The status and the meter share one ready test (#45, Scout): they agree
+    // at the edges of the one-decimal reading.
+    const edges = [
+      [0.04, "Ready", "Ready", "0.0s"],
+      [0.05, "On cooldown", "0.1 seconds remaining", "0.1s"],
+      [0.06, "On cooldown", "0.1 seconds remaining", "0.1s"],
+      [1.0, "On cooldown", "1 second remaining", "1.0s"],
+      [1.5, "On cooldown", "1.5 seconds remaining", "1.5s"],
+      [0, "Ready", "Ready", "0.0s"],
+    ];
+    edges.forEach(([remaining, status, text, shown], at) => {
+      store.set({ frame: 4 + at, gcd: { remaining, duration: 1.5 } });
+      const label = `${remaining} s`;
+      assert.equal(doc.el("#gcd-status").textContent, status, label);
+      assert.equal(
+        doc.el("#gcd-status").classes.has("is-active"),
+        status !== "Ready",
+        label,
+      );
+      assert.equal(
+        doc.el("#gcd-meter").getAttribute("aria-valuetext"),
+        text,
+        label,
+      );
+      assert.equal(doc.el("#gcd-value").textContent, shown, label);
+    });
   });
 
   it("Phase 3: aura bars, stacks, labels, low time and cooldowns (#150)", () => {
@@ -619,19 +757,35 @@ describe("page views", () => {
     assert.equal(press("ArrowLeft"), false, "running: the keys do nothing");
     assert.equal(doc.el("#log-readout").textContent, "");
 
+    // #45: the hint is #log-hint, the log's description, not live; the
+    // live #log-readout is empty at the pause and says only the steps.
     store.set({ run: { state: "paused", seed: SEED } });
-    assert.match(doc.el("#log-readout").textContent, /^Paused\./);
+    assert.equal(
+      doc.el("#log-hint").textContent,
+      "Paused. Left and Right arrow keys step through the log.",
+    );
+    assert.equal(doc.el("#log-readout").textContent, "");
+    assert.equal(doc.el("#log-step").textContent, "");
     assert.equal(press("ArrowLeft"), true);
+    assert.equal(doc.el("#log-hint").textContent, "");
+    assert.equal(
+      doc.el("#log-step").textContent,
+      "00:41.2 · Eviscerate · Hit · 812",
+    );
     assert.equal(
       doc.el("#log-readout").textContent,
-      "00:41.2 · Eviscerate · Hit · 812",
+      "41.2 seconds, Eviscerate, hit, 812 damage",
     );
     const logRows = doc.el("#combat-log").children;
     assert.equal(logRows[0].getAttribute("aria-current"), "true");
     press("ArrowLeft");
     assert.equal(
-      doc.el("#log-readout").textContent,
+      doc.el("#log-step").textContent,
       "00:40.5 · Sinister Strike · Crit · 412",
+    );
+    assert.equal(
+      doc.el("#log-readout").textContent,
+      "40.5 seconds, Sinister Strike, crit, 412 damage",
     );
     assert.equal(logRows[0].getAttribute("aria-current"), null);
     assert.ok(logRows[1].classes.has("is-selected"));
@@ -644,6 +798,8 @@ describe("page views", () => {
 
     store.set({ run: { state: "running", seed: SEED } });
     assert.equal(doc.el("#log-readout").textContent, "");
+    assert.equal(doc.el("#log-step").textContent, "");
+    assert.equal(doc.el("#log-hint").textContent, "");
     assert.equal(logRows[1].classes.has("is-selected"), false);
   });
 
@@ -672,19 +828,28 @@ describe("page views", () => {
     store.set({ frame: 5 });
     assert.equal(spoken(), "Slice and Dice expired");
 
-    now += k("ui.announceIntervalSeconds");
-    store.set({
-      run: { state: "paused", seed: SEED },
-      results: { time: 83.9, damage: 18_450.9 },
-    });
-    assert.equal(spoken(), "Paused at 01:23, 18,450 damage, 219 DPS");
-    now += k("ui.announceIntervalSeconds");
-    store.set({ frame: 6 });
-    assert.equal(
-      spoken(),
-      "Paused at 01:23, 18,450 damage, 219 DPS",
-      "a moment is said once",
-    );
+    // #45: the pause is #run-announce's to say, once; a key event waiting
+    // when the fight pauses, finishes or stops is dropped, not said after.
+    let frame = 6;
+    let seq = 6;
+    for (const run of [
+      { state: "paused", seed: SEED },
+      { state: "finished", seed: SEED },
+      { state: "idle", seed: SEED, stoppedAt: 9.5 },
+    ]) {
+      const named = (name) => ({ seq: seq++, change: "apply", name });
+      store.set({ run: { state: "running", seed: SEED, stoppedAt: null } });
+      now += k("ui.announceIntervalSeconds");
+      store.set({ frame: frame++, moment: named(`First ${run.state}`) });
+      assert.equal(spoken(), `First ${run.state} up`);
+      now += 0.5;
+      store.set({ frame: frame++, moment: named(`Second ${run.state}`) });
+      store.set({ run, results: { time: 83.9, damage: 18_450.9 } });
+      now += k("ui.announceIntervalSeconds");
+      store.set({ frame: frame++ });
+      assert.equal(spoken(), `First ${run.state} up`, run.state);
+    }
+    store.set({ run: { state: "running", seed: SEED, stoppedAt: null } });
 
     store.set({ frame: 7, moment: moment(4, "apply") });
     assert.equal(spoken(), "Slice and Dice up");
@@ -742,7 +907,7 @@ describe("visualiser readings (#150)", () => {
     );
   });
 
-  it("logRowReading and pausedReading", () => {
+  it("logRowReading and logRowSpoken", () => {
     assert.equal(
       logRowReading({ time: 59.96, name: "A", status: "Miss", damage: 0 }),
       "00:59.9 · A · Miss · 0",
@@ -751,13 +916,18 @@ describe("visualiser readings (#150)", () => {
       logRowReading({ time: 600.05, name: "B", status: "Hit", damage: 3.7 }),
       "10:00.0 · B · Hit · 3",
     );
+    // #45 (Fran, Scout): the spoken copy of the same row.
     assert.equal(
-      pausedReading({ time: 0, damage: 0 }),
-      "Paused at 00:00, 0 damage, 0 DPS",
+      logRowSpoken({ time: 41.25, name: "A", status: "Crit", damage: 412.9 }),
+      "41.2 seconds, A, crit, 412 damage",
     );
     assert.equal(
-      pausedReading({ time: 3601, damage: 7_654_321 }),
-      "Paused at 60:01, 7,654,321 damage, 2,125 DPS",
+      logRowSpoken({ time: 72.46, name: "B", status: "Hit", damage: 1234.5 }),
+      "1 minute 12.4, B, hit, 1,234 damage",
+    );
+    assert.equal(
+      logRowSpoken({ time: 300, name: "C", status: "Miss", damage: 0 }),
+      "5 minutes, C, miss, 0 damage",
     );
   });
 

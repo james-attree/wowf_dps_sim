@@ -88,6 +88,30 @@ export function createControlsView(doc, store, actions = {}) {
     }
   };
 
+  // #run-announce: emptied now, `text` written on the next frame (the
+  // rotation builder's pattern), so each message is a fresh change. A page
+  // with no frames (the tests' stand-in documents) writes it at once.
+  const view = doc.defaultView;
+  let pendingAnnounce = null;
+  const announce = (text) => {
+    if (pendingAnnounce !== null) {
+      view.cancelAnimationFrame(pendingAnnounce);
+      pendingAnnounce = null;
+    }
+    announcer.textContent = "";
+    if (text === "") {
+      return;
+    }
+    if (typeof view?.requestAnimationFrame !== "function") {
+      announcer.textContent = text;
+      return;
+    }
+    pendingAnnounce = view.requestAnimationFrame(() => {
+      pendingAnnounce = null;
+      announcer.textContent = text;
+    });
+  };
+
   // The settings section's open state is the view's own: closed at first.
   let open = false;
 
@@ -168,8 +192,8 @@ export function createControlsView(doc, store, actions = {}) {
       buttons.run.setAttribute("aria-describedby", "run-reason");
     }
     write(pauseLabel, model.pause.label);
-    write(pauseIcon, model.pause.pressed ? "▶" : "Ⅱ");
-    buttons.pause.setAttribute("aria-pressed", String(model.pause.pressed));
+    // The label swap says it (#45, Scout): no aria-pressed.
+    write(pauseIcon, model.pause.resume ? "▶" : "Ⅱ");
     buttons.pause.disabled = model.pause.disabled;
     if (model.pause.inert) {
       buttons.pause.setAttribute("aria-disabled", "true");
@@ -198,14 +222,17 @@ export function createControlsView(doc, store, actions = {}) {
       write(progressText, model.progress.text);
     }
 
-    // Transitions only: the first draw is silent.
+    // Transitions only: the first draw is silent. One message per change
+    // (#45, Fran): the region is emptied, then written on the next frame, so
+    // the same words twice are said twice. Resume says Running, as Run does
+    // (#45, Scout).
     const key = announceKey(state);
     if (
       lastAnnounce !== null &&
       key !== lastAnnounce &&
       model.announce !== null
     ) {
-      write(announcer, model.announce);
+      announce(model.announce);
     }
     lastAnnounce = key;
 
