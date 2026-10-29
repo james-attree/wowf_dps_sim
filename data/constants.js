@@ -25,6 +25,7 @@ const NOT_JAMES =
   "an engineering judgement call by the dev, not a decision by James.";
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const BATCH_RUNNER = "Developer, 29 Oct 2026, issue #144";
+const BATCH_WORKER = "Developer, 29 Oct 2026, issue #147";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
@@ -912,6 +913,22 @@ export const CONSTANTS = {
     ENGINEERING,
     `${BATCH_RUNNER}: ${NOT_JAMES} The issue asks for a 95% confidence interval of the mean and says the z or t factor is a constant; the dev chose z`,
     "Not a game rule. The 97.5th percentile of the standard normal distribution (1.959964), the multiplier of the standard error for a two-sided 95% interval. A z interval is a good approximation from about 30 iterations; for fewer it is narrower than a t interval would be. At the default 1,000 iterations z and t agree to three decimals.",
+    false,
+  ),
+  "batch.progressInterval": entry(
+    100,
+    "ms",
+    ENGINEERING,
+    `${BATCH_WORKER}: ${NOT_JAMES} The issue says progress messages are throttled and the interval is a constant, and gives no value`,
+    "Not a game rule. The shortest gap between two progress messages of a batch run by the worker or its main-thread fallback (js/batch-host.js): ten updates a second, enough for a progress bar, few enough that the messages cost nothing. The last progress of a batch is always sent, whatever the gap.",
+    false,
+  ),
+  "batch.sliceBudget": entry(
+    16,
+    "ms",
+    ENGINEERING,
+    `${BATCH_WORKER}: ${NOT_JAMES} The issue asks for a bounded cancel and a chunked main-thread fallback, and names no slice length`,
+    "Not a game rule. How long the batch host (js/batch-host.js) keeps running iterations before it yields to its message queue: about one 60 Hz frame. A slice runs whole fights, at least one, and stops at the first fight that ends past the budget, so a cancel waits at most one slice plus one fight. On the main thread (the fallback) it is how long the page can be busy between two chances to paint.",
     false,
   ),
   "batch.seedMix": entry(

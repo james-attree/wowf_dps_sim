@@ -31,6 +31,55 @@ const engineRandomMessage =
 const engineClockMessage =
   "Engine modules must not read a wall clock. Advance time with Simulation.step(dt), and let the host supply dt.";
 
+// Host modules under js/ (issue #147): see their block below.
+const WORKER_HOSTS = ["js/batch-worker.js", "js/batch-client.js"];
+
+// The engine rules, shared by engine modules and the batch worker hosts.
+// `clock` false leaves out the wall-clock globals (a host may read a clock).
+const restrictedGlobals = ({ clock }) => [
+  "error",
+  {
+    checkGlobalObject: true,
+    globalObjects: ["global"],
+    globals: [
+      { name: "document", message: engineDomMessage },
+      { name: "window", message: engineDomMessage },
+      ...(clock
+        ? [
+            { name: "performance", message: engineClockMessage },
+            { name: "Date", message: engineClockMessage },
+          ]
+        : []),
+    ],
+  },
+];
+
+const engineRules = {
+  // Math.random, however it is reached: Math.random, Math["random"],
+  // globalThis.Math.random, self.Math["random"], or { random } = Math.
+  "no-restricted-syntax": [
+    "error",
+    ...[
+      // Math.random and Math["random"]
+      "MemberExpression[object.name='Math'][property.name='random'][computed=false]",
+      "MemberExpression[object.name='Math'][computed=true][property.value='random']",
+      // globalThis.Math.random, self.Math["random"], and so on
+      "MemberExpression[object.type='MemberExpression'][object.property.name='Math'][property.name='random'][computed=false]",
+      "MemberExpression[object.type='MemberExpression'][object.property.name='Math'][computed=true][property.value='random']",
+      "MemberExpression[object.type='MemberExpression'][object.property.value='Math'][property.name='random'][computed=false]",
+      "MemberExpression[object.type='MemberExpression'][object.property.value='Math'][computed=true][property.value='random']",
+      // const { random } = Math
+      "VariableDeclarator[init.name='Math'] > ObjectPattern > Property[key.name='random']",
+    ].map((selector) => ({ selector, message: engineRandomMessage })),
+  ],
+  // detectObjects so property values and `this.x = 0.065` count.
+  // Variable initializers are the remaining hole; the local rule covers them.
+  "no-magic-numbers": ["error", { ignore: [0, 1, -1], detectObjects: true }],
+  "engine-purity/no-numeric-literal": "error",
+  // The DoT loop used to log every Hemorrhage tick. A simulation stays silent.
+  "no-console": "error",
+};
+
 export default defineConfig([
   js.configs.recommended,
   {
@@ -55,7 +104,7 @@ export default defineConfig([
   },
   {
     files: ["js/**/*.js"],
-    ignores: ["js/main.js"],
+    ignores: ["js/main.js", ...WORKER_HOSTS],
     plugins: {
       "engine-purity": enginePurity,
     },
@@ -65,45 +114,32 @@ export default defineConfig([
       globals: readonly(["global", "globalThis", "self"]),
     },
     rules: {
-      "no-restricted-globals": [
-        "error",
-        {
-          checkGlobalObject: true,
-          globalObjects: ["global"],
-          globals: [
-            { name: "document", message: engineDomMessage },
-            { name: "window", message: engineDomMessage },
-            { name: "performance", message: engineClockMessage },
-            { name: "Date", message: engineClockMessage },
-          ],
-        },
-      ],
-      // Math.random, however it is reached: Math.random, Math["random"],
-      // globalThis.Math.random, self.Math["random"], or { random } = Math.
-      "no-restricted-syntax": [
-        "error",
-        ...[
-          // Math.random and Math["random"]
-          "MemberExpression[object.name='Math'][property.name='random'][computed=false]",
-          "MemberExpression[object.name='Math'][computed=true][property.value='random']",
-          // globalThis.Math.random, self.Math["random"], and so on
-          "MemberExpression[object.type='MemberExpression'][object.property.name='Math'][property.name='random'][computed=false]",
-          "MemberExpression[object.type='MemberExpression'][object.property.name='Math'][computed=true][property.value='random']",
-          "MemberExpression[object.type='MemberExpression'][object.property.value='Math'][property.name='random'][computed=false]",
-          "MemberExpression[object.type='MemberExpression'][object.property.value='Math'][computed=true][property.value='random']",
-          // const { random } = Math
-          "VariableDeclarator[init.name='Math'] > ObjectPattern > Property[key.name='random']",
-        ].map((selector) => ({ selector, message: engineRandomMessage })),
-      ],
-      // detectObjects so property values and `this.x = 0.065` count.
-      // Variable initializers are the remaining hole; the local rule covers them.
-      "no-magic-numbers": [
-        "error",
-        { ignore: [0, 1, -1], detectObjects: true },
-      ],
-      "engine-purity/no-numeric-literal": "error",
-      // The DoT loop used to log every Hemorrhage tick. A simulation stays silent.
-      "no-console": "error",
+      "no-restricted-globals": restrictedGlobals({ clock: true }),
+      ...engineRules,
+    },
+  },
+  {
+    // The batch worker and its client (#147) are hosts, not engine code: they
+    // read a clock (for slices and the progress throttle) and create or are a
+    // Worker. Every other engine rule holds: no DOM, no Math.random, no
+    // literals, no console.
+    files: WORKER_HOSTS,
+    plugins: {
+      "engine-purity": enginePurity,
+    },
+    languageOptions: {
+      globals: readonly([
+        "global",
+        "globalThis",
+        "self",
+        "performance",
+        "queueMicrotask",
+        "URL",
+      ]),
+    },
+    rules: {
+      "no-restricted-globals": restrictedGlobals({ clock: false }),
+      ...engineRules,
     },
   },
   {
@@ -131,6 +167,8 @@ export default defineConfig([
         "fetch",
         "performance",
         "process",
+        "queueMicrotask",
+        "setImmediate",
         "setTimeout",
         "structuredClone",
         "URL",

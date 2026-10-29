@@ -279,6 +279,20 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   `Float64Array` of every iteration's DPS. Defaults are 1,000 iterations of 300 s
   (`batch.duration`). No DOM and no clock. Not yet used by the page. See
   [Batch runner](docs/batch.md).
+- `js/batch-host.js` — The batch host (S4, #147): the message side of a batch.
+  Takes `start` and `cancel` messages, drives a `BatchRunner` in slices of
+  `batch.sliceBudget`, and posts `progress` (throttled to
+  `batch.progressInterval`), `result` (the `dps` buffer transferred) and
+  `error`. Touches no global: the host passes `post`, `now` and `schedule`. See
+  [Batch worker](docs/worker.md).
+- `js/batch-worker.js` — The module Web Worker (S4, #147): the batch host with
+  `self.postMessage` and `performance.now()`. Posts `ready` once loaded. A host,
+  like `js/main.js`.
+- `js/batch-client.js` — `BatchClient` (S4, #147): `run(options, callbacks)`
+  returns a promise of `runBatch`'s result (`callbacks.onProgress` for
+  progress), `cancel()`, `terminate()`. Runs the batch in the worker, or on the
+  main thread in slices where module workers are missing or the worker fails to
+  load (`mode` `"auto"`, `"worker"` or `"main"`). Not yet used by the page. See [Batch worker](docs/worker.md).
 - `js/ability-breakdown.js` — The per-ability breakdown (S2, #145): a
   `FightBreakdown` subscribed to a fight's `hit` and `cast` events, and a
   `BatchBreakdown` that sums fights in order. Rows are keyed and sorted by
@@ -672,6 +686,14 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   signal, driver, before the start), the transition table, options, the
   `advance` count (a whole number of 1 or more, or Infinity, #145), and that the
   module names no step or frame and uses only `SimRunner`.
+- `test/batch-worker.test.js` — The batch worker: the host through its
+  messages with a fake clock and queue (results equal to `runBatch` to the byte,
+  the `dps` transfer, the progress throttle and order, slices, cancel and its
+  bound, stale ids, one batch at a time, errors and recovery), a real
+  `worker_threads` thread running `js/batch-worker.js` through `BatchClient`
+  (`test/batch-worker-thread.js` gives it a `self` over Node's `parentPort`),
+  the client's modes, fallback, errors and
+  options with fake workers, and that the worker file is thin.
 - `test/ability-breakdown.test.js` — The per-ability breakdown: its total equal
   to the fight's, rows that add up, agreement with the engine's own records,
   casts from `cast` events, sorting by id, recorded events, mid-fight reads,

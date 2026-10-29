@@ -325,8 +325,15 @@ describe("project site paths", () => {
     // js/running-stats.js and js/ability-breakdown.js (S2, #145), which only it
     // imports until the results UI does, and js/fight-metrics.js (S3, #146,
     // the aura uptimes) the same way.
+    // js/batch-client.js (S4, #147) runs batches in the worker
+    // js/batch-worker.js (with js/batch-host.js, their protocol); the page
+    // calls it from the UI issues (#149, #150). The worker is not imported but
+    // loaded by URL: the test below checks it is published and resolves.
     // js/rotation-validator.js is wired through the interpreter.
     const notWiredYet = new Set([
+      "js/batch-client.js",
+      "js/batch-host.js",
+      "js/batch-worker.js",
       "js/sim-runner.js",
       "js/rotation-summary.js",
       "js/rotation-presets.js",
@@ -343,6 +350,49 @@ describe("project site paths", () => {
       }
       assert.ok(seen.has(file), `${file} is published but not imported`);
     }
+  });
+
+  it("publishes the batch worker where its client loads it (#147)", async () => {
+    const client = await readFile(resolve(root, "js/batch-client.js"), "utf8");
+    const spec = client.match(/new URL\("(\.\/[^"]+)", import\.meta\.url\)/);
+    assert.ok(spec, "the client builds the worker URL from import.meta.url");
+    const workerUrl = new URL(spec[1], new URL("js/batch-client.js", SITE));
+    assertOnSite(workerUrl, "worker");
+    assert.equal(sitePath(workerUrl), "js/batch-worker.js");
+
+    // The worker's and the client's module graphs resolve on the site, and
+    // they are published with js/ by the Pages workflow.
+    const pending = ["js/batch-client.js", sitePath(workerUrl)];
+    const seen = new Set();
+    while (pending.length > 0) {
+      const modulePath = pending.pop();
+      if (seen.has(modulePath)) {
+        continue;
+      }
+      seen.add(modulePath);
+      const source = await readFile(resolve(root, modulePath), "utf8");
+      for (const match of source.matchAll(/from\s*["'](\.[^"']+)["']/g)) {
+        const url = new URL(match[1], new URL(modulePath, SITE));
+        assertOnSite(url, `${modulePath} ${match[1]}`);
+        const rel = sitePath(url);
+        assert.equal((await stat(resolve(root, rel))).isFile(), true, rel);
+        if (rel.endsWith(".js")) {
+          pending.push(rel);
+        }
+      }
+    }
+    for (const file of [
+      "js/batch-host.js",
+      "js/batch-runner.js",
+      "data/constants.js",
+    ]) {
+      assert.ok(seen.has(file), file);
+    }
+    const workflow = await readFile(
+      resolve(root, ".github/workflows/pages.yml"),
+      "utf8",
+    );
+    assert.match(assembleScript(workflow), /cp -R js data img _site\//);
   });
 
   it("says the site deploys once Pages is enabled", async () => {
