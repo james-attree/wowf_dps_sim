@@ -520,3 +520,42 @@ describe("DoT expiry", () => {
     }
   });
 });
+
+// #155 (Kira QA): a step that Adrenaline Rush runs out in is regenerated in
+// order of time. The bonus covers the start of the step, so the pool reaches
+// its cap during the bonus part, and cappedTime counts the rest of the step.
+// In the old order (the plain rate first) the cap came later and cappedTime
+// was short.
+describe("Adrenaline Rush running out inside a step", () => {
+  function ready() {
+    setRoll(0.5);
+    const rogue = new Rogue();
+    rogue.rotation = () => {};
+    const sim = new Simulation(rogue, { rng: testRng });
+    sim.gcd = 0;
+    rogue.abilities.adrenalineRush.cast(rogue, sim);
+    sim.activeBuffs["adrenaline-rush"].duration = 0.5;
+    return { rogue, sim };
+  }
+  const base = k("energy.regenPerSecond");
+  const boosted = base * k("adrenalineRush").regenMultiplier;
+
+  it("regenerates the boosted part first, so the cap is reached at its end", () => {
+    const { rogue, sim } = ready();
+    const pool = rogue.resources.energy;
+    rogue.energy = rogue.maxEnergy - boosted * 0.5;
+    const before = pool.waste();
+    sim.regenerateResources(1);
+    assert.equal(rogue.energy, rogue.maxEnergy);
+    near(pool.cappedTime - before.cappedTime, 0.5);
+    near(pool.overflow - before.overflow, base * 0.5);
+  });
+
+  it("gives the same energy below the cap as before", () => {
+    const { rogue, sim } = ready();
+    rogue.energy = 0;
+    sim.regenerateResources(1);
+    near(rogue.energy, boosted * 0.5 + base * 0.5);
+    assert.equal(rogue.resources.energy.cappedTime, 0);
+  });
+});

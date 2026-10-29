@@ -329,8 +329,13 @@ pipeline for the contributions of the kind that rule names, `energyRegen` (see M
 `k("energy.regenPerSecond") * dt`, as before. Static contributions (a talent's
 `add` or `mult`) apply for the whole step. A timed one applies to the slice of
 the step still inside its aura, including the step the aura runs out, and the
-rest of the frame uses the rate without it. The base-rate slice is added first,
-then each longer-covered rate in turn. Each add is capped. The cast frame
+rest of the frame uses the rate without it. The slices are added in order of
+time (#155): the aura covers the start of the step, so the slice with every
+timed contribution comes first, then the slice without the shortest, and the
+rate without any of them last. Each add is capped, so the pool reaches its cap
+at the right moment and `cappedTime` counts the right part of the step (until
+#155 the base-rate slice came first; the energy at the end of the step is the
+same either way, so no golden fixture moved). The cast frame
 itself stays at the base rate, because the buff is applied later, inside
 `Rogue.rotation`. With more than one timed contribution the step is cut where
 each runs out, and each applies to the part it covers. One aura gives exactly
@@ -2514,10 +2519,14 @@ enforces it ("Backstab needs a dagger").
 false for it, and `Ability.cast` returns `null`, when `rogue.weapons.mainHand.type`
 is anything else: no cast is told, no energy is spent, no cooldown or GCD starts
 and no number is drawn, so it is a failed cast like one without the energy. The
-interpreter's host answers "cannot be cast" for it, so a rule for Backstab on a
-sword holds, cannot be cast, and ends the walk every time (the rotation pools
-forever: see the hazards in `docs/rotation.md`). The placeholder rotation does
-not cast Backstab, so no default fight moves. Ambush and Mutilate list a dagger
+interpreter's host answers "cannot be cast" for it, and also "not usable"
+(`host.usable`, #155): the main hand is fixed for the fight, so no wait can make
+it castable, and the interpreter passes over a Backstab rule on a sword as if
+its conditions had failed. A Backstab rule above Sinister Strike falls through
+to Sinister Strike with a sword. Before #155 the rule held, could not be cast
+and ended the walk every time, so the rotation pooled forever. With a dagger and
+too little energy it still pools as before. The placeholder rotation and the
+presets do not cast Backstab, so no default fight moves. Ambush and Mutilate list a dagger
 requirement in the catalogue and are not enforced, and neither are the
 stealth and behind requirements.
 

@@ -95,6 +95,10 @@ whether its ability is on the global cooldown:
   cast. This clause is what R3 added to the wording above: without it a
   finisher that waits on the GCD would hide Cold Blood, which the code rotation
   cast in that case.
+- **An ability the fight's weapon rules out** (Backstab without a dagger main
+  hand) is passed over whatever its conditions say, on or off the GCD, and
+  never ends the walk (#155): no amount of pooling makes it castable. With a
+  dagger, a Backstab rule that cannot be afforded still pools as above.
 
 A rule is never reordered by a field of its own: there is no `priority`
 number, so the list order is the only order. This restates the "cast the first
@@ -331,7 +335,11 @@ the same view and the vocabulary does not change.
   (a `TypeError` otherwise), so a rotation is never walked unchecked.
 
 The `host` is five functions: `state()` (the view above), `canCast(id)`,
-`onGcd(id)`, `gcdClear()` and `cast(id)`. There is no step, frame or tick in
+`onGcd(id)`, `gcdClear()` and `cast(id)`, and an optional sixth, `usable(id)`:
+false when nothing in this fight can make the ability castable (Backstab
+without a dagger main hand, #155). `decide` asks `onGcd` and `usable` once per
+host and passes over a rule that is not usable, as if its conditions had failed,
+so it never pools for one. A host without `usable` has every ability usable. There is no step, frame or tick in
 them, so the Phase 3.5 engine writes a host of its own and calls `decide`
 unchanged. The Rogue's host is `rotationHost` in `js/rotation-host.js`:
 `canCast` is "the build does not lock it and `Ability.canCast` is true" (not on
@@ -571,11 +579,13 @@ protected: it lapses until the points are built (a known gap, not handled here).
 
 #### Hazards
 
-- A Backstab rule on a main hand that is not a dagger never casts, and ends the
-  walk every time it holds (Backstab is refused, see
-  [mechanics](mechanics.md)), so the rotation pools forever. The validator does
-  not know the weapon. A weapon-type condition would fix it and is not in the
-  vocabulary.
+- A Backstab rule on a main hand that is not a dagger never casts (Backstab is
+  refused, see [mechanics](mechanics.md)). It is passed over, as if its
+  conditions had failed, so the walk goes on to the rules below it (#155; before
+  that it ended the walk every time it held and the rotation pooled forever).
+  There is no weapon-type condition: the host's `usable` answers it from the
+  fight's main hand, so the same list works on daggers and on a sword. The
+  validator does not know the weapon.
 - Ambush and Mutilate also list a dagger requirement in the ability catalogue,
   and are not enforced.
 

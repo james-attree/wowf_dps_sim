@@ -289,6 +289,56 @@ describe("decide: the walk", () => {
     assert.deepEqual(decide(compiled, probe.host).casts, ["sinister-strike"]);
   });
 
+  it("passes over a rule the host says is not usable, on or off the GCD, and does not pool for it (#155)", () => {
+    const probe = world({
+      ready: ["sinister-strike", "cold-blood"],
+      gcd: ["backstab", "sinister-strike"],
+    });
+    const canCast = [];
+    const { canCast: original } = probe.host;
+    probe.host.canCast = (id) => {
+      canCast.push(id);
+      return original(id);
+    };
+    probe.host.usable = (id) => id !== "backstab" && id !== "cold-blood";
+    const result = decide(
+      compileRotation(
+        rotation(rule("backstab"), coldBlood(), rule("sinister-strike")),
+      ),
+      probe.host,
+    );
+    assert.deepEqual(result, { casts: ["sinister-strike"], outcome: "cast" });
+    assert.deepEqual(canCast, ["sinister-strike"], "never asked of the others");
+    // Without host.usable every ability is usable: the same walk pools.
+    const plain = world({ gcd: ["backstab", "sinister-strike"] });
+    assert.equal(
+      decide(compileRotation(rotation(rule("backstab"))), plain.host).outcome,
+      "pooling",
+    );
+  });
+
+  it("asks a host which abilities are usable once, not at every decision point (#155)", () => {
+    const asked = [];
+    const probe = world({
+      ready: ["sinister-strike"],
+      gcd: ["backstab", "sinister-strike"],
+    });
+    probe.host.usable = (id) => {
+      asked.push(id);
+      return id !== "backstab";
+    };
+    const compiled = compileRotation(
+      rotation(rule("backstab"), rule("sinister-strike")),
+    );
+    decide(compiled, probe.host);
+    decide(compiled, probe.host);
+    assert.deepEqual(asked, ["backstab", "sinister-strike"]);
+    // Another host's answers are the ones used for it.
+    const other = world({ ready: ["backstab"], gcd: ["backstab"] });
+    other.host.usable = () => true;
+    assert.deepEqual(decide(compiled, other.host).casts, ["backstab"]);
+  });
+
   it("returns results that are shared when nothing was cast, and frozen", () => {
     const idle = decide(
       compileRotation(rotation(rule("eviscerate", points(5)))),

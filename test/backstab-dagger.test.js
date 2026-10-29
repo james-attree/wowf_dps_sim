@@ -71,7 +71,7 @@ describe("Backstab needs a dagger", () => {
     });
   }
 
-  it("is the host's answer too: not castable, and a rule for it pools", () => {
+  it("is the host's answer too: not castable, not usable, and a rule for it is passed over (#155)", () => {
     const rotation = compileRotation({
       schemaVersion: 1,
       name: "Backstab only",
@@ -79,11 +79,12 @@ describe("Backstab needs a dagger", () => {
     });
     for (const [type, outcome] of [
       ["dagger", "cast"],
-      ["sword", "pooling"],
+      ["sword", "none"],
     ]) {
       const { rogue, simulation } = ready(type);
       const host = rotationHost(rogue, simulation);
       assert.equal(host.canCast("backstab"), type === "dagger", type);
+      assert.equal(host.usable("backstab"), type === "dagger", type);
       assert.equal(decide(rotation, host).outcome, outcome, type);
       assert.equal(
         (simulation.abilityStats.backstab?.casts ?? 0) > 0,
@@ -91,6 +92,63 @@ describe("Backstab needs a dagger", () => {
         type,
       );
     }
+  });
+
+  it("a Backstab rule above Sinister Strike falls through to it with a sword, and holds the walk with a dagger (#155)", () => {
+    const rotation = compileRotation({
+      schemaVersion: 1,
+      name: "Backstab, then Sinister Strike",
+      rules: [
+        { action: "backstab", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    });
+    for (const [type, casts] of [
+      ["dagger", ["backstab"]],
+      ["sword", ["sinister-strike"]],
+      ["mace", ["sinister-strike"]],
+    ]) {
+      const { rogue, simulation } = ready(type);
+      assert.deepEqual(
+        decide(rotation, rotationHost(rogue, simulation)),
+        { casts, outcome: "cast" },
+        type,
+      );
+    }
+    // With a dagger and too little energy, Backstab still pools: the rule is
+    // only passed over when no amount of waiting could make it castable.
+    const { rogue, simulation } = ready("dagger");
+    rogue.energy = 0;
+    assert.equal(
+      decide(rotation, rotationHost(rogue, simulation)).outcome,
+      "pooling",
+    );
+  });
+
+  it("host.usable is false only for Backstab, and only off a dagger (#155)", () => {
+    for (const type of ["dagger", ...OTHERS]) {
+      const { rogue, simulation } = ready(type);
+      const host = rotationHost(rogue, simulation);
+      const unusable = ABILITY_DEFINITIONS.map(({ id }) => id).filter(
+        (id) => !host.usable(id),
+      );
+      assert.deepEqual(unusable, type === "dagger" ? [] : ["backstab"], type);
+    }
+  });
+
+  it("a refused Backstab publishes no cast event (#164)", () => {
+    const { rogue, simulation } = ready("sword");
+    const events = [];
+    simulation.on("*", (event) => events.push(event));
+    assert.equal(rogue.abilities.backstab.cast(rogue, simulation), null);
+    assert.deepEqual(
+      events.filter((event) => event.type === "cast"),
+      [],
+    );
+    assert.deepEqual(
+      events.filter((event) => event.ability === "backstab"),
+      [],
+    );
   });
 
   it("is data: only Backstab has requiresMainHand", () => {
@@ -129,5 +187,21 @@ describe("Backstab needs a dagger", () => {
         type,
       );
     }
+  });
+
+  it("a whole fight with Backstab above Sinister Strike on a sword casts Sinister Strike, not nothing (#155)", () => {
+    const rotation = {
+      schemaVersion: 1,
+      name: "Backstab, then Sinister Strike",
+      rules: [
+        { action: "backstab", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    };
+    const fight = createFight(5, { ...config("sword"), rotation });
+    fight.simulation.run(20);
+    const stats = fight.simulation.abilityStats;
+    assert.equal(stats.backstab?.casts ?? 0, 0);
+    assert.ok(stats["sinister-strike"].casts > 0);
   });
 });

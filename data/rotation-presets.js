@@ -44,7 +44,17 @@ const energy = (value) => ({
   value,
 });
 
-export const ROTATION_PRESETS = Object.freeze([
+// Frozen all the way down (#155): a preset is read and copied
+// (js/rotation-presets.js presetRotation), never changed in place.
+function deepFreeze(value) {
+  if (value !== null && typeof value === "object") {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+export const ROTATION_PRESETS = deepFreeze([
   {
     id: "combat-swords",
     name: "Combat swords",

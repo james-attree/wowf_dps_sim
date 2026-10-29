@@ -742,6 +742,34 @@ describe("Resource cap counters (cappedTime, overflow)", () => {
     assert.ok(Object.isFrozen(end.resources.energy));
   });
 
+  it("give the full shape at time 0, all zeros, for a fight ended before a step (#155)", () => {
+    const { sim } = harness();
+    let end = null;
+    sim.on("end", (event) => {
+      end = event;
+    });
+    sim.end();
+    assert.equal(end.dps, 0);
+    assert.deepEqual(end.resources, {
+      energy: { cappedTime: 0, overflow: 0 },
+      comboPoints: { cappedTime: 0, overflow: 0 },
+    });
+    assert.ok(Object.isFrozen(end.resources));
+  });
+
+  it("keep what they counted across a target change (#155)", () => {
+    const points = combo();
+    points.value = k("combo.max");
+    points.gain(2);
+    const pool = energy();
+    pool.value = 100;
+    pool.regenerate(1, 10);
+    const before = [points.waste(), pool.waste()];
+    points.targetChanged();
+    assert.deepEqual([points.waste(), pool.waste()], before);
+    assert.deepEqual(before[0], { cappedTime: 0, overflow: 2 });
+  });
+
   it("give a host without resources an empty object", () => {
     for (const resources of [{}, undefined]) {
       const { sim } = harness();
