@@ -5,6 +5,7 @@ import { AURAS } from "./auras.js";
 import { conditionErrors } from "./rotation-conditions.js";
 import { describeValue, rotationShapeErrors } from "./rotation-schema.js";
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
+import { talentGrantedAbilities } from "./talent-build.js";
 
 // The rotation validator (roadmap R4, issue #141). A rotation arrives from a
 // preset, an import file or the builder, so a bad one must be refused with a
@@ -29,8 +30,11 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //   4. Each condition: a known type, the params it takes, each of the right
 //      type (js/rotation-conditions.js), and then the params' meaning: an
 //      aura, debuff or ability id that exists, and a number in its range.
-//   5. A rule that casts Cold Blood has an `abilityGranted` condition for
-//      Cold Blood (issue #155), so a build without the talent never casts it.
+//   5. A rule that casts an ability a talent grants (talentGrantedAbilities,
+//      read from the talent effects data, issue #188) has a condition that
+//      guards it, so a build without the talent never casts it. Cold Blood
+//      needs `abilityGranted` (issue #155). Until issue #199 the others take
+//      `abilityGranted` or `abilityUnlocked`; see TALENT_GUARDS below.
 // It does not check whether a rule is reachable or sensible (an order that
 // never casts something). Nothing here knows a step or a frame.
 //
@@ -47,6 +51,10 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //              not cast yet.
 //   auras      the self buffs a condition may name (auraActive, auraRemaining)
 //   debuffs    the target debuffs a condition may name, as { id: maxStacks }
+//   talentGrantedAbilities
+//              the abilities a talent grants, whose rules need a guard (rule
+//              5). Any list or Set of ids; the engine's is talentGrantedAbilities
+//              from js/talent-build.js, from the talent effects data.
 //
 // A context may give any of these; what it leaves out is the engine's own.
 const ENGINE_ABILITIES = Object.freeze(
@@ -55,6 +63,7 @@ const ENGINE_ABILITIES = Object.freeze(
 const ENGINE_CASTABLE = Object.freeze(
   ABILITY_DEFINITIONS.map((definition) => definition.id),
 );
+const ENGINE_TALENT_GRANTED = Object.freeze([...talentGrantedAbilities]);
 const auraList = Object.values(AURAS);
 const ENGINE_AURAS = Object.freeze(
   auraList.filter((aura) => aura.target === "self").map((aura) => aura.id),
@@ -73,6 +82,10 @@ export function rotationContext(given = {}) {
     castable: given.castable ?? ENGINE_CASTABLE,
     auras: given.auras ?? ENGINE_AURAS,
     debuffs: given.debuffs ?? ENGINE_DEBUFFS,
+    talentGrantedAbilities:
+      given.talentGrantedAbilities === undefined
+        ? ENGINE_TALENT_GRANTED
+        : Object.freeze([...given.talentGrantedAbilities]),
   };
 }
 
@@ -207,24 +220,45 @@ function conditionMeaningErrors(condition, where, context) {
   return errors;
 }
 
-// Cold Blood is a talent: a rule that casts it must say the build (or the
-// host) grants it, with { type: "abilityGranted", ability: "cold-blood" }
-// (issue #155). One that does not is an error, not a warning.
-const COLD_BLOOD = "cold-blood";
-function coldBloodError(rule, path) {
-  if (rule.action !== COLD_BLOOD) {
+// Rule 5 (issues #155 and #188). A rule that casts an ability a talent grants
+// must hold only when the build has the talent, so it needs a condition on that
+// same ability that says so. Which condition types count:
+//
+//   STRICT        only abilityGranted. Cold Blood, as since #155 (James's
+//                 decision in #201).
+//   TRANSITIONAL  abilityGranted or abilityUnlocked. Every other talent
+//                 ability, until issue #199: the default rotation and the
+//                 combat-swords preset guard Blade Flurry and Adrenaline Rush
+//                 with abilityUnlocked, and refusing that now would move the
+//                 goldens. #199 makes this list ["abilityGranted"].
+//
+// A rule with no such guard is an error, not a warning. Which abilities this
+// covers comes from the data (context.talentGrantedAbilities), not from a list
+// here, so a talent that grants a new ability is covered when it is added.
+const STRICT = Object.freeze(["abilityGranted"]);
+const TRANSITIONAL = Object.freeze(["abilityGranted", "abilityUnlocked"]);
+const STRICT_TALENT_ABILITIES = Object.freeze(["cold-blood"]);
+const guardTypes = (id) =>
+  STRICT_TALENT_ABILITIES.includes(id) ? STRICT : TRANSITIONAL;
+
+const guardText = (type, id) => `{ "type": "${type}", "ability": "${id}" }`;
+
+function talentGuardError(rule, path, context) {
+  const id = rule.action;
+  if (!context.talentGrantedAbilities.includes(id)) {
     return null;
   }
-  const granted = rule.conditions.some(
-    (condition) =>
-      condition.type === "abilityGranted" && condition.ability === COLD_BLOOD,
+  const types = guardTypes(id);
+  const guarded = rule.conditions.some(
+    (condition) => types.includes(condition.type) && condition.ability === id,
   );
-  if (granted) {
+  if (guarded) {
     return null;
   }
+  const wanted = types.map((type) => guardText(type, id)).join(" or ");
   return {
     path: `${path}.conditions`,
-    message: `${path} casts ${COLD_BLOOD} without the condition { "type": "abilityGranted", "ability": "${COLD_BLOOD}" }: Cold Blood is a talent, so its rule must hold only when the build grants it.`,
+    message: `${path} casts ${id} without the condition ${wanted}: a talent grants ${id}, so its rule must hold only when the build has the talent.`,
   };
 }
 
@@ -261,9 +295,9 @@ export function validateRotation(rotation, context = {}) {
           : conditionMeaningErrors(condition, here, where)),
       );
     });
-    const coldBlood = coldBloodError(rule, path);
-    if (coldBlood !== null) {
-      errors.push(coldBlood);
+    const guard = talentGuardError(rule, path, where);
+    if (guard !== null) {
+      errors.push(guard);
     }
   });
   return errors;

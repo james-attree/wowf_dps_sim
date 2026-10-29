@@ -205,34 +205,39 @@ function castsIn(rotation, talents) {
 }
 
 describe("abilityUnlocked on an on-GCD talent ability", () => {
-  it("is not redundant: without it a build lacking the ability starves the list", () => {
-    const without = castsIn(rush(), noRush);
+  it("is not redundant: the validator refuses the rule without it (#188), and with it a build lacking the ability falls through", () => {
+    // Without a guard the rule would hold and the locked ability could not be
+    // cast, so the walk would end there and Sinister Strike would never be
+    // reached. Since #188 such a rotation is refused before the fight.
+    assert.throws(
+      () => castsIn(rush(), noRush),
+      /rules\[0\] casts adrenaline-rush without the condition/,
+    );
     const guarded = castsIn(
       rush({ type: "abilityUnlocked", ability: "adrenaline-rush" }),
       noRush,
     );
-    // The rule holds and the locked ability cannot be cast, so the walk ends
-    // there and Sinister Strike is never reached.
-    assert.equal(without["sinister-strike"], undefined);
     assert.ok(guarded["sinister-strike"].casts > 10);
     assert.equal(guarded["adrenaline-rush"], undefined);
   });
 
-  it("makes no difference for a build that has the ability", () => {
-    const rotation = rush({
-      type: "cooldownReady",
-      ability: "adrenaline-rush",
-    });
-    const unguarded = castsIn(rotation, referenceBuild());
-    const guarded = castsIn(
+  it("makes no difference for a build that has the ability: abilityUnlocked and abilityGranted cast the same", () => {
+    const unlocked = castsIn(
       rush(
         { type: "abilityUnlocked", ability: "adrenaline-rush" },
         { type: "cooldownReady", ability: "adrenaline-rush" },
       ),
       referenceBuild(),
     );
-    assert.deepEqual(guarded, unguarded);
-    assert.ok(guarded["adrenaline-rush"].casts >= 1);
+    const granted = castsIn(
+      rush(
+        { type: "abilityGranted", ability: "adrenaline-rush" },
+        { type: "cooldownReady", ability: "adrenaline-rush" },
+      ),
+      referenceBuild(),
+    );
+    assert.deepEqual(unlocked, granted);
+    assert.ok(unlocked["adrenaline-rush"].casts >= 1);
   });
 
   it("never casts an ability the build lacks", () => {
@@ -257,14 +262,9 @@ describe("abilityUnlocked on an on-GCD talent ability", () => {
       host,
     );
     assert.deepEqual(result, { casts: ["sinister-strike"], outcome: "cast" });
-    rogue.energy = 100;
-    simulation.gcd = 0;
-    assert.deepEqual(
-      decide(compileRotation(rush()), rotationHost(rogue, simulation)),
-      {
-        casts: [],
-        outcome: "pooling",
-      },
+    assert.throws(
+      () => compileRotation(rush()),
+      /^RangeError: Bad rotation:\n/,
     );
   });
 });
