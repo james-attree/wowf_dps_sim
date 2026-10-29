@@ -235,7 +235,7 @@ describe("constants", () => {
       if (row.source === "assumption" || row.source === "engineering") {
         assert.match(
           row.ref,
-          /^(?:James|Developer), \d+ Oct 2026(, issue #\d+)?: /,
+          /^(?:(?:James|Developer), \d+ Oct 2026(, issue #\d+)?|Scout \(coordinator\), \d+ Oct 2026, #\d+): /,
           id,
         );
       } else if (row.source === "wowf-export") {
