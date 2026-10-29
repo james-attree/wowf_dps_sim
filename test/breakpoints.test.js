@@ -78,6 +78,15 @@ describe("the narrow breakpoint", () => {
     assert.doesNotMatch(css, /\b520px\b/);
   });
 
+  it("rotation-builder.css uses the same narrow query (#217)", async () => {
+    const css = await read("../rotation-builder.css");
+    const queries = [...css.matchAll(/@media ([^{]+)\{/g)].map(([, query]) =>
+      query.trim(),
+    );
+    assert.deepEqual(queries, [NARROW_QUERY]);
+    assert.doesNotMatch(css, /\b520px\b/);
+  });
+
   it("contains each sideways scroller's inline size, so it cannot widen the page (#154)", async () => {
     const css = await read("../styles.css");
     const rule = css.match(

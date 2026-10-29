@@ -10,8 +10,8 @@ and character stats. There is no item database.
 site from `main`. The site deploys to
 https://james-attree.github.io/wowf_dps_sim/ once Pages is enabled. Set the
 repository source to GitHub Actions under Settings > Pages. The workflow
-publishes `index.html`, `styles.css`, `talent-tree.css`, `js/`, `data/`, and
-`img/`.
+publishes `index.html`, `styles.css`, `talent-tree.css`,
+`rotation-builder.css`, `js/`, `data/`, and `img/`.
 
 ## Status
 
@@ -259,12 +259,15 @@ rejects them under `js/`.
 ## Module map
 
 - `index.html` — Simulator page (damage, energy, combo points, the GCD,
-  effects, cooldowns, and the combat log). Loads `styles.css`, `talent-tree.css` and `js/main.js`
+  effects, cooldowns, and the combat log). Loads `styles.css`, `talent-tree.css`, `rotation-builder.css` and `js/main.js`
   as an ES module.
 - `styles.css` — Dark layout and meters for that page.
 - `talent-tree.css` — The talent tree's styles (U6, #204; Fran's mockup CSS):
   tiles, row gates, arrows, the detail pane and the narrow tabs. Its one
   narrow `@media` block uses the same query as `styles.css`.
+- `rotation-builder.css` — The rotation builder's styles (U7, #217; Fran's
+  mockup CSS): rule cards, conditions, quick fixes, banners and the drop
+  line. Its one narrow `@media` block uses the same query as `styles.css`.
 - `js/main.js` — UI entry (#149): the bootstrap. It builds the store, the
   live run (`js/live-run.js`, over the animation frame), the `BatchClient`
   and the run actions (`js/run-actions.js`), hands the store and the actions
@@ -351,8 +354,8 @@ store)` that owns its own elements, draws from the store when its slices
   calls the actions `js/talent-tree.js` gives it, patching tiles in place so
   focus stays put. `breakpoints.js` holds the one narrow
   breakpoint both use: `(max-width: 519.98px)`, so 520 px and up is wide and
-  519 px is narrow; the narrow `@media` blocks in `styles.css` and
-  `talent-tree.css` repeat it.
+  519 px is narrow; the narrow `@media` blocks in `styles.css`,
+  `talent-tree.css` and `rotation-builder.css` repeat it.
 - `js/live-run.js` — The live page's run (#153): `createLiveRun(store,
 frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   `reset`, and `clear({ seed, config })` (an empty fight at 0:00, drawn while
@@ -465,6 +468,18 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   not simulated yet" after them, #204), `talentLabel(talents, level)` for the
   talents part alone (the talent tree's summary row), and `poisonName`. Engine
   lint applies; `js/main.js` hands both to the results panel.
+- `js/rotation-builder.js` — The rotation builder's model (U7, #217; Fran's
+  U7 spec): `createRotationBuilder(store, formActions)` fills the
+  `rotationBuilder` slice with everything `js/views/rotation-builder.js`
+  draws and returns its actions (open/close, rename, reorder by drag, keyboard
+  or ↑/↓, add, duplicate, delete, conditions, quick fixes, jump to an error,
+  undo, revert). It edits one session draft per origin through the config
+  form's `setDraft` (no persistence, #186); the config form validates it and
+  keeps `config.rotation` on the last valid version while it has errors.
+  `js/rotation-edit.js` holds the pure draft edits, `js/rotation-skips.js`
+  what a talent build skips, and `js/rotation-builder-copy.js` the wording of
+  places, errors and warnings. Nothing here changes the engine, the validator
+  or the warnings.
 - `js/talent-tree.js` — The talent tree's model (U6, #204): `createTalentTree(store)`
   fills the `talents` slice from `config.talents` and `config.talentLevel`
   and returns the actions the tree view calls (`setOpen`, `toggle`, `select`,
@@ -1043,7 +1058,8 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `.github/workflows/ci.yml` — The lint, test, and provenance job described
   above.
 - `.github/workflows/pages.yml` — Deploys `index.html`, `styles.css`,
-  `talent-tree.css`, `js/`, `data/`, and `img/` from `main` to GitHub Pages.
+  `talent-tree.css`, `rotation-builder.css`, `js/`, `data/`, and `img/` from
+  `main` to GitHub Pages.
 - `.gitignore` — Ignores `node_modules/` and macOS's `.DS_Store`.
 - `.prettierignore` — Ignores `img/` and `test/golden/`.
 

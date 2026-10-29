@@ -124,6 +124,7 @@ export function createConfigFormView(doc, store, actions) {
   const rotation = $("cfg-rotation");
   const summaryDetails = $("cfg-summary");
   const summaryName = $("cfg-summary-name");
+  const summaryStale = $("cfg-summary-stale");
   const summaryRules = $("cfg-summary-rules");
   const importFile = $("cfg-import-file");
   const importText = $("cfg-import-text");
@@ -358,7 +359,24 @@ export function createConfigFormView(doc, store, actions) {
     return `${hand}${String(own).trim()}`;
   }
 
-  function drawSummary({ name, rules }) {
+  // D19 (U7): while the rotation draft has errors the summary is of its last
+  // valid version, the one a run would use, and the note above it says so.
+  function drawStale(stale) {
+    if (summaryStale === null) {
+      return;
+    }
+    summaryStale.hidden = stale === null || stale === undefined;
+    if (summaryStale.hidden) {
+      summaryStale.replaceChildren();
+      return;
+    }
+    const lead = doc.createElement("strong");
+    lead.textContent = "Last valid version. ";
+    summaryStale.replaceChildren(lead, stale);
+  }
+
+  function drawSummary({ name, rules, stale }) {
+    drawStale(stale);
     summaryName.textContent = name;
     summaryRules.replaceChildren(
       ...rules.map((rule) => {
