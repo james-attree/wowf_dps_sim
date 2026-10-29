@@ -1,19 +1,22 @@
-# Rotation as data (R1, issue #138; R2, issue #139)
+# Rotation as data (R1, issue #138; R2, issue #139; R3, issue #140)
 
-A rotation is a priority list of rules, written as JSON. The rotation the Rogue
-casts today is code (`Rogue.rotation` in `js/rogue.js`, with its numbers in
+A rotation is a priority list of rules, written as JSON. The Rogue casts one at
+every decision point: `SimConfig.rotation`, by default today's placeholder
+Combat rotation (example 1 below, `js/rotation-default.js`, with its numbers in
 `data/constants.js`). The rotation builder, presets and import/export need the
 same rotation as data, and this page fixes what that data looks like.
 
 R1 ([#138](https://github.com/james-attree/wowf_dps_sim/issues/138)) fixed the
 **shape**. R2 ([#139](https://github.com/james-attree/wowf_dps_sim/issues/139))
 fixes the **condition vocabulary**: the condition types a rule can use, their
-params, and the state they read. The validator (R4) and the interpreter that
-casts from a list (R3,
-[#140](https://github.com/james-attree/wowf_dps_sim/issues/140)) come later.
+params, and the state they read. R3
+([#140](https://github.com/james-attree/wowf_dps_sim/issues/140)) is the
+**interpreter** that casts from a list, and the wiring of a rotation into a
+fight ([The interpreter](#the-interpreter)). The validator (R4) comes later.
 The shape check is in `js/rotation-schema.js`, the vocabulary in
-`js/rotation-conditions.js` and the state view in `js/rotation-state.js`.
-Nothing in the engine or the live page reads them yet, so no fight changes.
+`js/rotation-conditions.js`, the state view in `js/rotation-state.js` and the
+interpreter in `js/rotation-interpreter.js`. The default rotation casts what
+the code rotation cast before R3, fight for fight, so no fight changes.
 
 ## The model
 
@@ -59,28 +62,42 @@ interpreter walks the list from the top. A rule whose conditions do not all
 hold is passed over. For a rule whose conditions hold, what happens depends on
 whether its ability is on the global cooldown:
 
-- **An off-GCD ability** (Blade Flurry, Adrenaline Rush, Cold Blood): if it can
-  be cast right now it is cast, and the walk goes on to the next rule. If it
-  **cannot** be cast right now (it is on cooldown, the build holds it back, or
-  there is not the energy), the rule is **skipped and the walk goes on**,
-  exactly as if its conditions had failed. This holds with an empty
-  `conditions` list: Blade Flurry on cooldown, with no conditions at all, does
-  not stop the walk. The code does the same now (`Rogue.rotation` casts the
-  off-GCD abilities that are ready and goes on).
-- **An on-GCD ability** (Slice and Dice, Eviscerate, Sinister Strike, ...):
-  if it can be cast it is the pick, and the walk stops. If its conditions hold
-  but it **cannot be afforded** yet, the rule still **ends the walk**: nothing
-  lower is cast, so the rogue pools energy for a finisher and does not fall
-  through to a builder. This is the only kind of rule that ends the walk
-  without a cast. A rule that should be passed over while its on-GCD ability is
-  on cooldown says so with a condition (`cooldownReady`, as the dagger example
-  does for Ghostly Strike).
+- **An off-GCD ability** (Cold Blood and Premeditation: `abilities.offGcd`): if
+  it can be cast right now it is cast, and the walk goes on to the next rule.
+  If it **cannot** be cast right now (it is on cooldown, the build holds it
+  back, or there is not the energy), the rule is **skipped and the walk goes
+  on**, exactly as if its conditions had failed. This holds with an empty
+  `conditions` list: Cold Blood on cooldown, with no conditions at all, does
+  not stop the walk.
+- **An on-GCD ability** (Slice and Dice, Eviscerate, Sinister Strike, and also
+  Blade Flurry and Adrenaline Rush, which start the GCD in the engine): if it
+  can be cast it is the pick, and the walk stops. If its conditions hold but it
+  **cannot be afforded** yet, the rule still **ends the walk**: nothing lower is
+  cast, so the rogue pools energy for a finisher and does not fall through to a
+  builder. This is the only kind of rule that ends the walk without a cast. A
+  rule that should be passed over while its on-GCD ability is on cooldown says
+  so with a condition (`cooldownReady`, as the dagger example does for Ghostly
+  Strike). The same goes for a build that lacks the ability
+  (`abilityUnlocked`) and, when it must not hold the walk for want of energy,
+  for the energy (a `resource` condition).
+- **While the GCD is running** no on-GCD ability can be cast, whatever its
+  cost. An on-GCD rule that holds is then **passed over** and does not end the
+  walk, so an off-GCD rule below it (Cold Blood) is still reached. The walk
+  ends at an on-GCD rule only when the GCD is clear and the rule cannot be
+  cast. This clause is what R3 added to the wording above: without it a
+  finisher that waits on the GCD would hide Cold Blood, which the code rotation
+  cast in that case.
 
 A rule is never reordered by a field of its own: there is no `priority`
 number, so the list order is the only order. This restates the "cast the first
 rule whose conditions pass" line of the
 [Phase 3.5 plan](phase-3.5-engine-rewrite.md) and fixes the off-GCD case that
 line left open. R3 builds the interpreter to this wording.
+
+The earlier version of this page listed Blade Flurry and Adrenaline Rush as
+off-GCD. They are not: both start the GCD in the engine (`gcd.flags`; only
+Premeditation and Cold Blood are in `abilities.offGcd`). The rotation below is
+written for that.
 
 **How `schemaVersion` is checked.** Exactly. The value must be the number the
 build reads (`ROTATION_SCHEMA_VERSION`, `1`). Any other value, higher or lower,
@@ -251,13 +268,21 @@ Combat example below, not `abilityGranted`. Writing `abilityGranted` on them
 would be the cleaner reading ("no build means untalented") but it would stop
 the default fight from casting them, which changes every golden. That is a
 change of behaviour, not of vocabulary, so it is left out. R3 proves the
-default config is unchanged with a fixed-seed fight, and decides whether the
-interpreter's own "can it be cast" check also holds back an ability a build
-locks, which would make `abilityUnlocked` redundant on those two rules.
+default config is unchanged with a fixed-seed fight.
+
+**`abilityUnlocked` is not redundant on those two rules** (R3's decision). The
+interpreter's host does hold back an ability a build locks (`canCast` is false
+for it), but Blade Flurry and Adrenaline Rush are on the GCD, and an on-GCD
+rule that holds and cannot be cast ends the walk. Without `abilityUnlocked`, a
+build without Adrenaline Rush would hold the walk at that rule for as long as
+its other conditions held, and nothing below it would be cast. With the condition the locked rule is passed over. A rule for an
+ability a build can lack therefore carries `abilityUnlocked`, and
+`test/rotation-interpreter.test.js` and `test/rotation-equivalence.test.js`
+hold both halves.
 
 ### The state a condition reads
 
-`evaluate(condition, state)` reads a plain, frozen state view and nothing else:
+`evaluate(condition, state)` reads a state view and nothing else:
 no `Rogue`, no `Simulation`. `rotationState(rogue, simulation, { duration })` in
 `js/rotation-state.js` builds it from a fight without changing the fight:
 
@@ -276,6 +301,73 @@ no `Rogue`, no `Simulation`. `rotationState(rogue, simulation, { duration })` in
 The view names no step, frame or tick, so a different engine core can build
 the same view and the vocabulary does not change.
 
+## The interpreter
+
+`js/rotation-interpreter.js` has two functions and knows nothing of the engine.
+
+- `compileRotation(rotation)` checks a rotation once (the shape, every
+  condition's type and params, and that every `action` is a rogue ability id) and
+  returns a frozen copy. A bad rotation is a `RangeError` that lists every
+  problem with its path, so it never starts a fight. The ability ids are looked
+  up by id; a display name is rejected as an unknown id.
+- `decide(compiled, host)` is one decision point, the walk above. It returns
+  `{ casts, outcome }`: the ability ids it cast, in order, and `"cast"` (an
+  on-GCD ability was cast), `"pooling"` (an on-GCD rule held, the GCD was clear
+  and it could not be cast) or `"none"` (the walk ran off the end). It reads the
+  state again after each cast. It takes only a rotation from `compileRotation`
+  (a `TypeError` otherwise), so a rotation is never walked unchecked.
+
+The `host` is five functions: `state()` (the view above), `canCast(id)`,
+`onGcd(id)`, `gcdClear()` and `cast(id)`. There is no step, frame or tick in
+them, so the Phase 3.5 engine writes a host of its own and calls `decide`
+unchanged. The Rogue's host is `rotationHost` in `js/rotation-host.js`:
+`canCast` is "the build does not lock it and `Ability.canCast` is true" (not on
+cooldown, a spender has something to spend, the cost is there, the GCD is clear
+for an on-GCD ability), and `Ability.canCast` makes the same checks `cast` does,
+without casting (`test/can-cast.test.js` holds the two together).
+
+**In a fight.** `SimConfig` has a `rotation` field (default `defaultRotation()`).
+`normalizeConfig` checks it and a bad one is a `RangeError` before the fight
+starts; the result's `config` records it in full, so a recorded config repeats
+the fight. `Rogue.rotation` asks the interpreter what to cast, and then does
+the haste and the white swings as it did. `fightTimeRemaining` reads as
+`Infinity` in the engine as it is: the Rogue passes no fight length to the state
+view (`duration` is `null`).
+
+**What it costs.** A five minute fight has 19,200 decision points, and the old
+code rotation did about 1 µs of work at each, so anything the interpreter adds
+to a decision point shows in the bench. Where it went and what was done
+(measured on the dev box, Node 24):
+
+- `evaluate` checks its condition on every call: about 3.5 µs for the 11
+  conditions in the default rotation, against 0.34 µs without the check. The
+  interpreter checks once in `compileRotation` and builds a closure for each
+  condition then (`compileCondition`), so a decision point does no checking and
+  no dispatch on the condition's type or operator.
+- The state view was a full copy (about 1.4 µs, most of it freezing, and the
+  resources view works out the regeneration rate through the modifiers) built at
+  every decision point. The host now gives a view that reads the pools when
+  asked and works out the auras, debuffs and cooldowns only when a condition
+  reads them (`rotationStateReader`). What a fight does not change (the build,
+  the grants, the talent abilities) is made once. It says what `rotationState`
+  says (`test/rotation-host.test.js` holds the two equal at every step of a
+  fight) and is not frozen: a view is valid until the fight next changes, and
+  the interpreter asks for a new one after each cast.
+- A rule's conditions are read before `canCast` is asked of it, so `canCast`
+  (which works out what a cast would cost) is asked only of a rule that holds.
+  While the GCD is running an on-GCD rule is passed over without a look at its
+  conditions. The conditions and `canCast` are read-only, so the order changes
+  nothing a host can see but the calls it gets.
+- `decide` asks a host `onGcd` once for each rule and keeps the answers for that
+  host, and returns shared, frozen results for a decision point that casts
+  nothing (most of them).
+
+The fight-level cost is the `npm run bench` result in the pull request: a 5
+minute fight, median, interleaved against `main`. What is left is the walk
+itself: the interpreter reads about 6 rules at a decision point where the code
+rotation tried about 3 casts, and every condition is a call through the state
+view.
+
 ## Examples
 
 The three below are checked by `test/rotation-schema.test.js` (the shape) and
@@ -286,10 +378,12 @@ the constants the code rotation reads (`rotation.priority`,
 
 ### 1. Today's placeholder Combat rotation
 
-What `Rogue.rotation` does now (issue #68), including the Cold Blood rule of
-`js/rotation-rules.js`:
+What the Rogue casts by default (issue #68, and the Cold Blood rule). This is
+`defaultRotation()` in `js/rotation-default.js`, and
+`test/rotation-default.test.js` holds this example equal to it:
 
-- Blade Flurry and Adrenaline Rush on cooldown, in that order.
+- Blade Flurry and Adrenaline Rush when each is ready, in that order (Blade
+  Flurry only with the energy it costs).
 - At 5 combo points, Slice and Dice when it is missing or has at most 10 s
   left.
 - Otherwise at 5 combo points, Cold Blood first when the build grants it, then
@@ -303,12 +397,17 @@ What `Rogue.rotation` does now (issue #68), including the Cold Blood rule of
   "rules": [
     {
       "action": "blade-flurry",
-      "conditions": [{ "type": "abilityUnlocked", "ability": "blade-flurry" }]
+      "conditions": [
+        { "type": "abilityUnlocked", "ability": "blade-flurry" },
+        { "type": "cooldownReady", "ability": "blade-flurry" },
+        { "type": "resource", "resource": "energy", "op": ">=", "value": 25 }
+      ]
     },
     {
       "action": "adrenaline-rush",
       "conditions": [
-        { "type": "abilityUnlocked", "ability": "adrenaline-rush" }
+        { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+        { "type": "cooldownReady", "ability": "adrenaline-rush" }
       ]
     },
     {
@@ -345,14 +444,16 @@ What `Rogue.rotation` does now (issue #68), including the Cold Blood rule of
 }
 ```
 
-Read with the walk rule above: Blade Flurry, Adrenaline Rush and Cold Blood
-are off the global cooldown, so the walk goes past them, whether or not they
-could be cast (on cooldown, for one). Slice and Dice, Eviscerate and Sinister
-Strike are on it, so the first of them whose conditions hold is the pick.
-Blade Flurry and Adrenaline Rush are skipped when a selected build lacks their
-talents (`abilityUnlocked`, which is true when no build is selected), and Cold
-Blood is cast only when granted (`abilityGranted`). See "Granted and unlocked"
-above.
+Read with the walk rule above: Cold Blood is off the global cooldown, so the
+walk goes past it, whether or not it could be cast (on cooldown, for one). The
+other five abilities are on it, so the first of them whose conditions hold is
+the pick. Blade Flurry and Adrenaline Rush start the GCD, so each says when it
+can be cast: a rule for one that is not ready, or that a selected build lacks
+(`abilityUnlocked`, which is true when no build is selected), or that Blade
+Flurry cannot pay for, is passed over and does not hold the walk. The energy
+condition is the Blade Flurry cost (the `bladeFlurry` row, 25), written as a number
+in the JSON; Adrenaline Rush costs none. Cold Blood is cast only when granted
+(`abilityGranted`). See "Granted and unlocked" above.
 
 ### 2. The smallest rotation
 

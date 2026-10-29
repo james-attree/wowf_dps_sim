@@ -192,7 +192,7 @@ export const ABILITY_DEFINITIONS = deepFreeze([
   {
     // Granted by the Cold Blood talent (D8a PR 2, #119): Rogue.abilities has it
     // always, and only a rotation that was given it as a granted ability (the
-    // rotation rule, js/rotation-rules.js) casts it. No cost; instant; off the
+    // Cold Blood rule of js/rotation-default.js) casts it. No cost; instant; off the
     // GCD (abilities.offGcd); the cooldown is the row's. There is no icon in
     // img/ yet.
     key: "coldBlood",

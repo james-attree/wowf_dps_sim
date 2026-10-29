@@ -10,6 +10,7 @@ import {
   defaultDaggerConfig,
   normalizeConfig,
 } from "../js/sim-config.js";
+import { defaultRotation } from "../js/rotation-default.js";
 import { talentCatalogue } from "../js/talents.js";
 import { runScriptedFight } from "../scripts/scripted-fight.mjs";
 import { referenceBuild } from "./talentsforever.js";
@@ -93,6 +94,7 @@ describe("defaultConfig", () => {
       target: { behind: k("target.behind") },
       talents: {},
       poisons: { mainHand: null, offHand: null },
+      rotation: defaultRotation(),
     });
   });
 
@@ -234,7 +236,7 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { charcter: {} },
       RangeError,
-      /config has an unknown field "charcter"\. Allowed fields: character, weapons, target, talents, poisons\./,
+      /config has an unknown field "charcter"\. Allowed fields: character, weapons, target, talents, poisons, rotation\./,
     );
     rejects(
       { character: { ap: 5 } },

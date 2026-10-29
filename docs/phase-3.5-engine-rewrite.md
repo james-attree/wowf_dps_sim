@@ -190,9 +190,9 @@ conditions the rotation can ask about, so each condition type declares the
 times it can next change. A new condition type that cannot say when it changes
 is rejected by a test, so a rotation can never silently go stale. The rule is
 that the rotation may not depend on a value that changes with no event behind
-it. The placeholder rotation (`Rogue.rotation`) and the Cold Blood rule
-(`js/rotation-rules.js`, `beforeFinisher`) are ported to this by splitting the
-cast decision from the swing handling.
+it. The placeholder rotation and the Cold Blood rule are rotation data now (R3,
+`js/rotation-default.js`, walked by `js/rotation-interpreter.js`), and the cast
+decision is already split from the swing handling (`Rogue.castRotation`).
 
 **Event stream and runner (E7 to E9).** The engine emits the same events it
 does at the end of Phase 3, from the new handlers. `SimRunner` calls

@@ -1437,7 +1437,7 @@ open for James's review, not defects found by a test:
   dodge, and in front a parry or block). That is a design choice, not what
   wowsims does and not verified against Classic, and the front-block case is
   tested but out of scope behind-only. The cast-before-Eviscerate rule is the
-  Scout's (`js/rotation-rules.js`). See "Assumption: an attack that does not
+  Scout's (the Cold Blood rule of `js/rotation-default.js`). See "Assumption: an attack that does not
   land keeps the charge".
 - **Instant Poison's crit and suppression** are assumptions: the crit uses the
   rogue's melee crit chance (the engine has no spell crit) at 1.5x, and the
@@ -2377,15 +2377,16 @@ that pin it.
 
 **The Cold Blood rotation rule.** A rule from the Scout, for James to adjust:
 cast Cold Blood right before the next 5-combo-point Eviscerate, when it is off
-cooldown. It lives apart from the rotation, in `js/rotation-rules.js`
-(`beforeFinisher`), which `Rogue.rotation` calls with the finisher it has
-chosen, just before the cast. It reads one constants row, `rotation.coldBlood`
+cooldown. Since R3 (#140) it is a rule of the rotation data
+(`js/rotation-default.js`, [Rotation as data](rotation.md)), which the
+interpreter walks; before that it was `beforeFinisher` in
+`js/rotation-rules.js`, called with the finisher the code had chosen. It reads one constants row, `rotation.coldBlood`
 (`{ ability: "coldBlood", beforeFinisher: "eviscerate" }`, ability keys), and
 applies only when the build granted the ability, so a fight without the talent
 is the fight it was. The rest of the rotation is unchanged. To change it: edit
-the row to move it to another finisher; edit `beforeFinisher` for another
-condition (for example, hold it for a Rupture or a proc); or remove the call in
-`Rogue.rotation` to stop casting it. Cold Blood does not make the Eviscerate go
+the row to move it to another finisher; change the rule's conditions for another
+condition (for example, hold it for a Rupture or a proc); or remove the rule to
+stop casting it. Cold Blood does not make the Eviscerate go
 next: when the rogue cannot afford it yet, the charge waits for the energy
 (median 2.5 s, max 6.5 s over 400 default casts, Kira's measurement) and
 sometimes lands on a Sinister Strike instead (21 of 400 charges). The cooldown
@@ -2404,7 +2405,7 @@ option gates only rules that wait for a grant, today Cold Blood's.
 field, and the golden fixtures are byte-identical. New: `data/talent-effects.js`,
 `js/talent-build.js` and `expandTalents`; D8a PR 1 adds the `duration` modifier
 kind and three entries; PR 2 adds three entries, the Cold Blood ability and
-aura, `consumeUseCharges`, `js/rotation-rules.js`, the Rogue option `abilities`
+aura, `consumeUseCharges`, `js/rotation-rules.js` (replaced by the rotation data in R3), the Rogue option `abilities`
 and the crit suppression order above, and no `runFight` or `SimConfig` change. `PROC_TABLES` is now derived from the
 data (its keys are in the catalogue's order, so `procsFromTalents` lists
 Puncturing Wounds before Hack and Slash).

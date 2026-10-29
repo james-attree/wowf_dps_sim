@@ -10,6 +10,8 @@ import {
   conditionProblems,
   evaluate,
   evaluateAll,
+  compileCondition,
+  evaluateTrusted,
 } from "../js/rotation-conditions.js";
 import { rotationState } from "../js/rotation-state.js";
 import { referenceBuild } from "./talentsforever.js";
@@ -596,6 +598,27 @@ describe("rotationState builds the view from a fight", () => {
     }, TypeError);
   });
 
+  it("is frozen unless the host says freeze: false, and then it is the same view", () => {
+    const fight = createFight(2);
+    fight.simulation.run(20);
+    const { rogue, simulation } = fight;
+    const frozen = rotationState(rogue, simulation);
+    const loose = rotationState(rogue, simulation, { freeze: false });
+    assert.ok(Object.isFrozen(frozen) && Object.isFrozen(frozen.resources));
+    assert.ok(!Object.isFrozen(loose) && !Object.isFrozen(loose.resources));
+    assert.ok(!Object.isFrozen(loose.talentAbilities));
+    assert.deepEqual(loose, frozen);
+    // Only the exact value false turns the freeze off.
+    assert.ok(Object.isFrozen(rotationState(rogue, simulation, { freeze: 0 })));
+    // The conditions only read it: evaluating every documented one changes
+    // nothing in the unfrozen view.
+    const before = structuredClone(loose);
+    for (const condition of vocabularyExamples.flat()) {
+      evaluateTrusted(condition, loose);
+    }
+    assert.deepEqual(loose, before);
+  });
+
   it("starts as the fight starts", () => {
     const fight = createFight(1);
     const view = rotationState(fight.rogue, fight.simulation);
@@ -859,4 +882,63 @@ describe("the vocabulary answers what the code rotation asks, step by step", () 
       );
     });
   }
+});
+
+describe("evaluateTrusted (R3, #140)", () => {
+  // The interpreter checks a rotation's conditions once, when it loads it, and
+  // reads them with evaluateTrusted at every decision point.
+  const conditions = [
+    ...vocabularyExamples.flat(),
+    ...rotationExamples.flatMap((example) =>
+      example.rules.flatMap((rule) => rule.conditions),
+    ),
+  ];
+
+  it("gives evaluate's answer for every documented condition, on states of both kinds", () => {
+    assert.ok(conditions.length > 15);
+    let trues = 0;
+    let falses = 0;
+    for (const changes of [
+      {},
+      { time: 0, duration: null },
+      { auras: {}, debuffs: {}, cooldowns: {} },
+      { granted: ["cold-blood"], build: { selected: true } },
+    ]) {
+      for (const condition of conditions) {
+        const answer = evaluate(condition, state(changes));
+        assert.equal(evaluateTrusted(condition, state(changes)), answer);
+        trues += answer ? 1 : 0;
+        falses += answer ? 0 : 1;
+      }
+    }
+    assert.ok(trues > 10 && falses > 10);
+  });
+
+  it("is what compileCondition makes of a condition, for every documented one", () => {
+    let checked = 0;
+    for (const changes of [
+      {},
+      { time: 0, duration: null },
+      { auras: {}, debuffs: {}, cooldowns: {} },
+      { granted: ["cold-blood"], build: { selected: true } },
+    ]) {
+      for (const condition of conditions) {
+        const compiled = compileCondition(condition);
+        assert.equal(
+          compiled(state(changes)),
+          evaluate(condition, state(changes)),
+        );
+        checked += 1;
+      }
+    }
+    assert.ok(checked > 60);
+  });
+
+  it("is the evaluate that skips the check of the condition", () => {
+    const bad = { type: "comboPoints", op: "~", value: 1 };
+    assert.throws(() => evaluate(bad, state()), RangeError);
+    // Not the RangeError that names the problem: the unknown operator is
+    // just a missing comparison.
+    assert.throws(() => evaluateTrusted(bad, state()), TypeError);
+  });
 });
