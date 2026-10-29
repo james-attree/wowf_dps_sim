@@ -101,6 +101,20 @@ describe("energy pool: the line with no modifier", () => {
     assert.equal(pool.rate, RATE);
   });
 
+  it("starts its line at the scheduler's now when built later", () => {
+    const scheduler = new Scheduler({ endTime: 10, handle: () => {} });
+    scheduler.runUntil(4);
+    const pool = new EnergyPool({
+      definition: ENERGY,
+      modifiers: new ModifierPipeline(),
+      scheduler,
+    });
+    assert.equal(pool.line.t0, 4);
+    pool.spend(CAP);
+    scheduler.runUntil(6);
+    assert.equal(pool.value, RATE * 2);
+  });
+
   it("reads exactly min(cap, e0 + rate * t) at any time and any split", () => {
     const rng = createRng(194);
     for (let round = 0; round < 50; round += 1) {
@@ -133,6 +147,15 @@ describe("energy pool: the line with no modifier", () => {
     assert.equal(pool.line.t0, 0);
     assert.equal(pool.modifiersChanged(), false);
     assert.equal(pool.value, Math.min(CAP, 10 + RATE * 4));
+  });
+
+  it("says when a modifier event moved the rate or the cap", () => {
+    const { pool, scheduler, up } = setup();
+    scheduler.runUntil(1);
+    up.add(AR_ENTRY);
+    assert.equal(pool.modifiersChanged(), true);
+    assert.equal(pool.line.t0, 1);
+    assert.equal(pool.modifiersChanged(), false);
   });
 });
 
@@ -316,7 +339,7 @@ describe("energy pool: the threshold wake-up", () => {
     assert.equal(scheduler.pendingCount, 0);
   });
 
-  it("lands where the handler always finds the amount, within a few ulps, 200 seeds", () => {
+  it("lands where the handler always finds the amount, within an ulp or two, 200 seeds", () => {
     for (let seed = 1; seed <= 200; seed += 1) {
       const rng = createRng(seed);
       const bonus = { kind: "energyRegen", op: "add", value: rng() * 7 };
@@ -329,7 +352,8 @@ describe("energy pool: the threshold wake-up", () => {
       const exact = Math.max(t0, t0 + (amount - value0) / rate);
       const ulp = Math.max(exact * Number.EPSILON, Number.MIN_VALUE);
       assert.ok(pool.wakeTime >= exact - 4 * ulp, `seed ${seed}`);
-      assert.ok(pool.wakeTime <= exact + 4 * ulp, `seed ${seed}`);
+      // A nudge is one step of about an ulp, never a jump past the line.
+      assert.ok(pool.wakeTime <= exact + 2 * ulp, `seed ${seed}`);
       scheduler.runToEnd();
       assert.equal(woke.length, 1);
       assert.ok(woke[0].has, `seed ${seed}: ${woke[0].value} < ${amount}`);
@@ -373,6 +397,18 @@ describe("energy pool: the threshold wake-up", () => {
     assert.equal(pool.wakeTime, 1);
   });
 
+  it("reaches an amount equal to the cap", () => {
+    const { pool, scheduler, woke } = setup();
+    pool.spend(CAP);
+    pool.wakeAt(CAP);
+    assert.equal(pool.wakeTime, CAP / RATE);
+    scheduler.runToEnd();
+    assert.deepEqual(
+      woke.map(({ time, value }) => [time, value]),
+      [[CAP / RATE, CAP]],
+    );
+  });
+
   it("waits with no event while the amount cannot be reached", () => {
     const stall = timed({ kind: "energyRegen", op: "add", value: -RATE });
     const boost = timed({ kind: "resourceMax", op: "add", value: 50 });
@@ -389,6 +425,9 @@ describe("energy pool: the threshold wake-up", () => {
     assert.equal(pool.rate, 0);
     assert.equal(pool.wakeTime, null);
     assert.equal(scheduler.pendingCount, 0);
+    // At rate 0 an amount the pool already holds still fires now.
+    assert.equal(pool.wakeAt(pool.value).time, 2);
+    pool.wakeAt(CAP + 20);
     change("down", 4, stall);
     scheduler.runUntil(4);
     assert.equal(pool.wakeTime, 4 + (CAP + 20 - 20) / RATE);
