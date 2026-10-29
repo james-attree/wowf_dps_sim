@@ -180,6 +180,12 @@ export function createControlsView(doc, store, actions = {}) {
     buttons.reset.disabled = model.reset.disabled;
 
     write(statusText, model.status);
+    // The narrow row draws this shorter text in place of the status (styles.css).
+    if (model.statusShort === null) {
+      statusText.removeAttribute("data-short");
+    } else {
+      statusText.setAttribute("data-short", model.statusShort);
+    }
     statusLine.classList.toggle("is-paused", run.state !== "running");
     write(help, model.help);
     progressRow.hidden = model.progress === null;

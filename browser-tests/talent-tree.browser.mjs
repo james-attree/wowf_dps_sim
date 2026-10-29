@@ -1,4 +1,5 @@
-// Browser tests for the talent tree (#204, Fran's QA of #208). They drive the
+// Browser tests for the talent tree (#204, Fran's QA of #208, and the U6
+// polish: the narrow run bar's over-cap status). They drive the
 // real page in Chrome through playwright-core, so they run apart from
 // `npm test`: `npm run test:browser`. Chrome comes from CHROME_PATH, else the
 // installed Google Chrome channel (ubuntu-latest ships it).
@@ -125,6 +126,49 @@ for (const width of WIDTHS) {
         );
       }, malice);
       assert.equal(same, true);
+    });
+
+    test("over the cap, the run bar shows the whole status and stays compact", async () => {
+      await clickCentre(page, "assassination.malice");
+      await clickCentre(page, "assassination.malice");
+      await page.fill("#talents-level", "10");
+      await page.press("#talents-level", "Enter");
+      const bar = await page.evaluate(() => {
+        const text = document.querySelector("#run-status-text");
+        const shown =
+          getComputedStyle(text, "::before").content.match(
+            /^"(.*)" \/ ""$/,
+          )?.[1] ?? text.textContent;
+        return {
+          shown,
+          clipped: text.scrollWidth > text.clientWidth,
+          height: document
+            .querySelector(".run-row-actions")
+            .getBoundingClientRect().height,
+          sticky: getComputedStyle(document.querySelector(".run-row-actions"))
+            .position,
+          reason: document.querySelector("#run-reason").textContent,
+          describedBy: document
+            .querySelector("#run-button")
+            .getAttribute("aria-describedby"),
+        };
+      });
+      // Narrow: one compact sticky row, 64 px or less (#153), with the short
+      // text in full; wide: the full text in full.
+      assert.equal(
+        bar.shown,
+        width < 520
+          ? "Can't run · Talents over cap"
+          : "Can't run · Talents over the level cap",
+      );
+      assert.equal(bar.clipped, false, "no ellipsis");
+      if (width < 520) {
+        assert.equal(bar.sticky, "sticky");
+        assert.ok(bar.height <= 64, `row is ${bar.height} px`);
+      }
+      // Screen readers get the full text: Run is described by the reason.
+      assert.equal(bar.reason, "Can't run · Talents over the level cap");
+      assert.equal(bar.describedBy, "run-reason");
     });
 
     test("over the cap, Fix 1 setting opens the tree and focuses Level", async () => {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { pageDefaultConfig } from "../js/config-form.js";
@@ -830,6 +831,51 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     overCap(page);
     page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
     assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    assert.equal(page.model().statusShort, null, "that one fits the row");
+  });
+
+  it("the narrow row gets a shorter status; the reason keeps the full text", () => {
+    const page = setup();
+    assert.equal(page.model().statusShort, null);
+    overCap(page);
+    assert.equal(page.model().statusShort, "Can't run · Talents over cap");
+    page.actions.setMode("batch");
+    assert.equal(page.model().statusShort, "Can't run · Talents over cap");
+
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    const status = el("run-status-text");
+    assert.equal(status.textContent, "Can't run · Talents over the level cap");
+    assert.equal(
+      status.getAttribute("data-short"),
+      "Can't run · Talents over cap",
+    );
+    assert.equal(
+      el("run-reason").textContent,
+      "Can't run · Talents over the level cap",
+    );
+    page.store.set({
+      talents: { ...page.store.get().talents, error: null },
+    });
+    assert.equal(status.getAttribute("data-short"), null);
+  });
+
+  it("styles.css draws the short status only in the narrow row", async () => {
+    const css = await readFile(
+      new URL("../styles.css", import.meta.url),
+      "utf8",
+    );
+    const narrow = css.indexOf("@media (max-width: 519.98px) {");
+    const short = css.indexOf("#run-status-text[data-short]::before {");
+    assert.ok(narrow >= 0 && short > narrow, "inside the narrow query");
+    assert.ok(
+      short < css.indexOf("@media", narrow + 1),
+      "the first narrow block",
+    );
+    assert.match(
+      css.slice(short, css.indexOf("}", short)),
+      /content: attr\(data-short\) \/ "";/,
+    );
   });
 
   it("Fix 1 setting opens the talent tree and focuses its Level input", () => {
