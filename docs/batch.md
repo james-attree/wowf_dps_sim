@@ -2,7 +2,8 @@
 
 `js/batch-runner.js` runs N seeded fights of one config and gives the statistics
 of their DPS. It has no DOM, reads no clock and uses no randomness except through
-the fights' seeds, so Node, the page and a Web Worker (#147) can all run it.
+the fights' seeds, so Node, the page and a Web Worker can all run it. The
+[batch worker](worker.md) (#147) runs it off the main thread.
 
 Every iteration is a `SimRunner` fight ([Run controller](mechanics.md#run-controller-p3-1-issue-136)),
 and the batch reads the plain result that `runFight` returns. It reaches into no

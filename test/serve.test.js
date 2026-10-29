@@ -187,6 +187,36 @@ describe("static server", () => {
     assert.equal(bytes[1], 0xd8);
   });
 
+  it("serves the batch worker and its module graph as JavaScript (#147)", async () => {
+    const seen = new Set();
+    const pending = ["/js/batch-worker.js", "/js/batch-client.js"];
+    while (pending.length > 0) {
+      const pathname = pending.pop();
+      if (seen.has(pathname)) {
+        continue;
+      }
+      seen.add(pathname);
+      const response = await fetch(`${base}${pathname}`);
+      assert.equal(response.status, 200, pathname);
+      if (pathname.endsWith(".json")) {
+        await response.text();
+        continue;
+      }
+      // A module worker is refused unless it is served as JavaScript.
+      assert.match(
+        response.headers.get("content-type"),
+        /^text\/javascript\b/,
+        pathname,
+      );
+      const source = await response.text();
+      for (const match of source.matchAll(/from\s+["'](\.[^"']+)["']/g)) {
+        pending.push(new URL(match[1], `${base}${pathname}`).pathname);
+      }
+    }
+    assert.ok(seen.has("/js/batch-host.js"));
+    assert.ok(seen.has("/js/batch-runner.js"));
+  });
+
   it("answers HEAD without a body and rejects other methods", async () => {
     const head = await rawRequest(port, "/", "HEAD");
     assert.equal(head.status, 200);

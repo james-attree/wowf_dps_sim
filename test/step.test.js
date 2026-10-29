@@ -137,18 +137,28 @@ describe("Simulation.step", () => {
 
 describe("engine files", () => {
   it("never mention performance.now, Date, or requestAnimationFrame outside js/main.js", () => {
+    // The batch worker and its client (#147) are hosts, like js/main.js: they
+    // read performance.now for slices and the progress throttle, and hand it
+    // to js/batch-host.js, which reads no clock. No frames there either.
+    const hosts = ["batch-worker.js", "batch-client.js"];
     const files = readdirSync(new URL("../js/", import.meta.url)).filter(
       (name) => name.endsWith(".js") && name !== "main.js",
     );
     assert.ok(files.includes("simulation.js"));
+    assert.ok(files.includes("batch-host.js"));
     for (const name of files) {
       const source = readFileSync(
         new URL(`../js/${name}`, import.meta.url),
         "utf8",
       );
-      assert.doesNotMatch(source, /\bperformance\b/, name);
-      assert.doesNotMatch(source, /\bDate\b/, name);
+      if (!hosts.includes(name)) {
+        assert.doesNotMatch(source, /\bperformance\b/, name);
+        assert.doesNotMatch(source, /\bDate\b/, name);
+      }
       assert.doesNotMatch(source, /requestAnimationFrame/, name);
+    }
+    for (const name of hosts) {
+      assert.ok(files.includes(name), name);
     }
   });
 });

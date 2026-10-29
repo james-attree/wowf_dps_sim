@@ -256,6 +256,35 @@ describe("engine lint", () => {
     }
   });
 
+  it("lets the batch worker hosts read a clock, and nothing else (#147)", async () => {
+    for (const host of ["js/batch-worker.js", "js/batch-client.js"]) {
+      const clock = await lintSource(
+        host,
+        "export const now = () => performance.now() + Date.now();\nqueueMicrotask(() => {});\nexport const url = new URL('./x.js', import.meta.url);\n",
+      );
+      assert.equal(clock.code, 0, `${host}\n${clock.stdout}`);
+      for (const [source, rule] of [
+        ["export const dodge = 0.065;\n", "engine-purity/no-numeric-literal"],
+        ["export const hit = (roll) => roll < 0.065;\n", "no-magic-numbers"],
+        ["document.title = 'x';\n", "no-restricted-globals"],
+        ["export const w = window;\n", "no-restricted-globals"],
+        ["export const r = Math.random();\n", "no-restricted-syntax"],
+        ["console.log(1);\n", "no-console"],
+      ]) {
+        const result = await lintSource(host, source);
+        assert.equal(result.code, 1, `${host}: ${source}`);
+        assert.ok(ruleIds(result.stdout).includes(rule), `${host}: ${source}`);
+      }
+    }
+    // The batch host itself is engine code: no clock.
+    const engineClock = await lintSource(
+      "js/batch-host.js",
+      "export const now = () => performance.now();\n",
+    );
+    assert.equal(engineClock.code, 1);
+    assert.ok(ruleIds(engineClock.stdout).includes("no-restricted-globals"));
+  });
+
   it("keeps current engine files clean and fails when a new literal is added", async () => {
     const clean = await run(eslintBin, [".", "--max-warnings", "0"]);
     assert.equal(clean.code, 0, clean.stdout + clean.stderr);
