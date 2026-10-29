@@ -13,6 +13,9 @@ no icon file of its own making beyond the hand-made ones in `img/`.
 
 The existing `img/*.jpg` stay as they are. Nothing was replaced.
 
+The page's tab icon, `img/favicon.svg` (#155), is a plain SVG dagger drawn for
+this repo in the page's own colours. It is not a game icon.
+
 ## How a name becomes a URL
 
 The talentsforever snapshot names an icon for each talent, tree and spell, such

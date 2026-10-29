@@ -9,7 +9,7 @@ import { createStore } from "../js/store.js";
 import { buildLabel, poisonName } from "../js/build-label.js";
 import { createControlsView } from "../js/views/controls.js";
 import { createResultsPanelView } from "../js/views/results-panel.js";
-import { batchTotals, createResultsView } from "../js/views/results.js";
+import { createResultsView } from "../js/views/results.js";
 import {
   createAnnouncer,
   createVisualiserView,
@@ -322,85 +322,42 @@ describe("page views", () => {
     assert.equal(doc.el("#dps-value").writes, writes, "other slices: no draw");
   });
 
-  it("batch mode: Total damage and DPS show the batch, a partial Stop too (#154)", () => {
+  it("batch mode hides the tiles and the timer: the panel has the numbers (#155)", () => {
     const doc = recordingDocument();
     const { store } = pageStore();
     createResultsView(doc, store);
     store.set({ results: { time: 10, damage: 2000 } });
     assert.equal(doc.el("#dps-value").textContent, "200");
 
-    // Switching to batch mode shows the (empty) batch, not the live fight.
     store.set({ run: pageRun({ mode: "batch" }) });
-    assert.equal(doc.el("#damage-value").textContent, "0");
-    assert.equal(doc.el("#dps-value").textContent, "0");
+    assert.equal(doc.el("#damage-panel").hidden, true);
+    assert.equal(doc.el("#time-value").hidden, true);
 
-    // While it runs: the running mean, over the run's fight length.
+    // Running and done alike, and the live clock draws nothing meanwhile.
+    const writes = doc.el("#dps-value").writes;
     store.set({
-      run: pageRun({ mode: "batch", state: "running", duration: 300 }),
+      run: pageRun({ mode: "batch", state: "running" }),
       batch: {
         ...emptyBatch("main"),
         status: "running",
         progress: { completed: 40, total: 100, mean: 250.4 },
       },
     });
-    assert.equal(doc.el("#damage-value").textContent, "75120");
-    assert.equal(doc.el("#dps-value").textContent, "250");
-
-    // Stopped after 40 fights: the partial result's per-fight figures. Before
-    // #154 both tiles read 0 here.
-    const partial = {
-      completed: 40,
-      iterations: 100,
-      cancelled: true,
-      duration: 300,
-      summary: { mean: 251.6 },
-      breakdown: { fights: 40, totalDamage: 40 * 75_480 },
-    };
-    store.set({
-      run: pageRun({ mode: "batch", state: "idle", duration: 300 }),
-      batch: { ...emptyBatch("main"), status: "cancelled", result: partial },
-    });
-    assert.equal(doc.el("#damage-value").textContent, "75480");
-    assert.equal(doc.el("#dps-value").textContent, "252");
-
-    // The live clock does not overwrite the batch totals.
     store.set({ results: { time: 20, damage: 9000 } });
-    assert.equal(doc.el("#time-value").textContent, "00:20");
-    assert.equal(doc.el("#dps-value").textContent, "252");
-
-    // Back to live mode: the live fight again.
-    store.set({ run: pageRun({ mode: "live" }) });
-    assert.equal(doc.el("#dps-value").textContent, "450");
-  });
-
-  it("batchTotals reads 0 with no fight finished, and after a Stop at 0 fights", () => {
-    const run = pageRun({ mode: "batch" });
-    assert.deepEqual(batchTotals({ run, batch: emptyBatch("main") }), {
-      damage: 0,
-      dps: 0,
+    store.set({
+      run: pageRun({ mode: "batch", state: "done" }),
+      batch: { ...emptyBatch("main"), status: "done" },
     });
-    assert.deepEqual(
-      batchTotals({
-        run,
-        batch: {
-          ...emptyBatch("main"),
-          status: "running",
-          progress: { completed: 0, total: 10, mean: null },
-        },
-      }),
-      { damage: 0, dps: 0 },
-    );
-    assert.deepEqual(
-      batchTotals({
-        run,
-        batch: {
-          ...emptyBatch("main"),
-          status: "cancelled",
-          result: { completed: 0, summary: { mean: null } },
-        },
-      }),
-      { damage: 0, dps: 0 },
-    );
+    assert.equal(doc.el("#damage-panel").hidden, true);
+    assert.equal(doc.el("#time-value").hidden, true);
+    assert.equal(doc.el("#dps-value").writes, writes, "no batch numbers drawn");
+
+    // Back to live mode: shown, with the live fight.
+    store.set({ run: pageRun({ mode: "live" }) });
+    assert.equal(doc.el("#damage-panel").hidden, false);
+    assert.equal(doc.el("#time-value").hidden, false);
+    assert.equal(doc.el("#time-value").textContent, "00:20");
+    assert.equal(doc.el("#dps-value").textContent, "450");
   });
 
   it("the visualiser redraws on frame changes and on nothing else", () => {

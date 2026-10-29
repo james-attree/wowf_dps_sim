@@ -278,6 +278,7 @@ describe("js/main.js on a stand-in page", () => {
   const elements = new Map();
   const stepsSeen = [];
   let pendingFrame = null;
+  const intervals = new Set();
   let cancelled = 0;
   let live;
   // Off while the test runs runFight, which steps a Simulation too.
@@ -326,6 +327,16 @@ describe("js/main.js on a stand-in page", () => {
     globalThis.cancelAnimationFrame = () => {
       pendingFrame = null;
       cancelled += 1;
+    };
+    // A batch ticks its elapsed time once a second (#155): record the timer.
+    globalThis.window = {
+      setInterval(callback) {
+        intervals.add(callback);
+        return callback;
+      },
+      clearInterval(id) {
+        intervals.delete(id);
+      },
     };
     // The page picks its seed from the platform's random source. Pin it.
     Object.defineProperty(globalThis, "crypto", {
@@ -555,11 +566,12 @@ describe("js/main.js on a stand-in page", () => {
     element("#run-button").click();
     assert.equal(
       element("#run-status-text").textContent,
-      "Running batch · 0 of 4 fights",
+      "0/4 fights · Running batch",
     );
     assert.equal(element("#run-progress-row").hidden, false);
     assert.equal(element("#run-button").disabled, true);
     assert.equal(element("#run-duration").disabled, true);
+    assert.equal(intervals.size, 1, "a running batch ticks its elapsed time");
     const expected = runBatch({
       seed: SEED,
       iterations: 4,
@@ -567,14 +579,15 @@ describe("js/main.js on a stand-in page", () => {
       config: pageDefaultConfig(),
     });
     const deadline = Date.now() + 30_000;
-    while (!/^Done/.test(element("#run-status-text").textContent)) {
+    while (!/Done$/.test(element("#run-status-text").textContent)) {
       assert.ok(Date.now() < deadline, "the batch settles");
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
     assert.equal(
       element("#run-status-text").textContent,
-      `Done · 4 fights · ${expected.summary.mean.toFixed(1)} DPS mean`,
+      `4 fights · ${expected.summary.mean.toFixed(1)} DPS mean · Done`,
     );
+    assert.equal(intervals.size, 0, "and stops ticking when it settles");
     assert.equal(element("#run-progress-row").hidden, true);
     assert.equal(element("#reset-button").disabled, false);
   });

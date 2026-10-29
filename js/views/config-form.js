@@ -1,5 +1,6 @@
 import { k } from "../../data/constants.js";
 import { NARROW_QUERY } from "./breakpoints.js";
+import { fieldErrors } from "./run-model.js";
 
 // The "Fight setup" form (#151, U2). This view owns the form#config-form and
 // everything in it, and no other element. It draws the store's `form` slice
@@ -15,6 +16,9 @@ import { NARROW_QUERY } from "./breakpoints.js";
 //
 // Run, Pause, Stop and Reset of the fight are #153's control bar, never this
 // form; while the form has errors the footer lists them and says Run is off.
+// The footer counts the run bar's field errors too (#155, Fran's Phase 3 QA
+// 1), so it never says "Changes apply to the next run" while Run is blocked;
+// their links go to the bar's own "Fix" link.
 
 // True when the form's config differs from the one the fight or batch on the
 // page started with (run.snapshot, #153): the footer then shows "Edited —
@@ -62,6 +66,13 @@ export function runGateText(count) {
 export function fixHeadingText(count) {
   return `Fix ${count} ${plural(count, "field", "fields")} to run:`;
 }
+
+// The run bar's fields, as the footer names them.
+const BAR_FIELD_NAMES = {
+  duration: "Run bar, Fight length",
+  iterations: "Run bar, Fights",
+  seed: "Run bar, Seed",
+};
 
 const HANDS = ["mainHand", "offHand"];
 const poisonPath = (hand) => `poisons.${hand}`;
@@ -128,6 +139,11 @@ export function createConfigFormView(doc, store, actions) {
   let shownFixKey = "";
   const formError = $("cfg-form-error");
   const runGate = $("cfg-run-gate");
+  // The run bar's fields with an error that blocks Run, in the bar's order.
+  // A page without a run bar (the form's own tests) has none.
+  const barErrorsOf = (state) =>
+    state.run === undefined ? [] : fieldErrors(state.run);
+  let barErrors = barErrorsOf(store.get());
   const toast = $("cfg-toast");
   const toastText = $("cfg-toast-text");
   const undo = $("cfg-undo");
@@ -277,16 +293,18 @@ export function createConfigFormView(doc, store, actions) {
     const backstop = Object.entries(errors).find(
       ([path]) => !controls.has(path),
     );
-    const count = fields.length + (backstop === undefined ? 0 : 1);
+    const count =
+      fields.length + (backstop === undefined ? 0 : 1) + barErrors.length;
+    const listed = fields.length + barErrors.length;
     statusOk.hidden = count > 0;
-    fix.hidden = fields.length === 0;
-    fixHeading.textContent = fields.length > 0 ? fixHeadingText(count) : "";
+    fix.hidden = listed === 0;
+    fixHeading.textContent = listed > 0 ? fixHeadingText(count) : "";
     // Rebuilt only when the list of fields changes: a blur that commits a
     // field must not swap out the link the pointer is pressing.
-    const fixKey = fields.map(([path]) => path).join(" ");
+    const fixKey = [...fields.map(([path]) => path), ...barErrors].join(" ");
     if (fixKey !== shownFixKey) {
       shownFixKey = fixKey;
-      fixList.replaceChildren(...fixLinks(fields));
+      fixList.replaceChildren(...fixLinks(fields), ...barLinks(barErrors));
     }
     formError.hidden = backstop === undefined;
     formError.textContent = backstop === undefined ? "" : backstop[1];
@@ -308,6 +326,20 @@ export function createConfigFormView(doc, store, actions) {
         event.preventDefault();
         control.focus();
       });
+      item.append(link);
+      return item;
+    });
+  }
+
+  // One link per run bar field to fix. The bar is not this view's (#150), so
+  // the link only goes to the bar's own "Fix" link, which opens the bar's
+  // settings and focuses the field.
+  function barLinks(names) {
+    return names.map((name) => {
+      const item = doc.createElement("li");
+      const link = doc.createElement("a");
+      link.href = "#run-errors-link";
+      link.textContent = BAR_FIELD_NAMES[name];
       item.append(link);
       return item;
     });
@@ -477,6 +509,11 @@ export function createConfigFormView(doc, store, actions) {
     }
     if (changed.includes("config") || changed.includes("run")) {
       drawEdited(state);
+    }
+    const nowBar = barErrorsOf(state);
+    if (nowBar.join(" ") !== barErrors.join(" ")) {
+      barErrors = nowBar;
+      drawErrors(state.form.errors);
     }
   });
 }

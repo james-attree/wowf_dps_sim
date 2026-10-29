@@ -231,6 +231,20 @@ describe("the results panel states (#154)", () => {
     assert.match(text(running.body), /Running on the page/);
   });
 
+  it("says 1 fight, never 1 fights (#155, Fran's Phase 3 QA 5)", () => {
+    const one = model({
+      status: "running",
+      progress: { completed: 1, total: 24, mean: 250 },
+    });
+    assert.match(text(one.body), /keeps the 1 fight done so far/);
+    const single = model({
+      status: "running",
+      progress: { completed: 0, total: 1, mean: null },
+    });
+    assert.match(text(single.body), /0 of 1 fight · 0%/);
+    assert.doesNotMatch(text(single.body), /\b1 fights/);
+  });
+
   it("shows a finished batch: tables, no panel buttons besides the sort", () => {
     const shown = model({ status: "done", result: done, elapsedMs: 2000 });
     assert.equal(shown.title, "Results");
@@ -556,6 +570,20 @@ describe("the results panel view (#154)", () => {
     assert.equal(el("#results-panel").getAttribute("aria-busy"), null);
     assert.equal(el("#results-meta").hidden, false);
     assert.match(el("#results-announce").textContent, /^Batch finished/);
+  });
+
+  it("Reset empties its live region, so nothing stale is left (#155)", () => {
+    const { store, el } = mount({});
+    store.set({
+      batch: batchState({
+        status: "running",
+        progress: { completed: 0, total: 24, mean: null },
+      }),
+    });
+    store.set({ batch: batchState({ status: "done", result: done }) });
+    assert.match(el("#results-announce").textContent, /^Batch finished/);
+    store.set({ batch: batchState({}) });
+    assert.equal(el("#results-announce").textContent, "");
   });
 
   it("sorts the breakdown in place, keeps focus on the button and says so", () => {

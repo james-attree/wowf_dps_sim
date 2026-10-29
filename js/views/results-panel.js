@@ -116,6 +116,10 @@ export function createResultsPanelView(doc, store, labels) {
       const message = announcement(lastBatch, state.batch);
       if (message !== null) {
         live.textContent = message;
+      } else if (state.batch.status === "idle" && state.batch.result === null) {
+        // Reset (#155, Fran's QA 10): nothing on the panel, so nothing stale
+        // left in its live region either.
+        live.textContent = "";
       }
       lastBatch = state.batch;
     }

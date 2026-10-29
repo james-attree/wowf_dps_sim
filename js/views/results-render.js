@@ -622,13 +622,14 @@ function partialBanner(result) {
   const done = count(result.completed);
   const all = count(result.iterations);
   const ci = result.summary.ci95;
-  const heading = `Partial result: stopped after ${done} of ${all} fights`;
+  const fightsWord = plural(result.iterations, "fight");
+  const heading = `Partial result: stopped after ${done} of ${all} ${fightsWord}`;
   if (!ci) {
     return banner("partial", heading, [
       [
         `${result.completed === 1 ? "One fight gives" : "These fights give"} a DPS figure but no confidence interval. `,
         ...pressRun(
-          `To run all ${all} fights, press `,
+          `To run all ${all} ${fightsWord}, press `,
           " in the run controls above.",
         ),
       ],
@@ -639,7 +640,7 @@ function partialBanner(result) {
       `Everything below covers only the ${done} fights that finished. The confidence interval (± ${num(ci.halfWidth)}) is about those fights and is wider than a full run's would be. Don't compare it with a full batch as if it were one.`,
     ],
     pressRun(
-      `To run all ${all} fights, press `,
+      `To run all ${all} ${fightsWord}, press `,
       ` in the run controls above. The same seed repeats these ${done} fights first.`,
     ),
   ]);
@@ -709,12 +710,12 @@ function progressBlock(batch, id) {
       "Batch progress",
     ]),
     el("progress", { id: `${id}-progress`, max: total, value: completed }, [
-      `${count(completed)} of ${count(total)} fights`,
+      `${count(completed)} of ${fightsText(total)}`,
     ]),
     el("p", { class: "progress-line", "aria-hidden": "true" }, [
       el("span", {}, [
         el("strong", {}, [count(completed)]),
-        ` of ${count(total)} fights · ${percent}%`,
+        ` of ${fightsText(total)} · ${percent}%`,
       ]),
       el("span", { class: "muted" }, [
         timeEstimate(completed, total, batch.elapsedMs ?? 0),
@@ -737,7 +738,7 @@ function progressBlock(batch, id) {
       "To end early, press ",
       el("strong", {}, ["Stop and keep partial"]),
       completed > 0
-        ? ` in the run controls above: a batch keeps the ${count(completed)} fights done so far and shows them as a partial result.`
+        ? ` in the run controls above: a batch keeps the ${fightsText(completed)} done so far and shows them as a partial result.`
         : " in the run controls above: a batch keeps the fights done so far and shows them as a partial result.",
     ]),
   ]);

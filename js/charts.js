@@ -444,6 +444,9 @@ export function histogramChart(result, { id = "dps-histogram" } = {}) {
     ),
   );
   const meanX = xScale(mean);
+  // The label sits right of the mean line, or left of it when the mean is in
+  // the right half, so it never runs off the plot (#155, Fran's QA 6).
+  const meanOnRight = meanX > midpoint(box.left, box.right);
   const desc =
     `Histogram of the DPS of ${histogram.count === 1 ? "one fight" : `each of ${formatNumber(histogram.count, 0)} fights`} in ${histogram.bins.length} ${histogram.bins.length === 1 ? "bin" : "bins"}` +
     `${histogram.width === 0 ? " (every fight has the same DPS)" : ` of ${formatNumber(histogram.width)} DPS`}, ` +
@@ -463,7 +466,7 @@ export function histogramChart(result, { id = "dps-histogram" } = {}) {
         "stroke-width": "2",
       }),
       label(
-        meanX + box.tickLength,
+        meanOnRight ? meanX - box.tickLength : meanX + box.tickLength,
         box.top + box.tickLabelGap,
         `mean ${formatNumber(mean)}`,
         {
@@ -471,6 +474,7 @@ export function histogramChart(result, { id = "dps-histogram" } = {}) {
           "font-size": "11",
           fill: "currentColor",
           "dominant-baseline": "hanging",
+          ...(meanOnRight ? { "text-anchor": "end" } : {}),
         },
       ),
     ]),
