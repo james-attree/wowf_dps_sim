@@ -10,6 +10,7 @@ import {
   conditionProblems,
   evaluate,
   evaluateAll,
+  compileCondition,
   evaluateTrusted,
 } from "../js/rotation-conditions.js";
 import { rotationState } from "../js/rotation-state.js";
@@ -911,6 +912,26 @@ describe("evaluateTrusted (R3, #140)", () => {
       }
     }
     assert.ok(trues > 10 && falses > 10);
+  });
+
+  it("is what compileCondition makes of a condition, for every documented one", () => {
+    let checked = 0;
+    for (const changes of [
+      {},
+      { time: 0, duration: null },
+      { auras: {}, debuffs: {}, cooldowns: {} },
+      { granted: ["cold-blood"], build: { selected: true } },
+    ]) {
+      for (const condition of conditions) {
+        const compiled = compileCondition(condition);
+        assert.equal(
+          compiled(state(changes)),
+          evaluate(condition, state(changes)),
+        );
+        checked += 1;
+      }
+    }
+    assert.ok(checked > 60);
   });
 
   it("is the evaluate that skips the check of the condition", () => {

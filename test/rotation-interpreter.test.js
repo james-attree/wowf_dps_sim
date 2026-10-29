@@ -202,14 +202,30 @@ describe("decide: the walk", () => {
   });
 
   it("builds no state view for a rule that cannot matter", () => {
-    // Nothing is castable and the GCD is running: no on-GCD rule can hold the
-    // walk and no off-GCD rule can be cast, so the state is not even read.
+    // The GCD is running and every rule is on-GCD: none can hold the walk and
+    // none can be cast, so the state is not even read.
     const busy = walk(
-      [rule("cold-blood", points(5)), rule("eviscerate", points(5))],
-      { comboPoints: 5, gcd: ["eviscerate"], clear: false },
+      [rule("eviscerate", points(5)), rule("sinister-strike")],
+      {
+        comboPoints: 5,
+        gcd: ["eviscerate", "sinister-strike"],
+        clear: false,
+      },
     );
     assert.deepEqual(busy.reads, []);
     assert.equal(busy.outcome, "none");
+    // An off-GCD rule is still read for: Cold Blood below them can be cast.
+    const below = walk(
+      [rule("eviscerate", points(5)), rule("cold-blood", points(5))],
+      {
+        comboPoints: 5,
+        ready: ["cold-blood"],
+        gcd: ["eviscerate"],
+        clear: false,
+      },
+    );
+    assert.deepEqual(below.reads, [5]);
+    assert.deepEqual(below.casts, ["cold-blood"]);
     // The GCD clear and an on-GCD rule that cannot be cast: its conditions
     // decide whether the walk pools for it.
     const clear = walk([rule("eviscerate", points(5))], {
@@ -218,6 +234,77 @@ describe("decide: the walk", () => {
     });
     assert.deepEqual(clear.reads, [5]);
     assert.equal(clear.outcome, "pooling");
+  });
+
+  it("asks canCast only of a rule whose conditions hold", () => {
+    const asked = [];
+    const probe = world({
+      comboPoints: 2,
+      gcd: ["eviscerate", "sinister-strike"],
+    });
+    probe.host.canCast = (id) => {
+      asked.push(id);
+      return false;
+    };
+    const result = decide(
+      compileRotation(
+        rotation(
+          rule("cold-blood", points(5)),
+          rule("eviscerate", points(5)),
+          rule("sinister-strike", points(2)),
+        ),
+      ),
+      probe.host,
+    );
+    assert.deepEqual(asked, ["sinister-strike"]);
+    assert.equal(result.outcome, "pooling");
+  });
+
+  it("asks a host which abilities start the GCD once, not at every decision point", () => {
+    const asked = [];
+    const probe = world({
+      ready: ["sinister-strike"],
+      gcd: ["sinister-strike"],
+    });
+    const { onGcd } = probe.host;
+    probe.host.onGcd = (id) => {
+      asked.push(id);
+      return onGcd(id);
+    };
+    const compiled = compileRotation(
+      rotation(rule("cold-blood"), rule("sinister-strike")),
+    );
+    decide(compiled, probe.host);
+    decide(compiled, probe.host);
+    assert.deepEqual(asked, ["cold-blood", "sinister-strike"]);
+    // Another host is asked afresh and its answers are the ones used.
+    const other = world({ ready: ["cold-blood"], gcd: ["cold-blood"] });
+    assert.deepEqual(decide(compiled, other.host), {
+      casts: ["cold-blood"],
+      outcome: "cast",
+    });
+    assert.deepEqual(decide(compiled, probe.host).casts, ["sinister-strike"]);
+  });
+
+  it("returns results that are shared when nothing was cast, and frozen", () => {
+    const idle = decide(
+      compileRotation(rotation(rule("eviscerate", points(5)))),
+      world({ gcd: ["eviscerate"] }).host,
+    );
+    assert.ok(Object.isFrozen(idle) && Object.isFrozen(idle.casts));
+    assert.deepEqual(idle, { casts: [], outcome: "none" });
+    const pooling = decide(
+      compileRotation(rotation(rule("eviscerate"))),
+      world({ gcd: ["eviscerate"] }).host,
+    );
+    assert.ok(Object.isFrozen(pooling) && Object.isFrozen(pooling.casts));
+    assert.deepEqual(pooling, { casts: [], outcome: "pooling" });
+    const cast = decide(
+      compileRotation(rotation(rule("sinister-strike"))),
+      world({ ready: ["sinister-strike"], gcd: ["sinister-strike"] }).host,
+    );
+    assert.deepEqual(cast, { casts: ["sinister-strike"], outcome: "cast" });
+    assert.ok(!Object.isFrozen(cast));
   });
 
   it("reads the state again after a cast, and only then", () => {

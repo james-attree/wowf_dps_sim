@@ -1,5 +1,5 @@
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
-import { conditionProblems, evaluateTrusted } from "./rotation-conditions.js";
+import { compileCondition, conditionProblems } from "./rotation-conditions.js";
 import { rotationShapeProblems } from "./rotation-schema.js";
 
 // The rotation interpreter (roadmap R3, issue #140). It reads a RotationRule
@@ -60,8 +60,10 @@ export function rotationProblems(rotation) {
 }
 
 // What compileRotation returned, so decide can tell a checked rotation from a
-// plain object that was never checked.
-const COMPILED = new WeakSet();
+// plain object that was never checked, and what decide walks for it: for each
+// rule, its action and its conditions as functions of the state
+// (compileCondition), made once.
+const COMPILED = new WeakMap();
 
 function freezeCopy(value) {
   if (value === null || typeof value !== "object") {
@@ -84,7 +86,14 @@ export function compileRotation(rotation) {
     throw new RangeError(`Bad rotation:\n${problems.join("\n")}`);
   }
   const compiled = freezeCopy(rotation);
-  COMPILED.add(compiled);
+  COMPILED.set(compiled, {
+    rules: compiled.rules.map((rule) => ({
+      action: rule.action,
+      holds: rule.conditions.map(compileCondition),
+    })),
+    host: null,
+    onGcd: [],
+  });
   return compiled;
 }
 
@@ -92,12 +101,19 @@ export function compileRotation(rotation) {
 // runs on every step of a fight, and a closure per rule shows in the bench.
 function holds(conditions, state) {
   for (const condition of conditions) {
-    if (!evaluateTrusted(condition, state)) {
+    if (!condition(state)) {
       return false;
     }
   }
   return true;
 }
+
+// What decide returns when nothing was cast, shared so that a decision point
+// that does nothing (most of them) builds nothing. Frozen: a result is read,
+// not changed.
+const NO_CASTS = Object.freeze([]);
+const POOLING = Object.freeze({ casts: NO_CASTS, outcome: "pooling" });
+const NOTHING = Object.freeze({ casts: NO_CASTS, outcome: "none" });
 
 // One decision point. Walks the rules from the top (docs/rotation.md, "How
 // list order sets priority"):
@@ -119,45 +135,55 @@ function holds(conditions, state) {
 // was clear, and it could not be cast) or "none" (the walk ran off the end of the list). Each
 // cast can change the fight, so the state is read again after one.
 export function decide(rotation, host) {
-  if (!COMPILED.has(rotation)) {
+  const program = COMPILED.get(rotation);
+  if (program === undefined) {
     throw new TypeError(
       "decide needs a rotation from compileRotation, which checks it once.",
     );
   }
-  const casts = [];
+  const { rules } = program;
+  // Whether each rule's ability starts the GCD is asked of a host once, not at
+  // every decision point: it is a property of the ability.
+  if (program.host !== host) {
+    program.onGcd = rules.map((rule) => host.onGcd(rule.action));
+    program.host = host;
+  }
+  const { onGcd: startsGcd } = program;
+  let casts = NO_CASTS;
   let state = null;
   // Asked once: only an on-GCD cast starts the GCD, and one ends the walk.
   const clear = host.gcdClear();
-  for (const rule of rotation.rules) {
-    // What the host can say cheaply goes first, and the state view, which is
-    // the dear part, is only built for a rule that can matter: asking
-    // canCast changes nothing, so the answer is the same as checking the
-    // conditions first. While the GCD is running an on-GCD rule is passed over
-    // whatever its conditions say. An off-GCD rule that cannot be cast is
-    // passed over too, and an on-GCD rule that cannot be cast with the GCD
-    // clear is the pooling one, if its conditions hold.
-    const onGcd = host.onGcd(rule.action);
+  for (let index = 0; index < rules.length; index += 1) {
+    const rule = rules[index];
+    // While the GCD is running an on-GCD rule is passed over whatever its
+    // conditions say, and that is settled by one cheap question. Past it, the
+    // conditions are read before canCast is asked: the state view is built a
+    // part at a time (js/rotation-state.js), so a condition that fails costs
+    // little, and canCast (which works out what a cast would cost) is only
+    // asked of a rule that holds. Both are read-only, so the order changes
+    // nothing a host can see but the calls it gets.
+    const onGcd = startsGcd[index];
     if (onGcd && !clear) {
       continue;
     }
-    const castable = host.canCast(rule.action);
-    if (!castable && !onGcd) {
-      continue;
-    }
     state ??= host.state();
-    if (!holds(rule.conditions, state)) {
+    if (!holds(rule.holds, state)) {
       continue;
     }
-    if (!castable) {
+    if (!host.canCast(rule.action)) {
+      if (!onGcd) {
+        // An off-GCD rule that cannot be cast is passed over.
+        continue;
+      }
       // An on-GCD rule that holds, with the GCD clear: pool for it.
-      return { casts, outcome: "pooling" };
+      return casts === NO_CASTS ? POOLING : { casts, outcome: "pooling" };
     }
     host.cast(rule.action);
-    casts.push(rule.action);
+    casts = casts === NO_CASTS ? [rule.action] : [...casts, rule.action];
     state = null;
     if (onGcd) {
       return { casts, outcome: "cast" };
     }
   }
-  return { casts, outcome: "none" };
+  return casts === NO_CASTS ? NOTHING : { casts, outcome: "none" };
 }

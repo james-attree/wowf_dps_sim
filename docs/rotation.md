@@ -282,7 +282,7 @@ hold both halves.
 
 ### The state a condition reads
 
-`evaluate(condition, state)` reads a plain state view (frozen by default) and nothing else:
+`evaluate(condition, state)` reads a state view and nothing else:
 no `Rogue`, no `Simulation`. `rotationState(rogue, simulation, { duration })` in
 `js/rotation-state.js` builds it from a fight without changing the fight:
 
@@ -334,27 +334,39 @@ the haste and the white swings as it did. `fightTimeRemaining` reads as
 `Infinity` in the engine as it is: the Rogue passes no fight length to the state
 view (`duration` is `null`).
 
-**What it costs.** Two things #139 flagged, measured on the dev box (Node 24, a
-fight 20 s in, 11 conditions in the default rotation):
+**What it costs.** A five minute fight has 19,200 decision points, and the old
+code rotation did about 1 µs of work at each, so anything the interpreter adds
+to a decision point shows in the bench. Where it went and what was done
+(measured on the dev box, Node 24):
 
 - `evaluate` checks its condition on every call: about 3.5 µs for the 11
-  conditions, against 0.34 µs without the check (`evaluateTrusted`). The
-  interpreter checks once in `compileRotation` and uses `evaluateTrusted`.
-- `rotationState` builds the snapshot in about 1.4 µs. A lazy view that builds
-  each part only when a condition reads it was tried and cost about 4.2 µs, more
-  than the whole snapshot, so the snapshot stays. Freezing it was most of that
-  cost in a fight (the first run of the bench was 3.5 times the old code), so
-  `rotationState` takes `{ freeze: false }` and the engine host uses it: the
-  conditions only read the view, and each view is dropped after the walk. The
-  default is still a frozen view.
-- The interpreter builds the view only for a rule that can matter. While the
-  GCD is running an on-GCD rule is passed over without a look at its conditions,
-  and an off-GCD rule that cannot be cast is too.
+  conditions in the default rotation, against 0.34 µs without the check. The
+  interpreter checks once in `compileRotation` and builds a closure for each
+  condition then (`compileCondition`), so a decision point does no checking and
+  no dispatch on the condition's type or operator.
+- The state view was a full copy (about 1.4 µs, most of it freezing, and the
+  resources view works out the regeneration rate through the modifiers) built at
+  every decision point. The host now gives a view that reads the pools when
+  asked and works out the auras, debuffs and cooldowns only when a condition
+  reads them (`rotationStateReader`). What a fight does not change (the build,
+  the grants, the talent abilities) is made once. It says what `rotationState`
+  says (`test/rotation-host.test.js` holds the two equal at every step of a
+  fight) and is not frozen: a view is valid until the fight next changes, and
+  the interpreter asks for a new one after each cast.
+- A rule's conditions are read before `canCast` is asked of it, so `canCast`
+  (which works out what a cast would cost) is asked only of a rule that holds.
+  While the GCD is running an on-GCD rule is passed over without a look at its
+  conditions. The conditions and `canCast` are read-only, so the order changes
+  nothing a host can see but the calls it gets.
+- `decide` asks a host `onGcd` once for each rule and keeps the answers for that
+  host, and returns shared, frozen results for a decision point that casts
+  nothing (most of them).
 
 The fight-level cost is the `npm run bench` result in the pull request: a 5
-minute fight takes about 40 ms against about 19 ms before (median, interleaved,
-Node 24), 19,200 decision points a fight, so about 1.1 µs more per decision
-point. Still under the 50 ms target, with less room than before.
+minute fight, median, interleaved against `main`. What is left is the walk
+itself: the interpreter reads about 6 rules at a decision point where the code
+rotation tried about 3 casts, and every condition is a call through the state
+view.
 
 ## Examples
 

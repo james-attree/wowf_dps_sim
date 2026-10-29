@@ -73,11 +73,14 @@ const DAMAGE = {
   },
 };
 
+// Read once: the interpreter asks about the GCD at every decision point.
+const TICK_EPSILON = k("sim.tickEpsilon");
+
 // The GCD is clear: what is left of it is within sim.tickEpsilon. The rotation
 // interpreter asks this (js/rotation-host.js) to tell "cannot cast yet, the
 // GCD is running" from "cannot cast, short of the cost".
 export function gcdClear(simulation) {
-  return simulation.gcd <= k("sim.tickEpsilon");
+  return simulation.gcd <= TICK_EPSILON;
 }
 
 export class Ability {

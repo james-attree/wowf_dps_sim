@@ -241,6 +241,23 @@ export function evaluateTrusted(condition, state) {
   return COMPARE[condition.op](type.read(condition, state), condition.value);
 }
 
+// A function of the state that answers what evaluateTrusted(condition, state)
+// answers, with the type and the comparison looked up once instead of at every
+// call. For a condition that has already passed assertCondition, and which is
+// not changed afterwards (the interpreter compiles from its frozen copy). The
+// interpreter calls it at every decision point of a fight (R3, #140).
+export function compileCondition(condition) {
+  const type = TYPES[condition.type];
+  if (type.test !== undefined) {
+    const { test } = type;
+    return (state) => test(condition, state);
+  }
+  const { read } = type;
+  const compare = COMPARE[condition.op];
+  const { value } = condition;
+  return (state) => compare(read(condition, state), value);
+}
+
 // True when the condition holds in `state`. A bad condition is a RangeError
 // (assertCondition); evaluate never changes the condition or the state. It
 // checks the condition on every call, which is for a one-off read: a caller

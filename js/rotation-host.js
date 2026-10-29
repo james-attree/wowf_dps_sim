@@ -1,5 +1,5 @@
 import { gcdClear } from "./ability.js";
-import { rotationState } from "./rotation-state.js";
+import { rotationStateReader } from "./rotation-state.js";
 
 // The Rogue's side of the rotation interpreter (R3, #140): the `host` that
 // decide (js/rotation-interpreter.js) is given at a decision point. It answers
@@ -7,8 +7,10 @@ import { rotationState } from "./rotation-state.js";
 // is all it does. Nothing here is in the interpreter, so the Phase 3.5 engine
 // writes its own host and calls decide unchanged.
 //
-//   state()    the view conditions read (js/rotation-state.js), not frozen:
-//              the freeze was most of the cost of a decision point.
+//   state()    the view conditions read (js/rotation-state.js), built a part
+//              at a time and not frozen: building and freezing all of it was
+//              most of the cost of a decision point. It is valid until the
+//              fight next changes.
 //   canCast    the ability is not held back by the selected build
 //              (Rogue.lockedByBuild: a talent ability the build lacks) and
 //              would go ahead now (Ability.canCast: cooldown, cost, GCD).
@@ -27,8 +29,7 @@ import { rotationState } from "./rotation-state.js";
 export function rotationHost(rogue, simulation, options = {}) {
   const ability = (id) => rogue.abilitiesById.get(id);
   return {
-    state: () =>
-      rotationState(rogue, simulation, { freeze: false, ...options }),
+    state: rotationStateReader(rogue, simulation, options),
     canCast: (id) => {
       const found = ability(id);
       return !rogue.lockedByBuild(found) && found.canCast(rogue, simulation);
