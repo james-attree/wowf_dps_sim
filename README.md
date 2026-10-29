@@ -247,7 +247,7 @@ rejects them under `js/`.
 - `js/store.js` — The page's store (U1, #149): `createStore(initial)` with
   `get`, `set`, `update`, `batch`, `subscribe` and `onError`, over named
   slices (`config`, `rotation`, `run`, `frame`, `results`, and the feed's
-  `resources`, `gcd`, `effects`, `log`; #150: no slice holds an engine object). One change
+  `resources`, `gcd`, `effects`, `procs`, `spend`, `moment`, `log`; #150: no slice holds an engine object). One change
   event per `set` or batch, listing the slices that changed; delivery follows
   `EventStream`. No DOM or clock: engine lint applies.
 - `js/live-feed.js` — The live page's feed (#150): `createLiveFeed({ rogue,
@@ -255,13 +255,18 @@ simulation })` with `read()` and `stop()`. The combat log rows (from `hit`
   events) and the combo points (from `resource` events) come from the event
   stream; the energy and the time left on the GCD, each aura and each cooldown
   are read at the frame, since continuous change is not an event
-  (docs/events.md). `read()` returns frozen plain slices. Engine lint applies.
+  (docs/events.md). Phase 3 (#150) adds, from events with no schema change:
+  each aura's full length and stacks (`aura`), cooldown lengths from the
+  ability data (`cooldownOf`), the procs and their counts (`proc`, named by
+  id from the poison and talent data, `procName`), the last combo point
+  spend, the last buff up or gone, and `fromProc` on log rows a proc made.
+  `read()` returns frozen plain slices. Engine lint applies.
 - `js/views/` — The page's views (#149). Each is a factory `(document,
 store)` that owns its own elements, draws from the store when its slices
   change, and returns its unsubscribe: `controls.js` (seed, Live/Paused
   status, the Pause button, which toggles `run.state`), `visualiser.js` (combo
-  points, energy, the GCD meter, effects, cooldowns, the combat log; redraws on
-  `frame`, from the feed's slices only), and `results.js` (time, damage, DPS; redraws on `results`).
+  points, energy, the GCD meter, effects, cooldowns, procs, the combat log and
+  its announcements; redraws on `frame`, from the feed's slices only), and `results.js` (time, damage, DPS; redraws on `results`).
 - `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
   milliseconds into a whole number of `sim.fixedStep` steps. It carries the
   remainder between frames and caps one frame at `sim.maxFrameTime`, which is
@@ -724,12 +729,18 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   document: no two views query the same element, controls toggle `run.state`
   through the store, results formatting, the visualiser redraws only on
   `frame`, and each view's unsubscribe; the visualiser drawing hand-made plain
-  slices with no fight behind them (#150).
+  slices with no fight behind them (#150); Phase 3: aura bars, stacks,
+  labels and the low-time cue, energy at cap, the spend flash, proc chips and
+  "↳" rows, reduced motion, stepping the log while paused, and the throttled,
+  opt-in announcements.
 - `test/live-feed.test.js` — The live feed (#150): its reading equals the
   engine's state at every frame of sword and dagger fights over uneven frames,
   it is plain frozen data, a reading does not change after later steps, its
-  log equals `runFight`'s, it subscribes to `hit` and `resource` only, `stop()`,
-  and it leaves the fight unchanged.
+  log equals `runFight`'s, it subscribes to `hit`, `resource`, `aura` and
+  `proc` only, `stop()`, and it leaves the fight unchanged; Phase 3: aura
+  durations and stacks equal the last aura event's, cooldown lengths the
+  ability data's, proc counts and names, `fromProc` rows, the last spend and
+  the last buff moment, all against the recorded event stream.
 - `test/sim-runner.test.js` — `SimRunner`: the transition table, invalid
   actions, state subscriptions, a run to the end equal to `runFight`, pause and
   resume, Stop then Run and the rng draws, the driver, options, and the public

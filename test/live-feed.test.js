@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { createFight, runFight } from "../js/fight.js";
-import { createLiveFeed } from "../js/live-feed.js";
+import { abilityCatalogue } from "../js/abilities.js";
+import { cooldownOf, createLiveFeed, procName } from "../js/live-feed.js";
 import { defaultConfig, defaultDaggerConfig } from "../js/sim-config.js";
+import { referenceBuild } from "./talentsforever.js";
 
 // Issue #150. The live feed turns a running fight into the plain slices the
 // visualiser draws: the combat log and the combo points from the event stream,
@@ -28,10 +30,18 @@ const ruptureConfig = () => ({
     ],
   },
 });
+// The reference talents with both poisons: procs (Hack and Slash,
+// Ruthlessness, Relentless Strikes, the poisons) and a stacking debuff.
+const procConfig = () => ({
+  ...defaultConfig(),
+  talents: referenceBuild(),
+  poisons: { mainHand: "instant", offHand: "deadly" },
+});
 const CONFIGS = {
   sword: defaultConfig,
   dagger: defaultDaggerConfig,
   rupture: ruptureConfig,
+  procs: procConfig,
 };
 // Uneven frames, in whole steps: 0 to 6, the way FrameClock hands them out.
 const FRAME_STEPS = [1, 0, 3, 1, 6, 2, 1, 1, 4, 0, 5];
@@ -76,6 +86,43 @@ function engineView({ rogue, simulation }) {
   };
 }
 
+// A reading cut to what the engine has its own copy of (engineView): the
+// Phase 3 slices and fields (duration, stacks, procs, spend, moment,
+// fromProc) are checked against the events below.
+function sampled({ resources, gcd, effects, log }) {
+  const timed = (list) =>
+    list.map(({ id, name, icon, remaining }) => ({
+      id,
+      name,
+      icon,
+      remaining,
+    }));
+  return {
+    resources,
+    gcd,
+    effects: {
+      buffs: timed(effects.buffs),
+      debuffs: timed(effects.debuffs),
+      cooldowns: timed(effects.cooldowns),
+    },
+    log: logRows(log),
+  };
+}
+
+function logRows(log) {
+  return log.map(({ fromProc, ...row }) => {
+    assert.equal(typeof fromProc, "boolean");
+    return row;
+  });
+}
+
+// Every event, in order, for the checks the engine has no copy of.
+function record(fight) {
+  const events = [];
+  fight.simulation.on("*", (event) => events.push(event));
+  return events;
+}
+
 // Every object in it frozen, plain (an object literal or an array), no
 // functions: nothing a view could call into or change.
 function assertPlainFrozen(value, path = "slice") {
@@ -101,6 +148,9 @@ describe("live feed (#150)", () => {
       "resources",
       "gcd",
       "effects",
+      "procs",
+      "spend",
+      "moment",
       "log",
     ]);
   });
@@ -110,12 +160,32 @@ describe("live feed (#150)", () => {
       for (const seed of SEEDS) {
         const fight = createFight(seed, config());
         const feed = createLiveFeed(fight);
-        assert.deepEqual(feed.read(), engineView(fight), "before a step");
+        assert.deepEqual(
+          sampled(feed.read()),
+          engineView(fight),
+          "before a step",
+        );
         let comboChanges = 0;
         let previousCombo = fight.rogue.comboPoints;
         frames(fight, 3000, (frame) => {
           const read = feed.read();
-          assert.deepEqual(read, engineView(fight), `${seed} frame ${frame}`);
+          assert.deepEqual(
+            sampled(read),
+            engineView(fight),
+            `${seed} frame ${frame}`,
+          );
+          const auras = {
+            ...fight.simulation.activeBuffs,
+            ...fight.simulation.activeDebuffs,
+          };
+          for (const effect of [
+            ...read.effects.buffs,
+            ...read.effects.debuffs,
+            ...read.effects.cooldowns,
+          ]) {
+            assert.ok(effect.remaining <= effect.duration, effect.id);
+            assert.equal(effect.stacks, auras[effect.id]?.stacks ?? 1);
+          }
           if (fight.rogue.comboPoints !== previousCombo) {
             comboChanges += 1;
             previousCombo = fight.rogue.comboPoints;
@@ -133,7 +203,7 @@ describe("live feed (#150)", () => {
     fight.simulation.run(120);
     const crit = feed.read().log.find((row) => row.outcome === "Crit");
     assert.ok(crit, "a DoT tick that crit, shown as Crit");
-    assert.deepEqual(feed.read().log, fight.simulation.combatLog);
+    assert.deepEqual(logRows(feed.read().log), fight.simulation.combatLog);
   });
 
   it("reads the fight's own caps, combo points and GCD length", () => {
@@ -171,7 +241,7 @@ describe("live feed (#150)", () => {
       const feed = createLiveFeed(fight);
       fight.simulation.run(duration);
       const result = runFight({ seed, duration, config: defaultConfig() });
-      assert.deepEqual(feed.read().log, result.log, String(seed));
+      assert.deepEqual(logRows(feed.read().log), result.log, String(seed));
     }
   });
 
@@ -181,17 +251,18 @@ describe("live feed (#150)", () => {
     fight.simulation.run(120);
     const { log } = feed.read();
     assert.equal(log.length, k("log.maxEvents"));
-    assert.deepEqual(log, fight.simulation.combatLog);
+    assert.deepEqual(logRows(log), fight.simulation.combatLog);
     assert.ok(log[0].id > log[log.length - 1].id, "newest first");
   });
 
-  it("subscribes to hit and resource events only", () => {
+  it("subscribes to hit, resource, aura and proc events only", () => {
     const fight = createFight(1, defaultConfig());
     createLiveFeed(fight);
     const events = fight.simulation.events;
-    assert.ok(events.has("hit"));
-    assert.ok(events.has("resource"));
-    for (const type of ["cast", "aura", "proc", "end"]) {
+    for (const type of ["hit", "resource", "aura", "proc"]) {
+      assert.ok(events.has(type), type);
+    }
+    for (const type of ["cast", "end"]) {
       assert.equal(events.has(type), false, type);
     }
   });
@@ -211,6 +282,159 @@ describe("live feed (#150)", () => {
       before.resources.comboPoints.value,
     );
     assert.notDeepEqual(fight.simulation.combatLog, before.log);
+  });
+
+  it("an aura's duration is its seconds at the last apply, refresh or stack", () => {
+    for (const seed of SEEDS) {
+      const fight = createFight(seed, procConfig());
+      const events = record(fight);
+      const feed = createLiveFeed(fight);
+      let seen = 0;
+      frames(fight, 4000, () => {
+        const read = feed.read();
+        for (const effect of [...read.effects.buffs, ...read.effects.debuffs]) {
+          const last = events.findLast(
+            (event) => event.type === "aura" && event.aura === effect.id,
+          );
+          assert.notEqual(last.change, "expire", effect.id);
+          assert.equal(effect.duration, last.duration, effect.id);
+          assert.equal(effect.stacks, last.stacks, effect.id);
+          seen += 1;
+        }
+      });
+      assert.ok(seen > 100, "auras were up");
+      const stacked = events.some(
+        (event) => event.type === "aura" && event.stacks > 1,
+      );
+      assert.ok(stacked, "Deadly Poison stacked");
+    }
+  });
+
+  it("a cooldown's duration is the ability data's", () => {
+    const fight = createFight(1, procConfig());
+    const feed = createLiveFeed(fight);
+    let seen = 0;
+    frames(fight, 4000, () => {
+      for (const effect of feed.read().effects.cooldowns) {
+        const data = abilityCatalogue.get(effect.id).cooldown;
+        assert.equal(effect.duration, Math.max(data, effect.remaining));
+        assert.equal(cooldownOf(effect.id), data);
+        seen += 1;
+      }
+    });
+    assert.ok(seen > 100, "cooldowns ran");
+    assert.equal(cooldownOf("main-hand"), undefined);
+  });
+
+  it("counts each proc by id, in the order each first fired, named from the data", () => {
+    for (const seed of SEEDS) {
+      const fight = createFight(seed, procConfig());
+      const events = record(fight);
+      const feed = createLiveFeed(fight);
+      fight.simulation.run(300);
+      const procs = events.filter((event) => event.type === "proc");
+      const order = [...new Set(procs.map((event) => event.proc))];
+      assert.deepEqual(
+        feed.read().procs,
+        order.map((id) => ({
+          id,
+          name: procName(id),
+          count: procs.filter((event) => event.proc === id).length,
+        })),
+      );
+      assert.ok(order.length >= 4, `${seed}: ${order}`);
+    }
+    assert.equal(procName("hack-and-slash"), "Hack and Slash");
+    assert.equal(procName("ruthlessness"), "Ruthlessness");
+    assert.equal(procName("relentless-strikes"), "Relentless Strikes");
+    assert.equal(procName("deadly-poison.offHand"), "Deadly Poison");
+    assert.equal(procName("instant-poison.mainHand"), "Instant Poison");
+    assert.equal(procName("no-such-proc"), "no-such-proc");
+  });
+
+  it("marks the rows a proc made: a poison's hit, or the hit right after a proc", () => {
+    const fight = createFight(4242, procConfig());
+    const events = record(fight);
+    const feed = createLiveFeed(fight);
+    fight.simulation.run(60);
+    const made = new Set();
+    events.forEach((event, index) => {
+      if (event.type !== "hit") {
+        return;
+      }
+      const previous = events[index - 1];
+      if (event.origin === "poison" || previous?.type === "proc") {
+        made.add(event.id);
+      }
+    });
+    const { log } = feed.read();
+    for (const row of log) {
+      assert.equal(row.fromProc, made.has(row.id), String(row.id));
+    }
+    assert.ok(log.some((row) => row.fromProc));
+    const swing = events.findIndex(
+      (event, index) =>
+        event.type === "hit" &&
+        event.origin === "white" &&
+        events[index - 1]?.proc === "hack-and-slash",
+    );
+    assert.ok(swing > 0, "Hack and Slash gave a swing");
+  });
+
+  it("keeps the last combo point spend, named from the ability data", () => {
+    const fight = createFight(1, procConfig());
+    const events = record(fight);
+    const feed = createLiveFeed(fight);
+    assert.equal(feed.read().spend, null);
+    frames(fight, 3000, () => {
+      const spend = events.findLast(
+        (event) =>
+          event.type === "resource" &&
+          event.resource === "comboPoints" &&
+          event.change === "spend",
+      );
+      const read = feed.read().spend;
+      if (spend === undefined) {
+        assert.equal(read, null);
+        return;
+      }
+      assert.deepEqual(read, {
+        source: spend.source,
+        name: abilityCatalogue.get(spend.source).name,
+        before: spend.before,
+        after: spend.after,
+        time: spend.time,
+      });
+    });
+    assert.ok(
+      ["Eviscerate", "Slice and Dice"].includes(feed.read().spend.name),
+    );
+  });
+
+  it("keeps the last buff that came up or went, counted", () => {
+    const fight = createFight(1, procConfig());
+    const events = record(fight);
+    const feed = createLiveFeed(fight);
+    assert.equal(feed.read().moment, null);
+    fight.simulation.run(120);
+    const moments = events.filter(
+      (event) =>
+        event.type === "aura" &&
+        event.target === "self" &&
+        (event.change === "apply" || event.change === "expire"),
+    );
+    const last = moments.at(-1);
+    assert.deepEqual(feed.read().moment, {
+      seq: moments.length,
+      change: last.change,
+      name: last.name,
+    });
+    assert.ok(
+      events.some(
+        (event) => event.type === "aura" && event.target === "target",
+      ),
+      "a debuff, which is not a moment",
+    );
   });
 
   it("does not change the fight it reads", () => {

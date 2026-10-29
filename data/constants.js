@@ -27,6 +27,11 @@ const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const BATCH_RUNNER = "Developer, 29 Oct 2026, issue #144";
 const BATCH_WORKER = "Developer, 29 Oct 2026, issue #147";
 const CHARTS = "Developer, 29 Oct 2026, issue #148";
+// The live visualiser's display timings (#150, Phase 3). Fran's UX notes for
+// #150 (design, 29 Oct 2026, relayed by Scout) gave the numbers; they are
+// display choices, not game rules, and not decisions by James.
+const VISUALISER_UX =
+  "Developer, 29 Oct 2026, issue #150: Fran's UX notes (design), relayed via Scout";
 const BATCH_FIXES = "Developer, 29 Oct 2026, issue #155";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
@@ -1340,6 +1345,30 @@ export const CONSTANTS = {
     ENGINEERING,
     `${DEVELOPER}: ${NOT_JAMES} The combat log keeps the newest 100 rows`,
     "Display cap, not a game rule.",
+    false,
+  ),
+  "ui.auraLowSeconds": entry(
+    3,
+    "s",
+    ENGINEERING,
+    `${VISUALISER_UX}: under 3 s left, an aura's bar and time turn amber and the time shows one decimal`,
+    'Display cue, not a game rule: the visualiser\'s "refresh it now" mark on the active buffs and debuffs (js/views/visualiser.js).',
+    false,
+  ),
+  "ui.spendFlashSeconds": entry(
+    0.3,
+    "s",
+    ENGINEERING,
+    `${VISUALISER_UX}: the spent combo points stay outlined for about 300 ms after a finisher`,
+    "Display timing, not a game rule. Fight seconds, so the flash holds while the fight is paused.",
+    false,
+  ),
+  "ui.announceIntervalSeconds": entry(
+    2,
+    "s",
+    ENGINEERING,
+    `${VISUALISER_UX}: the screen reader announcements are throttled to at most one every 2 s`,
+    'Accessibility timing, not a game rule. Wall-clock seconds between two messages in the visualiser\'s role=status region, which is off unless "Announce key events" is ticked.',
     false,
   ),
   "sim.maxFrameTime": entry(

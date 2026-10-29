@@ -939,7 +939,15 @@ button changes the store's `run` slice, and `js/main.js` starts or stops the
 frame loop from that. Since #150 no view reads the engine: the live feed
 (`js/live-feed.js`) fills the visualiser's slices each frame, the combat log
 and combo points from the event stream and the energy, GCD, aura and cooldown
-timers read at the frame. It builds the fight
+timers read at the frame. Phase 3 of #150 draws more from the same events
+(no schema change): a duration bar per aura (its length at the last apply,
+refresh or stack, amber with a decimal under `k("ui.auraLowSeconds")`), a
+stacks badge, "AT CAP" on full energy, the spent combo points outlined for
+`k("ui.spendFlashSeconds")` of fight time with the finisher's name, proc
+chips with counts, and "↳" on a log row a proc made. Paused, Left and Right
+step through the log; an opt-in role=status region announces a buff coming up
+or going and the pause, at most one message per
+`k("ui.announceIntervalSeconds")`. These are display rules only. It builds the fight
 with `createFight(seed)` from `js/fight.js`, shows the seed in the header
 (plain text, so the same seed can be replayed in `runFight`), and from each
 animation frame it takes whole steps of `k("sim.fixedStep")` through

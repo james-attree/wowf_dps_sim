@@ -13,7 +13,7 @@ import { EventStream } from "./event-stream.js";
 //             page draws, so the visualiser redraws on it.
 //   results   The latest results: { time, damage } in fight seconds and
 //             damage done so far.
-//   resources, gcd, effects, log
+//   resources, gcd, effects, procs, spend, moment, log
 //             What the visualiser draws, as plain frozen data from the live
 //             feed (js/live-feed.js), renewed each frame. No slice holds an
 //             engine object (#150).

@@ -7,7 +7,13 @@ import { defaultConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
 import { createControlsView } from "../js/views/controls.js";
 import { createResultsView } from "../js/views/results.js";
-import { createVisualiserView } from "../js/views/visualiser.js";
+import {
+  createAnnouncer,
+  createVisualiserView,
+  logRowReading,
+  pausedReading,
+  timedEffectReading,
+} from "../js/views/visualiser.js";
 
 // Issue #149 (U1). The views js/main.js hands the store to: each owns its own
 // part of the page and no other, draws only when its slices change, and talks
@@ -47,6 +53,9 @@ function element(selector) {
     setAttribute(name, value) {
       attributes.set(name, String(value));
     },
+    removeAttribute(name) {
+      attributes.delete(name);
+    },
     getAttribute(name) {
       return attributes.has(name) ? attributes.get(name) : null;
     },
@@ -56,9 +65,16 @@ function element(selector) {
     click() {
       listeners.get("click")();
     },
-    append() {},
+    fire(type, event) {
+      listeners.get(type)(event);
+    },
+    append(...children) {
+      this.children.push(...children);
+    },
     remove() {},
-    insertBefore() {},
+    insertBefore(child) {
+      this.children.unshift(child);
+    },
     replaceChildren() {},
   };
 }
@@ -88,6 +104,64 @@ function recordingDocument() {
     },
   };
 }
+
+// A recording document with a window: a matchMedia for reduced motion, a
+// clock-free setTimeout and a root element.
+function windowedDocument(reduce) {
+  const doc = recordingDocument();
+  const root = element("html");
+  root.classList.owner = root;
+  const query = {
+    matches: reduce,
+    change: null,
+    addEventListener(type, listener) {
+      this.change = listener;
+    },
+  };
+  doc.documentElement = root;
+  doc.defaultView = {
+    matchMedia: (text) => {
+      assert.equal(text, "(prefers-reduced-motion: reduce)");
+      return query;
+    },
+    timers: [],
+    setTimeout(run, wait) {
+      this.timers.push({ run, wait });
+    },
+  };
+  return { doc, root, query };
+}
+
+// The slices the live feed gives, by hand: no engine anywhere.
+function plainReading(overrides = {}) {
+  return {
+    run: { state: "running", seed: SEED },
+    results: { time: 61.5, damage: 12_345.6 },
+    resources: {
+      comboPoints: { value: 3, max: 5 },
+      energy: { value: 41.75, max: 100 },
+    },
+    gcd: { remaining: 0.75, duration: 1.5 },
+    effects: { buffs: [], debuffs: [], cooldowns: [] },
+    procs: [],
+    spend: null,
+    moment: null,
+    log: [],
+    ...overrides,
+  };
+}
+
+const LOG_ROW = {
+  id: 0,
+  time: 61.5,
+  name: "Sinister Strike",
+  type: "skill",
+  damage: 99.9,
+  status: "Hit",
+  outcome: "hit",
+  icon: null,
+  fromProc: false,
+};
 
 function pageStore() {
   const fight = createFight(SEED, defaultConfig());
@@ -218,32 +292,34 @@ describe("page views", () => {
 
   it("the visualiser draws plain slices, with no engine behind them (#150)", () => {
     const doc = recordingDocument();
-    const reading = Object.freeze({
-      resources: {
-        comboPoints: { value: 3, max: 5 },
-        energy: { value: 41.75, max: 100 },
-      },
-      gcd: { remaining: 0.75, duration: 1.5 },
-      effects: {
-        buffs: [
-          { id: "snd", name: "Slice and Dice", icon: null, remaining: 7.4 },
-        ],
-        debuffs: [],
-        cooldowns: [{ id: "x", name: "Sprint", icon: null, remaining: 12.6 }],
-      },
-      log: [
-        {
-          id: 0,
-          time: 61.5,
-          name: "Sinister Strike",
-          type: "skill",
-          damage: 99.9,
-          status: "Hit",
-          outcome: "hit",
-          icon: null,
+    const reading = Object.freeze(
+      plainReading({
+        effects: {
+          buffs: [
+            {
+              id: "snd",
+              name: "Slice and Dice",
+              icon: null,
+              remaining: 7.4,
+              duration: 9,
+              stacks: 1,
+            },
+          ],
+          debuffs: [],
+          cooldowns: [
+            {
+              id: "x",
+              name: "Sprint",
+              icon: null,
+              remaining: 12.6,
+              duration: 300,
+              stacks: 1,
+            },
+          ],
         },
-      ],
-    });
+        log: [LOG_ROW],
+      }),
+    );
     const store = createStore({ frame: 0, ...reading });
     createVisualiserView(doc, store);
     assert.equal(doc.el("#gcd-meter").getAttribute("aria-valuemax"), "1.5");
@@ -258,6 +334,348 @@ describe("page views", () => {
     assert.equal(doc.el("#active-buffs-empty").hidden, true);
     assert.equal(doc.el("#active-debuffs-empty").hidden, false);
     assert.equal(doc.el("#skill-cooldowns-empty").hidden, true);
+    assert.equal(doc.el("#energy-cap").hidden, true, "not at cap");
+    assert.equal(doc.el("#combo-spend").textContent, "");
+    assert.equal(doc.el("#procs-empty").hidden, false);
+  });
+
+  it("Phase 3: aura bars, stacks, labels, low time and cooldowns (#150)", () => {
+    const doc = recordingDocument();
+    const aura = (id, remaining, duration, stacks) => ({
+      id,
+      name: id,
+      icon: null,
+      remaining,
+      duration,
+      stacks,
+    });
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    store.set({
+      frame: 1,
+      effects: {
+        buffs: [aura("Slice and Dice", 14.2, 21, 1), aura("Low", 2.46, 10, 1)],
+        debuffs: [aura("Deadly Poison", 9, 12, 3)],
+        cooldowns: [aura("Sprint", 1.5, 300, 1)],
+      },
+    });
+    const [snd, low] = doc.el("#active-buffs").children;
+    const [stack, bar, time] = snd.children;
+    assert.equal(snd.getAttribute("role"), "listitem");
+    assert.equal(
+      snd.getAttribute("aria-label"),
+      "Slice and Dice, 14 seconds left, 1 stack",
+    );
+    assert.equal(time.textContent, "14s");
+    assert.equal(bar.children[0].style.width, `${(14.2 / 21) * 100}%`);
+    assert.equal(stack.hidden, true);
+    assert.equal(snd.classes.has("is-low"), false);
+    assert.equal(low.children[2].textContent, "2.5s", "one decimal when low");
+    assert.ok(low.classes.has("is-low"));
+    assert.equal(
+      low.getAttribute("aria-label"),
+      "Low, 2.5 seconds left, 1 stack",
+    );
+    const [poison] = doc.el("#active-debuffs").children;
+    assert.equal(poison.children[0].textContent, "×3");
+    assert.equal(poison.children[0].hidden, false);
+    assert.equal(
+      poison.getAttribute("aria-label"),
+      "Deadly Poison, 9 seconds left, 3 stacks",
+    );
+    const [sprint] = doc.el("#skill-cooldowns").children;
+    assert.equal(sprint.getAttribute("aria-label"), "Sprint, 2 seconds left");
+    assert.equal(
+      sprint.classes.has("is-low"),
+      false,
+      "a cooldown is never low",
+    );
+  });
+
+  it("Phase 3: energy at cap, the spend flash, proc chips, ↳ rows (#150)", () => {
+    const doc = recordingDocument();
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    const spend = {
+      source: "eviscerate",
+      name: "Eviscerate",
+      before: 5,
+      after: 0,
+      time: 60,
+    };
+    store.set({
+      frame: 1,
+      resources: {
+        comboPoints: { value: 0, max: 5 },
+        energy: { value: 100, max: 100 },
+      },
+      results: { time: 60 + k("ui.spendFlashSeconds") / 2, damage: 1 },
+      spend,
+      procs: [
+        { id: "a", name: "Hack and Slash", count: 2 },
+        { id: "b", name: "Deadly Poison", count: 14 },
+      ],
+      log: [{ ...LOG_ROW, id: 1, fromProc: true, name: "Main-hand" }, LOG_ROW],
+    });
+    assert.equal(doc.el("#energy-cap").hidden, false);
+    assert.ok(doc.el("#energy-fill").classes.has("is-capped"));
+    assert.equal(doc.el("#combo-spend").textContent, "Eviscerate · 5");
+    assert.ok(doc.el(".combo-point").classes.has("is-spent"));
+    assert.deepEqual(
+      doc.el("#proc-chips").children.map((chip) => chip.textContent),
+      ["Hack and Slash ×2", "Deadly Poison ×14"],
+    );
+    assert.equal(doc.el("#procs-empty").hidden, true);
+    const names = doc
+      .el("#combat-log")
+      .children.map((row) => row.children[2].textContent);
+    assert.deepEqual(names, ["↳ Main-hand", "Sinister Strike"]);
+
+    store.set({
+      frame: 2,
+      results: { time: 60.01 + k("ui.spendFlashSeconds"), damage: 1 },
+      resources: {
+        comboPoints: { value: 1, max: 5 },
+        energy: { value: 99.5, max: 100 },
+      },
+      procs: [
+        { id: "a", name: "Hack and Slash", count: 3 },
+        { id: "b", name: "Deadly Poison", count: 14 },
+      ],
+    });
+    assert.equal(doc.el("#combo-spend").textContent, "", "the flash is over");
+    assert.equal(doc.el(".combo-point").classes.has("is-spent"), false);
+    store.set({
+      frame: 3,
+      results: { time: 61.1, damage: 1 },
+      spend: { ...spend, before: 3, after: 1, time: 61 },
+    });
+    assert.equal(doc.el("#combo-spend").textContent, "Eviscerate · 2");
+    assert.equal(
+      doc.el(".combo-point").classes.has("is-spent"),
+      false,
+      "only the points spent, not the one kept",
+    );
+    assert.equal(doc.el("#energy-cap").hidden, true);
+    assert.equal(doc.el("#energy-fill").classes.has("is-capped"), false);
+    assert.deepEqual(
+      doc.el("#proc-chips").children.map((chip) => chip.textContent),
+      ["Hack and Slash ×3", "Deadly Poison ×14"],
+      "same chips, same order",
+    );
+  });
+
+  it("Phase 3: reduced motion from matchMedia, once and on change (#150)", () => {
+    const { doc, root, query } = windowedDocument(true);
+    createVisualiserView(doc, createStore(plainReading()));
+    assert.ok(root.classes.has("reduce-motion"));
+    query.matches = false;
+    query.change();
+    assert.equal(root.classes.has("reduce-motion"), false);
+  });
+
+  it("Phase 3: paused, Left and Right step through the log (#150)", () => {
+    const doc = recordingDocument();
+    const rows = [
+      { ...LOG_ROW, id: 2, time: 41.25, name: "Eviscerate", damage: 812.4 },
+      { ...LOG_ROW, id: 1, time: 40.5, status: "Crit", damage: 412 },
+      LOG_ROW,
+    ];
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    store.set({ frame: 1, log: rows });
+    const scroll = doc.el(".combat-log-scroll");
+    const press = (key) => {
+      let prevented = false;
+      scroll.fire("keydown", { key, preventDefault: () => (prevented = true) });
+      return prevented;
+    };
+    assert.equal(press("ArrowLeft"), false, "running: the keys do nothing");
+    assert.equal(doc.el("#log-readout").textContent, "");
+
+    store.set({ run: { state: "paused", seed: SEED } });
+    assert.match(doc.el("#log-readout").textContent, /^Paused\./);
+    assert.equal(press("ArrowLeft"), true);
+    assert.equal(
+      doc.el("#log-readout").textContent,
+      "00:41.2 · Eviscerate · Hit · 812",
+    );
+    const logRows = doc.el("#combat-log").children;
+    assert.equal(logRows[0].getAttribute("aria-current"), "true");
+    press("ArrowLeft");
+    assert.equal(
+      doc.el("#log-readout").textContent,
+      "00:40.5 · Sinister Strike · Crit · 412",
+    );
+    assert.equal(logRows[0].getAttribute("aria-current"), null);
+    assert.ok(logRows[1].classes.has("is-selected"));
+    press("ArrowLeft");
+    press("ArrowLeft");
+    assert.ok(logRows[2].classes.has("is-selected"), "stops at the oldest");
+    press("ArrowRight");
+    assert.ok(logRows[1].classes.has("is-selected"));
+    assert.equal(press("Enter"), false, "other keys are left alone");
+
+    store.set({ run: { state: "running", seed: SEED } });
+    assert.equal(doc.el("#log-readout").textContent, "");
+    assert.equal(logRows[1].classes.has("is-selected"), false);
+  });
+
+  it("Phase 3: announces buffs and the pause only when ticked, throttled (#150)", () => {
+    const { doc } = windowedDocument(false);
+    let now = 100;
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store, { clock: () => now });
+    const spoken = () => doc.el("#live-announcer").textContent;
+    const moment = (seq, change) => ({ seq, change, name: "Slice and Dice" });
+
+    store.set({ frame: 1, moment: moment(1, "apply") });
+    store.set({ run: { state: "paused", seed: SEED } });
+    assert.equal(spoken(), "", "off by default");
+
+    doc.el("#announce-toggle").checked = true;
+    store.set({ run: { state: "running", seed: SEED } });
+    store.set({ frame: 2, moment: moment(2, "apply") });
+    assert.equal(spoken(), "Slice and Dice up");
+    now += 0.5;
+    store.set({ frame: 3, moment: moment(3, "expire") });
+    assert.equal(spoken(), "Slice and Dice up", "throttled");
+    now += k("ui.announceIntervalSeconds");
+    store.set({ frame: 4 });
+    assert.equal(spoken(), "Slice and Dice expired", "said when it may be");
+    store.set({ frame: 5 });
+    assert.equal(spoken(), "Slice and Dice expired");
+
+    now += k("ui.announceIntervalSeconds");
+    store.set({
+      run: { state: "paused", seed: SEED },
+      results: { time: 83.9, damage: 18_450.9 },
+    });
+    assert.equal(spoken(), "Paused at 01:23, 18,450 damage, 219 DPS");
+    now += k("ui.announceIntervalSeconds");
+    store.set({ frame: 6 });
+    assert.equal(
+      spoken(),
+      "Paused at 01:23, 18,450 damage, 219 DPS",
+      "a moment is said once",
+    );
+
+    store.set({ frame: 7, moment: moment(4, "apply") });
+    assert.equal(spoken(), "Slice and Dice up");
+    now += 0.5;
+    store.set({ frame: 8, moment: moment(5, "expire") });
+    doc.el("#announce-toggle").checked = false;
+    doc.el("#announce-toggle").fire("change");
+    doc.el("#announce-toggle").checked = true;
+    doc.el("#announce-toggle").fire("change");
+    now += k("ui.announceIntervalSeconds");
+    store.set({ frame: 9 });
+    assert.equal(spoken(), "", "turning it off drops the waiting message");
+
+    doc.el("#announce-toggle").checked = false;
+    doc.el("#announce-toggle").fire("change");
+    assert.equal(spoken(), "");
+  });
+});
+
+describe("visualiser readings (#150)", () => {
+  it("timedEffectReading: time, bar, stacks and label", () => {
+    const effect = { name: "X", remaining: 5, duration: 10, stacks: 2 };
+    assert.deepEqual(timedEffectReading(effect, true), {
+      time: "5s",
+      low: false,
+      percent: 50,
+      stacks: "×2",
+      label: "X, 5 seconds left, 2 stacks",
+    });
+    const low = k("ui.auraLowSeconds") - 0.04;
+    assert.equal(
+      timedEffectReading({ ...effect, remaining: low }, true).low,
+      true,
+    );
+    assert.equal(
+      timedEffectReading({ ...effect, remaining: k("ui.auraLowSeconds") }, true)
+        .low,
+      false,
+    );
+    assert.equal(
+      timedEffectReading({ ...effect, remaining: 1, stacks: 1 }, true).label,
+      "X, 1.0 seconds left, 1 stack",
+    );
+    assert.equal(
+      timedEffectReading({ ...effect, remaining: 1.2, stacks: 1 }, false).label,
+      "X, 1 second left",
+    );
+    assert.equal(
+      timedEffectReading({ ...effect, duration: 0 }, false).percent,
+      0,
+    );
+    assert.equal(
+      timedEffectReading({ ...effect, duration: 4 }, false).percent,
+      100,
+    );
+  });
+
+  it("logRowReading and pausedReading", () => {
+    assert.equal(
+      logRowReading({ time: 59.96, name: "A", status: "Miss", damage: 0 }),
+      "00:59.9 · A · Miss · 0",
+    );
+    assert.equal(
+      logRowReading({ time: 600.05, name: "B", status: "Hit", damage: 3.7 }),
+      "10:00.0 · B · Hit · 3",
+    );
+    assert.equal(
+      pausedReading({ time: 0, damage: 0 }),
+      "Paused at 00:00, 0 damage, 0 DPS",
+    );
+    assert.equal(
+      pausedReading({ time: 3601, damage: 7_654_321 }),
+      "Paused at 60:01, 7,654,321 damage, 2,125 DPS",
+    );
+  });
+
+  it("createAnnouncer: one message per interval, the newest waits", () => {
+    let now = 0;
+    let on = true;
+    const said = [];
+    const timers = [];
+    const announcer = createAnnouncer({
+      now: () => now,
+      enabled: () => on,
+      speak: (text) => said.push(text),
+      later: (wait, run) => timers.push({ wait, run }),
+    });
+    const gap = k("ui.announceIntervalSeconds");
+    announcer.say("a");
+    announcer.say("b");
+    announcer.say("c");
+    assert.deepEqual(said, ["a"]);
+    assert.equal(timers.length, 1, "one timer for the waiting message");
+    assert.equal(timers[0].wait, gap);
+    now = gap - 0.01;
+    announcer.flush();
+    assert.deepEqual(said, ["a"]);
+    now = gap;
+    timers[0].run();
+    assert.deepEqual(said, ["a", "c"], "the newest, b is dropped");
+    now += gap / 2;
+    announcer.say("c2");
+    assert.equal(timers.length, 2, "a new timer once the last has run");
+    now += gap / 2;
+    timers[1].run();
+    assert.deepEqual(said, ["a", "c", "c2"]);
+    on = false;
+    now += gap;
+    announcer.say("d");
+    on = true;
+    announcer.flush();
+    assert.deepEqual(said, ["a", "c", "c2"], "not kept while off");
+    announcer.say("e");
+    announcer.clear();
+    now += gap;
+    announcer.flush();
+    assert.deepEqual(said, ["a", "c", "c2", "e"]);
   });
 
   it("each view returns its unsubscribe, after which it draws nothing", () => {

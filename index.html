@@ -83,6 +83,7 @@
               <span class="combo-point"></span>
               <span class="combo-point"></span>
             </div>
+            <p id="combo-spend" class="combo-spend"></p>
           </section>
 
           <section
@@ -91,9 +92,12 @@
           >
             <div class="resource-label">
               <h3 id="energy-heading">Energy</h3>
-              <output id="energy-value"
-                >0 <span class="value-divider">/</span> 100</output
-              >
+              <div class="energy-readout">
+                <span id="energy-cap" class="cap-tag" hidden>AT CAP</span>
+                <output id="energy-value"
+                  >0 <span class="value-divider">/</span> 100</output
+                >
+              </div>
             </div>
             <div
               id="energy-meter"
@@ -143,6 +147,7 @@
             <div
               id="active-buffs"
               class="timed-effects"
+              role="list"
               aria-labelledby="active-buffs-heading"
             ></div>
           </section>
@@ -155,6 +160,7 @@
             <div
               id="active-debuffs"
               class="timed-effects"
+              role="list"
               aria-labelledby="active-debuffs-heading"
             ></div>
           </section>
@@ -167,6 +173,7 @@
             <div
               id="skill-cooldowns"
               class="timed-effects"
+              role="list"
               aria-labelledby="skill-cooldowns-heading"
             ></div>
           </section>
@@ -182,12 +189,24 @@
             <p class="eyebrow">EVENTS</p>
             <h2 id="combat-log-heading">Combat log</h2>
           </div>
-          <span class="log-caption">Latest events first</span>
+          <div class="log-tools">
+            <label class="announce-toggle">
+              <input id="announce-toggle" type="checkbox" />
+              Announce key events
+            </label>
+            <span class="log-caption">Latest events first</span>
+          </div>
         </div>
+        <section class="proc-row" aria-labelledby="procs-heading">
+          <h3 id="procs-heading">Procs</h3>
+          <p id="procs-empty" class="timed-effects-empty">None</p>
+          <ul id="proc-chips" class="proc-chips"></ul>
+        </section>
         <div
           class="combat-log-scroll"
           role="region"
           aria-label="Combat log events"
+          aria-keyshortcuts="ArrowLeft ArrowRight"
           tabindex="0"
         >
           <ol id="combat-log" class="combat-log" aria-live="off">
@@ -196,6 +215,13 @@
             </li>
           </ol>
         </div>
+        <p id="log-readout" class="log-readout" aria-live="polite"></p>
+        <div
+          id="live-announcer"
+          class="visually-hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
       </section>
     </main>
     <footer class="site-footer" aria-label="Data credit">
