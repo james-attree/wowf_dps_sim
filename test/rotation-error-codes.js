@@ -51,5 +51,6 @@ export const WARNING_DATA = Object.freeze({
   finisherNoComboPoints: ["ability", "condition"],
   cooldownNotChecked: ["ability"],
   grantedNotTalent: ["ability", "condition"],
+  unlockedNotTalent: ["ability", "condition"],
   starves: ["ability", "below", "reason"],
 });

@@ -623,7 +623,8 @@ imports and runs, and nothing here changes what a fight casts.
   out, or gives as `null`, is the engine's. A list given as anything else (a
   string, `{}`) is a `TypeError` that names the field and says what was given
   (#207).
-  `grantedNotTalent` reads the validator's `talentGrantedAbilities`.
+  `grantedNotTalent` and `unlockedNotTalent` read the validator's
+  `talentGrantedAbilities`.
 
 | Trap                                                                                                                                                                    | Path                  | Why it pools                                                                                                                                                                                                                                                        |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -631,31 +632,40 @@ imports and runs, and nothing here changes what a fight casts.
 | An on-GCD ability with a cooldown and no `cooldownReady` for it                                                                                                         | `rules[i].conditions` | While it is on cooldown it cannot be cast, so it holds back every rule below it. An off-GCD cooldown is passed over, not pooled for, so it is not warned for.                                                                                                       |
 | An on-GCD rule with no conditions, or only ones that always hold, above another on-GCD rule                                                                             | `rules[i]`            | Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule below it is reached. The last on-GCD rule, the usual builder, may have none. "Always hold" is the cheap case only: `>= 0` on `comboPoints`, a `resource`, `fightTime` or `fightTimeRemaining` |
 
-Two more are not pooling traps but rules that do nothing:
+Three more are not pooling traps but rules or checks that do nothing:
 
 | Trap                                                     | Path                     | Why                                                                                                                                                                                                                                                                         |
 | -------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A rule the same as one above it                          | `rules[i]`               | The one above is tried first under the same conditions, so this one is never reached. Compared after normalising: conditions in any order, keys in any order, and a param written out at its `CONDITION_PARAMS` default (`active: true`, `ready: true`) counts as left out. |
-| An `abilityGranted` check on an ability no talent grants | `rules[i].conditions[j]` | It always holds, so it does nothing.                                                                                                                                                                                                                                        |
+| An `abilityGranted` check on an ability no talent grants | `rules[i].conditions[j]` | The fight grants only talent and host abilities, so it is never true and the rule never casts.                                                                                                                                                                              |
 
 One cause gives one warning: a rule that repeats an earlier one gets only
 `duplicateRule`, and is left out of every `starves` `below` (a duplicated
-Backstab is not said to starve itself); a finisher with
-`finisherNoComboPoints` does not also get `starves` (#207).
+Backstab is not said to starve itself). A rule with a `grantedNotTalent`
+check never casts, so it gets only that warning (one per such check), holds
+nothing back, and is left out of every `starves` `below` too. A finisher with
+`finisherNoComboPoints` and no on-GCD rule above it that can cast waits at 0
+combo points, and does not also get `starves` (#207); with such a rule above
+to build the points it does cast, so it gets `starves` as well, with its
+`below` (Kira's QA on #216). "Every rule below it" counts the on-GCD rules
+below that can cast: with none, a finisher or cooldown message says the
+rotation waits at it instead.
 
 ### Warning codes
 
-| Code                    | Data                         | Path                     | When                                                                                                                                              |
-| ----------------------- | ---------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `duplicateRule`         | `ability`, `same`            | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                           |
-| `finisherNoComboPoints` | `ability`, `condition`       | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.  |
-| `cooldownNotChecked`    | `ability`                    | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                |
-| `grantedNotTalent`      | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition.                                                |
-| `starves`               | `ability`, `below`, `reason` | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. |
+| Code                    | Data                         | Path                     | When                                                                                                                                                            |
+| ----------------------- | ---------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `duplicateRule`         | `ability`, `same`            | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                                         |
+| `finisherNoComboPoints` | `ability`, `condition`       | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.                |
+| `cooldownNotChecked`    | `ability`                    | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                              |
+| `grantedNotTalent`      | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition. The rule never casts: its only warnings.                     |
+| `unlockedNotTalent`     | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityUnlocked` on `ability`, which no talent grants, so it is always true; `condition` is `j`. One per such condition.                                       |
+| `starves`               | `ability`, `below`, `reason` | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it that can cast (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. |
 
-`ability` is always the rule's action, except for `grantedNotTalent`, where it
-is the condition's. Per rule the order is `finisherNoComboPoints`,
-`cooldownNotChecked`, `grantedNotTalent`, `starves`.
+`ability` is always the rule's action, except for `grantedNotTalent` and
+`unlockedNotTalent`, where it is the condition's. Per rule the order is
+`finisherNoComboPoints`, `cooldownNotChecked`, then `grantedNotTalent` and
+`unlockedNotTalent` in condition order, then `starves`.
 
 The default rotation, every preset and every example below give no warnings
 (test/rotation-warnings.test.js). A message names the ability as the
@@ -663,15 +673,17 @@ talent-guard error does, display name and id (`abilityLabel`, #203), and
 its advice fits the case (#207): it names the condition to add, but a
 finisher whose combo points condition holds at 0 is told to change it to
 need at least one, and a rule none of whose conditions can fail is told to
-change them so they are sometimes false. On the last rule, which has nothing
-below it to hold back, it says the rotation waits there instead. The wording
+change them so they are sometimes false. On a rule with no on-GCD rule below
+it that can cast, which has nothing to hold back, it says the rotation waits
+there instead. The wording
 is Fran's (#207), with the message contract (#214). In the string form:
 
 ```text
 rules[0].conditions: Eviscerate (eviscerate) is a finisher, but its rule has no combo points condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add one, such as { "type": "comboPoints", "op": ">=", "value": 5 }.
 rules[0]: Sinister Strike (sinister-strike) starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. The 2 rules below it for Backstab (backstab) and Eviscerate (eviscerate) never cast. Give it conditions or move it below them.
 rules[3]: Backstab (backstab) is never reached: a rule above it casts it under the same conditions. Delete this one.
-rules[1].conditions[0]: No talent grants Sinister Strike (sinister-strike), so this abilityGranted check always holds and does nothing. Remove it.
+rules[1].conditions[0]: Sinister Strike (sinister-strike) isn't granted by a talent, so 'is granted' is never true here and this rule never casts.
+rules[0].conditions[1]: Eviscerate (eviscerate) doesn't need a talent, so 'is unlocked' is always true and does nothing.
 ```
 
 The warnings do not know the fight: an unconditional Backstab rule is warned
@@ -840,6 +852,16 @@ does that and hands the text over: the page's "Fight setup" form does
   `ok`, and a refused one has `warnings: []`. The page's form imports it and
   shows the warnings under the status line, in the same place as a refused
   file's errors, without blocking it.
+
+**How many the form lists.** `importRotation` and the validator return every
+error, and `rotationWarnings` every warning: there is no cap on the lists
+(a 50-rule file of unknown params gives some 18,000 errors). The page's form
+lists the first `rotation.maxListedEntries` (50) of a refused file's errors,
+or of an accepted file's warnings, one per line, then one line
+`…and N more` for the rest (`listedLines`, `js/config-form.js`, #214). Only
+the text shown is cut. The counts are of all of them: the status line's
+"with N warnings" is the whole list, and the Run bar's "settings to fix" is
+unchanged by an import (a refused file blocks nothing).
 
 **The file.** UTF-8 text, a rotation exactly as [the model](#the-model) has it,
 written the same way every time: the keys of every object in sorted order
@@ -1130,7 +1152,9 @@ and is now refused until it is added:
 The three limits are `data/constants.js` rows (`rotation.maxRules`,
 `rotation.maxConditionsPerRule`, `rotation.maxNameLength`), and a fourth,
 `rotation.maxImportChars` (131072), caps the text `importRotation` reads, and a
-fifth, `rotation.maxErrorChars` (1000), cuts a path or message it returns. The issue gave no
-numbers, so they are the dev's engineering choices, tagged `engineering`, and
-listed in [provenance](provenance.md). They are display and import-size caps,
+fifth, `rotation.maxErrorChars` (1000), cuts a path or message it returns. A
+sixth, `rotation.maxListedEntries` (50), is how many errors or warnings the
+page's form lists for one import (Scout's number, #214). The issues gave no
+numbers for the first five, so they are the dev's engineering choices; all six
+are tagged `engineering` and listed in [provenance](provenance.md). They are display and import-size caps,
 not game rules.

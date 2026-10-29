@@ -616,9 +616,10 @@ describe("rotation error codes (#212): import", () => {
     const trap = rotation(
       rule(
         "ghostly-strike",
-        { type: "abilityGranted", ability: "backstab" },
+        { type: "abilityUnlocked", ability: "backstab" },
         { type: "abilityUnlocked", ability: "ghostly-strike" },
       ),
+      rule("backstab", { type: "abilityGranted", ability: "backstab" }),
       rule("eviscerate"),
       SS,
       SS,

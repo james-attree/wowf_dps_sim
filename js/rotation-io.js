@@ -28,8 +28,10 @@ import { rotationWarnings } from "./rotation-warnings.js";
 //                             and its own code: notText, tooLarge ({ max }) or
 //                             notJson.
 //                             It also has `warnings` (issue #189): the
-//                             { path, message } list rotationWarnings gives
-//                             (js/rotation-warnings.js), cut the same way.
+//                             { code, path, message, ...data } list
+//                             rotationWarnings gives (js/rotation-warnings.js,
+//                             #214), each path and message cut the same way
+//                             and the code and data kept.
 //                             They are advice: a rotation with warnings is
 //                             still `ok`. A refused file has none ([]).
 //

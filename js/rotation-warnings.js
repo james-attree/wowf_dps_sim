@@ -40,13 +40,22 @@ import {
 //      cooldownReady condition for it. While it is on cooldown it holds back
 //      the rules below.
 //   grantedNotTalent  An abilityGranted condition on an ability no talent
-//      grants. It always holds, so it does nothing (one per such condition).
+//      grants. The fight grants only talent and host abilities (Rogue), so it
+//      is never true and the rule never casts (Kira's QA on #216; one per such
+//      condition). A rule that never casts holds nothing back: it gets no
+//      other warning, and it is not counted as starved by a rule above it.
+//   unlockedNotTalent  An abilityUnlocked condition on an ability no talent
+//      grants. Only a talent ability can be locked, so it is always true and
+//      does nothing (one per such condition).
 //   starves  An on-GCD rule whose conditions always hold (none, or only the
 //      cheap cases of alwaysHolds) that has an on-GCD rule below it. Whenever
 //      the GCD is clear it is cast or pooled for, so no on-GCD rule below it
 //      is ever cast (an off-GCD rule below still is, while the GCD runs). The
-//      last on-GCD rule, the usual builder, may have none. Not given to a rule
-//      that has finisherNoComboPoints: one warning for one cause (#207).
+//      last on-GCD rule, the usual builder, may have none. Not given to a
+//      finisher that has finisherNoComboPoints and no rule above it that can
+//      cast on the GCD: it waits at 0 combo points, one warning for one cause
+//      (#207). With such a rule above to build points it does cast, and does
+//      starve the rules below, so it gets both (Kira's QA on #216).
 // The wording is Fran's (issue #207), with #214's message contract.
 // A message names an ability by display name and id (abilityLabel, as the
 // talent guard does, #203). The name is only ever written out, never compared
@@ -63,8 +72,9 @@ import {
 //   onGcd      the abilities whose cast starts the GCD (the catalogue's
 //              startsGcd, abilities.offGcd)
 //
-// grantedNotTalent reads the validator's talentGrantedAbilities
-// (rotationContext), so a context gives the same list to both.
+// grantedNotTalent and unlockedNotTalent read the validator's
+// talentGrantedAbilities (rotationContext), so a context gives the same list
+// to both.
 //
 // This module is pure: no DOM, no clock, no random numbers.
 const ENGINE_FINISHERS = Object.freeze(
@@ -131,8 +141,9 @@ const alwaysHolds = (condition) =>
   condition.value <= 0;
 
 // What a rule waiting at its ability does to the rest of the rotation: the
-// rules below wait too, or, for the last rule, there are none to hold back
-// (#210's QA: "every rule below it" read wrong on a last rule).
+// rules below wait too, or, with no on-GCD rule below that can cast, there
+// are none to hold back (#210's QA: "every rule below it" read wrong on a
+// last rule; Kira's on #216: nor on one with only off-GCD rules below).
 const heldBack = (hasBelow) =>
   hasBelow ? "it holds back every rule below it" : "the rotation waits at it";
 
@@ -216,43 +227,52 @@ function cooldownWarning(rule, path, hasBelow, context) {
   );
 }
 
-function grantedWarnings(rule, path, talentGranted) {
+// An abilityGranted condition on an ability no talent grants: never true.
+const grantedNotTalent = (condition, talentGranted) =>
+  condition.type === "abilityGranted" &&
+  !talentGranted.includes(condition.ability);
+
+// An abilityUnlocked condition on an ability no talent grants: always true.
+const unlockedNotTalent = (condition, talentGranted) =>
+  condition.type === "abilityUnlocked" &&
+  !talentGranted.includes(condition.ability);
+
+const TALENT_MESSAGES = {
+  grantedNotTalent: (label) =>
+    `${label} isn't granted by a talent, so 'is granted' is never true here and this rule never casts.`,
+  unlockedNotTalent: (label) =>
+    `${label} doesn't need a talent, so 'is unlocked' is always true and does nothing.`,
+};
+
+function talentWarnings(rule, path, talentGranted) {
   const warnings = [];
   rule.conditions.forEach((condition, at) => {
-    if (
-      condition.type === "abilityGranted" &&
-      !talentGranted.includes(condition.ability)
-    ) {
-      warnings.push(
-        rotationError(
-          "grantedNotTalent",
-          `${path}.conditions[${at}]`,
-          `No talent grants ${abilityLabel(condition.ability)}, so this abilityGranted check always holds and does nothing. Remove it.`,
-          { ability: condition.ability, condition: at },
-        ),
-      );
+    for (const [code, matches] of [
+      ["grantedNotTalent", grantedNotTalent],
+      ["unlockedNotTalent", unlockedNotTalent],
+    ]) {
+      if (matches(condition, talentGranted)) {
+        warnings.push(
+          rotationError(
+            code,
+            `${path}.conditions[${at}]`,
+            TALENT_MESSAGES[code](abilityLabel(condition.ability)),
+            { ability: condition.ability, condition: at },
+          ),
+        );
+      }
     }
   });
   return warnings;
 }
 
-// `duplicates` holds the indexes of the rules that get duplicateRule; they
-// are never reached, so they are not counted as starved.
-function starvesWarning(rules, index, path, duplicates, context) {
+function starvesWarning(rules, index, path, below, context) {
   const rule = rules[index];
   if (
     !rule.conditions.every(alwaysHolds) ||
-    !context.onGcd.includes(rule.action)
+    !context.onGcd.includes(rule.action) ||
+    below.length === 0
   ) {
-    return null;
-  }
-  const below = [];
-  for (let other = index + 1; other < rules.length; other += 1) {
-    if (context.onGcd.includes(rules[other].action) && !duplicates.has(other)) {
-      below.push(other);
-    }
-  }
-  if (below.length === 0) {
     return null;
   }
   const reason = rule.conditions.length === 0 ? "noConditions" : "alwaysHolds";
@@ -299,7 +319,28 @@ export function rotationWarnings(rotation, context = {}) {
       first.set(key, index);
     }
   });
-  const duplicates = new Set(same.keys());
+  // The rules that never cast: a duplicate is never reached, and a rule with
+  // a grantedNotTalent condition never holds. Neither holds anything back, nor
+  // is it counted as starved.
+  const silent = new Set(same.keys());
+  rules.forEach((rule, index) => {
+    if (
+      rule.conditions.some((condition) =>
+        grantedNotTalent(condition, talentGrantedAbilities),
+      )
+    ) {
+      silent.add(index);
+    }
+  });
+  // The on-GCD rules below each rule that can cast, and whether one above can.
+  const castsOnGcd = (index) =>
+    !silent.has(index) && given.onGcd.includes(rules[index].action);
+  const onGcdBelow = (index) =>
+    rules.flatMap((rule, other) =>
+      other > index && castsOnGcd(other) ? [other] : [],
+    );
+  const onGcdAbove = (index) =>
+    rules.some((rule, other) => other < index && castsOnGcd(other));
   const warnings = [];
   rules.forEach((rule, index) => {
     const path = `rules[${index}]`;
@@ -315,16 +356,24 @@ export function rotationWarnings(rotation, context = {}) {
       );
       return;
     }
-    const hasBelow = index < rules.length - 1;
+    const talent = talentWarnings(rule, path, talentGrantedAbilities);
+    if (silent.has(index)) {
+      warnings.push(...talent);
+      return;
+    }
+    const below = onGcdBelow(index);
+    const hasBelow = below.length > 0;
     const finisher = finisherWarning(rule, path, hasBelow, given);
     for (const warning of [
       finisher,
       cooldownWarning(rule, path, hasBelow, given),
-      ...grantedWarnings(rule, path, talentGrantedAbilities),
-      // One warning per trap: a finisher that holds back the rules below for
-      // want of combo points is told so once, not again as starving them.
-      finisher === null
-        ? starvesWarning(rules, index, path, duplicates, given)
+      ...talent,
+      // One warning per trap: a finisher that waits at 0 combo points with
+      // nothing above to build them is told so once, not again as starving
+      // the rules below. With an on-GCD rule above it does cast, and does
+      // starve them.
+      finisher === null || onGcdAbove(index)
+        ? starvesWarning(rules, index, path, below, given)
         : null,
     ]) {
       if (warning !== null) {

@@ -351,6 +351,24 @@ export function importedText(name, warnings) {
 // written by formatError, as the validator's string forms are.
 export const errorLine = formatError;
 
+// The most entries an import's detail or warnings lists (#214, Kira's QA of
+// #215: a 50-rule file can give some 18,000 errors). The validator and
+// rotationWarnings still return every one; only the text shown is cut, and
+// the counts (the status line's warnings, the Run bar's settings to fix) are
+// of all of them. A display cap, not a game rule (rotation.maxListedEntries;
+// docs/rotation.md, "Import and export").
+export const MAX_LISTED = k("rotation.maxListedEntries");
+
+// The lines of an import's detail or warnings: the first MAX_LISTED entries,
+// each by errorLine, then "…and N more" for the rest.
+export function listedLines(entries, most = MAX_LISTED) {
+  const lines = entries.slice(0, most).map(errorLine);
+  if (entries.length > most) {
+    lines.push(`…and ${entries.length - most} more`);
+  }
+  return lines.join("\n");
+}
+
 // The actions the view calls. `defaults` gives the config Reset restores.
 // Creating the model fills the `form` slice from the store's config.
 export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
@@ -447,7 +465,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
             importStatus: {
               ok: false,
               message: "This file isn't a valid rotation.",
-              detail: result.errors.map(errorLine).join("\n"),
+              detail: listedLines(result.errors),
               warnings: "",
             },
           },
@@ -463,7 +481,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
           ok: true,
           message: importedText(name, result.warnings.length),
           detail: "",
-          warnings: result.warnings.map(errorLine).join("\n"),
+          warnings: listedLines(result.warnings),
         },
       });
       return true;
