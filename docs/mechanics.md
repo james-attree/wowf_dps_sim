@@ -334,8 +334,10 @@ time (#155): the aura covers the start of the step, so the slice with every
 timed contribution comes first, then the slice without the shortest, and the
 rate without any of them last. Each add is capped, so the pool reaches its cap
 at the right moment and `cappedTime` counts the right part of the step (until
-#155 the base-rate slice came first; the energy at the end of the step is the
-same either way, so no golden fixture moved). The cast frame
+#155 the base-rate slice came first). The energy at the end of the step is the
+same either way only at the 1/64 s step (`k("sim.fixedStep")`), which every
+headless run and golden fixture uses, so no golden fixture moved. At other step
+lengths, such as a live frame, the two orders are not guaranteed to agree. The cast frame
 itself stays at the base rate, because the buff is applied later, inside
 `Rogue.rotation`. With more than one timed contribution the step is cut where
 each runs out, and each applies to the part it covers. One aura gives exactly
