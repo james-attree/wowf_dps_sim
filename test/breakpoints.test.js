@@ -54,7 +54,12 @@ describe("the narrow breakpoint", () => {
     for (const query of narrow) {
       assert.equal(query, NARROW_QUERY);
     }
-    assert.doesNotMatch(css, /\b520px\b/);
-    assert.doesNotMatch(css, /min-width: 52\dpx/);
+    // The one 520px that is not a breakpoint: a chart's own minimum width
+    // inside its sideways-scrolling region (#154, decision 3).
+    const chartWidth = /\.chart-scroll \.chart \{\s*min-width: 520px;\s*\}/g;
+    assert.equal(css.match(chartWidth)?.length, 1, "the chart minimum width");
+    const rest = css.replace(chartWidth, "");
+    assert.doesNotMatch(rest, /\b520px\b/);
+    assert.doesNotMatch(rest, /min-width: 52\dpx/);
   });
 });

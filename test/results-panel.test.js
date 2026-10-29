@@ -7,6 +7,12 @@ import { buildLabel, poisonName } from "../js/build-label.js";
 import { pageDefaultConfig } from "../js/config-form.js";
 import { emptyBatch } from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
+import {
+  histogramChart,
+  histogramTable,
+  timelineChart,
+  timelineTable,
+} from "../js/charts.js";
 import { toMarkup } from "../js/svg.js";
 import { createResultsPanelView } from "../js/views/results-panel.js";
 import {
@@ -16,6 +22,7 @@ import {
   energyCapFlag,
   nextSort,
   panelModel,
+  RESULT_ID,
   sortRows,
   standardError,
   timeEstimate,
@@ -273,6 +280,99 @@ describe("the results panel states (#154)", () => {
   });
 });
 
+describe("the results panel charts (#154)", () => {
+  const model = (batch, options = {}) =>
+    panelModel(
+      { batch: batchState(batch), run: RUN },
+      { ...LABELS, ...options },
+    );
+
+  it("come after every table, from the #148 helpers, each with its table", () => {
+    const html = markup(model({ status: "done", result: done }).body);
+    const charts = html.indexOf(`id="${RESULT_ID}-charts-h"`);
+    assert.ok(charts > 0);
+    for (const heading of ["breakdown", "auras", "res"]) {
+      const at = html.indexOf(`id="${RESULT_ID}-${heading}-h"`);
+      assert.ok(at > 0 && at < charts, `${heading} before the charts`);
+    }
+    assert.ok(charts < html.indexOf(`id="${RESULT_ID}-run-h"`));
+    assert.ok(
+      html.lastIndexOf('class="results-table"') < charts,
+      "no results table after the charts",
+    );
+    // The exact markup js/charts.js draws, not a copy of it.
+    for (const part of [
+      histogramChart(done, { id: `${RESULT_ID}-hist` }),
+      histogramTable(done),
+      timelineChart(done.timeline, { id: `${RESULT_ID}-timeline` }),
+      timelineTable(done.timeline),
+    ]) {
+      assert.ok(html.includes(toMarkup(part)));
+    }
+    assert.match(html, /<summary>The histogram as a table<\/summary>/);
+    assert.match(html, /<summary>The damage over time as a table<\/summary>/);
+  });
+
+  it("scroll sideways in labelled, focusable regions", () => {
+    const html = markup(model({ status: "done", result: done }).body);
+    const regions = html.match(/<div class="chart-scroll"[^>]*>/g) ?? [];
+    assert.equal(regions.length, 2);
+    for (const region of regions) {
+      assert.match(region, /role="region"/);
+      assert.match(region, /tabindex="0"/);
+      assert.match(region, /aria-label="[^"]+ chart, scrolls sideways"/);
+    }
+  });
+
+  it("switch the timeline between cumulative and per second", () => {
+    const first = markup(model({ status: "done", result: done }).body);
+    assert.match(first, /value="cumulative"[^>]*checked=""/);
+    assert.equal(/value="perSecond"[^>]*checked/.test(first), false);
+    assert.match(first, /Cumulative damage over a 60 s fight/);
+    const perSecond = markup(
+      model({ status: "done", result: done }, { timelineMode: "perSecond" })
+        .body,
+    );
+    assert.match(perSecond, /value="perSecond"[^>]*checked=""/);
+    assert.ok(
+      perSecond.includes(
+        toMarkup(
+          timelineChart(done.timeline, {
+            id: `${RESULT_ID}-timeline`,
+            mode: "perSecond",
+          }),
+        ),
+      ),
+    );
+  });
+
+  it("show for a partial batch with an interval, and nowhere else", () => {
+    const has = (batch) => /chart-block/.test(markup(model(batch).body));
+    assert.equal(has({ status: "cancelled", result: partial }), true);
+    assert.equal(has({ status: "cancelled", result: single }), false);
+    assert.equal(has({ status: "cancelled", result: zero }), false);
+    assert.equal(has({}), false);
+    assert.equal(
+      has({
+        status: "running",
+        progress: { completed: 0, total: 24, mean: null },
+        previous: done,
+      }),
+      false,
+    );
+    assert.equal(
+      has({ status: "error", error: { name: "Error", message: "boom" } }),
+      false,
+    );
+  });
+
+  it("use one id prefix, so no id repeats", () => {
+    const html = markup(model({ status: "done", result: done }).body);
+    const ids = [...html.matchAll(/ id="([^"]+)"/g)].map((match) => match[1]);
+    assert.equal(new Set(ids).size, ids.length);
+  });
+});
+
 describe("the results panel live region (#154)", () => {
   const running = (completed) =>
     batchState({
@@ -477,6 +577,31 @@ describe("the results panel view (#154)", () => {
       'th[aria-sort="descending"]',
     );
     assert.equal(fresh.getAttribute("data-key"), "damage");
+  });
+
+  it("swaps only the timeline when its mode changes, and keeps the mode", () => {
+    const { store, el } = mount({ status: "done", result: done });
+    const body = el("#results-body");
+    const radio = body.querySelector('input[value="perSecond"]');
+    const region = body.querySelector("[data-timeline]");
+    const breakdown = body.querySelector("[data-breakdown]");
+    radio.value = "perSecond";
+    body.listeners.get("change")({ target: radio });
+    assert.equal(body.querySelector('input[value="perSecond"]'), radio);
+    assert.equal(body.querySelector("[data-breakdown]"), breakdown);
+    assert.match(region.textContent, /^Damage per second over a 60 s fight/);
+
+    // The next result keeps the chosen mode.
+    store.set({ batch: batchState({ status: "done", result: partial }) });
+    const next = el("#results-body");
+    assert.match(
+      next.querySelector("[data-timeline]").textContent,
+      /^Damage per second over a 60 s fight, mean of 5 fights/,
+    );
+    assert.equal(
+      next.querySelector('input[value="perSecond"]').getAttribute("checked"),
+      "",
+    );
   });
 
   it("ignores a sort press on the greyed previous result", () => {

@@ -1,5 +1,11 @@
 import { k } from "../../data/constants.js";
-import { formatNumber } from "../charts.js";
+import {
+  formatNumber,
+  histogramChart,
+  histogramTable,
+  timelineChart,
+  timelineTable,
+} from "../charts.js";
 import { el } from "../svg.js";
 
 // The batch results panel (#154): pure functions from the store's batch and
@@ -508,15 +514,87 @@ export function runDetails(result, id, { label, poisonName, mode, elapsedMs }) {
   ]);
 }
 
-// A result's body: headline, breakdown, auras, resources (charts are #154's
-// second part), run details.
+// The id prefix of the shown result's headings, charts and radios.
+export const RESULT_ID = "results";
+
+// ---- Charts (spec section 6) -----------------------------------------------
+
+export const TIMELINE_MODES = Object.freeze([
+  Object.freeze({ value: "cumulative", label: "Cumulative damage" }),
+  Object.freeze({ value: "perSecond", label: "Damage per second" }),
+]);
+
+// The timeline chart alone, so the view can swap it when the mode changes
+// without redrawing (and losing focus on) the radios.
+export function timelineFigure(result, id, mode = "cumulative") {
+  return timelineChart(result.timeline, { id: `${id}-timeline`, mode });
+}
+
+// The charts go after every table (decision: tables and text first): the
+// histogram, then damage over time, each from js/charts.js (#148) in a
+// sideways-scrolling region with its table in a <details>.
+export function charts(result, id, { timelineMode = "cumulative" } = {}) {
+  const scroller = (label, extra, children) =>
+    el(
+      "div",
+      {
+        class: "chart-scroll",
+        role: "region",
+        "aria-label": `${label} chart, scrolls sideways`,
+        tabindex: "0",
+        ...extra,
+      },
+      children,
+    );
+  return el("div", { class: "results-section" }, [
+    el("h3", { id: `${id}-charts-h` }, ["Charts"]),
+    el("div", { class: "chart-block" }, [
+      el("h4", {}, ["DPS per fight"]),
+      scroller("DPS per fight", {}, [
+        histogramChart(result, { id: `${id}-hist` }),
+      ]),
+      el("details", {}, [
+        el("summary", {}, ["The histogram as a table"]),
+        histogramTable(result),
+      ]),
+    ]),
+    el("div", { class: "chart-block", "data-timeline-block": "" }, [
+      el("h4", {}, ["Damage over time"]),
+      el("fieldset", { class: "chart-mode" }, [
+        el("legend", {}, ["Show"]),
+        ...TIMELINE_MODES.map(({ value, label }) =>
+          el("label", {}, [
+            el("input", {
+              type: "radio",
+              name: `${id}-mode`,
+              value,
+              "data-timeline-mode": "",
+              ...(value === timelineMode ? { checked: "" } : {}),
+            }),
+            ` ${label}`,
+          ]),
+        ),
+      ]),
+      scroller("Damage over time", { "data-timeline": "" }, [
+        timelineFigure(result, id, timelineMode),
+      ]),
+      el("details", {}, [
+        el("summary", {}, ["The damage over time as a table"]),
+        timelineTable(result.timeline),
+      ]),
+    ]),
+  ]);
+}
+
+// A result's body: headline, breakdown, auras, resources, charts, run
+// details.
 export function resultBody(result, id, options) {
   return [
     ...headline(result, id),
     breakdown(result, id, options),
     auras(result, id),
     resources(result, id),
-    ...(options.charts ? options.charts(result, id) : []),
+    charts(result, id, options),
     runDetails(result, id, options),
   ];
 }
@@ -669,7 +747,7 @@ const fightsText = (n) => `${count(n)} ${plural(n, "fight")}`;
 
 // The whole panel for a state: { title, meta, busy, body }. `run` is the
 // store's run slice (seed, duration and the config snapshot of the batch
-// that is running); `options` = { buildLabel, poisonName, sort, charts }.
+// that is running); `options` = { buildLabel, poisonName, sort, timelineMode }.
 export function panelModel({ batch, run }, options) {
   const { buildLabel } = options;
   const status = batch.status;
@@ -722,7 +800,7 @@ export function panelModel({ batch, run }, options) {
         title: "Results (partial)",
         meta,
         busy: false,
-        body: [partialBanner(result), ...headline(result, "results")],
+        body: [partialBanner(result), ...headline(result, RESULT_ID)],
       };
     }
     return {
@@ -731,7 +809,7 @@ export function panelModel({ batch, run }, options) {
       busy: false,
       body: [
         partial && partialBanner(result),
-        ...resultBody(result, "results", {
+        ...resultBody(result, RESULT_ID, {
           ...options,
           label,
           mode: batch.mode,

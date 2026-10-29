@@ -298,8 +298,11 @@ store)` that owns its own elements, draws from the store when its slices
   error states; the headline with its 95% CI and SE, the per-fight damage
   by ability table with sort buttons, aura uptime, resources with the
   energy-cap flag `ui.energyCapWarnFraction` and `ui.energyCapWarnMinFights`,
-  run details, and a polite live region for start, each quarter and the
-  outcome; `results-render.js` is pure and returns `js/svg.js` nodes), and `config-form.js`
+  the two charts from `js/charts.js` after every table (the DPS histogram,
+  and damage over time with Cumulative / Damage per second radios), each in
+  a sideways-scrolling region (520 px minimum on a narrow screen) with its
+  table in a `<details>`, run details, and a polite live region for start,
+  each quarter and the outcome; `results-render.js` is pure and returns `js/svg.js` nodes), and `config-form.js`
   (#151: the "Fight setup" form; draws the `form` slice and calls the
   actions `js/config-form.js` gives it, which `js/main.js` hands in, so it
   imports nothing from the engine). Edits apply to the next run: Run snapshots
@@ -804,6 +807,17 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   breakdown, the capped log, determinism, different seeds, a 5-minute fight, and
   a run in Node with the browser globals poisoned, and rejected inputs
   (including `runFight()` and `runFight(null)`).
+- `test/results-panel.test.js` — The batch results panel (#154): per-fight
+  figures (total = mean × fight length, SE from the 95% interval), the
+  energy-cap flag at its 5% and 10-fight edges, sorting, the time estimate;
+  every state (empty, 0 of N with the inert previous result, running, done,
+  partial, Stopped 0 fights, error) with no panel buttons; the charts after
+  the tables, drawn by the #148 helpers with their tables and mode radios;
+  the live region; and the view on a stand-in DOM (aria-busy, sort in place
+  with focus, the timeline mode swap).
+- `test/build-label.test.js` — `buildLabel` and `poisonName` (#154): the
+  reference build with the Combat swords and default rotations, no talents,
+  tied and top trees.
 - `test/views.test.js` — The page views (#149) on a recording stand-in
   document: no two views query the same element, controls toggle `run.state`
   through the store, results formatting, the visualiser redraws only on

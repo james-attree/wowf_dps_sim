@@ -1185,8 +1185,8 @@ h3 {
 }
 
 /* Batch charts (#148, js/charts.js). The SVG draws in currentColor, so each
-   part takes its colour from here. Not wired into the page yet: the results
-   UI (#149, #150) uses them; demo/charts.html shows them now. */
+   part takes its colour from here. The results panel (#154) places them;
+   demo/charts.html shows them too. */
 .chart {
   display: block;
   width: 100%;
@@ -1794,7 +1794,8 @@ h3 {
   border-radius: 13px;
   background: var(--surface-raised);
 }
-.table-scroll:focus-visible {
+.table-scroll:focus-visible,
+.chart-scroll:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -1981,8 +1982,67 @@ th[aria-sort="ascending"] {
 /* body in styles.css is a grid with an auto column, so a wide table would
    widen the whole page. Size containment keeps the scroll boxes from
    contributing their content width; they scroll instead. */
-.table-scroll {
+.table-scroll,
+.chart-scroll {
   contain: inline-size;
+}
+
+/* ---- Charts -------------------------------------------------------------- */
+.chart-block {
+  padding: 12px;
+  border: 1px solid #3a3225;
+  border-radius: 13px;
+  background: var(--surface-raised);
+}
+.chart-block + .chart-block {
+  margin-top: 10px;
+}
+.chart-block h4 {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+}
+.chart-scroll {
+  overflow-x: auto;
+}
+.chart-mode {
+  display: flex;
+  gap: 14px;
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+.chart-mode legend {
+  float: left;
+  margin-right: 6px;
+  color: var(--text-muted);
+}
+.chart-block details {
+  margin-top: 6px;
+  font-size: 0.8rem;
+}
+.chart-block summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.chart-block summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.chart-block .chart-table {
+  margin-top: 8px;
+}
+
+/* Decision 3 (Phase 3): the charts' fixed 640 x 300 viewBox with 11 px text
+   is unreadable squeezed to a phone, so below the page's narrow breakpoint
+   the SVG keeps 520 px and its .chart-scroll region scrolls sideways. A
+   responsive chart layout is on the Phase 5 polish list. */
+@media (max-width: 519.98px) {
+  .chart-scroll .chart {
+    min-width: 520px;
+  }
 }
 
 /* ---- Energy-cap flag (ENERGY_CAP_WARN_FRACTION) --------------------------- */

@@ -19,9 +19,12 @@ Each has a table alternative: `histogramTable` (one row per bin) and
 `timelineTable` (the mean, lowest and highest damage dealt every
 `chart.timelineTableStep` seconds, 30 s, and at the end of the fight).
 
-The batch results panel (#154) builds its tables and states with `js/svg.js`
-and formats its numbers with `formatNumber`; it puts the two charts on the
-page in its second part. `demo/charts.html` is a development
+The batch results panel (#154, `js/views/results-render.js`) puts both charts
+on the page after its tables, each in a `.chart-scroll` region with its table
+in a `<details>`; it builds the rest of the panel with `js/svg.js` and formats
+its numbers with `formatNumber`. Below the page's narrow breakpoint the SVG
+keeps a 520 px minimum width and scrolls sideways (a narrow layout is on the
+Phase 5 polish list). `demo/charts.html` is a development
 harness that runs a real batch through `BatchClient` and draws both charts
 without a reload. It is not deployed (Pages copies only `index.html`,
 `styles.css`, `js/`, `data/` and `img/`). Run `npm run serve` and open
