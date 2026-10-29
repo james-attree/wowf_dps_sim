@@ -329,8 +329,16 @@ describe("project site paths", () => {
     // js/batch-worker.js (with js/batch-host.js, their protocol); the page
     // calls it from the UI issues (#149, #150). The worker is not imported but
     // loaded by URL: the test below checks it is published and resolves.
+    // js/damage-timeline.js (S5, #148, the per-second damage timeline) is
+    // imported by js/batch-runner.js, so it waits with it. js/charts.js and
+    // js/svg.js (#148) draw the batch charts: the results UI (#149, #150)
+    // puts them on the page; until then only the demo harness
+    // demo/charts.html (not deployed) uses them.
     // js/rotation-validator.js is wired through the interpreter.
     const notWiredYet = new Set([
+      "js/damage-timeline.js",
+      "js/charts.js",
+      "js/svg.js",
       "js/batch-client.js",
       "js/batch-host.js",
       "js/batch-worker.js",

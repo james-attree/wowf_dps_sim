@@ -158,6 +158,15 @@ export default defineConfig([
     },
   },
   {
+    // The charts demo harness (#148): a page script, like js/main.js. It is
+    // not deployed (the Pages workflow copies index.html, styles.css, js, data
+    // and img).
+    files: ["demo/**/*.js"],
+    languageOptions: {
+      globals: readonly(["document", "performance"]),
+    },
+  },
+  {
     files: ["scripts/**/*.mjs", "test/**/*.js"],
     languageOptions: {
       globals: readonly([

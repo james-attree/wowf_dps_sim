@@ -619,6 +619,58 @@ h3 {
   border-radius: 2px;
 }
 
+/* Batch charts (#148, js/charts.js). The SVG draws in currentColor, so each
+   part takes its colour from here. Not wired into the page yet: the results
+   UI (#149, #150) uses them; demo/charts.html shows them now. */
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--text-muted);
+  font-family: inherit;
+}
+
+.chart .chart-bar {
+  color: var(--accent);
+}
+
+.chart .chart-mean,
+.chart .chart-mean-label {
+  color: #f3eee2;
+}
+
+.chart .chart-ci-band,
+.chart .chart-ci-edge {
+  color: #7fb6d9;
+}
+
+.chart .chart-band {
+  color: var(--accent);
+}
+
+.chart .chart-axis-title {
+  color: #f3eee2;
+}
+
+.chart-table {
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-table caption {
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.chart-table th,
+.chart-table td {
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

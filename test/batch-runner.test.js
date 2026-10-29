@@ -352,6 +352,7 @@ describe("runBatch", () => {
       "breakdown",
       "auras",
       "resources",
+      "timeline",
       "dps",
     ]);
     assert.equal(result.seed, 7);
@@ -1257,6 +1258,7 @@ describe("the interface", () => {
     assert.deepEqual(imports.sort(), [
       "../data/constants.js",
       "./ability-breakdown.js",
+      "./damage-timeline.js",
       "./data-version.js",
       "./event-stream.js",
       "./fight-metrics.js",
