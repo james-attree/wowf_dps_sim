@@ -1,0 +1,593 @@
+/* U7, the rotation builder (#217). Fran's mockup CSS
+   (design/u7-rotation-builder/mockup.css) without the mockup chrome and the
+   Fight setup mini-copies. It uses the :root variables and .visually-hidden,
+   .pill-button and .field-control from styles.css. Colours reuse the repo's
+   error red #f19389, the #206 warning amber #f0c46a and the import green
+   #b9d99a; the ratios are in Fran's spec. The narrow query is
+   js/views/breakpoints.js's NARROW_QUERY. */
+
+/* ---- Fight setup ---------------------------------------------------------- */
+.rotation-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.rotation-pick select {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.rotation-pick .pill-button {
+  min-height: 44px;
+}
+/* D19: the Fight setup summary says when it shows the last valid version. */
+.summary-stale {
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  border-left: 3px solid #e0a63c;
+  background: #221b0e;
+  color: #e8d9b5;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.summary-stale[hidden] {
+  display: none;
+}
+
+/* ---- The panel ------------------------------------------------------------ */
+.rotation-panel {
+  display: grid;
+  gap: 12px;
+}
+.rotation-panel[hidden] {
+  display: none;
+}
+.builder-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: 8px;
+}
+.rotation-panel .pill-button,
+.rotation-panel select,
+.rotation-panel input,
+.rotation-pick .pill-button,
+.rotation-pick select {
+  min-height: 44px;
+}
+.rotation-panel select,
+.rotation-panel input[type="text"],
+.rotation-panel input[type="number"],
+.rotation-pick select {
+  border: 1px solid #54452b;
+  border-radius: 8px;
+  background: #15120d;
+  color: #f3eee2;
+  font: inherit;
+  padding: 0 8px;
+  max-width: 100%;
+}
+.rotation-panel [aria-invalid="true"] {
+  border-color: #f19389;
+  box-shadow: 0 0 0 1px #f19389;
+}
+.rotation-panel :focus-visible,
+.setup-mini :focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.rotation-panel [aria-disabled="true"],
+#cfg-export[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* Export is off while the rotation has errors (D17); the line says why. */
+.export-why {
+  margin: 0.25rem 0 0;
+}
+.builder-name input {
+  width: 100%;
+}
+.builder-origin,
+.builder-context,
+.builder-help {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.builder-context strong {
+  color: #f3eee2;
+}
+
+.rot-banner {
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.rot-banner.is-error {
+  border-color: #7a3b34;
+  background: #2a1613;
+  color: #f19389;
+}
+.rot-banner.is-warning {
+  border-color: #6b5426;
+  background: #2a2112;
+  color: #f0c46a;
+}
+.rot-banner.is-info {
+  border-color: var(--border);
+  background: var(--surface-raised);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.rot-banner strong {
+  color: inherit;
+}
+.jump-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+.rot-banner .link-button {
+  color: inherit;
+}
+
+.rule-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.rule-list-head h3 {
+  font-size: 0.95rem;
+}
+.rule-count {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.rule-empty {
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  display: grid;
+  gap: 6px;
+}
+.rule-list {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.rule {
+  position: relative;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  display: grid;
+  gap: 8px;
+}
+.rule.is-alt {
+  margin-left: 24px;
+  border-left: 3px solid #8f7a4d;
+}
+.rule.is-alt::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: -9px;
+  width: 12px;
+  height: 28px;
+  border-left: 2px solid #8f7a4d;
+  border-bottom: 2px solid #8f7a4d;
+  border-bottom-left-radius: 6px;
+}
+.rule.has-error {
+  border-color: #7a3b34;
+}
+.rule.has-warning {
+  border-color: #6b5426;
+}
+.rule.is-skipped .rule-icon {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.rule.is-lifted {
+  border-color: var(--accent);
+  box-shadow:
+    0 8px 22px #000a,
+    0 0 0 1px var(--accent);
+  transform: translateY(-2px);
+  z-index: 2;
+}
+.drop-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.rule-head {
+  display: grid;
+  grid-template-columns: 44px auto 32px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+.rule-grip {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #54452b;
+  border-radius: 8px;
+  background: #15120d;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: grab;
+  touch-action: none;
+}
+.rule-grip[aria-pressed="true"] {
+  background: var(--accent);
+  color: #15120d;
+  border-color: var(--accent);
+  cursor: grabbing;
+}
+.rule-num {
+  min-width: 1.6em;
+  padding-top: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  text-align: right;
+}
+.rule-icon {
+  margin-top: 6px;
+  border-radius: 6px;
+  border: 1px solid #54452b;
+}
+.rule-title {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.rule-name {
+  font-size: 0.98rem;
+  margin: 0;
+  padding-top: 4px;
+  text-align: left;
+}
+.rule-line {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+.rule-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid #54452b;
+  border-radius: 999px;
+  background: #15120d;
+  color: #d8cfbd;
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+.chip.is-alt {
+  border-color: #8f7a4d;
+}
+.chip.is-skip {
+  color: #f3eee2;
+  border-color: #81745c;
+  border-style: dashed;
+}
+.chip.is-ok {
+  color: #b9d99a;
+  border-color: #4a5a37;
+}
+.chip.is-error {
+  color: #f19389;
+  border-color: #7a3b34;
+  background: #2a1613;
+}
+.chip.is-warning {
+  color: #f0c46a;
+  border-color: #6b5426;
+  background: #2a2112;
+}
+.rule-move {
+  display: flex;
+  gap: 4px;
+}
+.icon-button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #54452b;
+  border-radius: 8px;
+  background: #15120d;
+  color: #f3eee2;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.rule-msgs {
+  display: grid;
+  gap: 6px;
+}
+.rule-msg {
+  padding: 6px 10px;
+  border-left: 3px solid;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.rule-msg.is-error {
+  border-color: #f19389;
+  background: #2a1613;
+  color: #f19389;
+}
+.rule-msg.is-warning {
+  border-color: #f0c46a;
+  background: #2a2112;
+  color: #f0c46a;
+}
+.msg-kind {
+  font-weight: 700;
+}
+.msg-fix {
+  display: block;
+}
+.fix-button {
+  margin-top: 6px;
+  color: #f3eee2;
+}
+.rule-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pill-button.is-danger {
+  color: #f19389;
+}
+.rule-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.rule-action select {
+  width: 100%;
+}
+.rule-hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.cond-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.cond-head h5 {
+  font-size: 0.85rem;
+  margin: 0;
+}
+.cond-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.cond {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  display: grid;
+  gap: 4px;
+}
+.cond.has-error {
+  border-color: #7a3b34;
+}
+.cond-row {
+  display: grid;
+  grid-template-columns: 2.2em minmax(0, 1fr) 44px;
+  gap: 6px;
+  align-items: start;
+}
+.cond-and {
+  padding-top: 12px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+.cond-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.cond-field {
+  min-width: 0;
+}
+.cond-type select {
+  min-width: 12em;
+}
+.cond-num .field-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cond-value {
+  width: 6.5em;
+}
+.icon-button.is-remove {
+  color: #f19389;
+}
+.cond-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.add-rule-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.add-rule-row .field {
+  flex: 1 1 220px;
+  display: grid;
+  gap: 4px;
+}
+.add-rule-row .field-help,
+.add-rule-row .field-error {
+  flex-basis: 100%;
+}
+.type-note {
+  margin: 0;
+  flex-basis: 100%;
+}
+.rotation-panel {
+  margin-bottom: 14px;
+}
+.rotation-panel .link-button {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rotation-panel .rot-banner .link-button {
+  color: inherit;
+}
+.rotation-panel .field-error {
+  color: #f19389;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.rotation-panel .builder-name {
+  display: grid;
+  gap: 4px;
+}
+.rule-icon {
+  width: 32px;
+  height: 32px;
+}
+/* Each part of a rule's head has its own column, so an icon that failed to
+   load twice and is hidden (attachIconFallback) leaves the title in the wide
+   column. */
+.rule-head > .rule-grip {
+  grid-column: 1;
+}
+.rule-head > .rule-num {
+  grid-column: 2;
+}
+.rule-head > .rule-icon {
+  grid-column: 3;
+}
+.rule-head > .rule-title {
+  grid-column: 4;
+}
+.rule-head > .rule-move {
+  grid-column: 5;
+}
+/* D20: the visible "Edited" marker on a preset with a session draft. */
+.edited-mark {
+  display: inline-block;
+  padding: 0 8px;
+  margin-right: 2px;
+  border: 1px solid #8a6d2f;
+  border-radius: 999px;
+  background: #2a210f;
+  color: #f1d58a;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.builder-origin.is-edited .link-button {
+  font-size: inherit;
+}
+@media (max-width: 519.98px) {
+  /* 360 px: a chip that wraps keeps a readable shape. */
+  .chip {
+    border-radius: 10px;
+  }
+  .rule {
+    padding: 8px;
+  }
+  .rule.is-alt {
+    margin-left: 12px;
+  }
+  .rule.is-alt::before {
+    left: -10px;
+    width: 6px;
+  }
+  /* Grip, number, icon, title; the ↑ ↓ pair drops under them, right-aligned. */
+  .rule-head {
+    grid-template-columns: 44px auto 32px minmax(0, 1fr);
+  }
+  .rule-head > .rule-move {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    margin-top: -4px;
+  }
+  .rule-foot .pill-button {
+    flex: 1 1 auto;
+  }
+  .cond-row {
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+  .cond-and {
+    display: none;
+  }
+  .cond-type,
+  .cond-type select {
+    width: 100%;
+  }
+  .cond-fields > .cond-field:not(.cond-type) {
+    flex: 1 1 40%;
+  }
+  .cond-fields select,
+  .cond-value {
+    width: 100%;
+  }
+  .rotation-panel select,
+  .rotation-panel input {
+    font-size: 16px;
+  }
+}
+
+/* Scout, 29 Oct: the selected rule (new rules go above it). */
+.rule.is-selected {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.chip.is-sel {
+  color: #f3eee2;
+  border-color: var(--accent);
+}

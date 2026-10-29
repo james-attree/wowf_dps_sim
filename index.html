@@ -7,6 +7,7 @@
     <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="talent-tree.css" />
+    <link rel="stylesheet" href="rotation-builder.css" />
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
@@ -180,15 +181,29 @@
             </div>
             <div class="field">
               <label for="cfg-rotation">Rotation</label>
-              <select
-                id="cfg-rotation"
-                name="rotation"
-                aria-describedby="cfg-rotation-summary"
-              ></select>
+              <!-- U7 (#217): js/views/rotation-builder.js owns the button and
+                   the #rotation-builder section under the form. -->
+              <div class="rotation-pick">
+                <select
+                  id="cfg-rotation"
+                  name="rotation"
+                  aria-describedby="cfg-rotation-summary"
+                ></select>
+                <button
+                  id="cfg-rotation-edit"
+                  class="pill-button"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="rotation-builder"
+                >
+                  Edit rotation…
+                </button>
+              </div>
             </div>
             <details id="cfg-summary" class="rotation-summary" open>
               <summary>What this rotation does</summary>
               <div id="cfg-rotation-summary">
+                <p id="cfg-summary-stale" class="summary-stale" hidden></p>
                 <p id="cfg-summary-name" class="rotation-summary-name"></p>
                 <ol id="cfg-summary-rules" class="rotation-summary-rules"></ol>
               </div>
@@ -207,6 +222,7 @@
                 accept=".json,application/json"
               />
             </div>
+            <p id="cfg-export-why" class="field-error export-why" hidden></p>
             <details class="paste-import">
               <summary>Paste JSON</summary>
               <label for="cfg-import-text">Rotation JSON</label>
@@ -668,6 +684,13 @@
         </p>
         <p class="visually-hidden" id="talents-live" role="status"></p>
       </section>
+
+      <section
+        id="rotation-builder"
+        class="panel rotation-panel"
+        aria-labelledby="rotation-builder-title"
+        hidden
+      ></section>
 
       <section
         id="damage-panel"

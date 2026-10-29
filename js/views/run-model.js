@@ -128,23 +128,31 @@ export function formErrorCount(form) {
 export const talentErrorCount = (state) =>
   typeof state.talents?.error === "string" ? 1 : 0;
 
+// The rotation builder's draft with errors (#217, D17): one setting to fix,
+// however many errors it has (Scout, 29 Oct). The form slice holds them.
+export const rotationErrorCount = (state) =>
+  (state.form?.rotationErrors?.length ?? 0) > 0 ? 1 : 0;
+
 // Everything that blocks Run (#155, Fran's QA 1): the run fields with an
-// error in this mode, the stats form's errors and the talent tree's (#204).
+// error in this mode, the stats form's errors, the talent tree's (#204) and
+// the rotation's (#217).
 export function blockedCount(state) {
   return (
     fieldErrors(state.run).length +
     formErrorCount(state.form) +
-    talentErrorCount(state)
+    talentErrorCount(state) +
+    rotationErrorCount(state)
   );
 }
 
-// Run is blocked by an invalid run field, an invalid stats form field (#151)
-// or a talent build over its cap (#204).
+// Run is blocked by an invalid run field, an invalid stats form field (#151),
+// a talent build over its cap (#204) or a rotation with errors (#217).
 function blocked(state) {
   return (
     fieldErrors(state.run).length > 0 ||
     Object.keys(state.form?.errors ?? {}).length > 0 ||
-    talentErrorCount(state) > 0
+    talentErrorCount(state) > 0 ||
+    rotationErrorCount(state) > 0
   );
 }
 
@@ -166,8 +174,22 @@ export const TALENTS_OVER_CAP = "Talents over the level cap";
 // Run's aria-describedby names, and the status text itself is aria-hidden.
 export const TALENTS_OVER_CAP_SHORT = "Talents over cap";
 
-export function blockedText(count, talentsOnly = false) {
-  return `Can't run · ${talentsOnly ? TALENTS_OVER_CAP : `${settings(count)} to fix`}`;
+// When the only thing to fix is the rotation (#217, D17): "Rotation has 4
+// errors", and its short form for the narrow row (Scout, 29 Oct).
+export const rotationErrorsText = (count) =>
+  `Rotation has ${count} ${count === 1 ? "error" : "errors"}`;
+export const ROTATION_ERRORS_SHORT = "Rotation errors";
+
+// `only` names the one thing to fix when there is just one: true for the
+// talents (#204), or a rotation error count (#217).
+export function blockedText(count, only = false) {
+  if (only === true) {
+    return `Can't run · ${TALENTS_OVER_CAP}`;
+  }
+  if (typeof only === "number") {
+    return `Can't run · ${rotationErrorsText(only)}`;
+  }
+  return `Can't run · ${settings(count)} to fix`;
 }
 
 const talentsOnly = (state) => {
@@ -175,15 +197,27 @@ const talentsOnly = (state) => {
   return talents > 0 && blockedCount(state) === talents;
 };
 
+const rotationOnly = (state) => {
+  const rotation = rotationErrorCount(state);
+  return rotation > 0 && blockedCount(state) === rotation;
+};
+
 function blockedReason(state) {
+  if (rotationOnly(state)) {
+    return blockedText(1, state.form.rotationErrors.length);
+  }
   return blockedText(blockedCount(state), talentsOnly(state));
 }
 
 // The narrow row's shorter status, or null when the status fits as it is.
 function narrowStatus(state, reason) {
-  return reason !== null && talentsOnly(state)
-    ? `Can't run · ${TALENTS_OVER_CAP_SHORT}`
-    : null;
+  if (reason === null) {
+    return null;
+  }
+  if (talentsOnly(state)) {
+    return `Can't run · ${TALENTS_OVER_CAP_SHORT}`;
+  }
+  return rotationOnly(state) ? `Can't run · ${ROTATION_ERRORS_SHORT}` : null;
 }
 
 // "100k" for 100,000, "1.5k" for 1,500, "999" under a thousand: the total of

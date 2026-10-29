@@ -155,7 +155,7 @@ describe("Pages workflow", () => {
       assembleScript(workflow),
       [
         "mkdir -p _site",
-        "cp index.html styles.css talent-tree.css _site/",
+        "cp index.html styles.css talent-tree.css rotation-builder.css _site/",
         "cp -R js data img _site/",
       ].join("\n"),
     );
@@ -169,7 +169,7 @@ describe("Pages workflow", () => {
     const commands = assembleScript(workflow).split("\n");
     assert.deepEqual(commands, [
       "mkdir -p _site",
-      "cp index.html styles.css talent-tree.css _site/",
+      "cp index.html styles.css talent-tree.css rotation-builder.css _site/",
       "cp -R js data img _site/",
     ]);
 
@@ -185,6 +185,7 @@ describe("Pages workflow", () => {
         "img",
         "index.html",
         "js",
+        "rotation-builder.css",
         "styles.css",
         "talent-tree.css",
       ]);
@@ -192,6 +193,7 @@ describe("Pages workflow", () => {
         "index.html",
         "styles.css",
         "talent-tree.css",
+        "rotation-builder.css",
         "js/main.js",
         "js/ability.js",
         "data/constants.js",

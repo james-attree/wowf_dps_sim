@@ -427,7 +427,7 @@ describe("rotation", () => {
     );
     assert.match(
       $("cfg-import-warnings-text").textContent,
-      /^rules\[0\]\.conditions: Eviscerate \(eviscerate\) is a finisher/,
+      /^Rule 1: Eviscerate \(eviscerate\) is a finisher/,
     );
     assert.equal($("cfg-import-text").value, "", "an accepted paste clears");
     $("cfg-import-text").value = "{";

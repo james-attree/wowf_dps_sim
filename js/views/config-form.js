@@ -124,9 +124,12 @@ export function createConfigFormView(doc, store, actions) {
   const rotation = $("cfg-rotation");
   const summaryDetails = $("cfg-summary");
   const summaryName = $("cfg-summary-name");
+  const summaryStale = $("cfg-summary-stale");
   const summaryRules = $("cfg-summary-rules");
   const importFile = $("cfg-import-file");
   const importText = $("cfg-import-text");
+  const exportButton = $("cfg-export");
+  const exportWhy = $("cfg-export-why");
   const importStatus = $("cfg-import-status");
   const importDetail = $("cfg-import-detail");
   const importDetailText = $("cfg-import-detail-text");
@@ -358,7 +361,24 @@ export function createConfigFormView(doc, store, actions) {
     return `${hand}${String(own).trim()}`;
   }
 
-  function drawSummary({ name, rules }) {
+  // D19 (U7): while the rotation draft has errors the summary is of its last
+  // valid version, the one a run would use, and the note above it says so.
+  function drawStale(stale) {
+    if (summaryStale === null) {
+      return;
+    }
+    summaryStale.hidden = stale === null || stale === undefined;
+    if (summaryStale.hidden) {
+      summaryStale.replaceChildren();
+      return;
+    }
+    const lead = doc.createElement("strong");
+    lead.textContent = "Last valid version. ";
+    summaryStale.replaceChildren(lead, stale);
+  }
+
+  function drawSummary({ name, rules, stale }) {
+    drawStale(stale);
     summaryName.textContent = name;
     summaryRules.replaceChildren(
       ...rules.map((rule) => {
@@ -367,6 +387,21 @@ export function createConfigFormView(doc, store, actions) {
         return item;
       }),
     );
+  }
+
+  function drawExport(why) {
+    const off = why !== null && why !== undefined;
+    if (off) {
+      exportButton.setAttribute("aria-disabled", "true");
+      exportButton.setAttribute("aria-describedby", "cfg-export-why");
+    } else {
+      exportButton.removeAttribute("aria-disabled");
+      exportButton.removeAttribute("aria-describedby");
+    }
+    if (exportWhy !== null) {
+      exportWhy.hidden = !off;
+      exportWhy.textContent = off ? why : "";
+    }
   }
 
   function drawImport(status) {
@@ -427,6 +462,9 @@ export function createConfigFormView(doc, store, actions) {
     if (previous === null || state.errors !== previous.errors) {
       drawErrors(state.errors);
     }
+    if (previous === null || state.exportOff !== previous.exportOff) {
+      drawExport(state.exportOff);
+    }
     if (previous === null || state.importStatus !== previous.importStatus) {
       drawImport(state.importStatus);
     }
@@ -465,8 +503,14 @@ export function createConfigFormView(doc, store, actions) {
     actions.chooseRotation(rotation.value),
   );
 
-  $("cfg-export").addEventListener("click", () => {
-    const { fileName, text } = actions.exportRotation();
+  // Off while the rotation has errors (D17): aria-disabled, so it keeps
+  // focus and says why, and a press writes nothing.
+  exportButton.addEventListener("click", () => {
+    const file = actions.exportRotation();
+    if (file === null) {
+      return;
+    }
+    const { fileName, text } = file;
     const url = win.URL.createObjectURL(
       new win.Blob([text], { type: "application/json" }),
     );

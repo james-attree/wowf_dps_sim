@@ -6,6 +6,7 @@ import {
   fieldErrors,
   focusTarget,
   formErrorCount,
+  rotationErrorCount,
   talentErrorCount,
   isLocked,
   parseRunField,
@@ -125,7 +126,9 @@ export function createControlsView(doc, store, actions = {}) {
     write(summary, summaryText(run));
     const fix = errorsText(
       run,
-      formErrorCount(state.form) + talentErrorCount(state),
+      formErrorCount(state.form) +
+        talentErrorCount(state) +
+        rotationErrorCount(state),
     );
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
@@ -237,6 +240,15 @@ export function createControlsView(doc, store, actions = {}) {
       const field = doc.querySelector('#config-form [aria-invalid="true"]');
       if (field !== null) {
         field.focus?.();
+        return;
+      }
+      // Else the rotation builder's draft with errors (#217, D17), when the
+      // talents are fine: the builder opens and focuses its first error.
+      if (
+        talentErrorCount(store.get()) === 0 &&
+        rotationErrorCount(store.get()) > 0
+      ) {
+        actions.fixRotation?.();
         return;
       }
       // Else the talent tree's over-cap build (#204, Fran's QA of #208):

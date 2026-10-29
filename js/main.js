@@ -3,6 +3,7 @@ import { BatchClient } from "./batch-client.js";
 import { buildLabel, poisonName } from "./build-label.js";
 import { createConfigForm, pageDefaultConfig } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
+import { createRotationBuilder } from "./rotation-builder.js";
 import { createRunActions, emptyBatch } from "./run-actions.js";
 import { createStore } from "./store.js";
 import { createTalentTree } from "./talent-tree.js";
@@ -10,6 +11,7 @@ import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
 import { createResultsPanelView } from "./views/results-panel.js";
+import { createRotationBuilderView } from "./views/rotation-builder.js";
 import { createTalentTreeView } from "./views/talent-tree.js";
 import { createVisualiserView } from "./views/visualiser.js";
 
@@ -88,9 +90,17 @@ store.subscribe(({ state }) => {
   }
 });
 
-createConfigFormView(document, store, createConfigForm(store));
+const formActions = createConfigForm(store);
+// The rotation builder (U7, #217) edits a draft through the form's actions;
+// the Run bar's "Fix" link opens it at the first rotation error.
+const builder = createRotationBuilder(store, formActions);
+createConfigFormView(document, store, formActions);
 createTalentTreeView(document, store, createTalentTree(store));
-createControlsView(document, store, actions);
+createRotationBuilderView(document, store, builder);
+createControlsView(document, store, {
+  ...actions,
+  fixRotation: builder.jumpToFirstError,
+});
 createVisualiserView(document, store);
 createResultsView(document, store);
 createResultsPanelView(document, store, { buildLabel, poisonName });

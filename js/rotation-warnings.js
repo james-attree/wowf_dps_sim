@@ -169,7 +169,8 @@ function conditionKey(condition) {
   return JSON.stringify(kept);
 }
 
-function sameRuleKey(rule) {
+// Exported for draftEdited (config-form.js), which compares a draft with its preset.
+export function sameRuleKey(rule) {
   return JSON.stringify([
     rule.action,
     rule.conditions.map(conditionKey).sort(),

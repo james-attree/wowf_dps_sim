@@ -810,6 +810,60 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
   });
 });
 
+describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () => {
+  const withErrors = (page, n) =>
+    page.store.set({
+      form: {
+        ...page.store.get().form,
+        errors: {},
+        rotationErrors: Array.from({ length: n }, (_, at) => ({
+          path: `rules[${at}].action`,
+          code: "unknownAction",
+        })),
+      },
+    });
+
+  it("counts the rotation as one setting, named with its error count", () => {
+    const page = setup();
+    withErrors(page, 4);
+    assert.equal(page.model().run.disabled, true);
+    assert.equal(page.model().reason, "Can't run · Rotation has 4 errors");
+    assert.equal(page.model().statusShort, "Can't run · Rotation errors");
+    withErrors(page, 1);
+    assert.equal(page.model().reason, "Can't run · Rotation has 1 error");
+  });
+
+  it("with another blocker too, the rotation is one of the settings", () => {
+    const page = setup();
+    withErrors(page, 3);
+    page.store.set({
+      form: { ...page.store.get().form, errors: { "rogue.agility": "Bad." } },
+    });
+    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    assert.equal(page.model().statusShort, null);
+  });
+
+  it("the Fix link opens the builder at the first error", () => {
+    const page = setup();
+    withErrors(page, 2);
+    let fixed = 0;
+    const { doc, el } = standIn({
+      absent: ['#config-form [aria-invalid="true"]'],
+    });
+    createControlsView(doc, page.store, {
+      ...page.actions,
+      fixRotation: () => {
+        fixed += 1;
+      },
+    });
+    const link = el("run-errors-link");
+    assert.equal(link.hidden, false);
+    assert.equal(link.textContent, "Fix 1 setting");
+    link.fire("click");
+    assert.equal(fixed, 1);
+  });
+});
+
 describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => {
   const overCap = (page) =>
     page.store.set({

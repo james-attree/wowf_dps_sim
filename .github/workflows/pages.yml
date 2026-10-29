@@ -37,7 +37,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site
-          cp index.html styles.css talent-tree.css _site/
+          cp index.html styles.css talent-tree.css rotation-builder.css _site/
           cp -R js data img _site/
 
       - name: Upload artifact
