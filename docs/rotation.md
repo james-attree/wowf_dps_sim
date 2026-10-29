@@ -592,8 +592,9 @@ no `The condition (comboPoints)` standing for a path. The place is the
   and shows the message beside it. The page's import box does
   (`errorLine`, `js/config-form.js`, #217): "Rotation name", "Rules",
   "Rule N" for anything about a rule, or "Rule N, condition M" for anything
-  under a condition, then `: ` and the message; a path that is none of these
-  (`schemaVersion`) is shown as it is. The rotation builder places each entry
+  under a condition, then `: ` and the message; a problem with the file as a
+  whole (the path `""`, or one that is none of these, such as
+  `schemaVersion`) reads "File: " and the message. The rotation builder places each entry
   on its rule, condition or field and shows short copy chosen by `code`.
 
 So the path and the text can no longer disagree (the `missingParam` path ends

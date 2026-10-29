@@ -458,14 +458,19 @@ export function importedText(name, warnings) {
 }
 
 // One line of an import's detail or warnings: the entry's readable place
-// ("Rule 2, condition 1", from its path) and then its message, or the message
-// alone for a problem with the whole text (path ""). Messages never say where
+// ("Rule 2, condition 1", from its path) and then its message. Messages never say where
 // (the message contract, #214); the place comes from the path alone, never
 // the text (U7 spec D4 and section 5, #217). The thrown and string forms keep
 // the raw path (formatError).
+//
+// A problem with the file as a whole, not a rule or the name (the path ""
+// or one placeText has no words for, such as "schemaVersion"), reads
+// "File: …" (Fran's P4 on #219).
+export const FILE_PLACE = "File";
 export function errorLine(entry) {
   const place = placeText(entry.path);
-  return place === null ? entry.message : `${place}: ${entry.message}`;
+  const file = place === null || place === entry.path;
+  return `${file ? FILE_PLACE : place}: ${entry.message}`;
 }
 
 // Why Export is off: the rotation on screen has errors (U7 spec D17, #217).

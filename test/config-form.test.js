@@ -492,7 +492,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     );
     assert.match(
       form().importStatus.detail,
-      /^schemaVersion: The rotation is missing "schemaVersion"\.$/m,
+      /^File: The rotation is missing "schemaVersion"\.$/m,
     );
     // The message names no place; the readable place is written once, in
     // front (#214; U7 spec D4, #217), and no raw path is shown.
@@ -525,9 +525,10 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.doesNotMatch(detail, /rules\[/);
   });
 
-  it("errorLine is the readable place from the path, then the message, or the message alone at the root (#214, #217)", () => {
+  it("errorLine is the readable place from the path, then the message, or File: for the file as a whole (#214, #217)", () => {
     const line = (path, message) => errorLine({ path, message });
-    assert.equal(line("", "Not JSON."), "Not JSON.");
+    // A problem with the file as a whole reads "File:" (Fran's P4 on #219).
+    assert.equal(line("", "Not JSON."), "File: Not JSON.");
     assert.equal(
       line("rules[0].conditions", "Blade Flurry"),
       "Rule 1: Blade Flurry",
@@ -547,7 +548,11 @@ describe("rotation: one source of truth, config.rotation", () => {
     );
     assert.equal(
       line("schemaVersion", 'The rotation is missing "schemaVersion".'),
-      'schemaVersion: The rotation is missing "schemaVersion".',
+      'File: The rotation is missing "schemaVersion".',
+    );
+    assert.equal(
+      line("unknownKey", 'The rotation has an unknown key "x".'),
+      'File: The rotation has an unknown key "x".',
     );
     // No guessing from the text: a message is never read for a place.
     assert.equal(line("rules[1]", "rules[0]: x"), "Rule 2: rules[0]: x");
@@ -614,7 +619,7 @@ describe("rotation: one source of truth, config.rotation", () => {
       { path: "rules[0]", message: "A." },
       { path: "", message: "B." },
     ];
-    assert.equal(listedLines(entries), "Rule 1: A.\nB.");
+    assert.equal(listedLines(entries), "Rule 1: A.\nFile: B.");
     assert.equal(listedLines(entries, 1), "Rule 1: A.\n…and 1 more");
     assert.equal(MAX_LISTED, 50);
   });

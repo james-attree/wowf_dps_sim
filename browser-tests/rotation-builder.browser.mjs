@@ -267,6 +267,28 @@ for (const width of WIDTHS) {
       assert.doesNotMatch(detail, /rules\[/);
     });
 
+    test("a problem with the whole file reads 'File:' (Fran's P4 on #219)", async () => {
+      await page.evaluate(() => {
+        document.querySelector(".paste-import").open = true;
+      });
+      await page.fill(
+        "#cfg-import-text",
+        JSON.stringify({ schemaVersion: 99, name: "Bad", rules: [] }),
+      );
+      await clickCentre(page.locator("#cfg-import-paste"));
+      const detail = await page
+        .locator("#cfg-import-detail-text")
+        .textContent();
+      assert.match(detail, /^File: /m);
+      assert.doesNotMatch(detail, /^schemaVersion:/m);
+      await page.fill("#cfg-import-text", "{ nope");
+      await clickCentre(page.locator("#cfg-import-paste"));
+      assert.match(
+        await page.locator("#cfg-import-detail-text").textContent(),
+        /^File: /m,
+      );
+    });
+
     // Fran's B1 (#218 re-check): every action with an Undo banner puts the
     // focus on its Undo button.
     const onUndo = (page) =>
