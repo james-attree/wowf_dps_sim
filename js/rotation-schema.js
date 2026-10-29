@@ -152,11 +152,13 @@ export function conditionShapeErrors(condition, path) {
 }
 
 // The shape of one rule itself, without its conditions' own shapes:
-// { errors, readable }. `readable` is true when the rule's action and its
-// conditions can be read: the rule is an object, `action` is an id, and
-// `conditions` is an array within the limit. An unknown field alone leaves it
-// readable. The validator checks the meaning of a readable rule only, so a
-// broken rule is skipped and the rules after it are still checked (#212).
+// { errors, actionReadable, conditionsReadable }. `actionReadable` is true
+// when the rule is an object and `action` is an id; `conditionsReadable` when
+// the rule is an object and `conditions` is an array within the limit. An
+// unknown field alone leaves both readable. The validator skips a rule whose
+// conditions cannot be read; a bad action skips only the checks that need the
+// action, so it does not hide the conditions' errors (Kira's QA on #215). The
+// rules after a broken one are still checked (#212).
 export function ruleShape(rule, path) {
   if (!isPlainObject(rule)) {
     return {
@@ -167,16 +169,18 @@ export function ruleShape(rule, path) {
           `${path} must be an object { action, conditions }.`,
         ),
       ],
-      readable: false,
+      actionReadable: false,
+      conditionsReadable: false,
     };
   }
   const errors = keyErrors(rule, RULE_KEYS, path, path);
-  let readable = Object.hasOwn(rule, "action");
+  let actionReadable = Object.hasOwn(rule, "action");
+  let conditionsReadable = Object.hasOwn(rule, "conditions");
   if (
     Object.hasOwn(rule, "action") &&
     !(typeof rule.action === "string" && ABILITY_ID.test(rule.action))
   ) {
-    readable = false;
+    actionReadable = false;
     errors.push(
       rotationError(
         "actionNotId",
@@ -185,13 +189,11 @@ export function ruleShape(rule, path) {
       ),
     );
   }
-  if (!Object.hasOwn(rule, "conditions")) {
-    readable = false;
-  } else {
+  if (conditionsReadable) {
     const { conditions } = rule;
     const at = memberPath(path, "conditions");
     if (!Array.isArray(conditions)) {
-      readable = false;
+      conditionsReadable = false;
       errors.push(
         rotationError(
           "conditionsNotArray",
@@ -200,7 +202,7 @@ export function ruleShape(rule, path) {
         ),
       );
     } else if (conditions.length > k("rotation.maxConditionsPerRule")) {
-      readable = false;
+      conditionsReadable = false;
       errors.push(
         rotationError(
           "tooManyConditions",
@@ -211,7 +213,7 @@ export function ruleShape(rule, path) {
       );
     }
   }
-  return { errors, readable };
+  return { errors, actionReadable, conditionsReadable };
 }
 
 function ruleShapeErrors(rule, path) {
@@ -313,7 +315,7 @@ export function rotationTopShape(rotation) {
 // Every shape error in `rotation`, in reading order, as
 // { code, path, message, ...data } (rotationError): the path says where
 // ("rules[2].conditions[0].type"; "" is the rotation itself) and the message
-// says what, and names the same place. The version is checked first: a file
+// says what. The version is checked first: a file
 // written for another version is not read any further.
 export function rotationShapeErrors(rotation) {
   const { errors, stop, rules } = rotationTopShape(rotation);

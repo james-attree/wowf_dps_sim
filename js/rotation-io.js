@@ -87,9 +87,14 @@ export function exportRotation(rotation) {
 // messages echo the value that was wrong, and an imported file can make that
 // value as long as the file may be.
 const ELLIPSIS = "\u2026";
+// Counted in code points, not UTF-16 units, so an emoji (a surrogate pair) is
+// never split in two (Kira's QA on #215).
 function clip(text) {
   const limit = k("rotation.maxErrorChars");
-  return text.length > limit ? text.slice(0, limit - 1) + ELLIPSIS : text;
+  const points = Array.from(text);
+  return points.length > limit
+    ? points.slice(0, limit - 1).join("") + ELLIPSIS
+    : text;
 }
 
 // Each entry keeps its code and its data (#212). The path, the message and

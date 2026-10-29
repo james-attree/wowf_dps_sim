@@ -291,6 +291,78 @@ describe("rotation error codes (#212): carries on past shape errors", () => {
     );
   });
 
+  it("a bad action does not hide the rule's conditions (Kira's QA on #215)", () => {
+    const pairs = (errors) => errors.map(({ code, path }) => [code, path]);
+    // Her input exactly: no action, and a condition that is not an object.
+    const missing = {
+      schemaVersion: 1,
+      name: "x",
+      rules: [{ conditions: [5] }],
+    };
+    assert.deepEqual(pairs(validateRotation(missing)), [
+      ["missingField", "rules[0].action"],
+      ["conditionNotObject", "rules[0].conditions[0]"],
+    ]);
+    // An action of the wrong type, with a condition that is bad in meaning
+    // and one bad in shape: all three are found, and no action id or talent
+    // guard check runs on the bad action.
+    const wrongType = rotation({
+      action: 7,
+      conditions: [{ ...five, value: 9 }, { op: ">=" }],
+    });
+    assert.deepEqual(pairs(validateRotation(wrongType)), [
+      ["actionNotId", "rules[0].action"],
+      ["outOfRange", "rules[0].conditions[0].value"],
+      ["conditionNoType", "rules[0].conditions[1].type"],
+    ]);
+    // A display name for a talent ability: no guard error on top.
+    assert.deepEqual(
+      pairs(
+        validateRotation(rotation({ action: "Cold Blood", conditions: [5] })),
+      ),
+      [
+        ["actionNotId", "rules[0].action"],
+        ["conditionNotObject", "rules[0].conditions[0]"],
+      ],
+    );
+  });
+
+  it("every rotationShapeErrors entry is in validateRotation's list, by code and path", () => {
+    const key = ({ code, path }) => `${code} ${path}`;
+    const malformed = [
+      // Kira's input, and the action and conditions broken every way.
+      { schemaVersion: 1, name: "x", rules: [{ conditions: [5] }] },
+      rotation({ action: 7, conditions: [5, null, {}, { type: "" }] }),
+      rotation({ action: "Sinister Strike", conditions: [[], "x"] }),
+      rotation({ conditions: [] }),
+      rotation({ action: "sinister-strike" }),
+      rotation({}),
+      rotation({ action: null, conditions: null }),
+      rotation({ action: "cold-blood", conditions: [5], extra: 1 }),
+      rotation({ action: 7, conditions: Array(MAX_CONDITIONS + 1).fill(5) }),
+      rotation(5, null, "x", [SS], { action: "x y", conditions: [{ op: 1 }] }),
+      rotation(rule("no-such-ability", 5), rule("cold-blood", null)),
+      { name: "", rules: [{ conditions: [5] }], extra: true },
+      { schemaVersion: 1, name: "x".repeat(MAX_NAME + 1), rules: [{}] },
+      { schemaVersion: 1, name: "x", rules: [] },
+      { schemaVersion: 1, name: "x", rules: 3 },
+      { schemaVersion: 1, name: "x", rules: Array(MAX_RULES + 1).fill(SS) },
+      { schemaVersion: 2, rules: [5] },
+      null,
+      [],
+      "text",
+    ];
+    for (const input of malformed) {
+      const all = new Set(validateRotation(input).map(key));
+      for (const entry of rotationShapeErrors(input)) {
+        assert.ok(
+          all.has(key(entry)),
+          `${key(entry)} in ${JSON.stringify(input)}`,
+        );
+      }
+    }
+  });
+
   it("an empty name no longer hides the rules' errors", () => {
     const errors = validateRotation({
       ...rotation(rule("no-such-ability"), rule("cold-blood")),
@@ -494,11 +566,26 @@ describe("rotation error codes (#212): import", () => {
     ]);
     const json = importRotation("{").errors;
     assert.equal(json.length, 1);
+    // The code only: the rest of the message is the engine's own parse error,
+    // which differs between Node versions (CI runs 22).
     assert.equal(json[0].code, "notJson");
-    assert.match(json[0].message, /^The rotation file is not valid JSON: ./);
     for (const errors of [importRotation(3).errors, json]) {
       assert.ok(Object.isFrozen(errors[0]));
     }
+  });
+
+  it("clips by code point, so an emoji is never split (Kira's QA on #215)", () => {
+    const most = k("rotation.maxErrorChars");
+    const key = "\u{1F600}".repeat(most * 2);
+    const [error] = importRotation(
+      JSON.stringify({ ...rotation(SS), [key]: 1 }),
+    ).errors;
+    assert.equal(error.code, "unknownField");
+    for (const text of [error.field, error.path, error.message]) {
+      assert.ok(Array.from(text).length <= most);
+      assert.ok(text.isWellFormed(), "no lone surrogate");
+    }
+    assert.equal(error.field, "\u{1F600}".repeat(most - 1) + "…");
   });
 
   it("keeps the code and data when it clips a long entry", () => {
