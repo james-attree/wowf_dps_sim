@@ -306,7 +306,7 @@ no `Rogue`, no `Simulation`. `rotationState(rogue, simulation, { duration })` in
 | Field             | Meaning                                                                                                                     |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `time`            | Seconds of fight time so far.                                                                                               |
-| `duration`        | The fight's length in seconds, or `null` when the host did not say. Only `fightTimeRemaining` reads it.                     |
+| `duration`        | The fight's length in seconds, or `null` when the host did not say (#191). Only `fightTimeRemaining` reads it.              |
 | `resources`       | By resource id: `{ value, max, regenPerSecond }`. `regenPerSecond` is the rate now (Adrenaline Rush doubles it); 0 if none. |
 | `auras`           | The self buffs that are up, by id: `{ remaining, stacks }`.                                                                 |
 | `debuffs`         | The target debuffs that are up, by id: `{ remaining, stacks }`.                                                             |
@@ -351,9 +351,20 @@ without casting (`test/can-cast.test.js` holds the two together).
 `normalizeConfig` validates it and a bad one is a `RangeError` before the
 fight starts (before the `Simulation`, and so the rng, exists); the result's `config` records it in full, so a recorded config repeats
 the fight. `Rogue.rotation` asks the interpreter what to cast, and then does
-the haste and the white swings as it did. `fightTimeRemaining` reads as
-`Infinity` in the engine as it is: the Rogue passes no fight length to the state
-view (`duration` is `null`).
+the haste and the white swings as it did.
+
+**The fight length (#191).** The Rogue tells the state view the fight's length
+(`duration`): `createFight(seed, config, { duration })` sets the Simulation's
+`fightLength`, and the Rogue passes it to its rotation host. `runFight` and
+`SimRunner` pass the duration they run, so `fightTimeRemaining` is the seconds
+left in that fight (a rule with `fightTimeRemaining < 10` fires in the last
+10 s). The length is the rotation's only: `simulation.run(duration)` still
+decides when the fight ends, so give both the same number. With no length
+(`createFight(seed, config)`, or a `Simulation` built by hand) `duration` is
+`null` and `fightTimeRemaining` reads as `Infinity`. A length that is not a
+finite number of seconds, 0 or more, is a `RangeError` (`null` and `undefined`
+are none). No default rotation or golden reads it, so their fights are
+unchanged.
 
 **What it costs.** A five minute fight has 19,200 decision points, and the old
 code rotation did about 1 µs of work at each, so anything the interpreter adds

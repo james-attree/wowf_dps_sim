@@ -891,7 +891,9 @@ end in the same state, whoever drives them.
   calls it with `k("sim.fixedStep")` for a duration (see Fixed step).
 - `createFight(seed)` and `runFight({ seed, duration })` (`js/fight.js`) build
   the `Rogue` and `Simulation` pair. `runFight` runs it with one `run` call and
-  returns plain data (see Headless fight).
+  returns plain data (see Headless fight). `createFight`'s `options.duration`
+  is the fight length the rotation reads as `fightTimeRemaining` (#191); it does
+  not end the fight, and `runFight` and `SimRunner` pass the duration they run.
 - The live page (`js/main.js`, through `js/live-run.js`) runs the same pair in
   a `SimRunner`, which gives it whole fixed steps from `FrameClock` (see Live
   page). It is a view of the

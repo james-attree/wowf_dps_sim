@@ -28,8 +28,9 @@ import { rotationStateReader } from "./rotation-state.js";
 // still carries abilityUnlocked (docs/rotation.md, "Granted and unlocked").
 //
 // `options.duration` is the fight's length in seconds, when the host knows it
-// (js/rotation-state.js). The engine as it is has no fight length at a
-// decision point, so the Rogue passes none and fightTimeRemaining reads as
+// (js/rotation-state.js). The Rogue passes its Simulation's fightLength
+// (#191): createFight's options.duration, which runFight and SimRunner set to
+// the length they run. Without one it is null and fightTimeRemaining reads as
 // Infinity.
 export function rotationHost(rogue, simulation, options = {}) {
   const ability = (id) => rogue.abilitiesById.get(id);

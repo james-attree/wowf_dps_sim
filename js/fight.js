@@ -36,10 +36,25 @@ export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 // `options.modifiers`, `options.procs` and `options.abilities` are extras for a
 // host or a test, added to the build's (js/rogue.js). They are not part of the
 // SimConfig, so the result of a fight does not record them.
+//
+// `options.duration` is the fight's length in seconds as the rotation is told
+// it (fightTimeRemaining, #191): the Simulation's fightLength. It is the
+// rotation's only and does not end the fight; simulation.run(duration) does,
+// so give both the same number (runFight and SimRunner do). Without it
+// fightTimeRemaining reads as Infinity. A bad one is a RangeError.
 export function createFight(seed, config, options) {
   const fightSeed = normalizeSeed(seed);
-  const rogue = new Rogue(config, options);
-  const simulation = new Simulation(rogue, { seed: fightSeed });
+  // duration is createFight's own; the rest are the Rogue's, which checks
+  // them. Options that are not an object go to the Rogue as they are, and it
+  // refuses them.
+  const plain =
+    options !== null && typeof options === "object" && !Array.isArray(options);
+  const { duration, ...rogueOptions } = plain ? options : {};
+  const rogue = new Rogue(config, plain ? rogueOptions : options);
+  const simulation = new Simulation(rogue, {
+    seed: fightSeed,
+    fightLength: duration,
+  });
   return {
     seed: fightSeed,
     dataVersion,
@@ -118,8 +133,10 @@ export function runFight(options) {
   const { seed, duration, config } = options;
   // A seed is required so no fight is repeatable by accident or random by
   // accident. createFight rejects anything that is not an integer.
-  const fight = createFight(seed, config);
-  // One run call for the whole fight. It validates the duration.
+  // The rotation is told the length the fight runs (#191).
+  const fight = createFight(seed, config, { duration });
+  // One run call for the whole fight. A bad duration is already refused,
+  // by createFight, as a RangeError.
   fight.simulation.run(duration);
   return fightResult(fight);
 }
