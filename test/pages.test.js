@@ -334,7 +334,9 @@ describe("project site paths", () => {
     // js/svg.js (#148) draw the batch charts: the results UI (#149, #150)
     // puts them on the page; until then only the demo harness
     // demo/charts.html (not deployed) uses them.
-    // js/rotation-validator.js is wired through the interpreter.
+    // js/rotation-validator.js is wired through the interpreter. The stats
+    // form (#151, js/config-form.js) wires js/rotation-summary.js,
+    // js/rotation-presets.js and js/rotation-io.js.
     const notWiredYet = new Set([
       "js/damage-timeline.js",
       "js/charts.js",
@@ -343,9 +345,6 @@ describe("project site paths", () => {
       "js/batch-host.js",
       "js/batch-worker.js",
       "js/sim-runner.js",
-      "js/rotation-summary.js",
-      "js/rotation-presets.js",
-      "js/rotation-io.js",
       "js/batch-runner.js",
       "js/running-stats.js",
       "js/ability-breakdown.js",

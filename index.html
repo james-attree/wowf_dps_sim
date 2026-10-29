@@ -32,6 +32,363 @@
         </div>
       </header>
 
+      <form
+        id="config-form"
+        class="panel config-panel"
+        aria-labelledby="config-heading"
+        novalidate
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">SETUP</p>
+            <h2 id="config-heading">Fight setup</h2>
+          </div>
+        </div>
+        <div class="config-grid">
+          <fieldset class="config-fieldset build-fieldset">
+            <legend>Build</legend>
+            <div class="field">
+              <label for="cfg-talents">Talents</label>
+              <select id="cfg-talents" name="talents"></select>
+            </div>
+            <div class="field">
+              <label for="cfg-rotation">Rotation</label>
+              <select
+                id="cfg-rotation"
+                name="rotation"
+                aria-describedby="cfg-rotation-summary"
+              ></select>
+            </div>
+            <details id="cfg-summary" class="rotation-summary" open>
+              <summary>What this rotation does</summary>
+              <div id="cfg-rotation-summary">
+                <p id="cfg-summary-name" class="rotation-summary-name"></p>
+                <ol id="cfg-summary-rules" class="rotation-summary-rules"></ol>
+              </div>
+            </details>
+            <div class="rotation-io">
+              <button id="cfg-export" class="pill-button" type="button">
+                Export…
+              </button>
+              <label class="pill-button file-button" for="cfg-import-file"
+                >Import…</label
+              >
+              <input
+                id="cfg-import-file"
+                class="visually-hidden"
+                type="file"
+                accept=".json,application/json"
+              />
+            </div>
+            <details class="paste-import">
+              <summary>Paste JSON</summary>
+              <label for="cfg-import-text">Rotation JSON</label>
+              <textarea
+                id="cfg-import-text"
+                rows="6"
+                spellcheck="false"
+              ></textarea>
+              <button id="cfg-import-paste" class="pill-button" type="button">
+                Import
+              </button>
+            </details>
+            <div class="import-box">
+              <p id="cfg-import-status" class="import-status" role="status"></p>
+              <details id="cfg-import-detail" class="import-detail" hidden>
+                <summary>What's wrong with it</summary>
+                <pre id="cfg-import-detail-text"></pre>
+              </details>
+            </div>
+          </fieldset>
+          <fieldset class="config-fieldset character-fieldset">
+            <legend>Character</legend>
+            <div class="field">
+              <label for="cfg-character-attackPower">Attack power</label>
+              <div class="field-control">
+                <input
+                  id="cfg-character-attackPower"
+                  name="character.attackPower"
+                  data-field="character.attackPower"
+                  type="number"
+                  inputmode="numeric"
+                  step="1"
+                  min="0"
+                />
+              </div>
+
+              <p
+                class="field-error"
+                id="cfg-character-attackPower-error"
+                hidden
+              ></p>
+            </div>
+            <div class="field">
+              <label for="cfg-character-critChance"
+                >Crit chance<span class="visually-hidden">
+                  (percent)</span
+                ></label
+              >
+              <div class="field-control">
+                <input
+                  id="cfg-character-critChance"
+                  name="character.critChance"
+                  data-field="character.critChance"
+                  type="number"
+                  inputmode="decimal"
+                  step="0.01"
+                  min="0"
+                  data-percent="true"
+                />
+                <span class="field-suffix" aria-hidden="true">%</span>
+              </div>
+
+              <p
+                class="field-error"
+                id="cfg-character-critChance-error"
+                hidden
+              ></p>
+            </div>
+            <div class="field">
+              <label for="cfg-character-bonusHitChance"
+                >Hit chance (bonus)<span class="visually-hidden">
+                  (percent)</span
+                ></label
+              >
+              <div class="field-control">
+                <input
+                  id="cfg-character-bonusHitChance"
+                  name="character.bonusHitChance"
+                  data-field="character.bonusHitChance"
+                  type="number"
+                  inputmode="decimal"
+                  step="0.01"
+                  min="0"
+                  data-percent="true"
+                />
+                <span class="field-suffix" aria-hidden="true">%</span>
+              </div>
+
+              <p
+                class="field-error"
+                id="cfg-character-bonusHitChance-error"
+                hidden
+              ></p>
+            </div>
+          </fieldset>
+          <div class="hands">
+            <fieldset class="config-fieldset hand-fieldset">
+              <legend>Main hand</legend>
+              <div class="field">
+                <label for="cfg-weapons-mainHand-type">Type</label>
+                <select
+                  id="cfg-weapons-mainHand-type"
+                  name="weapons.mainHand.type"
+                  data-field="weapons.mainHand.type"
+                  aria-describedby="cfg-weapons-mainHand-type-help"
+                  data-help="cfg-weapons-mainHand-type-help"
+                >
+                  <option value="dagger">Dagger</option>
+                  <option value="sword">Sword</option>
+                  <option value="mace">Mace</option>
+                  <option value="axe">Axe</option>
+                  <option value="fist">Fist weapon</option>
+                  <option value="other">Other</option>
+                </select>
+                <p class="field-help" id="cfg-weapons-mainHand-type-help">
+                  Dagger uses 1.7 s normalized speed for abilities; others use
+                  2.4 s. Also enables weapon-type talents.
+                </p>
+                <p
+                  class="field-error"
+                  id="cfg-weapons-mainHand-type-error"
+                  hidden
+                ></p>
+              </div>
+              <div class="field-pair">
+                <div class="field">
+                  <label for="cfg-weapons-mainHand-min">Min damage</label>
+                  <div class="field-control">
+                    <input
+                      id="cfg-weapons-mainHand-min"
+                      name="weapons.mainHand.min"
+                      data-field="weapons.mainHand.min"
+                      type="number"
+                      inputmode="numeric"
+                      step="1"
+                      min="0"
+                    />
+                  </div>
+
+                  <p
+                    class="field-error"
+                    id="cfg-weapons-mainHand-min-error"
+                    hidden
+                  ></p>
+                </div>
+                <div class="field">
+                  <label for="cfg-weapons-mainHand-max">Max damage</label>
+                  <div class="field-control">
+                    <input
+                      id="cfg-weapons-mainHand-max"
+                      name="weapons.mainHand.max"
+                      data-field="weapons.mainHand.max"
+                      type="number"
+                      inputmode="numeric"
+                      step="1"
+                      min="0"
+                    />
+                  </div>
+
+                  <p
+                    class="field-error"
+                    id="cfg-weapons-mainHand-max-error"
+                    hidden
+                  ></p>
+                </div>
+              </div>
+              <div class="field">
+                <label for="cfg-weapons-mainHand-speed"
+                  >Speed<span class="visually-hidden"> (seconds)</span></label
+                >
+                <div class="field-control">
+                  <input
+                    id="cfg-weapons-mainHand-speed"
+                    name="weapons.mainHand.speed"
+                    data-field="weapons.mainHand.speed"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.1"
+                    min="0"
+                  />
+                  <span class="field-suffix" aria-hidden="true">s</span>
+                </div>
+
+                <p
+                  class="field-error"
+                  id="cfg-weapons-mainHand-speed-error"
+                  hidden
+                ></p>
+              </div>
+            </fieldset>
+            <fieldset class="config-fieldset hand-fieldset">
+              <legend>Off hand</legend>
+              <div class="field">
+                <label for="cfg-weapons-offHand-type">Type</label>
+                <select
+                  id="cfg-weapons-offHand-type"
+                  name="weapons.offHand.type"
+                  data-field="weapons.offHand.type"
+                  aria-describedby="cfg-weapons-offHand-type-help"
+                  data-help="cfg-weapons-offHand-type-help"
+                >
+                  <option value="dagger">Dagger</option>
+                  <option value="sword">Sword</option>
+                  <option value="mace">Mace</option>
+                  <option value="axe">Axe</option>
+                  <option value="fist">Fist weapon</option>
+                  <option value="other">Other</option>
+                </select>
+                <p class="field-help" id="cfg-weapons-offHand-type-help">
+                  Enables weapon-type talents (e.g. Sword Specialization).
+                </p>
+                <p
+                  class="field-error"
+                  id="cfg-weapons-offHand-type-error"
+                  hidden
+                ></p>
+              </div>
+              <div class="field-pair">
+                <div class="field">
+                  <label for="cfg-weapons-offHand-min">Min damage</label>
+                  <div class="field-control">
+                    <input
+                      id="cfg-weapons-offHand-min"
+                      name="weapons.offHand.min"
+                      data-field="weapons.offHand.min"
+                      type="number"
+                      inputmode="numeric"
+                      step="1"
+                      min="0"
+                    />
+                  </div>
+
+                  <p
+                    class="field-error"
+                    id="cfg-weapons-offHand-min-error"
+                    hidden
+                  ></p>
+                </div>
+                <div class="field">
+                  <label for="cfg-weapons-offHand-max">Max damage</label>
+                  <div class="field-control">
+                    <input
+                      id="cfg-weapons-offHand-max"
+                      name="weapons.offHand.max"
+                      data-field="weapons.offHand.max"
+                      type="number"
+                      inputmode="numeric"
+                      step="1"
+                      min="0"
+                    />
+                  </div>
+
+                  <p
+                    class="field-error"
+                    id="cfg-weapons-offHand-max-error"
+                    hidden
+                  ></p>
+                </div>
+              </div>
+              <div class="field">
+                <label for="cfg-weapons-offHand-speed"
+                  >Speed<span class="visually-hidden"> (seconds)</span></label
+                >
+                <div class="field-control">
+                  <input
+                    id="cfg-weapons-offHand-speed"
+                    name="weapons.offHand.speed"
+                    data-field="weapons.offHand.speed"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.1"
+                    min="0"
+                  />
+                  <span class="field-suffix" aria-hidden="true">s</span>
+                </div>
+
+                <p
+                  class="field-error"
+                  id="cfg-weapons-offHand-speed-error"
+                  hidden
+                ></p>
+              </div>
+            </fieldset>
+          </div>
+        </div>
+        <div class="config-footer">
+          <button id="cfg-reset" class="pill-button" type="button">
+            Reset to defaults
+          </button>
+          <div class="config-status">
+            <p id="cfg-status-ok" class="config-status-ok">
+              Changes apply to the next run
+            </p>
+            <div id="cfg-fix" class="config-fix" hidden>
+              <p id="cfg-fix-heading"></p>
+              <ul id="cfg-fix-list" class="config-fix-list"></ul>
+            </div>
+            <p id="cfg-form-error" class="field-error" hidden></p>
+            <p id="cfg-run-gate" class="visually-hidden" role="status"></p>
+          </div>
+          <div id="cfg-toast" class="config-toast" role="status">
+            <span id="cfg-toast-text"></span>
+            <button id="cfg-undo" class="pill-button" type="button" hidden>
+              Undo
+            </button>
+          </div>
+        </div>
+      </form>
+
       <section class="damage-panel" aria-labelledby="damage-heading">
         <div class="stats-grid">
           <div class="stat-card">

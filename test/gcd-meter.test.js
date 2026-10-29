@@ -31,6 +31,10 @@ function pageElement() {
   element.hidden = false;
   element.children = [];
   element.addEventListener = () => {};
+  // What the stats form view (#151) calls while it fills itself.
+  element.removeAttribute = () => {};
+  element.replaceChildren = () => {};
+  element.append = () => {};
   return element;
 }
 
@@ -110,6 +114,7 @@ describe("GCD meter aria attributes", () => {
       querySelectorAll() {
         return [];
       },
+      createElement: () => pageElement(),
     };
     globalThis.requestAnimationFrame = () => 0;
     globalThis.cancelAnimationFrame = () => {};
