@@ -551,7 +551,7 @@ describe("SimRunner options", () => {
     for (const seed of [undefined, 1.5, "1", NaN, null]) {
       assert.throws(() => new SimRunner({ seed }), {
         name: "RangeError",
-        message: "SimRunner needs an integer seed: { seed }.",
+        message: `A seed must be an integer; got ${typeof seed === "string" ? JSON.stringify(seed) : String(seed)}.`,
       });
     }
   });

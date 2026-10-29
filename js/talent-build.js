@@ -268,6 +268,15 @@ function levelProblem(level) {
   };
 }
 
+// The talent level an options argument asks for. Options that are not an
+// object (null, a number, a string) or that leave the level out ask for the
+// default, so the non-throwing checks never throw on them (#190).
+function levelOf(options) {
+  return isObject(options) && options.level !== undefined
+    ? options.level
+    : DEFAULT_TALENT_LEVEL;
+}
+
 // The points a character of `level` can spend: level - 9, so 51 at 60 and 1
 // at 10. It throws a RangeError for a level outside 10 to 60.
 export function talentPointCap(level = DEFAULT_TALENT_LEVEL) {
@@ -431,9 +440,10 @@ function ruleProblems(spent, level, catalogue) {
 // Fewer points than the cap is not a problem (#190).
 export function buildProblems(
   ranks,
-  { level = DEFAULT_TALENT_LEVEL } = {},
+  options = {},
   catalogue = talentCatalogue,
 ) {
+  const level = levelOf(options);
   const problems = inputProblems(ranks, catalogue);
   const bad = levelProblem(level);
   if (bad !== null) {
@@ -467,9 +477,10 @@ export function why(
   ranks,
   id,
   action = "add",
-  { level = DEFAULT_TALENT_LEVEL } = {},
+  options = {},
   catalogue = talentCatalogue,
 ) {
+  const level = levelOf(options);
   const refuse = (entry, blockers = []) =>
     Object.freeze({ ...entry, blockers: Object.freeze(blockers) });
   if (action !== "add" && action !== "remove") {
@@ -525,7 +536,7 @@ export function why(
           talent.id,
           cap,
           spent.total,
-          `the build has spent all ${cap} talent points a level ${level} character has`,
+          `the build has spent ${cap === 1 ? "the 1 talent point" : `all ${cap} talent points`} a level ${level} character has`,
         ),
       );
     }
@@ -579,7 +590,7 @@ export function why(
       first.talent,
       first.need,
       first.have,
-      `taking a point from "${talent.id}" would strand ${first.message}`,
+      `taking a point from "${talent.id}" would strand a talent: ${first.message}`,
     ),
     [...new Set(stranded.map((entry) => entry.talent))],
   );
@@ -614,15 +625,16 @@ export function canRemove(
 //     prerequisite at full rank, as in the Classic tree;
 //   - a talent on row r needs k("talents.rowGating") * (r - 1) points spent in
 //     its own tree on the rows above it (the Classic rule of 5 points a row,
-//     which WoW Forever matches, confirmed by James, `wowf-designer`; the
-//     export does not state the number, OQ14).
+//     which WoW Forever matches, confirmed by James on 29 Oct 2026, so
+//     `wowf-designer`; the export does not state the number).
 // It returns the points spent. `catalogue` stays the second argument, so the
 // callers from before #190 work unchanged.
 export function validateBuild(
   ranks,
   catalogue = talentCatalogue,
-  { level = DEFAULT_TALENT_LEVEL } = {},
+  options = {},
 ) {
+  const level = levelOf(options);
   checkRanks(ranks, catalogue, "validateBuild");
   talentPointCap(level);
   const problems = ruleProblems(spending(ranks, catalogue), level, catalogue);
@@ -652,8 +664,9 @@ export function applyBuild(
   ranks = {},
   effects = TALENT_EFFECTS,
   catalogue = talentCatalogue,
-  { level = DEFAULT_TALENT_LEVEL } = {},
+  options = {},
 ) {
+  const level = levelOf(options);
   checkRanks(ranks, catalogue, "applyBuild");
   const points = spending(ranks, catalogue).total;
   const selected = points > 0;

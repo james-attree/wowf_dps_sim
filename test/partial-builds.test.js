@@ -80,7 +80,7 @@ describe("the talent level and its cap (#190)", () => {
     assert.equal(CONSTANTS["talents.rowGating"].source, "wowf-designer");
     assert.match(
       CONSTANTS["talents.rowGating"].ref,
-      /^confirmed by James, 29 Oct 2026: WoW Forever matches Classic, 5 points per row/,
+      /^James, 29 Oct 2026: WoW Forever matches Classic \(5 points per row\)/,
     );
   });
 
@@ -545,7 +545,7 @@ describe("canAdd, canRemove and why: the per-talent model", () => {
     assert.equal(answer.have, 1);
     assert.match(
       answer.message,
-      /all 1 talent points a level 10 character has/,
+      /the build has spent the 1 talent point a level 10 character has/,
     );
     assert.equal(
       canAdd(one, "combat.improved-eviscerate", { level: 11 }),
@@ -609,7 +609,7 @@ describe("canAdd, canRemove and why: the per-talent model", () => {
       assert.match(
         answer.message,
         new RegExp(
-          `^taking a point from "${id.replace(".", "\\.")}" would strand "combat\\.precision" is on row 2`,
+          `^taking a point from "${id.replace(".", "\\.")}" would strand a talent: "combat\\.precision" is on row 2`,
         ),
       );
     }
@@ -748,6 +748,135 @@ describe("canAdd, canRemove and why: the per-talent model", () => {
     assert.deepEqual(
       buildProblems({ "t.b": 1 }, {}, tiny).map((entry) => entry.code),
       ["prerequisite"],
+    );
+  });
+});
+
+describe("options that are not an object are the default level (#190)", () => {
+  const NOT_OBJECTS = [null, undefined, 0, 40, "40", true, []];
+
+  it("buildProblems, why, canAdd and canRemove do not throw on them", () => {
+    for (const options of NOT_OBJECTS) {
+      assert.deepEqual(buildProblems({}, options), []);
+      assert.deepEqual(
+        buildProblems(REFERENCE, options),
+        buildProblems(REFERENCE),
+      );
+      assert.deepEqual(
+        buildProblems({ "combat.precision": 3 }, options),
+        buildProblems({ "combat.precision": 3 }),
+      );
+      assert.equal(why({}, "combat.improved-eviscerate", "add", options), null);
+      assert.equal(
+        why(REFERENCE, "combat.lightning-reflexes", "add", options).code,
+        "capReached",
+      );
+      assert.equal(
+        why(REFERENCE, "combat.lightning-reflexes", "add", options).need,
+        51,
+      );
+      assert.equal(canAdd({}, "combat.improved-eviscerate", options), true);
+      assert.equal(
+        canAdd(REFERENCE, "combat.lightning-reflexes", options),
+        false,
+      );
+      assert.equal(
+        canRemove(
+          { "combat.improved-eviscerate": 1 },
+          "combat.improved-eviscerate",
+          options,
+        ),
+        true,
+      );
+      assert.equal(canRemove({}, "combat.improved-eviscerate", options), false);
+    }
+  });
+
+  it("an object without a level is the default level too", () => {
+    assert.deepEqual(buildProblems({}, {}), []);
+    assert.deepEqual(buildProblems({}, { level: undefined }), []);
+    assert.equal(canAdd(REFERENCE, "combat.lightning-reflexes", {}), false);
+  });
+
+  it("a level that is given is still checked", () => {
+    assert.deepEqual(
+      buildProblems({}, { level: null }).map((entry) => entry.code),
+      ["badLevel"],
+    );
+    assert.equal(
+      why({}, "combat.improved-eviscerate", "add", { level: 9 }).code,
+      "badLevel",
+    );
+  });
+
+  it("validateBuild and applyBuild take them as the default level", () => {
+    for (const options of [null, 0, "40"]) {
+      assert.equal(validateBuild(REFERENCE, talentCatalogue, options), 51);
+      assert.equal(
+        applyBuild(REFERENCE, undefined, talentCatalogue, options).points,
+        51,
+      );
+    }
+  });
+});
+
+describe("why judges the one change, not a build already illegal elsewhere", () => {
+  // { "combat.precision": 3 } breaks precision's row gate (row 2 needs 5
+  // points above it). One point in improved eviscerate (combat row 1) does not
+  // fix that, but the add itself breaks nothing, so it is allowed.
+  const ILLEGAL = { "combat.precision": 3 };
+
+  it("the build is illegal on precision's row gate", () => {
+    assert.deepEqual(
+      buildProblems(ILLEGAL).map((entry) => [entry.code, entry.talent]),
+      [["rowGate", "combat.precision"]],
+    );
+  });
+
+  it("an add elsewhere is not refused for precision's rowGate", () => {
+    assert.equal(why(ILLEGAL, "combat.improved-eviscerate"), null);
+    assert.equal(canAdd(ILLEGAL, "combat.improved-eviscerate"), true);
+    assert.equal(
+      buildProblems({ ...ILLEGAL, "combat.improved-eviscerate": 1 }).some(
+        (entry) =>
+          entry.code === "rowGate" && entry.talent === "combat.precision",
+      ),
+      true,
+    );
+  });
+
+  it("an add to the broken talent itself is still refused on its row gate", () => {
+    const broken = { "combat.precision": 1 };
+    const answer = why(broken, "combat.precision");
+    assert.equal(answer.code, "rowGate");
+    assert.equal(answer.talent, "combat.precision");
+    assert.equal(canAdd(broken, "combat.precision"), false);
+  });
+});
+
+describe("the capReached message counts its points", () => {
+  it("is singular for 1 point and plural for more", () => {
+    assert.match(
+      why(
+        { "combat.improved-eviscerate": 1 },
+        "combat.improved-eviscerate",
+        "add",
+        {
+          level: 10,
+        },
+      ).message,
+      /^the build has spent the 1 talent point a level 10 character has$/,
+    );
+    assert.match(
+      why(
+        { "combat.improved-eviscerate": 2 },
+        "combat.improved-eviscerate",
+        "add",
+        {
+          level: 11,
+        },
+      ).message,
+      /^the build has spent all 2 talent points a level 11 character has$/,
     );
   });
 });

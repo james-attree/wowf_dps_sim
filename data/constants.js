@@ -25,6 +25,7 @@ const NOT_JAMES =
   "an engineering judgement call by the dev, not a decision by James.";
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const BATCH_RUNNER = "Developer, 29 Oct 2026, issue #144";
+const SEED_CHECK = "Developer, 29 Oct 2026, issue #187";
 const BATCH_WORKER = "Developer, 29 Oct 2026, issue #147";
 const CHARTS = "Developer, 29 Oct 2026, issue #148";
 // The live visualiser's display timings (#150, Phase 3). Fran's UX notes for
@@ -1041,8 +1042,8 @@ export const CONSTANTS = {
     5,
     "points",
     WOWF_DESIGNER,
-    "confirmed by James, 29 Oct 2026: WoW Forever matches Classic, 5 points per row; the export does not state it (OQ14)",
-    "Enforced when a talent build is applied (D7, #106; validateBuild in js/talent-build.js): a talent on row r needs 5 * (r - 1) points in its own tree on the rows above it. The 5 is the Classic rule, which James confirmed WoW Forever matches; the export does not state the number (OQ14). The prerequisite (req) rule needs no number: the required talent must be at full rank.",
+    "James, 29 Oct 2026: WoW Forever matches Classic (5 points per row); the export does not state it, so this resolves OQ14",
+    "Enforced when a talent build is applied (D7, #106; validateBuild in js/talent-build.js): a talent on row r needs 5 * (r - 1) points in its own tree on the rows above it. The 5 is the Classic rule, which James confirmed WoW Forever matches (29 Oct 2026, resolving OQ14). The prerequisite (req) rule needs no number: the required talent must be at full rank.",
     true,
   ),
   "talents.firstPointLevel": entry(
@@ -1251,6 +1252,14 @@ export const CONSTANTS = {
     ENGINEERING,
     `${SEEDED_RNG}: ${NOT_JAMES} The published mulberry32 32-bit generator, so a seed gives the same sequence on every Node version and in the browser`,
     "Not a game rule. The Weyl increment, the three xor-shift widths, the second multiplier's OR term, and the 2^32 divisor that maps the 32-bit result into [0, 1). Changing any of them changes every seeded fight.",
+    false,
+  ),
+  "rng.seedTextLimit": entry(
+    40,
+    "characters",
+    ENGINEERING,
+    `${SEED_CHECK}: ${NOT_JAMES} The longest string seed the seed RangeError quotes in full`,
+    'Not a game rule. A longer string is cut to this many characters and ends in "...", so a pasted blob cannot make the error text huge. It changes only the error text, never a fight.',
     false,
   ),
   "config.weaponTypes": entry(

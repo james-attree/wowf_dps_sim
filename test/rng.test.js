@@ -96,7 +96,7 @@ describe("createRng", () => {
     for (const seed of [0.5, Number.NaN, Infinity, "1", null]) {
       assert.throws(() => createRng(seed), {
         name: "RangeError",
-        message: "RNG seed must be an integer.",
+        message: `A seed must be an integer; got ${typeof seed === "string" ? JSON.stringify(seed) : String(seed)}.`,
       });
     }
   });

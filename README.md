@@ -33,7 +33,9 @@ finisher combo points Slice and Dice when it has less than 1 s left, or 5 s or
 less with full energy (the combat-swords preset's rules, #173), else Cold Blood
 when the build grants it and Eviscerate; otherwise Sinister Strike. A rotation
 that casts Cold Blood must say "when granted" (`abilityGranted`), or the
-validator rejects it (#173).
+validator rejects it (#173); since #188 every ability a talent grants needs its
+guard, and until #199 Blade Flurry and Adrenaline Rush may use
+`abilityUnlocked` instead.
 The page's first fight adds Instant Poison on the main hand and Deadly Poison
 on the off hand (`pageDefaultConfig()`, #152); `runFight`'s default has no
 poisons, so the goldens do not move. The page's "Fight setup" form (Phase 3)
@@ -344,6 +346,9 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   timestamps as arguments and reads no clock.
 - `js/rng.js` — `createRng(seed)`, the seeded mulberry32 generator the
   `Simulation` owns. Every random draw in the engine goes through it.
+  `normalizeSeed(seed)` is the one seed check: every entry point that takes a
+  seed throws the same `RangeError`, "A seed must be an integer; got <value>."
+  (#187).
 - `js/simulation.js` — `step(dt)` advances the fight by `dt` seconds and reads
   no clock. `run(duration)` repeats the fixed step `sim.fixedStep` for a
   duration, with a short last step, for headless runs. Each step handles
