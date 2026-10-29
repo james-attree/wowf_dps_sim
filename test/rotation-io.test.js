@@ -11,6 +11,7 @@ import {
   presetRotation,
 } from "../js/rotation-presets.js";
 import { validateRotation } from "../js/rotation-validator.js";
+import { ERROR_DATA } from "./rotation-error-codes.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 import { referenceBuild } from "./talentsforever.js";
 
@@ -327,7 +328,16 @@ describe("importRotation: what it refuses", () => {
     assert.equal(result.rotation, null);
     assert.ok(result.errors.length > 0);
     for (const error of result.errors) {
-      assert.deepEqual(Object.keys(error).sort(), ["message", "path"]);
+      // Each error has a code, and only that code's data (#212).
+      const { code, path, message, ...data } = error;
+      assert.ok(Object.hasOwn(ERROR_DATA, code), code);
+      assert.deepEqual(
+        Object.keys(data).sort(),
+        [...ERROR_DATA[code]].sort(),
+        code,
+      );
+      assert.equal(typeof path, "string");
+      assert.equal(typeof message, "string");
       assert.equal(typeof error.path, "string");
       assert.ok(error.message.length > 0);
     }
@@ -411,7 +421,8 @@ describe("importRotation: what it refuses", () => {
     for (const text of texts) {
       const error = first(importRotation(text));
       assert.equal(error.path, "");
-      assert.match(error.message, /^The rotation file is not valid JSON: ./);
+      // The code only: the parse error's text differs between Node versions.
+      assert.equal(error.code, "notJson");
     }
     // The most the limit lets through, nested as deep as it goes: as the whole
     // file, and as the value of a condition's param.

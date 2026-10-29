@@ -45,8 +45,10 @@ const labelOf = (id) => LABELS[id] ?? id;
 function guardError(index, id, types) {
   const wanted = types.map((type) => guardText(type, id)).join(" or ");
   return {
+    code: "talentGuard",
     path: `rules[${index}].conditions`,
     message: `rules[${index}]: ${labelOf(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
+    ability: id,
   };
 }
 const STRICT = ["abilityGranted"];
@@ -242,7 +244,6 @@ describe("talent guard (#188): read from the data, not a list in the validator",
       `rotationContext: talentGrantedAbilities must be an array or a Set of ability ids, not ${shown}.`;
     const cases = [
       ["cold-blood", 'the string "cold-blood"'],
-      [null, "null"],
       [{}, "an object"],
       [{ 0: "cold-blood", length: 1 }, "an object"],
       [new Map([["cold-blood", true]]), "an object"],
@@ -265,6 +266,28 @@ describe("talent guard (#188): read from the data, not a list in the validator",
         );
       }
     }
+  });
+
+  it("takes a null talentGrantedAbilities as absent, so the errors still come back (Kira's QA on #215)", () => {
+    assert.deepEqual(
+      rotationContext({ talentGrantedAbilities: null }).talentGrantedAbilities,
+      rotationContext().talentGrantedAbilities,
+    );
+    const broken = {
+      schemaVersion: 1,
+      name: "x",
+      rules: [{ conditions: [5] }],
+    };
+    assert.deepEqual(
+      validateRotation(broken, { talentGrantedAbilities: null }),
+      validateRotation(broken),
+    );
+    assert.deepEqual(
+      validateRotation(rotation(rule("cold-blood")), {
+        talentGrantedAbilities: null,
+      }),
+      validateRotation(rotation(rule("cold-blood"))),
+    );
   });
 
   it("refuses a list or Set holding something that is not an id string (#207)", () => {

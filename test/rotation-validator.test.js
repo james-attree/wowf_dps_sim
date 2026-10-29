@@ -606,7 +606,14 @@ describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
   it("rejects a Cold Blood rule with no conditions, as an error on its conditions", () => {
     assert.deepEqual(
       validateRotation(rotation(rule("sinister-strike"), rule("cold-blood"))),
-      [{ path: "rules[1].conditions", message: `rules[1]${MESSAGE}` }],
+      [
+        {
+          code: "talentGuard",
+          path: "rules[1].conditions",
+          message: `rules[1]${MESSAGE}`,
+          ability: "cold-blood",
+        },
+      ],
     );
   });
 

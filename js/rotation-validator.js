@@ -3,7 +3,13 @@ import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { AURAS } from "./auras.js";
 import { conditionErrors } from "./rotation-conditions.js";
-import { describeValue, rotationShapeErrors } from "./rotation-schema.js";
+import {
+  conditionShapeErrors,
+  describeValue,
+  rotationError,
+  rotationTopShape,
+  ruleShape,
+} from "./rotation-schema.js";
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 import { talentGrantedAbilities } from "./talent-build.js";
 
@@ -14,18 +20,28 @@ import { talentGrantedAbilities } from "./talent-build.js";
 // rotation, so createFight and runFight reject an invalid rotation before the
 // simulation, and with it the rng, exists.
 //
-// validateRotation(rotation, context) returns every error as { path, message }.
-// The path says where (`rules[2].conditions[0].aura`; "" is the rotation as a
-// whole) and the message says what, and names the same place, so it reads on
-// its own. An empty list means the rotation is valid. assertValidRotation is
+// validateRotation(rotation, context) returns every error as a frozen
+// { code, path, message, ...data } (#212). The code is a stable name for the
+// kind of error, for a view to switch on (docs/rotation.md, "Error codes",
+// lists them with their data). The path says where
+// (`rules[2].conditions[0].aura`; "" is the rotation as a whole) and the
+// message says what, and names the same place, so it reads on its own. An
+// empty list means the rotation is valid. assertValidRotation is
 // the throwing form: a RangeError that lists every message. The two report the
 // same errors; a caller picks one.
 //
 // What it checks, in this order:
 //   1. The shape (js/rotation-schema.js): the version, the name, the three
-//      limits, the rule and condition shapes, no unknown fields. If the shape
-//      is wrong that is all that is reported, because the rest cannot be read.
+//      limits, the rule and condition shapes, no unknown fields. Only two
+//      shape errors stop the check: a rotation that is not an object, and
+//      another schemaVersion. Otherwise it carries on past shape errors
+//      (#212), so an empty name does not hide the rules' errors: a rule whose
+//      action or conditions cannot be read (not an object, a missing field,
+//      an action that is not an id, conditions that are not an array or over
+//      the limit) is skipped after its shape errors, and the rules after it
+//      are still checked, as is every condition of the right shape.
 //   2. The rule list is not empty: a rotation with no rules casts nothing.
+//      A rules list that is not an array, or over the limit, is not read.
 //   3. Each rule's action is an ability the rogue can cast.
 //   4. Each condition: a known type, the params it takes, each of the right
 //      type (js/rotation-conditions.js), and then the params' meaning: an
@@ -97,7 +113,9 @@ function described(value) {
 // null or {} do not fail later as "not iterable". js/rotation-warnings.js
 // reads its lists through this too.
 export function idList(where, field, given, fallback) {
-  if (given === undefined) {
+  // null is taken as absent, as the other lists' `??` takes it (Kira's QA
+  // on #215): it must not throw before the rotation's own errors come back.
+  if (given === undefined || given === null) {
     return fallback;
   }
   if (!Array.isArray(given) && !(given instanceof Set)) {
@@ -167,16 +185,18 @@ const list = (ids) => ids.join(", ");
 
 function abilityIdError(id, path, context) {
   if (!context.abilities.includes(id)) {
-    return {
+    return rotationError(
+      "unknownAbility",
       path,
-      message: `${path} ${describeValue(id)} is not an ability in the spell data. The rogue casts: ${list(context.castable)}.`,
-    };
+      `${path} ${describeValue(id)} is not an ability in the spell data. The rogue casts: ${list(context.castable)}.`,
+    );
   }
   if (!context.castable.includes(id)) {
-    return {
+    return rotationError(
+      "notCastYet",
       path,
-      message: `${path} ${describeValue(id)} is a rogue spell the engine does not cast yet. The rogue casts: ${list(context.castable)}.`,
-    };
+      `${path} ${describeValue(id)} is a rogue spell the engine does not cast yet. The rogue casts: ${list(context.castable)}.`,
+    );
   }
   return null;
 }
@@ -185,21 +205,31 @@ function auraIdError(condition, name, path, context) {
   const id = condition[name];
   if (name === "aura" && !context.auras.includes(id)) {
     const isDebuff = Object.hasOwn(context.debuffs, id);
-    return {
-      path,
-      message: isDebuff
-        ? `${path} ${describeValue(id)} is a debuff on the target; use debuffActive, debuffRemaining or debuffStacks for it. Self buffs: ${list(context.auras)}.`
-        : `${path} ${describeValue(id)} is not a self buff. Self buffs: ${list(context.auras)}.`,
-    };
+    return isDebuff
+      ? rotationError(
+          "debuffAsBuff",
+          path,
+          `${path} ${describeValue(id)} is a debuff on the target; use debuffActive, debuffRemaining or debuffStacks for it. Self buffs: ${list(context.auras)}.`,
+        )
+      : rotationError(
+          "notSelfBuff",
+          path,
+          `${path} ${describeValue(id)} is not a self buff. Self buffs: ${list(context.auras)}.`,
+        );
   }
   if (name === "debuff" && !Object.hasOwn(context.debuffs, id)) {
     const isBuff = context.auras.includes(id);
-    return {
-      path,
-      message: isBuff
-        ? `${path} ${describeValue(id)} is a self buff; use auraActive or auraRemaining for it. Target debuffs: ${list(Object.keys(context.debuffs))}.`
-        : `${path} ${describeValue(id)} is not a debuff on the target. Target debuffs: ${list(Object.keys(context.debuffs))}.`,
-    };
+    return isBuff
+      ? rotationError(
+          "buffAsDebuff",
+          path,
+          `${path} ${describeValue(id)} is a self buff; use auraActive or auraRemaining for it. Target debuffs: ${list(Object.keys(context.debuffs))}.`,
+        )
+      : rotationError(
+          "notDebuff",
+          path,
+          `${path} ${describeValue(id)} is not a debuff on the target. Target debuffs: ${list(Object.keys(context.debuffs))}.`,
+        );
   }
   return null;
 }
@@ -228,34 +258,52 @@ function conditionMeaningErrors(condition, where, context) {
   if (Object.hasOwn(POOL_MAX, pool)) {
     const { max, whole } = POOL_MAX[pool];
     if (whole && !Number.isInteger(value)) {
-      errors.push({
-        path,
-        message: `${path} must be a whole number for ${pool}, got ${describeValue(value)}.`,
-      });
+      errors.push(
+        rotationError(
+          "notWhole",
+          path,
+          `${path} must be a whole number for ${pool}, got ${describeValue(value)}.`,
+          { resource: pool },
+        ),
+      );
     }
     if (value < 0 || value > max) {
-      errors.push({
-        path,
-        message: `${path} must be between 0 and ${max} for ${pool}, got ${describeValue(value)}.`,
-      });
+      errors.push(
+        rotationError(
+          "outOfRange",
+          path,
+          `${path} must be between 0 and ${max} for ${pool}, got ${describeValue(value)}.`,
+          { resource: pool, max },
+        ),
+      );
     }
   } else if (SECONDS.includes(type) && value < 0) {
-    errors.push({
-      path,
-      message: `${path} is seconds and must be 0 or more, got ${describeValue(value)}.`,
-    });
+    errors.push(
+      rotationError(
+        "negativeSeconds",
+        path,
+        `${path} is seconds and must be 0 or more, got ${describeValue(value)}.`,
+      ),
+    );
   } else if (type === "debuffStacks") {
     const max = context.debuffs[condition.debuff];
     if (!Number.isInteger(value) || value < 0) {
-      errors.push({
-        path,
-        message: `${path} is a stack count and must be a whole number, 0 or more, got ${describeValue(value)}.`,
-      });
+      errors.push(
+        rotationError(
+          "badStacks",
+          path,
+          `${path} is a stack count and must be a whole number, 0 or more, got ${describeValue(value)}.`,
+        ),
+      );
     } else if (max !== undefined && value > max) {
-      errors.push({
-        path,
-        message: `${path} is ${describeValue(value)} stacks but ${describeValue(condition.debuff)} stacks to at most ${max}.`,
-      });
+      errors.push(
+        rotationError(
+          "tooManyStacks",
+          path,
+          `${path} is ${describeValue(value)} stacks but ${describeValue(condition.debuff)} stacks to at most ${max}.`,
+          { max },
+        ),
+      );
     }
   }
   return errors;
@@ -298,45 +346,74 @@ function talentGuardError(rule, path, context) {
     return null;
   }
   const types = guardTypes(id);
+  // A condition that is not an object (already an error of its own) guards
+  // nothing; it must not stop the check.
   const guarded = rule.conditions.some(
-    (condition) => types.includes(condition.type) && condition.ability === id,
+    (condition) =>
+      condition !== null &&
+      typeof condition === "object" &&
+      types.includes(condition.type) &&
+      condition.ability === id,
   );
   if (guarded) {
     return null;
   }
   const wanted = types.map((type) => guardText(type, id)).join(" or ");
-  return {
-    path: `${path}.conditions`,
-    message: `${path}: ${abilityLabel(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
-  };
+  return rotationError(
+    "talentGuard",
+    `${path}.conditions`,
+    `${path}: ${abilityLabel(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
+    { ability: id },
+  );
 }
 
-// Every error in a rotation, as { path, message }, in reading order. An empty
-// list means the rotation is valid. See the top of this file for the checks.
+// Every error in a rotation, as { code, path, message, ...data }
+// (rotationError, #212), in reading order. An empty list means the rotation is
+// valid. See the top of this file for the checks.
 export function validateRotation(rotation, context = {}) {
-  const shape = rotationShapeErrors(rotation);
-  if (shape.length > 0) {
-    return shape;
+  const top = rotationTopShape(rotation);
+  if (top.stop) {
+    return top.errors;
   }
   const where = rotationContext(context);
-  if (rotation.rules.length === 0) {
-    return [
-      {
-        path: "rules",
-        message:
-          "rules is empty: a rotation needs at least one rule, or it never casts anything.",
-      },
-    ];
+  const errors = [...top.errors];
+  const { rules } = top;
+  if (rules === null) {
+    return errors;
   }
-  const errors = [];
-  rotation.rules.forEach((rule, index) => {
+  if (rules.length === 0) {
+    errors.push(
+      rotationError(
+        "noRules",
+        "rules",
+        "rules is empty: a rotation needs at least one rule, or it never casts anything.",
+      ),
+    );
+    return errors;
+  }
+  rules.forEach((rule, index) => {
     const path = `rules[${index}]`;
-    const action = abilityIdError(rule.action, `${path}.action`, where);
-    if (action !== null) {
-      errors.push(action);
+    const shape = ruleShape(rule, path);
+    errors.push(...shape.errors);
+    // Conditions that cannot be read skip the rule. A bad action skips only
+    // the checks that need it, the action id and the talent guard: the
+    // conditions are still checked (Kira's QA on #215).
+    if (!shape.conditionsReadable) {
+      return;
+    }
+    if (shape.actionReadable) {
+      const action = abilityIdError(rule.action, `${path}.action`, where);
+      if (action !== null) {
+        errors.push(action);
+      }
     }
     rule.conditions.forEach((condition, at) => {
       const here = `${path}.conditions[${at}]`;
+      const shapeOfCondition = conditionShapeErrors(condition, here);
+      if (shapeOfCondition.length > 0) {
+        errors.push(...shapeOfCondition);
+        return;
+      }
       const shaped = conditionErrors(condition, here);
       errors.push(
         ...(shaped.length > 0
@@ -344,7 +421,9 @@ export function validateRotation(rotation, context = {}) {
           : conditionMeaningErrors(condition, here, where)),
       );
     });
-    const guard = talentGuardError(rule, path, where);
+    const guard = shape.actionReadable
+      ? talentGuardError(rule, path, where)
+      : null;
     if (guard !== null) {
       errors.push(guard);
     }

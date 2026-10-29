@@ -69,6 +69,18 @@ export function memberPath(path, member) {
   return path === "" ? member : `${path}.${member}`;
 }
 
+// One error entry, as the shape check, the condition check
+// (js/rotation-conditions.js), the validator (js/rotation-validator.js) and
+// import give it (#212): a frozen
+// { code, path, message, ...data }. `code` is a stable name for the kind of
+// error, which a view switches on instead of reading the message;
+// docs/rotation.md, "Error codes", lists every code and its data. `path` says
+// where and `message` says what, as before. `data` is the code's own fields
+// (such as `field`, `max` or `param`), only where a view needs them.
+export function rotationError(code, path, message, data = {}) {
+  return Object.freeze({ code, path, message, ...data });
+}
+
 // A plain object: what JSON.parse makes for { }. An array, null, a class
 // instance or a Map is not one (their prototype is not Object.prototype).
 function isPlainObject(value) {
@@ -90,71 +102,126 @@ function keyErrors(object, allowed, where, path) {
   const errors = [];
   for (const key of allowed) {
     if (!Object.hasOwn(object, key)) {
-      errors.push({
-        path: memberPath(path, key),
-        message: `${where} is missing "${key}".`,
-      });
+      errors.push(
+        rotationError(
+          "missingField",
+          memberPath(path, key),
+          `${where} is missing "${key}".`,
+          { field: key },
+        ),
+      );
     }
   }
   for (const key of Object.keys(object)) {
     if (!allowed.includes(key)) {
-      errors.push({
-        path: memberPath(path, key),
-        message: `${where} has unknown field "${key}". Allowed: ${allowed.join(", ")}.`,
-      });
+      errors.push(
+        rotationError(
+          "unknownField",
+          memberPath(path, key),
+          `${where} has unknown field "${key}". Allowed: ${allowed.join(", ")}.`,
+          { field: key },
+        ),
+      );
     }
   }
   return errors;
 }
 
-function conditionShapeErrors(condition, path) {
+// The shape of one condition: an object with a non-empty string `type`. Its
+// params are js/rotation-conditions.js's check. [] when the shape is right.
+export function conditionShapeErrors(condition, path) {
   if (!isPlainObject(condition)) {
     return [
-      { path, message: `${path} must be an object { type, ...params }.` },
+      rotationError(
+        "conditionNotObject",
+        path,
+        `${path} must be an object { type, ...params }.`,
+      ),
     ];
   }
   if (!isNonEmptyString(condition[CONDITION_TYPE_KEY])) {
     return [
-      {
-        path: memberPath(path, CONDITION_TYPE_KEY),
-        message: `${path} needs a non-empty string "${CONDITION_TYPE_KEY}".`,
-      },
+      rotationError(
+        "conditionNoType",
+        memberPath(path, CONDITION_TYPE_KEY),
+        `${path} needs a non-empty string "${CONDITION_TYPE_KEY}".`,
+      ),
     ];
   }
   return [];
 }
 
-function ruleShapeErrors(rule, path) {
+// The shape of one rule itself, without its conditions' own shapes:
+// { errors, actionReadable, conditionsReadable }. `actionReadable` is true
+// when the rule is an object and `action` is an id; `conditionsReadable` when
+// the rule is an object and `conditions` is an array within the limit. An
+// unknown field alone leaves both readable. The validator skips a rule whose
+// conditions cannot be read; a bad action skips only the checks that need the
+// action, so it does not hide the conditions' errors (Kira's QA on #215). The
+// rules after a broken one are still checked (#212).
+export function ruleShape(rule, path) {
   if (!isPlainObject(rule)) {
-    return [
-      { path, message: `${path} must be an object { action, conditions }.` },
-    ];
+    return {
+      errors: [
+        rotationError(
+          "ruleNotObject",
+          path,
+          `${path} must be an object { action, conditions }.`,
+        ),
+      ],
+      actionReadable: false,
+      conditionsReadable: false,
+    };
   }
   const errors = keyErrors(rule, RULE_KEYS, path, path);
+  let actionReadable = Object.hasOwn(rule, "action");
+  let conditionsReadable = Object.hasOwn(rule, "conditions");
   if (
     Object.hasOwn(rule, "action") &&
     !(typeof rule.action === "string" && ABILITY_ID.test(rule.action))
   ) {
-    errors.push({
-      path: memberPath(path, "action"),
-      message: `${path}.action must be an ability id such as "sinister-strike", not a display name (got ${describeValue(rule.action)}).`,
-    });
+    actionReadable = false;
+    errors.push(
+      rotationError(
+        "actionNotId",
+        memberPath(path, "action"),
+        `${path}.action must be an ability id such as "sinister-strike", not a display name (got ${describeValue(rule.action)}).`,
+      ),
+    );
   }
-  if (Object.hasOwn(rule, "conditions")) {
+  if (conditionsReadable) {
     const { conditions } = rule;
     const at = memberPath(path, "conditions");
     if (!Array.isArray(conditions)) {
-      errors.push({
-        path: at,
-        message: `${at} must be an array ([] means always).`,
-      });
+      conditionsReadable = false;
+      errors.push(
+        rotationError(
+          "conditionsNotArray",
+          at,
+          `${at} must be an array ([] means always).`,
+        ),
+      );
     } else if (conditions.length > k("rotation.maxConditionsPerRule")) {
-      errors.push({
-        path: at,
-        message: `${at} has ${conditions.length} conditions; the most allowed is ${k("rotation.maxConditionsPerRule")}.`,
-      });
-    } else {
-      conditions.forEach((condition, index) => {
+      conditionsReadable = false;
+      errors.push(
+        rotationError(
+          "tooManyConditions",
+          at,
+          `${at} has ${conditions.length} conditions; the most allowed is ${k("rotation.maxConditionsPerRule")}.`,
+          { max: k("rotation.maxConditionsPerRule") },
+        ),
+      );
+    }
+  }
+  return { errors, actionReadable, conditionsReadable };
+}
+
+function ruleShapeErrors(rule, path) {
+  const { errors } = ruleShape(rule, path);
+  if (isPlainObject(rule) && Array.isArray(rule.conditions)) {
+    if (rule.conditions.length <= k("rotation.maxConditionsPerRule")) {
+      const at = memberPath(path, "conditions");
+      rule.conditions.forEach((condition, index) => {
         errors.push(...conditionShapeErrors(condition, `${at}[${index}]`));
       });
     }
@@ -162,64 +229,102 @@ function ruleShapeErrors(rule, path) {
   return errors;
 }
 
-// Every shape error in `rotation`, in reading order, as { path, message }: the
-// path says where ("rules[2].conditions[0].type"; "" is the rotation itself)
-// and the message says what, and names the same place. The version is checked
-// first: a file written for another version is not read any further, because
-// its other fields may mean something else.
-export function rotationShapeErrors(rotation) {
+// The top level of a rotation, without its rules' own shapes:
+// { errors, stop, rules }. `stop` is true when nothing more can be read: the
+// rotation is not an object, or its schemaVersion is another version (a file
+// written for another version is not read any further, because its other
+// fields may mean something else). Then `errors` is that one error. Otherwise
+// `errors` is the top-level fields' errors (missing and unknown fields, the
+// name, the rules list itself) and `rules` is the rules array when it can be
+// read (an array within the limit), or null.
+export function rotationTopShape(rotation) {
   if (!isPlainObject(rotation)) {
-    return [
-      {
-        path: "",
-        message: "A rotation must be an object { schemaVersion, name, rules }.",
-      },
-    ];
+    return {
+      errors: [
+        rotationError(
+          "notAnObject",
+          "",
+          "A rotation must be an object { schemaVersion, name, rules }.",
+        ),
+      ],
+      stop: true,
+      rules: null,
+    };
   }
   if (
     Object.hasOwn(rotation, "schemaVersion") &&
     rotation.schemaVersion !== ROTATION_SCHEMA_VERSION
   ) {
-    return [
-      {
-        path: "schemaVersion",
-        message: `schemaVersion ${describeValue(rotation.schemaVersion)} is not supported; this build reads schemaVersion ${ROTATION_SCHEMA_VERSION}.`,
-      },
-    ];
+    return {
+      errors: [
+        rotationError(
+          "badSchemaVersion",
+          "schemaVersion",
+          `schemaVersion ${describeValue(rotation.schemaVersion)} is not supported; this build reads schemaVersion ${ROTATION_SCHEMA_VERSION}.`,
+        ),
+      ],
+      stop: true,
+      rules: null,
+    };
   }
   const errors = keyErrors(rotation, ROTATION_KEYS, "The rotation", "");
   if (Object.hasOwn(rotation, "name")) {
     const { name } = rotation;
     if (!isNonEmptyString(name)) {
-      errors.push({
-        path: "name",
-        message: "name must be a non-empty string.",
-      });
+      errors.push(
+        rotationError("nameEmpty", "name", "name must be a non-empty string."),
+      );
     } else if (name.length > k("rotation.maxNameLength")) {
-      errors.push({
-        path: "name",
-        message: `name has ${name.length} characters; the most allowed is ${k("rotation.maxNameLength")}.`,
-      });
+      errors.push(
+        rotationError(
+          "nameTooLong",
+          "name",
+          `name has ${name.length} characters; the most allowed is ${k("rotation.maxNameLength")}.`,
+          { max: k("rotation.maxNameLength") },
+        ),
+      );
     }
   }
+  let rules = null;
   if (Object.hasOwn(rotation, "rules")) {
-    const { rules } = rotation;
-    if (!Array.isArray(rules)) {
-      errors.push({
-        path: "rules",
-        message: "rules must be an array, highest priority first.",
-      });
-    } else if (rules.length > k("rotation.maxRules")) {
-      errors.push({
-        path: "rules",
-        message: `rules has ${rules.length} rules; the most allowed is ${k("rotation.maxRules")}.`,
-      });
+    const given = rotation.rules;
+    if (!Array.isArray(given)) {
+      errors.push(
+        rotationError(
+          "rulesNotArray",
+          "rules",
+          "rules must be an array, highest priority first.",
+        ),
+      );
+    } else if (given.length > k("rotation.maxRules")) {
+      errors.push(
+        rotationError(
+          "tooManyRules",
+          "rules",
+          `rules has ${given.length} rules; the most allowed is ${k("rotation.maxRules")}.`,
+          { max: k("rotation.maxRules") },
+        ),
+      );
     } else {
-      rules.forEach((rule, index) => {
-        errors.push(...ruleShapeErrors(rule, `rules[${index}]`));
-      });
+      rules = given;
     }
   }
+  return { errors, stop: false, rules };
+}
+
+// Every shape error in `rotation`, in reading order, as
+// { code, path, message, ...data } (rotationError): the path says where
+// ("rules[2].conditions[0].type"; "" is the rotation itself) and the message
+// says what. The version is checked first: a file
+// written for another version is not read any further.
+export function rotationShapeErrors(rotation) {
+  const { errors, stop, rules } = rotationTopShape(rotation);
+  if (stop || rules === null) {
+    return errors;
+  }
+  rules.forEach((rule, index) => {
+    errors.push(...ruleShapeErrors(rule, `rules[${index}]`));
+  });
   return errors;
 }
 
