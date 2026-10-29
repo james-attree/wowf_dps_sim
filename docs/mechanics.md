@@ -1101,7 +1101,8 @@ previous event, so floating-point error does not build up over a fight:
   `start + duration`.
 
 Swings keep the legacy haste rule (a swing in progress keeps its remaining
-time); how their times are anchored is for #195.
+time) and are anchored at the swing where the interval last changed: the n-th
+swing after it is at `anchor + n * interval` (#195, below).
 
 Times that should coincide must compare equal; where the legacy engine compares
 with `k("sim.tickEpsilon")`, the new one does too. Integer ticks of a fine unit
@@ -1216,6 +1217,58 @@ already holds, and does nothing else, wakes itself at the same time without
 end; the scheduler's hard stop (`k("sim.maxEventsPerTimestamp")` events at
 one time) ends it with a `SchedulerHardStopError`. The rotation (#197) must
 act on energy it holds rather than wait for it.
+
+**Swings (#195).** `js/core/swing.js` holds the new core's swing timer;
+nothing uses it yet, and the legacy `Weapon.tick` stays for the legacy engine.
+`new SwingTimer({ weapon, modifiers, scheduler })` takes a weapon (its speed
+and hand), the rogue's `ModifierPipeline` and the scheduler. It keeps one
+pending event of kind `"swing"` (`SWING_KIND`), in the swing class, with the
+payload `{ hand }`. `start(at)` schedules the first swing at an absolute time:
+the host starts the main hand at 0 and the off hand at
+`k("weapon.offHand").initialSwing`, as legacy does. The host's handler resolves
+the swing and then calls `swung()`, which reads the interval, the weapon speed
+divided by `modifiers.resolve("haste", 1)` as `Rogue.rotation` reads it, and
+schedules the next swing. That is the legacy haste rule: haste is read when a
+swing happens, and a change between two swings does not move the swing
+already counting down. While the interval stays the same, the next swing is at
+`anchor + n * interval`, so with constant haste the n-th swing is at exactly
+`start + n * speed`. When the interval read at a swing differs from the last
+one, that swing is the new anchor. An interval that is not a finite number
+above 0 (haste of 0 or less) is a `RangeError`; legacy stops swinging
+silently. `swung()` outside that hand's own swing event, just run, is a plain
+`Error`, as is `start` while a swing is pending; `stop()` cancels it.
+`nextSwingTime` and `swingTimer` (seconds to it, the legacy field) read it.
+Over 60 s the swing count is the same at any `runUntil` granularity, and a
+test drives the legacy `Weapon.tick` at the fixed step beside it with random
+haste changes: the same swings, each legacy one in the step that holds the
+core's. At one timestamp, decisions run after swings (#193), so haste from a
+cast at t reaches the swing after the one at t, where the fixed step casts
+first; parity (#199) covers that.
+
+**Expiry timers (#195).** `js/core/timers.js` holds the GCD, cooldowns, aura
+expiries and Premeditation's point expiry for the new core; nothing uses them
+yet. A `Timer` (one end) or `TimerSet` (ends by id, payload `{ id }`) stores
+the absolute end, `start + duration`, and keeps one event there, in the
+expiry class. `start(duration)` sets it from now and `setEndsAt(time)` sets an
+absolute end (a refresh); either replaces an end already set, so one event at
+most is pending per timer. `clear()` drops it with no event (charges used up,
+Premeditation's points kept by a later gain or spend). The event is at the
+exact time: a 1 s GCD started at t ends at t + 1 and a 20 s cooldown at
+t + 20, compared with `===`. Reads compare with `k("sim.tickEpsilon")` as
+legacy does: `running` while more than that is left, `ready` from then on, and
+`remaining` 0 once ready. `refreshedEnd(rule, { endsAt, now, duration })`
+gives a re-applied aura's end for the rules of `REFRESH_RULES` in
+`js/auras.js`: `refresh` is now plus the duration, `extend` the old end plus
+the duration, and `replace-if-longer` the later of the old end and now plus
+the duration. Stacks, charges and the `onApply` and `onExpire` hooks stay with
+the host. `createTimers(scheduler)` builds the four: `gcd` (`"gcd-end"`),
+`cooldowns` (`"cooldown-ready"`), `auras` (`"aura-expire"`) and
+`premeditation` (`"points-expire"`, payload `{ resource: "comboPoints",
+amount: k("premeditation.cpRemovedOnExpiry") }`, started for
+`k("premeditation.cpExpiry")`); `TIMER_KINDS` names the kinds. A duration
+that is not a finite number above 0 is a `RangeError`, an id that is not a
+non-empty string a `TypeError`. A proc's internal cooldown keeps its absolute
+`readyAt` and needs no event.
 
 ## Headless fight
 

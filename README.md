@@ -400,6 +400,15 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   threshold wake-up event (`wakeAt`). Nothing uses it yet; the legacy pool in
   `js/resource.js` stays. See "Planned: event-queue engine" in
   [Mechanics](docs/mechanics.md).
+- `js/core/swing.js` — `SwingTimer` (#195), weapon swings for the Phase 3.5
+  core: one pending swing event per hand, the legacy haste rule (haste read at
+  each swing), times anchored as `anchor + n * interval`. Nothing uses it yet;
+  `Weapon.tick` in `js/weapon.js` stays. See "Planned: event-queue engine" in
+  [Mechanics](docs/mechanics.md).
+- `js/core/timers.js` — `Timer`, `TimerSet`, `refreshedEnd` and
+  `createTimers` (#195): the GCD, cooldowns, aura expiries and Premeditation's
+  point expiry as expiry-class events at `start + duration`. Nothing uses them
+  yet. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
 - `js/fight.js` — `runFight({ seed, duration, config })`, the headless entry
   point, and `createFight(seed, config, options)`, the `Rogue` and `Simulation`
   pair that `runFight` and the live page both build. `options.duration` is the

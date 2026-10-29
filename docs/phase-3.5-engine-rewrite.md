@@ -268,6 +268,13 @@ speed (`floor(60 / speed)` or one more at a boundary); a 20 s cooldown set at
 t is ready at exactly t + 20; a 1 s GCD ends at exactly t + 1; auras and
 Premeditation points expire at their timestamps; haste applying mid-swing
 follows the legacy rule.
+Landed in #195: `js/core/swing.js` (`SwingTimer`, swings anchored at the swing
+where the interval last changed) and `js/core/timers.js` (`Timer`,
+`TimerSet`, `refreshedEnd`, `createTimers` for the GCD, cooldowns, auras and
+Premeditation's points), tested in `test/swing.test.js` and
+`test/timers.test.js`, including the same swings at any query granularity
+and against the legacy `Weapon.tick` with random haste changes (mechanics.md
+"Planned: event-queue engine (Phase 3.5)").
 
 **5. DoT ticks, procs, poisons (E5).** Done when: Rupture ticks land exactly
 every `k("rupture.tickInterval")` for its duration (a test that asserts
