@@ -286,7 +286,7 @@ describe("talent tree view (#204)", () => {
     assert.equal($("talents-summary").textContent, "No talents");
   });
 
-  it("keeps a tile's child nodes through a select, a rank change and a lock (Fran's QA of #208)", () => {
+  it("keeps a tile's child nodes through a select, an add and a removal (Fran's QA of #208)", () => {
     // The first click on an unfocused tile was lost: focus selected it, the
     // redraw rebuilt the tile, and the icon under the pointer was detached
     // between mousedown and mouseup. The tile's nodes must stay put.
