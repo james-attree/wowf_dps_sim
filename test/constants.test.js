@@ -72,7 +72,7 @@ const ROADMAP = [
   ["batch.duration", "assumption"],
   ["fight.iterations", "assumption"],
   ["start.state", "assumption"],
-  ["talents.rowGating", "assumption"],
+  ["talents.rowGating", "wowf-designer"],
   ["latency", "assumption"],
   ["poison.charges", "assumption"],
   ["hackAndSlash.chain", "assumption"],
@@ -106,10 +106,10 @@ describe("constants", () => {
     }
     assert.deepEqual(counts, {
       "wowf-export": 12,
-      "wowf-designer": 1,
+      "wowf-designer": 2,
       "classic-1.12": 34,
       cataclysm: 1,
-      assumption: 14,
+      assumption: 13,
     });
   });
 

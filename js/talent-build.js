@@ -614,7 +614,8 @@ export function canRemove(
 //     prerequisite at full rank, as in the Classic tree;
 //   - a talent on row r needs k("talents.rowGating") * (r - 1) points spent in
 //     its own tree on the rows above it (the Classic rule of 5 points a row,
-//     tagged `assumption`; the export does not state the number, OQ14).
+//     which WoW Forever matches, confirmed by James, `wowf-designer`; the
+//     export does not state the number, OQ14).
 // It returns the points spent. `catalogue` stays the second argument, so the
 // callers from before #190 work unchanged.
 export function validateBuild(

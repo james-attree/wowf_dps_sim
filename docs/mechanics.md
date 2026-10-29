@@ -2535,8 +2535,9 @@ problem and naming talents by id:
 - a talent with a `req` needs that talent at its full rank (the Classic rule; it
   needs no constant);
 - a talent on row `r` of a tree needs `k("talents.rowGating")` (5 points a row, the
-  Classic rule; the export does not state the number, so the constant is tagged
-  `ASSUMPTION`, open question 14) times `r - 1` points spent on the rows above it
+  Classic rule, which WoW Forever matches, confirmed by James on 29 Oct 2026, so
+  the constant is tagged `wowf-designer`; the export does not state the number,
+  open question 14) times `r - 1` points spent on the rows above it
   in the same tree.
 
 A partial map such as `{ "combat.precision": 3 }` is a valid SimConfig
