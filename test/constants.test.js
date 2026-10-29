@@ -69,7 +69,7 @@ const ROADMAP = [
   ["target.armor", "assumption"],
   ["target.behind", "assumption"],
   ["target.mobType", "assumption"],
-  ["fight.duration", "assumption"],
+  ["batch.duration", "assumption"],
   ["fight.iterations", "assumption"],
   ["start.state", "assumption"],
   ["talents.rowGating", "assumption"],

@@ -477,9 +477,10 @@ describe("runBatch", () => {
     assert.equal(runner.duration, k("batch.duration"));
     assert.equal(runner.iterations, 1000);
     assert.equal(runner.duration, 300);
-    // The live view and SimRunner keep the fight length they had.
-    assert.equal(k("fight.duration"), 180);
-    assert.equal(new SimRunner({ seed: 1 }).duration, 180);
+    // One default fight length for live and batch mode (#153): the older
+    // 180 s fight.duration is gone.
+    assert.equal(new SimRunner({ seed: 1 }).duration, 300);
+    assert.throws(() => k("fight.duration"));
   });
 });
 

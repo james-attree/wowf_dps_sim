@@ -867,8 +867,9 @@ end in the same state, whoever drives them.
 - `createFight(seed)` and `runFight({ seed, duration })` (`js/fight.js`) build
   the `Rogue` and `Simulation` pair. `runFight` runs it with one `run` call and
   returns plain data (see Headless fight).
-- The live page (`js/main.js`) builds the same pair with `createFight` and gives
-  it whole fixed steps from `FrameClock` (see Live page). It is a view of the
+- The live page (`js/main.js`, through `js/live-run.js`) runs the same pair in
+  a `SimRunner`, which gives it whole fixed steps from `FrameClock` (see Live
+  page). It is a view of the
   engine and holds no combat rule.
 - The golden tests pin the `runFight` result for six fixed cases, one of them a
   scripted list of casts and two of them a talent build (see Golden-seed tests). They fail when anything on
@@ -934,9 +935,15 @@ as the table shows. The total time is the duration asked for either way.
 `js/main.js` is a view of the same engine `runFight` uses. Since #149 it is a
 bootstrap: it puts the fight's config in the page's store (`js/store.js`), and
 the views in `js/views/` draw from the store (the visualiser on each frame, the totals
-when the results change, the controls when the run state changes). The pause
-button changes the store's `run` slice, and `js/main.js` starts or stops the
-frame loop from that. Since #150 no view reads the engine: the live feed
+when the results change, the controls when the run state changes). Since #153
+the fight runs in a `SimRunner` (see Run controller) held by `js/live-run.js`:
+the pause button calls its `pause` and `resume`, the runner starts and stops
+the frame loop through its driver, and every state change is written to the
+store's `run.state` (the one writer; the views only read it). The fight is
+`k("batch.duration")` (300 s) long, the same default as a batch; the runner
+then moves to `finished`, the frame loop stops, the status reads "Finished"
+and Pause is disabled. The live feed reads the fight through `SimRunner.fight`.
+Since #150 no view reads the engine: the live feed
 (`js/live-feed.js`) fills the visualiser's slices each frame, the combat log
 and combo points from the event stream and the energy, GCD, aura and cooldown
 timers read at the frame. Phase 3 of #150 draws more from the same events
@@ -947,11 +954,11 @@ stacks badge, "AT CAP" on full energy, the spent combo points outlined for
 chips with counts, and "↳" on a log row a proc made. Paused, Left and Right
 step through the log; an opt-in role=status region announces a buff coming up
 or going and the pause, at most one message per
-`k("ui.announceIntervalSeconds")`. These are display rules only. It builds the fight
-with `createFight(seed)` from `js/fight.js`, shows the seed in the header
-(plain text, so the same seed can be replayed in `runFight`), and from each
-animation frame it takes whole steps of `k("sim.fixedStep")` through
-`step`. It holds no combat or timing rule. The conversion from a frame
+`k("ui.announceIntervalSeconds")`. These are display rules only. The runner builds the fight
+with `createFight(seed, config)` from `js/fight.js`; the page shows the seed in
+the header (plain text, so the same seed can be replayed in `runFight`), and
+from each animation frame it gives the runner whole steps of
+`k("sim.fixedStep")` through `advance`. It holds no combat or timing rule. The conversion from a frame
 timestamp to a number of steps lives in `FrameClock` (`js/frame-clock.js`),
 which reads no clock itself:
 
@@ -989,8 +996,9 @@ result's `dps` (total damage over the whole duration) are not affected.
 ### Other time inputs
 
 `k("latency")` is an assumption on the retune list. Its note says the engine
-does not delay casts. `k("fight.duration")` is an assumption on the retune
-list. Its note says the live sim runs until pause and does not read it. A
+does not delay casts. `k("batch.duration")` (300 s) is an assumption on the
+retune list: the default fight length of `SimRunner`, the batch runner and the
+live page, which ends its fight there and shows it as finished (#153). A
 headless caller passes the duration to `run`, or to `runFight` (see Headless
 fight).
 
@@ -1436,8 +1444,8 @@ at the end of Phase 2.
   Golden-seed tests). `k("block.value")` is 0 for lack of a source, so a block
   does full damage.
 - **Live page.** It picks a new random seed on every load and has no way to
-  enter one; replay a seed with `runFight`. It does not stop at
-  `k("fight.duration")` (see Other time inputs). A page below the frame rate
+  enter one; replay a seed with `runFight`. It stops at
+  `k("batch.duration")` (see Other time inputs). A page below the frame rate
   that matches `k("sim.maxFrameTime")` runs slower than real time.
 - **Placeholder rotation.** The rotation is the placeholder Combat
   priority. It never calls Rupture, and it only rarely reaches Eviscerate, when
@@ -2527,7 +2535,7 @@ injected `driver` object (`{ start(advance), stop() }`).
 
 An action from any other state throws an `Error` naming the action, the state
 and the states that allow it. The state does not change. Reaching the fight
-length (the `duration` option, default `fight.duration`) moves `running` to
+length (the `duration` option, default `batch.duration`) moves `running` to
 `finished` and sets `result`, in the shape `runFight` returns. `advance` is not
 a transition; it does nothing unless the state is `running`.
 
@@ -2548,6 +2556,12 @@ stop.
 **Shape.** `runFight`'s result and `SimConfig` are unchanged. `js/fight.js`
 gains the export `fightResult(fight)`, the code `runFight` already used to build
 its result.
+
+`SimRunner.fight` (#153) is the one engine handle: `{ rogue, simulation }`,
+frozen, while `running` or `paused`, and null when `idle` or `finished` (a new
+one on every `run`). The live page's feed (`js/live-feed.js`) reads the energy,
+GCD, aura and cooldown timers from it and subscribes to its simulation's
+events. A caller reads it and never steps it: time goes through `advance`.
 
 ## Aura uptime (S3, issue #146)
 

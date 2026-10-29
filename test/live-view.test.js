@@ -427,6 +427,30 @@ describe("js/main.js on a stand-in page", () => {
     assert.deepEqual(snapshot(live), reference(stepsSeen.length * STEP));
     assert.equal(live.currentTime, stepsSeen.length * STEP);
   });
+
+  it("ends the fight at 300 s, finished, equal to runFight (#153)", () => {
+    const duration = k("batch.duration");
+    assert.equal(duration, 300);
+    let timestamp = 1000 + 3.6e6 + 300_000 + FRAME_MS;
+    let frames = 0;
+    while (pendingFrame) {
+      timestamp += 1000;
+      const steps = frame(timestamp);
+      assert.ok(steps.length <= CAP_STEPS);
+      frames += 1;
+      assert.ok(frames < 2000, "the fight ends");
+    }
+    assert.equal(live.currentTime, duration);
+    assert.equal(stepsSeen.length * STEP, duration);
+    assert.deepEqual(snapshot(live), reference(duration));
+    assert.equal(element("#simulation-status-label").textContent, "Finished");
+    assert.equal(element("#pause-button").disabled, true);
+    assert.equal(element("#time-value").textContent, "05:00");
+    // A click on the disabled button, had it reached the page, does nothing.
+    element("#pause-button").click();
+    assert.equal(pendingFrame, null);
+    assert.equal(element("#simulation-status-label").textContent, "Finished");
+  });
 });
 
 // Issue #107 follow-up. js/main.js only runs in a page, so this gives it a

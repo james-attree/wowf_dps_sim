@@ -283,14 +283,21 @@ simulation })` with `read()` and `stop()`. The combat log rows (from `hit`
   `read()` returns frozen plain slices. Engine lint applies.
 - `js/views/` — The page's views (#149). Each is a factory `(document,
 store)` that owns its own elements, draws from the store when its slices
-  change, and returns its unsubscribe: `controls.js` (seed, Live/Paused
-  status, the Pause button, which toggles `run.state`), `visualiser.js` (combo
+  change, and returns its unsubscribe: `controls.js` (seed, the
+  Live/Paused/Finished status, the Pause button, which calls the live run's
+  `pause` and `resume`; it never writes `run.state`), `visualiser.js` (combo
   points, energy, the GCD meter, effects, cooldowns, procs, the combat log and
   its announcements; redraws on `frame`, from the feed's slices only), `results.js` (time, damage, DPS; redraws on `results`), and `config-form.js`
   (#151: the "Fight setup" form; draws the `form` slice and calls the
   actions `js/config-form.js` gives it, which `js/main.js` hands in, so it
   imports nothing from the engine). Edits apply to the next run: the fight on
   the page keeps the config it started with until #153's Run.
+- `js/live-run.js` — The live page's run (#153): `createLiveRun(store,
+frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
+  `reset`. One `SimRunner` per Run, driven by injected animation frames through
+  `FrameClock`, its state mirrored into `run.state` (the one writer), and a
+  new live feed per fight. The fight ends at `batch.duration` (300 s) and the
+  page shows it as finished. No DOM and no clock. Engine lint applies.
 - `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
   milliseconds into a whole number of `sim.fixedStep` steps. It carries the
   remainder between frames and caps one frame at `sim.maxFrameTime`, which is
@@ -316,8 +323,10 @@ store)` that owns its own elements, draws from the store when its slices
   loads in Node with no DOM.
 - `js/sim-runner.js` — `SimRunner` (P3-1, #136), the run controller over the
   fight: states `idle`, `running`, `paused`, `finished`; `run`, `pause`,
-  `resume`, `stop`, `reset`, `advance(seconds)`, `onStateChange`. Not yet used
-  by the live page. See the Run controller section of
+  `resume`, `stop`, `reset`, `advance(seconds)`, `onStateChange`, and `fight` (the
+  running fight's rogue and simulation, for the live feed). The live page runs
+  on it since #153 (`js/live-run.js`). Its default length is `batch.duration`
+  (300 s). See the Run controller section of
   [Mechanics](docs/mechanics.md).
 - `js/batch-runner.js` — The batch runner (S1, #144): `runBatch({ seed,
 iterations, duration, config, signal, onProgress })` and the sliced,
@@ -732,7 +741,12 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `test/live-view.test.js` — The live page as a view of the engine: `FrameClock`
   (the first frame, the carry, the frame cap, `restart`), `createFight`, a live
   fight against `runFight`, and `js/main.js` on a stand-in page (the seed in the
-  header, pause, resume, and a late frame from a backgrounded tab).
+  header, pause, resume, a late frame from a backgrounded tab, and the finish at
+  300 s, equal to `runFight`).
+- `test/live-run.test.js` — The live run (#153) with hand-driven frames: the
+  store mirrors the runner, the finish equals `runFight`, the frame cap, pause
+  and a stale frame, Stop then Run reproduces the fight, reset, Run again with
+  new options, and that no view writes `run.state`.
 - `test/premeditation.test.js` — Premeditation combo points and expiry.
 - `test/provenance.test.js` — The provenance check, the CLI, and the generated
   report.
@@ -767,8 +781,8 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   the last buff moment, all against the recorded event stream.
 - `test/sim-runner.test.js` — `SimRunner`: the transition table, invalid
   actions, state subscriptions, a run to the end equal to `runFight`, pause and
-  resume, Stop then Run and the rng draws, the driver, options, and the public
-  names (no steps).
+  resume, Stop then Run and the rng draws, the driver, options, the public
+  names (no steps), and `fight` (#153).
 - `test/batch-runner.test.js` — The batch runner: the seed scheme (equal to an
   independent statement of it, pinned values, no repeats up to the batch limit,
   unrelated base seeds), the statistics against a two-pass reference, every

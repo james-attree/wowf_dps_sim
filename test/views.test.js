@@ -208,35 +208,56 @@ describe("page views", () => {
     assert.ok(owned.visualiser.has("#combat-log"));
   });
 
-  it("controls show the seed and toggle run.state through the store", () => {
+  it("controls show the seed, call the run's actions and draw run.state", () => {
     const doc = recordingDocument();
     const { store } = pageStore();
-    const states = [];
-    store.subscribe(({ state, changed }) => {
-      if (changed.includes("run")) {
-        states.push(state.run.state);
-      }
-    });
-    createControlsView(doc, store);
+    const calls = [];
+    const actions = {
+      pause: () => calls.push("pause"),
+      resume: () => calls.push("resume"),
+    };
+    createControlsView(doc, store, actions);
     assert.equal(doc.el("#seed-value").textContent, String(SEED));
+    assert.equal(doc.el("#simulation-status-label").textContent, "Live");
+    assert.equal(doc.el("#pause-button").disabled, false);
 
+    // The view asks; the runner's state change is what redraws it (#153).
     doc.el("#pause-button").click();
-    assert.equal(store.get().run.state, "paused");
+    assert.deepEqual(calls, ["pause"]);
+    assert.equal(store.get().run.state, "running", "the view never writes it");
+    assert.equal(doc.el("#pause-label").textContent, "Pause");
+
+    const setState = (state) =>
+      store.update(({ run }) => ({ run: { ...run, state } }));
+    setState("paused");
     assert.equal(store.get().run.seed, SEED, "the seed is kept");
     assert.equal(doc.el("#pause-button").getAttribute("aria-pressed"), "true");
     assert.equal(doc.el("#pause-label").textContent, "Resume");
     assert.equal(doc.el("#pause-icon").textContent, "▶");
     assert.equal(doc.el("#simulation-status-label").textContent, "Paused");
     assert.ok(doc.el("#simulation-status").classes.has("is-paused"));
-
     doc.el("#pause-button").click();
-    assert.equal(store.get().run.state, "running");
+    assert.deepEqual(calls, ["pause", "resume"]);
+
+    setState("running");
     assert.equal(doc.el("#pause-button").getAttribute("aria-pressed"), "false");
     assert.equal(doc.el("#pause-label").textContent, "Pause");
     assert.equal(doc.el("#pause-icon").textContent, "Ⅱ");
     assert.equal(doc.el("#simulation-status-label").textContent, "Live");
     assert.equal(doc.el("#simulation-status").classes.has("is-paused"), false);
-    assert.deepEqual(states, ["paused", "running"]);
+
+    // A finished fight (#153) has nothing to pause.
+    setState("finished");
+    assert.equal(doc.el("#simulation-status-label").textContent, "Finished");
+    assert.equal(doc.el("#pause-button").disabled, true);
+    assert.equal(doc.el("#pause-label").textContent, "Pause");
+    assert.ok(doc.el("#simulation-status").classes.has("is-paused"));
+    doc.el("#pause-button").click();
+    setState("idle");
+    assert.equal(doc.el("#simulation-status-label").textContent, "Stopped");
+    assert.equal(doc.el("#pause-button").disabled, true);
+    doc.el("#pause-button").click();
+    assert.deepEqual(calls, ["pause", "resume"], "nothing to call");
   });
 
   it("results draw time, damage and DPS when the results slice changes", () => {

@@ -284,11 +284,12 @@ describe("SimRunner equals runFight", () => {
 
   it("uses the default fight length when none is given, and no config means the default config", () => {
     const target = new SimRunner({ seed: 4 });
-    assert.equal(target.duration, k("fight.duration"));
+    assert.equal(target.duration, k("batch.duration"));
+    assert.equal(target.duration, 300);
     target.run();
     assert.deepEqual(
       runToEnd(target),
-      runFight({ seed: 4, duration: k("fight.duration") }),
+      runFight({ seed: 4, duration: k("batch.duration") }),
     );
   });
 
@@ -607,6 +608,7 @@ describe("SimRunner interface", () => {
       "config",
       "constructor",
       "duration",
+      "fight",
       "on",
       "onError",
       "onStateChange",
@@ -622,8 +624,13 @@ describe("SimRunner interface", () => {
     ]);
     const target = runner();
     assert.deepEqual(Object.keys(target), [], "no engine on the instance");
+    // `fight` is the one engine handle (#153): the live page's feed reads the
+    // rogue and simulation through it. It has no step or frame either.
     for (const name of [...names, ...Object.keys(target)]) {
-      assert.doesNotMatch(name, /step|frame|simulation|fight|rogue/i);
+      assert.doesNotMatch(name, /step|frame/i);
+      if (name !== "fight") {
+        assert.doesNotMatch(name, /simulation|fight|rogue/i);
+      }
     }
   });
 
@@ -640,5 +647,33 @@ describe("SimRunner interface", () => {
       Object.keys(target.result).sort(),
       Object.keys(runFight({ seed: 1, duration: SHORT })).sort(),
     );
+  });
+});
+
+describe("SimRunner fight (#153)", () => {
+  it("is the running fight's rogue and simulation, null when idle or finished", () => {
+    const target = runner({ seed: 8 });
+    assert.equal(target.fight, null, "idle before run");
+    target.run();
+    const fight = target.fight;
+    assert.ok(Object.isFrozen(fight));
+    assert.deepEqual(Object.keys(fight), ["rogue", "simulation"]);
+    assert.ok(fight.simulation instanceof Simulation);
+    assert.equal(fight.simulation.rogue, fight.rogue);
+    target.advance(1);
+    assert.equal(fight.simulation.currentTime, target.time, "the live one");
+    target.pause();
+    assert.equal(target.fight.simulation, fight.simulation, "paused keeps it");
+    target.resume();
+    runToEnd(target);
+    assert.equal(target.fight, null, "finished");
+    assert.equal(fight.simulation.currentTime, SHORT, "references outlive it");
+    target.run();
+    assert.notEqual(target.fight.simulation, fight.simulation, "new per run");
+    target.stop();
+    assert.equal(target.fight, null, "stopped");
+    target.run();
+    target.reset();
+    assert.equal(target.fight, null, "reset");
   });
 });
