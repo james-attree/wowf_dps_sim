@@ -129,7 +129,7 @@ describe("SimConfig.rotation", () => {
     rejects({ ...SMALL, schemaVersion: 2 }, /schemaVersion/);
     rejects(
       { ...SMALL, rules: [{ action: "Sinister Strike", conditions: [] }] },
-      /rules\[0\]\.action must be an ability id.*not a display name/,
+      /\nrules\[0\]\.action: The action must be an ability id.*not a display name/,
     );
     rejects(
       {

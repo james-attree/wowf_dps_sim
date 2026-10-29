@@ -2,10 +2,11 @@ import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { AURAS } from "./auras.js";
-import { conditionErrors } from "./rotation-conditions.js";
+import { CONDITION_PARAMS, conditionErrors } from "./rotation-conditions.js";
 import {
   conditionShapeErrors,
   describeValue,
+  formatErrors,
   rotationError,
   rotationTopShape,
   ruleShape,
@@ -25,10 +26,11 @@ import { talentGrantedAbilities } from "./talent-build.js";
 // kind of error, for a view to switch on (docs/rotation.md, "Error codes",
 // lists them with their data). The path says where
 // (`rules[2].conditions[0].aura`; "" is the rotation as a whole) and the
-// message says what, and names the same place, so it reads on its own. An
-// empty list means the rotation is valid. assertValidRotation is
-// the throwing form: a RangeError that lists every message. The two report the
-// same errors; a caller picks one.
+// message says what, without saying where (the message contract, #214):
+// rotationProblems and assertValidRotation, the string and throwing forms,
+// write each error as its path and then its message (formatError), and a view
+// puts a readable place before the message. An empty list means the rotation
+// is valid. The forms report the same errors; a caller picks one.
 //
 // What it checks, in this order:
 //   1. The shape (js/rotation-schema.js): the version, the name, the three
@@ -157,18 +159,18 @@ const POOL_MAX = Object.freeze(
   ),
 );
 
-// Which param of each type names what. `ability` params must be an ability the
-// rogue casts; `aura` a self buff; `debuff` a target debuff.
-const ID_PARAM = Object.freeze({
-  auraActive: "aura",
-  auraRemaining: "aura",
-  debuffActive: "debuff",
-  debuffRemaining: "debuff",
-  debuffStacks: "debuff",
-  cooldownReady: "ability",
-  abilityGranted: "ability",
-  abilityUnlocked: "ability",
-});
+// Which param of each type names something, from CONDITION_PARAMS (#214):
+// the id param and what it names (its `of`). An "ability" must be an ability
+// the rogue casts; an "aura" a self buff; a "debuff" a target debuff.
+const ID_PARAM = Object.freeze(
+  Object.fromEntries(
+    Object.entries(CONDITION_PARAMS).flatMap(([type, params]) =>
+      Object.entries(params)
+        .filter(([, spec]) => spec.kind === "id")
+        .map(([name, spec]) => [type, Object.freeze({ name, of: spec.of })]),
+    ),
+  ),
+);
 
 // Types whose `value` is seconds of fight time. A negative time is never
 // reached, so a comparison with one is a mistake: "at least -2 s" always holds
@@ -188,47 +190,46 @@ function abilityIdError(id, path, context) {
     return rotationError(
       "unknownAbility",
       path,
-      `${path} ${describeValue(id)} is not an ability in the spell data. The rogue casts: ${list(context.castable)}.`,
+      `${describeValue(id)} is not an ability in the spell data. The rogue casts: ${list(context.castable)}.`,
     );
   }
   if (!context.castable.includes(id)) {
     return rotationError(
       "notCastYet",
       path,
-      `${path} ${describeValue(id)} is a rogue spell the engine does not cast yet. The rogue casts: ${list(context.castable)}.`,
+      `${describeValue(id)} is a rogue spell the engine does not cast yet. The rogue casts: ${list(context.castable)}.`,
     );
   }
   return null;
 }
 
-function auraIdError(condition, name, path, context) {
-  const id = condition[name];
-  if (name === "aura" && !context.auras.includes(id)) {
+function auraIdError(id, of, path, context) {
+  if (of === "aura" && !context.auras.includes(id)) {
     const isDebuff = Object.hasOwn(context.debuffs, id);
     return isDebuff
       ? rotationError(
           "debuffAsBuff",
           path,
-          `${path} ${describeValue(id)} is a debuff on the target; use debuffActive, debuffRemaining or debuffStacks for it. Self buffs: ${list(context.auras)}.`,
+          `${describeValue(id)} is a debuff on the target; use debuffActive, debuffRemaining or debuffStacks for it. Self buffs: ${list(context.auras)}.`,
         )
       : rotationError(
           "notSelfBuff",
           path,
-          `${path} ${describeValue(id)} is not a self buff. Self buffs: ${list(context.auras)}.`,
+          `${describeValue(id)} is not a self buff. Self buffs: ${list(context.auras)}.`,
         );
   }
-  if (name === "debuff" && !Object.hasOwn(context.debuffs, id)) {
+  if (of === "debuff" && !Object.hasOwn(context.debuffs, id)) {
     const isBuff = context.auras.includes(id);
     return isBuff
       ? rotationError(
           "buffAsDebuff",
           path,
-          `${path} ${describeValue(id)} is a self buff; use auraActive or auraRemaining for it. Target debuffs: ${list(Object.keys(context.debuffs))}.`,
+          `${describeValue(id)} is a self buff; use auraActive or auraRemaining for it. Target debuffs: ${list(Object.keys(context.debuffs))}.`,
         )
       : rotationError(
           "notDebuff",
           path,
-          `${path} ${describeValue(id)} is not a debuff on the target. Target debuffs: ${list(Object.keys(context.debuffs))}.`,
+          `${describeValue(id)} is not a debuff on the target. Target debuffs: ${list(Object.keys(context.debuffs))}.`,
         );
   }
   return null;
@@ -238,13 +239,14 @@ function auraIdError(condition, name, path, context) {
 function conditionMeaningErrors(condition, where, context) {
   const { type } = condition;
   const errors = [];
-  const idName = ID_PARAM[type];
-  if (idName !== undefined) {
-    const path = `${where}.${idName}`;
+  const idParam = ID_PARAM[type];
+  if (idParam !== undefined) {
+    const { name, of } = idParam;
+    const path = `${where}.${name}`;
     const error =
-      idName === "ability"
-        ? abilityIdError(condition.ability, path, context)
-        : auraIdError(condition, idName, path, context);
+      of === "ability"
+        ? abilityIdError(condition[name], path, context)
+        : auraIdError(condition[name], of, path, context);
     if (error !== null) {
       errors.push(error);
     }
@@ -262,7 +264,7 @@ function conditionMeaningErrors(condition, where, context) {
         rotationError(
           "notWhole",
           path,
-          `${path} must be a whole number for ${pool}, got ${describeValue(value)}.`,
+          `The value must be a whole number for ${pool}, got ${describeValue(value)}.`,
           { resource: pool },
         ),
       );
@@ -272,7 +274,7 @@ function conditionMeaningErrors(condition, where, context) {
         rotationError(
           "outOfRange",
           path,
-          `${path} must be between 0 and ${max} for ${pool}, got ${describeValue(value)}.`,
+          `The value must be between 0 and ${max} for ${pool}, got ${describeValue(value)}.`,
           { resource: pool, max },
         ),
       );
@@ -282,7 +284,7 @@ function conditionMeaningErrors(condition, where, context) {
       rotationError(
         "negativeSeconds",
         path,
-        `${path} is seconds and must be 0 or more, got ${describeValue(value)}.`,
+        `The value is seconds and must be 0 or more, got ${describeValue(value)}.`,
       ),
     );
   } else if (type === "debuffStacks") {
@@ -292,7 +294,7 @@ function conditionMeaningErrors(condition, where, context) {
         rotationError(
           "badStacks",
           path,
-          `${path} is a stack count and must be a whole number, 0 or more, got ${describeValue(value)}.`,
+          `The value is a stack count and must be a whole number, 0 or more, got ${describeValue(value)}.`,
         ),
       );
     } else if (max !== undefined && value > max) {
@@ -300,7 +302,7 @@ function conditionMeaningErrors(condition, where, context) {
         rotationError(
           "tooManyStacks",
           path,
-          `${path} is ${describeValue(value)} stacks but ${describeValue(condition.debuff)} stacks to at most ${max}.`,
+          `The value is ${describeValue(value)} stacks but ${describeValue(condition.debuff)} stacks to at most ${max}.`,
           { max },
         ),
       );
@@ -362,7 +364,7 @@ function talentGuardError(rule, path, context) {
   return rotationError(
     "talentGuard",
     `${path}.conditions`,
-    `${path}: ${abilityLabel(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
+    `${abilityLabel(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
     { ability: id },
   );
 }
@@ -386,7 +388,7 @@ export function validateRotation(rotation, context = {}) {
       rotationError(
         "noRules",
         "rules",
-        "rules is empty: a rotation needs at least one rule, or it never casts anything.",
+        "There are no rules: a rotation needs at least one rule, or it never casts anything.",
       ),
     );
     return errors;
@@ -431,14 +433,14 @@ export function validateRotation(rotation, context = {}) {
   return errors;
 }
 
-// The messages of validateRotation, as strings. An empty list means the
-// rotation is valid.
+// validateRotation as strings, each the path and then the message
+// (formatError). An empty list means the rotation is valid.
 export function rotationProblems(rotation, context) {
-  return validateRotation(rotation, context).map((error) => error.message);
+  return formatErrors(validateRotation(rotation, context));
 }
 
 // Returns the rotation when it is valid. Otherwise it throws a RangeError
-// whose message lists every error, one per line.
+// whose message lists every error, one per line, as rotationProblems does.
 export function assertValidRotation(rotation, context) {
   const problems = rotationProblems(rotation, context);
   if (problems.length > 0) {

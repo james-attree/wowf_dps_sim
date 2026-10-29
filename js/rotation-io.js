@@ -1,5 +1,5 @@
 import { k } from "../data/constants.js";
-import { rotationError } from "./rotation-schema.js";
+import { formatErrors, rotationError } from "./rotation-schema.js";
 import { validateRotation } from "./rotation-validator.js";
 import { rotationWarnings } from "./rotation-warnings.js";
 
@@ -28,8 +28,10 @@ import { rotationWarnings } from "./rotation-warnings.js";
 //                             and its own code: notText, tooLarge ({ max }) or
 //                             notJson.
 //                             It also has `warnings` (issue #189): the
-//                             { path, message } list rotationWarnings gives
-//                             (js/rotation-warnings.js), cut the same way.
+//                             { code, path, message, ...data } list
+//                             rotationWarnings gives (js/rotation-warnings.js,
+//                             #214), each path and message cut the same way
+//                             and the code and data kept.
 //                             They are advice: a rotation with warnings is
 //                             still `ok`. A refused file has none ([]).
 //
@@ -76,9 +78,7 @@ function sortedCopy(value) {
 export function exportRotation(rotation) {
   const errors = validateRotation(rotation);
   if (errors.length > 0) {
-    throw new RangeError(
-      `Bad rotation:\n${errors.map((error) => error.message).join("\n")}`,
-    );
+    throw new RangeError(`Bad rotation:\n${formatErrors(errors).join("\n")}`);
   }
   return JSON.stringify(sortedCopy(rotation), null, INDENT) + NEWLINE;
 }

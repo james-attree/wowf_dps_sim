@@ -417,7 +417,7 @@ describe("compileRotation", () => {
         assert.match(error.message, /rules\[0\]\.conditions\[0\]/);
         assert.match(
           error.message,
-          /rules\[1\]\.action "nonsense" is not an ability in the spell data/,
+          /rules\[1\]\.action: "nonsense" is not an ability in the spell data/,
         );
         return true;
       },

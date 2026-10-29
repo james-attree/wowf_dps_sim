@@ -21,7 +21,12 @@
 // (and a debuff as 0 stacks), so "missing or at most 10 s left" is one
 // condition: auraRemaining <= 10.
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
-import { describeValue, memberPath, rotationError } from "./rotation-schema.js";
+import {
+  describeValue,
+  formatError,
+  memberPath,
+  rotationError,
+} from "./rotation-schema.js";
 
 // The comparison operators of every condition that compares a number.
 export const OPERATORS = Object.freeze([">=", ">", "<=", "<", "=="]);
@@ -42,7 +47,10 @@ const RESOURCE_IDS = Object.freeze(
   RESOURCE_DEFINITIONS.map((definition) => definition.id),
 );
 
-// A param is { kind, optional? }. kind is one of the checks below.
+// A param is { kind, optional?, default?, of? }. kind is one of the checks
+// below. An optional param has its default (`active` and `ready` are true
+// when left out). An id param says what it names: `of` is "ability", "aura"
+// (a self buff) or "debuff" (a target debuff).
 const KINDS = {
   id: (value) => typeof value === "string" && ID.test(value),
   operator: (value) => OPERATORS.includes(value),
@@ -59,16 +67,24 @@ const KIND_HINT = {
   resource: `one of ${RESOURCE_IDS.join(", ")}`,
 };
 
-const op = { kind: "operator" };
+const op = { kind: "operator", values: OPERATORS };
 const value = { kind: "number" };
 const compare = { op, value };
+
+const ability = { kind: "id", of: "ability" };
+const aura = { kind: "id", of: "aura" };
+const debuff = { kind: "id", of: "debuff" };
+const isTrue = { kind: "boolean", optional: true, default: true };
 
 // Every type: its params, and how it reads the state. `read` gives the number
 // a comparison uses, or `test` gives the answer outright.
 const TYPES = {
   // A resource pool's current value ("energy >= 40").
   resource: {
-    params: { resource: { kind: "resource" }, ...compare },
+    params: {
+      resource: { kind: "resource", values: RESOURCE_IDS },
+      ...compare,
+    },
     read: (c, state) => state.resources[c.resource].value,
   },
   // Combo points: the same as resource with resource "comboPoints".
@@ -78,31 +94,25 @@ const TYPES = {
   },
   // A self buff is up. `active` is true by default; false means "is not up".
   auraActive: {
-    params: {
-      aura: { kind: "id" },
-      active: { kind: "boolean", optional: true },
-    },
+    params: { aura, active: isTrue },
     test: (c, state) =>
       Object.hasOwn(state.auras, c.aura) === (c.active ?? true),
   },
   // Seconds left on a self buff. Not up counts as 0.
   auraRemaining: {
-    params: { aura: { kind: "id" }, ...compare },
+    params: { aura, ...compare },
     read: (c, state) =>
       Object.hasOwn(state.auras, c.aura) ? state.auras[c.aura].remaining : 0,
   },
   // A debuff on the target is up.
   debuffActive: {
-    params: {
-      debuff: { kind: "id" },
-      active: { kind: "boolean", optional: true },
-    },
+    params: { debuff, active: isTrue },
     test: (c, state) =>
       Object.hasOwn(state.debuffs, c.debuff) === (c.active ?? true),
   },
   // Seconds left on a target debuff. Not up counts as 0.
   debuffRemaining: {
-    params: { debuff: { kind: "id" }, ...compare },
+    params: { debuff, ...compare },
     read: (c, state) =>
       Object.hasOwn(state.debuffs, c.debuff)
         ? state.debuffs[c.debuff].remaining
@@ -110,7 +120,7 @@ const TYPES = {
   },
   // Stacks of a target debuff. Not up counts as 0.
   debuffStacks: {
-    params: { debuff: { kind: "id" }, ...compare },
+    params: { debuff, ...compare },
     read: (c, state) =>
       Object.hasOwn(state.debuffs, c.debuff)
         ? state.debuffs[c.debuff].stacks
@@ -119,10 +129,7 @@ const TYPES = {
   // The ability's own cooldown is over. `ready` is true by default; false
   // means "is on cooldown". It says nothing about the GCD or the energy.
   cooldownReady: {
-    params: {
-      ability: { kind: "id" },
-      ready: { kind: "boolean", optional: true },
-    },
+    params: { ability, ready: isTrue },
     test: (c, state) =>
       (!Object.hasOwn(state.cooldowns, c.ability) ||
         state.cooldowns[c.ability] <= 0) === (c.ready ?? true),
@@ -154,7 +161,7 @@ const TYPES = {
   // and Cold Blood come from talents). Strict: with no build selected and no
   // host grant nothing is granted, so a talent ability is not.
   abilityGranted: {
-    params: { ability: { kind: "id" } },
+    params: { ability },
     test: (c, state) => state.granted.includes(c.ability),
   },
   // The build does not hold the ability back. False only when a build is
@@ -162,7 +169,7 @@ const TYPES = {
   // no build selected it is true, so the fight before talents casts everything,
   // as the code rotation does (Rogue.lockedByBuild).
   abilityUnlocked: {
-    params: { ability: { kind: "id" } },
+    params: { ability },
     test: (c, state) =>
       !(
         state.build.selected &&
@@ -173,6 +180,29 @@ const TYPES = {
 };
 
 export const CONDITION_TYPES = Object.freeze(Object.keys(TYPES));
+
+// Every type's params, as data (#214): { [type]: { [param]: { kind,
+// optional?, default?, of?, values? } } }, in the order a condition is
+// written, deeply frozen. `values` is the closed list an "operator" or
+// "resource" param takes (OPERATORS, the resource pools). The one source for the builder's condition editor and the checks
+// here and in the validator (which reads `of` to know what an id names, and
+// `default` to see a written-out default as left out). kind is "id",
+// "operator", "number", "boolean" or "resource"; docs/rotation.md lists them.
+export const CONDITION_PARAMS = Object.freeze(
+  Object.fromEntries(
+    Object.entries(TYPES).map(([type, { params }]) => [
+      type,
+      Object.freeze(
+        Object.fromEntries(
+          Object.entries(params).map(([name, spec]) => [
+            name,
+            Object.freeze({ ...spec }),
+          ]),
+        ),
+      ),
+    ]),
+  ),
+);
 
 function isPlainObject(candidate) {
   if (candidate === null || typeof candidate !== "object") {
@@ -186,16 +216,18 @@ function isPlainObject(candidate) {
 // codes are conditionNotObject, unknownConditionType, and missingParam,
 // badParam and unknownParam with { param }): the path names the param
 // ("rules[0].conditions[1].aura"; the condition's own path for a problem with
-// the condition as a whole) and the message names the same place. An empty
-// list means it is a known type with every required param right and no other
-// param. `where` is the condition's path, and the prefix of the messages.
-export function conditionErrors(condition, where = "The condition") {
+// the condition as a whole) and the message says what is wrong without
+// saying where (the message contract, #214; formatError adds the path). An
+// empty list means it is a known type with every required param right and no
+// other param. `where` is the condition's path ("" for a condition on its
+// own).
+export function conditionErrors(condition, where = "") {
   if (!isPlainObject(condition)) {
     return [
       rotationError(
         "conditionNotObject",
         where,
-        `${where} must be an object { type, ...params }.`,
+        "The condition must be an object { type, ...params }.",
       ),
     ];
   }
@@ -205,7 +237,7 @@ export function conditionErrors(condition, where = "The condition") {
       rotationError(
         "unknownConditionType",
         memberPath(where, "type"),
-        `${where} has unknown type ${describeValue(type)}. Known: ${CONDITION_TYPES.join(", ")}.`,
+        `The condition has unknown type ${describeValue(type)}. Known: ${CONDITION_TYPES.join(", ")}.`,
       ),
     ];
   }
@@ -218,7 +250,7 @@ export function conditionErrors(condition, where = "The condition") {
           rotationError(
             "missingParam",
             memberPath(where, name),
-            `${where} (${type}) is missing "${name}": ${KIND_HINT[spec.kind]}.`,
+            `The ${type} condition is missing "${name}": ${KIND_HINT[spec.kind]}.`,
             { param: name },
           ),
         );
@@ -228,7 +260,7 @@ export function conditionErrors(condition, where = "The condition") {
         rotationError(
           "badParam",
           memberPath(where, name),
-          `${where} (${type}) has a bad "${name}": needs ${KIND_HINT[spec.kind]}, got ${describeValue(condition[name])}.`,
+          `The ${type} condition has a bad "${name}": needs ${KIND_HINT[spec.kind]}, got ${describeValue(condition[name])}.`,
           { param: name },
         ),
       );
@@ -240,7 +272,7 @@ export function conditionErrors(condition, where = "The condition") {
         rotationError(
           "unknownParam",
           memberPath(where, name),
-          `${where} (${type}) has unknown param "${name}". Allowed: ${Object.keys(params).join(", ") || "none"}.`,
+          `The ${type} condition has unknown param "${name}". Allowed: ${Object.keys(params).join(", ") || "none"}.`,
           { param: name },
         ),
       );
@@ -249,9 +281,10 @@ export function conditionErrors(condition, where = "The condition") {
   return errors;
 }
 
-// Every problem with a condition, as strings: the messages of conditionErrors.
-export function conditionProblems(condition, where = "The condition") {
-  return conditionErrors(condition, where).map((error) => error.message);
+// Every problem with a condition, as strings: conditionErrors as formatError
+// writes them, the path and then the message.
+export function conditionProblems(condition, where = "") {
+  return conditionErrors(condition, where).map(formatError);
 }
 
 // True when `actual` compares to `value` by `op`, as a condition does. Exposed

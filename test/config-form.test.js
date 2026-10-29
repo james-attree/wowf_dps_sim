@@ -11,17 +11,21 @@ import {
   formFromConfig,
   errorLine,
   importedText,
+  listedLines,
+  MAX_LISTED,
   nextRunConfig,
   pageDefaultConfig,
   validateValues,
 } from "../js/config-form.js";
 import { createFight, runFight } from "../js/fight.js";
 import { defaultRotation } from "../js/rotation-default.js";
-import { exportRotation } from "../js/rotation-io.js";
+import { exportRotation, importRotation } from "../js/rotation-io.js";
+import { formatError } from "../js/rotation-schema.js";
 import { rotationWarnings } from "../js/rotation-warnings.js";
 import { listPresets, presetRotation } from "../js/rotation-presets.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
+import { blockedCount } from "../js/views/run-model.js";
 import * as testBuild from "./talentsforever.js";
 
 // Issue #151 (U2), the stats form's model. Fran's notes
@@ -424,13 +428,11 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(status.detail, "");
     assert.equal(
       status.warnings,
-      rotationWarnings(trap)
-        .map(({ message }) => message)
-        .join("\n"),
+      rotationWarnings(trap).map(errorLine).join("\n"),
     );
     assert.match(
       status.warnings,
-      /^rules\[0\]: Eviscerate \(eviscerate\) is a finisher/m,
+      /^rules\[0\]\.conditions: Eviscerate \(eviscerate\) is a finisher/m,
     );
     actions.importText("{ nope");
     assert.equal(form().importStatus.warnings, "");
@@ -492,10 +494,10 @@ describe("rotation: one source of truth, config.rotation", () => {
       form().importStatus.detail,
       /^schemaVersion: The rotation is missing "schemaVersion"\.$/m,
     );
-    // The validator's message names its own place, so it is not doubled.
+    // The message names no place; the path is written once, in front (#214).
     assert.match(
       form().importStatus.detail,
-      /^rules\[0\] is missing "action"\.$/m,
+      /^rules\[0\]\.action: The rule is missing "action"\.$/m,
     );
     assert.doesNotMatch(
       form().importStatus.detail,
@@ -503,7 +505,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     );
   });
 
-  it("a refused talent-granted rule shows its path once (#189 review)", () => {
+  it("a refused talent-granted rule shows its path once, in front (#189 review, #214)", () => {
     const { actions, form } = setup();
     actions.importText(
       JSON.stringify({
@@ -515,40 +517,107 @@ describe("rotation: one source of truth, config.rotation", () => {
     const { detail } = form().importStatus;
     assert.match(
       detail,
-      /^rules\[0\]: Blade Flurry \(blade-flurry\) comes from a talent/,
+      /^rules\[0\]\.conditions: Blade Flurry \(blade-flurry\) comes from a talent/,
     );
-    assert.doesNotMatch(detail, /rules\[0\]\.conditions: /);
+    assert.equal(detail.split("rules[0]").length, 2, detail);
   });
 
-  it("errorLine writes the path only when the message does not name it", () => {
+  it("errorLine is formatError: the path, then the message, or the message alone at the root (#214)", () => {
     const line = (path, message) => errorLine({ path, message });
+    assert.equal(errorLine, formatError);
     assert.equal(line("", "Not JSON."), "Not JSON.");
     assert.equal(
-      line("rules[0].conditions", "rules[0]: Blade Flurry"),
-      "rules[0]: Blade Flurry",
+      line("rules[0].conditions", "Blade Flurry"),
+      "rules[0].conditions: Blade Flurry",
     );
-    assert.equal(line("rules", "rules is empty: x"), "rules is empty: x");
-    assert.equal(
-      line("rules[0].action", 'rules[0] is missing "action".'),
-      'rules[0] is missing "action".',
-    );
-    assert.equal(
-      line(
-        "rules[1].conditions[0].value",
-        "rules[1].conditions[0].value must be 0 or more",
-      ),
-      "rules[1].conditions[0].value must be 0 or more",
-    );
-    // A message that does not start with the path keeps the prefix.
     assert.equal(
       line("schemaVersion", 'The rotation is missing "schemaVersion".'),
       'schemaVersion: The rotation is missing "schemaVersion".',
     );
+    // No guessing from the text: a message is never read for a place.
     assert.equal(line("rules[1]", "rules[0]: x"), "rules[1]: rules[0]: x");
-    assert.equal(line("rulesets", "rules is x"), "rulesets: rules is x");
-    // A message about the list is not taken as naming one rule in it.
-    assert.equal(line("rules[2]", "rules is x"), "rules[2]: rules is x");
-    assert.equal(line("rules[0]", "(none)"), "rules[0]: (none)");
+    assert.equal(line("rules", "rules is x"), "rules: rules is x");
+  });
+
+  it("a huge refusal lists the first MAX_LISTED errors, then '…and N more'; the counts are of all (#214)", () => {
+    // Kira's QA of #215: 50 rules of 10 conditions, each with an unknown
+    // param, gives thousands of errors. The validator returns them all.
+    const condition = { type: "fightTime", op: ">=", value: 1, x: 1, y: 2 };
+    const text = JSON.stringify({
+      schemaVersion: 1,
+      name: "Huge",
+      rules: Array.from({ length: k("rotation.maxRules") }, () => ({
+        action: "sinister-strike",
+        conditions: Array(k("rotation.maxConditionsPerRule")).fill(condition),
+      })),
+    });
+    const { errors } = importRotation(text);
+    assert.ok(errors.length > MAX_LISTED * 2, String(errors.length));
+    const { store, actions, form } = setup();
+    assert.equal(actions.importText(text), false);
+    const lines = form().importStatus.detail.split("\n");
+    assert.equal(lines.length, MAX_LISTED + 1);
+    assert.deepEqual(
+      lines.slice(0, MAX_LISTED),
+      errors.slice(0, MAX_LISTED).map(errorLine),
+    );
+    assert.equal(lines.at(-1), `…and ${errors.length - MAX_LISTED} more`);
+    // The Run bar counts what blocks Run, all of it: a refused file blocks
+    // nothing, and a bad field still counts once, however long the list.
+    assert.equal(blockedCount({ ...store.get(), run: {} }), 0);
+    actions.change("character.critChance", 1.5);
+    assert.equal(blockedCount({ ...store.get(), run: {} }), 1);
+  });
+
+  it("a huge warning list is cut the same way, and the status line counts all of it (#214)", () => {
+    const unlocked = (ability) => ({ type: "abilityUnlocked", ability });
+    const others = ["backstab", "eviscerate", "rupture", "slice-and-dice"];
+    const rotation = {
+      schemaVersion: 1,
+      name: "Loud",
+      rules: Array.from({ length: k("rotation.maxRules") }, (_, at) => ({
+        action: "sinister-strike",
+        conditions: [
+          { type: "resource", resource: "energy", op: ">=", value: at + 1 },
+          ...others.map(unlocked),
+        ],
+      })),
+    };
+    const warnings = rotationWarnings(rotation);
+    assert.ok(warnings.length > MAX_LISTED, String(warnings.length));
+    const { actions, form } = setup();
+    assert.equal(actions.importText(exportRotation(rotation)), true);
+    const status = form().importStatus;
+    assert.equal(status.message, importedText("Loud", warnings.length));
+    const lines = status.warnings.split("\n");
+    assert.equal(lines.length, MAX_LISTED + 1);
+    assert.equal(lines.at(-1), `…and ${warnings.length - MAX_LISTED} more`);
+  });
+
+  it("listedLines lists all of a short list, with no 'more' line", () => {
+    const entries = [
+      { path: "rules[0]", message: "A." },
+      { path: "", message: "B." },
+    ];
+    assert.equal(listedLines(entries), "rules[0]: A.\nB.");
+    assert.equal(listedLines(entries, 1), "rules[0]: A.\n…and 1 more");
+    assert.equal(MAX_LISTED, 50);
+  });
+
+  it("listedLines lists exactly MAX_LISTED entries in full, with no 'more' line; one over gives '…and 1 more' (Kira's QA on #216)", () => {
+    const entries = (count) =>
+      Array.from({ length: count }, (_, at) => ({
+        path: `rules[${at}]`,
+        message: "A.",
+      }));
+    const all = entries(MAX_LISTED).map(errorLine);
+    assert.equal(listedLines(entries(MAX_LISTED)), all.join("\n"));
+    assert.equal(listedLines(entries(MAX_LISTED)).split("\n").length, 50);
+    assert.doesNotMatch(listedLines(entries(MAX_LISTED)), /more/);
+    assert.equal(
+      listedLines(entries(MAX_LISTED + 1)),
+      [...all, "…and 1 more"].join("\n"),
+    );
   });
 
   it("a file over the import limit is refused by rotation-io's own limit", () => {

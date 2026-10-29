@@ -43,3 +43,14 @@ export const ERROR_DATA = Object.freeze({
   tooLarge: ["max"],
   notJson: [],
 });
+
+// Every warning code rotationWarnings gives (#214), with the names of its
+// data fields: the table in docs/rotation.md, "Warning codes".
+export const WARNING_DATA = Object.freeze({
+  duplicateRule: ["ability", "same"],
+  finisherNoComboPoints: ["ability", "condition"],
+  cooldownNotChecked: ["ability"],
+  grantedNotTalent: ["ability", "condition"],
+  unlockedNotTalent: ["ability", "condition"],
+  starves: ["ability", "below", "reason"],
+});
