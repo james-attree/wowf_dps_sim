@@ -241,6 +241,13 @@ events at one time), cancel and reschedule, `runUntil` splits giving the same
 order as one call, `now` after `runUntil(t)` equal to t, and a randomised test
 against a sorted-array reference; the module passes the engine-purity lint
 rules.
+Landed in #193: `js/core/scheduler.js`, tested in `test/scheduler.test.js`
+(including 200 seeded rounds against a sorted-array reference), with
+decisions last at one timestamp, the hard stop
+(`k("sim.maxEventsPerTimestamp")`, `k("sim.maxEventsPerSecond")`), and a
+runtime check that a legacy DoT's `tickInterval` is a finite number above 0
+(mechanics.md "Planned: event-queue engine (Phase 3.5)" and "Bleeds and
+damage over time").
 
 **3. Continuous energy (E4).** The pool stores `(value0, t0, rate, cap)`, with
 re-basing on spend, gain, rate or cap change, and the threshold wake-up.

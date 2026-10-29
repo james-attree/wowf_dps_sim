@@ -314,6 +314,13 @@ export class Simulation {
       dot.duration -= dt;
       dot.timeUntilNextTick -= elapsed;
 
+      // A tick interval of 0 or less would tick forever at this time (#193).
+      // NaN and Infinity are refused too: they would never tick, silently.
+      if (!(dot.tickInterval > 0 && dot.tickInterval < Infinity)) {
+        throw new RangeError(
+          `DoT "${dotId}" has tick interval ${dot.tickInterval}; it must be a finite number of seconds above 0.`,
+        );
+      }
       const dotContext = this.abilityContext(dotId, dot);
       while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
         let dotTickDamage = dot.tickDamage;

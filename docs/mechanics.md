@@ -689,6 +689,13 @@ removed when duration is at or below `k("sim.tickEpsilon")`. A long frame can
 fire several ticks. Each one schedules the next by adding
 `k("rupture.tickInterval")`.
 
+Before its ticks, each DoT's `tickInterval` is checked (#193). One that is not
+a finite number above 0 throws a `RangeError` naming the DoT, for example
+`DoT "rupture" has tick interval 0; it must be a finite number of seconds above 0.`
+An interval of 0 or less would tick forever at one time, and `NaN` or
+`Infinity` would silently never tick. No DoT the sim builds today has such an
+interval, so no fight changes.
+
 ## Poisons
 
 Instant Poison and Deadly Poison are applied through the proc pipeline when
@@ -1115,9 +1122,42 @@ instant:
 5. decision points, last: the rotation runs once per timestamp.
 
 The fixed step casts before it swings (step 6, `Rogue.rotation`), while the
-classes above put a swing before a decision at the same time. Which of the two
-the new core keeps is for the scheduler issue (#193) to settle and write here;
-parity is measured over many seeds, so either is allowed.
+classes above put a swing before a decision at the same time. The new core
+keeps the classes: decisions last, after swings (#193), so the rotation sees
+every change due at that instant. Parity is measured over many seeds, so the
+difference from the fixed step is allowed.
+
+**Scheduler (#193).** `js/core/scheduler.js` holds the queue; nothing uses it
+yet, and the legacy engine stays the default. `new Scheduler({ endTime, handle })`
+takes the fight's end time and one `handle(event, scheduler)` function that is
+called for each event in order. `schedule({ time, order, kind, payload })`
+adds an event at an absolute time, with `order` one of `ORDER` (`ORDER.energy`
+to `ORDER.decision`, the five classes above), and returns it. The event is
+its own token: `event.cancel()` drops it (cancelling twice, or after it ran,
+does nothing), and `scheduler.reschedule(event, time)` cancels it and schedules
+the same kind, order and payload at the new time, with a new `seq`.
+Rescheduling an event that has already run schedules a fresh one the same way;
+the old event stays "ran". There is one handle function for every class and
+kind, with no per-kind handlers: it gets the event and the scheduler.
+`runUntil(t)` runs every event due at or before t, including ones its handlers
+schedule at or before t, and leaves `now` at t; `runToEnd()` is
+`runUntil(endTime)`. Split calls give the same order as one call. It refuses (with a `RangeError` or
+`TypeError`): an event before `now`, or with a time that is not finite, an
+order that is not one of `ORDER`, or an empty kind; `runUntil` before `now`,
+past the end time, at a time that is not finite, or from inside a handler; an
+end time that is negative or not finite; and a missing handle function. A
+handler's error goes through with `now` at that event's time.
+
+**Hard stop (#193).** A run throws `SchedulerHardStopError`, naming the event
+(its kind, time, class and `seq`), when more than
+`k("sim.maxEventsPerTimestamp")` events run at one exact time (a handler that
+keeps scheduling at `now`), or more than `k("sim.maxEventsPerSecond")` per
+second of the end time run in all (a loop that creeps forward without reaching
+the end; a fight under 1 s counts as 1 s). Both count over the scheduler's
+whole life, so split calls stop at the same event as one call. After a hard
+stop the scheduler will not run again. Both limits are 10,000 and are
+`engineering` rows (the dev's numbers, not decisions by James, not on the
+retune list), far above a real fight.
 
 ## Headless fight
 

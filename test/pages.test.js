@@ -333,7 +333,27 @@ describe("project site paths", () => {
     // not-yet-wired modules were wired by #149-#154, so the list of
     // exceptions is gone). The batch worker is loaded by URL from its client
     // (new URL(..., import.meta.url)), which the walk above follows.
+    // The one exception: js/core/ is the Phase 3.5 core, built alongside the
+    // legacy engine and not on the page until the switch-over (#193). This
+    // exception is removed in #199, when the core becomes the default.
+    const notYetWired = (file) => file.startsWith("js/core/");
+    const skipped = publishedJs.filter(notYetWired);
+    assert.ok(
+      skipped.includes("js/core/scheduler.js"),
+      "js/core/ is published",
+    );
+    for (const file of skipped) {
+      // Only js/core/, and only modules the page really does not import.
+      assert.match(file, /^js\/core\//);
+      assert.ok(
+        !seen.has(file),
+        `${file} is imported; drop it from the exception`,
+      );
+    }
     for (const file of publishedJs) {
+      if (notYetWired(file)) {
+        continue;
+      }
       assert.ok(seen.has(file), `${file} is published but not imported`);
     }
   });

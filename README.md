@@ -389,6 +389,11 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   applies armor to direct hits and to ticks (bleeds and nature damage can skip
   it), rolls DoT crits, runs the rotation, and records damage, the combat log,
   and per-ability totals (`abilityStats`, from `recordAbility`).
+- `js/core/scheduler.js` — `Scheduler` (#193), the event queue of the Phase
+  3.5 core: `schedule`, cancel tokens, `reschedule`, `runUntil`, `runToEnd`,
+  the fixed order at one timestamp (`ORDER`), and a hard stop
+  (`SchedulerHardStopError`). Nothing uses it yet; the legacy engine is the
+  default. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
 - `js/fight.js` — `runFight({ seed, duration, config })`, the headless entry
   point, and `createFight(seed, config, options)`, the `Rogue` and `Simulation`
   pair that `runFight` and the live page both build. `options.duration` is the
