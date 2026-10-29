@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runFight } from "../js/fight.js";
 import { runScriptedFight } from "./scripted-fight.mjs";
+import { loadPreset } from "../js/rotation-presets.js";
 import { referenceBuild } from "../test/talentsforever.js";
 
 // Golden-seed regression fixtures (#77, #85). Each case pins the full result of
@@ -89,6 +90,17 @@ export const GOLDEN_CASES = [
       talents: referenceBuild(),
       poisons: { mainHand: "instant", offHand: "deadly" },
     },
+  },
+  // Issue #142. The Combat swords preset (js/rotation-presets.js) on the
+  // reference build, to pin what the preset rotation does: the Slice and Dice
+  // pooling rule of #122, with Blade Flurry and Adrenaline Rush on cooldown.
+  // The default fight keeps the placeholder rotation, so the cases above did
+  // not move.
+  {
+    name: "combat-swords-preset-seed-142-120s",
+    seed: 142,
+    duration: 120,
+    config: loadPreset("combat-swords", { talents: referenceBuild() }),
   },
 ];
 
