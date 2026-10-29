@@ -1533,10 +1533,16 @@ what shows the harness works before a second engine exists.
 
 The default fight is `five-minute-seed-1-300s` (the default config at 300 s).
 The scripted case, `scripted-finishers-seed-68-50s`, runs its config (the
-default) for its 50 s without its script, and the report says so: the script
-replaces `Rogue.prototype.rotation`, which only the legacy engine has, and it
-was written for seed 68. On most other seeds it does not finish (79 of seeds 1
-to 200), so it cannot run over a range of seeds.
+default) for its 50 s without its script, and the report says "script left off"
+with the reason. The exclusion is the named list `SCRIPT_LEFT_OFF` in
+`scripts/parity.mjs`: the script replaces `Rogue.prototype.rotation`, which
+only the legacy engine has, and it was written for seed 68. On 79 of seeds 1 to
+200 it does not finish: the fight runs to its 50 s end with one or two casts
+still waiting, and `runScriptedFight` throws. It does not hang. The harness
+refuses to load if a scripted golden case is missing from the list or a listed
+case is not scripted, and `test/parity.test.js` pins the list. Before the
+legacy engine is deleted (#200), this case needs a new-engine equivalent of the
+hook that finishes on every seed from 1 to 200, or James agrees to retire it.
 
 Running every case on 200 seeds with both engines took about 31 s on our box
 (Node v24.22.1, with other jobs running), about 15 s per engine.

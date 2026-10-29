@@ -12,6 +12,8 @@ import {
   ENGINES,
   HELP_TEXT,
   MAX_SEEDS,
+  SCRIPT_LEFT_OFF,
+  parityCases,
   PARITY_CASES,
   abilityMeans,
   cli,
@@ -189,21 +191,68 @@ describe("parity: the cases", () => {
     );
   });
 
-  it("drop only the scripted case's script, and say so", () => {
+  it("leave off only the scripts SCRIPT_LEFT_OFF names, with its reason", () => {
+    // Pinned: a change to the list, or to which golden cases are scripted,
+    // must come with a change here.
+    assert.deepEqual(Object.keys(SCRIPT_LEFT_OFF), [
+      "scripted-finishers-seed-68-50s",
+    ]);
     assert.deepEqual(
-      PARITY_CASES.filter(({ scriptDropped }) => scriptDropped).map(
-        ({ name }) => name,
-      ),
       GOLDEN_CASES.filter(({ script }) => script !== undefined).map(
         ({ name }) => name,
       ),
+      ["scripted-finishers-seed-68-50s"],
+    );
+    assert.deepEqual(
+      PARITY_CASES.filter(({ scriptLeftOff }) => scriptLeftOff !== null).map(
+        ({ name, scriptLeftOff }) => [name, scriptLeftOff],
+      ),
+      [
+        [
+          "scripted-finishers-seed-68-50s",
+          SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"],
+        ],
+      ],
+    );
+    assert.match(
+      SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"],
+      /Rogue\.prototype\.rotation/,
     );
     assert.equal(
       PARITY_CASES.some((c) => "script" in c),
       false,
     );
+    assert.ok(Object.isFrozen(SCRIPT_LEFT_OFF));
     assert.ok(Object.isFrozen(PARITY_CASES));
-    assert.ok(PARITY_CASES.every((c) => Object.isFrozen(c)));
+  });
+
+  it("refuses a scripted case not on the list, and a listed case with no script", () => {
+    const plain = { name: "plain", duration: 10, config: {} };
+    const scripted = { ...plain, name: "scripted", script: ["eviscerate"] };
+    assert.deepEqual(
+      parityCases([plain, scripted], { scripted: "why" }).map(
+        (c) => c.scriptLeftOff,
+      ),
+      [null, "why"],
+    );
+    // A case that quietly becomes scripted.
+    assert.throws(() => parityCases([plain, scripted], {}), {
+      name: "RangeError",
+      message: /^Golden case "scripted" is scripted, .*SCRIPT_LEFT_OFF/,
+    });
+    // A case that quietly stops being scripted, or is renamed or removed.
+    assert.throws(
+      () =>
+        parityCases([plain, { ...scripted, script: undefined }], {
+          scripted: "why",
+        }),
+      {
+        name: "RangeError",
+        message:
+          /^SCRIPT_LEFT_OFF lists "scripted", which is not a scripted golden case/,
+      },
+    );
+    assert.throws(() => parityCases([plain], { scripted: "why" }), RangeError);
   });
 
   it("include the default fight at 300 s", () => {
@@ -387,7 +436,11 @@ describe("parity: arguments and the command", () => {
     out.length = 0;
     assert.equal(cli(["--seeds", "2"], { ...io, run: fake }), 0);
     assert.equal(out[0], formatReport(fake({ seeds: 2 })));
-    assert.match(out[0], /config only: the script is not run/);
+    assert.ok(
+      out[0].includes(
+        `scripted-finishers-seed-68-50s (50 s, config only)\n  script left off: ${SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"]}\n`,
+      ),
+    );
   });
 
   it("npm run parity runs the script, and it reports a 0 difference", async () => {

@@ -31,22 +31,56 @@ export const DEFAULT_SEEDS = 200;
 export const MAX_SEEDS = 10000;
 export const CONFIDENCE = 0.95;
 
-// The golden cases' configs and durations (scripts/golden-update.mjs). The
-// default fight is five-minute-seed-1-300s: the default config at 300 s.
-// The scripted case runs its config (the default) at its duration, without its
-// script: the script replaces Rogue.prototype.rotation, which only the legacy
-// engine has, and over most seed ranges it does not finish (it was written for
-// seed 68), so it cannot run on seeds 1 to N.
-export const PARITY_CASES = Object.freeze(
-  GOLDEN_CASES.map(({ name, duration, config, script }) =>
-    Object.freeze({
-      name,
-      duration,
-      config,
-      scriptDropped: script !== undefined,
+// Scripted golden cases whose script the harness leaves off, by case name,
+// with the reason the report prints. Such a case runs its config at its
+// duration, with the engine's own rotation.
+//
+// scripted-finishers-seed-68-50s: its script (scripts/scripted-fight.mjs)
+// replaces Rogue.prototype.rotation, which only the legacy engine has, so a
+// new engine cannot run it. It was also written for seed 68: on seeds 1 to 200
+// it runs to its 50 s end with casts still waiting on 79 of them, and
+// runScriptedFight throws for those. Before the legacy engine is deleted
+// (#200), this case needs a new-engine equivalent of the hook that finishes on
+// every seed from 1 to 200, or James agrees to retire it.
+//
+// Every scripted golden case must be listed here and every listed case must be
+// scripted: parityCases throws otherwise, and test/parity.test.js pins this list.
+export const SCRIPT_LEFT_OFF = Object.freeze({
+  "scripted-finishers-seed-68-50s":
+    "its script replaces Rogue.prototype.rotation, a legacy-only hook, and does not finish on 79 of seeds 1 to 200",
+});
+
+// The parity cases for a list of golden cases (scripts/golden-update.mjs):
+// each case's name, config and duration, and for a scripted one the reason
+// its script is left off.
+export function parityCases(goldenCases, leftOff = SCRIPT_LEFT_OFF) {
+  for (const name of Object.keys(leftOff)) {
+    const found = goldenCases.find((c) => c.name === name);
+    if (found === undefined || found.script === undefined) {
+      throw new RangeError(
+        `SCRIPT_LEFT_OFF lists "${name}", which is not a scripted golden case. Remove it from the list.`,
+      );
+    }
+  }
+  return Object.freeze(
+    goldenCases.map(({ name, duration, config, script }) => {
+      if (script !== undefined && !Object.hasOwn(leftOff, name)) {
+        throw new RangeError(
+          `Golden case "${name}" is scripted, and the parity harness cannot run a script. Add it to SCRIPT_LEFT_OFF with the reason, or give the harness a way to run it.`,
+        );
+      }
+      return Object.freeze({
+        name,
+        duration,
+        config,
+        scriptLeftOff: script === undefined ? null : leftOff[name],
+      });
     }),
-  ),
-);
+  );
+}
+
+// The default fight is five-minute-seed-1-300s: the default config at 300 s.
+export const PARITY_CASES = parityCases(GOLDEN_CASES);
 
 export function mean(values) {
   if (values.length === 0) {
@@ -263,7 +297,7 @@ export function compareCase(
   return {
     name: parityCase.name,
     duration: parityCase.duration,
-    scriptDropped: parityCase.scriptDropped,
+    scriptLeftOff: parityCase.scriptLeftOff,
     seeds,
     engine: summaryA,
     against: summaryB,
@@ -337,7 +371,10 @@ export function formatReport(report) {
   for (const c of report.cases) {
     lines.push(
       "",
-      `${c.name} (${c.duration} s${c.scriptDropped ? ", config only: the script is not run" : ""})`,
+      `${c.name} (${c.duration} s${c.scriptLeftOff === null ? "" : ", config only"})`,
+      ...(c.scriptLeftOff === null
+        ? []
+        : [`  script left off: ${c.scriptLeftOff}`]),
       `  DPS A (${engine}): mean ${fixed(c.engine.dpsMean)}, SD ${fixed(c.engine.dpsSd)}`,
       `  DPS B (${against}): mean ${fixed(c.against.dpsMean)}, SD ${fixed(c.against.dpsSd)}`,
       `  difference (A - B): mean ${fixed(c.difference.mean, 4)}, ${percent}% CI [${fixed(c.difference.low, 4)}, ${fixed(c.difference.high, 4)}], ${c.seedsDiffering} of ${c.seeds} seeds differ`,
