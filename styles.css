@@ -247,6 +247,19 @@ h3 {
 
 .run-field label {
   color: var(--text-muted);
+  line-height: 16px;
+}
+
+/* The inputs row lines up at the top, and the Mode toggle sits level with the
+   inputs under their labels (16 px line + the 3 px gap), so an error line
+   under a field no longer pushes Mode down (#155, Fran's QA 9). The narrow
+   settings section sets its own. */
+.run-row-inputs {
+  align-items: flex-start;
+}
+
+.run-row-inputs > .run-mode {
+  margin-top: 19px;
 }
 
 .run-field input {
@@ -341,8 +354,9 @@ h3 {
 }
 
 /* The narrow layout's parts (Scout, #153). Wide screens draw the bar as
-   before: the settings wrappers add no boxes, and the toggle, the summary and
-   the errors link are not shown. */
+   before: the settings wrappers add no boxes, and the toggle and the summary
+   are not shown. The errors link shows at every width while Run is blocked
+   (#155, Fran's QA 1), after the status that says why. */
 .run-settings,
 .run-settings-body {
   display: contents;
@@ -352,6 +366,21 @@ h3 {
 .run-summary,
 .run-errors-link {
   display: none;
+}
+
+.run-errors-link:not([hidden]) {
+  display: inline-flex;
+  order: 1;
+  align-items: center;
+  min-height: 31px;
+  color: #f19389;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.run-errors-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Below 520 px only one compact row stays sticky: Run or Pause, Stop, Reset,
@@ -459,25 +488,30 @@ h3 {
     white-space: nowrap;
   }
 
+  /* Blocked: the status (why) takes the summary's line and the link the
+     line under it. The link's box is the 22 px line; its touch target is
+     44 px tall, reaching over the status line above. */
   .run-errors-link:not([hidden]) {
-    display: flex;
+    position: relative;
     grid-column: 2;
-    grid-row: 1 / 3;
-    align-items: center;
-    min-height: 44px;
-    color: #f19389;
-    font-size: 0.85rem;
-    font-weight: 700;
+    grid-row: 2;
+    justify-self: start;
+    min-height: 22px;
+    font-size: 0.8rem;
   }
 
-  .run-errors-link:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+  .run-errors-link:not([hidden])::after {
+    position: absolute;
+    inset: -22px -8px 0;
+    content: "";
   }
 
-  .run-row-actions.has-errors .run-summary,
-  .run-row-actions.has-errors .run-status {
+  .run-row-actions.has-errors .run-summary {
     display: none;
+  }
+
+  .run-row-actions.has-errors .run-status {
+    grid-row: 1;
   }
 
   /* Batch progress: a thin bar along the row's foot; the status line already
@@ -551,6 +585,10 @@ h3 {
     align-items: flex-start;
   }
 
+  .run-settings-body .run-row-inputs > .run-mode {
+    margin-top: 0;
+  }
+
   .run-settings-body .run-mode legend {
     line-height: 44px;
   }
@@ -570,8 +608,11 @@ h3 {
   }
 }
 
-/* A stopped live fight is discarded: its last frame stays, dimmed. */
-[data-fight-frame].is-discarded {
+/* A stopped live fight is discarded: its last frame stays, its meters and
+   bars dimmed. Text keeps full contrast (#155, Fran's QA 2): the status line
+   says the fight was stopped. */
+[data-fight-frame].is-discarded
+  :is(.combo-meter, .energy-meter, .gcd-meter, .timed-effect-bar) {
   opacity: 0.6;
 }
 
@@ -937,7 +978,14 @@ h3 {
 }
 
 .combat-log-heading {
+  flex-wrap: wrap;
+  gap: 4px 12px;
   margin-bottom: 8px;
+}
+
+/* One line at 390 px: the tools wrap under it instead (#155, Fran's QA 8). */
+.combat-log-heading h2 {
+  white-space: nowrap;
 }
 
 .log-caption {
@@ -1781,7 +1829,8 @@ h3 {
   color: var(--text-muted);
   line-height: 1.5;
 }
-.results-empty > strong {
+/* The title only, not the strong "Run" in the text (#155, Fran's QA 4). */
+.results-empty > strong:first-child {
   display: block;
   color: #f3eee2;
   margin-bottom: 4px;

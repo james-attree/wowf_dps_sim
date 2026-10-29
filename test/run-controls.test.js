@@ -12,7 +12,9 @@ import {
   BATCH_HELP,
   LIVE_HELP,
   MAX_SEED,
+  MIN_FIGHT_SECONDS,
   clock,
+  compact,
   controlsModel,
   errorsText,
   fieldErrors,
@@ -153,16 +155,26 @@ const reference = (duration, seed = SEED) =>
   runFight({ seed, duration, config });
 
 describe("run bar fields (#153)", () => {
-  it("fight length: more than 0, at most 3,600 seconds", () => {
-    for (const ok of ["300", "0.5", "3600", " 12 "]) {
+  it("fight length: a plain decimal from 1 to 3,600 seconds (#155)", () => {
+    assert.equal(MIN_FIGHT_SECONDS, 1);
+    for (const ok of ["300", "1", "2.5", "3600", " 12 ", "7.", "0001.50"]) {
       assert.equal(parseRunField("duration", ok).error, null, ok);
     }
     assert.equal(parseRunField("duration", "300").value, 300);
-    for (const bad of ["0", "-1", "3600.01", "", "abc", "Infinity", "1e9"]) {
-      assert.equal(
-        parseRunField("duration", bad).error,
-        "Fight length must be more than 0 and at most 3,600 seconds.",
-        bad,
+    assert.equal(parseRunField("duration", "1").value, 1);
+    assert.equal(parseRunField("duration", "3600").value, 3600);
+    const bad = [
+      ["0", "-1", "0.99", ".5", "3600.01", "", "abc", "Infinity", "+5"],
+      ["0x10", "0b101", "0o17", "1e2", "5e1", "1E3", "1_000", "1,000", "."],
+    ].flat();
+    for (const text of bad) {
+      assert.deepEqual(
+        parseRunField("duration", text),
+        {
+          value: null,
+          error: "Fight length must be a number of seconds from 1 to 3,600.",
+        },
+        text,
       );
     }
   });
@@ -511,7 +523,7 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(batch.previous, before.result, "greyed until progress");
     assert.equal(batch.result, null);
     assert.equal(batch.mode, "main");
-    assert.equal(page.model().status, "Running batch · 0 of 4 fights");
+    assert.equal(page.model().status, "0/4 fights · Running batch");
     assert.deepEqual(page.model().progress, {
       value: 0,
       max: 4,
@@ -535,7 +547,7 @@ describe("batch mode (#153, #154 §10)", () => {
       total: 4,
       mean: 310,
     });
-    assert.equal(page.model().status, "Running batch · 2 of 4 fights");
+    assert.equal(page.model().status, "2/4 fights · Running batch");
 
     const result = batchResult({
       completed: 4,
@@ -550,8 +562,8 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(done.run.state, "done");
     assert.equal(done.batch.result, result);
     assert.ok(done.batch.elapsedMs > 0);
-    assert.equal(page.model().status, "Done · 4 fights · 312.4 DPS mean");
-    assert.equal(page.model().announce, "Batch done, 312.4 DPS");
+    assert.equal(page.model().status, "4 fights · 312.4 DPS mean · Done");
+    assert.equal(page.model().announce, null, "the results panel says it");
     assert.equal(page.model().progress, null);
     assertControls(page.model(), ["Run batch", null, false, true], "done");
     page.client.job.onProgress({ completed: 3, total: 4, mean: 1 });
@@ -583,9 +595,9 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(batch.result.completed, 2);
     assert.equal(
       page.model().status,
-      "Stopped · 2 of 4 fights kept · 300.0 DPS mean (partial)",
+      "2/4 fights kept · 300.0 DPS mean (partial) · Stopped",
     );
-    assert.equal(page.model().announce, "Batch stopped, 2 of 4 fights kept");
+    assert.equal(page.model().announce, null, "the results panel says it");
     assertControls(page.model(), ["Run batch", null, false, true], "cancelled");
     page.actions.reset();
     assert.deepEqual(page.store.get().batch, emptyBatch("main"));
@@ -600,7 +612,7 @@ describe("batch mode (#153, #154 §10)", () => {
       batchResult({ completed: 0, iterations: 4, cancelled: true }),
     );
     await settled();
-    assert.equal(page.model().status, "Stopped · 0 of 4 fights kept");
+    assert.equal(page.model().status, "0/4 fights kept · Stopped");
     assert.equal(page.store.get().batch.previous, null);
   });
 
@@ -641,6 +653,159 @@ describe("batch mode (#153, #154 §10)", () => {
     page.actions.setMode("live");
     assert.equal(page.store.get().run.state, "finished", "the runner's state");
     assert.throws(() => page.actions.setMode("turbo"), RangeError);
+  });
+
+  it("Reset while a batch runs does nothing; after it settles, clears (#155)", async () => {
+    const page = batchPage();
+    page.actions.run();
+    const running = page.store.get();
+    page.actions.reset();
+    assert.equal(page.store.get(), running, "no change at all");
+    assert.equal(page.client.cancelled, 0, "and no cancel");
+    assert.equal(page.model().reset.disabled, true);
+    page.client.job.resolve(
+      batchResult({ completed: 4, iterations: 4, cancelled: false }),
+    );
+    await settled();
+    assert.equal(page.store.get().batch.status, "done");
+    page.actions.reset();
+    assert.equal(page.store.get().batch.status, "idle");
+    assert.equal(page.store.get().batch.result, null);
+    assert.equal(page.store.get().run.state, "idle");
+  });
+
+  it("tick moves a running batch's elapsed time, and nothing else (#155)", async () => {
+    const page = batchPage();
+    const idle = page.store.get();
+    page.actions.tick();
+    assert.equal(page.store.get(), idle, "no batch: no change");
+    page.actions.run();
+    const { startedAt } = page.store.get().batch;
+    assert.notEqual(startedAt, null);
+    page.actions.tick();
+    const first = page.store.get().batch.elapsedMs;
+    assert.ok(first > 0);
+    page.actions.tick();
+    assert.ok(page.store.get().batch.elapsedMs > first, "with no progress");
+    assert.equal(page.store.get().batch.progress.completed, 0);
+    page.client.job.resolve(
+      batchResult({ completed: 4, iterations: 4, cancelled: false }),
+    );
+    await settled();
+    const done = page.store.get();
+    page.actions.tick();
+    assert.equal(page.store.get(), done, "settled: no change");
+  });
+});
+
+describe("one fight is a fight (#155, Fran's Phase 3 QA 5)", () => {
+  it("the bar's batch statuses and progress say fight, not fights, for 1", async () => {
+    const page = setup();
+    page.store.set({
+      run: {
+        ...page.store.get().run,
+        iterations: 1,
+        fields: { ...page.store.get().run.fields, iterations: "1" },
+      },
+    });
+    page.actions.setMode("batch");
+    assert.equal(page.model().status, `Ready · 1 fight · seed ${SEED}`);
+    page.actions.run();
+    assert.equal(page.model().status, "0/1 fight · Running batch");
+    assert.equal(page.model().progress.text, "0 of 1 fight");
+    page.client.job.resolve(
+      batchResult({ completed: 1, iterations: 1, cancelled: false }),
+    );
+    await settled();
+    assert.equal(page.model().status, "1 fight · 300.0 DPS mean · Done");
+  });
+});
+
+describe("the running total is short (#155)", () => {
+  it("keeps numbers under a thousand whole and shortens the rest to k", () => {
+    assert.equal(compact(999), "999");
+    assert.equal(compact(1000), "1k");
+    assert.equal(compact(1500), "1.5k");
+    assert.equal(compact(100000), "100k");
+  });
+});
+
+describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
+  it("the status says why and how many, never Ready, in both modes", () => {
+    const page = setup();
+    page.actions.edit("duration", {
+      text: "0",
+      ...parseRunField("duration", "0"),
+    });
+    assert.equal(page.model().status, "Can't run · 1 setting to fix");
+    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    assert.equal(page.model().run.disabled, true);
+    page.store.set({ form: { errors: { a: "Bad.", b: null, c: "Bad." } } });
+    assert.equal(page.model().status, "Can't run · 3 settings to fix");
+    assert.equal(errorsText(page.store.get().run, 2), "Fix 3 settings");
+    page.actions.setMode("batch");
+    assert.equal(page.model().status, "Can't run · 3 settings to fix");
+    assert.notEqual(page.model().announce, null, "the switch still says Ready");
+    page.store.set({ form: { errors: {} } });
+    page.actions.edit("duration", {
+      text: "5",
+      ...parseRunField("duration", "5"),
+    });
+    assert.equal(page.model().reason, null);
+    assert.match(page.model().status, /^Ready · 4 fights/);
+    assert.equal(page.model().run.disabled, false);
+  });
+
+  it("a finished fight's status gives way to the reason while blocked", () => {
+    const page = setup();
+    page.actions.run();
+    page.toEnd();
+    assert.match(page.model().status, /^Finished/);
+    page.store.set({ form: { errors: { a: "Bad." } } });
+    assert.equal(page.model().status, "Can't run · 1 setting to fix");
+    page.store.set({ form: { errors: {} } });
+    assert.match(page.model().status, /^Finished/);
+  });
+
+  it("the view: Run is described by the reason, and Fix reaches the form", () => {
+    const page = setup();
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    assert.equal(el("run-button").getAttribute("aria-describedby"), null);
+    assert.equal(el("run-reason").textContent, "");
+    assert.equal(el("run-errors-link").hidden, true);
+
+    page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
+    assert.equal(el("run-button").disabled, true);
+    assert.equal(
+      el("run-button").getAttribute("aria-describedby"),
+      "run-reason",
+    );
+    assert.equal(el("run-reason").textContent, "Can't run · 1 setting to fix");
+    assert.equal(
+      el("run-status-text").textContent,
+      "Can't run · 1 setting to fix",
+    );
+    const link = el("run-errors-link");
+    assert.equal(link.hidden, false, "shown at every width");
+    assert.equal(link.textContent, "Fix 1 setting");
+    assert.equal(el("run-bar").classes.has("has-errors"), true);
+    const event = link.fire("click");
+    assert.equal(event.prevented, 1);
+    const invalid = el('config-form [aria-invalid="true"]');
+    assert.equal(invalid.focused, 1, "the form's first invalid field");
+    assert.equal(
+      el("run-settings").classes.has("is-open"),
+      false,
+      "no run field to show",
+    );
+
+    page.store.set({ form: { errors: {} } });
+    assert.equal(el("run-button").disabled, false);
+    assert.equal(el("run-button").getAttribute("aria-describedby"), null);
+    assert.equal(el("run-reason").textContent, "");
+    assert.equal(link.hidden, true);
+    assert.match(el("run-status-text").textContent, /^Ready/);
   });
 });
 
@@ -824,6 +989,7 @@ describe("the control bar view (#153)", () => {
     el("pause-button").fire("click");
     assert.equal(page.store.get().run.state, "idle", "the click is guarded");
 
+    const ready = el("run-announce").textContent;
     el("run-button").focus();
     el("run-button").fire("click");
     assert.equal(doc.activeElement, el("stop-button"), "focus to Stop");
@@ -831,7 +997,11 @@ describe("the control bar view (#153)", () => {
     assert.equal(el("run-progress").max, 4);
     assert.equal(el("run-progress").value, 0);
     assert.equal(el("run-progress-text").textContent, "0 of 4 fights");
-    assert.equal(el("run-announce").textContent, "Batch running, 4 fights");
+    assert.equal(
+      el("run-announce").textContent,
+      ready,
+      "the results panel announces a batch (#155: not twice)",
+    );
     el("stop-button").fire("click");
     assert.equal(page.client.cancelled, 1);
     page.client.job.resolve(
@@ -840,10 +1010,7 @@ describe("the control bar view (#153)", () => {
     await settled();
     assert.equal(el("run-progress-row").hidden, true);
     assert.equal(doc.activeElement, el("run-button"));
-    assert.equal(
-      el("run-announce").textContent,
-      "Batch stopped, 1 of 4 fights kept",
-    );
+    assert.equal(el("run-announce").textContent, ready);
 
     el("pause-button").removeAttribute("aria-disabled");
     el("run-mode-live").value = "live";
@@ -1137,9 +1304,15 @@ describe("the narrow control bar (#153, Scout)", () => {
     assert.match(rule(narrow, "  .run-buttons button"), /min-height: 44px;/);
     assert.match(rule(narrow, "  .run-buttons button"), /width: 44px;/);
     assert.match(rule(narrow, "  .run-settings-toggle"), /min-height: 44px;/);
+    // The errors link's box is the 22 px status line; a pseudo-element
+    // reaches 22 px over the line above, so its touch target is 44 px (#155).
     assert.match(
       rule(narrow, "  .run-errors-link:not([hidden])"),
-      /min-height: 44px;/,
+      /min-height: 22px;/,
+    );
+    assert.match(
+      rule(narrow, "  .run-errors-link:not([hidden])::after"),
+      /inset: -22px -8px 0;/,
     );
     assert.match(
       narrow,

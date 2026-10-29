@@ -89,7 +89,7 @@ const PERCENT = new Set([
   "cfg-character-bonusHitChance",
 ]);
 
-function page({ narrow = false } = {}) {
+function page({ narrow = false, run } = {}) {
   const byId = new Map();
   const queried = new Set();
   const created = [];
@@ -135,7 +135,10 @@ function page({ narrow = false } = {}) {
       },
     },
   };
-  const store = createStore({ config: normalizeConfig(pageDefaultConfig()) });
+  const store = createStore({
+    config: normalizeConfig(pageDefaultConfig()),
+    ...(run === undefined ? {} : { run }),
+  });
   const actions = createConfigForm(store);
   createConfigFormView(doc, store, actions);
   const $ = (id) => doc.querySelector(`#${id}`);
@@ -243,6 +246,46 @@ describe("errors", () => {
     commit("weapons.offHand.max", "170");
     assert.equal($("cfg-fix").hidden, true);
     assert.equal($("cfg-run-gate").textContent, "");
+  });
+
+  it("counts the run bar's errors too, so it never says Run is on while it is off (#155)", () => {
+    // Fran's Phase 3 QA 1: a bad Fight length left the footer saying
+    // "Changes apply to the next run", even after Reset to defaults.
+    const run = {
+      mode: "live",
+      errors: { duration: "Bad.", iterations: "Batch only." },
+    };
+    const { $, commit, store } = page({ run });
+    assert.equal($("cfg-status-ok").hidden, true);
+    assert.equal($("cfg-fix").hidden, false);
+    assert.equal($("cfg-fix-heading").textContent, fixHeadingText(1));
+    assert.equal($("cfg-run-gate").textContent, runGateText(1));
+    let links = $("cfg-fix-list").children.map((item) => item.children[0]);
+    assert.deepEqual(
+      links.map((link) => [link.textContent, link.href]),
+      [["Run bar, Fight length", "#run-errors-link"]],
+      "Fights is batch only, so not counted in live mode",
+    );
+
+    commit("character.attackPower", "");
+    assert.equal($("cfg-run-gate").textContent, runGateText(2));
+    links = $("cfg-fix-list").children.map((item) => item.children[0]);
+    assert.deepEqual(
+      links.map((link) => link.textContent),
+      ["Label of cfg-character-attackPower", "Run bar, Fight length"],
+    );
+
+    $("cfg-reset").click();
+    assert.equal($("cfg-status-ok").hidden, true, "Reset leaves the bar's");
+    assert.equal($("cfg-run-gate").textContent, runGateText(1));
+
+    store.set({ run: { ...run, mode: "batch" } });
+    assert.equal($("cfg-run-gate").textContent, runGateText(2), "Fights now");
+    store.set({ run: { ...run, errors: {} } });
+    assert.equal($("cfg-status-ok").hidden, false);
+    assert.equal($("cfg-fix").hidden, true);
+    assert.equal($("cfg-run-gate").textContent, "");
+    assert.deepEqual($("cfg-fix-list").children, []);
   });
 
   it("the fix list keeps its links while the same fields stay wrong", () => {

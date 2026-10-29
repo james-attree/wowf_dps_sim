@@ -1,30 +1,15 @@
 // The fight totals (#149): elapsed time, damage and DPS. This view owns those
-// three elements. In live mode it draws them from the results slice
-// ({ time, damage }, in fight seconds and damage done) each time it changes.
+// three elements and the tiles' section. In live mode it draws them from the
+// results slice ({ time, damage }, in fight seconds and damage done) each time
+// it changes.
 //
-// In batch mode (#154) the Total damage and DPS tiles show the batch's mean
-// fight: damage per fight (breakdown.totalDamage over the fights) and the
-// mean DPS, for a finished or a partial (stopped) result alike, and the
-// running mean while a batch runs. With no fight finished they read 0. A
-// batch never writes the results slice, so before #154 they stayed at 0
-// after a batch, partial or not. The time tile stays with the live fight.
-export function batchTotals(state) {
-  const { batch, run } = state;
-  const result = batch.result;
-  if (result && result.completed > 0) {
-    return {
-      damage: result.breakdown.totalDamage / result.breakdown.fights,
-      dps: result.summary.mean,
-    };
-  }
-  const mean = batch.status === "running" ? batch.progress?.mean : null;
-  if (Number.isFinite(mean)) {
-    return { damage: mean * run.duration, dps: mean };
-  }
-  return { damage: 0, dps: 0 };
-}
-
+// In batch mode the tiles and the timer are hidden (#155, Fran's Phase 3 QA
+// 3): they are one fight's numbers, and the results panel (#154) is the one
+// place a batch's numbers show, with its own formatting. #154 had them show
+// the batch's mean fight, rounded differently from the panel and with the
+// timer at 00:00, which read as two answers.
 export function createResultsView(doc, store) {
+  const panel = doc.querySelector("#damage-panel");
   const timeValue = doc.querySelector("#time-value");
   const damageValue = doc.querySelector("#damage-value");
   const dpsValue = doc.querySelector("#dps-value");
@@ -34,12 +19,7 @@ export function createResultsView(doc, store) {
     output.textContent = value;
   }
 
-  function renderTotals(damage, dps) {
-    write(damageValue, String(Math.floor(damage)));
-    write(dpsValue, dps.toFixed(0));
-  }
-
-  function render({ time, damage, keepTotals = false }) {
+  function render({ time, damage }) {
     const elapsedSeconds = Math.floor(time);
     const minutes = Math.floor(elapsedSeconds / 60);
     const seconds = elapsedSeconds % 60;
@@ -47,27 +27,30 @@ export function createResultsView(doc, store) {
       timeValue,
       `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
     );
-    if (!keepTotals) {
-      renderTotals(damage, time > 0 ? damage / time : 0);
-    }
+    write(damageValue, String(Math.floor(damage)));
+    write(dpsValue, (time > 0 ? damage / time : 0).toFixed(0));
   }
 
-  // The mode the tiles were last drawn for: a switch of mode redraws them,
-  // and any other run change does not.
-  let drawnMode = null;
+  function show(mode) {
+    const hidden = mode === "batch";
+    panel.hidden = hidden;
+    timeValue.hidden = hidden;
+  }
+
+  // The mode the tiles were last drawn for: a switch of mode shows or hides
+  // them, and any other run change does not.
+  const modeOf = (state) => (state.run?.mode === "batch" ? "batch" : "live");
+  let drawnMode = modeOf(store.get());
+  show(drawnMode);
   return store.subscribe(({ state, changed }) => {
-    const mode = state.run?.mode === "batch" ? "batch" : "live";
+    const mode = modeOf(state);
     const switched = changed.includes("run") && mode !== drawnMode;
+    if (switched) {
+      show(mode);
+      drawnMode = mode;
+    }
     if (mode === "live" && (changed.includes("results") || switched)) {
       render(state.results);
-      drawnMode = mode;
-    } else if (mode === "batch" && (changed.includes("batch") || switched)) {
-      const { damage, dps } = batchTotals(state);
-      renderTotals(damage, dps);
-      drawnMode = mode;
-    } else if (mode === "batch" && changed.includes("results")) {
-      // The live fight's clock still runs the time tile.
-      render({ ...state.results, keepTotals: true });
     }
   });
 }

@@ -198,6 +198,16 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
         live.stop();
       });
     },
+    // A running batch's elapsed time, from now() (#155): progress messages
+    // come only as fights finish, so without this the elapsed time and the
+    // estimate stood still between them. The host calls it about once a
+    // second; it does nothing unless a batch runs.
+    tick() {
+      const { status, startedAt } = store.get().batch;
+      if (status === "running" && startedAt !== null) {
+        setBatch({ elapsedMs: now() - startedAt });
+      }
+    },
     // Live: back to an empty fight at 0:00. Batch: forget the result.
     reset() {
       if (run().mode === "batch") {
