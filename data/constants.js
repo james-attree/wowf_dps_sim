@@ -1041,8 +1041,8 @@ export const CONSTANTS = {
     5,
     "points",
     WOWF_DESIGNER,
-    "confirmed by James, 29 Oct 2026: WoW Forever matches Classic, 5 points per row; the export does not state it (OQ14)",
-    "Enforced when a talent build is applied (D7, #106; validateBuild in js/talent-build.js): a talent on row r needs 5 * (r - 1) points in its own tree on the rows above it. The 5 is the Classic rule, which James confirmed WoW Forever matches; the export does not state the number (OQ14). The prerequisite (req) rule needs no number: the required talent must be at full rank.",
+    "James, 29 Oct 2026: WoW Forever matches Classic (5 points per row); the export does not state it, so this resolves OQ14",
+    "Enforced when a talent build is applied (D7, #106; validateBuild in js/talent-build.js): a talent on row r needs 5 * (r - 1) points in its own tree on the rows above it. The 5 is the Classic rule, which James confirmed WoW Forever matches (29 Oct 2026, resolving OQ14). The prerequisite (req) rule needs no number: the required talent must be at full rank.",
     true,
   ),
   "talents.firstPointLevel": entry(
