@@ -211,8 +211,16 @@ export function createBatchHost({
         sendProgress(current, progress, time);
       }
     });
+    // The job is set before run(), so the host is busy from the moment the
+    // batch exists. A run() that throws clears it again, so the host is not
+    // left stuck on a batch that never started (#155, Kira's #170 item 4).
     job = current;
-    runner.run();
+    try {
+      runner.run();
+    } catch (error) {
+      job = null;
+      throw error;
+    }
     schedule(() => slice(current));
   }
 

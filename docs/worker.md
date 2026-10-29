@@ -60,18 +60,24 @@ client.terminate(); // stops the worker; a running batch rejects
 - `cancel()` returns `true` if a batch was running. The batch stops before its
   next iteration, and the promise resolves with the iterations that completed
   and `cancelled: true`: exactly the first `completed` iterations of the
-  uncancelled batch ([Cancelling](batch.md#cancelling)).
+  uncancelled batch ([Cancelling](batch.md#cancelling)). A `cancel()` that
+  returns `true` always gives `cancelled: true`, even when the last iteration
+  finished before the cancel reached the host (a cancel from the last
+  `onProgress`, say): then `completed` is the full count, and only the flag
+  differs from the uncancelled result, as with `BatchRunner`'s `cancel()`
+  (issue #155).
 - `mode` is `"worker"` or `"main"`, where batches run. `running` is true while a
   batch runs.
 
-`new BatchClient({ mode, createWorker, now, schedule })`, all optional:
+`new BatchClient({ mode, createWorker, now, schedule, setTimer })`, all optional:
 
-| Option         | Default                                 | Meaning                                                                                   |
-| -------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `mode`         | `"auto"`                                | `"auto"`, `"worker"` or `"main"`. See below.                                              |
-| `createWorker` | a module worker of `js/batch-worker.js` | Returns a Worker-like object (`postMessage`, `addEventListener`, `terminate`). For tests. |
-| `now`          | `performance.now`                       | The main-thread path's clock.                                                             |
-| `schedule`     | `nextTask` (a `MessageChannel` task)    | How the main-thread path runs its next slice.                                             |
+| Option         | Default                                 | Meaning                                                                                           |
+| -------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `mode`         | `"auto"`                                | `"auto"`, `"worker"` or `"main"`. See below.                                                      |
+| `createWorker` | a module worker of `js/batch-worker.js` | Returns a Worker-like object (`postMessage`, `addEventListener`, `terminate`). For tests.         |
+| `now`          | `performance.now`                       | The main-thread path's clock.                                                                     |
+| `schedule`     | `nextTask` (a `MessageChannel` task)    | How the main-thread path runs its next slice.                                                     |
+| `setTimer`     | `setTimeout` (unreferenced in Node)     | `setTimer(callback, ms)` returns a function that clears it. The worker's load timeout. For tests. |
 
 An unknown option is a `RangeError`.
 
@@ -79,18 +85,26 @@ An unknown option is a `RangeError`.
 
 - `"auto"` uses a module worker where the browser has one (the constructor
   probes whether `Worker` reads the `type` option) and the main thread
-  otherwise. If the worker fails to load (an `error` before its `ready`), the
-  client drops it, moves to `"main"`, and reruns the batch from its first
+  otherwise. If the worker fails to load, the client drops it, moves to `"main"`, and reruns the batch from its first
   iteration, so the result is the same. A cancel made before the move still
   applies.
 - `"worker"` always uses a worker. One that fails to load rejects the batch with
-  "The batch worker failed".
+  "The batch worker failed" (or, if the constructor threw, with its error).
+
+A worker fails to load when (issue #155):
+
+- the `Worker` constructor throws (a blocked script, a content security
+  policy);
+- it reports an `error`, or sends an `exit` event, before its `ready`;
+- it is not `ready` within `batch.workerLoadTimeout` (10 s), so a worker that
+  never loads cannot leave the batch hanging.
 - `"main"` runs the host in the page, in slices of `batch.sliceBudget` (16 ms,
   about one frame at 60 Hz, and at least one fight), each in its own task, so
   the page paints and takes input between slices.
 
-A worker that fails after `ready` rejects the running batch in every mode, and
-the next `run()` starts a new worker. A message that cannot be read
+A worker that fails after `ready` (an `error`, or an `exit` event: Node's
+`worker_threads` send one, a browser `Worker` never does) rejects the running
+batch in every mode, and the next `run()` starts a new worker. A message that cannot be read
 (`messageerror`) rejects the batch.
 
 The worker URL is `new URL("./batch-worker.js", import.meta.url)`, so it
@@ -117,7 +131,9 @@ For one batch, every progress message comes before its result or error and
 exactly one result or error ends it. The host runs one batch at a time; a start
 while one runs is an error for the new id, and the running batch goes on. An
 iteration that throws ends its batch with an error, and the host takes the next
-start.
+start. So does a batch whose runner throws as it starts (`run()`): the host is
+busy from the moment the batch exists, and free again after the error (issue
+#155).
 
 ## Slices and cancel latency
 

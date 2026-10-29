@@ -27,6 +27,7 @@ const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const BATCH_RUNNER = "Developer, 29 Oct 2026, issue #144";
 const BATCH_WORKER = "Developer, 29 Oct 2026, issue #147";
 const CHARTS = "Developer, 29 Oct 2026, issue #148";
+const BATCH_FIXES = "Developer, 29 Oct 2026, issue #155";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
@@ -930,6 +931,14 @@ export const CONSTANTS = {
     ENGINEERING,
     `${BATCH_WORKER}: ${NOT_JAMES} The issue asks for a bounded cancel and a chunked main-thread fallback, and names no slice length`,
     "Not a game rule. How long the batch host (js/batch-host.js) keeps running iterations before it yields to its message queue: about one 60 Hz frame. A slice runs whole fights, at least one, and stops at the first fight that ends past the budget, so a cancel waits at most one slice plus one fight. On the main thread (the fallback) it is how long the page can be busy between two chances to paint.",
+    false,
+  ),
+  "batch.workerLoadTimeout": entry(
+    10000,
+    "ms",
+    ENGINEERING,
+    `${BATCH_FIXES}: ${NOT_JAMES} Kira's QA of #147 (item 2) asks for a load timeout so the client cannot hang on a worker that never says it is ready, and names no value`,
+    "Not a game rule. How long js/batch-client.js waits for a new worker's ready message. A worker that is not ready in time is dropped as one that failed to load: in auto mode the batch reruns on the main thread, in worker mode it rejects. A module worker loads in well under a second, so ten seconds only trips on a worker that will never load (a blocked or missing script, a worker that exits as it starts).",
     false,
   ),
   "batch.seedMix": entry(
