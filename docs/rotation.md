@@ -645,25 +645,23 @@ One cause gives one warning: a rule that repeats an earlier one gets only
 Backstab is not said to starve itself). A rule with a `grantedNotTalent`
 check never casts, so it gets only that warning (one per such check), holds
 nothing back, and is left out of every `starves` `below` too. A finisher with
-`finisherNoComboPoints` never also gets `starves`, whether or not an on-GCD
-rule above it builds the points (#207; Fran's U7 spec §18 item 6, Scout's
-call on #217). The finisher warning stands for the rule, and its fix, a combo
-points check that needs a point, also stops it starving the rules below.
-`rotationWarnings` is the one list: the page's import box and the rotation
-builder show the same warnings for the same rotation. "Every rule below it" counts the on-GCD rules
+`finisherNoComboPoints` and no on-GCD rule above it that can cast waits at 0
+combo points, and does not also get `starves` (#207); with such a rule above
+to build the points it does cast, so it gets `starves` as well, with its
+`below` (Kira's QA on #216). "Every rule below it" counts the on-GCD rules
 below that can cast: with none, a finisher or cooldown message says the
 rotation waits at it instead.
 
 ### Warning codes
 
-| Code                    | Data                         | Path                     | When                                                                                                                                                                                                          |
-| ----------------------- | ---------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `duplicateRule`         | `ability`, `same`            | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                                                                                       |
-| `finisherNoComboPoints` | `ability`, `condition`       | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.                                                              |
-| `cooldownNotChecked`    | `ability`                    | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                                                                            |
-| `grantedNotTalent`      | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition. The rule never casts: its only warnings.                                                                   |
-| `unlockedNotTalent`     | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityUnlocked` on `ability`, which no talent grants, so it is always true; `condition` is `j`. One per such condition.                                                                                     |
-| `starves`               | `ability`, `below`, `reason` | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it that can cast (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. Never on a rule with `finisherNoComboPoints`. |
+| Code                    | Data                         | Path                     | When                                                                                                                                                            |
+| ----------------------- | ---------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `duplicateRule`         | `ability`, `same`            | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                                         |
+| `finisherNoComboPoints` | `ability`, `condition`       | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.                |
+| `cooldownNotChecked`    | `ability`                    | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                              |
+| `grantedNotTalent`      | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition. The rule never casts: its only warnings.                     |
+| `unlockedNotTalent`     | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityUnlocked` on `ability`, which no talent grants, so it is always true; `condition` is `j`. One per such condition.                                       |
+| `starves`               | `ability`, `below`, `reason` | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it that can cast (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. |
 
 `ability` is always the rule's action, except for `grantedNotTalent` and
 `unlockedNotTalent`, where it is the condition's. Per rule the order is
