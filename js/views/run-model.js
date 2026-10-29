@@ -124,17 +124,27 @@ export function formErrorCount(form) {
     .length;
 }
 
+// The talent tree's build over its level's cap (#204): one setting to fix.
+export const talentErrorCount = (state) =>
+  typeof state.talents?.error === "string" ? 1 : 0;
+
 // Everything that blocks Run (#155, Fran's QA 1): the run fields with an
-// error in this mode and the stats form's errors.
+// error in this mode, the stats form's errors and the talent tree's (#204).
 export function blockedCount(state) {
-  return fieldErrors(state.run).length + formErrorCount(state.form);
+  return (
+    fieldErrors(state.run).length +
+    formErrorCount(state.form) +
+    talentErrorCount(state)
+  );
 }
 
-// Run is blocked by an invalid run field or an invalid stats form field (#151).
+// Run is blocked by an invalid run field, an invalid stats form field (#151)
+// or a talent build over its cap (#204).
 function blocked(state) {
   return (
     fieldErrors(state.run).length > 0 ||
-    Object.keys(state.form?.errors ?? {}).length > 0
+    Object.keys(state.form?.errors ?? {}).length > 0 ||
+    talentErrorCount(state) > 0
   );
 }
 

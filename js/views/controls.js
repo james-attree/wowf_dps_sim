@@ -6,6 +6,7 @@ import {
   fieldErrors,
   focusTarget,
   formErrorCount,
+  talentErrorCount,
   isLocked,
   parseRunField,
   summaryText,
@@ -122,7 +123,10 @@ export function createControlsView(doc, store, actions = {}) {
     // The narrow row shows Pause while a fight or batch runs, Run otherwise.
     bar.setAttribute("data-slot", locked ? "pause" : "run");
     write(summary, summaryText(run));
-    const fix = errorsText(run, formErrorCount(state.form));
+    const fix = errorsText(
+      run,
+      formErrorCount(state.form) + talentErrorCount(state),
+    );
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
     row.classList.toggle("has-errors", fix !== null);
@@ -224,7 +228,11 @@ export function createControlsView(doc, store, actions = {}) {
     event?.preventDefault?.();
     const [first] = fieldErrors(store.get().run);
     if (first === undefined) {
-      doc.querySelector('#config-form [aria-invalid="true"]')?.focus?.();
+      // A form field, else the talent tree's over-cap build (#204).
+      (
+        doc.querySelector('#config-form [aria-invalid="true"]') ??
+        doc.querySelector("#talents-edit")
+      )?.focus?.();
       return;
     }
     open = true;

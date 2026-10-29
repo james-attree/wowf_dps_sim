@@ -32,7 +32,11 @@ describe("the narrow breakpoint", () => {
         `${file} uses breakpoints.js`,
       );
     }
-    for (const file of ["views/controls.js", "views/config-form.js"]) {
+    for (const file of [
+      "views/controls.js",
+      "views/config-form.js",
+      "views/talent-tree.js",
+    ]) {
       assert.match(
         await read(`../js/${file}`),
         /import \{ NARROW_QUERY \} from "\.\/breakpoints\.js";/,
@@ -61,6 +65,17 @@ describe("the narrow breakpoint", () => {
     const rest = css.replace(chartWidth, "");
     assert.doesNotMatch(rest, /\b520px\b/);
     assert.doesNotMatch(rest, /min-width: 52\dpx/);
+  });
+
+  it("css/talent-tree.css uses the same narrow query (#204)", async () => {
+    const css = await read("../css/talent-tree.css");
+    const queries = [...css.matchAll(/@media ([^{]+)\{/g)].map(([, query]) =>
+      query.trim(),
+    );
+    const narrow = queries.filter((query) => /max-width/.test(query));
+    assert.equal(narrow.length, 1, "the tabs and the bigger tiles");
+    assert.deepEqual(narrow, [NARROW_QUERY]);
+    assert.doesNotMatch(css, /\b520px\b/);
   });
 
   it("contains each sideways scroller's inline size, so it cannot widen the page (#154)", async () => {

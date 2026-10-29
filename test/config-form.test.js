@@ -63,7 +63,6 @@ describe("the form fills from the store's config", () => {
       form().values["weapons.mainHand.type"],
       config().weapons.mainHand.type,
     );
-    assert.equal(form().talentsChoice, "none");
     assert.equal(form().rotationChoice, "default");
     assert.equal(form().summary.name, defaultRotation().name);
     assert.equal(form().summary.rules.length, defaultRotation().rules.length);
@@ -274,45 +273,73 @@ describe("changes apply to the next run", () => {
   });
 });
 
-describe("talents", () => {
-  it("offers none and the reference build, labelled with its tree points", () => {
-    const { form } = setup();
-    assert.deepEqual(
-      form().talentOptions.map(({ id }) => id),
-      ["none", "reference"],
-    );
-    assert.match(
-      form().talentOptions[1].label,
-      /^Reference Combat \(\d+\/\d+\/\d+\)$/,
-    );
+describe("talents: the talent tree owns the build (#204)", () => {
+  // A build the old select did not offer: a partial Combat build at level 40.
+  const custom = () => ({
+    "combat.improved-sinister-strike": 2,
+    "combat.precision": 3,
   });
 
-  it("the reference choice is data/reference-build.js's build, into the fight", () => {
-    const { store, actions } = setup();
-    actions.chooseTalents("reference");
+  it("a field edit keeps a custom build and its level (the old select wiped it)", () => {
+    const store = createStore({
+      config: normalizeConfig({
+        ...pageDefaultConfig(),
+        talents: custom(),
+        talentLevel: 40,
+      }),
+    });
+    const actions = createConfigForm(store);
+    actions.change("character.attackPower", 1000);
+    assert.equal(store.get().config.character.attackPower, 1000);
+    assert.deepEqual(store.get().config.talents, custom());
+    assert.equal(store.get().config.talentLevel, 40);
+    actions.input("character.critChance", 0.25);
+    actions.change("character.critChance", 0.25);
+    assert.deepEqual(store.get().config.talents, custom());
+  });
+
+  it("configFromForm takes the build from its base, never from the form", () => {
+    const base = normalizeConfig({ talents: custom(), talentLevel: 40 });
+    const config = configFromForm(formFromConfig(base), base);
+    assert.deepEqual(config.talents, custom());
+    assert.equal(config.talentLevel, 40);
+  });
+
+  it("the form has no talents choice and no chooseTalents action", () => {
+    const { form, actions } = setup();
+    assert.equal("talentsChoice" in form(), false);
+    assert.equal("talentOptions" in form(), false);
+    assert.equal("chooseTalents" in actions, false);
+  });
+
+  it("the reference build in the config reaches the fight", () => {
+    const { store } = setup();
+    store.set({
+      config: normalizeConfig({
+        ...store.get().config,
+        talents: dataBuild.referenceBuild(),
+      }),
+    });
     const expected = normalizeConfig({
       talents: dataBuild.referenceBuild(),
     }).talents;
-    assert.deepEqual(store.get().config.talents, expected);
     const result = runFight({
       seed: SEED,
       duration: 10,
       config: nextRunConfig(store.get()),
     });
     assert.deepEqual(result.config.talents, expected);
-    actions.chooseTalents("none");
-    assert.deepEqual(store.get().config.talents, {});
   });
 
-  it("a config with the reference build shows the reference choice", () => {
-    const config = normalizeConfig({ talents: dataBuild.referenceBuild() });
-    assert.equal(formFromConfig(config).talentsChoice, "reference");
-    assert.equal(formFromConfig(normalizeConfig({})).talentsChoice, "none");
-  });
-
-  it("refuses a choice it does not offer", () => {
-    const { actions } = setup();
-    assert.throws(() => actions.chooseTalents("loadout"), RangeError);
+  it("nextRunConfig is null while the talent tree's build is over its cap", () => {
+    const { store } = setup();
+    assert.notEqual(nextRunConfig(store.get()), null);
+    store.set({
+      talents: { error: "51 points spent, but level 40 gives 31." },
+    });
+    assert.equal(nextRunConfig(store.get()), null);
+    store.set({ talents: { error: null } });
+    assert.notEqual(nextRunConfig(store.get()), null);
   });
 });
 
@@ -409,7 +436,12 @@ describe("Reset to defaults and Undo", () => {
   it("Reset restores the defaults and clears errors; Undo puts everything back", () => {
     const { store, actions, form } = setup();
     actions.change("character.attackPower", 1000);
-    actions.chooseTalents("reference");
+    store.set({
+      config: normalizeConfig({
+        ...store.get().config,
+        talents: dataBuild.referenceBuild(),
+      }),
+    });
     actions.change("weapons.mainHand.max", 1);
     const editedForm = form();
     const editedConfig = store.get().config;

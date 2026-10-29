@@ -77,7 +77,6 @@ function element(tag, id) {
 }
 
 const SELECTS = new Set([
-  "cfg-talents",
   "cfg-rotation",
   "cfg-weapons-mainHand-type",
   "cfg-weapons-offHand-type",
@@ -347,7 +346,7 @@ describe("the form never runs anything", () => {
   });
 });
 
-describe("rotation and talents", () => {
+describe("rotation", () => {
   it("fills the selects, and a choice reaches config.rotation and the summary", () => {
     const { $, store } = page();
     const rotation = $("cfg-rotation");
@@ -363,10 +362,6 @@ describe("rotation and talents", () => {
       $("cfg-summary-rules").children.length,
       store.get().config.rotation.rules.length,
     );
-    const talents = $("cfg-talents");
-    talents.value = "reference";
-    talents.fire("change");
-    assert.ok(Object.keys(store.get().config.talents).length > 0);
   });
 
   it("export downloads the rotation file", () => {
