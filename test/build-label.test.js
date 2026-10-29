@@ -54,9 +54,10 @@ describe("buildLabel (#154)", () => {
       buildLabel({ talents: ranks }, { talents, poisons }).split(
         LABEL_SEPARATOR,
       )[0];
-    assert.equal(label({ x: 1, y: 3 }), "Beta 1/3/0");
-    assert.equal(label({ x: 2, y: 2, z: 2 }), "Alpha 2/2/2");
-    assert.equal(label({ z: 5, unknown: 9 }), "Gamma 0/0/5");
+    // Partial builds carry their points out of the cap (#190).
+    assert.equal(label({ x: 1, y: 3 }), "Beta 1/3/0 (4/51)");
+    assert.equal(label({ x: 2, y: 2, z: 2 }), "Alpha 2/2/2 (6/51)");
+    assert.equal(label({ z: 5, unknown: 9 }), "Gamma 0/0/5 (5/51)");
   });
 
   it("leaves out an empty hand and names a poison the catalogue lacks", () => {

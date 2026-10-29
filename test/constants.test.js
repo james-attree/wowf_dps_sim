@@ -72,7 +72,7 @@ const ROADMAP = [
   ["batch.duration", "assumption"],
   ["fight.iterations", "assumption"],
   ["start.state", "assumption"],
-  ["talents.rowGating", "assumption"],
+  ["talents.rowGating", "wowf-designer"],
   ["latency", "assumption"],
   ["poison.charges", "assumption"],
   ["hackAndSlash.chain", "assumption"],
@@ -106,10 +106,10 @@ describe("constants", () => {
     }
     assert.deepEqual(counts, {
       "wowf-export": 12,
-      "wowf-designer": 1,
+      "wowf-designer": 2,
       "classic-1.12": 34,
       cataclysm: 1,
-      assumption: 14,
+      assumption: 13,
     });
   });
 
@@ -235,7 +235,7 @@ describe("constants", () => {
       if (row.source === "assumption" || row.source === "engineering") {
         assert.match(
           row.ref,
-          /^(?:James|Developer), \d+ Oct 2026(, issue #\d+)?: /,
+          /^(?:(?:James|Developer), \d+ Oct 2026(, issue #\d+)?|Scout \(coordinator\), \d+ Oct 2026, #\d+): /,
           id,
         );
       } else if (row.source === "wowf-export") {

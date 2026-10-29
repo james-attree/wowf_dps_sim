@@ -151,25 +151,26 @@ describe("validateBuild: what a character can have", () => {
     );
   });
 
+  // #190: fewer than 51 points is legal; only "exactly 51" was relaxed.
   for (const [label, ranks, total] of [
     ["50 points", swap(REFERENCE, { "combat.aggression": 2 }), 50],
-    [
-      "52 points",
-      swap(REFERENCE, { "combat.lightning-reflexes": 1 }),
-      k("talents.maxPoints") + 1,
-    ],
     ["no points", {}, 0],
   ]) {
-    it(`rejects ${label}: exactly 51 are needed`, () => {
+    it(`accepts ${label}: a partial build is legal (#190)`, () => {
       assert.equal(points(ranks), total);
-      assert.throws(() => validateBuild(ranks), {
-        name: "RangeError",
-        message: new RegExp(
-          `the build spends ${total} talent points, and exactly 51 are needed \\(talents\\.maxPoints\\)`,
-        ),
-      });
+      assert.equal(validateBuild(ranks), total);
     });
   }
+
+  it("rejects 52 points: at most 51 can be spent", () => {
+    const ranks = swap(REFERENCE, { "combat.lightning-reflexes": 1 });
+    assert.equal(points(ranks), k("talents.maxPoints") + 1);
+    assert.throws(() => validateBuild(ranks), {
+      name: "RangeError",
+      message:
+        /^Talent build is not valid: the build spends 52 talent points, and at most 51 can be spent \(talents\.maxPoints\)\.$/,
+    });
+  });
 
   it("requires a prerequisite at full rank, and names both ids", () => {
     // Malice 5 -> 4, the point in Improved Gouge: 51, row gating kept.
@@ -194,9 +195,12 @@ describe("validateBuild: what a character can have", () => {
   });
 
   it("lists every problem in one error, with ids and not display names", () => {
-    // Precision 3 -> 2: 50 points, and Dual Wield Specialization lost its
-    // prerequisite.
-    const broken = swap(REFERENCE, { "combat.precision": 2 });
+    // Precision 3 -> 2 and two more points in Lightning Reflexes: 52 points,
+    // and Dual Wield Specialization lost its prerequisite.
+    const broken = swap(REFERENCE, {
+      "combat.precision": 2,
+      "combat.lightning-reflexes": 2,
+    });
     let message = "";
     try {
       validateBuild(broken);
@@ -204,7 +208,7 @@ describe("validateBuild: what a character can have", () => {
       message = error.message;
     }
     assert.match(message, /^Talent build is not valid: /);
-    assert.match(message, /spends 50 talent points/);
+    assert.match(message, /spends 52 talent points/);
     assert.match(message, /"combat\.dual-wield-specialization" needs/);
     assert.doesNotMatch(message, /Precision|Dual Wield|Specialization /);
   });
@@ -276,7 +280,7 @@ describe("applyBuild", () => {
     }
   });
 
-  it("a build of one or two points is a selected build, and is rejected", () => {
+  it("a build of one or two points is a selected build, and runs (#190)", () => {
     for (const ranks of [
       { "combat.improved-eviscerate": 1 },
       { "combat.improved-eviscerate": 2 },
@@ -284,13 +288,11 @@ describe("applyBuild", () => {
     ]) {
       const small = points(ranks);
       assert.ok(small >= 1 && small <= 2);
-      assert.throws(() => applyBuild(ranks), {
-        name: "RangeError",
-        message: new RegExp(`the build spends ${small} talent points`),
-      });
-      assert.throws(
-        () => runFight({ seed: 1, duration: 1, config: { talents: ranks } }),
-        RangeError,
+      const applied = applyBuild(ranks);
+      assert.equal(applied.selected, true);
+      assert.equal(applied.points, small);
+      assert.doesNotThrow(() =>
+        runFight({ seed: 1, duration: 1, config: { talents: ranks } }),
       );
     }
   });
@@ -359,10 +361,13 @@ describe("a selected build in config.talents runs the fight", () => {
   });
 
   it("an illegal build is a RangeError from runFight, createFight and Rogue", () => {
-    const config = { talents: swap(REFERENCE, { "combat.aggression": 2 }) };
+    // 52 points (a partial build is legal since #190).
+    const config = {
+      talents: swap(REFERENCE, { "combat.lightning-reflexes": 1 }),
+    };
     const expected = {
       name: "RangeError",
-      message: /spends 50 talent points/,
+      message: /spends 52 talent points, and at most 51 can be spent/,
     };
     assert.throws(() => runFight({ seed: 1, duration: 1, config }), expected);
     assert.throws(() => createFight(1, config), expected);

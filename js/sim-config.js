@@ -1,4 +1,10 @@
 import { k } from "../data/constants.js";
+import {
+  DEFAULT_TALENT_LEVEL,
+  pointsByTree,
+  talentLevelRange,
+  talentPointCap,
+} from "./talent-build.js";
 import { talentCatalogue } from "./talents.js";
 import { defaultRotation } from "./rotation-default.js";
 import { rotationProblems } from "./rotation-validator.js";
@@ -13,7 +19,8 @@ import { rotationProblems } from "./rotation-validator.js";
 // and the weapons change the fight, and so do the poisons (Instant and Deadly
 // Poison become procs in js/rogue.js, A5, #105) and the talent ranks: a
 // selected build is checked and applied by the Rogue (js/talent-build.js
-// applyBuild, D7, #106). This file checks only the shape of the ranks.
+// applyBuild, D7, #106). This file checks the shape of the ranks, and that they
+// spend no more than config.talentLevel allows (#190).
 //
 // The shape (every field is optional; a missing one takes its default):
 //
@@ -25,6 +32,7 @@ import { rotationProblems } from "./rotation-validator.js";
 //     },
 //     target: { behind },                        // true: no parry, no block
 //     talents: { "combat.precision": 3, ... },   // talent id -> rank
+//     talentLevel: 60,                           // caps talents at level - 9
 //     poisons: { mainHand: "instant", offHand: "deadly" },   // an id, or null
 //     rotation: { schemaVersion: 1, name, rules: [...] },    // R3, #140
 //   }
@@ -50,6 +58,7 @@ const SECTIONS = [
   "weapons",
   "target",
   "talents",
+  "talentLevel",
   "poisons",
   "rotation",
 ];
@@ -70,6 +79,7 @@ export function defaultConfig() {
     weapons: { mainHand: weapon("mainHand"), offHand: weapon("offHand") },
     target: { behind: k("target.behind") },
     talents: {},
+    talentLevel: DEFAULT_TALENT_LEVEL,
     poisons: { mainHand: null, offHand: null },
     rotation: defaultRotation(),
   };
@@ -246,10 +256,11 @@ function readTarget(input, defaults) {
 }
 
 // Talent ranks by catalogue id. Only the rank is checked here (a whole number
-// from 0 to the talent's max, and the id must exist). The 51-point total, the
-// row gating and the prerequisites are checked when a build is applied
-// (validateBuild in js/talent-build.js, D7), so a partial build is a valid
-// config and an illegal fight.
+// from 0 to the talent's max, and the id must exist); readTalentLevel then
+// holds the total to the talent level. The 51-point cap, the row gating and
+// the prerequisites are checked when a build is applied (validateBuild in
+// js/talent-build.js, D7), so a build that breaks them is a valid config and
+// an illegal fight. A partial build that keeps them is legal (#190).
 // A rank of 0 is the same as not naming the talent, so it is left out. The
 // result lists the talents in catalogue order, so two spellings of one build
 // normalise to the same config.
@@ -286,6 +297,31 @@ function readTalents(input, catalogue) {
     }
   }
   return ranks;
+}
+
+// The talent level (#190): a whole number from 10 to 60, 60 by default. It
+// caps the talent points at level - 9 (talentPointCap in js/talent-build.js)
+// and does nothing else: it is not character.level and the armor divisor never
+// reads it. The cap is checked here, where both are known, so the Rogue's
+// applyBuild (which sees only the ranks, and caps them at 51) needs no level.
+// At 60 the cap is the 51 the build check already enforces, so the check here
+// is only for a level below 60, and a 52-point build at 60 still fails in
+// validateBuild with its own message.
+function readTalentLevel(input, talents, defaults) {
+  const { min, max } = talentLevelRange();
+  const level = readNumber(input, "config.talentLevel", defaults, {
+    min,
+    max,
+    whole: true,
+  });
+  const cap = talentPointCap(level);
+  const { total } = pointsByTree(talents);
+  if (cap < k("talents.maxPoints") && total > cap) {
+    throw new RangeError(
+      `config.talents spends ${total} talent points, and config.talentLevel ${level} allows at most ${cap} (level - ${k("talents.firstPointLevel") - 1}).`,
+    );
+  }
+  return level;
 }
 
 function readPoisons(input, defaults) {
@@ -328,11 +364,17 @@ function readRotation(input, defaults) {
 export function normalizeConfig(config, catalogue = talentCatalogue) {
   const given = readObject(config, "config", SECTIONS);
   const defaults = defaultConfig();
+  const talents = readTalents(given.talents, catalogue);
   return {
     character: readCharacter(given.character, defaults.character),
     weapons: readWeapons(given.weapons, defaults.weapons),
     target: readTarget(given.target, defaults.target),
-    talents: readTalents(given.talents, catalogue),
+    talents,
+    talentLevel: readTalentLevel(
+      given.talentLevel,
+      talents,
+      defaults.talentLevel,
+    ),
     poisons: readPoisons(given.poisons, defaults.poisons),
     rotation: readRotation(given.rotation, defaults.rotation),
   };
