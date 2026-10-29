@@ -15,6 +15,17 @@ import { k } from "../../data/constants.js";
 // Run, Pause, Stop and Reset of the fight are #153's control bar, never this
 // form; while the form has errors the footer lists them and says Run is off.
 
+// True when the form's config differs from the one the fight or batch on the
+// page started with (run.snapshot, #153): the footer then shows "Edited —
+// applies to the next run". Both are in normalizeConfig's full form.
+export function editedSinceRun(state) {
+  const snapshot = state.run?.snapshot ?? null;
+  return (
+    snapshot !== null &&
+    JSON.stringify(state.config) !== JSON.stringify(snapshot)
+  );
+}
+
 export const fieldId = (path) => `cfg-${path.replaceAll(".", "-")}`;
 
 // 0.07 * 100 is 7.000000000000001 in JS, so round before showing it.
@@ -455,9 +466,17 @@ export function createConfigFormView(doc, store, actions) {
   });
 
   render(store.get().form);
+  const edited = $("cfg-edited");
+  const drawEdited = (state) => {
+    edited.hidden = !editedSinceRun(state);
+  };
+  drawEdited(store.get());
   return store.subscribe(({ state, changed }) => {
     if (changed.includes("form")) {
       render(state.form);
+    }
+    if (changed.includes("config") || changed.includes("run")) {
+      drawEdited(state);
     }
   });
 }

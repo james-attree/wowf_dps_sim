@@ -219,8 +219,33 @@ describe("createLiveRun (#153)", () => {
   });
 });
 
-describe("the run state's one writer (#153)", () => {
-  it("is js/live-run.js: no view or the bootstrap writes run.state", async () => {
+describe("clear(): an empty picture at 0:00 (#153)", () => {
+  it("draws a fresh fight without running it, only while idle", () => {
+    const { live, store, frames, tick } = setup();
+    live.clear({ seed: SEED, config });
+    assert.equal(store.get().run.state, "idle");
+    assert.equal(frames.pending, null, "nothing runs");
+    assert.deepEqual(store.get().results, { time: 0, damage: 0 });
+    assert.deepEqual(store.get().log, []);
+    live.run({ seed: SEED, duration: DURATION, config });
+    tick();
+    tick();
+    assert.throws(() => live.clear({ seed: SEED, config }), /while running/);
+    live.pause();
+    assert.throws(() => live.clear({ seed: SEED, config }), /while paused/);
+    live.reset();
+    const frame = store.get().frame;
+    live.clear({ seed: SEED, config });
+    assert.ok(store.get().frame > frame, "drawn");
+    assert.equal(store.get().results.time, 0);
+    assert.deepEqual(store.get().log, []);
+  });
+});
+
+describe("the run state's writers (#153)", () => {
+  // js/live-run.js writes it in live mode, js/run-actions.js in batch mode
+  // (from batch.status); no view or the bootstrap writes it.
+  it("are js/live-run.js and js/run-actions.js: no view or the bootstrap", async () => {
     const { readdir, readFile } = await import("node:fs/promises");
     const files = [
       "js/main.js",

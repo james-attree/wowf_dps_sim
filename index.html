@@ -14,23 +14,109 @@
           <p class="eyebrow">COMBAT SIMULATOR</p>
           <h1>Rogue</h1>
         </div>
-        <div class="header-controls">
-          <p class="seed-label">Seed <span id="seed-value"></span></p>
-          <div id="simulation-status" class="live-indicator">
-            <span class="live-dot" aria-hidden="true"></span>
-            <span id="simulation-status-label">Live</span>
-          </div>
-          <button
-            id="pause-button"
-            class="pause-button"
-            type="button"
-            aria-pressed="false"
-          >
-            <span id="pause-icon" aria-hidden="true">Ⅱ</span>
-            <span id="pause-label">Pause</span>
-          </button>
-        </div>
       </header>
+
+      <section id="run-controls" class="run-controls" aria-label="Run controls">
+        <div class="run-row run-row-inputs">
+          <fieldset class="run-mode">
+            <legend>Mode</legend>
+            <label class="run-mode-pill">
+              <input
+                id="run-mode-live"
+                type="radio"
+                name="run-mode"
+                value="live"
+                checked
+              />
+              <span>Live</span>
+            </label>
+            <label class="run-mode-pill">
+              <input
+                id="run-mode-batch"
+                type="radio"
+                name="run-mode"
+                value="batch"
+              />
+              <span>Batch</span>
+            </label>
+          </fieldset>
+          <div class="run-field">
+            <label for="run-duration">Fight length (s)</label>
+            <input
+              id="run-duration"
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              size="6"
+            />
+            <p id="run-duration-error" class="field-error" hidden></p>
+          </div>
+          <div id="run-iterations-field" class="run-field" hidden>
+            <label for="run-iterations">Fights</label>
+            <input
+              id="run-iterations"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              size="7"
+            />
+            <p id="run-iterations-error" class="field-error" hidden></p>
+          </div>
+          <div class="run-field run-seed-field">
+            <label for="run-seed">Seed</label>
+            <div class="run-seed-input">
+              <input
+                id="run-seed"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                size="11"
+              />
+              <button id="run-seed-new" class="pill-button" type="button">
+                <span aria-hidden="true">⟳</span> New
+              </button>
+            </div>
+            <p id="run-seed-error" class="field-error" hidden></p>
+          </div>
+        </div>
+        <div class="run-row run-row-actions">
+          <div class="run-buttons">
+            <button id="run-button" class="run-button" type="button">
+              Run
+            </button>
+            <button
+              id="pause-button"
+              class="pause-button"
+              type="button"
+              aria-pressed="false"
+            >
+              <span id="pause-icon" aria-hidden="true">Ⅱ</span>
+              <span id="pause-label">Pause</span>
+            </button>
+            <button
+              id="stop-button"
+              class="pause-button"
+              type="button"
+              aria-describedby="run-help"
+            >
+              Stop and discard
+            </button>
+            <button id="reset-button" class="pause-button" type="button">
+              Reset
+            </button>
+          </div>
+          <div id="run-status" class="run-status live-indicator">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="run-status-text" aria-hidden="true"></span>
+          </div>
+          <p id="run-announce" class="visually-hidden" role="status"></p>
+          <div id="run-progress-row" class="run-progress" hidden>
+            <progress id="run-progress" max="1" value="0"></progress>
+            <span id="run-progress-text"></span>
+          </div>
+        </div>
+        <p id="run-help" class="run-help"></p>
+      </section>
 
       <form
         id="config-form"
@@ -445,6 +531,9 @@
             <p id="cfg-status-ok" class="config-status-ok">
               Changes apply to the next run
             </p>
+            <p id="cfg-edited" class="config-edited" hidden>
+              Edited — applies to the next run
+            </p>
             <div id="cfg-fix" class="config-fix" hidden>
               <p id="cfg-fix-heading"></p>
               <ul id="cfg-fix-list" class="config-fix-list"></ul>
@@ -476,6 +565,7 @@
       </section>
 
       <section
+        data-fight-frame
         class="resources-panel panel"
         aria-labelledby="resources-heading"
       >
@@ -610,6 +700,7 @@
       </section>
 
       <section
+        data-fight-frame
         class="combat-log-panel panel"
         aria-labelledby="combat-log-heading"
       >

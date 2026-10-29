@@ -8,7 +8,7 @@
 //
 //   {
 //     schemaVersion: 1,
-//     name: "Combat (placeholder)",
+//     name: "Default (Combat)",
 //     rules: [                                  // priority order, first is highest
 //       { action: "sinister-strike",            // an ability id, not a display name
 //         conditions: [ { type, ...params } ]   // an AND list; [] means always

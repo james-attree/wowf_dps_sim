@@ -31,7 +31,7 @@ the code rotation cast before R3, fight for fight, so no fight changes.
 ```json
 {
   "schemaVersion": 1,
-  "name": "Combat (placeholder)",
+  "name": "Default (Combat)",
   "rules": [{ "action": "sinister-strike", "conditions": [] }]
 }
 ```
@@ -456,7 +456,7 @@ something that is not a rotation, rule or condition object).
   priority order, highest first.
 
 ```text
-Combat (placeholder)
+Default (Combat)
 1. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Energy >= 25
 2. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready
 3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
@@ -678,7 +678,7 @@ What the Rogue casts by default (issue #68, and the Cold Blood rule). This is
 ```json
 {
   "schemaVersion": 1,
-  "name": "Combat (placeholder)",
+  "name": "Default (Combat)",
   "rules": [
     {
       "action": "blade-flurry",

@@ -49,6 +49,7 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   const buffItems = new Map();
   const debuffItems = new Map();
   const combatLog = doc.querySelector("#combat-log");
+  const fightFrames = [...doc.querySelectorAll("[data-fight-frame]")];
   const combatLogScroll = doc.querySelector(".combat-log-scroll");
   const combatLogEmpty = doc.querySelector("#combat-log-empty");
   let lastRenderedCombatEventId = -1;
@@ -256,6 +257,12 @@ export function createVisualiserView(doc, store, { clock } = {}) {
 
   function onRunChange() {
     const { run, results } = store.get();
+    // A stopped fight is discarded (#153): its last frame stays, dimmed,
+    // until Run or Reset.
+    const discarded = run.state === "idle" && (run.stoppedAt ?? null) !== null;
+    for (const frame of fightFrames) {
+      frame.classList.toggle("is-discarded", discarded);
+    }
     if (run.state === "paused") {
       logReadout.textContent =
         "Paused. Left and Right arrow keys step through the log.";
@@ -267,6 +274,14 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   }
 
   function renderCombatLog(log) {
+    // A new fight (Run again, or Reset's empty fight, #153) starts its event
+    // ids again: the old fight's rows go.
+    const newest = log.length > 0 ? log[0].id : -1;
+    if (newest < lastRenderedCombatEventId) {
+      selectRow(-1);
+      combatLog.replaceChildren(combatLogEmpty);
+      lastRenderedCombatEventId = -1;
+    }
     const newEvents = log.filter(
       (event) => event.id > lastRenderedCombatEventId,
     );

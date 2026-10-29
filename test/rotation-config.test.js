@@ -25,7 +25,7 @@ describe("SimConfig.rotation", () => {
     assert.deepEqual(normalizeConfig().rotation, defaultRotation());
     assert.deepEqual(normalizeConfig({}).rotation, defaultRotation());
     assert.deepEqual(defaultConfig().rotation, defaultRotation());
-    assert.equal(normalizeConfig().rotation.name, "Combat (placeholder)");
+    assert.equal(normalizeConfig().rotation.name, "Default (Combat)");
   });
 
   it("is recorded in the result's config, and the fight repeats from it", () => {

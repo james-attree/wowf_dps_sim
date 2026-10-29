@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { pageDefaultConfig } from "../js/config-form.js";
+import { runBatch } from "../js/batch-runner.js";
 import { createFight, runFight } from "../js/fight.js";
 import { FrameClock } from "../js/frame-clock.js";
 import { iconUrl } from "../js/icons.js";
@@ -251,6 +252,7 @@ function fakeElement() {
     getAttribute(name) {
       return attributes.has(name) ? attributes.get(name) : null;
     },
+    listeners,
     addEventListener(type, listener) {
       listeners.set(type, listener);
     },
@@ -341,9 +343,20 @@ describe("js/main.js on a stand-in page", () => {
     await import("../js/main.js");
   });
 
-  it("shows the seed as plain text in the header, outside any live region", () => {
-    assert.equal(element("#seed-value").textContent, String(SEED));
+  it("starts idle with the seed in the bar, and Run starts the fight (#153)", () => {
+    assert.equal(element("#run-seed").value, String(SEED));
+    assert.equal(
+      element("#run-status-text").textContent,
+      `Ready · seed ${SEED}`,
+    );
+    assert.equal(pendingFrame, null, "nothing runs at load");
+    assert.equal(element("#pause-button").disabled, true);
+    assert.equal(element("#run-button").disabled, false);
+    element("#run-button").click();
     assert.equal(stepsSeen.length, 0, "no step before the first frame");
+    assert.ok(pendingFrame, "Run asks for a frame");
+    assert.equal(element("#run-button").disabled, true);
+    assert.equal(element("#run-announce").textContent, "Running");
   });
 
   it("takes no step on the first frame, then fixed steps only", () => {
@@ -379,7 +392,10 @@ describe("js/main.js on a stand-in page", () => {
     assert.equal(pendingFrame, null);
     assert.equal(element("#pause-button").getAttribute("aria-pressed"), "true");
     assert.equal(element("#pause-label").textContent, "Resume");
-    assert.equal(element("#simulation-status-label").textContent, "Paused");
+    assert.match(
+      element("#run-status-text").textContent,
+      /^Paused at 00:(09|10)$/,
+    );
     const stepsBefore = stepsSeen.length;
     staleFrame(1e9);
     assert.equal(stepsSeen.length, stepsBefore);
@@ -395,7 +411,7 @@ describe("js/main.js on a stand-in page", () => {
       "false",
     );
     assert.equal(element("#pause-label").textContent, "Pause");
-    assert.equal(element("#simulation-status-label").textContent, "Live");
+    assert.match(element("#run-status-text").textContent, /^Running · /);
     assert.ok(pendingFrame, "resume asks for a frame");
     // An hour later by the browser's clock.
     const resumedAt = 1000 + 3.6e6;
@@ -443,13 +459,118 @@ describe("js/main.js on a stand-in page", () => {
     assert.equal(live.currentTime, duration);
     assert.equal(stepsSeen.length * STEP, duration);
     assert.deepEqual(snapshot(live), reference(duration));
-    assert.equal(element("#simulation-status-label").textContent, "Finished");
+    const dps = (live.damageDone / duration).toFixed(1);
+    assert.equal(
+      element("#run-status-text").textContent,
+      `Finished · 300 s · ${dps} DPS`,
+    );
+    assert.equal(element("#run-announce").textContent, `Finished, ${dps} DPS`);
     assert.equal(element("#pause-button").disabled, true);
+    assert.equal(element("#run-button").textContent, "Run again");
     assert.equal(element("#time-value").textContent, "05:00");
     // A click on the disabled button, had it reached the page, does nothing.
     element("#pause-button").click();
     assert.equal(pendingFrame, null);
-    assert.equal(element("#simulation-status-label").textContent, "Finished");
+    assert.match(element("#run-status-text").textContent, /^Finished/);
+  });
+
+  // The bar end to end on the page (#153): Run again replays the seed, Stop
+  // discards, Run replays from 0:00, Reset empties.
+  function runFor(frames) {
+    let timestamp = 5e6;
+    frame(timestamp);
+    for (let index = 0; index < frames; index++) {
+      timestamp += FRAME_MS;
+      frame(timestamp);
+    }
+  }
+
+  it("Stop then Run reproduces the same fight for the same seed", () => {
+    element("#run-button").click();
+    const first = stepsSeen.length;
+    runFor(120);
+    const steps = stepsSeen.length - first;
+    const stoppedFight = live;
+    assert.notEqual(stoppedFight, null);
+    const stopped = snapshot(stoppedFight);
+    assert.deepEqual(stopped, reference(steps * STEP), "a new fight from 0:00");
+    element("#stop-button").click();
+    assert.equal(element("#stop-button").textContent, "Stop and discard");
+    assert.equal(pendingFrame, null);
+    assert.match(
+      element("#run-status-text").textContent,
+      new RegExp(
+        `^Stopped at 00:0[12] · fight discarded · Run replays seed ${SEED} from 0:00$`,
+      ),
+    );
+    assert.equal(element("#run-announce").textContent, "Stopped");
+    assert.equal(element("#reset-button").disabled, false);
+    element("#run-button").click();
+    const again = stepsSeen.length;
+    runFor(120);
+    assert.notEqual(live, stoppedFight, "a new fight");
+    assert.equal(stepsSeen.length - again, steps);
+    assert.deepEqual(snapshot(live), stopped);
+  });
+
+  it("Reset ends the fight and empties the picture", () => {
+    element("#reset-button").click();
+    assert.equal(pendingFrame, null);
+    assert.equal(
+      element("#run-status-text").textContent,
+      `Ready · seed ${SEED}`,
+    );
+    assert.equal(element("#reset-button").disabled, true);
+    assert.equal(element("#time-value").textContent, "00:00");
+    assert.equal(element("#run-button").textContent, "Run");
+  });
+
+  it("a batch runs end to end and lands its result (main thread here)", async () => {
+    const live = element("#run-mode-live");
+    const batch = element("#run-mode-batch");
+    batch.value = "batch";
+    batch.checked = true;
+    live.checked = false;
+    batch.listeners.get("change")();
+    assert.equal(element("#run-iterations-field").hidden, false);
+    assert.equal(element("#run-button").textContent, "Run batch");
+    assert.equal(element("#stop-button").textContent, "Stop and keep partial");
+    assert.equal(
+      element("#pause-button").getAttribute("aria-disabled"),
+      "true",
+    );
+    for (const [name, text] of [
+      ["iterations", "4"],
+      ["duration", "20"],
+    ]) {
+      element(`#run-${name}`).value = text;
+      element(`#run-${name}`).listeners.get("input")();
+    }
+    element("#run-button").click();
+    assert.equal(
+      element("#run-status-text").textContent,
+      "Running batch · 0 of 4 fights",
+    );
+    assert.equal(element("#run-progress-row").hidden, false);
+    assert.equal(element("#run-button").disabled, true);
+    assert.equal(element("#run-duration").disabled, true);
+    const expected = runBatch({
+      seed: SEED,
+      iterations: 4,
+      duration: 20,
+      config: pageDefaultConfig(),
+    });
+    const deadline = Date.now() + 30_000;
+    while (!/^Done/.test(element("#run-status-text").textContent)) {
+      assert.ok(Date.now() < deadline, "the batch settles");
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.equal(
+      element("#run-status-text").textContent,
+      `Done · 4 fights · ${expected.summary.mean.toFixed(1)} DPS mean`,
+    );
+    assert.equal(element("#run-progress-row").hidden, true);
+    assert.equal(element("#reset-button").disabled, false);
   });
 });
 
@@ -592,6 +713,8 @@ describe("icons on the live page (stub DOM)", () => {
     globalThis.requestAnimationFrame = (callback) => frames.push(callback);
     globalThis.cancelAnimationFrame = () => {};
     await import("../js/main.js?icons-stub-dom");
+    // The page starts idle (#153): Run starts the fight.
+    stubDocument.querySelector("#run-button").fire("click");
     let timestamp = 1000;
     frame(timestamp);
     // Four seconds of fight: Blade Flurry and Adrenaline Rush are cast, so
