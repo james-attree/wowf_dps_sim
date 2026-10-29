@@ -272,13 +272,15 @@ describe("Timer and TimerSet (#195)", () => {
   });
 
   it("lists the running ids in the order they were first started", () => {
-    const { scheduler, timers } = setup();
+    const { scheduler, timers, log } = setup();
     timers.auras.start("b", 5);
     timers.auras.start("a", 2);
     timers.auras.start("c", 9);
     assert.deepEqual(timers.auras.runningIds, ["b", "a", "c"]);
     scheduler.runUntil(3);
     assert.deepEqual(timers.auras.runningIds, ["b", "c"]);
+    assert.deepEqual(log, [["aura-expire", 2, { id: "a" }]]);
+    assert.ok(Object.isFrozen(log[0][2]));
     assert.equal(timers.auras.remaining("b"), 2);
     assert.equal(timers.auras.remaining("unknown"), 0);
     assert.equal(timers.auras.ready("unknown"), true);

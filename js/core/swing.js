@@ -72,9 +72,8 @@ export class SwingTimer {
         `The ${String(this.hand)} hand is already swinging; stop() it first.`,
       );
     }
-    this.#anchor = at;
+    // No interval yet, so the first swing is the anchor (in swung()).
     this.#interval = null;
-    this.#count = 0;
     this.#event = this.#schedule(at);
     return this.#event;
   }

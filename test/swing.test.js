@@ -298,6 +298,44 @@ describe("SwingTimer (#195)", () => {
     assert.throws(() => timers.off.swung(), /off hand's swing event/);
   });
 
+  it("refuses swung() after the swing's own time, and reads no next swing until it is called", () => {
+    const reads = [];
+    let main;
+    const scheduler = new Scheduler({
+      endTime: 10,
+      handle(event) {
+        if (event.kind === SWING_KIND) {
+          reads.push([main.nextSwingTime, main.swingTimer]);
+          return; // not followed by swung()
+        }
+        event.payload();
+      },
+    });
+    main = new SwingTimer({
+      weapon: { speed: 2, hand: "main" },
+      modifiers: hasteSource(),
+      scheduler,
+    });
+    main.start(0);
+    let error = null;
+    scheduler.schedule({
+      time: 1,
+      order: ORDER.decision,
+      kind: "call",
+      payload: () => {
+        try {
+          main.swung();
+        } catch (caught) {
+          error = caught;
+        }
+      },
+    });
+    scheduler.runUntil(1);
+    assert.deepEqual(reads, [[null, null]]);
+    assert.match(error?.message ?? "", /swung\(\) is for the main hand/);
+    assert.equal(main.nextSwingTime, null);
+  });
+
   it("refuses a bad weapon, pipeline or scheduler", () => {
     const scheduler = new Scheduler({ endTime: 1, handle() {} });
     const modifiers = hasteSource();
