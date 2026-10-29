@@ -1,4 +1,4 @@
-# Rotation as data (R1, issue #138; R2, issue #139; R3, issue #140; R4, issue #141; R5, issue #142)
+# Rotation as data (R1, issue #138; R2, issue #139; R3, issue #140; R4, issue #141; R5, issue #142; R6, issue #143)
 
 A rotation is a priority list of rules, written as JSON. The Rogue casts one at
 every decision point: `SimConfig.rotation`, by default today's placeholder
@@ -17,7 +17,9 @@ fight ([The interpreter](#the-interpreter)). R4
 **validator** and the **readable summary**
 ([Validation](#validation), [The readable summary](#the-readable-summary)).
 R5 ([#142](https://github.com/james-attree/wowf_dps_sim/issues/142)) is the
-**presets** ([Presets](#presets)).
+**presets** ([Presets](#presets)). R6
+([#143](https://github.com/james-attree/wowf_dps_sim/issues/143)) is
+**import and export** ([Import and export](#import-and-export)).
 The shape check is in `js/rotation-schema.js`, the vocabulary in
 `js/rotation-conditions.js`, the state view in `js/rotation-state.js`, the
 interpreter in `js/rotation-interpreter.js`, the validator in
@@ -577,6 +579,75 @@ protected: it lapses until the points are built (a known gap, not handled here).
 - Ambush and Mutilate also list a dagger requirement in the ability catalogue,
   and are not enforced.
 
+## Import and export
+
+R6 ([#143](https://github.com/james-attree/wowf_dps_sim/issues/143)) writes a
+rotation as text and reads it back. `js/rotation-io.js` is pure (text in, text
+or a result out) and reads no file, the clipboard or the DOM; a page or a tool
+does that and hands the text over (the UI issues, #149 and #150).
+
+- `exportRotation(rotation)`: the canonical JSON text of a valid rotation. An
+  invalid one is a `RangeError` (`Bad rotation:` and one message per line), so a
+  bad file is never written.
+- `importRotation(text)`: `{ ok, rotation, errors }`. `ok` is `true`, with the
+  rotation and `errors: []`, when the text is a valid rotation. Otherwise `ok`
+  is `false`, `rotation` is `null` and `errors` is the list of path and message pairs that [the validator](#validation) gives,
+  plus one error with the path `""` when the text as a whole is wrong (too long, not JSON).
+
+**The file.** UTF-8 text, a rotation exactly as [the model](#the-model) has it,
+written the same way every time: the keys of every object in sorted order
+(UTF-16 code unit order, not the locale's), two spaces per level, `\n` line
+ends and one newline at the end. The rules and conditions keep their order,
+because the order of the rules is the priority. For the smallest rotation:
+
+```text
+{
+  "name": "Builder only",
+  "rules": [
+    {
+      "action": "sinister-strike",
+      "conditions": []
+    }
+  ],
+  "schemaVersion": 1
+}
+```
+
+**Canonical and stable.** The same rotation always gives the same text, however
+its keys were ordered when it was made. Export, import, export gives the same
+text byte for byte, and a rotation read from an exported file runs to the same
+result (totals, log and rng draws) as the original, for every preset.
+`importRotation` accepts any valid JSON layout (other spacing, key order, `\r\n`,
+a byte-order mark at the start), and what it returns exports to the canonical
+text. A key written twice in the file is read as JSON reads it: the last one
+counts.
+
+**What import does with a file it does not trust:**
+
+| Case                                                    | Result                                                                                                                                                       |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Not a string                                            | One error, path `""`.                                                                                                                                        |
+| More than `rotation.maxImportChars` (131072) characters | One error, path `""`, checked before anything is parsed.                                                                                                     |
+| Not JSON, or nested too deeply to parse                 | One error, path `""`, with the parser's message.                                                                                                             |
+| JSON that is not a rotation (`null`, an array, ...)     | The shape error, path `""`.                                                                                                                                  |
+| Another `schemaVersion`                                 | One error, path `schemaVersion`; the rest of the file is not read ([how it is checked](#the-four-decisions)).                                                |
+| An unknown field at any level                           | An error that names the field and lists the allowed ones, path to the field. This includes `__proto__` and `constructor`, so they are refused like any typo. |
+| An invalid rule or condition                            | The validator's errors, each with its path (`rules[2].conditions[0].aura`).                                                                                  |
+
+A message echoes the value that was wrong, so a path or message longer than
+`rotation.maxErrorChars` (1000 characters; the longest ordinary one is about 250) is cut and ends in `…`. A file at the size limit cannot make a 100,000
+character message.
+
+Import never runs the text: it is `JSON.parse` and the validator, with no
+`eval` and no `Function`. A key such as `__proto__` is an own property of the
+parsed value, is refused as an unknown field, and changes no prototype. The
+result of a good import is the parsed value, not merged into anything.
+
+An imported rotation goes into a fight like any other: set it as
+`SimConfig.rotation`. `createFight`, `runFight` and `SimRunner` validate it again
+(`normalizeConfig`), so a rotation that reaches the engine by another way is
+checked too. Nothing in the file or the code knows a step or a frame.
+
 ## Examples
 
 The three below are checked by `test/rotation-schema.test.js` (the shape) and
@@ -739,7 +810,9 @@ skipped while its ability is on cooldown:
 ## Limits
 
 The three limits are `data/constants.js` rows (`rotation.maxRules`,
-`rotation.maxConditionsPerRule`, `rotation.maxNameLength`). The issue gave no
+`rotation.maxConditionsPerRule`, `rotation.maxNameLength`), and a fourth,
+`rotation.maxImportChars` (131072), caps the text `importRotation` reads, and a
+fifth, `rotation.maxErrorChars` (1000), cuts a path or message it returns. The issue gave no
 numbers, so they are the dev's engineering choices, tagged `engineering`, and
 listed in [provenance](provenance.md). They are display and import-size caps,
 not game rules.

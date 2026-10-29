@@ -323,6 +323,12 @@ rejects them under `js/`.
 - `js/rotation-default.js` — `defaultRotation()`: today's placeholder Combat
   rotation, with the Cold Blood rule, as a RotationRule list built from the
   `rotation.*` constants. It is the default of `SimConfig.rotation`.
+- `js/rotation-io.js` — Rotation import and export (R6, #143):
+  `exportRotation(rotation)` is the canonical JSON text (keys sorted, two-space
+  indent, trailing newline) and `importRotation(text)` is `{ ok, rotation, errors }`:
+  size-limited (`rotation.maxImportChars`), parsed as data (no eval), checked by
+  `validateRotation`, every error a path and a message. Pure: no file, clipboard
+  or DOM. See [Rotation as data](docs/rotation.md#import-and-export).
 - `js/ability-data.js` — The abilities the engine casts, as data (D2):
   Sinister Strike, Eviscerate, Premeditation, Adrenaline Rush, Slice and Dice,
   Ghostly Strike, Backstab, Ambush, Blade Flurry, Rupture, and Hemorrhage. Each
@@ -643,6 +649,12 @@ rejects them under `js/`.
   unlocked with and without a build, every bad param rejected with its name,
   `evaluate` pure, and the conditions agree with the code rotation's questions
   on every step of real fights.
+- `test/rotation-io.test.js` — Export is canonical (sorted keys, same text from
+  any key order, the documented example), export, import, export is the same
+  text, and a rotation read back runs the same fight (totals, log, rng draws) for
+  every preset, the default and a custom rotation over several seeds; every
+  refusal (not text, too large, not JSON, wrong version, unknown field,
+  invalid rule) with its path; `__proto__` and `constructor` keys; nothing run.
 - `test/rupture-ap.test.js` — Rupture's AP totals and the length guard.
 - `test/scripted-fight.test.js` — The scripted-cast fight used by the golden
   cases: cast order, waiting, errors (a missing or non-object argument, unknown
