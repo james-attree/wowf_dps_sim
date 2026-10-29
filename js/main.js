@@ -1,17 +1,20 @@
 import { k } from "../data/constants.js";
 import { createFight } from "./fight.js";
 import { FrameClock } from "./frame-clock.js";
+import { createLiveFeed } from "./live-feed.js";
 import { defaultConfig } from "./sim-config.js";
 import { createStore } from "./store.js";
 import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
 import { createVisualiserView } from "./views/visualiser.js";
 
-// The page's bootstrap (#149). It builds the fight, puts it and its config in
-// the store (js/store.js), hands the store to the views (js/views/), and turns
-// animation frames into engine steps (FrameClock). Each view owns its own part
-// of the page and draws from the store; none reaches into another's. This file
-// holds no combat or timing rules and draws nothing itself.
+// The page's bootstrap (#149, #150). It builds the fight, puts its config and
+// what the live feed reads of it (js/live-feed.js: the event stream, and the
+// continuous values at each frame) in the store (js/store.js), hands the store
+// to the views (js/views/), and turns animation frames into engine steps
+// (FrameClock). Each view owns its own part of the page and draws only from
+// the store; none reaches into another's or into the engine. This file holds
+// no combat or timing rules and draws nothing itself.
 // A fresh seed on every page load for now. The header shows it, so a fight
 // can be repeated with runFight({ seed, duration }).
 const fight = createFight(
@@ -19,6 +22,7 @@ const fight = createFight(
   defaultConfig(),
 );
 const { simulation } = fight;
+const feed = createLiveFeed(fight);
 const frameClock = new FrameClock();
 const fixedStep = k("sim.fixedStep");
 let animationFrameId;
@@ -34,7 +38,7 @@ const store = createStore({
   run: { state: "running", seed: fight.seed },
   frame: 0,
   results: resultsOf(),
-  fight: { rogue: fight.rogue, simulation },
+  ...feed.read(),
 });
 
 createControlsView(document, store);
@@ -53,7 +57,11 @@ function update(time) {
     simulation.step(fixedStep);
   }
 
-  store.update(({ frame }) => ({ frame: frame + 1, results: resultsOf() }));
+  store.update(({ frame }) => ({
+    frame: frame + 1,
+    results: resultsOf(),
+    ...feed.read(),
+  }));
 
   animationFrameId = requestAnimationFrame(update);
 }

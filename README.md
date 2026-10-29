@@ -234,10 +234,10 @@ rejects them under `js/`.
   as an ES module.
 - `styles.css` — Dark layout and meters for that page.
 - `js/main.js` — UI entry (#149): the bootstrap and the animation frame. It
-  builds the fight with `createFight`, puts it in the store (`js/store.js`),
-  hands the store to the views in `js/views/`, turns each frame timestamp into
+  builds the fight with `createFight`, puts its config and what the live feed
+  (`js/live-feed.js`) reads of it in the store (`js/store.js`), hands the store to the views in `js/views/`, turns each frame timestamp into
   whole fixed steps with `FrameClock`, calls `Simulation.step`, and moves the
-  store's `frame` and `results` slices. It draws nothing itself, and starts or
+  store's `frame` and `results` slices with a fresh feed reading. It draws nothing itself, and starts or
   stops the frame loop when the store's `run` slice changes. It picks the
   random seed at page load. The DPS readout is high at 00:00 (see
   [Live page](docs/mechanics.md#live-page)). The GCD status reads "On cooldown" while `gcd > 0`. With
@@ -246,15 +246,22 @@ rejects them under `js/`.
   under `js/`.
 - `js/store.js` — The page's store (U1, #149): `createStore(initial)` with
   `get`, `set`, `update`, `batch`, `subscribe` and `onError`, over named
-  slices (`config`, `rotation`, `run`, `frame`, `results`, `fight`). One change
+  slices (`config`, `rotation`, `run`, `frame`, `results`, and the feed's
+  `resources`, `gcd`, `effects`, `log`; #150: no slice holds an engine object). One change
   event per `set` or batch, listing the slices that changed; delivery follows
   `EventStream`. No DOM or clock: engine lint applies.
+- `js/live-feed.js` — The live page's feed (#150): `createLiveFeed({ rogue,
+simulation })` with `read()` and `stop()`. The combat log rows (from `hit`
+  events) and the combo points (from `resource` events) come from the event
+  stream; the energy and the time left on the GCD, each aura and each cooldown
+  are read at the frame, since continuous change is not an event
+  (docs/events.md). `read()` returns frozen plain slices. Engine lint applies.
 - `js/views/` — The page's views (#149). Each is a factory `(document,
 store)` that owns its own elements, draws from the store when its slices
   change, and returns its unsubscribe: `controls.js` (seed, Live/Paused
   status, the Pause button, which toggles `run.state`), `visualiser.js` (combo
   points, energy, the GCD meter, effects, cooldowns, the combat log; redraws on
-  `frame`), and `results.js` (time, damage, DPS; redraws on `results`).
+  `frame`, from the feed's slices only), and `results.js` (time, damage, DPS; redraws on `results`).
 - `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
   milliseconds into a whole number of `sim.fixedStep` steps. It carries the
   remainder between frames and caps one frame at `sim.maxFrameTime`, which is
@@ -567,7 +574,9 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `eslint.config.js` — Flat config. Engine modules (`js/**/*.js` except
   `js/main.js`, `js/views/`, and the worker hosts) must not touch `document` or `window`, must not read a clock
   (`performance`, `Date`), must not use `Math.random`, must not log, and must
-  not contain game-number literals.
+  not contain game-number literals. View modules (`js/views/`) may import only
+  other views, `js/gcd-meter.js`, `js/icons.js` and `data/constants.js`
+  (`no-restricted-imports`, #150).
 - `eslint/engine-purity.js` — Rule `engine-purity/no-numeric-literal`. A
   numeric variable initializer in an engine module fails lint, except `0`,
   `1`, and `-1`. Rule `engine-purity/no-display-name` fails a spell, aura or
@@ -714,7 +723,13 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `test/views.test.js` — The page views (#149) on a recording stand-in
   document: no two views query the same element, controls toggle `run.state`
   through the store, results formatting, the visualiser redraws only on
-  `frame`, and each view's unsubscribe.
+  `frame`, and each view's unsubscribe; the visualiser drawing hand-made plain
+  slices with no fight behind them (#150).
+- `test/live-feed.test.js` — The live feed (#150): its reading equals the
+  engine's state at every frame of sword and dagger fights over uneven frames,
+  it is plain frozen data, a reading does not change after later steps, its
+  log equals `runFight`'s, it subscribes to `hit` and `resource` only, `stop()`,
+  and it leaves the fight unchanged.
 - `test/sim-runner.test.js` — `SimRunner`: the transition table, invalid
   actions, state subscriptions, a run to the end equal to `runFight`, pause and
   resume, Stop then Run and the rng draws, the driver, options, and the public
