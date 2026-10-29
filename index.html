@@ -100,12 +100,7 @@
             <button id="run-button" class="run-button" type="button">
               Run
             </button>
-            <button
-              id="pause-button"
-              class="pause-button"
-              type="button"
-              aria-pressed="false"
-            >
+            <button id="pause-button" class="pause-button" type="button">
               <span id="pause-icon" aria-hidden="true">Ⅱ</span>
               <span id="pause-label">Pause</span>
             </button>
@@ -701,11 +696,13 @@
         <div class="stats-grid">
           <div class="stat-card">
             <span class="stat-label">Total damage</span>
-            <output id="damage-value" class="stat-value">0</output>
+            <output id="damage-value" aria-live="off" class="stat-value"
+              >0</output
+            >
           </div>
           <div class="stat-card">
             <span class="stat-label">Damage per second</span>
-            <output id="dps-value" class="stat-value">0</output>
+            <output id="dps-value" aria-live="off" class="stat-value">0</output>
             <span class="stat-unit">DPS</span>
           </div>
         </div>
@@ -742,7 +739,9 @@
           <div>
             <p class="eyebrow">COMBAT</p>
           </div>
-          <output id="time-value" class="elapsed-time">00:00</output>
+          <output id="time-value" aria-live="off" class="elapsed-time"
+            >00:00</output
+          >
         </div>
 
         <div class="resource-grid">
@@ -752,7 +751,7 @@
           >
             <div class="resource-label">
               <h3 id="combo-heading">Combo points</h3>
-              <output id="combo-value"
+              <output id="combo-value" aria-live="off"
                 >0 <span class="value-divider">/</span> 5</output
               >
             </div>
@@ -764,6 +763,7 @@
               aria-valuemin="0"
               aria-valuemax="5"
               aria-valuenow="0"
+              aria-valuetext="0 of 5"
             >
               <span class="combo-point"></span>
               <span class="combo-point"></span>
@@ -782,7 +782,7 @@
               <h3 id="energy-heading">Energy</h3>
               <div class="energy-readout">
                 <span id="energy-cap" class="cap-tag" hidden>AT CAP</span>
-                <output id="energy-value"
+                <output id="energy-value" aria-live="off"
                   >0 <span class="value-divider">/</span> 100</output
                 >
               </div>
@@ -795,6 +795,7 @@
               aria-valuemin="0"
               aria-valuemax="100"
               aria-valuenow="0"
+              aria-valuetext="0 of 100"
             >
               <div id="energy-fill" class="energy-fill"></div>
             </div>
@@ -809,10 +810,10 @@
             <div class="resource-label">
               <h3 id="gcd-heading">GCD</h3>
               <div class="gcd-readout">
-                <span id="gcd-status" class="gcd-status" aria-live="polite"
+                <span id="gcd-status" class="gcd-status" aria-live="off"
                   >Ready</span
                 >
-                <output id="gcd-value">0.0s</output>
+                <output id="gcd-value" aria-live="off">0.0s</output>
               </div>
             </div>
             <div
@@ -821,7 +822,9 @@
               role="meter"
               aria-label="Global cooldown remaining"
               aria-valuemin="0"
+              aria-valuemax="1"
               aria-valuenow="0"
+              aria-valuetext="Ready"
             >
               <div id="gcd-fill" class="gcd-fill"></div>
             </div>
@@ -896,6 +899,7 @@
           role="region"
           aria-label="Combat log events"
           aria-keyshortcuts="ArrowLeft ArrowRight"
+          aria-describedby="log-hint"
           tabindex="0"
         >
           <ol id="combat-log" class="combat-log" aria-live="off">
@@ -904,7 +908,11 @@
             </li>
           </ol>
         </div>
-        <p id="log-readout" class="log-readout" aria-live="polite"></p>
+        <p class="log-readout">
+          <span id="log-hint"></span
+          ><span id="log-step" aria-hidden="true"></span>
+        </p>
+        <p id="log-readout" class="visually-hidden" aria-live="polite"></p>
         <div
           id="live-announcer"
           class="visually-hidden"

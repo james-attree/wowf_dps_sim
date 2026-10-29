@@ -407,8 +407,12 @@ describe("js/main.js on a stand-in page", () => {
     element("#pause-button").click();
     assert.equal(cancelled, cancelledBefore + 1);
     assert.equal(pendingFrame, null);
-    assert.equal(element("#pause-button").getAttribute("aria-pressed"), "true");
+    assert.equal(element("#pause-button").getAttribute("aria-pressed"), null);
     assert.equal(element("#pause-label").textContent, "Resume");
+    assert.match(
+      element("#run-announce").textContent,
+      /^Paused at (9|10) seconds\. Total damage [\d,]+\. [\d,]+ DPS\. Energy \d+ of \d+\. Combo points \d of 5\.$/,
+    );
     assert.match(
       element("#run-status-text").textContent,
       /^Paused at 00:(09|10)$/,
@@ -423,11 +427,9 @@ describe("js/main.js on a stand-in page", () => {
 
   it("Resume after a long pause takes no catch-up step", () => {
     element("#pause-button").click();
-    assert.equal(
-      element("#pause-button").getAttribute("aria-pressed"),
-      "false",
-    );
+    assert.equal(element("#pause-button").getAttribute("aria-pressed"), null);
     assert.equal(element("#pause-label").textContent, "Pause");
+    assert.equal(element("#run-announce").textContent, "", "Resume: silent");
     assert.match(element("#run-status-text").textContent, /^Running · /);
     assert.ok(pendingFrame, "resume asks for a frame");
     // An hour later by the browser's clock.
@@ -481,7 +483,11 @@ describe("js/main.js on a stand-in page", () => {
       element("#run-status-text").textContent,
       `Finished · 300 s · ${dps} DPS`,
     );
-    assert.equal(element("#run-announce").textContent, `Finished, ${dps} DPS`);
+    const total = Math.floor(live.damageDone).toLocaleString("en-US");
+    assert.equal(
+      element("#run-announce").textContent,
+      `Finished at 5 minutes. Total damage ${total}. ${Number(dps).toLocaleString("en-US", { minimumFractionDigits: 1 })} DPS.`,
+    );
     assert.equal(element("#pause-button").disabled, true);
     assert.equal(element("#run-button").textContent, "Run again");
     assert.equal(element("#time-value").textContent, "05:00");
@@ -520,7 +526,10 @@ describe("js/main.js on a stand-in page", () => {
         `^Stopped at 00:0[12] · fight discarded · Run replays seed ${SEED} from 0:00$`,
       ),
     );
-    assert.equal(element("#run-announce").textContent, "Stopped");
+    assert.match(
+      element("#run-announce").textContent,
+      /^Stopped at [12] seconds?\. Fight discarded\.$/,
+    );
     assert.equal(element("#reset-button").disabled, false);
     element("#run-button").click();
     const again = stepsSeen.length;

@@ -1,3 +1,5 @@
+import { formatNumber } from "../charts.js";
+
 // The fight totals (#149): elapsed time, damage and DPS. This view owns those
 // three elements and the tiles' section. In live mode it draws them from the
 // results slice ({ time, damage }, in fight seconds and damage done) each time
@@ -8,15 +10,20 @@
 // place a batch's numbers show, with its own formatting. #154 had them show
 // the batch's mean fight, rounded differently from the panel and with the
 // timer at 00:00, which read as two answers.
+//
+// The damage tile has commas (#45, Scout): "25,180", as #run-announce says it.
 export function createResultsView(doc, store) {
   const panel = doc.querySelector("#damage-panel");
   const timeValue = doc.querySelector("#time-value");
   const damageValue = doc.querySelector("#damage-value");
   const dpsValue = doc.querySelector("#dps-value");
 
+  // Only on a change (#45): the tiles are aria-live="off", and a write that
+  // says the same thing is a DOM change for nothing.
   function write(output, value) {
-    output.value = value;
-    output.textContent = value;
+    if (output.textContent !== value) {
+      output.textContent = value;
+    }
   }
 
   function render({ time, damage }) {
@@ -27,7 +34,7 @@ export function createResultsView(doc, store) {
       timeValue,
       `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
     );
-    write(damageValue, String(Math.floor(damage)));
+    write(damageValue, formatNumber(Math.floor(damage), 0));
     write(dpsValue, (time > 0 ? damage / time : 0).toFixed(0));
   }
 
