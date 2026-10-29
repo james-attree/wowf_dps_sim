@@ -367,8 +367,10 @@ for (const width of WIDTHS) {
 
 // #200 (Kira's #206 QA, c1): the rotation warnings lists below 520px, the
 // imported file's "What to check" and the builder's warnings banner, are not
-// clipped and the page does not scroll sideways.
-for (const width of [390, 360]) {
+// clipped and the page does not scroll sideways. Fran's #224 QA (N1): nor
+// cut off at the bottom. A box that still scrolls (the "What to check" text
+// at its 160px cap on wide screens) must be a focusable, labelled region.
+for (const width of [1280, 390, 360]) {
   test(`the rotation warnings lists fit at ${width}px (#200)`, async () => {
     const { context, page, errors } = await openBuilder(width);
     try {
@@ -393,6 +395,18 @@ for (const width of [390, 360]) {
                 (el) =>
                   getComputedStyle(el).overflowX !== "visible" &&
                   el.scrollWidth > el.clientWidth + 1,
+              )
+              .map((el) => el.outerHTML.slice(0, 80)),
+            cutOff: parts
+              .filter(
+                (el) =>
+                  getComputedStyle(el).overflowY !== "visible" &&
+                  el.scrollHeight > el.clientHeight + 1 &&
+                  !(
+                    el.tabIndex === 0 &&
+                    el.getAttribute("role") === "region" &&
+                    el.hasAttribute("aria-label")
+                  ),
               )
               .map((el) => el.outerHTML.slice(0, 80)),
             wide:
@@ -429,6 +443,26 @@ for (const width of [390, 360]) {
       assert.ok(imported.count > 1);
       assert.deepEqual(imported.outside, [], "import warnings on the page");
       assert.deepEqual(imported.clipped, [], "import warnings not clipped");
+      assert.deepEqual(imported.cutOff, [], "import warnings not cut off");
+      // The text is a focusable region named "What to check" (N1), and below
+      // 520px it has no height cap, so all of it shows.
+      const box = await page.evaluate(() => {
+        const pre = document.querySelector("#cfg-import-warnings-text");
+        return {
+          tabIndex: pre.tabIndex,
+          role: pre.getAttribute("role"),
+          label: pre.getAttribute("aria-label"),
+          maxHeight: getComputedStyle(pre).maxHeight,
+          scrolls: pre.scrollHeight > pre.clientHeight + 1,
+        };
+      });
+      assert.equal(box.tabIndex, 0);
+      assert.equal(box.role, "region");
+      assert.equal(box.label, "What to check");
+      if (width < 520) {
+        assert.equal(box.maxHeight, "none");
+        assert.equal(box.scrolls, false, "all of the text shows");
+      }
       assert.equal(imported.wide, false, "no sideways scroll (import)");
       if (process.env.U9_SHOTS) {
         await page.locator(".import-box").screenshot({
@@ -444,6 +478,7 @@ for (const width of [390, 360]) {
       assert.ok(banner.count > 1);
       assert.deepEqual(banner.outside, [], "builder warnings on the page");
       assert.deepEqual(banner.clipped, [], "builder warnings not clipped");
+      assert.deepEqual(banner.cutOff, [], "builder warnings not cut off");
       assert.equal(banner.wide, false, "no sideways scroll (builder)");
       if (process.env.U9_SHOTS) {
         await page.locator("#rb-warnings").screenshot({

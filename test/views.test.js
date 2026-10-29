@@ -764,7 +764,7 @@ describe("page views", () => {
     store.set({ run: { state: "paused", seed: SEED } });
     assert.equal(
       doc.el("#log-hint").textContent,
-      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end. Newest events are at the top.",
+      "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
     );
     assert.equal(doc.el("#log-readout").textContent, "");
     assert.equal(doc.el("#log-step").textContent, "");
@@ -773,7 +773,7 @@ describe("page views", () => {
     // U9 polish: the hint stays the log's description, out of sight.
     assert.equal(
       doc.el("#log-hint").textContent,
-      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end. Newest events are at the top.",
+      "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
     );
     assert.equal(doc.el("#log-hint").classes.has("visually-hidden"), true);
     // U9 polish: the shown damage has commas, as the spoken one does.
@@ -935,7 +935,7 @@ describe("page views", () => {
   it("U9 log polish: Home and End in the hint and the key shortcuts (#221)", async () => {
     assert.equal(
       LOG_HINT,
-      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end. Newest events are at the top.",
+      "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
     );
     const html = await readFile(
       new URL("../index.html", import.meta.url),
