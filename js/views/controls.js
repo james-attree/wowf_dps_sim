@@ -6,6 +6,7 @@ import {
   fieldErrors,
   focusTarget,
   formErrorCount,
+  talentErrorCount,
   isLocked,
   parseRunField,
   summaryText,
@@ -122,7 +123,10 @@ export function createControlsView(doc, store, actions = {}) {
     // The narrow row shows Pause while a fight or batch runs, Run otherwise.
     bar.setAttribute("data-slot", locked ? "pause" : "run");
     write(summary, summaryText(run));
-    const fix = errorsText(run, formErrorCount(state.form));
+    const fix = errorsText(
+      run,
+      formErrorCount(state.form) + talentErrorCount(state),
+    );
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
     row.classList.toggle("has-errors", fix !== null);
@@ -224,7 +228,18 @@ export function createControlsView(doc, store, actions = {}) {
     event?.preventDefault?.();
     const [first] = fieldErrors(store.get().run);
     if (first === undefined) {
-      doc.querySelector('#config-form [aria-invalid="true"]')?.focus?.();
+      const field = doc.querySelector('#config-form [aria-invalid="true"]');
+      if (field !== null) {
+        field.focus?.();
+        return;
+      }
+      // Else the talent tree's over-cap build (#204, Fran's QA of #208):
+      // open the tree and focus its Level input.
+      const edit = doc.querySelector("#talents-edit");
+      if (edit?.getAttribute?.("aria-expanded") === "false") {
+        edit.click?.();
+      }
+      doc.querySelector("#talents-level")?.focus?.();
       return;
     }
     open = true;
@@ -264,7 +279,11 @@ export function createControlsView(doc, store, actions = {}) {
   narrow?.addEventListener?.("change", place);
   render(store.get());
   return store.subscribe(({ state, changed }) => {
-    if (["run", "batch", "results", "form"].some((s) => changed.includes(s))) {
+    if (
+      ["run", "batch", "results", "form", "talents"].some((s) =>
+        changed.includes(s),
+      )
+    ) {
       render(state);
     }
   });

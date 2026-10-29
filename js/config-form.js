@@ -1,12 +1,10 @@
 import { k } from "../data/constants.js";
-import { referenceBuild } from "../data/reference-build.js";
 import { defaultRotation } from "./rotation-default.js";
 import { exportRotation, importRotation } from "./rotation-io.js";
 import { poisonCatalogue } from "./poisons.js";
 import { listPresets, presetRotation } from "./rotation-presets.js";
 import { summarizeRule } from "./rotation-summary.js";
 import { defaultConfig, normalizeConfig } from "./sim-config.js";
-import { talentCatalogue } from "./talents.js";
 
 // The stats form's model (Phase 3, #151, roadmap task U2): everything the
 // "Fight setup" form does except drawing it. No DOM, no clock, so it runs and
@@ -30,14 +28,13 @@ import { talentCatalogue } from "./talents.js";
 //                   now. A message of null marks a field invalid with its
 //                   message on another field (the Min of a Min/Max pair).
 //                   FORM_ERROR is the normalizeConfig backstop's message.
-//   talentsChoice   "none" or "reference".
 //   rotationChoice  "default", a preset id, or "imported".
 //   imported        { name, rotation } of the last imported rotation, or null.
 //   importStatus    null, or { ok, message, detail, warnings } from the last
 //                   import. `detail` is the errors of a refused file and
 //                   `warnings` the warnings of an accepted one (issue #189),
 //                   one per line; each is "" when there are none.
-//   talentOptions, rotationOptions   [{ id, label }] for the two selects.
+//   rotationOptions [{ id, label }] for the rotation select.
 //   summary         { name, rules: [text] } of the selected rotation.
 //   poisonOptions   { simulated, notSimulated: [{ id, label }] } for the two
 //                   poison selects (#152); id is the config id ("instant").
@@ -232,36 +229,6 @@ export function validateValues(values) {
   return errors;
 }
 
-// The reference build's points in each tree, e.g. "18/33/0".
-function treePoints(ranks, catalogue = talentCatalogue) {
-  return catalogue.trees
-    .map(({ id }) =>
-      Object.entries(ranks)
-        .filter(([talent]) => catalogue.get(talent).tree === id)
-        .reduce((sum, [, rank]) => sum + rank, 0),
-    )
-    .join("/");
-}
-
-const TALENT_CHOICES = {
-  none: () => ({}),
-  reference: () => normalizeConfig({ talents: referenceBuild() }).talents,
-};
-
-export function talentOptions() {
-  return [
-    { id: "none", label: "No talents" },
-    {
-      id: "reference",
-      label: `Reference Combat (${treePoints(TALENT_CHOICES.reference())})`,
-    },
-  ];
-}
-
-function talentsChoiceOf(talents) {
-  return sameJson(talents, TALENT_CHOICES.reference()) ? "reference" : "none";
-}
-
 // The default first (under the name defaultRotation() gives it; #153 renames
 // it), then the presets, then the imported rotation when there is one.
 export function rotationOptions(imported) {
@@ -313,11 +280,9 @@ export function formFromConfig(config, revision = 0) {
   return {
     values: formValues(config),
     errors: {},
-    talentsChoice: talentsChoiceOf(config.talents),
     rotationChoice,
     imported,
     importStatus: null,
-    talentOptions: talentOptions(),
     rotationOptions: rotationOptions(imported),
     summary: summaryOf(config.rotation),
     poisonOptions: poisonOptions(),
@@ -328,7 +293,9 @@ export function formFromConfig(config, revision = 0) {
 }
 
 // The config the form describes, on top of `base` (which keeps the sections
-// the form does not edit: the target). normalizeConfig checks it: the
+// the form does not edit: the target, and the build, config.talents and
+// config.talentLevel, which the talent tree owns (#204); the form used to
+// rebuild the talents from a select and wiped any other build). normalizeConfig checks it: the
 // backstop behind the field checks, so a config it refuses never reaches the
 // store. Throws what normalizeConfig throws.
 export function configFromForm(form, base) {
@@ -336,15 +303,18 @@ export function configFromForm(form, base) {
   for (const path of FIELD_PATHS) {
     write(config, path, form.values[path]);
   }
-  config.talents = TALENT_CHOICES[form.talentsChoice]();
   config.rotation = rotationOf(form.rotationChoice, form.imported);
   return normalizeConfig(config);
 }
 
 // What #153's Run starts: a snapshot of the store's config, or null while the
-// form has errors (Run is disabled then).
+// form has errors or the talent tree's build is over its level's cap (#204,
+// state.talents.error; Run is disabled then).
 export function nextRunConfig(state) {
   if (Object.keys(state.form?.errors ?? {}).length > 0) {
+    return null;
+  }
+  if (typeof state.talents?.error === "string") {
     return null;
   }
   return normalizeConfig(state.config);
@@ -457,13 +427,6 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       const value = controlValue(path, raw);
       const values = { ...form().values, [path]: value };
       commit({ ...form(), values, errors: validateValues(values) });
-    },
-    chooseTalents(choice) {
-      forget();
-      if (!(choice in TALENT_CHOICES)) {
-        throw new RangeError(`No talent choice ${JSON.stringify(choice)}.`);
-      }
-      commit({ ...form(), talentsChoice: choice });
     },
     chooseRotation(choice) {
       forget();

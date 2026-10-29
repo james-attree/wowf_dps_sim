@@ -1,0 +1,726 @@
+/* U6, the talent tree picker (#204). Fran's mockup CSS
+   (design/u6-talent-tree/mockup.css) without the mockup chrome. It uses the
+   :root variables from styles.css. New colours: partial green, refused amber
+   and error red (styles.css's #f19389), with the ratios in Fran's spec.
+   The narrow media query is js/views/breakpoints.js's NARROW_QUERY
+   (test/breakpoints.test.js pins it). */
+
+/* ---- The panel under the stats form -------------------------------------- */
+.talents-panel {
+  margin-bottom: 14px;
+}
+.talents-panel[hidden] {
+  display: none;
+}
+/* ---- Summary row (replaces the Talents select in Fight setup) ------------ */
+.talents-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.talents-summary-label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+.talents-summary-value {
+  display: block;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.talents-panel .section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.talents-panel h2 {
+  font-size: 1.05rem;
+}
+.talents-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---- Level and points ----------------------------------------------------- */
+.talents-bar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  align-items: end;
+}
+.talents-level label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+.talents-level input {
+  width: 5.5rem;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid #54452b;
+  border-radius: 8px;
+  background: #100f0c;
+  color: #f3eee2;
+  font: inherit;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.talents-level input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.talents-points {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+.talents-points strong {
+  font-size: 1.5rem;
+}
+.talents-points-left {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: #e7ddc9;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.talents-points.is-over .talents-points-left {
+  border-color: #f19389;
+  color: #f19389;
+}
+.talents-points.is-over .talents-points-left::before {
+  content: "⚠ ";
+}
+.talents-help {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.talents-bar .field-error {
+  grid-column: 1 / -1;
+}
+
+/* ---- Messages -------------------------------------------------------------- */
+.talents-message {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+.talents-message:empty {
+  display: none;
+}
+.talents-banner {
+  padding: 8px 12px;
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.talents-banner.is-error {
+  border-color: #f19389;
+  background: #2a1512;
+  color: #f6d6d1;
+}
+.talents-banner.is-refused {
+  border-color: #e2a74f;
+  background: #261c0e;
+  color: #f3e3c4;
+}
+.talents-banner.is-info {
+  border-color: var(--border);
+  background: #1b1811;
+}
+.talents-note {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- Trees ----------------------------------------------------------------- */
+.talent-trees {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.talent-tree {
+  min-width: 0;
+  padding: 10px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #13110d;
+}
+.talent-tree-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+}
+.talent-tree-head img {
+  border-radius: 6px;
+}
+.talent-tree-points {
+  margin-left: auto;
+  color: #e7ddc9;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.talent-grid {
+  display: grid;
+  grid-template-columns: 14px repeat(4, 44px);
+  grid-template-rows: repeat(7, 44px);
+  gap: 10px 8px;
+  justify-content: center;
+}
+.talent-gutter {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.talent-gutter.is-met {
+  color: #e7ddc9;
+}
+.talent {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 2px solid #54452b;
+  border-radius: 8px;
+  background: #0b0a08;
+  cursor: pointer;
+}
+.talent img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+}
+.talent-rank {
+  position: absolute;
+  right: -6px;
+  bottom: -7px;
+  min-width: 24px;
+  padding: 0 3px;
+  border: 1px solid #54452b;
+  border-radius: 6px;
+  background: #100f0c;
+  color: #e7ddc9;
+  font-size: 0.66rem;
+  font-weight: 750;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.talent-lock {
+  position: absolute;
+  left: -5px;
+  top: -6px;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 1px solid #54452b;
+  border-radius: 50%;
+  background: #100f0c;
+  color: #e7ddc9;
+}
+.talent-cov {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px dashed #a99d86;
+  border-radius: 50%;
+  background: #100f0c;
+  color: #e7ddc9;
+  font-size: 0.66rem;
+  font-weight: 750;
+  line-height: 1;
+}
+.talent-active {
+  position: absolute;
+  left: -4px;
+  bottom: -4px;
+  width: 9px;
+  height: 9px;
+  border: 1px solid #100f0c;
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+.talent.is-open:hover,
+.talent.is-partial:hover {
+  border-color: #e7ddc9;
+}
+.talent.is-partial {
+  border-color: #7fc77f;
+}
+.talent.is-partial .talent-rank {
+  border-color: #7fc77f;
+  color: #a6e39a;
+}
+.talent.is-maxed {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px #e7bd5533,
+    0 0 10px #e7bd5540;
+}
+.talent.is-maxed .talent-rank {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.talent.is-locked img {
+  filter: grayscale(1) brightness(0.55);
+}
+.talent.is-nopoints img {
+  filter: grayscale(0.8) brightness(0.7);
+}
+.talent.is-locked,
+.talent.is-nopoints {
+  border-color: #3a3224;
+  cursor: default;
+}
+.talent.cov-notSimulated {
+  border-style: dashed;
+}
+.talent.is-selected {
+  outline: 2px solid #f3eee2;
+  outline-offset: 3px;
+}
+.talent:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.talent-arrow {
+  position: relative;
+  z-index: 0;
+  justify-self: center;
+  width: 0;
+  border-left: 3px dashed #54452b;
+}
+.talent-arrow.is-lit {
+  border-left: 3px solid var(--accent);
+}
+.talent-arrow::after {
+  content: "";
+  position: absolute;
+  left: -7px;
+  bottom: 44px;
+  border: 5.5px solid transparent;
+  border-top: 7px solid #54452b;
+}
+.talent-arrow.is-lit::after {
+  border-top-color: var(--accent);
+}
+
+/* ---- Legend ----------------------------------------------------------------- */
+.talents-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+.talents-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lg {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 16px;
+  border: 1px solid #54452b;
+  border-radius: 6px;
+  background: #100f0c;
+  color: #e7ddc9;
+  font-size: 0.64rem;
+  font-weight: 750;
+}
+.lg-cov {
+  border-style: dashed;
+  border-color: #a99d86;
+  border-radius: 50%;
+  min-width: 16px;
+}
+.lg-lock {
+  border-radius: 50%;
+  min-width: 17px;
+  height: 17px;
+}
+.lg-active {
+  min-width: 9px;
+  width: 9px;
+  height: 9px;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+
+/* ---- Detail pane ------------------------------------------------------------ */
+.talent-detail {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.talent-detail-empty {
+  color: var(--text-muted);
+}
+.talent-detail-head {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.talent-detail-head img {
+  border-radius: 6px;
+}
+.talent-detail h3 {
+  font-size: 0.95rem;
+}
+.talent-detail-sub {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.talent-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.talent-stepper-rank {
+  min-width: 2.6em;
+  text-align: center;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.step-button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #54452b;
+  border-radius: 10px;
+  background: #211c14;
+  color: #f3eee2;
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.step-button:hover {
+  border-color: var(--accent);
+}
+.step-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.step-button[aria-disabled="true"] {
+  border-style: dashed;
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.talent-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tag {
+  padding: 1px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+.tag-simulated {
+  border-color: #6f9a55;
+  color: #b9d99a;
+}
+.tag-simulated::before {
+  content: "✓ ";
+}
+.tag-noDps {
+  border-color: #54452b;
+  color: #e7ddc9;
+}
+.tag-noDps::before {
+  content: "– ";
+}
+.tag-notSimulated {
+  border-style: dashed;
+  border-color: #e2a74f;
+  color: #f0c46a;
+}
+.tag-notSimulated::before {
+  content: "? ";
+}
+.tag-classic {
+  border-color: #54452b;
+  color: var(--text-muted);
+}
+.talent-why {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+.talent-why.is-block {
+  color: #f0c46a;
+}
+.talent-ranks {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+}
+.talent-ranks dt {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.talent-ranks dd {
+  margin: 0;
+}
+.talent-reqs {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.talent-reqs li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.effects-abilities li {
+  padding-left: 1.3em;
+  text-indent: -1.3em;
+}
+.effects-abilities li + li {
+  margin-top: 3px;
+}
+.effects-abilities .req-mark {
+  display: inline-block;
+  width: 1.3em;
+  text-indent: 0;
+}
+.req-mark {
+  width: 1em;
+  flex: none;
+  font-weight: 750;
+}
+.is-ok > .req-mark {
+  color: #a6e39a;
+}
+.is-no > .req-mark {
+  color: #f19389;
+}
+.is-info > .req-mark {
+  color: var(--text-muted);
+}
+.talent-ability {
+  margin-top: 8px;
+}
+.talent-classic {
+  margin-top: 8px;
+  color: var(--text-muted);
+}
+.talent-classic summary {
+  cursor: pointer;
+}
+.talent-classic summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- Effects on the rest of the page ---------------------------------------- */
+.talents-effects {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.effects-block {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #13110d;
+}
+.effects-block h3 {
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+}
+.effects-block p + p {
+  margin-top: 4px;
+}
+.effects-sheet,
+.effects-sub {
+  color: var(--text-muted);
+}
+.effects-abilities {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- Narrow (matches js/views/breakpoints.js, 520 px) ----------------------- */
+.talents-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.talents-tabs[hidden] {
+  display: none;
+}
+.talents-tab {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.talents-tab img {
+  border-radius: 4px;
+}
+.talents-tab span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.talents-tab-points {
+  padding: 0 5px;
+  border: 1px solid #54452b;
+  border-radius: 999px;
+  color: #e7ddc9;
+  font-variant-numeric: tabular-nums;
+}
+.talents-tab[aria-selected="true"] {
+  border-color: var(--border);
+  background: #13110d;
+  color: #f3eee2;
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+.talents-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+@media (max-width: 519.98px) {
+  .talent-trees {
+    grid-template-columns: 1fr;
+    margin-top: 0;
+  }
+  .talent-tree {
+    border-top: 0;
+    border-radius: 0 0 12px 12px;
+  }
+  .talent-grid {
+    grid-template-columns: 14px repeat(4, 48px);
+    grid-template-rows: repeat(7, 48px);
+    gap: 12px 14px;
+  }
+  .talent {
+    width: 48px;
+    height: 48px;
+  }
+  .talent img {
+    width: 44px;
+    height: 44px;
+  }
+  .talent-arrow::after {
+    bottom: 48px;
+  }
+  .talents-bar {
+    grid-template-columns: 1fr;
+  }
+  .talents-effects {
+    grid-template-columns: 1fr;
+  }
+  .talents-actions .pill-button {
+    min-height: 44px;
+  }
+  .talent-detail-head {
+    grid-template-columns: 40px 1fr;
+  }
+  .talent-stepper {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .talent {
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+}
+.talents-tab {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.talents-tab img {
+  display: none;
+}
+.talents-tab span:nth-child(2) {
+  min-width: 0;
+}
+
+/* Not simulated yet: the poison note's amber on dark amber (styles.css .poison-note, #152). */
+.talent-cov.is-notsim,
+.lg-cov.is-notsim {
+  border: 1px solid #54452b;
+  background: #2a2112;
+  color: #f0c46a;
+}
+.effects-block .poison-note,
+.talent-detail .poison-note {
+  margin-top: 8px;
+}

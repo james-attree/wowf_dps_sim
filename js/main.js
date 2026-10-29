@@ -5,10 +5,12 @@ import { createConfigForm, pageDefaultConfig } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
 import { createRunActions, emptyBatch } from "./run-actions.js";
 import { createStore } from "./store.js";
+import { createTalentTree } from "./talent-tree.js";
 import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
 import { createResultsPanelView } from "./views/results-panel.js";
+import { createTalentTreeView } from "./views/talent-tree.js";
 import { createVisualiserView } from "./views/visualiser.js";
 
 // The page's bootstrap (#149, #150, #153). It puts the config in the page's
@@ -87,6 +89,7 @@ store.subscribe(({ state }) => {
 });
 
 createConfigFormView(document, store, createConfigForm(store));
+createTalentTreeView(document, store, createTalentTree(store));
 createControlsView(document, store, actions);
 createVisualiserView(document, store);
 createResultsView(document, store);

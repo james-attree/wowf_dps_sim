@@ -200,7 +200,7 @@ describe("the results panel states (#154)", () => {
     assert.equal(running.busy, true);
     assert.equal(
       running.meta,
-      "24 × 60 s fights · seed 154 · Combat 18/33/0 · Default (Combat) · Instant MH, Deadly OH",
+      "24 × 60 s fights · seed 154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
     );
     const html = markup(running.body);
     assert.match(text(running.body), /0 of 24 fights/);
@@ -251,7 +251,7 @@ describe("the results panel states (#154)", () => {
     assert.equal(shown.busy, false);
     assert.equal(
       shown.meta,
-      "24 × 60 s fights · seed 154 · Combat 18/33/0 · Default (Combat) · Instant MH, Deadly OH",
+      "24 × 60 s fights · seed 154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
     );
     const html = markup(shown.body);
     const buttons = html.match(/<button[^>]*>/g) ?? [];

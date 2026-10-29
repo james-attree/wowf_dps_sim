@@ -121,7 +121,6 @@ export function poisonNoteText({ noDpsReason }) {
 export function createConfigFormView(doc, store, actions) {
   const $ = (id) => doc.querySelector(`#${id}`);
   const form = $("config-form");
-  const talents = $("cfg-talents");
   const rotation = $("cfg-rotation");
   const summaryDetails = $("cfg-summary");
   const summaryName = $("cfg-summary-name");
@@ -413,9 +412,6 @@ export function createConfigFormView(doc, store, actions) {
     if (previous === null || state.poisons !== previous.poisons) {
       drawPoisons(state.poisons);
     }
-    if (previous === null || state.talentsChoice !== previous.talentsChoice) {
-      options(talents, state.talentOptions, state.talentsChoice);
-    }
     if (
       previous === null ||
       state.rotationOptions !== previous.rotationOptions ||
@@ -465,9 +461,6 @@ export function createConfigFormView(doc, store, actions) {
     }
   });
 
-  talents.addEventListener("change", () =>
-    actions.chooseTalents(talents.value),
-  );
   rotation.addEventListener("change", () =>
     actions.chooseRotation(rotation.value),
   );

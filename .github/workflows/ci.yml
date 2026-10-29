@@ -31,6 +31,13 @@ jobs:
       - name: Test
         run: npm test
 
+      # The talent tree in real Chrome (#204, Fran's QA of #208): one click
+      # on an unfocused tile adds a point, Shift-click removes one, and the
+      # over-cap "Fix 1 setting" link opens the tree at Level. playwright-core
+      # drives the runner's installed Google Chrome; no browser download.
+      - name: Browser tests
+        run: npm run test:browser
+
       # Provenance (#7, #22) rewrites docs/provenance.md and fails on a
       # missing ref, a bare dash, a placeholder ref, or an unknown source
       # tag.

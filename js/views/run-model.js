@@ -124,17 +124,27 @@ export function formErrorCount(form) {
     .length;
 }
 
+// The talent tree's build over its level's cap (#204): one setting to fix.
+export const talentErrorCount = (state) =>
+  typeof state.talents?.error === "string" ? 1 : 0;
+
 // Everything that blocks Run (#155, Fran's QA 1): the run fields with an
-// error in this mode and the stats form's errors.
+// error in this mode, the stats form's errors and the talent tree's (#204).
 export function blockedCount(state) {
-  return fieldErrors(state.run).length + formErrorCount(state.form);
+  return (
+    fieldErrors(state.run).length +
+    formErrorCount(state.form) +
+    talentErrorCount(state)
+  );
 }
 
-// Run is blocked by an invalid run field or an invalid stats form field (#151).
+// Run is blocked by an invalid run field, an invalid stats form field (#151)
+// or a talent build over its cap (#204).
 function blocked(state) {
   return (
     fieldErrors(state.run).length > 0 ||
-    Object.keys(state.form?.errors ?? {}).length > 0
+    Object.keys(state.form?.errors ?? {}).length > 0 ||
+    talentErrorCount(state) > 0
   );
 }
 
@@ -144,9 +154,19 @@ const fightCount = (count) => `${grouped(count)} ${fightsWord(count)}`;
 
 const settings = (count) => `${count} ${count === 1 ? "setting" : "settings"}`;
 
-// The status while Run is blocked (#155): never "Ready" then.
-export function blockedText(count) {
-  return `Can't run · ${settings(count)} to fix`;
+// The status while Run is blocked (#155): never "Ready" then. When the only
+// thing to fix is a talent build over its level's cap, it says so (#204,
+// Fran's QA of #208).
+export const TALENTS_OVER_CAP = "Talents over the level cap";
+
+export function blockedText(count, talentsOnly = false) {
+  return `Can't run · ${talentsOnly ? TALENTS_OVER_CAP : `${settings(count)} to fix`}`;
+}
+
+function blockedReason(state) {
+  const count = blockedCount(state);
+  const talents = talentErrorCount(state);
+  return blockedText(count, talents > 0 && count === talents);
 }
 
 // "100k" for 100,000, "1.5k" for 1,500, "999" under a thousand: the total of
@@ -186,8 +206,7 @@ function liveModel(state) {
     text = `Ready · seed ${seedText(run.seed)}`;
     announce = "Ready";
   }
-  const reason =
-    !active && blocked(state) ? blockedText(blockedCount(state)) : null;
+  const reason = !active && blocked(state) ? blockedReason(state) : null;
   return {
     run: {
       label: status === "finished" ? "Run again" : "Run",
@@ -243,8 +262,7 @@ function batchModel(state) {
     text = `Ready · ${fightCount(run.iterations)} · seed ${seedText(run.seed)}`;
     announce = "Ready";
   }
-  const reason =
-    !running && blocked(state) ? blockedText(blockedCount(state)) : null;
+  const reason = !running && blocked(state) ? blockedReason(state) : null;
   return {
     run: { label: "Run batch", disabled: running || blocked(state) },
     reason,
