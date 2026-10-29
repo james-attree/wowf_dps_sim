@@ -70,8 +70,10 @@ import { talentGrantedAbilities } from "./talent-build.js";
 //   debuffs    the target debuffs a condition may name, as { id: maxStacks }
 //   talentGrantedAbilities
 //              the abilities a talent grants, whose rules need a guard (rule
-//              5). Any list or Set of ids; the engine's is talentGrantedAbilities
-//              from js/talent-build.js, from the talent effects data.
+//              5). An array or a Set of id strings; the engine's is
+//              talentGrantedAbilities from js/talent-build.js, from the talent
+//              effects data. Anything else is a TypeError (#207): a string
+//              would be read as its characters and guard nothing.
 //
 // A context may give any of these; what it leaves out is the engine's own.
 const ENGINE_ABILITIES = Object.freeze(
@@ -93,16 +95,54 @@ const ENGINE_DEBUFFS = Object.freeze(
   ),
 );
 
+// What a bad value is, for a message: null, the string itself, or its type.
+function described(value) {
+  if (value === null || value === undefined) {
+    return String(value);
+  }
+  if (typeof value === "string") {
+    return `the string ${JSON.stringify(value)}`;
+  }
+  return typeof value === "object" ? "an object" : `a ${typeof value}`;
+}
+
+// A context's list of ability ids (#207) as a frozen array: `fallback` when it
+// is left out (undefined), else a copy of an array or a Set of id strings.
+// Anything else is a TypeError naming the function (`where`), the field and
+// what was given, so a string is refused, not spread into its characters, and
+// null or {} do not fail later as "not iterable". js/rotation-warnings.js
+// reads its lists through this too.
+export function idList(where, field, given, fallback) {
+  if (given === undefined) {
+    return fallback;
+  }
+  if (!Array.isArray(given) && !(given instanceof Set)) {
+    throw new TypeError(
+      `${where}: ${field} must be an array or a Set of ability ids, not ${described(given)}.`,
+    );
+  }
+  const list = [...given];
+  const bad = list.findIndex((id) => typeof id !== "string");
+  if (bad !== -1) {
+    throw new TypeError(
+      `${where}: ${field} must hold ability id strings, not ${described(list[bad])}.`,
+    );
+  }
+  return Object.freeze(list);
+}
+
 export function rotationContext(given = {}) {
   return {
     abilities: given.abilities ?? ENGINE_ABILITIES,
     castable: given.castable ?? ENGINE_CASTABLE,
     auras: given.auras ?? ENGINE_AURAS,
     debuffs: given.debuffs ?? ENGINE_DEBUFFS,
-    talentGrantedAbilities:
-      given.talentGrantedAbilities === undefined
-        ? ENGINE_TALENT_GRANTED
-        : Object.freeze([...given.talentGrantedAbilities]),
+    talentGrantedAbilities: idList(
+      "rotationContext",
+      "talentGrantedAbilities",
+      given.talentGrantedAbilities,
+      ENGINE_TALENT_GRANTED,
+    ),
   };
 }
 
@@ -316,12 +356,11 @@ function talentGuardError(rule, path, context) {
   if (guarded) {
     return null;
   }
-  const checks = types.join(" or ");
   const wanted = types.map((type) => guardText(type, id)).join(" or ");
   return rotationError(
     "talentGuard",
     `${path}.conditions`,
-    `${path}: ${abilityLabel(id)} comes from a talent, so its rule needs an ${checks} check. Add ${wanted} to its conditions.`,
+    `${path}: ${abilityLabel(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
     { ability: id },
   );
 }

@@ -403,9 +403,12 @@ describe("rotation", () => {
     $("cfg-import-text").value = JSON.stringify({
       schemaVersion: 1,
       name: "Trap",
+      // Two warnings since #207: the finisher one for rules[0] (alone), and
+      // rules[1] starving Backstab.
       rules: [
         { action: "eviscerate", conditions: [] },
         { action: "sinister-strike", conditions: [] },
+        { action: "backstab", conditions: [] },
       ],
     });
     $("cfg-import-paste").click();

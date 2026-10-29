@@ -543,7 +543,7 @@ describe("rotation error codes (#212): the thrown and string forms read as befor
     rules: [rule("cold-blood"), rule("sinister-strike", { ...five, value: 9 })],
   };
   const MESSAGES = [
-    'rules[0]: Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
+    'rules[0]: Cold Blood (cold-blood) comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
     "rules[1].conditions[0].value must be between 0 and 5 for comboPoints, got 9.",
   ];
 

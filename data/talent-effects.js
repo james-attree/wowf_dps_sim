@@ -326,6 +326,26 @@ const RAW = {
       "a25233e25ca9613deceaaa95c196fe1275178f7bd462389d33cb8b4ab9744ada",
     ability: "adrenaline-rush",
   },
+  // Issue #207. The three Subtlety talents that grant an ability the engine
+  // casts. Each entry is the ability link alone, so with a build selected the
+  // rotation casts the ability only when the build has the talent
+  // (Rogue.lockedByBuild), and a rule that casts it needs a guard
+  // (js/rotation-validator.js). The rest of Subtlety is not mapped yet.
+  "subtlety.ghostly-strike": {
+    textHash:
+      "cbaf3c73023e1b0f6b47679a27b7131378d0ede7c3d141691a1d117ff78f18cf",
+    ability: "ghostly-strike",
+  },
+  "subtlety.premeditation": {
+    textHash:
+      "80ab80aeadcc84e51d1957ead8531af1890884dfcfe32f00d55048ea2a7b86c3",
+    ability: "premeditation",
+  },
+  "subtlety.hemorrhage": {
+    textHash:
+      "67df2d6b721d2e14f2665901eba0b257522b3dcd5a4892bc3c8d921fb4bf8465",
+    ability: "hemorrhage",
+  },
 };
 
 function deepFreeze(value) {

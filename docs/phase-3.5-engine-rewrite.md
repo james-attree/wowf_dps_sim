@@ -227,6 +227,13 @@ of the difference. With only the legacy engine available, it compares legacy
 to legacy and the difference must be exactly 0, which proves the harness.
 Done when: the harness runs under `npm run`, has a test, and the legacy
 self-comparison is exactly zero.
+Landed in #192: `npm run parity` (`scripts/parity.mjs`, tested in
+`test/parity.test.js`), and the time and ordering note in mechanics.md
+("Planned: event-queue engine (Phase 3.5)"). The scripted golden case runs its
+config without its script, as `finishers-50s-without-script`, and a
+parity-only DoT case (`dot-hemorrhage-rupture-120s`) covers Rupture ticks.
+`--gate 2` is #199's gate: `|mean A - mean B| / mean B` at most 2% on every
+case, on the point estimate, with B = legacy (mechanics.md "Parity harness").
 
 **2. Scheduler (E3).** The heap, `runUntil`, `runToEnd`, cancel tokens and the
 ordering rule. Done when: unit tests cover same-time ordering (including 1,000
@@ -384,6 +391,12 @@ mechanics.md "Benchmark" has earlier measurements (about 22 ms warm and about
 40 ms cold on this box, and 60 to 65 ms per fight on the GitHub Actions runner
 during Phase 1). The 50 ms target in `scripts/bench.mjs` is a development
 machine target, not a CI guarantee.
+
+Re-measured at #192 on `main` (74f1c57), our box, Node v24.22.1, with other jobs
+running: over ten `npm run bench` runs, the median warm median was 27.5 ms
+(25.3 to 42.4 ms) and the median cold run 57.6 ms (54.6 to 78.7 ms). Issues 6
+and 8 compare the new core with these, measured the same way (mechanics.md
+"Benchmark").
 
 For 3.5: the target is that the new core is faster than the legacy engine on the
 same machine, same Node and same config, measured with the same bench. The

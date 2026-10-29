@@ -35,8 +35,8 @@ less with full energy (the combat-swords preset's rules, #173), else Cold Blood
 when the build grants it and Eviscerate; otherwise Sinister Strike. A rotation
 that casts Cold Blood must say "when granted" (`abilityGranted`), or the
 validator rejects it (#173); since #188 every ability a talent grants needs its
-guard, and until #199 Blade Flurry and Adrenaline Rush may use
-`abilityUnlocked` instead.
+guard, and until #199 Blade Flurry, Adrenaline Rush and (since #207) Ghostly
+Strike, Hemorrhage and Premeditation may use `abilityUnlocked` instead.
 The page's first fight adds Instant Poison on the main hand and Deadly Poison
 on the off hand (`pageDefaultConfig()`, #152); `runFight`'s default has no
 poisons, so the goldens do not move. The page's "Fight setup" form (Phase 3)
@@ -119,6 +119,7 @@ dependencies.
 | `npm run golden:update`    | `node scripts/golden-update.mjs`                       |
 | `npm run icons:check`      | `node scripts/check-icons.mjs`                         |
 | `npm run bench`            | `node scripts/bench.mjs`                               |
+| `npm run parity`           | `node scripts/parity.mjs`                              |
 | `npm run serve`            | `node scripts/serve.mjs`                               |
 
 `npm run test:browser` needs a local Chrome or Chromium; `npm ci` does not
@@ -714,6 +715,12 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   several runs and prints the median and slowest. `--target-ms N` changes the
   target it compares with. The only place besides `test/bench.test.js` that
   reads a timer.
+- `scripts/parity.mjs` — `npm run parity`: runs two engines over seeds 1 to N
+  on the golden configs and a DoT case, and prints mean DPS, per-ability means
+  and the paired 95% interval of the difference, also as a percentage of B's
+  mean. `--gate PCT` exits 2 if a case is more than PCT percent off. Only the
+  legacy engine exists until Phase 3.5, so it compares legacy with itself. See
+  [Parity harness](docs/mechanics.md#parity-harness).
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a
   review diff.
