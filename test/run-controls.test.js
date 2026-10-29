@@ -7,16 +7,19 @@ import { createLiveRun } from "../js/live-run.js";
 import { createRunActions, emptyBatch } from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
 import { editedSinceRun } from "../js/views/config-form.js";
-import { createControlsView } from "../js/views/controls.js";
+import { NARROW_QUERY, createControlsView } from "../js/views/controls.js";
 import {
   BATCH_HELP,
   LIVE_HELP,
   MAX_SEED,
   clock,
   controlsModel,
+  errorsText,
+  fieldErrors,
   grouped,
   parseRunField,
   spokenTime,
+  summaryText,
 } from "../js/views/run-model.js";
 
 // Issue #153 (U4). The run control bar: one home for Run, Pause, Stop and
@@ -641,9 +644,16 @@ describe("batch mode (#153, #154 §10)", () => {
   });
 });
 
-// The view on a small stand-in document.
-function standIn() {
+// The view on a small stand-in document. `order` is the bar's three parts in
+// document order (index.html: settings, row, help); after() and before() move
+// them. `media` is a matchMedia query result, or none.
+function standIn({ media = null } = {}) {
   const elements = new Map();
+  const order = ["run-settings", "run-bar", "run-help"];
+  const move = (id, next, offset) => {
+    order.splice(order.indexOf(id), 1);
+    order.splice(order.indexOf(next) + offset, 0, id);
+  };
   const make = (id) => {
     const attributes = new Map();
     const listeners = new Map();
@@ -665,8 +675,29 @@ function standIn() {
       getAttribute: (name) =>
         attributes.has(name) ? attributes.get(name) : null,
       addEventListener: (type, listener) => listeners.set(type, listener),
-      fire(type) {
-        listeners.get(type)?.();
+      fire(
+        type,
+        event = {
+          prevented: 0,
+          preventDefault() {
+            this.prevented += 1;
+          },
+        },
+      ) {
+        listeners.get(type)?.(event);
+        return event;
+      },
+      get nextElementSibling() {
+        const at = order.indexOf(id);
+        return at < 0 || at === order.length - 1
+          ? null
+          : doc.querySelector(`#${order[at + 1]}`);
+      },
+      after(other) {
+        move(other.id, id, 1);
+      },
+      before(other) {
+        move(other.id, id, 0);
       },
       contains: (other) =>
         other?.id?.startsWith("run-") ||
@@ -681,6 +712,7 @@ function standIn() {
   };
   const doc = {
     activeElement: null,
+    defaultView: media === null ? {} : { matchMedia: () => media },
     querySelector(selector) {
       if (!elements.has(selector)) {
         elements.set(selector, make(selector.slice(1)));
@@ -688,7 +720,23 @@ function standIn() {
       return elements.get(selector);
     },
   };
-  return { doc, el: (id) => doc.querySelector(`#${id}`) };
+  return { doc, el: (id) => doc.querySelector(`#${id}`), order };
+}
+
+// A matchMedia result the test flips.
+function fakeMedia(matches) {
+  return {
+    matches,
+    listener: null,
+    queries: [],
+    addEventListener(type, listener) {
+      this.listener = listener;
+    },
+    flip(next) {
+      this.matches = next;
+      this.listener?.();
+    },
+  };
 }
 
 describe("the control bar view (#153)", () => {
@@ -811,5 +859,298 @@ describe("the control bar view (#153)", () => {
       "utf8",
     );
     assert.doesNotMatch(source, /store\.(set|update|batch)\(/);
+  });
+});
+
+// Scout's narrow spec (#153): below 520 px one compact sticky row holds Run
+// or Pause, Stop, Reset and a one-line summary with the mode; the settings
+// collapse under it, closed by default; an error in a closed field is reached
+// through the row's link. Wide screens are unchanged.
+describe("the narrow control bar (#153, Scout)", () => {
+  const runOf = (overrides) => ({
+    mode: "live",
+    state: "idle",
+    seed: 1234,
+    duration: 300,
+    iterations: 1000,
+    errors: {},
+    ...overrides,
+  });
+
+  it("the summary names the mode and the next run's settings", () => {
+    assert.equal(summaryText(runOf()), "Live · 300 s · seed 1234");
+    assert.equal(
+      summaryText(runOf({ mode: "batch" })),
+      "Batch · 1,000 × 300 s · seed 1234",
+    );
+    assert.equal(
+      summaryText(runOf({ mode: "batch", iterations: 100000, duration: 2.5 })),
+      "Batch · 100,000 × 2.5 s · seed 1234",
+    );
+    assert.equal(
+      summaryText(runOf({ seed: null })),
+      "Live · 300 s · seed new at Run",
+    );
+    assert.equal(summaryText(runOf({ seed: 0 })), "Live · 300 s · seed 0");
+    assert.equal(
+      summaryText(runOf({ errors: { duration: "x", seed: "y" } })),
+      "Live · ? s · seed ?",
+      "a field with an error shows ?",
+    );
+    assert.equal(
+      summaryText(runOf({ mode: "batch", errors: { iterations: "x" } })),
+      "Batch · ? × 300 s · seed 1234",
+    );
+  });
+
+  it("errors count by mode: Fights only in batch, where the field shows", () => {
+    assert.deepEqual(fieldErrors(runOf()), []);
+    assert.equal(errorsText(runOf()), null);
+    const all = { seed: "s", iterations: "i", duration: "d" };
+    assert.deepEqual(fieldErrors(runOf({ errors: all })), ["duration", "seed"]);
+    assert.deepEqual(fieldErrors(runOf({ mode: "batch", errors: all })), [
+      "duration",
+      "iterations",
+      "seed",
+    ]);
+    assert.equal(errorsText(runOf({ errors: { seed: "s" } })), "Fix 1 setting");
+    assert.equal(errorsText(runOf({ errors: all })), "Fix 2 settings");
+    assert.equal(
+      errorsText(runOf({ mode: "batch", errors: all })),
+      "Fix 3 settings",
+    );
+    assert.equal(errorsText(runOf({ errors: { iterations: "i" } })), null);
+  });
+
+  it("a Fights error left in batch mode does not block a live Run", () => {
+    const page = setup();
+    page.actions.setMode("batch");
+    page.actions.edit("iterations", {
+      text: "0",
+      ...parseRunField("iterations", "0"),
+    });
+    assert.equal(controlsModel(page.store.get()).run.disabled, true);
+    page.actions.run();
+    assert.equal(page.store.get().batch.status, "idle", "batch blocked");
+    page.actions.setMode("live");
+    assert.equal(controlsModel(page.store.get()).run.disabled, false);
+    page.actions.run();
+    assert.equal(page.store.get().run.state, "running", "live runs");
+    page.actions.stop();
+    page.actions.setMode("batch");
+    assert.equal(controlsModel(page.store.get()).run.disabled, true);
+  });
+
+  it("the settings are closed at first and the toggle opens and closes them", () => {
+    const page = setup();
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    const settings = el("run-settings");
+    const toggle = el("run-settings-toggle");
+    assert.equal(settings.classes.has("is-open"), false);
+    assert.equal(toggle.getAttribute("aria-expanded"), "false");
+    toggle.fire("click");
+    assert.equal(settings.classes.has("is-open"), true);
+    assert.equal(toggle.getAttribute("aria-expanded"), "true");
+    page.actions.run();
+    assert.equal(settings.classes.has("is-open"), true, "a run keeps it open");
+    toggle.fire("click");
+    assert.equal(settings.classes.has("is-open"), false);
+    assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  });
+
+  it("the row shows Run or Pause by state and a summary that follows typing", async () => {
+    const page = setup();
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    const slot = () => el("run-controls").getAttribute("data-slot");
+    assert.equal(slot(), "run");
+    assert.equal(el("run-summary").textContent, `Live · 3 s · seed ${SEED}`);
+    el("run-duration").value = "120";
+    el("run-duration").fire("input");
+    assert.equal(el("run-summary").textContent, `Live · 120 s · seed ${SEED}`);
+    el("run-button").fire("click");
+    assert.equal(slot(), "pause");
+    el("pause-button").fire("click");
+    assert.equal(slot(), "pause", "paused: Resume in the slot");
+    el("stop-button").fire("click");
+    assert.equal(slot(), "run");
+
+    page.actions.setMode("batch");
+    assert.equal(
+      el("run-summary").textContent,
+      `Batch · 4 × 120 s · seed ${SEED}`,
+    );
+    el("run-button").fire("click");
+    assert.equal(slot(), "pause", "Pause, aria-disabled, while a batch runs");
+    el("stop-button").fire("click");
+    page.client.job.resolve(
+      batchResult({ completed: 1, iterations: 4, cancelled: true }),
+    );
+    await settled();
+    assert.equal(slot(), "run");
+  });
+
+  it("an error in a closed field is reached through the row's link", () => {
+    const page = setup();
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    const link = el("run-errors-link");
+    assert.equal(link.hidden, true);
+    assert.equal(el("run-bar").classes.has("has-errors"), false);
+    el("run-seed").value = "12x";
+    el("run-seed").fire("input");
+    el("run-duration").value = "0";
+    el("run-duration").fire("input");
+    assert.equal(link.hidden, false);
+    assert.equal(link.textContent, "Fix 2 settings");
+    assert.equal(el("run-bar").classes.has("has-errors"), true);
+    assert.equal(el("run-settings").classes.has("is-open"), false);
+
+    const event = link.fire("click");
+    assert.equal(event.prevented, 1, "no jump to the anchor");
+    assert.equal(el("run-settings").classes.has("is-open"), true);
+    assert.equal(
+      el("run-settings-toggle").getAttribute("aria-expanded"),
+      "true",
+    );
+    assert.equal(doc.activeElement, el("run-duration"), "the first error");
+
+    el("run-duration").value = "300";
+    el("run-duration").fire("input");
+    assert.equal(link.textContent, "Fix 1 setting");
+    el("run-settings-toggle").fire("click");
+    link.fire("click");
+    assert.equal(doc.activeElement, el("run-seed"));
+    el("run-seed-new").fire("click");
+    assert.equal(link.hidden, true);
+    assert.equal(link.textContent, "");
+    assert.equal(el("run-bar").classes.has("has-errors"), false);
+  });
+
+  it("narrow puts the settings after the row, wide before it, focus kept", () => {
+    const page = setup();
+    const media = fakeMedia(true);
+    const queries = [];
+    const { doc, el, order } = standIn({ media });
+    const matchMedia = doc.defaultView.matchMedia;
+    doc.defaultView.matchMedia = (query) => {
+      queries.push(query);
+      return matchMedia(query);
+    };
+    createControlsView(doc, page.store, page.actions);
+    assert.deepEqual(queries, [NARROW_QUERY]);
+    assert.equal(NARROW_QUERY, "(max-width: 519.98px)");
+    assert.deepEqual(order, ["run-bar", "run-settings", "run-help"]);
+
+    el("run-seed").focus();
+    const before = el("run-seed").focused;
+    media.flip(false);
+    assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
+    assert.equal(doc.activeElement, el("run-seed"));
+    assert.equal(el("run-seed").focused, before + 1, "focus put back");
+    media.flip(false);
+    assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
+    media.flip(true);
+    assert.deepEqual(order, ["run-bar", "run-settings", "run-help"]);
+  });
+
+  it("wide (no match) keeps index.html's order: settings, then the row", () => {
+    const page = setup();
+    const { doc, order } = standIn({ media: fakeMedia(false) });
+    createControlsView(doc, page.store, page.actions);
+    assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
+  });
+
+  it("the page: the settings wrap the fields, and only the narrow row is sticky", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
+    const html = await read("../index.html");
+    const css = await read("../styles.css");
+    const at = (id) => html.indexOf(`id="${id}"`);
+    for (const id of [
+      "run-settings",
+      "run-settings-toggle",
+      "run-settings-body",
+      "run-bar",
+      "run-summary",
+      "run-errors-link",
+    ]) {
+      assert.ok(at(id) > 0, id);
+    }
+    assert.match(html, /aria-controls="run-settings-body"/);
+    assert.match(html, /id="run-settings-toggle"[^>]*aria-expanded="false"/s);
+    // The fields are inside the settings body, the buttons in the row.
+    for (const id of [
+      "run-mode-live",
+      "run-duration",
+      "run-iterations",
+      "run-seed",
+    ]) {
+      assert.ok(at(id) > at("run-settings-body") && at(id) < at("run-bar"), id);
+    }
+    for (const id of [
+      "run-button",
+      "pause-button",
+      "stop-button",
+      "reset-button",
+    ]) {
+      assert.ok(at(id) > at("run-bar"), id);
+    }
+
+    const start = css.indexOf("@media (max-width: 519.98px)");
+    assert.ok(start > 0, "the narrow block");
+    const outside = css.slice(0, start);
+    let depth = 0;
+    let end = css.indexOf("{", start);
+    for (let i = end; i < css.length; i += 1) {
+      depth += css[i] === "{" ? 1 : css[i] === "}" ? -1 : 0;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+    const narrow = css.slice(start, end);
+    const rule = (text, selector) => {
+      const from = text.indexOf(`${selector} {`);
+      assert.ok(from >= 0, selector);
+      return text.slice(from, text.indexOf("}", from));
+    };
+    // Wide: the wrappers add no boxes; the narrow-only parts are not shown.
+    assert.match(
+      outside,
+      /\.run-settings,\n\.run-settings-body \{\n {2}display: contents;/,
+    );
+    assert.match(
+      outside,
+      /\.run-settings-toggle,\n\.run-summary,\n\.run-errors-link \{\n {2}display: none;/,
+    );
+    // Narrow: the bar adds no box, the row is the one sticky part, 64 px or
+    // less (two 22 px lines beside 44 px buttons, 8 px padding, 1 px border).
+    assert.match(rule(narrow, "  .run-controls"), /display: contents;/);
+    const row = rule(narrow, "  .run-row-actions");
+    assert.match(row, /position: sticky;/);
+    assert.match(row, /grid-template-rows: 22px 22px;/);
+    assert.match(row, /padding: 8px 10px;/);
+    assert.equal((narrow.match(/position: sticky/g) ?? []).length, 1);
+    assert.doesNotMatch(rule(narrow, "  .run-settings"), /sticky/);
+    assert.match(rule(narrow, "  .run-buttons button"), /min-height: 44px;/);
+    assert.match(rule(narrow, "  .run-buttons button"), /width: 44px;/);
+    assert.match(rule(narrow, "  .run-settings-toggle"), /min-height: 44px;/);
+    assert.match(
+      rule(narrow, "  .run-errors-link:not([hidden])"),
+      /min-height: 44px;/,
+    );
+    assert.match(
+      narrow,
+      /\.run-settings-body \.pill-button \{\n {4}min-height: 44px;/,
+    );
+    assert.match(rule(narrow, "  .run-settings-body"), /display: none;/);
+    assert.match(
+      rule(narrow, "  .run-settings.is-open .run-settings-body"),
+      /display: block;/,
+    );
+    assert.match(narrow, /\.run-controls\[data-slot="pause"\] #run-button/);
+    assert.match(narrow, /\.run-controls\[data-slot="run"\] #pause-button/);
   });
 });

@@ -284,10 +284,11 @@ store)` that owns its own elements, draws from the store when its slices
   change, and returns its unsubscribe: `controls.js` (#153: the sticky run
   control bar, the only home of Run, Pause, Stop and Reset, with the Live and
   Batch toggle, the fight length, fights and seed fields, the status line, a
-  polite announcement on each state change and the batch's own progress; it
-  draws `js/views/run-model.js` and calls the run actions, and never writes the
+  polite announcement on each state change and the batch's own progress;
+  below 520 px one compact sticky row with a settings summary and a closed
+  "Run settings" section under it; it draws `js/views/run-model.js` and calls the run actions, and never writes the
   store), `run-model.js` (what each control shows in each state, the field
-  checks and their messages; pure), `visualiser.js` (combo
+  checks and their messages, the narrow summary and errors link; pure), `visualiser.js` (combo
   points, energy, the GCD meter, effects, cooldowns, procs, the combat log and
   its announcements; redraws on `frame`, from the feed's slices only), `results.js` (time, damage, DPS; redraws on `results`), and `config-form.js`
   (#151: the "Fight setup" form; draws the `form` slice and calls the
@@ -764,8 +765,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `test/run-controls.test.js` — The run control bar (#153): the field checks
   and messages, every live state and transition (each control in each
   state), batch mode against #154 §10 with a stand-in client (0 of N, progress,
-  done, Stop keeps partial, error, mode lock), the config snapshot, and the
-  view on a stand-in document (labels, focus, announcements, aria).
+  done, Stop keeps partial, error, mode lock), the config snapshot, the
+  view on a stand-in document (labels, focus, announcements, aria), and the
+  narrow bar (summary, Run or Pause slot, closed settings, the errors link,
+  reading order per width, and the sticky and 44 px rules in the CSS).
 - `test/premeditation.test.js` — Premeditation combo points and expiry.
 - `test/provenance.test.js` — The provenance check, the CLI, and the generated
   report.

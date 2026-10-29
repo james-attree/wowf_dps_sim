@@ -1,9 +1,12 @@
 import {
   announceKey,
   controlsModel,
+  errorsText,
+  fieldErrors,
   focusTarget,
   isLocked,
   parseRunField,
+  summaryText,
 } from "./run-model.js";
 
 // The run control bar (#153): the one home of Run, Pause, Stop and Reset, the
@@ -19,7 +22,18 @@ import {
 // aria-hidden; a visually hidden role="status" line is written only on a
 // transition. Focus moves to Pause (live) or Stop (batch) after Run, and to
 // Run after Stop, a finish or Reset, when it was in the bar.
+//
+// Below 520 px (Scout, #153) only one compact row is sticky: Run or Pause
+// (whichever applies), Stop, Reset, and a one-line summary of the next run's
+// settings with its mode. The settings (mode, fight length, fights, seed) sit
+// in a section under that row, closed by default and not sticky. The view
+// keeps the DOM in reading order for each width: settings before the buttons
+// when wide (as before), after the sticky row when narrow, so the focus order
+// follows what is seen. An error in a closed section is reached through the
+// row's "Fix 1 setting" link, which opens the section and focuses the field.
+// Wide screens are unchanged: the toggle, summary and link are not shown.
 const FIELDS = ["duration", "iterations", "seed"];
+export const NARROW_QUERY = "(max-width: 519.98px)";
 
 export function createControlsView(doc, store, actions = {}) {
   const $ = (id) => doc.querySelector(`#${id}`);
@@ -49,6 +63,11 @@ export function createControlsView(doc, store, actions = {}) {
   const progress = $("run-progress");
   const progressText = $("run-progress-text");
   const help = $("run-help");
+  const row = $("run-bar");
+  const settings = $("run-settings");
+  const settingsToggle = $("run-settings-toggle");
+  const summary = $("run-summary");
+  const errorsLink = $("run-errors-link");
 
   const write = (node, text) => {
     if (node.textContent !== text) {
@@ -56,12 +75,46 @@ export function createControlsView(doc, store, actions = {}) {
     }
   };
 
+  // The settings section's open state is the view's own: closed at first.
+  let open = false;
+
+  // Reading order for the width: the settings before the row when wide, after
+  // it when narrow. A focused field keeps its focus through the move.
+  const narrow = (doc.defaultView ?? globalThis).matchMedia?.(NARROW_QUERY);
+  function place() {
+    const after = Boolean(narrow?.matches);
+    const placed = after
+      ? row.nextElementSibling === settings
+      : settings.nextElementSibling === row;
+    if (placed || !row.after) {
+      return;
+    }
+    const active = doc.activeElement ?? null;
+    const keep = settings.contains?.(active) ? active : null;
+    if (after) {
+      row.after(settings);
+    } else {
+      row.before(settings);
+    }
+    keep?.focus?.();
+  }
+
   let lastAnnounce = null;
   let lastFocus = null;
   function render(state) {
     const model = controlsModel(state);
     const { run } = state;
     const locked = isLocked(run);
+
+    settings.classList.toggle("is-open", open);
+    settingsToggle.setAttribute("aria-expanded", String(open));
+    // The narrow row shows Pause while a fight or batch runs, Run otherwise.
+    bar.setAttribute("data-slot", locked ? "pause" : "run");
+    write(summary, summaryText(run));
+    const fix = errorsText(run);
+    errorsLink.hidden = fix === null;
+    write(errorsLink, fix ?? "");
+    row.classList.toggle("has-errors", fix !== null);
 
     modeLive.checked = run.mode === "live";
     modeBatch.checked = run.mode === "batch";
@@ -142,6 +195,19 @@ export function createControlsView(doc, store, actions = {}) {
   }
 
   const call = (name, ...args) => actions[name]?.(...args);
+  settingsToggle.addEventListener("click", () => {
+    open = !open;
+    render(store.get());
+  });
+  errorsLink.addEventListener("click", (event) => {
+    event?.preventDefault?.();
+    const [first] = fieldErrors(store.get().run);
+    open = true;
+    render(store.get());
+    if (first !== undefined) {
+      inputs[first].focus?.();
+    }
+  });
   buttons.run.addEventListener("click", () => call("run"));
   buttons.pause.addEventListener("click", () => {
     const { run } = store.get();
@@ -171,6 +237,8 @@ export function createControlsView(doc, store, actions = {}) {
     });
   }
 
+  place();
+  narrow?.addEventListener?.("change", place);
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (["run", "batch", "results", "form"].some((s) => changed.includes(s))) {

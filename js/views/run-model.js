@@ -101,10 +101,22 @@ export function isLocked(run) {
   return run.state === "running" || run.state === "paused";
 }
 
+// The run fields with an error that counts in this mode, in the bar's order.
+// Fights only count in batch mode: their field is hidden in live mode, so an
+// error left there must not block a live Run where nobody can see or fix it.
+export function fieldErrors(run) {
+  const errors = run.errors ?? {};
+  return ["duration", "iterations", "seed"].filter(
+    (name) =>
+      errors[name] !== undefined &&
+      (name !== "iterations" || run.mode === "batch"),
+  );
+}
+
 // Run is blocked by an invalid run field or an invalid stats form field (#151).
 function blocked(state) {
   return (
-    Object.keys(state.run.errors ?? {}).length > 0 ||
+    fieldErrors(state.run).length > 0 ||
     Object.keys(state.form?.errors ?? {}).length > 0
   );
 }
@@ -209,6 +221,31 @@ function batchModel(state) {
         }
       : null,
   };
+}
+
+// The narrow bar's one-line summary of the next run's settings (Scout, #153):
+// "Live · 300 s · seed 1234" or "Batch · 1,000 × 300 s · seed 1234". It
+// follows the fields as they are typed; a field with an error shows "?".
+export function summaryText(run) {
+  const bad = new Set(fieldErrors(run));
+  const part = (name, text) => (bad.has(name) ? "?" : text);
+  const seconds = part("duration", `${secondsText(run.duration)}`);
+  const seed = part("seed", seedText(run.seed));
+  if (run.mode === "batch") {
+    const fights = part("iterations", grouped(run.iterations));
+    return `Batch · ${fights} × ${seconds} s · seed ${seed}`;
+  }
+  return `Live · ${seconds} s · seed ${seed}`;
+}
+
+// The narrow bar's link to the settings with an error, or null when there
+// are none: "Fix 1 setting".
+export function errorsText(run) {
+  const count = fieldErrors(run).length;
+  if (count === 0) {
+    return null;
+  }
+  return `Fix ${count} ${count === 1 ? "setting" : "settings"}`;
 }
 
 // Everything the bar draws, from the store's state.

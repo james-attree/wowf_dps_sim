@@ -951,7 +951,14 @@ same seed from 0:00; Reset ends it and empties the picture. Batch mode runs
 the Fights field's fights (1 to `k("batch.maxIterations")`, 1,000 by default)
 through `BatchClient` and puts the result in the store's `batch` slice for the
 results panel (#154); a batch cannot pause, and Stop keeps the fights done so
-far as a partial result. The live feed reads the fight through `SimRunner.fight`.
+far as a partial result. A Fights error left from batch mode does not block a live Run (its field is
+hidden there). Below 520 px only one compact row stays sticky (Run or Pause,
+Stop, Reset, and a one-line summary such as "Batch · 1,000 × 300 s · seed
+1234" with the status under it, 62 px tall with 44 px buttons); the mode and
+the three fields sit in a "Run settings" section under it, closed by default
+and not sticky, and an error in a closed field shows "Fix 1 setting" in the
+row, which opens the section at the field. Wider screens show the full bar as
+before. The live feed reads the fight through `SimRunner.fight`.
 Since #150 no view reads the engine: the live feed
 (`js/live-feed.js`) fills the visualiser's slices each frame, the combat log
 and combo points from the event stream and the energy, GCD, aura and cooldown

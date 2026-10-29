@@ -48,12 +48,19 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
     store.update((state) => ({ batch: { ...state.batch, ...patch } }));
   const locked = () => run().state === "running" || run().state === "paused";
 
+  // A field error that blocks Run in this mode. Fights only count in batch
+  // mode, where their field is shown (js/views/run-model.js fieldErrors).
+  const blocking = ({ mode, errors }) =>
+    Object.keys(errors).some(
+      (name) => name !== "iterations" || mode === "batch",
+    );
+
   // The config for Run, with the seed drawn and shown if the field is empty;
   // null when a field is invalid.
   function prepare() {
     const state = store.get();
     const config = nextRunConfig(state);
-    if (config === null || Object.keys(state.run.errors).length > 0) {
+    if (config === null || blocking(state.run)) {
       return null;
     }
     let { seed } = state.run;

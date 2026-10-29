@@ -17,69 +17,82 @@
       </header>
 
       <section id="run-controls" class="run-controls" aria-label="Run controls">
-        <div class="run-row run-row-inputs">
-          <fieldset class="run-mode">
-            <legend>Mode</legend>
-            <label class="run-mode-pill">
-              <input
-                id="run-mode-live"
-                type="radio"
-                name="run-mode"
-                value="live"
-                checked
-              />
-              <span>Live</span>
-            </label>
-            <label class="run-mode-pill">
-              <input
-                id="run-mode-batch"
-                type="radio"
-                name="run-mode"
-                value="batch"
-              />
-              <span>Batch</span>
-            </label>
-          </fieldset>
-          <div class="run-field">
-            <label for="run-duration">Fight length (s)</label>
-            <input
-              id="run-duration"
-              type="text"
-              inputmode="decimal"
-              autocomplete="off"
-              size="6"
-            />
-            <p id="run-duration-error" class="field-error" hidden></p>
-          </div>
-          <div id="run-iterations-field" class="run-field" hidden>
-            <label for="run-iterations">Fights</label>
-            <input
-              id="run-iterations"
-              type="text"
-              inputmode="numeric"
-              autocomplete="off"
-              size="7"
-            />
-            <p id="run-iterations-error" class="field-error" hidden></p>
-          </div>
-          <div class="run-field run-seed-field">
-            <label for="run-seed">Seed</label>
-            <div class="run-seed-input">
-              <input
-                id="run-seed"
-                type="text"
-                inputmode="numeric"
-                autocomplete="off"
-                size="11"
-              />
-              <button id="run-seed-new" class="pill-button" type="button">
-                <span aria-hidden="true">⟳</span> New
-              </button>
+        <div id="run-settings" class="run-settings">
+          <button
+            id="run-settings-toggle"
+            class="run-settings-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="run-settings-body"
+          >
+            Run settings
+          </button>
+          <div id="run-settings-body" class="run-settings-body">
+            <div class="run-row run-row-inputs">
+              <fieldset class="run-mode">
+                <legend>Mode</legend>
+                <label class="run-mode-pill">
+                  <input
+                    id="run-mode-live"
+                    type="radio"
+                    name="run-mode"
+                    value="live"
+                    checked
+                  />
+                  <span>Live</span>
+                </label>
+                <label class="run-mode-pill">
+                  <input
+                    id="run-mode-batch"
+                    type="radio"
+                    name="run-mode"
+                    value="batch"
+                  />
+                  <span>Batch</span>
+                </label>
+              </fieldset>
+              <div class="run-field">
+                <label for="run-duration">Fight length (s)</label>
+                <input
+                  id="run-duration"
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  size="6"
+                />
+                <p id="run-duration-error" class="field-error" hidden></p>
+              </div>
+              <div id="run-iterations-field" class="run-field" hidden>
+                <label for="run-iterations">Fights</label>
+                <input
+                  id="run-iterations"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  size="7"
+                />
+                <p id="run-iterations-error" class="field-error" hidden></p>
+              </div>
+              <div class="run-field run-seed-field">
+                <label for="run-seed">Seed</label>
+                <div class="run-seed-input">
+                  <input
+                    id="run-seed"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    size="11"
+                  />
+                  <button id="run-seed-new" class="pill-button" type="button">
+                    <span aria-hidden="true">⟳</span> New
+                  </button>
+                </div>
+                <p id="run-seed-error" class="field-error" hidden></p>
+              </div>
             </div>
-            <p id="run-seed-error" class="field-error" hidden></p>
           </div>
         </div>
-        <div class="run-row run-row-actions">
+        <div id="run-bar" class="run-row run-row-actions">
           <div class="run-buttons">
             <button id="run-button" class="run-button" type="button">
               Run
@@ -105,6 +118,13 @@
               Reset
             </button>
           </div>
+          <p id="run-summary" class="run-summary"></p>
+          <a
+            id="run-errors-link"
+            class="run-errors-link"
+            href="#run-settings"
+            hidden
+          ></a>
           <div id="run-status" class="run-status live-indicator">
             <span class="live-dot" aria-hidden="true"></span>
             <span id="run-status-text" aria-hidden="true"></span>
