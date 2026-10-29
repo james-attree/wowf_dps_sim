@@ -62,4 +62,15 @@ describe("the narrow breakpoint", () => {
     assert.doesNotMatch(rest, /\b520px\b/);
     assert.doesNotMatch(rest, /min-width: 52\dpx/);
   });
+
+  it("contains each sideways scroller's inline size, so it cannot widen the page (#154)", async () => {
+    const css = await read("../styles.css");
+    const rule = css.match(
+      /((?:\.[\w-]+,\s*)*\.[\w-]+)\s*\{\s*contain: inline-size;\s*\}/,
+    );
+    assert.ok(rule, "a contain: inline-size rule");
+    const selectors = rule[1].split(",").map((part) => part.trim());
+    assert.ok(selectors.includes(".table-scroll"), ".table-scroll");
+    assert.ok(selectors.includes(".chart-scroll"), ".chart-scroll");
+  });
 });

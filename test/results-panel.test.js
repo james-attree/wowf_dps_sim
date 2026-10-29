@@ -90,6 +90,8 @@ describe("the results figures (#154)", () => {
     );
     const sum = model.damageRows.reduce((total, row) => total + row.damage, 0);
     assert.ok(Math.abs(sum - model.totalPerFight) < 1e-6);
+    const dps = model.damageRows.reduce((total, row) => total + row.dps, 0);
+    assert.ok(Math.abs(dps - done.summary.mean) < 1e-6);
   });
 
   it("shows no parry or block column from behind, and no glance on a yellow row", () => {
@@ -252,6 +254,10 @@ describe("the results panel states (#154)", () => {
     assert.equal(shown.title, "Results (partial)");
     assert.match(text(shown.body), /PARTIAL/);
     assert.match(text(shown.body), /5 \/ 24/);
+    assert.match(
+      text(shown.body),
+      /Partial result: stopped after 5 of 24 fights/,
+    );
     assert.match(shown.meta, /^5 × 60 s fights · seed 154/);
 
     const one = model({ status: "cancelled", result: single });
