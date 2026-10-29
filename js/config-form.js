@@ -33,7 +33,10 @@ import { talentCatalogue } from "./talents.js";
 //   talentsChoice   "none" or "reference".
 //   rotationChoice  "default", a preset id, or "imported".
 //   imported        { name, rotation } of the last imported rotation, or null.
-//   importStatus    null, or { ok, message, detail } from the last import.
+//   importStatus    null, or { ok, message, detail, warnings } from the last
+//                   import. `detail` is the errors of a refused file and
+//                   `warnings` the warnings of an accepted one (issue #189),
+//                   one per line; each is "" when there are none.
 //   talentOptions, rotationOptions   [{ id, label }] for the two selects.
 //   summary         { name, rules: [text] } of the selected rotation.
 //   poisonOptions   { simulated, notSimulated: [{ id, label }] } for the two
@@ -360,6 +363,28 @@ function slug(name) {
   return text === "" ? "rotation" : text;
 }
 
+// The status line of an accepted import. Warnings (issue #189) never block
+// it: the rotation is imported and selected, and the line says how many to
+// check.
+export function importedText(name, warnings) {
+  if (warnings === 0) {
+    return `Imported "${name}".`;
+  }
+  const count = warnings === 1 ? "1 warning" : `${warnings} warnings`;
+  return `Imported "${name}" with ${count}. It still runs; see the warnings below.`;
+}
+
+// One line of a refused import's detail. The validator's messages already
+// name their place ("rules[0]: Blade Flurry ...", "rules[0] is missing ...",
+// "rules is empty: ..."), so the path is written in front only when the
+// message does not start with it or with the part of it before a ".".
+// "" is the path of a problem with the whole text.
+export function errorLine({ path, message }) {
+  const lead = /^[\w.[\]]+/.exec(message)?.[0];
+  const named = path === lead || path.startsWith(`${lead}.`);
+  return path === "" || named ? message : `${path}: ${message}`;
+}
+
 // The actions the view calls. `defaults` gives the config Reset restores.
 // Creating the model fills the `form` slice from the store's config.
 export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
@@ -445,7 +470,11 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       if (!form().rotationOptions.some(({ id }) => id === choice)) {
         throw new RangeError(`No rotation choice ${JSON.stringify(choice)}.`);
       }
-      commit({ ...form(), rotationChoice: choice });
+      // Another rotation: the last import's status and warnings are about the
+      // one left, so they go (Kira's #206 review).
+      const importStatus =
+        choice === form().rotationChoice ? form().importStatus : null;
+      commit({ ...form(), rotationChoice: choice, importStatus });
     },
     // A rotation file's text. A good one becomes the "Imported: <name>"
     // choice and is selected; a bad one changes nothing but the status.
@@ -459,11 +488,8 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
             importStatus: {
               ok: false,
               message: "This file isn't a valid rotation.",
-              detail: result.errors
-                .map(({ path, message }) =>
-                  path === "" ? message : `${path}: ${message}`,
-                )
-                .join("\n"),
+              detail: result.errors.map(errorLine).join("\n"),
+              warnings: "",
             },
           },
         });
@@ -474,7 +500,12 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
         ...form(),
         rotationChoice: "imported",
         imported: { name, rotation: result.rotation },
-        importStatus: { ok: true, message: `Imported "${name}".`, detail: "" },
+        importStatus: {
+          ok: true,
+          message: importedText(name, result.warnings.length),
+          detail: "",
+          warnings: result.warnings.map(({ message }) => message).join("\n"),
+        },
       });
       return true;
     },

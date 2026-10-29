@@ -9,6 +9,8 @@ import {
   createConfigForm,
   errorCount,
   formFromConfig,
+  errorLine,
+  importedText,
   nextRunConfig,
   pageDefaultConfig,
   validateValues,
@@ -16,6 +18,7 @@ import {
 import { createFight, runFight } from "../js/fight.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import { exportRotation } from "../js/rotation-io.js";
+import { rotationWarnings } from "../js/rotation-warnings.js";
 import { listPresets, presetRotation } from "../js/rotation-presets.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
@@ -361,9 +364,82 @@ describe("rotation: one source of truth, config.rotation", () => {
       ok: true,
       message: 'Imported "My rotation".',
       detail: "",
+      warnings: "",
     });
     assert.equal(store.get().config.rotation.name, "My rotation");
     assert.equal(actions.exportRotation().text, exportRotation(rotation));
+  });
+
+  it("an import with warnings is still imported and selected, with the warnings (#189)", () => {
+    const { store, actions, form } = setup();
+    const trap = {
+      schemaVersion: 1,
+      name: "Trap",
+      rules: [
+        { action: "eviscerate", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    };
+    assert.equal(actions.importText(exportRotation(trap)), true);
+    assert.equal(form().rotationChoice, "imported");
+    assert.equal(store.get().config.rotation.name, "Trap");
+    assert.deepEqual(form().errors, {});
+    const status = form().importStatus;
+    assert.equal(status.ok, true);
+    assert.equal(
+      status.message,
+      'Imported "Trap" with 2 warnings. It still runs; see the warnings below.',
+    );
+    assert.equal(status.detail, "");
+    assert.equal(
+      status.warnings,
+      rotationWarnings(trap)
+        .map(({ message }) => message)
+        .join("\n"),
+    );
+    assert.match(
+      status.warnings,
+      /^rules\[0\]: Eviscerate \(eviscerate\) is a finisher/m,
+    );
+    actions.importText("{ nope");
+    assert.equal(form().importStatus.warnings, "");
+  });
+
+  it("choosing another rotation clears the import status; choosing the same keeps it (Kira's #206 review)", () => {
+    const { actions, form } = setup();
+    const trap = {
+      schemaVersion: 1,
+      name: "Trap",
+      rules: [
+        { action: "eviscerate", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    };
+    actions.importText(exportRotation(trap));
+    const status = form().importStatus;
+    assert.notEqual(status, null);
+    actions.chooseRotation("imported");
+    assert.equal(form().importStatus, status, "the same choice keeps it");
+    actions.chooseRotation("default");
+    assert.equal(form().importStatus, null);
+    assert.equal(form().rotationChoice, "default");
+    actions.importText("{ nope");
+    assert.equal(form().importStatus.ok, false);
+    actions.chooseRotation("imported");
+    assert.equal(form().importStatus, null, "a refusal goes too");
+    assert.equal(form().rotationChoice, "imported");
+  });
+
+  it("the import status line counts the warnings", () => {
+    assert.equal(importedText("A", 0), 'Imported "A".');
+    assert.equal(
+      importedText("A", 1),
+      'Imported "A" with 1 warning. It still runs; see the warnings below.',
+    );
+    assert.equal(
+      importedText("A", 3),
+      'Imported "A" with 3 warnings. It still runs; see the warnings below.',
+    );
   });
 
   it("a bad import changes nothing but the status, with the details", () => {
@@ -385,7 +461,63 @@ describe("rotation: one source of truth, config.rotation", () => {
       form().importStatus.detail,
       /^schemaVersion: The rotation is missing "schemaVersion"\.$/m,
     );
-    assert.match(form().importStatus.detail, /^rules\[0\]\.action: /m);
+    // The validator's message names its own place, so it is not doubled.
+    assert.match(
+      form().importStatus.detail,
+      /^rules\[0\] is missing "action"\.$/m,
+    );
+    assert.doesNotMatch(
+      form().importStatus.detail,
+      /rules\[0\][^\n]*: rules\[0\]/,
+    );
+  });
+
+  it("a refused talent-granted rule shows its path once (#189 review)", () => {
+    const { actions, form } = setup();
+    actions.importText(
+      JSON.stringify({
+        schemaVersion: 1,
+        name: "BF",
+        rules: [{ action: "blade-flurry", conditions: [] }],
+      }),
+    );
+    const { detail } = form().importStatus;
+    assert.match(
+      detail,
+      /^rules\[0\]: Blade Flurry \(blade-flurry\) comes from a talent/,
+    );
+    assert.doesNotMatch(detail, /rules\[0\]\.conditions: /);
+  });
+
+  it("errorLine writes the path only when the message does not name it", () => {
+    const line = (path, message) => errorLine({ path, message });
+    assert.equal(line("", "Not JSON."), "Not JSON.");
+    assert.equal(
+      line("rules[0].conditions", "rules[0]: Blade Flurry"),
+      "rules[0]: Blade Flurry",
+    );
+    assert.equal(line("rules", "rules is empty: x"), "rules is empty: x");
+    assert.equal(
+      line("rules[0].action", 'rules[0] is missing "action".'),
+      'rules[0] is missing "action".',
+    );
+    assert.equal(
+      line(
+        "rules[1].conditions[0].value",
+        "rules[1].conditions[0].value must be 0 or more",
+      ),
+      "rules[1].conditions[0].value must be 0 or more",
+    );
+    // A message that does not start with the path keeps the prefix.
+    assert.equal(
+      line("schemaVersion", 'The rotation is missing "schemaVersion".'),
+      'schemaVersion: The rotation is missing "schemaVersion".',
+    );
+    assert.equal(line("rules[1]", "rules[0]: x"), "rules[1]: rules[0]: x");
+    assert.equal(line("rulesets", "rules is x"), "rulesets: rules is x");
+    // A message about the list is not taken as naming one rule in it.
+    assert.equal(line("rules[2]", "rules is x"), "rules[2]: rules is x");
+    assert.equal(line("rules[0]", "(none)"), "rules[0]: (none)");
   });
 
   it("a file over the import limit is refused by rotation-io's own limit", () => {
