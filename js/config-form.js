@@ -371,7 +371,7 @@ export function importedText(name, warnings) {
     return `Imported "${name}".`;
   }
   const count = warnings === 1 ? "1 warning" : `${warnings} warnings`;
-  return `Imported "${name}", with ${count}. It still runs; check the rules below.`;
+  return `Imported "${name}" with ${count}. It still runs; see the warnings below.`;
 }
 
 // One line of a refused import's detail. The validator's messages already

@@ -85,7 +85,7 @@ function finisherWarning(rule, path, context) {
   });
   return {
     path: `${path}.conditions`,
-    message: `${path}: ${abilityLabel(rule.action)} is a finisher, but its rule has no comboPoints condition. It is cast with as little as one combo point, and with none it holds back every rule below it. Add a comboPoints condition, such as ${example}.`,
+    message: `${path}: ${abilityLabel(rule.action)} is a finisher, but its rule has no comboPoints condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as ${example}.`,
   };
 }
 
@@ -126,7 +126,7 @@ function starvesWarning(rules, index, path, context) {
   }
   return {
     path,
-    message: `${path}: ${abilityLabel(rule.action)} starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear and these rules below it are never cast: ${below.map(abilityLabel).join(", ")}. Give it conditions or move it below them.`,
+    message: `${path}: ${abilityLabel(rule.action)} starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below.map(abilityLabel).join(", ")}. Give it conditions or move it below them.`,
   };
 }
 

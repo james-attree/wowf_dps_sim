@@ -416,7 +416,7 @@ describe("rotation and talents", () => {
     assert.equal(store.get().config.rotation.name, "Trap");
     assert.equal(
       $("cfg-import-status").textContent,
-      'Imported "Trap", with 2 warnings. It still runs; check the rules below.',
+      'Imported "Trap" with 2 warnings. It still runs; see the warnings below.',
     );
     assert.ok($("cfg-import-status").classes.has("is-warning"));
     assert.ok(!$("cfg-import-status").classes.has("is-error"));

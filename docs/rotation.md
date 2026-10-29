@@ -488,7 +488,7 @@ talent-guard error does, display name and id (`abilityLabel`, #203), and
 names the condition to add:
 
 ```text
-rules[0]: Eviscerate (eviscerate) is a finisher, but its rule has no comboPoints condition. It is cast with as little as one combo point, and with none it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": 5 }.
+rules[0]: Eviscerate (eviscerate) is a finisher, but its rule has no comboPoints condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": 5 }.
 ```
 
 The warnings do not know the fight: an unconditional Backstab rule is warned

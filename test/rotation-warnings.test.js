@@ -32,11 +32,11 @@ const messages = (value, context) =>
   rotationWarnings(value, context).map((warning) => warning.message);
 
 const finisherText = (path, label) =>
-  `${path}: ${label} is a finisher, but its rule has no comboPoints condition. It is cast with as little as one combo point, and with none it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`;
+  `${path}: ${label} is a finisher, but its rule has no comboPoints condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`;
 const cooldownText = (path, label, id) =>
   `${path}: ${label} has a cooldown and starts the global cooldown, but its rule has no cooldownReady check. While it is on cooldown it holds back every rule below it. Add { "type": "cooldownReady", "ability": "${id}" } to its conditions.`;
 const starvesText = (path, label, below) =>
-  `${path}: ${label} starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear and these rules below it are never cast: ${below}. Give it conditions or move it below them.`;
+  `${path}: ${label} starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below}. Give it conditions or move it below them.`;
 
 async function docExamples() {
   const text = await readFile(
