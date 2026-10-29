@@ -351,6 +351,7 @@ describe("runBatch", () => {
       "summary",
       "breakdown",
       "auras",
+      "resources",
       "dps",
     ]);
     assert.equal(result.seed, 7);
@@ -1250,9 +1251,9 @@ describe("the interface", () => {
       new URL("../js/batch-runner.js", import.meta.url),
       "utf8",
     );
-    const imports = [...source.matchAll(/^import .* from "(.+)";$/gm)].map(
-      (match) => match[1],
-    );
+    const imports = [
+      ...source.matchAll(/^import\b[^;]*? from "([^"]+)";$/gm),
+    ].map((match) => match[1]);
     assert.deepEqual(imports.sort(), [
       "../data/constants.js",
       "./ability-breakdown.js",

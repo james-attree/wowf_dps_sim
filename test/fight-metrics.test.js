@@ -7,13 +7,15 @@ import { BatchRunner, deriveSeed, runBatch } from "../js/batch-runner.js";
 import { createFight } from "../js/fight.js";
 import {
   BatchAuras,
+  BatchResources,
   FightAuras,
+  FightResources,
   aurasFromEvents,
 } from "../js/fight-metrics.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { referenceBuild } from "./talentsforever.js";
 
-// Issue #146 (S3): aura uptime. Most of these are contract tests: they read
+// Issue #146 (S3): aura uptime, and (B) resource waste. Most of these are contract tests: they read
 // events and results, never an engine step, so they have to pass unchanged on
 // the Phase 3.5 engine. The one exception is "agreement with the engine", which
 // checks the event-based uptimes against the engine's own aura maps step by step.
@@ -707,13 +709,405 @@ describe("the batch runner's auras", () => {
   });
 });
 
+// #146 (B): resource waste, read from the end event's `resources`.
+
+function resourcesOf(seed, config = TALENTED, duration = FIGHT) {
+  const runner = new SimRunner({ seed, duration, config });
+  const resources = new FightResources();
+  resources.attach(runner);
+  const events = [];
+  runner.on("*", (event) => events.push(event));
+  runner.run();
+  runner.advance(Infinity);
+  return { result: runner.result, summary: resources.summary(), events };
+}
+
+function endWith(time, energy, comboPoints) {
+  return {
+    type: "end",
+    time,
+    totalDamage: 0,
+    dps: 0,
+    resources: { energy, comboPoints },
+  };
+}
+
+// The fight a test drives one step at a time, reading the energy before each
+// step: what the step starts with is what the regeneration starts from.
+function drive(seed, config, duration) {
+  const { simulation } = createFight(seed, config);
+  const pool = simulation.rogue.resources.energy;
+  const dt = k("sim.fixedStep");
+  const starts = [];
+  const steps = Math.round(duration / dt);
+  for (let index = 0; index < steps; index += 1) {
+    starts.push({ value: pool.value, max: pool.max });
+    simulation.step(dt);
+  }
+  let end = null;
+  simulation.on("end", (event) => {
+    end = event;
+  });
+  simulation.end();
+  return { starts, dt, end, gains: pool };
+}
+
+describe("FightResources", () => {
+  it("is null before the end, then reads the end event", () => {
+    const resources = new FightResources();
+    assert.deepEqual(resources.summary(), {
+      duration: null,
+      ended: false,
+      energyCappedTime: null,
+      energyCappedFraction: null,
+      energyOverflow: null,
+      comboPointWaste: null,
+    });
+    resources.observe({ type: "hit", time: 1 });
+    assert.equal(resources.summary().ended, false);
+    resources.observe(
+      endWith(
+        8,
+        { cappedTime: 2, overflow: 20 },
+        { cappedTime: 0, overflow: 3 },
+      ),
+    );
+    assert.deepEqual(resources.summary(), {
+      duration: 8,
+      ended: true,
+      energyCappedTime: 2,
+      energyCappedFraction: 0.25,
+      energyOverflow: 20,
+      comboPointWaste: 3,
+    });
+  });
+
+  it("gives 0 for a pool the end event does not carry, and 0 for no length", () => {
+    const resources = new FightResources();
+    resources.observe({ type: "end", time: 0, resources: {} });
+    assert.deepEqual(resources.summary(), {
+      duration: 0,
+      ended: true,
+      energyCappedTime: 0,
+      energyCappedFraction: 0,
+      energyOverflow: 0,
+      comboPointWaste: 0,
+    });
+  });
+
+  it("refuses an end event without resources, a bad count, and a second end", () => {
+    for (const resources of [undefined, null, 1]) {
+      assert.throws(
+        () => new FightResources().observe({ type: "end", time: 1, resources }),
+        { name: "TypeError", message: /needs `resources`/ },
+      );
+    }
+    for (const bad of [-1, NaN, Infinity, "1", undefined]) {
+      for (const pool of ["energy", "comboPoints"]) {
+        for (const field of ["cappedTime", "overflow"]) {
+          const waste = { cappedTime: 0, overflow: 0, [field]: bad };
+          assert.throws(
+            () =>
+              new FightResources().observe({
+                type: "end",
+                time: 1,
+                resources: { [pool]: waste },
+              }),
+            RangeError,
+            `${pool}.${field} ${bad}`,
+          );
+        }
+      }
+    }
+    assert.throws(
+      () =>
+        new FightResources().observe({
+          type: "end",
+          time: 1,
+          resources: { energy: null },
+        }),
+      RangeError,
+    );
+    const resources = new FightResources();
+    const zero = { cappedTime: 0, overflow: 0 };
+    resources.observe(endWith(1, zero, zero));
+    assert.throws(() => resources.observe(endWith(1, zero, zero)), RangeError);
+    assert.throws(() => resources.observe(null), TypeError);
+  });
+
+  it("unsubscribes", () => {
+    const runner = new SimRunner({ seed: 3, duration: 1, config: TALENTED });
+    const resources = new FightResources();
+    const off = resources.attach(runner);
+    off();
+    runner.run();
+    runner.advance(Infinity);
+    assert.equal(resources.summary().ended, false);
+  });
+
+  it("is the engine's end event in a real fight, and changes nothing in it", () => {
+    const { result, summary, events } = resourcesOf(3);
+    const end = events.at(-1);
+    assert.equal(end.type, "end");
+    assert.equal(summary.energyCappedTime, end.resources.energy.cappedTime);
+    assert.equal(summary.energyOverflow, end.resources.energy.overflow);
+    assert.equal(summary.comboPointWaste, end.resources.comboPoints.overflow);
+    assert.equal(summary.duration, FIGHT);
+    const runner = new SimRunner({
+      seed: 3,
+      duration: FIGHT,
+      config: TALENTED,
+    });
+    runner.run();
+    runner.advance(Infinity);
+    assert.deepEqual(result, runner.result);
+  });
+
+  it("counts every combo point Sinister Strike could not add at 5", () => {
+    // A rotation that builds and never spends: the first five points land,
+    // every later Sinister Strike that lands wastes its point.
+    const rotation = {
+      schemaVersion: 1,
+      name: "Builder only",
+      rules: [{ action: "sinister-strike", conditions: [] }],
+    };
+    const { summary, events } = resourcesOf(5, { rotation }, FIGHT * 2);
+    const landed = events.filter(
+      (event) =>
+        event.type === "hit" &&
+        event.ability === "sinister-strike" &&
+        (event.outcome === "hit" || event.outcome === "crit"),
+    ).length;
+    const gained = events.filter(
+      (event) =>
+        event.type === "resource" &&
+        event.resource === "comboPoints" &&
+        event.change === "gain",
+    ).length;
+    assert.equal(gained, k("combo.max"));
+    // Seed 5 over 60 s: 14 landed (12 hits, 2 crits), so 9 wasted.
+    assert.equal(landed, 14);
+    assert.equal(summary.comboPointWaste, landed - k("combo.max"));
+  });
+
+  it("counts the opening seconds at the cap", () => {
+    // A rotation that never casts: no builder, so the finisher never has its
+    // points. Energy starts full and stays there the whole fight.
+    const rotation = {
+      schemaVersion: 1,
+      name: "Never",
+      rules: [
+        {
+          action: "eviscerate",
+          conditions: [
+            { type: "comboPoints", op: ">=", value: k("combo.max") },
+          ],
+        },
+      ],
+    };
+    const { summary, events } = resourcesOf(1, { rotation });
+    // White swings land, but no energy is spent or gained.
+    assert.equal(
+      events.filter(
+        (event) => event.type === "resource" && event.resource === "energy",
+      ).length,
+      0,
+    );
+    assert.equal(summary.energyCappedTime, FIGHT);
+    assert.equal(summary.energyCappedFraction, 1);
+    assert.equal(summary.energyOverflow, FIGHT * k("energy.regenPerSecond"));
+    // The default rotation spends at once, yet the steps before the first
+    // cast that spends are capped, and counted.
+    const opening = drive(1, {}, 1);
+    const atCap = opening.starts.findIndex((start) => start.value < start.max);
+    assert.ok(atCap > 0);
+    assert.ok(opening.end.resources.energy.cappedTime >= atCap * opening.dt);
+  });
+});
+
+describe("agreement with the engine: capped time", () => {
+  it("is the per-step energy at the cap, exactly, at a constant rate", () => {
+    // The default build has no Adrenaline Rush, so the rate never changes:
+    // a step that starts at the cap is capped for all of it, and one that
+    // reaches the cap is capped from the moment it does.
+    const rate = k("energy.regenPerSecond");
+    for (const seed of [1, 2, 3]) {
+      const { starts, dt, end } = drive(seed, {}, FIGHT);
+      let capped = 0;
+      let overflow = 0;
+      for (const { value, max } of starts) {
+        if (value >= max) {
+          capped += dt;
+          overflow += rate * dt;
+        } else if (value + rate * dt > max) {
+          capped += dt - (max - value) / rate;
+          overflow += value + rate * dt - max;
+        }
+      }
+      assert.ok(capped > 0, `seed ${seed}`);
+      close(end.resources.energy.cappedTime, capped, `seed ${seed} capped`);
+      assert.ok(
+        end.resources.energy.overflow >= overflow - ROUNDING,
+        `seed ${seed} overflow`,
+      );
+    }
+  });
+
+  it("is at least the steps that start at the cap with Adrenaline Rush", () => {
+    for (const seed of [1, 2]) {
+      const { starts, dt, end } = drive(seed, TALENTED, FIGHT);
+      const atCap = starts.filter(({ value, max }) => value >= max).length;
+      const { cappedTime } = end.resources.energy;
+      assert.ok(cappedTime >= atCap * dt - ROUNDING, `seed ${seed}`);
+      assert.ok(cappedTime <= FIGHT, `seed ${seed}`);
+    }
+  });
+});
+
+describe("BatchResources", () => {
+  const fight = (duration, cappedTime, overflow, comboPointWaste) => ({
+    duration,
+    ended: true,
+    energyCappedTime: cappedTime,
+    energyCappedFraction: duration > 0 ? cappedTime / duration : 0,
+    energyOverflow: overflow,
+    comboPointWaste,
+  });
+
+  it("pools the capped fraction and keeps per-fight statistics", () => {
+    const batch = new BatchResources();
+    batch.add(fight(10, 1, 10, 2));
+    batch.add(fight(30, 6, 60, 0));
+    const summary = batch.summary();
+    assert.deepEqual(Object.keys(summary), [
+      "fights",
+      "duration",
+      "energyCappedTime",
+      "energyCappedFraction",
+      "energyOverflow",
+      "comboPointWaste",
+      "perFight",
+    ]);
+    assert.equal(summary.fights, 2);
+    assert.equal(summary.duration, 40);
+    assert.equal(summary.energyCappedTime, 7);
+    assert.equal(summary.energyCappedFraction, 7 / 40);
+    assert.equal(summary.energyOverflow, 70);
+    assert.equal(summary.comboPointWaste, 2);
+    assert.equal(summary.perFight.energyCappedFraction.count, 2);
+    close(summary.perFight.energyCappedFraction.mean, 0.15, "mean fraction");
+    assert.equal(summary.perFight.comboPointWaste.mean, 1);
+    assert.equal(summary.perFight.comboPointWaste.max, 2);
+  });
+
+  it("adds with compensated sums", () => {
+    const batch = new BatchResources();
+    for (const value of [1e16, 1, 1]) {
+      batch.add(fight(value, value, value, value));
+    }
+    const summary = batch.summary();
+    assert.equal(summary.duration, 1e16 + 2);
+    assert.equal(summary.energyCappedTime, 1e16 + 2);
+    assert.equal(summary.energyOverflow, 1e16 + 2);
+    assert.equal(summary.comboPointWaste, 1e16 + 2);
+  });
+
+  it("is empty with no fights, and gives fresh data on every call", () => {
+    const batch = new BatchResources();
+    const empty = batch.summary();
+    assert.equal(empty.fights, 0);
+    assert.equal(empty.duration, 0);
+    assert.equal(empty.energyCappedFraction, 0);
+    assert.equal(empty.perFight.comboPointWaste.count, 0);
+    batch.add(fight(1, 1, 1, 1));
+    assert.equal(batch.fights, 1);
+    batch.summary().perFight.comboPointWaste = null;
+    assert.notEqual(batch.summary().perFight.comboPointWaste, null);
+  });
+
+  it("refuses what is not an ended fight summary", () => {
+    const batch = new BatchResources();
+    const good = fight(1, 1, 1, 1);
+    for (const bad of [
+      null,
+      1,
+      {},
+      new FightResources().summary(),
+      { ...good, ended: false },
+      { ...good, duration: NaN },
+      { ...good, energyCappedTime: "1" },
+      { ...good, energyOverflow: Infinity },
+      { ...good, comboPointWaste: undefined },
+    ]) {
+      assert.throws(() => batch.add(bad), TypeError, JSON.stringify(bad));
+    }
+    assert.equal(batch.fights, 0);
+  });
+});
+
+describe("the batch runner's resources", () => {
+  const ITERATIONS = 5;
+  const options = {
+    seed: 13,
+    iterations: ITERATIONS,
+    duration: FIGHT,
+    config: TALENTED,
+  };
+
+  it("is the resources of each iteration's fight, added in index order", () => {
+    const result = runBatch(options);
+    const expected = new BatchResources();
+    for (let index = 0; index < ITERATIONS; index += 1) {
+      expected.add(resourcesOf(deriveSeed(options.seed, index)).summary);
+    }
+    assert.deepEqual(result.resources, expected.summary());
+    assert.equal(result.resources.fights, result.completed);
+    close(result.resources.duration, ITERATIONS * FIGHT, "duration");
+    assert.ok(result.resources.energyCappedTime > 0);
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(result.resources)),
+      result.resources,
+    );
+  });
+
+  it("does not depend on how the iterations are sliced", () => {
+    const whole = runBatch(options).resources;
+    for (const sizes of [[1], [2], [4, 1], [3, Infinity]]) {
+      const runner = new BatchRunner(options);
+      runner.run();
+      let turn = 0;
+      while (runner.state === "running") {
+        runner.advance(sizes[turn % sizes.length]);
+        turn += 1;
+      }
+      assert.deepEqual(runner.result.resources, whole, JSON.stringify(sizes));
+    }
+  });
+
+  it("covers the completed iterations of a cancelled batch, and starts again on a repeat run", () => {
+    const runner = new BatchRunner(options);
+    runner.run();
+    runner.advance(2);
+    runner.cancel();
+    assert.equal(runner.result.resources.fights, 2);
+    const expected = new BatchResources();
+    for (let index = 0; index < 2; index += 1) {
+      expected.add(resourcesOf(deriveSeed(options.seed, index)).summary);
+    }
+    assert.deepEqual(runner.result.resources, expected.summary());
+    runner.run();
+    runner.advance(Infinity);
+    assert.deepEqual(runner.result.resources, runBatch(options).resources);
+  });
+});
+
 describe("purity", () => {
   it("imports only the aura data and the statistics, and reads no clock, randomness or engine", async () => {
     const file = "../js/fight-metrics.js";
     const source = await readFile(new URL(file, import.meta.url), "utf8");
-    const imports = [...source.matchAll(/^import .* from "(.+)";$/gm)].map(
-      (match) => match[1],
-    );
+    const imports = [
+      ...source.matchAll(/^import\b[^;]*? from "([^"]+)";$/gm),
+    ].map((match) => match[1]);
     assert.deepEqual(imports, ["./auras.js", "./running-stats.js"]);
     for (const banned of [
       /\bDate\b/,

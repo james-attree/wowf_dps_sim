@@ -23,6 +23,11 @@ import { CompensatedSum, RunningStats } from "./running-stats.js";
 //
 // The metric definitions and the shapes are in docs/mechanics.md ("Aura
 // uptime").
+//
+// Resource waste (FightResources, BatchResources) is read from the end event's
+// `resources` field: what each pool lost to its cap over the fight, counted
+// exactly by the resource model (js/resource.js). See docs/mechanics.md
+// ("Resource waste").
 
 // The aura change that ends an interval (docs/events.md). Every other change
 // ("apply", "refresh", "stack") means the aura is up after the event.
@@ -434,5 +439,176 @@ export class BatchAuras {
     }
     rows.sort(byIdAndTarget);
     return { fights: this.#fights, duration, rows };
+  }
+}
+
+// The pools the resource summary reads from the end event's `resources`
+// (js/resource-data.js ids).
+const ENERGY = "energy";
+const COMBO_POINTS = "comboPoints";
+
+function readWaste(resources, id) {
+  const waste = resources[id];
+  if (waste === undefined) {
+    return { cappedTime: 0, overflow: 0 };
+  }
+  for (const field of ["cappedTime", "overflow"]) {
+    const value = waste?.[field];
+    if (!Number.isFinite(value) || value < 0) {
+      throw new RangeError(
+        `The end event's resources.${id}.${field} must be a number, 0 or more. Got ${value}.`,
+      );
+    }
+  }
+  return waste;
+}
+
+// One fight's resource waste, read from its end event.
+//
+//   const resources = new FightResources();
+//   const off = resources.attach(runner);
+//   ... the fight runs ...
+//   resources.summary();
+//
+// The counts are known once the fight is over: before the end event every
+// value is null.
+export class FightResources {
+  #end = null;
+
+  // Subscribe to the "end" event of `source`. Returns the unsubscribe function.
+  attach(source) {
+    return source.on("end", (event) => this.observe(event));
+  }
+
+  // Read one event. Only "end" counts; other types are ignored.
+  observe(event) {
+    readEvent(event);
+    if (event.type !== "end") {
+      return;
+    }
+    if (this.#end !== null) {
+      throw new RangeError(
+        "This fight has ended. A FightResources reads one fight; use a new one for the next.",
+      );
+    }
+    const { resources } = event;
+    if (resources === null || typeof resources !== "object") {
+      throw new TypeError(
+        "The end event needs `resources`, what each pool lost to its cap (docs/events.md).",
+      );
+    }
+    const energy = readWaste(resources, ENERGY);
+    const comboPoints = readWaste(resources, COMBO_POINTS);
+    this.#end = {
+      duration: event.time,
+      energyCappedTime: energy.cappedTime,
+      energyOverflow: energy.overflow,
+      comboPointWaste: comboPoints.overflow,
+    };
+  }
+
+  // Plain data, fresh on every call:
+  //
+  //   duration              the fight duration (the end event's time), or null
+  //   ended                 true once the end event was read
+  //   energyCappedTime      seconds energy sat at its cap while regenerating
+  //   energyCappedFraction  energyCappedTime / duration, 0 for no length
+  //   energyOverflow        energy a gain or regeneration lost to the cap
+  //   comboPointWaste       combo points a gain lost to the cap. Points lost
+  //                         when a timed gift ran out or a target change
+  //                         cleared them are not waste here
+  //
+  // Before the end every value but `ended` is null.
+  summary() {
+    const end = this.#end;
+    if (end === null) {
+      return {
+        duration: null,
+        ended: false,
+        energyCappedTime: null,
+        energyCappedFraction: null,
+        energyOverflow: null,
+        comboPointWaste: null,
+      };
+    }
+    return {
+      duration: end.duration,
+      ended: true,
+      energyCappedTime: end.energyCappedTime,
+      energyCappedFraction: fraction(end.energyCappedTime, end.duration),
+      energyOverflow: end.energyOverflow,
+      comboPointWaste: end.comboPointWaste,
+    };
+  }
+}
+
+function readEnded(fight) {
+  if (
+    fight === null ||
+    typeof fight !== "object" ||
+    fight.ended !== true ||
+    !Number.isFinite(fight.duration) ||
+    !Number.isFinite(fight.energyCappedTime) ||
+    !Number.isFinite(fight.energyOverflow) ||
+    !Number.isFinite(fight.comboPointWaste)
+  ) {
+    throw new TypeError(
+      "BatchResources.add needs the summary of a fight that ended (FightResources#summary()).",
+    );
+  }
+}
+
+// The resource waste over a batch of fights. Fights are added in order and
+// every sum is taken in that order, so the result does not depend on how the
+// work was sliced.
+export class BatchResources {
+  #fights = 0;
+  #duration = new CompensatedSum();
+  #cappedTime = new CompensatedSum();
+  #overflow = new CompensatedSum();
+  #comboPointWaste = new CompensatedSum();
+  #cappedStats = new RunningStats();
+  #wasteStats = new RunningStats();
+
+  get fights() {
+    return this.#fights;
+  }
+
+  // Add one ended fight: a FightResources#summary().
+  add(fight) {
+    readEnded(fight);
+    this.#duration.add(fight.duration);
+    this.#cappedTime.add(fight.energyCappedTime);
+    this.#overflow.add(fight.energyOverflow);
+    this.#comboPointWaste.add(fight.comboPointWaste);
+    this.#cappedStats.add(fight.energyCappedFraction);
+    this.#wasteStats.add(fight.comboPointWaste);
+    this.#fights += 1;
+  }
+
+  // Plain data, fresh on every call:
+  //
+  //   fights, duration      fights added and their summed duration
+  //   energyCappedTime      summed seconds
+  //   energyCappedFraction  pooled: summed capped time / summed duration
+  //   energyOverflow        summed
+  //   comboPointWaste       summed
+  //   perFight              { energyCappedFraction, comboPointWaste }:
+  //                         RunningStats summaries over the fights
+  summary() {
+    const duration = this.#duration.value;
+    const cappedTime = this.#cappedTime.value;
+    return {
+      fights: this.#fights,
+      duration,
+      energyCappedTime: cappedTime,
+      energyCappedFraction: fraction(cappedTime, duration),
+      energyOverflow: this.#overflow.value,
+      comboPointWaste: this.#comboPointWaste.value,
+      perFight: {
+        energyCappedFraction: this.#cappedStats.summary(),
+        comboPointWaste: this.#wasteStats.summary(),
+      },
+    };
   }
 }

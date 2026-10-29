@@ -292,8 +292,11 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   in seconds and as a fraction of the fight, applications, refreshes, and for a
   stacking aura (Deadly Poison) stack-seconds, mean stacks and full-stack
   uptime, with per-fight statistics over a batch. The batch result carries it as
-  `auras`. Not yet used by the page. See
-  [Aura uptime](docs/mechanics.md#aura-uptime-s3-issue-146).
+  `auras`. Also resource waste: a `FightResources` that reads the `end` event's
+  `resources` (energy capped time and overflow, combo point waste) and a
+  `BatchResources`, carried by the batch result as `resources`. Not yet used by
+  the page. See [Aura uptime](docs/mechanics.md#aura-uptime-s3-issue-146) and
+  [Resource waste](docs/mechanics.md#resource-waste-issue-146).
 - `js/running-stats.js` — `RunningStats` (Welford's mean, SD, min, max and 95%
   CI, from #144) and `CompensatedSum` (Neumaier's compensated sum, #145).
 - `js/event-stream.js` — The event stream (P3-2, #137): `EventStream` (`on`,
@@ -378,7 +381,8 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   change does, all constants ids.
 - `js/resource.js` — The `Resource` pool (D3). `gain`, `spend`, `spendAll` (the
   count it took, before the reset), `regenerate`, an expiry (Premeditation's
-  rule) and `targetChanged`. The cap goes through `resourceMax` modifiers. The
+  rule) and `targetChanged`. The cap goes through `resourceMax` modifiers. Each
+  pool counts what it lost to its cap: `cappedTime` and `overflow` (#146). The
   generic executor and the procs use these by resource id. See
   [Resources](docs/mechanics.md#resources).
 - `js/procs.js` — The proc system (A4). `defineProc` and `defineRankedProc`
@@ -558,8 +562,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   straddles an aura, the `modifiers.stacking` rows, and the rejected shapes.
 - `test/resources.test.js` — Resources as data (D3): no energy or combo point
   names in the executor, a second resource run through it, the max-energy
-  modifier, `Resource` gain, spend, regen, expiry and target change, and
-  Premeditation on the pool.
+  modifier, `Resource` gain, spend, regen, expiry and target change,
+  Premeditation on the pool, and the cap counters (#146): gain and regeneration
+  overflow, capped time from the moment the cap is reached, a fight that never
+  casts capped throughout, and no change to what is reported.
 - `test/damage-tags.test.js` — Damage modifier hooks by tag (A3): the tags of
   each kind of event, `scope.schools` and `scope.tags` (validation, OR within a
   key, fail closed), "+30% Rupture" and "+20% poison" as data through a real
@@ -618,7 +624,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   wildcard, unsubscribe, queued delivery under re-entrancy, error isolation and
   surfacing, the ring's bound and order.
 - `test/sim-events.test.js` — The events of a fight: a payload-shape test for
-  each type, `hit` damage adding up to `totalDamage`, results and rng draws
+  each type (the `end` event's `resources` included), `hit` damage adding up to `totalDamage`, results and rng draws
   equal with and without subscribers, the ring-buffer log, and the runner's
   `on` (pause, stop and run from handlers, state handlers that throw or re-enter).
 - `test/fixed-step.test.js` — `Simulation.run`: the fixed step, total time,
@@ -678,7 +684,11 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   their full duration, recorded events, mid-fight reads, pooled batch values,
   back-filled per-fight statistics, the batch result's `auras` against each
   iteration's fight however it is sliced, and that the module names no step or
-  frame and imports only the aura data and the statistics.
+  frame and imports only the aura data and the statistics. Resource waste: the
+  end event's counts, combo points a builder-only rotation wastes at 5, the
+  opening seconds at the cap, capped time equal to the engine's energy step by
+  step, pooled batch values and the batch result's `resources` however it is
+  sliced.
 - `test/rotation-equivalence.test.js` — The Combat rotation as JSON against the
   code rotation it replaced (`test/legacy-rotation.js`): the same fights, field
   for field, log and rng draws included, over builds, weapons, poisons, seeds

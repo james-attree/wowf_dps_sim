@@ -2626,10 +2626,86 @@ depend on how the batch was sliced.
   time, and the same code gives the exact uptime.
 
 Energy-capped time and combo point waste (the rest of #146) are not observable
-from today's events (energy regeneration is not reported, and a gain lost at the
-cap moves nothing, so it sends no event). They come in a later change.
+from the per-change events (energy regeneration is not reported, and a gain lost
+at the cap moves nothing, so it sends no event). They are counted by the pools
+and carried by the `end` event: see [Resource waste](#resource-waste-issue-146).
 
 **Shape.** `runFight`'s result, `SimConfig` and the rotation JSON are unchanged.
 The batch result gains `auras` ([batch.md](batch.md)). New module
 `js/fight-metrics.js`: `FightAuras`, `aurasFromEvents`, `BatchAuras`. No
 constants change.
+
+## Resource waste (issue #146)
+
+How much energy and how many combo points a fight lost to the cap. Neither can
+be read from the per-change events: regeneration sends none, and a gain that
+the cap stops moves nothing, so it sends none either. So each `Resource` pool
+(`js/resource.js`) counts it exactly as the fight runs, and the `end` event
+carries the counts as `resources` ([Events](events.md#end)). The counters draw
+no randomness and send no event: every fight, result and golden is the same
+as before.
+
+### What the pool counts
+
+| Counter      | Definition                                                                                                                                                                                                                                                       |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cappedTime` | Seconds of regeneration spent at the cap. `regenerate(dt, rate)` from at or above the cap adds all of `dt`; from below, if `before + rate * dt` passes the cap, it adds the part after the moment it reaches it: `dt - (max - before) / rate`. No `dt`, no time. |
+| `overflow`   | What the cap took. `gain(amount)` adds `amount - added`; `regenerate` adds `max(0, before + rate * dt - max)`, or all of `rate * dt` from at or above the cap.                                                                                                   |
+
+- The opening seconds count: energy starts full (`start.state`), so the steps
+  before the first spend are at the cap.
+- On today's fixed-step engine a step regenerates first, then the rotation
+  spends. A step's regeneration is cut into pieces where Adrenaline Rush runs
+  out, and each piece is counted at its own rate, so the counts are exact for
+  the engine's own energy. `test/fight-metrics.test.js` checks, step by step,
+  that `cappedTime` equals the energy each step starts from.
+- A pool above a cap that fell (the max went down) is at the cap: its
+  regeneration time counts and its regeneration is overflow, but the excess
+  above the new cap is not (the engine's clamp removes it, and it was never
+  gained against the cap).
+- A miss refund (`skill.missEnergyRefund` of the cost, `js/ability.js`) that
+  the cap stops is overflow, like any gain.
+- A spend, a timed gift running out (Premeditation) and a target change
+  clearing combo points are never overflow.
+- Combo points do not regenerate, so their `cappedTime` is always 0; their
+  `overflow` is the points a builder, a crit bonus or a proc could not add at
+  `k("combo.max")`.
+
+### The summary (`FightResources`, `BatchResources`)
+
+`js/fight-metrics.js` reads the `end` event, like the aura uptimes:
+
+```js
+import { FightResources } from "./js/fight-metrics.js";
+
+const resources = new FightResources();
+resources.attach(runner); // subscribes to "end"
+runner.run();
+runner.advance(Infinity);
+resources.summary();
+```
+
+| Metric                 | Definition                                                                                                                                          |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `duration`             | The `end` event's time, the fight duration.                                                                                                         |
+| `energyCappedTime`     | `resources.energy.cappedTime`, seconds.                                                                                                             |
+| `energyCappedFraction` | `energyCappedTime / duration`, `0` for a fight of no length.                                                                                        |
+| `energyOverflow`       | `resources.energy.overflow`: energy points lost to the cap.                                                                                         |
+| `comboPointWaste`      | `resources.comboPoints.overflow`: combo points a gain lost to the cap. Points lost to Premeditation running out or a target change are not counted. |
+
+Before the `end` event every value is `null` and `ended` is `false`. A pool the
+event does not carry counts as 0. One `FightResources` reads one fight.
+
+**Over a batch** (`BatchResources#summary()`): `fights`, `duration`,
+`energyCappedTime`, `energyOverflow` and `comboPointWaste` are summed in fight
+order with compensated sums; `energyCappedFraction` is pooled (summed capped
+time over summed duration). `perFight.energyCappedFraction` and
+`perFight.comboPointWaste` are `RunningStats` summaries over the fights. The batch
+result carries it as `resources`, after `auras` ([batch.md](batch.md)); it does
+not depend on how the batch was sliced.
+
+**Shape.** `runFight`'s result, `SimConfig` and the rotation JSON are unchanged.
+The `end` event gains `resources` (additive). The batch result gains
+`resources`. `Resource` gains `cappedTime`, `overflow` and `waste()`;
+`Simulation` gains `resourceWaste()`; `js/fight-metrics.js` gains
+`FightResources` and `BatchResources`. No constants change.

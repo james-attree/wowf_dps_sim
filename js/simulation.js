@@ -230,8 +230,20 @@ export class Simulation {
       this.publish("end", {
         totalDamage: this.damageDone,
         dps: this.currentTime > 0 ? this.damageDone / this.currentTime : 0,
+        resources: this.resourceWaste(),
       });
     }
+  }
+
+  // What each resource lost to its cap over the fight (#146), by id:
+  // { energy: { cappedTime, overflow }, comboPoints: { ... } }, frozen, for the
+  // end event. See Resource#cappedTime and #overflow.
+  resourceWaste() {
+    const waste = {};
+    for (const [id, pool] of Object.entries(this.rogue.resources ?? {})) {
+      waste[id] = Object.freeze(pool.waste());
+    }
+    return Object.freeze(waste);
   }
 
   // Advance the fight by dt seconds. The engine reads no clock: the host
