@@ -15,6 +15,11 @@
 //   row           the constants row with the ability's numbers: its cost,
 //                 cooldown and gain are read from it
 //   icon          the page's icon for the ability, the combat log and its aura
+//   requiresMainHand  a weapon type ("dagger"): a cast needs that main hand and
+//                 is rejected, nothing spent, with any other. Only Backstab has
+//                 it. The catalogue's `requires` also lists Ambush and
+//                 Mutilate as dagger-only; they are not enforced (Ambush needs
+//                 stealth too, which the engine does not model)
 //   cost          { resource, field, refund? } what a cast pays: the amount is
 //                 the row's `field`, taken from the resource with that id
 //                 (js/resource-data.js), after that resource's cost modifiers.
@@ -137,6 +142,7 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     id: "backstab",
     row: "backstab",
     icon: "./img/backstab.jpg",
+    requiresMainHand: "dagger",
     cost: ENERGY,
     gain: COMBO_POINTS,
     damage: {

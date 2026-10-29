@@ -314,9 +314,16 @@ describe("project site paths", () => {
     // rotation builder and interpreter (R3, the builder); remove it then. So
     // are js/rotation-conditions.js and js/rotation-state.js (#139).
     // js/rotation-summary.js (R4, #141) is the display-edge text for a rule;
-    // the rotation builder and the preset list (R5) import it, so remove it
-    // then. js/rotation-validator.js is wired through the interpreter.
-    const notWiredYet = new Set(["js/sim-runner.js", "js/rotation-summary.js"]);
+    // the rotation builder imports it (through js/rotation-presets.js, for the
+    // preset list), so remove it then. js/rotation-presets.js (R5, #142) is the
+    // preset list's API: the page has no config UI to call it yet (#149,
+    // #150), so it waits with js/sim-runner.js.
+    // js/rotation-validator.js is wired through the interpreter.
+    const notWiredYet = new Set([
+      "js/sim-runner.js",
+      "js/rotation-summary.js",
+      "js/rotation-presets.js",
+    ]);
     for (const file of publishedJs) {
       if (notWiredYet.has(file)) {
         assert.equal(seen.has(file), false, `${file} is wired: drop it above`);

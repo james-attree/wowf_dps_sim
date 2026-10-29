@@ -45,6 +45,8 @@ function harness({ procs = [], rolls, config, seed = 1 } = {}) {
 }
 
 const SWORD = { weapons: { mainHand: { type: "sword" } } };
+// Backstab needs a dagger in the main hand.
+const DAGGER = { weapons: { mainHand: { type: "dagger" } } };
 const HIT = 0.99;
 
 function swing(sim, hand = "mainHand") {
@@ -357,6 +359,7 @@ describe("triggers", () => {
       // Backstab: weapon damage, attack, crit, proc. Sinister Strike: weapon
       // damage, attack, crit, no proc.
       rolls: [0.5, HIT, HIT, 0, 0.5, HIT, HIT],
+      config: DAGGER,
     });
     rogue.comboPoints = 0;
     rogue.abilities.backstab.cast(rogue, sim);
@@ -426,7 +429,11 @@ describe("triggers", () => {
       trigger: "onAbility",
       chance: { mode: "flat", value: 1 },
     });
-    const { rogue, sim } = harness({ procs: [any], rolls: [0.5, 0] });
+    const { rogue, sim } = harness({
+      procs: [any],
+      rolls: [0.5, 0],
+      config: DAGGER,
+    });
     rogue.abilities.backstab.cast(rogue, sim);
     assert.equal(sim.procs.stats["test-proc"].rolls, 0);
   });
@@ -889,6 +896,7 @@ describe("Hack and Slash and Puncturing Wounds", () => {
         const { rogue, sim, tape } = harness({
           procs,
           rolls: [0.5, HIT, HIT, roll],
+          config: DAGGER,
         });
         rogue.comboPoints = 0;
         rogue.abilities.backstab.cast(rogue, sim);

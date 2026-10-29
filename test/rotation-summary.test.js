@@ -281,10 +281,14 @@ describe("summarizeRotation", () => {
 });
 
 describe("the summary is a display edge", () => {
-  it("is imported by no module of the engine", async () => {
+  it("is imported by no module of the engine (the preset list, a display edge too, may)", async () => {
     const dir = new URL("../js/", import.meta.url);
     for (const file of await readdir(dir)) {
-      if (file.endsWith(".js") && file !== "rotation-summary.js") {
+      if (
+        file.endsWith(".js") &&
+        file !== "rotation-summary.js" &&
+        file !== "rotation-presets.js"
+      ) {
         const source = await readFile(new URL(file, dir), "utf8");
         assert.doesNotMatch(source, /from\s+"[^"]*rotation-summary/, file);
       }

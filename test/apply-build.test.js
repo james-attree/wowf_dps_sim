@@ -567,12 +567,20 @@ describe("weapons are the config's, and the build's weapon talents follow them",
     assert.ok(!k("hackAndSlash.extraAttack").weaponTypes.includes("dagger"));
   });
 
-  it("Backstab's dagger requirement is parsed and not enforced: a sword can cast it", () => {
-    const fight = createFight(1, { talents: REFERENCE });
-    fight.rogue.energy = fight.rogue.maxEnergy;
-    fight.simulation.rng = () => 0.5;
-    fight.rogue.abilities.backstab.cast(fight.rogue, fight.simulation);
-    assert.equal(fight.simulation.abilityStats.backstab.casts, 1);
+  it("Backstab's dagger requirement is enforced: a sword cannot cast it, a dagger can", () => {
+    for (const [type, casts] of [
+      ["sword", 0],
+      ["dagger", 1],
+    ]) {
+      const fight = createFight(1, {
+        talents: REFERENCE,
+        weapons: { mainHand: { type } },
+      });
+      fight.rogue.energy = fight.rogue.maxEnergy;
+      fight.simulation.rng = () => 0.5;
+      fight.rogue.abilities.backstab.cast(fight.rogue, fight.simulation);
+      assert.equal(fight.simulation.abilityStats.backstab?.casts ?? 0, casts);
+    }
   });
 });
 

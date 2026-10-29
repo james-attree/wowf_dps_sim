@@ -164,6 +164,7 @@ describe("golden fixtures", () => {
             ...defaults,
             talents: goldenCase.config.talents ?? defaults.talents,
             poisons: { ...defaults.poisons, ...goldenCase.config.poisons },
+            rotation: goldenCase.config.rotation ?? defaults.rotation,
           },
           goldenCase.name,
         );

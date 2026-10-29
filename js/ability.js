@@ -107,6 +107,8 @@ export class Ability {
     // attacks with the main hand (Simulation.attackContext reads `hand`).
     this.hand = "mainHand";
     this.costContext = Object.freeze({ ability: this.id });
+    // The main-hand weapon type a cast needs, or null for none (Backstab).
+    this.requiresMainHand = definition.requiresMainHand ?? null;
     this.cooldown = stats.cooldown;
     // A hand-made file in img/ where the entry has one; else the spell's icon
     // from the icon CDN (js/icons.js), the question mark if it has none.
@@ -224,6 +226,15 @@ export class Ability {
     return simulation.cooldowns[this.id] > 0;
   }
 
+  // Whether the main hand is the type the ability needs (always, for one that
+  // needs none). Only the config's weapon type decides it.
+  mainHandAllowed(rogue) {
+    return (
+      this.requiresMainHand === null ||
+      rogue.weapons.mainHand.type === this.requiresMainHand
+    );
+  }
+
   // What a cast would pay now: the cost after the cost modifiers of its
   // resource (Improved Sinister Strike). With none, it is this.cost as it
   // stands. 0 for an ability that pays nothing.
@@ -241,16 +252,20 @@ export class Ability {
         );
   }
 
-  // Whether cast() would go ahead right now. It makes the same four checks
-  // cast() makes, in another order (the answer is a yes only if all four
+  // Whether cast() would go ahead right now. It makes the same five checks
+  // cast() makes, in another order (the answer is a yes only if all five
   // pass), and changes nothing: no draw, no spend.
-  // Not on cooldown; a spender holds at least one of what it spends; the pool
+  // The main hand is the type the ability needs (Backstab: a dagger); not on
+  // cooldown; a spender holds at least one of what it spends; the pool
   // affords the cost; and, on the GCD, the GCD is clear (a remainder within
   // sim.tickEpsilon counts as clear). An off-GCD ability skips the GCD check.
   // The rotation interpreter (js/rotation-interpreter.js) asks this; the build
   // lock is its own check (Rogue.lockedByBuild). test/can-cast.test.js holds
   // the two together: cast() acts exactly when this is true.
   canCast(rogue, simulation) {
+    if (!this.mainHandAllowed(rogue)) {
+      return false;
+    }
     // The GCD is asked first: on most steps it is running, and that settles
     // an on-GCD ability before its cost is worked out.
     if (this.triggersGcd && !gcdClear(simulation)) {
@@ -269,6 +284,11 @@ export class Ability {
   }
 
   cast(rogue, simulation) {
+    // The wrong main hand is refused before anything else: no cast is told,
+    // nothing is spent, no cooldown or GCD starts, and the rng is not drawn.
+    if (!this.mainHandAllowed(rogue)) {
+      return null;
+    }
     if (this.onCooldown(rogue, simulation)) {
       return null; // On cooldown, cannot cast
     }

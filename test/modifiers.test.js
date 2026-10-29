@@ -31,8 +31,8 @@ function pipeline(...specs) {
   return new ModifierPipeline(specs);
 }
 
-function fresh(modifiers) {
-  const rogue = new Rogue(undefined, { modifiers });
+function fresh(modifiers, config) {
+  const rogue = new Rogue(config, { modifiers });
   rogue.rotation = () => {};
   rogue.critChance = 0;
   rogue.bonusHitChance = 0;
@@ -712,13 +712,16 @@ describe("modifiers at the engine's hooks", () => {
   });
 
   it("reduces the energy a skill costs, for the skill it names", () => {
-    const { rogue, sim } = fresh([
-      {
-        kind: "energyCost",
-        value: -3,
-        scope: { abilities: ["sinister-strike"] },
-      },
-    ]);
+    const { rogue, sim } = fresh(
+      [
+        {
+          kind: "energyCost",
+          value: -3,
+          scope: { abilities: ["sinister-strike"] },
+        },
+      ],
+      { weapons: { mainHand: { type: "dagger" } } },
+    );
     const spent = (skill) => {
       rogue.energy = 100;
       sim.gcd = 0;
