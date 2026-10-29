@@ -34,14 +34,15 @@ import { talentGrantedAbilities } from "./talent-build.js";
 //      read from the talent effects data, issue #188) has a condition that
 //      guards it, so a build without the talent never casts it. Cold Blood
 //      needs `abilityGranted` (issue #155). Until issue #199 the others take
-//      `abilityGranted` or `abilityUnlocked`; see TALENT_GUARDS below.
+//      `abilityGranted` or `abilityUnlocked`; see TRANSITIONAL below.
 // It does not check whether a rule is reachable or sensible (an order that
 // never casts something). Nothing here knows a step or a frame.
 //
 // This module is pure: no DOM, no clock, no random numbers. It reads the
-// ability data and the aura definitions and never a display name: a message
-// names ids, and the display names belong to the summary
-// (js/rotation-summary.js).
+// ability data and the aura definitions. A message names ids. The talent guard
+// (rule 5) is shown in the import UI, so its message also writes the ability's
+// display name beside the id (abilityLabel, issue #203); the name is only ever
+// written out, never compared or branched on.
 
 // What a rotation is validated against: which ids exist. Every list is of ids.
 //
@@ -243,6 +244,14 @@ const guardTypes = (id) =>
 
 const guardText = (type, id) => `{ "type": "${type}", "ability": "${id}" }`;
 
+// How a message writes an ability: its display name from the catalogue and
+// then its id, "Cold Blood (cold-blood)", or the id alone when the catalogue has
+// no name for it. Output only: nothing reads the name back or tests it.
+export function abilityLabel(id) {
+  const name = abilityCatalogue.get(id)?.name;
+  return name === undefined ? id : `${name} (${id})`;
+}
+
 function talentGuardError(rule, path, context) {
   const id = rule.action;
   if (!context.talentGrantedAbilities.includes(id)) {
@@ -255,10 +264,11 @@ function talentGuardError(rule, path, context) {
   if (guarded) {
     return null;
   }
+  const checks = types.join(" or ");
   const wanted = types.map((type) => guardText(type, id)).join(" or ");
   return {
     path: `${path}.conditions`,
-    message: `${path} casts ${id} without the condition ${wanted}: a talent grants ${id}, so its rule must hold only when the build has the talent.`,
+    message: `${path}: ${abilityLabel(id)} comes from a talent, so its rule needs an ${checks} check. Add ${wanted} to its conditions.`,
   };
 }
 

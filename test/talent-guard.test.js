@@ -7,7 +7,11 @@ import { abilityCatalogue } from "../js/abilities.js";
 import { runFight } from "../js/fight.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import { importRotation } from "../js/rotation-io.js";
-import { rotationContext, validateRotation } from "../js/rotation-validator.js";
+import {
+  abilityLabel,
+  rotationContext,
+  validateRotation,
+} from "../js/rotation-validator.js";
 import { talentGrantedAbilities } from "../js/talent-build.js";
 import { GOLDEN_CASES } from "../scripts/golden-update.mjs";
 
@@ -24,12 +28,22 @@ const unlocked = (ability) => ({ type: "abilityUnlocked", ability });
 const five = { type: "comboPoints", op: ">=", value: 5 };
 const guardText = (type, id) => `{ "type": "${type}", "ability": "${id}" }`;
 
+// How the message writes each ability: the display name, then the id; an id
+// with no display name (the fake ability below) is written alone. Spelled out
+// here, not read from the catalogue, so a change to the label shows.
+const LABELS = {
+  "cold-blood": "Cold Blood (cold-blood)",
+  "blade-flurry": "Blade Flurry (blade-flurry)",
+  "adrenaline-rush": "Adrenaline Rush (adrenaline-rush)",
+};
+const labelOf = (id) => LABELS[id] ?? id;
+
 // The exact error for rules[index] casting `id` with no guard.
 function guardError(index, id, types) {
   const wanted = types.map((type) => guardText(type, id)).join(" or ");
   return {
     path: `rules[${index}].conditions`,
-    message: `rules[${index}] casts ${id} without the condition ${wanted}: a talent grants ${id}, so its rule must hold only when the build has the talent.`,
+    message: `rules[${index}]: ${labelOf(id)} comes from a talent, so its rule needs an ${types.join(" or ")} check. Add ${wanted} to its conditions.`,
   };
 }
 const STRICT = ["abilityGranted"];
@@ -76,6 +90,28 @@ describe("talent guard (#188): which abilities it covers", () => {
       }
       assert.deepEqual(validateRotation(rotation(rule(id))), [], id);
     }
+  });
+});
+
+describe("talent guard (#188): the message (#203)", () => {
+  it("is the shared template, with the display name and the id", () => {
+    assert.equal(
+      validateRotation(rotation(rule("cold-blood")))[0].message,
+      'rules[0]: Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
+    );
+    assert.equal(
+      validateRotation(rotation(rule("blade-flurry")))[0].message,
+      'rules[0]: Blade Flurry (blade-flurry) comes from a talent, so its rule needs an abilityGranted or abilityUnlocked check. Add { "type": "abilityGranted", "ability": "blade-flurry" } or { "type": "abilityUnlocked", "ability": "blade-flurry" } to its conditions.',
+    );
+  });
+
+  it("abilityLabel writes the catalogue's name and the id, or the id alone", () => {
+    for (const { id } of ABILITY_DEFINITIONS) {
+      const { name } = abilityCatalogue.get(id);
+      assert.equal(abilityLabel(id), `${name} (${id})`, id);
+    }
+    assert.equal(abilityLabel("fake-strike"), "fake-strike");
+    assert.equal(abilityLabel("no-such"), "no-such");
   });
 });
 
@@ -164,6 +200,13 @@ describe("talent guard (#188): read from the data, not a list in the validator",
         [],
       );
     }
+  });
+
+  it("writes the fake ability, which has no display name, as its id alone", () => {
+    assert.equal(
+      validateRotation(rotation(rule(FAKE)), fakeContext([FAKE]))[0].message,
+      'rules[0]: fake-strike comes from a talent, so its rule needs an abilityGranted or abilityUnlocked check. Add { "type": "abilityGranted", "ability": "fake-strike" } or { "type": "abilityUnlocked", "ability": "fake-strike" } to its conditions.',
+    );
   });
 
   it("does not guard the fake ability when no talent grants it", () => {

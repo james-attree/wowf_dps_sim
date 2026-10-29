@@ -211,7 +211,7 @@ describe("abilityUnlocked on an on-GCD talent ability", () => {
     // reached. Since #188 such a rotation is refused before the fight.
     assert.throws(
       () => castsIn(rush(), noRush),
-      /rules\[0\] casts adrenaline-rush without the condition/,
+      /rules\[0\]: Adrenaline Rush \(adrenaline-rush\) comes from a talent/,
     );
     const guarded = castsIn(
       rush({ type: "abilityUnlocked", ability: "adrenaline-rush" }),
