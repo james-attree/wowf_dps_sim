@@ -25,8 +25,8 @@ function scripted(values) {
 
 // A rogue holding the given poisons and a simulation with no rotation, every
 // swing landing, and no crit. `rolls` script the rng.
-function harness({ poisons, rolls, seed = 1, modifiers, procs }) {
-  const rogue = new Rogue({ poisons }, { modifiers, procs });
+function harness({ poisons, rolls, seed = 1, modifiers, procs, weapons }) {
+  const rogue = new Rogue({ poisons, weapons }, { modifiers, procs });
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
   rogue.rotation = () => {};
@@ -436,7 +436,10 @@ describe("which attacks roll a poison", () => {
     Object.values(rogue.abilities).find((ability) => ability.id === id);
 
   function cast(id, poisons, seed) {
-    const { rogue, sim } = harness({ poisons, seed });
+    // Backstab needs a dagger in the main hand.
+    const weapons =
+      id === "backstab" ? { mainHand: { type: "dagger" } } : undefined;
+    const { rogue, sim } = harness({ poisons, seed, weapons });
     rogue.resources.comboPoints.gain(5);
     const result = skill(rogue, id).cast(rogue, sim);
     return { rogue, sim, result };

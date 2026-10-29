@@ -158,7 +158,8 @@ describe("generic executor parity with the skill classes", () => {
   }
 
   it("casts every ability in the every-ability fights", () => {
-    const { stats } = fight({ seed: 1, config: undefined, everything: true });
+    // Daggers: Backstab is refused with any other main hand.
+    const { stats } = fight({ seed: 1, config: DAGGERS, everything: true });
     for (const definition of ABILITY_DEFINITIONS.filter(
       (definition) => definition.id !== "cold-blood",
     )) {

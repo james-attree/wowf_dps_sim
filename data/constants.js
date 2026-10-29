@@ -283,7 +283,7 @@ export const CONSTANTS = {
     "energy, s, ×, damage, CP",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Backstab|Rank 9]",
-    "150% weapon damage plus 225. Dagger and behind requirements are not enforced.",
+    "150% weapon damage plus 225. Backstab needs a dagger in the main hand: a cast with any other main hand is rejected, nothing spent (js/ability.js, requiresMainHand in js/ability-data.js). The behind requirement is not enforced.",
     false,
   ),
   ambush: entry(
@@ -804,6 +804,15 @@ export const CONSTANTS = {
     WOWF_DESIGNER,
     COMBAT_ROTATION,
     "At rotation.finisherComboPoints, refresh Slice and Dice when it is missing or the remaining duration is at or below this. A longer remaining duration spends the combo points on Eviscerate.",
+    true,
+  ),
+
+  "rotation.pooling": entry(
+    { windowSeconds: 5, recastSeconds: 1 },
+    "s, s",
+    ASSUMPTION,
+    "James, 26 Oct 2026, issue #122: an uptime buff nearing its end (< 5 s left) has its energy pooled and is recast at < 1 s left (the GCD is 1 s), or when energy is at its maximum. The issue gives 5 and 1 as the numbers; #142 asks for any new number to be tagged assumption with retune on, so they are tagged here",
+    "Used by the Combat swords preset (data/rotation-presets.js, issue #122). At rotation.finisherComboPoints, with Slice and Dice at most windowSeconds from ending, the preset casts neither Eviscerate nor a builder, so the energy is pooled; it recasts Slice and Dice when it is missing or has less than recastSeconds left, or earlier when energy is at energy.max. With more than windowSeconds left it spends the points on Eviscerate. The placeholder rotation (rotation.sliceAndDiceRefreshSeconds, 10 s) is unchanged. Rupture and Venom would use the same two numbers; no preset casts them yet.",
     true,
   ),
 

@@ -267,6 +267,15 @@ export class Backstab extends Skill {
     this.icon = "./img/backstab.jpg"; // Set the icon for Backstab
   }
 
+  // The one deliberate difference from the classes this file was copied from
+  // (issue #122): Backstab needs a dagger in the main hand. The generic
+  // ability does the same (requiresMainHand in js/ability-data.js).
+  cast(rogue, simulation) {
+    return rogue.weapons.mainHand.type === "dagger"
+      ? super.cast(rogue, simulation)
+      : null;
+  }
+
   damage() {
     const stats = k("backstab");
     return (

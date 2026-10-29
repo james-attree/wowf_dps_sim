@@ -15,8 +15,8 @@ const GCD = [0, EPSILON / 2, EPSILON, EPSILON * 2, 1.5];
 const COOLDOWN = [0, 0.01, 30];
 
 // A fight with the state set by hand. `modifiers` is the Rogue option.
-function setUp(id, { energy, points, gcd, cooldown }, modifiers) {
-  const fight = createFight(3, undefined, { modifiers });
+function setUp(id, { energy, points, gcd, cooldown }, modifiers, config) {
+  const fight = createFight(3, config, { modifiers });
   const { rogue, simulation } = fight;
   rogue.energy = energy;
   rogue.comboPoints = points;
@@ -93,6 +93,34 @@ describe("Ability.canCast", () => {
       assert.ok(allowed > 100 && allowed < checked - 100);
     });
   }
+
+  it("agrees with cast() for Backstab on a dagger, and holds it on any other main hand", () => {
+    let allowed = 0;
+    for (const type of ["dagger", "sword", "mace", "fist"]) {
+      const config = { weapons: { mainHand: { type } } };
+      for (const energy of ENERGY) {
+        for (const gcd of GCD) {
+          for (const cooldown of COOLDOWN) {
+            const state = { energy, points: 0, gcd, cooldown };
+            const asked = setUp("backstab", state, undefined, config);
+            const can = asked.rogue.abilitiesById
+              .get("backstab")
+              .canCast(asked.rogue, asked.simulation);
+            const cast = acted(
+              setUp("backstab", state, undefined, config),
+              "backstab",
+            );
+            assert.equal(can, cast, `${type} ${JSON.stringify(state)}`);
+            if (type !== "dagger") {
+              assert.equal(can, false, `${type} ${JSON.stringify(state)}`);
+            }
+            allowed += can ? 1 : 0;
+          }
+        }
+      }
+    }
+    assert.ok(allowed > 0, "a dagger casts it in some state");
+  });
 
   it("changes nothing: no draw, no spend, no log", () => {
     for (const id of ids) {

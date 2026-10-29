@@ -1,4 +1,4 @@
-# Rotation as data (R1, issue #138; R2, issue #139; R3, issue #140; R4, issue #141)
+# Rotation as data (R1, issue #138; R2, issue #139; R3, issue #140; R4, issue #141; R5, issue #142)
 
 A rotation is a priority list of rules, written as JSON. The Rogue casts one at
 every decision point: `SimConfig.rotation`, by default today's placeholder
@@ -16,6 +16,8 @@ fight ([The interpreter](#the-interpreter)). R4
 ([#141](https://github.com/james-attree/wowf_dps_sim/issues/141)) is the
 **validator** and the **readable summary**
 ([Validation](#validation), [The readable summary](#the-readable-summary)).
+R5 ([#142](https://github.com/james-attree/wowf_dps_sim/issues/142)) is the
+**presets** ([Presets](#presets)).
 The shape check is in `js/rotation-schema.js`, the vocabulary in
 `js/rotation-conditions.js`, the state view in `js/rotation-state.js`, the
 interpreter in `js/rotation-interpreter.js`, the validator in
@@ -479,6 +481,101 @@ Combat (placeholder)
 A thing that is not there counts as 0 s left, so `auraRemaining` and
 `debuffRemaining` write "missing or" when the comparison holds for 0 (`<= 3`,
 `< 3`, `>= 0`) and "has" when it does not (`> 10`).
+
+## Presets
+
+R5 ([#142](https://github.com/james-attree/wowf_dps_sim/issues/142)) adds
+rotations to pick from. A preset is a rotation (the JSON above) with an id, a
+name and a short description, held as data in `data/rotation-presets.js`. The
+API is `js/rotation-presets.js`, with no DOM, so a page, a worker or a test
+calls it the same way:
+
+- `listPresets()`: `[{ id, name, description, summary }]` in registry order.
+  `summary` is the rotation as text ([The readable summary](#the-readable-summary)).
+- `presetRotation(id)`: a new copy of the preset's rotation. An id that is not a
+  preset is a `RangeError` that lists the ids.
+- `loadPreset(id, config)`: a copy of `config` (a SimConfig, or nothing) with
+  `rotation` set to the preset's. The input is not changed. `createFight`,
+  `runFight` and `SimRunner` take the result like any config.
+
+Every preset passes `validateRotation` when the module is imported, so a bad
+preset in the data never reaches a fight. **The default fight keeps the
+placeholder rotation** (example 1 below) unless a preset is loaded, so a fight
+with no preset is the fight it was before. The page does not call `listPresets`
+yet: it has no config UI (the UI issues, #149 and #150, wire it).
+
+A preset's numbers are read from `data/constants.js` (the finisher's combo
+points, the Blade Flurry cost, the energy cap, `rotation.pooling`), so they keep
+their provenance. A preset is written for one weapon setup and says so.
+
+### combat-swords
+
+Slice and Dice kept up and recast just before it ends, Eviscerate with Cold
+Blood, Sinister Strike to build, Blade Flurry and Adrenaline Rush on cooldown.
+It casts nothing that needs a dagger, so it runs on any main hand. Its summary
+(`summarizeRotation`, checked against this block by `test/rotation-presets.test.js`):
+
+```text
+Combat swords
+1. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Energy >= 25
+2. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready
+3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
+4. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 5s left and Energy >= 100
+5. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 5s left
+6. Eviscerate if CP >= 5 and Slice and Dice has > 5s left
+7. Sinister Strike if CP < 5
+```
+
+Rules 1 and 2 carry `abilityUnlocked` because a rule for an on-GCD ability that
+holds and cannot be cast ends the walk
+([The interpreter](#the-interpreter)): without it, a build with Blade Flurry or
+Adrenaline Rush locked would stop at that rule and cast nothing else. Rule 5 is
+Cold Blood (off the GCD) with `abilityGranted`, so it is cast right before the
+Eviscerate that follows it, and only when the build or the host grants it.
+
+#### Slice and Dice and energy (#122)
+
+Issue #122 says an uptime buff should be recast as late as it can be: energy
+generated while the buff is still up is energy the next cast does not have to
+find, so a recast with time left throws part of the buff away. Its rule: when
+Slice and Dice is within 5 seconds of ending, keep the energy for it and recast
+it with less than 1 second left (the GCD is 1 second), or at once if energy
+is at its maximum, since waiting then wastes regeneration.
+
+The placeholder rotation recasts Slice and Dice whenever it has 5 combo points
+and 10 seconds or less are left (`rotation.sliceAndDiceRefreshSeconds`), so with
+the points and the energy it recasts early and loses the rest of the buff. In
+the reference build the fight is bound by energy and combo points, so the
+recast already comes with about 0.2 seconds left and the early cut-off is small;
+it grows with a build that has more energy (talents). The measured effect of the
+preset is in the pull request that added it.
+
+The preset's rules are:
+
+- 3: Slice and Dice at 5 combo points with less than 1 second left
+  (`rotation.pooling.recastSeconds`). If it holds and the energy is short, the
+  walk stops: the rotation waits for energy and casts nothing else.
+- 4: the same with 5 seconds or less left (`rotation.pooling.windowSeconds`),
+  only at the energy cap, so full energy is spent at once.
+- 5 and 6: Cold Blood and Eviscerate only when Slice and Dice has more than 5
+  seconds left. Inside the window, with 5 combo points and energy below the
+  cap, no rule holds and the rotation waits.
+- 7: Sinister Strike below 5 combo points.
+
+The window and recast numbers (5 s and 1 s) are the issue's, tagged
+`assumption` with `retune` on in `data/constants.js`. Slice and Dice is only
+recast at 5 combo points, so a Slice and Dice that ends with fewer is not
+protected: it lapses until the points are built (a known gap, not handled here).
+
+#### Hazards
+
+- A Backstab rule on a main hand that is not a dagger never casts, and ends the
+  walk every time it holds (Backstab is refused, see
+  [mechanics](mechanics.md)), so the rotation pools forever. The validator does
+  not know the weapon. A weapon-type condition would fix it and is not in the
+  vocabulary.
+- Ambush and Mutilate also list a dagger requirement in the ability catalogue,
+  and are not enforced.
 
 ## Examples
 

@@ -219,8 +219,10 @@ including the default Vis'kag (a sword), selects `other`. Both constants are
 `k("backstab").weaponMultiplier`, plus `k("backstab").bonusDamage`. Ambush
 is that hit times `k("ambush").weaponMultiplier`, plus
 `k("ambush").bonusDamage`. Sinister Strike, Backstab, and Ambush are
-`wowf-export`. Only the notes on `k("backstab")` and `k("ambush")` say
-dagger, behind, or stealth requirements are not enforced. The note on
+`wowf-export`. Backstab needs a dagger in the main hand (see below). The note
+on `k("ambush")` says its dagger, behind and stealth requirements are not
+enforced, and the note on `k("backstab")` says its behind requirement is not.
+The note on
 `k("sinisterStrike")` is weapon damage plus the bonus. `Rogue.rotation`
 does not cast Backstab or Ambush.
 
@@ -1431,8 +1433,9 @@ at the end of Phase 2.
 What a reader should not assume from the talent and poison sections. These are
 open for James's review, not defects found by a test:
 
-- **Backstab's dagger requirement** is parsed and not enforced. A sword can cast
-  it. A Phase 3 candidate.
+- **Backstab's dagger requirement** is enforced (#142): see "Backstab needs a
+  dagger". Ambush's and Mutilate's dagger requirements, and every stealth and
+  behind requirement, are parsed and not enforced.
 - **Cold Blood** keeps its charge when the attack does not land (a miss, a
   dodge, and in front a parry or block). That is a design choice, not what
   wowsims does and not verified against Classic, and the front-block case is
@@ -2461,8 +2464,20 @@ swords and axes (`k("hackAndSlash.extraAttack")`), with the weapon type on the
 attack context. So the sword/sword reference build gets the extra attack and no
 crit bonus, and a dagger config gets the crit and no extra attack. The weapon
 default is the config's (sword), and the build decides only whether the talent
-is on. Backstab's dagger requirement is parsed and not enforced (the notes on
-`k("backstab")` say so): a sword can cast it, and #106 does not ask for more.
+is on. Backstab's dagger requirement was parsed and not enforced when #106 landed; #142
+enforces it ("Backstab needs a dagger").
+
+**Backstab needs a dagger** (#142, carried over from #108). The Backstab row in
+`js/ability-data.js` has `requiresMainHand: "dagger"`. `Ability.canCast` is
+false for it, and `Ability.cast` returns `null`, when `rogue.weapons.mainHand.type`
+is anything else: no cast is told, no energy is spent, no cooldown or GCD starts
+and no number is drawn, so it is a failed cast like one without the energy. The
+interpreter's host answers "cannot be cast" for it, so a rule for Backstab on a
+sword holds, cannot be cast, and ends the walk every time (the rotation pools
+forever: see the hazards in `docs/rotation.md`). The placeholder rotation does
+not cast Backstab, so no default fight moves. Ambush and Mutilate list a dagger
+requirement in the catalogue and are not enforced, and neither are the
+stealth and behind requirements.
 
 **Poison damage.** Modifiers apply to Instant Poison and Deadly Poison ticks
 through their ability context, with the scopes the talent data gives. Malice
