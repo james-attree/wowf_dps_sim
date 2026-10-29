@@ -34,7 +34,7 @@ import {
 //      runs). The last on-GCD rule, the usual builder, may have none. A rule
 //      that already has warning 1 does not get this one too (#207): the
 //      finisher warning names its fix.
-// The wording is Fran's (docs/design U7 spec §19, #207).
+// The wording is Fran's (issue #207; follow-ups in #214).
 // A message names the ability by display name and id (abilityLabel, as the
 // talent guard does, #203). The name is only ever written out, never compared
 // or branched on.

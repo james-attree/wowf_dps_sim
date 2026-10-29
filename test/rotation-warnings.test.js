@@ -22,6 +22,10 @@ const FINISHER = k("rotation.finisherComboPoints");
 const enoughPoints = { type: "comboPoints", op: ">=", value: FINISHER };
 const ready = (ability) => ({ type: "cooldownReady", ability });
 const unlocked = (ability) => ({ type: "abilityUnlocked", ability });
+// A context in which no ability is talent-granted, so a Premeditation rule
+// validates with no conditions at all and stays unconditional: the off-GCD
+// check in the starves warning is what keeps it from warning.
+const noTalentGuard = { talentGrantedAbilities: [] };
 const energy = (value) => ({
   type: "resource",
   resource: "energy",
@@ -374,11 +378,8 @@ describe("rotationWarnings: an on-GCD cooldown with no cooldownReady", () => {
   });
 
   it("an off-GCD cooldown is never warned for: it is passed over, not pooled for", () => {
-    const offGcd = rotation(
-      rule("premeditation", unlocked("premeditation")),
-      rule("sinister-strike"),
-    );
-    assert.deepEqual(messages(offGcd), []);
+    const offGcd = rotation(rule("premeditation"), rule("sinister-strike"));
+    assert.deepEqual(messages(offGcd, noTalentGuard), []);
   });
 
   it("an on-GCD ability with no cooldown is not warned for", () => {
@@ -394,11 +395,12 @@ describe("rotationWarnings: an unconditional on-GCD rule above others", () => {
     const trap = rotation(
       rule("sinister-strike"),
       rule("eviscerate", enoughPoints),
-      rule("premeditation", unlocked("premeditation")),
+      rule("premeditation"),
       rule("backstab", energy(FINISHER)),
       rule("eviscerate", enoughPoints, energy(FINISHER)),
     );
-    assert.deepEqual(rotationWarnings(trap), [
+    assert.deepEqual(validateRotation(trap, noTalentGuard), []);
+    assert.deepEqual(rotationWarnings(trap, noTalentGuard), [
       {
         path: "rules[0]",
         message: starvesText(
@@ -414,17 +416,14 @@ describe("rotationWarnings: an unconditional on-GCD rule above others", () => {
     const builderLast = rotation(
       rule("eviscerate", enoughPoints),
       rule("sinister-strike"),
-      rule("premeditation", unlocked("premeditation")),
+      rule("premeditation"),
     );
-    assert.deepEqual(messages(builderLast), []);
+    assert.deepEqual(messages(builderLast, noTalentGuard), []);
   });
 
   it("an unconditional off-GCD rule starves nothing", () => {
-    const offGcd = rotation(
-      rule("premeditation", unlocked("premeditation")),
-      rule("sinister-strike"),
-    );
-    assert.deepEqual(messages(offGcd), []);
+    const offGcd = rotation(rule("premeditation"), rule("sinister-strike"));
+    assert.deepEqual(messages(offGcd, noTalentGuard), []);
   });
 
   it("conditions that always hold are no conditions: it still warns", () => {
@@ -519,11 +518,18 @@ describe("rotationWarnings: data, not names", () => {
   });
 
   it("an ability the context does not list as on-GCD never pools, so never warns", () => {
-    const trap = rotation(rule("fake-strike"), rule("sinister-strike"));
-    assert.deepEqual(
-      messages(trap, { ...fakeContext, onGcd: ["sinister-strike"] }),
-      [finisherText("rules[0]", "fake-strike")],
-    );
+    // fake-jab is not a finisher (the finisher warning would stand in for the
+    // starves one) but has a cooldown, so both on-GCD checks are what keep
+    // this rule from warning.
+    const offGcd = {
+      ...fakeContext,
+      abilities: [...fakeContext.abilities, "fake-jab"],
+      castable: [...fakeContext.castable, "fake-jab"],
+      cooldowns: [...fakeContext.cooldowns, "fake-jab"],
+      onGcd: ["sinister-strike"],
+    };
+    const trap = rotation(rule("fake-jab"), rule("sinister-strike"));
+    assert.deepEqual(messages(trap, offGcd), []);
   });
 
   it("takes the lists as Sets too, with the same warnings (#207)", () => {
