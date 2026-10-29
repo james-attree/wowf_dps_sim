@@ -3,22 +3,35 @@ import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import {
   createConfigForm,
+  draftEdited,
+  listedLines,
   nextRunConfig,
   pageDefaultConfig,
 } from "../js/config-form.js";
 import {
+  conditionFields,
+  conditionTypeGroups,
   createRotationBuilder,
   defaultAddAction,
   fixFor,
-  shownWarnings,
 } from "../js/rotation-builder.js";
-import { jumpLabel, placeOf } from "../js/rotation-builder-copy.js";
-import { defaultRotation } from "../js/rotation-default.js";
+import { TYPE_GROUPS } from "../js/rotation-builder-copy.js";
 import {
+  CONDITION_PARAMS,
+  CONDITION_TYPES,
+  OPERATORS,
+} from "../js/rotation-conditions.js";
+import { entryText, jumpLabel, placeOf } from "../js/rotation-builder-copy.js";
+import { defaultRotation } from "../js/rotation-default.js";
+import { exportRotation, importRotation } from "../js/rotation-io.js";
+import { rotationWarnings } from "../js/rotation-warnings.js";
+import {
+  defaultCondition,
   draftOf,
   draftRotation,
   moveRule,
   newRule,
+  withParam,
 } from "../js/rotation-edit.js";
 import { skipOf, talentState } from "../js/rotation-skips.js";
 import { validateRotation } from "../js/rotation-validator.js";
@@ -118,6 +131,197 @@ describe("the first edit starts a session draft (D10, D20)", () => {
     builder.undo();
     assert.deepEqual(actions(), DEFAULT_ACTIONS);
     assert.equal(view().rules[6].uid, gone);
+  });
+});
+
+// A rotation with both traps of Fran §18 item 6: a finisher with no combo
+// points check under a rule that builds points (finisherNoComboPoints alone,
+// no starves on it), and an unconditional builder above Backstab (starves).
+const TRAP = {
+  schemaVersion: defaultRotation().schemaVersion,
+  name: "Trap",
+  rules: [
+    {
+      action: "sinister-strike",
+      conditions: [{ type: "comboPoints", op: "<", value: 1 }],
+    },
+    { action: "eviscerate", conditions: [] },
+    { action: "sinister-strike", conditions: [] },
+    { action: "backstab", conditions: [] },
+  ],
+};
+
+describe("the builder and the import box show the same warnings (Scout on #217)", () => {
+  it("for the same rotation: the same entries, in the same order, and the same count", () => {
+    const { store, form, view } = setup();
+    assert.equal(form.importText(exportRotation(TRAP)), true);
+    const state = store.get().form;
+    const imported = importRotation(exportRotation(TRAP)).warnings;
+    assert.deepEqual(
+      imported.map(({ code, path }) => [code, path]),
+      [
+        ["finisherNoComboPoints", "rules[1].conditions"],
+        ["starves", "rules[2]"],
+      ],
+    );
+    // The import box's lines, and the list the builder draws from.
+    assert.equal(state.importStatus.warnings, listedLines(imported));
+    assert.deepEqual(state.rotationWarnings, imported);
+    assert.deepEqual(rotationWarnings(TRAP), imported);
+    // The builder's cards carry those entries, worded the builder's way, and
+    // its summary counts them all.
+    const shown = view()
+      .rules.flatMap((rule) => rule.messages)
+      .filter((m) => m.kind === "warning")
+      .map((m) => m.text);
+    assert.deepEqual(
+      shown,
+      imported.map((entry) => entryText(entry, TRAP)),
+    );
+    assert.match(view().warnings.count, /: 2 warnings\. $/);
+    assert.equal(view().warnings.jumps.length, imported.length);
+  });
+});
+
+describe("Edited clears when the draft is the origin again (Scout on #217)", () => {
+  const label = (store) => store.get().form.rotationOptions[0].label;
+  const NAME = defaultRotation().name;
+
+  it("move a rule down and up again: not edited, under the origin's name", () => {
+    const { store, builder, view, uid, actions } = setup();
+    const first = uid(0);
+    builder.move(first, 1);
+    assert.equal(label(store), `${NAME} · Edited`);
+    builder.move(first, -1);
+    assert.deepEqual(actions(), DEFAULT_ACTIONS);
+    assert.equal(label(store), NAME);
+    assert.equal(view().origin.edited, false);
+    assert.equal(view().name.value, NAME);
+    assert.equal(store.get().config.rotation.name, NAME);
+    // The next edit is a first edit again.
+    builder.move(first, 1);
+    assert.equal(view().name.value, `${NAME} (edited)`);
+    assert.equal(label(store), `${NAME} · Edited`);
+  });
+
+  it("delete, then undo back to the original: the tag clears", () => {
+    const { store, builder, view, uid, actions } = setup();
+    builder.remove(uid(6));
+    assert.equal(label(store), `${NAME} · Edited`);
+    assert.equal(view().origin.edited, true);
+    builder.undo();
+    assert.deepEqual(actions(), DEFAULT_ACTIONS);
+    assert.equal(label(store), NAME);
+    assert.equal(view().origin.edited, false);
+  });
+
+  it("an edit after an edit, undone, is still edited; revert is unchanged", () => {
+    const { store, builder, view, uid } = setup();
+    builder.move(uid(0), 1);
+    builder.remove(uid(6));
+    builder.undo();
+    assert.equal(label(store), `${NAME} · Edited`);
+    assert.equal(view().origin.edited, true);
+    builder.revert();
+    assert.deepEqual(store.get().form.drafts, {});
+    assert.equal(label(store), NAME);
+  });
+
+  it("a renamed copy with the origin's rules is still edited", () => {
+    const { store, builder, view } = setup();
+    builder.setName("My rotation");
+    assert.equal(label(store), `${NAME} · Edited`);
+    builder.setName(NAME);
+    assert.equal(label(store), NAME);
+    assert.equal(view().origin.edited, false);
+  });
+
+  it("compares rules with duplicateRule's normaliser: condition and key order, defaults", () => {
+    let n = 0;
+    const uidOf = () => `e${(n += 1)}`;
+    const origin = {
+      ...TRAP,
+      rules: [
+        {
+          action: "sinister-strike",
+          conditions: [
+            { type: "comboPoints", op: "<", value: 1 },
+            { type: "cooldownReady", ability: "sinister-strike" },
+          ],
+        },
+        ...TRAP.rules.slice(1),
+      ],
+    };
+    const same = draftOf(
+      {
+        ...origin,
+        rules: [
+          {
+            action: "sinister-strike",
+            conditions: [
+              {
+                ability: "sinister-strike",
+                type: "cooldownReady",
+                ready: true,
+              },
+              { value: 1, op: "<", type: "comboPoints" },
+            ],
+          },
+          ...origin.rules.slice(1),
+        ],
+      },
+      uidOf,
+    );
+    assert.equal(draftEdited(same, origin), false);
+    const moved = { ...same, rules: moveRule(same.rules, 0, 1) };
+    assert.equal(draftEdited(moved, origin), true, "rule order counts");
+    const unready = draftOf(
+      {
+        ...origin,
+        rules: [
+          {
+            action: "sinister-strike",
+            conditions: [
+              { type: "comboPoints", op: "<", value: 1 },
+              {
+                type: "cooldownReady",
+                ability: "sinister-strike",
+                ready: false,
+              },
+            ],
+          },
+          ...origin.rules.slice(1),
+        ],
+      },
+      uidOf,
+    );
+    assert.equal(draftEdited(unready, origin), true);
+  });
+});
+
+describe("a new import never touches the edited presets (Scout on #217)", () => {
+  it("keeps the default's and a preset's drafts; drops only the import's", () => {
+    const { store, form, builder, uid } = setup();
+    builder.move(uid(0), 1);
+    const preset = store.get().form.rotationOptions[1].id;
+    form.chooseRotation(preset);
+    builder.move(uid(0), 1);
+    const kept = {
+      default: store.get().form.drafts.default,
+      [preset]: store.get().form.drafts[preset],
+    };
+    assert.equal(form.importText(exportRotation(TRAP)), true);
+    builder.move(uid(0), 1);
+    assert.ok(Object.hasOwn(store.get().form.drafts, "imported"));
+    assert.equal(form.importText(exportRotation(TRAP)), true);
+    const { drafts, rotationOptions } = store.get().form;
+    assert.deepEqual(Object.keys(drafts).sort(), Object.keys(kept).sort());
+    assert.equal(drafts.default, kept.default, "the same draft, untouched");
+    assert.equal(drafts[preset], kept[preset], "the same draft, untouched");
+    const labels = rotationOptions.map((option) => option.label);
+    assert.equal(labels[0], `${defaultRotation().name} · Edited`);
+    assert.match(labels[1], / · Edited$/);
+    assert.equal(labels.at(-1), "Imported: Trap");
   });
 });
 
@@ -271,18 +475,6 @@ describe("quick fixes (section 6)", () => {
     );
   });
 
-  it("the finisher warning alone is shown on its rule (Fran §18 item 6)", () => {
-    const warnings = [
-      { path: "rules[2]", code: "finisherNoComboPoints" },
-      { path: "rules[2]", code: "starves", below: [3] },
-      { path: "rules[4]", code: "starves", below: [5] },
-    ];
-    assert.deepEqual(
-      shownWarnings(warnings).map((w) => `${w.path} ${w.code}`),
-      ["rules[2] finisherNoComboPoints", "rules[4] starves"],
-    );
-  });
-
   it("offers no fix for an entry it can't place", () => {
     const rotation = defaultRotation();
     assert.equal(fixFor({ code: "duplicateRule" }, 99, rotation), null);
@@ -398,5 +590,199 @@ describe("the config form's drafts (#217)", () => {
       .get()
       .form.summary.rules.find((rule) => rule.startsWith("Cold Blood"));
     assert.match(line, /— skipped: no Cold Blood talent$/);
+  });
+});
+
+describe("condition controls come from CONDITION_PARAMS (Scout's review of #218)", () => {
+  const sample = (type) => ({
+    ...defaultCondition(type, "sinister-strike"),
+    uid: "c1",
+  });
+
+  it("every type gets one control per param, in spec order, and no empty select", () => {
+    for (const type of CONDITION_TYPES) {
+      const fields = conditionFields(sample(type));
+      assert.deepEqual(
+        fields.map((field) => field.param),
+        Object.keys(CONDITION_PARAMS[type]),
+        type,
+      );
+      for (const field of fields) {
+        const spec = CONDITION_PARAMS[type][field.param];
+        assert.equal(field.kind, spec.kind === "number" ? "number" : "select");
+        if (field.kind === "select") {
+          assert.ok(field.options.length > 0, `${type}.${field.param}`);
+        }
+      }
+    }
+  });
+
+  it("an operator's options are the spec's values", () => {
+    const [op] = conditionFields(sample("comboPoints"));
+    assert.equal(op.param, "op");
+    assert.deepEqual(
+      op.options.map((option) => option.value),
+      [...CONDITION_PARAMS.comboPoints.op.values],
+    );
+    assert.deepEqual(
+      [...CONDITION_PARAMS.comboPoints.op.values],
+      [...OPERATORS],
+    );
+  });
+
+  it("a left-out boolean shows the spec's default", () => {
+    const left = { type: "auraActive", aura: "slice-and-dice", uid: "c1" };
+    const field = (params) =>
+      conditionFields(left, {}, params).find((f) => f.param === "active");
+    assert.equal(field().value, "true");
+    const flipped = {
+      ...CONDITION_PARAMS.auraActive,
+      active: { kind: "boolean", optional: true, default: false },
+    };
+    assert.equal(field(flipped).value, "false");
+    assert.equal(
+      conditionFields({ ...left, active: false }).find(
+        (f) => f.param === "active",
+      ).value,
+      "false",
+    );
+  });
+
+  it("an unknown kind, id or type fails loudly", () => {
+    const condition = { type: "comboPoints", uid: "c1" };
+    assert.throws(
+      () => conditionFields(condition, {}, { colour: { kind: "colour" } }),
+      { name: "TypeError", message: /no control .*"colour"/ },
+    );
+    assert.throws(
+      () =>
+        conditionFields(condition, {}, { spell: { kind: "id", of: "spell" } }),
+      { name: "TypeError", message: /no control .*"spell"/ },
+    );
+    assert.throws(() => conditionFields({ type: "noSuchType", uid: "c1" }), {
+      name: "TypeError",
+      message: /no controls for a "noSuchType" condition/,
+    });
+  });
+
+  it("every condition type is in a TYPE_GROUPS group", () => {
+    const grouped = TYPE_GROUPS.flatMap(([, types]) => types);
+    assert.deepEqual([...grouped].sort(), [...CONDITION_TYPES].sort());
+    assert.equal(new Set(grouped).size, grouped.length, "each once");
+    assert.equal(
+      conditionTypeGroups().some((group) => group.label === "Other"),
+      false,
+    );
+  });
+
+  it("a type no group names is offered under Other, never hidden", () => {
+    const groups = conditionTypeGroups([...CONDITION_TYPES, "newType"]);
+    assert.deepEqual(groups.at(-1), {
+      label: "Other",
+      options: [{ value: "newType", text: "newType" }],
+    });
+    const offered = groups.flatMap((group) =>
+      group.options.map((option) => option.value),
+    );
+    assert.deepEqual(offered.sort(), [...CONDITION_TYPES, "newType"].sort());
+  });
+});
+
+describe("a number field reads plain decimals only (Scout's review of #218)", () => {
+  const condition = { type: "comboPoints", op: ">=", value: 5 };
+  const read = (text) => withParam(condition, "value", text).value;
+
+  it("reads a plain decimal, with an optional sign and point", () => {
+    for (const [text, value] of [
+      ["40", 40],
+      [" 7 ", 7],
+      ["-1", -1],
+      ["+2.5", 2.5],
+      ["2.", 2],
+      [".5", 0.5],
+      ["0", 0],
+    ]) {
+      assert.equal(read(text), value, text);
+    }
+  });
+
+  it("anything else is NaN, so the validator says it is not a number", () => {
+    for (const text of [
+      "0x10",
+      "0b1",
+      "0o7",
+      "1e1",
+      "1E-2",
+      "Infinity",
+      "-Infinity",
+      "1,5",
+      "1 2",
+      "--1",
+      "+-1",
+      ".",
+      "-",
+      "1.2.3",
+      "five",
+    ]) {
+      assert.ok(Number.isNaN(read(text)), text);
+    }
+    assert.equal(
+      Object.hasOwn(withParam(condition, "value", " "), "value"),
+      false,
+    );
+  });
+});
+
+describe("half-typed number text follows copies and deletes (Scout's review of #218)", () => {
+  const valueOf = (ruleView, at) =>
+    ruleView.body.conditions[at].fields.find((f) => f.param === "value").value;
+
+  it("a copy of a rule shows the copied text, never NaN", () => {
+    const { store, builder, view, uid } = setup();
+    const ruleUid = uid(5);
+    builder.toggleRule(ruleUid);
+    const cuid = view().rules[5].body.conditions[0].uid;
+    builder.setParam(ruleUid, cuid, "value", "abc");
+    assert.equal(valueOf(view().rules[5], 0), "abc");
+    builder.duplicate(ruleUid);
+    const copy = view().rules[6];
+    assert.notEqual(copy.uid, ruleUid);
+    assert.equal(valueOf(copy, 0), "abc");
+    const copied = copy.body.conditions[0].uid;
+    assert.equal(store.get().form.drafts.default.raw[copied], "abc");
+  });
+
+  it("deleting a rule drops its text; clearing all drops all of it", () => {
+    const { store, builder, view, uid } = setup();
+    const ruleUid = uid(5);
+    builder.toggleRule(ruleUid);
+    const cuid = view().rules[5].body.conditions[0].uid;
+    builder.setParam(ruleUid, cuid, "value", "abc");
+    builder.duplicate(ruleUid);
+    const copied = view().rules[6].body.conditions[0].uid;
+    builder.remove(ruleUid);
+    const raw = () => store.get().form.drafts.default.raw;
+    assert.equal(Object.hasOwn(raw(), cuid), false);
+    assert.equal(raw()[copied], "abc", "the copy keeps its own");
+    builder.clearAll();
+    assert.deepEqual(raw(), {});
+  });
+});
+
+describe("jumps find a message by its entry's code and path (Scout's review of #218)", () => {
+  it("each message carries its entry's code and path; a jump focuses that one", () => {
+    const { form, builder, view, slice } = setup();
+    assert.equal(form.importText(exportRotation(TRAP)), true);
+    const starves = view().rules[2].messages.find((m) => m.code === "starves");
+    assert.equal(starves.path, "rules[2]");
+    assert.deepEqual(
+      view()
+        .rules[1].messages.filter((m) => m.kind === "warning")
+        .map((m) => [m.code, m.path]),
+      [["finisherNoComboPoints", "rules[1].conditions"]],
+    );
+    const jump = view().warnings.jumps[1];
+    builder.jump(jump.id);
+    assert.equal(slice().focus.key, starves.key);
   });
 });

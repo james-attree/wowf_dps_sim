@@ -1,20 +1,18 @@
 import { k } from "../data/constants.js";
 import { talentLabel } from "./build-label.js";
 import { spellIconUrl } from "./icons.js";
-import { originRotation } from "./config-form.js";
-import {
-  CONDITION_PARAMS,
-  CONDITION_TYPES,
-  OPERATORS,
-} from "./rotation-conditions.js";
+import { editedName, isEditedChoice, originRotation } from "./config-form.js";
+import { CONDITION_PARAMS, CONDITION_TYPES } from "./rotation-conditions.js";
 import {
   abilityFacts,
   addCondition,
   castableAbilities,
   cooldownAbilities,
+  copyRawText,
   defaultCondition,
   draftOf,
   draftRotation,
+  dropRawText,
   duplicateRule,
   insertRule,
   moveRule,
@@ -32,6 +30,7 @@ import {
   GRIP_HELP,
   HELP,
   OP_TEXT,
+  OTHER_TYPES,
   RESOURCE_LABELS,
   STALE_BANNER,
   TYPE_GROUPS,
@@ -40,6 +39,7 @@ import {
   WARNINGS_SUMMARY,
   abilityGroups,
   auraName,
+  booleanText,
   count,
   entryText,
   jumpLabel,
@@ -97,26 +97,6 @@ const ruleLine = (rule) =>
 
 const conditionLine = (condition) =>
   summarizeCondition(printable(bare(condition)));
-
-const RULE_AT = /^rules\[(\d+)\]/;
-const ruleIndex = (path) => {
-  const match = RULE_AT.exec(path);
-  return match === null ? null : Number(match[1]);
-};
-
-// Fran §18 item 6 (Scout, 29 Oct): on one rule the finisher warning is shown
-// alone; a starvation warning on the same rule is not repeated.
-export function shownWarnings(warnings) {
-  const finishers = new Set(
-    warnings
-      .filter((entry) => entry.code === "finisherNoComboPoints")
-      .map((entry) => ruleIndex(entry.path)),
-  );
-  return warnings.filter(
-    (entry) =>
-      !(entry.code === "starves" && finishers.has(ruleIndex(entry.path))),
-  );
-}
 
 // The quick fix of an entry on rule `at` (section 6), or null.
 export function fixFor(entry, at, rotation) {
@@ -184,112 +164,144 @@ function selectOptions(values, label, current) {
   return options;
 }
 
-// The controls of one condition, in CONDITION_PARAMS order.
-function conditionFields(condition, raw) {
-  const context = rotationContext();
-  const params = CONDITION_PARAMS[condition.type] ?? {};
-  return Object.keys(params).map((param) => {
-    const base = { param, kind: "select" };
-    switch (param) {
-      case "op":
-        return {
-          ...base,
-          label: "comparison",
-          value: condition.op ?? "",
-          options: selectOptions(
-            [...OPERATORS],
-            (op) => `${op}  ${OP_TEXT[op] ?? ""}`,
-            condition.op,
-          ),
-        };
-      case "resource":
-        return {
-          ...base,
-          label: "resource",
-          value: condition.resource ?? "",
-          options: selectOptions(
-            [...params.resource.values],
-            (id) => RESOURCE_LABELS[id] ?? id,
-            condition.resource,
-          ),
-        };
-      case "aura":
-        return {
-          ...base,
-          label: "buff",
-          value: condition.aura ?? "",
-          options: selectOptions([...context.auras], auraName, condition.aura),
-        };
-      case "debuff":
-        return {
-          ...base,
-          label: "debuff",
-          value: condition.debuff ?? "",
-          options: selectOptions(
-            Object.keys(context.debuffs),
-            auraName,
-            condition.debuff,
-          ),
-        };
-      case "ability":
-        return {
-          ...base,
-          label: "ability",
-          value: condition.ability ?? "",
-          options: selectOptions(
-            condition.type === "cooldownReady"
-              ? cooldownAbilities()
-              : talentAbilities(),
-            nameOf,
-            condition.ability,
-          ),
-        };
-      case "active":
-      case "ready": {
-        const [yes, no] =
-          param === "ready"
-            ? ["is ready", "is on cooldown"]
-            : ["is up", "is not up"];
-        return {
-          ...base,
-          label: param === "ready" ? "ready or not" : "up or not",
-          value: String(condition[param] ?? true),
-          options: [
-            { value: "true", text: yes },
-            { value: "false", text: no },
-          ],
-        };
+// What an id param's select offers, by the spec's `of` (CONDITION_PARAMS).
+// An ability names a cooldown for cooldownReady and a talent ability for the
+// talent checks (abilityGranted, abilityUnlocked).
+const ID_CONTROLS = {
+  ability: (condition) => ({
+    label: "ability",
+    values:
+      condition.type === "cooldownReady"
+        ? cooldownAbilities()
+        : talentAbilities(),
+    text: nameOf,
+  }),
+  aura: () => ({
+    label: "buff",
+    values: [...rotationContext().auras],
+    text: auraName,
+  }),
+  debuff: () => ({
+    label: "debuff",
+    values: Object.keys(rotationContext().debuffs),
+    text: auraName,
+  }),
+};
+
+const noControl = (type, param, spec) =>
+  new TypeError(
+    `The rotation builder has no control for the ${type} condition's "${param}" (${JSON.stringify(spec)}).`,
+  );
+
+// One condition param's control, from its CONDITION_PARAMS spec: its `kind`
+// picks the control, `values` (or `of`, for an id) its options, and
+// `default` the value shown when it is left out. A kind (or an id's `of`)
+// with no control here is a TypeError, never an empty select (Scout's review
+// of #218).
+function paramField(condition, param, spec, raw) {
+  const base = { param, kind: "select" };
+  switch (spec.kind) {
+    case "operator":
+      return {
+        ...base,
+        label: "comparison",
+        value: condition[param] ?? "",
+        options: selectOptions(
+          [...spec.values],
+          (op) => `${op}  ${OP_TEXT[op] ?? ""}`,
+          condition[param],
+        ),
+      };
+    case "resource":
+      return {
+        ...base,
+        label: "resource",
+        value: condition[param] ?? "",
+        options: selectOptions(
+          [...spec.values],
+          (id) => RESOURCE_LABELS[id] ?? id,
+          condition[param],
+        ),
+      };
+    case "id": {
+      const control = ID_CONTROLS[spec.of];
+      if (control === undefined) {
+        throw noControl(condition.type, param, spec);
       }
-      case "value": {
-        const unit = valueUnit(condition);
-        return {
-          ...base,
-          kind: "number",
-          label: unit.words === "" ? "value" : `value in ${unit.words}`,
-          unit: unit.unit,
-          step: unit.whole ? "1" : "any",
-          value:
-            raw[condition.uid] ??
-            (Object.hasOwn(condition, "value") ? String(condition.value) : ""),
-        };
-      }
-      default:
-        return {
-          ...base,
-          label: param,
-          value: String(condition[param] ?? ""),
-          options: [],
-        };
+      const { label, values, text } = control(condition);
+      return {
+        ...base,
+        label,
+        value: condition[param] ?? "",
+        options: selectOptions(values, text, condition[param]),
+      };
     }
-  });
+    case "boolean": {
+      const words = booleanText(param);
+      return {
+        ...base,
+        label: words.label,
+        value: String(condition[param] ?? spec.default ?? ""),
+        options: [
+          { value: "true", text: words.yes },
+          { value: "false", text: words.no },
+        ],
+      };
+    }
+    case "number": {
+      const unit = valueUnit(condition);
+      return {
+        ...base,
+        kind: "number",
+        label: unit.words === "" ? param : `${param} in ${unit.words}`,
+        unit: unit.unit,
+        step: unit.whole ? "1" : "any",
+        value:
+          raw[condition.uid] ??
+          (Object.hasOwn(condition, param) ? String(condition[param]) : ""),
+      };
+    }
+    default:
+      throw noControl(condition.type, param, spec);
+  }
 }
 
-const typeGroups = TYPE_GROUPS.map(([label, types]) => ({
-  label,
-  options: types
-    .filter((type) => CONDITION_TYPES.includes(type))
-    .map((type) => ({ value: type, text: TYPE_LABELS[type] ?? type })),
-}));
+// The controls of one condition, in CONDITION_PARAMS order. `params` is the
+// type's spec; a type with none is a TypeError.
+export function conditionFields(
+  condition,
+  raw = {},
+  params = CONDITION_PARAMS[condition.type],
+) {
+  if (params === undefined) {
+    throw new TypeError(
+      `The rotation builder has no controls for a ${JSON.stringify(condition.type)} condition.`,
+    );
+  }
+  return Object.entries(params).map(([param, spec]) =>
+    paramField(condition, param, spec, raw),
+  );
+}
+
+// The type select's groups: TYPE_GROUPS, then every condition type no group
+// names under "Other", so a new type is never hidden.
+export function conditionTypeGroups(types = CONDITION_TYPES) {
+  const grouped = new Set(TYPE_GROUPS.flatMap(([, members]) => members));
+  const groups = [
+    ...TYPE_GROUPS,
+    [OTHER_TYPES, types.filter((type) => !grouped.has(type))],
+  ];
+  return groups
+    .map(([label, members]) => ({
+      label,
+      options: members
+        .filter((type) => types.includes(type))
+        .map((type) => ({ value: type, text: TYPE_LABELS[type] ?? type })),
+    }))
+    .filter((group) => group.options.length > 0);
+}
+
+const typeGroups = conditionTypeGroups();
 
 export function createRotationBuilder(store, formActions) {
   let uidSeq = 0;
@@ -340,13 +352,15 @@ export function createRotationBuilder(store, formActions) {
     pristine.set(id, { key, draft: made });
     return made;
   }
-  const isEdited = () => Object.hasOwn(form().drafts ?? {}, choice());
+  const isEdited = () => isEditedChoice(form(), choice());
 
   function messagesOf(state) {
     const formSlice = state.form;
     const errors = formSlice.rotationErrors ?? [];
+    // rotationWarnings' list as it is, the same one the import box shows:
+    // the finisher-alone rule (Fran §18 item 6) is in js/rotation-warnings.js.
     const warnings =
-      errors.length > 0 ? [] : shownWarnings(formSlice.rotationWarnings ?? []);
+      errors.length > 0 ? [] : (formSlice.rotationWarnings ?? []);
     return { errors, warnings };
   }
 
@@ -412,6 +426,8 @@ export function createRotationBuilder(store, formActions) {
       return {
         key: `${rule.uid}.msg.${k2}`,
         kind: m.kind,
+        code: m.entry.code,
+        path: m.entry.path,
         kindText: m.kind === "error" ? "✕ Error" : "⚠ Check",
         text: entryText(m.entry, rotation),
         fix: fixView,
@@ -659,6 +675,8 @@ export function createRotationBuilder(store, formActions) {
       empty: rules.length === 0 ? EMPTY : null,
       listMessages: top.list.map((m) => ({
         kind: m.kind,
+        code: m.entry.code,
+        path: m.entry.path,
         kindText: m.kind === "error" ? "✕ Error" : "⚠ Check",
         text: entryText(m.entry, rotation),
       })),
@@ -715,7 +733,7 @@ export function createRotationBuilder(store, formActions) {
     const errorsBefore = errorTotal();
     let next = change(before);
     if (!wasEdited && rename && next.name === originName(id)) {
-      next = { ...next, name: `${next.name} (edited)`.slice(0, MAX_NAME) };
+      next = { ...next, name: editedName(next.name) };
     }
     if (!keepBanner) {
       banner = null;
@@ -725,7 +743,7 @@ export function createRotationBuilder(store, formActions) {
       let text = live;
       const errorsAfter = errorTotal();
       if (errorsBefore > 0 && errorsAfter === 0) {
-        const warnings = shownWarnings(form().rotationWarnings ?? []).length;
+        const warnings = (form().rotationWarnings ?? []).length;
         const left = `No errors left.${warnings > 0 ? ` ${count(warnings, "thing")} to check, listed above the rules.` : ""}`;
         text = text === null ? left : `${text} ${left}`;
       }
@@ -800,8 +818,9 @@ export function createRotationBuilder(store, formActions) {
     }
     if (key === null) {
       refresh();
+      // Matched on the entry's code and path, never its wording.
       const msg = slice().view.rules[place.rule].messages.find(
-        (m) => m.text === entryText(entry, draftRotation(current())),
+        (m) => m.code === entry.code && m.path === entry.path,
       );
       key = msg?.key ?? `${rule.uid}.edit`;
     }
@@ -824,7 +843,7 @@ export function createRotationBuilder(store, formActions) {
       }
       const restore = form().drafts?.[choice()] ?? null;
       const n = rules.length;
-      edit((draft) => ({ ...draft, rules: [] }), {
+      edit((draft) => ({ ...draft, rules: [], raw: {} }), {
         live: `All ${n} rules cleared. Undo is in the message above the list.`,
         focus: "undo",
       });
@@ -1067,13 +1086,20 @@ export function createRotationBuilder(store, formActions) {
       const made = next[at + 1];
       expanded.set(made.uid, true);
       selected = made.uid;
-      edit((draft) => ({ ...draft, rules: next }), {
-        live: `Rule ${n + 1} added: a copy of rule ${n}, ${name}, right below it. It is never reached until you change its conditions: it's tried when rule ${n}'s don't all hold.`,
-        focus:
-          made.conditions.length > 0
-            ? `${made.conditions[0].uid}.type`
-            : `${made.uid}.addcond`,
-      });
+      edit(
+        (draft) => ({
+          ...draft,
+          rules: next,
+          raw: copyRawText(draft.raw ?? {}, rules[at], made),
+        }),
+        {
+          live: `Rule ${n + 1} added: a copy of rule ${n}, ${name}, right below it. It is never reached until you change its conditions: it's tried when rule ${n}'s don't all hold.`,
+          focus:
+            made.conditions.length > 0
+              ? `${made.conditions[0].uid}.type`
+              : `${made.uid}.addcond`,
+        },
+      );
     },
     remove(uid) {
       const at = indexOf(uid);
@@ -1086,10 +1112,17 @@ export function createRotationBuilder(store, formActions) {
       if (selected === uid) {
         selected = null;
       }
-      edit((draft) => ({ ...draft, rules: removeRule(draft.rules, at) }), {
-        live: `Rule ${at + 1} deleted: ${line}. Undo is in the message above the list.`,
-        focus: "undo",
-      });
+      edit(
+        (draft) => ({
+          ...draft,
+          rules: removeRule(draft.rules, at),
+          raw: dropRawText(draft.raw ?? {}, rule),
+        }),
+        {
+          live: `Rule ${at + 1} deleted: ${line}. Undo is in the message above the list.`,
+          focus: "undo",
+        },
+      );
       banner = {
         text: `Rule ${at + 1} deleted: ${line}.`,
         undo: restore,
