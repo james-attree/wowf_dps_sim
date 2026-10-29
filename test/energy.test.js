@@ -343,10 +343,24 @@ describe("energy pool: the threshold wake-up", () => {
     for (let seed = 1; seed <= 200; seed += 1) {
       const rng = createRng(seed);
       const bonus = { kind: "energyRegen", op: "add", value: rng() * 7 };
-      const { pool, scheduler, woke } = setup({ statics: [bonus] });
+      // After the first wake runs, re-arm at once (#225), from its handler or
+      // from outside, with nothing in between.
+      let inHandler = false;
+      let again = 0;
+      let rearmed = null;
+      const { pool, scheduler, woke } = setup({
+        statics: [bonus],
+        onWake: (event, self) => {
+          if (inHandler && woke.length === 1) {
+            rearmed = self.wakeAt(again);
+          }
+        },
+      });
       scheduler.runUntil(rng() * 50);
       pool.spend(rng() * CAP);
       const amount = rng() * CAP;
+      inHandler = rng() < 0.5;
+      again = rng() * CAP;
       const { value0, t0, rate } = pool.line;
       pool.wakeAt(amount);
       const exact = Math.max(t0, t0 + (amount - value0) / rate);
@@ -354,9 +368,21 @@ describe("energy pool: the threshold wake-up", () => {
       assert.ok(pool.wakeTime >= exact - 4 * ulp, `seed ${seed}`);
       // A nudge is one step of about an ulp, never a jump past the line.
       assert.ok(pool.wakeTime <= exact + 2 * ulp, `seed ${seed}`);
-      scheduler.runToEnd();
-      assert.equal(woke.length, 1);
+      scheduler.runUntil(pool.wakeTime);
+      // A re-arm from the handler at an amount already held runs at now too.
+      const sameTime = inHandler && rearmed?.time === woke[0].time;
+      assert.equal(woke.length, sameTime ? 2 : 1, `seed ${seed}`);
       assert.ok(woke[0].has, `seed ${seed}: ${woke[0].value} < ${amount}`);
+      if (!inHandler) {
+        rearmed = pool.wakeAt(again);
+      }
+      assert.notEqual(rearmed, null, `seed ${seed}: the re-arm was lost`);
+      assert.equal(pool.wakeAmount, sameTime ? null : again);
+      scheduler.runToEnd();
+      assert.equal(woke.length, 2, `seed ${seed}`);
+      assert.equal(woke[1].time, rearmed.time);
+      assert.equal(woke[1].payload.amount, again);
+      assert.ok(woke[1].has, `seed ${seed}: ${woke[1].value} < ${again}`);
     }
   });
 
@@ -450,6 +476,59 @@ describe("energy pool: the threshold wake-up", () => {
     assert.equal(scheduler.pendingCount, 0);
     scheduler.runUntil(10);
     assert.equal(woke.length, 0);
+  });
+
+  it("re-arms right after a wake has run, from outside or from its handler (#225)", () => {
+    // From outside: nothing reads the pool between the wake and the re-arm.
+    {
+      const { pool, scheduler, woke } = setup();
+      pool.spend(CAP);
+      pool.wakeAt(20);
+      scheduler.runUntil(2.5);
+      const event = pool.wakeAt(40);
+      assert.equal(event?.time, 4);
+      assert.equal(pool.wakeAmount, 40);
+      assert.equal(scheduler.pendingCount, 1);
+      scheduler.runToEnd();
+      assert.deepEqual(
+        woke.map(({ time, payload }) => [time, payload.amount]),
+        [
+          [2, 20],
+          [4, 40],
+        ],
+      );
+    }
+    // A re-base right after a ran wake, with nothing read, stays one-shot.
+    {
+      const { pool, scheduler, woke } = setup();
+      pool.spend(CAP);
+      pool.wakeAt(20);
+      scheduler.runUntil(2.5);
+      pool.spend(10);
+      assert.equal(scheduler.pendingCount, 0);
+      scheduler.runToEnd();
+      assert.equal(woke.length, 1);
+    }
+    // From the handler: woke, can't act yet, wait for more.
+    {
+      const rearms = [];
+      const { pool, scheduler, woke } = setup({
+        onWake: (event, self) => {
+          if (rearms.length === 0) {
+            rearms.push(self.wakeAt(40));
+          }
+        },
+      });
+      pool.spend(CAP);
+      pool.wakeAt(20);
+      scheduler.runToEnd();
+      assert.equal(rearms[0]?.time, 4);
+      assert.deepEqual(
+        woke.map(({ time }) => time),
+        [2, 4],
+      );
+      assert.equal(pool.wakeAmount, null);
+    }
   });
 
   it("is not moved by its own firing: the handler reads the same line", () => {

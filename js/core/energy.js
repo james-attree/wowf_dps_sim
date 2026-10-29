@@ -196,6 +196,9 @@ export class EnergyPool {
   // is one-shot. Returns the event, or null when none is scheduled.
   wakeAt(amount) {
     checkAmount(this.definition, "wake at", amount);
+    // Drop a wake that has run first: #placeWake drops a ran wake with its
+    // amount, so without this a re-arm right after one would be lost (#225).
+    this.#dropRanWake();
     this.#wakeAmount = amount;
     this.#placeWake();
     return this.#wake;

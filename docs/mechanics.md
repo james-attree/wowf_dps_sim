@@ -1206,6 +1206,17 @@ amount (decision points, #197). The pool does not yet count the time at the
 cap or the overflow (#146); the end-event contract arrives with the runner
 re-point (#198).
 
+Re-arming: once the wake has run, `wakeAt` sets a new threshold straight
+away, from the wake's own handler or from outside, with nothing read in
+between (#225). A `wakeAt` whose amount the pool already holds fires at now.
+Called from a decision handler, that wake runs after the decision, as the
+next event at that time (the energy class runs before a decision scheduled
+at the same time after it). So a decision that asks again for energy it
+already holds, and does nothing else, wakes itself at the same time without
+end; the scheduler's hard stop (`k("sim.maxEventsPerTimestamp")` events at
+one time) ends it with a `SchedulerHardStopError`. The rotation (#197) must
+act on energy it holds rather than wait for it.
+
 ## Headless fight
 
 `runFight({ seed, duration, config })` in `js/fight.js` is the one entry point
