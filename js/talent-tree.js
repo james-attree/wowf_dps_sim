@@ -639,8 +639,8 @@ export function talentTreeView(
     pointsLine: pointsLine(total, cap, level),
     errorBanner: over
       ? {
-          strong: `${total} points spent, but level ${level} gives ${cap}.`,
-          text: ` Remove ${total - cap} points or raise the level. Run is off until then; nothing was removed for you.`,
+          strong: `${plural(total, "point")} spent, but level ${level} gives ${cap}.`,
+          text: ` Remove ${plural(total - cap, "point")} or raise the level. Run is off until then; nothing was removed for you.`,
         }
       : null,
     note:

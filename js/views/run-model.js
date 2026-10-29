@@ -159,14 +159,31 @@ const settings = (count) => `${count} ${count === 1 ? "setting" : "settings"}`;
 // Fran's QA of #208).
 export const TALENTS_OVER_CAP = "Talents over the level cap";
 
+// The narrow sticky row (below NARROW_QUERY) is one compact row, 64 px or
+// less: two 22 px lines beside the buttons (#153). The full reason does not
+// fit its line at 390 px and wrapping it would add a third line, so the row
+// shows this shorter text instead. The full one stays in #run-reason, which
+// Run's aria-describedby names, and the status text itself is aria-hidden.
+export const TALENTS_OVER_CAP_SHORT = "Talents over cap";
+
 export function blockedText(count, talentsOnly = false) {
   return `Can't run · ${talentsOnly ? TALENTS_OVER_CAP : `${settings(count)} to fix`}`;
 }
 
-function blockedReason(state) {
-  const count = blockedCount(state);
+const talentsOnly = (state) => {
   const talents = talentErrorCount(state);
-  return blockedText(count, talents > 0 && count === talents);
+  return talents > 0 && blockedCount(state) === talents;
+};
+
+function blockedReason(state) {
+  return blockedText(blockedCount(state), talentsOnly(state));
+}
+
+// The narrow row's shorter status, or null when the status fits as it is.
+function narrowStatus(state, reason) {
+  return reason !== null && talentsOnly(state)
+    ? `Can't run · ${TALENTS_OVER_CAP_SHORT}`
+    : null;
 }
 
 // "100k" for 100,000, "1.5k" for 1,500, "999" under a thousand: the total of
@@ -224,6 +241,7 @@ function liveModel(state) {
     locked: active,
     help: LIVE_HELP,
     status: reason ?? text,
+    statusShort: narrowStatus(state, reason),
     announce,
     progress: null,
   };
@@ -276,6 +294,7 @@ function batchModel(state) {
     locked: running,
     help: BATCH_HELP,
     status: reason ?? text,
+    statusShort: narrowStatus(state, reason),
     announce,
     progress: running
       ? {

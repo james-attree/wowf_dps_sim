@@ -121,6 +121,13 @@ dependencies.
 | `npm run bench`            | `node scripts/bench.mjs`                               |
 | `npm run serve`            | `node scripts/serve.mjs`                               |
 
+`npm run test:browser` needs a local Chrome or Chromium; `npm ci` does not
+download one. By default it launches the installed Google Chrome (the
+`chrome` channel). Set `CHROME_PATH` to a Chrome or Chromium binary to use
+that instead, for example
+`CHROME_PATH=/usr/bin/chromium npm run test:browser`. Without either, it fails
+at launch. `npm test` needs no browser.
+
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on `push` and
 `pull_request`, on `ubuntu-latest`, with Node 22. The job checks out the repo,
 installs with `npm ci`, then runs `npm run lint`, `npm test`,

@@ -488,6 +488,19 @@ h3 {
     white-space: nowrap;
   }
 
+  /* A status too long for its 22 px line and with a shorter form (over the
+     talent cap, #204): the row draws the short text. Wrapping would add a
+     third line past the row's 64 px. The full text is still the element's
+     text and #run-reason's, which Run's aria-describedby names. */
+  #run-status-text[data-short] {
+    font-size: 0;
+  }
+
+  #run-status-text[data-short]::before {
+    content: attr(data-short) / "";
+    font-size: 0.72rem;
+  }
+
   /* Blocked: the status (why) takes the summary's line and the link the
      line under it. The link's box is the 22 px line; its touch target is
      44 px tall, reaching over the status line above. */

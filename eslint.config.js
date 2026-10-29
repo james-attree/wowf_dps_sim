@@ -216,7 +216,7 @@ export default defineConfig([
     // The browser tests (#204): their page.evaluate callbacks run in Chrome.
     files: ["browser-tests/**/*.mjs"],
     languageOptions: {
-      globals: readonly(["document"]),
+      globals: readonly(["document", "getComputedStyle"]),
     },
   },
 ]);

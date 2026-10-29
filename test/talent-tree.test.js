@@ -159,6 +159,19 @@ describe("talent tree model (#204)", () => {
     assert.equal(talentErrorCount(store.get()), 0);
   });
 
+  it("one point over the cap says 1 point, not 1 points (#204 polish)", () => {
+    const { tree, talents } = setup();
+    tree.setLevel("11");
+    assert.equal(tree.add("combat.improved-sinister-strike"), true);
+    assert.equal(tree.add("combat.improved-sinister-strike"), true);
+    tree.setLevel("10");
+    assert.equal(talents().view.pill, "⚠ 1 over");
+    assert.deepEqual(talents().view.errorBanner, {
+      strong: "2 points spent, but level 10 gives 1.",
+      text: " Remove 1 point or raise the level. Run is off until then; nothing was removed for you.",
+    });
+  });
+
   it("an invalid level keeps the last valid one and shows the field error", () => {
     const { tree, talents, config } = setup();
     tree.setLevel("40");
