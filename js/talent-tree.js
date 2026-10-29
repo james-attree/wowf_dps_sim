@@ -10,7 +10,6 @@ import {
   DEFAULT_TALENT_LEVEL,
   buildProblems,
   pointsByTree,
-  talentGrantedAbilities,
   talentLevelRange,
   talentPointCap,
   why,
@@ -151,14 +150,6 @@ export function talentInfo({
         noDpsReason: coverage === "noDps" ? effect.noDpsEffect : null,
         ability:
           grants === null ? null : { id: grants, name: abilityName(grants) },
-        // An active talent whose ability the sim has but does not tie to the
-        // talent yet (Ghostly Strike, Hemorrhage, Premeditation).
-        ungated:
-          own !== null &&
-          simulatedAbilities.has(own) &&
-          !talentGrantedAbilities.has(own)
-            ? talent.name
-            : null,
         // An active talent whose ability the sim does not have (Mutilate).
         noAbility:
           own !== null && !simulatedAbilities.has(own) && coverage !== "noDps"
@@ -360,12 +351,6 @@ function detailOf(ranks, id, level, info, catalogue) {
         rank > 0
           ? "The rotation can cast it now."
           : `Without this talent the rotation skips ${talent.ability.name}.`,
-    });
-  }
-  if (talent.ungated !== null) {
-    notes.push({
-      strong: `${talent.ungated}: not tied to this talent yet.`,
-      text: `The sim already has ${talent.ungated}, and a rotation that lists it casts it with or without this talent. This changes when ${talent.treeName} effects land (D8).`,
     });
   }
   if (talent.noAbility !== null) {
