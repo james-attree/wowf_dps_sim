@@ -36,6 +36,9 @@ const engineClockMessage =
 // DOM and draw, so the engine rules do not apply; the display-name rule does.
 const UI_FILES = ["js/main.js", "js/views/**/*.js"];
 
+const viewImportMessage =
+  "A view draws the store's plain slices (#150): it may import other views, js/gcd-meter.js, js/icons.js and data/constants.js, never the engine. Put what it needs in the store through js/live-feed.js.";
+
 // Host modules under js/ (issue #147): see their block below.
 const WORKER_HOSTS = ["js/batch-worker.js", "js/batch-client.js"];
 
@@ -105,6 +108,26 @@ export default defineConfig([
         "requestAnimationFrame",
         "window",
       ]),
+    },
+  },
+  {
+    // The view modules (#150) draw the store's plain slices and nothing else:
+    // no Rogue, Simulation or other engine module. What they may import is
+    // listed here; the live feed (js/live-feed.js) is what reads the fight.
+    files: ["js/views/**/*.js"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex:
+                "^(?!(\\./[\\w-]+|\\.\\./(gcd-meter|icons)|\\.\\./\\.\\./data/constants)\\.js$)",
+              message: viewImportMessage,
+            },
+          ],
+        },
+      ],
     },
   },
   {

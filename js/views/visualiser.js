@@ -2,20 +2,17 @@ import { k } from "../../data/constants.js";
 import { applyGcdMeterAria } from "../gcd-meter.js";
 import { attachIconFallback } from "../icons.js";
 
-// The visualiser (#149): combo points, energy, the GCD meter, the active buffs
-// and debuffs, the skill cooldowns and the combat log. This view owns those
-// elements and no others. It draws the live fight (the fight slice: the
-// engine's rogue and simulation) each time the frame slice moves, the way the
-// page has drawn it every animation frame since before the split. It holds no
-// combat or timing rules.
+// The visualiser (#149, #150): combo points, energy, the GCD meter, the active
+// buffs and debuffs, the skill cooldowns and the combat log. This view owns
+// those elements and no others. It draws the plain slices the live feed puts
+// in the store (js/live-feed.js: resources, gcd, effects, log) each time the
+// frame slice moves, the way the page has drawn every animation frame since
+// before the split. It reads no engine object and holds no combat or timing
+// rules.
 export function createVisualiserView(doc, store) {
-  const { rogue, simulation } = store.get().fight;
-  const skillsById = new Map(
-    Object.values(rogue.abilities).map((skill) => [skill.id, skill]),
-  );
   const comboValue = doc.querySelector("#combo-value");
   const comboMeter = doc.querySelector("#combo-meter");
-  const comboPoints = doc.querySelectorAll(".combo-point");
+  const comboPointElements = doc.querySelectorAll(".combo-point");
   const energyValue = doc.querySelector("#energy-value");
   const energyMeter = doc.querySelector("#energy-meter");
   const energyFill = doc.querySelector("#energy-fill");
@@ -38,60 +35,45 @@ export function createVisualiserView(doc, store) {
   let lastRenderedCombatEventId = -1;
 
   function redrawScene() {
-    comboValue.value = `${rogue.comboPoints} / ${rogue.maxComboPoints}`;
+    const { resources, gcd, effects, log } = store.get();
+    const { comboPoints, energy } = resources;
+    comboValue.value = `${comboPoints.value} / ${comboPoints.max}`;
     comboValue.textContent = comboValue.value;
-    comboMeter.setAttribute("aria-valuenow", String(rogue.comboPoints));
-    comboPoints.forEach((point, index) => {
-      point.classList.toggle("is-filled", index < rogue.comboPoints);
+    comboMeter.setAttribute("aria-valuenow", String(comboPoints.value));
+    comboPointElements.forEach((point, index) => {
+      point.classList.toggle("is-filled", index < comboPoints.value);
     });
-    const energyPercent = (rogue.energy / rogue.maxEnergy) * 100;
-    const gcdPercent = (simulation.gcd / simulation.gcdDuration) * 100;
-    energyValue.value = `${Math.floor(rogue.energy)} / ${rogue.maxEnergy}`;
+    const energyPercent = (energy.value / energy.max) * 100;
+    const gcdPercent = (gcd.remaining / gcd.duration) * 100;
+    energyValue.value = `${Math.floor(energy.value)} / ${energy.max}`;
     energyValue.textContent = energyValue.value;
-    energyMeter.setAttribute("aria-valuenow", String(Math.floor(rogue.energy)));
+    energyMeter.setAttribute("aria-valuenow", String(Math.floor(energy.value)));
     energyFill.style.width = `${energyPercent}%`;
-    gcdValue.value = `${simulation.gcd.toFixed(1)}s`;
+    gcdValue.value = `${gcd.remaining.toFixed(1)}s`;
     gcdValue.textContent = gcdValue.value;
-    const gcdActive = simulation.gcd > 0;
+    const gcdActive = gcd.remaining > 0;
     gcdStatus.textContent = gcdActive ? "On cooldown" : "Ready";
     gcdStatus.classList.toggle("is-active", gcdActive);
-    applyGcdMeterAria(gcdMeter, simulation);
+    applyGcdMeterAria(gcdMeter, gcdMeterReading(gcd));
     gcdFill.style.width = `${gcdPercent}%`;
+    renderTimedEffects(effects.buffs, activeBuffs, buffItems, activeBuffsEmpty);
     renderTimedEffects(
-      simulation.activeBuffs,
-      activeBuffs,
-      buffItems,
-      activeBuffsEmpty,
-    );
-    renderTimedEffects(
-      simulation.activeDebuffs,
+      effects.debuffs,
       activeDebuffs,
       debuffItems,
       activeDebuffsEmpty,
     );
     renderTimedEffects(
-      simulation.cooldowns,
+      effects.cooldowns,
       skillCooldowns,
       cooldownItems,
       skillCooldownsEmpty,
     );
-    renderCombatLog();
+    renderCombatLog(log);
   }
 
   function renderTimedEffects(effects, container, items, emptyState) {
-    const activeEffects = Object.entries(effects)
-      .map(([id, effect]) => {
-        // An aura is a record with its own name and icon. A cooldown is the
-        // seconds left, and the skill with that id has the name and icon.
-        const isAura = typeof effect === "object";
-        const skill = skillsById.get(id);
-        return {
-          id,
-          name: isAura ? effect.name : skill?.name,
-          icon: isAura ? effect.icon : skill?.icon,
-          remaining: isAura ? effect.duration : effect,
-        };
-      })
+    const activeEffects = effects
       .filter(({ remaining }) => remaining > 0)
       .sort((a, b) => b.remaining - a.remaining);
     const activeIds = new Set(activeEffects.map(({ id }) => id));
@@ -136,8 +118,8 @@ export function createVisualiserView(doc, store) {
     emptyState.hidden = activeEffects.length > 0;
   }
 
-  function renderCombatLog() {
-    const newEvents = simulation.combatLog.filter(
+  function renderCombatLog(log) {
+    const newEvents = log.filter(
       (event) => event.id > lastRenderedCombatEventId,
     );
     if (newEvents.length === 0) {
@@ -202,10 +184,15 @@ export function createVisualiserView(doc, store) {
     lastRenderedCombatEventId = Math.max(...newEvents.map((event) => event.id));
   }
 
-  applyGcdMeterAria(gcdMeter, simulation);
+  applyGcdMeterAria(gcdMeter, gcdMeterReading(store.get().gcd));
   return store.subscribe(({ changed }) => {
     if (changed.includes("frame")) {
       redrawScene();
     }
   });
+}
+
+// applyGcdMeterAria (js/gcd-meter.js) takes the simulation's names for the GCD.
+function gcdMeterReading({ remaining, duration }) {
+  return { gcd: remaining, gcdDuration: duration };
 }

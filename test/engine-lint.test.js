@@ -275,6 +275,45 @@ describe("engine lint", () => {
     assert.ok(ids.includes("no-restricted-globals"), result.stdout);
   });
 
+  it("keeps the view modules off the engine (#150)", async () => {
+    const restricted = async (file, source) =>
+      ruleIds((await lintSource(file, source)).stdout).includes(
+        "no-restricted-imports",
+      );
+    for (const source of [
+      'import { Rogue } from "../rogue.js";\nexport { Rogue };\n',
+      'import { Simulation } from "../simulation.js";\nexport { Simulation };\n',
+      'import { createFight } from "../fight.js";\nexport { createFight };\n',
+      'import { SimRunner } from "../sim-runner.js";\nexport { SimRunner };\n',
+      'import { createLiveFeed } from "../live-feed.js";\nexport { createLiveFeed };\n',
+      'import { createStore } from "../store.js";\nexport { createStore };\n',
+      'import { Rogue } from "./../rogue.js";\nexport { Rogue };\n',
+      'export * from "../simulation.js";\n',
+    ]) {
+      assert.ok(await restricted("js/views/visualiser.js", source), source);
+    }
+    for (const source of [
+      'import { k } from "../../data/constants.js";\nexport { k };\n',
+      'import { applyGcdMeterAria } from "../gcd-meter.js";\nexport { applyGcdMeterAria };\n',
+      'import { attachIconFallback } from "../icons.js";\nexport { attachIconFallback };\n',
+      'import { createResultsView } from "./results.js";\nexport { createResultsView };\n',
+    ]) {
+      assert.equal(
+        await restricted("js/views/visualiser.js", source),
+        false,
+        source,
+      );
+    }
+    // The bootstrap is where the fight is made: it may import the engine.
+    assert.equal(
+      await restricted(
+        "js/main.js",
+        'import { Rogue } from "./rogue.js";\nexport { Rogue };\n',
+      ),
+      false,
+    );
+  });
+
   it("lets the batch worker hosts read a clock, and nothing else (#147)", async () => {
     for (const host of ["js/batch-worker.js", "js/batch-client.js"]) {
       const clock = await lintSource(

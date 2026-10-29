@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { createFight } from "../js/fight.js";
+import { createLiveFeed } from "../js/live-feed.js";
 import { defaultConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
 import { createControlsView } from "../js/views/controls.js";
@@ -90,6 +91,7 @@ function recordingDocument() {
 
 function pageStore() {
   const fight = createFight(SEED, defaultConfig());
+  const feed = createLiveFeed(fight);
   const results = () => ({
     time: fight.simulation.currentTime,
     damage: fight.simulation.damageDone,
@@ -100,9 +102,9 @@ function pageStore() {
     run: { state: "running", seed: fight.seed },
     frame: 0,
     results: results(),
-    fight: { rogue: fight.rogue, simulation: fight.simulation },
+    ...feed.read(),
   });
-  return { fight, store, results };
+  return { fight, feed, store, results };
 }
 
 const VIEWS = {
@@ -189,7 +191,7 @@ describe("page views", () => {
 
   it("the visualiser redraws on frame changes and on nothing else", () => {
     const doc = recordingDocument();
-    const { fight, store, results } = pageStore();
+    const { fight, feed, store, results } = pageStore();
     createVisualiserView(doc, store);
     const energy = doc.el("#energy-value");
     const before = energy.writes;
@@ -205,13 +207,57 @@ describe("page views", () => {
     ) {
       fight.simulation.step(k("sim.fixedStep"));
     }
-    store.update(({ frame }) => ({ frame: frame + 1 }));
+    store.update(({ frame }) => ({ frame: frame + 1, ...feed.read() }));
     assert.equal(energy.writes, before + 1);
     assert.equal(
       energy.textContent,
       `${Math.floor(fight.rogue.energy)} / ${fight.rogue.maxEnergy}`,
       "draws the engine's state",
     );
+  });
+
+  it("the visualiser draws plain slices, with no engine behind them (#150)", () => {
+    const doc = recordingDocument();
+    const reading = Object.freeze({
+      resources: {
+        comboPoints: { value: 3, max: 5 },
+        energy: { value: 41.75, max: 100 },
+      },
+      gcd: { remaining: 0.75, duration: 1.5 },
+      effects: {
+        buffs: [
+          { id: "snd", name: "Slice and Dice", icon: null, remaining: 7.4 },
+        ],
+        debuffs: [],
+        cooldowns: [{ id: "x", name: "Sprint", icon: null, remaining: 12.6 }],
+      },
+      log: [
+        {
+          id: 0,
+          time: 61.5,
+          name: "Sinister Strike",
+          type: "skill",
+          damage: 99.9,
+          status: "Hit",
+          outcome: "hit",
+          icon: null,
+        },
+      ],
+    });
+    const store = createStore({ frame: 0, ...reading });
+    createVisualiserView(doc, store);
+    assert.equal(doc.el("#gcd-meter").getAttribute("aria-valuemax"), "1.5");
+    store.set({ frame: 1 });
+    assert.equal(doc.el("#combo-value").textContent, "3 / 5");
+    assert.equal(doc.el("#energy-value").textContent, "41 / 100");
+    assert.equal(doc.el("#energy-fill").style.width, "41.75%");
+    assert.equal(doc.el("#gcd-value").textContent, "0.8s");
+    assert.equal(doc.el("#gcd-fill").style.width, "50%");
+    assert.equal(doc.el("#gcd-status").textContent, "On cooldown");
+    assert.equal(doc.el("#gcd-meter").getAttribute("aria-valuenow"), "0.8");
+    assert.equal(doc.el("#active-buffs-empty").hidden, true);
+    assert.equal(doc.el("#active-debuffs-empty").hidden, false);
+    assert.equal(doc.el("#skill-cooldowns-empty").hidden, true);
   });
 
   it("each view returns its unsubscribe, after which it draws nothing", () => {

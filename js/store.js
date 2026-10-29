@@ -13,9 +13,10 @@ import { EventStream } from "./event-stream.js";
 //             page draws, so the visualiser redraws on it.
 //   results   The latest results: { time, damage } in fight seconds and
 //             damage done so far.
-//   fight     The live { rogue, simulation } a frame draws from. It is the
-//             one slice that is not plain data: the visualiser reads the
-//             engine's state each frame the way the page always has.
+//   resources, gcd, effects, log
+//             What the visualiser draws, as plain frozen data from the live
+//             feed (js/live-feed.js), renewed each frame. No slice holds an
+//             engine object (#150).
 //
 // The store knows nothing of these names: any slice is allowed.
 //
