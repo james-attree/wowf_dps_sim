@@ -267,6 +267,61 @@ for (const width of WIDTHS) {
       assert.doesNotMatch(detail, /rules\[/);
     });
 
+    // Fran's B1 (#218 re-check): every action with an Undo banner puts the
+    // focus on its Undo button.
+    const onUndo = (page) =>
+      page.waitForFunction(
+        () =>
+          document.activeElement?.getAttribute("data-key") === "undo" &&
+          document.activeElement.closest("#rotation-builder") !== null,
+      );
+
+    test("Delete focuses Undo", async () => {
+      await clickCentre(rule(page, 6).locator("[data-key$='.del']"));
+      await onUndo(page);
+      assert.equal(await rules(page).count(), 6);
+    });
+
+    test("the duplicate warning's Delete rule N focuses Undo", async () => {
+      await clickCentre(rule(page, 6).locator("[data-key$='.dup']"));
+      assert.equal(await rules(page).count(), 8);
+      const fix = rule(page, 7).locator(".fix-button", {
+        hasText: "Delete rule 8",
+      });
+      await clickCentre(fix);
+      await onUndo(page);
+      assert.equal(await rules(page).count(), 7);
+    });
+
+    test("Clear all focuses Undo", async () => {
+      await clickCentre(page.locator("[data-key='clear']"));
+      await onUndo(page);
+      assert.equal(await rules(page).count(), 0);
+    });
+
+    test("Revert focuses Undo", async () => {
+      await clickCentre(rule(page, 0).locator("[data-key$='.down']"));
+      await clickCentre(page.locator("[data-key='revert']"));
+      await onUndo(page);
+    });
+
+    test("Tab while holding a rule drops it and says so", async () => {
+      const grip = rule(page, 1).locator("[data-key$='.grip']");
+      await grip.focus();
+      await page.keyboard.press("Space");
+      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("Tab");
+      await page.waitForFunction(() =>
+        / dropped at rule 3 of 7\.$/.test(
+          document.querySelector("#rotation-builder .builder-live").textContent,
+        ),
+      );
+      assert.equal(
+        await rules(page).locator(".is-lifted, [aria-grabbed='true']").count(),
+        0,
+      );
+    });
+
     test("no sideways scroll, with an error and with the panel open", async () => {
       await breakEviscerate(page);
       const overflow = await page.evaluate(

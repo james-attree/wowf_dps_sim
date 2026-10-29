@@ -716,6 +716,12 @@ export function createRotationBuilder(store, formActions) {
     return { focus: { key, seq } };
   }
 
+  // What a keyboard drop says (Space, Enter or Tab).
+  const dropText = (name, at, from, total) =>
+    at === from
+      ? `${name} dropped back at rule ${at + 1}.`
+      : `${name} dropped at rule ${at + 1} of ${total}.`;
+
   function errorTotal() {
     return (form().rotationErrors ?? []).length;
   }
@@ -843,16 +849,18 @@ export function createRotationBuilder(store, formActions) {
       }
       const restore = form().drafts?.[choice()] ?? null;
       const n = rules.length;
-      edit((draft) => ({ ...draft, rules: [], raw: {} }), {
-        live: `All ${n} rules cleared. Undo is in the message above the list.`,
-        focus: "undo",
-      });
+      // The banner is set before the edit, as revert() does, so its Undo
+      // exists when the focus asks for it.
       banner = {
         text: `${count(n, "rule")} cleared.`,
         undo: restore,
         back: "clear",
       };
-      show();
+      edit((draft) => ({ ...draft, rules: [], raw: {} }), {
+        live: `All ${n} rules cleared. Undo is in the message above the list.`,
+        focus: "undo",
+        keepBanner: true,
+      });
     },
     undo() {
       if (banner === null || banner.undo === undefined) {
@@ -998,11 +1006,7 @@ export function createRotationBuilder(store, formActions) {
           const from = grab.from;
           grab = null;
           show({
-            ...say(
-              at === from
-                ? `${name} dropped back at rule ${at + 1}.`
-                : `${name} dropped at rule ${at + 1} of ${rules.length}.`,
-            ),
+            ...say(dropText(name, at, from, rules.length)),
             ...focusOn(`${uid}.grip`),
           });
         }
@@ -1030,9 +1034,11 @@ export function createRotationBuilder(store, formActions) {
         return true;
       }
       if (grab !== null && key === "Tab") {
-        // Tabbing away drops it where it is.
+        // Tabbing away drops it where it is, and says so as Space does; the
+        // browser moves the focus on.
+        const from = grab.from;
         grab = null;
-        show();
+        show(say(dropText(name, at, from, rules.length)));
       }
       return false;
     },
@@ -1112,6 +1118,12 @@ export function createRotationBuilder(store, formActions) {
       if (selected === uid) {
         selected = null;
       }
+      // The banner first, so its Undo exists when the focus asks for it.
+      banner = {
+        text: `Rule ${at + 1} deleted: ${line}.`,
+        undo: restore,
+        back: `${uid}.del`,
+      };
       edit(
         (draft) => ({
           ...draft,
@@ -1121,14 +1133,9 @@ export function createRotationBuilder(store, formActions) {
         {
           live: `Rule ${at + 1} deleted: ${line}. Undo is in the message above the list.`,
           focus: "undo",
+          keepBanner: true,
         },
       );
-      banner = {
-        text: `Rule ${at + 1} deleted: ${line}.`,
-        undo: restore,
-        back: `${uid}.del`,
-      };
-      show();
     },
     setAction(uid, action) {
       const at = indexOf(uid);

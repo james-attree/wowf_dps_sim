@@ -249,6 +249,12 @@ const COPY = {
     "Add at least one rule: with none, the rotation never casts anything.",
   missingParam: (entry) =>
     entry.param === "value" ? "Enter a number." : `Choose a ${entry.param}.`,
+  // A number field's text that isn't a plain decimal ("1e1", "0x10"): the
+  // edit stores NaN, and the validator says badParam.
+  badParam: (entry) =>
+    entry.param === "value"
+      ? "Enter a plain number, such as 10."
+      : `Choose a ${entry.param}.`,
   notWhole: (entry) =>
     `Use a whole number of ${UNITS[entry.resource] ?? entry.resource}.`,
   outOfRange: (entry) =>
@@ -272,11 +278,13 @@ const COPY = {
       )}.${entry.reason === "alwaysHolds" ? " Change its conditions so they are sometimes false." : ""}`,
   duplicateRule: (entry) =>
     `Never reached: same as rule ${entry.same + 1}. Change its conditions or delete it.`,
-  // Not in the spec's table (Open question for Fran): the two #214 warnings.
+  // The two #214 warnings, word for word as rotationWarnings words them
+  // (js/rotation-warnings.js), with the builder's name for the ability (no
+  // id). A test holds the two equal.
   grantedNotTalent: (entry) =>
-    `${nameOf(entry.ability)} doesn't come from a talent, so "is granted" is never true and this rule never casts.`,
+    `${nameOf(entry.ability)} isn't granted by a talent, so 'is granted' is never true here and this rule never casts.`,
   unlockedNotTalent: (entry) =>
-    `${nameOf(entry.ability)} doesn't come from a talent, so "is not locked by the build" is always true and does nothing.`,
+    `${nameOf(entry.ability)} doesn't need a talent, so 'is unlocked' is always true and does nothing.`,
 };
 
 // The builder's line for an entry; the engine's message for a code it has
