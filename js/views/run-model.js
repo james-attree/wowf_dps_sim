@@ -87,8 +87,10 @@ function pausedAnnouncement(state, time, damage) {
   return `Paused at ${spokenTime(time)}. Total damage ${damageText(damage)}. ${dpsNumber(damage, time, 0)} DPS. Energy ${energyText}. Combo points ${comboText}.`;
 }
 
+// The status line's DPS, to 1 dp with commas, as speech says it (U9 polish,
+// Fran's #220 check): "2,541.1".
 function dpsText(damage, time) {
-  return (time > 0 ? damage / time : 0).toFixed(1);
+  return dpsNumber(damage, time, 1);
 }
 
 function secondsText(seconds) {
@@ -333,14 +335,14 @@ function batchModel(state) {
     text = `${grouped(completed)}/${compact(total)} ${fightsWord(total)} · Running batch`;
     announce = null;
   } else if (status === "done") {
-    const mean = result.summary.mean.toFixed(1);
+    const mean = formatNumber(result.summary.mean, 1);
     text = `${fightCount(result.completed)} · ${mean} DPS mean · Done`;
     announce = null;
   } else if (status === "cancelled") {
     const kept = `${grouped(result.completed)}/${compact(result.iterations)} ${fightsWord(result.iterations)} kept`;
     text =
       result.completed > 0
-        ? `${kept} · ${result.summary.mean.toFixed(1)} DPS mean (partial) · Stopped`
+        ? `${kept} · ${formatNumber(result.summary.mean, 1)} DPS mean (partial) · Stopped`
         : `${kept} · Stopped`;
     announce = null;
   } else if (status === "error") {

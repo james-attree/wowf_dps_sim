@@ -383,13 +383,24 @@ describe("live mode walks every state and transition (#153)", () => {
     const result = reference(DURATION);
     assert.equal(
       page.model().status,
-      `Finished · 3 s · ${result.dps.toFixed(1)} DPS`,
+      `Finished · 3 s · ${formatNumber(result.dps, 1)} DPS`,
     );
     const done = page.store.get().results;
     assert.equal(
       page.model().announce,
       `Finished at 3 seconds. Total damage ${formatNumber(Math.floor(done.damage), 0)}. ${formatNumber(result.dps, 1)} DPS.`,
     );
+  });
+
+  it("U9 polish: the finished line's DPS has commas, as speech says it", () => {
+    const page = setup();
+    const { run } = page.store.get();
+    page.store.set({
+      run: { ...run, state: "finished", duration: 300 },
+      results: { time: 300, damage: 762330 },
+    });
+    assert.equal(page.model().status, "Finished · 300 s · 2,541.1 DPS");
+    assert.match(page.model().announce, / 2,541\.1 DPS\.$/);
   });
 
   it("Stop then Run reproduces the same fight for the same seed", () => {
@@ -595,6 +606,37 @@ describe("batch mode (#153, #154 §10)", () => {
       page.store.get().batch.progress.completed,
       4,
       "late progress ignored",
+    );
+  });
+
+  it("U9 polish: the batch lines' mean DPS has commas", async () => {
+    const page = batchPage();
+    page.actions.run();
+    page.client.job.resolve(
+      batchResult({
+        completed: 4,
+        iterations: 4,
+        cancelled: false,
+        mean: 2541.08,
+      }),
+    );
+    await settled();
+    assert.equal(page.model().status, "4 fights · 2,541.1 DPS mean · Done");
+
+    page.actions.run();
+    page.actions.stop();
+    page.client.job.resolve(
+      batchResult({
+        completed: 2,
+        iterations: 4,
+        cancelled: true,
+        mean: 12345.66,
+      }),
+    );
+    await settled();
+    assert.equal(
+      page.model().status,
+      "2/4 fights kept · 12,345.7 DPS mean (partial) · Stopped",
     );
   });
 

@@ -194,8 +194,59 @@ for (const width of WIDTHS) {
       );
       assert.match(
         await page.textContent("#log-step"),
-        /^\d\d:\d\d\.\d · .+ · .+ · \d+$/,
-        "the visible reading as before",
+        /^\d\d:\d\d\.\d · .+ · .+ · \d{1,3}(,\d{3})*$/,
+        "the visible reading, the damage with commas (U9 polish)",
+      );
+      // U9 polish: the hint stays the log's description, out of sight.
+      assert.equal(
+        await page.textContent("#log-hint"),
+        "Paused. Left and Right arrow keys step through the log.",
+      );
+      assert.equal(await page.isVisible("#log-step"), true);
+      assert.equal(
+        await page.evaluate(() => {
+          const box = document
+            .querySelector("#log-hint")
+            .getBoundingClientRect();
+          return box.width * box.height <= 1;
+        }),
+        true,
+        "the hint is visually hidden",
+      );
+
+      // U9 polish: the ends of the log, one message a press, a repeat too.
+      // Home and End say the end and the row as one message (Scout, #221);
+      // an arrow past an end says the end alone and stays on the row.
+      const say = async (key) => {
+        await page.keyboard.press(key);
+        await settle(page);
+        const said = await messages(page);
+        assert.equal(said.length, 1, `${key}: ${JSON.stringify(said)}`);
+        assert.equal(said[0].id, "log-readout", key);
+        return said[0].text;
+      };
+      const spokenRow =
+        /^\d+ minutes?( \d+(\.\d)?)?, [^,]+, [a-z ]+, [\d,]+ damage$|^\d+(\.\d)? seconds?, [^,]+, [a-z ]+, [\d,]+ damage$/;
+      const home = await say("Home");
+      assert.equal(await say("Home"), home, "Home again: said again");
+      assert.equal(await say("ArrowLeft"), "Start of log");
+      assert.equal(await say("ArrowLeft"), "Start of log", "said again");
+      const earliestStep = await page.textContent("#log-step");
+      await say("ArrowRight");
+      const earliest = await say("ArrowLeft");
+      assert.match(earliest, spokenRow);
+      assert.equal(home, `Start of log. ${earliest}`);
+      assert.equal(await page.textContent("#log-step"), earliestStep);
+      // The first step went to the latest row: End says it.
+      assert.equal(await say("End"), `End of log. ${stepped[0].text}`);
+      assert.equal(await say("ArrowRight"), "End of log");
+      assert.equal(await say("ArrowRight"), "End of log", "said again");
+      assert.equal(
+        await page.evaluate(() =>
+          document.activeElement.classList.contains("combat-log-scroll"),
+        ),
+        true,
+        "focus stays on the log",
       );
 
       await clickCentre(page.locator("#pause-button"));
@@ -223,6 +274,10 @@ for (const width of WIDTHS) {
         new RegExp(
           `^Finished at ${FIGHT_SECONDS} seconds\\. Total damage [\\d,]+\\. [\\d,]+\\.\\d DPS\\.$`,
         ),
+      );
+      assert.match(
+        await page.textContent("#run-status-text"),
+        new RegExp(`^Finished · ${FIGHT_SECONDS} s · [\\d,]+\\.\\d DPS$`),
       );
       assert.match(
         await page.textContent("#damage-value"),
@@ -291,6 +346,10 @@ for (const width of WIDTHS) {
         said.at(-1).text,
         /^Batch finished: [\d,.]+ DPS(, plus or minus [\d,.]+)?\.$/,
       );
+      assert.match(
+        await page.textContent("#run-status-text"),
+        new RegExp(`^${BATCH_FIGHTS} fights · [\\d,]+\\.\\d DPS mean · Done$`),
+      );
       assert.deepEqual(errors, []);
     });
   });
@@ -333,6 +392,62 @@ for (const width of [390, 360]) {
         await page
           .locator("#damage-panel")
           .screenshot({ path: `${process.env.U9_SHOTS}/tiles-${width}.png` });
+      }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+// U9 polish (Fran's #220 check): the longest status lines with commas and a
+// long log step, with the hint kept out of sight, fit on a phone.
+for (const width of [390, 360]) {
+  test(`the status line and the log step fit at ${width}px (U9 polish)`, async () => {
+    const { context, page, errors } = await openPage(width);
+    try {
+      const fits = await page.evaluate(() => {
+        const hint = document.querySelector("#log-hint");
+        hint.textContent =
+          "Paused. Left and Right arrow keys step through the log.";
+        hint.classList.add("visually-hidden");
+        const step = document.querySelector("#log-step");
+        step.textContent = "10:00.0 · Sinister Strike · Crit · 12,345";
+        const readout = step.parentElement;
+        const panel = readout.parentElement.getBoundingClientRect();
+        const box = readout.getBoundingClientRect();
+        const lines = [];
+        for (const text of [
+          "Finished · 3,600 s · 12,345.6 DPS",
+          "10,000 fights · 12,345.6 DPS mean · Done",
+          "9,999/10K fights kept · 12,345.6 DPS mean (partial) · Stopped",
+        ]) {
+          const status = document.querySelector("#run-status-text");
+          status.textContent = text;
+          const at = status.getBoundingClientRect();
+          lines.push({
+            text,
+            inside: at.left >= 0 && at.right <= globalThis.innerWidth,
+            wide: document.documentElement.scrollWidth > globalThis.innerWidth,
+          });
+        }
+        return {
+          step: box.left >= panel.left && box.right <= panel.right,
+          stepClipped: readout.scrollWidth > readout.clientWidth,
+          lines,
+        };
+      });
+      assert.equal(fits.step, true, "the log step inside its panel");
+      assert.equal(fits.stepClipped, false, "the log step not clipped");
+      for (const { text, inside, wide } of fits.lines) {
+        assert.equal(inside, true, `${text}: on the page`);
+        assert.equal(wide, false, `${text}: no sideways scroll`);
+      }
+      if (process.env.U9_SHOTS) {
+        await page
+          .locator(".log-readout")
+          .locator("..")
+          .screenshot({ path: `${process.env.U9_SHOTS}/log-${width}.png` });
       }
       assert.deepEqual(errors, []);
     } finally {

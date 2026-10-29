@@ -741,7 +741,7 @@ describe("page views", () => {
   it("Phase 3: paused, Left and Right step through the log (#150)", () => {
     const doc = recordingDocument();
     const rows = [
-      { ...LOG_ROW, id: 2, time: 41.25, name: "Eviscerate", damage: 812.4 },
+      { ...LOG_ROW, id: 2, time: 41.25, name: "Eviscerate", damage: 1812.4 },
       { ...LOG_ROW, id: 1, time: 40.5, status: "Crit", damage: 412 },
       LOG_ROW,
     ];
@@ -766,15 +766,22 @@ describe("page views", () => {
     );
     assert.equal(doc.el("#log-readout").textContent, "");
     assert.equal(doc.el("#log-step").textContent, "");
+    assert.equal(doc.el("#log-hint").classes.has("visually-hidden"), false);
     assert.equal(press("ArrowLeft"), true);
-    assert.equal(doc.el("#log-hint").textContent, "");
+    // U9 polish: the hint stays the log's description, out of sight.
+    assert.equal(
+      doc.el("#log-hint").textContent,
+      "Paused. Left and Right arrow keys step through the log.",
+    );
+    assert.equal(doc.el("#log-hint").classes.has("visually-hidden"), true);
+    // U9 polish: the shown damage has commas, as the spoken one does.
     assert.equal(
       doc.el("#log-step").textContent,
-      "00:41.2 · Eviscerate · Hit · 812",
+      "00:41.2 · Eviscerate · Hit · 1,812",
     );
     assert.equal(
       doc.el("#log-readout").textContent,
-      "41.2 seconds, Eviscerate, hit, 812 damage",
+      "41.2 seconds, Eviscerate, hit, 1,812 damage",
     );
     const logRows = doc.el("#combat-log").children;
     assert.equal(logRows[0].getAttribute("aria-current"), "true");
@@ -790,17 +797,191 @@ describe("page views", () => {
     assert.equal(logRows[0].getAttribute("aria-current"), null);
     assert.ok(logRows[1].classes.has("is-selected"));
     press("ArrowLeft");
-    press("ArrowLeft");
+    assert.ok(logRows[2].classes.has("is-selected"));
+    assert.match(doc.el("#log-readout").textContent, /damage$/);
+    // U9 polish: an arrow past either end says so, and stays on the row.
+    assert.equal(press("ArrowLeft"), true);
     assert.ok(logRows[2].classes.has("is-selected"), "stops at the oldest");
+    assert.equal(doc.el("#log-readout").textContent, "Start of log");
+    assert.match(
+      doc.el("#log-step").textContent,
+      / · Hit · 99$/,
+      "the row shows",
+    );
     press("ArrowRight");
     assert.ok(logRows[1].classes.has("is-selected"));
+    assert.equal(press("End"), true);
+    assert.ok(logRows[0].classes.has("is-selected"), "End: the latest");
+    // Scout (#221): Home and End say the end and the row, as one message.
+    assert.equal(
+      doc.el("#log-readout").textContent,
+      "End of log. 41.2 seconds, Eviscerate, hit, 1,812 damage",
+    );
+    assert.equal(
+      doc.el("#log-step").textContent,
+      "00:41.2 · Eviscerate · Hit · 1,812",
+    );
+    press("ArrowRight");
+    assert.equal(doc.el("#log-readout").textContent, "End of log");
+    assert.ok(logRows[0].classes.has("is-selected"));
+    assert.equal(press("Home"), true);
+    assert.ok(logRows[2].classes.has("is-selected"), "Home: the earliest");
+    assert.equal(
+      doc.el("#log-readout").textContent,
+      "Start of log. 1 minute 1.5, Sinister Strike, hit, 99 damage",
+    );
+    press("ArrowLeft");
+    assert.equal(doc.el("#log-readout").textContent, "Start of log");
+    assert.ok(logRows[2].classes.has("is-selected"), "past the start: stays");
     assert.equal(press("Enter"), false, "other keys are left alone");
 
     store.set({ run: { state: "running", seed: SEED } });
+    assert.equal(press("Home"), false, "running: Home is the browser's");
     assert.equal(doc.el("#log-readout").textContent, "");
     assert.equal(doc.el("#log-step").textContent, "");
     assert.equal(doc.el("#log-hint").textContent, "");
+    assert.equal(doc.el("#log-hint").classes.has("visually-hidden"), false);
     assert.equal(logRows[1].classes.has("is-selected"), false);
+  });
+
+  it("U9 polish: the step announcer says a repeat again, one message a press", () => {
+    const { doc } = windowedDocument(false);
+    const frames = [];
+    doc.defaultView.requestAnimationFrame = (run) => frames.push(run);
+    doc.defaultView.cancelAnimationFrame = () => frames.splice(0);
+    const rows = [{ ...LOG_ROW, id: 1, time: 1.5 }, LOG_ROW];
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    store.set({ frame: 1, log: rows, run: { state: "paused", seed: SEED } });
+    const readout = doc.el("#log-readout");
+    const scroll = doc.el(".combat-log-scroll");
+    const press = (key) => scroll.fire("keydown", { key, preventDefault() {} });
+    const said = [];
+    const nextFrame = () => {
+      frames.splice(0).forEach((run) => run());
+      said.push(readout.textContent);
+    };
+
+    press("Home");
+    assert.equal(readout.textContent, "", "emptied first");
+    nextFrame();
+    press("Home");
+    assert.equal(readout.textContent, "", "the same words: emptied again");
+    nextFrame();
+    press("ArrowLeft");
+    nextFrame();
+    press("ArrowLeft");
+    assert.equal(readout.textContent, "", "a bare repeat: emptied again");
+    nextFrame();
+    press("End");
+    nextFrame();
+    press("End");
+    press("ArrowRight");
+    assert.equal(frames.length, 1, "a newer press replaces a waiting one");
+    nextFrame();
+    const earliest = "1 minute 1.5, Sinister Strike, hit, 99 damage";
+    const latest = "1.5 seconds, Sinister Strike, hit, 99 damage";
+    assert.deepEqual(said, [
+      `Start of log. ${earliest}`,
+      `Start of log. ${earliest}`,
+      "Start of log",
+      "Start of log",
+      `End of log. ${latest}`,
+      "End of log",
+    ]);
+  });
+
+  it("U9 polish: identical frames write nothing to the buffs or cooldowns", () => {
+    const doc = recordingDocument();
+    const effect = (id, remaining, stacks = 1) => ({
+      id,
+      name: id,
+      icon: null,
+      remaining,
+      duration: 30,
+      stacks,
+    });
+    const effects = {
+      buffs: [effect("snd", 7.4), effect("poison", 12, 3)],
+      debuffs: [],
+      cooldowns: [effect("sprint", 120), effect("vanish", 60)],
+    };
+    const store = createStore(plainReading({ effects }));
+    createVisualiserView(doc, store);
+    store.set({ frame: 1 });
+
+    let writes = 0;
+    const count = (node) => {
+      for (const name of ["hidden"]) {
+        let value = node[name];
+        Object.defineProperty(node, name, {
+          get: () => value,
+          set: (next) => {
+            writes += 1;
+            value = next;
+          },
+        });
+      }
+      const style = node.style;
+      let width = style.width;
+      Object.defineProperty(style, "width", {
+        get: () => width,
+        set: (next) => {
+          writes += 1;
+          width = next;
+        },
+      });
+      const { setAttribute, append } = node;
+      node.setAttribute = (...args) => {
+        writes += 1;
+        setAttribute.apply(node, args);
+      };
+      node.append = (...args) => {
+        writes += 1;
+        append.apply(node, args);
+      };
+      let title = node.title;
+      Object.defineProperty(node, "title", {
+        get: () => title,
+        set: (next) => {
+          writes += 1;
+          title = next;
+        },
+      });
+    };
+    const textWrites = (nodes) =>
+      nodes.reduce((sum, node) => sum + node.writes, 0);
+    const lists = ["#active-buffs", "#skill-cooldowns"].map(doc.el);
+    const empties = ["#active-buffs-empty", "#skill-cooldowns-empty"];
+    const items = lists.flatMap((list) => [...new Set(list.children)]);
+    assert.equal(items.length, 4);
+    const parts = items.flatMap((item) => [item, ...item.children]);
+    const fills = items.flatMap((item) =>
+      item.children.flatMap((part) => part.children),
+    );
+    [...lists, ...empties.map(doc.el), ...parts, ...fills].forEach(count);
+    const before = textWrites([...parts, ...fills]);
+
+    for (let frame = 2; frame < 12; frame += 1) {
+      store.set({ frame, effects: structuredClone(effects) });
+    }
+    assert.equal(writes, 0, "no attribute, style, title, hidden or move");
+    assert.equal(textWrites([...parts, ...fills]), before, "no text");
+
+    // A change still lands: the cooldowns swap places and one time moves.
+    store.set({
+      frame: 12,
+      effects: {
+        ...effects,
+        cooldowns: [effect("sprint", 50), effect("vanish", 60)],
+      },
+    });
+    assert.ok(writes > 0);
+    assert.ok(textWrites([...parts, ...fills]) > before);
+    assert.equal(
+      doc.el("#skill-cooldowns").children.at(-1).title,
+      "sprint: 50s",
+    );
   });
 
   it("Phase 3: announces buffs and the pause only when ticked, throttled (#150)", () => {
