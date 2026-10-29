@@ -31,12 +31,21 @@ const energy = (value) => ({
 const messages = (value, context) =>
   rotationWarnings(value, context).map((warning) => warning.message);
 
-const finisherText = (path, label) =>
-  `${path}: ${label} is a finisher, but its rule has no comboPoints condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`;
+const finisherText = (
+  path,
+  label,
+  lacks = "its rule has no comboPoints condition",
+) =>
+  `${path}: ${label} is a finisher, but ${lacks}. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`;
 const cooldownText = (path, label, id) =>
   `${path}: ${label} has a cooldown and starts the global cooldown, but its rule has no cooldownReady check. While it is on cooldown it holds back every rule below it. Add { "type": "cooldownReady", "ability": "${id}" } to its conditions.`;
-const starvesText = (path, label, below) =>
-  `${path}: ${label} starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below}. Give it conditions or move it below them.`;
+const starvesText = (
+  path,
+  label,
+  below,
+  lacks = "its rule has no conditions",
+) =>
+  `${path}: ${label} starts the global cooldown and ${lacks}, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below}. Give it conditions or move it below them.`;
 
 async function docExamples() {
   const text = await readFile(
@@ -111,15 +120,53 @@ describe("rotationWarnings: a finisher with no comboPoints condition", () => {
     );
   });
 
-  it("any comboPoints condition is enough", () => {
-    for (const op of [">=", "==", "<"]) {
-      const condition = { type: "comboPoints", op, value: FINISHER };
+  it("a comboPoints condition that needs a combo point is enough", () => {
+    for (const [op, value] of [
+      [">=", FINISHER],
+      [">=", 1],
+      [">", 0],
+      ["==", FINISHER],
+      ["==", 1],
+    ]) {
+      const condition = { type: "comboPoints", op, value };
       assert.deepEqual(
         messages(rotation(rule("eviscerate", condition), rule("backstab"))),
         [],
-        op,
+        `${op} ${value}`,
       );
     }
+  });
+
+  it("one that holds at 0 combo points still warns (Kira's #206 review)", () => {
+    for (const [op, value] of [
+      [">=", 0],
+      ["<=", FINISHER],
+      ["<", FINISHER],
+      ["<=", 0],
+      ["==", 0],
+    ]) {
+      const condition = { type: "comboPoints", op, value };
+      assert.deepEqual(
+        messages(
+          rotation(rule("eviscerate", condition), rule("premeditation")),
+        ),
+        [
+          finisherText(
+            "rules[0]",
+            "Eviscerate (eviscerate)",
+            "its comboPoints condition does not need a combo point",
+          ),
+        ],
+        `${op} ${value}`,
+      );
+    }
+    // One condition that needs a point is enough, beside one that does not.
+    const both = rule(
+      "eviscerate",
+      { type: "comboPoints", op: ">=", value: 0 },
+      enoughPoints,
+    );
+    assert.deepEqual(messages(rotation(both, rule("backstab"))), []);
   });
 
   it("a comboPoints resource condition is not read as one (only the comboPoints type is)", () => {
@@ -248,6 +295,68 @@ describe("rotationWarnings: an unconditional on-GCD rule above others", () => {
     assert.deepEqual(messages(offGcd), []);
   });
 
+  it("conditions that always hold are no conditions: it still warns", () => {
+    for (const condition of [
+      { type: "comboPoints", op: ">=", value: 0 },
+      { type: "fightTime", op: ">=", value: 0 },
+      { type: "fightTimeRemaining", op: ">=", value: 0 },
+      energy(0),
+    ]) {
+      const trap = rotation(
+        rule("sinister-strike", condition),
+        rule("backstab"),
+      );
+      assert.deepEqual(
+        messages(trap),
+        [
+          starvesText(
+            "rules[0]",
+            "Sinister Strike (sinister-strike)",
+            "Backstab (backstab)",
+            "its rule's conditions always hold",
+          ),
+        ],
+        JSON.stringify(condition),
+      );
+    }
+  });
+
+  it("a condition that can fail is a real one: no warning", () => {
+    for (const condition of [
+      { type: "comboPoints", op: ">=", value: 1 },
+      { type: "fightTime", op: ">", value: 0 },
+      { type: "fightTime", op: "<=", value: 1e9 },
+      { type: "fightTimeRemaining", op: "<", value: 10 },
+      energy(0.5),
+    ]) {
+      const guarded = rotation(
+        rule("sinister-strike", condition),
+        rule("backstab"),
+      );
+      assert.deepEqual(
+        validateRotation(guarded),
+        [],
+        JSON.stringify(condition),
+      );
+      assert.deepEqual(messages(guarded), [], JSON.stringify(condition));
+    }
+    // Only the cheap cases: energy to cap is never below 0 either, but that
+    // type is not read as always holding. (The rotation is valid, so the
+    // empty list is the warnings', not a refusal.)
+    const notCaught = rotation(
+      rule("sinister-strike", { type: "energyToCap", op: ">=", value: 0 }),
+      rule("backstab"),
+    );
+    assert.deepEqual(validateRotation(notCaught), []);
+    assert.deepEqual(messages(notCaught), []);
+    // One that can fail beside one that cannot.
+    const mixed = rotation(
+      rule("sinister-strike", energy(0), energy(FINISHER)),
+      rule("backstab"),
+    );
+    assert.deepEqual(messages(mixed), []);
+  });
+
   it("a rule with any condition is not warned for", () => {
     const guarded = rotation(
       rule("sinister-strike", energy(FINISHER)),
@@ -355,7 +464,11 @@ describe("importRotation: warnings", () => {
     const below = warningContext()
       .onGcd.filter((id) => id !== "sinister-strike")
       .map((id) => rule(id, unlocked(id), ready(id), enoughPoints));
-    const trap = rotation(rule("sinister-strike"), ...below);
+    // Conditions that always hold make the longer wording.
+    const trap = rotation(
+      rule("sinister-strike", { type: "fightTime", op: ">=", value: 0 }),
+      ...below,
+    );
     const result = importRotation(exportRotation(trap));
     assert.equal(result.ok, true, JSON.stringify(result.errors));
     assert.equal(result.warnings.length, 1);

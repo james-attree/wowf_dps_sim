@@ -9,6 +9,7 @@ import {
 } from "../js/config-form.js";
 import { poisonInfo } from "../js/config-form.js";
 import { listPresets } from "../js/rotation-presets.js";
+import { defaultRotation } from "../js/rotation-default.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
 import { NARROW_QUERY } from "../js/views/breakpoints.js";
@@ -436,6 +437,38 @@ describe("rotation and talents", () => {
     assert.equal($("cfg-import-warnings").hidden, true);
     assert.equal($("cfg-import-warnings-text").textContent, "");
     assert.ok(!$("cfg-import-status").classes.has("is-warning"));
+  });
+
+  it("switching to another rotation clears the import status and warnings (Kira's #206 review)", () => {
+    const { $, store } = page();
+    $("cfg-import-text").value = JSON.stringify({
+      schemaVersion: 1,
+      name: "Trap",
+      rules: [
+        { action: "eviscerate", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    });
+    $("cfg-import-paste").click();
+    assert.equal($("cfg-import-warnings").hidden, false);
+    const rotation = $("cfg-rotation");
+    rotation.value = "default";
+    rotation.fire("change");
+    assert.equal(store.get().config.rotation.name, defaultRotation().name);
+    assert.equal(store.get().form.importStatus, null);
+    assert.equal($("cfg-import-status").textContent, "");
+    assert.ok(!$("cfg-import-status").classes.has("is-warning"));
+    assert.equal($("cfg-import-warnings").hidden, true);
+    assert.equal($("cfg-import-warnings-text").textContent, "");
+    // A refused file's status and details go too.
+    $("cfg-import-text").value = "{";
+    $("cfg-import-paste").click();
+    assert.equal($("cfg-import-detail").hidden, false);
+    rotation.value = listPresets()[0].id;
+    rotation.fire("change");
+    assert.equal($("cfg-import-status").textContent, "");
+    assert.ok(!$("cfg-import-status").classes.has("is-error"));
+    assert.equal($("cfg-import-detail").hidden, true);
   });
 
   it("closes the summary on a narrow screen", () => {

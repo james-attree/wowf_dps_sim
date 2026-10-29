@@ -405,6 +405,31 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(form().importStatus.warnings, "");
   });
 
+  it("choosing another rotation clears the import status; choosing the same keeps it (Kira's #206 review)", () => {
+    const { actions, form } = setup();
+    const trap = {
+      schemaVersion: 1,
+      name: "Trap",
+      rules: [
+        { action: "eviscerate", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    };
+    actions.importText(exportRotation(trap));
+    const status = form().importStatus;
+    assert.notEqual(status, null);
+    actions.chooseRotation("imported");
+    assert.equal(form().importStatus, status, "the same choice keeps it");
+    actions.chooseRotation("default");
+    assert.equal(form().importStatus, null);
+    assert.equal(form().rotationChoice, "default");
+    actions.importText("{ nope");
+    assert.equal(form().importStatus.ok, false);
+    actions.chooseRotation("imported");
+    assert.equal(form().importStatus, null, "a refusal goes too");
+    assert.equal(form().rotationChoice, "imported");
+  });
+
   it("the import status line counts the warnings", () => {
     assert.equal(importedText("A", 0), 'Imported "A".');
     assert.equal(

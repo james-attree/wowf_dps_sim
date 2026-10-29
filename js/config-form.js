@@ -470,7 +470,11 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       if (!form().rotationOptions.some(({ id }) => id === choice)) {
         throw new RangeError(`No rotation choice ${JSON.stringify(choice)}.`);
       }
-      commit({ ...form(), rotationChoice: choice });
+      // Another rotation: the last import's status and warnings are about the
+      // one left, so they go (Kira's #206 review).
+      const importStatus =
+        choice === form().rotationChoice ? form().importStatus : null;
+      commit({ ...form(), rotationChoice: choice, importStatus });
     },
     // A rotation file's text. A good one becomes the "Imported: <name>"
     // choice and is selected; a bad one changes nothing but the status.

@@ -1,6 +1,7 @@
 import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
+import { compareNumbers } from "./rotation-conditions.js";
 import { abilityLabel, validateRotation } from "./rotation-validator.js";
 
 // Rotation warnings (issue #189): pooling traps in a rotation that is valid.
@@ -71,13 +72,37 @@ const conditionText = (fields) =>
     .map(([key, value]) => `"${key}": ${JSON.stringify(value)}`)
     .join(", ")} }`;
 
+// A comboPoints condition that fails at 0 combo points: the rule needs at
+// least one (`comboPoints >= 0` does not, and hides nothing).
+const needsComboPoint = (condition) =>
+  condition.type === "comboPoints" &&
+  !compareNumbers(condition.op, 0, condition.value);
+
+// Types whose number is never below 0. `>=` 0 (or less) on one holds always,
+// so the condition holds back nothing (`fightTime >= 0`). A `>` never does:
+// the validator refuses a value below 0. Only these cheap cases are caught; a
+// rule that holds always by other means is not.
+const NEVER_NEGATIVE = new Set([
+  "comboPoints",
+  "resource",
+  "fightTime",
+  "fightTimeRemaining",
+]);
+const alwaysHolds = (condition) =>
+  NEVER_NEGATIVE.has(condition.type) &&
+  condition.op === ">=" &&
+  condition.value <= 0;
+
 function finisherWarning(rule, path, context) {
   if (
     !context.finishers.includes(rule.action) ||
-    rule.conditions.some((condition) => condition.type === "comboPoints")
+    rule.conditions.some(needsComboPoint)
   ) {
     return null;
   }
+  const lacks = rule.conditions.some(({ type }) => type === "comboPoints")
+    ? "its comboPoints condition does not need a combo point"
+    : "its rule has no comboPoints condition";
   const example = conditionText({
     type: "comboPoints",
     op: ">=",
@@ -85,7 +110,7 @@ function finisherWarning(rule, path, context) {
   });
   return {
     path: `${path}.conditions`,
-    message: `${path}: ${abilityLabel(rule.action)} is a finisher, but its rule has no comboPoints condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as ${example}.`,
+    message: `${path}: ${abilityLabel(rule.action)} is a finisher, but ${lacks}. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as ${example}.`,
   };
 }
 
@@ -110,9 +135,16 @@ function cooldownWarning(rule, path, context) {
 
 function starvesWarning(rules, index, path, context) {
   const rule = rules[index];
-  if (rule.conditions.length > 0 || !context.onGcd.includes(rule.action)) {
+  if (
+    !rule.conditions.every(alwaysHolds) ||
+    !context.onGcd.includes(rule.action)
+  ) {
     return null;
   }
+  const lacks =
+    rule.conditions.length === 0
+      ? "its rule has no conditions"
+      : "its rule's conditions always hold";
   const below = [
     ...new Set(
       rules
@@ -126,7 +158,7 @@ function starvesWarning(rules, index, path, context) {
   }
   return {
     path,
-    message: `${path}: ${abilityLabel(rule.action)} starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below.map(abilityLabel).join(", ")}. Give it conditions or move it below them.`,
+    message: `${path}: ${abilityLabel(rule.action)} starts the global cooldown and ${lacks}, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below.map(abilityLabel).join(", ")}. Give it conditions or move it below them.`,
   };
 }
 
