@@ -311,6 +311,26 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   `BatchResources`, carried by the batch result as `resources`. Not yet used by
   the page. See [Aura uptime](docs/mechanics.md#aura-uptime-s3-issue-146) and
   [Resource waste](docs/mechanics.md#resource-waste-issue-146).
+- `js/damage-timeline.js` — The damage timeline (S5, #148): a
+  `FightTimeline` subscribed to a fight's `hit` events (the damage of each
+  second, `timeline.bucketSeconds`) and a `BatchTimeline` that sums fights in
+  order: the mean damage per second and the mean, lowest and highest cumulative
+  damage. The batch result carries it as `timeline`. See
+  [Batch charts](docs/charts.md).
+- `js/svg.js` — SVG and HTML as node descriptions (S5, #148): `el`, `text`,
+  `toMarkup` (a string) and `toDom` (DOM nodes, no `innerHTML`). Escapes every
+  text and attribute value and allows only a fixed list of tags.
+- `js/charts.js` — The batch charts (S5, #148), plain SVG: `histogramChart`
+  (the DPS of each iteration, the mean and its 95% CI) and `timelineChart`
+  (damage over the fight, cumulative or per second), with `histogramTable` and
+  `timelineTable` as their text alternatives, and the pure numbers under them
+  (`histogramBins`, `niceTicks`, `linearScale`, `timelineSeries`). Not yet used
+  by the page; `demo/charts.html` draws them from a real batch. See
+  [Batch charts](docs/charts.md).
+- `demo/charts.html`, `demo/charts.css`, `demo/charts-demo.js` — A development
+  harness for the charts (#148): runs a batch through `BatchClient` and draws
+  both charts and their tables without a reload. Open
+  `http://127.0.0.1:8000/demo/charts.html` under `npm run serve`. Not deployed.
 - `js/running-stats.js` — `RunningStats` (Welford's mean, SD, min, max and 95%
   CI, from #144) and `CompensatedSum` (Neumaier's compensated sum, #145).
 - `js/event-stream.js` — The event stream (P3-2, #137): `EventStream` (`on`,
@@ -502,6 +522,9 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   [Mechanics](docs/mechanics.md).
 - `docs/roadmap.md` — Phased plan, theme legend, the Phase 1 status, and the
   Phase 0 issue snapshot. See [Roadmap](docs/roadmap.md).
+- `docs/charts.md` — The batch charts (#148): the timeline field, the bin and
+  tick rules, accessibility, and the demo harness. See
+  [Batch charts](docs/charts.md).
 - `docs/phase-3.5-engine-rewrite.md` — Proposal for an event-queue engine, not
   scheduled. See [Phase 3.5](docs/phase-3.5-engine-rewrite.md).
 - `docs/screenshots/` — Before and after screenshots of the live page, desktop
@@ -711,6 +734,21 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   opening seconds at the cap, capped time equal to the engine's energy step by
   step, pooled batch values and the batch result's `resources` however it is
   sliced.
+- `test/damage-timeline.test.js` — The damage timeline: buckets (the part
+  bucket at the end, a hit at the end, a fight of no length), validation, the
+  timeline against the fight's own total, batch means and compensated sums, the
+  fixed length, the last cumulative mean against the mean total damage, the
+  same timeline however the batch is sliced, and that the module is pure.
+- `test/svg.test.js` — The node descriptions: escaping of text and attributes,
+  hostile strings, the tag list, refused event-handler attributes, markup order,
+  and `toDom` on a stand-in document.
+- `test/charts.test.js` — The charts: bins (counts that add up to `n`, no
+  variance, one iteration, no value), ticks, scales, number formatting, the
+  timeline series, the charts and tables as markup against snapshots of a fixed
+  dataset, accessibility (title, desc, labels, tables), escaping, and contract
+  tests on a real batch result.
+- `test/snapshots/` — The chart snapshots for `test/charts.test.js` (`.snap`
+  files, exact markup). Rewritten only with `UPDATE_SNAPSHOTS=1`.
 - `test/rotation-equivalence.test.js` — The Combat rotation as JSON against the
   code rotation it replaced (`test/legacy-rotation.js`): the same fights, field
   for field, log and rng draws included, over builds, weapons, poisons, seeds

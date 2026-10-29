@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Batch charts demo (#148)</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="charts.css" />
+    <script type="module" src="charts-demo.js"></script>
+  </head>
+  <body>
+    <main class="demo">
+      <h1>Batch charts</h1>
+      <p class="demo-note">
+        A demo harness for issue #148, not the simulator page: it runs a real
+        batch through the batch client and draws the charts from its result. Run
+        it with <code>npm run serve</code>. The results UI is #149 and #150.
+      </p>
+      <form id="demo-form" class="demo-form">
+        <label
+          >Seed <input id="demo-seed" type="number" value="1" min="0"
+        /></label>
+        <label
+          >Iterations
+          <input id="demo-iterations" type="number" value="500" min="0"
+        /></label>
+        <label
+          >Fight (s)
+          <input id="demo-duration" type="number" value="300" min="0"
+        /></label>
+        <button id="demo-run" type="submit">Run batch</button>
+        <button id="demo-cancel" type="button" disabled>Cancel</button>
+      </form>
+      <p id="demo-status" class="demo-status" role="status">Not run yet.</p>
+      <section aria-labelledby="demo-histogram-heading">
+        <h2 id="demo-histogram-heading">DPS per iteration</h2>
+        <div id="demo-histogram"></div>
+        <details>
+          <summary>The histogram as a table</summary>
+          <div id="demo-histogram-table"></div>
+        </details>
+      </section>
+      <section aria-labelledby="demo-timeline-heading">
+        <h2 id="demo-timeline-heading">Damage over time</h2>
+        <fieldset class="demo-mode">
+          <legend>Show</legend>
+          <label
+            ><input type="radio" name="demo-mode" value="cumulative" checked />
+            Cumulative damage</label
+          >
+          <label
+            ><input type="radio" name="demo-mode" value="perSecond" /> Damage
+            per second</label
+          >
+        </fieldset>
+        <div id="demo-timeline"></div>
+        <details>
+          <summary>The damage over time as a table</summary>
+          <div id="demo-timeline-table"></div>
+        </details>
+      </section>
+    </main>
+  </body>
+</html>

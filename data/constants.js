@@ -26,6 +26,7 @@ const NOT_JAMES =
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
 const BATCH_RUNNER = "Developer, 29 Oct 2026, issue #144";
 const BATCH_WORKER = "Developer, 29 Oct 2026, issue #147";
+const CHARTS = "Developer, 29 Oct 2026, issue #148";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
@@ -944,6 +945,71 @@ export const CONSTANTS = {
     ENGINEERING,
     `${BATCH_RUNNER}: ${NOT_JAMES} The issue asks for a documented, deterministic scheme and does not name one. The terms are the 32-bit finalizer of MurmurHash3 (public domain, Austin Appleby)`,
     "Not a game rule. How an iteration's seed comes from the base seed and the iteration number (js/batch-runner.js deriveSeed): the number plus `increment` is mixed, xored with the base seed, and mixed again. The mixer is the MurmurHash3 32-bit finalizer (two xor-shifts and two odd multipliers), which is a bijection on 32-bit integers, so no two iterations of a batch share a seed. Changing any term changes every batch.",
+    false,
+  ),
+  "timeline.bucketSeconds": entry(
+    1,
+    "s",
+    ENGINEERING,
+    `${CHARTS}: ${NOT_JAMES} The issue asks for a per-second damage array per iteration, of a fixed length from the fight duration`,
+    "Not a game rule. The width of one bucket of the damage timeline (js/damage-timeline.js): a fight of `duration` seconds has ceil(duration / bucketSeconds) buckets, and each hit adds its damage to the bucket its time falls in. One second is the issue's per-second array.",
+    false,
+  ),
+  "chart.histogramMaxBins": entry(
+    40,
+    "bins",
+    ENGINEERING,
+    `${CHARTS}: ${NOT_JAMES} The issue asks for a documented bin count and width rule with its constants, and gives no value`,
+    "Not a game rule. The most bins the DPS histogram (js/charts.js histogramBins) uses. The rule is ceil(sqrt(n)) equal-width bins from the lowest to the highest DPS, capped here: 1,000 fights give 32 bins, 10,000 give 40. Fewer bins than this when the iterations are few; one bin when every fight has the same DPS.",
+    false,
+  ),
+  "chart.layout": entry(
+    {
+      width: 640,
+      height: 300,
+      marginTop: 28,
+      marginRight: 20,
+      marginBottom: 48,
+      marginLeft: 80,
+      tickLength: 5,
+      tickLabelGap: 8,
+      xAxisTitleGap: 26,
+      yAxisTitleGap: 64,
+      legendGap: 12,
+      legendSwatch: 18,
+      legendSwatchHeight: 10,
+      legendCharWidth: 6,
+      legendItemGap: 18,
+      centre: 0.5,
+    },
+    "SVG user units",
+    ENGINEERING,
+    `${CHARTS}: ${NOT_JAMES} The issue asks for plain SVG charts and names no size`,
+    "Not a game rule. The charts' coordinate system (js/charts.js): the viewBox width and height, the plot margins (room for the axis labels and the legend), the tick length, the gap between a tick and its label, how far the x and y axis titles sit from their axis (the y title clears a tick label like 50,000), how far above the plot the legend sits, the legend's swatch size, the width it allows per character of a legend name and the gap between items, and `centre`, the fraction of the way between two edges where a centred thing sits (a half). The SVG scales to its container, so these are proportions, not pixels on screen.",
+    false,
+  ),
+  "chart.axisTicks": entry(
+    { target: 5, base: 10, steps: [1, 2, 5, 10] },
+    "ticks",
+    ENGINEERING,
+    `${CHARTS}: ${NOT_JAMES} The issue does not cover axis ticks`,
+    "Not a game rule. How the charts pick their axis ticks (js/charts.js niceTicks): about `target` ticks, at a step of 1, 2 or 5 times a power of `base` (the usual round-number ticks), the smallest such step that gives no more than `target` intervals over the range.",
+    false,
+  ),
+  "chart.decimals": entry(
+    { coordinate: 2, value: 1 },
+    "decimal places",
+    ENGINEERING,
+    `${CHARTS}: ${NOT_JAMES} The issue asks for deterministic output and gives no precision`,
+    "Not a game rule. How the charts write numbers (js/charts.js): SVG coordinates with `coordinate` decimals, and DPS and damage in titles, descriptions and tables with `value` decimals. Fixed precision keeps the markup the same on every run and every machine.",
+    false,
+  ),
+  "chart.timelineTableStep": entry(
+    30,
+    "s",
+    ENGINEERING,
+    `${CHARTS}: ${NOT_JAMES} The issue asks for a text alternative to each chart and gives no sampling`,
+    "Not a game rule. How often the damage-over-time chart's table alternative (js/charts.js timelineTable) has a row: every 30 seconds of fight time, and always the last second, so a 300 s fight is a 10-row table (30 s to 300 s) instead of 300.",
     false,
   ),
   "start.state": entry(

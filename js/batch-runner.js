@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { BatchBreakdown, FightBreakdown } from "./ability-breakdown.js";
+import { BatchTimeline, FightTimeline } from "./damage-timeline.js";
 import { dataVersion } from "./data-version.js";
 import { EventStream, createErrorReporter } from "./event-stream.js";
 import {
@@ -50,6 +51,10 @@ import { SimRunner } from "./sim-runner.js";
 // index order. The resource waste (#146) is a FightResources on the "end"
 // event, which carries what each pool lost to its cap, added to a
 // BatchResources in index order.
+//
+// The damage timeline (S5, #148, js/damage-timeline.js) is a FightTimeline on
+// the fight's "hit" events, one bucket per second of fight, added to a
+// BatchTimeline in index order: the data of the damage-over-time chart.
 //
 // Running without blocking. A fight takes tens of milliseconds, so a batch of
 // 1,000 takes tens of seconds, and a page cannot run it inside one call. The
@@ -231,6 +236,7 @@ export class BatchRunner {
   #breakdown = new BatchBreakdown();
   #auras = new BatchAuras();
   #resources = new BatchResources();
+  #timeline;
   #completed = 0;
   #result = null;
   // Iterations handed over by advance() and not run yet.
@@ -278,6 +284,7 @@ export class BatchRunner {
     this.#duration = readDuration(
       options.duration === undefined ? k("batch.duration") : options.duration,
     );
+    this.#timeline = new BatchTimeline({ duration: this.#duration });
     this.#signal = readSignal(options.signal);
     this.#driver = readDriver(options.driver);
     // normalizeConfig checks the whole config, the talent build included, so
@@ -341,6 +348,10 @@ export class BatchRunner {
   //               BatchResources#summary() in js/fight-metrics.js: energy
   //               capped time, energy overflow, combo point waste. See
   //               docs/mechanics.md.
+  //   timeline    the damage timeline of the completed iterations (#148):
+  //               BatchTimeline#summary() in js/damage-timeline.js, the mean
+  //               damage of each second and the mean, lowest and highest
+  //               cumulative damage. See docs/charts.md.
   //   dps         Float64Array of the DPS of each completed iteration, in
   //               iteration order: dps[i] is the fight of
   //               deriveSeed(seed, i). Length is `completed`.
@@ -452,12 +463,15 @@ export class BatchRunner {
     auras.attach(fight);
     const resources = new FightResources();
     resources.attach(fight);
+    const timeline = new FightTimeline({ duration: this.#duration });
+    timeline.attach(fight);
     fight.run();
     fight.advance(Infinity);
     const { dps } = fight.result;
     this.#breakdown.add(breakdown.summary());
     this.#auras.add(auras.summary());
     this.#resources.add(resources.summary());
+    this.#timeline.add(timeline.summary());
     this.#dps[this.#completed] = dps;
     this.#stats.add(dps);
     this.#completed += 1;
@@ -487,6 +501,7 @@ export class BatchRunner {
       breakdown: this.#breakdown.summary(),
       auras: this.#auras.summary(),
       resources: this.#resources.summary(),
+      timeline: this.#timeline.summary(),
       dps: this.#dps.slice(0, this.#completed),
     };
     this.#move(cancelled ? "cancelled" : "finished");
@@ -498,6 +513,7 @@ export class BatchRunner {
     this.#breakdown = new BatchBreakdown();
     this.#auras = new BatchAuras();
     this.#resources = new BatchResources();
+    this.#timeline = new BatchTimeline({ duration: this.#duration });
     this.#completed = 0;
     this.#result = null;
     this.#budget = 0;

@@ -1,0 +1,33 @@
+/* Layout of the charts demo harness (#148) only. The chart styles themselves
+   are in styles.css. */
+.demo {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 720px);
+}
+
+.demo-note,
+.demo-status {
+  color: var(--text-muted);
+}
+
+.demo-form,
+.demo-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.demo-form input {
+  width: 7rem;
+}
+
+.demo section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
