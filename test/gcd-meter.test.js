@@ -4,7 +4,13 @@ import { describe, it } from "node:test";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { k } from "../data/constants.js";
-import { applyGcdMeterAria, gcdMeterAria, writeAria } from "../js/gcd-meter.js";
+import {
+  applyGcdMeterAria,
+  gcdMeterAria,
+  gcdReading,
+  gcdReady,
+  writeAria,
+} from "../js/gcd-meter.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 
@@ -114,6 +120,28 @@ describe("GCD meter aria attributes", () => {
     assert.equal(k("energy.max"), 100, "the valuetext above says 100");
   });
 
+  // #45 (Scout): one ready test, shared by the meter and #gcd-status, at the
+  // edges of the one-decimal reading.
+  it("the GCD's one ready test and its valuetext at the edges", () => {
+    const edges = [
+      [0, "0.0", true, "Ready"],
+      [0.04, "0.0", true, "Ready"],
+      [0.05, "0.1", false, "0.1 seconds remaining"],
+      [0.06, "0.1", false, "0.1 seconds remaining"],
+      [1.0, "1.0", false, "1 second remaining"],
+      [1.5, "1.5", false, "1.5 seconds remaining"],
+    ];
+    for (const [remaining, reading, ready, text] of edges) {
+      assert.equal(gcdReading(remaining), reading, `${remaining}`);
+      assert.equal(gcdReady(remaining), ready, `${remaining}`);
+      const aria = gcdMeterAria({ gcd: remaining, gcdDuration: 1.5 });
+      assert.equal(aria["aria-valuenow"], reading, `${remaining}`);
+      assert.equal(aria["aria-valuetext"], text, `${remaining}`);
+    }
+    assert.equal(gcdReading(-0.01), "0.0", "never -0.0");
+    assert.equal(gcdReady(-0.01), true);
+  });
+
   it("writes aria only when it changes, with a spoken valuetext (#45)", () => {
     const meter = meterElement({ "aria-valuemax": "1" });
     const writes = [];
@@ -133,7 +161,7 @@ describe("GCD meter aria attributes", () => {
     assert.deepEqual(gcdMeterAria({ gcd: 1, gcdDuration: 1 }), {
       "aria-valuemax": "1",
       "aria-valuenow": "1.0",
-      "aria-valuetext": "1.0 seconds remaining",
+      "aria-valuetext": "1 second remaining",
     });
     writes.length = 0;
     writeAria(meter, { "aria-valuemax": 1.5 });

@@ -1,6 +1,11 @@
 import { k } from "../../data/constants.js";
 import { formatNumber } from "../charts.js";
-import { applyGcdMeterAria, writeAria } from "../gcd-meter.js";
+import {
+  applyGcdMeterAria,
+  gcdReading,
+  gcdReady,
+  writeAria,
+} from "../gcd-meter.js";
 import { attachIconFallback } from "../icons.js";
 import { spokenTenths } from "./run-model.js";
 
@@ -113,8 +118,9 @@ export function createVisualiserView(doc, store, { clock } = {}) {
       "aria-valuetext": `${energyNow} of ${energy.max}`,
     });
     energyFill.style.width = `${energyPercent}%`;
-    write(gcdValue, `${gcd.remaining.toFixed(1)}s`);
-    const gcdActive = gcd.remaining > 0;
+    write(gcdValue, `${gcdReading(gcd.remaining)}s`);
+    // The meter's own ready test (#45), so "Ready" here and there agree.
+    const gcdActive = !gcdReady(gcd.remaining);
     write(gcdStatus, gcdActive ? "On cooldown" : "Ready");
     gcdStatus.classList.toggle("is-active", gcdActive);
     applyGcdMeterAria(gcdMeter, gcdMeterReading(gcd));

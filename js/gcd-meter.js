@@ -14,14 +14,28 @@ export function writeAria(element, attributes) {
   }
 }
 
+// The GCD remaining as the page shows it: seconds to one decimal, "0.6".
+export function gcdReading(remaining) {
+  return Math.max(remaining, 0).toFixed(1);
+}
+
+// The one "ready" test (#45, Scout): the GCD is ready when its reading is
+// 0.0, so the meter's "Ready", #gcd-status and the shown "0.0s" agree. 0.04 s
+// left reads 0.0 and is ready; 0.05 s reads 0.1 and is not.
+export function gcdReady(remaining) {
+  return Number(gcdReading(remaining)) === 0;
+}
+
 // The GCD meter's reading: its range is the sim GCD (simulation.gcdDuration,
-// from gcd.duration). "0.6 seconds remaining", or "Ready" with none left.
+// from gcd.duration). "0.6 seconds remaining", "1 second remaining", or
+// "Ready" with none left.
 export function gcdMeterAria({ gcd, gcdDuration }) {
-  const now = gcd.toFixed(1);
+  const now = gcdReading(gcd);
+  const unit = Number(now) === 1 ? "1 second" : `${now} seconds`;
   return {
     "aria-valuemax": String(gcdDuration),
     "aria-valuenow": now,
-    "aria-valuetext": Number(now) > 0 ? `${now} seconds remaining` : "Ready",
+    "aria-valuetext": gcdReady(gcd) ? "Ready" : `${unit} remaining`,
   };
 }
 

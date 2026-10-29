@@ -228,6 +228,37 @@ for (const width of WIDTHS) {
         await page.textContent("#damage-value"),
         /^\d{1,3}(,\d{3})*$/,
       );
+      assert.match(await page.textContent("#dps-value"), /^\d{1,3}(,\d{3})*$/);
+      assert.deepEqual(errors, []);
+    });
+
+    test("Reset says Ready once; Stop says Fran's copy once", async () => {
+      await clickCentre(page.locator("#reset-button"));
+      await settle(page);
+      assert.deepEqual(await messages(page), [
+        { id: "run-announce", text: "Ready" },
+      ]);
+
+      await clickCentre(page.locator("#run-button"));
+      await page.waitForTimeout(1200);
+      assert.deepEqual(await messages(page), [
+        { id: "run-announce", text: "Running" },
+      ]);
+      await clickCentre(page.locator("#stop-button"));
+      await settle(page);
+      const stopped = await messages(page);
+      assert.equal(stopped.length, 1, JSON.stringify(stopped));
+      assert.equal(stopped[0].id, "run-announce");
+      assert.match(
+        stopped[0].text,
+        /^Stopped at \d seconds?\. Fight discarded\.$/,
+      );
+
+      await clickCentre(page.locator("#reset-button"));
+      await settle(page);
+      assert.deepEqual(await messages(page), [
+        { id: "run-announce", text: "Ready" },
+      ]);
       assert.deepEqual(errors, []);
     });
 
@@ -262,5 +293,50 @@ for (const width of WIDTHS) {
       );
       assert.deepEqual(errors, []);
     });
+  });
+}
+
+// The tiles with commas (#45, Scout) fit on a phone: the widest likely
+// numbers, written into the tiles, overflow neither the tile nor the page.
+for (const width of [390, 360]) {
+  test(`the damage and DPS tiles fit at ${width}px with commas (#45)`, async () => {
+    const { context, page, errors } = await openPage(width);
+    try {
+      const fits = await page.evaluate(() => {
+        document.querySelector("#damage-value").textContent = "9,999,999";
+        document.querySelector("#dps-value").textContent = "99,999";
+        return [...document.querySelectorAll("#damage-panel .stat-card")].map(
+          (card) => {
+            const value = card.querySelector(".stat-value");
+            const box = card.getBoundingClientRect();
+            const text = value.getBoundingClientRect();
+            return {
+              id: value.id,
+              inside: text.left >= box.left && text.right <= box.right,
+              clipped: value.scrollWidth > value.clientWidth,
+            };
+          },
+        );
+      });
+      assert.equal(fits.length, 2);
+      for (const { id, inside, clipped } of fits) {
+        assert.equal(inside, true, `${id} inside its tile`);
+        assert.equal(clipped, false, `${id} not clipped`);
+      }
+      assert.ok(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= globalThis.innerWidth,
+        ),
+        "no sideways scroll",
+      );
+      if (process.env.U9_SHOTS) {
+        await page
+          .locator("#damage-panel")
+          .screenshot({ path: `${process.env.U9_SHOTS}/tiles-${width}.png` });
+      }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
   });
 }

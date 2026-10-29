@@ -322,6 +322,11 @@ describe("page views", () => {
     assert.equal(doc.el("#time-value").textContent, "00:00");
     assert.equal(doc.el("#dps-value").textContent, "0");
 
+    // The DPS tile has commas too (#45, Scout), as the pause says it.
+    store.set({ results: { time: 10, damage: 12_345 } });
+    assert.equal(doc.el("#dps-value").textContent, "1,235");
+    assert.equal(doc.el("#damage-value").textContent, "12,345");
+
     const writes = doc.el("#dps-value").writes;
     store.set({ frame: 1, run: pageRun({ state: "paused" }) });
     assert.equal(doc.el("#dps-value").writes, writes, "other slices: no draw");
@@ -569,6 +574,33 @@ describe("page views", () => {
     ]);
     assert.equal(doc.el("#gcd-meter").getAttribute("aria-valuetext"), "Ready");
     assert.equal(doc.el("#gcd-status").textContent, "Ready");
+
+    // The status and the meter share one ready test (#45, Scout): they agree
+    // at the edges of the one-decimal reading.
+    const edges = [
+      [0.04, "Ready", "Ready", "0.0s"],
+      [0.05, "On cooldown", "0.1 seconds remaining", "0.1s"],
+      [0.06, "On cooldown", "0.1 seconds remaining", "0.1s"],
+      [1.0, "On cooldown", "1 second remaining", "1.0s"],
+      [1.5, "On cooldown", "1.5 seconds remaining", "1.5s"],
+      [0, "Ready", "Ready", "0.0s"],
+    ];
+    edges.forEach(([remaining, status, text, shown], at) => {
+      store.set({ frame: 4 + at, gcd: { remaining, duration: 1.5 } });
+      const label = `${remaining} s`;
+      assert.equal(doc.el("#gcd-status").textContent, status, label);
+      assert.equal(
+        doc.el("#gcd-status").classes.has("is-active"),
+        status !== "Ready",
+        label,
+      );
+      assert.equal(
+        doc.el("#gcd-meter").getAttribute("aria-valuetext"),
+        text,
+        label,
+      );
+      assert.equal(doc.el("#gcd-value").textContent, shown, label);
+    });
   });
 
   it("Phase 3: aura bars, stacks, labels, low time and cooldowns (#150)", () => {

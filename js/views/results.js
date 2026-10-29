@@ -11,7 +11,8 @@ import { formatNumber } from "../charts.js";
 // the batch's mean fight, rounded differently from the panel and with the
 // timer at 00:00, which read as two answers.
 //
-// The damage tile has commas (#45, Scout): "25,180", as #run-announce says it.
+// The damage and DPS tiles have commas (#45, Scout): "25,180" and "1,234",
+// as #run-announce says them.
 export function createResultsView(doc, store) {
   const panel = doc.querySelector("#damage-panel");
   const timeValue = doc.querySelector("#time-value");
@@ -35,7 +36,7 @@ export function createResultsView(doc, store) {
       `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
     );
     write(damageValue, formatNumber(Math.floor(damage), 0));
-    write(dpsValue, (time > 0 ? damage / time : 0).toFixed(0));
+    write(dpsValue, formatNumber(time > 0 ? damage / time : 0, 0));
   }
 
   function show(mode) {
