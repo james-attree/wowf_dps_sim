@@ -67,7 +67,7 @@ describe("RotationRule shape check: the documented examples", () => {
       ABILITY_DEFINITIONS.find((ability) => ability.key === key).id;
     const actions = combat.rules.map((rule) => rule.action);
     // onCooldown in order, then Slice and Dice, Cold Blood (the rule in
-    // js/rotation-rules.js), Eviscerate and the builder.
+    // js/rotation-default.js), Eviscerate and the builder.
     assert.deepEqual(actions, [
       ...priority.onCooldown.map(idOf),
       idOf(priority.sliceAndDice),
@@ -91,13 +91,18 @@ describe("RotationRule shape check: the documented examples", () => {
         k("rotation.sliceAndDiceRefreshSeconds"),
       ]);
     }
-    // Blade Flurry and Adrenaline Rush are held back by a build that lacks
-    // the talent (abilityUnlocked); the builder has no condition.
-    for (const rule of combat.rules.slice(0, 2)) {
-      assert.deepEqual(rule.conditions, [
-        { type: "abilityUnlocked", ability: rule.action },
-      ]);
-    }
+    // Blade Flurry and Adrenaline Rush start the GCD, so each says when it can
+    // be cast: the build has it, it is off cooldown, and for Blade Flurry the
+    // energy it costs. The builder has no condition.
+    const [flurry, rush] = combat.rules;
+    const types = (rule) => rule.conditions.map((condition) => condition.type);
+    assert.deepEqual(types(flurry), [
+      "abilityUnlocked",
+      "cooldownReady",
+      "resource",
+    ]);
+    assert.deepEqual(types(rush), ["abilityUnlocked", "cooldownReady"]);
+    assert.equal(flurry.conditions[2].value, k("bladeFlurry").energy);
     assert.deepEqual(combat.rules.at(-1).conditions, []);
   });
 

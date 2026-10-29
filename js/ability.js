@@ -73,6 +73,13 @@ const DAMAGE = {
   },
 };
 
+// The GCD is clear: what is left of it is within sim.tickEpsilon. The rotation
+// interpreter asks this (js/rotation-host.js) to tell "cannot cast yet, the
+// GCD is running" from "cannot cast, short of the cost".
+export function gcdClear(simulation) {
+  return simulation.gcd <= k("sim.tickEpsilon");
+}
+
 export class Ability {
   constructor(definition, rogue) {
     const stats = k(definition.row);
@@ -214,6 +221,50 @@ export class Ability {
     return simulation.cooldowns[this.id] > 0;
   }
 
+  // What a cast would pay now: the cost after the cost modifiers of its
+  // resource (Improved Sinister Strike). With none, it is this.cost as it
+  // stands. 0 for an ability that pays nothing.
+  costNow(simulation) {
+    if (this.costResource === null) {
+      return 0;
+    }
+    const { definition } = this.pool(this.costResource);
+    return definition.costModifier === undefined
+      ? this.cost
+      : simulation.modifiers.resolve(
+          definition.costModifier,
+          this.cost,
+          this.costContext,
+        );
+  }
+
+  // Whether cast() would go ahead right now. It makes the same four checks
+  // cast() makes, in another order (the answer is a yes only if all four
+  // pass), and changes nothing: no draw, no spend.
+  // Not on cooldown; a spender holds at least one of what it spends; the pool
+  // affords the cost; and, on the GCD, the GCD is clear (a remainder within
+  // sim.tickEpsilon counts as clear). An off-GCD ability skips the GCD check.
+  // The rotation interpreter (js/rotation-interpreter.js) asks this; the build
+  // lock is its own check (Rogue.lockedByBuild). test/can-cast.test.js holds
+  // the two together: cast() acts exactly when this is true.
+  canCast(rogue, simulation) {
+    // The GCD is asked first: on most steps it is running, and that settles
+    // an on-GCD ability before its cost is worked out.
+    if (this.triggersGcd && !gcdClear(simulation)) {
+      return false;
+    }
+    if (this.onCooldown(rogue, simulation)) {
+      return false;
+    }
+    if (this.spender && this.pool(this.spendResource).value < 1) {
+      return false;
+    }
+    return (
+      this.costResource === null ||
+      this.pool(this.costResource).has(this.costNow(simulation))
+    );
+  }
+
   cast(rogue, simulation) {
     if (this.onCooldown(rogue, simulation)) {
       return null; // On cooldown, cannot cast
@@ -233,14 +284,7 @@ export class Ability {
     // Strike). With none, it is this.cost as it stands.
     const paid =
       this.costResource === null ? null : this.pool(this.costResource);
-    const cost =
-      paid?.definition.costModifier === undefined
-        ? this.cost
-        : simulation.modifiers.resolve(
-            paid.definition.costModifier,
-            this.cost,
-            this.costContext,
-          );
+    const cost = this.costNow(simulation);
     if (
       (paid === null || paid.has(cost)) &&
       (simulation.gcd <= k("sim.tickEpsilon") || !this.triggersGcd)

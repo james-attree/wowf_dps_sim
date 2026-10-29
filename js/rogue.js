@@ -6,7 +6,8 @@ import { createAbilities } from "./ability.js";
 import { poisonProcs } from "./poisons.js";
 import { checkProcs } from "./procs.js";
 import { abilityCatalogue } from "./abilities.js";
-import { beforeFinisher } from "./rotation-rules.js";
+import { compileRotation, decide } from "./rotation-interpreter.js";
+import { rotationHost } from "./rotation-host.js";
 import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { createResources } from "./resource.js";
 
@@ -32,9 +33,10 @@ export class Rogue {
   // procs run in this order: the build's, the host's, the poisons'. That is
   // also the order of their random draws.
   // `options.abilities` is the ids of the abilities the host grants, none by
-  // default, added to the ones the build grants. Only the rotation rules
-  // (js/rotation-rules.js) and the rotation read it. Like the other two it is
-  // not part of the SimConfig or the result.
+  // default, added to the ones the build grants. Only the rotation reads it
+  // (a rule for a granted ability, such as Cold Blood, uses the abilityGranted
+  // condition). Like the other two it is not part of the SimConfig or the
+  // result.
   constructor(config, options = {}) {
     if (
       options === null ||
@@ -103,6 +105,15 @@ export class Rogue {
     );
 
     this.abilities = createAbilities(this);
+    this.abilitiesById = new Map(
+      Object.values(this.abilities).map((ability) => [ability.id, ability]),
+    );
+    // The rotation the fight casts from (config.rotation, R3 #140), checked
+    // and compiled once here. rotation() asks the interpreter what to cast.
+    this.rotationProgram = compileRotation(this.config.rotation);
+    // The host of the current Simulation, built at the first decision point.
+    this.rotationHostFor = null;
+    this.rotationHostObject = null;
 
     // Weapons
     this.weapons = {
@@ -248,36 +259,23 @@ export class Rogue {
     );
   }
 
-  rotation(simulation, dt) {
-    // rotation.priority is the placeholder Combat list. onCooldown is tried
-    // first, in order. At rotation.finisherComboPoints, Slice and Dice is
-    // used when it is missing or has at most
-    // rotation.sliceAndDiceRefreshSeconds left; otherwise Eviscerate.
-    // Otherwise the builder is used.
-    const priority = k("rotation.priority");
-    for (const id of priority.onCooldown) {
-      const ability = this.abilities[id];
-      // With a build selected, an ability a talent grants (Blade Flurry,
-      // Adrenaline Rush) is cast only when the build has the talent.
-      if (!this.lockedByBuild(ability)) {
-        ability.cast(this, simulation);
-      }
+  // What to cast at this decision point: the interpreter walks the rotation
+  // (this.config.rotation, js/rotation-interpreter.js) and casts through the
+  // host (js/rotation-host.js). The default is the placeholder Combat list
+  // (js/rotation-default.js). The haste and the white swings below are not
+  // part of the rotation.
+  castRotation(simulation) {
+    // One host per simulation, not one per step: the host holds no state of
+    // its own, so a Rogue that moves to another Simulation builds a new one.
+    if (this.rotationHostFor !== simulation) {
+      this.rotationHostFor = simulation;
+      this.rotationHostObject = rotationHost(this, simulation);
     }
+    decide(this.rotationProgram, this.rotationHostObject);
+  }
 
-    if (this.comboPoints >= k("rotation.finisherComboPoints")) {
-      const sliceAndDice = this.abilities[priority.sliceAndDice];
-      const active = simulation.activeBuffs[sliceAndDice.id];
-      const refresh =
-        !active || active.duration <= k("rotation.sliceAndDiceRefreshSeconds");
-      const finisher = refresh
-        ? sliceAndDice
-        : this.abilities[priority.eviscerate];
-      // A rule for a granted ability (Cold Blood) may cast first.
-      beforeFinisher(this, simulation, finisher);
-      finisher.cast(this, simulation);
-    } else {
-      this.abilities[priority.builder].cast(this, simulation);
-    }
+  rotation(simulation, dt) {
+    this.castRotation(simulation);
 
     // Whatever gives haste (Slice and Dice, Blade Flurry, a talent) shortens
     // the next swing of both weapons. haste.stacking chooses the product or

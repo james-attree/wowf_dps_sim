@@ -1,5 +1,7 @@
 import { k } from "../data/constants.js";
 import { talentCatalogue } from "./talents.js";
+import { defaultRotation } from "./rotation-default.js";
+import { rotationProblems } from "./rotation-interpreter.js";
 
 // SimConfig (roadmap E2-lite, issue #92): the inputs of one fight. It names the
 // character's stats, the two weapons, the talent ranks and the poison on each
@@ -24,7 +26,16 @@ import { talentCatalogue } from "./talents.js";
 //     target: { behind },                        // true: no parry, no block
 //     talents: { "combat.precision": 3, ... },   // talent id -> rank
 //     poisons: { mainHand: "instant", offHand: "deadly" },   // an id, or null
+//     rotation: { schemaVersion: 1, name, rules: [...] },    // R3, #140
 //   }
+//
+// The rotation is a RotationRule list (js/rotation-schema.js,
+// docs/rotation.md) that the interpreter casts from (js/rotation-interpreter.js).
+// The default is the placeholder Combat rotation (js/rotation-default.js), so a
+// fight with no rotation casts what it always did. normalizeConfig checks it
+// (the shape, each condition, each action) and a bad one is a RangeError that
+// names the problem, before a fight starts. The recorded config carries the
+// rotation in full, so a recorded config repeats the fight exactly.
 //
 // normalizeConfig returns the full form, with every field filled in. It is
 // what a result records, and normalizeConfig of that gives the same config
@@ -34,7 +45,14 @@ const HANDS = ["mainHand", "offHand"];
 const CHARACTER_FIELDS = ["attackPower", "critChance", "bonusHitChance"];
 const WEAPON_FIELDS = ["min", "max", "speed", "type"];
 const TARGET_FIELDS = ["behind"];
-const SECTIONS = ["character", "weapons", "target", "talents", "poisons"];
+const SECTIONS = [
+  "character",
+  "weapons",
+  "target",
+  "talents",
+  "poisons",
+  "rotation",
+];
 
 // The config every fight uses when it is given none, built fresh from the
 // constants each call so nobody can change another fight's defaults.
@@ -53,6 +71,7 @@ export function defaultConfig() {
     target: { behind: k("target.behind") },
     talents: {},
     poisons: { mainHand: null, offHand: null },
+    rotation: defaultRotation(),
   };
 }
 
@@ -285,6 +304,23 @@ function readPoisons(input, defaults) {
   );
 }
 
+// A rotation: the default when none is given, otherwise a RotationRule list
+// that passes the interpreter's load check. The result is a copy, so it shares
+// nothing with the input. The plain-JSON round trip is what a rotation read
+// from a file is, and drops nothing a rotation can hold.
+function readRotation(input, defaults) {
+  if (input === undefined) {
+    return defaults;
+  }
+  const problems = rotationProblems(input);
+  if (problems.length > 0) {
+    throw new RangeError(
+      `config.rotation is not a valid rotation:\n${problems.join("\n")}`,
+    );
+  }
+  return JSON.parse(JSON.stringify(input));
+}
+
 // Validates a config and returns it in full form, as a new object that shares
 // nothing with the input. undefined gives the defaults. It throws a TypeError
 // for a value of the wrong type and a RangeError for a value out of range, an
@@ -298,5 +334,6 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
     target: readTarget(given.target, defaults.target),
     talents: readTalents(given.talents, catalogue),
     poisons: readPoisons(given.poisons, defaults.poisons),
+    rotation: readRotation(given.rotation, defaults.rotation),
   };
 }

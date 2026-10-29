@@ -20,9 +20,10 @@ the attack table, auras, modifiers, procs, Combat and the reference
 Assassination talents as data, applying a selected build, Instant and Deadly
 Poison, and icons by hot-link) is built; #107 is the last issue and the phase
 is for James to review. Combat is the first spec. A fight is `runFight` with an
-optional SimConfig: weapons, a talent build (51 points, validated), and a
-poison per hand. With no config the page and `runFight` run the placeholder
-Combat rotation in `js/rogue.js`: Blade Flurry, Adrenaline Rush, then Slice and
+optional SimConfig: weapons, a talent build (51 points, validated), a
+poison per hand, and a rotation. With no config the page and `runFight` run the placeholder
+Combat rotation (`config.rotation`, `js/rotation-default.js`, cast by
+`js/rotation-interpreter.js`): Blade Flurry, Adrenaline Rush, then Slice and
 Dice or Eviscerate at the finisher combo points, otherwise Sinister Strike.
 The page has no talent or poison controls yet (Phase 3 and 4). The
 [roadmap](docs/roadmap.md#phase-2-status) has the Phase 2 issue list, the exit
@@ -276,8 +277,9 @@ rejects them under `js/`.
 - `js/rotation-schema.js` — The RotationRule JSON shape (R1, #138): a
   `{ schemaVersion, name, rules: [{ action, conditions }] }` list in priority
   order, and `rotationShapeProblems`, `isRotationShape` and
-  `assertRotationShape`, a shape check (not the R4 validator). Not used by the
-  engine or the live page yet. See [Rotation as data](docs/rotation.md).
+  `assertRotationShape`, a shape check (not the R4 validator). Read by the
+  interpreter's load check (`compileRotation`). See
+  [Rotation as data](docs/rotation.md).
 - `js/rotation-conditions.js` — The rotation condition vocabulary (R2, #139):
   the types a rule's conditions can use (`resource`, `comboPoints`,
   `auraActive`, `auraRemaining`, `debuffActive`, `debuffRemaining`,
@@ -285,13 +287,14 @@ rejects them under `js/`.
   `energyToCap`, `abilityGranted`, `abilityUnlocked`), `conditionProblems` and
   `assertCondition` for their params, and the pure `evaluate(condition, state)`
   and `evaluateAll`. An aura or debuff that is not up counts as 0 s remaining.
-  Not used by the engine or the live page yet. See
+  `evaluateTrusted` is `evaluate` without the check of the condition, for
+  conditions the interpreter has already checked. See
   [Rotation as data](docs/rotation.md).
 - `js/rotation-state.js` — `rotationState(rogue, simulation, { duration })`: the
   frozen, read-only state view the conditions read (time, resources, auras,
   debuffs, cooldowns, build and granted abilities), built from a fight without
-  changing it. In seconds, no steps. Not used by the engine or the live page
-  yet.
+  changing it. In seconds, no steps. Read by the interpreter's host at each
+  decision point.
 - `js/sim-config.js` — The SimConfig (E2-lite): `defaultConfig()` builds the
   default fight's inputs from `data/constants.js`, and `normalizeConfig(config)`
   validates a config (unknown keys, ranges, weapon types, poison ids, talent ids
@@ -310,10 +313,16 @@ rejects them under `js/`.
   pipeline (`rogue.modifiers`, from `new Rogue(config, { modifiers })`). Attack
   power, crit and hit are read through it; swing haste comes from the
   simulation's pipeline.
-- `js/rotation-rules.js` — The rules for abilities a talent grants (D8a). Today
-  one: `beforeFinisher` casts Cold Blood before the Eviscerate the rotation has
-  chosen, only when the build granted it (Rogue option `abilities`). Its numbers
-  are the `rotation.coldBlood` row.
+- `js/rotation-interpreter.js` — The rotation interpreter (R3, #140):
+  `compileRotation(rotation)` checks a RotationRule list once and
+  `decide(rotation, host)` walks it at one decision point and casts through the
+  `host` it is given (`state`, `canCast`, `onGcd`, `gcdClear`, `cast`). It knows
+  no Rogue, step or frame. See [Rotation as data](docs/rotation.md).
+- `js/rotation-host.js` — `rotationHost(rogue, simulation)`: the Rogue's side of
+  the interpreter, with the build lock and `Ability.canCast`.
+- `js/rotation-default.js` — `defaultRotation()`: today's placeholder Combat
+  rotation, with the Cold Blood rule, as a RotationRule list built from the
+  `rotation.*` constants. It is the default of `SimConfig.rotation`.
 - `js/ability-data.js` — The abilities the engine casts, as data (D2):
   Sinister Strike, Eviscerate, Premeditation, Adrenaline Rush, Slice and Dice,
   Ghostly Strike, Backstab, Ambush, Blade Flurry, Rupture, and Hemorrhage. Each
@@ -616,6 +625,14 @@ rejects them under `js/`.
   actions, state subscriptions, a run to the end equal to `runFight`, pause and
   resume, Stop then Run and the rng draws, the driver, options, and the public
   names (no steps).
+- `test/rotation-equivalence.test.js` — The Combat rotation as JSON against the
+  code rotation it replaced (`test/legacy-rotation.js`): the same fights, field
+  for field, log and rng draws included, over builds, weapons, poisons, seeds
+  and lengths.
+- `test/rotation-interpreter.test.js`, `test/rotation-host.test.js`,
+  `test/rotation-default.test.js`, `test/rotation-config.test.js`,
+  `test/can-cast.test.js` — The walk rule, the host, the default rotation and
+  the docs example, `SimConfig.rotation`, and `Ability.canCast` against `cast`.
 - `test/rotation-schema.test.js` — The RotationRule shape check: the examples
   in `docs/rotation.md` pass, the Combat example matches the rotation
   constants, each wrong shape is rejected with a message that names it, the

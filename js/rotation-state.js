@@ -47,6 +47,11 @@ function auraView(auras) {
 
 // `options.duration` is the length of the fight in seconds, for
 // fightTimeRemaining. Without it the view says the length is unknown (null).
+// `options.freeze` is true unless a host says false. The view is built afresh
+// for every read and freezing it is most of what building it costs, so the
+// engine host (js/rotation-host.js) asks for an unfrozen one: the conditions
+// only read it (test/rotation-conditions.test.js holds them to that), and each
+// view is thrown away after the walk.
 export function rotationState(rogue, simulation, options = {}) {
   const resources = {};
   for (const [id, pool] of Object.entries(rogue.resources)) {
@@ -66,7 +71,7 @@ export function rotationState(rogue, simulation, options = {}) {
       cooldowns[id] = remaining;
     }
   }
-  return freezeAll({
+  const view = {
     time: simulation.currentTime,
     duration: options.duration ?? null,
     resources,
@@ -76,5 +81,6 @@ export function rotationState(rogue, simulation, options = {}) {
     build: { selected: rogue.build.selected },
     granted: [...rogue.granted],
     talentAbilities: [...talentGrantedAbilities],
-  });
+  };
+  return options.freeze === false ? view : freezeAll(view);
 }

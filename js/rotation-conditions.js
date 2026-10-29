@@ -227,15 +227,28 @@ export function assertCondition(condition) {
   return condition;
 }
 
-// True when the condition holds in `state`. A bad condition is a RangeError
-// (assertCondition); evaluate never changes the condition or the state.
-export function evaluate(condition, state) {
-  assertCondition(condition);
+// True when the condition holds in `state`, with no check of the condition
+// itself. Only for a condition that has already passed assertCondition: the
+// interpreter (js/rotation-interpreter.js) checks every condition of a
+// rotation once, when it loads it, and then calls this at every decision point
+// (R3, #140). A bad condition here is not a RangeError; it is whatever its
+// bad shape makes of the state read.
+export function evaluateTrusted(condition, state) {
   const type = TYPES[condition.type];
   if (type.test !== undefined) {
     return type.test(condition, state);
   }
   return COMPARE[condition.op](type.read(condition, state), condition.value);
+}
+
+// True when the condition holds in `state`. A bad condition is a RangeError
+// (assertCondition); evaluate never changes the condition or the state. It
+// checks the condition on every call, which is for a one-off read: a caller
+// that evaluates the same conditions again and again checks them once and
+// uses evaluateTrusted.
+export function evaluate(condition, state) {
+  assertCondition(condition);
+  return evaluateTrusted(condition, state);
 }
 
 // True when every condition holds. An empty list is true: the rule always
