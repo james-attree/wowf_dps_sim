@@ -362,7 +362,10 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   `resume`, `stop`, `reset`, `advance(seconds)`, `onStateChange`, and `fight` (the
   running fight's rogue and simulation, for the live feed; read-only: the
   handle is frozen but the rogue and simulation are the live engine objects,
-  so a caller reads them and never writes or steps them). The live page runs
+  so a caller reads them and never writes or steps them). `result` is the same
+  object on every read, not a copy, and is live and read-only in the same way.
+  `advance(duration)` runs a whole fight in one call; many small calls can
+  leave it one step short until the next call (the carry, in Mechanics). The live page runs
   on it since #153 (`js/live-run.js`). Its default length is `batch.duration`
   (300 s). See the Run controller section of
   [Mechanics](docs/mechanics.md).

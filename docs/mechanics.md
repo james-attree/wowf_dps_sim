@@ -2608,6 +2608,36 @@ one on every `run`). The live page's feed (`js/live-feed.js`) reads the energy,
 GCD, aura and cooldown timers from it and subscribes to its simulation's
 events. A caller reads it and never steps it: time goes through `advance`.
 
+`SimRunner.result` (#158) is the same object on every read, not a copy: the
+runner keeps the one `fightResult` built when the fight finished and hands it
+back each time, and does not freeze it. Like `fight`, it is live and read-only.
+A caller that wrote to it would change what every later read of `result`
+returns, until the next `run` sets it to null and a later finish builds a new
+one. Read it; to change a result, change your own copy (`structuredClone`).
+
+**`advance(seconds)` and the carry (#158).** `advance` adds `seconds` to a
+carry of fight time, then takes the steps the carry pays for, in the plan
+`Simulation.run` follows: `floor(duration / k("sim.fixedStep"))` whole steps,
+then one shorter closing step for what is left, so the fight ends exactly at
+`duration`. What is left over, always less than the next step, waits for the
+next call. Time given after the last step is dropped.
+
+- `advance(duration)` as the first call of a run, or `advance(Infinity)`, runs
+  the whole fight in one call and returns `"finished"`. The step,
+  1/64 s, is a power of two, so taking whole steps off the carry is exact and
+  the carry left for the closing step is exactly the closing step's length.
+- Many small calls, such as a frame loop's `advance(1 / 60)`, can end one step
+  short. The carry is a floating-point sum of the calls' seconds and rounds
+  differently from the host's own sum, so it can fall a hair under the last
+  step even when the host's total has reached `duration` (600 calls of
+  `1 / 60` for a 10 s fight stop at 9.984375 s, still `running`). The next
+  call of any size that covers the gap finishes the fight. The result is the
+  same fight: steps are only ever taken whole, so the fight cannot drift, and a
+  run to the end equals `runFight` for any split of the time. A host loops
+  until the state is `"finished"` and does not count seconds. The live page
+  hands over whole steps (`advance(k("sim.fixedStep"))`, `js/live-run.js`),
+  which never falls short.
+
 ## Aura uptime (S3, issue #146)
 
 `js/fight-metrics.js` says how long each aura was up in a fight, and the same
