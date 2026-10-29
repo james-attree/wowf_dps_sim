@@ -90,22 +90,26 @@ function described(value) {
   return typeof value === "object" ? "an object" : `a ${typeof value}`;
 }
 
-// The context's talentGrantedAbilities as a frozen array, or a TypeError that
-// says what was given. A string is refused, not spread into its characters.
-function talentGrantedList(given) {
+// A context's list of ability ids (#207) as a frozen array: `fallback` when it
+// is left out (undefined), else a copy of an array or a Set of id strings.
+// Anything else is a TypeError naming the function (`where`), the field and
+// what was given, so a string is refused, not spread into its characters, and
+// null or {} do not fail later as "not iterable". js/rotation-warnings.js
+// reads its lists through this too.
+export function idList(where, field, given, fallback) {
   if (given === undefined) {
-    return ENGINE_TALENT_GRANTED;
+    return fallback;
   }
   if (!Array.isArray(given) && !(given instanceof Set)) {
     throw new TypeError(
-      `rotationContext: talentGrantedAbilities must be an array or a Set of ability ids, not ${described(given)}.`,
+      `${where}: ${field} must be an array or a Set of ability ids, not ${described(given)}.`,
     );
   }
   const list = [...given];
   const bad = list.findIndex((id) => typeof id !== "string");
   if (bad !== -1) {
     throw new TypeError(
-      `rotationContext: talentGrantedAbilities must hold ability id strings, not ${described(list[bad])}.`,
+      `${where}: ${field} must hold ability id strings, not ${described(list[bad])}.`,
     );
   }
   return Object.freeze(list);
@@ -117,7 +121,12 @@ export function rotationContext(given = {}) {
     castable: given.castable ?? ENGINE_CASTABLE,
     auras: given.auras ?? ENGINE_AURAS,
     debuffs: given.debuffs ?? ENGINE_DEBUFFS,
-    talentGrantedAbilities: talentGrantedList(given.talentGrantedAbilities),
+    talentGrantedAbilities: idList(
+      "rotationContext",
+      "talentGrantedAbilities",
+      given.talentGrantedAbilities,
+      ENGINE_TALENT_GRANTED,
+    ),
   };
 }
 

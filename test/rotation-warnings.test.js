@@ -28,15 +28,25 @@ const energy = (value) => ({
   op: ">=",
   value,
 });
-const messages = (value, context) =>
-  rotationWarnings(value, context).map((warning) => warning.message);
+// The warnings' messages. A rotation the validator refuses gets no warnings,
+// so a test that expects none would pass for the wrong reason: each rotation
+// read here must validate first (#207, when Premeditation and Ghostly Strike
+// became talent-guarded).
+const messages = (value, context) => {
+  assert.deepEqual(validateRotation(value, context), [], "validates");
+  return rotationWarnings(value, context).map((warning) => warning.message);
+};
 
 const finisherText = (
   path,
   label,
   lacks = "its rule has no comboPoints condition",
 ) =>
-  `${path}: ${label} is a finisher, but ${lacks}. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`;
+  `${path}: ${label} is a finisher, but ${lacks}. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. ${
+    lacks === "its rule has no comboPoints condition"
+      ? `Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`
+      : "Change its comboPoints condition to need at least 1 combo point."
+  }`;
 const cooldownText = (path, label, id) =>
   `${path}: ${label} has a cooldown and starts the global cooldown, but its rule has no cooldownReady check. While it is on cooldown it holds back every rule below it. Add { "type": "cooldownReady", "ability": "${id}" } to its conditions.`;
 const starvesText = (
@@ -45,7 +55,11 @@ const starvesText = (
   below,
   lacks = "its rule has no conditions",
 ) =>
-  `${path}: ${label} starts the global cooldown and ${lacks}, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below}. Give it conditions or move it below them.`;
+  `${path}: ${label} starts the global cooldown and ${lacks}, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below}. ${
+    lacks === "its rule has no conditions"
+      ? "Give it conditions or move it below them."
+      : "Change its conditions so they are sometimes false."
+  }`;
 
 async function docExamples() {
   const text = await readFile(
@@ -58,14 +72,90 @@ async function docExamples() {
     .filter((value) => value.rules !== undefined);
 }
 
+// Each case's advice spelled out in full, not built by the helpers above, so
+// a helper that drifted with the code would still be caught here.
+describe("rotationWarnings: the advice fits the case", () => {
+  const only = (value) => {
+    const all = messages(value);
+    assert.equal(all.length, 1, all.join("\n"));
+    return all[0];
+  };
+  it("a finisher with no comboPoints condition: add one", () => {
+    assert.ok(
+      only(
+        rotation(rule("eviscerate", energy(FINISHER)), rule("sinister-strike")),
+      ).endsWith(
+        ` Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`,
+      ),
+    );
+  });
+  it("a finisher whose comboPoints condition holds at 0: change it", () => {
+    const message = only(
+      rotation(
+        rule(
+          "eviscerate",
+          { type: "comboPoints", op: ">=", value: 0 },
+          energy(FINISHER),
+        ),
+        rule("sinister-strike"),
+      ),
+    );
+    assert.ok(
+      message.endsWith(
+        " so it holds back every rule below it. Change its comboPoints condition to need at least 1 combo point.",
+      ),
+      message,
+    );
+    assert.ok(!message.includes("Add a comboPoints condition"), message);
+  });
+  it("an on-GCD rule with no conditions: give it some or move it", () => {
+    assert.ok(
+      only(
+        rotation(rule("sinister-strike"), rule("backstab", energy(FINISHER))),
+      ).endsWith(
+        " These rules below it are never cast: Backstab (backstab). Give it conditions or move it below them.",
+      ),
+    );
+  });
+  it("an on-GCD rule whose conditions always hold: change them", () => {
+    const message = only(
+      rotation(
+        rule("sinister-strike", { type: "fightTime", op: ">=", value: 0 }),
+        rule("backstab", energy(FINISHER)),
+      ),
+    );
+    assert.ok(
+      message.endsWith(
+        " These rules below it are never cast: Backstab (backstab). Change its conditions so they are sometimes false.",
+      ),
+      message,
+    );
+    assert.ok(!message.includes("Give it conditions"), message);
+  });
+  it("a cooldown with no cooldownReady keeps its advice", () => {
+    assert.ok(
+      only(
+        rotation(
+          rule("ghostly-strike", unlocked("ghostly-strike"), energy(FINISHER)),
+          rule("sinister-strike"),
+        ),
+      ).endsWith(
+        ' Add { "type": "cooldownReady", "ability": "ghostly-strike" } to its conditions.',
+      ),
+    );
+  });
+});
+
 describe("rotationWarnings: the shipped rotations", () => {
   it("the default rotation gives no warnings", () => {
+    assert.deepEqual(validateRotation(defaultRotation()), []);
     assert.deepEqual(rotationWarnings(defaultRotation()), []);
   });
 
   it("every preset gives no warnings", () => {
     assert.ok(listPresets().length > 0);
     for (const { id } of listPresets()) {
+      assert.deepEqual(validateRotation(presetRotation(id)), [], id);
       assert.deepEqual(rotationWarnings(presetRotation(id)), [], id);
     }
   });
@@ -74,6 +164,7 @@ describe("rotationWarnings: the shipped rotations", () => {
     const examples = await docExamples();
     assert.ok(examples.length > 0);
     for (const example of examples) {
+      assert.deepEqual(validateRotation(example), [], example.name);
       assert.deepEqual(rotationWarnings(example), [], example.name);
     }
   });
@@ -148,7 +239,10 @@ describe("rotationWarnings: a finisher with no comboPoints condition", () => {
       const condition = { type: "comboPoints", op, value };
       assert.deepEqual(
         messages(
-          rotation(rule("eviscerate", condition), rule("premeditation")),
+          rotation(
+            rule("eviscerate", condition),
+            rule("premeditation", unlocked("premeditation")),
+          ),
         ),
         [
           finisherText(
@@ -205,7 +299,7 @@ describe("rotationWarnings: a finisher with no comboPoints condition", () => {
 describe("rotationWarnings: an on-GCD cooldown with no cooldownReady", () => {
   it("warns, at the rule's conditions, naming the condition to add", () => {
     const trap = rotation(
-      rule("ghostly-strike", energy(FINISHER)),
+      rule("ghostly-strike", unlocked("ghostly-strike"), energy(FINISHER)),
       rule("sinister-strike"),
     );
     assert.deepEqual(rotationWarnings(trap), [
@@ -248,7 +342,10 @@ describe("rotationWarnings: an on-GCD cooldown with no cooldownReady", () => {
   });
 
   it("an off-GCD cooldown is never warned for: it is passed over, not pooled for", () => {
-    const offGcd = rotation(rule("premeditation"), rule("sinister-strike"));
+    const offGcd = rotation(
+      rule("premeditation", unlocked("premeditation")),
+      rule("sinister-strike"),
+    );
     assert.deepEqual(messages(offGcd), []);
   });
 
@@ -265,7 +362,7 @@ describe("rotationWarnings: an unconditional on-GCD rule above others", () => {
     const trap = rotation(
       rule("sinister-strike"),
       rule("eviscerate", enoughPoints),
-      rule("premeditation"),
+      rule("premeditation", unlocked("premeditation")),
       rule("backstab", energy(FINISHER)),
       rule("eviscerate", enoughPoints, energy(FINISHER)),
     );
@@ -285,13 +382,16 @@ describe("rotationWarnings: an unconditional on-GCD rule above others", () => {
     const builderLast = rotation(
       rule("eviscerate", enoughPoints),
       rule("sinister-strike"),
-      rule("premeditation"),
+      rule("premeditation", unlocked("premeditation")),
     );
     assert.deepEqual(messages(builderLast), []);
   });
 
   it("an unconditional off-GCD rule starves nothing", () => {
-    const offGcd = rotation(rule("premeditation"), rule("sinister-strike"));
+    const offGcd = rotation(
+      rule("premeditation", unlocked("premeditation")),
+      rule("sinister-strike"),
+    );
     assert.deepEqual(messages(offGcd), []);
   });
 
@@ -397,6 +497,65 @@ describe("rotationWarnings: data, not names", () => {
       messages(trap, { ...fakeContext, onGcd: ["sinister-strike"] }),
       [finisherText("rules[0]", "fake-strike")],
     );
+  });
+
+  it("takes the lists as Sets too, with the same warnings (#207)", () => {
+    const trap = rotation(rule("fake-strike"), rule("sinister-strike"));
+    const asSets = {
+      ...fakeContext,
+      talentGrantedAbilities: new Set(),
+      finishers: new Set(fakeContext.finishers),
+      cooldowns: new Set(fakeContext.cooldowns),
+      onGcd: new Set(fakeContext.onGcd),
+    };
+    assert.deepEqual(validateRotation(trap, asSets), []);
+    assert.deepEqual(
+      rotationWarnings(trap, asSets),
+      rotationWarnings(trap, fakeContext),
+    );
+    assert.equal(rotationWarnings(trap, asSets).length, 3);
+    const context = warningContext(asSets);
+    for (const field of ["finishers", "cooldowns", "onGcd"]) {
+      assert.ok(Array.isArray(context[field]), field);
+      assert.ok(Object.isFrozen(context[field]), field);
+      assert.deepEqual(context[field], fakeContext[field], field);
+    }
+  });
+
+  it("refuses a list that is not an array or a Set, saying which and what it was (#207)", () => {
+    for (const field of ["finishers", "cooldowns", "onGcd"]) {
+      for (const [given, shown] of [
+        ["fake-strike", 'the string "fake-strike"'],
+        [null, "null"],
+        [{}, "an object"],
+      ]) {
+        const message = `warningContext: ${field} must be an array or a Set of ability ids, not ${shown}.`;
+        const isIt = (error) =>
+          error instanceof TypeError && error.message === message;
+        assert.throws(
+          () => warningContext({ ...fakeContext, [field]: given }),
+          isIt,
+          `${field} ${shown}`,
+        );
+        assert.throws(
+          () =>
+            rotationWarnings(rotation(rule("sinister-strike")), {
+              ...fakeContext,
+              [field]: given,
+            }),
+          isIt,
+          `${field} ${shown}`,
+        );
+      }
+      assert.throws(
+        () => warningContext({ [field]: [7] }),
+        (error) =>
+          error instanceof TypeError &&
+          error.message ===
+            `warningContext: ${field} must hold ability id strings, not a number.`,
+        field,
+      );
+    }
   });
 
   it("the engine's lists come from the ability data", () => {

@@ -2,7 +2,11 @@ import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { compareNumbers } from "./rotation-conditions.js";
-import { abilityLabel, validateRotation } from "./rotation-validator.js";
+import {
+  abilityLabel,
+  idList,
+  validateRotation,
+} from "./rotation-validator.js";
 
 // Rotation warnings (issue #189): pooling traps in a rotation that is valid.
 // The interpreter (js/rotation-interpreter.js) holds the walk at an on-GCD
@@ -21,7 +25,7 @@ import { abilityLabel, validateRotation } from "./rotation-validator.js";
 //
 // It warns, per rule, in rule order:
 //   1. A finisher (it spends combo points) with no comboPoints condition. It is
-//      cast with one combo point, and with none it holds back the rules below.
+//      cast at one combo point, and with none it holds back the rules below.
 //   2. An on-GCD ability with a cooldown and no cooldownReady condition for it.
 //      While it is on cooldown it holds back the rules below.
 //   3. An on-GCD rule with no conditions that has an on-GCD rule below it.
@@ -33,8 +37,9 @@ import { abilityLabel, validateRotation } from "./rotation-validator.js";
 // or branched on.
 //
 // What the warnings read, as lists of ability ids. A context may give any of
-// them (and the validator's own context fields); what it leaves out is the
-// engine's:
+// them (and the validator's own context fields) as an array or a Set of ids;
+// what it leaves out is the engine's. Anything else (a string, null, {}) is a
+// TypeError that says what was given (idList, #207):
 //
 //   finishers  the abilities that spend combo points (ability-data `spend`)
 //   cooldowns  the abilities with a cooldown (their constants row's
@@ -60,10 +65,12 @@ const ENGINE_ON_GCD = Object.freeze(
 );
 
 export function warningContext(given = {}) {
+  const list = (field, fallback) =>
+    idList("warningContext", field, given[field], fallback);
   return {
-    finishers: given.finishers ?? ENGINE_FINISHERS,
-    cooldowns: given.cooldowns ?? ENGINE_COOLDOWNS,
-    onGcd: given.onGcd ?? ENGINE_ON_GCD,
+    finishers: list("finishers", ENGINE_FINISHERS),
+    cooldowns: list("cooldowns", ENGINE_COOLDOWNS),
+    onGcd: list("onGcd", ENGINE_ON_GCD),
   };
 }
 
@@ -100,17 +107,22 @@ function finisherWarning(rule, path, context) {
   ) {
     return null;
   }
-  const lacks = rule.conditions.some(({ type }) => type === "comboPoints")
+  // The advice fits the case: a comboPoints condition that is there but
+  // holds at 0 is changed, not added to.
+  const hasOne = rule.conditions.some(({ type }) => type === "comboPoints");
+  const lacks = hasOne
     ? "its comboPoints condition does not need a combo point"
     : "its rule has no comboPoints condition";
-  const example = conditionText({
-    type: "comboPoints",
-    op: ">=",
-    value: k("rotation.finisherComboPoints"),
-  });
+  const advice = hasOne
+    ? "Change its comboPoints condition to need at least 1 combo point."
+    : `Add a comboPoints condition, such as ${conditionText({
+        type: "comboPoints",
+        op: ">=",
+        value: k("rotation.finisherComboPoints"),
+      })}.`;
   return {
     path: `${path}.conditions`,
-    message: `${path}: ${abilityLabel(rule.action)} is a finisher, but ${lacks}. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as ${example}.`,
+    message: `${path}: ${abilityLabel(rule.action)} is a finisher, but ${lacks}. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. ${advice}`,
   };
 }
 
@@ -141,10 +153,15 @@ function starvesWarning(rules, index, path, context) {
   ) {
     return null;
   }
-  const lacks =
-    rule.conditions.length === 0
-      ? "its rule has no conditions"
-      : "its rule's conditions always hold";
+  // The advice fits the case: conditions that always hold are changed, not
+  // added to.
+  const none = rule.conditions.length === 0;
+  const lacks = none
+    ? "its rule has no conditions"
+    : "its rule's conditions always hold";
+  const advice = none
+    ? "Give it conditions or move it below them."
+    : "Change its conditions so they are sometimes false.";
   const below = [
     ...new Set(
       rules
@@ -158,7 +175,7 @@ function starvesWarning(rules, index, path, context) {
   }
   return {
     path,
-    message: `${path}: ${abilityLabel(rule.action)} starts the global cooldown and ${lacks}, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below.map(abilityLabel).join(", ")}. Give it conditions or move it below them.`,
+    message: `${path}: ${abilityLabel(rule.action)} starts the global cooldown and ${lacks}, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: ${below.map(abilityLabel).join(", ")}. ${advice}`,
   };
 }
 
