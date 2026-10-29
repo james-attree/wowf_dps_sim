@@ -21,11 +21,15 @@ Assassination talents as data, applying a selected build, Instant and Deadly
 Poison, and icons by hot-link) is built; #107 is the last issue and the phase
 is for James to review. Combat is the first spec. A fight is `runFight` with an
 optional SimConfig: weapons, a talent build (51 points, validated), a
-poison per hand, and a rotation. With no config the page and `runFight` run the placeholder
+poison per hand, and a rotation. With no config `runFight` runs, and the page
+starts with, the placeholder
 Combat rotation (`config.rotation`, `js/rotation-default.js`, cast by
 `js/rotation-interpreter.js`): Blade Flurry, Adrenaline Rush, then Slice and
 Dice or Eviscerate at the finisher combo points, otherwise Sinister Strike.
-The page has no talent or poison controls yet (Phase 3 and 4). The
+The page's first fight adds Instant Poison on the main hand and Deadly Poison
+on the off hand (`pageDefaultConfig()`, #152); `runFight`'s default has no
+poisons, so the goldens do not move. The page's "Fight setup" form (Phase 3)
+edits the stats, weapons, talents, rotation and poisons. The
 [roadmap](docs/roadmap.md#phase-2-status) has the Phase 2 issue list, the exit
 criteria and what is left open for review, and
 [mechanics](docs/mechanics.md#known-limits-at-the-end-of-phase-2) the known limits.
@@ -258,7 +262,12 @@ rejects them under `js/`.
   checks give the player's-unit messages, `normalizeConfig` is the backstop,
   and `config` is written only when every field is valid. `nextRunConfig(state)`
   is the config the next run starts with, or null while the form has errors.
-  `pageDefaultConfig()` is what the page starts with and Reset restores. The
+  `pageDefaultConfig()` is what the page starts with and Reset restores:
+  `defaultConfig()` with the page's poisons (`ui.pageDefaultPoisons`, #152).
+  Each hand's poison is a field whose value is the config id (`instant`, the
+  catalogue `key`, not its `id`) or null for None; `poisonOptions()` and
+  `poisonInfo(key)` give the selects their choices and the read-only top rank,
+  proc numbers, tooltip and no-DPS reason. The
   talent choice is "No talents" or the reference Combat build
   (`data/reference-build.js`). Engine lint applies.
 - `js/live-feed.js` — The live page's feed (#150): `createLiveFeed({ rogue,

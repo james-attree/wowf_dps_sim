@@ -85,6 +85,8 @@ describe("the form fills from the store's config", () => {
         "weapons.offHand.min",
         "weapons.offHand.max",
         "weapons.offHand.speed",
+        "poisons.mainHand",
+        "poisons.offHand",
       ],
     );
     assert.ok(!FORM_FIELDS.some(({ path }) => /duration|length/i.test(path)));

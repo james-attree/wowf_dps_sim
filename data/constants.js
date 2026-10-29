@@ -34,6 +34,8 @@ const VISUALISER_UX =
   "Developer, 29 Oct 2026, issue #150: Fran's UX notes (design), relayed via Scout";
 const STATS_FORM_UX =
   "Developer, 29 Oct 2026, issue #151: Fran's stats form notes (design), relayed via Scout";
+const POISON_SELECTOR_UX =
+  "Developer, 29 Oct 2026, issue #152: Fran's poison selector notes (design), relayed via Scout";
 const BATCH_FIXES = "Developer, 29 Oct 2026, issue #155";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
@@ -1379,6 +1381,14 @@ export const CONSTANTS = {
     ENGINEERING,
     `${STATS_FORM_UX}: "Reset to defaults" asks for no confirmation; a "Defaults restored · Undo" toast stays for 5 s instead`,
     "Display timing, not a game rule. Wall-clock seconds the stats form's Undo stays offered after Reset to defaults (js/views/config-form.js).",
+    false,
+  ),
+  "ui.pageDefaultPoisons": entry(
+    { mainHand: "instant", offHand: "deadly" },
+    "poison id per hand",
+    ENGINEERING,
+    `${POISON_SELECTOR_UX}: Scout resolved the page defaults as Instant Poison on the main hand and Deadly Poison on the off hand, the usual raid setup`,
+    "Page default, not a game rule and not the engine's default: defaultConfig() keeps no poisons, so goldens and engine tests are unchanged. The page's first fight and the stats form's Reset to defaults use these (pageDefaultConfig() in js/config-form.js). Changing the engine default instead remains an option.",
     false,
   ),
   "sim.maxFrameTime": entry(
