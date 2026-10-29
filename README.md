@@ -269,6 +269,16 @@ rejects them under `js/`.
   `resume`, `stop`, `reset`, `advance(seconds)`, `onStateChange`. Not yet used
   by the live page. See the Run controller section of
   [Mechanics](docs/mechanics.md).
+- `js/batch-runner.js` — The batch runner (S1, #144): `runBatch({ seed,
+iterations, duration, config, signal, onProgress })` and the sliced,
+  cancellable `BatchRunner` (`run`, `advance(iterations)`, `cancel`, `reset`,
+  `onProgress`, an injected driver as on `SimRunner`). Iteration `i` is the fight
+  of seed `deriveSeed(base, i)` (a documented hash, no repeats), so a batch is
+  reproducible from its base seed however it is sliced. `RunningStats` is
+  Welford's algorithm; the result has the mean, SD, min, max, 95% CI and a
+  `Float64Array` of every iteration's DPS. Defaults are 1,000 iterations of 300 s
+  (`batch.duration`). No DOM and no clock. Not yet used by the page. See
+  [Batch runner](docs/batch.md).
 - `js/event-stream.js` — The event stream (P3-2, #137): `EventStream` (`on`,
   the `"*"` wildcard, `onError`, queued in-order delivery, errors isolated per
   handler), `RingLog` (the combat log's ring buffer), and `SIM_EVENT_TYPES`
@@ -631,6 +641,13 @@ rejects them under `js/`.
   actions, state subscriptions, a run to the end equal to `runFight`, pause and
   resume, Stop then Run and the rng draws, the driver, options, and the public
   names (no steps).
+- `test/batch-runner.test.js` — The batch runner: the seed scheme (equal to an
+  independent statement of it, pinned values, no repeats up to the batch limit,
+  unrelated base seeds), the statistics against a two-pass reference, every
+  iteration equal to `runFight` with its derived seed, the same result for the
+  same base seed however the work is sliced or driven, progress, cancel (handler,
+  signal, driver, before the start), the transition table, options, and that the
+  module names no step or frame and uses only `SimRunner`.
 - `test/rotation-equivalence.test.js` — The Combat rotation as JSON against the
   code rotation it replaced (`test/legacy-rotation.js`): the same fights, field
   for field, log and rng draws included, over builds, weapons, poisons, seeds

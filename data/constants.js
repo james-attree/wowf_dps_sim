@@ -24,6 +24,7 @@ const LIVE_VIEW = "Developer, 26 Oct 2026, issue #76";
 const NOT_JAMES =
   "an engineering judgement call by the dev, not a decision by James.";
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
+const BATCH_RUNNER = "Developer, 29 Oct 2026, issue #144";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
 const POISON_DEFINITIONS = "Developer, 26 Oct 2026, issue #104";
@@ -886,8 +887,47 @@ export const CONSTANTS = {
     "runs",
     ASSUMPTION,
     `${JAMES}: 1000-run roadmap default while OQ3 is open`,
-    "Editable input. There is no batch runner yet.",
+    "Editable input. The default iteration count of the batch runner (js/batch-runner.js, issue #144).",
     true,
+  ),
+  "batch.duration": entry(
+    300,
+    "s",
+    ASSUMPTION,
+    `${BATCH_RUNNER}: the issue says "Defaults from James's decisions: 300 s fights and 1,000 iterations". The older 180 s is fight.duration, which this issue leaves as it is`,
+    "Editable input. The default fight length of the batch runner (js/batch-runner.js, issue #144), a 5-minute fight. It is a separate row from fight.duration (180 s, the SimRunner default and the live view's length), which this issue leaves as it is.",
+    true,
+  ),
+  "batch.maxIterations": entry(
+    100000,
+    "runs",
+    ENGINEERING,
+    `${BATCH_RUNNER}: ${NOT_JAMES} The issue gives defaults (1,000 iterations) and #147 mentions a 10,000-iteration run, and no upper limit`,
+    "Most iterations one batch may ask for (a whole number, 1 to this). It stops a typo from starting a run of hours (100,000 fights of 5 minutes take about 40 minutes) and keeps the per-iteration DPS array at 800 KB. It is ten times the biggest run the issues mention. Not a game rule.",
+    false,
+  ),
+  "batch.confidenceZ": entry(
+    1.959964,
+    "standard deviations",
+    ENGINEERING,
+    `${BATCH_RUNNER}: ${NOT_JAMES} The issue asks for a 95% confidence interval of the mean and says the z or t factor is a constant; the dev chose z`,
+    "Not a game rule. The 97.5th percentile of the standard normal distribution (1.959964), the multiplier of the standard error for a two-sided 95% interval. A z interval is a good approximation from about 30 iterations; for fewer it is narrower than a t interval would be. At the default 1,000 iterations z and t agree to three decimals.",
+    false,
+  ),
+  "batch.seedMix": entry(
+    {
+      increment: 1,
+      shiftA: 16,
+      multiplyA: 2246822507,
+      shiftB: 13,
+      multiplyB: 3266489909,
+      shiftC: 16,
+    },
+    "mixer terms",
+    ENGINEERING,
+    `${BATCH_RUNNER}: ${NOT_JAMES} The issue asks for a documented, deterministic scheme and does not name one. The terms are the 32-bit finalizer of MurmurHash3 (public domain, Austin Appleby)`,
+    "Not a game rule. How an iteration's seed comes from the base seed and the iteration number (js/batch-runner.js deriveSeed): the number plus `increment` is mixed, xored with the base seed, and mixed again. The mixer is the MurmurHash3 32-bit finalizer (two xor-shifts and two odd multipliers), which is a bijection on 32-bit integers, so no two iterations of a batch share a seed. Changing any term changes every batch.",
+    false,
   ),
   "start.state": entry(
     { energy: 100, comboPoints: 0 },
