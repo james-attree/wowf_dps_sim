@@ -220,6 +220,24 @@ describe("one fight", () => {
     assert.equal(c.share, 0);
   });
 
+  it("sorts rows by id whatever order they came in, and keeps the first icon", () => {
+    const ids = ["e", "d", "c", "b", "a", "aa", "B"];
+    const summary = breakdownFromEvents(
+      ids.map((id) => hit(id, "hit", 1, { icon: `icon-${id}` })),
+    );
+    assert.deepEqual(
+      summary.rows.map((row) => row.id),
+      ["B", "a", "aa", "b", "c", "d", "e"],
+    );
+    assert.equal(summary.rows[0].icon, "icon-B");
+    const batch = new BatchBreakdown();
+    batch.add(summary);
+    assert.deepEqual(
+      batch.summary().rows.map((row) => [row.id, row.icon]),
+      summary.rows.map((row) => [row.id, row.icon]),
+    );
+  });
+
   it("names a row with only ticks a dot, and keeps an outcome it does not know", () => {
     const summary = breakdownFromEvents([
       hit("a", "hit", 3, { origin: "dot" }),
@@ -364,6 +382,20 @@ describe("a batch of fights", () => {
     assert.equal(summary.rows[0].damage, 1e16 + 2);
     assert.equal(summary.rows[0].directDamage, 1e16 + 2);
     assert.equal(1e16 + 1 + 1, 1e16, "plain addition would lose them");
+  });
+
+  it("gives no share to a batch that dealt no damage, and fresh data on every call", () => {
+    const batch = fights(
+      breakdownFromEvents([cast("a")]),
+      breakdownFromEvents([]),
+    );
+    const first = batch.summary();
+    assert.equal(first.rows[0].share, 0);
+    assert.equal(first.rows[0].averageHit, null);
+    first.rows[0].outcomes.cast = 99;
+    first.rows[0].ticks.count = 99;
+    assert.equal(batch.summary().rows[0].outcomes.cast, 0);
+    assert.equal(batch.summary().rows[0].ticks.count, 0);
   });
 
   it("is empty with no fights", () => {
