@@ -16,6 +16,8 @@ const WIDTHS = [1280, 390];
 // in real time by the page.
 const FIGHT_SECONDS = 4;
 const BATCH_FIGHTS = 20;
+// A fight long enough for the log to outgrow its box (#221).
+const LONG_FIGHT_SECONDS = 60;
 
 let server;
 let base;
@@ -178,7 +180,7 @@ for (const width of WIDTHS) {
       );
       assert.equal(
         await page.textContent("#log-hint"),
-        "Paused. Left and Right arrow keys step through the log.",
+        "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
       );
 
       // A step through the log: one spoken reading.
@@ -200,7 +202,7 @@ for (const width of WIDTHS) {
       // U9 polish: the hint stays the log's description, out of sight.
       assert.equal(
         await page.textContent("#log-hint"),
-        "Paused. Left and Right arrow keys step through the log.",
+        "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
       );
       assert.equal(await page.isVisible("#log-step"), true);
       assert.equal(
@@ -409,7 +411,7 @@ for (const width of [390, 360]) {
       const fits = await page.evaluate(() => {
         const hint = document.querySelector("#log-hint");
         hint.textContent =
-          "Paused. Left and Right arrow keys step through the log.";
+          "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.";
         hint.classList.add("visually-hidden");
         const step = document.querySelector("#log-step");
         step.textContent = "10:00.0 · Sinister Strike · Crit · 12,345";
@@ -448,6 +450,115 @@ for (const width of [390, 360]) {
           .locator(".log-readout")
           .locator("..")
           .screenshot({ path: `${process.env.U9_SHOTS}/log-${width}.png` });
+      }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+// U9 log polish (Fran's #221 check): in a log longer than its box, Home and
+// End scroll the selected row into the box's visible area; the rows' damage
+// has commas and, with the longer hint, nothing overflows the page. At 360
+// too, for the commas (Fran's #221 check).
+for (const width of [...WIDTHS, 360]) {
+  test(`Home and End scroll the row into view at ${width}px (#221)`, async () => {
+    const { context, page, errors } = await openPage(width);
+    try {
+      await setField(page, "run-duration", String(LONG_FIGHT_SECONDS));
+      await settle(page);
+      assert.equal(
+        await page
+          .locator(".combat-log-scroll")
+          .getAttribute("aria-keyshortcuts"),
+        "ArrowLeft ArrowRight Home End",
+      );
+      await clickCentre(page.locator("#run-button"));
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll("#combat-log .combat-log-entry").length >=
+          20,
+        null,
+        { timeout: 20_000 },
+      );
+      await clickCentre(page.locator("#pause-button"));
+      await settle(page);
+      await messages(page);
+      assert.equal(
+        await page.textContent("#log-hint"),
+        "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
+      );
+      const layout = () =>
+        page.evaluate(() => {
+          const box = document
+            .querySelector(".combat-log-scroll")
+            .getBoundingClientRect();
+          const rows = [...document.querySelectorAll("#combat-log li")];
+          const selected = document.querySelector("#combat-log .is-selected");
+          const at = selected?.getBoundingClientRect();
+          return {
+            index: rows.indexOf(selected),
+            count: rows.length,
+            visible:
+              at !== undefined &&
+              at.top >= box.top - 1 &&
+              at.bottom <= box.bottom + 1,
+            scrollTop: document.querySelector(".combat-log-scroll").scrollTop,
+            wide: document.documentElement.scrollWidth > globalThis.innerWidth,
+          };
+        });
+      await page.locator(".combat-log-scroll").focus();
+
+      await page.keyboard.press("Home");
+      await settle(page);
+      const home = await layout();
+      assert.equal(home.index, home.count - 1, "Home: the earliest row");
+      assert.equal(home.visible, true, "Home: the row in the box");
+      assert.ok(home.scrollTop > 0, "Home: the log scrolled down to it");
+      assert.match((await messages(page))[0].text, /^Start of log\. /);
+
+      await page.keyboard.press("End");
+      await settle(page);
+      const end = await layout();
+      assert.equal(end.index, 0, "End: the latest row");
+      assert.equal(end.visible, true, "End: the row in the box");
+      assert.match((await messages(page))[0].text, /^End of log\. /);
+
+      await page.keyboard.press("Home");
+      await page.keyboard.press("ArrowRight");
+      await settle(page);
+      const arrow = await layout();
+      assert.equal(arrow.index, arrow.count - 2);
+      assert.equal(arrow.visible, true, "an arrow: the row in the box");
+
+      // The rows' damage with commas; a wide one fits its row.
+      const cells = await page.evaluate(() => {
+        const all = [...document.querySelectorAll(".combat-log-damage")];
+        const texts = all.map((cell) => cell.textContent);
+        const row = all[0].parentElement;
+        all[0].textContent = "1,234,567";
+        const cell = all[0].getBoundingClientRect();
+        const box = row.getBoundingClientRect();
+        return {
+          texts,
+          inside: cell.left >= box.left && cell.right <= box.right,
+          rowClipped: row.scrollWidth > row.clientWidth,
+          wide: document.documentElement.scrollWidth > globalThis.innerWidth,
+        };
+      });
+      for (const text of cells.texts) {
+        assert.match(text, /^\d{1,3}(,\d{3})*$/);
+      }
+      assert.equal(cells.inside, true, "a wide damage inside its row");
+      assert.equal(cells.rowClipped, false, "the row not clipped");
+      assert.equal(cells.wide, false, "no sideways scroll");
+      assert.equal(home.wide || end.wide || arrow.wide, false);
+      if (process.env.U9_SHOTS) {
+        await page
+          .locator(".combat-log-scroll")
+          .locator("..")
+          .screenshot({ path: `${process.env.U9_SHOTS}/rows-${width}.png` });
       }
       assert.deepEqual(errors, []);
     } finally {

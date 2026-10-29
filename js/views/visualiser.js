@@ -69,6 +69,9 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   const combatLogScroll = doc.querySelector(".combat-log-scroll");
   const combatLogEmpty = doc.querySelector("#combat-log-empty");
   let lastRenderedCombatEventId = -1;
+  // The rows this fight has logged, so the view knows when the log has
+  // dropped its oldest (more than k("log.maxEvents")).
+  let seenRows = 0;
   let selectedRow = -1;
   const view = doc.defaultView;
   const now = clock ?? (() => (view?.performance ?? Date).now() / 1000);
@@ -294,6 +297,9 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   // they say "Start of log. <the row>" or "End of log. <the row>" (Scout,
   // #221), and an arrow past either end says "Start of log" or "End of log"
   // alone, staying on the row. The log is newest first, so row 0 is the end.
+  // Fran's #221 check: the row is scrolled into view, and once the log has
+  // dropped rows the start is "Start of kept log (last N events)." with N
+  // from k("log.maxEvents").
   function step(key) {
     const { run, log } = store.get();
     const delta = { ArrowLeft: 1, ArrowRight: -1 }[key];
@@ -321,18 +327,23 @@ export function createVisualiserView(doc, store, { clock } = {}) {
       }
     }
     selectRow(next);
+    combatLog.children[next]?.scrollIntoView?.({ block: "nearest" });
     // The hint stays the log's description, out of sight once a row shows.
     logHint.classList.toggle("visually-hidden", true);
     write(logStep, logRowReading(log[next]));
     // Home and End say the end and the row as one message (Scout, #221); an
     // arrow past an end says only the end.
     const spoken = logRowSpoken(log[next]);
+    const label =
+      edge === "start" && seenRows > k("log.maxEvents")
+        ? `Start of kept log (last ${formatNumber(k("log.maxEvents"), 0)} events).`
+        : LOG_EDGE[edge];
     if (edge === null) {
       sayStep(spoken);
     } else if (jump !== undefined) {
-      sayStep(`${LOG_EDGE[edge]}. ${spoken}`);
+      sayStep(`${label}${label.endsWith(".") ? "" : "."} ${spoken}`);
     } else {
-      sayStep(LOG_EDGE[edge]);
+      sayStep(label);
     }
     return true;
   }
@@ -364,7 +375,7 @@ export function createVisualiserView(doc, store, { clock } = {}) {
       announcer.clear();
     }
     if (run.state === "paused") {
-      write(logHint, "Paused. Left and Right arrow keys step through the log.");
+      write(logHint, LOG_HINT);
     } else {
       selectRow(-1);
       write(logHint, "");
@@ -382,6 +393,7 @@ export function createVisualiserView(doc, store, { clock } = {}) {
       selectRow(-1);
       combatLog.replaceChildren(combatLogEmpty);
       lastRenderedCombatEventId = -1;
+      seenRows = 0;
     }
     const newEvents = log.filter(
       (event) => event.id > lastRenderedCombatEventId,
@@ -389,6 +401,7 @@ export function createVisualiserView(doc, store, { clock } = {}) {
     if (newEvents.length === 0) {
       return;
     }
+    seenRows += newEvents.length;
 
     const previousScrollHeight = combatLogScroll.scrollHeight;
     const isAtLatestEvents = combatLogScroll.scrollTop <= 1;
@@ -428,7 +441,8 @@ export function createVisualiserView(doc, store, { clock } = {}) {
 
         const damage = doc.createElement("span");
         damage.className = "combat-log-damage";
-        damage.textContent = String(Math.floor(event.damage));
+        // With commas, as the step line says it (Fran's #221 check).
+        damage.textContent = formatNumber(Math.floor(event.damage), 0);
 
         const status = doc.createElement("span");
         status.className = `combat-log-status outcome-${event.outcome}`;
@@ -502,6 +516,10 @@ export function timedEffectReading(
     label: isAura ? `${label}, ${stackText}` : label,
   };
 }
+
+// The log's description while paused (#150; Home and End, Fran's #221 check).
+export const LOG_HINT =
+  "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.";
 
 // What the step announcer says at the ends of the log (U9 polish).
 const LOG_EDGE = { start: "Start of log", end: "End of log" };
