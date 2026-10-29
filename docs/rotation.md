@@ -488,8 +488,9 @@ param of the wrong type, and is written in the message as `NaN` or `Infinity`
 `castable` the abilities the rogue casts, `auras` the self buffs and `debuffs`
 the target debuffs as `{ id: maxStacks }`, and `talentGrantedAbilities` the
 abilities a talent grants, whose rules need a guard (an array or a `Set` of
-id strings; it is copied, and anything else, such as a string, `null` or a
-plain object, is a `TypeError` that says what was given, #207). Each defaults to the engine's own (`js/ability-data.js`,
+id strings; it is copied, `null` is taken as absent, and anything else, such
+as a string or a plain object, is a `TypeError` that says what was given,
+#207). Each defaults to the engine's own (`js/ability-data.js`,
 `js/abilities.js`, `js/auras.js`, and `talentGrantedAbilities` from
 `js/talent-build.js`) and a caller may replace any of them, for a test or for a
 build that has fewer abilities.
@@ -515,14 +516,16 @@ Since #212 the validator does not stop at the first shape error, so an empty
   first, then `name`, then `rules`. `rules: []` gives `noRules` and the name is
   still checked. A `rules` that is not an array (`rulesNotArray`) or has more
   than `rotation.maxRules` rules (`tooManyRules`) is not read any further.
-- A rule that cannot be read (not an object; `action` or `conditions` missing;
-  an `action` that is not an id; `conditions` that is not an array or is over
-  `rotation.maxConditionsPerRule`) gives its shape errors and is skipped. The
-  rules after it are still checked. An unknown field alone leaves the rule
-  readable, so it is checked too.
-- In a readable rule, a condition of the wrong shape (`conditionNotObject`,
-  `conditionNoType`) is skipped; the others are checked. The talent guard is
-  checked on every readable rule.
+- A rule that is not an object gives `ruleNotObject` alone. A missing
+  `conditions`, or one that is not an array or is over
+  `rotation.maxConditionsPerRule`, gives its shape errors and the rule is
+  skipped. A missing `action`, or one that is not an id, skips only the action
+  id check and the talent guard: its conditions are still checked. The rules
+  after a broken one are still checked. An unknown field alone leaves the rule
+  readable.
+- A condition of the wrong shape (`conditionNotObject`, `conditionNoType`) is
+  skipped; the others are checked. So every entry `rotationShapeErrors` gives
+  is in `validateRotation`'s list too.
 - The order is reading order, rule by rule: a rule's shape errors, its action,
   each condition, then its talent guard. No two entries share a path and code.
 
@@ -617,8 +620,9 @@ imports and runs, and nothing here changes what a fight casts.
   `spend`), `cooldowns` (a constants row `cooldown` above 0) and `onGcd` (the
   catalogue's `startsGcd`). A context may give any of them, each as an array
   or a `Set` of id strings, and the validator's own fields; what it leaves
-  out is the engine's. A list given as anything else (a string, `null`, `{}`)
-  is a `TypeError` that names the field and says what was given (#207).
+  out, or gives as `null`, is the engine's. A list given as anything else (a
+  string, `{}`) is a `TypeError` that names the field and says what was given
+  (#207).
   `grantedNotTalent` reads the validator's `talentGrantedAbilities`.
 
 | Trap                                                                                                                                                                    | Path                  | Why it pools                                                                                                                                                                                                                                                        |

@@ -115,7 +115,9 @@ function described(value) {
 // null or {} do not fail later as "not iterable". js/rotation-warnings.js
 // reads its lists through this too.
 export function idList(where, field, given, fallback) {
-  if (given === undefined) {
+  // null is taken as absent, as the other lists' `??` takes it (Kira's QA
+  // on #215): it must not throw before the rotation's own errors come back.
+  if (given === undefined || given === null) {
     return fallback;
   }
   if (!Array.isArray(given) && !(given instanceof Set)) {
@@ -395,12 +397,17 @@ export function validateRotation(rotation, context = {}) {
     const path = `rules[${index}]`;
     const shape = ruleShape(rule, path);
     errors.push(...shape.errors);
-    if (!shape.readable) {
+    // Conditions that cannot be read skip the rule. A bad action skips only
+    // the checks that need it, the action id and the talent guard: the
+    // conditions are still checked (Kira's QA on #215).
+    if (!shape.conditionsReadable) {
       return;
     }
-    const action = abilityIdError(rule.action, `${path}.action`, where);
-    if (action !== null) {
-      errors.push(action);
+    if (shape.actionReadable) {
+      const action = abilityIdError(rule.action, `${path}.action`, where);
+      if (action !== null) {
+        errors.push(action);
+      }
     }
     rule.conditions.forEach((condition, at) => {
       const here = `${path}.conditions[${at}]`;
@@ -416,7 +423,9 @@ export function validateRotation(rotation, context = {}) {
           : conditionMeaningErrors(condition, here, where)),
       );
     });
-    const guard = talentGuardError(rule, path, where);
+    const guard = shape.actionReadable
+      ? talentGuardError(rule, path, where)
+      : null;
     if (guard !== null) {
       errors.push(guard);
     }

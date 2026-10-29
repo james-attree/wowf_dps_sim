@@ -605,7 +605,6 @@ describe("rotationWarnings: data, not names", () => {
     for (const field of ["finishers", "cooldowns", "onGcd"]) {
       for (const [given, shown] of [
         ["fake-strike", 'the string "fake-strike"'],
-        [null, "null"],
         [{}, "an object"],
       ]) {
         const message = `warningContext: ${field} must be an array or a Set of ability ids, not ${shown}.`;
@@ -626,6 +625,11 @@ describe("rotationWarnings: data, not names", () => {
           `${field} ${shown}`,
         );
       }
+      // null is taken as absent, as for talentGrantedAbilities (#215 QA).
+      assert.deepEqual(
+        warningContext({ [field]: null })[field],
+        warningContext()[field],
+      );
       assert.throws(
         () => warningContext({ [field]: [7] }),
         (error) =>
