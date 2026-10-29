@@ -5,6 +5,7 @@ import {
   errorsText,
   fieldErrors,
   focusTarget,
+  formErrorCount,
   isLocked,
   parseRunField,
   summaryText,
@@ -32,7 +33,13 @@ import {
 // when wide (as before), after the sticky row when narrow, so the focus order
 // follows what is seen. An error in a closed section is reached through the
 // row's "Fix 1 setting" link, which opens the section and focuses the field.
-// Wide screens are unchanged: the toggle, summary and link are not shown.
+// Wide screens show neither the toggle nor the summary.
+//
+// While Run is blocked (#155, Fran's Phase 3 QA 1) the status says "Can't run
+// · N settings to fix", never Ready, and the "Fix N settings" link shows at
+// every width. Both count the run fields' errors and the stats form's; the
+// link goes to the first run field with an error, else the form's first
+// invalid field. Run's aria-describedby names the reason (#run-reason).
 const FIELDS = ["duration", "iterations", "seed"];
 // Re-exported for the tests and older imports; the value lives in
 // js/views/breakpoints.js.
@@ -71,6 +78,7 @@ export function createControlsView(doc, store, actions = {}) {
   const settingsToggle = $("run-settings-toggle");
   const summary = $("run-summary");
   const errorsLink = $("run-errors-link");
+  const reason = $("run-reason");
 
   const write = (node, text) => {
     if (node.textContent !== text) {
@@ -114,7 +122,7 @@ export function createControlsView(doc, store, actions = {}) {
     // The narrow row shows Pause while a fight or batch runs, Run otherwise.
     bar.setAttribute("data-slot", locked ? "pause" : "run");
     write(summary, summaryText(run));
-    const fix = errorsText(run);
+    const fix = errorsText(run, formErrorCount(state.form));
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
     row.classList.toggle("has-errors", fix !== null);
@@ -146,6 +154,12 @@ export function createControlsView(doc, store, actions = {}) {
 
     write(buttons.run, model.run.label);
     buttons.run.disabled = model.run.disabled;
+    write(reason, model.reason ?? "");
+    if (model.reason === null) {
+      buttons.run.removeAttribute("aria-describedby");
+    } else {
+      buttons.run.setAttribute("aria-describedby", "run-reason");
+    }
     write(pauseLabel, model.pause.label);
     write(pauseIcon, model.pause.pressed ? "▶" : "Ⅱ");
     buttons.pause.setAttribute("aria-pressed", String(model.pause.pressed));
@@ -173,7 +187,11 @@ export function createControlsView(doc, store, actions = {}) {
 
     // Transitions only: the first draw is silent.
     const key = announceKey(state);
-    if (lastAnnounce !== null && key !== lastAnnounce) {
+    if (
+      lastAnnounce !== null &&
+      key !== lastAnnounce &&
+      model.announce !== null
+    ) {
       write(announcer, model.announce);
     }
     lastAnnounce = key;
@@ -205,11 +223,13 @@ export function createControlsView(doc, store, actions = {}) {
   errorsLink.addEventListener("click", (event) => {
     event?.preventDefault?.();
     const [first] = fieldErrors(store.get().run);
+    if (first === undefined) {
+      doc.querySelector('#config-form [aria-invalid="true"]')?.focus?.();
+      return;
+    }
     open = true;
     render(store.get());
-    if (first !== undefined) {
-      inputs[first].focus?.();
-    }
+    inputs[first].focus?.();
   });
   buttons.run.addEventListener("click", () => call("run"));
   buttons.pause.addEventListener("click", () => {

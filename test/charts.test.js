@@ -419,6 +419,19 @@ describe("accessibility", () => {
     }
   });
 
+  it("puts the mean label on the inside of the mean line, so it is never cut off (#155)", () => {
+    const meanLabel = (dps) =>
+      toMarkup(histogramChart(fixedResult(dps, FIXED_TIMELINE))).match(
+        /<text[^>]*class="chart-mean-label"[^>]*>/,
+      )[0];
+    // A mean near the right edge: the label ends at the line.
+    const right = meanLabel([100, 200, 200, 200, 200, 200, 200, 200, 200, 200]);
+    assert.match(right, /text-anchor="end"/);
+    // A mean near the left edge: the label starts at the line.
+    const left = meanLabel([100, 100, 100, 100, 100, 100, 100, 100, 100, 200]);
+    assert.doesNotMatch(left, /text-anchor/);
+  });
+
   it("says the numbers in the description and names the mean and the interval in text", () => {
     const markup = toMarkup(histogramChart(result));
     assert.match(

@@ -11,11 +11,13 @@ import { k } from "../../data/constants.js";
 // statuses: idle, running, done, cancelled, error. run.state is the runner's
 // state in live mode and batch.status in batch mode.
 //
-// Field rules. The fight length is more than 0 and at most 3,600 s (a UI rule,
-// not a game number, so not a constant: a 0 s fight gives 0 DPS rather than an
-// error, #154 §10). Fights are a whole number from 1 to
-// k("batch.maxIterations"). The seed is a whole number from 0 to 2^32 - 1, or
+// Field rules. The fight length is a plain decimal number of seconds (no hex,
+// binary or exponent, #155) from 1 to 3,600 s (UI rules, not game numbers, so
+// not constants: the engine runs a 0 s fight to 0 DPS rather than an error,
+// #154 §10, but a fight shorter than a global cooldown says nothing). Fights
+// are a whole number from 1 to k("batch.maxIterations"). The seed is a whole number from 0 to 2^32 - 1, or
 // empty: Run draws one then and fills it in.
+export const MIN_FIGHT_SECONDS = 1;
 export const MAX_FIGHT_SECONDS = 3600;
 export const MAX_SEED = 4294967295;
 
@@ -25,6 +27,7 @@ export const BATCH_HELP =
   "Batches can't pause. Stop keeps the fights done so far as a partial result.";
 
 const WHOLE = /^\d+$/;
+const DECIMAL = /^(\d+(\.\d*)?|\.\d+)$/;
 
 // "100,000": comma thousands, the same in every locale.
 export function grouped(value) {
@@ -62,12 +65,12 @@ function secondsText(seconds) {
 export function parseRunField(name, text) {
   const trimmed = String(text).trim();
   if (name === "duration") {
-    const value = trimmed === "" ? Number.NaN : Number(trimmed);
-    return Number.isFinite(value) && value > 0 && value <= MAX_FIGHT_SECONDS
+    const value = DECIMAL.test(trimmed) ? Number(trimmed) : Number.NaN;
+    return value >= MIN_FIGHT_SECONDS && value <= MAX_FIGHT_SECONDS
       ? { value, error: null }
       : {
           value: null,
-          error: `Fight length must be more than 0 and at most ${grouped(MAX_FIGHT_SECONDS)} seconds.`,
+          error: `Fight length must be a number of seconds from ${MIN_FIGHT_SECONDS} to ${grouped(MAX_FIGHT_SECONDS)}.`,
         };
   }
   if (name === "iterations") {
@@ -113,12 +116,46 @@ export function fieldErrors(run) {
   );
 }
 
+// The stats form's errors that count (#151): one per message. A Min marked
+// by its Max's error (null message) is the Max's error, counted once, the way
+// the form's footer counts them (js/views/config-form.js).
+export function formErrorCount(form) {
+  return Object.values(form?.errors ?? {}).filter((message) => message !== null)
+    .length;
+}
+
+// Everything that blocks Run (#155, Fran's QA 1): the run fields with an
+// error in this mode and the stats form's errors.
+export function blockedCount(state) {
+  return fieldErrors(state.run).length + formErrorCount(state.form);
+}
+
 // Run is blocked by an invalid run field or an invalid stats form field (#151).
 function blocked(state) {
   return (
     fieldErrors(state.run).length > 0 ||
     Object.keys(state.form?.errors ?? {}).length > 0
   );
+}
+
+// "1 fight", "4 fights" (#155, Fran's QA 5: never "1 fights").
+const fightsWord = (count) => (count === 1 ? "fight" : "fights");
+const fightCount = (count) => `${grouped(count)} ${fightsWord(count)}`;
+
+const settings = (count) => `${count} ${count === 1 ? "setting" : "settings"}`;
+
+// The status while Run is blocked (#155): never "Ready" then.
+export function blockedText(count) {
+  return `Can't run · ${settings(count)} to fix`;
+}
+
+// "100k" for 100,000, "1.5k" for 1,500, "999" under a thousand: the total of
+// a running batch, short enough for the narrow row (#155).
+export function compact(value) {
+  if (value < 1000) {
+    return String(value);
+  }
+  return `${+(value / 1000).toFixed(1)}k`;
 }
 
 function seedText(seed) {
@@ -149,11 +186,14 @@ function liveModel(state) {
     text = `Ready · seed ${seedText(run.seed)}`;
     announce = "Ready";
   }
+  const reason =
+    !active && blocked(state) ? blockedText(blockedCount(state)) : null;
   return {
     run: {
       label: status === "finished" ? "Run again" : "Run",
       disabled: active || blocked(state),
     },
+    reason,
     pause: {
       label: status === "paused" ? "Resume" : "Pause",
       pressed: status === "paused",
@@ -164,7 +204,7 @@ function liveModel(state) {
     reset: { disabled: !active && status !== "finished" && !run.shown },
     locked: active,
     help: LIVE_HELP,
-    status: text,
+    status: reason ?? text,
     announce,
     progress: null,
   };
@@ -179,29 +219,35 @@ function batchModel(state) {
   const result = batch.result;
   let text;
   let announce;
+  // The totals lead (#155): the narrow row cuts the end of the line off.
+  // The results panel's live region says each of these (#154 §9), so the bar
+  // stays quiet for them and only says Ready (#155: no announcement twice).
   if (running) {
-    text = `Running batch · ${grouped(completed)} of ${grouped(total)} fights`;
-    announce = `Batch running, ${grouped(total)} fights`;
+    text = `${grouped(completed)}/${compact(total)} ${fightsWord(total)} · Running batch`;
+    announce = null;
   } else if (status === "done") {
     const mean = result.summary.mean.toFixed(1);
-    text = `Done · ${grouped(result.completed)} fights · ${mean} DPS mean`;
-    announce = `Batch done, ${mean} DPS`;
+    text = `${fightCount(result.completed)} · ${mean} DPS mean · Done`;
+    announce = null;
   } else if (status === "cancelled") {
-    const kept = `${grouped(result.completed)} of ${grouped(result.iterations)} fights kept`;
+    const kept = `${grouped(result.completed)}/${compact(result.iterations)} ${fightsWord(result.iterations)} kept`;
     text =
       result.completed > 0
-        ? `Stopped · ${kept} · ${result.summary.mean.toFixed(1)} DPS mean (partial)`
-        : `Stopped · ${kept}`;
-    announce = `Batch stopped, ${kept}`;
+        ? `${kept} · ${result.summary.mean.toFixed(1)} DPS mean (partial) · Stopped`
+        : `${kept} · Stopped`;
+    announce = null;
   } else if (status === "error") {
     text = `Batch failed: ${batch.error.message}`;
-    announce = text;
+    announce = null;
   } else {
-    text = `Ready · ${grouped(run.iterations)} fights · seed ${seedText(run.seed)}`;
+    text = `Ready · ${fightCount(run.iterations)} · seed ${seedText(run.seed)}`;
     announce = "Ready";
   }
+  const reason =
+    !running && blocked(state) ? blockedText(blockedCount(state)) : null;
   return {
     run: { label: "Run batch", disabled: running || blocked(state) },
+    reason,
     // Visible, never pressable: aria-disabled with the help line as the
     // reason, so a screen reader finds it and hears why.
     pause: { label: "Pause", pressed: false, disabled: false, inert: true },
@@ -211,13 +257,13 @@ function batchModel(state) {
     },
     locked: running,
     help: BATCH_HELP,
-    status: text,
+    status: reason ?? text,
     announce,
     progress: running
       ? {
           value: completed,
           max: total,
-          text: `${grouped(completed)} of ${grouped(total)} fights`,
+          text: `${grouped(completed)} of ${fightCount(total)}`,
         }
       : null,
   };
@@ -238,14 +284,15 @@ export function summaryText(run) {
   return `Live · ${seconds} s · seed ${seed}`;
 }
 
-// The narrow bar's link to the settings with an error, or null when there
-// are none: "Fix 1 setting".
-export function errorsText(run) {
-  const count = fieldErrors(run).length;
+// The bar's link to the first setting with an error, at every width (#155),
+// or null when there are none: "Fix 1 setting". It counts the run fields'
+// errors and the stats form's (formCount, from formErrorCount).
+export function errorsText(run, formCount = 0) {
+  const count = fieldErrors(run).length + formCount;
   if (count === 0) {
     return null;
   }
-  return `Fix ${count} ${count === 1 ? "setting" : "settings"}`;
+  return `Fix ${settings(count)}`;
 }
 
 // Everything the bar draws, from the store's state.

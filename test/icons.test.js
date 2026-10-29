@@ -38,6 +38,9 @@ const HAND_MADE = [
   "backstab.jpg",
   "blade_flurry.jpg",
   "eviscerate.jpg",
+  // The page's tab icon (#155): a plain dagger drawn for this repo, not a
+  // game icon. docs/icons.md says so.
+  "favicon.svg",
   "garotte.jpg",
   "ghostly_strike.jpg",
   "hemorrhage.jpg",
