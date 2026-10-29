@@ -437,12 +437,15 @@ describe("swing timer fight regression", () => {
     assert.equal(slow.comboPoints, comboPoints);
     assert.equal(fast.comboPoints, comboPoints);
     assert.ok(slow.damage > 0);
-    // About 27 s of the 60: the second Slice and Dice is recast only once the
-    // first is under rotation.pooling.recastSeconds (or in the window at full
-    // energy), and with this roll it lapses for a while before the next recast
-    // (it was over half the fight with the 10 s refresh before #155).
-    assert.ok(slow.sliceAndDiceUptime > SWING_WINDOW_SECONDS / 3);
-    assert.ok(fast.sliceAndDiceUptime > SWING_WINDOW_SECONDS / 3);
+    // 27 s of the 60 (26.99 at 144 fps): the second Slice and Dice is recast
+    // only once the first is under rotation.pooling.recastSeconds (or in the
+    // window at full energy), and with this roll it lapses for a while before
+    // the next recast (it was over half the fight with the 10 s refresh before
+    // #155). Pinned to 26.5-27.5 s so a drift in the SnD timing fails here
+    // (#173, Kira).
+    for (const uptime of [slow.sliceAndDiceUptime, fast.sliceAndDiceUptime]) {
+      assert.ok(uptime > 26.5 && uptime < 27.5, `SnD uptime ${uptime}`);
+    }
     assert.ok(
       Math.abs(slow.sliceAndDiceUptime - fast.sliceAndDiceUptime) <
         1 / SWING_FRAME_RATES[0],

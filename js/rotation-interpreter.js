@@ -6,13 +6,18 @@ import { assertValidRotation } from "./rotation-validator.js";
 // one decision point: "the engine is asked what to cast now".
 //
 // It knows nothing of the engine. It does not see a Rogue, a Simulation, a
-// step or a frame. A host gives it five things (the `host` of decide), and the
-// Phase 3.5 engine can give the same five at its own decision point:
+// step or a frame. A host gives it five things (the `host` of decide), and an
+// optional sixth, and the Phase 3.5 engine can give the same at its own
+// decision point:
 //
 //   host.state()          the state view of the fight now (js/rotation-state.js)
 //   host.canCast(id)      true when the ability can be cast right now: its own
 //                         cooldown, its cost, the GCD, and any build lock
 //   host.onGcd(id)        true when a cast of the ability starts the GCD
+//   host.usable(id)       optional: false when nothing in this fight can make
+//                         the ability castable (Backstab without a dagger main
+//                         hand, #155). Such a rule is passed over, never pooled
+//                         for. A host without it has every ability usable.
 //   host.gcdClear()       true when the GCD is not running
 //   host.cast(id)         cast it
 //
@@ -56,6 +61,7 @@ export function compileRotation(rotation) {
     })),
     host: null,
     onGcd: [],
+    usable: [],
   });
   return compiled;
 }
@@ -81,7 +87,9 @@ const NOTHING = Object.freeze({ casts: NO_CASTS, outcome: "none" });
 // One decision point. Walks the rules from the top (docs/rotation.md, "How
 // list order sets priority"):
 //
-//   - a rule whose conditions do not all hold is passed over;
+//   - a rule whose conditions do not all hold is passed over, and so is a
+//     rule for an ability the host says is not usable in this fight
+//     (host.usable: Backstab on a sword), whatever its conditions say;
 //   - an off-GCD ability whose conditions hold is cast if it can be, and the
 //     walk goes on; if it cannot be cast it is skipped and the walk goes on,
 //     exactly as if its conditions had failed;
@@ -105,13 +113,17 @@ export function decide(rotation, host) {
     );
   }
   const { rules } = program;
-  // Whether each rule's ability starts the GCD is asked of a host once, not at
-  // every decision point: it is a property of the ability.
+  // Whether each rule's ability starts the GCD, and whether it is usable at
+  // all, is asked of a host once, not at every decision point: both are fixed
+  // for the fight.
   if (program.host !== host) {
     program.onGcd = rules.map((rule) => host.onGcd(rule.action));
+    program.usable = rules.map((rule) =>
+      host.usable === undefined ? true : host.usable(rule.action),
+    );
     program.host = host;
   }
-  const { onGcd: startsGcd } = program;
+  const { onGcd: startsGcd, usable } = program;
   let casts = NO_CASTS;
   let state = null;
   // Asked once: only an on-GCD cast starts the GCD, and one ends the walk.
@@ -126,7 +138,7 @@ export function decide(rotation, host) {
     // asked of a rule that holds. Both are read-only, so the order changes
     // nothing a host can see but the calls it gets.
     const onGcd = startsGcd[index];
-    if (onGcd && !clear) {
+    if ((onGcd && !clear) || !usable[index]) {
       continue;
     }
     state ??= host.state();

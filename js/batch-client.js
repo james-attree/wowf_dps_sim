@@ -93,11 +93,13 @@ function defaultTimer(callback, ms) {
   return () => globalThis.clearTimeout(handle);
 }
 
-// A serialized error (js/batch-host.js serializeError) as an Error again.
+// A serialized error (js/batch-host.js serializeError) as an Error again. An
+// object without a name or a message reads as a plain Error with no text, not
+// as the text "undefined" (#155).
 export function deserializeError(data) {
-  const name = data !== null && typeof data === "object" ? data.name : "Error";
-  const message =
-    data !== null && typeof data === "object" ? data.message : String(data);
+  const isObject = data !== null && typeof data === "object";
+  const name = isObject ? (data.name ?? "Error") : "Error";
+  const message = isObject ? (data.message ?? "") : String(data);
   const Class = ERROR_NAMES.includes(name) ? globalThis[name] : Error;
   const error = new Class(String(message));
   if (!ERROR_NAMES.includes(name)) {

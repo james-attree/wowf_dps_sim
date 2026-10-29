@@ -3,7 +3,7 @@ import { rotationStateReader } from "./rotation-state.js";
 
 // The Rogue's side of the rotation interpreter (R3, #140): the `host` that
 // decide (js/rotation-interpreter.js) is given at a decision point. It answers
-// the interpreter's five questions from a Rogue and its Simulation, and that
+// the interpreter's six questions from a Rogue and its Simulation, and that
 // is all it does. Nothing here is in the interpreter, so the Phase 3.5 engine
 // writes its own host and calls decide unchanged.
 //
@@ -15,6 +15,11 @@ import { rotationStateReader } from "./rotation-state.js";
 //              (Rogue.lockedByBuild: a talent ability the build lacks) and
 //              would go ahead now (Ability.canCast: cooldown, cost, GCD).
 //   onGcd      the ability starts the global cooldown (Ability.triggersGcd).
+//   usable     the main hand is the weapon type the ability needs
+//              (Ability.mainHandAllowed: Backstab needs a dagger). The weapon
+//              is fixed for the fight, so the interpreter asks once and passes
+//              over a rule that can never cast, instead of pooling for it
+//              forever (#155).
 //   gcdClear   the global cooldown is not running (gcdClear in js/ability.js).
 //   cast       cast it (Ability.cast).
 //
@@ -35,6 +40,7 @@ export function rotationHost(rogue, simulation, options = {}) {
       return !rogue.lockedByBuild(found) && found.canCast(rogue, simulation);
     },
     onGcd: (id) => ability(id).triggersGcd,
+    usable: (id) => ability(id).mainHandAllowed(rogue),
     gcdClear: () => gcdClear(simulation),
     cast: (id) => {
       ability(id).cast(rogue, simulation);

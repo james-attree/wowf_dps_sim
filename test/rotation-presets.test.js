@@ -46,6 +46,25 @@ describe("the preset registry", () => {
     }
   });
 
+  it("is frozen all the way down, so no caller changes a preset (#155)", () => {
+    const unfrozen = [];
+    const walk = (value, path) => {
+      if (value !== null && typeof value === "object") {
+        if (!Object.isFrozen(value)) {
+          unfrozen.push(path);
+        }
+        for (const [key, member] of Object.entries(value)) {
+          walk(member, `${path}.${key}`);
+        }
+      }
+    };
+    walk(ROTATION_PRESETS, "ROTATION_PRESETS");
+    assert.deepEqual(unfrozen, []);
+    assert.throws(() => {
+      ROTATION_PRESETS[0].rotation.rules[0].conditions.push({});
+    }, TypeError);
+  });
+
   it("has a Combat swords preset", () => {
     assert.ok(ROTATION_PRESETS.some((preset) => preset.id === "combat-swords"));
   });
