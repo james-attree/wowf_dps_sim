@@ -134,9 +134,9 @@ describe("the first edit starts a session draft (D10, D20)", () => {
   });
 });
 
-// A rotation with both traps of Fran §18 item 6: a finisher with no combo
-// points check under a rule that builds points (finisherNoComboPoints alone,
-// no starves on it), and an unconditional builder above Backstab (starves).
+// A finisher with no combo points check under a rule that builds the points
+// (finisherNoComboPoints, and starves with its below: #216's rule), and an
+// unconditional builder above Backstab (starves).
 const TRAP = {
   schemaVersion: defaultRotation().schemaVersion,
   name: "Trap",
@@ -151,36 +151,82 @@ const TRAP = {
   ],
 };
 
+// Kira's QA case on #216: SS (CP < 1), Eviscerate, Hemorrhage.
+const KIRA = {
+  schemaVersion: defaultRotation().schemaVersion,
+  name: "Kira",
+  rules: [
+    {
+      action: "sinister-strike",
+      conditions: [{ type: "comboPoints", op: "<", value: 1 }],
+    },
+    { action: "eviscerate", conditions: [] },
+    {
+      action: "hemorrhage",
+      conditions: [{ type: "abilityUnlocked", ability: "hemorrhage" }],
+    },
+  ],
+};
+
 describe("the builder and the import box show the same warnings (Scout on #217)", () => {
-  it("for the same rotation: the same entries, in the same order, and the same count", () => {
-    const { store, form, view } = setup();
-    assert.equal(form.importText(exportRotation(TRAP)), true);
-    const state = store.get().form;
-    const imported = importRotation(exportRotation(TRAP)).warnings;
-    assert.deepEqual(
-      imported.map(({ code, path }) => [code, path]),
+  // The builder adds no filter of its own: it shows rotationWarnings as is.
+  const cases = [
+    [
+      "Trap",
+      TRAP,
       [
-        ["finisherNoComboPoints", "rules[1].conditions"],
-        ["starves", "rules[2]"],
+        ["finisherNoComboPoints", "rules[1].conditions", undefined],
+        ["starves", "rules[1]", [2, 3]],
+        ["starves", "rules[2]", [3]],
       ],
-    );
-    // The import box's lines, and the list the builder draws from.
-    assert.equal(state.importStatus.warnings, listedLines(imported));
-    assert.deepEqual(state.rotationWarnings, imported);
-    assert.deepEqual(rotationWarnings(TRAP), imported);
-    // The builder's cards carry those entries, worded the builder's way, and
-    // its summary counts them all.
-    const shown = view()
-      .rules.flatMap((rule) => rule.messages)
-      .filter((m) => m.kind === "warning")
-      .map((m) => m.text);
-    assert.deepEqual(
-      shown,
-      imported.map((entry) => entryText(entry, TRAP)),
-    );
-    assert.match(view().warnings.count, /: 2 warnings\. $/);
-    assert.equal(view().warnings.jumps.length, imported.length);
-  });
+    ],
+    [
+      "Kira's #216 case",
+      KIRA,
+      [
+        ["finisherNoComboPoints", "rules[1].conditions", undefined],
+        ["starves", "rules[1]", [2]],
+      ],
+    ],
+  ];
+  for (const [name, rotation, expected] of cases) {
+    it(`${name}: the same entries, in the same order, and the same count`, () => {
+      const { store, form, view } = setup();
+      assert.equal(form.importText(exportRotation(rotation)), true);
+      const state = store.get().form;
+      const imported = importRotation(exportRotation(rotation)).warnings;
+      assert.deepEqual(
+        imported.map(({ code, path, below }) => [
+          code,
+          path,
+          below && [...below],
+        ]),
+        expected,
+      );
+      // The import box's lines, and the list the builder draws from.
+      assert.equal(state.importStatus.warnings, listedLines(imported));
+      assert.deepEqual(state.rotationWarnings, imported);
+      assert.deepEqual(rotationWarnings(rotation), imported);
+      // The builder's cards carry every entry, worded the builder's way, and
+      // its summary counts them all.
+      const shown = view()
+        .rules.flatMap((rule) => rule.messages)
+        .filter((m) => m.kind === "warning");
+      assert.deepEqual(
+        shown.map((m) => [m.code, m.path, m.text]),
+        imported.map((entry) => [
+          entry.code,
+          entry.path,
+          entryText(entry, rotation),
+        ]),
+      );
+      assert.match(
+        view().warnings.count,
+        new RegExp(`: ${imported.length} warnings\\. $`),
+      );
+      assert.equal(view().warnings.jumps.length, imported.length);
+    });
+  }
 });
 
 describe("Edited clears when the draft is the origin again (Scout on #217)", () => {
@@ -773,14 +819,17 @@ describe("jumps find a message by its entry's code and path (Scout's review of #
   it("each message carries its entry's code and path; a jump focuses that one", () => {
     const { form, builder, view, slice } = setup();
     assert.equal(form.importText(exportRotation(TRAP)), true);
-    const starves = view().rules[2].messages.find((m) => m.code === "starves");
-    assert.equal(starves.path, "rules[2]");
+    // Rule 2 has two warnings, so only code and path tell them apart.
     assert.deepEqual(
       view()
         .rules[1].messages.filter((m) => m.kind === "warning")
         .map((m) => [m.code, m.path]),
-      [["finisherNoComboPoints", "rules[1].conditions"]],
+      [
+        ["finisherNoComboPoints", "rules[1].conditions"],
+        ["starves", "rules[1]"],
+      ],
     );
+    const starves = view().rules[1].messages.find((m) => m.code === "starves");
     const jump = view().warnings.jumps[1];
     builder.jump(jump.id);
     assert.equal(slice().focus.key, starves.key);

@@ -52,12 +52,11 @@ import {
 //      always true) that has an on-GCD rule below it. Whenever the GCD is
 //      clear it is cast or pooled for, so no on-GCD rule below it
 //      is ever cast (an off-GCD rule below still is, while the GCD runs). The
-//      last on-GCD rule, the usual builder, may have none. Never given to a
-//      finisher that has finisherNoComboPoints: the finisher warning stands
-//      for the rule, one warning for one cause (#207; Fran's U7 spec §18 item
-//      6, Scout's call on #217, 29 Oct, so the import box and the rotation
-//      builder show the same list). Its fix, a combo points check, is also
-//      what stops it starving the rules below.
+//      last on-GCD rule, the usual builder, may have none. Not given to a
+//      finisher that has finisherNoComboPoints and no rule above it that can
+//      cast on the GCD: it waits at 0 combo points, one warning for one cause
+//      (#207). With such a rule above to build points it does cast, and does
+//      starve the rules below, so it gets both (Kira's QA on #216).
 // The wording is Fran's (issue #207), with #214's message contract.
 // A message names an ability by display name and id (abilityLabel, as the
 // talent guard does, #203). The name is only ever written out, never compared
@@ -170,9 +169,7 @@ function conditionKey(condition) {
   return JSON.stringify(kept);
 }
 
-// Exported for the rotation builder's Edited mark (Scout's call on #217): a
-// draft whose rules all have their origin's keys, in order, is the origin
-// again (js/config-form.js, draftEdited).
+// Exported for draftEdited (config-form.js), which compares a draft with its preset.
 export function sameRuleKey(rule) {
   return JSON.stringify([
     rule.action,
@@ -352,6 +349,8 @@ export function rotationWarnings(rotation, context = {}) {
     rules.flatMap((rule, other) =>
       other > index && castsOnGcd(other) ? [other] : [],
     );
+  const onGcdAbove = (index) =>
+    rules.some((rule, other) => other < index && castsOnGcd(other));
   const warnings = [];
   rules.forEach((rule, index) => {
     const path = `rules[${index}]`;
@@ -379,9 +378,11 @@ export function rotationWarnings(rotation, context = {}) {
       finisher,
       cooldownWarning(rule, path, hasBelow, given),
       ...talent,
-      // One warning per trap: a finisher without a combo points check is
-      // told so once, not again as starving the rules below (§18 item 6).
-      finisher === null
+      // One warning per trap: a finisher that waits at 0 combo points with
+      // nothing above to build them is told so once, not again as starving
+      // the rules below. With an on-GCD rule above it does cast, and does
+      // starve them.
+      finisher === null || onGcdAbove(index)
         ? starvesWarning(
             rules,
             index,

@@ -357,8 +357,8 @@ export function createRotationBuilder(store, formActions) {
   function messagesOf(state) {
     const formSlice = state.form;
     const errors = formSlice.rotationErrors ?? [];
-    // rotationWarnings' list as it is, the same one the import box shows:
-    // the finisher-alone rule (Fran §18 item 6) is in js/rotation-warnings.js.
+    // rotationWarnings' list as it is, with no filter of its own, so it is
+    // the same list the import box shows (#216's finisher-vs-starves rule).
     const warnings =
       errors.length > 0 ? [] : (formSlice.rotationWarnings ?? []);
     return { errors, warnings };

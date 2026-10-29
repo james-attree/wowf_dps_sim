@@ -63,8 +63,10 @@ const focusedKey = (page) =>
   page.evaluate(() => document.activeElement?.getAttribute("data-key"));
 
 // One real mouse click at the centre of a control.
+// Scrolled to the middle of the screen first, so the sticky run bar at
+// narrow widths can't sit over it.
 async function clickCentre(locator) {
-  await locator.scrollIntoViewIfNeeded();
+  await locator.evaluate((el) => el.scrollIntoView({ block: "center" }));
   const box = await locator.boundingBox();
   await locator
     .page()
