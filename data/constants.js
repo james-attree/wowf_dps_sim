@@ -798,6 +798,22 @@ export const CONSTANTS = {
     "Longest rotation name the shape check accepts, counted in UTF-16 code units (string length). A display limit, not a game rule.",
     false,
   ),
+  "rotation.maxImportChars": entry(
+    131072,
+    "characters",
+    ENGINEERING,
+    `Developer, 29 Oct 2026, issue #143: ${NOT_JAMES} The issue asks for a size limit from data/constants.js and gives no number`,
+    "Longest rotation text importRotation (js/rotation-io.js) reads, counted in characters (UTF-16 units, the length of a JavaScript string; 128 Ki). Checked before the text is parsed. A rotation at the three shape limits (rotation.maxRules, rotation.maxConditionsPerRule, rotation.maxNameLength) exports to well under it, so no valid rotation's export is over the limit (a test builds that worst case). It keeps an untrusted file small; it is not a game rule.",
+    false,
+  ),
+  "rotation.maxErrorChars": entry(
+    1000,
+    "characters",
+    ENGINEERING,
+    `Developer, 29 Oct 2026, issue #143: ${NOT_JAMES} The issue asks for readable messages and gives no number`,
+    "Longest path or message importRotation (js/rotation-io.js) returns for one error, counted in characters; a longer one is cut and ends in an ellipsis. The validator's messages echo the value that was wrong, so a 100,000-character action name in an imported file would make a 100,000-character message. The longest message the validator writes for ordinary input is about 250 characters, so this cuts nothing a person would meet. A display cap, not a game rule.",
+    false,
+  ),
   "rotation.sliceAndDiceRefreshSeconds": entry(
     10,
     "s",

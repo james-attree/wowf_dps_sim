@@ -318,11 +318,14 @@ describe("project site paths", () => {
     // preset list), so remove it then. js/rotation-presets.js (R5, #142) is the
     // preset list's API: the page has no config UI to call it yet (#149,
     // #150), so it waits with js/sim-runner.js.
+    // js/rotation-io.js (R6, #143) is the text side of a rotation: the page has
+    // no file or clipboard UI to call it yet (#149, #150).
     // js/rotation-validator.js is wired through the interpreter.
     const notWiredYet = new Set([
       "js/sim-runner.js",
       "js/rotation-summary.js",
       "js/rotation-presets.js",
+      "js/rotation-io.js",
     ]);
     for (const file of publishedJs) {
       if (notWiredYet.has(file)) {
