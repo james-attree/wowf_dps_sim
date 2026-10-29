@@ -1,8 +1,10 @@
 import { k } from "../data/constants.js";
+import { BatchBreakdown, FightBreakdown } from "./ability-breakdown.js";
 import { dataVersion } from "./data-version.js";
 import { EventStream, createErrorReporter } from "./event-stream.js";
 import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
+import { RunningStats } from "./running-stats.js";
 import { SimRunner } from "./sim-runner.js";
 
 // The batch runner (Phase 3, #144, roadmap task S1): N seeded fights of one
@@ -31,6 +33,12 @@ import { SimRunner } from "./sim-runner.js";
 // histogram (S5, #148). Iterations are added in index order, always, so the
 // floating-point result does not depend on how the work was chunked.
 //
+// The per-ability breakdown (S2, #145, js/ability-breakdown.js). Each
+// iteration's fight gets a FightBreakdown subscribed to its "hit" and "cast"
+// events, like any other listener, and its summary is added to a
+// BatchBreakdown in index order once the fight ends. It changes no fight: a
+// subscriber draws no randomness.
+//
 // Running without blocking. A fight takes tens of milliseconds, so a batch of
 // 1,000 takes tens of seconds, and a page cannot run it inside one call. The
 // work is a BatchRunner, and it follows SimRunner's driver pattern: the host
@@ -39,7 +47,8 @@ import { SimRunner } from "./sim-runner.js";
 //   - advance(iterations) runs up to that many iterations, then returns. A
 //     host calls it from a timer or a message and gives the page the time
 //     between calls. advance(Infinity) runs the rest. The host picks the size
-//     of a slice, because this module reads no clock.
+//     of a slice, because this module reads no clock. The count is a whole
+//     number of 1 or more, or Infinity: anything else is a RangeError.
 //   - An injected driver { start(advance), stop() } does that for it: start
 //     is called when the runner enters "running" and gets advance, stop when
 //     it leaves "running". Without a driver the host calls advance().
@@ -81,6 +90,8 @@ import { SimRunner } from "./sim-runner.js";
 // The result is plain data (see BatchRunner#result), except that `dps` is a
 // Float64Array. structuredClone and postMessage carry it. JSON does not (use
 // Array.from(result.dps) first).
+
+export { RunningStats };
 
 export const BATCH_STATES = Object.freeze([
   "idle",
@@ -150,89 +161,6 @@ export function deriveSeed(seed, index) {
   return mix((base ^ mix(index + increment)) >>> 0);
 }
 
-// Welford's online mean and variance, with minimum and maximum. add(value)
-// takes a finite number. summary() is plain data:
-//
-//   count    values added
-//   mean     the mean, null with no values
-//   stdDev   the sample standard deviation (n - 1), null with fewer than two
-//   min, max the extremes, null with no values
-//   ci95     { low, high, halfWidth }: the 95% confidence interval of the
-//            mean, mean +- batch.confidenceZ * stdDev / sqrt(count). null with
-//            fewer than two values, where it is not defined.
-export class RunningStats {
-  #count = 0;
-  #mean = 0;
-  #sumSquares = 0;
-  #min = 0;
-  #max = 0;
-
-  get count() {
-    return this.#count;
-  }
-
-  // The mean so far, or null with no values.
-  get mean() {
-    return this.#count === 0 ? null : this.#mean;
-  }
-
-  add(value) {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new RangeError(
-        `RunningStats.add needs a finite number. Got ${value}.`,
-      );
-    }
-    this.#count += 1;
-    const delta = value - this.#mean;
-    this.#mean += delta / this.#count;
-    this.#sumSquares += delta * (value - this.#mean);
-    if (this.#count === 1 || value < this.#min) {
-      this.#min = value;
-    }
-    if (this.#count === 1 || value > this.#max) {
-      this.#max = value;
-    }
-  }
-
-  summary() {
-    const count = this.#count;
-    if (count === 0) {
-      return {
-        count,
-        mean: null,
-        stdDev: null,
-        min: null,
-        max: null,
-        ci95: null,
-      };
-    }
-    if (count === 1) {
-      return {
-        count,
-        mean: this.#mean,
-        stdDev: null,
-        min: this.#min,
-        max: this.#max,
-        ci95: null,
-      };
-    }
-    const stdDev = Math.sqrt(this.#sumSquares / (count - 1));
-    const halfWidth = (k("batch.confidenceZ") * stdDev) / Math.sqrt(count);
-    return {
-      count,
-      mean: this.#mean,
-      stdDev,
-      min: this.#min,
-      max: this.#max,
-      ci95: {
-        low: this.#mean - halfWidth,
-        high: this.#mean + halfWidth,
-        halfWidth,
-      },
-    };
-  }
-}
-
 function readIterations(iterations) {
   const max = k("batch.maxIterations");
   if (!Number.isInteger(iterations) || iterations < 1 || iterations > max) {
@@ -288,6 +216,7 @@ export class BatchRunner {
   #state = "idle";
   #stats = new RunningStats();
   #dps = new Float64Array(0);
+  #breakdown = new BatchBreakdown();
   #completed = 0;
   #result = null;
   // Iterations handed over by advance() and not run yet.
@@ -388,6 +317,9 @@ export class BatchRunner {
   //   config      the SimConfig, in full form
   //   summary     RunningStats.summary() of the completed iterations' DPS:
   //               { count, mean, stdDev, min, max, ci95 }
+  //   breakdown   the per-ability breakdown of the completed iterations (#145):
+  //               BatchBreakdown#summary() in js/ability-breakdown.js,
+  //               { fights, totalDamage, rows }. See docs/breakdown.md.
   //   dps         Float64Array of the DPS of each completed iteration, in
   //               iteration order: dps[i] is the fight of
   //               deriveSeed(seed, i). Length is `completed`.
@@ -430,20 +362,26 @@ export class BatchRunner {
     this.#transition("reset");
   }
 
-  // Run up to `iterations` more fights, 0 or more. Infinity runs the rest.
-  // Does nothing unless the state is "running". Returns the state afterwards:
-  // "finished" when this call completed the last iteration, "cancelled" when
-  // the signal was aborted or cancel() was called.
+  // Run up to `iterations` more fights: a whole number of 1 or more, or
+  // Infinity to run the rest. Anything else is a RangeError, whatever the state:
+  // a fraction such as 0.5 could never start a fight, so a driver that passed
+  // one would loop for ever, and 0 does no work. Does nothing unless the state is
+  // "running". Returns the state afterwards: "finished" when this call completed
+  // the last iteration, "cancelled" when the signal was aborted or cancel() was
+  // called.
   advance(iterations) {
     if (
-      typeof iterations !== "number" ||
-      Number.isNaN(iterations) ||
-      iterations < 0
+      iterations !== Infinity &&
+      !(Number.isInteger(iterations) && iterations >= 1)
     ) {
       throw new RangeError(
-        `BatchRunner.advance needs a count of iterations, 0 or more. Got ${iterations}.`,
+        `BatchRunner.advance needs a whole number of iterations, 1 or more, or Infinity. Got ${iterations}.`,
       );
     }
+    return this.#advance(iterations);
+  }
+
+  #advance(iterations) {
     if (this.#state !== "running") {
       return this.#state;
     }
@@ -486,9 +424,13 @@ export class BatchRunner {
       duration: this.#duration,
       config: this.#config,
     });
+    // The breakdown reads the fight's events, as any other subscriber would.
+    const breakdown = new FightBreakdown();
+    breakdown.attach(fight);
     fight.run();
     fight.advance(Infinity);
     const { dps } = fight.result;
+    this.#breakdown.add(breakdown.summary());
     this.#dps[this.#completed] = dps;
     this.#stats.add(dps);
     this.#completed += 1;
@@ -515,6 +457,7 @@ export class BatchRunner {
       dataVersion,
       config: normalizeConfig(this.#config),
       summary: this.#stats.summary(),
+      breakdown: this.#breakdown.summary(),
       dps: this.#dps.slice(0, this.#completed),
     };
     this.#move(cancelled ? "cancelled" : "finished");
@@ -523,6 +466,7 @@ export class BatchRunner {
   #clear() {
     this.#stats = new RunningStats();
     this.#dps = new Float64Array(0);
+    this.#breakdown = new BatchBreakdown();
     this.#completed = 0;
     this.#result = null;
     this.#budget = 0;
@@ -550,7 +494,7 @@ export class BatchRunner {
     this.#move(target);
     // An aborted signal cancels a batch as it starts.
     if (this.#state === "running") {
-      this.advance(0);
+      this.#advance(0);
     }
   }
 

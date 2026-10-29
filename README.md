@@ -279,6 +279,15 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   `Float64Array` of every iteration's DPS. Defaults are 1,000 iterations of 300 s
   (`batch.duration`). No DOM and no clock. Not yet used by the page. See
   [Batch runner](docs/batch.md).
+- `js/ability-breakdown.js` — The per-ability breakdown (S2, #145): a
+  `FightBreakdown` subscribed to a fight's `hit` and `cast` events, and a
+  `BatchBreakdown` that sums fights in order. Rows are keyed and sorted by
+  ability id: casts, attempts, outcomes, hits, direct and tick damage, averages,
+  share, and per-fight statistics over a batch. The batch result carries it as
+  `breakdown`. Not yet used by the page. See
+  [Per-ability breakdown](docs/breakdown.md).
+- `js/running-stats.js` — `RunningStats` (Welford's mean, SD, min, max and 95%
+  CI, from #144) and `CompensatedSum` (Neumaier's compensated sum, #145).
 - `js/event-stream.js` — The event stream (P3-2, #137): `EventStream` (`on`,
   the `"*"` wildcard, `onError`, queued in-order delivery, errors isolated per
   handler), `RingLog` (the combat log's ring buffer), and `SIM_EVENT_TYPES`
@@ -646,8 +655,15 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   unrelated base seeds), the statistics against a two-pass reference, every
   iteration equal to `runFight` with its derived seed, the same result for the
   same base seed however the work is sliced or driven, progress, cancel (handler,
-  signal, driver, before the start), the transition table, options, and that the
+  signal, driver, before the start), the transition table, options, the
+  `advance` count (a whole number of 1 or more, or Infinity, #145), and that the
   module names no step or frame and uses only `SimRunner`.
+- `test/ability-breakdown.test.js` — The per-ability breakdown: its total equal
+  to the fight's, rows that add up, agreement with the engine's own records,
+  casts from `cast` events, sorting by id, recorded events, mid-fight reads,
+  pooled batch averages, back-filled per-fight statistics, compensated sums, the
+  batch result's breakdown against each iteration's fight however it is sliced,
+  and that the module names no step or frame and imports no engine.
 - `test/rotation-equivalence.test.js` — The Combat rotation as JSON against the
   code rotation it replaced (`test/legacy-rotation.js`): the same fights, field
   for field, log and rng draws included, over builds, weapons, poisons, seeds

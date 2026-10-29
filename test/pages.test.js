@@ -321,7 +321,9 @@ describe("project site paths", () => {
     // js/rotation-io.js (R6, #143) is the text side of a rotation: the page has
     // no file or clipboard UI to call it yet (#149, #150).
     // js/batch-runner.js (S1, #144) is the batch engine: nothing imports it
-    // until the worker client (#147) and the UI (#149, #150) do.
+    // until the worker client (#147) and the UI (#149, #150) do. With it go
+    // js/running-stats.js and js/ability-breakdown.js (S2, #145), which only it
+    // imports until the results UI does.
     // js/rotation-validator.js is wired through the interpreter.
     const notWiredYet = new Set([
       "js/sim-runner.js",
@@ -329,6 +331,8 @@ describe("project site paths", () => {
       "js/rotation-presets.js",
       "js/rotation-io.js",
       "js/batch-runner.js",
+      "js/running-stats.js",
+      "js/ability-breakdown.js",
     ]);
     for (const file of publishedJs) {
       if (notWiredYet.has(file)) {
