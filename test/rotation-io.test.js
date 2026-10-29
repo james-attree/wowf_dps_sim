@@ -421,8 +421,13 @@ describe("importRotation: what it refuses", () => {
     for (const text of texts) {
       const error = first(importRotation(text));
       assert.equal(error.path, "");
-      // The code only: the parse error's text differs between Node versions.
+      // The code and our own prefix; the parse error's text after it differs
+      // between Node versions, so it is not checked.
       assert.equal(error.code, "notJson");
+      assert.ok(
+        error.message.startsWith("The rotation file is not valid JSON: "),
+        error.message,
+      );
     }
     // The most the limit lets through, nested as deep as it goes: as the whole
     // file, and as the value of a condition's param.

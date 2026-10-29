@@ -604,6 +604,22 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(MAX_LISTED, 50);
   });
 
+  it("listedLines lists exactly MAX_LISTED entries in full, with no 'more' line; one over gives '…and 1 more' (Kira's QA on #216)", () => {
+    const entries = (count) =>
+      Array.from({ length: count }, (_, at) => ({
+        path: `rules[${at}]`,
+        message: "A.",
+      }));
+    const all = entries(MAX_LISTED).map(errorLine);
+    assert.equal(listedLines(entries(MAX_LISTED)), all.join("\n"));
+    assert.equal(listedLines(entries(MAX_LISTED)).split("\n").length, 50);
+    assert.doesNotMatch(listedLines(entries(MAX_LISTED)), /more/);
+    assert.equal(
+      listedLines(entries(MAX_LISTED + 1)),
+      [...all, "…and 1 more"].join("\n"),
+    );
+  });
+
   it("a file over the import limit is refused by rotation-io's own limit", () => {
     const { actions, form } = setup();
     assert.equal(

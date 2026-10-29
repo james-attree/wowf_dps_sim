@@ -48,8 +48,9 @@ import {
 //      grants. Only a talent ability can be locked, so it is always true and
 //      does nothing (one per such condition).
 //   starves  An on-GCD rule whose conditions always hold (none, or only the
-//      cheap cases of alwaysHolds) that has an on-GCD rule below it. Whenever
-//      the GCD is clear it is cast or pooled for, so no on-GCD rule below it
+//      cheap cases of alwaysHolds and unlockedNotTalent checks, which are
+//      always true) that has an on-GCD rule below it. Whenever the GCD is
+//      clear it is cast or pooled for, so no on-GCD rule below it
 //      is ever cast (an off-GCD rule below still is, while the GCD runs). The
 //      last on-GCD rule, the usual builder, may have none. Not given to a
 //      finisher that has finisherNoComboPoints and no rule above it that can
@@ -266,10 +267,18 @@ function talentWarnings(rule, path, talentGranted) {
   return warnings;
 }
 
-function starvesWarning(rules, index, path, below, context) {
+// A condition that never holds anything back: a cheap always-true number
+// (alwaysHolds), or an unlockedNotTalent check, which is always true (Scout's
+// call on Kira's QA of #216).
+const holdsAlways = (condition, talentGranted) =>
+  alwaysHolds(condition) || unlockedNotTalent(condition, talentGranted);
+
+function starvesWarning(rules, index, path, below, context, talentGranted) {
   const rule = rules[index];
   if (
-    !rule.conditions.every(alwaysHolds) ||
+    !rule.conditions.every((condition) =>
+      holdsAlways(condition, talentGranted),
+    ) ||
     !context.onGcd.includes(rule.action) ||
     below.length === 0
   ) {
@@ -373,7 +382,14 @@ export function rotationWarnings(rotation, context = {}) {
       // the rules below. With an on-GCD rule above it does cast, and does
       // starve them.
       finisher === null || onGcdAbove(index)
-        ? starvesWarning(rules, index, path, below, given)
+        ? starvesWarning(
+            rules,
+            index,
+            path,
+            below,
+            given,
+            talentGrantedAbilities,
+          )
         : null,
     ]) {
       if (warning !== null) {

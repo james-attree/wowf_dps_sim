@@ -626,18 +626,19 @@ imports and runs, and nothing here changes what a fight casts.
   `grantedNotTalent` and `unlockedNotTalent` read the validator's
   `talentGrantedAbilities`.
 
-| Trap                                                                                                                                                                    | Path                  | Why it pools                                                                                                                                                                                                                                                        |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A finisher with no combo points condition that needs a combo point (`comboPoints`, or `resource` on `comboPoints`; one that holds at 0, such as `>= 0`, counts as none) | `rules[i].conditions` | It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it.                                                                                                                                                                |
-| An on-GCD ability with a cooldown and no `cooldownReady` for it                                                                                                         | `rules[i].conditions` | While it is on cooldown it cannot be cast, so it holds back every rule below it. An off-GCD cooldown is passed over, not pooled for, so it is not warned for.                                                                                                       |
-| An on-GCD rule with no conditions, or only ones that always hold, above another on-GCD rule                                                                             | `rules[i]`            | Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule below it is reached. The last on-GCD rule, the usual builder, may have none. "Always hold" is the cheap case only: `>= 0` on `comboPoints`, a `resource`, `fightTime` or `fightTimeRemaining` |
+| Trap                                                                                                                                                                    | Path                  | Why it pools                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A finisher with no combo points condition that needs a combo point (`comboPoints`, or `resource` on `comboPoints`; one that holds at 0, such as `>= 0`, counts as none) | `rules[i].conditions` | It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it.                                                                                                                                                                                                                                                                        |
+| An on-GCD ability with a cooldown and no `cooldownReady` for it                                                                                                         | `rules[i].conditions` | While it is on cooldown it cannot be cast, so it holds back every rule below it. An off-GCD cooldown is passed over, not pooled for, so it is not warned for.                                                                                                                                                                                                               |
+| An on-GCD rule with no conditions, or only ones that always hold, above another on-GCD rule                                                                             | `rules[i]`            | Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule below it is reached. The last on-GCD rule, the usual builder, may have none. "Always hold" is the cheap case only: `>= 0` on `comboPoints`, a `resource`, `fightTime` or `fightTimeRemaining`, and an `abilityUnlocked` check on an ability no talent grants (`unlockedNotTalent`, Kira's QA on #216) |
 
-Three more are not pooling traps but rules or checks that do nothing:
+Three more are not pooling traps but rules or checks that do nothing, or never let a rule cast:
 
-| Trap                                                     | Path                     | Why                                                                                                                                                                                                                                                                         |
-| -------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A rule the same as one above it                          | `rules[i]`               | The one above is tried first under the same conditions, so this one is never reached. Compared after normalising: conditions in any order, keys in any order, and a param written out at its `CONDITION_PARAMS` default (`active: true`, `ready: true`) counts as left out. |
-| An `abilityGranted` check on an ability no talent grants | `rules[i].conditions[j]` | The fight grants only talent and host abilities, so it is never true and the rule never casts.                                                                                                                                                                              |
+| Trap                                                      | Path                     | Why                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A rule the same as one above it                           | `rules[i]`               | The one above is tried first under the same conditions, so this one is never reached. Compared after normalising: conditions in any order, keys in any order, and a param written out at its `CONDITION_PARAMS` default (`active: true`, `ready: true`) counts as left out. |
+| An `abilityGranted` check on an ability no talent grants  | `rules[i].conditions[j]` | The fight grants only talent and host abilities, so it is never true and the rule never casts.                                                                                                                                                                              |
+| An `abilityUnlocked` check on an ability no talent grants | `rules[i].conditions[j]` | Only a talent ability can be locked, so it is always true and does nothing. It also counts as always holding for `starves`.                                                                                                                                                 |
 
 One cause gives one warning: a rule that repeats an earlier one gets only
 `duplicateRule`, and is left out of every `starves` `below` (a duplicated
@@ -904,8 +905,13 @@ counts.
 | An invalid rule or condition                            | The validator's errors, each with its path (`rules[2].conditions[0].aura`).                                                                                  |
 
 A message echoes the value that was wrong, so a path or message longer than
-`rotation.maxErrorChars` (1000 characters; the longest ordinary one is about 250) is cut and ends in `…`. A file at the size limit cannot make a 100,000
-character message. Text in an entry's data (an unknown field's name, the
+`rotation.maxErrorChars` (1000 code points, not UTF-16 units; the longest ordinary one is about 250) is cut and ends in `…`. A file at the size limit cannot make a 100,000
+character message. Unlike `rotation.maxNameLength` and
+`rotation.maxImportChars`, which count UTF-16 units (a JavaScript string's
+length), this counts code points, so an emoji written as a surrogate pair is
+never split and the cut text is always well-formed. A ZWJ emoji sequence
+(several code points shown as one) can still be cut part way; what is left is
+still well-formed text. Text in an entry's data (an unknown field's name, the
 `field`) is cut the same way; the code and every number are kept.
 
 Import never runs the text: it is `JSON.parse` and the validator, with no
@@ -1152,7 +1158,7 @@ and is now refused until it is added:
 The three limits are `data/constants.js` rows (`rotation.maxRules`,
 `rotation.maxConditionsPerRule`, `rotation.maxNameLength`), and a fourth,
 `rotation.maxImportChars` (131072), caps the text `importRotation` reads, and a
-fifth, `rotation.maxErrorChars` (1000), cuts a path or message it returns. A
+fifth, `rotation.maxErrorChars` (1000 code points, not UTF-16 units), cuts a path or message it returns. A
 sixth, `rotation.maxListedEntries` (50), is how many errors or warnings the
 page's form lists for one import (Scout's number, #214). The issues gave no
 numbers for the first five, so they are the dev's engineering choices; all six

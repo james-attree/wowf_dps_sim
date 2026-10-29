@@ -567,9 +567,14 @@ describe("rotation error codes (#212): import", () => {
     ]);
     const json = importRotation("{").errors;
     assert.equal(json.length, 1);
-    // The code only: the rest of the message is the engine's own parse error,
-    // which differs between Node versions (CI runs 22).
+    // The code and our own prefix; what follows it is the engine's own parse
+    // error, which differs between Node versions (CI runs 22), so it is not
+    // checked.
     assert.equal(json[0].code, "notJson");
+    assert.ok(
+      json[0].message.startsWith("The rotation file is not valid JSON: "),
+      json[0].message,
+    );
     for (const errors of [importRotation(3).errors, json]) {
       assert.ok(Object.isFrozen(errors[0]));
     }

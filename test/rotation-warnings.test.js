@@ -1190,7 +1190,7 @@ describe("rotationWarnings: unlockedNotTalent (#214)", () => {
     ]);
   });
 
-  it("gives one per such condition, and the rule still casts", () => {
+  it("gives one per such condition; the rule still casts, and starves what is below", () => {
     const trap = rotation(
       rule("sinister-strike", unlocked("backstab"), unlocked("eviscerate")),
       rule("backstab"),
@@ -1200,7 +1200,65 @@ describe("rotationWarnings: unlockedNotTalent (#214)", () => {
       [
         ["unlockedNotTalent", "rules[0].conditions[0]"],
         ["unlockedNotTalent", "rules[0].conditions[1]"],
+        ["starves", "rules[0]"],
       ],
+    );
+  });
+
+  it("counts as always holding for starves (Kira's case; Scout's call on #216)", () => {
+    // Sinister Strike's only check is always true, so it is cast or waited
+    // for whenever the GCD is clear and Eviscerate is never reached.
+    const trap = rotation(
+      rule("sinister-strike", unlocked("sinister-strike")),
+      rule("eviscerate", { type: "comboPoints", op: ">=", value: 5 }),
+    );
+    assert.deepEqual(rotationWarnings(trap), [
+      {
+        code: "unlockedNotTalent",
+        path: "rules[0].conditions[0]",
+        message: unlockedText("Sinister Strike (sinister-strike)"),
+        ability: "sinister-strike",
+        condition: 0,
+      },
+      {
+        code: "starves",
+        path: "rules[0]",
+        message: starvesText(
+          "Sinister Strike (sinister-strike)",
+          1,
+          "Eviscerate (eviscerate)",
+          "none of its rule's conditions can fail",
+        ),
+        ability: "sinister-strike",
+        below: [1],
+        reason: "alwaysHolds",
+      },
+    ]);
+  });
+
+  it("with a cheap always-true number too it still starves; one real check stops it", () => {
+    const loose = { type: "fightTime", op: ">=", value: 0 };
+    const starves = (...conditions) =>
+      codes(
+        rotation(
+          rule("sinister-strike", ...conditions),
+          rule("eviscerate", enoughPoints),
+        ),
+      ).includes("starves");
+    assert.equal(starves(unlocked("sinister-strike"), loose), true);
+    assert.equal(starves(unlocked("sinister-strike"), energy(FINISHER)), false);
+  });
+
+  it("an abilityUnlocked check on a talent ability does not count as always holding", () => {
+    // Hemorrhage can be locked, so the check can fail: nothing is starved.
+    assert.deepEqual(
+      codes(
+        rotation(
+          rule("hemorrhage", unlocked("hemorrhage")),
+          rule("sinister-strike"),
+        ),
+      ),
+      [],
     );
   });
 

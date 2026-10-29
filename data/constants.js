@@ -829,10 +829,10 @@ export const CONSTANTS = {
   ),
   "rotation.maxErrorChars": entry(
     1000,
-    "characters",
+    "code points",
     ENGINEERING,
     `Developer, 29 Oct 2026, issue #143: ${NOT_JAMES} The issue asks for readable messages and gives no number`,
-    "Longest path or message importRotation (js/rotation-io.js) returns for one error, counted in characters; a longer one is cut and ends in an ellipsis. The validator's messages echo the value that was wrong, so a 100,000-character action name in an imported file would make a 100,000-character message. The longest message the validator writes for ordinary input is about 250 characters, so this cuts nothing a person would meet. A display cap, not a game rule.",
+    "Longest path or message importRotation (js/rotation-io.js) returns for one error, counted in code points (not UTF-16 units, unlike rotation.maxNameLength and rotation.maxImportChars); a longer one is cut and ends in an ellipsis. A surrogate pair is never split, so the result is always well-formed text, but a ZWJ emoji sequence (several code points shown as one) can still be cut part way. The validator's messages echo the value that was wrong, so a 100,000-character action name in an imported file would make a 100,000-character message. The longest message the validator writes for ordinary input is about 250 characters, so this cuts nothing a person would meet. A display cap, not a game rule.",
     false,
   ),
   "rotation.maxListedEntries": entry(
