@@ -9,6 +9,8 @@ import {
   RULE_KEYS,
   assertRotationShape,
   isRotationShape,
+  memberPath,
+  rotationShapeErrors,
   rotationShapeProblems,
 } from "../js/rotation-schema.js";
 
@@ -442,5 +444,67 @@ describe("RotationRule shape check: purity", () => {
       rotationShapeProblems(rotation),
       rotationShapeProblems(structuredClone(rotation)),
     );
+  });
+});
+
+describe("RotationRule shape check: errors with a path (R4)", () => {
+  it("gives { path, message } and the same messages as the problem list", () => {
+    const bad = {
+      schemaVersion: 1,
+      name: "",
+      rules: [
+        { action: "sinister-strike", conditions: [] },
+        { action: "Eviscerate", conditions: [{}, 3], extra: 1 },
+        { action: "rupture", conditions: "no" },
+        3,
+      ],
+    };
+    const errors = rotationShapeErrors(bad);
+    assert.deepEqual(
+      errors.map((error) => error.path),
+      [
+        "name",
+        "rules[1].extra",
+        "rules[1].action",
+        "rules[1].conditions[0].type",
+        "rules[1].conditions[1]",
+        "rules[2].conditions",
+        "rules[3]",
+      ],
+    );
+    assert.deepEqual(
+      rotationShapeProblems(bad),
+      errors.map((error) => error.message),
+    );
+    for (const error of errors) {
+      assert.ok(error.message.length > 0);
+    }
+  });
+
+  it("puts the path of the rotation itself as an empty string", () => {
+    assert.deepEqual(
+      rotationShapeErrors(null).map((e) => e.path),
+      [""],
+    );
+    assert.equal(memberPath("", "rules"), "rules");
+    assert.equal(memberPath("rules[0]", "action"), "rules[0].action");
+    assert.deepEqual(
+      rotationShapeErrors({ schemaVersion: 1 }).map((e) => e.path),
+      ["name", "rules"],
+    );
+  });
+
+  it("writes a non-finite or missing value as what it is, never as null", () => {
+    for (const [value, text] of [
+      [NaN, "NaN"],
+      [undefined, "undefined"],
+      [Infinity, "Infinity"],
+    ]) {
+      const [error] = rotationShapeErrors({
+        ...valid(),
+        rules: [{ action: value, conditions: [] }],
+      });
+      assert.ok(error.message.endsWith(`(got ${text}).`), error.message);
+    }
   });
 });

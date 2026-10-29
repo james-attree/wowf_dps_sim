@@ -1,6 +1,5 @@
-import { ABILITY_DEFINITIONS } from "./ability-data.js";
-import { compileCondition, conditionProblems } from "./rotation-conditions.js";
-import { rotationShapeProblems } from "./rotation-schema.js";
+import { compileCondition } from "./rotation-conditions.js";
+import { assertValidRotation } from "./rotation-validator.js";
 
 // The rotation interpreter (roadmap R3, issue #140). It reads a RotationRule
 // list (js/rotation-schema.js, docs/rotation.md) and decides what to cast at
@@ -20,44 +19,11 @@ import { rotationShapeProblems } from "./rotation-schema.js";
 // Ids are ability ids (js/ability-data.js `id`), never display names. The
 // interpreter looks nothing up by name.
 //
-// compileRotation checks a rotation once, when it is loaded, and decide trusts
+// compileRotation checks a rotation once, when it is loaded, with the validator
+// (js/rotation-validator.js, R4), and decide trusts
 // what it compiled, so the walk does no per-call checking (the cost of
 // `evaluate` checking its condition on every call, flagged at #139, is paid
 // once here instead of once per condition per decision point).
-
-// The ability ids a rotation may name. A rotation is the rogue's, and the
-// rogue's abilities are the entries of the ability data.
-const ABILITY_IDS = Object.freeze(
-  ABILITY_DEFINITIONS.map((definition) => definition.id),
-);
-
-// Every problem with a rotation, in reading order, as strings that name where
-// it is. An empty list means it can be compiled. The shape comes first and,
-// if it is wrong, is all that is reported: a condition list that is not a list
-// cannot be read. Then each condition's type and params
-// (js/rotation-conditions.js) and each action, which must be a rogue ability.
-// This is the load check R3 needs; the validator (R4, #141) is the fuller one
-// (unknown aura ids, usable by the rogue, summaries) and will take its place.
-export function rotationProblems(rotation) {
-  const shape = rotationShapeProblems(rotation);
-  if (shape.length > 0) {
-    return shape;
-  }
-  const problems = [];
-  rotation.rules.forEach((rule, index) => {
-    if (!ABILITY_IDS.includes(rule.action)) {
-      problems.push(
-        `rules[${index}].action ${JSON.stringify(rule.action)} is not a rogue ability. Known: ${ABILITY_IDS.join(", ")}.`,
-      );
-    }
-    rule.conditions.forEach((condition, at) => {
-      problems.push(
-        ...conditionProblems(condition, `rules[${index}].conditions[${at}]`),
-      );
-    });
-  });
-  return problems;
-}
 
 // What compileRotation returned, so decide can tell a checked rotation from a
 // plain object that was never checked, and what decide walks for it: for each
@@ -81,10 +47,7 @@ function freezeCopy(value) {
 // changing the original afterwards changes nothing. An invalid rotation is a
 // RangeError that lists every problem, so it never starts a fight.
 export function compileRotation(rotation) {
-  const problems = rotationProblems(rotation);
-  if (problems.length > 0) {
-    throw new RangeError(`Bad rotation:\n${problems.join("\n")}`);
-  }
+  assertValidRotation(rotation);
   const compiled = freezeCopy(rotation);
   COMPILED.set(compiled, {
     rules: compiled.rules.map((rule) => ({
