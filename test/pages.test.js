@@ -337,7 +337,19 @@ describe("project site paths", () => {
     // legacy engine and not on the page until the switch-over (#193). This
     // exception is removed in #199, when the core becomes the default.
     const notYetWired = (file) => file.startsWith("js/core/");
-    assert.ok(publishedJs.some(notYetWired), "js/core/ is still published");
+    const skipped = publishedJs.filter(notYetWired);
+    assert.ok(
+      skipped.includes("js/core/scheduler.js"),
+      "js/core/ is published",
+    );
+    for (const file of skipped) {
+      // Only js/core/, and only modules the page really does not import.
+      assert.match(file, /^js\/core\//);
+      assert.ok(
+        !seen.has(file),
+        `${file} is imported; drop it from the exception`,
+      );
+    }
     for (const file of publishedJs) {
       if (notYetWired(file)) {
         continue;
