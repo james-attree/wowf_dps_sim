@@ -412,7 +412,7 @@ describe("rotation", () => {
     assert.equal(store.get().config.rotation.name, "Trap");
     assert.equal(
       $("cfg-import-status").textContent,
-      'Imported "Trap" with 2 warnings. It still runs; see the warnings below.',
+      'Imported "Trap" with 1 warning. It still runs; see the warnings below.',
     );
     assert.ok($("cfg-import-status").classes.has("is-warning"));
     assert.ok(!$("cfg-import-status").classes.has("is-error"));
@@ -424,7 +424,7 @@ describe("rotation", () => {
     );
     assert.match(
       $("cfg-import-warnings-text").textContent,
-      /^rules\[0\]: Eviscerate \(eviscerate\) is a finisher/,
+      /^rules\[0\]\.conditions: Eviscerate \(eviscerate\) is a finisher/,
     );
     assert.equal($("cfg-import-text").value, "", "an accepted paste clears");
     $("cfg-import-text").value = "{";

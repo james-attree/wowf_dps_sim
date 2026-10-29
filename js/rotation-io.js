@@ -1,5 +1,5 @@
 import { k } from "../data/constants.js";
-import { rotationError } from "./rotation-schema.js";
+import { formatErrors, rotationError } from "./rotation-schema.js";
 import { validateRotation } from "./rotation-validator.js";
 import { rotationWarnings } from "./rotation-warnings.js";
 
@@ -76,9 +76,7 @@ function sortedCopy(value) {
 export function exportRotation(rotation) {
   const errors = validateRotation(rotation);
   if (errors.length > 0) {
-    throw new RangeError(
-      `Bad rotation:\n${errors.map((error) => error.message).join("\n")}`,
-    );
+    throw new RangeError(`Bad rotation:\n${formatErrors(errors).join("\n")}`);
   }
   return JSON.stringify(sortedCopy(rotation), null, INDENT) + NEWLINE;
 }

@@ -134,10 +134,14 @@ type does not list is rejected there, by the same rule.
 
 - `rotationShapeErrors(rotation)`: every shape error in reading order, as
   `{ code, path, message, ...data }` ([the codes](#error-codes)). The path says where (`rules[2].conditions[0].type`; `""`
-  is the rotation itself) and the message says what and names the same place.
-- `rotationShapeProblems(rotation)`: the messages of `rotationShapeErrors`, as
-  strings that name where it is (`rules[2].conditions[0] needs a non-empty
-string "type".`). An empty list means the shape is right.
+  is the rotation itself) and the message says what, never where
+  ([the message contract](#the-message-contract)).
+- `rotationShapeProblems(rotation)`: `rotationShapeErrors` as strings, each
+  the path then the message (`rules[2].conditions[0].type: The condition needs
+a non-empty string "type".`). An empty list means the shape is right.
+- `formatError({ path, message })`, `formatErrors(entries)`: the string form of
+  an entry, `path: message` (the message alone when the path is `""`). Every
+  string and thrown form below is written by these.
 - `isRotationShape(rotation)`: `true` when there are none.
 - `assertRotationShape(rotation)`: returns the rotation, or throws a
   `RangeError` that lists the problems.
@@ -160,7 +164,9 @@ and still be rejected there.
 
 A condition is `{ "type": "...", ...params }`. All of a rule's conditions must
 hold (AND). `js/rotation-conditions.js` is the vocabulary: `CONDITION_TYPES`,
-`conditionProblems(condition)` (every problem, as strings that name the param),
+`CONDITION_PARAMS` (below), `conditionErrors(condition, where)` (every
+problem, as `{ code, path, message, ...data }`, the path starting at `where`),
+`conditionProblems(condition, where)` (the same as `path: message` strings),
 `assertCondition(condition)` (throws a `RangeError`), `evaluate(condition,
 state)` and `evaluateAll(conditions, state)`. A condition is checked every time
 it is evaluated: the type must be known, every required param present and
@@ -173,6 +179,33 @@ code rotation's `<=` is. **Time is seconds** of fight time, never steps.
 resource is named by its resource id (`energy`, `comboPoints`). Whether an
 ability or aura id exists, and whether a number is in range, is the
 validator's check (R4), not this one's.
+
+**`CONDITION_PARAMS`** (#214) is every type's params as data, the one source
+for the builder's condition editor, `conditionErrors` and the validator. It is
+deeply frozen:
+
+```js
+CONDITION_PARAMS = {
+  [type]: {
+    [param]: { kind, optional?, default?, of?, values? },
+  },
+};
+// for example
+CONDITION_PARAMS.auraActive = {
+  aura: { kind: "id", of: "aura" },
+  active: { kind: "boolean", optional: true, default: true },
+};
+```
+
+The types are in `CONDITION_TYPES` order and each type's params in the order
+a condition is written. `kind` is one of `id`, `operator`, `number`,
+`boolean`, `resource`. `of` (on an `id` only) says what the id names:
+`ability`, `aura` or `debuff`; the validator reads it to pick the id check.
+`values` (on an `operator` or `resource` only) is the closed list it takes
+(`OPERATORS`; `energy`, `comboPoints`). `optional: true` params may be left
+out; `default` is what a left-out one means (`active` and `ready` are `true`),
+and the `duplicateRule` warning treats a param written out at its default as
+left out.
 
 **What is not up counts as zero.** An aura, a debuff or a cooldown that is not
 in the fight has 0 s remaining, and a debuff that is not up has 0 stacks.
@@ -411,20 +444,21 @@ exports:
   frozen `{ code, path, message, ...data }` ([error codes](#error-codes)). An
   empty list means the rotation is valid.
 - `assertValidRotation(rotation, context)`: returns the rotation, or throws a
-  `RangeError` (`Bad rotation:` and one message per line). It reports the same
-  errors; a caller uses whichever suits it. `rotationProblems(rotation,
-context)` is the messages as strings.
+  `RangeError` (`Bad rotation:` and one `path: message` line per error). It
+  reports the same errors; a caller uses whichever suits it.
+  `rotationProblems(rotation, context)` is the same lines as strings.
 - `rotationContext(given)`: what a rotation is validated against, below.
 - `abilityLabel(id)`: how a message writes an ability, `Cold Blood (cold-blood)`,
   or the id alone when the catalogue has no display name for it (#203).
 
 The **path** says where (`rules[2].conditions[0].aura`; `""` is the rotation as
-a whole) so a builder can mark the field. The **message** names the rule index
-and the problem and reads on its own, for example:
+a whole) so a builder can mark the field. The **message** says what is wrong
+and never where ([the message contract](#the-message-contract)). The string
+forms write the path first, for example:
 
 ```text
-rules[1].action "nonsense" is not an ability in the spell data. The rogue casts: ...
-rules[2].conditions[0].aura "rupture" is a debuff on the target; use debuffActive, ...
+rules[1].action: "nonsense" is not an ability in the spell data. The rogue casts: ...
+rules[2].conditions[0].aura: "rupture" is a debuff on the target; use debuffActive, ...
 ```
 
 | Case                               | Path                                      | What is wrong                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -491,14 +525,14 @@ Since #212 the validator does not stop at the first shape error, so an empty
 - The order is reading order, rule by rule: a rule's shape errors, its action,
   each condition, then its talent guard. No two entries share a path and code.
 
-Each message reads exactly as before; only the entries that an early stop used
-to hide are new. `rotationShapeErrors` is still the shape alone.
+Only the entries that an early stop used to hide are new.
+`rotationShapeErrors` is still the shape alone.
 
 ### Error codes
 
 Every error is a frozen `{ code, path, message, ...data }`. The `code` is a
 stable name for the kind of error, for a builder to switch on instead of
-reading the message (the message's own wording is #214's). The data fields
+reading the message. The data fields
 are the code's own, only where a view needs them: `field` and `param` name the
 key, `max` is the limit, `resource` the pool, `ability` the ability id.
 
@@ -539,10 +573,26 @@ key, `max` is the limit, `resource` the pool, `ability` the ability id.
 | `tooLarge`             | `max`             | `""`                             | Import: more than `rotation.maxImportChars` characters. |
 | `notJson`              |                   | `""`                             | Import: not JSON, or nested too deeply to parse.        |
 
-The thrown and string forms (`assertValidRotation`, `rotationProblems`,
-`assertRotationShape`, `rotationShapeProblems`, `assertCondition`, and the
-`RangeError` of `exportRotation`) are the messages, as before. Warnings have no
-code yet.
+### The message contract
+
+(#214.) A `message` says what is wrong and carries no place: no `rules[2]`,
+no `The condition (comboPoints)` standing for a path. The place is the
+`path`, and whoever prints the entry adds it:
+
+- The string and thrown forms (`rotationProblems`, `assertValidRotation`,
+  `rotationShapeProblems`, `assertRotationShape`, `conditionProblems`,
+  `assertCondition`, the `RangeError` of `exportRotation`, and the page's
+  import box) write `formatError(entry)`: the raw path, `: `, then the
+  message, or the message alone for the path `""`.
+- A view writes its own readable place ("Rule 3, condition 2") from the path
+  and shows the message beside it.
+
+So the path and the text can no longer disagree (the `missingParam` path ends
+`.value`, where the old text began `rules[i].conditions[j] (type)`). A message
+still names the thing it is about: a type (`The comboPoints condition is
+missing "value"`), an id (`"nonsense" is not an ability`) or an ability
+(`Cold Blood (cold-blood) comes from a talent`). The same holds for
+[warnings](#warnings).
 
 ## Warnings
 
@@ -555,8 +605,10 @@ when its ability cannot be cast stops every rule below it. A warning is advice,
 never a refusal: `validateRotation` is unchanged, a rotation with warnings
 imports and runs, and nothing here changes what a fight casts.
 
-- `rotationWarnings(rotation, context)`: every warning in rule order, as
-  `{ path, message }`, with no code yet (#214 gives them one). `[]` means no trap was
+- `rotationWarnings(rotation, context)`: every warning in rule order, as a
+  frozen `{ code, path, message, ...data }`, as errors are
+  ([warning codes](#warning-codes); the message carries no place,
+  [the message contract](#the-message-contract)). `[]` means no trap was
   found, and a rotation the validator refuses gets `[]` too (its errors come
   first).
 - `warningContext(given)`: what the warnings read, as lists of ability ids:
@@ -564,20 +616,51 @@ imports and runs, and nothing here changes what a fight casts.
   `spend`), `cooldowns` (a constants row `cooldown` above 0) and `onGcd` (the
   catalogue's `startsGcd`). A context may give any of them, and the
   validator's own fields; what it leaves out is the engine's.
+  `grantedNotTalent` reads the validator's `talentGrantedAbilities`.
 
-| Trap                                                                                                                      | Path                  | Why it pools                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A finisher with no `comboPoints` condition that needs a combo point (one that holds at 0, such as `>= 0`, counts as none) | `rules[i].conditions` | It is cast with one combo point, and with none it cannot be cast, so it holds back every rule below it.                                                                                                                                                              |
-| An on-GCD ability with a cooldown and no `cooldownReady` for it                                                           | `rules[i].conditions` | While it is on cooldown it cannot be cast, so it holds back every rule below it. An off-GCD cooldown is passed over, not pooled for, so it is not warned for.                                                                                                        |
-| An on-GCD rule with no conditions, or only ones that always hold, above another on-GCD rule                               | `rules[i]`            | Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule below it is reached. The last on-GCD rule, the usual builder, may have none. "Always hold" is the cheap case only: `>= 0` on `comboPoints`, a `resource`, `fightTime` or `fightTimeRemaining`. |
+| Trap                                                                                                                                                                    | Path                  | Why it pools                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A finisher with no combo points condition that needs a combo point (`comboPoints`, or `resource` on `comboPoints`; one that holds at 0, such as `>= 0`, counts as none) | `rules[i].conditions` | It is cast with one combo point, and with none it cannot be cast, so it holds back every rule below it.                                                                                                                                                              |
+| An on-GCD ability with a cooldown and no `cooldownReady` for it                                                                                                         | `rules[i].conditions` | While it is on cooldown it cannot be cast, so it holds back every rule below it. An off-GCD cooldown is passed over, not pooled for, so it is not warned for.                                                                                                        |
+| An on-GCD rule with no conditions, or only ones that always hold, above another on-GCD rule                                                                             | `rules[i]`            | Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule below it is reached. The last on-GCD rule, the usual builder, may have none. "Always hold" is the cheap case only: `>= 0` on `comboPoints`, a `resource`, `fightTime` or `fightTimeRemaining`. |
+
+Two more are not pooling traps but rules that do nothing:
+
+| Trap                                                     | Path                     | Why                                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A rule the same as one above it                          | `rules[i]`               | The one above is tried first under the same conditions, so this one is never reached. Compared after normalising: conditions in any order, keys in any order, and a param written out at its `CONDITION_PARAMS` default (`active: true`, `ready: true`) counts as left out. |
+| An `abilityGranted` check on an ability no talent grants | `rules[i].conditions[j]` | It always holds, so it does nothing.                                                                                                                                                                                                                                        |
+
+One cause gives one warning: a rule that repeats an earlier one gets only
+`duplicateRule`, and is left out of every `starves` `below` (a duplicated
+Backstab is not said to starve itself); a finisher with
+`finisherNoComboPoints` does not also get `starves`.
+
+### Warning codes
+
+| Code                    | Data                         | Path                     | When                                                                                                                                              |
+| ----------------------- | ---------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `duplicateRule`         | `ability`, `same`            | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                           |
+| `finisherNoComboPoints` | `ability`, `condition`       | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.  |
+| `cooldownNotChecked`    | `ability`                    | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                |
+| `grantedNotTalent`      | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition.                                                |
+| `starves`               | `ability`, `below`, `reason` | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. |
+
+`ability` is always the rule's action, except for `grantedNotTalent`, where it
+is the condition's. Per rule the order is `finisherNoComboPoints`,
+`cooldownNotChecked`, `grantedNotTalent`, `starves`.
 
 The default rotation, every preset and every example below give no warnings
 (test/rotation-warnings.test.js). A message names the ability as the
 talent-guard error does, display name and id (`abilityLabel`, #203), and
-names the condition to add:
+names the condition to add. On the last rule, which has nothing below it to
+hold back, it says the rotation waits there instead. In the string form:
 
 ```text
-rules[0]: Eviscerate (eviscerate) is a finisher, but its rule has no comboPoints condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": 5 }.
+rules[0].conditions: Eviscerate (eviscerate) is a finisher, but its rule has no comboPoints condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": 5 }.
+rules[0]: Sinister Strike (sinister-strike) starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. The 2 rules below it for Backstab (backstab) and Eviscerate (eviscerate) never cast. Give it conditions or move it below them.
+rules[3]: Backstab (backstab) is never reached: a rule above it casts it under the same conditions. Delete this one.
+rules[1].conditions[0]: No talent grants Sinister Strike (sinister-strike), so this abilityGranted check always holds and does nothing. Remove it.
 ```
 
 The warnings do not know the fight: an unconditional Backstab rule is warned

@@ -169,7 +169,7 @@ describe("RotationRule shape check: a wrong top-level shape", () => {
   it("rejects a name that is not a non-empty string", () => {
     for (const name of ["", "   ", 5, null, {}, []]) {
       const found = problems((rotation) => (rotation.name = name));
-      assert.deepEqual(found, ["name must be a non-empty string."]);
+      assert.deepEqual(found, ["name: The name must be a non-empty string."]);
     }
   });
 
@@ -179,9 +179,12 @@ describe("RotationRule shape check: a wrong top-level shape", () => {
       () => assertRotationShape(bad),
       (error) => {
         assert.ok(error instanceof RangeError);
-        assert.match(error.message, /name must be/);
-        assert.match(error.message, /rules\[0\]\.action/);
-        assert.match(error.message, /rules\[0\] is missing "conditions"/);
+        assert.match(error.message, /name: The name must be/);
+        assert.match(error.message, /rules\[0\]\.action: The action must/);
+        assert.match(
+          error.message,
+          /rules\[0\]\.conditions: The rule is missing "conditions"/,
+        );
         return true;
       },
     );
@@ -213,7 +216,9 @@ describe("RotationRule shape check: schemaVersion is exact", () => {
 
   it("a missing version is a missing field", () => {
     const found = problems((rotation) => delete rotation.schemaVersion);
-    assert.deepEqual(found, ['The rotation is missing "schemaVersion".']);
+    assert.deepEqual(found, [
+      'schemaVersion: The rotation is missing "schemaVersion".',
+    ]);
   });
 });
 
@@ -228,7 +233,10 @@ describe("RotationRule shape check: unknown fields", () => {
   it("rejects an unknown rule field", () => {
     const found = problems((rotation) => (rotation.rules[1].when = []));
     assert.equal(found.length, 1);
-    assert.match(found[0], /^rules\[1\] has unknown field "when"/);
+    assert.match(
+      found[0],
+      /^rules\[1\]\.when: The rule has unknown field "when"/,
+    );
     assert.match(found[0], /action, conditions/);
   });
 
@@ -260,7 +268,7 @@ describe("RotationRule shape check: rules", () => {
     for (const rule of [null, "x", 1, [], undefined]) {
       const found = problems((rotation) => (rotation.rules[0] = rule));
       assert.deepEqual(found, [
-        "rules[0] must be an object { action, conditions }.",
+        "rules[0]: The rule must be an object { action, conditions }.",
       ]);
     }
   });
@@ -290,7 +298,10 @@ describe("RotationRule shape check: rules", () => {
     ]) {
       const found = problems((rotation) => (rotation.rules[0].action = action));
       assert.equal(found.length, 1, JSON.stringify(action));
-      assert.match(found[0], /^rules\[0\]\.action must be an ability id/);
+      assert.match(
+        found[0],
+        /^rules\[0\]\.action: The action must be an ability id/,
+      );
     }
   });
 
@@ -315,7 +326,7 @@ describe("RotationRule shape check: rules", () => {
     );
     assert.deepEqual(
       problems((rotation) => delete rotation.rules[0].conditions),
-      ['rules[0] is missing "conditions".'],
+      ['rules[0].conditions: The rule is missing "conditions".'],
     );
   });
 
@@ -325,7 +336,7 @@ describe("RotationRule shape check: rules", () => {
         (rotation) => (rotation.rules[0].conditions = conditions),
       );
       assert.deepEqual(found, [
-        "rules[0].conditions must be an array ([] means always).",
+        "rules[0].conditions: The conditions must be an array ([] means always).",
       ]);
     }
   });
@@ -342,7 +353,7 @@ describe("RotationRule shape check: rules", () => {
         (rotation) => (rotation.rules[1].conditions = [condition]),
       );
       assert.deepEqual(found, [
-        'rules[1].conditions[0] needs a non-empty string "type".',
+        'rules[1].conditions[0].type: The condition needs a non-empty string "type".',
       ]);
     }
   });
@@ -353,7 +364,7 @@ describe("RotationRule shape check: rules", () => {
         (rotation) => (rotation.rules[0].conditions = [condition]),
       );
       assert.deepEqual(found, [
-        "rules[0].conditions[0] must be an object { type, ...params }.",
+        "rules[0].conditions[0]: The condition must be an object { type, ...params }.",
       ]);
     }
   });
@@ -363,7 +374,7 @@ describe("RotationRule shape check: rules", () => {
       rotation.rules[1].conditions = [{ type: "ok" }, {}];
     });
     assert.deepEqual(found, [
-      'rules[1].conditions[1] needs a non-empty string "type".',
+      'rules[1].conditions[1].type: The condition needs a non-empty string "type".',
     ]);
   });
 });
@@ -391,7 +402,9 @@ describe("RotationRule shape check: limits", () => {
     assert.equal(found.length, 1);
     assert.match(
       found[0],
-      new RegExp(`rules has ${limit + 1} rules; the most allowed is ${limit}`),
+      new RegExp(
+        `^rules: The rotation has ${limit + 1} rules; the most allowed is ${limit}`,
+      ),
     );
   });
 
@@ -453,7 +466,7 @@ describe("RotationRule shape check: purity", () => {
 });
 
 describe("RotationRule shape check: errors with a path (R4)", () => {
-  it("gives { path, message } and the same messages as the problem list", () => {
+  it("gives { path, message }, and the problem list is each path and message (#214)", () => {
     const bad = {
       schemaVersion: 1,
       name: "",
@@ -479,10 +492,12 @@ describe("RotationRule shape check: errors with a path (R4)", () => {
     );
     assert.deepEqual(
       rotationShapeProblems(bad),
-      errors.map((error) => error.message),
+      errors.map((error) => `${error.path}: ${error.message}`),
     );
     for (const error of errors) {
       assert.ok(error.message.length > 0);
+      // The message contract: a message never says where.
+      assert.ok(!error.message.includes("rules["), error.message);
     }
   });
 

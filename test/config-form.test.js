@@ -18,6 +18,7 @@ import {
 import { createFight, runFight } from "../js/fight.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import { exportRotation } from "../js/rotation-io.js";
+import { formatError } from "../js/rotation-schema.js";
 import { rotationWarnings } from "../js/rotation-warnings.js";
 import { listPresets, presetRotation } from "../js/rotation-presets.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
@@ -415,18 +416,16 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(status.ok, true);
     assert.equal(
       status.message,
-      'Imported "Trap" with 2 warnings. It still runs; see the warnings below.',
+      'Imported "Trap" with 1 warning. It still runs; see the warnings below.',
     );
     assert.equal(status.detail, "");
     assert.equal(
       status.warnings,
-      rotationWarnings(trap)
-        .map(({ message }) => message)
-        .join("\n"),
+      rotationWarnings(trap).map(errorLine).join("\n"),
     );
     assert.match(
       status.warnings,
-      /^rules\[0\]: Eviscerate \(eviscerate\) is a finisher/m,
+      /^rules\[0\]\.conditions: Eviscerate \(eviscerate\) is a finisher/m,
     );
     actions.importText("{ nope");
     assert.equal(form().importStatus.warnings, "");
@@ -488,10 +487,10 @@ describe("rotation: one source of truth, config.rotation", () => {
       form().importStatus.detail,
       /^schemaVersion: The rotation is missing "schemaVersion"\.$/m,
     );
-    // The validator's message names its own place, so it is not doubled.
+    // The message names no place; the path is written once, in front (#214).
     assert.match(
       form().importStatus.detail,
-      /^rules\[0\] is missing "action"\.$/m,
+      /^rules\[0\]\.action: The rule is missing "action"\.$/m,
     );
     assert.doesNotMatch(
       form().importStatus.detail,
@@ -499,7 +498,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     );
   });
 
-  it("a refused talent-granted rule shows its path once (#189 review)", () => {
+  it("a refused talent-granted rule shows its path once, in front (#189 review, #214)", () => {
     const { actions, form } = setup();
     actions.importText(
       JSON.stringify({
@@ -511,40 +510,26 @@ describe("rotation: one source of truth, config.rotation", () => {
     const { detail } = form().importStatus;
     assert.match(
       detail,
-      /^rules\[0\]: Blade Flurry \(blade-flurry\) comes from a talent/,
+      /^rules\[0\]\.conditions: Blade Flurry \(blade-flurry\) comes from a talent/,
     );
-    assert.doesNotMatch(detail, /rules\[0\]\.conditions: /);
+    assert.equal(detail.split("rules[0]").length, 2, detail);
   });
 
-  it("errorLine writes the path only when the message does not name it", () => {
+  it("errorLine is formatError: the path, then the message, or the message alone at the root (#214)", () => {
     const line = (path, message) => errorLine({ path, message });
+    assert.equal(errorLine, formatError);
     assert.equal(line("", "Not JSON."), "Not JSON.");
     assert.equal(
-      line("rules[0].conditions", "rules[0]: Blade Flurry"),
-      "rules[0]: Blade Flurry",
+      line("rules[0].conditions", "Blade Flurry"),
+      "rules[0].conditions: Blade Flurry",
     );
-    assert.equal(line("rules", "rules is empty: x"), "rules is empty: x");
-    assert.equal(
-      line("rules[0].action", 'rules[0] is missing "action".'),
-      'rules[0] is missing "action".',
-    );
-    assert.equal(
-      line(
-        "rules[1].conditions[0].value",
-        "rules[1].conditions[0].value must be 0 or more",
-      ),
-      "rules[1].conditions[0].value must be 0 or more",
-    );
-    // A message that does not start with the path keeps the prefix.
     assert.equal(
       line("schemaVersion", 'The rotation is missing "schemaVersion".'),
       'schemaVersion: The rotation is missing "schemaVersion".',
     );
+    // No guessing from the text: a message is never read for a place.
     assert.equal(line("rules[1]", "rules[0]: x"), "rules[1]: rules[0]: x");
-    assert.equal(line("rulesets", "rules is x"), "rulesets: rules is x");
-    // A message about the list is not taken as naming one rule in it.
-    assert.equal(line("rules[2]", "rules is x"), "rules[2]: rules is x");
-    assert.equal(line("rules[0]", "(none)"), "rules[0]: (none)");
+    assert.equal(line("rules", "rules is x"), "rules: rules is x");
   });
 
   it("a file over the import limit is refused by rotation-io's own limit", () => {

@@ -17,7 +17,8 @@ import {
   rotationProblems,
   validateRotation,
 } from "../js/rotation-validator.js";
-import { ERROR_DATA } from "./rotation-error-codes.js";
+import { rotationWarnings } from "../js/rotation-warnings.js";
+import { ERROR_DATA, WARNING_DATA } from "./rotation-error-codes.js";
 
 const SS = { action: "sinister-strike", conditions: [] };
 const rotation = (...rules) => ({ schemaVersion: 1, name: "t", rules });
@@ -524,30 +525,50 @@ describe("rotation error codes (#212): import", () => {
     assert.equal(long.max, ENERGY_MAX);
   });
 
-  it("warnings have no code, as before (#214 gives them one)", () => {
-    const result = importRotation(
-      exportRotation(rotation(rule("eviscerate"), SS)),
+  it("warnings have a code and its data, as errors do (#214)", () => {
+    const trap = rotation(
+      rule("ghostly-strike", { type: "abilityGranted", ability: "backstab" }),
+      rule("eviscerate"),
+      SS,
+      SS,
+      rule("backstab"),
     );
+    const result = importRotation(exportRotation(trap));
     assert.equal(result.ok, true);
-    assert.ok(result.warnings.length > 0);
+    assert.deepEqual(result.warnings, rotationWarnings(trap));
+    assert.deepEqual(
+      [...new Set(result.warnings.map((warning) => warning.code))].sort(),
+      Object.keys(WARNING_DATA).sort(),
+    );
     for (const warning of result.warnings) {
-      assert.deepEqual(Object.keys(warning).sort(), ["message", "path"]);
+      assert.deepEqual(
+        Object.keys(warning),
+        ["code", "path", "message", ...WARNING_DATA[warning.code]],
+        warning.code,
+      );
+      assert.ok(Object.isFrozen(warning), warning.code);
     }
   });
 });
 
-describe("rotation error codes (#212): the thrown and string forms read as before", () => {
+describe("rotation error codes (#214): the thrown and string forms are each path, then its message", () => {
   const bad = {
     schemaVersion: 1,
     name: "t",
     rules: [rule("cold-blood"), rule("sinister-strike", { ...five, value: 9 })],
   };
   const MESSAGES = [
-    'rules[0]: Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
-    "rules[1].conditions[0].value must be between 0 and 5 for comboPoints, got 9.",
+    'rules[0].conditions: Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
+    "rules[1].conditions[0].value: The value must be between 0 and 5 for comboPoints, got 9.",
   ];
 
-  it("rotationProblems is the messages", () => {
+  it("no message carries a place", () => {
+    for (const error of validateRotation(bad)) {
+      assert.doesNotMatch(error.message, /rules\[/);
+    }
+  });
+
+  it("rotationProblems is each path and message", () => {
     assert.deepEqual(rotationProblems(bad), MESSAGES);
   });
 
@@ -572,8 +593,8 @@ describe("rotation error codes (#212): the thrown and string forms read as befor
   it("rotationShapeProblems and assertRotationShape read the shape messages", () => {
     const shape = { schemaVersion: 1, name: "", rules: [5] };
     const messages = [
-      "name must be a non-empty string.",
-      "rules[0] must be an object { action, conditions }.",
+      "name: The name must be a non-empty string.",
+      "rules[0]: The rule must be an object { action, conditions }.",
     ];
     assert.deepEqual(rotationShapeProblems(shape), messages);
     assert.throws(
@@ -582,10 +603,10 @@ describe("rotation error codes (#212): the thrown and string forms read as befor
     );
   });
 
-  it("conditionErrors and assertCondition read as before", () => {
+  it("conditionErrors gives the message with no place, and assertCondition writes the path first", () => {
     const condition = { type: "comboPoints", op: "~", value: 1 };
     const message =
-      'c (comboPoints) has a bad "op": needs one of >= > <= < ==, got "~".';
+      'The comboPoints condition has a bad "op": needs one of >= > <= < ==, got "~".';
     assert.deepEqual(conditionErrors(condition, "c"), [
       { code: "badParam", path: "c.op", message, param: "op" },
     ]);
@@ -594,7 +615,7 @@ describe("rotation error codes (#212): the thrown and string forms read as befor
       (error) =>
         error instanceof RangeError &&
         error.message ===
-          'Bad rotation condition:\nThe condition (comboPoints) has a bad "op": needs one of >= > <= < ==, got "~".',
+          'Bad rotation condition:\nop: The comboPoints condition has a bad "op": needs one of >= > <= < ==, got "~".',
     );
   });
 });
@@ -620,6 +641,29 @@ describe("rotation error codes (#212): the docs", () => {
       Object.fromEntries(rows),
       Object.fromEntries(
         Object.entries(ERROR_DATA).map(([code, data]) => [code, [...data]]),
+      ),
+    );
+  });
+
+  it("docs/rotation.md lists every warning code with its data, and no other (#214)", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const text = await readFile(
+      new URL("../docs/rotation.md", import.meta.url),
+      "utf8",
+    );
+    const start = text.indexOf("### Warning codes");
+    assert.ok(start > 0);
+    const section = text.slice(start, text.indexOf("\n## ", start));
+    const rows = [...section.matchAll(/^\| `(\w+)` +\| ([^|]*)\|/gm)].map(
+      ([, code, data]) => [
+        code,
+        [...data.matchAll(/`(\w+)`/g)].map(([, name]) => name),
+      ],
+    );
+    assert.deepEqual(
+      Object.fromEntries(rows),
+      Object.fromEntries(
+        Object.entries(WARNING_DATA).map(([code, data]) => [code, [...data]]),
       ),
     );
   });

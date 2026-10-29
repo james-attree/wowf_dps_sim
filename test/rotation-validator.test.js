@@ -129,9 +129,12 @@ describe("validateRotation: the rotation as a whole", () => {
     assert.equal(error.path, "rules");
     assert.match(
       error.message,
-      /^rules is empty: a rotation needs at least one rule/,
+      /^There are no rules: a rotation needs at least one rule/,
     );
-    assert.throws(() => assertValidRotation(rotation()), /rules is empty/);
+    assert.throws(
+      () => assertValidRotation(rotation()),
+      /\nrules: There are no rules/,
+    );
   });
 
   it("rejects the wrong schemaVersion, and reads nothing else", () => {
@@ -141,11 +144,11 @@ describe("validateRotation: the rotation as a whole", () => {
     assert.equal(error.path, "schemaVersion");
     assert.match(
       error.message,
-      /schemaVersion 2 is not supported.*reads schemaVersion 1/,
+      /^Version 2 is not supported.*reads schemaVersion 1/,
     );
     assert.match(
       only(validateRotation({ ...valid, schemaVersion: "1" })).message,
-      /schemaVersion "1" is not supported/,
+      /^Version "1" is not supported/,
     );
   });
 
@@ -172,7 +175,7 @@ describe("validateRotation: the rotation as a whole", () => {
       }),
     );
     assert.equal(error.path, "rules[1].conditions");
-    assert.match(error.message, /^rules\[1\] is missing "conditions"/);
+    assert.equal(error.message, 'The rule is missing "conditions".');
   });
 });
 
@@ -184,7 +187,7 @@ describe("validateRotation: actions", () => {
     assert.equal(error.path, "rules[1].action");
     assert.match(
       error.message,
-      /^rules\[1\]\.action "nonsense" is not an ability in the spell data\. The rogue casts: .*sinister-strike/,
+      /^"nonsense" is not an ability in the spell data\. The rogue casts: .*sinister-strike/,
     );
   });
 
@@ -209,14 +212,17 @@ describe("validateRotation: conditions", () => {
     assert.equal(error.path, "rules[1].conditions[0].type");
     assert.match(
       error.message,
-      /^rules\[1\]\.conditions\[0\] has unknown type "moonPhase"\. Known: resource, comboPoints/,
+      /^The condition has unknown type "moonPhase"\. Known: resource, comboPoints/,
     );
   });
 
   it("rejects bad params: missing, wrong type, unknown, bad operator", () => {
     const missing = only(withCondition({ type: "comboPoints", op: ">=" }));
     assert.equal(missing.path, "rules[1].conditions[0].value");
-    assert.match(missing.message, /\(comboPoints\) is missing "value"/);
+    assert.equal(
+      missing.message,
+      'The comboPoints condition is missing "value": a finite number.',
+    );
 
     const text = only(
       withCondition({ type: "comboPoints", op: ">=", value: "5" }),
@@ -270,7 +276,7 @@ describe("validateRotation: conditions", () => {
     }
     assert.match(
       only(validateRotation({ ...valid, schemaVersion: NaN })).message,
-      /schemaVersion NaN is not supported/,
+      /^Version NaN is not supported/,
     );
     assert.match(
       only(validateRotation(rotation(rule(undefined)))).message,
@@ -469,7 +475,7 @@ describe("validateRotation: conditions", () => {
     );
   });
 
-  it("names the rule and condition index of each of several errors, in order", () => {
+  it("puts the rule and condition index of each of several errors in its path, in order, and none in its message (#214)", () => {
     const errors = validateRotation(
       rotation(
         rule("nonsense", { type: "comboPoints", op: ">=", value: 99 }),
@@ -491,12 +497,7 @@ describe("validateRotation: conditions", () => {
       ],
     );
     for (const error of errors) {
-      assert.ok(
-        error.message.startsWith(
-          error.path.replace(/\.(type|value|ability)$/, ""),
-        ),
-        error.message,
-      );
+      assert.ok(!error.message.includes("rules["), error.message);
     }
   });
 });
@@ -580,18 +581,13 @@ describe("assertValidRotation and rotationProblems", () => {
       rule("eviscerate", { type: "bogus" }),
     );
     const errors = validateRotation(bad);
-    assert.deepEqual(
-      rotationProblems(bad),
-      errors.map((error) => error.message),
-    );
+    const lines = errors.map((error) => `${error.path}: ${error.message}`);
+    assert.deepEqual(rotationProblems(bad), lines);
     assert.throws(
       () => assertValidRotation(bad),
       (error) => {
         assert.equal(error.name, "RangeError");
-        assert.equal(
-          error.message,
-          `Bad rotation:\n${errors.map((e) => e.message).join("\n")}`,
-        );
+        assert.equal(error.message, `Bad rotation:\n${lines.join("\n")}`);
         return true;
       },
     );
@@ -600,7 +596,7 @@ describe("assertValidRotation and rotationProblems", () => {
 
 describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
   const MESSAGE =
-    ': Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.';
+    'Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.';
   const five = { type: "comboPoints", op: ">=", value: 5 };
 
   it("rejects a Cold Blood rule with no conditions, as an error on its conditions", () => {
@@ -610,7 +606,7 @@ describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
         {
           code: "talentGuard",
           path: "rules[1].conditions",
-          message: `rules[1]${MESSAGE}`,
+          message: MESSAGE,
           ability: "cold-blood",
         },
       ],
@@ -632,7 +628,7 @@ describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
         "rules[0].conditions",
         JSON.stringify(conditions),
       );
-      assert.equal(error.message, `rules[0]${MESSAGE}`);
+      assert.equal(error.message, MESSAGE);
     }
   });
 
@@ -696,7 +692,7 @@ describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
     );
     assert.throws(
       () => runFight({ seed: 1, duration: 5, config }),
-      /rules\[0\]: Cold Blood \(cold-blood\) comes from a talent/,
+      /\nrules\[0\]\.conditions: Cold Blood \(cold-blood\) comes from a talent/,
     );
   });
 
@@ -749,8 +745,11 @@ describe("an invalid rotation never starts a fight", () => {
       );
       assert.throws(() => new Rogue(config), /not a valid rotation/);
     }
-    assert.throws(() => createFight(1, empty), /rules is empty/);
-    assert.throws(() => createFight(1, bad), /rules\[0\]\.action "nonsense"/);
+    assert.throws(() => createFight(1, empty), /\nrules: There are no rules/);
+    assert.throws(
+      () => createFight(1, bad),
+      /\nrules\[0\]\.action: "nonsense" is not an ability/,
+    );
   });
 });
 

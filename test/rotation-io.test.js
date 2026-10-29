@@ -463,7 +463,7 @@ describe("importRotation: what it refuses", () => {
     assert.match(
       first(importRotation(JSON.stringify({ ...SMALL, schemaVersion: 2 })))
         .message,
-      /schemaVersion 2 is not supported/,
+      /^Version 2 is not supported/,
     );
   });
 

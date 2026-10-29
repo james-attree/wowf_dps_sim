@@ -1,6 +1,7 @@
 import { k } from "../data/constants.js";
 import { defaultRotation } from "./rotation-default.js";
 import { exportRotation, importRotation } from "./rotation-io.js";
+import { formatError } from "./rotation-schema.js";
 import { poisonCatalogue } from "./poisons.js";
 import { listPresets, presetRotation } from "./rotation-presets.js";
 import { summarizeRule } from "./rotation-summary.js";
@@ -344,16 +345,11 @@ export function importedText(name, warnings) {
   return `Imported "${name}" with ${count}. It still runs; see the warnings below.`;
 }
 
-// One line of a refused import's detail. The validator's messages already
-// name their place ("rules[0]: Blade Flurry ...", "rules[0] is missing ...",
-// "rules is empty: ..."), so the path is written in front only when the
-// message does not start with it or with the part of it before a ".".
-// "" is the path of a problem with the whole text.
-export function errorLine({ path, message }) {
-  const lead = /^[\w.[\]]+/.exec(message)?.[0];
-  const named = path === lead || path.startsWith(`${lead}.`);
-  return path === "" || named ? message : `${path}: ${message}`;
-}
+// One line of an import's detail or warnings: the entry's path and then its
+// message, or the message alone for a problem with the whole text (path "").
+// Messages never say where (the message contract, #214), so every line is
+// written by formatError, as the validator's string forms are.
+export const errorLine = formatError;
 
 // The actions the view calls. `defaults` gives the config Reset restores.
 // Creating the model fills the `form` slice from the store's config.
@@ -467,7 +463,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
           ok: true,
           message: importedText(name, result.warnings.length),
           detail: "",
-          warnings: result.warnings.map(({ message }) => message).join("\n"),
+          warnings: result.warnings.map(errorLine).join("\n"),
         },
       });
       return true;

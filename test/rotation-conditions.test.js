@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { k } from "../data/constants.js";
 import { createFight } from "../js/fight.js";
 import {
+  CONDITION_PARAMS,
   CONDITION_TYPES,
   OPERATORS,
   assertCondition,
@@ -491,16 +492,18 @@ describe("bad conditions are rejected with the param named", () => {
     assert.equal(found.length, 4);
   });
 
-  it("uses `where` as the prefix of every message", () => {
+  it("writes each problem as its path from `where`, then the message (#214)", () => {
     const found = conditionProblems(
       { type: "comboPoints" },
       "rules[2].conditions[1]",
     );
-    assert.equal(found.length, 2);
-    for (const problem of found) {
-      assert.ok(problem.startsWith("rules[2].conditions[1] (comboPoints)"));
-    }
-    assert.ok(conditionProblems(5, "x").every((line) => line.startsWith("x ")));
+    assert.deepEqual(found, [
+      'rules[2].conditions[1].op: The comboPoints condition is missing "op": one of >= > <= < ==.',
+      'rules[2].conditions[1].value: The comboPoints condition is missing "value": a finite number.',
+    ]);
+    assert.deepEqual(conditionProblems(5, "x"), [
+      "x: The condition must be an object { type, ...params }.",
+    ]);
   });
 
   it("a default prefix names the condition", () => {
@@ -945,7 +948,7 @@ describe("evaluateTrusted (R3, #140)", () => {
 });
 
 describe("conditionErrors (R4)", () => {
-  it("names the param, and has the messages conditionProblems has", () => {
+  it("names the param, and conditionProblems is each path and message (#214)", () => {
     const where = "rules[3].conditions[2]";
     const cases = [
       [{ type: "moonPhase" }, "type"],
@@ -962,8 +965,11 @@ describe("conditionErrors (R4)", () => {
       );
       assert.deepEqual(
         conditionProblems(condition, where),
-        errors.map((error) => error.message),
+        errors.map((error) => `${error.path}: ${error.message}`),
       );
+      for (const error of errors) {
+        assert.ok(!error.message.includes(where), error.message);
+      }
     }
     assert.deepEqual(
       conditionErrors(null, where).map((e) => e.path),
@@ -977,5 +983,90 @@ describe("conditionErrors (R4)", () => {
       conditionErrors({ type: "comboPoints", op: ">=", value: NaN })[0].message,
       /null/,
     );
+  });
+});
+
+describe("CONDITION_PARAMS (#214)", () => {
+  const KINDS = ["id", "operator", "number", "boolean", "resource"];
+
+  it("has every type, in CONDITION_TYPES order, and is frozen all the way down", () => {
+    assert.deepEqual(Object.keys(CONDITION_PARAMS), [...CONDITION_TYPES]);
+    assert.ok(Object.isFrozen(CONDITION_PARAMS));
+    for (const [type, params] of Object.entries(CONDITION_PARAMS)) {
+      assert.ok(Object.isFrozen(params), type);
+      for (const [name, spec] of Object.entries(params)) {
+        assert.ok(Object.isFrozen(spec), `${type}.${name}`);
+        if (spec.values !== undefined) {
+          assert.ok(Object.isFrozen(spec.values), `${type}.${name}`);
+        }
+      }
+    }
+    assert.throws(() => {
+      "use strict";
+      CONDITION_PARAMS.comboPoints.value.kind = "id";
+    }, TypeError);
+  });
+
+  it("each param is { kind, optional?, default?, of?, values? }", () => {
+    for (const [type, params] of Object.entries(CONDITION_PARAMS)) {
+      for (const [name, spec] of Object.entries(params)) {
+        const where = `${type}.${name}`;
+        assert.ok(KINDS.includes(spec.kind), where);
+        for (const key of Object.keys(spec)) {
+          assert.ok(
+            ["kind", "optional", "default", "of", "values"].includes(key),
+            `${where}.${key}`,
+          );
+        }
+        assert.equal(spec.kind === "id", spec.of !== undefined, where);
+        if (spec.of !== undefined) {
+          assert.ok(["ability", "aura", "debuff"].includes(spec.of), where);
+        }
+        assert.equal(
+          ["operator", "resource"].includes(spec.kind),
+          spec.values !== undefined,
+          where,
+        );
+        if (Object.hasOwn(spec, "default")) {
+          assert.equal(spec.optional, true, where);
+        }
+      }
+    }
+    assert.deepEqual(CONDITION_PARAMS.comboPoints, {
+      op: { kind: "operator", values: [...OPERATORS] },
+      value: { kind: "number" },
+    });
+    assert.deepEqual(CONDITION_PARAMS.auraActive, {
+      aura: { kind: "id", of: "aura" },
+      active: { kind: "boolean", optional: true, default: true },
+    });
+    assert.deepEqual(CONDITION_PARAMS.cooldownReady.ability, {
+      kind: "id",
+      of: "ability",
+    });
+    assert.deepEqual(CONDITION_PARAMS.resource.resource.values, [
+      "energy",
+      "comboPoints",
+    ]);
+  });
+
+  it("is what conditionErrors checks: the required params, and no others", () => {
+    for (const [type, params] of Object.entries(CONDITION_PARAMS)) {
+      const required = Object.keys(params).filter(
+        (name) => params[name].optional !== true,
+      );
+      const missing = conditionErrors({ type }, "c").map((e) => e.path);
+      assert.deepEqual(
+        missing,
+        required.map((name) => `c.${name}`),
+        type,
+      );
+      const extra = conditionErrors({ type, zz: 1 }, "c").at(-1);
+      assert.match(
+        extra.message,
+        new RegExp(`Allowed: ${Object.keys(params).join(", ")}\\.$`),
+        type,
+      );
+    }
   });
 });
