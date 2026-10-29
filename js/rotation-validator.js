@@ -304,11 +304,10 @@ function talentGuardError(rule, path, context) {
   if (guarded) {
     return null;
   }
-  const checks = types.join(" or ");
   const wanted = types.map((type) => guardText(type, id)).join(" or ");
   return {
     path: `${path}.conditions`,
-    message: `${path}: ${abilityLabel(id)} comes from a talent, so its rule needs an ${checks} check. Add ${wanted} to its conditions.`,
+    message: `${path}: ${abilityLabel(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
   };
 }
 

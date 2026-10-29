@@ -234,7 +234,10 @@ describe("talent tree model (#204)", () => {
     for (const entry of info.values()) {
       counts[entry.coverage] += 1;
     }
-    assert.deepEqual(counts, { simulated: 17, noDps: 6, notSimulated: 30 });
+    // §6 counted 17 / 6 / 30 at d84a160. Since #207, Ghostly Strike,
+    // Hemorrhage and Premeditation have entries (the talent grants the
+    // ability), so they are simulated: 20 / 6 / 27.
+    assert.deepEqual(counts, { simulated: 20, noDps: 6, notSimulated: 27 });
   });
 
   it("counts picked talents the sim does not model yet in the summary", () => {

@@ -46,7 +46,7 @@ function guardError(index, id, types) {
   const wanted = types.map((type) => guardText(type, id)).join(" or ");
   return {
     path: `rules[${index}].conditions`,
-    message: `rules[${index}]: ${labelOf(id)} comes from a talent, so its rule needs an ${types.join(" or ")} check. Add ${wanted} to its conditions.`,
+    message: `rules[${index}]: ${labelOf(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
   };
 }
 const STRICT = ["abilityGranted"];
@@ -104,11 +104,11 @@ describe("talent guard (#188): the message (#203)", () => {
   it("is the shared template, with the display name and the id", () => {
     assert.equal(
       validateRotation(rotation(rule("cold-blood")))[0].message,
-      'rules[0]: Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
+      'rules[0]: Cold Blood (cold-blood) comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
     );
     assert.equal(
       validateRotation(rotation(rule("blade-flurry")))[0].message,
-      'rules[0]: Blade Flurry (blade-flurry) comes from a talent, so its rule needs an abilityGranted or abilityUnlocked check. Add { "type": "abilityGranted", "ability": "blade-flurry" } or { "type": "abilityUnlocked", "ability": "blade-flurry" } to its conditions.',
+      'rules[0]: Blade Flurry (blade-flurry) comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "blade-flurry" } or { "type": "abilityUnlocked", "ability": "blade-flurry" } to its conditions.',
     );
   });
 
@@ -212,7 +212,7 @@ describe("talent guard (#188): read from the data, not a list in the validator",
   it("writes the fake ability, which has no display name, as its id alone", () => {
     assert.equal(
       validateRotation(rotation(rule(FAKE)), fakeContext([FAKE]))[0].message,
-      'rules[0]: fake-strike comes from a talent, so its rule needs an abilityGranted or abilityUnlocked check. Add { "type": "abilityGranted", "ability": "fake-strike" } or { "type": "abilityUnlocked", "ability": "fake-strike" } to its conditions.',
+      'rules[0]: fake-strike comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "fake-strike" } or { "type": "abilityUnlocked", "ability": "fake-strike" } to its conditions.',
     );
   });
 

@@ -40,15 +40,15 @@ const messages = (value, context) => {
 const finisherText = (
   path,
   label,
-  lacks = "its rule has no comboPoints condition",
+  lacks = "its rule has no combo points condition",
 ) =>
   `${path}: ${label} is a finisher, but ${lacks}. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. ${
-    lacks === "its rule has no comboPoints condition"
-      ? `Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`
-      : "Change its comboPoints condition to need at least 1 combo point."
-  }`;
+    lacks === "its rule has no combo points condition"
+      ? "Add one"
+      : "Change it to need at least one"
+  }, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`;
 const cooldownText = (path, label, id) =>
-  `${path}: ${label} has a cooldown and starts the global cooldown, but its rule has no cooldownReady check. While it is on cooldown it holds back every rule below it. Add { "type": "cooldownReady", "ability": "${id}" } to its conditions.`;
+  `${path}: ${label} has a cooldown and starts the global cooldown, but its rule doesn't check that it's ready. While it is on cooldown it holds back every rule below it. Add { "type": "cooldownReady", "ability": "${id}" } to its conditions.`;
 const starvesText = (
   path,
   label,
@@ -72,76 +72,116 @@ async function docExamples() {
     .filter((value) => value.rules !== undefined);
 }
 
-// Each case's advice spelled out in full, not built by the helpers above, so
-// a helper that drifted with the code would still be caught here.
-describe("rotationWarnings: the advice fits the case", () => {
+// Each case's whole message spelled out, in Fran's wording (U7 spec §19,
+// #207), not built by the helpers above, so a helper that drifted with the
+// code would still be caught here.
+describe("rotationWarnings: each message, in full", () => {
   const only = (value) => {
     const all = messages(value);
     assert.equal(all.length, 1, all.join("\n"));
     return all[0];
   };
-  it("a finisher with no comboPoints condition: add one", () => {
-    assert.ok(
+  const example = `{ "type": "comboPoints", "op": ">=", "value": ${FINISHER} }`;
+  it("a finisher with no combo points condition: add one", () => {
+    assert.equal(
       only(
         rotation(rule("eviscerate", energy(FINISHER)), rule("sinister-strike")),
-      ).endsWith(
-        ` Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": ${FINISHER} }.`,
       ),
+      `rules[0]: Eviscerate (eviscerate) is a finisher, but its rule has no combo points condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add one, such as ${example}.`,
     );
   });
-  it("a finisher whose comboPoints condition holds at 0: change it", () => {
-    const message = only(
-      rotation(
-        rule(
-          "eviscerate",
-          { type: "comboPoints", op: ">=", value: 0 },
-          energy(FINISHER),
+  it("a finisher whose combo points condition holds at 0: change it", () => {
+    assert.equal(
+      only(
+        rotation(
+          rule(
+            "eviscerate",
+            { type: "comboPoints", op: ">=", value: 0 },
+            energy(FINISHER),
+          ),
+          rule("sinister-strike"),
         ),
-        rule("sinister-strike"),
       ),
+      `rules[0]: Eviscerate (eviscerate) is a finisher, but its combo points condition still holds at 0 combo points. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Change it to need at least one, such as ${example}.`,
     );
-    assert.ok(
-      message.endsWith(
-        " so it holds back every rule below it. Change its comboPoints condition to need at least 1 combo point.",
-      ),
-      message,
-    );
-    assert.ok(!message.includes("Add a comboPoints condition"), message);
   });
   it("an on-GCD rule with no conditions: give it some or move it", () => {
-    assert.ok(
+    assert.equal(
       only(
         rotation(rule("sinister-strike"), rule("backstab", energy(FINISHER))),
-      ).endsWith(
-        " These rules below it are never cast: Backstab (backstab). Give it conditions or move it below them.",
       ),
+      "rules[0]: Sinister Strike (sinister-strike) starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: Backstab (backstab). Give it conditions or move it below them.",
     );
   });
-  it("an on-GCD rule whose conditions always hold: change them", () => {
-    const message = only(
-      rotation(
-        rule("sinister-strike", { type: "fightTime", op: ">=", value: 0 }),
-        rule("backstab", energy(FINISHER)),
+  it("an on-GCD rule none of whose conditions can fail: change them", () => {
+    assert.equal(
+      only(
+        rotation(
+          rule("sinister-strike", { type: "fightTime", op: ">=", value: 0 }),
+          rule("backstab", energy(FINISHER)),
+        ),
       ),
+      "rules[0]: Sinister Strike (sinister-strike) starts the global cooldown and none of its rule's conditions can fail, so it is cast or waited for whenever the global cooldown is clear. These rules below it are never cast: Backstab (backstab). Change its conditions so they are sometimes false.",
     );
-    assert.ok(
-      message.endsWith(
-        " These rules below it are never cast: Backstab (backstab). Change its conditions so they are sometimes false.",
-      ),
-      message,
-    );
-    assert.ok(!message.includes("Give it conditions"), message);
   });
-  it("a cooldown with no cooldownReady keeps its advice", () => {
-    assert.ok(
+  it("an on-GCD cooldown that is not checked for being ready", () => {
+    assert.equal(
       only(
         rotation(
           rule("ghostly-strike", unlocked("ghostly-strike"), energy(FINISHER)),
           rule("sinister-strike"),
         ),
-      ).endsWith(
-        ' Add { "type": "cooldownReady", "ability": "ghostly-strike" } to its conditions.',
       ),
+      `rules[0]: Ghostly Strike (ghostly-strike) has a cooldown and starts the global cooldown, but its rule doesn't check that it's ready. While it is on cooldown it holds back every rule below it. Add { "type": "cooldownReady", "ability": "ghostly-strike" } to its conditions.`,
+    );
+  });
+});
+
+// A finisher that would also starve the rules below (no conditions, or only
+// ones that cannot fail) gets the finisher warning alone (#207).
+describe("rotationWarnings: one warning for a finisher", () => {
+  for (const [name, conditions, lacks] of [
+    ["no conditions", [], undefined],
+    [
+      "a combo points condition that holds at 0",
+      [{ type: "comboPoints", op: ">=", value: 0 }],
+      "its combo points condition still holds at 0 combo points",
+    ],
+    ["a condition that cannot fail", [energy(0)], undefined],
+  ]) {
+    it(`${name}: the finisher warning only`, () => {
+      const trap = rotation(
+        rule("eviscerate", ...conditions),
+        rule("sinister-strike"),
+      );
+      assert.deepEqual(messages(trap), [
+        finisherText("rules[0]", "Eviscerate (eviscerate)", lacks),
+      ]);
+    });
+  }
+
+  it("the rule below a finisher still starves what is under it", () => {
+    const trap = rotation(
+      rule("eviscerate"),
+      rule("sinister-strike"),
+      rule("backstab"),
+    );
+    assert.deepEqual(messages(trap), [
+      finisherText("rules[0]", "Eviscerate (eviscerate)"),
+      starvesText(
+        "rules[1]",
+        "Sinister Strike (sinister-strike)",
+        "Backstab (backstab)",
+      ),
+    ]);
+  });
+
+  it("a guarded finisher above an unconditional builder warns for nothing", () => {
+    assert.deepEqual(
+      messages(
+        rotation(rule("eviscerate", enoughPoints), rule("sinister-strike")),
+      ),
+      [],
     );
   });
 });
@@ -177,14 +217,6 @@ describe("rotationWarnings: a finisher with no comboPoints condition", () => {
       {
         path: "rules[0].conditions",
         message: finisherText("rules[0]", "Eviscerate (eviscerate)"),
-      },
-      {
-        path: "rules[0]",
-        message: starvesText(
-          "rules[0]",
-          "Eviscerate (eviscerate)",
-          "Sinister Strike (sinister-strike)",
-        ),
       },
     ]);
   });
@@ -248,7 +280,7 @@ describe("rotationWarnings: a finisher with no comboPoints condition", () => {
           finisherText(
             "rules[0]",
             "Eviscerate (eviscerate)",
-            "its comboPoints condition does not need a combo point",
+            "its combo points condition still holds at 0 combo points",
           ),
         ],
         `${op} ${value}`,
@@ -413,7 +445,7 @@ describe("rotationWarnings: an unconditional on-GCD rule above others", () => {
             "rules[0]",
             "Sinister Strike (sinister-strike)",
             "Backstab (backstab)",
-            "its rule's conditions always hold",
+            "none of its rule's conditions can fail",
           ),
         ],
         JSON.stringify(condition),
@@ -483,11 +515,6 @@ describe("rotationWarnings: data, not names", () => {
     assert.deepEqual(messages(trap, fakeContext), [
       finisherText("rules[0]", "fake-strike"),
       cooldownText("rules[0]", "fake-strike", "fake-strike"),
-      starvesText(
-        "rules[0]",
-        "fake-strike",
-        "Sinister Strike (sinister-strike)",
-      ),
     ]);
   });
 
@@ -513,7 +540,7 @@ describe("rotationWarnings: data, not names", () => {
       rotationWarnings(trap, asSets),
       rotationWarnings(trap, fakeContext),
     );
-    assert.equal(rotationWarnings(trap, asSets).length, 3);
+    assert.equal(rotationWarnings(trap, asSets).length, 2);
     const context = warningContext(asSets);
     for (const field of ["finishers", "cooldowns", "onGcd"]) {
       assert.ok(Array.isArray(context[field]), field);
@@ -598,7 +625,11 @@ describe("rotationWarnings: what it does not do", () => {
 
 describe("importRotation: warnings", () => {
   it("a file with a trap still imports, and returns its warnings", () => {
-    const trap = rotation(rule("eviscerate"), rule("sinister-strike"));
+    const trap = rotation(
+      rule("eviscerate"),
+      rule("sinister-strike"),
+      rule("backstab"),
+    );
     const result = importRotation(exportRotation(trap));
     assert.equal(result.ok, true);
     assert.deepEqual(result.rotation, trap);

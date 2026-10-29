@@ -31,7 +31,10 @@ import {
 //   3. An on-GCD rule with no conditions that has an on-GCD rule below it.
 //      Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule
 //      below it is ever reached (an off-GCD rule below still is, while the GCD
-//      runs). The last on-GCD rule, the usual builder, may have none.
+//      runs). The last on-GCD rule, the usual builder, may have none. A rule
+//      that already has warning 1 does not get this one too (#207): the
+//      finisher warning names its fix.
+// The wording is Fran's (docs/design U7 spec §19, #207).
 // A message names the ability by display name and id (abilityLabel, as the
 // talent guard does, #203). The name is only ever written out, never compared
 // or branched on.
@@ -111,15 +114,16 @@ function finisherWarning(rule, path, context) {
   // holds at 0 is changed, not added to.
   const hasOne = rule.conditions.some(({ type }) => type === "comboPoints");
   const lacks = hasOne
-    ? "its comboPoints condition does not need a combo point"
-    : "its rule has no comboPoints condition";
+    ? "its combo points condition still holds at 0 combo points"
+    : "its rule has no combo points condition";
+  const example = conditionText({
+    type: "comboPoints",
+    op: ">=",
+    value: k("rotation.finisherComboPoints"),
+  });
   const advice = hasOne
-    ? "Change its comboPoints condition to need at least 1 combo point."
-    : `Add a comboPoints condition, such as ${conditionText({
-        type: "comboPoints",
-        op: ">=",
-        value: k("rotation.finisherComboPoints"),
-      })}.`;
+    ? `Change it to need at least one, such as ${example}.`
+    : `Add one, such as ${example}.`;
   return {
     path: `${path}.conditions`,
     message: `${path}: ${abilityLabel(rule.action)} is a finisher, but ${lacks}. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. ${advice}`,
@@ -141,7 +145,7 @@ function cooldownWarning(rule, path, context) {
   const wanted = conditionText({ type: "cooldownReady", ability: id });
   return {
     path: `${path}.conditions`,
-    message: `${path}: ${abilityLabel(id)} has a cooldown and starts the global cooldown, but its rule has no cooldownReady check. While it is on cooldown it holds back every rule below it. Add ${wanted} to its conditions.`,
+    message: `${path}: ${abilityLabel(id)} has a cooldown and starts the global cooldown, but its rule doesn't check that it's ready. While it is on cooldown it holds back every rule below it. Add ${wanted} to its conditions.`,
   };
 }
 
@@ -158,7 +162,7 @@ function starvesWarning(rules, index, path, context) {
   const none = rule.conditions.length === 0;
   const lacks = none
     ? "its rule has no conditions"
-    : "its rule's conditions always hold";
+    : "none of its rule's conditions can fail";
   const advice = none
     ? "Give it conditions or move it below them."
     : "Change its conditions so they are sometimes false.";
@@ -187,10 +191,15 @@ export function rotationWarnings(rotation, context = {}) {
   const warnings = [];
   rotation.rules.forEach((rule, index) => {
     const path = `rules[${index}]`;
+    const finisher = finisherWarning(rule, path, given);
     for (const warning of [
-      finisherWarning(rule, path, given),
+      finisher,
       cooldownWarning(rule, path, given),
-      starvesWarning(rotation.rules, index, path, given),
+      // One warning per trap: a finisher that holds back the rules below for
+      // want of combo points is told so once, not again as starving them.
+      finisher === null
+        ? starvesWarning(rotation.rules, index, path, given)
+        : null,
     ]) {
       if (warning !== null) {
         warnings.push(warning);

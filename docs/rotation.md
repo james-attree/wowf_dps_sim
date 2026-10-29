@@ -490,22 +490,23 @@ imports and runs, and nothing here changes what a fight casts.
   out is the engine's. A list given as anything else (a string, `null`, `{}`)
   is a `TypeError` that names the field and says what was given (#207).
 
-| Trap                                                                                                                      | Path                  | Why it pools                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A finisher with no `comboPoints` condition that needs a combo point (one that holds at 0, such as `>= 0`, counts as none) | `rules[i].conditions` | It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it.                                                                                                                                                                 |
-| An on-GCD ability with a cooldown and no `cooldownReady` for it                                                           | `rules[i].conditions` | While it is on cooldown it cannot be cast, so it holds back every rule below it. An off-GCD cooldown is passed over, not pooled for, so it is not warned for.                                                                                                        |
-| An on-GCD rule with no conditions, or only ones that always hold, above another on-GCD rule                               | `rules[i]`            | Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule below it is reached. The last on-GCD rule, the usual builder, may have none. "Always hold" is the cheap case only: `>= 0` on `comboPoints`, a `resource`, `fightTime` or `fightTimeRemaining`. |
+| Trap                                                                                                                      | Path                  | Why it pools                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A finisher with no `comboPoints` condition that needs a combo point (one that holds at 0, such as `>= 0`, counts as none) | `rules[i].conditions` | It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it.                                                                                                                                                                                                                                              |
+| An on-GCD ability with a cooldown and no `cooldownReady` for it                                                           | `rules[i].conditions` | While it is on cooldown it cannot be cast, so it holds back every rule below it. An off-GCD cooldown is passed over, not pooled for, so it is not warned for.                                                                                                                                                                                     |
+| An on-GCD rule with no conditions, or only ones that always hold, above another on-GCD rule                               | `rules[i]`            | Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule below it is reached. The last on-GCD rule, the usual builder, may have none. "Always hold" is the cheap case only: `>= 0` on `comboPoints`, a `resource`, `fightTime` or `fightTimeRemaining`. A finisher rule that has the first warning does not get this one too (#207). |
 
 The default rotation, every preset and every example below give no warnings
 (test/rotation-warnings.test.js). A message names the ability as the
 talent-guard error does, display name and id (`abilityLabel`, #203), and
 its advice fits the case (#207): it names the condition to add, but a
 finisher whose `comboPoints` condition holds at 0 is told to change it to
-need at least 1 combo point, and a rule whose conditions always hold is told
-to change them so they are sometimes false:
+need at least one, and a rule none of whose conditions can fail is told to
+change them so they are sometimes false. The wording is Fran's (U7 design
+spec §19):
 
 ```text
-rules[0]: Eviscerate (eviscerate) is a finisher, but its rule has no comboPoints condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": 5 }.
+rules[0]: Eviscerate (eviscerate) is a finisher, but its rule has no combo points condition. It is cast at one combo point, and with none it can't be cast, so it holds back every rule below it. Add one, such as { "type": "comboPoints", "op": ">=", "value": 5 }.
 ```
 
 The warnings do not know the fight: an unconditional Backstab rule is warned
