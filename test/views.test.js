@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { createFight } from "../js/fight.js";
@@ -14,6 +15,7 @@ import {
   createAnnouncer,
   createVisualiserView,
   logRowReading,
+  LOG_HINT,
   logRowSpoken,
   timedEffectReading,
 } from "../js/views/visualiser.js";
@@ -762,7 +764,7 @@ describe("page views", () => {
     store.set({ run: { state: "paused", seed: SEED } });
     assert.equal(
       doc.el("#log-hint").textContent,
-      "Paused. Left and Right arrow keys step through the log.",
+      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
     );
     assert.equal(doc.el("#log-readout").textContent, "");
     assert.equal(doc.el("#log-step").textContent, "");
@@ -771,7 +773,7 @@ describe("page views", () => {
     // U9 polish: the hint stays the log's description, out of sight.
     assert.equal(
       doc.el("#log-hint").textContent,
-      "Paused. Left and Right arrow keys step through the log.",
+      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
     );
     assert.equal(doc.el("#log-hint").classes.has("visually-hidden"), true);
     // U9 polish: the shown damage has commas, as the spoken one does.
@@ -889,6 +891,137 @@ describe("page views", () => {
       `End of log. ${latest}`,
       "End of log",
     ]);
+  });
+
+  it("U9 log polish: the selected row scrolls into view, nearest (#221)", () => {
+    const doc = recordingDocument();
+    const rows = [
+      { ...LOG_ROW, id: 2, time: 3 },
+      { ...LOG_ROW, id: 1, time: 2 },
+      { ...LOG_ROW, id: 0, time: 1 },
+    ];
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    store.set({ frame: 1, log: rows, run: { state: "paused", seed: SEED } });
+    const scroll = doc.el(".combat-log-scroll");
+    const press = (key) => scroll.fire("keydown", { key, preventDefault() {} });
+    const logRows = doc.el("#combat-log").children;
+    // The unit-test DOM has no scrollIntoView: the step still works.
+    press("ArrowLeft");
+    assert.ok(logRows[0].classes.has("is-selected"));
+    const scrolled = [];
+    logRows.forEach((row, index) => {
+      row.scrollIntoView = (options) => scrolled.push([index, options]);
+    });
+    for (const key of [
+      "Home",
+      "ArrowLeft",
+      "ArrowRight",
+      "End",
+      "ArrowRight",
+    ]) {
+      press(key);
+    }
+    const nearest = { block: "nearest" };
+    assert.deepEqual(scrolled, [
+      [2, nearest],
+      [2, nearest],
+      [1, nearest],
+      [0, nearest],
+      [0, nearest],
+    ]);
+  });
+
+  it("U9 log polish: Home and End in the hint and the key shortcuts (#221)", async () => {
+    assert.equal(
+      LOG_HINT,
+      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
+    );
+    const html = await readFile(
+      new URL("../index.html", import.meta.url),
+      "utf8",
+    );
+    assert.match(html, /aria-keyshortcuts="ArrowLeft ArrowRight Home End"/);
+    const doc = recordingDocument();
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    store.set({ run: { state: "paused", seed: SEED } });
+    assert.equal(doc.el("#log-hint").textContent, LOG_HINT);
+  });
+
+  it("U9 log polish: the log rows' damage has commas (#221)", () => {
+    const doc = recordingDocument();
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    store.set({
+      frame: 1,
+      log: [
+        { ...LOG_ROW, id: 2, damage: 1234567.8 },
+        { ...LOG_ROW, id: 1, damage: 3176.9 },
+        { ...LOG_ROW, id: 0, damage: 99.9 },
+      ],
+    });
+    const damage = doc
+      .el("#combat-log")
+      .children.map((row) => row.children[3])
+      .map((cell) => [cell.className, cell.textContent]);
+    assert.deepEqual(damage, [
+      ["combat-log-damage", "1,234,567"],
+      ["combat-log-damage", "3,176"],
+      ["combat-log-damage", "99"],
+    ]);
+  });
+
+  it("U9 log polish: the start of a log that dropped rows is the kept log's (#221)", () => {
+    const { doc } = windowedDocument(false);
+    const max = k("log.maxEvents");
+    // Newest first, ids from..to.
+    const rows = (from, to) =>
+      Array.from({ length: to - from + 1 }, (_, back) => {
+        const id = to - back;
+        return { ...LOG_ROW, id, time: id / 10, damage: id };
+      });
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    const scroll = doc.el(".combat-log-scroll");
+    const readout = doc.el("#log-readout");
+    const say = (key) => {
+      scroll.fire("keydown", { key, preventDefault() {} });
+      return readout.textContent;
+    };
+    const pause = () => store.set({ run: { state: "paused", seed: SEED } });
+    const resume = () => store.set({ run: { state: "running", seed: SEED } });
+
+    // Exactly max rows: none dropped, the plain start.
+    store.set({ frame: 1, log: rows(1, max) });
+    pause();
+    assert.equal(say("Home"), `Start of log. ${logRowSpoken(rows(1, 1)[0])}`);
+    assert.equal(say("ArrowLeft"), "Start of log");
+
+    // One more: the oldest is dropped, the start is the kept log's.
+    resume();
+    store.set({ frame: 2, log: rows(2, max + 1) });
+    pause();
+    const kept = `Start of kept log (last ${max} events).`;
+    assert.equal(kept, "Start of kept log (last 100 events).");
+    const home = say("Home");
+    assert.equal(home, `${kept} ${logRowSpoken(rows(2, 2)[0])}`);
+    assert.equal(home.includes(".."), false, "no double period");
+    assert.equal(say("ArrowLeft"), kept);
+    assert.equal(say("ArrowLeft"), kept);
+    assert.equal(
+      say("End"),
+      `End of log. ${logRowSpoken(rows(max + 1, max + 1)[0])}`,
+      "End is unchanged",
+    );
+    assert.equal(say("ArrowRight"), "End of log");
+
+    // A new fight starts its ids again: the plain start once more.
+    resume();
+    store.set({ frame: 3, log: rows(0, 4) });
+    pause();
+    assert.equal(say("ArrowLeft"), logRowSpoken(rows(4, 4)[0]));
+    assert.equal(say("Home"), `Start of log. ${logRowSpoken(rows(0, 0)[0])}`);
   });
 
   it("U9 polish: identical frames write nothing to the buffs or cooldowns", () => {
