@@ -378,7 +378,7 @@ describe("RotationRule shape check: limits", () => {
   it("reads the limits from the constants", () => {
     assert.ok(k("rotation.maxRules") >= 6);
     assert.ok(k("rotation.maxConditionsPerRule") >= 3);
-    assert.ok(k("rotation.maxNameLength") >= "Combat (placeholder)".length);
+    assert.ok(k("rotation.maxNameLength") >= "Default (Combat)".length);
   });
 
   it("allows exactly maxRules rules and rejects one more", () => {

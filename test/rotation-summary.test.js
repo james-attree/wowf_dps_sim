@@ -214,7 +214,7 @@ describe("summarizeRotation", () => {
   it("is the name and a numbered line for each rule, in priority order", () => {
     const text = summarizeRotation(defaultRotation());
     assert.deepEqual(text.split("\n"), [
-      "Combat (placeholder)",
+      "Default (Combat)",
       "1. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Energy >= 25",
       "2. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready",
       "3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left",

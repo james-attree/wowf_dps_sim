@@ -1,6 +1,8 @@
 import { k } from "../data/constants.js";
 import { FrameClock } from "./frame-clock.js";
 import { createLiveFeed } from "./live-feed.js";
+import { normalizeConfig } from "./sim-config.js";
+import { createFight } from "./fight.js";
 import { SimRunner } from "./sim-runner.js";
 
 // The live page's run (#153): one SimRunner per Run, driven by animation
@@ -14,6 +16,7 @@ import { SimRunner } from "./sim-runner.js";
 //   const live = createLiveRun(store, frames);
 //   live.run({ seed, duration, config });  // a new SimRunner, then run()
 //   live.pause(); live.resume(); live.stop(); live.reset();
+//   live.clear({ seed, config });          // an empty picture at 0:00
 //
 // Time. The runner's driver is a FrameClock (js/frame-clock.js): each frame
 // becomes whole steps of k("sim.fixedStep"), at most k("sim.maxFrameTime")
@@ -28,7 +31,9 @@ import { SimRunner } from "./sim-runner.js";
 // (every run(), from idle or finished) gets a new live feed (js/live-feed.js) and its
 // slices; after every frame the page draws, `frame` counts up and `results`
 // and the feed's slices are renewed. stop() and reset() keep the last frame's
-// slices: the fight is discarded, the picture of it is not.
+// slices: the fight is discarded, the picture of it is not. clear() draws an
+// empty one: a new fight at 0:00 that never runs, for the page's first
+// picture and for the control bar's Reset. It is allowed only while idle.
 //
 // fight() is the runner's current fight ({ rogue, simulation }) or null, for
 // tests and tools; the views never read it.
@@ -92,6 +97,10 @@ export function createLiveRun(store, frames) {
         feed?.stop();
         shown = runner.fight;
         feed = createLiveFeed(shown);
+      }
+      // A fight that finishes inside a frame's steps is drawn at its end
+      // before it reads "finished". Pause and stop keep the last frame.
+      if (fresh || to === "finished") {
         publish();
       }
       store.update(({ run }) => ({
@@ -123,6 +132,21 @@ export function createLiveRun(store, frames) {
       runner = next;
       next.onStateChange(onStateChange);
       next.run();
+    },
+    // The picture of a fight from `seed` and `config` at 0:00, with no runner
+    // behind it. Allowed while idle (before the first run, or after stop or
+    // reset), so a running fight is never hidden.
+    clear({ seed, config }) {
+      const state = runner?.state ?? "idle";
+      if (state !== "idle") {
+        throw new Error(
+          `The live run cannot clear while ${state}. Reset it first.`,
+        );
+      }
+      feed?.stop();
+      shown = createFight(seed, normalizeConfig(config));
+      feed = createLiveFeed(shown);
+      publish();
     },
     pause: () => current().pause(),
     resume: () => current().resume(),

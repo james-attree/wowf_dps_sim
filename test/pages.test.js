@@ -275,6 +275,23 @@ describe("project site paths", () => {
         }
       }
 
+      // A module loaded by URL from its own module (the batch worker,
+      // new URL("./batch-worker.js", import.meta.url)) resolves like an import.
+      for (const match of source.matchAll(
+        /new URL\(\s*["'](\.[^"']+)["']\s*,\s*import\.meta\.url/g,
+      )) {
+        const spec = match[1];
+        imports.add(spec);
+        const url = new URL(spec, moduleUrl);
+        assertOnSite(url, `${modulePath} ${spec}`);
+        const rel = sitePath(url);
+        const info = await stat(resolve(root, rel));
+        assert.equal(info.isFile(), true, rel);
+        if (rel.endsWith(".js")) {
+          pending.push(rel);
+        }
+      }
+
       if (!modulePath.startsWith("js/")) {
         continue;
       }
@@ -319,35 +336,18 @@ describe("project site paths", () => {
     // #150).
     // js/rotation-io.js (R6, #143) is the text side of a rotation: the page has
     // no file or clipboard UI to call it yet (#149, #150).
-    // js/batch-runner.js (S1, #144) is the batch engine: nothing imports it
-    // until the worker client (#147) and the UI (#149, #150) do. With it go
-    // js/running-stats.js and js/ability-breakdown.js (S2, #145), which only it
-    // imports until the results UI does, and js/fight-metrics.js (S3, #146,
-    // the aura uptimes) the same way.
-    // js/batch-client.js (S4, #147) runs batches in the worker
-    // js/batch-worker.js (with js/batch-host.js, their protocol); the page
-    // calls it from the UI issues (#149, #150). The worker is not imported but
-    // loaded by URL: the test below checks it is published and resolves.
-    // js/damage-timeline.js (S5, #148, the per-second damage timeline) is
-    // imported by js/batch-runner.js, so it waits with it. js/charts.js and
+    // The control bar's batch mode (#153) wires js/batch-client.js, and with
+    // it js/batch-host.js, js/batch-runner.js, js/running-stats.js,
+    // js/ability-breakdown.js, js/fight-metrics.js and js/damage-timeline.js.
+    // The worker js/batch-worker.js is loaded by URL from the client (new
+    // URL(..., import.meta.url)), which the walk above follows. js/charts.js and
     // js/svg.js (#148) draw the batch charts: the results UI (#149, #150)
     // puts them on the page; until then only the demo harness
     // demo/charts.html (not deployed) uses them.
     // js/rotation-validator.js is wired through the interpreter. The stats
     // form (#151, js/config-form.js) wires js/rotation-summary.js,
     // js/rotation-presets.js and js/rotation-io.js.
-    const notWiredYet = new Set([
-      "js/damage-timeline.js",
-      "js/charts.js",
-      "js/svg.js",
-      "js/batch-client.js",
-      "js/batch-host.js",
-      "js/batch-worker.js",
-      "js/batch-runner.js",
-      "js/running-stats.js",
-      "js/ability-breakdown.js",
-      "js/fight-metrics.js",
-    ]);
+    const notWiredYet = new Set(["js/charts.js", "js/svg.js"]);
     for (const file of publishedJs) {
       if (notWiredYet.has(file)) {
         assert.equal(seen.has(file), false, `${file} is wired: drop it above`);

@@ -4,6 +4,7 @@ import { k } from "../data/constants.js";
 import { createFight } from "../js/fight.js";
 import { createLiveFeed } from "../js/live-feed.js";
 import { defaultConfig } from "../js/sim-config.js";
+import { emptyBatch } from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
 import { createControlsView } from "../js/views/controls.js";
 import { createResultsView } from "../js/views/results.js";
@@ -75,7 +76,9 @@ function element(selector) {
     insertBefore(child) {
       this.children.unshift(child);
     },
-    replaceChildren() {},
+    replaceChildren(...children) {
+      this.children = [...children];
+    },
   };
 }
 
@@ -163,6 +166,23 @@ const LOG_ROW = {
   fromProc: false,
 };
 
+// The run slice js/main.js starts with (#153), with `overrides`.
+function pageRun(overrides = {}) {
+  return {
+    mode: "live",
+    state: "idle",
+    seed: SEED,
+    duration: 300,
+    iterations: 1000,
+    fields: { duration: "300", iterations: "1000", seed: String(SEED) },
+    errors: {},
+    stoppedAt: null,
+    shown: false,
+    snapshot: null,
+    ...overrides,
+  };
+}
+
 function pageStore() {
   const fight = createFight(SEED, defaultConfig());
   const feed = createLiveFeed(fight);
@@ -173,7 +193,8 @@ function pageStore() {
   const store = createStore({
     config: fight.config,
     rotation: fight.config.rotation,
-    run: { state: "running", seed: fight.seed },
+    run: pageRun({ state: "running", seed: fight.seed }),
+    batch: emptyBatch("main"),
     frame: 0,
     results: results(),
     ...feed.read(),
@@ -217,8 +238,11 @@ describe("page views", () => {
       resume: () => calls.push("resume"),
     };
     createControlsView(doc, store, actions);
-    assert.equal(doc.el("#seed-value").textContent, String(SEED));
-    assert.equal(doc.el("#simulation-status-label").textContent, "Live");
+    assert.equal(doc.el("#run-seed").value, String(SEED));
+    assert.equal(
+      doc.el("#run-status-text").textContent,
+      "Running · 00:00 / 05:00",
+    );
     assert.equal(doc.el("#pause-button").disabled, false);
 
     // The view asks; the runner's state change is what redraws it (#153).
@@ -234,8 +258,8 @@ describe("page views", () => {
     assert.equal(doc.el("#pause-button").getAttribute("aria-pressed"), "true");
     assert.equal(doc.el("#pause-label").textContent, "Resume");
     assert.equal(doc.el("#pause-icon").textContent, "▶");
-    assert.equal(doc.el("#simulation-status-label").textContent, "Paused");
-    assert.ok(doc.el("#simulation-status").classes.has("is-paused"));
+    assert.equal(doc.el("#run-status-text").textContent, "Paused at 00:00");
+    assert.ok(doc.el("#run-status").classes.has("is-paused"));
     doc.el("#pause-button").click();
     assert.deepEqual(calls, ["pause", "resume"]);
 
@@ -243,18 +267,20 @@ describe("page views", () => {
     assert.equal(doc.el("#pause-button").getAttribute("aria-pressed"), "false");
     assert.equal(doc.el("#pause-label").textContent, "Pause");
     assert.equal(doc.el("#pause-icon").textContent, "Ⅱ");
-    assert.equal(doc.el("#simulation-status-label").textContent, "Live");
-    assert.equal(doc.el("#simulation-status").classes.has("is-paused"), false);
+    assert.equal(doc.el("#run-status").classes.has("is-paused"), false);
 
     // A finished fight (#153) has nothing to pause.
     setState("finished");
-    assert.equal(doc.el("#simulation-status-label").textContent, "Finished");
+    assert.match(doc.el("#run-status-text").textContent, /^Finished · /);
     assert.equal(doc.el("#pause-button").disabled, true);
     assert.equal(doc.el("#pause-label").textContent, "Pause");
-    assert.ok(doc.el("#simulation-status").classes.has("is-paused"));
+    assert.ok(doc.el("#run-status").classes.has("is-paused"));
     doc.el("#pause-button").click();
     setState("idle");
-    assert.equal(doc.el("#simulation-status-label").textContent, "Stopped");
+    assert.equal(
+      doc.el("#run-status-text").textContent,
+      `Ready · seed ${SEED}`,
+    );
     assert.equal(doc.el("#pause-button").disabled, true);
     doc.el("#pause-button").click();
     assert.deepEqual(calls, ["pause", "resume"], "nothing to call");
@@ -280,7 +306,7 @@ describe("page views", () => {
     assert.equal(doc.el("#dps-value").textContent, "0");
 
     const writes = doc.el("#dps-value").writes;
-    store.set({ frame: 1, run: { state: "paused", seed: SEED } });
+    store.set({ frame: 1, run: pageRun({ state: "paused" }) });
     assert.equal(doc.el("#dps-value").writes, writes, "other slices: no draw");
   });
 
@@ -291,7 +317,7 @@ describe("page views", () => {
     const energy = doc.el("#energy-value");
     const before = energy.writes;
 
-    store.set({ results: results(), run: { state: "paused", seed: SEED } });
+    store.set({ results: results(), run: pageRun({ state: "paused" }) });
     store.set({ rotation: [] });
     assert.equal(energy.writes, before);
 
@@ -309,6 +335,35 @@ describe("page views", () => {
       `${Math.floor(fight.rogue.energy)} / ${fight.rogue.maxEnergy}`,
       "draws the engine's state",
     );
+  });
+
+  it("the visualiser empties the log for a new fight and dims a stopped one (#153)", () => {
+    const doc = recordingDocument();
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    store.set({
+      frame: 1,
+      log: [{ ...LOG_ROW, id: 1, name: "Main-hand" }, LOG_ROW],
+    });
+    const log = doc.el("#combat-log");
+    assert.equal(log.children.length, 2);
+
+    // Ids restart with each fight: a lower newest id is a new fight.
+    store.set({
+      frame: 2,
+      log: [{ ...LOG_ROW, id: 0, name: "Eviscerate" }],
+    });
+    const names = log.children.map((row) => row.children?.[2]?.textContent);
+    assert.equal(names[0], "Eviscerate", "the new fight's row");
+    assert.equal(names.includes("Main-hand"), false, "the old rows are gone");
+
+    const frame = doc.el("[data-fight-frame]");
+    store.set({ run: { state: "idle", seed: SEED, stoppedAt: 9.5 } });
+    assert.ok(frame.classes.has("is-discarded"), "stopped: dimmed");
+    store.set({ run: { state: "running", seed: SEED, stoppedAt: null } });
+    assert.equal(frame.classes.has("is-discarded"), false);
+    store.set({ run: { state: "idle", seed: SEED, stoppedAt: null } });
+    assert.equal(frame.classes.has("is-discarded"), false, "reset: not dimmed");
   });
 
   it("the visualiser draws plain slices, with no engine behind them (#150)", () => {

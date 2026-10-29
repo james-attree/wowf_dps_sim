@@ -74,7 +74,7 @@ export function defaultRotation() {
   });
   return {
     schemaVersion: ROTATION_SCHEMA_VERSION,
-    name: "Combat (placeholder)",
+    name: "Default (Combat)",
     rules: [
       ...priority.onCooldown.map((key) => onCooldown(key)),
       rule(sliceAndDice, enoughPoints, remaining("<", recastSeconds)),

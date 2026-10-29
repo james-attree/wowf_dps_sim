@@ -1,4 +1,5 @@
 import { k } from "../../data/constants.js";
+import { NARROW_QUERY } from "./breakpoints.js";
 
 // The "Fight setup" form (#151, U2). This view owns the form#config-form and
 // everything in it, and no other element. It draws the store's `form` slice
@@ -14,6 +15,17 @@ import { k } from "../../data/constants.js";
 //
 // Run, Pause, Stop and Reset of the fight are #153's control bar, never this
 // form; while the form has errors the footer lists them and says Run is off.
+
+// True when the form's config differs from the one the fight or batch on the
+// page started with (run.snapshot, #153): the footer then shows "Edited —
+// applies to the next run". Both are in normalizeConfig's full form.
+export function editedSinceRun(state) {
+  const snapshot = state.run?.snapshot ?? null;
+  return (
+    snapshot !== null &&
+    JSON.stringify(state.config) !== JSON.stringify(snapshot)
+  );
+}
 
 export const fieldId = (path) => `cfg-${path.replaceAll(".", "-")}`;
 
@@ -50,8 +62,6 @@ export function runGateText(count) {
 export function fixHeadingText(count) {
   return `Fix ${count} ${plural(count, "field", "fields")} to run:`;
 }
-
-const NARROW = "(max-width: 520px)";
 
 const HANDS = ["mainHand", "offHand"];
 const poisonPath = (hand) => `poisons.${hand}`;
@@ -133,8 +143,9 @@ export function createConfigFormView(doc, store, actions) {
       : parseField(control.value, isPercent(control));
   };
 
-  // The summary is closed on a narrow screen (Fran's notes, section 5).
-  if (win.matchMedia?.(NARROW).matches) {
+  // The summary is closed on a narrow screen (Fran's notes, section 5): below
+  // 520 px, the same breakpoint as the run bar (js/views/breakpoints.js).
+  if (win.matchMedia?.(NARROW_QUERY).matches) {
     summaryDetails.open = false;
   }
 
@@ -455,9 +466,17 @@ export function createConfigFormView(doc, store, actions) {
   });
 
   render(store.get().form);
+  const edited = $("cfg-edited");
+  const drawEdited = (state) => {
+    edited.hidden = !editedSinceRun(state);
+  };
+  drawEdited(store.get());
   return store.subscribe(({ state, changed }) => {
     if (changed.includes("form")) {
       render(state.form);
+    }
+    if (changed.includes("config") || changed.includes("run")) {
+      drawEdited(state);
     }
   });
 }

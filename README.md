@@ -237,20 +237,18 @@ rejects them under `js/`.
   effects, cooldowns, and the combat log). Loads `styles.css` and `js/main.js`
   as an ES module.
 - `styles.css` — Dark layout and meters for that page.
-- `js/main.js` — UI entry (#149): the bootstrap and the animation frame. It
-  builds the fight with `createFight`, puts its config and what the live feed
-  (`js/live-feed.js`) reads of it in the store (`js/store.js`), hands the store to the views in `js/views/`, turns each frame timestamp into
-  whole fixed steps with `FrameClock`, calls `Simulation.step`, and moves the
-  store's `frame` and `results` slices with a fresh feed reading. It draws nothing itself, and starts or
-  stops the frame loop when the store's `run` slice changes. It picks the
-  random seed at page load. The DPS readout is high at 00:00 (see
+- `js/main.js` — UI entry (#149): the bootstrap. It builds the store, the
+  live run (`js/live-run.js`, over the animation frame), the `BatchClient`
+  and the run actions (`js/run-actions.js`), hands the store and the actions
+  to the views in `js/views/`, and draws an empty fight at 0:00 with a random
+  seed. The page starts idle: nothing runs until Run (#153). The DPS readout is high at 00:00 (see
   [Live page](docs/mechanics.md#live-page)). The GCD status reads "On cooldown" while `gcd > 0`. With
   `js/views/`, the only files under `js/` that may use `document`, `window`,
   or the clock; lint rejects those, and `Math.random`, in every other file
   under `js/`.
 - `js/store.js` — The page's store (U1, #149): `createStore(initial)` with
   `get`, `set`, `update`, `batch`, `subscribe` and `onError`, over named
-  slices (`config`, `form`, `run`, `frame`, `results`, and the feed's
+  slices (`config`, `form`, `run`, `batch`, `frame`, `results`, and the feed's
   `resources`, `gcd`, `effects`, `procs`, `spend`, `moment`, `log`; #150: no slice holds an engine object). One change
   event per `set` or batch, listing the slices that changed; delivery follows
   `EventStream`. No DOM or clock: engine lint applies. `config.rotation`
@@ -283,21 +281,38 @@ simulation })` with `read()` and `stop()`. The combat log rows (from `hit`
   `read()` returns frozen plain slices. Engine lint applies.
 - `js/views/` — The page's views (#149). Each is a factory `(document,
 store)` that owns its own elements, draws from the store when its slices
-  change, and returns its unsubscribe: `controls.js` (seed, the
-  Live/Paused/Finished status, the Pause button, which calls the live run's
-  `pause` and `resume`; it never writes `run.state`), `visualiser.js` (combo
+  change, and returns its unsubscribe: `controls.js` (#153: the sticky run
+  control bar, the only home of Run, Pause, Stop and Reset, with the Live and
+  Batch toggle, the fight length, fights and seed fields, the status line, a
+  polite announcement on each state change and the batch's own progress;
+  below 520 px one compact sticky row with a settings summary and a closed
+  "Run settings" section under it; it draws `js/views/run-model.js` and calls the run actions, and never writes the
+  store), `run-model.js` (what each control shows in each state, the field
+  checks and their messages, the narrow summary and errors link; pure), `visualiser.js` (combo
   points, energy, the GCD meter, effects, cooldowns, procs, the combat log and
   its announcements; redraws on `frame`, from the feed's slices only), `results.js` (time, damage, DPS; redraws on `results`), and `config-form.js`
   (#151: the "Fight setup" form; draws the `form` slice and calls the
   actions `js/config-form.js` gives it, which `js/main.js` hands in, so it
-  imports nothing from the engine). Edits apply to the next run: the fight on
-  the page keeps the config it started with until #153's Run.
+  imports nothing from the engine). Edits apply to the next run: Run snapshots
+  the config, and the form shows "Edited — applies to the next run" while it
+  differs from the fight on the page. `breakpoints.js` holds the one narrow
+  breakpoint both use: `(max-width: 519.98px)`, so 520 px and up is wide and
+  519 px is narrow; the narrow `@media` blocks in `styles.css` repeat it.
 - `js/live-run.js` — The live page's run (#153): `createLiveRun(store,
 frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
-  `reset`. One `SimRunner` per Run, driven by injected animation frames through
+  `reset`, and `clear({ seed, config })` (an empty fight at 0:00, drawn while
+  idle). One `SimRunner` per Run, driven by injected animation frames through
   `FrameClock`, its state mirrored into `run.state` (the one writer), and a
   new live feed per fight. The fight ends at `batch.duration` (300 s) and the
   page shows it as finished. No DOM and no clock. Engine lint applies.
+- `js/run-actions.js` — What the control bar's buttons do (#153):
+  `createRunActions({ store, live, client, drawSeed, now })` with `run`,
+  `pause`, `resume`, `stop`, `reset`, `setMode`, `edit` and `newSeed`. Live
+  mode drives `js/live-run.js`: Stop discards the fight and Run replays the
+  same seed from 0:00. Batch mode runs `BatchClient` and writes the `batch`
+  slice as #154 §10 says (0 of N at once, late progress ignored, `done`,
+  `cancelled` with the partial result, or `error`); Stop keeps the partial
+  result. `emptyBatch(mode)` is the idle slice. Engine lint applies.
 - `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
   milliseconds into a whole number of `sim.fixedStep` steps. It carries the
   remainder between frames and caps one frame at `sim.maxFrameTime`, which is
@@ -336,7 +351,8 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   reproducible from its base seed however it is sliced. `RunningStats` is
   Welford's algorithm; the result has the mean, SD, min, max, 95% CI and a
   `Float64Array` of every iteration's DPS. Defaults are 1,000 iterations of 300 s
-  (`batch.duration`). No DOM and no clock. Not yet used by the page. See
+  (`batch.duration`). No DOM and no clock. The page runs it through
+  `BatchClient` (#153). See
   [Batch runner](docs/batch.md).
 - `js/batch-host.js` — The batch host (S4, #147): the message side of a batch.
   Takes `start` and `cancel` messages, drives a `BatchRunner` in slices of
@@ -351,13 +367,13 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   returns a promise of `runBatch`'s result (`callbacks.onProgress` for
   progress), `cancel()`, `terminate()`. Runs the batch in the worker, or on the
   main thread in slices where module workers are missing or the worker fails to
-  load (`mode` `"auto"`, `"worker"` or `"main"`). Not yet used by the page. See [Batch worker](docs/worker.md).
+  load (`mode` `"auto"`, `"worker"` or `"main"`). The page's batch mode uses it (#153). See [Batch worker](docs/worker.md).
 - `js/ability-breakdown.js` — The per-ability breakdown (S2, #145): a
   `FightBreakdown` subscribed to a fight's `hit` and `cast` events, and a
   `BatchBreakdown` that sums fights in order. Rows are keyed and sorted by
   ability id: casts, attempts, outcomes, hits, direct and tick damage, averages,
   share, and per-fight statistics over a batch. The batch result carries it as
-  `breakdown`. Not yet used by the page. See
+  `breakdown`. The page's batch result carries it (#153); #154 draws it. See
   [Per-ability breakdown](docs/breakdown.md).
 - `js/fight-metrics.js` — Fight metrics (S3, #146): aura uptime. A `FightAuras`
   subscribed to a fight's `aura` and `end` events, and a `BatchAuras` that sums
@@ -704,6 +720,9 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   rejected.
 - `test/bleed-armor.test.js` — DoT crits, and armor skipped on bleeds and
   nature ticks.
+- `test/breakpoints.test.js` — The narrow breakpoint: 519 px narrow, 520 px
+  wide, the views on the shared query, and every narrow `@media` block in
+  `styles.css` on the same one.
 - `test/bench.test.js` — The benchmark: the CI bound on a 5-minute fight, the
   median and report, the script's arguments, and its exit status (with a fake
   benchmark or a target of 0 or a million ms, never the real 50 ms).
@@ -740,13 +759,21 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   published `js` file must be imported by the page.
 - `test/live-view.test.js` — The live page as a view of the engine: `FrameClock`
   (the first frame, the carry, the frame cap, `restart`), `createFight`, a live
-  fight against `runFight`, and `js/main.js` on a stand-in page (the seed in the
-  header, pause, resume, a late frame from a backgrounded tab, and the finish at
-  300 s, equal to `runFight`).
+  fight against `runFight`, and `js/main.js` on a stand-in page (idle at load
+  with the seed in the bar, Run, pause, resume, a late frame from a
+  backgrounded tab, the finish at 300 s equal to `runFight`, Stop then Run,
+  Reset, and a batch end to end on the main thread).
 - `test/live-run.test.js` — The live run (#153) with hand-driven frames: the
   store mirrors the runner, the finish equals `runFight`, the frame cap, pause
   and a stale frame, Stop then Run reproduces the fight, reset, Run again with
-  new options, and that no view writes `run.state`.
+  new options, `clear()`, and that no view writes `run.state`.
+- `test/run-controls.test.js` — The run control bar (#153): the field checks
+  and messages, every live state and transition (each control in each
+  state), batch mode against #154 §10 with a stand-in client (0 of N, progress,
+  done, Stop keeps partial, error, mode lock), the config snapshot, the
+  view on a stand-in document (labels, focus, announcements, aria), and the
+  narrow bar (summary, Run or Pause slot, closed settings, the errors link,
+  reading order per width, and the sticky and 44 px rules in the CSS).
 - `test/premeditation.test.js` — Premeditation combo points and expiry.
 - `test/provenance.test.js` — The provenance check, the CLI, and the generated
   report.

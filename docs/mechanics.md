@@ -937,12 +937,28 @@ bootstrap: it puts the fight's config in the page's store (`js/store.js`), and
 the views in `js/views/` draw from the store (the visualiser on each frame, the totals
 when the results change, the controls when the run state changes). Since #153
 the fight runs in a `SimRunner` (see Run controller) held by `js/live-run.js`:
-the pause button calls its `pause` and `resume`, the runner starts and stops
-the frame loop through its driver, and every state change is written to the
-store's `run.state` (the one writer; the views only read it). The fight is
-`k("batch.duration")` (300 s) long, the same default as a batch; the runner
-then moves to `finished`, the frame loop stops, the status reads "Finished"
-and Pause is disabled. The live feed reads the fight through `SimRunner.fight`.
+the control bar's buttons call its `run`, `pause`, `resume`, `stop` and
+`reset` through `js/run-actions.js`, the runner starts and stops the frame
+loop through its driver, and every state change is written to the store's
+`run.state` (in live mode `js/live-run.js` is its one writer; the views only
+read it). The page starts idle with an empty fight at 0:00; nothing runs
+until Run. The fight is the Fight length field long (`k("batch.duration")`,
+300 s, by default, the same default as a batch; more than 0 and at most
+3,600 s); the runner then moves to `finished`, the frame loop stops, the
+status reads "Finished" with the fight's DPS, and Run reads "Run again".
+Stop discards the fight (the last picture stays, dimmed) and Run replays the
+same seed from 0:00; Reset ends it and empties the picture. Batch mode runs
+the Fights field's fights (1 to `k("batch.maxIterations")`, 1,000 by default)
+through `BatchClient` and puts the result in the store's `batch` slice for the
+results panel (#154); a batch cannot pause, and Stop keeps the fights done so
+far as a partial result. A Fights error left from batch mode does not block a live Run (its field is
+hidden there). Below 520 px only one compact row stays sticky (Run or Pause,
+Stop, Reset, and a one-line summary such as "Batch · 1,000 × 300 s · seed
+1234" with the status under it, 62 px tall with 44 px buttons); the mode and
+the three fields sit in a "Run settings" section under it, closed by default
+and not sticky, and an error in a closed field shows "Fix 1 setting" in the
+row, which opens the section at the field. Wider screens show the full bar as
+before. The live feed reads the fight through `SimRunner.fight`.
 Since #150 no view reads the engine: the live feed
 (`js/live-feed.js`) fills the visualiser's slices each frame, the combat log
 and combo points from the event stream and the energy, GCD, aura and cooldown
@@ -956,7 +972,8 @@ step through the log; an opt-in role=status region announces a buff coming up
 or going and the pause, at most one message per
 `k("ui.announceIntervalSeconds")`. These are display rules only. The runner builds the fight
 with `createFight(seed, config)` from `js/fight.js`; the page shows the seed in
-the header (plain text, so the same seed can be replayed in `runFight`), and
+the control bar's Seed field (editable, 0 to 4,294,967,295; empty draws a new
+one at Run; the same seed can be replayed in `runFight`), and
 from each animation frame it gives the runner whole steps of
 `k("sim.fixedStep")` through `advance`. It holds no combat or timing rule. The conversion from a frame
 timestamp to a number of steps lives in `FrameClock` (`js/frame-clock.js`),
@@ -1443,9 +1460,9 @@ at the end of Phase 2.
   `blocks` are `0` in the default results and no golden fixture has either (see
   Golden-seed tests). `k("block.value")` is 0 for lack of a source, so a block
   does full damage.
-- **Live page.** It picks a new random seed on every load and has no way to
-  enter one; replay a seed with `runFight`. It stops at
-  `k("batch.duration")` (see Other time inputs). A page below the frame rate
+- **Live page.** It picks a new random seed on every load; the Seed field
+  replays one. It stops at the Fight length (`k("batch.duration")` by
+  default, see Other time inputs). A page below the frame rate
   that matches `k("sim.maxFrameTime")` runs slower than real time.
 - **Placeholder rotation.** The rotation is the placeholder Combat
   priority. It never calls Rupture, and it only rarely reaches Eviscerate, when
