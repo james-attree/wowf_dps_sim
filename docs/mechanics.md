@@ -1141,12 +1141,16 @@ the old event stays "ran". There is one handle function for every class and
 kind, with no per-kind handlers: it gets the event and the scheduler.
 `runUntil(t)` runs every event due at or before t, including ones its handlers
 schedule at or before t, and leaves `now` at t; `runToEnd()` is
-`runUntil(endTime)`. Split calls give the same order as one call. It refuses (with a `RangeError` or
-`TypeError`): an event before `now`, or with a time that is not finite, an
-order that is not one of `ORDER`, or an empty kind; `runUntil` before `now`,
-past the end time, at a time that is not finite, or from inside a handler; an
-end time that is negative or not finite; and a missing handle function. A
-handler's error goes through with `now` at that event's time.
+`runUntil(endTime)`. Split calls give the same order as one call. A bad
+argument is a `RangeError` or `TypeError`: an event before `now`, or with a
+time that is not finite, an order that is not one of `ORDER`, or an empty
+kind; `runUntil` before `now`, past the end time or at a time that is not
+finite; an end time that is negative or not finite; and a missing handle
+function. The text quotes a string, so a time of `"4"` reads `Got "4".`. A
+call in the wrong state is a plain `Error`: `runUntil` from inside a handler,
+and any call after a hard stop (below). A handler's error goes through with
+`now` at that event's time. An event is frozen, so not even
+`Object.defineProperty` can move one that is already in the queue.
 
 **Hard stop (#193).** A run throws `SchedulerHardStopError`, naming the event
 (its kind, time, class and `seq`), when more than
@@ -1154,8 +1158,12 @@ handler's error goes through with `now` at that event's time.
 keeps scheduling at `now`), or more than `k("sim.maxEventsPerSecond")` per
 second of the end time run in all (a loop that creeps forward without reaching
 the end; a fight under 1 s counts as 1 s). Both count over the scheduler's
-whole life, so split calls stop at the same event as one call. After a hard
-stop the scheduler will not run again. Both limits are 10,000 and are
+whole life, so split calls stop at the same event as one call. The error also
+carries the event's `order` and the scheduler's `endTime` as fields. The event
+that trips the stop does not run: it stays "pending" and in `pendingCount`.
+After a hard stop the scheduler will not run again, and `runUntil`,
+`schedule` and `reschedule` throw a plain `Error` that names the stop, before
+any check of their arguments; `cancel` still works. Both limits are 10,000 and are
 `engineering` rows (the dev's numbers, not decisions by James, not on the
 retune list), far above a real fight.
 

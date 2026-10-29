@@ -43,8 +43,10 @@ export class SchedulerHardStopError extends Error {
     this.scope = scope;
     this.limit = limit;
     this.time = event.time;
+    this.order = event.order;
     this.kind = event.kind;
     this.seq = event.seq;
+    this.endTime = endTime;
   }
 }
 
@@ -59,7 +61,8 @@ const CANCELLED = "cancelled";
 
 // One scheduled event. It is also the token its timer holds: cancel() marks
 // it, and the scheduler skips it when it comes out of the heap. Its fields are
-// read-only, so a handler cannot move an event that is already in the heap.
+// read-only getters and the object is frozen, so a handler cannot move an
+// event that is already in the heap (not even with defineProperty).
 export class ScheduledEvent {
   #scheduler;
   #time;
@@ -76,6 +79,7 @@ export class ScheduledEvent {
     this.#seq = seq;
     this.#kind = kind;
     this.#payload = payload;
+    Object.freeze(this);
   }
 
   get time() {
@@ -131,10 +135,15 @@ function before(a, b) {
   return a.seq < b.seq;
 }
 
+// A value as a refusal shows it: a string in quotes, so "4" does not read as 4.
+function shown(value) {
+  return typeof value === "string" ? JSON.stringify(value) : String(value);
+}
+
 function checkTime(value, label) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new RangeError(
-      `${label} must be a finite number of seconds. Got ${String(value)}.`,
+      `${label} must be a finite number of seconds. Got ${shown(value)}.`,
     );
   }
 }
@@ -194,6 +203,7 @@ export class Scheduler {
   // Schedule an event and return it (its token). `time` is absolute, in
   // seconds, and not before now; `order` is a value of ORDER.
   schedule({ time, order, kind, payload } = {}) {
+    this.#checkNotStopped("schedule an event");
     checkTime(time, "An event's time");
     if (time < this.#now) {
       throw new RangeError(
@@ -206,7 +216,7 @@ export class Scheduler {
       order >= ORDER_CLASSES.length
     ) {
       throw new RangeError(
-        `An event's order must be one of ORDER (${ORDER_CLASSES.join(", ")}). Got ${String(order)}.`,
+        `An event's order must be one of ORDER (${ORDER_CLASSES.join(", ")}). Got ${shown(order)}.`,
       );
     }
     if (typeof kind !== "string" || kind === "") {
@@ -228,6 +238,7 @@ export class Scheduler {
   // Cancel `event` if it is still pending and schedule the same kind, order and
   // payload at `time`, with a new seq. Returns the new event.
   reschedule(event, time) {
+    this.#checkNotStopped("reschedule an event");
     if (!(event instanceof ScheduledEvent) || !event[BELONGS_TO](this)) {
       throw new TypeError("reschedule needs an event from this scheduler.");
     }
@@ -254,6 +265,12 @@ export class Scheduler {
   // Run every event due at or before t, in order, then set now to t. Events a
   // handler schedules at or before t run in this call too.
   runUntil(t) {
+    this.#checkNotStopped("run again");
+    if (this.#running) {
+      throw new Error(
+        "runUntil cannot be called from inside an event handler.",
+      );
+    }
     checkTime(t, "runUntil's time");
     if (t < this.#now) {
       throw new RangeError(
@@ -265,30 +282,24 @@ export class Scheduler {
         `runUntil(${t}) is after the end time (${this.#endTime} s).`,
       );
     }
-    if (this.#running) {
-      throw new Error(
-        "runUntil cannot be called from inside an event handler.",
-      );
-    }
-    if (this.#stoppedBy !== null) {
-      throw new Error(
-        `The scheduler was stopped by a hard stop and cannot run again: ${this.#stoppedBy.message}`,
-      );
-    }
     this.#running = true;
     try {
       const heap = this.#heap;
       while (heap.length > 0 && heap[0].time <= t) {
-        const event = this.#pop();
+        const event = heap[0];
         if (event.cancelled) {
+          this.#pop();
           continue;
         }
+        // Checked before the event leaves the heap: the event that trips a
+        // hard stop did not run, so it stays pending and in pendingCount.
         try {
           this.#count(event);
         } catch (error) {
           this.#stoppedBy = error;
           throw error;
         }
+        this.#pop();
         this.#now = event.time;
         event[MARK_RAN]();
         this.#pending -= 1;
@@ -305,6 +316,16 @@ export class Scheduler {
     this.runUntil(this.#endTime);
   }
 
+  // After a hard stop the scheduler takes no more work: a plain Error (a call
+  // in the wrong state, not a bad argument), naming the stop.
+  #checkNotStopped(what) {
+    if (this.#stoppedBy !== null) {
+      throw new Error(
+        `The scheduler was stopped by a hard stop and cannot ${what}: ${this.#stoppedBy.message}`,
+      );
+    }
+  }
+
   // The hard stops (#193), checked before the event runs.
   #count(event) {
     if (event.time === this.#sameTime) {
@@ -318,6 +339,7 @@ export class Scheduler {
         scope: "timestamp",
         limit: this.#maxPerTimestamp,
         event,
+        endTime: this.#endTime,
       });
     }
     if (this.#eventsRun + 1 > this.#maxPerRun) {
