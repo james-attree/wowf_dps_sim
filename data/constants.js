@@ -1045,6 +1045,14 @@ export const CONSTANTS = {
     "Enforced when a talent build is applied (D7, #106; validateBuild in js/talent-build.js): a talent on row r needs 5 * (r - 1) points in its own tree on the rows above it. The 5 is the Classic rule; the export does not state the number (OQ14). The prerequisite (req) rule needs no number: the required talent must be at full rank.",
     true,
   ),
+  "talents.firstPointLevel": entry(
+    10,
+    "level",
+    ASSUMPTION,
+    "James, 29 Oct 2026, issue #190: the Classic rule, one talent point a level from level 10, so a level L character has L - 9 points; the export does not state it",
+    "Caps a talent build at level - (firstPointLevel - 1) points (validateBuild and talentPointCap in js/talent-build.js, #190). The talent level is config.talentLevel, from firstPointLevel (10, 1 point) to talents.maxPoints + firstPointLevel - 1 (60, 51 points, the default). It caps points and nothing else: character.level and the armor divisor do not read it.",
+    true,
+  ),
   latency: entry(
     0,
     "ms",

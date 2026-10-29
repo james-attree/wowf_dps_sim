@@ -574,10 +574,23 @@ describe("SimRunner options", () => {
       () => runner({ config: { talents: { bogus: 1 } } }),
       RangeError,
     );
+    // A partial build is legal since #190; Precision on row 2 with no point
+    // above it breaks the row gating.
     const lone = Object.keys(referenceBuild())[0];
+    assert.doesNotThrow(() => runner({ config: { talents: { [lone]: 1 } } }));
     assert.throws(
-      () => runner({ config: { talents: { [lone]: 1 } } }),
-      RangeError,
+      () => runner({ config: { talents: { "combat.precision": 3 } } }),
+      { name: "RangeError", message: /"combat\.precision" is on row 2/ },
+    );
+    assert.throws(
+      () =>
+        runner({
+          config: { talents: { [lone]: 2 }, talentLevel: 10 },
+        }),
+      {
+        name: "RangeError",
+        message: /config\.talentLevel 10 allows at most 1/,
+      },
     );
   });
 

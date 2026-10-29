@@ -1150,6 +1150,7 @@ was a config: the defaults are the default character and weapons in `data/consta
   },
   target: { behind },                        // true (default): no parry, no block
   talents: { "combat.precision": 3 },        // talent id -> rank
+  talentLevel: 60,                           // caps the talent points (#190)
   poisons: { mainHand: "instant", offHand: "deadly" },   // a poison id, or null
 }
 ```
@@ -1173,8 +1174,15 @@ default. A section is merged field by field, so `{ character: { attackPower:
 - **Talents are applied once a point is spent; poisons are opt-in.** They are
   validated, normalised and returned in the result. A config with no rank above 0
   has no build: nothing is checked, nothing changes and no random number is drawn.
-  A config with any point is a selected build, and it must be a legal 51-point
-  build (D7, #106, see [Applying a talent build](#applying-a-talent-build-d7-issue-106)).
+  A config with any point is a selected build, and it must be a legal build of
+  at most 51 points (D7, #106; partial builds since #190, see
+  [Applying a talent build](#applying-a-talent-build-d7-issue-106)).
+- **The talent level caps the points and nothing else** (#190).
+  `config.talentLevel` (default 60) allows `level - 9` points
+  (`k("talents.firstPointLevel")`, 10, the Classic rule, tagged `ASSUMPTION`).
+  It does not set the character's level, the armor divisor or anything else in
+  the fight; a legal build gives the same fight at any talent level that allows
+  it.
   A rank of 0, or a talent that is not named, adds nothing. `poisons` is read by
   `js/rogue.js` (A5, #105): `instant` and `deadly` add a proc to that hand,
   and `null`, `wound`, `crippling` and `mind-numbing` add none, so they change
@@ -1199,8 +1207,14 @@ message that names the field and the value. A value of the wrong type is a
   engineering constant, not game data. `type` is one of
   `k("config.weaponTypes")` or `null`.
 - A talent key must be an id in the talent catalogue, and its rank a whole
-  number from 0 to that talent's `max`. Each rank is read from the input once. The 51-point total, the row gating and
+  number from 0 to that talent's `max`. Each rank is read from the input once. The 51-point cap, the row gating and
   the prerequisites are checked when a build is applied (D7, `validateBuild`).
+- `talentLevel` is a whole number from 10 to 60 (`talentLevelRange()`): a
+  number out of range is a `RangeError` and anything else a `TypeError`. Below
+  60, `normalizeConfig` also throws a `RangeError` when `talents` spends more
+  than `talentLevel - 9` points (`config.talents spends 32 talent points, and
+config.talentLevel 40 allows at most 31 (level - 9).`). At 60 the 51-point
+  cap is left to `validateBuild`, so its message is the one it always was.
 - A poison is one of `k("config.poisonIds")` or `null`.
 
 The result is a new plain object that shares nothing with the input. Talents are
@@ -1529,8 +1543,10 @@ open for James's review, not defects found by a test:
   have no entry. A build that spends points in them is legal and lists them in
   `fight.build.unmapped`. Improved Poisons, Vile Poisons and Venom do nothing, and
   so does Mutilate. D8 is Phase 4.
-- **Partial builds are rejected.** A selected build must spend exactly 51 points
-  and satisfy the gating, so a one-talent map is a `RangeError`.
+- **Partial builds are legal** (#190). A selected build spends at most
+  `config.talentLevel - 9` points (51 at the default level 60) and must
+  satisfy the gating, so a one-point row-1 map runs and a lone row-2 talent is
+  a `RangeError`.
 - **No talent UI.** Talent icons resolve and are tested but are not drawn.
 - **The Rogue's `energy`, `maxEnergy`, `comboPoints` and `maxComboPoints`**
   accessors are still views on `rogue.resources`. Tests use them about 400 times
@@ -2508,9 +2524,14 @@ selected build, and `validateBuild(ranks)` must pass. A selected build that fail
 is a `RangeError` from `runFight`, `createFight` and `new Rogue`, listing every
 problem and naming talents by id:
 
-- exactly `k("talents.maxPoints")` (51) points, not fewer. A partial map such as
-  `{ "combat.precision": 3 }` is a valid SimConfig (`normalizeConfig` only checks
-  ids and ranks) and an illegal fight;
+- at most `k("talents.maxPoints")` (51) points. Fewer is legal (a partial
+  build, #190): 0, 1, 31 or 50 points run as long as the rules below hold;
+- at most `level - (k("talents.firstPointLevel") - 1)` points, where the level
+  is the talent level (`config.talentLevel`, 10 to 60, default 60, so 51
+  points). A level `L` character has one point a level from level 10, `L - 9`
+  in all (the Classic rule; the export does not state it, so the constant is
+  tagged `ASSUMPTION`). At level 40, 31 points pass and 32 fail. The level
+  caps the points and nothing else;
 - a talent with a `req` needs that talent at its full rank (the Classic rule; it
   needs no constant);
 - a talent on row `r` of a tree needs `k("talents.rowGating")` (5 points a row, the
@@ -2518,11 +2539,50 @@ problem and naming talents by id:
   `ASSUMPTION`, open question 14) times `r - 1` points spent on the rows above it
   in the same tree.
 
-For example: `Talent build is not valid: the build spends 50 talent points, and
-exactly 51 are needed (talents.maxPoints); "combat.dual-wield-specialization"
+A partial map such as `{ "combat.precision": 3 }` is a valid SimConfig
+(`normalizeConfig` checks ids, ranks and the level cap) and an illegal fight.
+For example: `Talent build is not valid: the build spends 52 talent points, and
+at most 51 can be spent (talents.maxPoints); "combat.dual-wield-specialization"
 needs its prerequisite "combat.precision" at rank 3, and it is at rank 2`.
 Rank and id errors (an unknown id, a display name, a rank above `max`) come first,
-as from `expandTalents`.
+as from `expandTalents`. Before #190 the first part read "and exactly 51 are
+needed"; the prerequisite, row and rank texts did not change.
+
+**The per-talent model** (#190, for the U6 picker). Beside the throwing
+`validateBuild(ranks, catalogue, { level })` (it returns the points spent, 0
+for an empty map), `js/talent-build.js` has calls that never throw, whatever
+they are given; each takes `{ level }` (default 60) and the catalogue last:
+
+- `buildProblems(ranks, { level })`: a frozen list of frozen
+  `{ code, talent, need, have, message }`, empty for a legal build. The codes
+  are `notAnObject` (alone), `unknownTalent`, `badRank`, `badLevel`, `overMax`
+  (more than 51), `overLevel` (more than `level - 9`), `prerequisite` and
+  `rowGate`. `talent` is the id at fault or `null`; `need` and `have` are the
+  numbers the message names (the cap and the points, the prerequisite's full
+  rank and its rank, the points the row needs and has). `validateBuild` throws
+  these messages, in order, joined by "; ".
+- `why(ranks, id, action = "add", { level })`: `null` when the step is legal,
+  or one problem as above with `blockers`, the ids in the way. An add can be
+  `maxRank`, `capReached`, `prerequisite` (blockers: the prerequisite) or
+  `rowGate`; a remove can be `notTaken` or `strands`, when taking the point
+  would leave a talent below without its prerequisite or its row gate (the
+  `talent` is the first one stranded, `blockers` all of them; only problems the
+  remove creates count). `badAction`, `unknownTalent`, `notAnObject`,
+  `badRank` and `badLevel` answer bad input.
+- `canAdd(ranks, id, { level })` and `canRemove(...)`: `why(...) === null`.
+- `pointsByTree(ranks)`: `{ assassination, combat, subtlety, total }`, counting
+  only valid ranks of known talents.
+- `talentPointCap(level)` (a `RangeError` for a level outside 10 to 60) and
+  `talentLevelRange()`, `{ min: 10, max: 60 }`; `DEFAULT_TALENT_LEVEL` is 60.
+
+`applyBuild(ranks, effects, catalogue, { level })` passes the level on; the
+`Rogue` passes none, and `normalizeConfig` has already checked the config's
+level cap. A partial build is still a selected build (`build.selected` is
+true), so a partial build without Blade Flurry or Adrenaline Rush locks them
+(`lockedByBuild`), and the default rotation and the presets fall through to
+the next rule. `decodeBuildLink` already decodes a partial talentsforever link
+and its level. The build label (`js/build-label.js`) adds the points out of the
+cap to a partial build, "Combat 0/5/0 (5/51)", and a full build reads as before.
 
 **Gating the granted abilities.** With a selected build, an ability a talent
 grants (`talentGrantedAbilities`, read from the `ability` fields of
@@ -2568,8 +2628,8 @@ Vile Poisons, Improved Poisons and Venom have no entry in the talent data, so a
 build with points in them lists them under `fight.build.unmapped` and they change
 nothing. They are out of scope for Phase 2 (tracker #108).
 
-**Shape.** `runFight` and its result are unchanged and `SimConfig` has no new
-field. New exports: `validateBuild`, `applyBuild`, `talentGrantedAbilities`
+**Shape.** `runFight` and its result are unchanged, and `SimConfig` had no new
+field until #190 added `talentLevel`. New exports: `validateBuild`, `applyBuild`, `talentGrantedAbilities`
 (`js/talent-build.js`; `js/fight.js` re-exports `validateBuild` and `applyBuild`),
 `Rogue.build` and `Rogue.lockedByBuild`, and `createFight(...).build`.
 

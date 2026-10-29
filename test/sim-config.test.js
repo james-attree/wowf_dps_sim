@@ -93,6 +93,7 @@ describe("defaultConfig", () => {
       },
       target: { behind: k("target.behind") },
       talents: {},
+      talentLevel: 60,
       poisons: { mainHand: null, offHand: null },
       rotation: defaultRotation(),
     });
@@ -236,7 +237,7 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { charcter: {} },
       RangeError,
-      /config has an unknown field "charcter"\. Allowed fields: character, weapons, target, talents, poisons, rotation\./,
+      /config has an unknown field "charcter"\. Allowed fields: character, weapons, target, talents, talentLevel, poisons, rotation\./,
     );
     rejects(
       { character: { ap: 5 } },

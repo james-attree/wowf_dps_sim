@@ -1,4 +1,6 @@
+import { k } from "../data/constants.js";
 import { poisonCatalogue } from "./poisons.js";
+import { DEFAULT_TALENT_LEVEL, talentPointCap } from "./talent-build.js";
 import { talentCatalogue } from "./talents.js";
 
 // The build label of the batch results panel (#154, Fran's spec section 1a):
@@ -9,7 +11,10 @@ import { talentCatalogue } from "./talents.js";
 // - Talents: the points spent in each tree, in catalogue order; prefixed with
 //   the tree with the most points (the first in catalogue order on a tie).
 //   "No talents" with no point spent. A talent the catalogue does not know is
-//   not counted.
+//   not counted. A partial build (#190), one that spends fewer points than
+//   its cap (config.talentLevel - 9, 51 at the default level 60), adds the
+//   points out of the cap: "Combat 0/10/0 (10/51)". A full build has none, so
+//   the reference build is still "Combat 18/33/0".
 // - Rotation: its name; "Default rotation" when it has none.
 // - Poisons: "<Name> MH, <Name> OH" without the word "Poison", an empty hand
 //   left out; "No poisons" with neither.
@@ -19,7 +24,17 @@ import { talentCatalogue } from "./talents.js";
 
 export const LABEL_SEPARATOR = " · ";
 
-function talentPart(talents, catalogue) {
+// The cap of a config's talent level; a level that is not valid is shown
+// against 51, since the label never throws.
+function capOf(level) {
+  try {
+    return talentPointCap(level ?? DEFAULT_TALENT_LEVEL);
+  } catch {
+    return k("talents.maxPoints");
+  }
+}
+
+function talentPart(talents, catalogue, level) {
   const trees = catalogue.trees;
   const points = new Map(trees.map((tree) => [tree.id, 0]));
   for (const [id, rank] of Object.entries(talents ?? {})) {
@@ -39,7 +54,9 @@ function talentPart(talents, catalogue) {
       top = index;
     }
   });
-  return `${trees[top].name} ${counts.join("/")}`;
+  const cap = capOf(level);
+  const spent = total < cap ? ` (${total}/${cap})` : "";
+  return `${trees[top].name} ${counts.join("/")}${spent}`;
 }
 
 function shortPoisonName(key, catalogue) {
@@ -70,7 +87,7 @@ export function buildLabel(
 ) {
   const rotation = config?.rotation?.name;
   return [
-    talentPart(config?.talents, talents),
+    talentPart(config?.talents, talents, config?.talentLevel),
     typeof rotation === "string" && rotation !== ""
       ? rotation
       : "Default rotation",

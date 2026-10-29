@@ -208,15 +208,22 @@ export function expandTalents(
 }
 
 // The talent points a build spends, in all, and by tree and row. A talent not
-// in `ranks` is rank 0.
+// in `ranks` is rank 0. It never throws: an id the catalogue does not know and
+// a rank that is not a whole number from 0 to the talent's max count for
+// nothing, so the picker (U6) can ask about a build that is not valid yet.
 function spending(ranks, catalogue) {
-  const rankOf = (talent) =>
-    Object.hasOwn(ranks, talent.id) ? ranks[talent.id] : 0;
+  const given = isObject(ranks) ? ranks : {};
+  const rankOf = (talent) => {
+    const rank = Object.hasOwn(given, talent.id) ? given[talent.id] : 0;
+    return Number.isInteger(rank) && rank >= 0 && rank <= talent.max ? rank : 0;
+  };
   let total = 0;
   const rows = new Map();
+  const trees = new Map(catalogue.trees.map((tree) => [tree.id, 0]));
   for (const talent of catalogue.talents) {
     const rank = rankOf(talent);
     total += rank;
+    trees.set(talent.tree, (trees.get(talent.tree) ?? 0) + rank);
     const key = `${talent.tree}/${talent.row}`;
     rows.set(key, (rows.get(key) ?? 0) + rank);
   }
@@ -227,31 +234,143 @@ function spending(ranks, catalogue) {
     }
     return points;
   };
-  return { rankOf, total, above };
+  return { rankOf, total, trees, above };
 }
 
-// Check that a build is one a character can have, and throw one RangeError that
-// lists every problem, naming talents by id and never by display name. The
-// rules are the Classic ones, with the numbers in data/constants.js:
-//   - the build spends exactly k("talents.maxPoints") points (the export's
-//     classic_total, 51): no fewer, so a half-made build is not run as if it
-//     were a whole one;
-//   - a talent with a prerequisite (`req`, the talent it hangs below) has its
-//     prerequisite at full rank, as in the Classic tree;
-//   - a talent on row r needs k("talents.rowGating") * (r - 1) points spent in
-//     its own tree on the rows above it (the Classic rule of 5 points a row;
-//     the export does not state the number, OQ14).
-// Ids and ranks are checked first, as expandTalents does. It returns the points
-// spent. A build with no ranks is not a build: applyBuild does not call this for
-// it, and a direct call reports its 0 points like any other total.
-export function validateBuild(ranks, catalogue = talentCatalogue) {
-  checkRanks(ranks, catalogue, "validateBuild");
-  const { rankOf, total, above } = spending(ranks, catalogue);
+// Partial builds and the talent level (#190, P3.5-04). A build may spend from
+// 0 points up to its cap. The cap is the talent level's points, level - 9 (the
+// Classic rule of one point a level from k("talents.firstPointLevel"), 10,
+// tagged `assumption`), and never more than k("talents.maxPoints") (51). The
+// level runs from 10 (1 point) to 60 (51 points), and 60 is the default, so a
+// build with no level is capped at 51 as before. The level caps the points and
+// nothing else: it is config.talentLevel (js/sim-config.js), not
+// character.level, and the armor divisor never reads it.
+
+// The lowest and highest talent level, and the default (the highest).
+export function talentLevelRange() {
+  const min = k("talents.firstPointLevel");
+  return Object.freeze({ min, max: k("talents.maxPoints") + min - 1 });
+}
+
+export const DEFAULT_TALENT_LEVEL = talentLevelRange().max;
+
+function levelProblem(level) {
+  const { min, max } = talentLevelRange();
+  if (Number.isInteger(level) && level >= min && level <= max) {
+    return null;
+  }
+  return {
+    code: "badLevel",
+    talent: null,
+    need: Number.isFinite(level) && level > max ? max : min,
+    have: level === undefined ? null : level,
+    message: `the talent level must be a whole number from ${min} to ${max}, not ${typeof level === "string" ? JSON.stringify(level) : String(level)}`,
+  };
+}
+
+// The points a character of `level` can spend: level - 9, so 51 at 60 and 1
+// at 10. It throws a RangeError for a level outside 10 to 60.
+export function talentPointCap(level = DEFAULT_TALENT_LEVEL) {
+  const problem = levelProblem(level);
+  if (problem !== null) {
+    throw new RangeError(
+      `${problem.message.charAt(0).toUpperCase()}${problem.message.slice(1)}.`,
+    );
+  }
+  return Math.min(
+    level - k("talents.firstPointLevel") + 1,
+    k("talents.maxPoints"),
+  );
+}
+
+// The cap the non-throwing functions use: a bad level falls back to the
+// default, and the level problem is reported on its own.
+function capOf(level) {
+  return levelProblem(level) === null
+    ? talentPointCap(level)
+    : k("talents.maxPoints");
+}
+
+// Points by tree, for the picker's header and the build label. It never
+// throws: anything that is not a valid rank counts for nothing.
+//   pointsByTree({ "combat.precision": 3 })
+//   -> { assassination: 0, combat: 3, subtlety: 0, total: 3 }
+export function pointsByTree(ranks, catalogue = talentCatalogue) {
+  const { trees, total } = spending(ranks, catalogue);
+  return Object.freeze({ ...Object.fromEntries(trees), total });
+}
+
+function problem(code, talent, need, have, message) {
+  return Object.freeze({ code, talent, need, have, message });
+}
+
+function inputProblems(ranks, catalogue) {
+  if (!isObject(ranks)) {
+    return [
+      problem(
+        "notAnObject",
+        null,
+        null,
+        null,
+        `a build must be an object of { talent id: rank }, not ${kindOf(ranks)}`,
+      ),
+    ];
+  }
   const problems = [];
-  const needed = k("talents.maxPoints");
-  if (total !== needed) {
+  for (const [id, rank] of Object.entries(ranks)) {
+    const talent = catalogue.get(id);
+    if (talent === undefined) {
+      problems.push(
+        problem(
+          "unknownTalent",
+          id,
+          null,
+          null,
+          `${JSON.stringify(id)} is not a talent id. Use a catalogue id such as "combat.precision"`,
+        ),
+      );
+    } else if (!Number.isInteger(rank) || rank < 0 || rank > talent.max) {
+      problems.push(
+        problem(
+          "badRank",
+          id,
+          talent.max,
+          rank,
+          `"${id}" has ranks 0 to ${talent.max}, not ${typeof rank === "string" ? JSON.stringify(rank) : String(rank)}`,
+        ),
+      );
+    }
+  }
+  return problems;
+}
+
+// The rules of the tree, for the valid ranks of a build: the cap, then each
+// talent's prerequisite and row.
+function ruleProblems(spent, level, catalogue) {
+  const { rankOf, total, above } = spent;
+  const problems = [];
+  const maxPoints = k("talents.maxPoints");
+  if (total > maxPoints) {
     problems.push(
-      `the build spends ${total} talent points, and exactly ${needed} are needed (talents.maxPoints)`,
+      problem(
+        "overMax",
+        null,
+        maxPoints,
+        total,
+        `the build spends ${total} talent points, and at most ${maxPoints} can be spent (talents.maxPoints)`,
+      ),
+    );
+  }
+  const cap = capOf(level);
+  if (cap < maxPoints && total > cap) {
+    problems.push(
+      problem(
+        "overLevel",
+        null,
+        cap,
+        total,
+        `the build spends ${total} talent points, and a level ${level} character can spend at most ${cap} (level - ${k("talents.firstPointLevel") - 1}, talents.firstPointLevel)`,
+      ),
     );
   }
   for (const talent of catalogue.talents) {
@@ -262,22 +381,256 @@ export function validateBuild(ranks, catalogue = talentCatalogue) {
       const required = catalogue.get(talent.req);
       if (rankOf(required) < required.max) {
         problems.push(
-          `"${talent.id}" needs its prerequisite "${talent.req}" at rank ${required.max}, and it is at rank ${rankOf(required)}`,
+          problem(
+            "prerequisite",
+            talent.id,
+            required.max,
+            rankOf(required),
+            `"${talent.id}" needs its prerequisite "${talent.req}" at rank ${required.max}, and it is at rank ${rankOf(required)}`,
+          ),
         );
       }
     }
     const rowPoints = k("talents.rowGating") * (talent.row - 1);
-    const spent = above(talent);
-    if (spent < rowPoints) {
+    const points = above(talent);
+    if (points < rowPoints) {
       problems.push(
-        `"${talent.id}" is on row ${talent.row} of ${talent.tree}, which needs ${rowPoints} points on the rows above it (talents.rowGating), and the build has ${spent}`,
+        problem(
+          "rowGate",
+          talent.id,
+          rowPoints,
+          points,
+          `"${talent.id}" is on row ${talent.row} of ${talent.tree}, which needs ${rowPoints} points on the rows above it (talents.rowGating), and the build has ${points}`,
+        ),
       );
     }
   }
-  if (problems.length > 0) {
-    throw new RangeError(`Talent build is not valid: ${problems.join("; ")}.`);
+  return problems;
+}
+
+// Everything wrong with a build, as data, for the picker (U6) to show without
+// parsing text. It never throws, and an empty list is a legal build. Each
+// entry is frozen { code, talent, need, have, message }: `talent` is the id the
+// problem is about (null for the build as a whole), `need` and `have` the two
+// numbers that disagree, and `message` the text validateBuild throws, naming
+// talents by id. The codes:
+//
+//   notAnObject    the build is not a { talent id: rank } object (alone)
+//   unknownTalent  an id the catalogue does not know (need and have null)
+//   badRank        a rank that is not a whole number from 0 to max
+//                  (need: the max, have: the rank)
+//   badLevel       the level is not a whole number from 10 to 60
+//                  (need: the bound it missed, have: the level)
+//   overMax        more than k("talents.maxPoints") (51) points
+//   overLevel      more than the level's level - 9 points (below 60 only)
+//   prerequisite   a talent's `req` is not at full rank
+//                  (need: the req's max, have: its rank)
+//   rowGate        too few points on the rows above a talent, in its tree
+//                  (need: rowGating * (row - 1), have: the points)
+//
+// Fewer points than the cap is not a problem (#190).
+export function buildProblems(
+  ranks,
+  { level = DEFAULT_TALENT_LEVEL } = {},
+  catalogue = talentCatalogue,
+) {
+  const problems = inputProblems(ranks, catalogue);
+  const bad = levelProblem(level);
+  if (bad !== null) {
+    problems.push(bad);
   }
-  return total;
+  if (problems.length > 0 && problems[0].code === "notAnObject") {
+    return Object.freeze(problems);
+  }
+  problems.push(...ruleProblems(spending(ranks, catalogue), level, catalogue));
+  return Object.freeze(problems);
+}
+
+// Why `action` ("add" or "remove") on one point of talent `id` is refused, or
+// null when it is allowed. It never throws. The answer is one problem entry
+// ({ code, talent, need, have, message }) and `blockers`, the ids of the
+// talents in the way. It judges the one change: a build that is already
+// illegal elsewhere does not block it, and a remove is refused only for a
+// problem the remove itself makes. The codes, besides the input ones above
+// (notAnObject, unknownTalent, badRank, badLevel) and badAction:
+//
+//   add     maxRank      the talent is at its max (need: max, have: rank)
+//           capReached   the build has spent its cap (need: cap, have: points)
+//           prerequisite the talent's `req` is not at full rank (blockers: [req])
+//           rowGate      too few points on the rows above it
+//   remove  notTaken     the talent is at rank 0
+//           strands      a talent that is taken would lose its prerequisite or
+//                        its row (talent: the one that would be stranded,
+//                        need and have its rule's numbers after the remove,
+//                        blockers: every stranded id)
+export function why(
+  ranks,
+  id,
+  action = "add",
+  { level = DEFAULT_TALENT_LEVEL } = {},
+  catalogue = talentCatalogue,
+) {
+  const refuse = (entry, blockers = []) =>
+    Object.freeze({ ...entry, blockers: Object.freeze(blockers) });
+  if (action !== "add" && action !== "remove") {
+    return refuse(
+      problem(
+        "badAction",
+        typeof id === "string" ? id : null,
+        null,
+        action,
+        `the action must be "add" or "remove", not ${typeof action === "string" ? JSON.stringify(action) : String(action)}`,
+      ),
+    );
+  }
+  const talent = typeof id === "string" ? catalogue.get(id) : undefined;
+  if (talent === undefined) {
+    return refuse(
+      problem(
+        "unknownTalent",
+        typeof id === "string" ? id : null,
+        null,
+        null,
+        `${typeof id === "string" ? JSON.stringify(id) : String(id)} is not a talent id. Use a catalogue id such as "combat.precision"`,
+      ),
+    );
+  }
+  const input = inputProblems(ranks, catalogue);
+  if (input.length > 0) {
+    return refuse(input[0]);
+  }
+  const bad = levelProblem(level);
+  if (bad !== null) {
+    return refuse(bad);
+  }
+  const spent = spending(ranks, catalogue);
+  const rank = spent.rankOf(talent);
+  if (action === "add") {
+    if (rank >= talent.max) {
+      return refuse(
+        problem(
+          "maxRank",
+          talent.id,
+          talent.max,
+          rank,
+          `"${talent.id}" is at its full rank, ${talent.max}`,
+        ),
+      );
+    }
+    const cap = capOf(level);
+    if (spent.total >= cap) {
+      return refuse(
+        problem(
+          "capReached",
+          talent.id,
+          cap,
+          spent.total,
+          `the build has spent all ${cap} talent points a level ${level} character has`,
+        ),
+      );
+    }
+    const next = ruleProblems(
+      spending({ ...ranks, [talent.id]: rank + 1 }, catalogue),
+      level,
+      catalogue,
+    ).filter((entry) => entry.talent === talent.id);
+    const req = next.find((entry) => entry.code === "prerequisite");
+    if (req !== undefined) {
+      return refuse(req, [talent.req]);
+    }
+    const row = next.find((entry) => entry.code === "rowGate");
+    if (row !== undefined) {
+      return refuse(row);
+    }
+    return null;
+  }
+  if (rank === 0) {
+    return refuse(
+      problem(
+        "notTaken",
+        talent.id,
+        1,
+        0,
+        `"${talent.id}" has no point to take back`,
+      ),
+    );
+  }
+  const key = (entry) => `${entry.code}/${entry.talent}`;
+  const before = new Set(ruleProblems(spent, level, catalogue).map(key));
+  const after = { ...ranks, [talent.id]: rank - 1 };
+  // ruleProblems only looks at talents that are taken, so each of these is a
+  // talent with points that the remove would leave illegal.
+  const stranded = ruleProblems(
+    spending(after, catalogue),
+    level,
+    catalogue,
+  ).filter(
+    (entry) =>
+      (entry.code === "prerequisite" || entry.code === "rowGate") &&
+      !before.has(key(entry)),
+  );
+  if (stranded.length === 0) {
+    return null;
+  }
+  const first = stranded[0];
+  return refuse(
+    problem(
+      "strands",
+      first.talent,
+      first.need,
+      first.have,
+      `taking a point from "${talent.id}" would strand ${first.message}`,
+    ),
+    [...new Set(stranded.map((entry) => entry.talent))],
+  );
+}
+
+// Whether one point can go into talent `id`, or come out of it. They never
+// throw: a bad build, id or level is a refusal, and why() says which.
+export function canAdd(ranks, id, options = {}, catalogue = talentCatalogue) {
+  return why(ranks, id, "add", options, catalogue) === null;
+}
+
+export function canRemove(
+  ranks,
+  id,
+  options = {},
+  catalogue = talentCatalogue,
+) {
+  return why(ranks, id, "remove", options, catalogue) === null;
+}
+
+// The throwing check (D7, #106; partial builds since #190): that a build is
+// one a character of `level` can have. Ids and ranks are checked first, as
+// expandTalents does, with the same messages; then a bad level is a
+// RangeError; then every rule problem from buildProblems is listed in one
+// RangeError, "Talent build is not valid: <message>; <message>.", naming
+// talents by id and never by display name. The rules are the Classic ones,
+// with the numbers in data/constants.js:
+//   - the build spends from 0 to its cap: at most k("talents.maxPoints") (51),
+//     and at most level - 9 below level 60 (k("talents.firstPointLevel"),
+//     `assumption`). Fewer is legal (#190);
+//   - a talent with a prerequisite (`req`, the talent it hangs below) has its
+//     prerequisite at full rank, as in the Classic tree;
+//   - a talent on row r needs k("talents.rowGating") * (r - 1) points spent in
+//     its own tree on the rows above it (the Classic rule of 5 points a row,
+//     tagged `assumption`; the export does not state the number, OQ14).
+// It returns the points spent. `catalogue` stays the second argument, so the
+// callers from before #190 work unchanged.
+export function validateBuild(
+  ranks,
+  catalogue = talentCatalogue,
+  { level = DEFAULT_TALENT_LEVEL } = {},
+) {
+  checkRanks(ranks, catalogue, "validateBuild");
+  talentPointCap(level);
+  const problems = ruleProblems(spending(ranks, catalogue), level, catalogue);
+  if (problems.length > 0) {
+    throw new RangeError(
+      `Talent build is not valid: ${problems.map((entry) => entry.message).join("; ")}.`,
+    );
+  }
+  return spending(ranks, catalogue).total;
 }
 
 // What a selected build gives a fight (D7). `ranks` is config.talents. A build
@@ -288,16 +641,23 @@ export function validateBuild(ranks, catalogue = talentCatalogue) {
 //   selected   whether a build was chosen (at least one rank above 0)
 //   points     the points it spends
 //   modifiers, procs, abilities, noDps, unmapped   as expandTalents gives them
+//
+// A partial build (#190) is a selected build like a full one, so `selected` is
+// true from the first point and the talent abilities it lacks stay locked
+// (Rogue.lockedByBuild). `level` is the talent level (validateBuild); the Rogue
+// passes none, so its cap is 51, and normalizeConfig has already held
+// config.talents to config.talentLevel's cap.
 export function applyBuild(
   ranks = {},
   effects = TALENT_EFFECTS,
   catalogue = talentCatalogue,
+  { level = DEFAULT_TALENT_LEVEL } = {},
 ) {
   checkRanks(ranks, catalogue, "applyBuild");
   const points = spending(ranks, catalogue).total;
   const selected = points > 0;
   if (selected) {
-    validateBuild(ranks, catalogue);
+    validateBuild(ranks, catalogue, { level });
   }
   return Object.freeze({
     selected,
