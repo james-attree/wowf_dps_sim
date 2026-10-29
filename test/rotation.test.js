@@ -119,26 +119,45 @@ describe("placeholder Combat rotation", () => {
     assert.equal(sim.gcd, k("gcd.duration"));
   });
 
-  it("refreshes Slice and Dice at the 10s boundary and below it", () => {
+  it("refreshes Slice and Dice with the combat-swords preset's rules (#155)", () => {
     setRoll(0.5);
-    const refresh = k("rotation.sliceAndDiceRefreshSeconds");
-    assert.equal(refresh, 10);
+    const { windowSeconds, recastSeconds } = k("rotation.pooling");
+    const epsilon = k("sim.tickEpsilon");
     const refreshed = k("sliceAndDice").durationByCp.at(-1);
-
-    for (const duration of [refresh - k("sim.tickEpsilon"), refresh]) {
+    const cast = (duration, energy) => {
       const { rogue, sim } = pinned();
       hold(sim, rogue, k("rotation.priority").onCooldown);
       rogue.comboPoints = k("rotation.finisherComboPoints");
+      rogue.energy = energy;
       armSliceAndDice(rogue, sim, duration);
       atZero(sim);
-
-      assert.deepEqual(names(sim), [rogue.abilities.sliceAndDice.name]);
-      assert.equal(rogue.comboPoints, 0);
+      return { rogue, sim };
+    };
+    const cases = [
+      // Under recastSeconds left: at any energy that pays for it.
+      [recastSeconds - epsilon, k("eviscerate").energy, "sliceAndDice"],
+      [recastSeconds - epsilon, k("energy.max"), "sliceAndDice"],
+      // Inside the window, at full energy.
+      [windowSeconds, k("energy.max"), "sliceAndDice"],
+      [recastSeconds, k("energy.max"), "sliceAndDice"],
+      // Inside the window below full energy, and past the window up to the
+      // old 10 s refresh: Eviscerate.
+      [windowSeconds, k("energy.max") - 1, "eviscerate"],
+      [recastSeconds, k("eviscerate").energy, "eviscerate"],
+      [windowSeconds + epsilon, k("energy.max"), "eviscerate"],
+      [k("rotation.sliceAndDiceRefreshSeconds"), k("energy.max"), "eviscerate"],
+    ];
+    for (const [duration, energy, ability] of cases) {
+      const { rogue, sim } = cast(duration, energy);
+      const label = `${duration} s left, ${energy} energy`;
+      assert.deepEqual(names(sim), [rogue.abilities[ability].name], label);
+      assert.equal(rogue.comboPoints, 0, label);
       assert.equal(
         sim.activeBuffs[rogue.abilities.sliceAndDice.id].duration,
-        refreshed,
+        ability === "sliceAndDice" ? refreshed : duration,
+        label,
       );
-      assert.equal(sim.activeDots.rupture, undefined);
+      assert.equal(sim.activeDots.rupture, undefined, label);
     }
   });
 

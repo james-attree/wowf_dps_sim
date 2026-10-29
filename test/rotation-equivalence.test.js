@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { createFight, fightResult } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { defaultConfig, defaultDaggerConfig } from "../js/sim-config.js";
-import { legacyCastRotation } from "./legacy-rotation.js";
+import { legacyCastRotation, legacyRotation } from "./legacy-rotation.js";
 import { buildWithout } from "./builds.js";
 import { referenceBuild } from "./talentsforever.js";
 
@@ -13,7 +13,10 @@ import { referenceBuild } from "./talentsforever.js";
 // over Rogue.prototype.castRotation for the legacy half of each pair. Equal
 // means equal in everything a fight records: the total, every ability's
 // record, the whole log, the rng draw count, and the cooldowns and buffs
-// left at the end.
+// left at the end. Since issue #155 the default refreshes Slice and Dice with
+// the combat-swords preset's rules, so both halves now name the rotation as it
+// was before that (legacyRotation(), the same file) in their config: the
+// walked half runs it, and the legacy half's code rotation ignores it.
 
 const BUILDS = {
   "no build": {},
@@ -34,6 +37,7 @@ function fightWith(
 ) {
   const config = dagger ? defaultDaggerConfig() : defaultConfig();
   config.talents = structuredClone(talents);
+  config.rotation = legacyRotation();
   if (poisons) {
     config.poisons = { mainHand: "instant", offHand: "deadly" };
   }
@@ -69,8 +73,8 @@ function fightWith(
 function sameFight(spec) {
   const legacy = fightWith(spec, true);
   const walked = fightWith(spec, false);
-  // The rotation is the one thing the two configs differ in, and only by being
-  // recorded: both fights run the default.
+  // The rotation is the one thing the two fights differ in: both configs name
+  // legacyRotation(), and only the walked half reads it.
   assert.deepEqual(walked, legacy);
   return walked;
 }

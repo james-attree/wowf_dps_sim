@@ -14,6 +14,15 @@ const rotation = (...rules) => ({
   name: "Test",
   rules,
 });
+// Cold Blood is the off-GCD ability the walk tests use. A rule that casts it
+// needs its abilityGranted condition (the validator, issue #155), and the hand
+// world below grants it.
+const coldBlood = (...conditions) =>
+  rule(
+    "cold-blood",
+    { type: "abilityGranted", ability: "cold-blood" },
+    ...conditions,
+  );
 const points = (value) => ({
   type: "comboPoints",
   op: ">=",
@@ -41,6 +50,7 @@ function world({
       state: () => {
         reads.push(current.comboPoints);
         return {
+          granted: ["cold-blood"],
           resources: {
             comboPoints: {
               value: current.comboPoints,
@@ -123,7 +133,7 @@ describe("decide: the walk", () => {
   });
 
   it("casts an off-GCD ability and goes on to the next rule", () => {
-    const result = walk([rule("cold-blood"), rule("eviscerate")], {
+    const result = walk([coldBlood(), rule("eviscerate")], {
       ready: ["cold-blood", "eviscerate"],
       gcd: ["eviscerate"],
     });
@@ -131,8 +141,8 @@ describe("decide: the walk", () => {
     assert.equal(result.outcome, "cast");
   });
 
-  it("skips an off-GCD ability that cannot be cast, with no conditions at all", () => {
-    const result = walk([rule("cold-blood"), rule("sinister-strike")], {
+  it("skips an off-GCD ability whose conditions hold but that cannot be cast", () => {
+    const result = walk([coldBlood(), rule("sinister-strike")], {
       ready: ["sinister-strike"],
       gcd: ["sinister-strike"],
     });
@@ -151,7 +161,7 @@ describe("decide: the walk", () => {
 
   it("keeps an off-GCD cast made before the walk ends in pooling", () => {
     const result = walk(
-      [rule("cold-blood"), rule("eviscerate"), rule("sinister-strike")],
+      [coldBlood(), rule("eviscerate"), rule("sinister-strike")],
       {
         ready: ["cold-blood", "sinister-strike"],
         gcd: ["eviscerate", "sinister-strike"],
@@ -163,7 +173,7 @@ describe("decide: the walk", () => {
 
   it("passes over an on-GCD rule that cannot be cast while the GCD is running", () => {
     const result = walk(
-      [rule("eviscerate"), rule("cold-blood"), rule("sinister-strike")],
+      [rule("eviscerate"), coldBlood(), rule("sinister-strike")],
       {
         ready: ["cold-blood"],
         gcd: ["eviscerate", "sinister-strike"],
@@ -211,15 +221,12 @@ describe("decide: the walk", () => {
     assert.deepEqual(busy.reads, []);
     assert.equal(busy.outcome, "none");
     // An off-GCD rule is still read for: Cold Blood below them can be cast.
-    const below = walk(
-      [rule("eviscerate", points(5)), rule("cold-blood", points(5))],
-      {
-        comboPoints: 5,
-        ready: ["cold-blood"],
-        gcd: ["eviscerate"],
-        clear: false,
-      },
-    );
+    const below = walk([rule("eviscerate", points(5)), coldBlood(points(5))], {
+      comboPoints: 5,
+      ready: ["cold-blood"],
+      gcd: ["eviscerate"],
+      clear: false,
+    });
     assert.deepEqual(below.reads, [5]);
     assert.deepEqual(below.casts, ["cold-blood"]);
     // The GCD clear and an on-GCD rule that cannot be cast: its conditions
@@ -245,7 +252,7 @@ describe("decide: the walk", () => {
     const result = decide(
       compileRotation(
         rotation(
-          rule("cold-blood", points(5)),
+          coldBlood(points(5)),
           rule("eviscerate", points(5)),
           rule("sinister-strike", points(2)),
         ),
@@ -268,7 +275,7 @@ describe("decide: the walk", () => {
       return onGcd(id);
     };
     const compiled = compileRotation(
-      rotation(rule("cold-blood"), rule("sinister-strike")),
+      rotation(coldBlood(), rule("sinister-strike")),
     );
     decide(compiled, probe.host);
     decide(compiled, probe.host);
@@ -305,7 +312,7 @@ describe("decide: the walk", () => {
 
   it("reads the state again after a cast, and only then", () => {
     const rules = [
-      rule("cold-blood", points(5)),
+      coldBlood(points(5)),
       rule("eviscerate", points(5)),
       rule("sinister-strike"),
     ];
@@ -378,7 +385,11 @@ describe("compileRotation", () => {
     for (const definition of ABILITY_DEFINITIONS) {
       const { name } = abilityCatalogue.get(definition.id);
       assert.deepEqual(
-        rotationProblems(rotation(rule(definition.id))),
+        rotationProblems(
+          rotation(
+            definition.id === "cold-blood" ? coldBlood() : rule(definition.id),
+          ),
+        ),
         [],
         definition.id,
       );

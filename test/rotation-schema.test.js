@@ -68,10 +68,12 @@ describe("RotationRule shape check: the documented examples", () => {
     const idOf = (key) =>
       ABILITY_DEFINITIONS.find((ability) => ability.key === key).id;
     const actions = combat.rules.map((rule) => rule.action);
-    // onCooldown in order, then Slice and Dice, Cold Blood (the rule in
+    // onCooldown in order, then Slice and Dice twice (the combat-swords
+    // preset's refresh rules, issue #155), Cold Blood (the rule in
     // js/rotation-default.js), Eviscerate and the builder.
     assert.deepEqual(actions, [
       ...priority.onCooldown.map(idOf),
+      idOf(priority.sliceAndDice),
       idOf(priority.sliceAndDice),
       idOf(k("rotation.coldBlood").ability),
       idOf(priority.eviscerate),
@@ -83,16 +85,19 @@ describe("RotationRule shape check: the documented examples", () => {
       rule.conditions
         .filter((condition) => condition.type === type)
         .map((condition) => condition.value);
-    for (const rule of combat.rules.slice(2, 5)) {
+    const [, , recast, window, coldBlood, eviscerate] = combat.rules;
+    for (const rule of [recast, window, coldBlood, eviscerate]) {
       assert.deepEqual(values(rule, "comboPoints"), [
         k("rotation.finisherComboPoints"),
       ]);
     }
-    for (const rule of combat.rules.slice(2, 4)) {
-      assert.deepEqual(values(rule, "auraRemaining"), [
-        k("rotation.sliceAndDiceRefreshSeconds"),
-      ]);
-    }
+    const pooling = k("rotation.pooling");
+    assert.deepEqual(values(recast, "auraRemaining"), [pooling.recastSeconds]);
+    assert.deepEqual(values(window, "auraRemaining"), [pooling.windowSeconds]);
+    assert.deepEqual(values(window, "resource"), [k("energy.max")]);
+    assert.deepEqual(values(coldBlood, "auraRemaining"), [
+      k("rotation.sliceAndDiceRefreshSeconds"),
+    ]);
     // Blade Flurry and Adrenaline Rush start the GCD, so each says when it can
     // be cast: the build has it, it is off cooldown, and for Blade Flurry the
     // energy it costs. The builder has no condition.

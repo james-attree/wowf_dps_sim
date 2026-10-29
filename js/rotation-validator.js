@@ -29,6 +29,8 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //   4. Each condition: a known type, the params it takes, each of the right
 //      type (js/rotation-conditions.js), and then the params' meaning: an
 //      aura, debuff or ability id that exists, and a number in its range.
+//   5. A rule that casts Cold Blood has an `abilityGranted` condition for
+//      Cold Blood (issue #155), so a build without the talent never casts it.
 // It does not check whether a rule is reachable or sensible (an order that
 // never casts something). Nothing here knows a step or a frame.
 //
@@ -205,6 +207,27 @@ function conditionMeaningErrors(condition, where, context) {
   return errors;
 }
 
+// Cold Blood is a talent: a rule that casts it must say the build (or the
+// host) grants it, with { type: "abilityGranted", ability: "cold-blood" }
+// (issue #155). One that does not is an error, not a warning.
+const COLD_BLOOD = "cold-blood";
+function coldBloodError(rule, path) {
+  if (rule.action !== COLD_BLOOD) {
+    return null;
+  }
+  const granted = rule.conditions.some(
+    (condition) =>
+      condition.type === "abilityGranted" && condition.ability === COLD_BLOOD,
+  );
+  if (granted) {
+    return null;
+  }
+  return {
+    path: `${path}.conditions`,
+    message: `${path} casts ${COLD_BLOOD} without the condition { "type": "abilityGranted", "ability": "${COLD_BLOOD}" }: Cold Blood is a talent, so its rule must hold only when the build grants it.`,
+  };
+}
+
 // Every error in a rotation, as { path, message }, in reading order. An empty
 // list means the rotation is valid. See the top of this file for the checks.
 export function validateRotation(rotation, context = {}) {
@@ -238,6 +261,10 @@ export function validateRotation(rotation, context = {}) {
           : conditionMeaningErrors(condition, here, where)),
       );
     });
+    const coldBlood = coldBloodError(rule, path);
+    if (coldBlood !== null) {
+      errors.push(coldBlood);
+    }
   });
   return errors;
 }

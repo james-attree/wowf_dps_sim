@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { k } from "../data/constants.js";
+import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { AURAS } from "../js/auras.js";
 import { createFight, runFight } from "../js/fight.js";
@@ -24,6 +25,11 @@ import { SimRunner } from "../js/sim-runner.js";
 const rule = (action, ...conditions) => ({ action, conditions });
 const rotation = (...rules) => ({ schemaVersion: 1, name: "Test", rules });
 const valid = rotation(rule("sinister-strike"));
+const GRANTED_COLD_BLOOD = { type: "abilityGranted", ability: "cold-blood" };
+// The least rule that casts an ability: none needs a condition, except Cold
+// Blood, which needs its abilityGranted condition (issue #155).
+const onlyRule = (id) =>
+  id === "cold-blood" ? rule(id, GRANTED_COLD_BLOOD) : rule(id);
 
 // The one error a rotation with a single rule and condition gives.
 function only(errors) {
@@ -80,7 +86,7 @@ describe("validateRotation: valid rotations", () => {
     assert.deepEqual(validateRotation(defaultRotation()), []);
     for (const definition of ABILITY_DEFINITIONS) {
       assert.deepEqual(
-        validateRotation(rotation(rule(definition.id))),
+        validateRotation(rotation(onlyRule(definition.id))),
         [],
         definition.id,
       );
@@ -581,6 +587,115 @@ describe("assertValidRotation and rotationProblems", () => {
         return true;
       },
     );
+  });
+});
+
+describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
+  const MESSAGE =
+    'casts cold-blood without the condition { "type": "abilityGranted", "ability": "cold-blood" }: Cold Blood is a talent, so its rule must hold only when the build grants it.';
+  const five = { type: "comboPoints", op: ">=", value: 5 };
+
+  it("rejects a Cold Blood rule with no conditions, as an error on its conditions", () => {
+    assert.deepEqual(
+      validateRotation(rotation(rule("sinister-strike"), rule("cold-blood"))),
+      [{ path: "rules[1].conditions", message: `rules[1] ${MESSAGE}` }],
+    );
+  });
+
+  it("rejects one whose conditions do not include the grant of Cold Blood", () => {
+    for (const conditions of [
+      [five],
+      [{ type: "abilityUnlocked", ability: "cold-blood" }],
+      [{ type: "abilityGranted", ability: "blade-flurry" }, five],
+      [{ type: "cooldownReady", ability: "cold-blood" }, five],
+    ]) {
+      const error = only(
+        validateRotation(rotation(rule("cold-blood", ...conditions))),
+      );
+      assert.equal(
+        error.path,
+        "rules[0].conditions",
+        JSON.stringify(conditions),
+      );
+      assert.equal(error.message, `rules[0] ${MESSAGE}`);
+    }
+  });
+
+  it("accepts the grant anywhere among the rule's conditions", () => {
+    for (const conditions of [
+      [GRANTED_COLD_BLOOD],
+      [GRANTED_COLD_BLOOD, five],
+      [
+        five,
+        { type: "cooldownReady", ability: "cold-blood" },
+        GRANTED_COLD_BLOOD,
+      ],
+    ]) {
+      assert.deepEqual(
+        validateRotation(rotation(rule("cold-blood", ...conditions))),
+        [],
+      );
+    }
+  });
+
+  it("checks only rules that cast Cold Blood", () => {
+    assert.deepEqual(
+      validateRotation(
+        rotation(
+          rule("eviscerate", {
+            type: "abilityUnlocked",
+            ability: "cold-blood",
+          }),
+        ),
+      ),
+      [],
+    );
+  });
+
+  it("reports it after the rule's condition errors, in rule order, with the others", () => {
+    const errors = validateRotation(
+      rotation(
+        rule("cold-blood", { type: "comboPoints", op: ">=", value: 9 }),
+        rule("nonsense"),
+        rule("cold-blood"),
+      ),
+    );
+    assert.deepEqual(
+      errors.map((error) => error.path),
+      [
+        "rules[0].conditions[0].value",
+        "rules[0].conditions",
+        "rules[1].action",
+        "rules[2].conditions",
+      ],
+    );
+  });
+
+  it("is an error, so a fight refuses it", () => {
+    const config = {
+      rotation: rotation(rule("cold-blood"), rule("sinister-strike")),
+    };
+    assert.throws(
+      () => compileRotation(config.rotation),
+      /^RangeError: Bad rotation:\n/,
+    );
+    assert.throws(
+      () => runFight({ seed: 1, duration: 5, config }),
+      /rules\[0\] casts cold-blood without the condition/,
+    );
+  });
+
+  it("passes the default rotation, every preset and every documented example", () => {
+    assert.deepEqual(validateRotation(defaultRotation()), []);
+    assert.ok(ROTATION_PRESETS.length > 0);
+    for (const preset of ROTATION_PRESETS) {
+      assert.deepEqual(validateRotation(preset.rotation), [], preset.id);
+    }
+    for (const example of examples.filter((entry) =>
+      Object.hasOwn(entry, "rules"),
+    )) {
+      assert.deepEqual(validateRotation(example), [], example.name);
+    }
   });
 });
 
