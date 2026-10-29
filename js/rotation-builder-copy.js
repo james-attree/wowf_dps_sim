@@ -174,6 +174,36 @@ export function placeOf(path) {
   return { at: "rule", rule };
 }
 
+// A path as a readable place, for the import box (D4, section 5): "Rotation
+// name", "Rules", "Rule 2" or "Rule 2, condition 1". Anything under a rule
+// or a condition is placed there, so an unknown key ("rules[0].ability")
+// reads "Rule 1". The path "" (the text or the rotation as a whole) has no
+// place, so null. Any other path, such as "schemaVersion", is a key of the
+// file and is kept as it is.
+const UNDER =
+  /^rules\[(?<rule>\d+)\](?:\.conditions\[(?<condition>\d+)\])?(?:\.|\[|$)/;
+
+export function placeText(path) {
+  if (path === "") {
+    return null;
+  }
+  if (path === "name") {
+    return "Rotation name";
+  }
+  if (path === "rules") {
+    return "Rules";
+  }
+  const match = UNDER.exec(path);
+  if (match === null) {
+    return path;
+  }
+  const rule = `Rule ${Number(match.groups.rule) + 1}`;
+  const { condition } = match.groups;
+  return condition === undefined
+    ? rule
+    : `${rule}, condition ${Number(condition) + 1}`;
+}
+
 // The jump link's name: "Rule 4: Cold Blood, condition 3".
 export function jumpLabel(entry, rotation) {
   const place = placeOf(entry.path);

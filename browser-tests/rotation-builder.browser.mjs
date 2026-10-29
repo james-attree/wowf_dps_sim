@@ -169,6 +169,20 @@ for (const width of WIDTHS) {
         await page.locator("#run-status-text").textContent(),
         /Can't run · Rotation has 1 error/,
       );
+      // Export is off too, and says why (D17); a press writes no file.
+      assert.equal(
+        await page.getAttribute("#cfg-export", "aria-disabled"),
+        "true",
+      );
+      assert.equal(
+        await page.locator("#cfg-export-why").textContent(),
+        "Export is off: the rotation has 1 error.",
+      );
+      assert.equal(await page.isVisible("#cfg-export-why"), true);
+      let downloads = 0;
+      page.on("download", () => (downloads += 1));
+      await clickCentre(page.locator("#cfg-export"));
+      assert.equal(downloads, 0);
       // The summary is closed on a narrow screen; its note is there to open.
       assert.equal(
         await page.getAttribute("#cfg-summary-stale", "hidden"),
@@ -185,6 +199,11 @@ for (const width of WIDTHS) {
       await page.keyboard.type("4");
       assert.equal(await page.isDisabled("#run-button"), false);
       assert.equal(await page.getAttribute("#cfg-summary-stale", "hidden"), "");
+      assert.equal(
+        await page.getAttribute("#cfg-export", "aria-disabled"),
+        null,
+      );
+      assert.equal(await page.isVisible("#cfg-export-why"), false);
       await page.waitForFunction(
         () =>
           document.querySelector("#rotation-builder .builder-live")
@@ -217,6 +236,33 @@ for (const width of WIDTHS) {
       assert.deepEqual(await names(page), before);
       await clickCentre(page.locator("[data-key='undo']"));
       assert.deepEqual(await names(page), edited);
+    });
+
+    test("a refused import lists readable places, not raw paths (D4, section 5)", async () => {
+      await page.evaluate(() => {
+        document.querySelector(".paste-import").open = true;
+      });
+      await page.fill(
+        "#cfg-import-text",
+        JSON.stringify({
+          schemaVersion: 1,
+          name: "Bad",
+          rules: [
+            { action: "blade-flurry", conditions: [] },
+            {
+              action: "eviscerate",
+              conditions: [{ type: "comboPoints", op: ">=", value: 2.5 }],
+            },
+          ],
+        }),
+      );
+      await clickCentre(page.locator("#cfg-import-paste"));
+      const detail = await page
+        .locator("#cfg-import-detail-text")
+        .textContent();
+      assert.match(detail, /^Rule 1: Blade Flurry/m);
+      assert.match(detail, /^Rule 2, condition 1: /m);
+      assert.doesNotMatch(detail, /rules\[/);
     });
 
     test("no sideways scroll, with an error and with the panel open", async () => {

@@ -128,6 +128,8 @@ export function createConfigFormView(doc, store, actions) {
   const summaryRules = $("cfg-summary-rules");
   const importFile = $("cfg-import-file");
   const importText = $("cfg-import-text");
+  const exportButton = $("cfg-export");
+  const exportWhy = $("cfg-export-why");
   const importStatus = $("cfg-import-status");
   const importDetail = $("cfg-import-detail");
   const importDetailText = $("cfg-import-detail-text");
@@ -387,6 +389,21 @@ export function createConfigFormView(doc, store, actions) {
     );
   }
 
+  function drawExport(why) {
+    const off = why !== null && why !== undefined;
+    if (off) {
+      exportButton.setAttribute("aria-disabled", "true");
+      exportButton.setAttribute("aria-describedby", "cfg-export-why");
+    } else {
+      exportButton.removeAttribute("aria-disabled");
+      exportButton.removeAttribute("aria-describedby");
+    }
+    if (exportWhy !== null) {
+      exportWhy.hidden = !off;
+      exportWhy.textContent = off ? why : "";
+    }
+  }
+
   function drawImport(status) {
     importStatus.textContent = status?.message ?? "";
     importStatus.classList.toggle("is-error", status?.ok === false);
@@ -445,6 +462,9 @@ export function createConfigFormView(doc, store, actions) {
     if (previous === null || state.errors !== previous.errors) {
       drawErrors(state.errors);
     }
+    if (previous === null || state.exportOff !== previous.exportOff) {
+      drawExport(state.exportOff);
+    }
     if (previous === null || state.importStatus !== previous.importStatus) {
       drawImport(state.importStatus);
     }
@@ -483,8 +503,14 @@ export function createConfigFormView(doc, store, actions) {
     actions.chooseRotation(rotation.value),
   );
 
-  $("cfg-export").addEventListener("click", () => {
-    const { fileName, text } = actions.exportRotation();
+  // Off while the rotation has errors (D17): aria-disabled, so it keeps
+  // focus and says why, and a press writes nothing.
+  exportButton.addEventListener("click", () => {
+    const file = actions.exportRotation();
+    if (file === null) {
+      return;
+    }
+    const { fileName, text } = file;
     const url = win.URL.createObjectURL(
       new win.Blob([text], { type: "application/json" }),
     );

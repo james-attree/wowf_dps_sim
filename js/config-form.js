@@ -1,9 +1,9 @@
 import { k } from "../data/constants.js";
 import { defaultRotation } from "./rotation-default.js";
 import { exportRotation, importRotation } from "./rotation-io.js";
-import { formatError } from "./rotation-schema.js";
 import { poisonCatalogue } from "./poisons.js";
 import { listPresets, presetRotation } from "./rotation-presets.js";
+import { placeText } from "./rotation-builder-copy.js";
 import { draftRotation } from "./rotation-edit.js";
 import { skipOf, talentState } from "./rotation-skips.js";
 import { summarizeRule } from "./rotation-summary.js";
@@ -45,6 +45,8 @@ import { defaultConfig, normalizeConfig } from "./sim-config.js";
 //                   draft when it has one). While there are any, config keeps
 //                   the last valid version (D19) and Run is off (D17).
 //   rotationWarnings rotationWarnings' entries for it ([] while it has errors).
+//   exportOff       null, or why Export is off while there are rotation
+//                   errors ("Export is off: the rotation has N errors.", D17).
 //   importStatus    null, or { ok, message, detail, warnings } from the last
 //                   import. `detail` is the errors of a refused file and
 //                   `warnings` the warnings of an accepted one (issue #189),
@@ -350,6 +352,7 @@ export function formFromConfig(config, revision = 0) {
     imported,
     drafts: {},
     rotationErrors: [],
+    exportOff: null,
     rotationWarnings: rotationWarnings(config.rotation),
     importStatus: null,
     rotationOptions: rotationOptions(imported),
@@ -418,11 +421,23 @@ export function importedText(name, warnings) {
   return `Imported "${name}" with ${count}. It still runs; see the warnings below.`;
 }
 
-// One line of an import's detail or warnings: the entry's path and then its
-// message, or the message alone for a problem with the whole text (path "").
-// Messages never say where (the message contract, #214), so every line is
-// written by formatError, as the validator's string forms are.
-export const errorLine = formatError;
+// One line of an import's detail or warnings: the entry's readable place
+// ("Rule 2, condition 1", from its path) and then its message, or the message
+// alone for a problem with the whole text (path ""). Messages never say where
+// (the message contract, #214); the place comes from the path alone, never
+// the text (U7 spec D4 and section 5, #217). The thrown and string forms keep
+// the raw path (formatError).
+export function errorLine(entry) {
+  const place = placeText(entry.path);
+  return place === null ? entry.message : `${place}: ${entry.message}`;
+}
+
+// Why Export is off: the rotation on screen has errors (U7 spec D17, #217).
+// Its last valid version is what the sim keeps, but the file would not be
+// what the builder shows, so none is written.
+export function exportOffText(count) {
+  return `Export is off: the rotation has ${count === 1 ? "1 error" : `${count} errors`}.`;
+}
 
 // The most entries an import's detail or warnings lists (#214, Kira's QA of
 // #215: a 50-rule file can give some 18,000 errors). The validator and
@@ -477,6 +492,8 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
           errors,
           rotationErrors: check.errors,
           rotationWarnings: check.warnings,
+          exportOff:
+            check.errors.length > 0 ? exportOffText(check.errors.length) : null,
           rotationOptions: rotationOptions(next.imported, next.drafts),
           summary: summaryOf(rotation, {
             talents: talentState(config ?? store.get().config),
@@ -621,9 +638,13 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       }
       commit({ ...form(), drafts });
     },
-    // The selected rotation as a file: { fileName, text }.
+    // The selected rotation as a file: { fileName, text }, or null while it
+    // has errors (Export is off, D17).
     exportRotation() {
-      const { rotationChoice, imported, drafts } = form();
+      const { rotationChoice, imported, drafts, rotationErrors } = form();
+      if (rotationErrors.length > 0) {
+        return null;
+      }
       const rotation = rotationOf(rotationChoice, imported, drafts);
       return {
         fileName: `${slug(String(rotation.name))}.json`,

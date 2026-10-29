@@ -432,7 +432,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     );
     assert.match(
       status.warnings,
-      /^rules\[0\]\.conditions: Eviscerate \(eviscerate\) is a finisher/m,
+      /^Rule 1: Eviscerate \(eviscerate\) is a finisher/m,
     );
     actions.importText("{ nope");
     assert.equal(form().importStatus.warnings, "");
@@ -494,18 +494,20 @@ describe("rotation: one source of truth, config.rotation", () => {
       form().importStatus.detail,
       /^schemaVersion: The rotation is missing "schemaVersion"\.$/m,
     );
-    // The message names no place; the path is written once, in front (#214).
+    // The message names no place; the readable place is written once, in
+    // front (#214; U7 spec D4, #217), and no raw path is shown.
     assert.match(
       form().importStatus.detail,
-      /^rules\[0\]\.action: The rule is missing "action"\.$/m,
+      /^Rule 1: The rule is missing "action"\.$/m,
     );
-    assert.doesNotMatch(
+    assert.match(
       form().importStatus.detail,
-      /rules\[0\][^\n]*: rules\[0\]/,
+      /^Rule 1: The rule has unknown field "ability"\./m,
     );
+    assert.doesNotMatch(form().importStatus.detail, /rules\[/);
   });
 
-  it("a refused talent-granted rule shows its path once, in front (#189 review, #214)", () => {
+  it("a refused talent-granted rule shows its place once, in front (#189 review, #214, #217)", () => {
     const { actions, form } = setup();
     actions.importText(
       JSON.stringify({
@@ -517,26 +519,39 @@ describe("rotation: one source of truth, config.rotation", () => {
     const { detail } = form().importStatus;
     assert.match(
       detail,
-      /^rules\[0\]\.conditions: Blade Flurry \(blade-flurry\) comes from a talent/,
+      /^Rule 1: Blade Flurry \(blade-flurry\) comes from a talent/,
     );
-    assert.equal(detail.split("rules[0]").length, 2, detail);
+    assert.equal(detail.split("Rule 1").length, 2, detail);
+    assert.doesNotMatch(detail, /rules\[/);
   });
 
-  it("errorLine is formatError: the path, then the message, or the message alone at the root (#214)", () => {
+  it("errorLine is the readable place from the path, then the message, or the message alone at the root (#214, #217)", () => {
     const line = (path, message) => errorLine({ path, message });
-    assert.equal(errorLine, formatError);
     assert.equal(line("", "Not JSON."), "Not JSON.");
     assert.equal(
       line("rules[0].conditions", "Blade Flurry"),
-      "rules[0].conditions: Blade Flurry",
+      "Rule 1: Blade Flurry",
+    );
+    assert.equal(line("rules[0].action", "x"), "Rule 1: x");
+    assert.equal(line("rules[0].ability", "x"), "Rule 1: x");
+    assert.equal(line("rules[2].conditions[1]", "x"), "Rule 3, condition 2: x");
+    assert.equal(
+      line("rules[2].conditions[1].value", "x"),
+      "Rule 3, condition 2: x",
+    );
+    assert.equal(line("name", "x"), "Rotation name: x");
+    // The thrown and string forms keep the raw path.
+    assert.equal(
+      formatError({ path: "rules[0].action", message: "x" }),
+      "rules[0].action: x",
     );
     assert.equal(
       line("schemaVersion", 'The rotation is missing "schemaVersion".'),
       'schemaVersion: The rotation is missing "schemaVersion".',
     );
     // No guessing from the text: a message is never read for a place.
-    assert.equal(line("rules[1]", "rules[0]: x"), "rules[1]: rules[0]: x");
-    assert.equal(line("rules", "rules is x"), "rules: rules is x");
+    assert.equal(line("rules[1]", "rules[0]: x"), "Rule 2: rules[0]: x");
+    assert.equal(line("rules", "rules is x"), "Rules: rules is x");
   });
 
   it("a huge refusal lists the first MAX_LISTED errors, then '…and N more'; the counts are of all (#214)", () => {
@@ -599,8 +614,8 @@ describe("rotation: one source of truth, config.rotation", () => {
       { path: "rules[0]", message: "A." },
       { path: "", message: "B." },
     ];
-    assert.equal(listedLines(entries), "rules[0]: A.\nB.");
-    assert.equal(listedLines(entries, 1), "rules[0]: A.\n…and 1 more");
+    assert.equal(listedLines(entries), "Rule 1: A.\nB.");
+    assert.equal(listedLines(entries, 1), "Rule 1: A.\n…and 1 more");
     assert.equal(MAX_LISTED, 50);
   });
 

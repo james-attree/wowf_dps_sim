@@ -77,9 +77,14 @@
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
-.rotation-panel [aria-disabled="true"] {
+.rotation-panel [aria-disabled="true"],
+#cfg-export[aria-disabled="true"] {
   opacity: 0.55;
   cursor: not-allowed;
+}
+/* Export is off while the rotation has errors (D17); the line says why. */
+.export-why {
+  margin: 0.25rem 0 0;
 }
 .builder-name input {
   width: 100%;

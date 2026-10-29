@@ -585,11 +585,16 @@ no `The condition (comboPoints)` standing for a path. The place is the
 
 - The string and thrown forms (`rotationProblems`, `assertValidRotation`,
   `rotationShapeProblems`, `assertRotationShape`, `conditionProblems`,
-  `assertCondition`, the `RangeError` of `exportRotation`, and the page's
-  import box) write `formatError(entry)`: the raw path, `: `, then the
-  message, or the message alone for the path `""`.
+  `assertCondition` and the `RangeError` of `exportRotation`) write
+  `formatError(entry)`: the raw path, `: `, then the message, or the message
+  alone for the path `""`.
 - A view writes its own readable place ("Rule 3, condition 2") from the path
-  and shows the message beside it.
+  and shows the message beside it. The page's import box does
+  (`errorLine`, `js/config-form.js`, #217): "Rotation name", "Rules",
+  "Rule N" for anything about a rule, or "Rule N, condition M" for anything
+  under a condition, then `: ` and the message; a path that is none of these
+  (`schemaVersion`) is shown as it is. The rotation builder places each entry
+  on its rule, condition or field and shows short copy chosen by `code`.
 
 So the path and the text can no longer disagree (the `missingParam` path ends
 `.value`, where the old text began `rules[i].conditions[j] (type)`). A message
@@ -844,6 +849,9 @@ does that and hands the text over: the page's "Fight setup" form does
 - `exportRotation(rotation)`: the canonical JSON text of a valid rotation. An
   invalid one is a `RangeError` (`Bad rotation:` and one message per line), so a
   bad file is never written.
+  The page's Export… button never gets that far: while the rotation on screen
+  (a rotation builder draft, #217) has errors it is off (`aria-disabled`, with
+  "Export is off: the rotation has N errors."), the same as Run.
 - `importRotation(text)`: `{ ok, rotation, errors, warnings }`. `ok` is `true`, with the
   rotation and `errors: []`, when the text is a valid rotation. Otherwise `ok`
   is `false`, `rotation` is `null` and `errors` is the list of `{ code, path, message, ...data }` that [the validator](#validation) gives,

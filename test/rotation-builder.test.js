@@ -196,6 +196,29 @@ describe("errors keep the last valid version (D17, D19)", () => {
     assert.notEqual(nextRunConfig(store.get()), null);
   });
 
+  it("Export is off while there are errors, and says why (D17)", () => {
+    const { store, form, builder, evis, cuid } = broken();
+    assert.equal(form.exportRotation(), null);
+    assert.equal(
+      store.get().form.exportOff,
+      "Export is off: the rotation has 1 error.",
+    );
+    builder.setParam(evis, cuid, "value", "4");
+    assert.equal(store.get().form.exportOff, null);
+    const file = form.exportRotation();
+    assert.match(file.fileName, /\.json$/);
+    assert.equal(JSON.parse(file.text).rules[5].conditions[0].value, 4);
+  });
+
+  it("Export follows the rotation picked: a valid one exports again (D17)", () => {
+    const { store, form } = broken();
+    form.chooseRotation(store.get().form.rotationOptions[1].id);
+    assert.equal(store.get().form.exportOff, null);
+    assert.notEqual(form.exportRotation(), null);
+    form.chooseRotation("default");
+    assert.equal(form.exportRotation(), null);
+  });
+
   it("the error list stops at the cap, then says how many more", () => {
     const { builder, view, uid } = setup();
     const max = k("rotation.maxListedEntries");
