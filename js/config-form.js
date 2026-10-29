@@ -33,7 +33,10 @@ import { talentCatalogue } from "./talents.js";
 //   talentsChoice   "none" or "reference".
 //   rotationChoice  "default", a preset id, or "imported".
 //   imported        { name, rotation } of the last imported rotation, or null.
-//   importStatus    null, or { ok, message, detail } from the last import.
+//   importStatus    null, or { ok, message, detail, warnings } from the last
+//                   import. `detail` is the errors of a refused file and
+//                   `warnings` the warnings of an accepted one (issue #189),
+//                   one per line; each is "" when there are none.
 //   talentOptions, rotationOptions   [{ id, label }] for the two selects.
 //   summary         { name, rules: [text] } of the selected rotation.
 //   poisonOptions   { simulated, notSimulated: [{ id, label }] } for the two
@@ -362,6 +365,17 @@ function slug(name) {
 
 // The actions the view calls. `defaults` gives the config Reset restores.
 // Creating the model fills the `form` slice from the store's config.
+// The status line of an accepted import. Warnings (issue #189) never block
+// it: the rotation is imported and selected, and the line says how many to
+// check.
+export function importedText(name, warnings) {
+  if (warnings === 0) {
+    return `Imported "${name}".`;
+  }
+  const count = warnings === 1 ? "1 warning" : `${warnings} warnings`;
+  return `Imported "${name}", with ${count}. It still runs; check the rules below.`;
+}
+
 export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
   let saved = null;
   store.set({ form: formFromConfig(store.get().config) });
@@ -464,6 +478,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
                   path === "" ? message : `${path}: ${message}`,
                 )
                 .join("\n"),
+              warnings: "",
             },
           },
         });
@@ -474,7 +489,12 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
         ...form(),
         rotationChoice: "imported",
         imported: { name, rotation: result.rotation },
-        importStatus: { ok: true, message: `Imported "${name}".`, detail: "" },
+        importStatus: {
+          ok: true,
+          message: importedText(name, result.warnings.length),
+          detail: "",
+          warnings: result.warnings.map(({ message }) => message).join("\n"),
+        },
       });
       return true;
     },

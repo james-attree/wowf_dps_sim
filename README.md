@@ -272,7 +272,9 @@ rejects them under `js/`.
   and `config` is written only when every field is valid. `nextRunConfig(state)`
   is the config the next run starts with, or null while the form has errors.
   `pageDefaultConfig()` is what the page starts with and Reset restores:
-  `defaultConfig()` with the page's poisons (`ui.pageDefaultPoisons`, #152).
+  `defaultConfig()` with the page's poisons (`ui.pageDefaultPoisons`, #152). An
+  import with warnings (#189) is still imported and selected; its status says
+  how many, and the view lists them under it (`cfg-import-warnings`).
   Each hand's poison is a field whose value is the config id (`instant`, the
   catalogue `key`, not its `id`) or null for None; `poisonOptions()` and
   `poisonInfo(key)` give the selects their choices and the read-only top rank,
@@ -502,9 +504,14 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `js/rotation-default.js` — `defaultRotation()`: today's placeholder Combat
   rotation, with the Cold Blood rule, as a RotationRule list built from the
   `rotation.*` constants. It is the default of `SimConfig.rotation`.
+- `js/rotation-warnings.js` — `rotationWarnings(rotation, context)` (#189):
+  non-blocking warnings for pooling traps in a valid rotation (a finisher with
+  no `comboPoints` condition, an on-GCD cooldown with no `cooldownReady`, an
+  unconditional on-GCD rule above others). `validateRotation` is unchanged.
+  See [Rotation as data](docs/rotation.md#warnings).
 - `js/rotation-io.js` — Rotation import and export (R6, #143):
   `exportRotation(rotation)` is the canonical JSON text (keys sorted, two-space
-  indent, trailing newline) and `importRotation(text)` is `{ ok, rotation, errors }`:
+  indent, trailing newline) and `importRotation(text)` is `{ ok, rotation, errors, warnings }`:
   size-limited (`rotation.maxImportChars`), parsed as data (no eval), checked by
   `validateRotation`, every error a path and a message. Pure: no file, clipboard
   or DOM. See [Rotation as data](docs/rotation.md#import-and-export).
@@ -928,6 +935,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   unlocked with and without a build, every bad param rejected with its name,
   `evaluate` pure, and the conditions agree with the code rotation's questions
   on every step of real fights.
+- `test/rotation-warnings.test.js` — One test per pooling trap with its exact
+  message, the cases that do not warn, a fake ability given as data, the
+  default rotation, every preset and the docs' examples with no warnings, and
+  `importRotation` still accepting a rotation with warnings (#189).
 - `test/rotation-io.test.js` — Export is canonical (sorted keys, same text from
   any key order, the documented example), export, import, export is the same
   text, and a rotation read back runs the same fight (totals, log, rng draws) for

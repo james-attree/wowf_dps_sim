@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { validateRotation } from "./rotation-validator.js";
+import { rotationWarnings } from "./rotation-warnings.js";
 
 // Rotation import and export (roadmap R6, issue #143). A rotation is data
 // (docs/rotation.md); this module writes it as text and reads it back, so a
@@ -13,7 +14,7 @@ import { validateRotation } from "./rotation-validator.js";
 //                             at every level, two-space indent, one trailing
 //                             newline. An invalid rotation is a RangeError
 //                             (the validator's), so a bad file is never written.
-//   importRotation(text)      { ok, rotation, errors }. `ok` is true and
+//   importRotation(text)      { ok, rotation, errors, warnings }. `ok` is true and
 //                             `errors` is [] when the text is a valid
 //                             rotation; otherwise `ok` is false, `rotation` is
 //                             null and `errors` is the list of { path, message }
@@ -22,6 +23,11 @@ import { validateRotation } from "./rotation-validator.js";
 //                             k("rotation.maxErrorChars"), since a message
 //                             echoes the bad value), with "" as the path of a problem with the text as
 //                             a whole (too long, not JSON).
+//                             It also has `warnings` (issue #189): the
+//                             { path, message } list rotationWarnings gives
+//                             (js/rotation-warnings.js), cut the same way.
+//                             They are advice: a rotation with warnings is
+//                             still `ok`. A refused file has none ([]).
 //
 // Export, import, export gives the same text, byte for byte, and importing an
 // exported rotation gives back a rotation that runs identically.
@@ -82,10 +88,17 @@ function clip(text) {
   return text.length > limit ? text.slice(0, limit - 1) + ELLIPSIS : text;
 }
 
+const clipped = (list) =>
+  list.map(({ path, message }) => ({
+    path: clip(path),
+    message: clip(message),
+  }));
+
 const failure = (path, message) => ({
   ok: false,
   rotation: null,
   errors: [{ path, message }],
+  warnings: [],
 });
 
 export function importRotation(text) {
@@ -115,11 +128,14 @@ export function importRotation(text) {
     return {
       ok: false,
       rotation: null,
-      errors: errors.map(({ path, message }) => ({
-        path: clip(path),
-        message: clip(message),
-      })),
+      errors: clipped(errors),
+      warnings: [],
     };
   }
-  return { ok: true, rotation: parsed, errors: [] };
+  return {
+    ok: true,
+    rotation: parsed,
+    errors: [],
+    warnings: clipped(rotationWarnings(parsed)),
+  };
 }

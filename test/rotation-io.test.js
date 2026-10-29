@@ -202,12 +202,13 @@ describe("exportRotation", () => {
 });
 
 describe("importRotation: a good file", () => {
-  it("returns the rotation, with no errors", () => {
+  it("returns the rotation, with no errors and no warnings", () => {
     const result = importRotation(exportRotation(customRotation()));
     assert.deepEqual(result, {
       ok: true,
       rotation: customRotation(),
       errors: [],
+      warnings: [],
     });
   });
 

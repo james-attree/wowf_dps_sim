@@ -1507,6 +1507,14 @@ h3 {
   color: #f19389;
 }
 
+.import-status.is-warning {
+  color: #f0c46a;
+}
+
+.import-warnings summary {
+  color: #f0c46a;
+}
+
 .import-detail {
   margin-top: 4px;
   color: var(--text-muted);

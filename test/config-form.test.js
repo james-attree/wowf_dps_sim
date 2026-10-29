@@ -9,6 +9,7 @@ import {
   createConfigForm,
   errorCount,
   formFromConfig,
+  importedText,
   nextRunConfig,
   pageDefaultConfig,
   validateValues,
@@ -16,6 +17,7 @@ import {
 import { createFight, runFight } from "../js/fight.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import { exportRotation } from "../js/rotation-io.js";
+import { rotationWarnings } from "../js/rotation-warnings.js";
 import { listPresets, presetRotation } from "../js/rotation-presets.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
@@ -361,9 +363,57 @@ describe("rotation: one source of truth, config.rotation", () => {
       ok: true,
       message: 'Imported "My rotation".',
       detail: "",
+      warnings: "",
     });
     assert.equal(store.get().config.rotation.name, "My rotation");
     assert.equal(actions.exportRotation().text, exportRotation(rotation));
+  });
+
+  it("an import with warnings is still imported and selected, with the warnings (#189)", () => {
+    const { store, actions, form } = setup();
+    const trap = {
+      schemaVersion: 1,
+      name: "Trap",
+      rules: [
+        { action: "eviscerate", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    };
+    assert.equal(actions.importText(exportRotation(trap)), true);
+    assert.equal(form().rotationChoice, "imported");
+    assert.equal(store.get().config.rotation.name, "Trap");
+    assert.deepEqual(form().errors, {});
+    const status = form().importStatus;
+    assert.equal(status.ok, true);
+    assert.equal(
+      status.message,
+      'Imported "Trap", with 2 warnings. It still runs; check the rules below.',
+    );
+    assert.equal(status.detail, "");
+    assert.equal(
+      status.warnings,
+      rotationWarnings(trap)
+        .map(({ message }) => message)
+        .join("\n"),
+    );
+    assert.match(
+      status.warnings,
+      /^rules\[0\]: Eviscerate \(eviscerate\) is a finisher/m,
+    );
+    actions.importText("{ nope");
+    assert.equal(form().importStatus.warnings, "");
+  });
+
+  it("the import status line counts the warnings", () => {
+    assert.equal(importedText("A", 0), 'Imported "A".');
+    assert.equal(
+      importedText("A", 1),
+      'Imported "A", with 1 warning. It still runs; check the rules below.',
+    );
+    assert.equal(
+      importedText("A", 3),
+      'Imported "A", with 3 warnings. It still runs; check the rules below.',
+    );
   });
 
   it("a bad import changes nothing but the status, with the details", () => {

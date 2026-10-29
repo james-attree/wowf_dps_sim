@@ -392,11 +392,50 @@ describe("rotation and talents", () => {
       "{",
       "a failed paste keeps the text",
     );
+    assert.equal($("cfg-import-warnings").hidden, true);
     $("cfg-import-text").value = actions.exportRotation().text;
     $("cfg-import-paste").click();
     assert.equal($("cfg-import-detail").hidden, true);
+    assert.equal($("cfg-import-warnings").hidden, true);
     assert.equal($("cfg-import-text").value, "");
     assert.ok(!$("cfg-import-status").classes.has("is-error"));
+    assert.ok(!$("cfg-import-status").classes.has("is-warning"));
+  });
+
+  it("an import with warnings is accepted and shows them, not as errors (#189)", () => {
+    const { $, store } = page();
+    $("cfg-import-text").value = JSON.stringify({
+      schemaVersion: 1,
+      name: "Trap",
+      rules: [
+        { action: "eviscerate", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    });
+    $("cfg-import-paste").click();
+    assert.equal(store.get().config.rotation.name, "Trap");
+    assert.equal(
+      $("cfg-import-status").textContent,
+      'Imported "Trap", with 2 warnings. It still runs; check the rules below.',
+    );
+    assert.ok($("cfg-import-status").classes.has("is-warning"));
+    assert.ok(!$("cfg-import-status").classes.has("is-error"));
+    assert.equal($("cfg-import-detail").hidden, true);
+    assert.equal($("cfg-import-warnings").hidden, false);
+    assert.equal(
+      $("cfg-import-warnings-text").textContent,
+      store.get().form.importStatus.warnings,
+    );
+    assert.match(
+      $("cfg-import-warnings-text").textContent,
+      /^rules\[0\]: Eviscerate \(eviscerate\) is a finisher/,
+    );
+    assert.equal($("cfg-import-text").value, "", "an accepted paste clears");
+    $("cfg-import-text").value = "{";
+    $("cfg-import-paste").click();
+    assert.equal($("cfg-import-warnings").hidden, true);
+    assert.equal($("cfg-import-warnings-text").textContent, "");
+    assert.ok(!$("cfg-import-status").classes.has("is-warning"));
   });
 
   it("closes the summary on a narrow screen", () => {

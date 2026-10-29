@@ -448,11 +448,51 @@ it is copied). Each defaults to the engine's own (`js/ability-data.js`,
 build that has fewer abilities.
 
 **What it does not check.** Whether a rule is reachable, or whether the order
-makes sense.
+makes sense. Some orders that pool by accident are [warnings](#warnings), not
+errors.
 
 `compileRotation` calls the validator, so `createFight`, `runFight` and
 `SimRunner` reject an invalid rotation before the `Simulation` exists and so
 before any rng draw. The validator's messages name ids. The talent-guard error, which the import UI shows, also writes the ability's display name beside its id (`abilityLabel(id)`, exported); the name is only written out, never compared.
+
+## Warnings
+
+`js/rotation-warnings.js` (issue
+[#189](https://github.com/james-attree/wowf_dps_sim/issues/189)) points at
+pooling traps in a rotation the validator accepts. The interpreter holds the
+walk at an on-GCD rule whose conditions hold but which cannot be cast (see
+[the interpreter](#the-interpreter)). That is by design, so a rule that holds
+when its ability cannot be cast stops every rule below it. A warning is advice,
+never a refusal: `validateRotation` is unchanged, a rotation with warnings
+imports and runs, and nothing here changes what a fight casts.
+
+- `rotationWarnings(rotation, context)`: every warning in rule order, as
+  `{ path, message }` like the validator's errors. `[]` means no trap was
+  found, and a rotation the validator refuses gets `[]` too (its errors come
+  first).
+- `warningContext(given)`: what the warnings read, as lists of ability ids:
+  `finishers` (the abilities that spend combo points, from the ability data's
+  `spend`), `cooldowns` (a constants row `cooldown` above 0) and `onGcd` (the
+  catalogue's `startsGcd`). A context may give any of them, and the
+  validator's own fields; what it leaves out is the engine's.
+
+| Trap                                                            | Path                  | Why it pools                                                                                                                                                  |
+| --------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A finisher with no `comboPoints` condition                      | `rules[i].conditions` | It is cast with one combo point, and with none it cannot be cast, so it holds back every rule below it.                                                       |
+| An on-GCD ability with a cooldown and no `cooldownReady` for it | `rules[i].conditions` | While it is on cooldown it cannot be cast, so it holds back every rule below it. An off-GCD cooldown is passed over, not pooled for, so it is not warned for. |
+| An on-GCD rule with no conditions, above another on-GCD rule    | `rules[i]`            | Whenever the GCD is clear it is cast or pooled for, so no on-GCD rule below it is reached. The last on-GCD rule, the usual builder, may have none.            |
+
+The default rotation, every preset and every example below give no warnings
+(test/rotation-warnings.test.js). A message names the ability as the
+talent-guard error does, display name and id (`abilityLabel`, #203), and
+names the condition to add:
+
+```text
+rules[0]: Eviscerate (eviscerate) is a finisher, but its rule has no comboPoints condition. It is cast with as little as one combo point, and with none it holds back every rule below it. Add a comboPoints condition, such as { "type": "comboPoints", "op": ">=", "value": 5 }.
+```
+
+The warnings do not know the fight: an unconditional Backstab rule is warned
+for even though, without a dagger main hand, the interpreter passes it over.
 
 ## The readable summary
 
@@ -608,10 +648,15 @@ does that and hands the text over: the page's "Fight setup" form does
 - `exportRotation(rotation)`: the canonical JSON text of a valid rotation. An
   invalid one is a `RangeError` (`Bad rotation:` and one message per line), so a
   bad file is never written.
-- `importRotation(text)`: `{ ok, rotation, errors }`. `ok` is `true`, with the
+- `importRotation(text)`: `{ ok, rotation, errors, warnings }`. `ok` is `true`, with the
   rotation and `errors: []`, when the text is a valid rotation. Otherwise `ok`
   is `false`, `rotation` is `null` and `errors` is the list of path and message pairs that [the validator](#validation) gives,
   plus one error with the path `""` when the text as a whole is wrong (too long, not JSON).
+  `warnings` (#189) is what [`rotationWarnings`](#warnings) gives for an
+  accepted rotation, cut like the errors; a rotation with warnings is still
+  `ok`, and a refused one has `warnings: []`. The page's form imports it and
+  shows the warnings under the status line, in the same place as a refused
+  file's errors, without blocking it.
 
 **The file.** UTF-8 text, a rotation exactly as [the model](#the-model) has it,
 written the same way every time: the keys of every object in sorted order
