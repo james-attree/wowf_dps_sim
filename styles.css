@@ -972,6 +972,36 @@ h3 {
   line-height: 1.35;
 }
 
+.poison-charges {
+  white-space: nowrap;
+}
+
+/* A poison the sim does not simulate (#152): Fran's amber, 9.67:1. */
+.poison-note {
+  margin: 2px 0 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #2a2112;
+  color: #f0c46a;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.poison-tooltip {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.poison-tooltip summary {
+  cursor: pointer;
+  color: #d4c8b1;
+}
+
+.poison-tooltip p {
+  margin: 4px 0 0;
+  line-height: 1.4;
+}
+
 .field-error {
   color: #f19389;
   font-size: 0.78rem;

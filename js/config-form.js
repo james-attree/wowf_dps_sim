@@ -2,6 +2,7 @@ import { k } from "../data/constants.js";
 import { referenceBuild } from "../data/reference-build.js";
 import { defaultRotation } from "./rotation-default.js";
 import { exportRotation, importRotation } from "./rotation-io.js";
+import { poisonCatalogue } from "./poisons.js";
 import { listPresets, presetRotation } from "./rotation-presets.js";
 import { summarizeRule } from "./rotation-summary.js";
 import { defaultConfig, normalizeConfig } from "./sim-config.js";
@@ -22,8 +23,9 @@ import { talentCatalogue } from "./talents.js";
 //
 //   values          { field path: value } in config units: chances 0 to 1, not
 //                   percent (the view converts at its edge), damage, speed and
-//                   attack power as numbers, weapon types as ids. A value the
-//                   player typed that is not a number is NaN.
+//                   attack power as numbers, weapon types and poisons as ids
+//                   (a poison is null for None). A value the player typed
+//                   that is not a number is NaN.
 //   errors          { field path: message } for each field that is invalid
 //                   now. A message of null marks a field invalid with its
 //                   message on another field (the Min of a Min/Max pair).
@@ -34,6 +36,10 @@ import { talentCatalogue } from "./talents.js";
 //   importStatus    null, or { ok, message, detail } from the last import.
 //   talentOptions, rotationOptions   [{ id, label }] for the two selects.
 //   summary         { name, rules: [text] } of the selected rotation.
+//   poisonOptions   { simulated, notSimulated: [{ id, label }] } for the two
+//                   poison selects (#152); id is the config id ("instant").
+//   poisons         { mainHand, offHand }: poisonInfo() of each hand's poison,
+//                   or null for None.
 //   revision        Moves when the values change other than by typing (fill,
 //                   Reset, Undo), so the view rewrites its inputs.
 //   canUndo         Reset was the last action, and Undo puts the form back.
@@ -111,6 +117,15 @@ export const FORM_FIELDS = Object.freeze(
     { path: "character.critChance", check: chance },
     { path: "character.bonusHitChance", check: chance },
     ...HANDS.flatMap(weaponFields),
+    // The poison selects (#152). A select cannot hold anything else, so this
+    // only catches a value set from outside the page.
+    ...HANDS.map((hand) => ({
+      path: `poisons.${hand}`,
+      check: (value) =>
+        value === null || k("config.poisonIds").includes(value)
+          ? ""
+          : "Choose a poison.",
+    })),
   ].map(Object.freeze),
 );
 
@@ -122,11 +137,58 @@ function pairedMin(path) {
   return path.endsWith(".max") ? path.replace(/\.max$/, ".min") : null;
 }
 
-// The config the page starts with and Reset restores. #152 adds the page's
-// poison defaults (Instant main hand, Deadly off hand) here, so the form and
-// the fight share them; until then it is defaultConfig().
+// The config the page starts with and Reset restores: defaultConfig() with
+// the page's poisons (#152, Scout: Instant on the main hand, Deadly on the off
+// hand). The engine's default keeps no poisons, so goldens do not move.
 export function pageDefaultConfig() {
-  return defaultConfig();
+  return { ...defaultConfig(), poisons: { ...k("ui.pageDefaultPoisons") } };
+}
+
+// A poison select's value: its config id, "" for None. The config id is the
+// catalogue's `key` ("instant"), not its `id` ("instant-poison").
+function controlValue(path, value) {
+  return path.startsWith("poisons.") && value === "" ? null : value;
+}
+
+const optionOf = ({ key, name }) => ({ id: key, label: name });
+
+// The poison choices, from the catalogue: the simulated ones, then the rest.
+export function poisonOptions(catalogue = poisonCatalogue) {
+  return {
+    simulated: catalogue.dps.map(optionOf),
+    notSimulated: catalogue.noOps.map(optionOf),
+  };
+}
+
+// What the form shows under a hand's poison select, from the rank the engine
+// simulates (always the catalogue's top rank; the rank is read-only), or null
+// for None. The view words it; this gives the numbers.
+export function poisonInfo(key, catalogue = poisonCatalogue) {
+  if (key === null || key === undefined) {
+    return null;
+  }
+  const poison = catalogue.byKey(key);
+  if (poison === undefined) {
+    return null;
+  }
+  const { rank, chance, effect, charges, text } = poison.top;
+  return {
+    name: poison.name,
+    rank,
+    highest: rank === poison.ranks.length,
+    chance,
+    effect: { ...effect },
+    charges,
+    simulated: poison.dps,
+    noDpsReason: poison.noDpsReason,
+    text,
+  };
+}
+
+function poisonsInfo(values) {
+  return Object.fromEntries(
+    HANDS.map((hand) => [hand, poisonInfo(values[`poisons.${hand}`])]),
+  );
 }
 
 const read = (object, path) =>
@@ -255,13 +317,15 @@ export function formFromConfig(config, revision = 0) {
     talentOptions: talentOptions(),
     rotationOptions: rotationOptions(imported),
     summary: summaryOf(config.rotation),
+    poisonOptions: poisonOptions(),
+    poisons: poisonsInfo(formValues(config)),
     revision,
     canUndo: false,
   };
 }
 
 // The config the form describes, on top of `base` (which keeps the sections
-// the form does not edit: target, poisons). normalizeConfig checks it: the
+// the form does not edit: the target). normalizeConfig checks it: the
 // backstop behind the field checks, so a config it refuses never reaches the
 // store. Throws what normalizeConfig throws.
 export function configFromForm(form, base) {
@@ -326,6 +390,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
           errors,
           rotationOptions: rotationOptions(next.imported),
           summary: summaryOf(rotation),
+          poisons: poisonsInfo(next.values),
           canUndo: false,
         },
       });
@@ -342,8 +407,9 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
   return {
     // Typing: keep the value; clear the field's error only once it is valid
     // again, and never add one (that waits for change).
-    input(path, value) {
+    input(path, raw) {
       forget();
+      const value = controlValue(path, raw);
       const values = { ...form().values, [path]: value };
       const errors = { ...form().errors };
       const now = validateValues(values);
@@ -361,8 +427,9 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       store.set({ form: { ...form(), values, errors, canUndo: false } });
     },
     // A committed edit: check every field, and write the config when all pass.
-    change(path, value) {
+    change(path, raw) {
       forget();
+      const value = controlValue(path, raw);
       const values = { ...form().values, [path]: value };
       commit({ ...form(), values, errors: validateValues(values) });
     },

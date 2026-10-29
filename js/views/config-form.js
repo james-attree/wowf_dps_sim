@@ -53,6 +53,50 @@ export function fixHeadingText(count) {
 
 const NARROW = "(max-width: 520px)";
 
+const HANDS = ["mainHand", "offHand"];
+const poisonPath = (hand) => `poisons.${hand}`;
+const isPoison = (path) => path.startsWith("poisons.");
+const capitalised = (word) => word.charAt(0).toUpperCase() + word.slice(1);
+
+// The lines under a poison select (#152, Fran's notes section 2), from the
+// model's poisonInfo(): the numbers of the rank the engine simulates.
+export function poisonRankText({ rank, highest }) {
+  return `Rank ${rank}${highest ? " (highest)" : ""}`;
+}
+
+export function poisonEffectText({ chance, effect }) {
+  const onHit = `${formatPercent(chance)}% on hit`;
+  const school = capitalised(effect.school ?? "");
+  const stacks = effect.maxStacks > 1 ? `, stacks ×${effect.maxStacks}` : "";
+  switch (effect.kind) {
+    case "damage":
+      return `${onHit} · ${effect.min}–${effect.max} ${school}`;
+    case "dot":
+      return `${onHit} · ${effect.damage} ${school} over ${effect.duration} s${stacks}`;
+    case "slow":
+      return `${onHit} · movement ${formatPercent(effect.fraction)}% slower for ${effect.duration} s`;
+    case "castSlow":
+      return `${onHit} · casting ${formatPercent(effect.fraction)}% slower for ${effect.duration} s`;
+    case "healingReduction":
+      return `${onHit} · healing taken −${effect.amount} for ${effect.duration} s${stacks}`;
+    default:
+      return onHit;
+  }
+}
+
+// "Not simulated yet: it slows …": the reason from its colon on. Only a
+// poison the sim does not simulate has a reason.
+export function poisonNoteText({ noDpsReason }) {
+  if (noDpsReason === null) {
+    return "";
+  }
+  const colon = noDpsReason.indexOf(":");
+  const reason = (colon < 0 ? noDpsReason : noDpsReason.slice(colon + 1))
+    .trim()
+    .replace(/\.?$/, ".");
+  return `Not simulated yet: ${reason}`;
+}
+
 export function createConfigFormView(doc, store, actions) {
   const $ = (id) => doc.querySelector(`#${id}`);
   const form = $("config-form");
@@ -106,6 +150,71 @@ export function createConfigFormView(doc, store, actions) {
     select.value = selected;
   }
 
+  // The poison selects' options, once: None, then an optgroup each for the
+  // simulated poisons and the rest. A value is the config id ("instant").
+  function poisonSelects({ simulated, notSimulated }) {
+    const option = ({ id, label }) => {
+      const element = doc.createElement("option");
+      element.value = id;
+      element.textContent = label;
+      return element;
+    };
+    const group = (label, list) => {
+      const element = doc.createElement("optgroup");
+      element.setAttribute("label", label);
+      element.replaceChildren(...list.map(option));
+      return element;
+    };
+    for (const hand of HANDS) {
+      controls
+        .get(poisonPath(hand))
+        ?.replaceChildren(
+          option({ id: "", label: "None" }),
+          group("Simulated", simulated),
+          group("Not simulated yet", notSimulated),
+        );
+    }
+  }
+
+  // A poison select's description ids: rank and effect while a poison is on,
+  // charges for a simulated one, the note while it shows.
+  function poisonDescription(path, info) {
+    if (info === null) {
+      return "";
+    }
+    const id = fieldId(path);
+    return [
+      `${id}-rank`,
+      `${id}-effect`,
+      info.simulated ? `${id}-charges` : "",
+      poisonNoteText(info) === "" ? "" : `${id}-note`,
+    ]
+      .filter((part) => part !== "")
+      .join(" ");
+  }
+
+  function drawPoisons(poisons) {
+    for (const hand of HANDS) {
+      const path = poisonPath(hand);
+      if (!controls.has(path)) {
+        continue;
+      }
+      const id = fieldId(path);
+      const info = poisons?.[hand] ?? null;
+      const on = info !== null;
+      const note = on ? poisonNoteText(info) : "";
+      $(`${id}-rank`).textContent = on ? poisonRankText(info) : "";
+      $(`${id}-rank`).hidden = !on;
+      $(`${id}-effect`).textContent = on ? poisonEffectText(info) : "";
+      $(`${id}-line`).hidden = !on;
+      $(`${id}-charges`).hidden = !on || !info.simulated;
+      $(`${id}-note-text`).textContent = note;
+      $(`${id}-note`).hidden = note === "";
+      $(`${id}-tooltip-text`).textContent = on ? info.text : "";
+      $(`${id}-tooltip`).hidden = !on;
+    }
+  }
+
   function fillValues(values) {
     for (const [path, control] of controls) {
       control.value = formatField(values[path], isPercent(control));
@@ -115,7 +224,12 @@ export function createConfigFormView(doc, store, actions) {
   function drawErrors(errors) {
     for (const [path, control] of controls) {
       const id = fieldId(path);
-      const help = control.getAttribute("data-help") ?? "";
+      const help = isPoison(path)
+        ? poisonDescription(
+            path,
+            drawn?.poisons?.[path.slice("poisons.".length)] ?? null,
+          )
+        : (control.getAttribute("data-help") ?? "");
       const message = errors[path];
       const error = $(`${id}-error`);
       if (path in errors) {
@@ -239,8 +353,14 @@ export function createConfigFormView(doc, store, actions) {
   function render(state) {
     const previous = drawn;
     drawn = state;
+    if (previous === null) {
+      poisonSelects(state.poisonOptions);
+    }
     if (previous === null || state.revision !== previous.revision) {
       fillValues(state.values);
+    }
+    if (previous === null || state.poisons !== previous.poisons) {
+      drawPoisons(state.poisons);
     }
     if (previous === null || state.talentsChoice !== previous.talentsChoice) {
       options(talents, state.talentOptions, state.talentsChoice);
@@ -255,6 +375,8 @@ export function createConfigFormView(doc, store, actions) {
     if (previous === null || state.summary !== previous.summary) {
       drawSummary(state.summary);
     }
+    // A commit always gives new errors, so a new poison redraws the
+    // descriptions here too.
     if (previous === null || state.errors !== previous.errors) {
       drawErrors(state.errors);
     }

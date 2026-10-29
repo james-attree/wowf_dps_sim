@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { k } from "../data/constants.js";
+import { pageDefaultConfig } from "../js/config-form.js";
 import { createFight, runFight } from "../js/fight.js";
 import { FrameClock } from "../js/frame-clock.js";
 import { iconUrl } from "../js/icons.js";
@@ -279,7 +280,10 @@ describe("js/main.js on a stand-in page", () => {
   function reference(duration) {
     recording = false;
     try {
-      return fromRunFight(runFight({ seed: SEED, duration }));
+      // The page fights its own defaults (#152: Instant and Deadly Poison).
+      return fromRunFight(
+        runFight({ seed: SEED, duration, config: pageDefaultConfig() }),
+      );
     } finally {
       recording = true;
     }

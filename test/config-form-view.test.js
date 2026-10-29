@@ -7,6 +7,7 @@ import {
   createConfigForm,
   pageDefaultConfig,
 } from "../js/config-form.js";
+import { poisonInfo } from "../js/config-form.js";
 import { listPresets } from "../js/rotation-presets.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
@@ -17,6 +18,9 @@ import {
   formatField,
   formatPercent,
   parseField,
+  poisonEffectText,
+  poisonNoteText,
+  poisonRankText,
   runGateText,
 } from "../js/views/config-form.js";
 
@@ -76,6 +80,8 @@ const SELECTS = new Set([
   "cfg-rotation",
   "cfg-weapons-mainHand-type",
   "cfg-weapons-offHand-type",
+  "cfg-poisons-mainHand",
+  "cfg-poisons-offHand",
 ]);
 const PERCENT = new Set([
   "cfg-character-critChance",
@@ -384,6 +390,126 @@ describe("Reset and Undo", () => {
   });
 });
 
+describe("poison selects (#152)", () => {
+  const pick = ($, hand, value) => {
+    $(`cfg-poisons-${hand}`).value = value;
+    $(`cfg-poisons-${hand}`).fire("change");
+  };
+
+  it("offer None, then Simulated and Not simulated yet, by config id", () => {
+    const { $ } = page();
+    for (const hand of ["mainHand", "offHand"]) {
+      const [none, simulated, other] = $(`cfg-poisons-${hand}`).children;
+      assert.equal(none.tagName, "OPTION");
+      assert.equal(none.value, "");
+      assert.equal(none.textContent, "None");
+      assert.equal(simulated.tagName, "OPTGROUP");
+      assert.equal(simulated.getAttribute("label"), "Simulated");
+      assert.deepEqual(
+        simulated.children.map(({ value, textContent }) => [
+          value,
+          textContent,
+        ]),
+        [
+          ["instant", "Instant Poison"],
+          ["deadly", "Deadly Poison"],
+        ],
+      );
+      assert.equal(other.getAttribute("label"), "Not simulated yet");
+      assert.deepEqual(
+        other.children.map(({ value }) => value),
+        ["crippling", "mind-numbing", "wound"],
+      );
+    }
+  });
+
+  it("show the page defaults with rank, effect and the charges tag", () => {
+    const { $ } = page();
+    assert.equal($("cfg-poisons-mainHand").value, "instant");
+    assert.equal($("cfg-poisons-offHand").value, "deadly");
+    assert.equal(
+      $("cfg-poisons-mainHand-rank").textContent,
+      "Rank 6 (highest)",
+    );
+    assert.equal(
+      $("cfg-poisons-mainHand-effect").textContent,
+      "20% on hit · 76–100 Nature",
+    );
+    assert.equal(
+      $("cfg-poisons-offHand-effect").textContent,
+      "30% on hit · 92 Nature over 12 s, stacks ×5",
+    );
+    assert.equal($("cfg-poisons-mainHand-charges").hidden, false);
+    assert.equal($("cfg-poisons-mainHand-note").hidden, true);
+    assert.equal($("cfg-poisons-mainHand-tooltip").hidden, false);
+    assert.equal(
+      $("cfg-poisons-mainHand-tooltip-text").textContent,
+      poisonInfo("instant").text,
+    );
+    assert.equal(
+      $("cfg-poisons-mainHand").getAttribute("aria-describedby"),
+      "cfg-poisons-mainHand-rank cfg-poisons-mainHand-effect cfg-poisons-mainHand-charges",
+    );
+  });
+
+  it("a choice reaches config.poisons; None writes null and hides the lines", () => {
+    const { $, store } = page();
+    pick($, "mainHand", "deadly");
+    assert.equal(store.get().config.poisons.mainHand, "deadly");
+    pick($, "offHand", "");
+    assert.equal(store.get().config.poisons.offHand, null);
+    assert.equal($("cfg-poisons-offHand-rank").hidden, true);
+    assert.equal($("cfg-poisons-offHand-line").hidden, true);
+    assert.equal($("cfg-poisons-offHand-charges").hidden, true);
+    assert.equal($("cfg-poisons-offHand-tooltip").hidden, true);
+    assert.equal(
+      $("cfg-poisons-offHand").getAttribute("aria-describedby"),
+      null,
+    );
+  });
+
+  it("a poison the sim does not simulate gets the amber note, not the tag", () => {
+    const { $, store } = page();
+    pick($, "offHand", "crippling");
+    assert.equal(store.get().config.poisons.offHand, "crippling");
+    assert.equal($("cfg-poisons-offHand-note").hidden, false);
+    assert.equal(
+      $("cfg-poisons-offHand-note-text").textContent,
+      "Not simulated yet: it slows the target's movement, and does no damage.",
+    );
+    assert.equal($("cfg-poisons-offHand-charges").hidden, true);
+    assert.equal($("cfg-poisons-offHand-rank").textContent, "Rank 2 (highest)");
+    assert.equal(
+      $("cfg-poisons-offHand").getAttribute("aria-describedby"),
+      "cfg-poisons-offHand-rank cfg-poisons-offHand-effect cfg-poisons-offHand-note",
+    );
+  });
+
+  it("Reset and Undo move the selects", () => {
+    const { $, actions } = page();
+    pick($, "mainHand", "wound");
+    actions.reset();
+    assert.equal($("cfg-poisons-mainHand").value, "instant");
+    actions.undo();
+    assert.equal($("cfg-poisons-mainHand").value, "wound");
+    assert.equal($("cfg-poisons-mainHand-note").hidden, false);
+  });
+
+  it("words every poison's effect and only non-DPS ones get a note", () => {
+    for (const key of k("config.poisonIds")) {
+      const info = poisonInfo(key);
+      assert.match(poisonRankText(info), /^Rank \d+ \(highest\)$/, key);
+      assert.match(poisonEffectText(info), /^\d+% on hit · \S/, key);
+      assert.equal(poisonNoteText(info) === "", info.simulated, key);
+    }
+    assert.equal(
+      poisonRankText({ rank: 3, highest: false }),
+      "Rank 3",
+      "a lower rank is not called highest",
+    );
+  });
+});
+
 describe("index.html's form", async () => {
   const html = await readFile(
     new URL("../index.html", import.meta.url),
@@ -408,6 +534,43 @@ describe("index.html's form", async () => {
       );
       assert.match(form, new RegExp(`<label[^>]*for="${id}"`), path);
       assert.match(form, new RegExp(`id="${id}-error"`), path);
+    }
+  });
+
+  it("has a Poison select and its lines in each hand's fieldset", () => {
+    for (const hand of ["mainHand", "offHand"]) {
+      const id = `cfg-poisons-${hand}`;
+      const fieldset = form
+        .split("</fieldset>")
+        .find((part) => part.includes(`id="cfg-weapons-${hand}-type"`));
+      assert.match(fieldset, new RegExp(`<select\\s+id="${id}"`));
+      assert.match(fieldset, new RegExp(`<label for="${id}">Poison</label>`));
+      for (const part of [
+        "",
+        "-rank",
+        "-line",
+        "-effect",
+        "-charges",
+        "-note",
+        "-note-text",
+        "-tooltip",
+        "-tooltip-text",
+        "-error",
+      ]) {
+        assert.match(fieldset, new RegExp(`id="${id}${part}"`), part);
+      }
+      assert.match(fieldset, /Charges not\s+tracked/);
+      assert.match(fieldset, /<summary>Tooltip text<\/summary>/);
+      assert.match(
+        fieldset,
+        new RegExp(`<select\\s+id="${id}"[^>]*>\\s*</select>`),
+        "options come from the catalogue",
+      );
+      assert.doesNotMatch(
+        fieldset,
+        /aria-live|role="status"/,
+        "no live region",
+      );
     }
   });
 

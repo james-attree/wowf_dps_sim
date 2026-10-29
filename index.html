@@ -269,6 +269,42 @@
                   hidden
                 ></p>
               </div>
+              <div class="field poison-field">
+                <label for="cfg-poisons-mainHand">Poison</label>
+                <select
+                  id="cfg-poisons-mainHand"
+                  name="poisons.mainHand"
+                  data-field="poisons.mainHand"
+                ></select>
+                <p id="cfg-poisons-mainHand-rank" class="field-help" hidden></p>
+                <p id="cfg-poisons-mainHand-line" class="field-help" hidden>
+                  <span id="cfg-poisons-mainHand-effect"></span
+                  ><span
+                    id="cfg-poisons-mainHand-charges"
+                    class="poison-charges"
+                    hidden
+                    ><span aria-hidden="true"> · </span>Charges not
+                    tracked</span
+                  >
+                </p>
+                <p id="cfg-poisons-mainHand-note" class="poison-note" hidden>
+                  <span aria-hidden="true">ⓘ </span
+                  ><span id="cfg-poisons-mainHand-note-text"></span>
+                </p>
+                <details
+                  id="cfg-poisons-mainHand-tooltip"
+                  class="poison-tooltip"
+                  hidden
+                >
+                  <summary>Tooltip text</summary>
+                  <p id="cfg-poisons-mainHand-tooltip-text"></p>
+                </details>
+                <p
+                  class="field-error"
+                  id="cfg-poisons-mainHand-error"
+                  hidden
+                ></p>
+              </div>
             </fieldset>
             <fieldset class="config-fieldset hand-fieldset">
               <legend>Off hand</legend>
@@ -359,6 +395,42 @@
                 <p
                   class="field-error"
                   id="cfg-weapons-offHand-speed-error"
+                  hidden
+                ></p>
+              </div>
+              <div class="field poison-field">
+                <label for="cfg-poisons-offHand">Poison</label>
+                <select
+                  id="cfg-poisons-offHand"
+                  name="poisons.offHand"
+                  data-field="poisons.offHand"
+                ></select>
+                <p id="cfg-poisons-offHand-rank" class="field-help" hidden></p>
+                <p id="cfg-poisons-offHand-line" class="field-help" hidden>
+                  <span id="cfg-poisons-offHand-effect"></span
+                  ><span
+                    id="cfg-poisons-offHand-charges"
+                    class="poison-charges"
+                    hidden
+                    ><span aria-hidden="true"> · </span>Charges not
+                    tracked</span
+                  >
+                </p>
+                <p id="cfg-poisons-offHand-note" class="poison-note" hidden>
+                  <span aria-hidden="true">ⓘ </span
+                  ><span id="cfg-poisons-offHand-note-text"></span>
+                </p>
+                <details
+                  id="cfg-poisons-offHand-tooltip"
+                  class="poison-tooltip"
+                  hidden
+                >
+                  <summary>Tooltip text</summary>
+                  <p id="cfg-poisons-offHand-tooltip-text"></p>
+                </details>
+                <p
+                  class="field-error"
+                  id="cfg-poisons-offHand-error"
                   hidden
                 ></p>
               </div>
