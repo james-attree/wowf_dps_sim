@@ -10,7 +10,8 @@ and character stats. There is no item database.
 site from `main`. The site deploys to
 https://james-attree.github.io/wowf_dps_sim/ once Pages is enabled. Set the
 repository source to GitHub Actions under Settings > Pages. The workflow
-publishes `index.html`, `styles.css`, `js/`, `data/`, and `img/`.
+publishes `index.html`, `styles.css`, `talent-tree.css`, `js/`, `data/`, and
+`img/`.
 
 ## Status
 
@@ -245,9 +246,12 @@ rejects them under `js/`.
 ## Module map
 
 - `index.html` — Simulator page (damage, energy, combo points, the GCD,
-  effects, cooldowns, and the combat log). Loads `styles.css` and `js/main.js`
+  effects, cooldowns, and the combat log). Loads `styles.css`, `talent-tree.css` and `js/main.js`
   as an ES module.
 - `styles.css` — Dark layout and meters for that page.
+- `talent-tree.css` — The talent tree's styles (U6, #204; Fran's mockup CSS):
+  tiles, row gates, arrows, the detail pane and the narrow tabs. Its one
+  narrow `@media` block uses the same query as `styles.css`.
 - `js/main.js` — UI entry (#149): the bootstrap. It builds the store, the
   live run (`js/live-run.js`, over the animation frame), the `BatchClient`
   and the run actions (`js/run-actions.js`), hands the store and the actions
@@ -266,19 +270,20 @@ rejects them under `js/`.
   is the page's one rotation; there is no `rotation` slice (#151).
 - `js/config-form.js` — The stats form's model (U2, #151):
   `createConfigForm(store)` fills the `form` slice from `config` and returns
-  the actions the form view calls (`input`, `change`, `chooseTalents`,
+  the actions the form view calls (`input`, `change`,
   `chooseRotation`, `importText`, `exportRotation`, `reset`, `undo`). Field
   checks give the player's-unit messages, `normalizeConfig` is the backstop,
   and `config` is written only when every field is valid. `nextRunConfig(state)`
-  is the config the next run starts with, or null while the form has errors.
+  is the config the next run starts with, or null while the form or the talent tree (#204) has errors.
   `pageDefaultConfig()` is what the page starts with and Reset restores:
   `defaultConfig()` with the page's poisons (`ui.pageDefaultPoisons`, #152).
   Each hand's poison is a field whose value is the config id (`instant`, the
   catalogue `key`, not its `id`) or null for None; `poisonOptions()` and
   `poisonInfo(key)` give the selects their choices and the read-only top rank,
   proc numbers, tooltip and no-DPS reason. The
-  talent choice is "No talents" or the reference Combat build
-  (`data/reference-build.js`). Engine lint applies.
+  talents and their level are the talent tree's (#204): the form keeps
+  whatever build the config has, and its Reset and Undo cover it. Engine lint
+  applies.
 - `js/live-feed.js` — The live page's feed (#150): `createLiveFeed({ rogue,
 simulation })` with `read()` and `stop()`. The combat log rows (from `hit`
   events) and the combo points (from `resource` events) come from the event
@@ -320,9 +325,17 @@ store)` that owns its own elements, draws from the store when its slices
   actions `js/config-form.js` gives it, which `js/main.js` hands in, so it
   imports nothing from the engine). Edits apply to the next run: Run snapshots
   the config, and the form shows "Edited — applies to the next run" while it
-  differs from the fight on the page. `breakpoints.js` holds the one narrow
+  differs from the fight on the page. `talent-tree.js` (U6, #204): the
+  talent tree from Fran's U6 spec; the summary row in Fight setup, the panel
+  under the form, three trees at 520 px and up and tabs below, with a
+  roving tab stop per tree (arrows, Home/End; Enter, Space, + or = adds;
+  −, Backspace, Delete or Shift+Enter removes), the detail pane, the effects
+  box and one polite live region. It draws the `talents` slice's `view` and
+  calls the actions `js/talent-tree.js` gives it, patching tiles in place so
+  focus stays put. `breakpoints.js` holds the one narrow
   breakpoint both use: `(max-width: 519.98px)`, so 520 px and up is wide and
-  519 px is narrow; the narrow `@media` blocks in `styles.css` repeat it.
+  519 px is narrow; the narrow `@media` blocks in `styles.css` and
+  `talent-tree.css` repeat it.
 - `js/live-run.js` — The live page's run (#153): `createLiveRun(store,
 frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   `reset`, and `clear({ seed, config })` (an empty fight at 0:00, drawn while
@@ -427,9 +440,21 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   damage. The batch result carries it as `timeline`. See
   [Batch charts](docs/charts.md).
 - `js/build-label.js` — The batch build label (#154): `buildLabel(config)`
-  gives "Combat 18/33/0 · Combat swords · Instant MH, Deadly OH" from the
-  config a batch ran, and `poisonName`. Engine lint applies; `js/main.js`
-  hands both to the results panel.
+  gives "Combat 18/33/0 · 51/51 · Combat swords · Instant MH, Deadly OH" from
+  the config a batch ran ("· level 40" before the points below 60, and "· N
+  not simulated yet" after them, #204), `talentLabel(talents, level)` for the
+  talents part alone (the talent tree's summary row), and `poisonName`. Engine
+  lint applies; `js/main.js` hands both to the results panel.
+- `js/talent-tree.js` — The talent tree's model (U6, #204): `createTalentTree(store)`
+  fills the `talents` slice from `config.talents` and `config.talentLevel`
+  and returns the actions the tree view calls (`setOpen`, `toggle`, `select`,
+  `chooseTab`, `show`, `add`, `remove`, `setLevel`, `resetAll`, `undo`). The
+  rules come from `js/talent-build.js` (#190), never re-implemented; the
+  slice's `view` is everything the view draws (tiles, row gates, arrows, the
+  detail pane, the effects box, the summary row). A legal build is written to
+  `config` on every change; over the cap `talents.error` is set,
+  `nextRunConfig` returns null and Run is off. No persistence and no links in
+  U6 (Fran's U6 spec, D13, D15). Engine lint applies.
 - `js/svg.js` — SVG and HTML as node descriptions (S5, #148): `el`, `text`,
   `toMarkup` (a string) and `toDom` (DOM nodes, no `innerHTML`). Escapes every
   text and attribute value and allows only a fixed list of tags.
@@ -977,8 +1002,8 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `package-lock.json` — Lockfile `npm ci` installs from.
 - `.github/workflows/ci.yml` — The lint, test, and provenance job described
   above.
-- `.github/workflows/pages.yml` — Deploys `index.html`, `styles.css`, `js/`,
-  `data/`, and `img/` from `main` to GitHub Pages.
+- `.github/workflows/pages.yml` — Deploys `index.html`, `styles.css`,
+  `talent-tree.css`, `js/`, `data/`, and `img/` from `main` to GitHub Pages.
 - `.gitignore` — Ignores `node_modules/` and macOS's `.DS_Store`.
 - `.prettierignore` — Ignores `img/` and `test/golden/`.
 

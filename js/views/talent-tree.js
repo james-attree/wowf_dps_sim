@@ -748,11 +748,10 @@ export function createTalentTreeView(
   });
   media?.addEventListener?.("change", () => render(store.get().talents));
 
-  store.subscribe(({ state, changed }) => {
+  render(store.get().talents);
+  return store.subscribe(({ state, changed }) => {
     if (changed.includes("talents")) {
       render(state.talents);
     }
   });
-  render(store.get().talents);
-  return { render: () => render(store.get().talents) };
 }

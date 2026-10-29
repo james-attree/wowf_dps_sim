@@ -922,9 +922,9 @@ describe("validateBuild stays the throwing wrapper", () => {
 });
 
 describe("the build label shows a partial build's points (#190)", () => {
-  it("adds (N/cap) for a partial build and nothing for a full one", () => {
-    const part = (config) => buildLabel(config).split(" · ")[0];
-    assert.equal(part({ talents: REFERENCE }), "Combat 18/33/0");
+  it("adds N/cap to every build, the level below 60 (#204 D17)", () => {
+    const part = (config) => buildLabel(config).split(" · Default rotation")[0];
+    assert.equal(part({ talents: REFERENCE }), "Combat 18/33/0 · 51/51");
     assert.equal(
       part({
         talents: {
@@ -932,19 +932,19 @@ describe("the build label shows a partial build's points (#190)", () => {
           "combat.improved-sinister-strike": 2,
         },
       }),
-      "Combat 0/5/0 (5/51)",
+      "Combat 0/5/0 · 5/51",
     );
     assert.equal(
       part({ talents: fill(31, ["combat"]), talentLevel: 40 }),
-      "Combat 0/31/0",
+      "Combat 0/31/0 · level 40 · 31/31",
     );
     assert.equal(
       part({ talents: fill(30, ["combat"]), talentLevel: 40 }),
-      "Combat 0/30/0 (30/31)",
+      "Combat 0/30/0 · level 40 · 30/31",
     );
     assert.equal(
       part({ talents: fill(5, ["combat"]), talentLevel: 999 }),
-      "Combat 0/5/0 (5/51)",
+      "Combat 0/5/0 · 5/51",
     );
     assert.equal(part({ talents: {} }), "No talents");
   });

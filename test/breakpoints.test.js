@@ -67,8 +67,8 @@ describe("the narrow breakpoint", () => {
     assert.doesNotMatch(rest, /min-width: 52\dpx/);
   });
 
-  it("css/talent-tree.css uses the same narrow query (#204)", async () => {
-    const css = await read("../css/talent-tree.css");
+  it("talent-tree.css uses the same narrow query (#204)", async () => {
+    const css = await read("../talent-tree.css");
     const queries = [...css.matchAll(/@media ([^{]+)\{/g)].map(([, query]) =>
       query.trim(),
     );

@@ -272,7 +272,11 @@ export function createControlsView(doc, store, actions = {}) {
   narrow?.addEventListener?.("change", place);
   render(store.get());
   return store.subscribe(({ state, changed }) => {
-    if (["run", "batch", "results", "form"].some((s) => changed.includes(s))) {
+    if (
+      ["run", "batch", "results", "form", "talents"].some((s) =>
+        changed.includes(s),
+      )
+    ) {
       render(state);
     }
   });
