@@ -32,6 +32,8 @@ const CHARTS = "Developer, 29 Oct 2026, issue #148";
 // display choices, not game rules, and not decisions by James.
 const VISUALISER_UX =
   "Developer, 29 Oct 2026, issue #150: Fran's UX notes (design), relayed via Scout";
+const STATS_FORM_UX =
+  "Developer, 29 Oct 2026, issue #151: Fran's stats form notes (design), relayed via Scout";
 const BATCH_FIXES = "Developer, 29 Oct 2026, issue #155";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
@@ -1369,6 +1371,14 @@ export const CONSTANTS = {
     ENGINEERING,
     `${VISUALISER_UX}: the screen reader announcements are throttled to at most one every 2 s`,
     'Accessibility timing, not a game rule. Wall-clock seconds between two messages in the visualiser\'s role=status region, which is off unless "Announce key events" is ticked.',
+    false,
+  ),
+  "ui.undoToastSeconds": entry(
+    5,
+    "s",
+    ENGINEERING,
+    `${STATS_FORM_UX}: "Reset to defaults" asks for no confirmation; a "Defaults restored · Undo" toast stays for 5 s instead`,
+    "Display timing, not a game rule. Wall-clock seconds the stats form's Undo stays offered after Reset to defaults (js/views/config-form.js).",
     false,
   ),
   "sim.maxFrameTime": entry(

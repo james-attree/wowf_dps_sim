@@ -259,6 +259,11 @@ function fakeElement() {
     append() {},
     remove() {},
     insertBefore() {},
+    // What the stats form view (#151) calls while it fills itself.
+    removeAttribute(name) {
+      attributes.delete(name);
+    },
+    replaceChildren() {},
   };
 }
 
@@ -488,6 +493,21 @@ describe("icons on the live page (stub DOM)", () => {
 
     setAttribute(name, value) {
       this.attributes.set(name, value);
+    }
+
+    getAttribute(name) {
+      return this.attributes.has(name) ? this.attributes.get(name) : null;
+    }
+
+    removeAttribute(name) {
+      this.attributes.delete(name);
+    }
+
+    replaceChildren(...nodes) {
+      for (const child of [...this.children]) {
+        child.remove();
+      }
+      this.append(...nodes.filter((node) => typeof node === "object"));
     }
 
     append(...nodes) {

@@ -5,8 +5,13 @@ import { EventStream } from "./event-stream.js";
 // framework, no DOM, no clock, so it runs and is tested in Node like the
 // engine. The live page (js/main.js) keeps these slices:
 //
-//   config    The SimConfig of the fight on the page (js/sim-config.js).
-//   rotation  The selected rotation (RotationRule JSON, docs/rotation.md).
+//   config    The SimConfig the next run uses (js/sim-config.js), in full
+//             form; config.rotation is the selected rotation (RotationRule
+//             JSON, docs/rotation.md) and the only one: there is no separate
+//             rotation slice (#151). Written by the stats form, and only with
+//             a valid config.
+//   form      The stats form's state (#151): values, errors and choices, as
+//             js/config-form.js describes.
 //   run       { state, seed }: the run state, in SimRunner's state names
 //             (js/sim-runner.js), and the fight's seed.
 //   frame     A count of animation frames drawn; it moves on every frame the

@@ -1297,7 +1297,7 @@ script that has not finished by the end of the fight throws. The fixture has
 `runGoldenCase` passes to `runFight` (or `runScriptedFight`) like any caller's.
 The first four cases have none and run the defaults, as before. Both new cases
 run the reference build (Assassination 18 / Combat 33 / Subtlety 0, the
-talentsforever link in `test/talentsforever.js`, applied through `applyBuild`)
+talentsforever link in `data/reference-build.js`, applied through `applyBuild`)
 at seed 107 for 60 s:
 
 - `talented-build-seed-107-60s`: the talents and no poisons. 15,291.68 damage,

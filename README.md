@@ -246,10 +246,21 @@ rejects them under `js/`.
   under `js/`.
 - `js/store.js` — The page's store (U1, #149): `createStore(initial)` with
   `get`, `set`, `update`, `batch`, `subscribe` and `onError`, over named
-  slices (`config`, `rotation`, `run`, `frame`, `results`, and the feed's
+  slices (`config`, `form`, `run`, `frame`, `results`, and the feed's
   `resources`, `gcd`, `effects`, `procs`, `spend`, `moment`, `log`; #150: no slice holds an engine object). One change
   event per `set` or batch, listing the slices that changed; delivery follows
-  `EventStream`. No DOM or clock: engine lint applies.
+  `EventStream`. No DOM or clock: engine lint applies. `config.rotation`
+  is the page's one rotation; there is no `rotation` slice (#151).
+- `js/config-form.js` — The stats form's model (U2, #151):
+  `createConfigForm(store)` fills the `form` slice from `config` and returns
+  the actions the form view calls (`input`, `change`, `chooseTalents`,
+  `chooseRotation`, `importText`, `exportRotation`, `reset`, `undo`). Field
+  checks give the player's-unit messages, `normalizeConfig` is the backstop,
+  and `config` is written only when every field is valid. `nextRunConfig(state)`
+  is the config the next run starts with, or null while the form has errors.
+  `pageDefaultConfig()` is what the page starts with and Reset restores. The
+  talent choice is "No talents" or the reference Combat build
+  (`data/reference-build.js`). Engine lint applies.
 - `js/live-feed.js` — The live page's feed (#150): `createLiveFeed({ rogue,
 simulation })` with `read()` and `stop()`. The combat log rows (from `hit`
   events) and the combo points (from `resource` events) come from the event
@@ -266,7 +277,11 @@ store)` that owns its own elements, draws from the store when its slices
   change, and returns its unsubscribe: `controls.js` (seed, Live/Paused
   status, the Pause button, which toggles `run.state`), `visualiser.js` (combo
   points, energy, the GCD meter, effects, cooldowns, procs, the combat log and
-  its announcements; redraws on `frame`, from the feed's slices only), and `results.js` (time, damage, DPS; redraws on `results`).
+  its announcements; redraws on `frame`, from the feed's slices only), `results.js` (time, damage, DPS; redraws on `results`), and `config-form.js`
+  (#151: the "Fight setup" form; draws the `form` slice and calls the
+  actions `js/config-form.js` gives it, which `js/main.js` hands in, so it
+  imports nothing from the engine). Edits apply to the next run: the fight on
+  the page keeps the config it started with until #153's Run.
 - `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
   milliseconds into a whole number of `sim.fixedStep` steps. It carries the
   remainder between frames and caps one frame at `sim.maxFrameTime`, which is
@@ -645,7 +660,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   nothing, bad input), the data check refusing a bad entry, the Assassination
   shapes of D8a, and the reference build (Assassination 18 / Combat 33 /
   Subtlety 0) decoded from its talentsforever.com link
-  (`test/talentsforever.js`) and run through `createFight`.
+  (`data/reference-build.js`) and run through `createFight`.
 - `test/assassination-talents-as-data.test.js` — Malice, Lethality and Improved
   Slice and Dice (D8a PR 1) against the snapshot's rank text at every rank, the
   `duration` modifier kind (scope, floor, stacking), the Slice and Dice length

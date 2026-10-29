@@ -1,9 +1,10 @@
 import { k } from "../data/constants.js";
+import { createConfigForm, pageDefaultConfig } from "./config-form.js";
 import { createFight } from "./fight.js";
 import { FrameClock } from "./frame-clock.js";
 import { createLiveFeed } from "./live-feed.js";
-import { defaultConfig } from "./sim-config.js";
 import { createStore } from "./store.js";
+import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
 import { createVisualiserView } from "./views/visualiser.js";
@@ -15,11 +16,17 @@ import { createVisualiserView } from "./views/visualiser.js";
 // (FrameClock). Each view owns its own part of the page and draws only from
 // the store; none reaches into another's or into the engine. This file holds
 // no combat or timing rules and draws nothing itself.
+//
+// The stats form (#151) edits the store's `config`, the one source of the
+// rotation too (config.rotation; there is no separate rotation slice). Its
+// edits apply to the next run (#153's control bar starts it from
+// nextRunConfig in js/config-form.js); the fight on the page keeps the config
+// it started with.
 // A fresh seed on every page load for now. The header shows it, so a fight
 // can be repeated with runFight({ seed, duration }).
 const fight = createFight(
   crypto.getRandomValues(new Uint32Array(1))[0],
-  defaultConfig(),
+  pageDefaultConfig(),
 );
 const { simulation } = fight;
 const feed = createLiveFeed(fight);
@@ -34,13 +41,13 @@ const resultsOf = () => ({
 
 const store = createStore({
   config: fight.config,
-  rotation: fight.config.rotation,
   run: { state: "running", seed: fight.seed },
   frame: 0,
   results: resultsOf(),
   ...feed.read(),
 });
 
+createConfigFormView(document, store, createConfigForm(store));
 createControlsView(document, store);
 createVisualiserView(document, store);
 createResultsView(document, store);
