@@ -500,6 +500,14 @@ describe("batch host protocol (#147)", () => {
     }
     assert.equal(deserializeError({ name: "RangeError" }).message, "");
     assert.equal(deserializeError({ message: "only" }).constructor, Error);
+    // #187: a field that is present but falsy is kept, not replaced by the
+    // default (the ?? in deserializeError, not ||). serializeError always
+    // sends strings, so an empty name round-trips as an empty name.
+    assert.equal(deserializeError({ name: "Error", message: 0 }).message, "0");
+    assert.equal(deserializeError({ name: "", message: "m" }).name, "");
+    const unnamed = new Error("m");
+    unnamed.name = "";
+    assert.equal(deserializeError(serializeError(unnamed)).name, "");
   });
 
   it("states the protocol", () => {

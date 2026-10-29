@@ -32,6 +32,22 @@ a random seed at load, keeps it in `simulation.seed`, and shows it in the run
 bar's Seed field (#153), where the player can type one or draw a new one. A `Rogue` that no
 `Simulation` has adopted has no rng, and a draw throws.
 
+A seed is any integer, and it wraps to an unsigned 32-bit value (`-1` is seed
+`4294967295`, `2 ** 32` is seed `0`). `normalizeSeed` in `js/rng.js` is the one
+seed check (#187): `SimRunner`, `runFight`, `createFight`, `runBatch`,
+`BatchRunner`, `deriveSeed`, `createRng` and `Simulation` all go through it, so a
+bad seed throws the same `RangeError` everywhere, and the text names the value:
+`A seed must be an integer; got <value>.` The value is shown by `describeSeed`:
+a string is quoted (`got "7".`, so it reads differently from the number 7),
+numbers, booleans, `undefined` and `null` read as they print (`got NaN.`,
+`got 1.5.`, `got null.`), a bigint keeps its `n`, an object, array or function
+is named by its kind (`got an object.`), and a string longer than
+`k("rng.seedTextLimit")` (40, `engineering`, retune off) characters
+is cut and ends in `...`. `createRng()` and `new Simulation(rogue)` with no seed
+use `k("rng.defaultSeed")`; every other entry point requires one. The batch
+worker sends the error back by name and message, so a batch run through
+`BatchClient` rejects with the same text.
+
 ## Attack table
 
 `resolveAttack` in `js/attack-resolver.js` is the Classic 1.12 melee attack
@@ -1073,7 +1089,8 @@ of 2^32 or above wraps and aliases to a small seed (`2 ** 32 + 5` is seed `5`),
 so two such seeds can give the same fight.
 `duration` is in seconds and follows the rules of `run`: a negative, `NaN`, or
 infinite value throws a `RangeError`, and `0` is an empty fight. A missing or
-non-integer `seed` also throws a `RangeError`, as does an argument that is
+non-integer `seed` also throws a `RangeError` with the one seed text (see
+Random numbers), as does an argument that is
 not an object (`runFight()` and `runFight(null)`). An option other than `seed`,
 `duration` and `config` is a `RangeError` that names it, so a misspelt `confg`
 cannot quietly run the default fight.
