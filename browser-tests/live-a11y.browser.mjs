@@ -215,21 +215,32 @@ for (const width of WIDTHS) {
       );
 
       // U9 polish: the ends of the log, one message a press, a repeat too.
-      for (const [key, text] of [
-        ["Home", "Start of log"],
-        ["Home", "Start of log"],
-        ["ArrowLeft", "Start of log"],
-        ["End", "End of log"],
-        ["ArrowRight", "End of log"],
-      ]) {
+      // Home and End say the end and the row as one message (Scout, #221);
+      // an arrow past an end says the end alone and stays on the row.
+      const say = async (key) => {
         await page.keyboard.press(key);
         await settle(page);
-        assert.deepEqual(
-          await messages(page),
-          [{ id: "log-readout", text }],
-          key,
-        );
-      }
+        const said = await messages(page);
+        assert.equal(said.length, 1, `${key}: ${JSON.stringify(said)}`);
+        assert.equal(said[0].id, "log-readout", key);
+        return said[0].text;
+      };
+      const spokenRow =
+        /^\d+ minutes?( \d+(\.\d)?)?, [^,]+, [a-z ]+, [\d,]+ damage$|^\d+(\.\d)? seconds?, [^,]+, [a-z ]+, [\d,]+ damage$/;
+      const home = await say("Home");
+      assert.equal(await say("Home"), home, "Home again: said again");
+      assert.equal(await say("ArrowLeft"), "Start of log");
+      assert.equal(await say("ArrowLeft"), "Start of log", "said again");
+      const earliestStep = await page.textContent("#log-step");
+      await say("ArrowRight");
+      const earliest = await say("ArrowLeft");
+      assert.match(earliest, spokenRow);
+      assert.equal(home, `Start of log. ${earliest}`);
+      assert.equal(await page.textContent("#log-step"), earliestStep);
+      // The first step went to the latest row: End says it.
+      assert.equal(await say("End"), `End of log. ${stepped[0].text}`);
+      assert.equal(await say("ArrowRight"), "End of log");
+      assert.equal(await say("ArrowRight"), "End of log", "said again");
       assert.equal(
         await page.evaluate(() =>
           document.activeElement.classList.contains("combat-log-scroll"),

@@ -812,7 +812,11 @@ describe("page views", () => {
     assert.ok(logRows[1].classes.has("is-selected"));
     assert.equal(press("End"), true);
     assert.ok(logRows[0].classes.has("is-selected"), "End: the latest");
-    assert.equal(doc.el("#log-readout").textContent, "End of log");
+    // Scout (#221): Home and End say the end and the row, as one message.
+    assert.equal(
+      doc.el("#log-readout").textContent,
+      "End of log. 41.2 seconds, Eviscerate, hit, 1,812 damage",
+    );
     assert.equal(
       doc.el("#log-step").textContent,
       "00:41.2 · Eviscerate · Hit · 1,812",
@@ -822,7 +826,13 @@ describe("page views", () => {
     assert.ok(logRows[0].classes.has("is-selected"));
     assert.equal(press("Home"), true);
     assert.ok(logRows[2].classes.has("is-selected"), "Home: the earliest");
+    assert.equal(
+      doc.el("#log-readout").textContent,
+      "Start of log. 1 minute 1.5, Sinister Strike, hit, 99 damage",
+    );
+    press("ArrowLeft");
     assert.equal(doc.el("#log-readout").textContent, "Start of log");
+    assert.ok(logRows[2].classes.has("is-selected"), "past the start: stays");
     assert.equal(press("Enter"), false, "other keys are left alone");
 
     store.set({ run: { state: "running", seed: SEED } });
@@ -860,14 +870,23 @@ describe("page views", () => {
     nextFrame();
     press("ArrowLeft");
     nextFrame();
+    press("ArrowLeft");
+    assert.equal(readout.textContent, "", "a bare repeat: emptied again");
+    nextFrame();
+    press("End");
+    nextFrame();
     press("End");
     press("ArrowRight");
     assert.equal(frames.length, 1, "a newer press replaces a waiting one");
     nextFrame();
+    const earliest = "1 minute 1.5, Sinister Strike, hit, 99 damage";
+    const latest = "1.5 seconds, Sinister Strike, hit, 99 damage";
     assert.deepEqual(said, [
+      `Start of log. ${earliest}`,
+      `Start of log. ${earliest}`,
       "Start of log",
       "Start of log",
-      "Start of log",
+      `End of log. ${latest}`,
       "End of log",
     ]);
   });

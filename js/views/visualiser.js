@@ -291,8 +291,9 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   // Paused, Left and Right step through the log rows (Left is earlier) and the
   // readout under the log says which; focus stays where it is. Home goes to
   // the earliest row and End to the latest (U9 polish, Fran's #220 check):
-  // they, and an arrow past either end, say "Start of log" or "End of log"
-  // instead of the row. The log is newest first, so row 0 is the end.
+  // they say "Start of log. <the row>" or "End of log. <the row>" (Scout,
+  // #221), and an arrow past either end says "Start of log" or "End of log"
+  // alone, staying on the row. The log is newest first, so row 0 is the end.
   function step(key) {
     const { run, log } = store.get();
     const delta = { ArrowLeft: 1, ArrowRight: -1 }[key];
@@ -323,7 +324,16 @@ export function createVisualiserView(doc, store, { clock } = {}) {
     // The hint stays the log's description, out of sight once a row shows.
     logHint.classList.toggle("visually-hidden", true);
     write(logStep, logRowReading(log[next]));
-    sayStep(edge === null ? logRowSpoken(log[next]) : LOG_EDGE[edge]);
+    // Home and End say the end and the row as one message (Scout, #221); an
+    // arrow past an end says only the end.
+    const spoken = logRowSpoken(log[next]);
+    if (edge === null) {
+      sayStep(spoken);
+    } else if (jump !== undefined) {
+      sayStep(`${LOG_EDGE[edge]}. ${spoken}`);
+    } else {
+      sayStep(LOG_EDGE[edge]);
+    }
     return true;
   }
 
