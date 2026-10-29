@@ -782,7 +782,7 @@ export const CONSTANTS = {
     "rules",
     ENGINEERING,
     `${ROTATION_SCHEMA}: ${NOT_JAMES} The issue asks for limits and gives no numbers`,
-    "Most rules in one RotationRule list that the shape check (js/rotation-schema.js) accepts. The placeholder Combat rotation has 6. The cap keeps an imported file small and the interpreter's walk short; it is not a game rule.",
+    "Most rules in one RotationRule list that the shape check (js/rotation-schema.js) accepts. The placeholder Combat rotation has 7 (6 before issue #155). The cap keeps an imported file small and the interpreter's walk short; it is not a game rule.",
     false,
   ),
   "rotation.maxConditionsPerRule": entry(
@@ -822,7 +822,7 @@ export const CONSTANTS = {
     "s",
     WOWF_DESIGNER,
     COMBAT_ROTATION,
-    "At rotation.finisherComboPoints, refresh Slice and Dice when it is missing or the remaining duration is at or below this. A longer remaining duration spends the combo points on Eviscerate.",
+    "At rotation.finisherComboPoints, the placeholder rotation casts Cold Blood only with more than this left on Slice and Dice. Until issue #155 it also recast Slice and Dice at or below this; since then its Slice and Dice rules are the Combat swords preset's (rotation.pooling), and this refresh survives only in the pre-#155 rotation test/legacy-rotation.js keeps for the equivalence test.",
     true,
   ),
 
@@ -831,7 +831,7 @@ export const CONSTANTS = {
     "s, s",
     ASSUMPTION,
     "James, 26 Oct 2026, issue #122: an uptime buff nearing its end (< 5 s left) has its energy pooled and is recast at < 1 s left (the GCD is 1 s), or when energy is at its maximum. The issue gives 5 and 1 as the numbers; #142 asks for any new number to be tagged assumption with retune on, so they are tagged here",
-    "Used by the Combat swords preset (data/rotation-presets.js, issue #122). At rotation.finisherComboPoints, with Slice and Dice at most windowSeconds from ending, the preset casts neither Eviscerate nor a builder, so the energy is pooled; it recasts Slice and Dice when it is missing or has less than recastSeconds left, or earlier when energy is at energy.max. With more than windowSeconds left it spends the points on Eviscerate. The placeholder rotation (rotation.sliceAndDiceRefreshSeconds, 10 s) is unchanged. Rupture and Venom would use the same two numbers; no preset casts them yet.",
+    "Used by the Combat swords preset (data/rotation-presets.js, issue #122). At rotation.finisherComboPoints, with Slice and Dice at most windowSeconds from ending, the preset casts neither Eviscerate nor a builder, so the energy is pooled; it recasts Slice and Dice when it is missing or has less than recastSeconds left, or earlier when energy is at energy.max. With more than windowSeconds left it spends the points on Eviscerate. Since issue #155 the placeholder rotation takes the preset's two Slice and Dice rules too, but not the pooling: its Eviscerate and builder keep no guard. Rupture and Venom would use the same two numbers; no preset casts them yet.",
     true,
   ),
 

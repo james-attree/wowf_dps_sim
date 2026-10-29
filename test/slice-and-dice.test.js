@@ -134,25 +134,25 @@ describe("Slice and Dice rotation", () => {
     assert.equal(rogue.energy, 0);
     assert.equal(sim.gcd, k("gcd.duration"));
 
-    // The refresh checks are about the buff timer. Clear the GCD this cast started.
+    // The refresh checks are about the buff timer. Clear the GCD this cast
+    // started. Since issue #155 the default recasts Slice and Dice with the
+    // combat-swords preset's rules: under rotation.pooling.recastSeconds left
+    // at any energy, or inside the pooling window at full energy.
+    const { recastSeconds } = k("rotation.pooling");
     sim.gcd = 0;
     rogue.comboPoints = k("rotation.finisherComboPoints");
     rogue.energy = k("sliceAndDice").energy;
-    sim.activeBuffs["slice-and-dice"].duration =
-      k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon");
+    sim.activeBuffs["slice-and-dice"].duration = recastSeconds;
     sim.step(0);
 
+    // Not refreshed, and Eviscerate costs more than this energy: the walk pools.
     assert.equal(rogue.comboPoints, k("rotation.finisherComboPoints"));
-    assert.equal(
-      sim.activeBuffs["slice-and-dice"].duration,
-      k("rotation.sliceAndDiceRefreshSeconds") + k("sim.tickEpsilon"),
-    );
+    assert.equal(sim.activeBuffs["slice-and-dice"].duration, recastSeconds);
 
     rogue.comboPoints = k("combo.max");
     rogue.energy = k("sliceAndDice").energy;
-    sim.activeBuffs["slice-and-dice"].duration = k(
-      "rotation.sliceAndDiceRefreshSeconds",
-    );
+    sim.activeBuffs["slice-and-dice"].duration =
+      recastSeconds - k("sim.tickEpsilon");
     sim.step(0);
 
     assert.equal(rogue.comboPoints, 0);

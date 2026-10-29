@@ -402,10 +402,11 @@ describe("swing timer fight regression", () => {
     const fast = sampleFight(SWING_FRAME_RATES[1]);
     // Fixed roll (Math.random is 0.5). Issue #18 starts the fight at 0 combo
     // points. The placeholder Combat rotation (issue #68) builds with
-    // Sinister Strike and spends rotation.finisherComboPoints on Slice and
-    // Dice. This roll does not cast Eviscerate: the next five builders take
-    // longer than the time a full Slice and Dice stays above
-    // rotation.sliceAndDiceRefreshSeconds. Ghostly Strike, Premeditation,
+    // Sinister Strike and spends rotation.finisherComboPoints. Since issue
+    // #155 it keeps Slice and Dice up with the combat-swords preset's refresh
+    // rules (under rotation.pooling.recastSeconds left, or inside the pooling
+    // window at full energy), so with this roll one finisher is an Eviscerate
+    // and Slice and Dice is cast twice. Ghostly Strike, Premeditation,
     // Hemorrhage, and Rupture are not cast. Issue #23 scales physical direct
     // hits by armor. Issue #24 puts Blade Flurry, Adrenaline Rush, and Slice
     // and Dice on the GCD. This roll does not crit a DoT tick, so both frame
@@ -413,19 +414,21 @@ describe("swing timer fight regression", () => {
     const casts = {
       "Adrenaline Rush": 1,
       "Blade Flurry": 1,
+      Eviscerate: 1,
       "Sinister Strike": 16,
-      "Slice and Dice": 3,
-      "Main-hand": 30,
-      "Off-hand": 31,
+      "Slice and Dice": 2,
+      "Main-hand": 28,
+      "Off-hand": 29,
     };
-    const spent = casts["Slice and Dice"] * k("rotation.finisherComboPoints");
+    const spent =
+      (casts["Slice and Dice"] + casts.Eviscerate) *
+      k("rotation.finisherComboPoints");
     const generated =
       casts["Sinister Strike"] * k("sinisterStrike").comboPoints;
     const comboPoints = k("character.startingComboPoints") + generated - spent;
 
     assert.deepEqual(slow.counts, casts);
     assert.deepEqual(fast.counts, casts);
-    assert.equal(slow.counts.Eviscerate, undefined);
     assert.equal(slow.counts.Premeditation, undefined);
     assert.equal(slow.counts["Ghostly Strike"], undefined);
     assert.equal(slow.counts.Hemorrhage, undefined);
@@ -434,8 +437,12 @@ describe("swing timer fight regression", () => {
     assert.equal(slow.comboPoints, comboPoints);
     assert.equal(fast.comboPoints, comboPoints);
     assert.ok(slow.damage > 0);
-    assert.ok(slow.sliceAndDiceUptime > SWING_WINDOW_SECONDS / 2);
-    assert.ok(fast.sliceAndDiceUptime > SWING_WINDOW_SECONDS / 2);
+    // About 27 s of the 60: the second Slice and Dice is recast only once the
+    // first is under rotation.pooling.recastSeconds (or in the window at full
+    // energy), and with this roll it lapses for a while before the next recast
+    // (it was over half the fight with the 10 s refresh before #155).
+    assert.ok(slow.sliceAndDiceUptime > SWING_WINDOW_SECONDS / 3);
+    assert.ok(fast.sliceAndDiceUptime > SWING_WINDOW_SECONDS / 3);
     assert.ok(
       Math.abs(slow.sliceAndDiceUptime - fast.sliceAndDiceUptime) <
         1 / SWING_FRAME_RATES[0],

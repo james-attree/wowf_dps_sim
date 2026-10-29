@@ -217,10 +217,11 @@ describe("summarizeRotation", () => {
       "Combat (placeholder)",
       "1. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Energy >= 25",
       "2. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready",
-      "3. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 10s left",
-      "4. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 10s left",
-      "5. Eviscerate if CP >= 5",
-      "6. Sinister Strike (always)",
+      "3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left",
+      "4. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 5s left and Energy >= 100",
+      "5. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 10s left",
+      "6. Eviscerate if CP >= 5",
+      "7. Sinister Strike (always)",
     ]);
   });
 

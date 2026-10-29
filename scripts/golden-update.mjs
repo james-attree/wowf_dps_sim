@@ -94,8 +94,9 @@ export const GOLDEN_CASES = [
   // Issue #142. The Combat swords preset (js/rotation-presets.js) on the
   // reference build, to pin what the preset rotation does: the Slice and Dice
   // pooling rule of #122, with Blade Flurry and Adrenaline Rush on cooldown.
-  // The default fight keeps the placeholder rotation, so the cases above did
-  // not move.
+  // The default fight kept the placeholder rotation, so the cases above did
+  // not move then. Issue #155 gave the default the preset's two Slice and Dice
+  // rules, which moved three of them (other-seed, talented-build and poisons).
   {
     name: "combat-swords-preset-seed-142-120s",
     seed: 142,

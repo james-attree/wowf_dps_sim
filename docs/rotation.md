@@ -403,18 +403,19 @@ rules[1].action "nonsense" is not an ability in the spell data. The rogue casts:
 rules[2].conditions[0].aura "rupture" is a debuff on the target; use debuffActive, ...
 ```
 
-| Case                               | Path                                      | What is wrong                                                                                                                                            |
-| ---------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anything the shape check rejects   | as in [the shape check](#the-shape-check) | The wrong version, a missing field, too many rules or conditions, and so on. If the shape is wrong, that is all that is reported.                        |
-| `rules: []`                        | `rules`                                   | A rotation with no rules casts nothing.                                                                                                                  |
-| Unknown ability id in `action`     | `rules[i].action`                         | Not an ability in the spell data.                                                                                                                        |
-| An ability the rogue does not cast | `rules[i].action`                         | In the spell data (Mutilate, Garrote, ...), but the engine does not cast it yet.                                                                         |
-| Unknown condition `type`           | `rules[i].conditions[j].type`             | Lists the known types.                                                                                                                                   |
-| A param that is missing or wrong   | `rules[i].conditions[j].<param>`          | A missing or unknown param, or one of the wrong type (an operator not in `>= > <= < ==`, a `value` that is not a finite number, a non-boolean `active`). |
-| Unknown aura id                    | `rules[i].conditions[j].aura`             | `auraActive` and `auraRemaining` need a self buff. A target debuff id says to use the `debuff` types.                                                    |
-| Unknown debuff id                  | `rules[i].conditions[j].debuff`           | `debuffActive`, `debuffRemaining` and `debuffStacks` need a target debuff. A self buff id says to use the `aura` types.                                  |
-| Unknown ability id in a condition  | `rules[i].conditions[j].ability`          | `cooldownReady`, `abilityGranted` and `abilityUnlocked` take an ability the rogue casts, as `action` does.                                               |
-| A number out of range              | `rules[i].conditions[j].value`            | See below.                                                                                                                                               |
+| Case                               | Path                                      | What is wrong                                                                                                                                                      |
+| ---------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Anything the shape check rejects   | as in [the shape check](#the-shape-check) | The wrong version, a missing field, too many rules or conditions, and so on. If the shape is wrong, that is all that is reported.                                  |
+| `rules: []`                        | `rules`                                   | A rotation with no rules casts nothing.                                                                                                                            |
+| Unknown ability id in `action`     | `rules[i].action`                         | Not an ability in the spell data.                                                                                                                                  |
+| An ability the rogue does not cast | `rules[i].action`                         | In the spell data (Mutilate, Garrote, ...), but the engine does not cast it yet.                                                                                   |
+| Unknown condition `type`           | `rules[i].conditions[j].type`             | Lists the known types.                                                                                                                                             |
+| A param that is missing or wrong   | `rules[i].conditions[j].<param>`          | A missing or unknown param, or one of the wrong type (an operator not in `>= > <= < ==`, a `value` that is not a finite number, a non-boolean `active`).           |
+| Unknown aura id                    | `rules[i].conditions[j].aura`             | `auraActive` and `auraRemaining` need a self buff. A target debuff id says to use the `debuff` types.                                                              |
+| Unknown debuff id                  | `rules[i].conditions[j].debuff`           | `debuffActive`, `debuffRemaining` and `debuffStacks` need a target debuff. A self buff id says to use the `aura` types.                                            |
+| Unknown ability id in a condition  | `rules[i].conditions[j].ability`          | `cooldownReady`, `abilityGranted` and `abilityUnlocked` take an ability the rogue casts, as `action` does.                                                         |
+| A number out of range              | `rules[i].conditions[j].value`            | See below.                                                                                                                                                         |
+| Cold Blood without its grant       | `rules[i].conditions`                     | A `cold-blood` rule needs `{ "type": "abilityGranted", "ability": "cold-blood" }` among its conditions (issue #155), so a build without the talent never casts it. |
 
 **Ranges.** `resource` and `comboPoints`: `value` is between 0 and the pool's
 maximum (`energy.max`, `combo.max`), and a whole number for combo points, so
@@ -432,9 +433,7 @@ the target debuffs as `{ id: maxStacks }`. Each defaults to the engine's own
 any of them, for a test or for a build that has fewer abilities.
 
 **What it does not check.** Whether a rule is reachable, or whether the order
-makes sense. A `cold-blood` rule with no `abilityGranted` condition is valid: it
-casts whenever the host can cast it (the default rotation adds `abilityGranted`,
-so that a fight with no talent build never casts it).
+makes sense.
 
 `compileRotation` calls the validator, so `createFight`, `runFight` and
 `SimRunner` reject an invalid rotation before the `Simulation` exists and so
@@ -460,10 +459,11 @@ something that is not a rotation, rule or condition object).
 Combat (placeholder)
 1. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Energy >= 25
 2. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready
-3. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 10s left
-4. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 10s left
-5. Eviscerate if CP >= 5
-6. Sinister Strike (always)
+3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
+4. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 5s left and Energy >= 100
+5. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 10s left
+6. Eviscerate if CP >= 5
+7. Sinister Strike (always)
 ```
 
 | Type                                | Line                                                                                    |
@@ -653,8 +653,9 @@ checked too. Nothing in the file or the code knows a step or a frame.
 The three below are checked by `test/rotation-schema.test.js` (the shape) and
 `test/rotation-conditions.test.js` (every condition in them, and each example in
 the vocabulary above, must pass `conditionProblems`). The Combat one must match
-the constants the code rotation reads (`rotation.priority`,
-`rotation.finisherComboPoints`, `rotation.sliceAndDiceRefreshSeconds`).
+the constants `defaultRotation()` reads (`rotation.priority`,
+`rotation.finisherComboPoints`, `rotation.pooling`, `energy.max`,
+`rotation.sliceAndDiceRefreshSeconds`).
 
 ### 1. Today's placeholder Combat rotation
 
@@ -664,10 +665,14 @@ What the Rogue casts by default (issue #68, and the Cold Blood rule). This is
 
 - Blade Flurry and Adrenaline Rush when each is ready, in that order (Blade
   Flurry only with the energy it costs).
-- At 5 combo points, Slice and Dice when it is missing or has at most 10 s
-  left.
-- Otherwise at 5 combo points, Cold Blood first when the build grants it, then
-  Eviscerate.
+- At 5 combo points, Slice and Dice when it is missing or has less than 1 s
+  left (`rotation.pooling.recastSeconds`), or when it has at most 5 s left
+  (`rotation.pooling.windowSeconds`) and energy is full. These are the
+  combat-swords preset's two refresh rules ([Presets](#presets)), taken into the
+  default in issue #155; before that the default recast Slice and Dice at 10 s
+  left (`rotation.sliceAndDiceRefreshSeconds`).
+- Otherwise at 5 combo points, Cold Blood first when the build grants it and
+  Slice and Dice has more than 10 s left, then Eviscerate.
 - Otherwise Sinister Strike.
 
 ```json
@@ -678,35 +683,85 @@ What the Rogue casts by default (issue #68, and the Cold Blood rule). This is
     {
       "action": "blade-flurry",
       "conditions": [
-        { "type": "abilityUnlocked", "ability": "blade-flurry" },
-        { "type": "cooldownReady", "ability": "blade-flurry" },
-        { "type": "resource", "resource": "energy", "op": ">=", "value": 25 }
+        {
+          "type": "abilityUnlocked",
+          "ability": "blade-flurry"
+        },
+        {
+          "type": "cooldownReady",
+          "ability": "blade-flurry"
+        },
+        {
+          "type": "resource",
+          "resource": "energy",
+          "op": ">=",
+          "value": 25
+        }
       ]
     },
     {
       "action": "adrenaline-rush",
       "conditions": [
-        { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
-        { "type": "cooldownReady", "ability": "adrenaline-rush" }
+        {
+          "type": "abilityUnlocked",
+          "ability": "adrenaline-rush"
+        },
+        {
+          "type": "cooldownReady",
+          "ability": "adrenaline-rush"
+        }
       ]
     },
     {
       "action": "slice-and-dice",
       "conditions": [
-        { "type": "comboPoints", "op": ">=", "value": 5 },
+        {
+          "type": "comboPoints",
+          "op": ">=",
+          "value": 5
+        },
+        {
+          "type": "auraRemaining",
+          "aura": "slice-and-dice",
+          "op": "<",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "action": "slice-and-dice",
+      "conditions": [
+        {
+          "type": "comboPoints",
+          "op": ">=",
+          "value": 5
+        },
         {
           "type": "auraRemaining",
           "aura": "slice-and-dice",
           "op": "<=",
-          "value": 10
+          "value": 5
+        },
+        {
+          "type": "resource",
+          "resource": "energy",
+          "op": ">=",
+          "value": 100
         }
       ]
     },
     {
       "action": "cold-blood",
       "conditions": [
-        { "type": "abilityGranted", "ability": "cold-blood" },
-        { "type": "comboPoints", "op": ">=", "value": 5 },
+        {
+          "type": "abilityGranted",
+          "ability": "cold-blood"
+        },
+        {
+          "type": "comboPoints",
+          "op": ">=",
+          "value": 5
+        },
         {
           "type": "auraRemaining",
           "aura": "slice-and-dice",
@@ -717,9 +772,18 @@ What the Rogue casts by default (issue #68, and the Cold Blood rule). This is
     },
     {
       "action": "eviscerate",
-      "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+      "conditions": [
+        {
+          "type": "comboPoints",
+          "op": ">=",
+          "value": 5
+        }
+      ]
     },
-    { "action": "sinister-strike", "conditions": [] }
+    {
+      "action": "sinister-strike",
+      "conditions": []
+    }
   ]
 }
 ```
