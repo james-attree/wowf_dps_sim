@@ -1,3 +1,4 @@
+import { k } from "../data/constants.js";
 import { ERROR_NAMES, createBatchHost, nextTask } from "./batch-host.js";
 
 // The batch client (S4, issue #147): runs a batch off the main thread, in a
@@ -23,14 +24,25 @@ import { ERROR_NAMES, createBatchHost, nextTask } from "./batch-host.js";
 // cancel() stops the running batch before its next iteration and resolves its
 // promise with the iterations that completed (`cancelled: true`), within one
 // slice (batch.sliceBudget) plus one fight. It returns false when nothing was
-// running.
+// running. A cancel() that returns true always gives `cancelled: true`, even
+// when the last iteration finished before the cancel reached the host (a
+// cancel from the progress handler of the last iteration, say), as
+// BatchRunner's cancel() does (#155).
 //
 // Modes (`mode` option):
 //   "auto"    the default. A module worker where the browser has one, else the
-//             main thread. A worker that fails to load (an error before it
-//             says it is ready) is dropped and the batch reruns on the main
-//             thread, from its first iteration, so the result is the same.
+//             main thread. A worker that fails to load is dropped and the
+//             batch reruns on the main thread, from its first iteration, so
+//             the result is the same. Failing to load is: the Worker
+//             constructor throws, the worker reports an error or exits before
+//             it says it is ready, or it is not ready within
+//             batch.workerLoadTimeout.
 //   "worker"  always a worker. A worker that fails to load rejects the batch.
+//
+// A worker that exits after it loaded (a Worker-like object may send an
+// "exit" event, as Node's worker_threads do; a browser Worker never does)
+// rejects the running batch, as an error does, so a batch cannot hang on a
+// worker that is gone.
 //   "main"    always the main thread: the batch host runs in the page, in
 //             slices of batch.sliceBudget, so the page can paint and take
 //             input between them.
@@ -40,7 +52,7 @@ import { ERROR_NAMES, createBatchHost, nextTask } from "./batch-host.js";
 
 export const BATCH_CLIENT_MODES = Object.freeze(["auto", "worker", "main"]);
 
-const CLIENT_OPTIONS = ["mode", "createWorker", "now", "schedule"];
+const CLIENT_OPTIONS = ["mode", "createWorker", "now", "schedule", "setTimer"];
 
 // True when `WorkerClass` (default: the global Worker) takes the
 // { type: "module" } option: the constructor reads `type` only if it knows it.
@@ -72,6 +84,15 @@ function defaultWorker() {
   });
 }
 
+// The default timer: setTimer(callback, ms) returns a function that clears it.
+// Unreferenced where the host has that (Node), so a pending load timeout never
+// keeps a script alive.
+function defaultTimer(callback, ms) {
+  const handle = globalThis.setTimeout(callback, ms);
+  handle?.unref?.();
+  return () => globalThis.clearTimeout(handle);
+}
+
 // A serialized error (js/batch-host.js serializeError) as an Error again.
 export function deserializeError(data) {
   const name = data !== null && typeof data === "object" ? data.name : "Error";
@@ -91,7 +112,10 @@ export class BatchClient {
   #createWorker;
   #now;
   #schedule;
+  #setTimer;
   #worker = null;
+  // Clears the pending load timeout of #worker, or null.
+  #clearLoadTimer = null;
   #ready = false;
   #host = null;
   // The running batch: { id, options, onProgress, resolve, reject,
@@ -108,6 +132,8 @@ export class BatchClient {
   //                 performance.now.
   //   schedule      schedule(callback) for the main-thread path. Default: the
   //                 next task (js/batch-host.js nextTask).
+  //   setTimer      setTimer(callback, ms) => a function that clears it, for
+  //                 the worker's load timeout. Default: setTimeout.
   constructor(options = {}) {
     if (options === null || typeof options !== "object") {
       throw new TypeError("A BatchClient takes an options object.");
@@ -124,6 +150,7 @@ export class BatchClient {
       createWorker,
       now = () => performance.now(),
       schedule = nextTask,
+      setTimer = defaultTimer,
     } = options;
     if (!BATCH_CLIENT_MODES.includes(mode)) {
       throw new RangeError(
@@ -134,6 +161,7 @@ export class BatchClient {
       ["createWorker", createWorker],
       ["now", now],
       ["schedule", schedule],
+      ["setTimer", setTimer],
     ]) {
       if (value !== undefined && typeof value !== "function") {
         throw new TypeError(`A BatchClient's ${name} must be a function.`);
@@ -142,6 +170,7 @@ export class BatchClient {
     this.#requested = mode;
     this.#now = now;
     this.#schedule = schedule;
+    this.#setTimer = setTimer;
     this.#createWorker = createWorker ?? defaultWorker;
     if (mode === "main") {
       this.#mode = "main";
@@ -231,11 +260,14 @@ export class BatchClient {
   }
 
   #send(message) {
-    if (this.#mode === "main") {
-      this.#mainHost().receive(message);
-    } else {
-      this.#workerPort().postMessage(message);
+    if (this.#mode === "worker") {
+      const port = this.#workerPort();
+      if (port !== null) {
+        port.postMessage(message);
+        return;
+      }
     }
+    this.#mainHost().receive(message);
   }
 
   #mainHost() {
@@ -251,11 +283,32 @@ export class BatchClient {
     return this.#host;
   }
 
+  // The worker, created on first use, or null when it could not be created in
+  // auto mode (the client has moved to the main thread).
   #workerPort() {
     if (this.#worker === null) {
-      const worker = this.#createWorker();
+      let worker;
+      try {
+        worker = this.#createWorker();
+      } catch (error) {
+        if (this.#requested !== "auto") {
+          throw error;
+        }
+        // The constructor threw (a blocked script, no module workers after
+        // all): a load failure, so run here instead (#155).
+        this.#mode = "main";
+        return null;
+      }
       this.#worker = worker;
       this.#ready = false;
+      const timeout = k("batch.workerLoadTimeout");
+      this.#clearLoadTimer = this.#setTimer(() => {
+        if (this.#worker === worker && !this.#ready) {
+          this.#workerError({
+            message: `it was not ready within ${timeout} ms`,
+          });
+        }
+      }, timeout);
       worker.addEventListener("message", (event) => {
         if (this.#worker === worker) {
           this.#receive(event.data);
@@ -271,11 +324,24 @@ export class BatchClient {
           this.#workerError(event);
         }
       });
+      worker.addEventListener("exit", (event) => {
+        if (this.#worker === worker) {
+          const code = event?.code === undefined ? "" : ` (code ${event.code})`;
+          this.#workerError({ message: `it exited${code}` });
+        }
+      });
     }
     return this.#worker;
   }
 
+  #stopLoadTimer() {
+    const clear = this.#clearLoadTimer;
+    this.#clearLoadTimer = null;
+    clear?.();
+  }
+
   #dropWorker() {
+    this.#stopLoadTimer();
     if (this.#worker !== null) {
       const worker = this.#worker;
       this.#worker = null;
@@ -312,6 +378,7 @@ export class BatchClient {
   #receive(message) {
     if (message?.type === "ready") {
       this.#ready = true;
+      this.#stopLoadTimer();
       return;
     }
     const job = this.#job;
@@ -323,7 +390,14 @@ export class BatchClient {
       job.onProgress?.({ completed, total, mean });
     } else if (message.type === "result") {
       this.#job = null;
-      job.resolve(message.result);
+      // A cancel() that returned true is a cancelled batch, even if the last
+      // iteration finished before the host saw it (#155).
+      const { result } = message;
+      job.resolve(
+        job.cancelled && result?.cancelled === false
+          ? { ...result, cancelled: true }
+          : result,
+      );
     } else if (message.type === "error") {
       this.#job = null;
       job.reject(deserializeError(message.error));

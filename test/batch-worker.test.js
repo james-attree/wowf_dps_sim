@@ -549,6 +549,8 @@ function threadWorker() {
         worker.on("error", (error) => listener({ message: error.message }));
       } else if (type === "messageerror") {
         worker.on("messageerror", listener);
+      } else if (type === "exit") {
+        worker.on("exit", (code) => listener({ code }));
       }
     },
     terminate: () => worker.terminate(),
@@ -840,7 +842,7 @@ describe("batch client (#147)", SETTLE, () => {
     assert.throws(() => new BatchClient({ mode: "thread" }), RangeError);
     assert.throws(() => new BatchClient({ worker: 1 }), RangeError);
     assert.throws(() => new BatchClient(null), TypeError);
-    for (const name of ["createWorker", "now", "schedule"]) {
+    for (const name of ["createWorker", "now", "schedule", "setTimer"]) {
       assert.throws(() => new BatchClient({ [name]: 1 }), TypeError);
     }
   });
@@ -889,5 +891,285 @@ describe("the worker file (#147)", () => {
       /new URL\("\.\/batch-worker\.js", import\.meta\.url\)/,
     );
     assert.match(client, /type: "module"/);
+  });
+});
+
+// Issue #155 (Kira's QA of #147 in #170): four worker and batch bugs, one
+// regression test (or more) each.
+
+// A Worker-like object the test drives by hand: fire(type, event) calls the
+// listener, and `posted` keeps what the client sent.
+function handWorker() {
+  const listeners = {};
+  const worker = {
+    posted: [],
+    terminated: false,
+    fire: (type, event) => listeners[type]?.(event),
+    postMessage: (message) => worker.posted.push(message),
+    addEventListener: (type, listener) => {
+      listeners[type] = listener;
+    },
+    terminate: () => {
+      worker.terminated = true;
+    },
+  };
+  return worker;
+}
+
+// A setTimer the test fires by hand.
+function handTimer() {
+  const timers = [];
+  const setTimer = (callback, ms) => {
+    const timer = { callback, ms, cleared: false };
+    timers.push(timer);
+    return () => {
+      timer.cleared = true;
+    };
+  };
+  return { timers, setTimer };
+}
+
+// A worker_threads thread that exits as it starts, as the Worker-like object
+// BatchClient takes (with the "exit" event).
+function exitingWorker() {
+  const worker = new Worker("process.exit(3);", { eval: true });
+  threads.add(worker);
+  worker.once("exit", () => threads.delete(worker));
+  return {
+    postMessage: () => {},
+    addEventListener: (type, listener) => {
+      if (type === "exit") {
+        worker.on("exit", (code) => listener({ code }));
+      }
+    },
+    terminate: () => worker.terminate(),
+  };
+}
+
+describe("worker and batch fixes (#155)", SETTLE, () => {
+  // Bug 1: cancel() on the last iteration reports a cancelled batch.
+  it("calls a batch cancelled when cancel() comes from the last progress (runner)", () => {
+    const runner = new BatchRunner({ ...OPTIONS });
+    runner.onProgress(({ completed }) => {
+      if (completed === OPTIONS.iterations) {
+        runner.cancel();
+      }
+    });
+    runner.run();
+    runner.advance(OPTIONS.iterations);
+    const { result } = runner;
+    assert.equal(result.cancelled, true);
+    assert.equal(result.completed, OPTIONS.iterations);
+    assert.deepEqual(result.dps, runBatch(OPTIONS).dps);
+  });
+
+  for (const [label, makeClient] of [
+    ["main thread", () => new BatchClient({ mode: "main" })],
+    ["worker thread", () => new BatchClient({ createWorker: threadWorker })],
+  ]) {
+    it(`calls a batch cancelled when cancel() comes from the last progress (client, ${label})`, async () => {
+      const client = makeClient();
+      try {
+        let answered;
+        const result = await client.run(OPTIONS, {
+          onProgress: ({ completed }) => {
+            if (completed === OPTIONS.iterations) {
+              answered = client.cancel();
+            }
+          },
+        });
+        assert.equal(answered, true);
+        assert.equal(result.cancelled, true);
+        assert.equal(result.completed, OPTIONS.iterations);
+        // Only the flag differs from the uncancelled batch.
+        assertSameResult(result, { ...runBatch(OPTIONS), cancelled: true });
+        // A batch nobody cancelled still says so.
+        const plain = await client.run(OPTIONS);
+        assert.equal(plain.cancelled, false);
+        assertSameResult(plain, runBatch(OPTIONS));
+      } finally {
+        client.terminate();
+      }
+    });
+  }
+
+  // Bug 2: a load timeout and an exit watcher, so the client cannot hang.
+  it("drops a worker that is not ready in time: main thread in auto, a rejection in worker mode", async () => {
+    const auto = handTimer();
+    const lost = handWorker();
+    const client = new BatchClient({
+      createWorker: () => lost,
+      setTimer: auto.setTimer,
+    });
+    const run = client.run(OPTIONS);
+    assert.equal(auto.timers.length, 1);
+    assert.equal(auto.timers[0].ms, k("batch.workerLoadTimeout"));
+    auto.timers[0].callback();
+    assert.equal(lost.terminated, true);
+    assert.equal(client.mode, "main");
+    assertSameResult(await run, runBatch(OPTIONS));
+
+    const forced = handTimer();
+    const silent = handWorker();
+    const strict = new BatchClient({
+      mode: "worker",
+      createWorker: () => silent,
+      setTimer: forced.setTimer,
+    });
+    const rejected = strict.run(OPTIONS);
+    forced.timers[0].callback();
+    await assert.rejects(rejected, {
+      message: `The batch worker failed: it was not ready within ${k("batch.workerLoadTimeout")} ms`,
+    });
+    assert.equal(silent.terminated, true);
+    assert.equal(strict.running, false);
+  });
+
+  it("clears the load timeout when the worker is ready, and on terminate", () => {
+    const { timers, setTimer } = handTimer();
+    const worker = handWorker();
+    const client = new BatchClient({ createWorker: () => worker, setTimer });
+    void client.run(OPTIONS).catch(() => {});
+    worker.fire("message", { data: { type: "ready" } });
+    assert.equal(timers[0].cleared, true);
+    // A late timeout does nothing to a ready worker.
+    timers[0].callback();
+    assert.equal(worker.terminated, false);
+    assert.equal(client.running, true);
+    client.terminate();
+
+    const second = handTimer();
+    const other = new BatchClient({
+      createWorker: () => handWorker(),
+      setTimer: second.setTimer,
+    });
+    void other.run(OPTIONS).catch(() => {});
+    other.terminate();
+    assert.equal(second.timers[0].cleared, true);
+  });
+
+  it("treats a worker that exits before it is ready as one that failed to load", async () => {
+    const worker = handWorker();
+    const client = new BatchClient({ createWorker: () => worker });
+    const run = client.run(OPTIONS);
+    worker.fire("exit", { code: 1 });
+    assert.equal(client.mode, "main");
+    assertSameResult(await run, runBatch(OPTIONS));
+
+    const strict = new BatchClient({
+      mode: "worker",
+      createWorker: exitingWorker,
+    });
+    await assert.rejects(strict.run(OPTIONS), {
+      message: "The batch worker failed: it exited (code 3)",
+    });
+    assert.equal(strict.running, false);
+  });
+
+  it("rejects the batch when a loaded worker exits, and starts a new one next time", async () => {
+    const made = [];
+    const client = new BatchClient({
+      createWorker: () => {
+        made.push(handWorker());
+        return made.at(-1);
+      },
+    });
+    const run = client.run(OPTIONS);
+    made[0].fire("message", { data: { type: "ready" } });
+    made[0].fire("exit", {});
+    await assert.rejects(run, {
+      message: "The batch worker failed: it exited",
+    });
+    assert.equal(client.mode, "worker");
+    assert.equal(client.running, false);
+    void client.run(OPTIONS).catch(() => {});
+    assert.equal(made.length, 2);
+    client.terminate();
+  });
+
+  it("ignores a late exit from a worker it already replaced", async () => {
+    const made = [];
+    const client = new BatchClient({
+      createWorker: () => {
+        made.push(handWorker());
+        return made.at(-1);
+      },
+    });
+    const first = client.run(OPTIONS);
+    made[0].fire("message", { data: { type: "ready" } });
+    client.terminate();
+    await first.catch(() => {});
+    const second = client.run(OPTIONS);
+    assert.equal(made.length, 2);
+    made[0].fire("exit", { code: 1 });
+    assert.equal(client.running, true);
+    assert.equal(client.mode, "worker");
+    let settled = false;
+    second.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    await new Promise((resolve) => globalThis.setImmediate(resolve));
+    assert.equal(settled, false);
+    client.terminate();
+    await second.catch(() => {});
+  });
+
+  // Bug 3: a Worker constructor that throws is a load failure.
+  it("falls back to the main thread when the Worker constructor throws (auto)", async () => {
+    const client = new BatchClient({
+      createWorker: () => {
+        throw new globalThis.DOMException("blocked", "SecurityError");
+      },
+    });
+    assert.equal(client.mode, "worker");
+    const progress = [];
+    const result = await client.run(OPTIONS, {
+      onProgress: (event) => progress.push(event.completed),
+    });
+    assert.equal(client.mode, "main");
+    assertSameResult(result, runBatch(OPTIONS));
+    assert.equal(progress.at(-1), OPTIONS.iterations);
+
+    const strict = new BatchClient({
+      mode: "worker",
+      createWorker: () => {
+        throw new globalThis.DOMException("blocked", "SecurityError");
+      },
+    });
+    await assert.rejects(strict.run(OPTIONS), {
+      name: "SecurityError",
+      message: "blocked",
+    });
+    assert.equal(strict.mode, "worker");
+    assert.equal(strict.running, false);
+  });
+
+  // Bug 4: a runner whose run() throws does not leave the host busy.
+  it("is not left busy by a runner whose run() throws", () => {
+    let calls = 0;
+    const { host, messages, drain } = fakeHost({
+      createRunner: (options) => {
+        calls += 1;
+        const runner = new BatchRunner(options);
+        if (calls === 1) {
+          runner.run = () => {
+            throw new Error("run failed");
+          };
+        }
+        return runner;
+      },
+    });
+    host.receive({ type: "start", id: 1, options: OPTIONS });
+    assert.deepEqual(messages, [
+      { type: "error", id: 1, error: { name: "Error", message: "run failed" } },
+    ]);
+    host.receive({ type: "start", id: 2, options: OPTIONS });
+    drain();
+    const results = ofType(messages, "result");
+    assert.equal(ofType(messages, "error").length, 1, "not already running");
+    assert.equal(results.length, 1);
+    assert.equal(results[0].id, 2);
+    assertSameResult(results[0].result, runBatch(OPTIONS));
   });
 });
