@@ -2610,15 +2610,20 @@ stop.
 gains the export `fightResult(fight)`, the code `runFight` already used to build
 its result.
 
-`SimRunner.fight` (#153) is the one engine handle: `{ rogue, simulation }`,
-frozen, while `running` or `paused`, and null when `idle` or `finished` (a new
-one on every `run`). The live page's feed (`js/live-feed.js`) reads the energy,
-GCD, aura and cooldown timers from it and subscribes to its simulation's
-events. A caller reads it and never steps it: time goes through `advance`.
+`SimRunner.fight` (#153) is the one engine handle: `{ rogue, simulation }`
+while `running` or `paused`, and null when `idle` or `finished` (a new fight on
+every `run`). It is read-only by contract. Only the wrapper is frozen: each read
+returns a new frozen `{ rogue, simulation }`, and the `rogue` and `simulation`
+in it are the live engine objects, which nothing freezes (freezing them would
+freeze the running fight). The live page's feed (`js/live-feed.js`) reads the
+energy, GCD, aura and cooldown timers from it and subscribes to its
+simulation's events. A caller reads it and never writes to it or steps it: time
+goes through `advance`.
 
 `SimRunner.result` (#158) is the same object on every read, not a copy: the
 runner keeps the one `fightResult` built when the fight finished and hands it
-back each time, and does not freeze it. Like `fight`, it is live and read-only.
+back each time. Nothing about it is frozen. Like `fight`'s `rogue` and
+`simulation`, it is live and read-only by contract.
 A caller that wrote to it would change what every later read of `result`
 returns, until the next `run` sets it to null and a later finish builds a new
 one. Read it; to change a result, change your own copy (`structuredClone`).
