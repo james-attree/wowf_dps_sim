@@ -133,7 +133,7 @@ type does not list is rejected there, by the same rule.
 `js/rotation-schema.js` exports:
 
 - `rotationShapeErrors(rotation)`: every shape error in reading order, as
-  `{ path, message }`. The path says where (`rules[2].conditions[0].type`; `""`
+  `{ code, path, message, ...data }` ([the codes](#error-codes)). The path says where (`rules[2].conditions[0].type`; `""`
   is the rotation itself) and the message says what and names the same place.
 - `rotationShapeProblems(rotation)`: the messages of `rotationShapeErrors`, as
   strings that name where it is (`rules[2].conditions[0] needs a non-empty
@@ -407,8 +407,9 @@ view.
 `js/rotation-validator.js` is the check a rotation passes before a fight. It
 exports:
 
-- `validateRotation(rotation, context)`: every error in reading order, as
-  `{ path, message }`. An empty list means the rotation is valid.
+- `validateRotation(rotation, context)`: every error in reading order, as a
+  frozen `{ code, path, message, ...data }` ([error codes](#error-codes)). An
+  empty list means the rotation is valid.
 - `assertValidRotation(rotation, context)`: returns the rotation, or throws a
   `RangeError` (`Bad rotation:` and one message per line). It reports the same
   errors; a caller uses whichever suits it. `rotationProblems(rotation,
@@ -428,7 +429,7 @@ rules[2].conditions[0].aura "rupture" is a debuff on the target; use debuffActiv
 
 | Case                               | Path                                      | What is wrong                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | ---------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anything the shape check rejects   | as in [the shape check](#the-shape-check) | The wrong version, a missing field, too many rules or conditions, and so on. If the shape is wrong, that is all that is reported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Anything the shape check rejects   | as in [the shape check](#the-shape-check) | The wrong version, a missing field, too many rules or conditions, and so on. The check carries on past them ([below](#carrying-on-past-shape-errors)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `rules: []`                        | `rules`                                   | A rotation with no rules casts nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Unknown ability id in `action`     | `rules[i].action`                         | Not an ability in the spell data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | An ability the rogue does not cast | `rules[i].action`                         | In the spell data (Mutilate, Garrote, ...), but the engine does not cast it yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -466,6 +467,83 @@ errors.
 `SimRunner` reject an invalid rotation before the `Simulation` exists and so
 before any rng draw. The validator's messages name ids. The talent-guard error, which the import UI shows, also writes the ability's display name beside its id (`abilityLabel(id)`, exported); the name is only written out, never compared.
 
+### Carrying on past shape errors
+
+Since #212 the validator does not stop at the first shape error, so an empty
+`name` no longer hides what is wrong with the rules:
+
+- It stops entirely only for a rotation that is not an object (`notAnObject`,
+  path `""`) or another `schemaVersion` (`badSchemaVersion`): that one entry is
+  all there is. A missing `schemaVersion` is a `missingField` and the check
+  carries on.
+- The top-level fields are checked one by one: missing and unknown fields
+  first, then `name`, then `rules`. `rules: []` gives `noRules` and the name is
+  still checked. A `rules` that is not an array (`rulesNotArray`) or has more
+  than `rotation.maxRules` rules (`tooManyRules`) is not read any further.
+- A rule that cannot be read (not an object; `action` or `conditions` missing;
+  an `action` that is not an id; `conditions` that is not an array or is over
+  `rotation.maxConditionsPerRule`) gives its shape errors and is skipped. The
+  rules after it are still checked. An unknown field alone leaves the rule
+  readable, so it is checked too.
+- In a readable rule, a condition of the wrong shape (`conditionNotObject`,
+  `conditionNoType`) is skipped; the others are checked. The talent guard is
+  checked on every readable rule.
+- The order is reading order, rule by rule: a rule's shape errors, its action,
+  each condition, then its talent guard. No two entries share a path and code.
+
+Each message reads exactly as before; only the entries that an early stop used
+to hide are new. `rotationShapeErrors` is still the shape alone.
+
+### Error codes
+
+Every error is a frozen `{ code, path, message, ...data }`. The `code` is a
+stable name for the kind of error, for a builder to switch on instead of
+reading the message (the message's own wording is #214's). The data fields
+are the code's own, only where a view needs them: `field` and `param` name the
+key, `max` is the limit, `resource` the pool, `ability` the ability id.
+
+| Code                   | Data              | Path                             | When                                                    |
+| ---------------------- | ----------------- | -------------------------------- | ------------------------------------------------------- |
+| `notAnObject`          |                   | `""`                             | The rotation is not a plain object. Stops the check.    |
+| `badSchemaVersion`     |                   | `schemaVersion`                  | Another version. Stops the check.                       |
+| `missingField`         | `field`           | the field                        | A rotation or rule field is missing.                    |
+| `unknownField`         | `field`           | the field                        | A rotation or rule field the shape does not have.       |
+| `nameEmpty`            |                   | `name`                           | `name` is not a non-empty string.                       |
+| `nameTooLong`          | `max`             | `name`                           | Longer than `rotation.maxNameLength`.                   |
+| `rulesNotArray`        |                   | `rules`                          | `rules` is not an array; the rules are not read.        |
+| `tooManyRules`         | `max`             | `rules`                          | More than `rotation.maxRules`; the rules are not read.  |
+| `ruleNotObject`        |                   | `rules[i]`                       | A rule that is not an object.                           |
+| `actionNotId`          |                   | `rules[i].action`                | Not an ability id (`Sinister Strike`).                  |
+| `conditionsNotArray`   |                   | `rules[i].conditions`            | `conditions` is not an array.                           |
+| `tooManyConditions`    | `max`             | `rules[i].conditions`            | More than `rotation.maxConditionsPerRule`.              |
+| `conditionNotObject`   |                   | `rules[i].conditions[j]`         | A condition that is not an object.                      |
+| `conditionNoType`      |                   | `rules[i].conditions[j].type`    | No non-empty string `type`.                             |
+| `noRules`              |                   | `rules`                          | `rules: []`.                                            |
+| `unknownAbility`       |                   | `rules[i].action`, or `.ability` | Not an ability in the spell data.                       |
+| `notCastYet`           |                   | `rules[i].action`, or `.ability` | In the spell data, but the engine does not cast it yet. |
+| `notSelfBuff`          |                   | `rules[i].conditions[j].aura`    | Not a self buff.                                        |
+| `debuffAsBuff`         |                   | `rules[i].conditions[j].aura`    | A target debuff in an `aura` type.                      |
+| `notDebuff`            |                   | `rules[i].conditions[j].debuff`  | Not a target debuff.                                    |
+| `buffAsDebuff`         |                   | `rules[i].conditions[j].debuff`  | A self buff in a `debuff` type.                         |
+| `unknownConditionType` |                   | `rules[i].conditions[j].type`    | Not a known condition type.                             |
+| `missingParam`         | `param`           | `rules[i].conditions[j].<param>` | A param the type needs is missing.                      |
+| `badParam`             | `param`           | `rules[i].conditions[j].<param>` | A param of the wrong kind.                              |
+| `unknownParam`         | `param`           | `rules[i].conditions[j].<param>` | A param the type does not take.                         |
+| `notWhole`             | `resource`        | `rules[i].conditions[j].value`   | Not a whole number for a whole pool (combo points).     |
+| `outOfRange`           | `resource`, `max` | `rules[i].conditions[j].value`   | Outside 0 to the pool's maximum.                        |
+| `negativeSeconds`      |                   | `rules[i].conditions[j].value`   | A time below 0.                                         |
+| `badStacks`            |                   | `rules[i].conditions[j].value`   | A stack count that is not a whole number, 0 or more.    |
+| `tooManyStacks`        | `max`             | `rules[i].conditions[j].value`   | More stacks than the debuff's `maxStacks`.              |
+| `talentGuard`          | `ability`         | `rules[i].conditions`            | A talent ability's rule without its guard.              |
+| `notText`              |                   | `""`                             | Import: the file is not a string.                       |
+| `tooLarge`             | `max`             | `""`                             | Import: more than `rotation.maxImportChars` characters. |
+| `notJson`              |                   | `""`                             | Import: not JSON, or nested too deeply to parse.        |
+
+The thrown and string forms (`assertValidRotation`, `rotationProblems`,
+`assertRotationShape`, `rotationShapeProblems`, `assertCondition`, and the
+`RangeError` of `exportRotation`) are the messages, as before. Warnings have no
+code yet.
+
 ## Warnings
 
 `js/rotation-warnings.js` (issue
@@ -478,7 +556,7 @@ never a refusal: `validateRotation` is unchanged, a rotation with warnings
 imports and runs, and nothing here changes what a fight casts.
 
 - `rotationWarnings(rotation, context)`: every warning in rule order, as
-  `{ path, message }` like the validator's errors. `[]` means no trap was
+  `{ path, message }`, with no code yet (#214 gives them one). `[]` means no trap was
   found, and a rotation the validator refuses gets `[]` too (its errors come
   first).
 - `warningContext(given)`: what the warnings read, as lists of ability ids:
@@ -661,8 +739,8 @@ does that and hands the text over: the page's "Fight setup" form does
   bad file is never written.
 - `importRotation(text)`: `{ ok, rotation, errors, warnings }`. `ok` is `true`, with the
   rotation and `errors: []`, when the text is a valid rotation. Otherwise `ok`
-  is `false`, `rotation` is `null` and `errors` is the list of path and message pairs that [the validator](#validation) gives,
-  plus one error with the path `""` when the text as a whole is wrong (too long, not JSON).
+  is `false`, `rotation` is `null` and `errors` is the list of `{ code, path, message, ...data }` that [the validator](#validation) gives,
+  or one error with the path `""` and its own code when the text as a whole is wrong (`notText`, `tooLarge`, `notJson`; [error codes](#error-codes)).
   `warnings` (#189) is what [`rotationWarnings`](#warnings) gives for an
   accepted rotation, cut like the errors; a rotation with warnings is still
   `ok`, and a refused one has `warnings: []`. The page's form imports it and
@@ -711,7 +789,8 @@ counts.
 
 A message echoes the value that was wrong, so a path or message longer than
 `rotation.maxErrorChars` (1000 characters; the longest ordinary one is about 250) is cut and ends in `…`. A file at the size limit cannot make a 100,000
-character message.
+character message. Text in an entry's data (an unknown field's name, the
+`field`) is cut the same way; the code and every number are kept.
 
 Import never runs the text: it is `JSON.parse` and the validator, with no
 `eval` and no `Function`. A key such as `__proto__` is an own property of the

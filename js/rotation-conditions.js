@@ -21,7 +21,7 @@
 // (and a debuff as 0 stacks), so "missing or at most 10 s left" is one
 // condition: auraRemaining <= 10.
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
-import { describeValue, memberPath } from "./rotation-schema.js";
+import { describeValue, memberPath, rotationError } from "./rotation-schema.js";
 
 // The comparison operators of every condition that compares a number.
 export const OPERATORS = Object.freeze([">=", ">", "<=", "<", "=="]);
@@ -182,7 +182,9 @@ function isPlainObject(candidate) {
   return proto === Object.prototype || proto === null;
 }
 
-// Every error in a condition, as { path, message }: the path names the param
+// Every error in a condition, as { code, path, message, ...data } (#212; the
+// codes are conditionNotObject, unknownConditionType, and missingParam,
+// badParam and unknownParam with { param }): the path names the param
 // ("rules[0].conditions[1].aura"; the condition's own path for a problem with
 // the condition as a whole) and the message names the same place. An empty
 // list means it is a known type with every required param right and no other
@@ -190,19 +192,21 @@ function isPlainObject(candidate) {
 export function conditionErrors(condition, where = "The condition") {
   if (!isPlainObject(condition)) {
     return [
-      {
-        path: where,
-        message: `${where} must be an object { type, ...params }.`,
-      },
+      rotationError(
+        "conditionNotObject",
+        where,
+        `${where} must be an object { type, ...params }.`,
+      ),
     ];
   }
   const { type } = condition;
   if (typeof type !== "string" || !Object.hasOwn(TYPES, type)) {
     return [
-      {
-        path: memberPath(where, "type"),
-        message: `${where} has unknown type ${describeValue(type)}. Known: ${CONDITION_TYPES.join(", ")}.`,
-      },
+      rotationError(
+        "unknownConditionType",
+        memberPath(where, "type"),
+        `${where} has unknown type ${describeValue(type)}. Known: ${CONDITION_TYPES.join(", ")}.`,
+      ),
     ];
   }
   const { params } = TYPES[type];
@@ -210,24 +214,36 @@ export function conditionErrors(condition, where = "The condition") {
   for (const [name, spec] of Object.entries(params)) {
     if (!Object.hasOwn(condition, name)) {
       if (spec.optional !== true) {
-        errors.push({
-          path: memberPath(where, name),
-          message: `${where} (${type}) is missing "${name}": ${KIND_HINT[spec.kind]}.`,
-        });
+        errors.push(
+          rotationError(
+            "missingParam",
+            memberPath(where, name),
+            `${where} (${type}) is missing "${name}": ${KIND_HINT[spec.kind]}.`,
+            { param: name },
+          ),
+        );
       }
     } else if (!KINDS[spec.kind](condition[name])) {
-      errors.push({
-        path: memberPath(where, name),
-        message: `${where} (${type}) has a bad "${name}": needs ${KIND_HINT[spec.kind]}, got ${describeValue(condition[name])}.`,
-      });
+      errors.push(
+        rotationError(
+          "badParam",
+          memberPath(where, name),
+          `${where} (${type}) has a bad "${name}": needs ${KIND_HINT[spec.kind]}, got ${describeValue(condition[name])}.`,
+          { param: name },
+        ),
+      );
     }
   }
   for (const name of Object.keys(condition)) {
     if (name !== "type" && !Object.hasOwn(params, name)) {
-      errors.push({
-        path: memberPath(where, name),
-        message: `${where} (${type}) has unknown param "${name}". Allowed: ${Object.keys(params).join(", ") || "none"}.`,
-      });
+      errors.push(
+        rotationError(
+          "unknownParam",
+          memberPath(where, name),
+          `${where} (${type}) has unknown param "${name}". Allowed: ${Object.keys(params).join(", ") || "none"}.`,
+          { param: name },
+        ),
+      );
     }
   }
   return errors;

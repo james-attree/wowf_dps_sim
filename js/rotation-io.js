@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { rotationError } from "./rotation-schema.js";
 import { validateRotation } from "./rotation-validator.js";
 import { rotationWarnings } from "./rotation-warnings.js";
 
@@ -17,12 +18,15 @@ import { rotationWarnings } from "./rotation-warnings.js";
 //   importRotation(text)      { ok, rotation, errors, warnings }. `ok` is true and
 //                             `errors` is [] when the text is a valid
 //                             rotation; otherwise `ok` is false, `rotation` is
-//                             null and `errors` is the list of { path, message }
-//                             the validator gives (js/rotation-validator.js),
-//                             (each path and message cut to
-//                             k("rotation.maxErrorChars"), since a message
-//                             echoes the bad value), with "" as the path of a problem with the text as
-//                             a whole (too long, not JSON).
+//                             null and `errors` is the list of
+//                             { code, path, message, ...data } the validator
+//                             gives (js/rotation-validator.js, #212), each
+//                             path and message cut to
+//                             k("rotation.maxErrorChars") (a message echoes
+//                             the bad value), and the code and data kept. A
+//                             problem with the text as a whole has the path ""
+//                             and its own code: notText, tooLarge ({ max }) or
+//                             notJson.
 //                             It also has `warnings` (issue #189): the
 //                             { path, message } list rotationWarnings gives
 //                             (js/rotation-warnings.js), cut the same way.
@@ -88,28 +92,43 @@ function clip(text) {
   return text.length > limit ? text.slice(0, limit - 1) + ELLIPSIS : text;
 }
 
+// Each entry keeps its code and its data (#212). The path, the message and
+// any text in the data are cut, since each can echo a bad value (an unknown
+// field's name is the `field`); a number in the data is kept as it is.
 const clipped = (list) =>
-  list.map(({ path, message }) => ({
-    path: clip(path),
-    message: clip(message),
-  }));
+  list.map((entry) =>
+    Object.freeze(
+      Object.fromEntries(
+        Object.entries(entry).map(([key, value]) => [
+          key,
+          typeof value === "string" ? clip(value) : value,
+        ]),
+      ),
+    ),
+  );
 
-const failure = (path, message) => ({
+// A problem with the text as a whole, before there is a rotation to validate:
+// notText, tooLarge ({ max }) or notJson. The path is "".
+const failure = (code, message, data) => ({
   ok: false,
   rotation: null,
-  errors: [{ path, message }],
+  errors: [rotationError(code, "", message, data)],
   warnings: [],
 });
 
 export function importRotation(text) {
   if (typeof text !== "string") {
-    return failure("", `A rotation file is text; got ${typeof text} instead.`);
+    return failure(
+      "notText",
+      `A rotation file is text; got ${typeof text} instead.`,
+    );
   }
   const limit = k("rotation.maxImportChars");
   if (text.length > limit) {
     return failure(
-      "",
+      "tooLarge",
       `The rotation file is too large: ${text.length} characters; the most allowed is ${limit}.`,
+      { max: limit },
     );
   }
   let parsed;
@@ -119,7 +138,7 @@ export function importRotation(text) {
     );
   } catch (error) {
     return failure(
-      "",
+      "notJson",
       `The rotation file is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
     );
   }

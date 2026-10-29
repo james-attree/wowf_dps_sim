@@ -42,8 +42,10 @@ const labelOf = (id) => LABELS[id] ?? id;
 function guardError(index, id, types) {
   const wanted = types.map((type) => guardText(type, id)).join(" or ");
   return {
+    code: "talentGuard",
     path: `rules[${index}].conditions`,
     message: `rules[${index}]: ${labelOf(id)} comes from a talent, so its rule needs an ${types.join(" or ")} check. Add ${wanted} to its conditions.`,
+    ability: id,
   };
 }
 const STRICT = ["abilityGranted"];
