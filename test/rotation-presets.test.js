@@ -7,6 +7,7 @@ import { createFight, runFight } from "../js/fight.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { compileRotation, decide } from "../js/rotation-interpreter.js";
 import {
+  indexPresets,
   listPresets,
   loadPreset,
   presetRotation,
@@ -47,6 +48,32 @@ describe("the preset registry", () => {
 
   it("has a Combat swords preset", () => {
     assert.ok(ROTATION_PRESETS.some((preset) => preset.id === "combat-swords"));
+  });
+});
+
+describe("indexPresets", () => {
+  const good = ROTATION_PRESETS[0];
+
+  it("indexes a list by id", () => {
+    const byId = indexPresets([good]);
+    assert.equal(byId.get(good.id), good);
+    assert.equal(byId.size, 1);
+  });
+
+  it("refuses two presets with one id", () => {
+    assert.throws(() => indexPresets([good, good]), {
+      name: "RangeError",
+      message: /share an id/,
+    });
+  });
+
+  it("refuses a preset whose rotation the validator refuses", () => {
+    const bad = {
+      ...good,
+      id: "bad",
+      rotation: { ...good.rotation, rules: [] },
+    };
+    assert.throws(() => indexPresets([good, bad]), /Bad rotation/);
   });
 });
 

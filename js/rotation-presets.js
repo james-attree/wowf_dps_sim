@@ -23,13 +23,20 @@ import { summarizeRotation } from "./rotation-summary.js";
 // Every preset passes the validator (R4) when this module is imported, so a
 // bad preset in the data never reaches a fight. test/rotation-presets.test.js
 // checks them one by one.
-const BY_ID = new Map(ROTATION_PRESETS.map((preset) => [preset.id, preset]));
-if (BY_ID.size !== ROTATION_PRESETS.length) {
-  throw new RangeError("Two presets share an id.");
+// Index a preset list by id. A repeated id, or a rotation the validator
+// refuses, is an error, so a bad preset in the data never reaches a fight.
+export function indexPresets(presets) {
+  const byId = new Map(presets.map((preset) => [preset.id, preset]));
+  if (byId.size !== presets.length) {
+    throw new RangeError("Two presets share an id.");
+  }
+  for (const preset of presets) {
+    assertValidRotation(preset.rotation);
+  }
+  return byId;
 }
-for (const preset of ROTATION_PRESETS) {
-  assertValidRotation(preset.rotation);
-}
+
+const BY_ID = indexPresets(ROTATION_PRESETS);
 
 const copy = (value) => JSON.parse(JSON.stringify(value));
 
