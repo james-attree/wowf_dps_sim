@@ -6,8 +6,10 @@ import { createLiveFeed } from "../js/live-feed.js";
 import { defaultConfig } from "../js/sim-config.js";
 import { emptyBatch } from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
+import { buildLabel, poisonName } from "../js/build-label.js";
 import { createControlsView } from "../js/views/controls.js";
-import { createResultsView } from "../js/views/results.js";
+import { createResultsPanelView } from "../js/views/results-panel.js";
+import { batchTotals, createResultsView } from "../js/views/results.js";
 import {
   createAnnouncer,
   createVisualiserView,
@@ -72,6 +74,10 @@ function element(selector) {
     append(...children) {
       this.children.push(...children);
     },
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
     remove() {},
     insertBefore(child) {
       this.children.unshift(child);
@@ -105,6 +111,9 @@ function recordingDocument() {
       made.classList.owner = made;
       return made;
     },
+    // The results panel (#154) builds its body with js/svg.js toDom.
+    createElementNS: (namespace, tag) => element(tag),
+    createTextNode: (text) => ({ text }),
   };
 }
 
@@ -205,6 +214,8 @@ function pageStore() {
 const VIEWS = {
   controls: createControlsView,
   results: createResultsView,
+  resultsPanel: (doc, store) =>
+    createResultsPanelView(doc, store, { buildLabel, poisonName }),
   visualiser: createVisualiserView,
 };
 
@@ -227,6 +238,7 @@ describe("page views", () => {
     assert.ok(owned.controls.has("#pause-button"));
     assert.ok(owned.results.has("#dps-value"));
     assert.ok(owned.visualiser.has("#combat-log"));
+    assert.ok(owned.resultsPanel.has("#results-body"));
   });
 
   it("controls show the seed, call the run's actions and draw run.state", () => {
@@ -308,6 +320,87 @@ describe("page views", () => {
     const writes = doc.el("#dps-value").writes;
     store.set({ frame: 1, run: pageRun({ state: "paused" }) });
     assert.equal(doc.el("#dps-value").writes, writes, "other slices: no draw");
+  });
+
+  it("batch mode: Total damage and DPS show the batch, a partial Stop too (#154)", () => {
+    const doc = recordingDocument();
+    const { store } = pageStore();
+    createResultsView(doc, store);
+    store.set({ results: { time: 10, damage: 2000 } });
+    assert.equal(doc.el("#dps-value").textContent, "200");
+
+    // Switching to batch mode shows the (empty) batch, not the live fight.
+    store.set({ run: pageRun({ mode: "batch" }) });
+    assert.equal(doc.el("#damage-value").textContent, "0");
+    assert.equal(doc.el("#dps-value").textContent, "0");
+
+    // While it runs: the running mean, over the run's fight length.
+    store.set({
+      run: pageRun({ mode: "batch", state: "running", duration: 300 }),
+      batch: {
+        ...emptyBatch("main"),
+        status: "running",
+        progress: { completed: 40, total: 100, mean: 250.4 },
+      },
+    });
+    assert.equal(doc.el("#damage-value").textContent, "75120");
+    assert.equal(doc.el("#dps-value").textContent, "250");
+
+    // Stopped after 40 fights: the partial result's per-fight figures. Before
+    // #154 both tiles read 0 here.
+    const partial = {
+      completed: 40,
+      iterations: 100,
+      cancelled: true,
+      duration: 300,
+      summary: { mean: 251.6 },
+      breakdown: { fights: 40, totalDamage: 40 * 75_480 },
+    };
+    store.set({
+      run: pageRun({ mode: "batch", state: "idle", duration: 300 }),
+      batch: { ...emptyBatch("main"), status: "cancelled", result: partial },
+    });
+    assert.equal(doc.el("#damage-value").textContent, "75480");
+    assert.equal(doc.el("#dps-value").textContent, "252");
+
+    // The live clock does not overwrite the batch totals.
+    store.set({ results: { time: 20, damage: 9000 } });
+    assert.equal(doc.el("#time-value").textContent, "00:20");
+    assert.equal(doc.el("#dps-value").textContent, "252");
+
+    // Back to live mode: the live fight again.
+    store.set({ run: pageRun({ mode: "live" }) });
+    assert.equal(doc.el("#dps-value").textContent, "450");
+  });
+
+  it("batchTotals reads 0 with no fight finished, and after a Stop at 0 fights", () => {
+    const run = pageRun({ mode: "batch" });
+    assert.deepEqual(batchTotals({ run, batch: emptyBatch("main") }), {
+      damage: 0,
+      dps: 0,
+    });
+    assert.deepEqual(
+      batchTotals({
+        run,
+        batch: {
+          ...emptyBatch("main"),
+          status: "running",
+          progress: { completed: 0, total: 10, mean: null },
+        },
+      }),
+      { damage: 0, dps: 0 },
+    );
+    assert.deepEqual(
+      batchTotals({
+        run,
+        batch: {
+          ...emptyBatch("main"),
+          status: "cancelled",
+          result: { completed: 0, summary: { mean: null } },
+        },
+      }),
+      { damage: 0, dps: 0 },
+    );
   });
 
   it("the visualiser redraws on frame changes and on nothing else", () => {

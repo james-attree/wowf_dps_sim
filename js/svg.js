@@ -15,8 +15,9 @@
 // createElementNS / createElement, setAttribute and createTextNode: no
 // innerHTML, so no string is ever parsed as markup.
 //
-// Only the tags below are allowed: the SVG ones the charts draw and the HTML
-// ones of their table alternative. An attribute name is letters, digits, ":"
+// Only the tags below are allowed: the SVG ones the charts draw, the HTML
+// ones of their table alternative, and those of the results panel (#154) that
+// holds them. No script, style, link, image or form-submitting tag. An attribute name is letters, digits, ":"
 // and "-", and an "on..." event handler attribute is refused, so a node can
 // carry no script.
 
@@ -50,6 +51,27 @@ const HTML_TAGS = new Set([
   "p",
   "span",
   "div",
+  // The batch results panel (#154) around the charts: its headings, the
+  // breakdown's totals row and sort buttons, the chip and details lists, the
+  // progress bar, the "as a table" disclosures and the timeline mode radios.
+  "tfoot",
+  "h3",
+  "h4",
+  "strong",
+  "code",
+  "button",
+  "ul",
+  "li",
+  "dl",
+  "dt",
+  "dd",
+  "details",
+  "summary",
+  "progress",
+  "fieldset",
+  "legend",
+  "label",
+  "input",
 ]);
 
 const ATTRIBUTE_NAME = /^[A-Za-z][A-Za-z0-9:-]*$/;

@@ -290,7 +290,19 @@ store)` that owns its own elements, draws from the store when its slices
   store), `run-model.js` (what each control shows in each state, the field
   checks and their messages, the narrow summary and errors link; pure), `visualiser.js` (combo
   points, energy, the GCD meter, effects, cooldowns, procs, the combat log and
-  its announcements; redraws on `frame`, from the feed's slices only), `results.js` (time, damage, DPS; redraws on `results`), and `config-form.js`
+  its announcements; redraws on `frame`, from the feed's slices only), `results.js` (time, damage, DPS; redraws on `results`; in batch mode the
+  Total damage and DPS tiles show the batch's mean fight, a partial Stop
+  included, #154), `results-panel.js` and `results-render.js` (#154: the
+  batch results panel from Fran's spec on the issue: the empty, running
+  "0 of N", previous result greyed, done, partial, "Stopped, 0 fights" and
+  error states; the headline with its 95% CI and SE, the per-fight damage
+  by ability table with sort buttons, aura uptime, resources with the
+  energy-cap flag `ui.energyCapWarnFraction` and `ui.energyCapWarnMinFights`,
+  the two charts from `js/charts.js` after every table (the DPS histogram,
+  and damage over time with Cumulative / Damage per second radios), each in
+  a sideways-scrolling region (520 px minimum on a narrow screen) with its
+  table in a `<details>`, run details, and a polite live region for start,
+  each quarter and the outcome; `results-render.js` is pure and returns `js/svg.js` nodes), and `config-form.js`
   (#151: the "Fight setup" form; draws the `form` slice and calls the
   actions `js/config-form.js` gives it, which `js/main.js` hands in, so it
   imports nothing from the engine). Edits apply to the next run: Run snapshots
@@ -392,6 +404,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   order: the mean damage per second and the mean, lowest and highest cumulative
   damage. The batch result carries it as `timeline`. See
   [Batch charts](docs/charts.md).
+- `js/build-label.js` — The batch build label (#154): `buildLabel(config)`
+  gives "Combat 18/33/0 · Combat swords · Instant MH, Deadly OH" from the
+  config a batch ran, and `poisonName`. Engine lint applies; `js/main.js`
+  hands both to the results panel.
 - `js/svg.js` — SVG and HTML as node descriptions (S5, #148): `el`, `text`,
   `toMarkup` (a string) and `toDom` (DOM nodes, no `innerHTML`). Escapes every
   text and attribute value and allows only a fixed list of tags.
@@ -629,8 +645,9 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   `js/main.js`, `js/views/`, and the worker hosts) must not touch `document` or `window`, must not read a clock
   (`performance`, `Date`), must not use `Math.random`, must not log, and must
   not contain game-number literals. View modules (`js/views/`) may import only
-  other views, `js/gcd-meter.js`, `js/icons.js` and `data/constants.js`
-  (`no-restricted-imports`, #150).
+  other views, `js/gcd-meter.js`, `js/icons.js`, `data/constants.js` and the
+  #148 helpers `js/svg.js` and `js/charts.js` (`no-restricted-imports`, #150,
+  #154).
 - `eslint/engine-purity.js` — Rule `engine-purity/no-numeric-literal`. A
   numeric variable initializer in an engine module fails lint, except `0`,
   `1`, and `-1`. Rule `engine-purity/no-display-name` fails a spell, aura or
@@ -790,6 +807,17 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   breakdown, the capped log, determinism, different seeds, a 5-minute fight, and
   a run in Node with the browser globals poisoned, and rejected inputs
   (including `runFight()` and `runFight(null)`).
+- `test/results-panel.test.js` — The batch results panel (#154): per-fight
+  figures (total = mean × fight length, SE from the 95% interval), the
+  energy-cap flag at its 5% and 10-fight edges, sorting, the time estimate;
+  every state (empty, 0 of N with the inert previous result, running, done,
+  partial, Stopped 0 fights, error) with no panel buttons; the charts after
+  the tables, drawn by the #148 helpers with their tables and mode radios;
+  the live region; and the view on a stand-in DOM (aria-busy, sort in place
+  with focus, the timeline mode swap).
+- `test/build-label.test.js` — `buildLabel` and `poisonName` (#154): the
+  reference build with the Combat swords and default rotations, no talents,
+  tied and top trees.
 - `test/views.test.js` — The page views (#149) on a recording stand-in
   document: no two views query the same element, controls toggle `run.state`
   through the store, results formatting, the visualiser redraws only on

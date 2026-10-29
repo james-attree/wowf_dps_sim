@@ -289,6 +289,9 @@ describe("engine lint", () => {
       'import { createStore } from "../store.js";\nexport { createStore };\n',
       'import { Rogue } from "./../rogue.js";\nexport { Rogue };\n',
       'export * from "../simulation.js";\n',
+      // Its build label's catalogues come in through js/main.js (#154).
+      'import { talentCatalogue } from "../talents.js";\nexport { talentCatalogue };\n',
+      'import { buildLabel } from "../build-label.js";\nexport { buildLabel };\n',
     ]) {
       assert.ok(await restricted("js/views/visualiser.js", source), source);
     }
@@ -297,6 +300,9 @@ describe("engine lint", () => {
       'import { applyGcdMeterAria } from "../gcd-meter.js";\nexport { applyGcdMeterAria };\n',
       'import { attachIconFallback } from "../icons.js";\nexport { attachIconFallback };\n',
       'import { createResultsView } from "./results.js";\nexport { createResultsView };\n',
+      // The results panel (#154) draws with the #148 helpers.
+      'import { el, toDom } from "../svg.js";\nexport { el, toDom };\n',
+      'import { formatNumber } from "../charts.js";\nexport { formatNumber };\n',
     ]) {
       assert.equal(
         await restricted("js/views/visualiser.js", source),

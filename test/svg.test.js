@@ -100,7 +100,7 @@ describe("el and text", () => {
     assert.deepEqual(text("x"), { text: "x" });
   });
 
-  it("allows only the chart and table tags", () => {
+  it("allows only the chart, table and results panel tags", () => {
     for (const tag of [
       "script",
       "foreignObject",
@@ -111,8 +111,16 @@ describe("el and text", () => {
       "use",
       "SVG",
       "",
+      "form",
+      "textarea",
+      "select",
+      "img",
     ]) {
       assert.throws(() => el(tag), RangeError, tag);
+    }
+    // The results panel (#154) builds its body from these.
+    for (const tag of ["h3", "details", "summary", "progress", "dl", "tfoot"]) {
+      assert.equal(el(tag).tag, tag);
     }
     assert.throws(
       () => toMarkup({ tag: "script", attrs: {}, children: [] }),

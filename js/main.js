@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { BatchClient } from "./batch-client.js";
+import { buildLabel, poisonName } from "./build-label.js";
 import { createConfigForm, pageDefaultConfig } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
 import { createRunActions, emptyBatch } from "./run-actions.js";
@@ -7,6 +8,7 @@ import { createStore } from "./store.js";
 import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
+import { createResultsPanelView } from "./views/results-panel.js";
 import { createVisualiserView } from "./views/visualiser.js";
 
 // The page's bootstrap (#149, #150, #153). It puts the config in the page's
@@ -76,3 +78,4 @@ createConfigFormView(document, store, createConfigForm(store));
 createControlsView(document, store, actions);
 createVisualiserView(document, store);
 createResultsView(document, store);
+createResultsPanelView(document, store, { buildLabel, poisonName });

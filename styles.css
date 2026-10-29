@@ -1185,8 +1185,8 @@ h3 {
 }
 
 /* Batch charts (#148, js/charts.js). The SVG draws in currentColor, so each
-   part takes its colour from here. Not wired into the page yet: the results
-   UI (#149, #150) uses them; demo/charts.html shows them now. */
+   part takes its colour from here. The results panel (#154) places them;
+   demo/charts.html shows them too. */
 .chart {
   display: block;
   width: 100%;
@@ -1590,5 +1590,500 @@ h3 {
 
   .config-panel .pill-button {
     min-height: 44px;
+  }
+}
+
+/* The batch results panel (#154). From Fran's mockup.css
+   (design/154-results-panel), without the mockup chrome and the unused
+   button rules; the narrow query is the page's (519.98px, #153). Only the
+   partial (amber) and error (red) tints are new colours; their contrast is in
+   the spec, section 9. */
+/* ---- Panel --------------------------------------------------------------- */
+.results-panel {
+  margin-top: 12px;
+}
+.results-panel .section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.results-panel h2 {
+  font-size: 1.05rem;
+}
+.results-meta {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.results-section {
+  margin-top: 18px;
+}
+.results-section > h3 {
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+.results-note {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+/* ---- Headline ------------------------------------------------------------ */
+.results-headline {
+  min-height: 0;
+  padding: 14px 16px;
+  gap: 6px;
+}
+.results-dps {
+  font-size: clamp(2rem, 7vw, 2.6rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+.results-dps .stat-unit {
+  position: static;
+  margin-left: 4px;
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+.results-ci {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+.results-ci .ci-range {
+  color: #7fb6d9;
+}
+.results-sentence {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.results-headline.is-partial {
+  border-style: dashed;
+  border-color: #b08a3a;
+}
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
+.badge-partial {
+  background: #2a2112;
+  color: #f0c46a;
+  border: 1px solid #b08a3a;
+}
+
+.results-panel .stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 10px;
+}
+.results-panel .stats-grid .stat-card {
+  min-height: 64px;
+}
+.results-panel .stats-grid .stat-value {
+  font-size: clamp(1.1rem, 3.4vw, 1.35rem);
+}
+
+/* ---- Banners (partial, error) -------------------------------------------- */
+.results-banner {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.results-banner > strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.9rem;
+}
+.results-banner.is-partial {
+  border-color: #b08a3a;
+  background: #2a2112;
+  color: #f0c46a;
+}
+.results-banner.is-partial p {
+  color: #f3eee2;
+}
+.results-banner.is-error {
+  border-color: #b4544a;
+  background: #2a1614;
+  color: #f19389;
+}
+.results-banner.is-error p {
+  color: #f3eee2;
+}
+.results-banner details {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+.results-banner code {
+  color: #f3eee2;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Running ------------------------------------------------------------- */
+.results-progress {
+  display: grid;
+  gap: 8px;
+}
+.results-progress progress {
+  width: 100%;
+  height: 12px;
+  appearance: none;
+  border: 1px solid #81745c;
+  border-radius: 999px;
+  background: #120f0b;
+  overflow: hidden;
+}
+.results-progress progress::-webkit-progress-bar {
+  background: #120f0b;
+}
+.results-progress progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 999px;
+}
+.results-progress progress::-moz-progress-bar {
+  background: var(--accent);
+}
+.progress-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+.progress-line .muted,
+.muted {
+  color: var(--text-muted);
+}
+
+/* ---- Empty --------------------------------------------------------------- */
+.results-empty {
+  padding: 22px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 13px;
+  text-align: center;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.results-empty > strong {
+  display: block;
+  color: #f3eee2;
+  margin-bottom: 4px;
+}
+
+/* ---- Tables -------------------------------------------------------------- */
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid #3a3225;
+  border-radius: 13px;
+  background: var(--surface-raised);
+}
+.table-scroll:focus-visible,
+.chart-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.results-table caption {
+  padding: 10px 12px 4px;
+  color: var(--text-muted);
+  text-align: left;
+  white-space: normal;
+  font-size: 0.78rem;
+}
+.results-table th,
+.results-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.results-table th:first-child,
+.results-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  background: var(--surface-raised);
+}
+.results-table thead th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+.results-table tbody tr:last-child td,
+.results-table tbody tr:last-child th {
+  border-bottom-color: #81745c;
+}
+.results-table tfoot th,
+.results-table tfoot td {
+  font-weight: 700;
+  border-bottom: 0;
+}
+.results-table .origin {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.results-table tbody th {
+  font-weight: 600;
+}
+.sort-button {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 6px;
+  color: inherit;
+}
+.sort-button:hover {
+  color: #f3eee2;
+}
+.sort-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.sort-icon {
+  width: 0.8em;
+  color: var(--accent);
+}
+th[aria-sort="none"] .sort-icon::after {
+  content: "↕";
+  color: #81745c;
+}
+th[aria-sort="descending"] .sort-icon::after {
+  content: "▼";
+}
+th[aria-sort="ascending"] .sort-icon::after {
+  content: "▲";
+}
+th[aria-sort="descending"],
+th[aria-sort="ascending"] {
+  color: #f3eee2;
+}
+
+.share {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.share-bar,
+.uptime-bar {
+  display: inline-block;
+  width: 36px;
+  height: 6px;
+  border-radius: 999px;
+  background: #120f0b;
+  overflow: hidden;
+}
+.share-bar > span,
+.uptime-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.uptime-bar {
+  width: 72px;
+}
+
+.utility-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.utility-list li {
+  padding: 3px 10px;
+  border: 1px solid #3a3225;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Resources ----------------------------------------------------------- */
+.results-panel .resource-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.results-panel .resource-grid .stat-card {
+  min-height: 0;
+  justify-content: flex-start;
+}
+.results-panel .resource-grid .stat-value {
+  font-size: 1.25rem;
+}
+.stat-sub {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* ---- Run details --------------------------------------------------------- */
+.run-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.run-details dt {
+  color: var(--text-muted);
+}
+.run-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Narrow -------------------------------------------------------------- */
+@media (max-width: 519.98px) {
+  .results-panel .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .results-panel .resource-grid {
+    grid-template-columns: 1fr;
+  }
+  .run-details {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .run-details dd {
+    margin-bottom: 6px;
+  }
+}
+
+/* body in styles.css is a grid with an auto column, so a wide table would
+   widen the whole page. Size containment keeps the scroll boxes from
+   contributing their content width; they scroll instead. */
+.table-scroll,
+.chart-scroll {
+  contain: inline-size;
+}
+
+/* ---- Charts -------------------------------------------------------------- */
+.chart-block {
+  padding: 12px;
+  border: 1px solid #3a3225;
+  border-radius: 13px;
+  background: var(--surface-raised);
+}
+.chart-block + .chart-block {
+  margin-top: 10px;
+}
+.chart-block h4 {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+}
+.chart-scroll {
+  overflow-x: auto;
+}
+.chart-mode {
+  display: flex;
+  gap: 14px;
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+.chart-mode legend {
+  float: left;
+  margin-right: 6px;
+  color: var(--text-muted);
+}
+.chart-block details {
+  margin-top: 6px;
+  font-size: 0.8rem;
+}
+.chart-block summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.chart-block summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.chart-block .chart-table {
+  margin-top: 8px;
+}
+
+/* Decision 3 (Phase 3): the charts' fixed 640 x 300 viewBox with 11 px text
+   is unreadable squeezed to a phone, so below the page's narrow breakpoint
+   the SVG keeps 520 px and its .chart-scroll region scrolls sideways. A
+   responsive chart layout is on the Phase 5 polish list. */
+@media (max-width: 519.98px) {
+  .chart-scroll .chart {
+    min-width: 520px;
+  }
+}
+
+/* ---- Energy-cap flag (ENERGY_CAP_WARN_FRACTION) --------------------------- */
+.stat-card.is-warning {
+  border-color: #b08a3a;
+  background: #2a2112;
+}
+.badge-warning {
+  background: #2a2112;
+  color: #f0c46a;
+  border: 1px solid #b08a3a;
+}
+.stat-warning {
+  color: #f0c46a;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* ---- Previous result while a new run starts ------------------------------ */
+.previous-result {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+.previous-label {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border: 1px solid #81745c;
+  border-radius: 999px;
+  color: #f3eee2;
+  background: #15120e;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.previous-wrap {
+  position: relative;
+  margin-top: 14px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .previous-result {
+    transition: opacity 0.15s;
   }
 }
