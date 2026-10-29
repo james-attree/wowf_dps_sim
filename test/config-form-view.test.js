@@ -403,16 +403,19 @@ describe("rotation", () => {
     $("cfg-import-text").value = JSON.stringify({
       schemaVersion: 1,
       name: "Trap",
+      // Two warnings since #207: the finisher one for rules[0] (alone), and
+      // rules[1] starving Backstab.
       rules: [
         { action: "eviscerate", conditions: [] },
         { action: "sinister-strike", conditions: [] },
+        { action: "backstab", conditions: [] },
       ],
     });
     $("cfg-import-paste").click();
     assert.equal(store.get().config.rotation.name, "Trap");
     assert.equal(
       $("cfg-import-status").textContent,
-      'Imported "Trap" with 1 warning. It still runs; see the warnings below.',
+      'Imported "Trap" with 2 warnings. It still runs; see the warnings below.',
     );
     assert.ok($("cfg-import-status").classes.has("is-warning"));
     assert.ok(!$("cfg-import-status").classes.has("is-error"));

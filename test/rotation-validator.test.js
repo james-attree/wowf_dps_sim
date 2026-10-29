@@ -596,7 +596,7 @@ describe("assertValidRotation and rotationProblems", () => {
 
 describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
   const MESSAGE =
-    'Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.';
+    'Cold Blood (cold-blood) comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.';
   const five = { type: "comboPoints", op: ">=", value: 5 };
 
   it("rejects a Cold Blood rule with no conditions, as an error on its conditions", () => {

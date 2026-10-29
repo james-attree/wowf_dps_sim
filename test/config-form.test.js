@@ -404,8 +404,12 @@ describe("rotation: one source of truth, config.rotation", () => {
       schemaVersion: 1,
       name: "Trap",
       rules: [
+        // Two warnings since #207: the finisher one for rules[0] (alone, as
+        // a finisher is not also warned for starving), and rules[1]
+        // starving Backstab.
         { action: "eviscerate", conditions: [] },
         { action: "sinister-strike", conditions: [] },
+        { action: "backstab", conditions: [] },
       ],
     };
     assert.equal(actions.importText(exportRotation(trap)), true);
@@ -416,7 +420,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(status.ok, true);
     assert.equal(
       status.message,
-      'Imported "Trap" with 1 warning. It still runs; see the warnings below.',
+      'Imported "Trap" with 2 warnings. It still runs; see the warnings below.',
     );
     assert.equal(status.detail, "");
     assert.equal(

@@ -35,6 +35,9 @@ const LABELS = {
   "cold-blood": "Cold Blood (cold-blood)",
   "blade-flurry": "Blade Flurry (blade-flurry)",
   "adrenaline-rush": "Adrenaline Rush (adrenaline-rush)",
+  "ghostly-strike": "Ghostly Strike (ghostly-strike)",
+  hemorrhage: "Hemorrhage (hemorrhage)",
+  premeditation: "Premeditation (premeditation)",
 };
 const labelOf = (id) => LABELS[id] ?? id;
 
@@ -44,7 +47,7 @@ function guardError(index, id, types) {
   return {
     code: "talentGuard",
     path: `rules[${index}].conditions`,
-    message: `${labelOf(id)} comes from a talent, so its rule needs an ${types.join(" or ")} check. Add ${wanted} to its conditions.`,
+    message: `${labelOf(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
     ability: id,
   };
 }
@@ -66,11 +69,15 @@ describe("talent guard (#188): which abilities it covers", () => {
       [...rotationContext().talentGrantedAbilities].sort(),
       FROM_DATA,
     );
-    // Today: Cold Blood, Blade Flurry and Adrenaline Rush (the issue's list).
+    // Today: Cold Blood, Blade Flurry and Adrenaline Rush (#188's list), and
+    // Ghostly Strike, Hemorrhage and Premeditation (#207).
     assert.deepEqual(FROM_DATA, [
       "adrenaline-rush",
       "blade-flurry",
       "cold-blood",
+      "ghostly-strike",
+      "hemorrhage",
+      "premeditation",
     ]);
     assert.ok(Object.isFrozen(rotationContext().talentGrantedAbilities));
   });
@@ -99,11 +106,11 @@ describe("talent guard (#188): the message (#203)", () => {
   it("is the shared template, with the display name and the id", () => {
     assert.equal(
       validateRotation(rotation(rule("cold-blood")))[0].message,
-      'Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
+      'Cold Blood (cold-blood) comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
     );
     assert.equal(
       validateRotation(rotation(rule("blade-flurry")))[0].message,
-      'Blade Flurry (blade-flurry) comes from a talent, so its rule needs an abilityGranted or abilityUnlocked check. Add { "type": "abilityGranted", "ability": "blade-flurry" } or { "type": "abilityUnlocked", "ability": "blade-flurry" } to its conditions.',
+      'Blade Flurry (blade-flurry) comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "blade-flurry" } or { "type": "abilityUnlocked", "ability": "blade-flurry" } to its conditions.',
     );
   });
 
@@ -207,7 +214,7 @@ describe("talent guard (#188): read from the data, not a list in the validator",
   it("writes the fake ability, which has no display name, as its id alone", () => {
     assert.equal(
       validateRotation(rotation(rule(FAKE)), fakeContext([FAKE]))[0].message,
-      'fake-strike comes from a talent, so its rule needs an abilityGranted or abilityUnlocked check. Add { "type": "abilityGranted", "ability": "fake-strike" } or { "type": "abilityUnlocked", "ability": "fake-strike" } to its conditions.',
+      'fake-strike comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "fake-strike" } or { "type": "abilityUnlocked", "ability": "fake-strike" } to its conditions.',
     );
   });
 
@@ -230,6 +237,77 @@ describe("talent guard (#188): read from the data, not a list in the validator",
         id,
       );
     }
+  });
+
+  it("refuses a talentGrantedAbilities that is not an array or a Set, saying what it was (#207)", () => {
+    const message = (shown) =>
+      `rotationContext: talentGrantedAbilities must be an array or a Set of ability ids, not ${shown}.`;
+    const cases = [
+      ["cold-blood", 'the string "cold-blood"'],
+      [null, "null"],
+      [{}, "an object"],
+      [{ 0: "cold-blood", length: 1 }, "an object"],
+      [new Map([["cold-blood", true]]), "an object"],
+      [7, "a number"],
+      [true, "a boolean"],
+    ];
+    for (const [given, shown] of cases) {
+      for (const call of [
+        () => rotationContext({ talentGrantedAbilities: given }),
+        () =>
+          validateRotation(rotation(rule("cold-blood")), {
+            talentGrantedAbilities: given,
+          }),
+      ]) {
+        assert.throws(
+          call,
+          (error) =>
+            error instanceof TypeError && error.message === message(shown),
+          String(shown),
+        );
+      }
+    }
+  });
+
+  it("refuses a list or Set holding something that is not an id string (#207)", () => {
+    const message = (shown) =>
+      `rotationContext: talentGrantedAbilities must hold ability id strings, not ${shown}.`;
+    for (const [given, shown] of [
+      [["cold-blood", null], "null"],
+      [new Set([1]), "a number"],
+      [[["cold-blood"]], "an object"],
+      [["cold-blood", undefined], "undefined"],
+    ]) {
+      assert.throws(
+        () => rotationContext({ talentGrantedAbilities: given }),
+        (error) =>
+          error instanceof TypeError && error.message === message(shown),
+        shown,
+      );
+    }
+  });
+
+  it("takes an array or a Set, an empty one too, as a frozen array (#207)", () => {
+    for (const given of [["cold-blood", FAKE], new Set(["cold-blood", FAKE])]) {
+      const { talentGrantedAbilities: list } = rotationContext({
+        talentGrantedAbilities: given,
+      });
+      assert.ok(Array.isArray(list));
+      assert.ok(Object.isFrozen(list));
+      assert.deepEqual(list, ["cold-blood", FAKE]);
+    }
+    for (const given of [[], new Set()]) {
+      assert.deepEqual(
+        rotationContext({ talentGrantedAbilities: given })
+          .talentGrantedAbilities,
+        [],
+      );
+    }
+    // Left out, it is the engine's own.
+    assert.deepEqual(
+      [...rotationContext({}).talentGrantedAbilities].sort(),
+      FROM_DATA,
+    );
   });
 
   it("copies a given list, so changing it later changes nothing", () => {

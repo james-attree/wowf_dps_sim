@@ -527,7 +527,11 @@ describe("rotation error codes (#212): import", () => {
 
   it("warnings have a code and its data, as errors do (#214)", () => {
     const trap = rotation(
-      rule("ghostly-strike", { type: "abilityGranted", ability: "backstab" }),
+      rule(
+        "ghostly-strike",
+        { type: "abilityGranted", ability: "backstab" },
+        { type: "abilityUnlocked", ability: "ghostly-strike" },
+      ),
       rule("eviscerate"),
       SS,
       SS,
@@ -558,7 +562,7 @@ describe("rotation error codes (#214): the thrown and string forms are each path
     rules: [rule("cold-blood"), rule("sinister-strike", { ...five, value: 9 })],
   };
   const MESSAGES = [
-    'rules[0].conditions: Cold Blood (cold-blood) comes from a talent, so its rule needs an abilityGranted check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
+    'rules[0].conditions: Cold Blood (cold-blood) comes from a talent, so its rule needs a talent check. Add { "type": "abilityGranted", "ability": "cold-blood" } to its conditions.',
     "rules[1].conditions[0].value: The value must be between 0 and 5 for comboPoints, got 9.",
   ];
 

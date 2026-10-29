@@ -308,10 +308,37 @@ describe("applyBuild", () => {
   });
 
   it("names the abilities a talent grants, from the effects data", () => {
+    // The reference build's three, and the three Subtlety ones (#207).
     assert.deepEqual(
       [...talentGrantedAbilities].sort(),
-      [...ASSASSINATION_ABILITIES].sort(),
+      [
+        ...ASSASSINATION_ABILITIES,
+        "ghostly-strike",
+        "premeditation",
+        "hemorrhage",
+      ].sort(),
     );
+  });
+
+  it("is a Set that cannot be changed (#207)", () => {
+    assert.ok(talentGrantedAbilities instanceof Set);
+    assert.ok(Object.isFrozen(talentGrantedAbilities));
+    const before = [...talentGrantedAbilities];
+    assert.throws(
+      () => talentGrantedAbilities.add("sinister-strike"),
+      /^TypeError: talentGrantedAbilities is read-only \(add\)\.$/,
+    );
+    assert.throws(
+      () => talentGrantedAbilities.delete("cold-blood"),
+      /^TypeError: talentGrantedAbilities is read-only \(delete\)\.$/,
+    );
+    assert.throws(
+      () => talentGrantedAbilities.clear(),
+      /^TypeError: talentGrantedAbilities is read-only \(clear\)\.$/,
+    );
+    assert.deepEqual([...talentGrantedAbilities], before);
+    assert.equal(talentGrantedAbilities.size, before.length);
+    assert.ok(talentGrantedAbilities.has("hemorrhage"));
   });
 });
 
@@ -522,6 +549,72 @@ describe("a selected build gates the abilities a talent grants", () => {
     assert.equal(full.lockedByBuild(full.abilities.bladeFlurry), false);
     const none = createFight(1).rogue;
     assert.equal(none.lockedByBuild(none.abilities.bladeFlurry), false);
+  });
+});
+
+// Issue #207: Ghostly Strike, Premeditation and Hemorrhage come from Subtlety
+// talents, so a selected build without them holds them back like Blade Flurry.
+// A legal 21-point Subtlety build that takes all three.
+const SUBTLETY_THREE = {
+  "subtlety.camouflage": 5,
+  "subtlety.master-of-deception": 3,
+  "subtlety.setup": 2,
+  "subtlety.ghostly-strike": 1,
+  "subtlety.initiative": 3,
+  "subtlety.improved-distract": 1,
+  "subtlety.premeditation": 1,
+  "subtlety.serrated-blades": 3,
+  "subtlety.heightened-senses": 1,
+  "subtlety.hemorrhage": 1,
+};
+const SUBTLETY_KEYS = ["ghostlyStrike", "premeditation", "hemorrhage"];
+
+describe("the Subtlety talent abilities are held back by a build without them (#207)", () => {
+  it("grants all three to a build that has the talents", () => {
+    assert.deepEqual(applyBuild(SUBTLETY_THREE).abilities, [
+      "ghostly-strike",
+      "premeditation",
+      "hemorrhage",
+    ]);
+  });
+
+  it("locks them for the reference build, not for the Subtlety build or no build", () => {
+    const reference = createFight(1, { talents: REFERENCE }).rogue;
+    const subtlety = createFight(1, { talents: SUBTLETY_THREE }).rogue;
+    const none = createFight(1).rogue;
+    for (const key of SUBTLETY_KEYS) {
+      assert.equal(
+        reference.lockedByBuild(reference.abilities[key]),
+        true,
+        key,
+      );
+      assert.equal(subtlety.lockedByBuild(subtlety.abilities[key]), false, key);
+      assert.equal(none.lockedByBuild(none.abilities[key]), false, key);
+    }
+  });
+
+  it("a guarded Hemorrhage rule casts only when the build has the talent", () => {
+    const hemorrhage = {
+      schemaVersion: 1,
+      name: "Hemorrhage",
+      rules: [
+        {
+          action: "hemorrhage",
+          conditions: [{ type: "abilityUnlocked", ability: "hemorrhage" }],
+        },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    };
+    const casts = (fight, id) => fight.simulation.abilityStats[id]?.casts ?? 0;
+    const run = (talents) => {
+      const fight = createFight(1, { talents, rotation: hemorrhage });
+      fight.simulation.run(SHORT);
+      return fight;
+    };
+    const without = run(REFERENCE);
+    assert.equal(casts(without, "hemorrhage"), 0);
+    assert.ok(casts(without, "sinister-strike") >= 1);
+    assert.ok(casts(run(SUBTLETY_THREE), "hemorrhage") >= 1);
   });
 });
 
