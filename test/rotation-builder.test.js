@@ -812,3 +812,94 @@ describe("jumps find a message by its entry's code and path (Scout's review of #
     assert.equal(slice().focus.key, starves.key);
   });
 });
+
+describe("Fran's re-check of #218 (c3b0f5a)", () => {
+  it("Delete, the duplicate fix's Delete and Clear all focus the banner's Undo", () => {
+    const { builder, view, slice, uid } = setup();
+    builder.remove(uid(6));
+    assert.ok(view().banner?.undo);
+    assert.equal(slice().focus.key, "undo");
+    builder.undo();
+    builder.clearAll();
+    assert.ok(view().banner?.undo);
+    assert.equal(slice().focus.key, "undo");
+  });
+
+  it("Tab while holding a rule drops it there, and says so as Space does", () => {
+    const spaced = setup();
+    spaced.builder.gripKey(spaced.uid(1), " ");
+    spaced.builder.gripKey(spaced.uid(1), "ArrowDown");
+    spaced.builder.gripKey(spaced.uid(2), " ");
+    const { builder, view, slice, uid, actions } = setup();
+    const second = uid(1);
+    builder.gripKey(second, " ");
+    builder.gripKey(second, "ArrowDown");
+    assert.equal(builder.gripKey(second, "Tab"), false, "the browser tabs on");
+    assert.equal(view().rules[2].uid, second);
+    assert.equal(view().rules[2].lifted, false);
+    assert.deepEqual(actions(), moveRule(DEFAULT_ACTIONS, 1, 2));
+    assert.match(slice().announce.text, / dropped at rule 3 of 7\.$/);
+    assert.equal(slice().announce.text, spaced.slice().announce.text);
+  });
+
+  it("a value that isn't a plain number says so in the builder's words", () => {
+    const { builder, view, uid } = setup();
+    const at = view().rules.findIndex((rule) => rule.line.includes("CP"));
+    const ruleUid = uid(at);
+    builder.toggleRule(ruleUid);
+    const cuid = view().rules[at].body.conditions[0].uid;
+    for (const text of ["1e1", "0x10"]) {
+      builder.setParam(ruleUid, cuid, "value", text);
+      const condition = view().rules[at].body.conditions[0];
+      assert.deepEqual(condition.errors, ["Enter a plain number, such as 10."]);
+      assert.ok(condition.fields.find((f) => f.param === "value").invalid);
+    }
+  });
+
+  it("the not-a-talent copy is rotationWarnings' message, with the builder's name", () => {
+    const rotation = {
+      schemaVersion: defaultRotation().schemaVersion,
+      name: "Not a talent",
+      rules: [
+        {
+          action: "sinister-strike",
+          conditions: [{ type: "abilityGranted", ability: "sinister-strike" }],
+        },
+        {
+          action: "eviscerate",
+          conditions: [
+            { type: "comboPoints", op: ">=", value: 5 },
+            { type: "abilityUnlocked", ability: "eviscerate" },
+          ],
+        },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    };
+    const { form, view } = setup();
+    assert.equal(form.importText(exportRotation(rotation)), true);
+    const entries = rotationWarnings(rotation).filter((w) =>
+      ["grantedNotTalent", "unlockedNotTalent"].includes(w.code),
+    );
+    assert.deepEqual(
+      entries.map((w) => w.code),
+      ["grantedNotTalent", "unlockedNotTalent"],
+    );
+    const shown = view().rules.flatMap((rule) => rule.messages);
+    for (const entry of entries) {
+      const text = entry.message.replace(` (${entry.ability})`, "");
+      assert.equal(entryText(entry, rotation), text, entry.code);
+      assert.ok(
+        shown.some((m) => m.code === entry.code && m.text === text),
+        entry.code,
+      );
+    }
+    assert.equal(
+      entryText(entries[0], rotation),
+      "Sinister Strike isn't granted by a talent, so 'is granted' is never true here and this rule never casts.",
+    );
+    assert.equal(
+      entryText(entries[1], rotation),
+      "Eviscerate doesn't need a talent, so 'is unlocked' is always true and does nothing.",
+    );
+  });
+});
