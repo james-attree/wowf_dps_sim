@@ -491,6 +491,15 @@ describe("batch host protocol (#147)", () => {
     assert.equal(odd.name, "DataCloneError");
     assert.equal(odd.message, "x");
     assert.equal(deserializeError("bare").message, "bare");
+    // #155: missing fields are not the text "undefined".
+    for (const data of [{}, { name: undefined, message: undefined }]) {
+      const empty = deserializeError(data);
+      assert.equal(empty.constructor, Error);
+      assert.equal(empty.name, "Error");
+      assert.equal(empty.message, "");
+    }
+    assert.equal(deserializeError({ name: "RangeError" }).message, "");
+    assert.equal(deserializeError({ message: "only" }).constructor, Error);
   });
 
   it("states the protocol", () => {

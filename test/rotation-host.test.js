@@ -43,6 +43,23 @@ function read(view) {
 }
 
 const noRush = buildWithout(["combat.adrenaline-rush"]);
+// Blade Flurry left out: Adrenaline Rush and Weapon Expertise need it, so
+// they go too, and the four points move to Assassination (#155).
+const noFlurry = (() => {
+  const ranks = referenceBuild();
+  for (const id of [
+    "combat.blade-flurry",
+    "combat.adrenaline-rush",
+    "combat.weapon-expertise",
+  ]) {
+    delete ranks[id];
+  }
+  return {
+    ...ranks,
+    "assassination.murder": 2,
+    "assassination.improved-poisons": 2,
+  };
+})();
 
 describe("rotationHost", () => {
   it("answers canCast from the ability and the build", () => {
@@ -99,6 +116,34 @@ describe("rotationHost", () => {
       rotationHost(full.rogue, full.simulation).canCast("adrenaline-rush"),
       true,
     );
+  });
+
+  it("holds back Blade Flurry when the selected build lacks it (#155)", () => {
+    const locked = fightWith(noFlurry);
+    locked.rogue.energy = 100;
+    const host = rotationHost(locked.rogue, locked.simulation);
+    const flurry = locked.rogue.abilitiesById.get("blade-flurry");
+    assert.equal(locked.rogue.lockedByBuild(flurry), true);
+    assert.equal(flurry.canCast(locked.rogue, locked.simulation), true);
+    assert.equal(host.canCast("blade-flurry"), false);
+    // Locked is not "unusable": a build lock is answered by abilityUnlocked
+    // in the rule, and host.usable is about the weapon only.
+    assert.equal(host.usable("blade-flurry"), true);
+    const rotation = compileRotation({
+      schemaVersion: 1,
+      name: "Flurry first",
+      rules: [
+        {
+          action: "blade-flurry",
+          conditions: [{ type: "abilityUnlocked", ability: "blade-flurry" }],
+        },
+        { action: "sinister-strike", conditions: [] },
+      ],
+    });
+    assert.deepEqual(decide(rotation, host), {
+      casts: ["sinister-strike"],
+      outcome: "cast",
+    });
   });
 
   it("says whether the GCD is clear and which abilities start it", () => {

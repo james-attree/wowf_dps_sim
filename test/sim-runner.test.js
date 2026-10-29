@@ -549,7 +549,10 @@ describe("SimRunner options", () => {
       assert.throws(() => new SimRunner(options), RangeError);
     }
     for (const seed of [undefined, 1.5, "1", NaN, null]) {
-      assert.throws(() => new SimRunner({ seed }), RangeError);
+      assert.throws(() => new SimRunner({ seed }), {
+        name: "RangeError",
+        message: "SimRunner needs an integer seed: { seed }.",
+      });
     }
   });
 

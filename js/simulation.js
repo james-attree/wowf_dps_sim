@@ -414,6 +414,14 @@ export class Simulation {
       pool.regenerate(dt, base);
       return;
     }
+    // A timed contribution (Adrenaline Rush) covers the start of the step,
+    // up to the moment it runs out, so the step is regenerated in order of
+    // time (#155): first with every contribution, then without each as it
+    // runs out, the shortest first, and the rest at the rate the untimed ones
+    // leave. Order matters to the cap: the pool reaches it at the right
+    // moment, and its cappedTime counts the right part of the step. Each
+    // segment combines the same contributions in the same order (untimed,
+    // then timed from the longest) as before, so the rates are unchanged.
     const applied = all.filter(({ duration }) => duration === Infinity);
     const timed = all
       .filter(({ duration }) => duration !== Infinity)
@@ -422,15 +430,22 @@ export class Simulation {
         covered: Math.min(dt, contribution.duration),
       }))
       .sort((a, b) => b.covered - a.covered);
-    let rate = this.modifiers.combine(modifier, base, applied);
-    let remaining = dt;
-    for (const { contribution, covered } of timed) {
-      pool.regenerate(remaining - covered, rate);
-      remaining = covered;
-      applied.push(contribution);
-      rate = this.modifiers.combine(modifier, base, applied);
+    let elapsed = 0;
+    for (let last = timed.length - 1; last >= 0; last -= 1) {
+      const { covered } = timed[last];
+      const active = applied.concat(
+        timed.slice(0, last + 1).map(({ contribution }) => contribution),
+      );
+      pool.regenerate(
+        covered - elapsed,
+        this.modifiers.combine(modifier, base, active),
+      );
+      elapsed = covered;
     }
-    pool.regenerate(remaining, rate);
+    pool.regenerate(
+      dt - elapsed,
+      this.modifiers.combine(modifier, base, applied),
+    );
   }
 
   // Put an aura up. `duration` (seconds) defaults to the definition's; a
