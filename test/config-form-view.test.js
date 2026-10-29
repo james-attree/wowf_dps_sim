@@ -11,6 +11,7 @@ import { poisonInfo } from "../js/config-form.js";
 import { listPresets } from "../js/rotation-presets.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
+import { NARROW_QUERY } from "../js/views/breakpoints.js";
 import {
   createConfigFormView,
   fieldId,
@@ -116,7 +117,7 @@ function page({ narrow = false } = {}) {
     },
     defaultView: {
       matchMedia: (query) => ({
-        matches: narrow && query === "(max-width: 520px)",
+        matches: narrow && query === NARROW_QUERY,
       }),
       setTimeout(run, wait) {
         timers.push({ run, wait });

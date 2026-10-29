@@ -295,7 +295,9 @@ store)` that owns its own elements, draws from the store when its slices
   actions `js/config-form.js` gives it, which `js/main.js` hands in, so it
   imports nothing from the engine). Edits apply to the next run: Run snapshots
   the config, and the form shows "Edited — applies to the next run" while it
-  differs from the fight on the page.
+  differs from the fight on the page. `breakpoints.js` holds the one narrow
+  breakpoint both use: `(max-width: 519.98px)`, so 520 px and up is wide and
+  519 px is narrow; the narrow `@media` blocks in `styles.css` repeat it.
 - `js/live-run.js` — The live page's run (#153): `createLiveRun(store,
 frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   `reset`, and `clear({ seed, config })` (an empty fight at 0:00, drawn while
@@ -718,6 +720,9 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   rejected.
 - `test/bleed-armor.test.js` — DoT crits, and armor skipped on bleeds and
   nature ticks.
+- `test/breakpoints.test.js` — The narrow breakpoint: 519 px narrow, 520 px
+  wide, the views on the shared query, and every narrow `@media` block in
+  `styles.css` on the same one.
 - `test/bench.test.js` — The benchmark: the CI bound on a 5-minute fight, the
   median and report, the script's arguments, and its exit status (with a fake
   benchmark or a target of 0 or a million ms, never the real 50 ms).

@@ -1,3 +1,4 @@
+import { NARROW_QUERY } from "./breakpoints.js";
 import {
   announceKey,
   controlsModel,
@@ -33,7 +34,9 @@ import {
 // row's "Fix 1 setting" link, which opens the section and focuses the field.
 // Wide screens are unchanged: the toggle, summary and link are not shown.
 const FIELDS = ["duration", "iterations", "seed"];
-export const NARROW_QUERY = "(max-width: 519.98px)";
+// Re-exported for the tests and older imports; the value lives in
+// js/views/breakpoints.js.
+export { NARROW_QUERY };
 
 export function createControlsView(doc, store, actions = {}) {
   const $ = (id) => doc.querySelector(`#${id}`);

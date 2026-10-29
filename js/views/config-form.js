@@ -1,4 +1,5 @@
 import { k } from "../../data/constants.js";
+import { NARROW_QUERY } from "./breakpoints.js";
 
 // The "Fight setup" form (#151, U2). This view owns the form#config-form and
 // everything in it, and no other element. It draws the store's `form` slice
@@ -61,8 +62,6 @@ export function runGateText(count) {
 export function fixHeadingText(count) {
   return `Fix ${count} ${plural(count, "field", "fields")} to run:`;
 }
-
-const NARROW = "(max-width: 520px)";
 
 const HANDS = ["mainHand", "offHand"];
 const poisonPath = (hand) => `poisons.${hand}`;
@@ -144,8 +143,9 @@ export function createConfigFormView(doc, store, actions) {
       : parseField(control.value, isPercent(control));
   };
 
-  // The summary is closed on a narrow screen (Fran's notes, section 5).
-  if (win.matchMedia?.(NARROW).matches) {
+  // The summary is closed on a narrow screen (Fran's notes, section 5): below
+  // 520 px, the same breakpoint as the run bar (js/views/breakpoints.js).
+  if (win.matchMedia?.(NARROW_QUERY).matches) {
     summaryDetails.open = false;
   }
 

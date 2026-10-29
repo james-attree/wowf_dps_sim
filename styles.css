@@ -1094,7 +1094,7 @@ h3 {
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 519.98px) {
   body {
     padding: 14px 12px;
     place-items: start center;
@@ -1576,7 +1576,7 @@ h3 {
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 519.98px) {
   .character-fieldset {
     grid-template-columns: 1fr;
   }
