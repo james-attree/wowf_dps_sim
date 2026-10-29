@@ -350,6 +350,7 @@ describe("runBatch", () => {
       "config",
       "summary",
       "breakdown",
+      "auras",
       "dps",
     ]);
     assert.equal(result.seed, 7);
@@ -1257,6 +1258,7 @@ describe("the interface", () => {
       "./ability-breakdown.js",
       "./data-version.js",
       "./event-stream.js",
+      "./fight-metrics.js",
       "./rng.js",
       "./running-stats.js",
       "./sim-config.js",

@@ -2,6 +2,7 @@ import { k } from "../data/constants.js";
 import { BatchBreakdown, FightBreakdown } from "./ability-breakdown.js";
 import { dataVersion } from "./data-version.js";
 import { EventStream, createErrorReporter } from "./event-stream.js";
+import { BatchAuras, FightAuras } from "./fight-metrics.js";
 import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
 import { RunningStats } from "./running-stats.js";
@@ -38,6 +39,10 @@ import { SimRunner } from "./sim-runner.js";
 // events, like any other listener, and its summary is added to a
 // BatchBreakdown in index order once the fight ends. It changes no fight: a
 // subscriber draws no randomness.
+//
+// The aura uptimes (S3, #146, js/fight-metrics.js) are read the same way: a
+// FightAuras on the fight's "aura" and "end" events, added to a BatchAuras in
+// index order.
 //
 // Running without blocking. A fight takes tens of milliseconds, so a batch of
 // 1,000 takes tens of seconds, and a page cannot run it inside one call. The
@@ -217,6 +222,7 @@ export class BatchRunner {
   #stats = new RunningStats();
   #dps = new Float64Array(0);
   #breakdown = new BatchBreakdown();
+  #auras = new BatchAuras();
   #completed = 0;
   #result = null;
   // Iterations handed over by advance() and not run yet.
@@ -320,6 +326,9 @@ export class BatchRunner {
   //   breakdown   the per-ability breakdown of the completed iterations (#145):
   //               BatchBreakdown#summary() in js/ability-breakdown.js,
   //               { fights, totalDamage, rows }. See docs/breakdown.md.
+  //   auras       the aura uptimes of the completed iterations (#146):
+  //               BatchAuras#summary() in js/fight-metrics.js,
+  //               { fights, duration, rows }. See docs/mechanics.md.
   //   dps         Float64Array of the DPS of each completed iteration, in
   //               iteration order: dps[i] is the fight of
   //               deriveSeed(seed, i). Length is `completed`.
@@ -427,10 +436,13 @@ export class BatchRunner {
     // The breakdown reads the fight's events, as any other subscriber would.
     const breakdown = new FightBreakdown();
     breakdown.attach(fight);
+    const auras = new FightAuras();
+    auras.attach(fight);
     fight.run();
     fight.advance(Infinity);
     const { dps } = fight.result;
     this.#breakdown.add(breakdown.summary());
+    this.#auras.add(auras.summary());
     this.#dps[this.#completed] = dps;
     this.#stats.add(dps);
     this.#completed += 1;
@@ -458,6 +470,7 @@ export class BatchRunner {
       config: normalizeConfig(this.#config),
       summary: this.#stats.summary(),
       breakdown: this.#breakdown.summary(),
+      auras: this.#auras.summary(),
       dps: this.#dps.slice(0, this.#completed),
     };
     this.#move(cancelled ? "cancelled" : "finished");
@@ -467,6 +480,7 @@ export class BatchRunner {
     this.#stats = new RunningStats();
     this.#dps = new Float64Array(0);
     this.#breakdown = new BatchBreakdown();
+    this.#auras = new BatchAuras();
     this.#completed = 0;
     this.#result = null;
     this.#budget = 0;
