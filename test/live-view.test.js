@@ -429,7 +429,11 @@ describe("js/main.js on a stand-in page", () => {
     element("#pause-button").click();
     assert.equal(element("#pause-button").getAttribute("aria-pressed"), null);
     assert.equal(element("#pause-label").textContent, "Pause");
-    assert.equal(element("#run-announce").textContent, "", "Resume: silent");
+    assert.equal(
+      element("#run-announce").textContent,
+      "Running",
+      "Resume says Running (#45, Scout)",
+    );
     assert.match(element("#run-status-text").textContent, /^Running · /);
     assert.ok(pendingFrame, "resume asks for a frame");
     // An hour later by the browser's clock.

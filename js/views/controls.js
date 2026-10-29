@@ -5,7 +5,6 @@ import {
   errorsText,
   fieldErrors,
   focusTarget,
-  isResume,
   formErrorCount,
   rotationErrorCount,
   talentErrorCount,
@@ -225,14 +224,15 @@ export function createControlsView(doc, store, actions = {}) {
 
     // Transitions only: the first draw is silent. One message per change
     // (#45, Fran): the region is emptied, then written on the next frame, so
-    // the same words twice are said twice. Resume says nothing and empties it.
+    // the same words twice are said twice. Resume says Running, as Run does
+    // (#45, Scout).
     const key = announceKey(state);
-    if (lastAnnounce !== null && key !== lastAnnounce) {
-      if (isResume(lastAnnounce, key)) {
-        announce("");
-      } else if (model.announce !== null) {
-        announce(model.announce);
-      }
+    if (
+      lastAnnounce !== null &&
+      key !== lastAnnounce &&
+      model.announce !== null
+    ) {
+      announce(model.announce);
     }
     lastAnnounce = key;
 

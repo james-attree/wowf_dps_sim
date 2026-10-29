@@ -2,7 +2,7 @@
 // Fran's answers and Scout's calls in the issue). A MutationObserver counts
 // the messages every live region on the page says: a change that leaves a
 // region with text. Emptying a region is not a message (#run-announce is
-// emptied before each write, and on Resume). Run in Chrome through
+// emptied before each write). Run in Chrome through
 // playwright-core with `npm run test:browser`, like the other browser tests.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -145,7 +145,7 @@ for (const width of WIDTHS) {
     });
     after(() => context?.close());
 
-    test("a live fight: Running once, one Pause, a silent Resume, one Finish", async () => {
+    test("a live fight: Running once, one Pause, Running on Resume, one Finish", async () => {
       await setField(page, "run-duration", String(FIGHT_SECONDS));
       await settle(page);
       assert.deepEqual(await messages(page), [], "typing says nothing");
@@ -200,8 +200,11 @@ for (const width of WIDTHS) {
 
       await clickCentre(page.locator("#pause-button"));
       await settle(page);
-      assert.deepEqual(await messages(page), [], "Resume says nothing");
-      assert.equal(await page.textContent("#run-announce"), "");
+      assert.deepEqual(
+        await messages(page),
+        [{ id: "run-announce", text: "Running" }],
+        "Resume says Running, as Run does (#45, Scout)",
+      );
 
       await page.waitForFunction(
         () =>

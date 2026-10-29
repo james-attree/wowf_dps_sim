@@ -21,7 +21,6 @@ import {
   fieldErrors,
   grouped,
   parseRunField,
-  isResume,
   spokenTenths,
   spokenTime,
   summaryText,
@@ -1122,10 +1121,10 @@ describe("the control bar view (#153)", () => {
     // The label swap says it (#45, Scout): no aria-pressed.
     assert.equal(el("pause-button").getAttribute("aria-pressed"), null);
     assert.equal(el("pause-label").textContent, "Resume");
-    // Resume says nothing and empties the region (#45, Fran).
+    // Resume says Running, as Run does (#45, Scout).
     el("pause-button").fire("click");
     assert.equal(page.store.get().run.state, "running");
-    assert.equal(el("run-announce").textContent, "");
+    assert.equal(el("run-announce").textContent, "Running");
     el("pause-button").fire("click");
     assert.match(el("run-announce").textContent, /^Paused at 1 second\./);
     el("stop-button").fire("click");
@@ -1169,7 +1168,8 @@ describe("the control bar view (#153)", () => {
     assert.match(paused, /^Paused at 1 second\./);
     el("pause-button").fire("click");
     assert.equal(el("run-announce").textContent, "", "Resume empties it");
-    assert.equal(queued.length, 0, "and writes nothing");
+    assert.equal(next(), 1, "then writes on the next frame");
+    assert.equal(el("run-announce").textContent, "Running", "as Run does");
     // The same words again are a fresh change.
     el("pause-button").fire("click");
     assert.equal(el("run-announce").textContent, "");
@@ -1181,14 +1181,6 @@ describe("the control bar view (#153)", () => {
     el("reset-button").fire("click");
     assert.equal(next(), 1);
     assert.equal(el("run-announce").textContent, "Ready");
-  });
-
-  it("isResume: only paused to running is a resume (#45)", () => {
-    assert.equal(isResume("live:paused:false", "live:running:false"), true);
-    assert.equal(isResume("live:idle:false", "live:running:false"), false);
-    assert.equal(isResume("live:finished:false", "live:running:false"), false);
-    assert.equal(isResume("live:idle:true", "live:running:false"), false);
-    assert.equal(isResume("live:running:false", "live:paused:false"), false);
   });
 
   it("fields: invalid text is marked and described, and blocks Run", () => {

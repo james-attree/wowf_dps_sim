@@ -417,12 +417,6 @@ export function announceKey(state) {
   return `live:${run.state}:${run.stoppedAt !== null}`;
 }
 
-// Resume says nothing (#45, Fran): paused to running clears #run-announce
-// and writes no message.
-export function isResume(previousKey, key) {
-  return previousKey === "live:paused:false" && key === "live:running:false";
-}
-
 // Where focus goes after a transition: "pause" once a live fight runs,
 // "stop" once a batch runs, "run" once a fight or batch ends or is reset.
 export function focusTarget(state) {
