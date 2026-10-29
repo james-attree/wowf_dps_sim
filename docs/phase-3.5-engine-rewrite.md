@@ -255,6 +255,12 @@ Done when: energy at t equals `min(cap, e0 + rate * t)` exactly for a run with
 no modifier and equals the piecewise form across an Adrenaline Rush apply and
 expiry (tests for both), the cap is respected, and `resourceMax` modifiers
 still apply. It runs on the new core only. The legacy pool stays for legacy.
+Landed in #194: `js/core/energy.js` (`EnergyPool`), tested in
+`test/energy.test.js`. That includes exact `min(cap, e0 + rate * t)` reads and
+200 seeded runs across an Adrenaline Rush apply and expiry against Kira's #183
+chronological regen model. The host calls `modifiersChanged()` at a modifier
+event, and the threshold wake-up is one-shot, in the energy class (mechanics.md
+"Planned: event-queue engine (Phase 3.5)").
 
 **4. Swings, GCD, cooldowns, expiries (E4).** Done when: swing count over 60 s
 is the same at any query granularity and equals the exact count for the weapon
