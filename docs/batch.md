@@ -31,7 +31,7 @@ const runner = new BatchRunner({
 });
 runner.run(); // idle -> running
 // from a timer or a message, with the page free in between:
-runner.advance(5); // up to 5 iterations, then returns
+runner.advance(5); // up to 5 iterations (1 or more, or Infinity), then returns
 runner.cancel(); // stops before the next iteration
 runner.result; // null until finished or cancelled
 ```
@@ -74,7 +74,11 @@ first time.
 
 An action from any other state throws an `Error` naming the action, the state and
 the states that allow it, and changes nothing. `advance(iterations)` is not a
-transition: it does nothing unless the state is `running`. Reaching the last
+transition: it does nothing unless the state is `running`. Its count must be a
+whole number of 1 or more, or `Infinity`, in every state; anything else (0, a
+fraction such as 0.5, a negative, `NaN`, a string) throws a `RangeError` that
+says so, because a fraction never starts a fight and a driver that kept passing
+one would loop for ever. Reaching the last
 iteration moves `running` to `finished`. `run` starts a fresh batch from the
 first iteration. If an iteration throws, the driver is stopped, the batch goes
 back to `idle` with no result and the error is thrown from `advance`.
@@ -164,17 +168,18 @@ above that.
 
 `BatchRunner#result` and `runBatch(...)` give plain data:
 
-| Field         | Meaning                                                                |
-| ------------- | ---------------------------------------------------------------------- |
-| `seed`        | The base seed, as an unsigned 32-bit integer.                          |
-| `iterations`  | The iterations asked for.                                              |
-| `completed`   | The iterations that finished (equal to `iterations` unless cancelled). |
-| `cancelled`   | `true` if the batch was cancelled before the last iteration.           |
-| `duration`    | Seconds per fight.                                                     |
-| `dataVersion` | The data snapshot the fights ran on.                                   |
-| `config`      | The SimConfig used, normalised (a copy).                               |
-| `summary`     | The statistics above.                                                  |
-| `dps`         | A `Float64Array` of length `completed`: the DPS of each iteration.     |
+| Field         | Meaning                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| `seed`        | The base seed, as an unsigned 32-bit integer.                                            |
+| `iterations`  | The iterations asked for.                                                                |
+| `completed`   | The iterations that finished (equal to `iterations` unless cancelled).                   |
+| `cancelled`   | `true` if the batch was cancelled before the last iteration.                             |
+| `duration`    | Seconds per fight.                                                                       |
+| `dataVersion` | The data snapshot the fights ran on.                                                     |
+| `config`      | The SimConfig used, normalised (a copy).                                                 |
+| `summary`     | The statistics above.                                                                    |
+| `breakdown`   | The per-ability breakdown of the completed iterations: see [breakdown.md](breakdown.md). |
+| `dps`         | A `Float64Array` of length `completed`: the DPS of each iteration.                       |
 
 Only `dps` is not JSON. `structuredClone` and `postMessage` carry it; for JSON use
 `Array.from(result.dps)`.
@@ -182,7 +187,10 @@ Only `dps` is not JSON. `structuredClone` and `postMessage` carry it; for JSON u
 ## Shape
 
 `runFight`'s result, `SimConfig` and the rotation JSON are unchanged. The new
-shape is the batch result above. New exports of `js/batch-runner.js`:
+shape is the batch result above. Issue #145 added its `breakdown` field
+([breakdown.md](breakdown.md)) and made `advance` refuse a count that is not a
+whole number of 1 or more, or `Infinity` (it took 0 and fractions before).
+`RunningStats` moved to `js/running-stats.js` and is still exported from here. New exports of `js/batch-runner.js`:
 `BatchRunner`, `runBatch`, `RunningStats`, `deriveSeed`, `BATCH_STATES`. New
 constants: `batch.duration`, `batch.maxIterations`, `batch.confidenceZ`,
 `batch.seedMix`. The `fight.iterations` note now names the batch runner.

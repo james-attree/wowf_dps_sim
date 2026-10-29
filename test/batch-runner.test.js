@@ -28,6 +28,20 @@ const TALENTED = {
   poisons: { mainHand: "instant", offHand: "deadly" },
 };
 
+// Counts advance() refuses: not a whole number of 1 or more, and not Infinity.
+const BAD_COUNTS = [
+  0,
+  -1,
+  0.5,
+  1.5,
+  -Infinity,
+  NaN,
+  "2",
+  null,
+  undefined,
+  2 + Number.EPSILON * 4,
+];
+
 afterEach(() => {
   mock.restoreAll();
 });
@@ -335,6 +349,7 @@ describe("runBatch", () => {
       "dataVersion",
       "config",
       "summary",
+      "breakdown",
       "dps",
     ]);
     assert.equal(result.seed, 7);
@@ -486,7 +501,7 @@ describe("chunking and scheduling do not change the result", () => {
 
   it("gives one result for any way of slicing the iterations", () => {
     const whole = chunked([Infinity]);
-    for (const sizes of [[1], [2], [3, 1], [0, 0, 4], [0.5, 1.5], [100]]) {
+    for (const sizes of [[1], [2], [3, 1], [1, 1, 4], [5, Infinity], [100]]) {
       assert.deepEqual(chunked(sizes), whole, JSON.stringify(sizes));
     }
     assert.deepEqual(
@@ -906,11 +921,52 @@ describe("states", () => {
     assert.equal(runner.advance(5), "idle");
     assert.equal(runner.completed, 0);
     runner.run();
-    for (const bad of [-1, NaN, "2", null, undefined]) {
+    for (const bad of BAD_COUNTS) {
       assert.throws(() => runner.advance(bad), RangeError, String(bad));
     }
     assert.equal(runner.state, "running");
-    assert.equal(runner.advance(0), "running");
+    assert.equal(runner.completed, 0);
+    assert.equal(runner.advance(1), "running");
+    assert.equal(runner.completed, 1);
+  });
+
+  // Kira's #166 QA item (2): advance(0.5) never started a fight, so a loop
+  // that called it spun for ever. A count is a whole number of 1 or more, or
+  // Infinity, in every state, with an error that says so.
+  it("rejects a count that is not a whole number of 1 or more, or Infinity, in every state", () => {
+    for (const state of BATCH_STATES) {
+      const runner = inState(state);
+      for (const bad of BAD_COUNTS) {
+        assert.throws(
+          () => runner.advance(bad),
+          {
+            name: "RangeError",
+            message: `BatchRunner.advance needs a whole number of iterations, 1 or more, or Infinity. Got ${String(bad)}.`,
+          },
+          `${state} ${String(bad)}`,
+        );
+      }
+      assert.equal(runner.state, state);
+    }
+  });
+
+  it("throws at once for a driver that hands over a fraction, instead of spinning", () => {
+    let calls = 0;
+    const runner = new BatchRunner({
+      seed: 3,
+      iterations: 2,
+      duration: FIGHT,
+      driver: {
+        start(advance) {
+          calls += 1;
+          assert.throws(() => advance(0.5), RangeError);
+        },
+        stop() {},
+      },
+    });
+    runner.run();
+    assert.equal(calls, 1);
+    assert.equal(runner.state, "running");
     assert.equal(runner.completed, 0);
   });
 
@@ -1198,9 +1254,11 @@ describe("the interface", () => {
     );
     assert.deepEqual(imports.sort(), [
       "../data/constants.js",
+      "./ability-breakdown.js",
       "./data-version.js",
       "./event-stream.js",
       "./rng.js",
+      "./running-stats.js",
       "./sim-config.js",
       "./sim-runner.js",
     ]);
