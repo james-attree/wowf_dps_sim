@@ -764,7 +764,7 @@ describe("page views", () => {
     store.set({ run: { state: "paused", seed: SEED } });
     assert.equal(
       doc.el("#log-hint").textContent,
-      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
+      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end. Newest events are at the top.",
     );
     assert.equal(doc.el("#log-readout").textContent, "");
     assert.equal(doc.el("#log-step").textContent, "");
@@ -773,7 +773,7 @@ describe("page views", () => {
     // U9 polish: the hint stays the log's description, out of sight.
     assert.equal(
       doc.el("#log-hint").textContent,
-      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
+      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end. Newest events are at the top.",
     );
     assert.equal(doc.el("#log-hint").classes.has("visually-hidden"), true);
     // U9 polish: the shown damage has commas, as the spoken one does.
@@ -935,7 +935,7 @@ describe("page views", () => {
   it("U9 log polish: Home and End in the hint and the key shortcuts (#221)", async () => {
     assert.equal(
       LOG_HINT,
-      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
+      "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end. Newest events are at the top.",
     );
     const html = await readFile(
       new URL("../index.html", import.meta.url),
@@ -972,6 +972,27 @@ describe("page views", () => {
     ]);
   });
 
+  it("#200: a log row's name cell has the full name as its title", () => {
+    const doc = recordingDocument();
+    const store = createStore(plainReading());
+    createVisualiserView(doc, store);
+    store.set({
+      frame: 1,
+      log: [
+        { ...LOG_ROW, id: 1, name: "Instant Poison VI", fromProc: true },
+        { ...LOG_ROW, id: 0, damage: 123456 },
+      ],
+    });
+    const names = doc
+      .el("#combat-log")
+      .children.map((row) => row.children[2])
+      .map((cell) => [cell.className, cell.textContent, cell.title]);
+    assert.deepEqual(names, [
+      ["combat-log-name", "↳ Instant Poison VI", "Instant Poison VI"],
+      ["combat-log-name", "Sinister Strike", "Sinister Strike"],
+    ]);
+  });
+
   it("U9 log polish: the start of a log that dropped rows is the kept log's (#221)", () => {
     const { doc } = windowedDocument(false);
     const max = k("log.maxEvents");
@@ -992,13 +1013,14 @@ describe("page views", () => {
     const pause = () => store.set({ run: { state: "paused", seed: SEED } });
     const resume = () => store.set({ run: { state: "running", seed: SEED } });
 
-    // Exactly max rows: none dropped, the plain start.
-    store.set({ frame: 1, log: rows(1, max) });
+    // Exactly max rows, ids from 0: none dropped, the plain start.
+    store.set({ frame: 1, log: rows(0, max - 1) });
     pause();
-    assert.equal(say("Home"), `Start of log. ${logRowSpoken(rows(1, 1)[0])}`);
+    assert.equal(say("Home"), `Start of log. ${logRowSpoken(rows(0, 0)[0])}`);
     assert.equal(say("ArrowLeft"), "Start of log");
 
-    // One more: the oldest is dropped, the start is the kept log's.
+    // Two more: the oldest two are dropped (the oldest kept id is 2), the
+    // start is the kept log's.
     resume();
     store.set({ frame: 2, log: rows(2, max + 1) });
     pause();
@@ -1022,6 +1044,46 @@ describe("page views", () => {
     pause();
     assert.equal(say("ArrowLeft"), logRowSpoken(rows(4, 4)[0]));
     assert.equal(say("Home"), `Start of log. ${logRowSpoken(rows(0, 0)[0])}`);
+  });
+
+  // Fran's #222 check (#200): the drop is read from the ids, so a log that
+  // has dropped rows before its first frame reaches the view is still the
+  // kept log's, and a short log from id 0 is not.
+  it("#200: dropped rows are read from the row ids, from the first frame", async () => {
+    const max = k("log.maxEvents");
+    const rows = (from, to) =>
+      Array.from({ length: to - from + 1 }, (_, back) => {
+        const id = to - back;
+        return { ...LOG_ROW, id, time: id / 10, damage: id };
+      });
+    const firstFrame = (log) => {
+      const { doc } = windowedDocument(false);
+      const store = createStore(plainReading());
+      createVisualiserView(doc, store);
+      store.set({ frame: 1, log });
+      store.set({ run: { state: "paused", seed: SEED } });
+      doc.el(".combat-log-scroll").fire("keydown", {
+        key: "Home",
+        preventDefault() {},
+      });
+      return doc.el("#log-readout").textContent;
+    };
+    // The whole kept log arrives in one frame, after 500 rows: dropped.
+    assert.equal(
+      firstFrame(rows(500 - max, 499)),
+      `Start of kept log (last ${max} events). ${logRowSpoken(rows(500 - max, 500 - max)[0])}`,
+    );
+    // A short first frame from id 0: nothing dropped.
+    assert.equal(
+      firstFrame(rows(0, 2)),
+      `Start of log. ${logRowSpoken(rows(0, 0)[0])}`,
+    );
+    // The view keeps no count of its own.
+    const source = await readFile(
+      new URL("../js/views/visualiser.js", import.meta.url),
+      "utf8",
+    );
+    assert.doesNotMatch(source, /seenRows/);
   });
 
   it("U9 polish: identical frames write nothing to the buffs or cooldowns", () => {

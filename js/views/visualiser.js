@@ -69,9 +69,6 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   const combatLogScroll = doc.querySelector(".combat-log-scroll");
   const combatLogEmpty = doc.querySelector("#combat-log-empty");
   let lastRenderedCombatEventId = -1;
-  // The rows this fight has logged, so the view knows when the log has
-  // dropped its oldest (more than k("log.maxEvents")).
-  let seenRows = 0;
   let selectedRow = -1;
   const view = doc.defaultView;
   const now = clock ?? (() => (view?.performance ?? Date).now() / 1000);
@@ -299,7 +296,9 @@ export function createVisualiserView(doc, store, { clock } = {}) {
   // alone, staying on the row. The log is newest first, so row 0 is the end.
   // Fran's #221 check: the row is scrolled into view, and once the log has
   // dropped rows the start is "Start of kept log (last N events)." with N
-  // from k("log.maxEvents").
+  // from k("log.maxEvents"). The log has dropped rows when its oldest kept
+  // row is not the fight's first: row ids count up from FIRST_LOG_ROW_ID per
+  // fight (Fran's #222 check, #200), so this holds from the first frame on.
   function step(key) {
     const { run, log } = store.get();
     const delta = { ArrowLeft: 1, ArrowRight: -1 }[key];
@@ -335,7 +334,7 @@ export function createVisualiserView(doc, store, { clock } = {}) {
     // arrow past an end says only the end.
     const spoken = logRowSpoken(log[next]);
     const label =
-      edge === "start" && seenRows > k("log.maxEvents")
+      edge === "start" && log[first].id > FIRST_LOG_ROW_ID
         ? `Start of kept log (last ${formatNumber(k("log.maxEvents"), 0)} events).`
         : LOG_EDGE[edge];
     if (edge === null) {
@@ -393,7 +392,6 @@ export function createVisualiserView(doc, store, { clock } = {}) {
       selectRow(-1);
       combatLog.replaceChildren(combatLogEmpty);
       lastRenderedCombatEventId = -1;
-      seenRows = 0;
     }
     const newEvents = log.filter(
       (event) => event.id > lastRenderedCombatEventId,
@@ -401,7 +399,6 @@ export function createVisualiserView(doc, store, { clock } = {}) {
     if (newEvents.length === 0) {
       return;
     }
-    seenRows += newEvents.length;
 
     const previousScrollHeight = combatLogScroll.scrollHeight;
     const isAtLatestEvents = combatLogScroll.scrollTop <= 1;
@@ -438,6 +435,9 @@ export function createVisualiserView(doc, store, { clock } = {}) {
         const name = doc.createElement("span");
         name.className = "combat-log-name";
         name.textContent = event.fromProc ? `↳ ${event.name}` : event.name;
+        // The full name on hover, for a name a wide damage cuts short on a
+        // phone (Fran's #222 check, #200).
+        name.title = event.name;
 
         const damage = doc.createElement("span");
         damage.className = "combat-log-damage";
@@ -518,8 +518,13 @@ export function timedEffectReading(
 }
 
 // The log's description while paused (#150; Home and End, Fran's #221 check).
+// A combat log row's id counts up from 0 in each fight (docs/events.md, the
+// "hit" event's id), so a kept log whose oldest id is above this has dropped
+// rows.
+const FIRST_LOG_ROW_ID = 0;
+
 export const LOG_HINT =
-  "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.";
+  "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end. Newest events are at the top.";
 
 // What the step announcer says at the ends of the log (U9 polish).
 const LOG_EDGE = { start: "Start of log", end: "End of log" };

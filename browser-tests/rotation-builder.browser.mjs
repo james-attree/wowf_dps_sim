@@ -364,3 +364,95 @@ for (const width of WIDTHS) {
     });
   });
 }
+
+// #200 (Kira's #206 QA, c1): the rotation warnings lists below 520px, the
+// imported file's "What to check" and the builder's warnings banner, are not
+// clipped and the page does not scroll sideways.
+for (const width of [390, 360]) {
+  test(`the rotation warnings lists fit at ${width}px (#200)`, async () => {
+    const { context, page, errors } = await openBuilder(width);
+    try {
+      // Fits: inside the viewport, nothing wider than its box, no sideways
+      // scroll, for the element and each of its children.
+      const fits = (selector) =>
+        page.evaluate((selector) => {
+          const root = document.querySelector(selector);
+          const parts = [root, ...root.querySelectorAll("*")].filter(
+            (el) => el.getClientRects().length > 0,
+          );
+          return {
+            count: parts.length,
+            outside: parts
+              .filter((el) => {
+                const at = el.getBoundingClientRect();
+                return at.left < -1 || at.right > globalThis.innerWidth + 1;
+              })
+              .map((el) => el.outerHTML.slice(0, 80)),
+            clipped: parts
+              .filter(
+                (el) =>
+                  getComputedStyle(el).overflowX !== "visible" &&
+                  el.scrollWidth > el.clientWidth + 1,
+              )
+              .map((el) => el.outerHTML.slice(0, 80)),
+            wide:
+              document.documentElement.scrollWidth >
+              document.documentElement.clientWidth,
+          };
+        }, selector);
+
+      // An imported rotation with warnings: a duplicate rule, a rule that
+      // starves the one below, and a finisher with no combo point check.
+      await page.evaluate(() => {
+        document.querySelector(".paste-import").open = true;
+      });
+      await page.fill(
+        "#cfg-import-text",
+        JSON.stringify({
+          schemaVersion: 1,
+          name: "Warned",
+          rules: [
+            { action: "sinister-strike", conditions: [] },
+            { action: "sinister-strike", conditions: [] },
+            { action: "eviscerate", conditions: [] },
+          ],
+        }),
+      );
+      await clickCentre(page.locator("#cfg-import-paste"));
+      await page.locator("#cfg-import-warnings").waitFor({ state: "visible" });
+      await page.evaluate(() => {
+        document.querySelector("#cfg-import-warnings").open = true;
+      });
+      const text = await page.textContent("#cfg-import-warnings-text");
+      assert.ok(text.split("\n").filter(Boolean).length >= 2, text);
+      const imported = await fits("#cfg-import-warnings");
+      assert.ok(imported.count > 1);
+      assert.deepEqual(imported.outside, [], "import warnings on the page");
+      assert.deepEqual(imported.clipped, [], "import warnings not clipped");
+      assert.equal(imported.wide, false, "no sideways scroll (import)");
+      if (process.env.U9_SHOTS) {
+        await page.locator(".import-box").screenshot({
+          path: `${process.env.U9_SHOTS}/import-warnings-${width}.png`,
+        });
+      }
+
+      // The builder's banner (open since openBuilder): a duplicated rule
+      // warns, with its fix links.
+      await clickCentre(rule(page, 0).locator("[data-key$='.dup']"));
+      await page.locator("#rb-warnings").waitFor({ state: "visible" });
+      const banner = await fits("#rb-warnings");
+      assert.ok(banner.count > 1);
+      assert.deepEqual(banner.outside, [], "builder warnings on the page");
+      assert.deepEqual(banner.clipped, [], "builder warnings not clipped");
+      assert.equal(banner.wide, false, "no sideways scroll (builder)");
+      if (process.env.U9_SHOTS) {
+        await page.locator("#rb-warnings").screenshot({
+          path: `${process.env.U9_SHOTS}/builder-warnings-${width}.png`,
+        });
+      }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+}
