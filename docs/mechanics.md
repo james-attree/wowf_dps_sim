@@ -1513,41 +1513,67 @@ fetches at test time. See [docs/icons.md](icons.md).
 
 `npm run parity` (`scripts/parity.mjs`, #192) is the E11 harness the Phase 3.5
 switch-over is gated on (#199). It runs two named engines, A (`--engine`) and B
-(`--against`), over seeds 1 to N (`--seeds`, default 200) for each golden case's
-config and duration (`--cases` picks some by name), and prints for each case:
+(`--against`, the reference), over seeds 1 to N (`--seeds`, default 200) for
+each parity case (`--cases` picks some by name), and prints for each case:
 
 - the mean and the sample standard deviation of DPS for each engine;
 - the per-ability mean damage and mean casts for each, and their difference
   (an ability one engine never used counts as 0 for it);
 - the difference A - B, paired by seed (both engines run the same seeds): its
   mean and the 95% Student t interval `mean ± t(0.975, N - 1) · sd / √N`, and
-  how many seeds gave a different DPS.
+  how many seeds differ: a seed differs when its DPS or any ability's cast
+  count does;
+- the same difference relative to B: `|mean A - mean B| / mean B` as a
+  percentage, and the interval as a percentage of `mean B`.
 
 `--json` prints the same report as JSON. For each seed, A runs before B, so a
-fight that leaves state behind for the next one shows as a difference.
+fight that leaves state behind for the next one shows as a difference. Each
+engine call gets its own `{ seed, duration, config }`, with a
+`structuredClone` of the case's config, and the cases (and `GOLDEN_CASES`) are
+frozen all the way down, so an engine that changes its input cannot change what
+the other engine runs.
+
+**The gate.** `--gate PCT` makes the run exit 2 if any case's
+`|mean A - mean B| / mean B` is over PCT percent; the report marks each case
+pass or FAIL and lists the failures. The gate is on the point estimate; the
+interval is reported, not gated. #199's gate is the new engine against legacy
+(`--engine core --against legacy --gate 2`, B = legacy) on seeds 1 to 200.
+
+An engine result must have a finite `dps` and `abilities` as an object of
+`{ damage, casts }` with finite numbers. Anything else (NaN, a missing field, a
+string) stops the run with an error naming the engine, case and seed, and the
+command exits 1.
 
 The engines are listed in `ENGINES`; the only one today is `legacy`
 (`runFight`). Legacy against legacy must give a difference of exactly 0 with a
 [0, 0] interval on every case, and `test/parity.test.js` checks it, which is
 what shows the harness works before a second engine exists.
 
-The default fight is `five-minute-seed-1-300s` (the default config at 300 s).
-The scripted case, `scripted-finishers-seed-68-50s`, runs its config (the
-default) for its 50 s without its script, and the report says "script left off"
-with the reason. The exclusion is the named list `SCRIPT_LEFT_OFF` in
-`scripts/parity.mjs`: the script replaces `Rogue.prototype.rotation`, which
-only the legacy engine has, and it was written for seed 68. On 79 of seeds 1 to
-200 it does not finish: the fight runs to its 50 s end with one or two casts
-still waiting, and `runScriptedFight` throws. It does not hang. The harness
-refuses to load if a scripted golden case is missing from the list or a listed
-case is not scripted, and `test/parity.test.js` pins the list. Before the
-legacy engine is deleted (#200), this case needs a new-engine equivalent of the
-hook that finishes on every seed from 1 to 200, or James agrees to retire it.
+**The cases** are the golden cases' configs and durations (not their seeds),
+then the parity-only cases. The default fight is `five-minute-seed-1-300s` (the
+default config at 300 s). The scripted golden case,
+`scripted-finishers-seed-68-50s`, runs as `finishers-50s-without-script`: its
+config (the default) for its 50 s without its script, and the report says
+"script left off" with the reason. The exclusion is the named list
+`SCRIPT_LEFT_OFF` in `scripts/parity.mjs`: the script replaces
+`Rogue.prototype.rotation`, which only the legacy engine has, and it was
+written for seed 68. On 79 of seeds 1 to 200 it does not finish: the fight runs
+to its 50 s end with one or two casts still waiting, and `runScriptedFight`
+throws. It does not hang. The harness refuses to load if a scripted golden case
+is missing from the list, a listed case is not scripted, or two cases share a
+name, and `test/parity.test.js` pins the list. Before the legacy engine is
+deleted (#200), this case needs a new-engine equivalent of the hook that
+finishes on every seed from 1 to 200, or James agrees to retire it.
 
-Running every case on 200 seeds with both engines took about 31 s on our box
-(Node v24.22.1, with other jobs running), about 15 s per engine.
-The harness reports and always exits 0 after a run; a bad flag, engine or case
-exits 1. The pass mark (within 2% of the legacy mean DPS) belongs to #199.
+`dot-hemorrhage-rupture-120s` is a parity-only case (`PARITY_ONLY_CASES`, no
+fixture): a 49-point build with Hemorrhage, and a rotation that keeps Rupture
+up, so DoT tick timing is under the gate. Legacy casts Rupture about five to
+seven times and Hemorrhage about 40 times in its 120 s.
+
+Running all eight cases on 200 seeds with both engines took about 36 s on our
+box (Node v24.22.1, load average about 3), about 18 s per engine.
+A bad flag, engine, case or engine result exits 1; a failed `--gate` exits 2;
+otherwise the run exits 0.
 
 ## Benchmark
 

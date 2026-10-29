@@ -230,7 +230,10 @@ self-comparison is exactly zero.
 Landed in #192: `npm run parity` (`scripts/parity.mjs`, tested in
 `test/parity.test.js`), and the time and ordering note in mechanics.md
 ("Planned: event-queue engine (Phase 3.5)"). The scripted golden case runs its
-config without its script (mechanics.md "Parity harness" says why).
+config without its script, as `finishers-50s-without-script`, and a
+parity-only DoT case (`dot-hemorrhage-rupture-120s`) covers Rupture ticks.
+`--gate 2` is #199's gate: `|mean A - mean B| / mean B` at most 2% on every
+case, on the point estimate, with B = legacy (mechanics.md "Parity harness").
 
 **2. Scheduler (E3).** The heap, `runUntil`, `runToEnd`, cancel tokens and the
 ordering rule. Done when: unit tests cover same-time ordering (including 1,000

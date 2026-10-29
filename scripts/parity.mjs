@@ -31,9 +31,20 @@ export const DEFAULT_SEEDS = 200;
 export const MAX_SEEDS = 10000;
 export const CONFIDENCE = 0.95;
 
-// Scripted golden cases whose script the harness leaves off, by case name,
-// with the reason the report prints. Such a case runs its config at its
-// duration, with the engine's own rotation.
+// Frozen all the way down: an engine gets its own copy of a case's config
+// (compareCase), and the cases themselves are never changed in place.
+export function deepFreeze(value) {
+  if (value !== null && typeof value === "object") {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+// Scripted golden cases whose script the harness leaves off, by golden case
+// name: the name the parity case runs under, which says it has no script, and
+// the reason the report prints. Such a case runs its config at its duration,
+// with the engine's own rotation.
 //
 // scripted-finishers-seed-68-50s: its script (scripts/scripted-fight.mjs)
 // replaces Rogue.prototype.rotation, which only the legacy engine has, so a
@@ -45,15 +56,83 @@ export const CONFIDENCE = 0.95;
 //
 // Every scripted golden case must be listed here and every listed case must be
 // scripted: parityCases throws otherwise, and test/parity.test.js pins this list.
-export const SCRIPT_LEFT_OFF = Object.freeze({
-  "scripted-finishers-seed-68-50s":
-    "its script replaces Rogue.prototype.rotation, a legacy-only hook, and does not finish on 79 of seeds 1 to 200",
+export const SCRIPT_LEFT_OFF = deepFreeze({
+  "scripted-finishers-seed-68-50s": {
+    as: "finishers-50s-without-script",
+    reason:
+      "its script replaces Rogue.prototype.rotation, a legacy-only hook, and does not finish on 79 of seeds 1 to 200",
+  },
 });
 
-// The parity cases for a list of golden cases (scripts/golden-update.mjs):
-// each case's name, config and duration, and for a scripted one the reason
-// its script is left off.
-export function parityCases(goldenCases, leftOff = SCRIPT_LEFT_OFF) {
+// Parity-only cases: not golden cases, so they have no fixture and nothing
+// else runs them. dot-hemorrhage-rupture-120s puts DoT tick timing under the
+// gate (#213): a 49-point Subtlety/Assassination/Combat build with Hemorrhage,
+// and a rotation that keeps Rupture up at five combo points, builds with
+// Hemorrhage, and spends any other five-point finisher on Eviscerate.
+// test/parity.test.js checks that legacy casts both and that Rupture deals
+// damage.
+export const PARITY_ONLY_CASES = deepFreeze([
+  {
+    name: "dot-hemorrhage-rupture-120s",
+    duration: 120,
+    config: {
+      talents: {
+        "assassination.malice": 5,
+        "assassination.ruthlessness": 3,
+        "assassination.improved-slice-and-dice": 3,
+        "assassination.relentless-strikes": 1,
+        "assassination.lethality": 5,
+        "combat.improved-eviscerate": 3,
+        "combat.improved-sinister-strike": 2,
+        "combat.puncturing-wounds": 3,
+        "combat.precision": 3,
+        "subtlety.opportunity": 2,
+        "subtlety.camouflage": 3,
+        "subtlety.dirty-tricks": 2,
+        "subtlety.improved-ambush": 3,
+        "subtlety.initiative": 3,
+        "subtlety.ghostly-strike": 1,
+        "subtlety.improved-distract": 1,
+        "subtlety.serrated-blades": 3,
+        "subtlety.heightened-senses": 2,
+        "subtlety.hemorrhage": 1,
+      },
+      rotation: {
+        schemaVersion: 1,
+        name: "Hemorrhage and Rupture",
+        rules: [
+          {
+            action: "rupture",
+            conditions: [
+              { type: "comboPoints", op: ">=", value: 5 },
+              { type: "debuffRemaining", debuff: "rupture", op: "<", value: 1 },
+            ],
+          },
+          {
+            action: "eviscerate",
+            conditions: [{ type: "comboPoints", op: ">=", value: 5 }],
+          },
+          {
+            action: "hemorrhage",
+            conditions: [
+              { type: "abilityUnlocked", ability: "hemorrhage" },
+              { type: "comboPoints", op: "<", value: 5 },
+            ],
+          },
+        ],
+      },
+    },
+  },
+]);
+
+// The parity cases: each golden case (scripts/golden-update.mjs) by name, with
+// its config and duration (a scripted one under its SCRIPT_LEFT_OFF name, with
+// the reason), then the parity-only cases.
+export function parityCases(
+  goldenCases,
+  leftOff = SCRIPT_LEFT_OFF,
+  parityOnly = PARITY_ONLY_CASES,
+) {
   for (const name of Object.keys(leftOff)) {
     const found = goldenCases.find((c) => c.name === name);
     if (found === undefined || found.script === undefined) {
@@ -62,21 +141,39 @@ export function parityCases(goldenCases, leftOff = SCRIPT_LEFT_OFF) {
       );
     }
   }
-  return Object.freeze(
-    goldenCases.map(({ name, duration, config, script }) => {
-      if (script !== undefined && !Object.hasOwn(leftOff, name)) {
+  const cases = [
+    ...goldenCases.map(({ name, duration, config, script }) => {
+      if (script === undefined) {
+        return { name, golden: name, duration, config, scriptLeftOff: null };
+      }
+      if (!Object.hasOwn(leftOff, name)) {
         throw new RangeError(
           `Golden case "${name}" is scripted, and the parity harness cannot run a script. Add it to SCRIPT_LEFT_OFF with the reason, or give the harness a way to run it.`,
         );
       }
-      return Object.freeze({
-        name,
+      const { as, reason } = leftOff[name];
+      return {
+        name: as,
+        golden: name,
         duration,
         config,
-        scriptLeftOff: script === undefined ? null : leftOff[name],
-      });
+        scriptLeftOff: reason,
+      };
     }),
-  );
+    ...parityOnly.map(({ name, duration, config }) => ({
+      name,
+      golden: null,
+      duration,
+      config,
+      scriptLeftOff: null,
+    })),
+  ];
+  const names = cases.map(({ name }) => name);
+  const repeated = names.find((name, index) => names.indexOf(name) !== index);
+  if (repeated !== undefined) {
+    throw new RangeError(`Two parity cases are named "${repeated}".`);
+  }
+  return deepFreeze(cases);
 }
 
 // The default fight is five-minute-seed-1-300s: the default config at 300 s.
@@ -266,24 +363,102 @@ function engineSummary(results) {
   };
 }
 
+// An engine result the harness can read: a finite dps, and abilities as an
+// object of { damage, casts } with finite numbers. Anything else would give a
+// NaN mean or a silent 0, so it stops the run.
+export class EngineResultError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "EngineResultError";
+  }
+}
+
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+export function checkResult(result, { engine, name, seed }) {
+  const where = `Engine "${engine}" on ${name}, seed ${seed}`;
+  if (result === null || typeof result !== "object") {
+    throw new EngineResultError(
+      `${where} returned ${String(result)}, not a result object.`,
+    );
+  }
+  if (!isFiniteNumber(result.dps)) {
+    throw new EngineResultError(
+      `${where} returned dps ${String(result.dps)}; it must be a finite number.`,
+    );
+  }
+  const { abilities } = result;
+  if (
+    abilities === null ||
+    typeof abilities !== "object" ||
+    Array.isArray(abilities)
+  ) {
+    throw new EngineResultError(
+      `${where} returned abilities ${String(abilities)}; it must be an object of { damage, casts }.`,
+    );
+  }
+  for (const [ability, entry] of Object.entries(abilities)) {
+    for (const field of ["damage", "casts"]) {
+      if (!isFiniteNumber(entry?.[field])) {
+        throw new EngineResultError(
+          `${where} returned abilities["${ability}"].${field} ${String(entry?.[field])}; it must be a finite number.`,
+        );
+      }
+    }
+  }
+  return result;
+}
+
+// Whether two results of one seed differ: the DPS, or any ability's casts (an
+// ability one result lacks counting as 0 casts).
+export function resultsDiffer(x, y) {
+  if (x.dps !== y.dps) {
+    return true;
+  }
+  const names = new Set([
+    ...Object.keys(x.abilities),
+    ...Object.keys(y.abilities),
+  ]);
+  for (const name of names) {
+    if ((x.abilities[name]?.casts ?? 0) !== (y.abilities[name]?.casts ?? 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// |A - B| / B as a percentage, B being the reference (--against, legacy by
+// default). A 0 reference mean gives 0 for a 0 difference, Infinity otherwise.
+function percentOf(value, reference) {
+  if (value === 0) {
+    return 0;
+  }
+  return reference === 0 ? Infinity : (100 * value) / reference;
+}
+
 // One case: run both engines on seeds 1..seeds, A then B for each seed, so that
-// state left behind by one fight shows up as a difference.
+// state left behind by one fight shows up as a difference. Each call gets its
+// own options and its own copy of the config, so an engine that changes its
+// input cannot change what the other one runs.
 export function compareCase(
   parityCase,
-  { engine, against, seeds, engines = ENGINES },
+  { engine, against, seeds, engines = ENGINES, gate = null },
 ) {
   const runA = engines[engine];
   const runB = engines[against];
   const a = [];
   const b = [];
+  const optionsFor = (seed) => ({
+    seed,
+    duration: parityCase.duration,
+    config: structuredClone(parityCase.config),
+  });
   for (let seed = 1; seed <= seeds; seed += 1) {
-    const options = {
-      seed,
-      duration: parityCase.duration,
-      config: parityCase.config,
-    };
-    a.push(runA(options));
-    b.push(runB(options));
+    const where = { name: parityCase.name, seed };
+    a.push(checkResult(runA(optionsFor(seed)), { ...where, engine }));
+    b.push(checkResult(runB(optionsFor(seed)), { ...where, engine: against }));
   }
   const summaryA = engineSummary(a);
   const summaryB = engineSummary(b);
@@ -294,6 +469,12 @@ export function compareCase(
     ]),
   ];
   const zero = { damage: 0, casts: 0 };
+  const difference = pairedDifference(
+    a.map(({ dps }) => dps),
+    b.map(({ dps }) => dps),
+  );
+  const reference = summaryB.dpsMean;
+  const relativePercent = percentOf(Math.abs(difference.mean), reference);
   return {
     name: parityCase.name,
     duration: parityCase.duration,
@@ -301,11 +482,18 @@ export function compareCase(
     seeds,
     engine: summaryA,
     against: summaryB,
-    difference: pairedDifference(
-      a.map(({ dps }) => dps),
-      b.map(({ dps }) => dps),
-    ),
-    seedsDiffering: a.filter(({ dps }, index) => dps !== b[index].dps).length,
+    difference,
+    // |mean A - mean B| / mean B, and the interval as a percentage of mean B.
+    relativeDifferencePercent: relativePercent,
+    differenceCiPercent:
+      difference.low === null
+        ? { low: null, high: null }
+        : {
+            low: percentOf(difference.low, reference),
+            high: percentOf(difference.high, reference),
+          },
+    gatePassed: gate === null ? null : relativePercent <= gate,
+    seedsDiffering: a.filter((x, index) => resultsDiffer(x, b[index])).length,
     abilityDifference: Object.fromEntries(
       names.map((name) => {
         const x = summaryA.abilities[name] ?? zero;
@@ -325,7 +513,13 @@ export function runParity({
   seeds = DEFAULT_SEEDS,
   cases = PARITY_CASES.map(({ name }) => name),
   engines = ENGINES,
+  gate = null,
 } = {}) {
+  if (gate !== null && !(isFiniteNumber(gate) && gate >= 0)) {
+    throw new RangeError(
+      `gate must be a percentage of at least 0, got ${gate}.`,
+    );
+  }
   for (const name of [engine, against]) {
     if (!Object.hasOwn(engines, name)) {
       throw new RangeError(
@@ -347,14 +541,22 @@ export function runParity({
     }
     return found;
   });
+  const results = chosen.map((parityCase) =>
+    compareCase(parityCase, { engine, against, seeds, engines, gate }),
+  );
   return {
     engine,
     against,
     seeds,
     confidence: CONFIDENCE,
-    cases: chosen.map((parityCase) =>
-      compareCase(parityCase, { engine, against, seeds, engines }),
-    ),
+    gate:
+      gate === null
+        ? null
+        : {
+            percent: gate,
+            failed: results.filter((c) => !c.gatePassed).map((c) => c.name),
+          },
+    cases: results,
   };
 }
 
@@ -378,6 +580,7 @@ export function formatReport(report) {
       `  DPS A (${engine}): mean ${fixed(c.engine.dpsMean)}, SD ${fixed(c.engine.dpsSd)}`,
       `  DPS B (${against}): mean ${fixed(c.against.dpsMean)}, SD ${fixed(c.against.dpsSd)}`,
       `  difference (A - B): mean ${fixed(c.difference.mean, 4)}, ${percent}% CI [${fixed(c.difference.low, 4)}, ${fixed(c.difference.high, 4)}], ${c.seedsDiffering} of ${c.seeds} seeds differ`,
+      `  relative to B: |A - B| / B ${fixed(c.relativeDifferencePercent, 4)}%, ${percent}% CI [${fixed(c.differenceCiPercent.low, 4)}%, ${fixed(c.differenceCiPercent.high, 4)}%]${c.gatePassed === null ? "" : `, gate ${report.gate.percent}%: ${c.gatePassed ? "pass" : "FAIL"}`}`,
       "  per ability (mean damage / mean casts, A | B | A - B):",
     );
     for (const [name, diff] of Object.entries(c.abilityDifference)) {
@@ -388,23 +591,35 @@ export function formatReport(report) {
       );
     }
   }
+  if (report.gate !== null) {
+    lines.push(
+      "",
+      report.gate.failed.length === 0
+        ? `Gate ${report.gate.percent}%: every case passes.`
+        : `Gate ${report.gate.percent}%: FAIL on ${report.gate.failed.join(", ")}.`,
+    );
+  }
   return lines.join("\n");
 }
 
 export const HELP_TEXT = `Compare two engines over seeds 1 to N on the golden configs.
 
 Usage: npm run parity [-- --engine NAME] [-- --against NAME] [-- --seeds N]
-                      [-- --cases A,B] [-- --json]
+                      [-- --cases A,B] [-- --gate PCT] [-- --json]
 
   --engine NAME   The engine to measure (default ${DEFAULT_ENGINE}). Engines: ${Object.keys(ENGINES).join(", ")}.
   --against NAME  The engine to compare it with (default ${DEFAULT_ENGINE}).
   --seeds N       Seeds 1 to N (a positive integer, at most ${MAX_SEEDS}, default ${DEFAULT_SEEDS}).
-  --cases A,B     Only these cases, by golden case name (default: all ${PARITY_CASES.length}).
+  --cases A,B     Only these cases, by name (default: all ${PARITY_CASES.length}).
+  --gate PCT      Fail (exit 2) if any case's |mean A - mean B| / mean B is over
+                  PCT percent. B is the reference (#199: --against legacy, 2).
   --json          Print the report as JSON instead of text.
   --help          Show this text.
 
-The difference is paired by seed, with a ${Math.round(CONFIDENCE * 100)}% Student t interval. The same
-engine on both sides gives exactly 0.`;
+The difference is paired by seed, with a ${Math.round(CONFIDENCE * 100)}% Student t interval, also given as
+a percentage of mean B. The gate is on the point estimate. The same engine on
+both sides gives exactly 0. A result without a finite dps, or with abilities
+that are not { damage, casts } numbers, stops the run (exit 1).`;
 
 function needValue(argv, index, flag, what) {
   const text = argv[index];
@@ -442,6 +657,15 @@ export function parseArgs(argv) {
     } else if (arg === "--cases") {
       index += 1;
       options.cases = needValue(argv, index, arg, "case names").split(",");
+    } else if (arg === "--gate") {
+      index += 1;
+      const text = needValue(argv, index, arg, "a percentage");
+      if (!/^[0-9]+(\.[0-9]+)?$/.test(text)) {
+        throw new Error(
+          `--gate needs a percentage such as 2 or 0.5, got "${text}".\n\n${HELP_TEXT}`,
+        );
+      }
+      options.gate = Number(text);
     } else {
       throw new Error(`Unknown argument: ${arg}\n\n${HELP_TEXT}`);
     }
@@ -458,8 +682,8 @@ function isDirectRun() {
 }
 
 // The whole command, with its output passed in so a test can read it. Returns
-// the exit status: 1 for a bad argument, engine or case, otherwise 0. The
-// harness reports; the pass mark is #199's.
+// the exit status: 1 for a bad argument, engine, case or engine result, 2 when
+// --gate is given and a case fails it, otherwise 0.
 export function cli(
   argv,
   {
@@ -477,21 +701,25 @@ export function cli(
       return 0;
     }
     const runOptions = {};
-    for (const key of ["engine", "against", "seeds", "cases"]) {
+    for (const key of ["engine", "against", "seeds", "cases", "gate"]) {
       if (options[key] !== undefined) {
         runOptions[key] = options[key];
       }
     }
     report = run(runOptions);
   } catch (error) {
-    if (!(error instanceof RangeError) && !error.message.includes(HELP_TEXT)) {
+    if (
+      !(error instanceof RangeError) &&
+      !(error instanceof EngineResultError) &&
+      !error.message.includes(HELP_TEXT)
+    ) {
       throw error;
     }
     logError(error.message);
     return 1;
   }
   log(options.json ? JSON.stringify(report, null, 2) : formatReport(report));
-  return 0;
+  return report.gate !== null && report.gate.failed.length > 0 ? 2 : 0;
 }
 
 if (isDirectRun()) {

@@ -59,7 +59,18 @@ export const FINISHER_SCRIPT = [
 // Keep this list short: every case is a file to review whenever results move
 // on purpose. A case with a script runs it (scripts/scripted-fight.mjs) instead
 // of the placeholder rotation; any other case is plain runFight.
-export const GOLDEN_CASES = [
+// Frozen all the way down (#213): a caller, such as the parity harness, reads
+// the cases and copies a config before it runs one, and never changes one in
+// place.
+function deepFreeze(value) {
+  if (value !== null && typeof value === "object") {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+export const GOLDEN_CASES = deepFreeze([
   { name: "short-seed-1-10s", seed: 1, duration: 10 },
   { name: "five-minute-seed-1-300s", seed: 1, duration: 300 },
   { name: "other-seed-12345-90s", seed: 12345, duration: 90 },
@@ -103,7 +114,7 @@ export const GOLDEN_CASES = [
     duration: 120,
     config: loadPreset("combat-swords", { talents: referenceBuild() }),
   },
-];
+]);
 
 // Files that can turn up in test/golden/ without being a stray case: macOS
 // writes .DS_Store into any folder Finder opens. They are not fixtures.

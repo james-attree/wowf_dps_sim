@@ -12,9 +12,14 @@ import {
   ENGINES,
   HELP_TEXT,
   MAX_SEEDS,
+  EngineResultError,
+  PARITY_ONLY_CASES,
   SCRIPT_LEFT_OFF,
+  checkResult,
+  compareCase,
   parityCases,
   PARITY_CASES,
+  resultsDiffer,
   abilityMeans,
   cli,
   formatReport,
@@ -45,10 +50,17 @@ function close(actual, expected, tolerance = 1e-9) {
 describe("parity: legacy against legacy is exactly 0 (#192)", () => {
   const report = runParity({ seeds: 3 });
 
-  it("covers every golden case, in order", () => {
+  it("covers every golden case, in order, then the parity-only cases", () => {
     assert.deepEqual(
       report.cases.map(({ name }) => name),
-      GOLDEN_CASES.map(({ name }) => name),
+      [
+        ...GOLDEN_CASES.map(({ name }) =>
+          Object.hasOwn(SCRIPT_LEFT_OFF, name)
+            ? SCRIPT_LEFT_OFF[name].as
+            : name,
+        ),
+        "dot-hemorrhage-rupture-120s",
+      ],
     );
   });
 
@@ -176,22 +188,29 @@ describe("parity: a different engine is caught", () => {
 });
 
 describe("parity: the cases", () => {
-  it("are the golden cases' names, durations and configs", () => {
+  it("are the golden cases' durations and configs, then the parity-only cases", () => {
     assert.deepEqual(
-      PARITY_CASES.map(({ name, duration, config }) => ({
-        name,
+      PARITY_CASES.map(({ golden, duration, config }) => ({
+        golden,
         duration,
         config,
       })),
-      GOLDEN_CASES.map(({ name, duration, config }) => ({
-        name,
-        duration,
-        config,
-      })),
+      [
+        ...GOLDEN_CASES.map(({ name, duration, config }) => ({
+          golden: name,
+          duration,
+          config,
+        })),
+        ...PARITY_ONLY_CASES.map(({ duration, config }) => ({
+          golden: null,
+          duration,
+          config,
+        })),
+      ],
     );
   });
 
-  it("leave off only the scripts SCRIPT_LEFT_OFF names, with its reason", () => {
+  it("leave off only the scripts SCRIPT_LEFT_OFF names, under a name that says so", () => {
     // Pinned: a change to the list, or to which golden cases are scripted,
     // must come with a change here.
     assert.deepEqual(Object.keys(SCRIPT_LEFT_OFF), [
@@ -203,56 +222,113 @@ describe("parity: the cases", () => {
       ),
       ["scripted-finishers-seed-68-50s"],
     );
+    const entry = SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"];
+    assert.equal(entry.as, "finishers-50s-without-script");
+    assert.match(entry.reason, /Rogue\.prototype\.rotation/);
     assert.deepEqual(
       PARITY_CASES.filter(({ scriptLeftOff }) => scriptLeftOff !== null).map(
-        ({ name, scriptLeftOff }) => [name, scriptLeftOff],
+        ({ name, golden, scriptLeftOff }) => [name, golden, scriptLeftOff],
       ),
       [
         [
+          "finishers-50s-without-script",
           "scripted-finishers-seed-68-50s",
-          SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"],
+          entry.reason,
         ],
       ],
     );
-    assert.match(
-      SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"],
-      /Rogue\.prototype\.rotation/,
+    // The golden name is not a parity case name: --cases takes the new one.
+    assert.equal(
+      PARITY_CASES.some(
+        ({ name }) => name === "scripted-finishers-seed-68-50s",
+      ),
+      false,
     );
     assert.equal(
       PARITY_CASES.some((c) => "script" in c),
       false,
     );
-    assert.ok(Object.isFrozen(SCRIPT_LEFT_OFF));
-    assert.ok(Object.isFrozen(PARITY_CASES));
   });
 
-  it("refuses a scripted case not on the list, and a listed case with no script", () => {
+  it("refuses a scripted case not on the list, a listed case with no script, and a repeated name", () => {
     const plain = { name: "plain", duration: 10, config: {} };
     const scripted = { ...plain, name: "scripted", script: ["eviscerate"] };
+    const why = { scripted: { as: "plain-without-script", reason: "why" } };
     assert.deepEqual(
-      parityCases([plain, scripted], { scripted: "why" }).map(
-        (c) => c.scriptLeftOff,
-      ),
-      [null, "why"],
+      parityCases([plain, scripted], why, []).map((c) => [
+        c.name,
+        c.scriptLeftOff,
+      ]),
+      [
+        ["plain", null],
+        ["plain-without-script", "why"],
+      ],
     );
     // A case that quietly becomes scripted.
-    assert.throws(() => parityCases([plain, scripted], {}), {
+    assert.throws(() => parityCases([plain, scripted], {}, []), {
       name: "RangeError",
       message: /^Golden case "scripted" is scripted, .*SCRIPT_LEFT_OFF/,
     });
     // A case that quietly stops being scripted, or is renamed or removed.
     assert.throws(
-      () =>
-        parityCases([plain, { ...scripted, script: undefined }], {
-          scripted: "why",
-        }),
+      () => parityCases([plain, { ...scripted, script: undefined }], why, []),
       {
         name: "RangeError",
         message:
           /^SCRIPT_LEFT_OFF lists "scripted", which is not a scripted golden case/,
       },
     );
-    assert.throws(() => parityCases([plain], { scripted: "why" }), RangeError);
+    assert.throws(() => parityCases([plain], why, []), RangeError);
+    assert.throws(
+      () =>
+        parityCases(
+          [plain, scripted],
+          {
+            scripted: { as: "plain", reason: "why" },
+          },
+          [],
+        ),
+      { name: "RangeError", message: 'Two parity cases are named "plain".' },
+    );
+    assert.throws(() => parityCases([plain], {}, [plain]), {
+      message: 'Two parity cases are named "plain".',
+    });
+  });
+
+  it("are frozen all the way down, and so are the golden cases", () => {
+    const frozenDeep = (value, path) => {
+      if (value !== null && typeof value === "object") {
+        assert.ok(Object.isFrozen(value), `${path} is not frozen`);
+        for (const [key, child] of Object.entries(value)) {
+          frozenDeep(child, `${path}.${key}`);
+        }
+      }
+    };
+    frozenDeep(GOLDEN_CASES, "GOLDEN_CASES");
+    frozenDeep(PARITY_CASES, "PARITY_CASES");
+    frozenDeep(SCRIPT_LEFT_OFF, "SCRIPT_LEFT_OFF");
+    frozenDeep(PARITY_ONLY_CASES, "PARITY_ONLY_CASES");
+    const talented = GOLDEN_CASES.find(({ config }) => config?.talents);
+    assert.throws(() => {
+      delete talented.config.talents;
+    }, TypeError);
+  });
+
+  it("include a DoT case: legacy casts Hemorrhage and Rupture, and Rupture deals damage", () => {
+    const dot = PARITY_CASES.find(
+      ({ name }) => name === "dot-hemorrhage-rupture-120s",
+    );
+    assert.equal(dot.golden, null);
+    for (const seed of [1, 2]) {
+      const { abilities } = runFight({
+        seed,
+        duration: dot.duration,
+        config: structuredClone(dot.config),
+      });
+      assert.ok(abilities.Hemorrhage.casts > 10, `seed ${seed} Hemorrhage`);
+      assert.ok(abilities.Rupture.casts >= 3, `seed ${seed} Rupture casts`);
+      assert.ok(abilities.Rupture.damage > 0, `seed ${seed} Rupture damage`);
+    }
   });
 
   it("include the default fight at 300 s", () => {
@@ -438,7 +514,7 @@ describe("parity: arguments and the command", () => {
     assert.equal(out[0], formatReport(fake({ seeds: 2 })));
     assert.ok(
       out[0].includes(
-        `scripted-finishers-seed-68-50s (50 s, config only)\n  script left off: ${SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"]}\n`,
+        `finishers-50s-without-script (50 s, config only)\n  script left off: ${SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"].reason}\n`,
       ),
     );
   });
@@ -456,5 +532,297 @@ describe("parity: arguments and the command", () => {
       stdout,
       /difference \(A - B\): mean 0\.0000, 95% CI \[0\.0000, 0\.0000\], 0 of 2 seeds differ/,
     );
+  });
+});
+
+// A fake engine: dps and casts from a function of the seed.
+function fakeEngine(dps, casts = () => 1) {
+  return ({ seed }) => ({
+    dps: dps(seed),
+    abilities: { Jab: { damage: dps(seed), casts: casts(seed) } },
+  });
+}
+
+describe("parity: an engine cannot change what the other one runs (#213)", () => {
+  const talented = "talented-build-seed-107-60s";
+
+  it("each call gets its own options and config copy", () => {
+    const seen = [];
+    const record = (options) => {
+      seen.push(options);
+      return { dps: 1, abilities: {} };
+    };
+    const vandal = (options) => {
+      seen.push(options);
+      delete options.config.talents;
+      options.seed = -1;
+      return { dps: 1, abilities: {} };
+    };
+    runParity({
+      engine: "vandal",
+      against: "record",
+      seeds: 2,
+      cases: [talented],
+      engines: { vandal, record },
+    });
+    assert.equal(seen.length, 4);
+    assert.equal(new Set(seen).size, 4);
+    assert.equal(new Set(seen.map(({ config }) => config)).size, 4);
+    // B's copies still have their talents and their seed.
+    assert.deepEqual(
+      [seen[1], seen[3]].map(({ seed, config }) => [seed, "talents" in config]),
+      [
+        [1, true],
+        [2, true],
+      ],
+    );
+    const golden = GOLDEN_CASES.find(({ name }) => name === talented);
+    assert.ok(seen.every(({ config }) => config !== golden.config));
+    assert.ok("talents" in golden.config);
+  });
+
+  it("Kira's false pass: an engine that ignores talents and deletes them is about -36%, not 0", () => {
+    const ignoresAndMutates = (options) => {
+      const result = runFight({
+        ...options,
+        config: { ...options.config, talents: undefined },
+      });
+      delete options.config.talents;
+      return result;
+    };
+    const [c] = runParity({
+      engine: "ignoresAndMutates",
+      against: "legacy",
+      seeds: 10,
+      cases: [talented],
+      engines: { ...ENGINES, ignoresAndMutates },
+    }).cases;
+    const relative = (100 * c.difference.mean) / c.against.dpsMean;
+    assert.ok(relative < -30 && relative > -45, `got ${relative}%`);
+    assert.equal(c.seedsDiffering, 10);
+    assert.ok(c.difference.high < 0);
+  });
+});
+
+describe("parity: the gate (#213, for #199)", () => {
+  const base = fakeEngine(() => 100);
+  const run = (dps, gate) =>
+    runParity({
+      engine: "b",
+      against: "a",
+      seeds: 3,
+      cases: [SHORT],
+      engines: { a: base, b: fakeEngine(dps) },
+      gate,
+    });
+
+  it("passes within the limit and at it, and fails over it, either way", () => {
+    for (const [dps, passed] of [
+      [() => 101, true],
+      [() => 102, true],
+      [() => 98, true],
+      [() => 102.001, false],
+      [() => 97.999, false],
+    ]) {
+      const report = run(dps, 2);
+      assert.equal(report.cases[0].gatePassed, passed, String(dps));
+      assert.deepEqual(report.gate, {
+        percent: 2,
+        failed: passed ? [] : [SHORT],
+      });
+    }
+  });
+
+  it("gates on the point estimate, not the interval", () => {
+    // Mean 102 (2%), with seeds spread so the interval reaches past 2%.
+    const report = run((seed) => [99, 102, 105][seed - 1], 2);
+    const [c] = report.cases;
+    close(c.relativeDifferencePercent, 2);
+    assert.ok(c.differenceCiPercent.high > 2);
+    assert.equal(c.gatePassed, true);
+  });
+
+  it("reports the difference and its interval as a percentage of B's mean", () => {
+    const [c] = run((seed) => [99, 102, 105][seed - 1], null).cases;
+    assert.equal(c.gatePassed, null);
+    close(c.differenceCiPercent.low, c.difference.low);
+    close(c.differenceCiPercent.high, c.difference.high);
+    const [d] = runParity({
+      engine: "b",
+      against: "a",
+      seeds: 2,
+      cases: [SHORT],
+      engines: { a: fakeEngine(() => 200), b: fakeEngine(() => 190) },
+    }).cases;
+    assert.equal(d.relativeDifferencePercent, 5);
+    assert.deepEqual(d.differenceCiPercent, { low: -5, high: -5 });
+  });
+
+  it("legacy against legacy passes a 0% gate", () => {
+    const report = runParity({ seeds: 2, cases: [SHORT], gate: 0 });
+    assert.deepEqual(report.gate, { percent: 0, failed: [] });
+  });
+
+  it("refuses a bad gate", () => {
+    for (const gate of [-1, Number.NaN, Infinity, "2"]) {
+      assert.throws(() => runParity({ seeds: 1, cases: [SHORT], gate }), {
+        name: "RangeError",
+        message: /^gate must be a percentage of at least 0/,
+      });
+    }
+    assert.equal(parseArgs(["--gate", "2"]).gate, 2);
+    assert.equal(parseArgs(["--gate", "0.5"]).gate, 0.5);
+    for (const text of ["-1", "2%", "", "1e1", "abc"]) {
+      assert.throws(() => parseArgs(["--gate", text]), /--gate needs/);
+    }
+  });
+
+  it("--gate exits 2 on a fail, 0 on a pass, and says which case failed", () => {
+    const out = [];
+    const io = { log: (t) => out.push(t), logError: (t) => out.push(t) };
+    const fake = (options) =>
+      runParity({
+        ...options,
+        engine: "b",
+        against: "a",
+        engines: { a: base, b: fakeEngine(() => 103) },
+      });
+    assert.equal(
+      cli(["--seeds", "2", "--cases", SHORT, "--gate", "2"], {
+        ...io,
+        run: fake,
+      }),
+      2,
+    );
+    assert.match(out[0], /gate 2%: FAIL/);
+    assert.match(out[0], /Gate 2%: FAIL on short-seed-1-10s\.$/);
+    out.length = 0;
+    assert.equal(
+      cli(["--seeds", "2", "--cases", SHORT, "--gate", "3"], {
+        ...io,
+        run: fake,
+      }),
+      0,
+    );
+    assert.match(out[0], /Gate 3%: every case passes\.$/);
+    out.length = 0;
+    assert.equal(
+      cli(["--seeds", "2", "--cases", SHORT], { ...io, run: fake }),
+      0,
+    );
+    assert.doesNotMatch(out[0], /Gate/);
+    assert.match(out[0], /relative to B: \|A - B\| \/ B 3\.0000%/);
+  });
+});
+
+describe("parity: engine results are checked (#213)", () => {
+  const where = { engine: "x", name: "c", seed: 4 };
+  const good = { dps: 1, abilities: { Jab: { damage: 1, casts: 1 } } };
+
+  it("accepts a runFight-shaped result", () => {
+    assert.equal(checkResult(good, where), good);
+    checkResult({ dps: 0, abilities: {} }, where);
+  });
+
+  it("refuses NaN, a missing or non-numeric dps, and bad abilities", () => {
+    for (const [result, pattern] of [
+      [undefined, /returned undefined, not a result object/],
+      [null, /returned null, not a result object/],
+      [{ abilities: {} }, /dps undefined; it must be a finite number/],
+      [{ dps: Number.NaN, abilities: {} }, /dps NaN/],
+      [{ dps: Infinity, abilities: {} }, /dps Infinity/],
+      [{ dps: "1", abilities: {} }, /dps 1; it must/],
+      [{ dps: 1 }, /abilities undefined; it must be an object/],
+      [{ dps: 1, abilities: [] }, /abilities ; it must be an object/],
+      [
+        { dps: 1, abilities: { Jab: null } },
+        /abilities\["Jab"\]\.damage undefined/,
+      ],
+      [
+        { dps: 1, abilities: { Jab: { damage: 1 } } },
+        /abilities\["Jab"\]\.casts undefined/,
+      ],
+      [
+        { dps: 1, abilities: { Jab: { damage: Number.NaN, casts: 1 } } },
+        /\.damage NaN/,
+      ],
+    ]) {
+      assert.throws(
+        () => checkResult(result, where),
+        (error) => {
+          assert.ok(error instanceof EngineResultError);
+          assert.match(error.message, /^Engine "x" on c, seed 4 /);
+          assert.match(error.message, pattern);
+          return true;
+        },
+      );
+    }
+  });
+
+  it("stops the run, and the command exits 1 with the message", () => {
+    const broken = () => ({ dps: Number.NaN, abilities: {} });
+    const engines = { ...ENGINES, broken };
+    assert.throws(
+      () => runParity({ engine: "broken", seeds: 1, cases: [SHORT], engines }),
+      /^EngineResultError: Engine "broken" on short-seed-1-10s, seed 1 returned dps NaN/,
+    );
+    // B is checked too.
+    assert.throws(
+      () => runParity({ against: "broken", seeds: 1, cases: [SHORT], engines }),
+      /Engine "broken"/,
+    );
+    const errors = [];
+    const status = cli(["--seeds", "1"], {
+      run: (options) => runParity({ ...options, engine: "broken", engines }),
+      log: () => assert.fail("no report"),
+      logError: (t) => errors.push(t),
+    });
+    assert.equal(status, 1);
+    assert.match(errors[0], /returned dps NaN; it must be a finite number\.$/);
+  });
+});
+
+describe("parity: a seed differs when its DPS or any cast count does (#213)", () => {
+  const result = (dps, abilities) => ({ dps, abilities });
+  const jab = (casts) => ({ Jab: { damage: 5, casts } });
+
+  it("resultsDiffer", () => {
+    assert.equal(resultsDiffer(result(1, jab(2)), result(1, jab(2))), false);
+    assert.equal(resultsDiffer(result(1, jab(2)), result(2, jab(2))), true);
+    assert.equal(resultsDiffer(result(2, jab(2)), result(1, jab(2))), true);
+    assert.equal(resultsDiffer(result(1, jab(2)), result(1, jab(3))), true);
+    assert.equal(resultsDiffer(result(1, jab(3)), result(1, jab(2))), true);
+    // Missing counts as 0 casts, either side.
+    assert.equal(resultsDiffer(result(1, jab(1)), result(1, {})), true);
+    assert.equal(resultsDiffer(result(1, {}), result(1, jab(1))), true);
+    assert.equal(resultsDiffer(result(1, jab(0)), result(1, {})), false);
+    // Damage alone is not counted (the DPS carries it).
+    assert.equal(
+      resultsDiffer(
+        result(1, { Jab: { damage: 5, casts: 1 } }),
+        result(1, { Jab: { damage: 6, casts: 1 } }),
+      ),
+      false,
+    );
+  });
+
+  it("compareCase counts a seed whose casts differ at the same DPS", () => {
+    const c = compareCase(PARITY_CASES[0], {
+      engine: "a",
+      against: "b",
+      seeds: 4,
+      engines: {
+        a: fakeEngine(
+          () => 100,
+          () => 1,
+        ),
+        b: fakeEngine(
+          () => 100,
+          (seed) => (seed === 3 ? 2 : 1),
+        ),
+      },
+    });
+    assert.equal(c.difference.mean, 0);
+    assert.equal(c.seedsDiffering, 1);
   });
 });

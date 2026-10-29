@@ -716,9 +716,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   target it compares with. The only place besides `test/bench.test.js` that
   reads a timer.
 - `scripts/parity.mjs` — `npm run parity`: runs two engines over seeds 1 to N
-  on the golden configs and prints mean DPS, per-ability means and the paired
-  95% interval of the difference. Only the legacy engine exists until Phase
-  3.5, so it compares legacy with itself. See
+  on the golden configs and a DoT case, and prints mean DPS, per-ability means
+  and the paired 95% interval of the difference, also as a percentage of B's
+  mean. `--gate PCT` exits 2 if a case is more than PCT percent off. Only the
+  legacy engine exists until Phase 3.5, so it compares legacy with itself. See
   [Parity harness](docs/mechanics.md#parity-harness).
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a
