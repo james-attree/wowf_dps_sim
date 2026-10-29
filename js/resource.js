@@ -79,6 +79,18 @@ export class Resource {
     // not reported: they are continuous, and a stream of them would be the
     // engine's step in disguise. The host reads the value when it wants it.
     this.onChange = null;
+    // What the fight lost to the cap (#146), exact, for the end event:
+    //   cappedTime  seconds the pool sat at its cap while regenerating, so
+    //               regeneration had nowhere to go. A pool with no regen rule
+    //               (combo points) is never regenerated and keeps 0.
+    //   overflow    what a gain or regeneration would have added past the cap
+    //               and did not: gain(amount) - added, plus regeneration past
+    //               the cap. A loss (spend, expire, clear, clamp) is not
+    //               overflow.
+    // Counting draws nothing and reports nothing: the value, its events and the
+    // fight are the same as without them.
+    this.cappedTime = 0;
+    this.overflow = 0;
   }
 
   report(change, before, source) {
@@ -106,7 +118,9 @@ export class Resource {
     const before = this.value;
     this.value = Math.min(before + amount, this.max);
     this.report("gain", before, source);
-    return Math.max(0, this.value - before);
+    const added = Math.max(0, this.value - before);
+    this.overflow += amount - added;
+    return added;
   }
 
   // Take `amount` away. The caller has checked has(amount).
@@ -128,9 +142,31 @@ export class Resource {
     return spent;
   }
 
-  // Refill over dt seconds at `rate` per second, up to the cap.
+  // Refill over dt seconds at `rate` per second, up to the cap, and count the
+  // time spent at the cap and what the cap turned away. A pool already at (or
+  // above) its cap is capped for all of dt; one that reaches it during dt is
+  // capped from the moment it does, (max - before) / rate seconds in. The
+  // overflow is the regeneration past the cap; the excess of a pool already
+  // above a cap that fell is not regeneration, and clamp() takes it away
+  // uncounted.
   regenerate(dt, rate) {
-    this.value = Math.min(this.value + rate * dt, this.max);
+    const before = this.value;
+    const max = this.max;
+    const regenerated = rate * dt;
+    this.value = Math.min(before + regenerated, max);
+    if (before >= max) {
+      this.cappedTime += dt;
+      this.overflow += regenerated;
+    } else if (before + regenerated > max) {
+      // Never below 0 should rounding put the moment past dt.
+      this.cappedTime += Math.max(0, dt - (max - before) / rate);
+      this.overflow += before + regenerated - max;
+    }
+  }
+
+  // The counters as plain data: { cappedTime, overflow }.
+  waste() {
+    return { cappedTime: this.cappedTime, overflow: this.overflow };
   }
 
   // A gift that expires: `amount` points are removed `seconds` from now unless

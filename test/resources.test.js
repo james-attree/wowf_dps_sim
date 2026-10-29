@@ -614,3 +614,145 @@ describe("Premeditation on the resource", () => {
     assert.equal(rogue.comboPoints, k("premeditation").comboPoints + 1);
   });
 });
+
+// #146: what each pool lost to its cap, counted exactly by the pool. The
+// counters draw nothing and report nothing, so the fight is the same.
+describe("Resource cap counters (cappedTime, overflow)", () => {
+  const pipeline = () => new ModifierPipeline();
+  const energy = () => new Resource(RESOURCE_DEFINITIONS[0], pipeline());
+  const combo = () => new Resource(RESOURCE_DEFINITIONS[1], pipeline());
+
+  it("start at 0 and are given as plain data", () => {
+    const pool = energy();
+    assert.deepEqual(pool.waste(), { cappedTime: 0, overflow: 0 });
+    pool.waste().overflow = 9;
+    assert.equal(pool.overflow, 0);
+  });
+
+  it("count what a gain could not add", () => {
+    const pool = energy();
+    pool.value = 90;
+    pool.gain(25);
+    assert.equal(pool.overflow, 15);
+    pool.gain(25);
+    assert.equal(pool.overflow, 40);
+    pool.value = 10;
+    pool.gain(25);
+    assert.equal(pool.overflow, 40);
+    assert.equal(pool.cappedTime, 0);
+    const points = combo();
+    points.value = k("combo.max");
+    points.gain(1);
+    assert.equal(points.overflow, 1);
+  });
+
+  it("count all of dt at the cap, and regeneration past it", () => {
+    const pool = energy();
+    pool.regenerate(0.5, 10);
+    assert.deepEqual(pool.waste(), { cappedTime: 0.5, overflow: 5 });
+  });
+
+  it("count from the moment the cap is reached during dt", () => {
+    const pool = energy();
+    pool.value = 95;
+    pool.regenerate(1, 10);
+    assert.equal(pool.value, 100);
+    assert.deepEqual(pool.waste(), { cappedTime: 0.5, overflow: 5 });
+    const later = energy();
+    later.value = 97.5;
+    later.regenerate(1, 10);
+    assert.deepEqual(later.waste(), { cappedTime: 0.75, overflow: 7.5 });
+    // Landing exactly on the cap wastes nothing.
+    const exact = energy();
+    exact.value = 90;
+    exact.regenerate(1, 10);
+    assert.equal(exact.value, 100);
+    assert.deepEqual(exact.waste(), { cappedTime: 0, overflow: 0 });
+  });
+
+  it("count nothing below the cap, for no time or with no rate", () => {
+    const pool = energy();
+    pool.value = 50;
+    pool.regenerate(1, 10);
+    pool.regenerate(1, 0);
+    pool.value = 100;
+    pool.regenerate(0, 10);
+    assert.deepEqual(pool.waste(), { cappedTime: 0, overflow: 0 });
+    // At the cap with no rate it is still capped, and wastes nothing.
+    pool.regenerate(2, 0);
+    assert.deepEqual(pool.waste(), { cappedTime: 2, overflow: 0 });
+  });
+
+  it("count a pool above a lowered cap as capped, but not its excess", () => {
+    const pool = energy();
+    pool.value = 120;
+    pool.regenerate(1, 10);
+    assert.equal(pool.value, 100);
+    assert.deepEqual(pool.waste(), { cappedTime: 1, overflow: 10 });
+    pool.value = 120;
+    pool.gain(5);
+    assert.equal(pool.overflow, 15);
+  });
+
+  it("do not count a spend, an expiry, a target change or a clamp", () => {
+    const points = combo();
+    points.value = 3;
+    points.spend(1);
+    points.spendAll();
+    points.value = 2;
+    points.armExpiry(2, 1);
+    points.tick(1);
+    points.value = 4;
+    points.targetChanged();
+    const pool = energy();
+    pool.value = 120;
+    pool.clamp();
+    assert.deepEqual(points.waste(), { cappedTime: 0, overflow: 0 });
+    assert.deepEqual(pool.waste(), { cappedTime: 0, overflow: 0 });
+  });
+
+  it("leave the reports alone: only a gain that moved the value is reported", () => {
+    const pool = energy();
+    const reports = [];
+    pool.onChange = (change, before) => reports.push([change, before]);
+    pool.gain(5);
+    pool.regenerate(1, 10);
+    pool.value = 90;
+    pool.gain(5);
+    assert.deepEqual(reports, [["gain", 90]]);
+    assert.equal(pool.overflow, 15);
+  });
+
+  it("put them on the end event: a fight that never casts is capped throughout", () => {
+    const { sim } = harness();
+    let end = null;
+    sim.on("end", (event) => {
+      end = event;
+    });
+    const seconds = 10;
+    sim.run(seconds);
+    assert.equal(sim.rogue.energy, sim.rogue.maxEnergy);
+    assert.deepEqual(end.resources, {
+      energy: {
+        cappedTime: seconds,
+        overflow: seconds * k("energy.regenPerSecond"),
+      },
+      comboPoints: { cappedTime: 0, overflow: 0 },
+    });
+    assert.ok(Object.isFrozen(end.resources.energy));
+  });
+
+  it("give a host without resources an empty object", () => {
+    for (const resources of [{}, undefined]) {
+      const { sim } = harness();
+      sim.step(k("sim.fixedStep"));
+      sim.rogue.resources = resources;
+      let end = null;
+      sim.on("end", (event) => {
+        end = event;
+      });
+      sim.end();
+      assert.deepEqual(end.resources, {});
+    }
+  });
+});

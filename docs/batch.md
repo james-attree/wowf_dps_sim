@@ -168,19 +168,20 @@ above that.
 
 `BatchRunner#result` and `runBatch(...)` give plain data:
 
-| Field         | Meaning                                                                                                  |
-| ------------- | -------------------------------------------------------------------------------------------------------- |
-| `seed`        | The base seed, as an unsigned 32-bit integer.                                                            |
-| `iterations`  | The iterations asked for.                                                                                |
-| `completed`   | The iterations that finished (equal to `iterations` unless cancelled).                                   |
-| `cancelled`   | `true` if the batch was cancelled before the last iteration.                                             |
-| `duration`    | Seconds per fight.                                                                                       |
-| `dataVersion` | The data snapshot the fights ran on.                                                                     |
-| `config`      | The SimConfig used, normalised (a copy).                                                                 |
-| `summary`     | The statistics above.                                                                                    |
-| `breakdown`   | The per-ability breakdown of the completed iterations: see [breakdown.md](breakdown.md).                 |
-| `auras`       | The aura uptimes of the completed iterations: see [mechanics.md](mechanics.md#aura-uptime-s3-issue-146). |
-| `dps`         | A `Float64Array` of length `completed`: the DPS of each iteration.                                       |
+| Field         | Meaning                                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seed`        | The base seed, as an unsigned 32-bit integer.                                                                                                     |
+| `iterations`  | The iterations asked for.                                                                                                                         |
+| `completed`   | The iterations that finished (equal to `iterations` unless cancelled).                                                                            |
+| `cancelled`   | `true` if the batch was cancelled before the last iteration.                                                                                      |
+| `duration`    | Seconds per fight.                                                                                                                                |
+| `dataVersion` | The data snapshot the fights ran on.                                                                                                              |
+| `config`      | The SimConfig used, normalised (a copy).                                                                                                          |
+| `summary`     | The statistics above.                                                                                                                             |
+| `breakdown`   | The per-ability breakdown of the completed iterations: see [breakdown.md](breakdown.md).                                                          |
+| `auras`       | The aura uptimes of the completed iterations: see [mechanics.md](mechanics.md#aura-uptime-s3-issue-146).                                          |
+| `resources`   | Energy capped time, energy overflow and combo point waste of the completed iterations: see [mechanics.md](mechanics.md#resource-waste-issue-146). |
+| `dps`         | A `Float64Array` of length `completed`: the DPS of each iteration.                                                                                |
 
 Only `dps` is not JSON. `structuredClone` and `postMessage` carry it; for JSON use
 `Array.from(result.dps)`.
@@ -192,7 +193,9 @@ shape is the batch result above. Issue #145 added its `breakdown` field
 ([breakdown.md](breakdown.md)) and made `advance` refuse a count that is not a
 whole number of 1 or more, or `Infinity` (it took 0 and fractions before).
 Issue #146 added its `auras` field (the aura uptimes,
-[mechanics.md](mechanics.md#aura-uptime-s3-issue-146)), after `breakdown`.
+[mechanics.md](mechanics.md#aura-uptime-s3-issue-146)), after `breakdown`, and
+its `resources` field (energy capped time and combo point waste,
+[mechanics.md](mechanics.md#resource-waste-issue-146)), after `auras`.
 `RunningStats` moved to `js/running-stats.js` and is still exported from here. New exports of `js/batch-runner.js`:
 `BatchRunner`, `runBatch`, `RunningStats`, `deriveSeed`, `BATCH_STATES`. New
 constants: `batch.duration`, `batch.maxIterations`, `batch.confidenceZ`,

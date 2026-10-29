@@ -29,6 +29,7 @@ const CASES = [
 const NUMBER = "number";
 const STRING = "string";
 const BOOLEAN = "boolean";
+const OBJECT = "object";
 // The documented fields of each event, in order, with their kinds. A kind
 // "string?" or "number?" may also be null. docs/events.md has the same table.
 const SHAPES = {
@@ -89,8 +90,13 @@ const SHAPES = {
     time: NUMBER,
     totalDamage: NUMBER,
     dps: NUMBER,
+    resources: OBJECT,
   },
 };
+// The end event's `resources` (#146): one entry per resource id, each with
+// these fields.
+const RESOURCE_IDS = ["energy", "comboPoints"];
+const WASTE_SHAPE = { cappedTime: NUMBER, overflow: NUMBER };
 const ORIGINS = ["white", "yellow", "poison", "dot"];
 const OUTCOMES = [
   "hit",
@@ -119,6 +125,21 @@ function checkShape(event) {
     assert.equal(typeof value, kind.replace("?", ""), `${event.type}.${field}`);
     if (kind === NUMBER) {
       assert.ok(Number.isFinite(value), `${event.type}.${field} is finite`);
+    }
+  }
+  if (event.type === "end") {
+    assert.deepEqual(Object.keys(event.resources), RESOURCE_IDS);
+    assert.ok(Object.isFrozen(event.resources), "end.resources is frozen");
+    for (const id of RESOURCE_IDS) {
+      const waste = event.resources[id];
+      assert.deepEqual(Object.keys(waste), Object.keys(WASTE_SHAPE), id);
+      assert.ok(Object.isFrozen(waste), `end.resources.${id} is frozen`);
+      for (const field of Object.keys(WASTE_SHAPE)) {
+        assert.ok(
+          Number.isFinite(waste[field]) && waste[field] >= 0,
+          `end.resources.${id}.${field}`,
+        );
+      }
     }
   }
   assert.ok(Object.isFrozen(event), `${event.type} is frozen`);

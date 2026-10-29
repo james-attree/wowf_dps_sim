@@ -121,6 +121,16 @@ by `SimRunner` (before it moves to `finished`), at the fight duration.
 | ------------- | ------------------------------------------------ |
 | `totalDamage` | the fight's total damage                         |
 | `dps`         | `totalDamage / time`, 0 for a fight of no length |
+| `resources`   | what each resource lost to its cap (#146), below |
+
+`resources` maps each resource id to `{ cappedTime, overflow }` (frozen):
+`{ energy: { cappedTime, overflow }, comboPoints: { cappedTime, overflow } }`.
+`cappedTime` is the seconds the pool sat at its cap while it regenerated, and
+`overflow` the amount a gain or regeneration could not add because of the cap.
+The pool counts both exactly as the fight runs (`js/resource.js`); the
+definitions are in [mechanics.md](mechanics.md#resource-waste-issue-146). The
+field is additive (#146): the two fields before it, their order and meaning are
+unchanged, and a subscriber that ignores it reads the same event as before.
 
 `time` is the fight duration. A host that moves a `Simulation` with `step()`
 itself calls `Simulation.end()` when it is done; it sends the event once.
