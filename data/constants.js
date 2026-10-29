@@ -21,6 +21,7 @@ const SEEDED_RNG = "Developer, 26 Oct 2026, issue #71";
 const DEVELOPER = "Developer, 26 Oct 2026";
 const FIXED_STEP = "Developer, 26 Oct 2026, issue #73";
 const LIVE_VIEW = "Developer, 26 Oct 2026, issue #76";
+const SCHEDULER_193 = "Developer, 29 Oct 2026, issue #193";
 const NOT_JAMES =
   "an engineering judgement call by the dev, not a decision by James.";
 const SIM_CONFIG = "Developer, 26 Oct 2026, issue #92";
@@ -1508,6 +1509,22 @@ export const CONSTANTS = {
     ENGINEERING,
     `${DEVELOPER}: ${NOT_JAMES} 1e-9s tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings`,
     "Floating-point tolerance for buffs, cooldowns, the GCD, DoT expiry, and weapon swings.",
+    false,
+  ),
+  "sim.maxEventsPerTimestamp": entry(
+    10000,
+    "events",
+    ENGINEERING,
+    `${SCHEDULER_193}: ${NOT_JAMES} Scout's #193 criterion asked for a hard stop on events at one timestamp, so a handler that keeps scheduling at now throws instead of looping; 10,000 is the dev's number`,
+    "Not a game rule. The Phase 3.5 scheduler (js/core/scheduler.js) throws SchedulerHardStopError, naming the event and its time, when more than this many events run at one exact time. #193's tests run 1,000 events at one time; a real fight has a handful at any one time.",
+    false,
+  ),
+  "sim.maxEventsPerSecond": entry(
+    10000,
+    "events per simulated second",
+    ENGINEERING,
+    `${SCHEDULER_193}: ${NOT_JAMES} Scout's #193 criterion asked for a hard stop on events per run; it is scaled by the fight length because a fight has no maximum duration, and 10,000 a second is the dev's number`,
+    "Not a game rule. The Phase 3.5 scheduler throws SchedulerHardStopError when a run handles more than this many events per second of its end time (a fight under 1 s counts as 1 s): 3,000,000 for a 300 s fight, against about 390 casts and swings in the default legacy fight. It catches a loop that creeps forward without reaching the end, which the per-timestamp stop cannot see.",
     false,
   ),
   "icons.cdn": entry(
