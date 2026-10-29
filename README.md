@@ -233,14 +233,28 @@ rejects them under `js/`.
   effects, cooldowns, and the combat log). Loads `styles.css` and `js/main.js`
   as an ES module.
 - `styles.css` — Dark layout and meters for that page.
-- `js/main.js` — UI entry: the animation frame, pause control, and DOM updates.
-  It is a view of the engine: it builds the fight with `createFight`, turns
-  each frame timestamp into whole fixed steps with `FrameClock`, calls
-  `Simulation.step`, and draws. It shows the random seed it picks at page load
-  in the header. The DPS readout is high at 00:00 (see
-  [Live page](docs/mechanics.md#live-page)). The GCD status reads "On cooldown" while `gcd > 0`. The only
-  file under `js/` that may use `document`, `window`, or the clock; lint
-  rejects those, and `Math.random`, in every other file under `js/`.
+- `js/main.js` — UI entry (#149): the bootstrap and the animation frame. It
+  builds the fight with `createFight`, puts it in the store (`js/store.js`),
+  hands the store to the views in `js/views/`, turns each frame timestamp into
+  whole fixed steps with `FrameClock`, calls `Simulation.step`, and moves the
+  store's `frame` and `results` slices. It draws nothing itself, and starts or
+  stops the frame loop when the store's `run` slice changes. It picks the
+  random seed at page load. The DPS readout is high at 00:00 (see
+  [Live page](docs/mechanics.md#live-page)). The GCD status reads "On cooldown" while `gcd > 0`. With
+  `js/views/`, the only files under `js/` that may use `document`, `window`,
+  or the clock; lint rejects those, and `Math.random`, in every other file
+  under `js/`.
+- `js/store.js` — The page's store (U1, #149): `createStore(initial)` with
+  `get`, `set`, `update`, `batch`, `subscribe` and `onError`, over named
+  slices (`config`, `rotation`, `run`, `frame`, `results`, `fight`). One change
+  event per `set` or batch, listing the slices that changed; delivery follows
+  `EventStream`. No DOM or clock: engine lint applies.
+- `js/views/` — The page's views (#149). Each is a factory `(document,
+store)` that owns its own elements, draws from the store when its slices
+  change, and returns its unsubscribe: `controls.js` (seed, Live/Paused
+  status, the Pause button, which toggles `run.state`), `visualiser.js` (combo
+  points, energy, the GCD meter, effects, cooldowns, the combat log; redraws on
+  `frame`), and `results.js` (time, damage, DPS; redraws on `results`).
 - `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
   milliseconds into a whole number of `sim.fixedStep` steps. It carries the
   remainder between frames and caps one frame at `sim.maxFrameTime`, which is
@@ -551,7 +565,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   pretty-prints it with values unchanged, writes the manifest, and prints a
   review diff.
 - `eslint.config.js` — Flat config. Engine modules (`js/**/*.js` except
-  `js/main.js`) must not touch `document` or `window`, must not read a clock
+  `js/main.js`, `js/views/`, and the worker hosts) must not touch `document` or `window`, must not read a clock
   (`performance`, `Date`), must not use `Math.random`, must not log, and must
   not contain game-number literals.
 - `eslint/engine-purity.js` — Rule `engine-purity/no-numeric-literal`. A
@@ -697,6 +711,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   breakdown, the capped log, determinism, different seeds, a 5-minute fight, and
   a run in Node with the browser globals poisoned, and rejected inputs
   (including `runFight()` and `runFight(null)`).
+- `test/views.test.js` — The page views (#149) on a recording stand-in
+  document: no two views query the same element, controls toggle `run.state`
+  through the store, results formatting, the visualiser redraws only on
+  `frame`, and each view's unsubscribe.
 - `test/sim-runner.test.js` — `SimRunner`: the transition table, invalid
   actions, state subscriptions, a run to the end equal to `runFight`, pause and
   resume, Stop then Run and the rng draws, the driver, options, and the public
@@ -785,6 +803,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   default fight being unchanged, a config reaching the rogue, the result's
   `config` repeating a fight, `runFight`'s unknown-option check, `given[id]`
   read once, and the weapon speed lower bound (a minimum-speed fight finishes).
+- `test/store.test.js` — The store's contract (#149): frozen state, no-op
+  sets, subscribe and unsubscribe, update, batches (nested, set back, a
+  throwing `fn`), delivery order, a set from inside a subscriber, a throwing
+  subscriber, and argument errors.
 - `test/simulation.test.js` — Console silence, buff and cooldown duration,
   Adrenaline Rush energy, buff and debuff lists, and DoT expiry.
 - `test/slice-and-dice.test.js` — Slice and Dice refresh, swing haste, and
