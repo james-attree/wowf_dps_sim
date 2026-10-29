@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import { Worker } from "node:worker_threads";
 import { k } from "../data/constants.js";
 import {
@@ -526,6 +526,11 @@ describe("batch host protocol (#147)", () => {
   });
 });
 
+// Every thread these tests start, so after() can stop the ones a failed test
+// left running (a test that times out never reaches its own terminate()).
+const threads = new Set();
+after(() => Promise.all([...threads].map((thread) => thread.terminate())));
+
 // The real js/batch-worker.js on a worker_threads thread
 // (test/batch-worker-thread.js gives it a `self`), as the Worker-like object
 // BatchClient takes.
@@ -533,6 +538,8 @@ function threadWorker() {
   const worker = new Worker(
     new URL("./batch-worker-thread.js", import.meta.url),
   );
+  threads.add(worker);
+  worker.once("exit", () => threads.delete(worker));
   return {
     postMessage: (message, transfer) => worker.postMessage(message, transfer),
     addEventListener: (type, listener) => {
