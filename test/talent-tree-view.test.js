@@ -286,6 +286,36 @@ describe("talent tree view (#204)", () => {
     assert.equal($("talents-summary").textContent, "No talents");
   });
 
+  it("keeps a tile's child nodes through a select, a rank change and a lock (Fran's QA of #208)", () => {
+    // The first click on an unfocused tile was lost: focus selected it, the
+    // redraw rebuilt the tile, and the icon under the pointer was detached
+    // between mousedown and mouseup. The tile's nodes must stay put.
+    const { tile, store } = page();
+    const id = "combat.improved-sinister-strike";
+    const node = tile(id);
+    const [image, ...badges] = node.childNodes;
+    assert.equal(image.tagName, "IMG");
+    const before = [...node.childNodes];
+    const same = () =>
+      node.childNodes.length === before.length &&
+      node.childNodes.every((child, at) => child === before[at]);
+    node.focus();
+    assert.equal(store.get().talents.selected, id);
+    assert.equal(same(), true, "select keeps the nodes");
+    node.click();
+    assert.equal(store.get().config.talents[id], 1);
+    assert.equal(same(), true, "a rank change keeps the nodes");
+    assert.equal(image.parent, node, "the icon is never detached");
+    assert.equal(
+      badges.find((badge) => badge.getAttribute("class") === "talent-rank")
+        ?.textContent,
+      "1/2",
+    );
+    node.click({ shiftKey: true });
+    assert.equal(store.get().config.talents[id], undefined);
+    assert.equal(same(), true, "a removal keeps the nodes");
+  });
+
   it("moves the roving tab stop with the arrow keys", () => {
     const { tile, doc } = page();
     const first = tile("combat.improved-eviscerate");

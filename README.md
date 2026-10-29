@@ -104,12 +104,14 @@ An older browser fails to load the page.
 
 ## Development
 
-`npm ci` installs the dev dependencies (`eslint`, `@eslint/js`, and
-`prettier`). The package has no runtime dependencies.
+`npm ci` installs the dev dependencies (`eslint`, `@eslint/js`, `prettier`,
+and `playwright-core` for the browser tests). The package has no runtime
+dependencies.
 
 | Script                     | Runs                                                   |
 | -------------------------- | ------------------------------------------------------ |
 | `npm test`                 | `node --test` (everything in `test/`)                  |
+| `npm run test:browser`     | `node --test "browser-tests/*.browser.mjs"` in Chrome  |
 | `npm run lint`             | `eslint . --max-warnings 0`, then `prettier --check .` |
 | `npm run provenance`       | `node scripts/provenance.mjs`                          |
 | `npm run talents:coverage` | `node scripts/talent-coverage.mjs`                     |
@@ -122,7 +124,10 @@ An older browser fails to load the page.
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on `push` and
 `pull_request`, on `ubuntu-latest`, with Node 22. The job checks out the repo,
 installs with `npm ci`, then runs `npm run lint`, `npm test`,
-`npm run provenance`, then `npm run talents:coverage`. Refreshing the
+`npm run test:browser`, `npm run provenance`, then `npm run talents:coverage`.
+The browser tests (`browser-tests/`) serve the page on a free port and drive
+the installed Google Chrome through `playwright-core` (no browser download);
+set `CHROME_PATH` to use another Chrome or Chromium binary. Refreshing the
 talentsforever snapshot stays a local command.
 `npm run talents:coverage` checks the talent effects (`data/talent-effects.js`)
 against the snapshot. It warns, listing each Assassination or Subtlety talent

@@ -72,11 +72,15 @@ describe("the talent level and its cap (#190)", () => {
     }
   });
 
-  it("is the Classic rule, tagged assumption; the row gating is confirmed for WoW Forever", () => {
+  it("starts at the first-point level, the Classic rule, tagged assumption", () => {
     const entry = CONSTANTS["talents.firstPointLevel"];
     assert.equal(entry.value, 10);
     assert.equal(entry.source, "assumption");
     assert.match(entry.ref, /Classic/);
+  });
+
+  it("gates rows at 5 points a row, confirmed by James for WoW Forever (wowf-designer)", () => {
+    assert.equal(CONSTANTS["talents.rowGating"].value, 5);
     assert.equal(CONSTANTS["talents.rowGating"].source, "wowf-designer");
     assert.match(
       CONSTANTS["talents.rowGating"].ref,

@@ -202,9 +202,12 @@ export function createTalentTreeView(
           tabindex: "-1",
           "aria-describedby": "talents-keys",
         });
-        const image = icon(cell.iconUrl, 40);
-        tile.append(image);
-        tiles.set(cell.id, { tile, image, tree: tree.id });
+        // Every child is made once and patched in place (Fran's QA of #208):
+        // replacing them on the focus redraw detached the <img> between
+        // mousedown and mouseup, so the first click on a tile was lost.
+        const badges = tileBadges();
+        tile.append(icon(cell.iconUrl, 40), ...Object.values(badges));
+        tiles.set(cell.id, { tile, badges, tree: tree.id });
         tile.addEventListener("click", (event) =>
           act(event?.shiftKey ? "remove" : "add", cell.id),
         );
@@ -317,8 +320,33 @@ export function createTalentTreeView(
     );
   }
 
+  // A tile's badges, made once, in a fixed order; drawTile only sets their
+  // text and `hidden`, so the tile's nodes stay put across every redraw.
+  function tileBadges() {
+    const hiddenSpan = (attrs, children = []) => {
+      const node = make("span", { ...attrs, "aria-hidden": "true" }, children);
+      node.hidden = true;
+      return node;
+    };
+    const lock = hiddenSpan({ class: "talent-lock" });
+    lock.append(toDom(LOCK, doc));
+    return {
+      rank: make("span", { class: "talent-rank", "aria-hidden": "true" }),
+      lock,
+      notSimulated: hiddenSpan({ class: "talent-cov is-notsim" }, ["ⓘ"]),
+      noDps: hiddenSpan({ class: "talent-cov" }, ["–"]),
+      active: hiddenSpan({ class: "talent-active" }),
+    };
+  }
+
+  const show = (node, shown) => {
+    if (node.hidden === shown) {
+      node.hidden = !shown;
+    }
+  };
+
   function drawTile(cell, tabbable) {
-    const { tile } = tiles.get(cell.id);
+    const { tile, badges } = tiles.get(cell.id);
     const classes = [
       "talent",
       `is-${cell.state}`,
@@ -328,38 +356,11 @@ export function createTalentTreeView(
     tile.setAttribute("class", classes.join(" "));
     tile.setAttribute("aria-label", cell.label);
     tile.setAttribute("tabindex", tabbable ? "0" : "-1");
-    const { image } = tiles.get(cell.id);
-    const badges = [
-      make("span", { class: "talent-rank", "aria-hidden": "true" }, [
-        cell.rankText,
-      ]),
-    ];
-    if (cell.state === "locked") {
-      const lock = make("span", {
-        class: "talent-lock",
-        "aria-hidden": "true",
-      });
-      lock.append(toDom(LOCK, doc));
-      badges.push(lock);
-    }
-    if (cell.coverage === "notSimulated") {
-      badges.push(
-        make("span", { class: "talent-cov is-notsim", "aria-hidden": "true" }, [
-          "ⓘ",
-        ]),
-      );
-    }
-    if (cell.coverage === "noDps") {
-      badges.push(
-        make("span", { class: "talent-cov", "aria-hidden": "true" }, ["–"]),
-      );
-    }
-    if (cell.active) {
-      badges.push(
-        make("span", { class: "talent-active", "aria-hidden": "true" }),
-      );
-    }
-    tile.replaceChildren(image, ...badges);
+    write(badges.rank, cell.rankText);
+    show(badges.lock, cell.state === "locked");
+    show(badges.notSimulated, cell.coverage === "notSimulated");
+    show(badges.noDps, cell.coverage === "noDps");
+    show(badges.active, cell.active);
   }
 
   function drawTrees(view) {

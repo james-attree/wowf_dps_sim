@@ -32,6 +32,12 @@ describe("dev package", () => {
     assert.equal(pkg.dependencies, undefined);
     assert.equal(pkg.scripts.serve, "node scripts/serve.mjs");
     assert.equal(pkg.scripts.test, "node --test");
+    // The browser tests (#204, Fran's QA of #208) sit outside test/, so
+    // `npm test` never needs Chrome; CI runs them as their own step.
+    assert.equal(
+      pkg.scripts["test:browser"],
+      'node --test "browser-tests/*.browser.mjs"',
+    );
     assert.equal(
       pkg.scripts.lint,
       "eslint . --max-warnings 0 && prettier --check .",
@@ -57,6 +63,7 @@ describe("dev package", () => {
     assert.deepEqual(Object.keys(pkg.devDependencies).sort(), [
       "@eslint/js",
       "eslint",
+      "playwright-core",
       "prettier",
     ]);
   });

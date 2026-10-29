@@ -154,9 +154,19 @@ const fightCount = (count) => `${grouped(count)} ${fightsWord(count)}`;
 
 const settings = (count) => `${count} ${count === 1 ? "setting" : "settings"}`;
 
-// The status while Run is blocked (#155): never "Ready" then.
-export function blockedText(count) {
-  return `Can't run · ${settings(count)} to fix`;
+// The status while Run is blocked (#155): never "Ready" then. When the only
+// thing to fix is a talent build over its level's cap, it says so (#204,
+// Fran's QA of #208).
+export const TALENTS_OVER_CAP = "Talents over the level cap";
+
+export function blockedText(count, talentsOnly = false) {
+  return `Can't run · ${talentsOnly ? TALENTS_OVER_CAP : `${settings(count)} to fix`}`;
+}
+
+function blockedReason(state) {
+  const count = blockedCount(state);
+  const talents = talentErrorCount(state);
+  return blockedText(count, talents > 0 && count === talents);
 }
 
 // "100k" for 100,000, "1.5k" for 1,500, "999" under a thousand: the total of
@@ -196,8 +206,7 @@ function liveModel(state) {
     text = `Ready · seed ${seedText(run.seed)}`;
     announce = "Ready";
   }
-  const reason =
-    !active && blocked(state) ? blockedText(blockedCount(state)) : null;
+  const reason = !active && blocked(state) ? blockedReason(state) : null;
   return {
     run: {
       label: status === "finished" ? "Run again" : "Run",
@@ -253,8 +262,7 @@ function batchModel(state) {
     text = `Ready · ${fightCount(run.iterations)} · seed ${seedText(run.seed)}`;
     announce = "Ready";
   }
-  const reason =
-    !running && blocked(state) ? blockedText(blockedCount(state)) : null;
+  const reason = !running && blocked(state) ? blockedReason(state) : null;
   return {
     run: { label: "Run batch", disabled: running || blocked(state) },
     reason,

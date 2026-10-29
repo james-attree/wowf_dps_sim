@@ -10,6 +10,8 @@ const EXPECTED_RUNS = [
   "npm ci",
   "npm run lint",
   "npm test",
+  // The talent tree in Chrome (#204, Fran's QA of #208).
+  "npm run test:browser",
   "npm run provenance",
   "npm run talents:coverage",
 ];
@@ -116,6 +118,8 @@ describe("CI workflow", () => {
       "      run: npm run lint",
       "      - name: Test",
       "      run: npm test",
+      "      - name: Browser tests",
+      "      run: npm run test:browser",
       "      - name: Provenance",
       "      run: npm run provenance",
       "      - name: Provenance is committed",
@@ -144,6 +148,8 @@ describe("CI workflow", () => {
       "      run: npm run lint",
       "    - name: Test",
       "      run: npm test",
+      "    - name: Browser tests",
+      "      run: npm run test:browser",
       "    - name: Provenance",
       "      run: npm run provenance",
       "    - name: Provenance is committed",
@@ -165,6 +171,7 @@ describe("CI workflow", () => {
       "npm ci",
       "npm test",
       "npm run lint",
+      "npm run test:browser",
       "npm run provenance",
       "npm run talents:coverage",
     ]);

@@ -228,11 +228,18 @@ export function createControlsView(doc, store, actions = {}) {
     event?.preventDefault?.();
     const [first] = fieldErrors(store.get().run);
     if (first === undefined) {
-      // A form field, else the talent tree's over-cap build (#204).
-      (
-        doc.querySelector('#config-form [aria-invalid="true"]') ??
-        doc.querySelector("#talents-edit")
-      )?.focus?.();
+      const field = doc.querySelector('#config-form [aria-invalid="true"]');
+      if (field !== null) {
+        field.focus?.();
+        return;
+      }
+      // Else the talent tree's over-cap build (#204, Fran's QA of #208):
+      // open the tree and focus its Level input.
+      const edit = doc.querySelector("#talents-edit");
+      if (edit?.getAttribute?.("aria-expanded") === "false") {
+        edit.click?.();
+      }
+      doc.querySelector("#talents-level")?.focus?.();
       return;
     }
     open = true;
