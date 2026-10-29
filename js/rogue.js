@@ -267,9 +267,13 @@ export class Rogue {
   castRotation(simulation) {
     // One host per simulation, not one per step: the host holds no state of
     // its own, so a Rogue that moves to another Simulation builds a new one.
+    // The fight length is the Simulation's (#191): what createFight was told,
+    // or null, which fightTimeRemaining reads as Infinity.
     if (this.rotationHostFor !== simulation) {
       this.rotationHostFor = simulation;
-      this.rotationHostObject = rotationHost(this, simulation);
+      this.rotationHostObject = rotationHost(this, simulation, {
+        duration: simulation.fightLength,
+      });
     }
     decide(this.rotationProgram, this.rotationHostObject);
   }

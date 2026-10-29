@@ -70,12 +70,34 @@ function newAbilityRecord() {
 
 const NO_MODIFIERS = Object.freeze([]);
 
+// A fight length for the rotation: none (undefined or null) is null, which
+// fightTimeRemaining reads as Infinity; anything else is a finite number of
+// seconds, 0 or more, as Simulation.run checks its duration.
+function readFightLength(fightLength) {
+  if (fightLength === undefined || fightLength === null) {
+    return null;
+  }
+  if (!Number.isFinite(fightLength) || fightLength < 0) {
+    throw new RangeError(
+      `A fight length (createFight's options.duration) must be a finite number of seconds, 0 or more, or none. Got ${fightLength}.`,
+    );
+  }
+  return fightLength;
+}
+
 export class Simulation {
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
   // rng.defaultSeed. The rogue draws from the same rng.
-  constructor(rogue, { seed = k("rng.defaultSeed"), rng } = {}) {
+  //
+  // `fightLength` is the fight's length in seconds as the rotation is told it
+  // (fightTimeRemaining, #191), or none (null). It is the rotation's only: it
+  // does not decide how long the fight runs, which is run(duration)'s
+  // argument, so the host that runs the fight passes the same number to both
+  // (createFight's options.duration; runFight and SimRunner do).
+  constructor(rogue, { seed = k("rng.defaultSeed"), rng, fightLength } = {}) {
     this.rogue = rogue;
+    this.fightLength = readFightLength(fightLength);
     this.seed = normalizeSeed(seed);
     this.rng = rng ?? createRng(this.seed);
     // The modifier pipeline (js/modifiers.js) belongs to the rogue, which

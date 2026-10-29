@@ -361,8 +361,11 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   it), rolls DoT crits, runs the rotation, and records damage, the combat log,
   and per-ability totals (`abilityStats`, from `recordAbility`).
 - `js/fight.js` — `runFight({ seed, duration, config })`, the headless entry
-  point, and `createFight(seed, config)`, the `Rogue` and `Simulation` pair that
-  `runFight` and the live page both build. `runFight` makes one `run(duration)`
+  point, and `createFight(seed, config, options)`, the `Rogue` and `Simulation`
+  pair that `runFight` and the live page both build. `options.duration` is the
+  fight length the rotation is told (`fightTimeRemaining`, #191); `runFight`
+  and `SimRunner` pass the duration they run, and without one
+  `fightTimeRemaining` is `Infinity`. `runFight` makes one `run(duration)`
   call, and returns a plain object: seed, simulated duration, total damage, DPS,
   a per-ability breakdown (`Simulation.abilityStats`), the combat log,
   `dataVersion` (which data snapshot the fight ran on), and `config` (the
@@ -930,6 +933,11 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   `test/rotation-default.test.js`, `test/rotation-config.test.js`,
   `test/can-cast.test.js` — The walk rule, the host, the default rotation and
   the docs example, `SimConfig.rotation`, and `Ability.canCast` against `cast`.
+- `test/fight-length.test.js` — The fight length reaches the rotation (#191):
+  a `fightTimeRemaining < 10` rule fires only in the last 10 s through
+  `createFight`, `runFight` and `SimRunner`, `Infinity` with no length, the
+  length does not end the fight, bad lengths refused, and the one `end` event
+  at the duration.
 - `test/rotation-schema.test.js` — The RotationRule shape check: the examples
   in `docs/rotation.md` pass, the Combat example matches the rotation
   constants, each wrong shape is rejected with a message that names it, the
