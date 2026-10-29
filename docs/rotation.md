@@ -379,8 +379,10 @@ to a decision point shows in the bench. Where it went and what was done
   While the GCD is running an on-GCD rule is passed over without a look at its
   conditions. The conditions and `canCast` are read-only, so the order changes
   nothing a host can see but the calls it gets.
-- `decide` asks a host `onGcd` once for each rule and keeps the answers for that
-  host, and returns shared, frozen results for a decision point that casts
+- `decide` asks a host `onGcd` and `usable` once for each rule and keeps the
+  answers for that host (`rotationHost`'s `usable` is `Ability.mainHandAllowed`,
+  so a Backstab rule on a sword is passed over and falls through, #155), and
+  returns shared, frozen results for a decision point that casts
   nothing (most of them).
 
 The fight-level cost is the `npm run bench` result in the pull request: a 5

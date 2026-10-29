@@ -488,10 +488,15 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `js/rotation-interpreter.js` — The rotation interpreter (R3, #140):
   `compileRotation(rotation)` checks a RotationRule list once and
   `decide(rotation, host)` walks it at one decision point and casts through the
-  `host` it is given (`state`, `canCast`, `onGcd`, `gcdClear`, `cast`). It knows
-  no Rogue, step or frame. See [Rotation as data](docs/rotation.md).
+  `host` it is given (`state`, `canCast`, `onGcd`, `gcdClear`, `cast`, and an
+  optional `usable`). A rule whose ability is not `usable` is passed over, never
+  pooled for, so a Backstab rule on a sword falls through to the rules below it
+  (#155). It knows no Rogue, step or frame. See
+  [Rotation as data](docs/rotation.md).
 - `js/rotation-host.js` — `rotationHost(rogue, simulation)`: the Rogue's side of
-  the interpreter, with the build lock and `Ability.canCast`.
+  the interpreter, with the build lock and `Ability.canCast`. Its `usable(id)` is
+  `Ability.mainHandAllowed`: false for Backstab when the main hand is not a
+  dagger.
 - `js/rotation-default.js` — `defaultRotation()`: today's placeholder Combat
   rotation, with the Cold Blood rule, as a RotationRule list built from the
   `rotation.*` constants. It is the default of `SimConfig.rotation`.
