@@ -7,6 +7,7 @@ import {
   CONDITION_TYPES,
   OPERATORS,
   assertCondition,
+  conditionErrors,
   conditionProblems,
   evaluate,
   evaluateAll,
@@ -940,5 +941,41 @@ describe("evaluateTrusted (R3, #140)", () => {
     // Not the RangeError that names the problem: the unknown operator is
     // just a missing comparison.
     assert.throws(() => evaluateTrusted(bad, state()), TypeError);
+  });
+});
+
+describe("conditionErrors (R4)", () => {
+  it("names the param, and has the messages conditionProblems has", () => {
+    const where = "rules[3].conditions[2]";
+    const cases = [
+      [{ type: "moonPhase" }, "type"],
+      [{ type: "comboPoints", op: ">=" }, "value"],
+      [{ type: "comboPoints", op: "~", value: 1 }, "op"],
+      [{ type: "comboPoints", op: ">=", value: 1, extra: 1 }, "extra"],
+      [{ type: "comboPoints", op: ">=", value: NaN }, "value"],
+    ];
+    for (const [condition, param] of cases) {
+      const errors = conditionErrors(condition, where);
+      assert.deepEqual(
+        errors.map((error) => error.path),
+        [`${where}.${param}`],
+      );
+      assert.deepEqual(
+        conditionProblems(condition, where),
+        errors.map((error) => error.message),
+      );
+    }
+    assert.deepEqual(
+      conditionErrors(null, where).map((e) => e.path),
+      [where],
+    );
+    assert.deepEqual(
+      conditionErrors({ type: "comboPoints", op: ">=", value: 1 }),
+      [],
+    );
+    assert.doesNotMatch(
+      conditionErrors({ type: "comboPoints", op: ">=", value: NaN })[0].message,
+      /null/,
+    );
   });
 });

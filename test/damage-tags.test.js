@@ -821,8 +821,12 @@ describe("a run with no matching modifier", () => {
     weapons: { mainHand: { type: "dagger" }, offHand: { type: "dagger" } },
   };
 
-  function run(options) {
-    const fight = createFight(7, config, options);
+  function run(options, rotation) {
+    const fight = createFight(
+      7,
+      rotation === undefined ? config : { ...config, rotation },
+      options,
+    );
     let draws = 0;
     const rng = fight.simulation.rng;
     fight.simulation.rng = () => {
@@ -851,30 +855,38 @@ describe("a run with no matching modifier", () => {
   });
 
   it("changes only the events with the tag, and draws the same random numbers", () => {
-    // Rupture is not in the placeholder rotation, so finish with it instead.
-    const priority = {
-      ...k("rotation.priority"),
-      sliceAndDice: "rupture",
-      eviscerate: "rupture",
+    // Rupture is not in the placeholder rotation, so the fight gets one that
+    // finishes with it.
+    const rupturing = {
+      schemaVersion: 1,
+      name: "Rupture finisher",
+      rules: [
+        {
+          action: "rupture",
+          conditions: [
+            { type: "comboPoints", op: ">=", value: k("combo.max") },
+          ],
+        },
+        { action: "sinister-strike", conditions: [] },
+      ],
     };
-    withConstant("rotation.priority", priority, () => {
-      const plain = run(undefined);
-      const bleeds = run({
-        modifiers: [DAMAGE_UP(0.3, { tags: ["bleed"] })],
-      });
-      assert.equal(bleeds.draws, plain.draws);
-      assert.ok(plain.stats.rupture.ticks > 0);
-      assert.equal(bleeds.stats.rupture.ticks, plain.stats.rupture.ticks);
-      assert.ok(bleeds.stats.rupture.damage > plain.stats.rupture.damage * 1.2);
-      assert.ok(
-        bleeds.stats.rupture.damage < plain.stats.rupture.damage * 1.3 + 1,
-      );
-      for (const id of Object.keys(plain.stats)) {
-        if (id !== "rupture") {
-          assert.deepEqual(bleeds.stats[id], plain.stats[id], id);
-        }
+    const plain = run(undefined, rupturing);
+    const bleeds = run(
+      { modifiers: [DAMAGE_UP(0.3, { tags: ["bleed"] })] },
+      rupturing,
+    );
+    assert.equal(bleeds.draws, plain.draws);
+    assert.ok(plain.stats.rupture.ticks > 0);
+    assert.equal(bleeds.stats.rupture.ticks, plain.stats.rupture.ticks);
+    assert.ok(bleeds.stats.rupture.damage > plain.stats.rupture.damage * 1.2);
+    assert.ok(
+      bleeds.stats.rupture.damage < plain.stats.rupture.damage * 1.3 + 1,
+    );
+    for (const id of Object.keys(plain.stats)) {
+      if (id !== "rupture") {
+        assert.deepEqual(bleeds.stats[id], plain.stats[id], id);
       }
-    });
+    }
   });
 
   it("scopes the white hits of a whole fight and leaves the abilities alone", () => {

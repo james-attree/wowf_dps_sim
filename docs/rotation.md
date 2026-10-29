@@ -1,4 +1,4 @@
-# Rotation as data (R1, issue #138; R2, issue #139; R3, issue #140)
+# Rotation as data (R1, issue #138; R2, issue #139; R3, issue #140; R4, issue #141)
 
 A rotation is a priority list of rules, written as JSON. The Rogue casts one at
 every decision point: `SimConfig.rotation`, by default today's placeholder
@@ -12,10 +12,14 @@ fixes the **condition vocabulary**: the condition types a rule can use, their
 params, and the state they read. R3
 ([#140](https://github.com/james-attree/wowf_dps_sim/issues/140)) is the
 **interpreter** that casts from a list, and the wiring of a rotation into a
-fight ([The interpreter](#the-interpreter)). The validator (R4) comes later.
+fight ([The interpreter](#the-interpreter)). R4
+([#141](https://github.com/james-attree/wowf_dps_sim/issues/141)) is the
+**validator** and the **readable summary**
+([Validation](#validation), [The readable summary](#the-readable-summary)).
 The shape check is in `js/rotation-schema.js`, the vocabulary in
-`js/rotation-conditions.js`, the state view in `js/rotation-state.js` and the
-interpreter in `js/rotation-interpreter.js`. The default rotation casts what
+`js/rotation-conditions.js`, the state view in `js/rotation-state.js`, the
+interpreter in `js/rotation-interpreter.js`, the validator in
+`js/rotation-validator.js` and the summary in `js/rotation-summary.js`. The default rotation casts what
 the code rotation cast before R3, fight for fight, so no fight changes.
 
 ## The model
@@ -120,7 +124,10 @@ type does not list is rejected there, by the same rule.
 
 `js/rotation-schema.js` exports:
 
-- `rotationShapeProblems(rotation)`: every shape problem in reading order, as
+- `rotationShapeErrors(rotation)`: every shape error in reading order, as
+  `{ path, message }`. The path says where (`rules[2].conditions[0].type`; `""`
+  is the rotation itself) and the message says what and names the same place.
+- `rotationShapeProblems(rotation)`: the messages of `rotationShapeErrors`, as
   strings that name where it is (`rules[2].conditions[0] needs a non-empty
 string "type".`). An empty list means the shape is right.
 - `isRotationShape(rotation)`: `true` when there are none.
@@ -136,9 +143,10 @@ the three limits; and no unknown fields.
 
 It does **not** check whether an `action` is a real ability, whether a `type`
 exists, whether a condition's params are right, whether a number is in range,
-or whether a rule is unreachable. That is the validator (R4), which uses
-`conditionProblems` for the types and params. A rotation can pass the shape
-check and still be rejected there.
+or whether a rule is unreachable, and an empty `rules` list is a valid shape.
+That is the validator (R4, [Validation](#validation)), which uses
+`conditionErrors` for the types and params. A rotation can pass the shape check
+and still be rejected there.
 
 ## The condition vocabulary
 
@@ -155,7 +163,8 @@ right, and no param the type does not list.
 code rotation's `<=` is. **Time is seconds** of fight time, never steps.
 **Ids** are ability and aura ids (`slice-and-dice`), never display names. A
 resource is named by its resource id (`energy`, `comboPoints`). Whether an
-ability or aura id exists is the validator's check (R4), not this one's.
+ability or aura id exists, and whether a number is in range, is the
+validator's check (R4), not this one's.
 
 **What is not up counts as zero.** An aura, a debuff or a cooldown that is not
 in the fight has 0 s remaining, and a debuff that is not up has 0 stacks.
@@ -305,11 +314,11 @@ the same view and the vocabulary does not change.
 
 `js/rotation-interpreter.js` has two functions and knows nothing of the engine.
 
-- `compileRotation(rotation)` checks a rotation once (the shape, every
-  condition's type and params, and that every `action` is a rogue ability id) and
-  returns a frozen copy. A bad rotation is a `RangeError` that lists every
-  problem with its path, so it never starts a fight. The ability ids are looked
-  up by id; a display name is rejected as an unknown id.
+- `compileRotation(rotation)` checks a rotation once with the validator
+  ([Validation](#validation)) and returns a frozen copy. A bad rotation is a
+  `RangeError` that lists every problem with its path, so it never starts a
+  fight. The ability ids are looked up by id; a display name is rejected as an
+  unknown id.
 - `decide(compiled, host)` is one decision point, the walk above. It returns
   `{ casts, outcome }`: the ability ids it cast, in order, and `"cast"` (an
   on-GCD ability was cast), `"pooling"` (an on-GCD rule held, the GCD was clear
@@ -327,8 +336,8 @@ for an on-GCD ability), and `Ability.canCast` makes the same checks `cast` does,
 without casting (`test/can-cast.test.js` holds the two together).
 
 **In a fight.** `SimConfig` has a `rotation` field (default `defaultRotation()`).
-`normalizeConfig` checks it and a bad one is a `RangeError` before the fight
-starts; the result's `config` records it in full, so a recorded config repeats
+`normalizeConfig` validates it and a bad one is a `RangeError` before the
+fight starts (before the `Simulation`, and so the rng, exists); the result's `config` records it in full, so a recorded config repeats
 the fight. `Rogue.rotation` asks the interpreter what to cast, and then does
 the haste and the white swings as it did. `fightTimeRemaining` reads as
 `Infinity` in the engine as it is: the Rogue passes no fight length to the state
@@ -367,6 +376,109 @@ minute fight, median, interleaved against `main`. What is left is the walk
 itself: the interpreter reads about 6 rules at a decision point where the code
 rotation tried about 3 casts, and every condition is a call through the state
 view.
+
+## Validation
+
+`js/rotation-validator.js` is the check a rotation passes before a fight. It
+exports:
+
+- `validateRotation(rotation, context)`: every error in reading order, as
+  `{ path, message }`. An empty list means the rotation is valid.
+- `assertValidRotation(rotation, context)`: returns the rotation, or throws a
+  `RangeError` (`Bad rotation:` and one message per line). It reports the same
+  errors; a caller uses whichever suits it. `rotationProblems(rotation,
+context)` is the messages as strings.
+- `rotationContext(given)`: what a rotation is validated against, below.
+
+The **path** says where (`rules[2].conditions[0].aura`; `""` is the rotation as
+a whole) so a builder can mark the field. The **message** names the rule index
+and the problem and reads on its own, for example:
+
+```text
+rules[1].action "nonsense" is not an ability in the spell data. The rogue casts: ...
+rules[2].conditions[0].aura "rupture" is a debuff on the target; use debuffActive, ...
+```
+
+| Case                               | Path                                      | What is wrong                                                                                                                                            |
+| ---------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anything the shape check rejects   | as in [the shape check](#the-shape-check) | The wrong version, a missing field, too many rules or conditions, and so on. If the shape is wrong, that is all that is reported.                        |
+| `rules: []`                        | `rules`                                   | A rotation with no rules casts nothing.                                                                                                                  |
+| Unknown ability id in `action`     | `rules[i].action`                         | Not an ability in the spell data.                                                                                                                        |
+| An ability the rogue does not cast | `rules[i].action`                         | In the spell data (Mutilate, Garrote, ...), but the engine does not cast it yet.                                                                         |
+| Unknown condition `type`           | `rules[i].conditions[j].type`             | Lists the known types.                                                                                                                                   |
+| A param that is missing or wrong   | `rules[i].conditions[j].<param>`          | A missing or unknown param, or one of the wrong type (an operator not in `>= > <= < ==`, a `value` that is not a finite number, a non-boolean `active`). |
+| Unknown aura id                    | `rules[i].conditions[j].aura`             | `auraActive` and `auraRemaining` need a self buff. A target debuff id says to use the `debuff` types.                                                    |
+| Unknown debuff id                  | `rules[i].conditions[j].debuff`           | `debuffActive`, `debuffRemaining` and `debuffStacks` need a target debuff. A self buff id says to use the `aura` types.                                  |
+| Unknown ability id in a condition  | `rules[i].conditions[j].ability`          | `cooldownReady`, `abilityGranted` and `abilityUnlocked` take an ability the rogue casts, as `action` does.                                               |
+| A number out of range              | `rules[i].conditions[j].value`            | See below.                                                                                                                                               |
+
+**Ranges.** `resource` and `comboPoints`: `value` is between 0 and the pool's
+maximum (`energy.max`, `combo.max`), and a whole number for combo points, so
+`comboPoints >= 6` is refused and not left to never hold. Seconds
+(`auraRemaining`, `debuffRemaining`, `fightTime`, `fightTimeRemaining`,
+`energyToCap`): 0 or more, as a time is never negative. `debuffStacks`: a whole
+number, from 0 up to the debuff's `maxStacks`. A number that is not finite is a
+param of the wrong type, and is written in the message as `NaN` or `Infinity`
+(not `null`, which is what `JSON.stringify` makes of them).
+
+**The context** is which ids exist. `abilities` is every id in the spell data,
+`castable` the abilities the rogue casts, `auras` the self buffs and `debuffs`
+the target debuffs as `{ id: maxStacks }`. Each defaults to the engine's own
+(`js/ability-data.js`, `js/abilities.js`, `js/auras.js`) and a caller may replace
+any of them, for a test or for a build that has fewer abilities.
+
+**What it does not check.** Whether a rule is reachable, or whether the order
+makes sense. A `cold-blood` rule with no `abilityGranted` condition is valid: it
+casts whenever the host can cast it (the default rotation adds `abilityGranted`,
+so that a fight with no talent build never casts it).
+
+`compileRotation` calls the validator, so `createFight`, `runFight` and
+`SimRunner` reject an invalid rotation before the `Simulation` exists and so
+before any rng draw. The validator reads no display name; its messages name ids.
+
+## The readable summary
+
+`js/rotation-summary.js` writes a rotation as plain text, for the builder, a
+preset's description and an error report. It is a display-edge helper: the
+engine does not import it, and the ability and aura names come from the
+catalogue (`js/abilities.js`) and the aura definitions (`js/auras.js`) when a
+line is written. An id with no display name is written as the id. It does not
+validate; it reads a rotation that has the right shape (a `TypeError` for
+something that is not a rotation, rule or condition object).
+
+- `summarizeCondition(condition)`: one condition.
+- `summarizeRule(rule)`: `<Ability> if <condition> and <condition>`, or
+  `<Ability> (always)` for a rule with no conditions.
+- `summarizeRotation(rotation)`: the name, then one numbered line per rule in
+  priority order, highest first.
+
+```text
+Combat (placeholder)
+1. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Energy >= 25
+2. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready
+3. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 10s left
+4. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 10s left
+5. Eviscerate if CP >= 5
+6. Sinister Strike (always)
+```
+
+| Type                                | Line                                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `resource`                          | `Energy >= 40`, `CP == 5` (a pool without a label is written by its id)                 |
+| `comboPoints`                       | `CP >= 5`                                                                               |
+| `auraActive`                        | `Slice and Dice is up`, `Cold Blood is not up`                                          |
+| `auraRemaining`                     | `Slice and Dice missing or <= 3s left`, `Slice and Dice has > 10s left`                 |
+| `debuffActive`                      | `Rupture is up on the target`, `Rupture is not up on the target`                        |
+| `debuffRemaining`                   | `Rupture on the target missing or <= 2s left`, `Hemorrhage on the target has > 2s left` |
+| `debuffStacks`                      | `Expose Armor on the target has >= 5 stacks`                                            |
+| `cooldownReady`                     | `Blade Flurry is ready`, `Blade Flurry is on cooldown`                                  |
+| `fightTime`, `fightTimeRemaining`   | `fight time >= 10s`, `fight time left < 20s`                                            |
+| `energyToCap`                       | `time to energy cap > 1.5s`                                                             |
+| `abilityGranted`, `abilityUnlocked` | `Cold Blood is granted`, `Adrenaline Rush is not locked by the build`                   |
+
+A thing that is not there counts as 0 s left, so `auraRemaining` and
+`debuffRemaining` write "missing or" when the comparison holds for 0 (`<= 3`,
+`< 3`, `>= 0`) and "has" when it does not (`> 10`).
 
 ## Examples
 

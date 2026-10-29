@@ -14,12 +14,14 @@
 // tolerance), so a threshold at a boundary behaves as the code rotation's
 // `<=` does (Rogue.rotation: Slice and Dice at 10 s left). Ids in params are
 // the ids of the ability data and the aura definitions ("slice-and-dice"),
-// never display names. Whether an ability or aura id exists is R4's check.
+// never display names. Whether an ability or aura id exists, and whether a
+// number is in range, is the validator's check (js/rotation-validator.js, R4).
 //
 // An aura, debuff or cooldown that is not in the state counts as 0 s remaining
 // (and a debuff as 0 stacks), so "missing or at most 10 s left" is one
 // condition: auraRemaining <= 10.
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
+import { describeValue, memberPath } from "./rotation-schema.js";
 
 // The comparison operators of every condition that compares a number.
 export const OPERATORS = Object.freeze([">=", ">", "<=", "<", "=="]);
@@ -180,42 +182,66 @@ function isPlainObject(candidate) {
   return proto === Object.prototype || proto === null;
 }
 
-// Every problem with a condition, as strings that name the param. An empty
+// Every error in a condition, as { path, message }: the path names the param
+// ("rules[0].conditions[1].aura"; the condition's own path for a problem with
+// the condition as a whole) and the message names the same place. An empty
 // list means it is a known type with every required param right and no other
-// param. `where` is a prefix for the messages (a rule's path).
-export function conditionProblems(condition, where = "The condition") {
+// param. `where` is the condition's path, and the prefix of the messages.
+export function conditionErrors(condition, where = "The condition") {
   if (!isPlainObject(condition)) {
-    return [`${where} must be an object { type, ...params }.`];
+    return [
+      {
+        path: where,
+        message: `${where} must be an object { type, ...params }.`,
+      },
+    ];
   }
   const { type } = condition;
   if (typeof type !== "string" || !Object.hasOwn(TYPES, type)) {
     return [
-      `${where} has unknown type ${JSON.stringify(type)}. Known: ${CONDITION_TYPES.join(", ")}.`,
+      {
+        path: memberPath(where, "type"),
+        message: `${where} has unknown type ${describeValue(type)}. Known: ${CONDITION_TYPES.join(", ")}.`,
+      },
     ];
   }
   const { params } = TYPES[type];
-  const problems = [];
+  const errors = [];
   for (const [name, spec] of Object.entries(params)) {
     if (!Object.hasOwn(condition, name)) {
       if (spec.optional !== true) {
-        problems.push(
-          `${where} (${type}) is missing "${name}": ${KIND_HINT[spec.kind]}.`,
-        );
+        errors.push({
+          path: memberPath(where, name),
+          message: `${where} (${type}) is missing "${name}": ${KIND_HINT[spec.kind]}.`,
+        });
       }
     } else if (!KINDS[spec.kind](condition[name])) {
-      problems.push(
-        `${where} (${type}) has a bad "${name}": needs ${KIND_HINT[spec.kind]}, got ${JSON.stringify(condition[name])}.`,
-      );
+      errors.push({
+        path: memberPath(where, name),
+        message: `${where} (${type}) has a bad "${name}": needs ${KIND_HINT[spec.kind]}, got ${describeValue(condition[name])}.`,
+      });
     }
   }
   for (const name of Object.keys(condition)) {
     if (name !== "type" && !Object.hasOwn(params, name)) {
-      problems.push(
-        `${where} (${type}) has unknown param "${name}". Allowed: ${Object.keys(params).join(", ") || "none"}.`,
-      );
+      errors.push({
+        path: memberPath(where, name),
+        message: `${where} (${type}) has unknown param "${name}". Allowed: ${Object.keys(params).join(", ") || "none"}.`,
+      });
     }
   }
-  return problems;
+  return errors;
+}
+
+// Every problem with a condition, as strings: the messages of conditionErrors.
+export function conditionProblems(condition, where = "The condition") {
+  return conditionErrors(condition, where).map((error) => error.message);
+}
+
+// True when `actual` compares to `value` by `op`, as a condition does. Exposed
+// so that a summary can say whether a missing aura (0 s left) satisfies one.
+export function compareNumbers(op, actual, value) {
+  return COMPARE[op](actual, value);
 }
 
 // Returns the condition, or throws a RangeError that lists the problems.

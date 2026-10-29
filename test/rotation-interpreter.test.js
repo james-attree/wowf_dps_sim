@@ -2,11 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { abilityCatalogue } from "../js/abilities.js";
-import {
-  compileRotation,
-  decide,
-  rotationProblems,
-} from "../js/rotation-interpreter.js";
+import { compileRotation, decide } from "../js/rotation-interpreter.js";
+import { rotationProblems } from "../js/rotation-validator.js";
 
 // R3 (#140): the interpreter on its own, with a host written by hand. No Rogue,
 // no Simulation, no step: the walk rule of docs/rotation.md.
@@ -185,7 +182,6 @@ describe("decide: the walk", () => {
       }).outcome,
       "none",
     );
-    assert.deepEqual(walk([], {}).outcome, "none");
   });
 
   it("never casts an ability whose conditions fail", () => {
@@ -363,7 +359,7 @@ describe("compileRotation", () => {
         assert.match(error.message, /rules\[0\]\.conditions\[0\]/);
         assert.match(
           error.message,
-          /rules\[1\]\.action "nonsense" is not a rogue ability/,
+          /rules\[1\]\.action "nonsense" is not an ability in the spell data/,
         );
         return true;
       },
@@ -427,7 +423,12 @@ describe("decide: what it takes", () => {
     );
     assert.throws(
       () =>
-        decide(JSON.parse(JSON.stringify(compileRotation(rotation()))), w.host),
+        decide(
+          JSON.parse(
+            JSON.stringify(compileRotation(rotation(rule("sinister-strike")))),
+          ),
+          w.host,
+        ),
       TypeError,
     );
   });

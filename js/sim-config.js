@@ -1,7 +1,7 @@
 import { k } from "../data/constants.js";
 import { talentCatalogue } from "./talents.js";
 import { defaultRotation } from "./rotation-default.js";
-import { rotationProblems } from "./rotation-interpreter.js";
+import { rotationProblems } from "./rotation-validator.js";
 
 // SimConfig (roadmap E2-lite, issue #92): the inputs of one fight. It names the
 // character's stats, the two weapons, the talent ranks and the poison on each
@@ -305,7 +305,7 @@ function readPoisons(input, defaults) {
 }
 
 // A rotation: the default when none is given, otherwise a RotationRule list
-// that passes the interpreter's load check. The result is a copy, so it shares
+// that passes the validator (js/rotation-validator.js). The result is a copy, so it shares
 // nothing with the input. The plain-JSON round trip is what a rotation read
 // from a file is, and drops nothing a rotation can hold.
 function readRotation(input, defaults) {
