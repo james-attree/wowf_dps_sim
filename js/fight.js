@@ -22,8 +22,9 @@ export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 // form the rogue holds; treat it as read-only.
 //
 // `config.talents` is applied here (D7, #106): a selected build is validated
-// (exactly 51 points, ranks within the maximum, prerequisites, row gating; an
-// illegal one is a RangeError that names the talent ids) and its modifiers,
+// (0 to 51 points, capped by config.talentLevel since #190, ranks within the
+// maximum, prerequisites, row gating; an illegal one is a RangeError that
+// names the talent ids) and its modifiers,
 // procs and granted abilities are the rogue's, so runFight and the live page
 // run a talented fight from the SimConfig alone. The rotation casts Blade
 // Flurry and Adrenaline Rush only when the build has the talent. No ranks is no
