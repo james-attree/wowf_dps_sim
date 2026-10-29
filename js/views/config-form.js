@@ -131,6 +131,8 @@ export function createConfigFormView(doc, store, actions) {
   const importStatus = $("cfg-import-status");
   const importDetail = $("cfg-import-detail");
   const importDetailText = $("cfg-import-detail-text");
+  const importWarnings = $("cfg-import-warnings");
+  const importWarningsText = $("cfg-import-warnings-text");
   const statusOk = $("cfg-status-ok");
   const fix = $("cfg-fix");
   const fixHeading = $("cfg-fix-heading");
@@ -374,6 +376,12 @@ export function createConfigFormView(doc, store, actions) {
     const failed = status?.ok === false && status.detail !== "";
     importDetail.hidden = !failed;
     importDetailText.textContent = failed ? status.detail : "";
+    // Warnings (issue #189) are shown the way errors are, but never block:
+    // the rotation was imported.
+    const warned = status?.ok === true && (status.warnings ?? "") !== "";
+    importStatus.classList.toggle("is-warning", warned);
+    importWarnings.hidden = !warned;
+    importWarningsText.textContent = warned ? status.warnings : "";
   }
 
   let toastTimer = null;
