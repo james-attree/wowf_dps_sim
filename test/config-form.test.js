@@ -9,6 +9,7 @@ import {
   createConfigForm,
   errorCount,
   formFromConfig,
+  errorLine,
   importedText,
   nextRunConfig,
   pageDefaultConfig,
@@ -435,7 +436,63 @@ describe("rotation: one source of truth, config.rotation", () => {
       form().importStatus.detail,
       /^schemaVersion: The rotation is missing "schemaVersion"\.$/m,
     );
-    assert.match(form().importStatus.detail, /^rules\[0\]\.action: /m);
+    // The validator's message names its own place, so it is not doubled.
+    assert.match(
+      form().importStatus.detail,
+      /^rules\[0\] is missing "action"\.$/m,
+    );
+    assert.doesNotMatch(
+      form().importStatus.detail,
+      /rules\[0\][^\n]*: rules\[0\]/,
+    );
+  });
+
+  it("a refused talent-granted rule shows its path once (#189 review)", () => {
+    const { actions, form } = setup();
+    actions.importText(
+      JSON.stringify({
+        schemaVersion: 1,
+        name: "BF",
+        rules: [{ action: "blade-flurry", conditions: [] }],
+      }),
+    );
+    const { detail } = form().importStatus;
+    assert.match(
+      detail,
+      /^rules\[0\]: Blade Flurry \(blade-flurry\) comes from a talent/,
+    );
+    assert.doesNotMatch(detail, /rules\[0\]\.conditions: /);
+  });
+
+  it("errorLine writes the path only when the message does not name it", () => {
+    const line = (path, message) => errorLine({ path, message });
+    assert.equal(line("", "Not JSON."), "Not JSON.");
+    assert.equal(
+      line("rules[0].conditions", "rules[0]: Blade Flurry"),
+      "rules[0]: Blade Flurry",
+    );
+    assert.equal(line("rules", "rules is empty: x"), "rules is empty: x");
+    assert.equal(
+      line("rules[0].action", 'rules[0] is missing "action".'),
+      'rules[0] is missing "action".',
+    );
+    assert.equal(
+      line(
+        "rules[1].conditions[0].value",
+        "rules[1].conditions[0].value must be 0 or more",
+      ),
+      "rules[1].conditions[0].value must be 0 or more",
+    );
+    // A message that does not start with the path keeps the prefix.
+    assert.equal(
+      line("schemaVersion", 'The rotation is missing "schemaVersion".'),
+      'schemaVersion: The rotation is missing "schemaVersion".',
+    );
+    assert.equal(line("rules[1]", "rules[0]: x"), "rules[1]: rules[0]: x");
+    assert.equal(line("rulesets", "rules is x"), "rulesets: rules is x");
+    // A message about the list is not taken as naming one rule in it.
+    assert.equal(line("rules[2]", "rules is x"), "rules[2]: rules is x");
+    assert.equal(line("rules[0]", "(none)"), "rules[0]: (none)");
   });
 
   it("a file over the import limit is refused by rotation-io's own limit", () => {

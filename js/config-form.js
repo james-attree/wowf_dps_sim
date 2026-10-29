@@ -363,8 +363,6 @@ function slug(name) {
   return text === "" ? "rotation" : text;
 }
 
-// The actions the view calls. `defaults` gives the config Reset restores.
-// Creating the model fills the `form` slice from the store's config.
 // The status line of an accepted import. Warnings (issue #189) never block
 // it: the rotation is imported and selected, and the line says how many to
 // check.
@@ -376,6 +374,19 @@ export function importedText(name, warnings) {
   return `Imported "${name}", with ${count}. It still runs; check the rules below.`;
 }
 
+// One line of a refused import's detail. The validator's messages already
+// name their place ("rules[0]: Blade Flurry ...", "rules[0] is missing ...",
+// "rules is empty: ..."), so the path is written in front only when the
+// message does not start with it or with the part of it before a ".".
+// "" is the path of a problem with the whole text.
+export function errorLine({ path, message }) {
+  const lead = /^[\w.[\]]+/.exec(message)?.[0];
+  const named = path === lead || path.startsWith(`${lead}.`);
+  return path === "" || named ? message : `${path}: ${message}`;
+}
+
+// The actions the view calls. `defaults` gives the config Reset restores.
+// Creating the model fills the `form` slice from the store's config.
 export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
   let saved = null;
   store.set({ form: formFromConfig(store.get().config) });
@@ -473,11 +484,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
             importStatus: {
               ok: false,
               message: "This file isn't a valid rotation.",
-              detail: result.errors
-                .map(({ path, message }) =>
-                  path === "" ? message : `${path}: ${message}`,
-                )
-                .join("\n"),
+              detail: result.errors.map(errorLine).join("\n"),
               warnings: "",
             },
           },

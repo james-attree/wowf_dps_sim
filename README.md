@@ -275,6 +275,8 @@ rejects them under `js/`.
   `defaultConfig()` with the page's poisons (`ui.pageDefaultPoisons`, #152). An
   import with warnings (#189) is still imported and selected; its status says
   how many, and the view lists them under it (`cfg-import-warnings`).
+  A refused file's details write each error once: `errorLine` puts the path
+  in front only when the message does not already name it (#189 review).
   Each hand's poison is a field whose value is the config id (`instant`, the
   catalogue `key`, not its `id`) or null for None; `poisonOptions()` and
   `poisonInfo(key)` give the selects their choices and the read-only top rank,
