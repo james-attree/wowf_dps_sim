@@ -1556,8 +1556,10 @@ open for James's review, not defects found by a test:
 - **Poisons roll on finishers** as in wowsims. That is not verified against Classic.
 - **Unmapped talents.** Eleven Assassination talents (Improved Gouge, Remorseless
   Attacks, Murder, Improved Expose Armor, Vile Poisons, Improved Poisons, Vigor,
-  Mutilate, Improved Kidney Shot, Seal Fate, Venom) and all nineteen Subtlety talents
-  have no entry. A build that spends points in them is legal and lists them in
+  Mutilate, Improved Kidney Shot, Seal Fate, Venom) and sixteen of the nineteen
+  Subtlety talents have no entry. Ghostly Strike, Premeditation and Hemorrhage
+  have one since #207: the ability they grant, so a selected build without the
+  talent does not cast it (`Rogue.lockedByBuild`). A build that spends points in them is legal and lists them in
   `fight.build.unmapped`. Improved Poisons, Vile Poisons and Venom do nothing, and
   so does Mutilate. D8 is Phase 4.
 - **Partial builds are legal** (#190). A selected build spends at most
@@ -2362,7 +2364,8 @@ createFight(seed, config, { modifiers, procs, abilities });
 `abilities` (the granted abilities of talents at rank 1 or more), which are the
 three options of `Rogue`, and two lists for the host: `noDps` (talents with
 points and no effect) and `unmapped` (talents with points and no entry: the
-Subtlety tree and the Assassination talents the reference build does not take,
+Subtlety tree, but for Ghostly Strike, Premeditation and Hemorrhage, #207, and
+the Assassination talents the reference build does not take,
 until D8b and later; they do nothing, so say so). For the reference build
 `unmapped` is empty.
 Rank 0, or a talent left out, expands to nothing: no modifier and no proc, so it

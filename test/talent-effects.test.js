@@ -100,20 +100,35 @@ const ASSASSINATION_MAPPED = [
   "assassination.lethality",
   "assassination.cold-blood",
 ];
+// The three Subtlety talents that grant an ability the engine casts (#207).
+// The rest of Subtlety has no entry yet.
+const SUBTLETY_MAPPED = [
+  "subtlety.ghostly-strike",
+  "subtlety.premeditation",
+  "subtlety.hemorrhage",
+];
 const MAPPED = talentCatalogue.talents.filter(
   (talent) => TALENT_EFFECTS[talent.id] !== undefined,
 );
 
-describe("the talent effects data covers the Combat tree and six Assassination talents", () => {
-  it("has an entry for each of the 17 Combat talents and six Assassination ones, in catalogue order, and no others", () => {
+describe("the talent effects data covers the Combat tree, six Assassination talents and three Subtlety ones", () => {
+  it("has an entry for each of the 17 Combat talents, six Assassination ones and three Subtlety ones, in catalogue order, and no others", () => {
     assert.equal(COMBAT.length, 17);
     assert.deepEqual(Object.keys(TALENT_EFFECTS), [
       ...ASSASSINATION_MAPPED,
       ...COMBAT.map((talent) => talent.id),
+      ...SUBTLETY_MAPPED,
     ]);
     for (const id of ASSASSINATION_MAPPED) {
       assert.ok(
         ASSASSINATION.some((talent) => talent.id === id),
+        id,
+      );
+    }
+    const subtlety = talentCatalogue.byTree("subtlety");
+    for (const id of SUBTLETY_MAPPED) {
+      assert.ok(
+        subtlety.some((talent) => talent.id === id),
         id,
       );
     }
@@ -124,7 +139,7 @@ describe("the talent effects data covers the Combat tree and six Assassination t
   });
 
   it("says which text each entry was written from, and the snapshot still has that text", () => {
-    assert.equal(MAPPED.length, 23);
+    assert.equal(MAPPED.length, 26);
     for (const talent of MAPPED) {
       const hash = createHash("sha256")
         .update(talent.ranks.join("\n"))
@@ -317,11 +332,9 @@ describe("expandTalents", () => {
       "combat.precision": 0,
     });
     assert.deepEqual(build.noDps, ["combat.endurance", "combat.riposte"]);
-    assert.deepEqual(build.abilities, ["blade-flurry"]);
-    assert.deepEqual(build.unmapped, [
-      "assassination.murder",
-      "subtlety.premeditation",
-    ]);
+    // Premeditation has its ability entry since #207.
+    assert.deepEqual(build.abilities, ["blade-flurry", "premeditation"]);
+    assert.deepEqual(build.unmapped, ["assassination.murder"]);
     assert.deepEqual(build.modifiers, []);
   });
 

@@ -683,12 +683,24 @@ export function applyBuild(
 // The ids of the abilities some talent grants, from the effects data. With a
 // build selected, the rotation casts one of these only when the build has the
 // talent (Rogue.rotation); an ability no talent grants is never held back.
-export const talentGrantedAbilities = Object.freeze(
-  new Set(
-    Object.values(TALENT_EFFECTS)
-      .map((entry) => entry.ability)
-      .filter((id) => id !== undefined),
-  ),
+// Object.freeze does not stop a Set's add, delete or clear, so those throw
+// (#207); has, size and iteration work as on any Set.
+function readOnlySet(values) {
+  const set = new Set(values);
+  for (const method of ["add", "delete", "clear"]) {
+    Object.defineProperty(set, method, {
+      value() {
+        throw new TypeError(`talentGrantedAbilities is read-only (${method}).`);
+      },
+    });
+  }
+  return Object.freeze(set);
+}
+
+export const talentGrantedAbilities = readOnlySet(
+  Object.values(TALENT_EFFECTS)
+    .map((entry) => entry.ability)
+    .filter((id) => id !== undefined),
 );
 
 // Fail the import on bad data: the shape, and every rank table at every rank.
