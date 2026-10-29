@@ -286,6 +286,14 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   share, and per-fight statistics over a batch. The batch result carries it as
   `breakdown`. Not yet used by the page. See
   [Per-ability breakdown](docs/breakdown.md).
+- `js/fight-metrics.js` — Fight metrics (S3, #146): aura uptime. A `FightAuras`
+  subscribed to a fight's `aura` and `end` events, and a `BatchAuras` that sums
+  fights in order. Rows are keyed by aura id and side (self or target): uptime
+  in seconds and as a fraction of the fight, applications, refreshes, and for a
+  stacking aura (Deadly Poison) stack-seconds, mean stacks and full-stack
+  uptime, with per-fight statistics over a batch. The batch result carries it as
+  `auras`. Not yet used by the page. See
+  [Aura uptime](docs/mechanics.md#aura-uptime-s3-issue-146).
 - `js/running-stats.js` — `RunningStats` (Welford's mean, SD, min, max and 95%
   CI, from #144) and `CompensatedSum` (Neumaier's compensated sum, #145).
 - `js/event-stream.js` — The event stream (P3-2, #137): `EventStream` (`on`,
@@ -664,6 +672,13 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   pooled batch averages, back-filled per-fight statistics, compensated sums, the
   batch result's breakdown against each iteration's fight however it is sliced,
   and that the module names no step or frame and imports no engine.
+- `test/fight-metrics.test.js` — Aura uptime: hand-built fights with known
+  uptimes, stacks and full-stack time, auras still up at the end, agreement with
+  the engine's own auras over every step, Adrenaline Rush and Blade Flurry at
+  their full duration, recorded events, mid-fight reads, pooled batch values,
+  back-filled per-fight statistics, the batch result's `auras` against each
+  iteration's fight however it is sliced, and that the module names no step or
+  frame and imports only the aura data and the statistics.
 - `test/rotation-equivalence.test.js` — The Combat rotation as JSON against the
   code rotation it replaced (`test/legacy-rotation.js`): the same fights, field
   for field, log and rng draws included, over builds, weapons, poisons, seeds

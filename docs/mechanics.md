@@ -2531,3 +2531,105 @@ stop.
 **Shape.** `runFight`'s result and `SimConfig` are unchanged. `js/fight.js`
 gains the export `fightResult(fight)`, the code `runFight` already used to build
 its result.
+
+## Aura uptime (S3, issue #146)
+
+`js/fight-metrics.js` says how long each aura was up in a fight, and the same
+over a batch. It is read from the event stream ([Events](events.md)): the
+`aura` events (applied, refreshed, stacked, ran out, each with its `time`) and
+the `end` event (the fight is over, at the fight duration). It reads no engine
+state and names no step or frame, so it works on a `SimRunner`, a `Simulation`,
+a recorded array of events or the Phase 3.5 engine, as long as the events are
+the same. The one thing it reads besides events is each aura's `maxStacks` from
+the aura definitions (`js/auras.js`), which is data, for the full-stack uptime.
+It has no DOM, reads no clock and draws no randomness, and subscribing it
+changes no fight.
+
+```js
+import { FightAuras } from "./js/fight-metrics.js";
+
+const auras = new FightAuras();
+const off = auras.attach(runner); // before run(), so no event is missed
+runner.run();
+runner.advance(Infinity);
+auras.summary(); // { duration, ended, rows }, readable mid-fight too
+off(); // unsubscribe
+```
+
+`attach(source)` takes anything with `on(type, handler)` that returns an
+unsubscribe function. `observe(event)` reads one event by hand; other types only
+move its clock, so a `"*"` subscription works too. `aurasFromEvents(events)` is
+the same summary for events already in hand. `new FightAuras({ maxStacks })`
+takes an object of aura id to stack limit for auras the definitions do not have.
+One `FightAuras` reads one fight: an event after `end`, or one earlier than the
+last it read, is a `RangeError`.
+
+A batch: `runBatch(...)` and `BatchRunner#result` carry it as `result.auras`
+([batch.md](batch.md)). By hand, `BatchAuras#add(summary)` takes one fight's
+summary at a time, in fight order, and `summary()` gives the batch.
+
+### Definitions
+
+An aura is **up** from an `apply` event to the next `expire` event of the same
+aura id on the same side (`target` of the event: `self` a buff, `target` a
+debuff). A `refresh` or a `stack` keeps it up; a `stack` (and any up event)
+sets the stacks to the event's `stacks`. All times are the events' `time`, in
+fight seconds.
+
+| Metric              | Definition                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `duration`          | The `end` event's time. Before the end, the time of the latest event read.             |
+| `uptime`            | Seconds up. An aura still up at `duration` is counted up to it (clipped to the fight). |
+| `uptimeFraction`    | `uptime / duration`, `0` for a fight of no length.                                     |
+| `applications`      | `apply` events: the times it went up from down.                                        |
+| `refreshes`         | `refresh` and `stack` events: the times it was applied again while up.                 |
+| `stackSeconds`      | Stacks times seconds, over the fight (stacking auras only).                            |
+| `meanStacks`        | `stackSeconds / uptime`: the mean stacks while up, `null` if never up.                 |
+| `fullStackUptime`   | Seconds at `maxStacks` (Deadly Poison: `k("poison.deadly").stacks`).                   |
+| `fullStackFraction` | `fullStackUptime / duration`.                                                          |
+
+A row's `stacks` is `null` for an aura of one stack (`maxStacks` 1, or an aura the
+definitions do not know: `maxStacks` `null`), else `{ stackSeconds, meanStacks,
+fullStackUptime, fullStackFraction }`. Rows are sorted by id, then side, in
+code-point order. The display name is a label from the first event.
+
+**Over a batch** (`BatchAuras#summary()`, `{ fights, duration, rows }`): counts
+and seconds are summed in fight order with compensated sums; `duration` is the
+fights' summed duration. `uptimeFraction`, `meanStacks` and `fullStackFraction`
+are pooled (summed seconds over summed seconds), not means of each fight's.
+`perFight.uptimeFraction` (and `perFight.fullStackFraction` for a stacking
+aura) is a `RunningStats` summary over every fight, the mean and range of one
+fight; a fight without the row counts as `0`, including the fights before the row
+first appeared. Fights are added in iteration order, so the result does not
+depend on how the batch was sliced.
+
+### What it reports, and what it does not
+
+- **Slice and Dice, Adrenaline Rush, Blade Flurry** (`self`) and **Deadly
+  Poison** (`target`, stacking to `k("poison.deadly").stacks`) each have a row
+  once applied. An aura never applied in a fight has no row in that fight.
+- **Instant Poison: n/a.** It has no row. The weapon coating is not modelled as
+  an aura: the engine sends no `aura` event for it, only the `hit` events of its
+  procs, which the per-ability breakdown ([breakdown.md](breakdown.md)) counts.
+  Only Deadly Poison's debuff on the target is an aura.
+- **Cold Blood** gets a generic row like any other aura. Its definition has an
+  hour's duration (`k("coldBlood").duration`, longer than any fight) and one
+  charge, so it runs out with `reason: "charges"` when the next listed ability
+  lands; its uptime is the time from the cast to that hit.
+- **Stamping.** On today's fixed-step engine an `expire` event carries the time
+  at the end of the move in which the aura ran out ([Events](events.md#the-contract-has-no-step-and-no-frame)),
+  so an uptime can be longer than the aura's exact time by less than
+  `k("sim.fixedStep")` (1/64 s) per expiry. That is the events contract, and it is
+  what the engine itself holds: `test/fight-metrics.test.js` checks, step by
+  step, that the uptimes, stack-seconds and full-stack time equal the engine's
+  own `activeBuffs` and `activeDebuffs`. An event-queue engine stamps the exact
+  time, and the same code gives the exact uptime.
+
+Energy-capped time and combo point waste (the rest of #146) are not observable
+from today's events (energy regeneration is not reported, and a gain lost at the
+cap moves nothing, so it sends no event). They come in a later change.
+
+**Shape.** `runFight`'s result, `SimConfig` and the rotation JSON are unchanged.
+The batch result gains `auras` ([batch.md](batch.md)). New module
+`js/fight-metrics.js`: `FightAuras`, `aurasFromEvents`, `BatchAuras`. No
+constants change.

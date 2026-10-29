@@ -323,7 +323,8 @@ describe("project site paths", () => {
     // js/batch-runner.js (S1, #144) is the batch engine: nothing imports it
     // until the worker client (#147) and the UI (#149, #150) do. With it go
     // js/running-stats.js and js/ability-breakdown.js (S2, #145), which only it
-    // imports until the results UI does.
+    // imports until the results UI does, and js/fight-metrics.js (S3, #146,
+    // the aura uptimes) the same way.
     // js/rotation-validator.js is wired through the interpreter.
     const notWiredYet = new Set([
       "js/sim-runner.js",
@@ -333,6 +334,7 @@ describe("project site paths", () => {
       "js/batch-runner.js",
       "js/running-stats.js",
       "js/ability-breakdown.js",
+      "js/fight-metrics.js",
     ]);
     for (const file of publishedJs) {
       if (notWiredYet.has(file)) {
