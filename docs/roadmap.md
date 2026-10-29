@@ -73,9 +73,8 @@ stale.
 
 **Batch defaults (OQ3).** OQ3 is closed: issue #153 records James's decision of
 1,000 iterations of 300 s fights (`fight.iterations` and `batch.duration` in
-[provenance](provenance.md)). The page's Fight length field accepts more than
-0 and at most 3,600 s (#153); the #155 UI pull request raises the minimum to
-1 s.
+[provenance](provenance.md)). The page's Fight length field accepts 1 to
+3,600 s: #153 set the 3,600 s maximum and #155 (PR #184) the 1 s minimum.
 
 **Exit criterion:** the user sets stats and poisons, runs a Combat batch with
 Run, Pause and Stop, and sees the breakdown. The tracker (#156) checks it off;
