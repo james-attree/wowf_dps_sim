@@ -645,7 +645,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   nothing, bad input), the data check refusing a bad entry, the Assassination
   shapes of D8a, and the reference build (Assassination 18 / Combat 33 /
   Subtlety 0) decoded from its talentsforever.com link
-  (`test/talentsforever.js`) and run through `createFight`.
+  (`data/reference-build.js`) and run through `createFight`.
 - `test/assassination-talents-as-data.test.js` — Malice, Lethality and Improved
   Slice and Dice (D8a PR 1) against the snapshot's rank text at every rank, the
   `duration` modifier kind (scope, floor, stacking), the Slice and Dice length
