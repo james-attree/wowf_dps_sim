@@ -753,10 +753,10 @@ describe("rotationWarnings: codes and data (#214)", () => {
         ["cooldownNotChecked", "rules[0].conditions"],
         ["unlockedNotTalent", "rules[0].conditions[0]"],
         ["grantedNotTalent", "rules[1].conditions[0]"],
+        // The finisher warning stands for its rule: no starves with it, even
+        // with Ghostly Strike above to build points (§18 item 6; Scout on
+        // #217).
         ["finisherNoComboPoints", "rules[2].conditions"],
-        // Ghostly Strike above can cast, so the finisher does too (Kira's
-        // QA on #216): it starves the rules below as well.
-        ["starves", "rules[2]"],
         ["starves", "rules[3]"],
         ["duplicateRule", "rules[4]"],
       ],
@@ -766,6 +766,7 @@ describe("rotationWarnings: codes and data (#214)", () => {
       assert.equal(typeof warning.message, "string");
     }
     assert.ok(Object.isFrozen(warnings[4].below));
+    assert.equal(warnings[4].code, "starves");
   });
 
   it("no message carries a place: the path says where (the message contract)", () => {
@@ -1284,29 +1285,37 @@ describe("rotationWarnings: unlockedNotTalent (#214)", () => {
   });
 });
 
-describe("rotationWarnings: a finisher's starves (Kira's QA on #216)", () => {
-  it("with a rule above that can cast, it starves the rules below and says so", () => {
+describe("rotationWarnings: a finisher's starves (Fran's U7 §18 item 6; Scout on #217)", () => {
+  it("with a rule above that can cast, the finisher warning alone stands for it", () => {
     // Sinister Strike builds the point; Eviscerate then casts at one and
-    // Hemorrhage is never reached.
+    // Hemorrhage is never reached. Kira's QA on #216 had it starve too;
+    // Scout's call on #217 is one warning per rule, the same list the import
+    // box and the rotation builder show. Its fix (a combo points check) also
+    // stops the starving.
     const trap = rotation(
       rule("sinister-strike", { type: "comboPoints", op: "<", value: 1 }),
       rule("eviscerate"),
       rule("hemorrhage", unlocked("hemorrhage")),
     );
-    const warnings = rotationWarnings(trap);
     assert.deepEqual(
-      warnings.map(({ code, path }) => [code, path]),
-      [
-        ["finisherNoComboPoints", "rules[1].conditions"],
-        ["starves", "rules[1]"],
-      ],
+      rotationWarnings(trap).map(({ code, path }) => [code, path]),
+      [["finisherNoComboPoints", "rules[1].conditions"]],
     );
-    assert.deepEqual(warnings[1].below, [2]);
-    assert.equal(warnings[1].ability, "eviscerate");
-    assert.equal(
-      warnings[1].message,
-      starvesText("Eviscerate (eviscerate)", 1, "Hemorrhage (hemorrhage)"),
+    const fixed = rotation(
+      rule("sinister-strike", { type: "comboPoints", op: "<", value: 1 }),
+      rule("eviscerate", { type: "comboPoints", op: ">=", value: 1 }),
+      rule("hemorrhage", unlocked("hemorrhage")),
     );
+    assert.deepEqual(rotationWarnings(fixed), []);
+  });
+
+  it("a finisher whose combo points check holds at 0 gets the finisher warning alone too", () => {
+    const trap = rotation(
+      rule("sinister-strike", { type: "comboPoints", op: "<", value: 1 }),
+      rule("eviscerate", { type: "comboPoints", op: ">=", value: 0 }),
+      rule("hemorrhage", unlocked("hemorrhage")),
+    );
+    assert.deepEqual(codes(trap), ["finisherNoComboPoints"]);
   });
 
   it("with no rule above that can cast, it waits at 0 points: one warning", () => {

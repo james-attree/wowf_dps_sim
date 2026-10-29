@@ -8,7 +8,7 @@ import { draftRotation } from "./rotation-edit.js";
 import { skipOf, talentState } from "./rotation-skips.js";
 import { summarizeRule } from "./rotation-summary.js";
 import { validateRotation } from "./rotation-validator.js";
-import { rotationWarnings } from "./rotation-warnings.js";
+import { rotationWarnings, sameRuleKey } from "./rotation-warnings.js";
 import { defaultConfig, normalizeConfig } from "./sim-config.js";
 
 // The stats form's model (Phase 3, #151, roadmap task U2): everything the
@@ -247,13 +247,49 @@ export function validateValues(values) {
   return errors;
 }
 
+const MAX_NAME = k("rotation.maxNameLength");
+
+// The name the first edit of an origin gives its session copy (D20).
+export const editedName = (name) => `${name} (edited)`.slice(0, MAX_NAME);
+
+// Whether a draft is an edit of its origin (Scout's call on #217): it is not
+// once it is valid, has the origin's name, and has the origin's rules in
+// order, each compared by sameRuleKey, the normaliser duplicateRule uses
+// (js/rotation-warnings.js: conditions and keys in any order, a param at its
+// default counts as left out). Undoing back to the origin, or moving a rule
+// down and up again, makes the draft the origin again.
+export function draftEdited(draft, origin) {
+  const rotation = draftRotation(draft);
+  return (
+    validateRotation(rotation).length > 0 ||
+    rotation.name !== origin.name ||
+    rotation.rules.length !== origin.rules.length ||
+    rotation.rules.some(
+      (rule, at) => sameRuleKey(rule) !== sameRuleKey(origin.rules[at]),
+    )
+  );
+}
+
+// Whether the form's draft of an origin is an edit of it (draftEdited); an
+// origin with no draft is not.
+export function isEditedChoice(form, choice) {
+  const draft = form.drafts?.[choice];
+  return (
+    draft !== undefined &&
+    draftEdited(draft, originRotation(choice, form.imported))
+  );
+}
+
 // The default first (under the name defaultRotation() gives it; #153 renames
 // it), then the presets, then the imported rotation when there is one.
-// Each origin with a session draft reads " · Edited" (D20).
+// Each origin whose session draft is an edit of it reads " · Edited" (D20;
+// draftEdited: a draft that is the origin again reads as the origin).
 export function rotationOptions(imported, drafts = {}) {
   const edited = (id, label) => ({
     id,
-    label: Object.hasOwn(drafts, id) ? `${label} · Edited` : label,
+    label: isEditedChoice({ imported, drafts }, id)
+      ? `${label} · Edited`
+      : label,
   });
   return [
     edited("default", defaultRotation().name),
@@ -613,6 +649,16 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       if (draft === null) {
         delete drafts[choice];
       } else {
+        // Back to the origin's rules under the name the first edit gave it:
+        // the origin again, under its own name, so the next edit renames it
+        // as a first edit does (Scout's call on #217).
+        const origin = originRotation(choice, form().imported);
+        if (
+          draft.name === editedName(origin.name) &&
+          !draftEdited({ ...draft, name: origin.name }, origin)
+        ) {
+          draft = { ...draft, name: origin.name };
+        }
         const valid =
           validateRotation(draftRotation(draft)).length === 0
             ? draftRotation(draft)

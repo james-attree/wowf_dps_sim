@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { abilityCatalogue } from "./abilities.js";
+import { CONDITION_PARAMS } from "./rotation-conditions.js";
 import { ROTATION_SCHEMA_VERSION } from "./rotation-schema.js";
 import { rotationContext } from "./rotation-validator.js";
 import { warningContext } from "./rotation-warnings.js";
@@ -118,6 +119,27 @@ export function removeRule(rules, at) {
 // A copy of rule `at`, new uids throughout, right below it (D1).
 export function duplicateRule(rules, at, nextUid) {
   return insertRule(rules, at + 1, copyRule(rules[at], nextUid));
+}
+
+// The draft's half-typed number text (`raw`, by condition uid) with the
+// text of each condition of `from` copied to the same condition of `to`, a
+// copyRule of it (Scout's review of #218: a copy showed NaN without it).
+export function copyRawText(raw, from, to) {
+  const next = { ...raw };
+  from.conditions.forEach((condition, at) => {
+    if (Object.hasOwn(raw, condition.uid)) {
+      next[to.conditions[at].uid] = raw[condition.uid];
+    }
+  });
+  return next;
+}
+
+// The draft's `raw` without the text of `rule`'s conditions (a deleted rule).
+export function dropRawText(raw, rule) {
+  const gone = new Set(rule.conditions.map((condition) => condition.uid));
+  return Object.fromEntries(
+    Object.entries(raw).filter(([uid]) => !gone.has(uid)),
+  );
 }
 
 export function copyRule(rule, nextUid) {
@@ -295,11 +317,17 @@ export function replaceCondition(rule, at, condition) {
   };
 }
 
+// A number field's text that reads as a number: a plain decimal, with an
+// optional sign and point ("40", "-1", "+2.5", "2.", ".5"). Hex ("0x10"),
+// exponents ("1e1"), "Infinity", separators and spaces inside are not
+// numbers here, though Number() reads some of them (Scout's review of #218).
+const PLAIN_DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+
 // The condition with one param set from what its control holds. A value
 // field's text: empty leaves the value out (the validator then says it is
-// missing), anything else is the number it reads as (NaN stays, so the
-// validator says so). `active` and `ready` read "true"/"false"; true is left
-// out, as the repo's default is.
+// missing), a plain decimal is the number it reads as, and anything else is
+// NaN, so the validator says it is not a number. A boolean param (its CONDITION_PARAMS
+// kind) reads "true"/"false", and is left out at its spec default.
 export function withParam(condition, param, text) {
   const next = { ...condition };
   if (param === "value") {
@@ -307,15 +335,17 @@ export function withParam(condition, param, text) {
     if (trimmed === "") {
       delete next.value;
     } else {
-      next.value = Number(trimmed);
+      next.value = PLAIN_DECIMAL.test(trimmed) ? Number(trimmed) : Number.NaN;
     }
     return next;
   }
-  if (param === "active" || param === "ready") {
-    if (text === "false" || text === false) {
-      next[param] = false;
-    } else {
+  const spec = CONDITION_PARAMS[condition.type]?.[param];
+  if (spec?.kind === "boolean") {
+    const value = text === "true" || text === true;
+    if (Object.hasOwn(spec, "default") && value === spec.default) {
       delete next[param];
+    } else {
+      next[param] = value;
     }
     return next;
   }

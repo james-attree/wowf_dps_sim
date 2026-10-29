@@ -48,6 +48,20 @@ export const TYPE_GROUPS = Object.freeze([
   ["Fight", ["fightTime", "fightTimeRemaining"]],
 ]);
 
+// The group a condition type no TYPE_GROUPS group names goes in.
+export const OTHER_TYPES = "Other";
+
+// A boolean param's control, by param name; one the table does not name is
+// worded plainly (booleanText).
+export const BOOLEAN_TEXT = Object.freeze({
+  active: { label: "up or not", yes: "is up", no: "is not up" },
+  ready: { label: "ready or not", yes: "is ready", no: "is on cooldown" },
+});
+export const booleanText = (param) =>
+  Object.hasOwn(BOOLEAN_TEXT, param)
+    ? BOOLEAN_TEXT[param]
+    : { label: param, yes: "yes", no: "no" };
+
 // D12: fight time left is a normal condition since #209.
 export const TYPE_NOTES = Object.freeze({
   fightTimeRemaining:
