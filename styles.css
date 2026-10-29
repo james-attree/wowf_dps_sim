@@ -80,7 +80,7 @@ p {
 .eyebrow {
   margin-bottom: 6px;
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: 0.6875rem;
   font-weight: 750;
   letter-spacing: 0.14em;
 }
@@ -312,7 +312,7 @@ h3 {
 
 .timed-effects-empty {
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: 0.6875rem;
 }
 
 .timed-effects {
@@ -323,6 +323,7 @@ h3 {
 }
 
 .timed-effect {
+  position: relative;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -342,6 +343,170 @@ h3 {
   font-size: 0.7rem;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+/* Phase 3 visualiser (#150, Fran's UX notes). Every colour cue has a text
+   twin: "AT CAP", the finisher line, the decimal on a low aura, "×N". Amber is
+   #f0c46a (9.67:1 on #2a2112). */
+[hidden] {
+  display: none !important;
+}
+
+.timed-effect-stacks {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: #2a2112;
+  color: #f3eee2;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.timed-effect-bar {
+  width: 32px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #120f0b;
+}
+
+.timed-effect-bar-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #cfc4ad;
+}
+
+.timed-effect.is-low .timed-effect-bar-fill {
+  background: #f0c46a;
+}
+
+.timed-effect.is-low .timed-effect-time {
+  color: #f0c46a;
+}
+
+.energy-readout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cap-tag {
+  padding: 1px 5px;
+  border: 1px solid #f0c46a;
+  border-radius: 4px;
+  background: #2a2112;
+  color: #f0c46a;
+  font-size: 0.6875rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+}
+
+.energy-fill.is-capped {
+  background: #f0c46a;
+}
+
+.combo-point.is-spent {
+  border-color: #f0c46a;
+  outline: 2px solid #f0c46a;
+  outline-offset: 1px;
+  animation: spend-flash 300ms ease-out;
+}
+
+.combo-spend {
+  min-height: 1.3em;
+  margin-top: 6px;
+  color: #f0c46a;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.log-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 12px;
+}
+
+.announce-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.proc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 8px;
+}
+
+.proc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proc-chip {
+  padding: 2px 8px;
+  border: 1px solid #66583d;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  animation: chip-pop 160ms ease-out;
+}
+
+.combat-log-entry.is-selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.log-readout {
+  min-height: 1.3em;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:root.reduce-motion .combo-point.is-spent,
+:root.reduce-motion .proc-chip {
+  animation: none;
+}
+
+@keyframes spend-flash {
+  from {
+    box-shadow: 0 0 14px #f0c46a;
+  }
+}
+
+@keyframes chip-pop {
+  from {
+    transform: scale(0.85);
+  }
 }
 
 .resources-panel {
@@ -549,7 +714,11 @@ h3 {
   }
 
   .resource-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .energy-panel {
+    order: -1;
   }
 
   .cooldown-grid {
@@ -578,6 +747,7 @@ h3 {
 
   .combat-log-scroll {
     height: clamp(160px, 30vh, 260px);
+    max-height: 50vh;
   }
 }
 
@@ -677,5 +847,10 @@ h3 {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .combo-point.is-spent,
+  .proc-chip {
+    animation: none;
   }
 }
