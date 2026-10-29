@@ -140,7 +140,8 @@ export class SimRunner {
 
   // Options:
   //   seed      required, an integer (wraps to unsigned 32 bits like runFight).
-  //   duration  fight length in seconds. Default k("fight.duration").
+  //   duration  fight length in seconds. Default k("batch.duration"), the one
+  //             default fight length of live and batch mode (#153).
   //   config    an optional SimConfig (js/sim-config.js), validated here.
   //   driver    optional { start(advance), stop() }. start is called when the
   //             runner enters "running" and gets advance to call whenever time
@@ -165,7 +166,7 @@ export class SimRunner {
     }
     this.#seed = normalizeSeed(options.seed);
     this.#duration = readDuration(
-      options.duration === undefined ? k("fight.duration") : options.duration,
+      options.duration === undefined ? k("batch.duration") : options.duration,
     );
     this.#driver = readDriver(options.driver);
     // Validate the config, and the talent build in it, now and not at the
@@ -200,6 +201,19 @@ export class SimRunner {
   // by less than one engine step.
   get time() {
     return this.#time;
+  }
+
+  // The fight the runner is spending time on, { rogue, simulation }, while it
+  // is "running" or "paused"; null when "idle" or "finished". A new one on
+  // every run(). The live page (#153) reads it each frame for what is not an
+  // event (energy, the GCD, time left on auras and cooldowns:
+  // js/live-feed.js) and subscribes its feed to the simulation. Read it, do not
+  // step it: time goes through advance().
+  get fight() {
+    const fight = this.#fight;
+    return fight === null
+      ? null
+      : Object.freeze({ rogue: fight.rogue, simulation: fight.simulation });
   }
 
   // The plain-data result when the state is "finished", the shape runFight

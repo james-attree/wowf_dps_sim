@@ -36,6 +36,8 @@ const STATS_FORM_UX =
   "Developer, 29 Oct 2026, issue #151: Fran's stats form notes (design), relayed via Scout";
 const POISON_SELECTOR_UX =
   "Developer, 29 Oct 2026, issue #152: Fran's poison selector notes (design), relayed via Scout";
+const RUN_CONTROLS =
+  "Developer, 29 Oct 2026, issue #153: Fran's run controls notes (design), relayed via Scout";
 const BATCH_FIXES = "Developer, 29 Oct 2026, issue #155";
 const ROTATION_SCHEMA = "Developer, 28 Oct 2026, issue #138";
 const ABILITY_SCHEMA = "Developer, 26 Oct 2026, issue #93";
@@ -886,28 +888,20 @@ export const CONSTANTS = {
     "Editable input.",
     true,
   ),
-  "fight.duration": entry(
-    180,
-    "s",
-    ASSUMPTION,
-    `${JAMES}: 180s roadmap default while OQ3 is open`,
-    "Editable input. The live sim runs until pause and does not read this.",
-    true,
-  ),
   "fight.iterations": entry(
     1000,
     "runs",
     ASSUMPTION,
-    `${JAMES}: 1000-run roadmap default while OQ3 is open`,
-    "Editable input. The default iteration count of the batch runner (js/batch-runner.js, issue #144).",
+    `${JAMES}: 1000-run roadmap default. OQ3 is closed: issue #153 records James's decision of 1,000 iterations of 300 s fights (relayed via Scout, 29 Oct 2026)`,
+    "Editable input. The default iteration count of the batch runner (js/batch-runner.js, issue #144) and of the page's Fights field (#153).",
     true,
   ),
   "batch.duration": entry(
     300,
     "s",
     ASSUMPTION,
-    `${BATCH_RUNNER}: the issue says "Defaults from James's decisions: 300 s fights and 1,000 iterations". The older 180 s is fight.duration, which this issue leaves as it is`,
-    "Editable input. The default fight length of the batch runner (js/batch-runner.js, issue #144), a 5-minute fight. It is a separate row from fight.duration (180 s, the SimRunner default and the live view's length), which this issue leaves as it is.",
+    `${BATCH_RUNNER}: the issue says "Defaults from James's decisions: 300 s fights and 1,000 iterations". ${RUN_CONTROLS}: issue #153 makes 300 s the default in both live and batch mode and removes the older 180 s fight.duration`,
+    "Editable input. The one default fight length, a 5-minute fight: the batch runner's (js/batch-runner.js, #144), SimRunner's (js/sim-runner.js) and the page's Fight length field in both modes (#153). The page accepts more than 0 and at most 3,600 s.",
     true,
   ),
   "batch.maxIterations": entry(

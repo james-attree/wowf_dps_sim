@@ -308,16 +308,15 @@ describe("project site paths", () => {
       }
     }
     await walk(resolve(root, "js"));
-    // Modules the page does not import yet. js/sim-runner.js (#136) is
-    // wired into the live page by the UI issues (#149, #150); remove it
-    // from this list then. js/rotation-schema.js (#138) is wired in by the
+    // Modules the page does not import yet. js/sim-runner.js (#136) drives
+    // the live page since #153 (through js/live-run.js). js/rotation-schema.js (#138) is wired in by the
     // rotation builder and interpreter (R3, the builder); remove it then. So
     // are js/rotation-conditions.js and js/rotation-state.js (#139).
     // js/rotation-summary.js (R4, #141) is the display-edge text for a rule;
     // the rotation builder imports it (through js/rotation-presets.js, for the
     // preset list), so remove it then. js/rotation-presets.js (R5, #142) is the
     // preset list's API: the page has no config UI to call it yet (#149,
-    // #150), so it waits with js/sim-runner.js.
+    // #150).
     // js/rotation-io.js (R6, #143) is the text side of a rotation: the page has
     // no file or clipboard UI to call it yet (#149, #150).
     // js/batch-runner.js (S1, #144) is the batch engine: nothing imports it
@@ -344,7 +343,6 @@ describe("project site paths", () => {
       "js/batch-client.js",
       "js/batch-host.js",
       "js/batch-worker.js",
-      "js/sim-runner.js",
       "js/batch-runner.js",
       "js/running-stats.js",
       "js/ability-breakdown.js",

@@ -59,9 +59,10 @@ An option not in this list is a `RangeError` that names it.
 ### Defaults: what changed
 
 A batch runs 300-second fights and 1,000 iterations by default (the issue's
-decision). `fight.duration` stays at 180 s, which is the live page's and
-`SimRunner`'s default; the 300 s is a new, separate constant, `batch.duration`
-(`assumption`, retune on, so it stays on the list of values to confirm). The
+decision). The 300 s is `batch.duration` (`assumption`, retune on, so it stays
+on the list of values to confirm). Since #153 it is the one default fight
+length: `SimRunner` and the page's live mode use it too, and the older 180 s
+`fight.duration` is gone. The
 iteration default is the existing `fight.iterations` row, read here for the
 first time.
 

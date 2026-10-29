@@ -154,7 +154,12 @@ h3 {
     border-color 120ms ease;
 }
 
-.pause-button:hover {
+.pause-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pause-button:hover:not(:disabled) {
   border-color: var(--accent);
   background: #302719;
 }
