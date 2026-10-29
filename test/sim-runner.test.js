@@ -680,3 +680,49 @@ describe("SimRunner fight (#153)", () => {
     assert.equal(target.fight, null, "reset");
   });
 });
+
+describe("SimRunner result and advance(duration) (#158)", () => {
+  it("returns the same result object on every read, not a copy, until the next run", () => {
+    const target = runner({ seed: 6 });
+    target.run();
+    target.advance(Infinity);
+    const result = target.result;
+    assert.equal(target.result, result, "the same object");
+    assert.equal(
+      Object.isFrozen(result),
+      false,
+      "not frozen: read-only by contract",
+    );
+    target.run();
+    assert.equal(target.result, null);
+    target.advance(Infinity);
+    assert.notEqual(target.result, result, "a new one per finished run");
+    assert.deepEqual(target.result, result);
+  });
+
+  for (const { seed, duration, config } of CASES) {
+    it(`finishes in one advance(duration) call (seed ${seed}, ${duration} s)`, () => {
+      const target = new SimRunner({ seed, duration, config });
+      target.run();
+      assert.equal(target.advance(duration), "finished");
+      assert.deepEqual(target.result, runFight({ seed, duration, config }));
+    });
+  }
+
+  it("can end a step short after many small calls, and the next call finishes the same fight", () => {
+    const duration = 10;
+    const target = runner({ seed: 2, duration });
+    target.run();
+    let given = 0;
+    for (let frame = 0; frame < duration * 60; frame += 1) {
+      target.advance(1 / 60);
+      given += 1 / 60;
+    }
+    assert.ok(given >= duration, "the host's own sum reached the length");
+    // The carry's float sum fell just under the last step.
+    assert.equal(target.state, "running");
+    assert.equal(target.time, duration - k("sim.fixedStep"));
+    assert.equal(target.advance(1 / 60), "finished");
+    assert.deepEqual(target.result, runFight({ seed: 2, duration }));
+  });
+});

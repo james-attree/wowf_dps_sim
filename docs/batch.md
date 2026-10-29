@@ -61,10 +61,9 @@ An option not in this list is a `RangeError` that names it.
 A batch runs 300-second fights and 1,000 iterations by default (the issue's
 decision). The 300 s is `batch.duration` (`assumption`, retune on, so it stays
 on the list of values to confirm). Since #153 it is the one default fight
-length: `SimRunner` and the page's live mode use it too, and the older 180 s
-`fight.duration` is gone. The
-iteration default is the existing `fight.iterations` row, read here for the
-first time.
+length, 300 s, for a batch, for `SimRunner` and for the page's live mode.
+There is no `fight.duration` constant any more. The iteration default is the
+existing `fight.iterations` row, read here for the first time.
 
 ## States
 

@@ -393,8 +393,8 @@ export class Simulation {
   // seconds. The base rate holds for the part of the step no timed modifier of
   // the rule's kind covers. Each such modifier (Adrenaline Rush's) changes the
   // rate for the part of the step its aura was still up, so the pieces are cut
-  // where an aura runs out. One aura gives two pieces: the base rate, then the
-  // boosted rate. Static modifiers (a talent) apply to every piece. The rate is
+  // where an aura runs out. One aura gives two pieces, in order of time: the
+  // boosted rate while the aura is up, then the base rate (#155). Static modifiers (a talent) apply to every piece. The rate is
   // combined through the pipeline, so a flat bonus and a multiplier stack as
   // modifiers.stacking says.
   regenerateResources(dt) {

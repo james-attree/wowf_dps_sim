@@ -28,8 +28,8 @@ the draw order the attack table made (see Attack table). Nothing under
 `js/` except `js/main.js` uses a platform random source, and lint rejects
 `Math.random` there, including `Math['random']`, `globalThis.Math.random`, and
 `self.Math.random`. The live page picks
-a random seed at load, keeps it in `simulation.seed`, and shows it in the
-header. A `Rogue` that no
+a random seed at load, keeps it in `simulation.seed`, and shows it in the run
+bar's Seed field (#153), where the player can type one or draw a new one. A `Rogue` that no
 `Simulation` has adopted has no rng, and a draw throws.
 
 ## Attack table
@@ -334,8 +334,10 @@ time (#155): the aura covers the start of the step, so the slice with every
 timed contribution comes first, then the slice without the shortest, and the
 rate without any of them last. Each add is capped, so the pool reaches its cap
 at the right moment and `cappedTime` counts the right part of the step (until
-#155 the base-rate slice came first; the energy at the end of the step is the
-same either way, so no golden fixture moved). The cast frame
+#155 the base-rate slice came first). The energy at the end of the step is the
+same either way only at the 1/64 s step (`k("sim.fixedStep")`), which every
+headless run and golden fixture uses, so no golden fixture moved. At other step
+lengths, such as a live frame, the two orders are not guaranteed to agree. The cast frame
 itself stays at the base rate, because the buff is applied later, inside
 `Rogue.rotation`. With more than one timed contribution the step is cut where
 each runs out, and each applies to the part it covers. One aura gives exactly
@@ -738,7 +740,9 @@ charges).
 reads the proc chance and the numbers from the catalogue; `test/poisons.test.js` checks them against the parsed top ranks, and
 checks the poison ids in `config.poisonIds`, `poison.spells` and `nature.spells`
 against the catalogue. `k("poison.charges")` stays `"unlimited"`: the parsed
-`charges` are not used up in a fight. The values are the Forever text
+`charges` are not used up in a fight, so a coating lasts the whole fight. The
+page's poison selector says so: next to a poison whose top rank has charges it
+shows "Charges not tracked" (#152). The values are the Forever text
 (`d`), not the Classic text (`cd`).
 
 ### Poison procs (A5, issue #105)
@@ -876,9 +880,10 @@ end in the same state, whoever drives them.
   a `SimRunner`, which gives it whole fixed steps from `FrameClock` (see Live
   page). It is a view of the
   engine and holds no combat rule.
-- The golden tests pin the `runFight` result for six fixed cases, one of them a
-  scripted list of casts and two of them a talent build (see Golden-seed tests). They fail when anything on
-  this path changes a number.
+- The golden tests pin the `runFight` result for seven fixed cases, one of
+  them a scripted list of casts and three of them the reference talent build
+  (one with poisons, one with the combat-swords preset; see Golden-seed tests).
+  They fail when anything on this path changes a number.
 - `npm run bench` times a seeded 5-minute `runFight` (see Benchmark).
 
 What a reader should not assume is under Known limits of Phase 1 (written at the
@@ -1292,8 +1297,10 @@ A golden test pins the whole result of a fixed fight, so a change to a rule, a
 constant, or the engine shows up in review as a diff of numbers. The cases are
 listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
 10 s), a 5-minute fight (seed 1, 300 s), another seed (12345, 90 s), a
-scripted-cast fight (seed 68, 50 s, described below), and the two config cases
-added by #107 (the talented build, the poison fight, described below). Each
+scripted-cast fight (seed 68, 50 s, described below), the two config cases
+added by #107 (the talented build, the poison fight, described below), and the
+combat-swords preset case added by #164 (seed 142, 120 s, described below):
+seven in all. Each
 has a fixture in `test/golden/<name>.json` holding the `runFight` result:
 `seed`, `duration`, `totalDamage`, `dps`, every ability's record, and the capped
 log. The one result field it leaves out is `dataVersion` (see Data version).
@@ -1306,10 +1313,10 @@ separately: no fixture mentions it, and every result carries the current
 git diff points at the line that moved.
 
 None of the first three cases casts Eviscerate or Rupture: the placeholder
-rotation never calls Rupture, and it only rarely reaches Eviscerate, when Slice
-and Dice has more than `k("rotation.sliceAndDiceRefreshSeconds")` left at the finisher
-combo points (see `rotation.priority`). So they cannot pin finisher damage, DoT
-ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
+rotation never calls Rupture, and in these three fights every finisher it
+reaches goes to Slice and Dice (1, 12 and 4 casts; see example 1 in
+[docs/rotation.md](rotation.md#1-todays-placeholder-combat-rotation)). So they
+cannot pin finisher damage, DoT ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
 `script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
 energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT` is Sinister Strike
 seven times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
@@ -1324,31 +1331,54 @@ script that has not finished by the end of the fight throws. The fixture has
 
 **Config cases (#107).** A case may carry `config`, a partial SimConfig that
 `runGoldenCase` passes to `runFight` (or `runScriptedFight`) like any caller's.
-The first four cases have none and run the defaults, as before. Both new cases
+The first four cases have none and run the defaults, as before. Both #107 cases
 run the reference build (Assassination 18 / Combat 33 / Subtlety 0, the
 talentsforever link in `data/reference-build.js`, applied through `applyBuild`)
 at seed 107 for 60 s:
 
-- `talented-build-seed-107-60s`: the talents and no poisons. 15,291.68 damage,
-  254.86 DPS, 292 random draws, 92 log rows. It casts Blade Flurry, Adrenaline
-  Rush, Cold Blood, Slice and Dice and two Eviscerates, and Ruthlessness,
+- `talented-build-seed-107-60s`: the talents and no poisons. 14,772.13 damage,
+  246.20 DPS, 288 random draws, 90 log rows. It casts Blade Flurry, Adrenaline
+  Rush, Cold Blood, Slice and Dice twice and two Eviscerates, and Ruthlessness,
   Relentless Strikes and Hack and Slash all fire.
 - `poisons-instant-deadly-seed-107-60s`: the same build with Instant Poison on
-  the main hand and Deadly Poison on the off hand. 14,029.47 damage, 233.82
-  DPS, 409 draws, 100 log rows (the cap). Instant Poison rolls 49 times and
-  fires 9; Deadly Poison rolls 19 times and fires 4, with 10 ticks.
+  the main hand and Deadly Poison on the off hand. 16,953.36 damage, 282.56
+  DPS, 404 draws, 100 log rows (the cap). Instant Poison rolls 45 times and
+  fires 10; Deadly Poison rolls 23 times and fires 5, with 8 ticks.
 
-The poison fight deals less than the talented one although it adds poison
-damage. That is the rng, not a rule: the poison rolls draw numbers between the
-swings, so from the first poison roll the two fights are different draws of the
-same seed (here the off-hand misses 12 of 32 swings). Do not compare the pair as
-a poison's worth. The config is unpinned like `dataVersion`: `test/golden.test.js`
+The two fights differ by more than the poison damage (1,474 of the 2,181).
+That is the rng, not a rule: the poison rolls draw numbers between the swings,
+so from the first poison roll the two fights are different draws of the same
+seed (before #173 the poison fight dealt less than the talented one, with the
+off-hand missing 12 of 32 swings). Do not compare the pair as a poison's
+worth. The config is unpinned like `dataVersion`: `test/golden.test.js`
 checks that a result's `config` is the default one, or for a config case the
 case's talents and poisons laid over the defaults. Both fixtures log CDN icon
 URLs (see Icons), so a change to `icons.cdn` rewrites the poison fixture, and
 the talented one where a skill row carries a CDN icon (Cold Blood). The reference
 build is read from the test helper (`scripts/golden-update.mjs` imports it) so
 that the link is in one place.
+
+**Combat-swords preset case (#164).** `combat-swords-preset-seed-142-120s` runs
+the reference build with the combat-swords preset rotation
+([docs/rotation.md](rotation.md#combat-swords)) at seed 142 for 120 s:
+30,883.65 damage, 257.36 DPS. It casts Blade Flurry, Adrenaline Rush, Cold
+Blood, Slice and Dice four times and Eviscerate five times, so it pins the
+preset's Slice and Dice pooling (#122).
+
+**Three fixtures moved on purpose in #173 (issue #155).** The default rotation
+took the combat-swords preset's two Slice and Dice rules in place of its single
+10 s refresh (example 1 in [docs/rotation.md](rotation.md)). That moved
+`other-seed-12345-90s`, `talented-build-seed-107-60s` and
+`poisons-instant-deadly-seed-107-60s`, rewritten in that pull request. `short-seed-1-10s`, `five-minute-seed-1-300s`,
+`scripted-finishers-seed-68-50s` and `combat-swords-preset-seed-142-120s` did
+not move.
+
+**What `five-minute-seed-1-300s` cannot catch.** With no talents, every finisher
+in it is a Slice and Dice cast with at most 5 s left on the buff, under the old
+10 s refresh and the new rules alike, so its numbers did not move when the
+refresh rules changed. It pins Slice and Dice's effect on the fight, not when
+the rotation refreshes it: a shift in Slice and Dice timing shows in
+`other-seed-12345-90s`, the two seed-107 cases and the preset case, not here.
 
 No golden case contains a parry or a block. Every case is behind the target
 (the default `target.behind`), where both bands have zero width. `parries` and
@@ -2582,11 +2612,46 @@ stop.
 gains the export `fightResult(fight)`, the code `runFight` already used to build
 its result.
 
-`SimRunner.fight` (#153) is the one engine handle: `{ rogue, simulation }`,
-frozen, while `running` or `paused`, and null when `idle` or `finished` (a new
-one on every `run`). The live page's feed (`js/live-feed.js`) reads the energy,
-GCD, aura and cooldown timers from it and subscribes to its simulation's
-events. A caller reads it and never steps it: time goes through `advance`.
+`SimRunner.fight` (#153) is the one engine handle: `{ rogue, simulation }`
+while `running` or `paused`, and null when `idle` or `finished` (a new fight on
+every `run`). It is read-only by contract. Only the wrapper is frozen: each read
+returns a new frozen `{ rogue, simulation }`, and the `rogue` and `simulation`
+in it are the live engine objects, which nothing freezes (freezing them would
+freeze the running fight). The live page's feed (`js/live-feed.js`) reads the
+energy, GCD, aura and cooldown timers from it and subscribes to its
+simulation's events. A caller reads it and never writes to it or steps it: time
+goes through `advance`.
+
+`SimRunner.result` (#158) is the same object on every read, not a copy: the
+runner keeps the one `fightResult` built when the fight finished and hands it
+back each time. Nothing about it is frozen. Like `fight`'s `rogue` and
+`simulation`, it is live and read-only by contract.
+A caller that wrote to it would change what every later read of `result`
+returns, until the next `run` sets it to null and a later finish builds a new
+one. Read it; to change a result, change your own copy (`structuredClone`).
+
+**`advance(seconds)` and the carry (#158).** `advance` adds `seconds` to a
+carry of fight time, then takes the steps the carry pays for, in the plan
+`Simulation.run` follows: `floor(duration / k("sim.fixedStep"))` whole steps,
+then one shorter closing step for what is left, so the fight ends exactly at
+`duration`. What is left over, always less than the next step, waits for the
+next call. Time given after the last step is dropped.
+
+- `advance(duration)` as the first call of a run, or `advance(Infinity)`, runs
+  the whole fight in one call and returns `"finished"`. The step,
+  1/64 s, is a power of two, so taking whole steps off the carry is exact and
+  the carry left for the closing step is exactly the closing step's length.
+- Many small calls, such as a frame loop's `advance(1 / 60)`, can end one step
+  short. The carry is a floating-point sum of the calls' seconds and rounds
+  differently from the host's own sum, so it can fall a hair under the last
+  step even when the host's total has reached `duration` (600 calls of
+  `1 / 60` for a 10 s fight stop at 9.984375 s, still `running`). The next
+  call of any size that covers the gap finishes the fight. The result is the
+  same fight: steps are only ever taken whole, so the fight cannot drift, and a
+  run to the end equals `runFight` for any split of the time. A host loops
+  until the state is `"finished"` and does not count seconds. The live page
+  hands over whole steps (`advance(k("sim.fixedStep"))`, `js/live-run.js`),
+  which never falls short.
 
 ## Aura uptime (S3, issue #146)
 

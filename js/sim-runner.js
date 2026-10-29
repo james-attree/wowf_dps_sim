@@ -211,7 +211,9 @@ export class SimRunner {
   // every run(). The live page (#153) reads it each frame for what is not an
   // event (energy, the GCD, time left on auras and cooldowns:
   // js/live-feed.js) and subscribes its feed to the simulation. Read it, do not
-  // step it: time goes through advance().
+  // step it: time goes through advance(). Read-only by contract: only this
+  // wrapper is frozen (a new one per read); the rogue and simulation are the
+  // live engine objects.
   get fight() {
     const fight = this.#fight;
     return fight === null
@@ -220,8 +222,11 @@ export class SimRunner {
   }
 
   // The plain-data result when the state is "finished", the shape runFight
-  // returns. null in every other state. Treat it as read-only. A later run()
-  // makes a new one.
+  // returns. null in every other state. The same object on every read, not a
+  // copy, and not frozen: like the rogue and simulation in `fight`, it is live
+  // and read-only by contract, so a caller that writes to it changes what
+  // later reads return. A later run() makes a
+  // new one.
   get result() {
     return this.#result;
   }
@@ -276,6 +281,10 @@ export class SimRunner {
   // Infinity runs it to the end. Time past the end of the fight is dropped.
   // Does nothing unless the state is "running". Returns the state afterwards,
   // which is "finished" when this call reached the end of the fight.
+  // advance(duration) as a run's first call finishes it. Many small calls can
+  // leave it one step short: the carry is a float sum that can fall just under
+  // the last step, and the next call finishes the same fight (docs/mechanics.md,
+  // Run controller).
   advance(seconds) {
     if (typeof seconds !== "number" || Number.isNaN(seconds) || seconds < 0) {
       throw new RangeError(
