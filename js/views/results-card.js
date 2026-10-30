@@ -1,6 +1,6 @@
 import { el, toDom, toMarkup } from "../svg.js";
 import { breakdownModel, num, pct } from "./results-render.js";
-import { clock } from "./run-model.js";
+import { clock, staleFixTitle } from "./run-model.js";
 import { formatNumber } from "../charts.js";
 import { isStale, staleBanner } from "./stale.js";
 
@@ -105,7 +105,7 @@ function runningPart(batch, run, buildLabel) {
 // The average's out-of-date line (#242): the card's version of the Results
 // banner, over the average it is about.
 function staleLine(state) {
-  const banner = staleBanner(state, "batch");
+  const banner = staleBanner(state, "batch", staleFixTitle(state));
   return (
     banner !== null &&
     el("div", { class: "results-card-stale" }, [

@@ -204,6 +204,47 @@ describe("Results views (#242)", () => {
     assert.equal(model.live.run, "Watch again");
   });
 
+  it("while Run is blocked, the title says what to fix, not run again (#245)", () => {
+    const fields = state({
+      now: edited(),
+      form: { errors: { attackPower: "Too high", critChance: "Too high" } },
+    });
+    const model = resultViewsModel(fields);
+    assert.equal(
+      model.average.stale.title,
+      "Out of date — fix 2 settings, then Run again.",
+    );
+    assert.equal(model.live.stale.title, model.average.stale.title);
+    assert.match(
+      text(cardModel(fields, { buildLabel }).body),
+      /^Out of date — fix 2 settings, then Run again\. Attack power changed/,
+    );
+    const talents = state({
+      now: edited(),
+      talents: { error: "Over the cap" },
+    });
+    assert.equal(
+      resultViewsModel(talents).average.stale.title,
+      "Out of date — fix the talents, then Run again.",
+    );
+    const rotation = state({
+      now: edited(),
+      form: { errors: {}, rotationErrors: ["a", "b"] },
+    });
+    assert.equal(
+      resultViewsModel(rotation).average.stale.title,
+      "Out of date — fix the rotation, then Run again.",
+    );
+    const one = state({
+      now: edited(),
+      form: { errors: { attackPower: "Too high" } },
+    });
+    assert.equal(
+      resultViewsModel(one).average.stale.title,
+      "Out of date — fix 1 setting, then Run again.",
+    );
+  });
+
   it("a running batch is the Average's", () => {
     const model = resultViewsModel(
       state({

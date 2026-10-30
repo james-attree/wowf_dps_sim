@@ -6,6 +6,7 @@ import {
   grouped,
   isLocked,
   secondsText,
+  staleFixTitle,
 } from "./run-model.js";
 import { ranClock, ranOf, staleBanner } from "./stale.js";
 
@@ -103,8 +104,10 @@ export function resultViewsModel(state) {
   const liveRecord = ranOf(state, "live");
   const time = state.results?.time ?? NO_TIME;
   const damage = state.results?.damage ?? NO_DAMAGE;
-  const averageStale = staleBanner(state, "batch");
-  const liveStale = staleBanner(state, "live");
+  // While Run is blocked, the title says what to fix (#245).
+  const fix = staleFixTitle(state);
+  const averageStale = staleBanner(state, "batch", fix);
+  const liveStale = staleBanner(state, "live", fix);
   return {
     view: viewOf(state.route),
     locked,

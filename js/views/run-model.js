@@ -248,6 +248,21 @@ const rotationOnly = (state) => {
   return rotation > 0 && blockedCount(state) === rotation;
 };
 
+// The out-of-date banner's and card's title while Run is blocked (#245,
+// Fran's #254 check), or null when it is not: what to fix, not "Run again",
+// which Run cannot do yet. "Out of date — fix 2 settings, then Run again."
+export function staleFixTitle(state) {
+  if (!blocked(state)) {
+    return null;
+  }
+  const what = rotationOnly(state)
+    ? "the rotation"
+    : talentsOnly(state)
+      ? "the talents"
+      : settings(blockedCount(state));
+  return `Out of date — fix ${what}, then Run again.`;
+}
+
 function blockedReason(state) {
   if (rotationOnly(state)) {
     return blockedText(1, state.form.rotationErrors.length);
