@@ -437,6 +437,62 @@ describe("rotation", () => {
     assert.ok(!$("cfg-import-status").classes.has("is-warning"));
   });
 
+  it("the What to check box is a labelled region only while it overflows (#200)", () => {
+    const { $ } = page();
+    const box = $("cfg-import-warnings-text");
+    const region = () => [
+      box.getAttribute("tabindex"),
+      box.getAttribute("role"),
+      box.getAttribute("aria-label"),
+    ];
+    const paste = (rules) => {
+      $("cfg-import-text").value = JSON.stringify({
+        schemaVersion: 1,
+        name: "Trap",
+        rules,
+      });
+      $("cfg-import-paste").click();
+    };
+    const two = [
+      { action: "eviscerate", conditions: [] },
+      { action: "sinister-strike", conditions: [] },
+    ];
+    // It fits: no Tab stop, no region.
+    box.scrollHeight = 100;
+    box.clientHeight = 100;
+    paste(two);
+    assert.equal($("cfg-import-warnings").hidden, false);
+    assert.deepEqual(region(), [null, null, null]);
+    // New content that overflows, drawn: a region named in Fran's words.
+    box.scrollHeight = 300;
+    box.clientHeight = 160;
+    paste([...two, { action: "eviscerate", conditions: [] }]);
+    assert.deepEqual(region(), ["0", "region", "What to check"]);
+    // The box opened, or resized, to fit: no longer a region.
+    box.scrollHeight = 300;
+    box.clientHeight = 300;
+    $("cfg-import-warnings").fire("toggle");
+    assert.deepEqual(region(), [null, null, null]);
+    // Overflowing again, read on the toggle too.
+    box.clientHeight = 160;
+    $("cfg-import-warnings").fire("toggle");
+    assert.deepEqual(region(), ["0", "region", "What to check"]);
+    // Closed, it shows nothing to scroll, whatever sizes it last had.
+    $("cfg-import-warnings").open = false;
+    $("cfg-import-warnings").fire("toggle");
+    assert.deepEqual(region(), [null, null, null]);
+    $("cfg-import-warnings").open = true;
+    $("cfg-import-warnings").fire("toggle");
+    assert.deepEqual(region(), ["0", "region", "What to check"]);
+    // No warnings: empty and not a region.
+    box.scrollHeight = 0;
+    box.clientHeight = 0;
+    $("cfg-import-text").value = "{";
+    $("cfg-import-paste").click();
+    assert.equal($("cfg-import-warnings-text").textContent, "");
+    assert.deepEqual(region(), [null, null, null]);
+  });
+
   it("switching to another rotation clears the import status and warnings (Kira's #206 review)", () => {
     const { $, store } = page();
     $("cfg-import-text").value = JSON.stringify({

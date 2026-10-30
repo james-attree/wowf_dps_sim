@@ -118,6 +118,10 @@ export function poisonNoteText({ noDpsReason }) {
   return `Not simulated yet: ${reason}`;
 }
 
+// The "What to check" box's name while it is a scrolling region (#200,
+// Fran's wording).
+const WARNINGS_REGION_LABEL = "What to check";
+
 export function createConfigFormView(doc, store, actions) {
   const $ = (id) => doc.querySelector(`#${id}`);
   const form = $("config-form");
@@ -416,6 +420,38 @@ export function createConfigFormView(doc, store, actions) {
     importStatus.classList.toggle("is-warning", warned);
     importWarnings.hidden = !warned;
     importWarningsText.textContent = warned ? status.warnings : "";
+    markWarningsRegion();
+  }
+
+  // #200 (Fran's #226 QA, 2): the "What to check" text is a focusable,
+  // labelled region only while it overflows its box (wide screens cap its
+  // height, styles.css), so a box with nothing to scroll is not a Tab stop
+  // that does nothing. Checked on every draw, when the box is opened or
+  // changes size (a resize, a wrap), and when the window resizes. A box that
+  // loses its region while focused hands the focus to its summary.
+  function markWarningsRegion() {
+    const box = importWarningsText;
+    // A closed or hidden box shows nothing to scroll (and keeps the sizes
+    // it had when open).
+    const shown = !importWarnings.hidden && importWarnings.open !== false;
+    if (shown && box.scrollHeight > box.clientHeight) {
+      box.setAttribute("tabindex", "0");
+      box.setAttribute("role", "region");
+      box.setAttribute("aria-label", WARNINGS_REGION_LABEL);
+      return;
+    }
+    const focused = doc.activeElement === box;
+    box.removeAttribute("tabindex");
+    box.removeAttribute("role");
+    box.removeAttribute("aria-label");
+    if (focused) {
+      importWarnings.querySelector?.("summary")?.focus?.();
+    }
+  }
+  importWarnings.addEventListener?.("toggle", markWarningsRegion);
+  win.addEventListener?.("resize", markWarningsRegion);
+  if (typeof win.ResizeObserver === "function") {
+    new win.ResizeObserver(markWarningsRegion).observe(importWarningsText);
   }
 
   let toastTimer = null;

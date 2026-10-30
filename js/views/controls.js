@@ -321,7 +321,29 @@ export function createControlsView(doc, store, actions = {}) {
   }
 
   place();
-  narrow?.addEventListener?.("change", place);
+  narrow?.addEventListener?.("change", () => {
+    place();
+    sizeBar();
+  });
+
+  // #200 (Fran's #226 QA, 5): the sticky bar's height, as --run-bar-height on
+  // the page, so a banner scrolled into view (its scroll-margin-top,
+  // rotation-builder.css) lands below the bar, not under it. The sticky part
+  // is the whole bar when wide and the compact row when narrow, and either
+  // changes height as it wraps, so it is measured, not guessed.
+  const root = doc.documentElement;
+  function sizeBar() {
+    const stuck = narrow?.matches ? row : bar;
+    if (typeof stuck.offsetHeight === "number") {
+      root?.style?.setProperty?.("--run-bar-height", `${stuck.offsetHeight}px`);
+    }
+  }
+  sizeBar();
+  if (typeof view?.ResizeObserver === "function") {
+    const watch = new view.ResizeObserver(sizeBar);
+    watch.observe(bar);
+    watch.observe(row);
+  }
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (
