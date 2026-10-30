@@ -409,6 +409,12 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   `createTimers` (#195): the GCD, cooldowns, aura expiries and Premeditation's
   point expiry as expiry-class events at `start + duration`. Nothing uses them
   yet. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+- `js/core/dots.js` — `DotTicks` (#196), DoT ticks for the Phase 3.5 core:
+  one pending tick event per DoT at `anchor + n * interval`, a restart refresh
+  (a cast DoT) and a keep-clock refresh (a proc's DoT or a poison). The tick
+  body is `Simulation.resolveDotTick`, shared with the legacy loop. Nothing
+  uses it yet. See "Planned: event-queue engine" in
+  [Mechanics](docs/mechanics.md).
 - `js/fight.js` — `runFight({ seed, duration, config })`, the headless entry
   point, and `createFight(seed, config, options)`, the `Rogue` and `Simulation`
   pair that `runFight` and the live page both build. `options.duration` is the

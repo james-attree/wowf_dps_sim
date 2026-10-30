@@ -1218,6 +1218,51 @@ end; the scheduler's hard stop (`k("sim.maxEventsPerTimestamp")` events at
 one time) ends it with a `SchedulerHardStopError`. The rotation (#197) must
 act on energy it holds rather than wait for it.
 
+**DoT ticks (#196).** `js/core/dots.js` holds the new core's DoT clocks;
+nothing in the shipped engine uses it yet (the host that wires it into a fight
+arrives with #197 and #198), and the legacy `step()` loop still ticks DoTs
+itself. `new DotTicks({ scheduler })` keeps one pending event per DoT, of kind
+`"dot-tick"` (`DOT_TICK_KIND`) in the DoT class, with the payload `{ id }`.
+`apply(id, { interval, duration, refresh })` starts or refreshes a DoT at the
+scheduler's `now`, and its n-th tick is at `anchor + n * interval`, never a sum
+of deltas. There are two refresh rules (`DOT_REFRESH`):
+
+- `"restart"` (Rupture, or any DoT a skill applies): the clock restarts at
+  now, the pending tick is cancelled (no stale tick is left), and the DoT ticks
+  `floor(duration / interval)` times, as legacy counts them;
+- `"keep-clock"` (a poison or a proc's DoT, refreshed by a stack): the pending
+  tick keeps its time and only the end moves to `now + duration`; ticks run
+  while they fall at or before the end, within `k("sim.tickEpsilon")`. A
+  refresh that changes the interval re-anchors at the pending tick, and a
+  refresh to an earlier end drops a pending tick that no longer fits. A
+  keep-clock DoT that has run out starts a fresh clock.
+
+The host's handler calls `ticked(event)` for the DoT's own pending event (any
+other event is an `Error`). It counts the tick, schedules the next one if it
+fits, and returns `{ id, tick, last }`. The tick's damage is
+`Simulation.resolveDotTick`, the body the legacy loop runs, so a tick's roll,
+its Hemorrhage bonus and the procs it fires (`procs.onDotTick`) are the same
+code on both engines. An aura that runs out at a tick's time expires first
+(the expiry class runs before the DoT class), so a tick at the end of a
+Hemorrhage window is not boosted. A bad interval is a `RangeError` with the
+legacy text (#193); a bad duration, refresh rule or id is a `RangeError` or
+`TypeError`.
+
+Procs and poisons keep their rules on events: an internal cooldown is
+measured from `currentTime`, which the host sets to each event's time, with
+the same `k("sim.tickEpsilon")` tolerance; an extra attack is resolved inline
+from the swing that procced it, at the same time, and does not move the
+hand's next swing; a chain of extra attacks stops at `k("proc.maxChainDepth")`
+with the same `RangeError`; a poison never uses up a charge
+(`k("poison.charges")`). A test host (`test/core-host.js`) runs the same seeded
+fight with swings, DoT ticks, aura expiries and scripted casts on the
+scheduler, and over 200 seeds every hit, the damage and the ability
+breakdown equal the legacy loop's. Three edges differ from legacy, none of
+them reached by a shipped rotation: the first main-hand swing is at 0, not
+after the first 1/64 s step; a restart refresh from a DoT's own last tick
+keeps the DoT (legacy deletes it at the end of that step); and a keep-clock
+refresh that changes the interval keeps the pending tick's time.
+
 **Swings (#195).** `js/core/swing.js` holds the new core's swing timer;
 nothing uses it yet, and the legacy `Weapon.tick` stays for the legacy engine.
 `new SwingTimer({ weapon, modifiers, scheduler })` takes a weapon (its speed
