@@ -638,3 +638,102 @@ describe("EnergyPool: taking over a fight, and its waste", () => {
     assert.equal(pool.value, 10);
   });
 });
+
+describe("energy pool: edges (#225)", () => {
+  it("a gain after a wake has run schedules nothing: the ran wake is not re-armed", () => {
+    const { pool, scheduler, woke } = setup({ endTime: 20 });
+    pool.spend(CAP);
+    pool.wakeAt(30);
+    scheduler.runUntil(10);
+    assert.equal(woke.length, 1);
+    assert.equal(pool.wakeAmount, null);
+    const pending = scheduler.pendingCount;
+    pool.gain(5);
+    pool.spend(10);
+    assert.equal(pool.wakeTime, null);
+    assert.equal(scheduler.pendingCount, pending);
+    scheduler.runToEnd();
+    assert.equal(woke.length, 1);
+  });
+
+  it("gain(0) and spend(0) leave the line and the wake-up as they are", () => {
+    const { pool, scheduler } = setup({ endTime: 20 });
+    pool.spend(CAP);
+    const wake = pool.wakeAt(50);
+    scheduler.runUntil(1.3);
+    const line = pool.line;
+    let changes = 0;
+    pool.onChange = () => {
+      changes += 1;
+    };
+    assert.equal(pool.gain(0), 0);
+    assert.equal(pool.spend(0), 0);
+    assert.deepEqual(pool.line, line);
+    assert.equal(wake.state, "pending");
+    assert.equal(pool.wakeTime, wake.time);
+    assert.equal(changes, 0);
+  });
+
+  it("a rate so small its reach time overflows schedules no wake", () => {
+    const scheduler = new Scheduler({ endTime: 10, handle: () => {} });
+    const fake = {
+      resolve: (kind, base) =>
+        kind === "energyRegen" ? Number.MIN_VALUE : base,
+    };
+    const pool = new EnergyPool({
+      definition: ENERGY,
+      modifiers: fake,
+      scheduler,
+      value: 0,
+    });
+    assert.equal(pool.wakeAt(40), null);
+    assert.equal(pool.wakeTime, null);
+    assert.equal(scheduler.pendingCount, 0);
+    // At the value it already holds, it wakes now.
+    assert.equal(pool.wakeAt(0).time, 0);
+  });
+
+  it("after a hard stop refuses to change, before it changes anything", () => {
+    let pool = null;
+    const scheduler = new Scheduler({
+      endTime: 10,
+      handle(event, self) {
+        self.schedule({ time: self.now, order: ORDER.decision, kind: "loop" });
+      },
+    });
+    pool = new EnergyPool({
+      definition: ENERGY,
+      modifiers: new ModifierPipeline(),
+      scheduler,
+      value: 20,
+    });
+    pool.wakeAt(60);
+    scheduler.schedule({ time: 1, order: ORDER.decision, kind: "loop" });
+    assert.throws(() => scheduler.runToEnd(), {
+      name: "SchedulerHardStopError",
+    });
+    const line = pool.line;
+    const wakeTime = pool.wakeTime;
+    for (const [what, call] of [
+      ["gain", () => pool.gain(10)],
+      ["spend", () => pool.spend(10)],
+      ["spend", () => pool.spendAll()],
+      ["wake at", () => pool.wakeAt(80)],
+      ["wake at", () => pool.resumeWake(80, 5)],
+      ["re-read its modifiers", () => pool.modifiersChanged()],
+    ]) {
+      assert.throws(
+        call,
+        (thrown) =>
+          thrown.constructor === Error &&
+          thrown.message.startsWith(
+            `Resource "energy" cannot ${what}: the scheduler was stopped by a hard stop: Scheduler hard stop:`,
+          ),
+        what,
+      );
+      assert.deepEqual(pool.line, line, what);
+      assert.equal(pool.wakeTime, wakeTime, what);
+      assert.equal(pool.wakeAmount, 60, what);
+    }
+  });
+});

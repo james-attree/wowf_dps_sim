@@ -189,6 +189,19 @@ export class EnergyPool {
     this.#placeWake();
   }
 
+  // After a hard stop the scheduler takes no more events, so a call that
+  // would re-base (and move the wake-up) is refused before it changes
+  // anything: a plain Error, as the scheduler's own (#225). A scheduler with
+  // no stoppedBy (a test's) is never stopped.
+  #checkNotStopped(what) {
+    const stop = this.#scheduler.stoppedBy ?? null;
+    if (stop !== null) {
+      throw new Error(
+        `Resource "${this.id}" cannot ${what}: the scheduler was stopped by a hard stop: ${stop.message}`,
+      );
+    }
+  }
+
   #report(change, before, source) {
     if (this.onChange !== null && this.value !== before) {
       this.onChange(change, before, source);
@@ -198,6 +211,12 @@ export class EnergyPool {
   // Add up to the cap and return how much was added.
   gain(amount, source = null) {
     checkAmount(this.definition, "gain", amount);
+    this.#checkNotStopped("gain");
+    // Nothing to add: no re-base, so the line and the wake-up stay as they
+    // are (#225).
+    if (amount === 0) {
+      return 0;
+    }
     const before = this.value;
     const after = Math.min(before + amount, this.#cap);
     this.#overflow += before + amount - after;
@@ -209,6 +228,10 @@ export class EnergyPool {
   // Take `amount` away. The caller has checked has(amount).
   spend(amount, source = null) {
     checkAmount(this.definition, "spend", amount);
+    this.#checkNotStopped("spend");
+    if (amount === 0) {
+      return 0;
+    }
     const before = this.value;
     this.#rebase(before - amount);
     this.#report("spend", before, source);
@@ -217,6 +240,7 @@ export class EnergyPool {
 
   // Spend everything and return how much that was.
   spendAll(source = null) {
+    this.#checkNotStopped("spend");
     const spent = this.value;
     this.#rebase(0);
     this.#report("spend", spent, source);
@@ -245,6 +269,7 @@ export class EnergyPool {
   // value above a cap that fell is brought down to it. Returns whether
   // anything moved.
   modifiersChanged() {
+    this.#checkNotStopped("re-read its modifiers");
     const rate = this.#readRate();
     const cap = this.#readCap();
     if (rate === this.#rate && cap === this.#cap) {
@@ -268,6 +293,7 @@ export class EnergyPool {
   // or null when none is scheduled.
   wakeAt(amount) {
     checkAmount(this.definition, "wake at", amount);
+    this.#checkNotStopped("wake at");
     // Drop a wake that has run first: #placeWake drops a ran wake with its
     // amount, so without this a re-arm right after one would be lost (#225).
     this.#dropRanWake();
@@ -282,6 +308,7 @@ export class EnergyPool {
   // earlier. A time null or before now is worked out as wakeAt does.
   resumeWake(amount, time) {
     checkAmount(this.definition, "wake at", amount);
+    this.#checkNotStopped("wake at");
     this.#dropRanWake();
     this.#wakeAmount = amount;
     this.#placeWake(time);
@@ -338,7 +365,8 @@ export class EnergyPool {
 
   // The first time the line reaches `amount`, or null if it never does. The
   // division can land a hair early, so the time is nudged up until the value
-  // there is at least the amount: the handler always finds it.
+  // there is at least the amount: the handler always finds it. A rate so small
+  // (a denormal) that the time overflows to Infinity never reaches it (#225).
   #reachTime(amount) {
     const now = this.#scheduler.now;
     if (this.#valueAt(now) >= amount) {
@@ -348,6 +376,9 @@ export class EnergyPool {
       return null;
     }
     let time = Math.max(now, this.#t0 + (amount - this.#value0) / this.#rate);
+    if (!Number.isFinite(time)) {
+      return null;
+    }
     while (this.#valueAt(time) < amount) {
       time = nudgeUp(time);
     }

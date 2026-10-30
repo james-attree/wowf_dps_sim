@@ -1125,6 +1125,11 @@ call in the wrong state is a plain `Error`: `runUntil` from inside a handler,
 and any call after a hard stop (below). A handler's error goes through with
 `now` at that event's time. An event is frozen, so not even
 `Object.defineProperty` can move one that is already in the queue.
+Cancelling is lazy: a cancelled event keeps its heap slot until it reaches
+the top, where `nextTime` and `runUntil` drop it, so a host that cancels and
+reschedules often (a refresh every few seconds) holds one dead slot per
+refresh until its time passes. `pendingCount` counts live events only, and
+the hard stops count events that ran, not slots (#223).
 
 **Hard stop (#193).** A run throws `SchedulerHardStopError`, naming the event
 (its kind, time, class and `seq`), when more than
@@ -1137,7 +1142,9 @@ carries the event's `order` and the scheduler's `endTime` as fields. The event
 that trips the stop does not run: it stays "pending" and in `pendingCount`.
 After a hard stop the scheduler will not run again, and `runUntil`,
 `schedule` and `reschedule` throw a plain `Error` that names the stop, before
-any check of their arguments; `cancel` still works. Both limits are 10,000 and are
+any check of their arguments; `cancel` still works. `runUntil` from inside
+a handler is refused as such before its time is checked. `stoppedBy` is the
+error that stopped the scheduler, or `null`. Both limits are 10,000 and are
 `engineering` rows (the dev's numbers, not decisions by James, not on the
 retune list), far above a real fight.
 
@@ -1162,7 +1169,10 @@ there only if one of them moved, bringing a value above a cap that fell down
 to it. A read never re-bases, so with no modifier the value is exactly
 `min(cap, e0 + rate * t)`. As on the legacy pool, `onChange(change, before,
 source)` hears a gain or a spend that moved the value; regeneration is not
-reported, and the start value is the definition's.
+reported, and the start value is the definition's. A gain or a spend of 0
+changes nothing and does not re-base. After the scheduler's hard stop, a
+gain, a spend, `spendAll`, `wakeAt`, `resumeWake` and `modifiersChanged`
+throw a plain `Error` naming the stop before they change anything (#225).
 
 **Threshold wake-up (#194).** `pool.wakeAt(amount)` schedules one event of
 kind `"resource-threshold"` (`WAKE_KIND`), in the energy class, with the
@@ -1174,7 +1184,8 @@ at least the amount. The handler always finds the energy, and the time is
 within a few units in the last place of the exact one. Every re-base (a gain,
 a spend, a rate or cap change) cancels the event and schedules it again from
 the new line. While the amount cannot be reached (a rate of 0, or an amount
-above the cap), no event is scheduled until a re-base makes it reachable. The
+above the cap, or a rate so small that the time overflows to `Infinity`), no
+event is scheduled until a re-base makes it reachable. The
 pool keeps one threshold: a second `wakeAt` replaces the first,
 `cancelWake()` drops it, and the event is one-shot. The rotation chooses the
 amount (decision points, #197). The pool counts what it loses to the cap as
