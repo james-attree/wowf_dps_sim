@@ -564,6 +564,35 @@ describe("SimRunner options", () => {
     }
   });
 
+  // Issue #234 (Kira's #250 QA, polish 4). Only an ordinary object is read as
+  // options, as in Simulation: a Map or another built-in with its own seed
+  // was a runner on it.
+  it("refuses a Map or another built-in, even with its own seed and duration", () => {
+    for (const [bad, got] of [
+      [new Map(), "a Map"],
+      [new Set(), "a Set"],
+      [new Uint8Array(1), "a Uint8Array"],
+      [null, "null"],
+      [[], "an array"],
+      ["seed", "string"],
+    ]) {
+      if (typeof bad === "object" && bad !== null) {
+        Object.assign(bad, { seed: 1, duration: 1 });
+      }
+      assert.throws(
+        () => new SimRunner(bad),
+        {
+          name: "RangeError",
+          message: `SimRunner needs an options object: { seed }. Got ${got}.`,
+        },
+        got,
+      );
+    }
+    assert.doesNotThrow(
+      () => new SimRunner(Object.assign(Object.create(null), { seed: 1 })),
+    );
+  });
+
   it("rejects an option it does not have, so a misspelling cannot run the default", () => {
     assert.throws(() => runner({ confg: {} }), /no option "confg"/);
     assert.throws(() => runner({ steps: 1 }), RangeError);

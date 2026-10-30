@@ -11,6 +11,11 @@ import {
   rotationTopShape,
   ruleShape,
 } from "./rotation-schema.js";
+import {
+  builtinTag,
+  isOrdinaryObject,
+  withArticle,
+} from "./ordinary-object.js";
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 import { talentGrantedAbilities } from "./talent-build.js";
 
@@ -109,33 +114,9 @@ function described(value) {
     return "an array";
   }
   if (typeof value === "object" && !isOrdinaryObject(value)) {
-    return article(builtinTag(value));
+    return withArticle(builtinTag(value));
   }
   return typeof value === "object" ? "an object" : `a ${typeof value}`;
-}
-
-// A built-in object's kind, from its tag: "Map", "WeakMap", "RegExp".
-function builtinTag(value) {
-  return Object.prototype.toString
-    .call(value)
-    .replace(/^\[object (.*)\]$/, "$1");
-}
-
-function article(name) {
-  return `${/^[AEIOU]/i.test(name) ? "an" : "a"} ${name}`;
-}
-
-// An ordinary object: one whose fields are its properties, made by a literal,
-// Object.create or a class. Arrays, Sets, Maps, WeakMaps, RegExps, Promises,
-// Errors and the other built-ins with a tag of their own are not: their
-// contents are not fields, so read as a context they would quietly be the
-// defaults (#248 QA).
-function isOrdinaryObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    Object.prototype.toString.call(value) === "[object Object]"
-  );
 }
 
 // A context's list of ability ids (#207) as a frozen array: `fallback` when it

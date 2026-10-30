@@ -578,6 +578,15 @@ describe("validateRotation: the context", () => {
         new WeakMap(),
         "rotationContext: the context must be an object, not a WeakMap.",
       ],
+      // #250 QA, polish 3: "a Uint8Array", as it is read.
+      [
+        new Uint8Array(1),
+        "rotationContext: the context must be an object, not a Uint8Array.",
+      ],
+      [
+        new ArrayBuffer(1),
+        "rotationContext: the context must be an object, not an ArrayBuffer.",
+      ],
       [
         new Date(0),
         "rotationContext: the context must be an object, not a Date.",

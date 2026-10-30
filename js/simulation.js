@@ -12,6 +12,7 @@ import { EventStream, RingLog, SIM_EVENT_TYPES } from "./event-stream.js";
 import { DOT_REFRESH } from "./core/dots.js";
 import { runOnCore } from "./core/fight.js";
 import { ProcRunner } from "./procs.js";
+import { describeValue, isOrdinaryObject } from "./ordinary-object.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
 // Bleeds (physical periodic damage) and nature damage ignore armor. Other
@@ -72,31 +73,6 @@ function readFightLength(fightLength) {
 
 const SIMULATION_OPTIONS = Object.freeze(["seed", "rng", "fightLength"]);
 
-// An ordinary object: made by a literal, Object.create or a class. A Map, a
-// Set, a WeakMap or another built-in is not: its contents are not options, so
-// read as options it would quietly be the defaults (#248 QA).
-function isOrdinaryObject(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    Object.prototype.toString.call(value) === "[object Object]"
-  );
-}
-
-// What a bad options value was, for the RangeError (#238 QA): null, an array,
-// a built-in's kind ("a Map", "a WeakMap"), or the type.
-function describe(value) {
-  if (value === null) return "null";
-  if (Array.isArray(value)) return "an array";
-  if (typeof value === "object") {
-    const tag = Object.prototype.toString
-      .call(value)
-      .replace(/^\[object (.*)\]$/, "$1");
-    return `${/^[AEIOU]/i.test(tag) ? "an" : "a"} ${tag}`;
-  }
-  return typeof value;
-}
-
 export class Simulation {
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
@@ -121,7 +97,7 @@ export class Simulation {
   constructor(rogue, options = {}) {
     if (!isOrdinaryObject(options)) {
       throw new RangeError(
-        `Simulation needs an options object: { ${SIMULATION_OPTIONS.join(", ")} }, or none. Got ${describe(options)}.`,
+        `Simulation needs an options object: { ${SIMULATION_OPTIONS.join(", ")} }, or none. Got ${describeValue(options)}.`,
       );
     }
     for (const key of Object.keys(options)) {

@@ -6,6 +6,7 @@ import {
 } from "./event-stream.js";
 import { openCore } from "./core/fight.js";
 import { createFight, fightResult } from "./fight.js";
+import { describeValue, isOrdinaryObject } from "./ordinary-object.js";
 import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
 
@@ -159,12 +160,12 @@ export class SimRunner {
   //             leaves "running". Without a driver the host calls advance().
   // An option with any other name is a RangeError, as in runFight.
   constructor(options) {
-    if (
-      options === null ||
-      typeof options !== "object" ||
-      Array.isArray(options)
-    ) {
-      throw new RangeError("SimRunner needs an options object: { seed }.");
+    // A Map, a Set or another built-in is not options, even with its own
+    // seed, as in Simulation and runFight (Kira's #250 QA, polish 4).
+    if (!isOrdinaryObject(options)) {
+      throw new RangeError(
+        `SimRunner needs an options object: { seed }. Got ${describeValue(options)}.`,
+      );
     }
     for (const key of Object.keys(options)) {
       if (!OPTIONS.includes(key)) {

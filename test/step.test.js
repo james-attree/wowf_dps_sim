@@ -104,6 +104,9 @@ describe("runOnCore, cut into steps", () => {
       [new WeakMap(), "a WeakMap"],
       [new Date(0), "a Date"],
       [new Set(), "a Set"],
+      // #250 QA, polish 3: "a Uint8Array", as it is read.
+      [new Uint8Array(1), "a Uint8Array"],
+      [new ArrayBuffer(1), "an ArrayBuffer"],
       [() => ({ seed: 1 }), "function"],
     ]) {
       const rogue = new Rogue();

@@ -2925,7 +2925,7 @@ has no miss or dodge on a Cold Blood attack in either, so they would not move
 if this rule changed. Three tests pin it (the Cold Blood test in
 `test/assassination-procs-as-data.test.js`, and the front-block cases in
 `test/carry-overs-103.test.js`); with the rule changed to spend the charge on
-every outcome, those fail and the six golden fixtures do not. If real Classic
+every outcome, those fail and the seven golden fixtures do not. If real Classic
 spends the charge on a miss or a block, change the condition where
 `resolveAttack` (`js/simulation.js`) calls `consumeUseCharges`, and the tests
 that pin it.

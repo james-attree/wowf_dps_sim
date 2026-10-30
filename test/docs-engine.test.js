@@ -3,19 +3,25 @@ import { readdir, readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import { CONSTANTS } from "../data/constants.js";
 
-// Issue #234 (Kira's #238 QA, item 1, and #248 QA, polish 2). The fixed-step
-// engine, `Simulation.step` and the `sim.fixedStep` constant are gone. Every
-// doc (README.md and every Markdown file under docs/) is read line by line:
-// a line that names one of them, or times something by a fixed step, fails
-// unless it is one of the history lines below, matched by file and exact
-// text. A "#234" or "removed" nearby no longer exempts a line, and a new
-// line needs its own entry here.
+// Issue #234 (Kira's #238 QA, item 1, and #248 and #250 QA, polish 2). The
+// fixed-step engine, `Simulation.step` and the `sim.fixedStep` constant are
+// gone. Every doc (README.md and every Markdown file under docs/) is read line
+// by line: a line that names one of them, calls a `.step(` method, or times
+// something by a fixed step, fails unless it is one of the history lines
+// below, matched by file and exact text, and found once in its file. A "#234"
+// or "removed" nearby no longer exempts a line, and a new line needs its own
+// entry here.
 const STALE = [
   /sim\.fixedStep/,
   /Simulation\.step\b/,
   /\bstep\(dt\)/,
-  /fixed[- ]step before/i,
+  /\.step\(/,
+  /fixed[- ]steps? (?:at a time|before|after)\b/i,
+  /\bone fixed[- ]step\b/i,
 ];
+
+// A phrase broken over up to this many lines is caught on the lines joined.
+const WINDOW_LINES = 3;
 
 // Each entry is history: what the removal took out, or the Phase 3.5 plan
 // written before it.
@@ -70,24 +76,38 @@ const HISTORY_LINES = [
   ],
 ];
 
-function isHistory(file, line) {
-  return HISTORY_LINES.some(([where, text]) => where === file && text === line);
+// A history line passes only in its own file, word for word, and only while
+// it is there once: a copy pasted elsewhere in the file fails, both times.
+function isHistory(file, line, lines) {
+  return (
+    HISTORY_LINES.some(([where, text]) => where === file && text === line) &&
+    lines.filter((other) => other === line).length === 1
+  );
 }
 
-// The stale lines of one file, as "file:line: text". A phrase broken over two
-// lines is caught on the pair, reported at its first line.
+function isStale(text) {
+  return STALE.some((pattern) => pattern.test(text.replace(/\s+/g, " ")));
+}
+
+// The stale lines of one file, as "file:line: text". A phrase is reported at
+// the line it starts on: the shortest run of lines from there (up to
+// WINDOW_LINES) that reads stale when joined, and not without its first line.
+// The run passes only when every line in it is a history line.
 function staleLines(file, text) {
   const lines = text.split("\n");
   const found = [];
   lines.forEach((line, index) => {
-    const pair = `${line} ${lines[index + 1] ?? ""}`.replace(/\s+/g, " ");
-    const hit =
-      STALE.some((pattern) => pattern.test(line)) ||
-      (index + 1 < lines.length &&
-        !STALE.some((pattern) => pattern.test(lines[index + 1])) &&
-        STALE.some((pattern) => pattern.test(pair)));
-    if (hit && !isHistory(file, line)) {
-      found.push(`${file}:${index + 1}: ${line}`);
+    for (let count = 1; count <= WINDOW_LINES; count++) {
+      if (index + count > lines.length) {
+        break;
+      }
+      const run = lines.slice(index, index + count);
+      if (isStale(run.join(" ")) && !isStale(run.slice(1).join(" "))) {
+        if (!run.every((each) => isHistory(file, each, lines))) {
+          found.push(`${file}:${index + 1}: ${line}`);
+        }
+        break;
+      }
     }
   });
   return found;
@@ -138,10 +158,14 @@ describe("docs describe the event core, not the fixed step", () => {
     });
   }
 
-  it("every history line is still in its file, word for word", async () => {
+  it("every history line is in its file once, word for word", async () => {
     for (const [file, line] of HISTORY_LINES) {
       const lines = (await read(file)).split("\n");
-      assert.ok(lines.includes(line), `${file}: ${line}`);
+      assert.equal(
+        lines.filter((other) => other === line).length,
+        1,
+        `${file}: ${line}`,
+      );
     }
   });
 
@@ -206,6 +230,40 @@ describe("docs describe the event core, not the fixed step", () => {
       ),
       1,
     );
+  });
+
+  it("flags each gap #250's QA found", () => {
+    const flagged = (file, text) => staleLines(file, text);
+    // A `.step(` call in a code block, with any receiver and argument.
+    assert.deepEqual(flagged("docs/worker.md", "```js\nsim.step(0.1);\n```"), [
+      "docs/worker.md:2: sim.step(0.1);",
+    ]);
+    assert.equal(
+      flagged("docs/worker.md", "```js\nsimulation.step(dt);\n```").length,
+      1,
+    );
+    // Timing by a fixed step, in other words.
+    assert.equal(
+      flagged(
+        "docs/roadmap.md",
+        "  core one fixed step at a time, and shows the seed.",
+      ).length,
+      1,
+    );
+    // A phrase broken over three lines, reported once, at its first line.
+    assert.deepEqual(
+      flagged(
+        "README.md",
+        "Live mode runs the\n  core in a fixed\n  step\n  before each frame.",
+      ),
+      ["README.md:2:   core in a fixed"],
+    );
+  });
+
+  it("fails a history line pasted a second time in its own file", () => {
+    const [file, line] = HISTORY_LINES[1];
+    assert.deepEqual(staleLines(file, `${line}\nnew text`), []);
+    assert.equal(staleLines(file, `${line}\nnew text\n${line}`).length, 2);
   });
 
   it("passes a history line only in its own file, word for word", () => {

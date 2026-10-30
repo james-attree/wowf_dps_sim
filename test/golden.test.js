@@ -501,8 +501,11 @@ describe("the scripted golden cases", () => {
       assert.equal(eviscerates.length, 1, `seed ${seed}`);
       latest = Math.max(latest, eviscerates[0].time);
     }
+    // Within the engine's own float tolerance (sim.tickEpsilon, 1e-9 s): 62 of
+    // seeds 1-200 land exactly on 44.5 s, so a rate one ulp lower would put
+    // them at 44.50000000000001 (Kira's #250 QA, polish 1).
     assert.ok(
-      latest <= latestAllowed,
+      latest <= latestAllowed + k("sim.tickEpsilon"),
       `the latest Eviscerate is at ${latest} s, after the budget's ${latestAllowed} s`,
     );
   });
