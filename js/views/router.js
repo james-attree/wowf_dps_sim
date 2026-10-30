@@ -240,8 +240,11 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     }
     syncPanels(from, next.area);
     // The focus was in a screen that is hidden now: another area, or another
-    // of this area's screens (#244: a Character row opens its screen).
-    const stranded = areaOf(had) !== null && !canFocus(doc, had);
+    // of this area's screens (#244: a Character row opens its screen). A
+    // view that has moved it already (Rotation's Back, to the rule's Edit
+    // link) keeps it there.
+    const stranded =
+      areaOf(had) !== null && doc.activeElement === had && !canFocus(doc, had);
     const heading = shells.get(next.area)?.querySelector("h1");
     if (focus === "heading" || (focus === "none" && stranded)) {
       heading?.focus();

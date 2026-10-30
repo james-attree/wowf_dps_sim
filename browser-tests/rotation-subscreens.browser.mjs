@@ -187,6 +187,7 @@ describe("Rotation's screens", () => {
       // Leaving Rotation closes the builder.
       await page.click(`[data-nav-area="character"]`);
       await hashIs(page, "#character");
+      await focusOf(page, "area-character-title");
       assert.equal(await page.isVisible("#rotation-builder"), false);
       assert.deepEqual(errors, []);
     } finally {
