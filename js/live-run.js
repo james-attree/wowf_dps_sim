@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { ENGINES } from "./core/fight.js";
 import { FrameClock } from "./frame-clock.js";
 import { createLiveFeed } from "./live-feed.js";
 import { normalizeConfig } from "./sim-config.js";
@@ -14,15 +15,17 @@ import { SimRunner } from "./sim-runner.js";
 // callback gets the frame's timestamp in milliseconds.
 //
 //   const live = createLiveRun(store, frames);
-//   live.run({ seed, duration, config });  // a new SimRunner, then run()
+//   live.run({ seed, duration, config, engine });  // a new SimRunner, then run()
 //   live.pause(); live.resume(); live.stop(); live.reset();
 //   live.clear({ seed, config });          // an empty picture at 0:00
 //
 // Time. The runner's driver is a FrameClock (js/frame-clock.js): each frame
 // becomes whole steps of k("sim.fixedStep"), at most k("sim.maxFrameTime")
-// worth, given to the runner one step at a time with advance(). The first
-// frame, and the first after a resume, take no steps, so a pause is never
-// simulated. The runner ends the fight at `duration` and moves to "finished".
+// worth, given to the runner one step at a time with advance(). On the
+// events engine (#198) a frame is one advance() of its seconds instead
+// (FrameClock.seconds, at most k("sim.maxFrameTime")): the event core takes
+// any time, so there is no step and no carry. The first frame, and the first
+// after a resume, take no time, so a pause is never simulated. The runner ends the fight at `duration` and moves to "finished".
 // A frame that was already queued when the run left "running" does nothing.
 //
 // The store. Every change of the runner's state is written to run.state
@@ -67,10 +70,14 @@ export function createLiveRun(store, frames) {
     if (advance === null) {
       return;
     }
-    const steps = clock.steps(timestamp);
-    // The runner may finish (and stop this driver) inside a step.
-    for (let index = 0; index < steps && advance !== null; index += 1) {
-      advance(fixedStep);
+    if (runner.engine === ENGINES.events) {
+      advance(clock.seconds(timestamp));
+    } else {
+      const steps = clock.steps(timestamp);
+      // The runner may finish (and stop this driver) inside a step.
+      for (let index = 0; index < steps && advance !== null; index += 1) {
+        advance(fixedStep);
+      }
     }
     publish();
     if (advance !== null) {
@@ -119,16 +126,17 @@ export function createLiveRun(store, frames) {
   }
 
   return {
-    // A new fight from `seed`, `duration` and `config` (SimRunner's options),
-    // started at once. Allowed while idle or finished, as SimRunner.run() is.
-    run({ seed, duration, config }) {
+    // A new fight from `seed`, `duration`, `config` and `engine` (SimRunner's
+    // options; engine optional), started at once. Allowed while idle or
+    // finished, as SimRunner.run() is.
+    run({ seed, duration, config, engine }) {
       const state = runner?.state ?? "idle";
       if (state !== "idle" && state !== "finished") {
         throw new Error(
           `The live run cannot start while ${state}. Stop or reset it first.`,
         );
       }
-      const next = new SimRunner({ seed, duration, config, driver });
+      const next = new SimRunner({ seed, duration, config, driver, engine });
       runner = next;
       next.onStateChange(onStateChange);
       next.run();
@@ -136,7 +144,7 @@ export function createLiveRun(store, frames) {
     // The picture of a fight from `seed` and `config` at 0:00, with no runner
     // behind it. Allowed while idle (before the first run, or after stop or
     // reset), so a running fight is never hidden.
-    clear({ seed, config }) {
+    clear({ seed, config, engine }) {
       const state = runner?.state ?? "idle";
       if (state !== "idle") {
         throw new Error(
@@ -144,7 +152,7 @@ export function createLiveRun(store, frames) {
         );
       }
       feed?.stop();
-      shown = createFight(seed, normalizeConfig(config));
+      shown = createFight(seed, normalizeConfig(config), { engine });
       feed = createLiveFeed(shown);
       publish();
     },

@@ -43,9 +43,13 @@ function checkKind(kind, who) {
 function checkDuration(duration, kind) {
   if (!(Number.isFinite(duration) && duration > 0)) {
     throw new RangeError(
-      `A "${kind}" timer needs a duration in seconds, finite and above 0. Got ${typeof duration === "string" ? `"${duration}"` : String(duration)}.`,
+      `A "${kind}" timer needs a duration in seconds, finite and above 0. Got ${shown(duration)}.`,
     );
   }
+}
+
+function shown(value) {
+  return typeof value === "string" ? `"${value}"` : String(value);
 }
 
 // The new end of an aura that is already up and is applied again, from its
@@ -53,10 +57,38 @@ function checkDuration(duration, kind) {
 //   refresh           now + duration
 //   extend            endsAt + duration (what was left plus the new one)
 //   replace-if-longer the later of endsAt and now + duration
-export function refreshedEnd(rule, { endsAt, now, duration }) {
+// `endsAt` and `now` must be finite numbers and `duration` a finite number of
+// seconds, 0 or more (RangeError; #198, from #195 QA 3), checked after the
+// rule. `endsAt` is the end the host holds for the aura: a timer's endsAt is
+// null once its event has run, so the host keeps the end itself rather than
+// read it back.
+export function refreshedEnd(rule, options) {
   if (!REFRESH_RULES.includes(rule)) {
     throw new RangeError(
       `refresh must be one of ${REFRESH_RULES.join(", ")}. Got ${String(rule)}.`,
+    );
+  }
+  if (options === null || typeof options !== "object") {
+    throw new TypeError("refreshedEnd needs { endsAt, now, duration }.");
+  }
+  const { endsAt, now, duration } = options;
+  for (const [name, value] of [
+    ["endsAt", endsAt],
+    ["now", now],
+  ]) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new RangeError(
+        `refreshedEnd needs a finite ${name} in seconds. Got ${shown(value)}.`,
+      );
+    }
+  }
+  if (
+    typeof duration !== "number" ||
+    !Number.isFinite(duration) ||
+    duration < 0
+  ) {
+    throw new RangeError(
+      `refreshedEnd needs a duration in seconds, finite and 0 or more. Got ${shown(duration)}.`,
     );
   }
   if (rule === "extend") {
@@ -68,7 +100,9 @@ export function refreshedEnd(rule, { endsAt, now, duration }) {
   return now + duration;
 }
 
-// One timer: the GCD, or Premeditation's points.
+// One timer: the GCD, or Premeditation's points. An object payload is frozen
+// (the object given, not a copy), as every event payload is (#198, from #195
+// QA 5).
 export class Timer {
   #scheduler;
   #event = null;
@@ -78,7 +112,10 @@ export class Timer {
     checkKind(kind, "Timer");
     this.#scheduler = scheduler;
     this.kind = kind;
-    this.payload = payload;
+    this.payload =
+      payload !== null && typeof payload === "object"
+        ? Object.freeze(payload)
+        : payload;
   }
 
   // End `duration` seconds from now, replacing any end already set.
@@ -88,6 +125,10 @@ export class Timer {
   }
 
   // End at the absolute time `time` (a refresh), replacing any end already set.
+  // An end at now set from a decision's handler runs after that decision, not
+  // before it: the decision has already run, and the expiry is a new event at
+  // the same time (order class expiry still runs before the next decision at
+  // that time). #198, from #195 QA 8.
   setEndsAt(time) {
     const event = this.#scheduler.schedule({
       time,
@@ -140,14 +181,20 @@ export class TimerSet {
     this.kind = kind;
   }
 
+  // Every method that takes an id refuses one that is not a non-empty string
+  // (TypeError), reads included (#198, from #195 QA 4).
+  #checkId(id) {
+    if (typeof id !== "string" || id === "") {
+      throw new TypeError(
+        `A "${this.kind}" timer's id must be a non-empty string. Got ${shown(id)}.`,
+      );
+    }
+    return id;
+  }
+
   #timer(id) {
-    let timer = this.#timers.get(id);
+    let timer = this.#timers.get(this.#checkId(id));
     if (timer === undefined) {
-      if (typeof id !== "string" || id === "") {
-        throw new TypeError(
-          `A "${this.kind}" timer's id must be a non-empty string.`,
-        );
-      }
       timer = new Timer({
         scheduler: this.#scheduler,
         kind: this.kind,
@@ -167,15 +214,15 @@ export class TimerSet {
   }
 
   clear(id) {
-    this.#timers.get(id)?.clear();
+    this.#timers.get(this.#checkId(id))?.clear();
   }
 
   endsAt(id) {
-    return this.#timers.get(id)?.endsAt ?? null;
+    return this.#timers.get(this.#checkId(id))?.endsAt ?? null;
   }
 
   running(id) {
-    return this.#timers.get(id)?.running ?? false;
+    return this.#timers.get(this.#checkId(id))?.running ?? false;
   }
 
   ready(id) {
@@ -183,7 +230,7 @@ export class TimerSet {
   }
 
   remaining(id) {
-    return this.#timers.get(id)?.remaining ?? 0;
+    return this.#timers.get(this.#checkId(id))?.remaining ?? 0;
   }
 
   // The ids running now, in the order they were first started.

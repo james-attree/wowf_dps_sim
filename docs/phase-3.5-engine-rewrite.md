@@ -321,6 +321,27 @@ the first part of this issue and they must be written against the legacy
 engine first); Stop then Run reproduces the identical seeded fight; live
 output equals headless output for the same seed at 1x, 4x and max; the UI
 and the Web Worker need no change beyond deleting step-related code.
+Landed in #198: `openCore` in `js/core/fight.js` (the event core held open
+over many calls; `runOnCore` is open, one `runUntil`, close), the `engine`
+option of `runFight`, `SimRunner` (and `runner.engine`) and `createLiveRun`,
+`FrameClock.seconds`, the scheduler's `nextTime` and `current`, swing events
+named by the engine's hand (`mainHand`, `offHand`; any weapon hand but `main`
+and `off` refused), and the core's input checks from #195's QA
+(`refreshedEnd`, `TimerSet` ids, a `Timer`'s payload frozen, `swung()` from
+its own swing event only). Tested in `test/runner-engine-files.test.js` (the
+sim-runner, event-stream, live-run, live-feed, run-controls and
+ability-breakdown files on the core), `test/runner-events.test.js` (any
+split, no step artefact, Stop then Run, live equals headless at 1x, 4x and
+max, procs and poisons through the runner, the feed between calls),
+`test/core-checks-198.test.js` and `test/core-split-198.test.js` (#197's QA
+M1 and M2: a fight split on the core through `runOnCore`, `sim.run` and the
+runner is the fight in one run, event for event, with the clocks each run
+hands the next; the engine option, the re-ask cap and the DoT refresh rules
+across a run). The step-artefact test (#185(f)'s
+"600 × advance(1/60) ends one step short" in `test/sim-runner.test.js`) is
+skipped on the core and stays for legacy until the step code goes (#200). The
+UI and the Worker are unchanged: they run legacy until #199 switches the
+default.
 
 **8. Parity gate and switch-over (E11).** Done when: the harness shows the
 mean DPS of the new core within 2% of legacy over many seeds (proposed:

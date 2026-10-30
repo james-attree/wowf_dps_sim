@@ -22,6 +22,11 @@ const TALENTED = {
 };
 // Seeds and lengths for the "several seeds and durations" criteria. 0 is a
 // fight with no length, and ODD ends inside a step.
+// The engine this file's runners use: legacy, or events when a wrapper file
+// set the default (test/runner-engine-files.test.js, #198).
+const ENGINE = new SimRunner({ seed: 1, duration: 1 }).engine;
+const LEGACY_STEPS = ENGINE !== "legacy" && "a legacy fixed-step artefact";
+
 const CASES = [
   { seed: 1, duration: SHORT },
   { seed: 2, duration: ODD },
@@ -85,23 +90,32 @@ function inState(state, options) {
 function countDraws() {
   const counts = [];
   const wrapped = new WeakSet();
-  const original = Simulation.prototype.step;
-  mock.method(Simulation.prototype, "step", function step(dt) {
-    if (!wrapped.has(this)) {
-      wrapped.add(this);
-      const source = this.rng;
-      const count = { draws: 0, values: [] };
-      counts.push(count);
-      this.rng = () => {
-        const value = source();
-        count.draws += 1;
-        count.values.push(value);
-        return value;
-      };
-      this.rogue.rng = this.rng;
+  // The first of these a fight calls wraps its rng: step on legacy, run in
+  // runFight, and on, which SimRunner calls before the event core (#198)
+  // draws anything.
+  for (const name of ["step", "run", "on"]) {
+    const original = Simulation.prototype[name];
+    mock.method(Simulation.prototype, name, function counted(...args) {
+      wrap(this);
+      return original.apply(this, args);
+    });
+  }
+  function wrap(sim) {
+    if (wrapped.has(sim)) {
+      return;
     }
-    return original.call(this, dt);
-  });
+    wrapped.add(sim);
+    const source = sim.rng;
+    const count = { draws: 0, values: [] };
+    counts.push(count);
+    sim.rng = () => {
+      const value = source();
+      count.draws += 1;
+      count.values.push(value);
+      return value;
+    };
+    sim.rogue.rng = sim.rng;
+  }
   return counts;
 }
 
@@ -624,6 +638,9 @@ describe("SimRunner interface", () => {
       "config",
       "constructor",
       "duration",
+      // The engine's name, "legacy" or "events" (#198): a string, not an
+      // engine object.
+      "engine",
       "fight",
       "on",
       "onError",
@@ -722,20 +739,26 @@ describe("SimRunner result and advance(duration) (#158)", () => {
     });
   }
 
-  it("can end a step short after many small calls, and the next call finishes the same fight", () => {
-    const duration = 10;
-    const target = runner({ seed: 2, duration });
-    target.run();
-    let given = 0;
-    for (let frame = 0; frame < duration * 60; frame += 1) {
-      target.advance(1 / 60);
-      given += 1 / 60;
-    }
-    assert.ok(given >= duration, "the host's own sum reached the length");
-    // The carry's float sum fell just under the last step.
-    assert.equal(target.state, "running");
-    assert.equal(target.time, duration - k("sim.fixedStep"));
-    assert.equal(target.advance(1 / 60), "finished");
-    assert.deepEqual(target.result, runFight({ seed: 2, duration }));
-  });
+  it(
+    "can end a step short after many small calls, and the next call finishes the same fight",
+    {
+      skip: LEGACY_STEPS,
+    },
+    () => {
+      const duration = 10;
+      const target = runner({ seed: 2, duration });
+      target.run();
+      let given = 0;
+      for (let frame = 0; frame < duration * 60; frame += 1) {
+        target.advance(1 / 60);
+        given += 1 / 60;
+      }
+      assert.ok(given >= duration, "the host's own sum reached the length");
+      // The carry's float sum fell just under the last step.
+      assert.equal(target.state, "running");
+      assert.equal(target.time, duration - k("sim.fixedStep"));
+      assert.equal(target.advance(1 / 60), "finished");
+      assert.deepEqual(target.result, runFight({ seed: 2, duration }));
+    },
+  );
 });

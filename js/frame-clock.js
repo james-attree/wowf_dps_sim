@@ -1,7 +1,7 @@
 import { k } from "../data/constants.js";
 
 // Turns the browser's animation-frame timestamps into whole engine steps, for
-// the live page (js/main.js). It reads no clock: the host hands it each frame's
+// the live page (js/main.js), or into seconds for the event core (seconds()). It reads no clock: the host hands it each frame's
 // timestamp in milliseconds, so it runs in Node under test.
 //
 // Every step the page gives the engine is k("sim.fixedStep") long, the same
@@ -34,9 +34,28 @@ export class FrameClock {
   // k("sim.maxFrameTime") / k("sim.fixedStep"). A timestamp that does not
   // move forward takes no steps.
   steps(timestamp) {
+    const elapsed = this.#elapsed(timestamp, "steps");
+    const stepSize = k("sim.fixedStep");
+    const available = this.carry + elapsed;
+    const count = Math.floor(available / stepSize);
+    this.carry = available - count * stepSize;
+    return count;
+  }
+
+  // The seconds of fight time for the frame at `timestamp` (milliseconds), for
+  // an engine that takes any time (the event core, #198): the time since the
+  // previous frame, at most k("sim.maxFrameTime"), with no steps and no
+  // carry. The first frame, and the first after restart(), give 0. A
+  // timestamp that does not move forward gives 0. Use steps() or seconds()
+  // on one clock, not both.
+  seconds(timestamp) {
+    return this.#elapsed(timestamp, "seconds");
+  }
+
+  #elapsed(timestamp, method) {
     if (!Number.isFinite(timestamp)) {
       throw new RangeError(
-        `FrameClock.steps needs a finite timestamp in milliseconds. Got ${timestamp}.`,
+        `FrameClock.${method} needs a finite timestamp in milliseconds. Got ${timestamp}.`,
       );
     }
     const previous = this.lastTimestamp;
@@ -44,14 +63,9 @@ export class FrameClock {
     if (previous === null) {
       return 0;
     }
-    const elapsed = Math.min(
+    return Math.min(
       Math.max(0, (timestamp - previous) / k("sim.msPerSecond")),
       k("sim.maxFrameTime"),
     );
-    const stepSize = k("sim.fixedStep");
-    const available = this.carry + elapsed;
-    const count = Math.floor(available / stepSize);
-    this.carry = available - count * stepSize;
-    return count;
   }
 }

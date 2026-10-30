@@ -139,6 +139,9 @@ export class Simulation {
     // The event core while it runs this fight (js/core/fight.js), told where
     // a DoT starts; null on the legacy engine.
     this.core = null;
+    // What the last event core run on this fight left for the next one to go
+    // on from exactly (js/core/fight.js carry()); null on the legacy engine.
+    this.coreCarry = null;
     this.fightLength = readFightLength(fightLength);
     this.seed = normalizeSeed(seed);
     this.rng = rng ?? createRng(this.seed);
@@ -318,6 +321,14 @@ export class Simulation {
         `Simulation.step needs a finite time step in seconds, 0 or more. Got ${dt}.`,
       );
     }
+    // While a core is open (openCore, SimRunner on the events engine) the
+    // fight is the core's: energy is its continuous pool, and a step would
+    // move the clock under it.
+    if (this.core !== null && this.core !== undefined) {
+      throw new Error(
+        "Simulation.step cannot run while the event core holds this fight (openCore). Close the core run first.",
+      );
+    }
     this.currentTime += dt;
 
     // This step covers the interval that just ended. Read the auras before
@@ -453,9 +464,12 @@ export class Simulation {
   //
   // On the "events" engine the same duration is run on the event core
   // instead (runOnCore, js/core/fight.js): the fight ends `duration` after it
-  // started, and a split anywhere gives the same fight as one long call only
-  // where no event falls on the split (the core starts each call from the
-  // fight as the last one left it).
+  // started, and a split anywhere, on an event's time or between two, gives
+  // the same fight as one long call (#198, from #197 QA M1). Each call keeps
+  // the fight's clock and goes on from the exact state the last one left
+  // (sim.coreCarry); only the core's counts (coreStats) see the split. A
+  // host that hands the fight time in pieces can also hold one core open
+  // (openCore, as SimRunner does since #198).
   run(duration) {
     if (!Number.isFinite(duration) || duration < 0) {
       throw new RangeError(

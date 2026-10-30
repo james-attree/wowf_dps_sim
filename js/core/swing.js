@@ -22,20 +22,39 @@ import { ORDER } from "./scheduler.js";
 
 export const SWING_KIND = "swing";
 
+// A legacy Weapon's hand ("main" or "off", js/weapon.js) -> the engine's name
+// for it: the key of rogue.weapons, the modifier scope's hand
+// (js/modifiers.js) and a proc event's hand (#198, from #195 QA). The swing
+// event's payload and `hand` carry the engine's name.
+export const SWING_HANDS = Object.freeze({ main: "mainHand", off: "offHand" });
+
 export class SwingTimer {
   #scheduler;
   #event = null;
   #anchor = 0;
   #interval = null;
   #count = 0;
+  // "main" or "off", for the refusals.
+  #label;
 
   // `weapon` has a speed in seconds and a hand ("main" or "off"), as a legacy
   // Weapon; `modifiers` the rogue's ModifierPipeline (or anything with
-  // resolve(kind, base)); `scheduler` the core's Scheduler.
+  // resolve(kind, base)); `scheduler` the core's Scheduler. `hand` and the
+  // payload's hand are the engine's name for it, "mainHand" or "offHand"
+  // (SWING_HANDS); any other weapon hand is a RangeError.
   constructor({ weapon, modifiers, scheduler } = {}) {
     if (!(Number.isFinite(weapon?.speed) && weapon.speed > 0)) {
       throw new RangeError(
         `SwingTimer needs a weapon with a finite speed above 0. Got ${String(weapon?.speed)}.`,
+      );
+    }
+    // Own keys only: "toString" is not a hand.
+    if (
+      typeof weapon.hand !== "string" ||
+      !Object.hasOwn(SWING_HANDS, weapon.hand)
+    ) {
+      throw new RangeError(
+        `SwingTimer needs a weapon hand of "main" or "off". Got ${typeof weapon.hand === "string" ? `"${weapon.hand}"` : String(weapon.hand)}.`,
       );
     }
     if (typeof modifiers?.resolve !== "function") {
@@ -45,10 +64,11 @@ export class SwingTimer {
       throw new TypeError("SwingTimer needs the core's scheduler.");
     }
     this.weapon = weapon;
-    this.hand = weapon.hand;
+    this.hand = SWING_HANDS[weapon.hand];
+    this.#label = weapon.hand;
     this.modifiers = modifiers;
     this.#scheduler = scheduler;
-    this.payload = Object.freeze({ hand: weapon.hand });
+    this.payload = Object.freeze({ hand: this.hand });
   }
 
   // The interval a swing now would start: speed / haste.
@@ -57,7 +77,7 @@ export class SwingTimer {
     const interval = this.weapon.speed / haste;
     if (!(interval > 0 && interval < Number.POSITIVE_INFINITY)) {
       throw new RangeError(
-        `The ${String(this.hand)} hand's swing interval is ${interval} s (speed ${this.weapon.speed} s, haste ${String(haste)}); it must be a finite number of seconds above 0.`,
+        `The ${this.#label} hand's swing interval is ${interval} s (speed ${this.weapon.speed} s, haste ${String(haste)}); it must be a finite number of seconds above 0.`,
       );
     }
     return interval;
@@ -69,12 +89,43 @@ export class SwingTimer {
   start(at = this.#scheduler.now) {
     if (this.#event !== null && this.#event.state === "pending") {
       throw new Error(
-        `The ${String(this.hand)} hand is already swinging; stop() it first.`,
+        `The ${this.#label} hand is already swinging; stop() it first.`,
       );
     }
     // No interval yet, so the first swing is the anchor (in swung()).
     this.#interval = null;
     this.#event = this.#schedule(at);
+    return this.#event;
+  }
+
+  // The pending swing and the grid it is on, { next, anchor, interval,
+  // count }, or null when none is pending. The core carries it from one run
+  // to the next on the same fight (js/core/fight.js, #198 from #197 QA M1).
+  get state() {
+    const next = this.nextSwingTime;
+    if (next === null) {
+      return null;
+    }
+    return Object.freeze({
+      next,
+      anchor: this.#anchor,
+      interval: this.#interval,
+      count: this.#count,
+    });
+  }
+
+  // Go on from a state() of this hand's timer in an earlier run: the pending
+  // swing at its time, on the same grid, so the run ticks as one run would.
+  resume({ next, anchor, interval, count }) {
+    if (this.#event !== null && this.#event.state === "pending") {
+      throw new Error(
+        `The ${this.#label} hand is already swinging; stop() it first.`,
+      );
+    }
+    this.#anchor = anchor;
+    this.#interval = interval;
+    this.#count = count;
+    this.#event = this.#schedule(next);
     return this.#event;
   }
 
@@ -84,16 +135,18 @@ export class SwingTimer {
   }
 
   // Called by the host from this hand's swing event, after it has resolved
-  // the swing. Schedules the next swing and returns it.
+  // the swing. Schedules the next swing and returns it. From any other event's
+  // handler, even one at the same time, or outside a handler, it throws: the
+  // scheduler's `current` must be this hand's swing (#198, from #195 QA 7).
   swung() {
     const event = this.#event;
     if (
       event === null ||
       event.state !== "ran" ||
-      event.time !== this.#scheduler.now
+      this.#scheduler.current !== event
     ) {
       throw new Error(
-        `swung() is for the ${String(this.hand)} hand's swing event, from its handler.`,
+        `swung() is for the ${this.#label} hand's swing event, from its handler.`,
       );
     }
     const interval = this.interval;

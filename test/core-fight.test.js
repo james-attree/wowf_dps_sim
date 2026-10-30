@@ -131,8 +131,19 @@ describe("the event core: a whole fight at decision points (#197)", () => {
         const polled = coreFight(seed, config, 90, { pollEvery: step });
         const label = `${name}, seed ${seed}`;
         assert.ok(polled.stats.polls > 90 / step - 2, label);
-        // A poll never finds a cast the decision points left.
-        assert.deepEqual(polled.stats.pollCasts, [], label);
+        // A poll never finds a cast the decision points left, but for
+        // rounding: a poll may get to a cast an ulp before the decision
+        // point that makes it (#197 QA), so it counts only when the
+        // decision points cast nothing of it within 1e-9 s.
+        const missed = polled.stats.pollCasts.filter(
+          ({ time, casts }) =>
+            !casts.every((id) =>
+              events.casts.some(
+                ([at, cast]) => cast === id && Math.abs(at - time) <= 1e-9,
+              ),
+            ),
+        );
+        assert.deepEqual(missed, [], label);
         assert.deepEqual(
           polled.casts.map(([, id]) => id),
           events.casts.map(([, id]) => id),

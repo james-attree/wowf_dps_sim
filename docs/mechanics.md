@@ -1272,7 +1272,7 @@ first is in every fight once the core ships (#197, #198):
   entry at the end of that step whether the refresh restarts it (a cast DoT)
   or keeps its clock (a proc's DoT or a poison), so on legacy the refresh is
   lost.
-- (d) Ticks of two different DoTs at the same time run in the order they
+- (c) Ticks of two different DoTs at the same time run in the order they
   were scheduled (the scheduler's seq) on the core, and in the order the DoTs
   were first put in `activeDots` on legacy. Each tick's damage is the same;
   only which one draws its rolls first changes, so the mean is not moved, but
@@ -1355,6 +1355,33 @@ changed moves its timer, the energy pool is told a modifier may have changed
 would. So a second `run`, or a `step()`, carries on from where the core left
 the fight.
 
+A second `run` on the core is the same fight as one longer run, wherever the
+split falls, on an event's time or between two (#198, from #197 QA M1). The
+fields hold time left, which is the end minus now, rounded; a run that
+re-based every timer from them would move later events by an ulp or so, and
+an energy wake or a swing could then change places with a DoT tick at the
+same time. So the core keeps the fight's own clock (its scheduler starts at
+`sim.currentTime`, not 0), and on closing it leaves `sim.coreCarry`: the
+exact end of each GCD, cooldown, aura and points timer, each DoT's tick clock
+(also one whose last tick has run while it has time left, which a proc can
+refresh on its clock), each swing's grid (its anchor, interval and count),
+the check poll's next time and the energy pool's line. The next run takes each one while its field still
+holds what was written; a field changed between the runs, or a run that does
+not start where the last one closed (a `step()` in between), starts from the
+field as before. Only `sim.coreStats` can see the split. When nothing a
+decision reads was changed between the runs (the timer fields, the auras and
+DoTs, the pools, the swings, the rotation, build and modifiers, the fight
+length), the next run does not ask the rotation at its start, since one run
+would not ask at that time: it keeps the last decision's wakes, the energy
+threshold at the very time it had and the condition crossing even when it lay
+past the last run's end. A decision there would see a GCD or cooldown that
+ends within `k("sim.tickEpsilon")` as ready and cast up to that much early
+(#231 QA B1). A run that starts on a changed fight asks the rotation once at
+its start. A DoT's tick clock is taken only while its entry's
+`timeUntilNextTick`, `tickInterval` and `duration` are as written. While a
+core run is open (`openCore`, as SimRunner holds one) the fight is the
+core's, and `step()` throws until it is closed.
+
 The rotation (`Rogue.castRotation`, which both engines call) runs at decision
 points only, in the decision class after the other events at a time: once at
 the time of any other event (a cast, a swing, a tick, a proc, an aura or
@@ -1362,8 +1389,9 @@ cooldown running out, the GCD ending), when energy reaches the cheapest cost
 the rotation lacked (`EnergyPool.wakeAt`), and where a condition that moves
 with time would cross its value with no event in between. A cast asks again at
 the same time, so an off-GCD rule (Cold Blood) follows the cast that enabled
-it; the re-asks stop when a decision casts nothing, or after as many at one
-time as the rotation has rules.
+it; the re-asks stop when a decision casts nothing, or after as many
+re-asks at one time as the rotation has rules: a rotation that casts at
+every ask is asked the rule count plus one times at that time.
 Each condition type in `js/rotation-conditions.js` declares its drift:
 `AT_EVENTS` (its answer changes only at an event) or a rate per second of
 fight time (energy and other pools below their cap, `auraRemaining`,
@@ -3135,6 +3163,35 @@ next call. Time given after the last step is dropped.
   until the state is `"finished"` and does not count seconds. The live page
   hands over whole steps (`advance(k("sim.fixedStep"))`, `js/live-run.js`),
   which never falls short.
+
+**The engine behind the runner (#198).** `new SimRunner({ ..., engine })`
+takes `"legacy"` (the fixed steps above, the default until #199) or
+`"events"`, the Phase 3.5 event core; `runner.engine` names the one it runs,
+fixed when the runner is made (an unknown one is a `RangeError` then), and
+`runFight({ seed, duration, config, engine })` takes the same option. The
+result does not record the engine and its shape is unchanged. On `"events"`
+each `run` opens the event core once for the whole fight (`openCore`,
+`js/core/fight.js`) and `advance(seconds)` runs it on to the time given: there
+is no step and no carry, so the call that brings the given time to `duration`
+finishes the fight (600 calls of `1 / 60` finish a 10 s fight on the 600th),
+and any split of the time is the same fight as one call. The runner keeps the
+given time as a compensated sum, so the time reached is the given seconds'
+sum correctly rounded (200 calls of `0.01` reach exactly 2 s). The core runs
+one event time at a time, so a `pause` or `stop` from an event handler takes
+effect after the events at that time, and the rest of the given time is kept
+for `resume`, as a legacy step's is. Between calls `fight`'s `rogue` and
+`simulation` read the fight at the time reached: energy, the GCD, auras and
+cooldowns move with the time alone, with no step to round them to. A fight of
+no length runs its events at 0, as `Simulation.run(0)` does on the core.
+
+`createLiveRun`'s `run({ seed, duration, config, engine })` and
+`clear({ seed, config, engine })` pass the engine on. On `"events"` a frame
+is one `advance` of its own seconds (`FrameClock.seconds`, at most
+`k("sim.maxFrameTime")`, 0 for the first frame and the first after a resume)
+instead of whole steps. The page (`js/main.js`) and the batch Worker pass no
+engine, so they run legacy until #199. `BatchRunner` and `runBatch` take no
+engine option yet; under `Simulation.useEngine` their fights run on the
+default engine.
 
 ## Aura uptime (S3, issue #146)
 

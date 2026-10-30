@@ -43,10 +43,8 @@ export function coreHost(sim, { endTime, swings = true } = {}) {
         event.payload?.id ?? event.payload?.hand,
       ]);
       if (event.kind === SWING_KIND) {
-        const weapon =
-          event.payload.hand === "main"
-            ? rogue.weapons.mainHand
-            : rogue.weapons.offHand;
+        // The payload names the hand as rogue.weapons does (#198).
+        const weapon = rogue.weapons[event.payload.hand];
         sim.resolveAttack(weapon.attack, "weapon", weapon.rollDamage());
         host.swings[event.payload.hand].swung();
       } else if (event.kind === DOT_TICK_KIND) {
@@ -140,12 +138,12 @@ export function coreHost(sim, { endTime, swings = true } = {}) {
   host.dots = dots;
   host.auras = auras;
   host.swings = {
-    main: new SwingTimer({
+    mainHand: new SwingTimer({
       weapon: rogue.weapons.mainHand,
       modifiers: sim.modifiers,
       scheduler,
     }),
-    off: new SwingTimer({
+    offHand: new SwingTimer({
       weapon: rogue.weapons.offHand,
       modifiers: sim.modifiers,
       scheduler,
@@ -166,8 +164,8 @@ export function coreHost(sim, { endTime, swings = true } = {}) {
     offStart = rogue.weapons.offHand.swingTimer,
   } = {}) => {
     if (swings) {
-      host.swings.main.start(start);
-      host.swings.off.start(start + offStart);
+      host.swings.mainHand.start(start);
+      host.swings.offHand.start(start + offStart);
     }
     scheduler.runToEnd();
     sim.currentTime = endTime;
