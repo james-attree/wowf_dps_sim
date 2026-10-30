@@ -89,6 +89,7 @@ describe("the desktop summary card (#241)", () => {
       assert.ok(row.damage <= rows[0].damage, "the top row did most");
     }
     assert.equal(body.includes("PARTIAL"), false);
+    assert.equal(body.includes(" of 12 fights"), false, "all of them ran");
     assert.equal(model.open, true);
   });
 
@@ -97,12 +98,29 @@ describe("the desktop summary card (#241)", () => {
       cardModel(state({ status: "cancelled", result: partial }), LABELS).body,
     );
     assert.ok(cut.includes("PARTIAL"), cut);
-    assert.ok(cut.includes("4 fights × 30 s"), cut);
+    // How many of the fights asked for ran (Fran's #253 check, N2).
+    assert.ok(cut.includes(`4 of ${OPTIONS.iterations} fights × 30 s`), cut);
     const one = text(
       cardModel(state({ status: "cancelled", result: single }), LABELS).body,
     );
     assert.ok(one.includes("One fight: no confidence interval"), one);
-    assert.ok(one.includes("1 fight × 30 s"), one);
+    assert.ok(one.includes(`1 of ${OPTIONS.iterations} fights × 30 s`), one);
+  });
+
+  it("stopped early out of thousands: the count asked for is grouped, 3 of 4,000 (#253, N2)", () => {
+    const runner = new BatchRunner({
+      ...OPTIONS,
+      iterations: 4000,
+      config: config(),
+    });
+    runner.run();
+    runner.advance(3);
+    runner.cancel();
+    const cut = text(
+      cardModel(state({ status: "cancelled", result: runner.result }), LABELS)
+        .body,
+    );
+    assert.ok(cut.includes("3 of 4,000 fights × 30 s"), cut);
   });
 
   it("stopped before the first fight: no average, nothing to open on Results but the banner", () => {

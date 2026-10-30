@@ -27,6 +27,11 @@ function average(result, buildLabel) {
   const model = breakdownModel(result);
   const top = model.damageRows[0] ?? null;
   const partial = result.cancelled;
+  // Stopped early: how many of the fights asked for ran, "486 of 4,000
+  // fights" (Fran's #253 check, N2), as the Results panel says it.
+  const ran = partial
+    ? `${count(result.completed)} of ${fights(result.iterations)}`
+    : fights(result.completed);
   return [
     line("results-card-dps", [
       num(summary.mean),
@@ -39,7 +44,7 @@ function average(result, buildLabel) {
         : "One fight: no confidence interval",
     ]),
     line("results-card-meta", [
-      `${fights(result.completed)} × ${count(result.duration)} s · seed ${result.seed}`,
+      `${ran} × ${count(result.duration)} s · seed ${result.seed}`,
     ]),
     line("results-card-meta", [buildLabel(result.config)]),
     el("dl", { class: "results-card-facts" }, [
