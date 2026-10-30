@@ -394,6 +394,12 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   the fixed order at one timestamp (`ORDER`), and a hard stop
   (`SchedulerHardStopError`). Nothing uses it yet; the legacy engine is the
   default. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+- `js/core/energy.js` — `EnergyPool` (#194), continuous energy for the Phase
+  3.5 core: the line `min(cap, value0 + rate * (now - t0))`, re-based on a
+  gain, a spend or a rate or cap change (`modifiersChanged()`), and a one-shot
+  threshold wake-up event (`wakeAt`). Nothing uses it yet; the legacy pool in
+  `js/resource.js` stays. See "Planned: event-queue engine" in
+  [Mechanics](docs/mechanics.md).
 - `js/fight.js` — `runFight({ seed, duration, config })`, the headless entry
   point, and `createFight(seed, config, options)`, the `Rogue` and `Simulation`
   pair that `runFight` and the live page both build. `options.duration` is the

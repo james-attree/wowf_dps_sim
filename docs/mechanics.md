@@ -1141,12 +1141,16 @@ the old event stays "ran". There is one handle function for every class and
 kind, with no per-kind handlers: it gets the event and the scheduler.
 `runUntil(t)` runs every event due at or before t, including ones its handlers
 schedule at or before t, and leaves `now` at t; `runToEnd()` is
-`runUntil(endTime)`. Split calls give the same order as one call. It refuses (with a `RangeError` or
-`TypeError`): an event before `now`, or with a time that is not finite, an
-order that is not one of `ORDER`, or an empty kind; `runUntil` before `now`,
-past the end time, at a time that is not finite, or from inside a handler; an
-end time that is negative or not finite; and a missing handle function. A
-handler's error goes through with `now` at that event's time.
+`runUntil(endTime)`. Split calls give the same order as one call. A bad
+argument is a `RangeError` or `TypeError`: an event before `now`, or with a
+time that is not finite, an order that is not one of `ORDER`, or an empty
+kind; `runUntil` before `now`, past the end time or at a time that is not
+finite; an end time that is negative or not finite; and a missing handle
+function. The text quotes a string, so a time of `"4"` reads `Got "4".`. A
+call in the wrong state is a plain `Error`: `runUntil` from inside a handler,
+and any call after a hard stop (below). A handler's error goes through with
+`now` at that event's time. An event is frozen, so not even
+`Object.defineProperty` can move one that is already in the queue.
 
 **Hard stop (#193).** A run throws `SchedulerHardStopError`, naming the event
 (its kind, time, class and `seq`), when more than
@@ -1154,10 +1158,64 @@ handler's error goes through with `now` at that event's time.
 keeps scheduling at `now`), or more than `k("sim.maxEventsPerSecond")` per
 second of the end time run in all (a loop that creeps forward without reaching
 the end; a fight under 1 s counts as 1 s). Both count over the scheduler's
-whole life, so split calls stop at the same event as one call. After a hard
-stop the scheduler will not run again. Both limits are 10,000 and are
+whole life, so split calls stop at the same event as one call. The error also
+carries the event's `order` and the scheduler's `endTime` as fields. The event
+that trips the stop does not run: it stays "pending" and in `pendingCount`.
+After a hard stop the scheduler will not run again, and `runUntil`,
+`schedule` and `reschedule` throw a plain `Error` that names the stop, before
+any check of their arguments; `cancel` still works. Both limits are 10,000 and are
 `engineering` rows (the dev's numbers, not decisions by James, not on the
 retune list), far above a real fight.
+
+**Continuous energy (#194).** `js/core/energy.js` holds the new core's energy
+pool; nothing uses it yet, and the legacy pool (`js/resource.js`, regenerated
+per step by `Simulation.regenerateResource`) stays for the legacy engine.
+`new EnergyPool({ definition, modifiers, scheduler })` takes a resource
+definition with a regen rule (energy; one without, such as combo points, is a
+`RangeError`), the rogue's `ModifierPipeline`, and the scheduler, whose `now`
+is the pool's clock. The pool stores `(value0, t0, rate, cap)` and reads as
+`min(cap, value0 + rate * (now - t0))`. The rate is
+`k("energy.regenPerSecond")` through the `energyRegen` modifiers and the cap is
+`k("energy.max")` through the `resourceMax` modifiers for energy, read from the
+same pipeline and combined the same way as in legacy. A rate that is negative
+or not finite is a `RangeError`. A gain (up to the cap; it returns what was
+added), a spend or `spendAll` first re-bases: `value0` becomes the value now
+and `t0` becomes now. Rate and cap change only at events: the host calls
+`modifiersChanged()` from the event where such a modifier applies or runs out
+(an Adrenaline Rush apply or expiry). The pool re-reads both and re-bases
+there only if one of them moved, bringing a value above a cap that fell down
+to it. A read never re-bases, so with no modifier the value is exactly
+`min(cap, e0 + rate * t)`. As on the legacy pool, `onChange(change, before,
+source)` hears a gain or a spend that moved the value; regeneration is not
+reported, and the start value is the definition's.
+
+**Threshold wake-up (#194).** `pool.wakeAt(amount)` schedules one event of
+kind `"resource-threshold"` (`WAKE_KIND`), in the energy class, with the
+payload `{ resource, amount }`. It fires at the first time the value reaches
+the amount, or at now if it already has. The division
+`t0 + (amount - value0) / rate` can round a hair early, so the time is nudged
+up (by about one unit in the last place at a time) until the value there is
+at least the amount. The handler always finds the energy, and the time is
+within a few units in the last place of the exact one. Every re-base (a gain,
+a spend, a rate or cap change) cancels the event and schedules it again from
+the new line. While the amount cannot be reached (a rate of 0, or an amount
+above the cap), no event is scheduled until a re-base makes it reachable. The
+pool keeps one threshold: a second `wakeAt` replaces the first,
+`cancelWake()` drops it, and the event is one-shot. The rotation chooses the
+amount (decision points, #197). The pool does not yet count the time at the
+cap or the overflow (#146); the end-event contract arrives with the runner
+re-point (#198).
+
+Re-arming: once the wake has run, `wakeAt` sets a new threshold straight
+away, from the wake's own handler or from outside, with nothing read in
+between (#225). A `wakeAt` whose amount the pool already holds fires at now.
+Called from a decision handler, that wake runs after the decision, as the
+next event at that time (the energy class runs before a decision scheduled
+at the same time after it). So a decision that asks again for energy it
+already holds, and does nothing else, wakes itself at the same time without
+end; the scheduler's hard stop (`k("sim.maxEventsPerTimestamp")` events at
+one time) ends it with a `SchedulerHardStopError`. The rotation (#197) must
+act on energy it holds rather than wait for it.
 
 ## Headless fight
 

@@ -23,8 +23,9 @@ const TARGET_CHANGES = Object.freeze(["clear", "keep"]);
 // spend called a gain (or the reverse), and NaN would poison the pool for the
 // rest of the fight, so both fail where they are made. A pool that holds
 // whole units only (combo points: `whole` in js/resource-data.js) takes a
-// whole number, so no proc or ability can leave half a point behind.
-function checkAmount(definition, verb, amount) {
+// whole number, so no proc or ability can leave half a point behind. The
+// Phase 3.5 core's energy pool (js/core/energy.js) uses the same checks.
+export function checkAmount(definition, verb, amount) {
   if (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) {
     throw new RangeError(
       `Resource "${definition.id}" cannot ${verb} ${String(amount)}. An amount is a number, 0 or more.`,
@@ -37,7 +38,9 @@ function checkAmount(definition, verb, amount) {
   }
 }
 
-function startValue(start) {
+// Where a pool starts the fight, from its definition's `start` (shared with
+// the Phase 3.5 core's js/core/energy.js).
+export function startValue(start) {
   const row = k(start.id);
   return start.field === undefined ? row : row[start.field];
 }

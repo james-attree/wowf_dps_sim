@@ -202,6 +202,12 @@ describe("scheduler: cancel and reschedule", () => {
     assert.throws(() => {
       event.time = 1;
     }, TypeError);
+    // Frozen too, so an own property cannot shadow the getter.
+    assert.ok(Object.isFrozen(event));
+    assert.throws(
+      () => Object.defineProperty(event, "time", { value: 1 }),
+      TypeError,
+    );
     assert.equal(event.time, 3);
   });
 
@@ -399,6 +405,23 @@ describe("scheduler: input checks", () => {
       name: "RangeError",
       message: 'Cannot schedule "late" at t = 1.5 s: it is before now (2 s).',
     });
+    assert.throws(
+      () => scheduler.schedule({ time: "4", order: ORDER.swing, kind: "e" }),
+      {
+        name: "RangeError",
+        message:
+          'An event\'s time must be a finite number of seconds. Got "4".',
+      },
+    );
+    assert.throws(
+      () => scheduler.schedule({ time: 3, order: "1", kind: "e" }),
+      {
+        message: /Got "1"\.$/,
+      },
+    );
+    assert.throws(() => scheduler.runUntil(Number.NaN), {
+      message: /Got NaN\.$/,
+    });
     for (const time of [Number.NaN, Infinity, -Infinity, "3", undefined]) {
       assert.throws(
         () => scheduler.schedule({ time, order: ORDER.swing, kind: "e" }),
@@ -464,8 +487,10 @@ describe("scheduler: hard stop", () => {
     assert.equal(error.scope, "timestamp");
     assert.equal(error.limit, perTimestamp);
     assert.equal(error.time, 2.5);
+    assert.equal(error.order, ORDER.decision);
     assert.equal(error.kind, "decision");
     assert.equal(error.seq, perTimestamp);
+    assert.equal(error.endTime, 10);
     assert.equal(
       error.message,
       `Scheduler hard stop: more than ${perTimestamp} events ran at t = 2.5 s; the last was "decision" at t = 2.5 s (order decision, seq ${perTimestamp}). A handler is probably scheduling events in a loop.`,
@@ -511,6 +536,8 @@ describe("scheduler: hard stop", () => {
         assert.equal(error.scope, "run");
         assert.equal(error.limit, perSecond * endTime);
         assert.equal(error.kind, "creep");
+        assert.equal(error.order, ORDER.energy);
+        assert.equal(error.endTime, endTime);
         assert.match(
           error.message,
           new RegExp(
@@ -544,11 +571,63 @@ describe("scheduler: hard stop", () => {
     });
     at(scheduler, 1, "swing", "loop");
     assert.throws(() => scheduler.runUntil(5), SchedulerHardStopError);
-    assert.throws(() => scheduler.runUntil(5), {
+    // Not a RangeError for a time before now: the stop comes first.
+    for (const t of [5, 0.5]) {
+      assert.throws(() => scheduler.runUntil(t), {
+        name: "Error",
+        message:
+          /^The scheduler was stopped by a hard stop and cannot run again: Scheduler hard stop:/,
+      });
+    }
+  });
+
+  it("takes no new or moved events after a hard stop", () => {
+    const { scheduler } = recorder(10, (event, self) => {
+      at(self, self.now, "swing", "loop");
+    });
+    at(scheduler, 1, "swing", "loop");
+    const later = at(scheduler, 6, "expiry", "later");
+    assert.throws(() => scheduler.runUntil(5), SchedulerHardStopError);
+    const pending = scheduler.pendingCount;
+    assert.throws(() => at(scheduler, 7, "swing", "new"), {
       name: "Error",
       message:
-        /^The scheduler was stopped by a hard stop and cannot run again: Scheduler hard stop:/,
+        /^The scheduler was stopped by a hard stop and cannot schedule an event: Scheduler hard stop:/,
     });
+    assert.throws(() => scheduler.reschedule(later, 8), {
+      name: "Error",
+      message:
+        /^The scheduler was stopped by a hard stop and cannot reschedule an event: Scheduler hard stop:/,
+    });
+    // The refused reschedule left the old event as it was.
+    assert.equal(later.state, "pending");
+    assert.equal(scheduler.pendingCount, pending);
+    // Cancelling is still allowed: it only drops work.
+    assert.equal(later.cancel(), true);
+    assert.equal(scheduler.pendingCount, pending - 1);
+  });
+
+  it("leaves the event that trips the stop pending: it did not run", () => {
+    let tripping = null;
+    let last = null;
+    const { scheduler } = recorder(10, (event, self) => {
+      last = at(self, self.now, "swing", "loop");
+    });
+    at(scheduler, 1, "swing", "loop");
+    assert.throws(
+      () => scheduler.runUntil(5),
+      (error) => {
+        tripping = error;
+        return error instanceof SchedulerHardStopError;
+      },
+    );
+    // The handler's last event is the one that tripped the stop.
+    assert.equal(tripping.seq, last.seq);
+    assert.equal(last.state, "pending");
+    assert.equal(scheduler.pendingCount, 1);
+    assert.equal(scheduler.eventsRun, perTimestamp);
+    assert.equal(last.cancel(), true);
+    assert.equal(scheduler.pendingCount, 0);
   });
 });
 
@@ -571,6 +650,13 @@ class ReferenceScheduler {
     if (event.state === "pending") {
       event.state = "cancelled";
     }
+  }
+  reschedule(event, time) {
+    this.cancel(event);
+    return this.schedule({ time, order: event.order, kind: event.kind });
+  }
+  get pendingCount() {
+    return this.events.filter((event) => event.state === "pending").length;
   }
   runUntil(t) {
     for (;;) {
@@ -601,7 +687,14 @@ function randomRound(seed, make, cancel) {
   const scheduler = make({
     endTime,
     handle(event, self) {
-      log.push([event.time, event.order, event.seq, event.kind, self.now]);
+      log.push([
+        event.time,
+        event.order,
+        event.seq,
+        event.kind,
+        self.now,
+        self.pendingCount,
+      ]);
       const roll = createRng(seed * 7919 + event.seq);
       if (roll() < 0.35) {
         const ahead = Math.floor(roll() * 3) * grid;
@@ -616,6 +709,15 @@ function randomRound(seed, make, cancel) {
       }
       if (roll() < 0.2 && bySeq.length > 0) {
         cancel(self, bySeq[Math.floor(roll() * bySeq.length)]);
+      }
+      // Move a random event (pending, ran or cancelled) to now or later.
+      if (roll() < 0.2 && bySeq.length > 0) {
+        const ahead = Math.floor(roll() * 3) * grid;
+        const time = Math.min(self.now + ahead, endTime);
+        const old = bySeq[Math.floor(roll() * bySeq.length)];
+        const moved = self.reschedule(old, time);
+        log.push(["move", old.seq, old.state, moved.seq, time]);
+        bySeq.push(moved);
       }
     },
   });
@@ -643,14 +745,15 @@ function randomRound(seed, make, cancel) {
   stops.sort((a, b) => a - b);
   for (const t of [...stops, endTime]) {
     scheduler.runUntil(t);
-    log.push(["stop", t, scheduler.now]);
+    log.push(["stop", t, scheduler.now, scheduler.pendingCount]);
   }
   return log;
 }
 
 describe("scheduler: randomised against a sorted-array reference", () => {
-  it("matches the reference over 200 seeded rounds", () => {
+  it("matches the reference over 200 seeded rounds, with reschedules and pendingCount", () => {
     let events = 0;
+    let moved = 0;
     for (let seed = 1; seed <= 200; seed += 1) {
       const real = randomRound(
         seed,
@@ -664,9 +767,11 @@ describe("scheduler: randomised against a sorted-array reference", () => {
       );
       assert.deepEqual(real, reference, `round ${seed}`);
       events += real.filter((entry) => entry[0] !== "stop").length;
+      moved += real.filter((entry) => entry[0] === "move").length;
     }
     // The rounds are not trivially small.
     assert.ok(events > 2000, `only ${events} events ran`);
+    assert.ok(moved > 200, `only ${moved} reschedules`);
   });
 });
 
