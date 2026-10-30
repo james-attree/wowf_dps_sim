@@ -58,7 +58,7 @@ tick, expiry and decision is an event at its own exact time, and
 returns plain data, with no DOM. `config` is an optional SimConfig (character,
 weapons, a talent build, poisons); leave it out for the default fight. The live
 page builds the same fight with `createFight` and gives it each frame's seconds,
-so a seed gives the same fight live and headless, however the time is split. The golden tests pin seven `runFight` results, and
+so a seed gives the same fight live and headless, however the time is split. The golden tests pin eight `runFight` results, and
 `npm run bench` times one. [Mechanics](docs/mechanics.md#simulation-clock) has
 the details, and [Known limits of Phase 1](docs/mechanics.md#known-limits-of-phase-1)
 says what to keep in mind.
@@ -769,7 +769,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   every icon name in the snapshot and reports the ones the CDN does not have;
   `--write` records them in `data/icons.json`. Not run in CI or by `npm test`.
 - `scripts/scripted-fight.mjs` — Runs `runFight` with a list of casts in place
-  of the placeholder rotation, for the scripted golden case.
+  of the placeholder rotation, for the scripted golden cases.
 - `scripts/bench.mjs` — `npm run bench`: times a seeded 5-minute `runFight` over
   several runs and prints the median and slowest. `--target-ms N` changes the
   target it compares with. The only place besides `test/bench.test.js` that

@@ -89,11 +89,12 @@ export const EXTRA_CASES = deepFreeze([
 ]);
 
 // Golden cases with the default config, as five-minute-seed-1-300s has. The
-// scripted one runs a script the cases here do not.
+// scripted ones run a script the cases here do not.
 const SAME_CONFIG = new Set([
   "short-seed-1-10s",
   "other-seed-12345-90s",
   "scripted-finishers-seed-68-50s",
+  "scripted-finishers-in-budget-seed-68-50s",
 ]);
 
 export const FIGHT_CASES = deepFreeze([

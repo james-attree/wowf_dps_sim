@@ -918,7 +918,7 @@ time end in the same state, whoever drives them and however the time is split.
   a `SimRunner`, which holds one core run open and gives it each frame's
   seconds from `FrameClock` (see Live page). It is a view of the engine and
   holds no combat rule.
-- The golden tests pin the `runFight` result for seven fixed cases, one of
+- The golden tests pin the `runFight` result for eight fixed cases, two of
   them a scripted list of casts and three of them the reference talent build
   (one with poisons, one with the combat-swords preset; see Golden-seed tests).
   They fail when anything on this path changes a number.
@@ -1394,7 +1394,7 @@ the events and a small share of 1/64 s steps; Cold Blood with and without the
 talent; the pool's rate and cap equal a fresh read after every event through
 Adrenaline Rush; the waste given back; a DoT and the swings across split runs;
 a condition wake in the second of two runs;
-the scripted golden case on the core (Rupture ticks and a tick crit); and the
+the scripted golden cases on the core (Rupture ticks and a tick crit); and the
 #196 edges (a), (d) and same-time main- and off-hand swings.
 `test/core-rules.test.js` runs the rules the legacy step-based tests pinned
 (poisons on DoT ticks, Deadly Poison's clock, refresh and crits, an `applyDot`
@@ -1661,10 +1661,11 @@ A golden test pins the whole result of a fixed fight, so a change to a rule, a
 constant, or the engine shows up in review as a diff of numbers. The cases are
 listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
 10 s), a 5-minute fight (seed 1, 300 s), another seed (12345, 90 s), a
-scripted-cast fight (seed 68, 50 s, described below), the two config cases
+scripted-cast fight (seed 68, 50 s, described below) and its in-budget twin
+added by #234 (same seed and length, also below), the two config cases
 added by #107 (the talented build, the poison fight, described below), and the
 combat-swords preset case added by #164 (seed 142, 120 s, described below):
-seven in all. Each
+eight in all. Each
 has a fixture in `test/golden/<name>.json` holding the `runFight` result:
 `seed`, `duration`, `totalDamage`, `dps`, every ability's record, and the capped
 log. The one result field it leaves out is `dataVersion` (see Data version).
@@ -1692,7 +1693,29 @@ for the one call so the script casts first, then the rogue's own rotation runs
 with its skill casts switched off, so only the weapon swings and the haste
 buffs are left. Nothing under `js/` changes, and a
 script that has not finished by the end of the fight throws. The fixture has
-8 Rupture ticks (3 of them crits) and an Eviscerate that hits without a crit.
+8 Rupture ticks (2 of them crits) and an Eviscerate that crits.
+
+**The in-budget scripted case (#234).** `FINISHER_SCRIPT` was written for
+seed 68 and does not finish on 70 of seeds 1 to 200. The cause is energy, not a
+stuck cast: it costs 12 × 45 + 35 + 25 + 35 = 635 energy, and from the 100 a
+fight starts with at 10 a second (`energy.regenPerSecond`) the Eviscerate's
+energy arrives at 53.5 s when every attack lands, after the 50 s fight ends.
+A Sinister Strike that misses or is dodged still counts as a cast and refunds
+80% of its cost (`skill.missEnergyRefund`), so the script finishes only on a
+seed with enough of those; on all 70 that do not, Eviscerate is the one cast
+still waiting. `FINISHER_SCRIPT_IN_BUDGET` is Sinister Strike six times,
+Hemorrhage, Rupture, Sinister Strike four times, then Eviscerate: 545 energy,
+so with every attack landed its last cast goes out at 44.5 s, and a seed with
+misses only finishes sooner (44.5 s is the latest on seeds 1 to 1,000). Six
+Sinister Strikes and Hemorrhage are seven builders, so Rupture still goes out at
+5 combo points when two of them do not land. Its case,
+`scripted-finishers-in-budget-seed-68-50s`, runs it on the same seed and
+length, and its fixture has 8 Rupture ticks (1 of them a crit), ticks with and
+without the Hemorrhage bonus, a Sinister Strike miss, and an Eviscerate that
+hits without a crit. `test/golden.test.js` runs the script on seeds 1 to 200
+(about a quarter of a second) and checks that every one finishes, and that
+`FINISHER_SCRIPT` still does not, with Eviscerate waiting. The #85 case was
+kept beside it with its fixture unchanged.
 
 **Config cases (#107).** A case may carry `config`, a partial SimConfig that
 `runGoldenCase` passes to `runFight` (or `runScriptedFight`) like any caller's.
@@ -1788,9 +1811,10 @@ lint`, and `npm run provenance` never write a fixture. To add a case, add it to
 `GOLDEN_CASES` and run the script with `--write`; to remove one, delete its
 entry and its file. A fixture file with no matching case fails the tests, and
 the message says to delete the file or add the case. `.DS_Store` is the one
-file the check ignores. To change the scripted case, edit `FINISHER_SCRIPT` or
-the seed in `scripts/golden-update.mjs`, then regenerate. Keep a seed that
-still has tick crits: `test/golden.test.js` checks for them.
+file the check ignores. To change a scripted case, edit `FINISHER_SCRIPT`,
+`FINISHER_SCRIPT_IN_BUDGET` or the seed in `scripts/golden-update.mjs`, then
+regenerate. Keep a seed that still has tick crits, and an in-budget script that
+finishes on seeds 1 to 200: `test/golden.test.js` checks both.
 `.prettierignore` lists `test/golden/`, because Prettier would reflow the
 one-line rows.
 
@@ -1841,9 +1865,10 @@ node scripts/parity.mjs --engine events --against legacy --duration 300 --gate 2
 ```
 
 The scripted finishers case was not under the gate: its script was written for
-seed 68 and does not finish on 70 of seeds 1 to 200 on the event core. Making it finish on seeds 1 to
-200, with a golden of its own, is the third #234 PR; there is no parity to
-rejoin.
+seed 68 and does not finish on 70 of seeds 1 to 200 on the event core. The
+third #234 PR covers it with a script that finishes on seeds 1 to 200 and a
+golden of its own (see "The in-budget scripted case" under Golden-seed tests);
+there is no parity to rejoin.
 
 ## Benchmark
 

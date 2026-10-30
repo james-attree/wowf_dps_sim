@@ -50,12 +50,42 @@ export const FINISHER_SCRIPT = [
   "eviscerate",
 ];
 
+// The same finishers, cut to fit the fight's energy (#234). FINISHER_SCRIPT
+// was written for seed 68. It costs 12 × 45 + 35 + 25 + 35 = 635 energy; the
+// fight starts with 100 and regenerates 10 a second, so with every attack
+// landed its Eviscerate waits for 53.5 s of energy in a 50 s fight. It finishes
+// only on a seed where enough attacks miss or are dodged, since one that does
+// not land still counts as a cast and refunds skill.missEnergyRefund of its
+// cost: 130 of seeds 1 to 200. This one costs 10 × 45 + 35 + 25 + 35 = 545, so
+// with every attack landed it casts its last at 44.5 s. An attack that does not
+// land gives energy back, so a seed with misses finishes no later: on seeds 1
+// to 1,000 the last cast is at 44.5 s at the latest. Six Sinister
+// Strikes and Hemorrhage are seven builders, so Rupture still goes out at
+// 5 combo points (16 s, 8 ticks) when two of them do not land. Four builders
+// feed Eviscerate. test/golden.test.js runs it on seeds 1 to 200 and checks
+// that it finishes on every one.
+export const FINISHER_SCRIPT_IN_BUDGET = [
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "hemorrhage",
+  "rupture",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "sinisterStrike",
+  "eviscerate",
+];
+
 // A case may also carry a `config` (issue #107): a partial SimConfig, such as
 // { talents, poisons }, passed to runFight like any caller's. A case without
 // one runs the defaults, as the first four do. The config is not pinned (see
 // UNPINNED_FIELDS), but it is in this file, so a case says what it ran with.
 //
-// One short fight, one 5-minute fight, one more seed, and one scripted fight.
+// One short fight, one 5-minute fight, one more seed, and two scripted fights.
 // Keep this list short: every case is a file to review whenever results move
 // on purpose. A case with a script runs it (scripts/scripted-fight.mjs) instead
 // of the placeholder rotation; any other case is plain runFight.
@@ -79,6 +109,14 @@ export const GOLDEN_CASES = deepFreeze([
     seed: 68,
     duration: 50,
     script: FINISHER_SCRIPT,
+  },
+  // Issue #234. The same seed and length, with the script that finishes on
+  // every seed. The case above keeps its fixture as it was.
+  {
+    name: "scripted-finishers-in-budget-seed-68-50s",
+    seed: 68,
+    duration: 50,
+    script: FINISHER_SCRIPT_IN_BUDGET,
   },
   // Issue #107. The two cases below run the reference build (Assassination 18
   // / Combat 33 / Subtlety 0, the talentsforever.com link in

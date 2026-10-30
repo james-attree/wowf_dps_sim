@@ -356,7 +356,8 @@ describe("talent guard (#188): nothing that ships moves", () => {
       assert.deepEqual(validateRotation(used), [], golden.name);
       checked += 1;
     }
-    assert.equal(checked, GOLDEN_CASES.length - 1);
+    // Every case but the two scripted ones (#85, #234).
+    assert.equal(checked, GOLDEN_CASES.length - 2);
   });
 
   it("an unguarded talent rule is refused by a fight and by an import, with the same message", () => {

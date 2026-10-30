@@ -238,7 +238,9 @@ Landed in #192: `npm run parity` (`scripts/parity.mjs`, tested in
 `test/parity.test.js`), and the time and ordering note in mechanics.md
 ("Event-queue engine (Phase 3.5)"). The scripted golden case runs its
 config without its script (since #199 trimmed as the default config, the
-script itself left to #200), and a
+script itself left to #200; covered in #234's third PR by
+`FINISHER_SCRIPT_IN_BUDGET`, which finishes on seeds 1 to 200, and its own
+golden, `scripted-finishers-in-budget-seed-68-50s`), and a
 parity-only DoT case (`dot-hemorrhage-rupture-120s`) covers Rupture ticks.
 `--gate 2` is #199's gate: `|mean A - mean B| / mean B` at most 2% on every
 case, on the point estimate, with B = legacy (mechanics.md "Parity harness").
@@ -378,7 +380,11 @@ frame cap reads it). The parity gate is retired, since there is nothing left to
 compare: the final numbers and how to reproduce them from the tag are in
 mechanics.md ("Parity harness"), and the goldens plus the bench are the guard
 from here. Engine polish and the scripted finishers (finish on seeds 1-200,
-with their own golden) are the second and third PRs.
+with their own golden) are the second and third PRs. The third adds
+`FINISHER_SCRIPT_IN_BUDGET` and `scripted-finishers-in-budget-seed-68-50s`
+beside the #85 case, whose fixture is unchanged: the old script needs 53.5 s of
+energy in a 50 s fight when every attack lands (mechanics.md, "The in-budget
+scripted case").
 
 Issues 3 to 5 each need their own tests, since the legacy tests mostly drive
 `step(dt)`. Where a test pins a rule (not a timing), port it to the new core.

@@ -352,12 +352,16 @@ describe("the event core: a whole fight at decision points (#197)", () => {
     );
   });
 
-  it("runs the scripted golden case to Rupture ticks and a tick crit", () => {
-    const scripted = GOLDEN_CASES.find((goldenCase) => goldenCase.script);
-    const result = runScriptedFight(scripted);
-    const rupture = result.abilities.Rupture;
-    assert.ok(rupture.ticks > 0, JSON.stringify(rupture));
-    assert.ok(rupture.tickCrits > 0, JSON.stringify(rupture));
+  it("runs the scripted golden cases to Rupture ticks and a tick crit", () => {
+    const scripted = GOLDEN_CASES.filter((goldenCase) => goldenCase.script);
+    // #85's case and #234's.
+    assert.equal(scripted.length, 2);
+    for (const goldenCase of scripted) {
+      const result = runScriptedFight(goldenCase);
+      const rupture = result.abilities.Rupture;
+      assert.ok(rupture.ticks > 0, JSON.stringify(rupture));
+      assert.ok(rupture.tickCrits > 0, JSON.stringify(rupture));
+    }
   });
 });
 
