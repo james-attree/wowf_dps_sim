@@ -575,6 +575,37 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
     saved = null;
   }
 
+  // The fields in error when typing began (input, below).
+  let checkedLive = new Set();
+  // A field typed in that was not in error: its error (and its pair's) goes
+  // once it is valid again; none is added.
+  function clearValid(path, errors, now) {
+    const min = path.endsWith(".min") ? path : pairedMin(path);
+    // Max's error is the pair's while its Min is marked (a null message).
+    const paired = min !== null && errors[min] === null;
+    for (const key of [path, pairedMin(path)]) {
+      if (key !== null && key in errors && !(key in now)) {
+        delete errors[key];
+      }
+    }
+    if (path.endsWith(".min")) {
+      const max = path.replace(/\.min$/, ".max");
+      if (max in errors && !(max in now)) {
+        delete errors[max];
+      }
+      // A null Min only marks its Max's error (#237): with that gone it
+      // marks nothing, so it goes too.
+      if (errors[path] === null && !(max in errors)) {
+        delete errors[path];
+      }
+    }
+    // The pair's error goes once the pair check passes (#247, Fran's flow J).
+    if (paired && now[min] !== null) {
+      delete errors[min];
+      delete errors[min.replace(/\.min$/, ".max")];
+    }
+  }
+
   // The summary follows the build: a rule the talent tree's build skips says
   // so (D9). The tree writes config.talents, not the form.
   let talents = store.get().config.talents;
@@ -605,41 +636,35 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
   });
 
   return {
-    // Typing: keep the value; clear the field's error only once it is valid
-    // again, and never add one (that waits for change).
+    // Typing: keep the value. A field, or Min/Max pair, that was in error
+    // when the typing began is checked as it is typed (#240, Fran's #249
+    // N1 and N2): its message follows the value, so "Use a whole number" goes
+    // once Max reads 45, and the pair's error comes back at Min 50 after 5.
+    // Any other field's error only clears once it is valid again, and none is
+    // added: that waits for change.
     input(path, raw) {
       forget();
       const value = controlValue(path, raw);
       const values = { ...form().values, [path]: value };
       const errors = { ...form().errors };
       const now = validateValues(values);
+      if ((form().edited?.length ?? 0) === 0) {
+        checkedLive = new Set(Object.keys(errors));
+      }
       const min = path.endsWith(".min") ? path : pairedMin(path);
-      // Max's error is the pair's while its Min is marked (a null message).
-      const paired = min !== null && errors[min] === null;
-      for (const key of [path, pairedMin(path)]) {
-        if (key !== null && key in errors && !(key in now)) {
-          delete errors[key];
+      const group =
+        min === null ? [path] : [min, min.replace(/\.min$/, ".max")];
+      if (group.some((key) => checkedLive.has(key))) {
+        for (const key of group) {
+          checkedLive.add(key);
+          if (key in now) {
+            errors[key] = now[key];
+          } else {
+            delete errors[key];
+          }
         }
-      }
-      if (path.endsWith(".min")) {
-        const max = path.replace(/\.min$/, ".max");
-        if (max in errors && !(max in now)) {
-          delete errors[max];
-        }
-        // A null Min only marks its Max's error (#237): with that gone it
-        // marks nothing, so it goes too. A Min still invalid on its own gets
-        // its message on change, as any field typed invalid does.
-        if (errors[path] === null && !(max in errors)) {
-          delete errors[path];
-        }
-      }
-      // The pair's error goes once the pair check passes, whichever of the
-      // two is typed in, even when the typed field is now invalid on its own
-      // (#247, Fran's flow J: 4.5 in Max kept "at least the min damage" until
-      // blur, where 1.5 in Min dropped it). Its own message waits for change.
-      if (paired && now[min] !== null) {
-        delete errors[min];
-        delete errors[min.replace(/\.min$/, ".max")];
+      } else {
+        clearValid(path, errors, now);
       }
       const edited = form().edited ?? [];
       store.set({

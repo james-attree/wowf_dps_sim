@@ -65,7 +65,7 @@
   width: 5.5rem;
   min-height: 36px;
   padding: 4px 8px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   background: #100f0c;
   color: #f3eee2;
@@ -449,7 +449,7 @@
 .step-button {
   width: 44px;
   height: 44px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 10px;
   background: #211c14;
   color: #f3eee2;

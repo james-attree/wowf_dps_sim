@@ -4,6 +4,8 @@ import {
   announceKey,
   blocked,
   controlsModel,
+  dockDps,
+  dockText,
   errorsText,
   fieldErrors,
   firstFormError,
@@ -46,7 +48,17 @@ import { reveal } from "./sections.js";
 // every width. Both count the run fields' errors and the stats form's; the
 // link goes to the first run field with an error, else the form's first
 // invalid field. Run's aria-describedby names the reason (#run-reason).
+//
+// Below the wide breakpoint (#240, UX2) the row is the phone dock's strip,
+// fixed above the area nav (styles.css): its two lines are the shorter
+// data-dock texts, beside a DPS readout, and Run's slot shows Pause once a
+// run starts, so a second tap of a double-tap is not taken as Pause.
 const FIELDS = ["duration", "iterations", "seed"];
+// The main (left) mouse button: only it presses Run (#240, Fran's #249 N4).
+const MAIN_BUTTON = 0;
+// A Pause press this soon after Run started the run is the same tap twice
+// (#240, Fran's #249 N3), so it is ignored. In milliseconds.
+export const RUN_TAP_GUARD_MS = 500;
 // Re-exported for the tests and older imports; the value lives in
 // js/views/breakpoints.js.
 export { NARROW_QUERY };
@@ -85,6 +97,8 @@ export function createControlsView(doc, store, actions = {}) {
   const summary = $("run-summary");
   const errorsLink = $("run-errors-link");
   const reason = $("run-reason");
+  const dpsValue = $("run-dps-value");
+  const dpsLabel = $("run-dps-label");
 
   const write = (node, text) => {
     if (node.textContent !== text) {
@@ -152,6 +166,12 @@ export function createControlsView(doc, store, actions = {}) {
     // The narrow row shows Pause while a fight or batch runs, Run otherwise.
     bar.setAttribute("data-slot", locked ? "pause" : "run");
     write(summary, summaryText(run));
+    const dock = dockText(state);
+    summary.setAttribute("data-dock", dock.summary);
+    statusText.setAttribute("data-dock", dock.status);
+    const dps = dockDps(state);
+    write(dpsValue, dps.value);
+    write(dpsLabel, dps.label);
     const fix = errorsText(
       run,
       formErrorCount(state.form) +
@@ -257,9 +277,38 @@ export function createControlsView(doc, store, actions = {}) {
       }
     }
     lastFocus = target;
+    // A Run disabled under focus by the check of a typed edit (focus moved
+    // to it by a script or a screen reader, #240, Fran's #249 N5) would drop
+    // focus to the page: it goes to the first setting to fix instead.
+    if (active === buttons.run && buttons.run.disabled && blocked(state)) {
+      later(refocus);
+    }
   }
 
   const call = (name, ...args) => actions[name]?.(...args);
+  // After the event (and the store change) in hand: focus moved from inside
+  // a store update or a press is otherwise undone by the browser.
+  const later = (task) => {
+    if (typeof view?.setTimeout === "function") {
+      view.setTimeout(task);
+    } else {
+      task();
+    }
+  };
+  // Focus with nowhere to be: the page, or a disabled Run.
+  const lost = () => {
+    const active = doc.activeElement ?? null;
+    return (
+      active === null ||
+      active === doc.body ||
+      (active === buttons.run && buttons.run.disabled)
+    );
+  };
+  const refocus = () => {
+    if (buttons.run.disabled && blocked(store.get()) && lost()) {
+      fixFirst();
+    }
+  };
   settingsToggle.addEventListener("click", () => {
     open = !open;
     render(store.get());
@@ -323,7 +372,10 @@ export function createControlsView(doc, store, actions = {}) {
   // checks, and when that blocks Run it keeps focus off the button, which
   // would drop it to the page, and sends it to the first setting to fix.
   buttons.run.addEventListener("mousedown", (event) => {
-    if (buttons.run.disabled) {
+    if (
+      buttons.run.disabled ||
+      (event?.button !== undefined && event.button !== MAIN_BUTTON)
+    ) {
       return;
     }
     call("commitEdits");
@@ -332,17 +384,43 @@ export function createControlsView(doc, store, actions = {}) {
       fixFirst();
     }
   });
-  buttons.run.addEventListener("click", () => {
+  // A press on a disabled Run gives no click, and the browser drops focus
+  // to the page (#240, Fran's #249 N5, after arrow-key stepping): it goes to
+  // the first setting to fix. Focus moved to Run while a typed edit makes it
+  // blocked (a script, a screen reader) ends the same way.
+  row.addEventListener("pointerdown", (event) => {
+    if (
+      event?.target === buttons.run &&
+      buttons.run.disabled &&
+      (event.button ?? MAIN_BUTTON) === MAIN_BUTTON
+    ) {
+      later(refocus);
+    }
+  });
+  doc.addEventListener?.("focusout", (event) => {
+    if (event?.relatedTarget === buttons.run) {
+      later(refocus);
+    }
+  });
+  let runPressedAt = null;
+  buttons.run.addEventListener("click", (event) => {
     call("commitEdits");
     if (blocked(store.get())) {
       fixFirst();
       return;
     }
+    runPressedAt = event?.timeStamp ?? null;
     call("run");
   });
-  buttons.pause.addEventListener("click", () => {
+  buttons.pause.addEventListener("click", (event) => {
     const { run } = store.get();
     if (run.mode !== "live") {
+      return;
+    }
+    const since =
+      (event?.timeStamp ?? Number.NaN) - (runPressedAt ?? Number.NaN);
+    runPressedAt = null;
+    if (since < RUN_TAP_GUARD_MS) {
       return;
     }
     if (run.state === "running") {
@@ -375,13 +453,14 @@ export function createControlsView(doc, store, actions = {}) {
   });
 
   // #200 (Fran's #226 QA, 5): the sticky bar's height, as --run-bar-height on
-  // the page, so a banner scrolled into view (its scroll-margin-top,
-  // rotation-builder.css) lands below the bar, not under it. The sticky part
-  // is the whole bar when wide and the compact row when narrow, and either
-  // changes height as it wraps, so it is measured, not guessed.
+  // the page, so a banner scrolled into view (its scroll-margin-top) and a
+  // focused control (the page's scroll-padding-top) land below the bar, not
+  // under it. It changes height as it wraps, so it is measured, not guessed.
+  // Below the wide breakpoint nothing sticks to the top (#240): styles.css
+  // sets --chrome-top to 0 there and the measure is not used.
   const root = doc.documentElement;
   function sizeBar() {
-    const stuck = narrow?.matches ? row : bar;
+    const stuck = bar;
     if (typeof stuck.offsetHeight === "number") {
       root?.style?.setProperty?.("--run-bar-height", `${stuck.offsetHeight}px`);
     }

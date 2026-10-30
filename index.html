@@ -18,24 +18,62 @@
       <ul>
         <li>
           <a href="#character" data-nav-area="character"
+            ><svg
+              class="area-nav-icon"
+              viewBox="0 0 20 20"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <circle cx="10" cy="6.5" r="3.5" />
+              <path d="M3.5 17.5c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5" /></svg
             ><span class="area-nav-label">Character</span
             ><span class="area-nav-badge" data-badge="" hidden></span
           ></a>
         </li>
         <li>
           <a href="#rotation" data-nav-area="rotation"
+            ><svg
+              class="area-nav-icon"
+              viewBox="0 0 20 20"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M16 8.5A6.5 6.5 0 0 0 4.4 5.6" />
+              <path d="M4 2.5v3.5h3.5" />
+              <path d="M4 11.5a6.5 6.5 0 0 0 11.6 2.9" />
+              <path d="M16 17.5V14h-3.5" /></svg
             ><span class="area-nav-label">Rotation</span
             ><span class="area-nav-badge" data-badge="" hidden></span
           ></a>
         </li>
         <li>
           <a href="#fight" data-nav-area="fight"
+            ><svg
+              class="area-nav-icon"
+              viewBox="0 0 20 20"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M3 3l9.5 9.5" />
+              <path d="M17 3l-9.5 9.5" />
+              <path d="M10.5 14.5l3 3M15 11.5l2.5 2.5M13 13l3.5 3.5" />
+              <path d="M9.5 14.5l-3 3M5 11.5L2.5 14M7 13l-3.5 3.5" /></svg
             ><span class="area-nav-label">Fight</span
             ><span class="area-nav-badge" data-badge="" hidden></span
           ></a>
         </li>
         <li>
           <a href="#results" data-nav-area="results"
+            ><svg
+              class="area-nav-icon"
+              viewBox="0 0 20 20"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M3 17h14" />
+              <path d="M5.5 14V9" />
+              <path d="M10 14V4.5" />
+              <path d="M14.5 14v-7" /></svg
             ><span class="area-nav-label">Results</span
             ><span class="area-nav-badge" data-badge="" hidden></span
           ></a>
@@ -158,6 +196,13 @@
             <span class="live-dot" aria-hidden="true"></span>
             <span id="run-status-text" aria-hidden="true"></span>
           </div>
+          <!-- The dock's DPS readout (#240), below the wide breakpoint only.
+               It ticks with the fight, so it is aria-hidden as the status
+               is; the run's end is announced with its DPS. -->
+          <p id="run-dps" class="run-dps" aria-hidden="true">
+            <span id="run-dps-value" class="run-dps-value">—</span>
+            <span id="run-dps-label" class="run-dps-label">DPS</span>
+          </p>
           <span id="run-reason" class="visually-hidden"></span>
           <p id="run-announce" class="visually-hidden" role="status"></p>
           <div id="run-progress-row" class="run-progress" hidden>

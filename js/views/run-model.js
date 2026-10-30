@@ -401,6 +401,79 @@ export function summaryText(run) {
   return `Live · ${seconds} s · seed ${seed}`;
 }
 
+// The phone dock's two lines (#240, UX2; proposal section 4), short enough
+// to fit beside the DPS and two buttons on the narrowest phones: the summary
+// without the seed ("Live · 300 s", "Batch · 1k × 300 s"), and a status
+// that leaves out what the summary, the DPS readout or the results say (a
+// live fight's length, a finished batch's total). The long lines, "Ready ·
+// seed …" and the blocked reason, only come with no DPS beside them.
+// Blocked, it is the narrow row's short reason ("Can't run · Talents over
+// cap") or "Can't run", over the "Fix N settings" link.
+export function dockText(state) {
+  const { run, batch, results } = state;
+  const bad = new Set(fieldErrors(run));
+  const part = (name, text) => (bad.has(name) ? "?" : text);
+  const seconds = `${part("duration", secondsText(run.duration))} s`;
+  const summary =
+    run.mode === "batch"
+      ? `Batch · ${part("iterations", compact(run.iterations))} × ${seconds}`
+      : `Live · ${seconds}`;
+  const model = controlsModel(state);
+  if (model.reason !== null) {
+    return { summary, status: model.statusShort ?? "Can't run" };
+  }
+  const ready = `Ready · seed ${seedText(run.seed)}`;
+  if (run.mode === "batch") {
+    const result = batch.result;
+    const total = batch.progress?.total ?? run.iterations;
+    const completed = batch.progress?.completed ?? 0;
+    const statuses = {
+      running: () => `Running · ${compact(completed)}/${compact(total)}`,
+      done: () =>
+        `Done · ${compact(result.completed)} ${fightsWord(result.completed)}`,
+      cancelled: () => `Stopped · ${compact(result.completed)}`,
+      error: () => "Batch failed",
+    };
+    return { summary, status: statuses[batch.status]?.() ?? ready };
+  }
+  const time = results?.time ?? 0;
+  const statuses = {
+    running: () => `Running · ${clock(time)}`,
+    paused: () => `Paused at ${clock(time)}`,
+    finished: () => `Finished · ${secondsText(time)} s`,
+  };
+  const stopped =
+    run.stoppedAt === null ? ready : `Stopped at ${clock(run.stoppedAt)}`;
+  return { summary, status: statuses[run.state]?.() ?? stopped };
+}
+
+// The dock's DPS readout (#240): the live fight's DPS while it runs, is
+// paused or has finished, or a batch's mean once it has fights ("DPS avg");
+// a dash before then, and while a setting blocks Run (the strip's room goes
+// to why).
+export const NO_DPS = "—";
+export function dockDps(state) {
+  const { run, batch, results } = state;
+  const blocked = controlsModel(state).reason !== null;
+  if (run.mode === "batch") {
+    const result = batch.result;
+    const has =
+      (batch.status === "done" || batch.status === "cancelled") &&
+      result?.completed > 0;
+    return {
+      value: has && !blocked ? formatNumber(result.summary.mean, 1) : NO_DPS,
+      label: "DPS avg",
+    };
+  }
+  const time = results?.time ?? 0;
+  const shown =
+    !blocked && ["running", "paused", "finished"].includes(run.state);
+  return {
+    value: shown && time > 0 ? dpsText(results.damage ?? 0, time) : NO_DPS,
+    label: "DPS",
+  };
+}
+
 // The bar's link to the first setting with an error, at every width (#155),
 // or null when there are none: "Fix 1 setting". It counts the run fields'
 // errors and the stats form's (formCount, from formErrorCount).

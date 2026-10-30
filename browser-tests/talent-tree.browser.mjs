@@ -11,6 +11,9 @@ import { startStaticServer } from "../scripts/serve.mjs";
 
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const WIDTHS = [1280, 390];
+// The wide breakpoint (js/views/breakpoints.js) and the dock's strip (#240).
+const WIDE_PX = 1024;
+const STRIP_PX = 48;
 
 let server;
 let base;
@@ -147,18 +150,18 @@ for (const width of WIDTHS) {
             .getAttribute("aria-describedby"),
         };
       });
-      // Narrow: one compact sticky row, 64 px or less (#153), with the short
-      // text in full; wide: the full text in full.
+      // Below the wide breakpoint: the phone dock's strip (#240), fixed and
+      // 48 px tall, with the short text in full; wide: the full text in full.
       assert.equal(
         bar.shown,
-        width < 520
+        width < WIDE_PX
           ? "Can't run · Talents over cap"
           : "Can't run · Talents over the level cap",
       );
       assert.equal(bar.clipped, false, "no ellipsis");
-      if (width < 520) {
-        assert.equal(bar.sticky, "sticky");
-        assert.ok(bar.height <= 64, `row is ${bar.height} px`);
+      if (width < WIDE_PX) {
+        assert.equal(bar.sticky, "fixed");
+        assert.equal(bar.height, STRIP_PX, `strip is ${bar.height} px`);
       }
       // Screen readers get the full text: Run is described by the reason.
       assert.equal(bar.reason, "Can't run · Talents over the level cap");

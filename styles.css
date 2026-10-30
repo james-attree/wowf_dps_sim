@@ -1,3 +1,18 @@
+/* The screen's chrome, as lengths a script can read (#240, UX2; proposal
+   section 4): what covers the top of the screen and what covers its foot.
+   Registered, so each computes to one length. */
+@property --chrome-top {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+@property --chrome-bottom {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
 :root {
   color-scheme: dark;
   font-family:
@@ -23,6 +38,28 @@
   --energy: #f0c44e;
   --gcd: #c99b3b;
   --area-nav-height: 52px;
+  /* A control's own edge: an input's or a button's border is what shows it
+     is there, so it keeps 3:1 against the surfaces it sits on and its own
+     fill (WCAG 1.4.11; #240, Fran's #251 check): 3.30:1 on --surface-raised,
+     the lightest, up to 3.77:1 on the page. */
+  --control-border: #7d6c50;
+  /* The phone run dock's strip (#240), above the nav; none on Results. */
+  --strip-height: 48px;
+  --dock-strip: 0px;
+  /* The sticky run bar on wide screens (js/views/controls.js measures it);
+     nothing sticks to the top below the wide breakpoint. */
+  --chrome-top: var(--run-bar-height, 0px);
+  --chrome-bottom: 0px;
+  /* The rotation builder's messages, pinned under the top chrome below the
+     wide breakpoint (js/views/rotation-builder.js measures them). */
+  --chrome-pinned: 0px;
+}
+
+/* A control the keyboard focuses is scrolled clear of the chrome at either
+   edge, with a small gap (Fran's QA of #251, B3; #240). */
+html {
+  scroll-padding-top: calc(var(--chrome-top) + var(--chrome-pinned) + 12px);
+  scroll-padding-bottom: calc(var(--chrome-bottom) + 12px);
 }
 
 * {
@@ -129,7 +166,7 @@ h3 {
   gap: 7px;
   min-height: 31px;
   padding: 5px 10px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 999px;
   background: #211c14;
   color: #e7ddc9;
@@ -216,7 +253,7 @@ h3 {
   align-items: center;
   min-height: 31px;
   padding: 5px 12px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 999px;
   background: #211c14;
   color: #e7ddc9;
@@ -267,7 +304,7 @@ h3 {
 .run-field input {
   min-height: 31px;
   padding: 4px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   background: #100f0c;
   color: #f3eee2;
@@ -366,6 +403,7 @@ h3 {
 
 .run-settings-toggle,
 .run-summary,
+.run-dps,
 .run-errors-link {
   display: none;
 }
@@ -385,167 +423,13 @@ h3 {
   outline-offset: 2px;
 }
 
-/* Below 520 px only one compact row stays sticky: Run or Pause, Stop, Reset,
-   and the summary with the status under it, 64 px or less with 44 px touch
-   targets. The settings section under it is closed by default and scrolls
-   away with the page. js/views/controls.js puts it after the row. */
+/* Below 520 the settings (mode, fight length, fights, seed) fold into a
+   section, closed by default, that scrolls away with the page; Run and the
+   status are in the dock (below). js/views/controls.js puts the section after
+   the dock's row in the DOM. */
 @media (max-width: 519.98px) {
   .run-controls {
     display: contents;
-  }
-
-  .run-row-actions {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: 22px 22px;
-    align-items: center;
-    gap: 0 8px;
-    margin-bottom: 8px;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--surface);
-    box-shadow: 0 6px 16px #0008;
-  }
-
-  .run-row-actions .run-buttons {
-    grid-row: 1 / 3;
-    flex-wrap: nowrap;
-    gap: 4px;
-  }
-
-  .run-buttons button {
-    width: 44px;
-    min-height: 44px;
-    padding: 0;
-    gap: 0;
-    font-size: 0;
-  }
-
-  .run-buttons button::before {
-    font-size: 18px;
-    line-height: 1;
-  }
-
-  #run-button::before {
-    content: "▶" / "";
-  }
-
-  #stop-button::before {
-    content: "■" / "";
-  }
-
-  #reset-button::before {
-    content: "↺" / "";
-  }
-
-  #pause-icon {
-    font-size: 18px;
-    line-height: 1;
-  }
-
-  #pause-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .run-controls[data-slot="pause"] #run-button,
-  .run-controls[data-slot="run"] #pause-button {
-    display: none;
-  }
-
-  .run-summary {
-    display: block;
-    grid-column: 2;
-    grid-row: 1;
-    overflow: hidden;
-    color: #f3eee2;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .run-row-actions .run-status {
-    grid-column: 2;
-    grid-row: 2;
-    justify-self: start;
-    max-width: 100%;
-    padding: 0;
-    border: 0;
-    background: none;
-    font-size: 0.72rem;
-  }
-
-  #run-status-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* A status too long for its 22 px line and with a shorter form (over the
-     talent cap, #204): the row draws the short text. Wrapping would add a
-     third line past the row's 64 px. The full text is still the element's
-     text and #run-reason's, which Run's aria-describedby names. */
-  #run-status-text[data-short] {
-    font-size: 0;
-  }
-
-  #run-status-text[data-short]::before {
-    content: attr(data-short) / "";
-    font-size: 0.72rem;
-  }
-
-  /* Blocked: the status (why) takes the summary's line and the link the
-     line under it. The link's box is the 22 px line; its touch target is
-     44 px tall, reaching over the status line above. */
-  .run-errors-link:not([hidden]) {
-    position: relative;
-    grid-column: 2;
-    grid-row: 2;
-    justify-self: start;
-    min-height: 22px;
-    font-size: 0.8rem;
-  }
-
-  .run-errors-link:not([hidden])::after {
-    position: absolute;
-    inset: -22px -8px 0;
-    content: "";
-  }
-
-  .run-row-actions.has-errors .run-summary {
-    display: none;
-  }
-
-  .run-row-actions.has-errors .run-status {
-    grid-row: 1;
-  }
-
-  /* Batch progress: a thin bar along the row's foot; the status line already
-     counts the fights. */
-  .run-row-actions .run-progress {
-    position: absolute;
-    right: 12px;
-    bottom: 3px;
-    left: 12px;
-  }
-
-  .run-row-actions .run-progress progress {
-    display: block;
-    width: 100%;
-    height: 3px;
-  }
-
-  #run-progress-text {
-    display: none;
   }
 
   .run-settings {
@@ -620,6 +504,237 @@ h3 {
 
   .run-help {
     margin: 0 4px 12px;
+  }
+}
+
+/* The phone run dock (#240, UX2; proposal section 4). Below the wide
+   breakpoint nothing sticks to the top: Run, its status and the DPS sit in a
+   strip fixed above the area nav, 100 in all with the nav, plus the
+   safe-area inset under both. The strip's two lines are 13 on 18 and end in
+   an ellipsis; the DPS never shrinks. Two button slots: Run, or Pause while
+   a fight or batch runs; Reset, or Stop while it runs. On Results the strip
+   leaves the dock and sits in the page above the results, so the dock is the
+   nav alone. */
+@media (max-width: 1023.98px) {
+  .run-controls {
+    position: static;
+    box-shadow: none;
+  }
+
+  .run-row-actions {
+    position: fixed;
+    right: 0;
+    bottom: calc(var(--area-nav-height) + env(safe-area-inset-bottom));
+    left: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: 18px 18px;
+    align-content: center;
+    align-items: center;
+    gap: 0 8px;
+    height: var(--strip-height);
+    margin: 0;
+    padding: 0 8px 0 12px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  :root:has(#area-results:not([hidden])) .run-row-actions {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+
+  .run-row-actions .run-buttons {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .run-buttons button {
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+    gap: 0;
+    font-size: 0;
+  }
+
+  .run-buttons button::before {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  #run-button::before {
+    content: "▶" / "";
+  }
+
+  #stop-button::before {
+    content: "■" / "";
+  }
+
+  #reset-button::before {
+    content: "↺" / "";
+  }
+
+  #pause-icon {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  #pause-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .run-controls[data-slot="pause"] :is(#run-button, #reset-button),
+  .run-controls[data-slot="run"] :is(#pause-button, #stop-button) {
+    display: none;
+  }
+
+  .run-summary {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: #f3eee2;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .run-row-actions .run-status {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.8125rem;
+    line-height: 18px;
+  }
+
+  #run-status-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The dock's own shorter lines (js/views/run-model.js, dockText): the
+     summary without its seed, the status without what the DPS or the
+     results already say. The full text is still each element's own, and
+     #run-reason's, which Run's aria-describedby names. */
+  #run-summary[data-dock],
+  #run-status-text[data-dock] {
+    font-size: 0;
+  }
+
+  #run-summary[data-dock]::before,
+  #run-status-text[data-dock]::before {
+    content: attr(data-dock) / "";
+    font-size: 0.8125rem;
+  }
+
+  .run-dps {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1 / 3;
+    flex: none;
+    flex-direction: column;
+    align-items: flex-end;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .run-dps-value {
+    color: #f3eee2;
+    font-size: 1.125rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 750;
+    line-height: 24px;
+  }
+
+  .run-dps-label {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 14px;
+  }
+
+  /* Blocked: the status (why) takes the summary's line and the link the
+     line under it. The link's touch target is 44 tall, reaching over the
+     status line above. */
+  .run-errors-link:not([hidden]) {
+    position: relative;
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    min-height: 18px;
+    font-size: 0.8125rem;
+    line-height: 18px;
+  }
+
+  .run-errors-link:not([hidden])::after {
+    position: absolute;
+    inset: -20px -8px -6px;
+    content: "";
+  }
+
+  .run-row-actions.has-errors .run-summary {
+    display: none;
+  }
+
+  .run-row-actions.has-errors .run-status {
+    grid-row: 1;
+  }
+
+  /* Batch progress: a thin bar along the strip's top edge; the status line
+     already counts the fights. */
+  .run-row-actions .run-progress {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+  }
+
+  .run-row-actions .run-progress progress {
+    display: block;
+    width: 100%;
+    height: 3px;
+  }
+
+  #run-progress-text {
+    display: none;
+  }
+
+  /* The rotation builder's messages stay in view while its rules scroll
+     under them (#240, Fran's #251 check: after Duplicate the warning was
+     above the screen). The page's scroll-padding-top leaves them room
+     (--chrome-pinned), so a focused rule never sits under them. */
+  #rotation-builder .builder-messages:not(:empty) {
+    position: sticky;
+    top: var(--chrome-top);
+    z-index: 4;
+    max-height: 33vh;
+    overflow-y: auto;
+  }
+
+  :root:has(#area-rotation:not([hidden]) .builder-messages:not(:empty)) {
+    --chrome-pinned: var(--builder-pinned-height, 0px);
   }
 }
 
@@ -1397,7 +1512,7 @@ h3 {
   min-width: 0;
   min-height: 34px;
   padding: 5px 8px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   background: #15120d;
   color: #f3eee2;
@@ -1577,7 +1692,7 @@ h3 {
   justify-content: center;
   min-height: 31px;
   padding: 5px 12px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 999px;
   background: #211c14;
   color: #e7ddc9;
@@ -1794,7 +1909,11 @@ h3 {
 }
 
 /* ---- Banners (partial, error) -------------------------------------------- */
+/* Scrolled into view, a banner lands clear of the chrome at either edge
+   (#240), as the rotation builder's do. */
 .results-banner {
+  scroll-margin-top: calc(var(--chrome-top) + 12px);
+  scroll-margin-bottom: calc(var(--chrome-bottom) + 12px);
   margin-bottom: 12px;
   padding: 12px 14px;
   border: 1px solid;
@@ -2195,9 +2314,9 @@ th[aria-sort="ascending"] {
    Contrast, checked against this theme (#239): --text-muted is 7.17:1 on
    the page, 6.82:1 on --surface, 6.27:1 on --surface-raised and 5.54:1 on
    the header's glow, so it passes AA text everywhere and keeps its value.
-   --border only draws decoration (panel and bar edges; the fields have
-   their own borders), so 1.4.11 does not ask 3:1 of it; it keeps its value
-   too. The nav's own colours are below: its text is --text-muted or the
+   --border draws panel and bar edges, which are decoration. A control's
+   edge is not (WCAG 1.4.11): the inputs and buttons draw theirs in
+   --control-border, 3:1 or more on every surface (#240). The nav's own colours are below: its text is --text-muted or the
    page text, its current link the accent (10.6:1 on its background). */
 .area-title {
   margin-bottom: 12px;
@@ -2241,6 +2360,19 @@ th[aria-sort="ascending"] {
   color: var(--accent);
 }
 
+/* Each area's icon (#240; proposal section 4): beside the label in the
+   wide column, above it in the phone nav. Drawn in the link's colour. */
+.area-nav-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
 .area-nav-badge {
   min-width: 18px;
   padding: 0 5px;
@@ -2261,19 +2393,24 @@ th[aria-sort="ascending"] {
    equal links, the current one in the accent with a bar along its top. The
    page leaves room for it under the footer. */
 @media (max-width: 1023.98px) {
-  /* A control the keyboard focuses near the bottom of the screen is scrolled
-     clear of the bar, its safe-area inset and a small gap (Fran's QA of #251,
-     B3; proposal section 2). */
-  html {
-    scroll-padding-bottom: calc(
-      var(--area-nav-height) + env(safe-area-inset-bottom) + 12px
+  /* The chrome at the foot: the dock's strip (none on Results), the nav
+     and the safe-area inset under it (#240; proposal section 4). The page
+     leaves that room under the footer, and html's scroll-padding keeps a
+     focused control clear of it. */
+  :root {
+    --chrome-top: 0px;
+    --dock-strip: var(--strip-height);
+    --chrome-bottom: calc(
+      var(--dock-strip) + var(--area-nav-height) + env(safe-area-inset-bottom)
     );
   }
 
+  :root:has(#area-results:not([hidden])) {
+    --dock-strip: 0px;
+  }
+
   body {
-    padding-bottom: calc(
-      var(--area-nav-height) + 16px + env(safe-area-inset-bottom)
-    );
+    padding-bottom: calc(var(--chrome-bottom) + 16px);
   }
 
   .area-nav {
@@ -2292,20 +2429,25 @@ th[aria-sort="ascending"] {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  /* The links fill the nav's height with its top border. */
   .area-nav a {
-    min-height: var(--area-nav-height);
+    flex-direction: column;
+    gap: 2px;
+    min-height: calc(var(--area-nav-height) - 1px);
+    font-size: 0.75rem;
+    line-height: 16px;
   }
 
   .area-nav a[aria-current="page"] {
     box-shadow: inset 0 3px 0 var(--accent);
   }
 
-  /* The badge sits over the label's end, so the four labels keep their
+  /* The badge sits on the icon's top corner, so the four labels keep their
      width at the narrowest screens. */
   .area-nav-badge {
     position: absolute;
-    top: 4px;
-    left: calc(50% + 22px);
+    top: 3px;
+    left: calc(50% + 6px);
   }
 }
 
@@ -2337,13 +2479,19 @@ th[aria-sort="ascending"] {
     gap: 4px;
   }
 
+  /* The icon, then the label, with the badge at the far end. */
   .area-nav a {
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 10px;
     min-height: 48px;
     padding: 0 12px;
     border-radius: 10px;
     color: #f3eee2;
     font-size: 0.9375rem;
+  }
+
+  .area-nav-badge {
+    margin-left: auto;
   }
 
   .area-nav a[aria-current="page"] {

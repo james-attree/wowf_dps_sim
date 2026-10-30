@@ -927,30 +927,46 @@ export function createRotationBuilderView(doc, store, actions) {
 
   // Fran's #228 QA (nit 1; #234): a warnings banner that an action (a
   // Duplicate, say) brings up above the screen is scrolled into view, below
-  // the sticky run bar (the banner's scroll-margin-top), but only when the
-  // focus the action moved stays on screen too: the focus wins (WCAG 2.4.11).
-  // When the two cannot both be on screen, the focused rule's own warning is
-  // brought into view instead, on the same terms.
+  // the chrome over the top of the screen (the banner's scroll-margin-top),
+  // but only when the focus the action moved stays on screen too: the focus
+  // wins (WCAG 2.4.11). When the two cannot both be on screen, the focused
+  // rule's own warning is brought into view instead, on the same terms.
+  //
+  // Below the wide breakpoint (#240, UX2; Fran's #251 check) the messages
+  // are pinned to the top of the screen (styles.css), so the banner is in
+  // view as soon as it is drawn; what can be hidden then is the focused
+  // rule, under the pinned messages, and it is scrolled clear of them.
+  // --chrome-top and --chrome-bottom (styles.css) are what covers the
+  // screen's top and foot: the sticky run bar, or the phone dock and nav.
   function revealWarnings() {
     const banner = section.querySelector("#rb-warnings");
     const win = doc.defaultView;
     if (typeof banner?.getBoundingClientRect !== "function" || !win) {
       return;
     }
+    const chrome = (name) =>
+      Number.parseFloat(
+        win.getComputedStyle(doc.documentElement).getPropertyValue(name),
+      ) || 0;
+    const chromeTop = chrome("--chrome-top");
+    const bottom = win.innerHeight - chrome("--chrome-bottom");
     const inset =
       Number.parseFloat(win.getComputedStyle(banner).scrollMarginTop) || 0;
-    // Hidden means above the screen or under the run bar while it sticks
-    // (narrow screens); on a wide one the bar scrolls away.
-    const bar = doc.getElementById?.("run-bar") ?? null;
-    const covered =
-      bar !== null && win.getComputedStyle(bar).position === "sticky"
-        ? bar.getBoundingClientRect().bottom
-        : 0;
+    const messages = banner.closest?.(".builder-messages") ?? null;
+    const pinned =
+      messages !== null && win.getComputedStyle(messages).position === "sticky";
     const active = doc.activeElement;
-    const focusBottom =
+    const focused =
       active === null || active === doc.body
         ? null
-        : active.getBoundingClientRect().bottom;
+        : active.getBoundingClientRect();
+    if (pinned) {
+      const covered = messages.getBoundingClientRect().bottom;
+      if (focused !== null && focused.top < covered) {
+        win.scrollBy(0, focused.top - covered - inset + chromeTop);
+      }
+      return;
+    }
     const card = active?.closest?.("li.rule") ?? null;
     const targets = [banner, card?.querySelector(".rule-msgs") ?? null];
     for (const target of targets) {
@@ -958,15 +974,47 @@ export function createRotationBuilderView(doc, store, actions) {
         continue;
       }
       const top = target.getBoundingClientRect().top;
-      if (top >= covered) {
+      if (top >= chromeTop) {
         return;
       }
       const shift = inset - top;
-      if (focusBottom === null || focusBottom + shift <= win.innerHeight) {
+      if (focused === null || focused.bottom + shift <= bottom) {
         win.scrollBy(0, -shift);
         return;
       }
     }
+  }
+
+  // The pinned messages' height (#240), as --builder-pinned-height on the
+  // page: styles.css adds it to the page's scroll-padding-top, so a control
+  // focused or scrolled to lands below them. Measured as they wrap.
+  let pinnedNode = null;
+  const pinObserver =
+    typeof doc.defaultView?.ResizeObserver === "function"
+      ? new doc.defaultView.ResizeObserver(() => pinHeight())
+      : null;
+  function pinHeight() {
+    const win = doc.defaultView;
+    const messages = section.querySelector?.(".builder-messages") ?? null;
+    if (messages !== pinnedNode && pinObserver !== null) {
+      if (pinnedNode !== null) {
+        pinObserver.unobserve(pinnedNode);
+      }
+      if (messages !== null) {
+        pinObserver.observe(messages);
+      }
+    }
+    pinnedNode = messages;
+    const style = doc.documentElement?.style;
+    if (typeof win?.getComputedStyle !== "function" || !style) {
+      return;
+    }
+    const sticky =
+      messages !== null && win.getComputedStyle(messages).position === "sticky";
+    style.setProperty(
+      "--builder-pinned-height",
+      `${sticky ? messages.offsetHeight : 0}px`,
+    );
   }
 
   function draw() {
@@ -999,6 +1047,7 @@ export function createRotationBuilderView(doc, store, actions) {
         live.textContent = text;
       });
     }
+    pinHeight();
     const focus = slice.focus;
     if (focus !== undefined && focus.seq !== focused) {
       focused = focus.seq;

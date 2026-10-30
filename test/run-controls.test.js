@@ -12,11 +12,18 @@ import { createLiveRun } from "../js/live-run.js";
 import { createRunActions, emptyBatch } from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
 import { editedSinceRun } from "../js/views/config-form.js";
-import { NARROW_QUERY, createControlsView } from "../js/views/controls.js";
+import {
+  NARROW_QUERY,
+  RUN_TAP_GUARD_MS,
+  createControlsView,
+} from "../js/views/controls.js";
 import {
   BATCH_HELP,
   LIVE_HELP,
   MAX_SEED,
+  NO_DPS,
+  dockDps,
+  dockText,
   MIN_FIGHT_SECONDS,
   blocked,
   blockedCount,
@@ -1069,22 +1076,20 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     assert.equal(status.getAttribute("data-short"), null);
   });
 
-  it("styles.css draws the short status only in the narrow row", async () => {
+  it("styles.css draws the dock's short lines only in the dock (#240)", async () => {
     const css = await readFile(
       new URL("../styles.css", import.meta.url),
       "utf8",
     );
-    const narrow = css.indexOf("@media (max-width: 519.98px) {");
-    const short = css.indexOf("#run-status-text[data-short]::before {");
-    assert.ok(narrow >= 0 && short > narrow, "inside the narrow query");
-    assert.ok(
-      short < css.indexOf("@media", narrow + 1),
-      "the first narrow block",
-    );
+    const dock = css.indexOf("@media (max-width: 1023.98px) {");
+    const short = css.indexOf("#run-status-text[data-dock]::before {");
+    assert.ok(dock >= 0 && short > dock, "inside the dock query");
+    assert.ok(short < css.indexOf("@media", dock + 1), "the first dock block");
     assert.match(
       css.slice(short, css.indexOf("}", short)),
-      /content: attr\(data-short\) \/ "";/,
+      /content: attr\(data-dock\) \/ "";/,
     );
+    assert.match(css, /#run-summary\[data-dock\]::before,/);
   });
 
   it("Fix 1 setting opens the talent tree and focuses its Level input", () => {
@@ -1183,9 +1188,13 @@ function standIn({ media = null, absent = [] } = {}) {
     };
     return node;
   };
+  const docListeners = new Map();
   const doc = {
     activeElement: null,
+    body: { id: "body" },
     defaultView: media === null ? {} : { matchMedia: () => media },
+    addEventListener: (type, listener) => docListeners.set(type, listener),
+    fire: (type, event) => docListeners.get(type)?.(event),
     querySelector(selector) {
       if (absent.includes(selector)) {
         return null;
@@ -1595,7 +1604,7 @@ describe("the narrow control bar (#153, Scout)", () => {
     assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
   });
 
-  it("the page: the settings wrap the fields, and only the narrow row is sticky", async () => {
+  it("the page: the settings wrap the fields, and the row is the phone dock (#240)", async () => {
     const { readFile } = await import("node:fs/promises");
     const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
     const html = await read("../index.html");
@@ -1656,29 +1665,43 @@ describe("the narrow control bar (#153, Scout)", () => {
     );
     assert.match(
       outside,
-      /\.run-settings-toggle,\n\.run-summary,\n\.run-errors-link \{\n {2}display: none;/,
+      /\.run-settings-toggle,\n\.run-summary,\n\.run-dps,\n\.run-errors-link \{\n {2}display: none;/,
     );
-    // Narrow: the bar adds no box, the row is the one sticky part, 64 px or
-    // less (two 22 px lines beside 44 px buttons, 8 px padding, 1 px border).
+    // Narrow: the bar adds no box; nothing in it sticks.
     assert.match(rule(narrow, "  .run-controls"), /display: contents;/);
-    const row = rule(narrow, "  .run-row-actions");
-    assert.match(row, /position: sticky;/);
-    assert.match(row, /grid-template-rows: 22px 22px;/);
-    assert.match(row, /padding: 8px 10px;/);
-    assert.equal((narrow.match(/position: sticky/g) ?? []).length, 1);
+    assert.doesNotMatch(narrow, /position: sticky/);
     assert.doesNotMatch(rule(narrow, "  .run-settings"), /sticky/);
-    assert.match(rule(narrow, "  .run-buttons button"), /min-height: 44px;/);
-    assert.match(rule(narrow, "  .run-buttons button"), /width: 44px;/);
     assert.match(rule(narrow, "  .run-settings-toggle"), /min-height: 44px;/);
-    // The errors link's box is the 22 px status line; a pseudo-element
-    // reaches 22 px over the line above, so its touch target is 44 px (#155).
+    // Below the wide breakpoint the row is the dock's strip (#240): fixed
+    // above the area nav and its safe-area inset, 48 px (two 18 px lines
+    // beside 44 px buttons), in the page's flow on Results.
+    const from = css.indexOf("@media (max-width: 1023.98px) {", start);
+    assert.ok(from > start, "the dock block follows the narrow block");
+    const dock = css.slice(from, css.indexOf("\n}\n", from));
+    const strip = rule(dock, "  .run-row-actions");
+    assert.match(strip, /position: fixed;/);
     assert.match(
-      rule(narrow, "  .run-errors-link:not([hidden])"),
-      /min-height: 22px;/,
+      strip,
+      /bottom: calc\(var\(--area-nav-height\) \+ env\(safe-area-inset-bottom\)\);/,
+    );
+    assert.match(strip, /height: var\(--strip-height\);/);
+    assert.match(strip, /grid-template-rows: 18px 18px;/);
+    assert.match(css, /--strip-height: 48px;/);
+    assert.match(
+      rule(dock, "  :root:has(#area-results:not([hidden])) .run-row-actions"),
+      /position: relative;/,
+    );
+    assert.match(rule(dock, "  .run-buttons button"), /min-height: 44px;/);
+    assert.match(rule(dock, "  .run-buttons button"), /width: 44px;/);
+    // The errors link's box is the 18 px status line; a pseudo-element
+    // reaches over the line above and below, so its touch target is 44 px.
+    assert.match(
+      rule(dock, "  .run-errors-link:not([hidden])"),
+      /min-height: 18px;/,
     );
     assert.match(
-      rule(narrow, "  .run-errors-link:not([hidden])::after"),
-      /inset: -22px -8px 0;/,
+      rule(dock, "  .run-errors-link:not([hidden])::after"),
+      /inset: -20px -8px -6px;/,
     );
     assert.match(
       narrow,
@@ -1689,8 +1712,14 @@ describe("the narrow control bar (#153, Scout)", () => {
       rule(narrow, "  .run-settings.is-open .run-settings-body"),
       /display: block;/,
     );
-    assert.match(narrow, /\.run-controls\[data-slot="pause"\] #run-button/);
-    assert.match(narrow, /\.run-controls\[data-slot="run"\] #pause-button/);
+    assert.match(
+      dock,
+      /\.run-controls\[data-slot="pause"\] :is\(#run-button, #reset-button\)/,
+    );
+    assert.match(
+      dock,
+      /\.run-controls\[data-slot="run"\] :is\(#pause-button, #stop-button\)/,
+    );
   });
 });
 
@@ -1722,15 +1751,15 @@ describe("Run never starts with stale settings (#247)", () => {
       }
     };
     page.store.subscribe(mark);
-    return { page, form, el };
+    return { page, form, el, doc };
   };
-  // Fran's repro: Min 50, Max 40, then Backspace (5) and 0 in Min.
-  const BACKSPACED = 5;
+  // A typed edit Run has not seen: Min 50 and Max 60 committed, then 40
+  // typed in Max. Fran's #247 repro (Min 50, Max 40, then 5 and 50 in Min)
+  // no longer leaves one: a pair in error is checked as typed (#240 N2).
   const repro = ({ form }) => {
+    form.change(MAX, FIXED_MAX);
     form.change(MIN, PAIR_MIN);
-    form.change(MAX, PAIR_MAX);
-    form.input(MIN, BACKSPACED);
-    form.input(MIN, PAIR_MIN);
+    form.input(MAX, PAIR_MAX);
   };
 
   it("pressing Run checks the typed field; blocked, it keeps focus off Run and sends it to the field to fix", () => {
@@ -1788,5 +1817,236 @@ describe("Run never starts with stale settings (#247)", () => {
       firstFormError({ errors: { [MIN]: null, [MAX]: "Pair.", a: "A." } }),
       MAX,
     );
+  });
+
+  it("a press on a disabled Run sends focus to the field to fix, not the page (#240 N5)", () => {
+    const wiring = wired();
+    const { page, form, el } = wiring;
+    form.change(MIN, PAIR_MIN);
+    form.change(MAX, PAIR_MAX);
+    assert.equal(el("run-button").disabled, true);
+    el("run-bar").fire("pointerdown", {
+      target: el("run-button"),
+      button: 2,
+    });
+    assert.equal(el(MAX_ID).focused, 0, "not the right button");
+    el("run-bar").fire("pointerdown", { target: el("run-button"), button: 0 });
+    assert.equal(el(MAX_ID).focused, 1, "the field the footer names");
+    assert.equal(page.store.get().run.state, "idle");
+  });
+
+  it("focus moved to Run as a typed edit blocks it goes to the field to fix (#240 N5)", () => {
+    const wiring = wired();
+    const { form, el, doc } = wiring;
+    // The view defers the move past the event in hand, as on the page.
+    const queue = [];
+    doc.defaultView.setTimeout = (task) => queue.push(task);
+    const flush = () => queue.splice(0).forEach((task) => task());
+    repro(wiring);
+    el("run-button").focus();
+    doc.fire("focusout", { relatedTarget: el("run-button") });
+    flush();
+    assert.equal(el(MAX_ID).focused, 0, "Run is not blocked yet");
+    form.commitEdits();
+    assert.equal(el("run-button").disabled, true, "the check blocks Run");
+    flush();
+    assert.equal(el(MAX_ID).focused, 1, "a stranded Run hands focus on");
+    doc.activeElement = doc.body;
+    doc.fire("focusout", { relatedTarget: el("run-button") });
+    flush();
+    assert.equal(el(MAX_ID).focused, 2, "focus dropped to the page");
+    doc.activeElement = doc.body;
+    doc.fire("focusout", { relatedTarget: el(MIN_ID) });
+    flush();
+    assert.equal(el(MAX_ID).focused, 2, "only focus bound for Run");
+  });
+
+  it("only the main button presses Run (#240 N4)", () => {
+    const wiring = wired();
+    const { page, el } = wiring;
+    repro(wiring);
+    for (const button of [1, 2]) {
+      const press = el("run-button").fire("mousedown", {
+        button,
+        prevented: 0,
+        preventDefault() {
+          this.prevented += 1;
+        },
+      });
+      assert.equal(press.prevented, 0, `button ${button}`);
+      assert.equal(blocked(page.store.get()), false, "the edit is not checked");
+    }
+    const press = el("run-button").fire("mousedown", {
+      button: 0,
+      prevented: 0,
+      preventDefault() {
+        this.prevented += 1;
+      },
+    });
+    assert.equal(press.prevented, 1);
+    assert.equal(blocked(page.store.get()), true);
+  });
+});
+
+describe("the phone dock (#240, UX2)", () => {
+  const DOCK_MAX_CHARS = 24;
+  const fits = (dock, label) => {
+    assert.ok(
+      dock.summary.length <= DOCK_MAX_CHARS,
+      `${label}: ${dock.summary}`,
+    );
+    assert.ok(dock.status.length <= DOCK_MAX_CHARS, `${label}: ${dock.status}`);
+  };
+
+  it("live: the summary without the seed, a short status, and the fight's DPS", () => {
+    const page = setup();
+    let dock = dockText(page.store.get());
+    assert.deepEqual(dock, {
+      summary: `Live · ${DURATION} s`,
+      status: `Ready · seed ${SEED}`,
+    });
+    assert.deepEqual(dockDps(page.store.get()), {
+      value: NO_DPS,
+      label: "DPS",
+    });
+    page.actions.run();
+    page.play(1);
+    dock = dockText(page.store.get());
+    fits(dock, "running");
+    const { results } = page.store.get();
+    // The fight's length is the summary's; the status has the time.
+    assert.equal(dock.status, `Running · ${clock(results.time)}`);
+    assert.equal(
+      dockDps(page.store.get()).value,
+      formatNumber(results.damage / results.time, 1),
+    );
+    page.actions.pause();
+    assert.equal(
+      dockText(page.store.get()).status,
+      `Paused at ${clock(page.store.get().results.time)}`,
+    );
+    assert.notEqual(dockDps(page.store.get()).value, NO_DPS, "paused keeps it");
+    page.actions.resume();
+    page.toEnd();
+    assert.equal(dockText(page.store.get()).status, `Finished · ${DURATION} s`);
+    assert.notEqual(dockDps(page.store.get()).value, NO_DPS);
+    page.actions.reset();
+    assert.equal(dockDps(page.store.get()).value, NO_DPS, "reset clears it");
+  });
+
+  it("batch: counts in the status, the mean as DPS avg once fights are done", async () => {
+    const page = setup();
+    page.actions.setMode("batch");
+    assert.deepEqual(dockText(page.store.get()), {
+      summary: `Batch · 4 × ${DURATION} s`,
+      status: `Ready · seed ${SEED}`,
+    });
+    page.actions.run();
+    page.client.job.onProgress({ completed: 2, total: 4, mean: 310 });
+    assert.equal(dockText(page.store.get()).status, "Running · 2/4");
+    assert.deepEqual(dockDps(page.store.get()), {
+      value: NO_DPS,
+      label: "DPS avg",
+    });
+    page.client.job.resolve(
+      batchResult({
+        completed: 4,
+        iterations: 4,
+        cancelled: false,
+        mean: 312.44,
+      }),
+    );
+    await settled();
+    assert.equal(dockText(page.store.get()).status, "Done · 4 fights");
+    assert.deepEqual(dockDps(page.store.get()), {
+      value: "312.4",
+      label: "DPS avg",
+    });
+  });
+
+  it("every line fits the dock at the fields' widest values", () => {
+    const max = k("batch.maxIterations");
+    const page = setup({ seed: MAX_SEED, duration: 3600 });
+    page.actions.setMode("batch");
+    page.actions.edit("iterations", {
+      text: String(max),
+      value: max,
+      error: null,
+    });
+    fits(dockText(page.store.get()), "batch ready");
+    page.actions.run();
+    page.client.job.onProgress({ completed: max - 1, total: max, mean: 310 });
+    fits(dockText(page.store.get()), "batch running");
+    page.actions.setMode?.("live");
+    const live = setup({ seed: null, duration: 3600 });
+    fits(dockText(live.store.get()), "live ready, new seed");
+  });
+
+  it("a setting in error: a ? in the summary and Can't run", () => {
+    const page = setup();
+    page.actions.edit("duration", {
+      text: "0",
+      value: null,
+      error: "Fight length must be a number of seconds from 1 to 3,600.",
+    });
+    assert.deepEqual(dockText(page.store.get()), {
+      summary: "Live · ? s",
+      status: "Can't run",
+    });
+  });
+
+  it("blocked, the DPS is a dash: the strip's room goes to why", () => {
+    const page = setup();
+    page.actions.run();
+    page.toEnd();
+    assert.notEqual(dockDps(page.store.get()).value, NO_DPS);
+    page.actions.edit("duration", {
+      text: "0",
+      value: null,
+      error: "Fight length must be a number of seconds from 1 to 3,600.",
+    });
+    assert.equal(dockDps(page.store.get()).value, NO_DPS);
+  });
+
+  it("the view writes the dock's lines and the DPS readout", () => {
+    const page = setup();
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    assert.equal(
+      el("run-summary").getAttribute("data-dock"),
+      `Live · ${DURATION} s`,
+    );
+    assert.equal(
+      el("run-status-text").getAttribute("data-dock"),
+      `Ready · seed ${SEED}`,
+    );
+    assert.equal(el("run-dps-value").textContent, NO_DPS);
+    assert.equal(el("run-dps-label").textContent, "DPS");
+  });
+
+  it("the second tap of a double-tap on Run is not taken as Pause (#240 N3)", () => {
+    const page = setup();
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    const TAP_GAP_MS = 120;
+    const at = 5000;
+    el("run-button").fire("click", { timeStamp: at });
+    assert.equal(page.store.get().run.state, "running");
+    el("pause-button").fire("click", { timeStamp: at + TAP_GAP_MS });
+    assert.equal(page.store.get().run.state, "running", "not paused");
+    el("pause-button").fire("click", { timeStamp: at + TAP_GAP_MS * 2 });
+    assert.equal(page.store.get().run.state, "paused", "a later press pauses");
+    el("pause-button").fire("click", { timeStamp: at + RUN_TAP_GUARD_MS });
+    assert.equal(page.store.get().run.state, "running", "and resumes");
+  });
+
+  it("a Pause press after the guard pauses at once", () => {
+    const page = setup();
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    const at = 5000;
+    el("run-button").fire("click", { timeStamp: at });
+    el("pause-button").fire("click", { timeStamp: at + RUN_TAP_GUARD_MS });
+    assert.equal(page.store.get().run.state, "paused");
   });
 });
