@@ -508,6 +508,9 @@ absent, and anything else, such as a string or a plain object, is a
 `TypeError` that says what was given (#207, #210). `debuffs` given as
 anything but an object (an array, a `Map`, a number) is a `TypeError` too,
 and so is a context that is not an object; a `null` context is none (#210).
+Only an ordinary object is read as a context or as its `debuffs`: a `Map`
+(#238 QA), a `WeakMap` or another built-in with contents that are not
+properties (#248 QA) is refused, not quietly read as the defaults.
 Each defaults to the engine's own (`js/ability-data.js`,
 `js/abilities.js`, `js/auras.js`, and `talentGrantedAbilities` from
 `js/talent-build.js`) and a caller may replace any of them, for a test or for a
