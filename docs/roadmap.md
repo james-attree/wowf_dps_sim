@@ -165,9 +165,9 @@ mode is a view of it.
   (Node 22) took about 60 to 65 ms per fight, over the target. The 50 ms figure
   is a development-machine target, not a CI guarantee, and no test asserts it.
   See [Benchmark](mechanics.md#benchmark).
-- Live mode is a view of the engine. `js/main.js` builds the fight with
-  `createFight`, steps it in whole steps of `sim.fixedStep`, and shows the seed
-  (since #234 it gives each frame's seconds to the event core).
+- Live mode is a view of the engine. `js/live-run.js` (driven by `js/main.js`)
+  builds the fight with `createFight`, gives each frame's seconds to the event
+  core through a `SimRunner`, and shows the seed.
   See [Live page](mechanics.md#live-page).
 
 Issues:

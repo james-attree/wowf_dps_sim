@@ -2327,7 +2327,8 @@ its own.
   data in #95 does not give one, so this is the mechanism for later.
 - `Hemorrhage`: +15% to Rupture ticks only, 15 s, from
   `k("hemorrhage.ruptureBonus")`. A landed Hemorrhage refreshes it to the full
-  15 s. It is gone at 15 s (one fixed step before, it still counts).
+  15 s. Its expiry is an event at exactly 15 s: just before 15 s it still
+  counts, and at 15 s it is gone (test/target-debuffs.test.js).
 - `Expose Armor` (`k("exposeArmor")`): one stack per combo point spent (up to
   `k("combo.max")`, rule `highest`), 30 s, and each stack is an
   `armorReduction` of `armorPerComboPoint` (450) armor. Armor mitigation uses
