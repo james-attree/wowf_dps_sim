@@ -53,16 +53,16 @@ const nameOf = (id) => abilityCatalogue.get(id)?.name ?? id;
 // The skip for an ability the build lacks: { ability, talent, text }. A
 // guard on an ability no talent grants (abilityGranted on Sinister Strike)
 // is never true, whatever the talents: no talent to name, and the ability
-// is baseline, so the text says the check is what this spec or build lacks
-// (#244, Fran's #255 check, P1; it read "Sinister Strike is never granted
-// (no talent gives it)"). talent is null then.
+// is baseline, so the text says its check is never true (#244, Fran's #255
+// check, P1, and her qa-256 P-c wording; it read "Sinister Strike is never
+// granted (no talent gives it)"). talent is null then.
 function skipFor(ability) {
   const talent = grantingTalentName(ability);
   if (talent === null) {
     return {
       ability,
       talent: null,
-      text: `${nameOf(ability)}'s talent check isn't available to this spec or build (${nameOf(ability)} is baseline)`,
+      text: `${nameOf(ability)} is baseline, so its talent check is never true`,
     };
   }
   return { ability, talent, text: `no ${talent} talent` };

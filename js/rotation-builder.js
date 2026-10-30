@@ -661,6 +661,11 @@ export function createRotationBuilder(store, formActions) {
     const unavailable = skips.filter(([skip]) => skip.talent === null);
     const ruleList = (list) =>
       list.map(([, index]) => `rule ${index + 1}`).join(", ");
+    // "rules 1 and 3", "rules 1, 3 and 4".
+    const andList = (list) => {
+      const ns = list.map(([, index]) => String(index + 1));
+      return `rules ${ns.slice(0, -1).join(", ")} and ${ns.at(-1)}`;
+    };
     const anyTalent = rules.some((rule) => abilityFacts(rule.action).talent);
     // "skipped with no talents" when none are picked, as "this build" reads
     // oddly then (Fran's #232 QA, nit 5; #234).
@@ -668,9 +673,14 @@ export function createRotationBuilder(store, formActions) {
       skipped.length > 0
         ? `${count(skipped.length, "rule")} ${skipped.length === 1 ? "is" : "are"} skipped with ${talents.build.selected ? "this build" : "no talents"} (${ruleList(skipped)}).`
         : null;
+    // "1 rule never casts with any build: its talent check is on a baseline
+    // ability (rule 1)."; "2 rules never cast …: their talent checks are on
+    // baseline abilities (rules 1 and 3)." (Fran's qa-256 P-c).
     const never =
       unavailable.length > 0
-        ? `${count(unavailable.length, "rule")} ${unavailable.length === 1 ? "is" : "are"} skipped with any talents: ${unavailable.length === 1 ? "its check isn't" : "their checks aren't"} available to this spec or build (${ruleList(unavailable)}).`
+        ? unavailable.length === 1
+          ? `1 rule never casts with any build: its talent check is on a baseline ability (${ruleList(unavailable)}).`
+          : `${count(unavailable.length, "rule")} never cast with any build: their talent checks are on baseline abilities (${andList(unavailable)}).`
         : null;
     const context = `${
       byBuild !== null || never !== null
