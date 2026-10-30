@@ -97,9 +97,11 @@ const builder = createRotationBuilder(store, formActions);
 createConfigFormView(document, store, formActions);
 createTalentTreeView(document, store, createTalentTree(store));
 createRotationBuilderView(document, store, builder);
+// Run checks the form's typed-in fields first (#247).
 createControlsView(document, store, {
   ...actions,
   fixRotation: builder.jumpToFirstError,
+  commitEdits: formActions.commitEdits,
 });
 createVisualiserView(document, store);
 createResultsView(document, store);

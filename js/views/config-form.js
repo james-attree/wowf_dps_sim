@@ -527,6 +527,10 @@ export function createConfigFormView(doc, store, actions) {
     control.addEventListener("change", () =>
       actions.change(path, readControl(path)),
     );
+    // A field typed in is checked when it loses focus even if no change
+    // fires (#247: Backspace then the same digit gives back the value it had
+    // on focus). After a change there is nothing left to check.
+    control.addEventListener("blur", () => actions.commitEdits?.());
   }
 
   // No submit: Run is #153's. Enter commits the field it was pressed in.
