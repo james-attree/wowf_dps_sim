@@ -64,6 +64,13 @@ import { summarizeCondition, summarizeRule } from "./rotation-summary.js";
 // Errors and warnings are placed by their path and worded by their code
 // (js/rotation-builder-copy.js); a fix is offered for the codes of section 6.
 // Nothing here changes the engine, the validator or the warnings.
+//
+// The builder is the Rotation area (#243, UX5; the proposal's section 1),
+// in three screens: the list of rules (#rotation), one rule's own screen
+// (#rotation/rule/<n>), where its ability and conditions are edited, and
+// Export or import (#rotation/share). `screen` is the one shown; the view
+// keeps it and the route in step. Going forward focuses the screen's h1;
+// going back to the list focuses the control that opened the screen left.
 
 const MAX_RULES = k("rotation.maxRules");
 const MAX_CONDITIONS = k("rotation.maxConditionsPerRule");
@@ -71,7 +78,7 @@ const MAX_NAME = k("rotation.maxNameLength");
 const MAX_LISTED = k("rotation.maxListedEntries");
 const COUNT_FROM = k("rotation.builderCountFrom");
 
-const TWO = 1 + 1;
+const SHARE_TITLE = "Export or import";
 
 const near = (n, max) => n >= max * COUNT_FROM;
 
@@ -311,8 +318,9 @@ export function createRotationBuilder(store, formActions) {
   };
   // A pristine draft per origin, so its uids stay put until the first edit.
   const pristine = new Map();
-  let expanded = new Map();
-  let selected = null;
+  // The screen shown: null for the list, { kind: "rule", uid } or
+  // { kind: "share" }.
+  let screen = null;
   let grab = null;
   let banner = null;
   let addAction = null;
@@ -364,6 +372,54 @@ export function createRotationBuilder(store, formActions) {
     return { errors, warnings };
   }
 
+  // The screen's route, h1 and back link. The h1's rule number is drawn
+  // apart, aria-hidden, with "Rule 2: " as hidden text (the proposal's
+  // accessibility notes), as the list's cards do.
+  function screenView(rule) {
+    if (rule !== undefined) {
+      return {
+        kind: "rule",
+        uid: rule.uid,
+        sub: "rule",
+        param: String(rule.n),
+        title: `Rule ${rule.n}: ${rule.name}`,
+        heading: {
+          n: String(rule.n),
+          hidden: `Rule ${rule.n}: `,
+          text: rule.name,
+        },
+        back: { href: "#rotation", text: "Rotation", focus: null },
+      };
+    }
+    if (screen?.kind === "share") {
+      return {
+        kind: "share",
+        uid: null,
+        sub: "share",
+        param: null,
+        title: SHARE_TITLE,
+        heading: { n: null, hidden: null, text: SHARE_TITLE },
+        back: { href: "#rotation", text: "Rotation", focus: null },
+      };
+    }
+    // The list's back link goes to Character, to the "Edit rotation…" link
+    // that opens the builder there (Fran's #251 check: the builder could
+    // not be closed from Rotation).
+    return {
+      kind: "list",
+      uid: null,
+      sub: null,
+      param: null,
+      title: "Rotation",
+      heading: { n: null, hidden: null, text: "Rotation" },
+      back: {
+        href: "#character",
+        text: "Character",
+        focus: "cfg-rotation-edit",
+      },
+    };
+  }
+
   function view() {
     const state = store.get();
     const draft = current();
@@ -393,12 +449,10 @@ export function createRotationBuilder(store, formActions) {
       }
     }
 
-    const isOpen = (rule, index) =>
-      expanded.get(rule.uid) ??
-      (byRule.get(index) ?? []).some((m) => m.kind === "error");
-    const openIndex = rules.findIndex(
-      (rule, index) => rule.uid === selected && isOpen(rule, index),
-    );
+    if (screen?.kind === "rule" && !rules.some((r) => r.uid === screen.uid)) {
+      screen = null;
+    }
+    const isOpen = (rule) => screen?.kind === "rule" && screen.uid === rule.uid;
 
     const jumpList = (list) => {
       const shown = list.slice(0, MAX_LISTED).map((entry) => {
@@ -439,7 +493,7 @@ export function createRotationBuilder(store, formActions) {
       const facts = abilityFacts(rule.action);
       const name = facts.name;
       const msgs = byRule.get(index) ?? [];
-      const ruleOpen = isOpen(rule, index);
+      const ruleOpen = isOpen(rule);
       const errs = msgs.filter((m) => m.kind === "error");
       const warns = msgs.filter((m) => m.kind === "warning");
       const alt = index > 0 && rules[index - 1].action === rule.action;
@@ -447,7 +501,6 @@ export function createRotationBuilder(store, formActions) {
       const skip = skipOf(rotation.rules[index], talents);
       const taken =
         skip === null ? takenOf(rotation.rules[index], talents) : null;
-      const isSelected = rule.uid === selected && ruleOpen;
       const grabbed = grab?.uid === rule.uid;
       const chips = [{ kind: "hint", mark: "", text: hint.chip }];
       if (alt) {
@@ -455,13 +508,6 @@ export function createRotationBuilder(store, formActions) {
           kind: "alt",
           mark: "",
           text: `Alternative to rule ${index}`,
-        });
-      }
-      if (isSelected) {
-        chips.push({
-          kind: "sel",
-          mark: "",
-          text: "Selected: new rules go above",
         });
       }
       if (skip !== null) {
@@ -569,7 +615,6 @@ export function createRotationBuilder(store, formActions) {
         line: ruleLine(rule),
         chips,
         open: ruleOpen,
-        selected: isSelected,
         lifted: grabbed,
         skipped: skip !== null,
         alt,
@@ -582,11 +627,13 @@ export function createRotationBuilder(store, formActions) {
         },
         messages: cardMsgs,
         edit: {
-          text: ruleOpen ? "Done" : "Edit conditions",
-          label: `${ruleOpen ? "Done editing" : "Edit conditions of"} rule ${n}, ${name}`,
+          text: "Edit",
+          label: `Edit rule ${n}, ${name}`,
+          href: `#rotation/rule/${n}`,
         },
         duplicate: {
           label: `Duplicate as alternative: rule ${n}, ${name}`,
+          text: "Duplicate as alternative",
           disabled: rules.length >= MAX_RULES,
         },
         remove: { label: `Delete rule ${n}, ${name}` },
@@ -618,9 +665,13 @@ export function createRotationBuilder(store, formActions) {
     const nameLength = draft.name.length;
     const errorsList = jumpList(errors);
     const warningsList = jumpList(warnings);
+    const shownRule =
+      screen?.kind === "rule"
+        ? ruleViews.find((rule) => rule.uid === screen.uid)
+        : undefined;
     return {
       open,
-      toggle: open ? "Close rotation builder" : "Edit rotation…",
+      screen: screenView(shownRule),
       origin: edited
         ? {
             edited: true,
@@ -666,7 +717,7 @@ export function createRotationBuilder(store, formActions) {
         errors.length === 0 && warnings.length > 0
           ? {
               count: `${WARNINGS_SUMMARY}: ${count(warnings.length, "warning")}. `,
-              text: "It still runs; see the warnings below.",
+              text: "It still runs; each is listed here and on its rule.",
               ...warningsList,
             }
           : null,
@@ -689,11 +740,7 @@ export function createRotationBuilder(store, formActions) {
         value: addAction,
         button: "Add rule",
         disabled: fullRules,
-        note: `${
-          openIndex < 0
-            ? "It goes at the bottom"
-            : `It goes above rule ${openIndex + 1}, ${nameOf(rules[openIndex].action)} (the rule you're editing)`
-        }, with the checks its ability needs (talent, cooldown, combo points) already added.`,
+        note: "It goes at the bottom, with the checks its ability needs (talent, cooldown, combo points) already added, and opens for its conditions.",
         why: fullRules ? limitText : null,
       },
     };
@@ -815,30 +862,63 @@ export function createRotationBuilder(store, formActions) {
     return null;
   }
 
+  // A message's place, shown: a rule's on its screen, the name's and the
+  // list's on the list.
   function jumpTo(entry) {
     open = true;
     const place = placeOf(entry.path);
     const rule =
       place.rule === undefined ? undefined : current().rules[place.rule];
     let key = focusKeyFor(entry);
-    if (rule !== undefined) {
-      expanded.set(rule.uid, true);
-    }
+    screen = rule === undefined ? null : { kind: "rule", uid: rule.uid };
     if (key === null) {
       refresh();
       // Matched on the entry's code and path, never its wording.
       const msg = slice().view.rules[place.rule].messages.find(
         (m) => m.code === entry.code && m.path === entry.path,
       );
-      key = msg?.key ?? `${rule.uid}.edit`;
+      key = msg?.key ?? "heading";
     }
     refresh(focusOn(key));
   }
 
   const actions = {
+    // Rotation shown or left (js/views/router.js's panels): the builder is
+    // drawn only while it is. The focus is the router's.
     toggle() {
       open = !open;
-      show(focusOn("toggle"));
+      show();
+    },
+    // The route's screen (js/views/rotation-builder.js): "rule" with its
+    // number, "share", or null for the list. A rule number that is not one
+    // shows the list. Forward focuses the screen's h1; back to the list
+    // focuses what opened the screen left: its rule's Edit link, or Export
+    // or import. `back` false (a link from outside the area, the Run bar's
+    // warnings, say) focuses the h1 there too.
+    showScreen(sub, param, { back = true } = {}) {
+      const rules = current().rules;
+      const n = Number(param);
+      let next = null;
+      if (sub === "share") {
+        next = { kind: "share" };
+      } else if (
+        sub === "rule" &&
+        Number.isInteger(n) &&
+        n >= 1 &&
+        n <= rules.length
+      ) {
+        next = { kind: "rule", uid: rules[n - 1].uid };
+      }
+      const from = screen;
+      screen = next;
+      grab = null;
+      let key = "heading";
+      if (next === null && back && from?.kind === "rule") {
+        key = `${from.uid}.edit`;
+      } else if (next === null && back && from?.kind === "share") {
+        key = "share";
+      }
+      show(focusOn(key));
     },
     setName(text) {
       edit((draft) => ({ ...draft, name: String(text) }), { rename: false });
@@ -878,8 +958,7 @@ export function createRotationBuilder(store, formActions) {
     revert() {
       const id = choice();
       const restore = form().drafts?.[id] ?? null;
-      expanded = new Map();
-      selected = null;
+      screen = null;
       grab = null;
       store.batch(() => {
         formActions.setDraft(id, null);
@@ -910,7 +989,7 @@ export function createRotationBuilder(store, formActions) {
       const n = at + 1;
       if (fix.add !== undefined) {
         const condition = { ...fix.add, uid: nextUid() };
-        expanded.set(uid, true);
+        screen = { kind: "rule", uid };
         edit(
           withRule(uid, (r) =>
             addCondition(r, condition, fix.at ?? r.conditions.length),
@@ -922,7 +1001,7 @@ export function createRotationBuilder(store, formActions) {
         );
       } else if (fix.set !== undefined) {
         const target = rule.conditions[fix.condition];
-        expanded.set(uid, true);
+        screen = { kind: "rule", uid };
         edit(
           (draft) => {
             const raw = { ...draft.raw };
@@ -946,7 +1025,7 @@ export function createRotationBuilder(store, formActions) {
           uid,
           fix.moveTo,
           `${nameOf(rule.action)} moved to rule ${fix.moveTo + 1} of ${current().rules.length}.`,
-          `${uid}.grip`,
+          screen?.uid === uid ? "heading" : `${uid}.grip`,
         );
       }
     },
@@ -961,7 +1040,8 @@ export function createRotationBuilder(store, formActions) {
       const [first] = form().rotationErrors ?? [];
       open = true;
       if (first === undefined) {
-        show(focusOn("toggle"));
+        screen = null;
+        show(focusOn("heading"));
         return;
       }
       jumpTo(first);
@@ -1065,20 +1145,6 @@ export function createRotationBuilder(store, formActions) {
         `${uid}.grip`,
       );
     },
-    toggleRule(uid) {
-      const at = indexOf(uid);
-      const shown = slice().view?.rules?.[at]?.open ?? false;
-      if (shown) {
-        expanded.set(uid, false);
-        if (selected === uid) {
-          selected = null;
-        }
-      } else {
-        expanded.set(uid, true);
-        selected = uid;
-      }
-      show(focusOn(`${uid}.edit`));
-    },
     duplicate(uid) {
       const at = indexOf(uid);
       const rules = current().rules;
@@ -1092,8 +1158,11 @@ export function createRotationBuilder(store, formActions) {
       const name = nameOf(rules[at].action);
       const next = duplicateRule(rules, at, nextUid);
       const made = next[at + 1];
-      expanded.set(made.uid, true);
-      selected = made.uid;
+      // The copy opens on its own screen, its h1 focused, and the screen's
+      // warnings, which say it is never reached, are right under the h1, at
+      // every width and height, a second Duplicate too (#243; Fran's #252
+      // and #253 checks: the banner was above the screen at 1024 and up).
+      screen = { kind: "rule", uid: made.uid };
       edit(
         (draft) => ({
           ...draft,
@@ -1102,10 +1171,7 @@ export function createRotationBuilder(store, formActions) {
         }),
         {
           live: `Rule ${n + 1} added: a copy of rule ${n}, ${name}, right below it. It is never reached until you change its conditions: it's tried when rule ${n}'s don't all hold.`,
-          focus:
-            made.conditions.length > 0
-              ? `${made.conditions[0].uid}.type`
-              : `${made.uid}.addcond`,
+          focus: "heading",
         },
       );
     },
@@ -1117,8 +1183,9 @@ export function createRotationBuilder(store, formActions) {
       }
       const restore = form().drafts?.[choice()] ?? null;
       const line = ruleLine(rule);
-      if (selected === uid) {
-        selected = null;
+      // Deleted on its own screen, the list is shown, with the Undo.
+      if (screen?.uid === uid) {
+        screen = null;
       }
       // The banner first, so its Undo exists when the focus asks for it.
       banner = {
@@ -1261,28 +1328,15 @@ export function createRotationBuilder(store, formActions) {
         return;
       }
       const rule = newRule(addAction ?? defaultAddAction(rules), nextUid);
-      const view0 = slice().view;
-      const at = rules.findIndex(
-        (r, index) =>
-          r.uid === selected && (view0?.rules?.[index]?.open ?? false),
-      );
       const line = ruleLine(rule);
-      const live =
-        at < 0
-          ? `Rule ${rules.length + 1} added at the bottom: ${line}. Move it up to give it priority.`
-          : `Rule ${at + 1} added above ${nameOf(rules[at].action)}, now rule ${at + TWO}: ${line}.`;
-      expanded.set(rule.uid, true);
-      selected = rule.uid;
+      const live = `Rule ${rules.length + 1} added at the bottom: ${line}. Move it up on the list to give it priority.`;
+      screen = { kind: "rule", uid: rule.uid };
       edit(
         (draft) => ({
           ...draft,
-          rules: insertRule(
-            draft.rules,
-            at < 0 ? draft.rules.length : at,
-            rule,
-          ),
+          rules: insertRule(draft.rules, draft.rules.length, rule),
         }),
-        { live, focus: `${rule.uid}.up` },
+        { live, focus: "heading" },
       );
     },
   };
@@ -1305,8 +1359,7 @@ export function createRotationBuilder(store, formActions) {
     if (id !== shownChoice) {
       const first = shownChoice === null;
       shownChoice = id;
-      expanded = new Map();
-      selected = null;
+      screen = null;
       grab = null;
       banner = null;
       addAction = null;

@@ -90,8 +90,10 @@
 
       <!-- On wide screens, the results column beside the areas (#241, UX3):
            the Run panel, then the summary card. Below, the Run panel is the
-           phone dock and the card is not shown. -->
-      <div class="run-column">
+           phone dock and the card is not shown. On wide screens other than
+           Results, js/views/reading-order.js puts it after the areas, so
+           an area's h1 is read first (#243, N3). -->
+      <div id="run-column" class="run-column">
         <section
           id="run-controls"
           class="run-controls"
@@ -198,6 +200,15 @@
               id="run-errors-link"
               class="run-errors-link"
               href="#run-settings"
+              hidden
+            ></a>
+            <!-- The rotation's warnings (#243): a link to the Rotation
+                 messages, under its h1. -->
+            <a
+              id="run-warnings-link"
+              class="run-warnings-link"
+              href="#rotation"
+              data-return-focus="area-rotation-title"
               hidden
             ></a>
             <div id="run-status" class="run-status live-indicator">
@@ -314,15 +325,9 @@
                     name="rotation"
                     aria-describedby="cfg-rotation-summary"
                   ></select>
-                  <button
-                    id="cfg-rotation-edit"
-                    class="pill-button"
-                    type="button"
-                    aria-expanded="false"
-                    aria-controls="rotation-builder"
+                  <a id="cfg-rotation-edit" class="pill-button" href="#rotation"
+                    >Edit rotation…</a
                   >
-                    Edit rotation…
-                  </button>
                 </div>
               </div>
               <details id="cfg-summary" class="rotation-summary" open>
@@ -336,52 +341,9 @@
                   ></ol>
                 </div>
               </details>
-              <div class="rotation-io">
-                <button id="cfg-export" class="pill-button" type="button">
-                  Export…
-                </button>
-                <label class="pill-button file-button" for="cfg-import-file"
-                  >Import…</label
-                >
-                <input
-                  id="cfg-import-file"
-                  class="visually-hidden"
-                  type="file"
-                  accept=".json,application/json"
-                />
-              </div>
-              <p id="cfg-export-why" class="field-error export-why" hidden></p>
-              <details class="paste-import">
-                <summary>Paste JSON</summary>
-                <label for="cfg-import-text">Rotation JSON</label>
-                <textarea
-                  id="cfg-import-text"
-                  rows="6"
-                  spellcheck="false"
-                ></textarea>
-                <button id="cfg-import-paste" class="pill-button" type="button">
-                  Import
-                </button>
-              </details>
-              <div class="import-box">
-                <p
-                  id="cfg-import-status"
-                  class="import-status"
-                  role="status"
-                ></p>
-                <details id="cfg-import-detail" class="import-detail" hidden>
-                  <summary>What's wrong with it</summary>
-                  <pre id="cfg-import-detail-text"></pre>
-                </details>
-                <details
-                  id="cfg-import-warnings"
-                  class="import-detail import-warnings"
-                  hidden
-                >
-                  <summary>What to check</summary>
-                  <pre id="cfg-import-warnings-text"></pre>
-                </details>
-              </div>
+              <p class="field-help rotation-share-note">
+                <a href="#rotation/share">Export or import</a> is in Rotation.
+              </p>
             </fieldset>
             <fieldset class="config-fieldset character-fieldset">
               <legend>Character</legend>
@@ -828,15 +790,71 @@
       </section>
 
       <section id="area-rotation" class="area" data-area="rotation">
+        <!-- The screen's back link and h1 (#243, UX5): js/views/rotation-builder.js
+             names them for the list, a rule's screen or Export or import. -->
+        <a
+          id="rotation-back"
+          class="back-link"
+          href="#character"
+          data-return-focus="cfg-rotation-edit"
+          ><span aria-hidden="true">‹ </span
+          ><span class="visually-hidden">Back to </span
+          ><span>Character</span></a
+        >
         <h1 id="area-rotation-title" class="area-title" tabindex="-1">
           Rotation
         </h1>
         <section
           id="rotation-builder"
           class="panel rotation-panel"
-          aria-labelledby="rotation-builder-title"
+          aria-labelledby="area-rotation-title"
           hidden
         ></section>
+        <section
+          id="rotation-share"
+          class="panel rotation-share"
+          aria-labelledby="area-rotation-title"
+          hidden
+        >
+          <h2>File</h2>
+          <div class="rotation-io">
+            <button id="cfg-export" class="pill-button" type="button">
+              Export…
+            </button>
+            <label class="pill-button file-button" for="cfg-import-file"
+              >Import…</label
+            >
+            <input
+              id="cfg-import-file"
+              class="visually-hidden"
+              type="file"
+              accept=".json,application/json"
+            />
+          </div>
+          <p id="cfg-export-why" class="field-error export-why" hidden></p>
+          <div class="paste-import">
+            <h2>Paste JSON</h2>
+            <label for="cfg-import-text">Rotation JSON</label>
+            <textarea
+              id="cfg-import-text"
+              rows="6"
+              spellcheck="false"
+            ></textarea>
+            <button id="cfg-import-paste" class="pill-button" type="button">
+              Import
+            </button>
+          </div>
+          <!-- An import's warnings are the Rotation messages' "What to
+               check", under the h1; a failed import says what is wrong
+               here. -->
+          <div class="import-box">
+            <p id="cfg-import-status" class="import-status" role="status"></p>
+            <div id="cfg-import-detail" class="import-detail" hidden>
+              <h2>What's wrong with it</h2>
+              <pre id="cfg-import-detail-text"></pre>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section id="area-fight" class="area" data-area="fight">

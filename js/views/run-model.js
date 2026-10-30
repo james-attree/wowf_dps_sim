@@ -514,6 +514,21 @@ export function errorsText(run, formCount = 0) {
   return `Fix ${settings(count)}`;
 }
 
+// The bar's link to the rotation's warnings (#243, UX5; proposal P5:
+// "Ready · ⚠ 1 rotation warning"), or null: while nothing blocks Run and
+// nothing runs, as the builder shows them (only with no errors). It goes to
+// the Rotation messages, under the area's h1.
+export function warningsText(state, blocked) {
+  const count =
+    (state.form?.rotationErrors?.length ?? 0) === 0
+      ? (state.form?.rotationWarnings?.length ?? 0)
+      : 0;
+  if (count === 0 || blocked || isLocked(state.run)) {
+    return null;
+  }
+  return `⚠ ${count} rotation ${count === 1 ? "warning" : "warnings"}`;
+}
+
 // Everything the bar draws, from the store's state.
 export function controlsModel(state) {
   return state.run.mode === "batch" ? batchModel(state) : liveModel(state);

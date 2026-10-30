@@ -1,12 +1,17 @@
 import { attachIconFallback } from "../icons.js";
+import { APP_TITLE, formatRoute } from "./router.js";
 import { reveal } from "./sections.js";
 
 // The rotation builder's view (U7, #217; Fran's spec and mockup in
 // design/u7-rotation-builder/). It draws the store's `rotationBuilder.view`,
 // which js/rotation-builder.js fills with every string, id and state, and
-// calls that model's actions. It owns the "Edit rotation…" button in Fight
-// setup (#cfg-rotation-edit) and the #rotation-builder section under the
-// form.
+// calls that model's actions. It draws the Rotation area (#243, UX5): its
+// back link and h1, the #rotation-builder section (the messages, then the
+// list or one rule's screen) and, at #rotation/share, the Export or import
+// section (#rotation-share, whose controls js/views/config-form.js owns). It
+// keeps the model's screen and the route in step: a route to a screen shows
+// it, and a screen an action opens (Duplicate, Add rule, a message's link)
+// is pushed as the route, so Back goes back to where it was.
 //
 // The panel is drawn by a small keyed patcher: a node is kept for as long as
 // its key (a rule's or condition's uid, or its place) is, and only the
@@ -152,12 +157,24 @@ const flatOptions = (options) =>
 
 const mark = (text) => h("span", { "aria-hidden": "true" }, text);
 
+const ESCAPE_IGNORED = new Set(["SELECT", "TEXTAREA"]);
+
+// The route a screen is at: "#rotation", "#rotation/rule/2".
+const screenHash = (screen) =>
+  formatRoute({ area: "rotation", sub: screen.sub, param: screen.param });
+
+const sameScreen = (a, b) =>
+  a !== null && b !== null && a.kind === b.kind && a.uid === b.uid;
+
 export function createRotationBuilderView(doc, store, actions) {
-  const toggle = doc.querySelector("#cfg-rotation-edit");
   const section = doc.querySelector("#rotation-builder");
   if (section === null) {
     return;
   }
+  const area = doc.querySelector("#area-rotation");
+  const heading = doc.querySelector("#area-rotation-title");
+  const back = doc.querySelector("#rotation-back");
+  const share = doc.querySelector("#rotation-share");
   const body = doc.createElement("div");
   body.className = "rotation-builder-body";
   const live = doc.createElement("p");
@@ -170,8 +187,7 @@ export function createRotationBuilderView(doc, store, actions) {
   let focused = 0;
   let view = null;
 
-  toggle?.addEventListener("click", () => actions.toggle());
-
+  let route = store.get().route ?? null;
   const button = (props, ...children) =>
     h("button", { type: "button", ...props }, ...children);
 
@@ -476,7 +492,7 @@ export function createRotationBuilderView(doc, store, actions) {
       h(
         "div",
         { key: "head", class: "cond-head" },
-        h("h5", {}, part.conditionsHead),
+        h("h2", {}, part.conditionsHead),
         part.conditionsCount === null
           ? null
           : h("span", { class: "rule-count" }, part.conditionsCount),
@@ -515,7 +531,6 @@ export function createRotationBuilderView(doc, store, actions) {
   function ruleNode(rule) {
     const classes = [
       "rule",
-      rule.selected ? "is-selected" : null,
       rule.lifted ? "is-lifted" : null,
       rule.skipped ? "is-skipped" : null,
       rule.alt ? "is-alt" : null,
@@ -565,7 +580,7 @@ export function createRotationBuilderView(doc, store, actions) {
           "div",
           { class: "rule-title" },
           h(
-            "h4",
+            "h3",
             { class: "rule-name", id: rid(rule.uid, "name") },
             h("span", { class: "visually-hidden" }, `Rule ${rule.n}: `),
             rule.name,
@@ -622,47 +637,88 @@ export function createRotationBuilderView(doc, store, actions) {
       h(
         "div",
         { key: "foot", class: "rule-foot" },
-        button(
+        h(
+          "a",
           {
             class: "pill-button",
+            href: rule.edit.href,
             "data-key": `${rule.uid}.edit`,
-            "aria-expanded": String(rule.open),
-            "aria-controls": rid(rule.uid, "body"),
             "aria-label": rule.edit.label,
-            on: { click: () => actions.toggleRule(rule.uid) },
           },
           rule.edit.text,
         ),
-        button(
-          {
-            class: "pill-button",
-            "data-key": `${rule.uid}.dup`,
-            "aria-label": rule.duplicate.label,
-            "aria-disabled": off(rule.duplicate.disabled),
-            on: { click: () => actions.duplicate(rule.uid) },
-          },
-          "Duplicate as alternative",
-        ),
-        button(
-          {
-            class: "pill-button is-danger",
-            "data-key": `${rule.uid}.del`,
-            "aria-label": rule.remove.label,
-            on: { click: () => actions.remove(rule.uid) },
-          },
-          "Delete",
-        ),
+        ruleButtons(rule),
       ),
+    );
+  }
+
+  // Duplicate and Delete, on a rule's card and on its screen.
+  function ruleButtons(rule) {
+    return [
+      button(
+        {
+          class: "pill-button",
+          "data-key": `${rule.uid}.dup`,
+          "aria-label": rule.duplicate.label,
+          "aria-disabled": off(rule.duplicate.disabled),
+          on: { click: () => actions.duplicate(rule.uid) },
+        },
+        rule.duplicate.text,
+      ),
+      button(
+        {
+          class: "pill-button is-danger",
+          "data-key": `${rule.uid}.del`,
+          "aria-label": rule.remove.label,
+          on: { click: () => actions.remove(rule.uid) },
+        },
+        "Delete",
+      ),
+    ];
+  }
+
+  // A rule's own screen (#rotation/rule/<n>): the h1 above is its name; its
+  // summary line and chips, its messages, its ability and conditions, and
+  // Duplicate and Delete. It is moved on the list.
+  function ruleScreen(rule) {
+    return h(
+      "div",
+      { key: `screen:${rule.uid}`, class: "rule-screen", "data-uid": rule.uid },
+      h(
+        "p",
+        { key: "line", class: "rule-line", id: rid(rule.uid, "line") },
+        rule.line,
+      ),
+      rule.chips.length === 0
+        ? null
+        : h(
+            "p",
+            { key: "chips", class: "rule-chips" },
+            rule.chips.map((chip) =>
+              h(
+                "span",
+                {
+                  key: `chip:${chip.kind}`,
+                  class: chip.kind === "hint" ? "chip" : `chip is-${chip.kind}`,
+                },
+                chip.mark === "" ? null : mark(chip.mark),
+                chip.text,
+              ),
+            ),
+          ),
+      rule.messages.length === 0
+        ? null
+        : h(
+            "div",
+            { key: "msgs", class: "rule-msgs" },
+            rule.messages.map(messageNode),
+          ),
       h(
         "div",
-        {
-          key: "body",
-          class: rule.body === null ? null : "rule-body",
-          id: rid(rule.uid, "body"),
-          hidden: rule.body === null,
-        },
-        rule.body === null ? null : bodyNode(rule),
+        { key: "body", class: "rule-body", id: rid(rule.uid, "body") },
+        bodyNode(rule),
       ),
+      h("div", { key: "foot", class: "rule-foot" }, ruleButtons(rule)),
     );
   }
 
@@ -696,30 +752,62 @@ export function createRotationBuilderView(doc, store, actions) {
       name.error === null ? null : "rb-name-error",
       name.count === null ? null : "rb-name-count",
     ].filter((part) => part !== null);
-    return [
+    // The messages come first on every screen, right under the h1 (#243;
+    // the proposal's P5): what an action did, with its Undo, and the
+    // rotation's errors and warnings, so a Duplicate's warning is never off
+    // the screen.
+    const messages = [
       h(
         "div",
-        { key: "head", class: "section-heading builder-head" },
-        h(
-          "div",
-          {},
-          h("p", { class: "eyebrow" }, "BUILD"),
-          h("h2", { id: "rotation-builder-title" }, "Rotation builder"),
-        ),
-        h(
-          "div",
-          { class: "builder-actions" },
-          button(
-            {
-              class: "pill-button",
-              "data-key": "clear",
-              "aria-disabled": off(v.clearDisabled),
-              on: { click: () => actions.clearAll() },
-            },
-            "Clear all",
-          ),
-        ),
+        { key: "messages", class: "builder-messages" },
+        v.banner === null
+          ? null
+          : h(
+              "div",
+              { key: "banner", class: "rot-banner is-info" },
+              h("span", {}, v.banner.text),
+              v.banner.undo
+                ? button(
+                    {
+                      class: "link-button",
+                      "data-key": "undo",
+                      on: { click: () => actions.undo() },
+                    },
+                    "Undo",
+                  )
+                : null,
+            ),
+        v.errors === null
+          ? null
+          : h(
+              "div",
+              { key: "errors", class: "rot-banner is-error", id: "rb-errors" },
+              h("p", {}, h("strong", {}, v.errors.count), v.errors.text),
+              jumpList(v.errors),
+            ),
+        v.warnings === null
+          ? null
+          : h(
+              "div",
+              {
+                key: "warnings",
+                class: "rot-banner is-warning",
+                id: "rb-warnings",
+              },
+              h("p", {}, h("strong", {}, v.warnings.count), v.warnings.text),
+              jumpList(v.warnings),
+            ),
       ),
+    ];
+    if (v.screen.kind === "rule") {
+      const rule = v.rules.find((candidate) => candidate.uid === v.screen.uid);
+      return [...messages, rule === undefined ? null : ruleScreen(rule)];
+    }
+    if (v.screen.kind === "share") {
+      return messages;
+    }
+    return [
+      ...messages,
       v.origin.edited
         ? h(
             "p",
@@ -788,50 +876,18 @@ export function createRotationBuilderView(doc, store, actions) {
       h("p", { key: "help", class: "builder-help", id: "rb-help" }, v.help),
       h(
         "div",
-        { key: "messages", class: "builder-messages" },
-        v.banner === null
-          ? null
-          : h(
-              "div",
-              { key: "banner", class: "rot-banner is-info" },
-              h("span", {}, v.banner.text),
-              v.banner.undo
-                ? button(
-                    {
-                      class: "link-button",
-                      "data-key": "undo",
-                      on: { click: () => actions.undo() },
-                    },
-                    "Undo",
-                  )
-                : null,
-            ),
-        v.errors === null
-          ? null
-          : h(
-              "div",
-              { key: "errors", class: "rot-banner is-error", id: "rb-errors" },
-              h("p", {}, h("strong", {}, v.errors.count), v.errors.text),
-              jumpList(v.errors),
-            ),
-        v.warnings === null
-          ? null
-          : h(
-              "div",
-              {
-                key: "warnings",
-                class: "rot-banner is-warning",
-                id: "rb-warnings",
-              },
-              h("p", {}, h("strong", {}, v.warnings.count), v.warnings.text),
-              jumpList(v.warnings),
-            ),
-      ),
-      h(
-        "div",
         { key: "list-head", class: "rule-list-head" },
-        h("h3", { id: "rb-rules-heading" }, v.listHead),
+        h("h2", { id: "rb-rules-heading" }, v.listHead),
         h("span", { class: "rule-count" }, v.ruleCount),
+        button(
+          {
+            class: "pill-button",
+            "data-key": "clear",
+            "aria-disabled": off(v.clearDisabled),
+            on: { click: () => actions.clearAll() },
+          },
+          "Clear all",
+        ),
       ),
       v.empty === null
         ? null
@@ -905,6 +961,19 @@ export function createRotationBuilderView(doc, store, actions) {
       ),
       h(
         "p",
+        { key: "share", class: "builder-share" },
+        h(
+          "a",
+          {
+            class: "pill-button",
+            href: "#rotation/share",
+            "data-key": "share",
+          },
+          "Export or import…",
+        ),
+      ),
+      h(
+        "p",
         { key: "grip-help", class: "visually-hidden", id: "rb-grip-help" },
         v.gripHelp,
       ),
@@ -915,8 +984,10 @@ export function createRotationBuilderView(doc, store, actions) {
     if (key === null || key === undefined) {
       return;
     }
-    if (key === "toggle") {
-      toggle?.focus();
+    if (key === "heading") {
+      // A new screen starts at the top, its back link and h1 in view.
+      doc.defaultView?.scrollTo?.(0, 0);
+      heading?.focus?.({ preventScroll: true });
       return;
     }
     const node = [...section.querySelectorAll("[data-key]")].find(
@@ -925,114 +996,139 @@ export function createRotationBuilderView(doc, store, actions) {
     node?.focus();
   }
 
-  // Fran's #228 QA (nit 1; #234): a warnings banner that an action (a
-  // Duplicate, say) brings up above the screen is scrolled into view, below
-  // the chrome over the top of the screen (the banner's scroll-margin-top),
-  // but only when the focus the action moved stays on screen too: the focus
-  // wins (WCAG 2.4.11). When the two cannot both be on screen, the focused
-  // rule's own warning is brought into view instead, on the same terms.
-  //
-  // Below the wide breakpoint (#240, UX2; Fran's #251 check) the messages
-  // are pinned to the top of the screen (styles.css), so the banner is in
-  // view as soon as it is drawn; what can be hidden then is the focused
-  // rule, under the pinned messages, and it is scrolled clear of them.
-  // --chrome-top and --chrome-bottom (styles.css) are what covers the
-  // screen's top and foot: the phone dock and nav below the wide breakpoint;
-  // nothing on wide screens, where Run is in the results column beside the
-  // areas (#241, UX3), so --chrome-top is 0 at every width.
-  function revealWarnings() {
-    const banner = section.querySelector("#rb-warnings");
-    const win = doc.defaultView;
-    if (typeof banner?.getBoundingClientRect !== "function" || !win) {
-      return;
+  // The h1 and back link: "Rotation" and "‹ Character" on the list, the
+  // rule's name (its number aria-hidden, "Rule 2: " hidden text) or "Export
+  // or import" and "‹ Rotation" on a screen. The back links are links, not
+  // history.back(); the list's is how the builder is closed (Fran's #251
+  // check), back to the "Edit rotation…" link that opened it.
+  function drawHeading(screen) {
+    if (heading !== null) {
+      const part = screen.heading;
+      patchChildren(
+        doc,
+        heading,
+        h(
+          "x",
+          {},
+          part.n === null
+            ? null
+            : h(
+                "span",
+                { key: "n", class: "rule-num", "aria-hidden": "true" },
+                part.n,
+              ),
+          part.hidden === null
+            ? null
+            : h(
+                "span",
+                { key: "hidden", class: "visually-hidden" },
+                part.hidden,
+              ),
+          h("span", { key: "text" }, part.text),
+        ).children,
+      );
     }
-    const chrome = (name) =>
-      Number.parseFloat(
-        win.getComputedStyle(doc.documentElement).getPropertyValue(name),
-      ) || 0;
-    const chromeTop = chrome("--chrome-top");
-    const bottom = win.innerHeight - chrome("--chrome-bottom");
-    const inset =
-      Number.parseFloat(win.getComputedStyle(banner).scrollMarginTop) || 0;
-    const messages = banner.closest?.(".builder-messages") ?? null;
-    const pinned =
-      messages !== null && win.getComputedStyle(messages).position === "sticky";
-    const active = doc.activeElement;
-    const focused =
-      active === null || active === doc.body
-        ? null
-        : active.getBoundingClientRect();
-    if (pinned) {
-      const covered = messages.getBoundingClientRect().bottom;
-      if (focused !== null && focused.top < covered) {
-        win.scrollBy(0, focused.top - covered - inset + chromeTop);
+    if (back !== null) {
+      back.setAttribute("href", screen.back.href);
+      if (screen.back.focus === null) {
+        back.removeAttribute("data-return-focus");
+      } else {
+        back.setAttribute("data-return-focus", screen.back.focus);
       }
-      return;
+      patchChildren(
+        doc,
+        back,
+        h(
+          "x",
+          {},
+          h("span", { key: "mark", "aria-hidden": "true" }, "‹ "),
+          h("span", { key: "hidden", class: "visually-hidden" }, "Back to "),
+          h("span", { key: "text" }, screen.back.text),
+        ).children,
+      );
     }
-    const card = active?.closest?.("li.rule") ?? null;
-    const targets = [banner, card?.querySelector(".rule-msgs") ?? null];
-    for (const target of targets) {
-      if (target === null) {
-        continue;
-      }
-      const top = target.getBoundingClientRect().top;
-      if (top >= chromeTop) {
-        return;
-      }
-      const shift = inset - top;
-      if (focused === null || focused.bottom + shift <= bottom) {
-        win.scrollBy(0, -shift);
-        return;
-      }
+    if (share !== null) {
+      share.hidden = !view.open || screen.kind !== "share";
     }
   }
 
-  // The pinned messages' height (#240), as --builder-pinned-height on the
-  // page: styles.css adds it to the page's scroll-padding-top, so a control
-  // focused or scrolled to lands below them. Measured as they wrap.
-  let pinnedNode = null;
-  const pinObserver =
-    typeof doc.defaultView?.ResizeObserver === "function"
-      ? new doc.defaultView.ResizeObserver(() => pinHeight())
-      : null;
-  function pinHeight() {
-    const win = doc.defaultView;
-    const messages = section.querySelector?.(".builder-messages") ?? null;
-    if (messages !== pinnedNode && pinObserver !== null) {
-      if (pinnedNode !== null) {
-        pinObserver.unobserve(pinnedNode);
-      }
-      if (messages !== null) {
-        pinObserver.observe(messages);
-      }
+  // The page's title names the screen (the proposal's accessibility notes):
+  // "Rule 2: Eviscerate · WoW Forever Rogue Simulator".
+  function drawTitle() {
+    if (route?.area === "rotation" && view !== null && view.open) {
+      doc.title = `${view.screen.title} · ${APP_TITLE}`;
     }
-    pinnedNode = messages;
-    const style = doc.documentElement?.style;
-    if (typeof win?.getComputedStyle !== "function" || !style) {
+  }
+
+  // An action's screen becomes the route: pushed when it is another screen
+  // (Duplicate's copy, a new rule, a message's rule), so Back returns; put in
+  // the route's place when only its number moved (a rule moved or deleted)
+  // or the route named no screen (#rotation/rule/99).
+  function syncHash(before) {
+    const win = doc.defaultView;
+    if (
+      route?.area !== "rotation" ||
+      !view.open ||
+      typeof win?.location?.replace !== "function"
+    ) {
       return;
     }
-    const sticky =
-      messages !== null && win.getComputedStyle(messages).position === "sticky";
-    style.setProperty(
-      "--builder-pinned-height",
-      `${sticky ? messages.offsetHeight : 0}px`,
-    );
+    const want = screenHash(view.screen);
+    if (formatRoute(route) === want || win.location.hash === want) {
+      return;
+    }
+    const routeWas =
+      before === null ? null : screenHash(before) === formatRoute(route);
+    if (routeWas && !sameScreen(before, view.screen)) {
+      win.location.hash = want;
+    } else {
+      win.location.replace(want);
+    }
   }
+
+  // The route moved within Rotation (a link, Back, the nav): its screen is
+  // shown. Back to the list focuses what opened the screen left.
+  function onRoute(next) {
+    route = next;
+    if (next?.area !== "rotation" || view === null) {
+      return;
+    }
+    if (screenHash(view.screen) !== formatRoute(next)) {
+      actions.showScreen(next.sub ?? null, next.param ?? null);
+      return;
+    }
+    drawTitle();
+  }
+
+  // Escape on a rule's screen or Export or import goes back to the list, as
+  // its back link does; not from a select or a text box, whose own Escape it
+  // is.
+  area?.addEventListener("keydown", (event) => {
+    if (
+      event.key !== "Escape" ||
+      event.defaultPrevented ||
+      view === null ||
+      view.screen.kind === "list" ||
+      ESCAPE_IGNORED.has(event.target?.tagName)
+    ) {
+      return;
+    }
+    const win = doc.defaultView;
+    if (win?.location !== undefined) {
+      event.preventDefault?.();
+      win.location.hash = view.screen.back.href;
+    }
+  });
 
   function draw() {
     const slice = store.get().rotationBuilder;
     if (slice === undefined || slice.view === view) {
       return;
     }
-    const hadWarnings = view !== null && view.warnings !== null;
+    const before = view === null ? null : view.screen;
     view = slice.view;
-    if (toggle !== null) {
-      if (toggle.textContent !== view.toggle) {
-        toggle.textContent = view.toggle;
-      }
-      toggle.setAttribute("aria-expanded", String(view.open));
-    }
     section.hidden = !view.open;
+    drawHeading(view.screen);
     if (view.open) {
       patchChildren(
         doc,
@@ -1049,18 +1145,19 @@ export function createRotationBuilderView(doc, store, actions) {
         live.textContent = text;
       });
     }
-    pinHeight();
+    syncHash(before);
+    drawTitle();
     const focus = slice.focus;
     if (focus !== undefined && focus.seq !== focused) {
       focused = focus.seq;
       focusKey(focus.key);
-      if (view.open && !hadWarnings && view.warnings !== null) {
-        revealWarnings();
-      }
     }
   }
 
-  store.subscribe(({ changed }) => {
+  store.subscribe(({ changed, state }) => {
+    if (changed.includes("route")) {
+      onRoute(state.route);
+    }
     if (changed.includes("rotationBuilder")) {
       draw();
     }

@@ -1,3 +1,4 @@
+import { placeRunColumn, watchReadingOrder } from "./reading-order.js";
 import {
   AREAS,
   DEFAULT_AREA,
@@ -28,11 +29,14 @@ import {
 export const APP_TITLE = "WoW Forever Rogue Simulator";
 
 // The areas' sub-screens. Results has two views (#242, UX4): the average,
-// its first and #results itself, and the live fight. UX5 (#243) and UX6
-// (#244) add the rotation's and Character's. A route's sub or param that is
-// not one of its area's is dropped, so #character/stats is #character.
+// its first and #results itself, and the live fight. Rotation (#243, UX5)
+// has a rule's screen, #rotation/rule/2, and Export or import,
+// #rotation/share (js/views/rotation-builder.js shows them). UX6 (#244) adds
+// Character's. A route's sub or param that is not one of its area's is
+// dropped, so #character/stats is #character.
 export const SUBS = Object.freeze({
   results: Object.freeze(["average", "live"]),
+  rotation: Object.freeze(["rule", "share"]),
 });
 export const RESULT_VIEWS = SUBS.results;
 
@@ -88,22 +92,29 @@ const builderOpen = (state) => state.rotationBuilder?.view?.open === true;
 // The area a store change shows, or null for none (proposal §3: the page
 // goes where the work is). Run shows the live fight (Fight) or the batch
 // (Results) when it starts; a resumed fight stays where it is. The rotation
-// builder is the Rotation area: opening it from anywhere goes there, and
-// closing it there goes back to Character, where its opener is.
+// builder is the Rotation area: opening it from anywhere goes there, to the
+// screen it opened at (a message's rule, #243), and closing it there goes
+// back to Character, where its opener is.
 export function followArea(before, after, area) {
   return followRoute(before, after, { area, sub: null })?.area ?? null;
 }
 
-// The same as a route, { area, sub, run }, or null: an average shows
+// The same as a route, { area, sub, param, run }, or null: an average shows
 // Results' Average view (#242), from its Live view too; `run` is true for a
 // move Run made, which the Run bar says (js/views/controls.js).
 export function followRoute(before, after, route) {
   const { area } = route;
   if (!builderOpen(before) && builderOpen(after) && area !== "rotation") {
-    return { area: "rotation", sub: null, run: false };
+    const screen = after.rotationBuilder.view.screen;
+    return {
+      area: "rotation",
+      sub: screen?.sub ?? null,
+      param: screen?.param ?? null,
+      run: false,
+    };
   }
   if (builderOpen(before) && !builderOpen(after) && area === "rotation") {
-    return { area: DEFAULT_AREA, sub: null, run: false };
+    return { area: DEFAULT_AREA, sub: null, param: null, run: false };
   }
   const resumed = before.run?.state === "paused";
   if (!isRunning(before) && isRunning(after) && !resumed) {
@@ -113,7 +124,7 @@ export function followRoute(before, after, route) {
     if (shows === area && (!batch || onAverage)) {
       return null;
     }
-    return { area: shows, sub: null, run: true };
+    return { area: shows, sub: null, param: null, run: true };
   }
   return null;
 }
@@ -164,6 +175,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
   const left = new Map();
   let last = store.get();
   let moves = NO_MOVES;
+  let stopWatching = () => {};
 
   // The area a node is in, or null when it is outside every area (the nav,
   // the Run bar).
@@ -191,6 +203,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
       }
     }
     doc.title = titleFor(next);
+    placeRunColumn(doc, next.area);
     store.set({ route: Object.freeze({ ...next }) });
     if (from !== next.area && from !== null) {
       win.scrollTo?.(PAGE_TOP, PAGE_TOP);
@@ -222,13 +235,13 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
   }
 
   // A move the page makes: a new history entry, and the focus left as it is.
-  function go(area, { focus = "none", sub = null } = {}) {
-    if (route?.area === area && route?.sub === sub) {
+  function go(area, { focus = "none", sub = null, param = null } = {}) {
+    if (route?.area === area && route?.sub === sub && route?.param === param) {
       return;
     }
     left.set(index, doc.activeElement);
     index += 1;
-    const next = { area, sub, param: null };
+    const next = { area, sub, param };
     win.history.pushState({ routerIndex: index }, "", formatRoute(next));
     show(next, focus);
   }
@@ -256,12 +269,26 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     }
     const next = parseRoute(hash);
     win.history.replaceState({ routerIndex: index }, "", formatRoute(next));
+    // A link can name where the focus goes once its screen is shown
+    // (data-return-focus): Rotation's "‹ Character" goes back to the "Edit
+    // rotation…" link that opened it (#243, Fran's #251 check), and the Run
+    // bar's warnings link to the h1 the warnings are under.
+    const active = doc.activeElement;
+    const returnTo =
+      direction === "forward"
+        ? doc.getElementById(active?.getAttribute?.("data-return-focus") ?? "")
+        : null;
     // A view's switch in the same area (Results' Average and Live, #242)
     // keeps the focus on the switch, which stays shown.
     const within =
-      route !== null &&
-      next.area === route.area &&
-      canFocus(doc, doc.activeElement);
+      route !== null && next.area === route.area && canFocus(doc, active);
+    if (returnTo !== null) {
+      show(next, "none");
+      if (canFocus(doc, returnTo)) {
+        returnTo.focus();
+      }
+      return;
+    }
     show(next, within ? "none" : direction === "back" ? "restore" : "heading");
   }
 
@@ -302,7 +329,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     const next = followRoute(before, state, route);
     if (next !== null) {
       const had = doc.activeElement;
-      go(next.area, { sub: next.sub });
+      go(next.area, { sub: next.sub, param: next.param ?? null });
       // Run's move is said (#242), unless the focus moved with it to the
       // new area's heading, which says it.
       if (next.run && doc.activeElement === had) {
@@ -333,12 +360,14 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
       section.render(shells.get(section.area), store);
     }
     show(next, "none");
+    stopWatching = watchReadingOrder(doc, () => route?.area ?? null);
     win.addEventListener("hashchange", onHashChange);
     doc.addEventListener?.(REVEAL_EVENT, onReveal);
   }
 
   function destroy() {
     unsubscribe();
+    stopWatching();
     win.removeEventListener("hashchange", onHashChange);
     doc.removeEventListener?.(REVEAL_EVENT, onReveal);
   }
