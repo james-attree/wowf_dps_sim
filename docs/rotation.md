@@ -715,8 +715,14 @@ rules[0].conditions: Eviscerate (eviscerate) is a finisher, but its rule has no 
 rules[0]: Sinister Strike (sinister-strike) starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. The 2 rules below it for Backstab (backstab) and Eviscerate (eviscerate) never cast. Give it conditions or move it below them.
 rules[3]: Backstab (backstab) is never reached: a rule above it casts it under the same conditions. Delete this one.
 rules[1].conditions[0]: Sinister Strike (sinister-strike) isn't granted by a talent, so 'is granted' is never true here and this rule never casts.
-rules[0].conditions[1]: Eviscerate (eviscerate) doesn't need a talent, so 'is unlocked' is always true and does nothing.
+rules[0].conditions[1]: Eviscerate (eviscerate) doesn't need a talent, so 'is not locked' is always true and does nothing.
+rules[2].conditions[1]: This condition is the same as an earlier one in the rule for Sinister Strike (sinister-strike), so it changes nothing. Delete it.
 ```
+
+`unlockedNotTalent` is about abilities no talent grants. A talent ability's
+`abilityUnlocked` check is not warned for, though with no build selected it
+is true too: since #199 no build is untalented, so the engine passes over
+that rule anyway (see "Granted and unlocked: no build selected").
 
 The warnings do not know the fight: an unconditional Backstab rule is warned
 for even though, without a dagger main hand, the interpreter passes it over.
