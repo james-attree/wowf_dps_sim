@@ -170,12 +170,14 @@ describe("Results views (#242)", () => {
     const model = resultViewsModel(state());
     assert.equal(
       model.average.label,
-      "Average · 6 × 30 s fights · seed 242 · ran at 09:12",
+      "Average · 6 × 30 s fights · seed\u00a0242 · ran at 09:12",
     );
     assert.equal(
       model.live.label,
-      "Live fight · 30 s · seed 242 · ran at 09:12 · finished",
+      "Live fight · 30 s · seed\u00a0242 · ran at 09:12 · finished",
     );
+    // "seed" and its number are joined by a no-break space (#245, P5).
+    assert.doesNotMatch(model.average.label, /seed 242/);
     // Its totals are the fight's own readouts now (#245), shown once it
     // has started.
     assert.equal(model.live.empty, false);
