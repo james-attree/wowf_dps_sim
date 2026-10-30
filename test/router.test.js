@@ -28,6 +28,9 @@ describe("routes", () => {
     assert.deepEqual(parseRoute(""), top("character"));
     assert.deepEqual(parseRoute(undefined), top("character"));
     assert.deepEqual(parseRoute("#nowhere"), top("character"));
+    // An area's name in any case (Fran's QA of #251): #Fight is #fight.
+    assert.deepEqual(parseRoute("#Fight"), top("fight"));
+    assert.deepEqual(parseRoute("#RESULTS"), top("results"));
     // No sub-screens yet (UX5, UX6): a sub is dropped.
     assert.deepEqual(parseRoute("#character/stats"), top("character"));
   });
@@ -65,6 +68,7 @@ describe("routes", () => {
   it("tell an area's hash from a link to an element", () => {
     assert.equal(isRouteHash("#results"), true);
     assert.equal(isRouteHash(""), true);
+    assert.equal(isRouteHash("#Rotation"), true);
     assert.equal(isRouteHash("#run-errors-link"), false);
   });
 
@@ -249,6 +253,8 @@ function fakePage(hash = "") {
   const el = (tag, attrs, children) =>
     new FakeElement(doc, tag, attrs, children);
   const fix = el("input", { id: "cfg-ap" });
+  // A control outside every area, as Run is in the Run bar.
+  const runButton = el("button", { id: "run-button" });
   const shells = areaIds().map((area) =>
     el("section", { "data-area": area }, [
       el("h1", { id: `area-${area}-title` }),
@@ -264,7 +270,7 @@ function fakePage(hash = "") {
   for (const link of links) {
     link.querySelector("[data-badge]").hidden = true;
   }
-  const root = el("body", {}, [el("nav", {}, links), ...shells]);
+  const root = el("body", {}, [el("nav", {}, links), runButton, ...shells]);
   doc.body = root;
   doc.querySelectorAll = (selector) => root.querySelectorAll(selector);
   doc.getElementById = (id) =>
@@ -287,6 +293,7 @@ function fakePage(hash = "") {
     shells,
     links,
     fix,
+    runButton,
     visit,
     travel,
     entries: () => entries,
@@ -418,10 +425,31 @@ describe("mountRouter", () => {
 
   it("shows the fight when a live Run starts, the focus left alone", () => {
     const page = mount("#character");
-    page.fix.focus();
+    page.runButton.focus();
     page.store.set({ run: { mode: "live", state: "running", errors: {} } });
     assert.deepEqual(shown(page.shells), ["fight"]);
-    assert.equal(page.doc.activeElement, page.fix);
+    assert.equal(page.doc.activeElement, page.runButton);
+  });
+
+  it("focuses the new h1 when the focus was in the area it leaves", () => {
+    // Fran's QA of #251, B1: "Edit rotation…" (in Character) opens the
+    // builder, the page goes to Rotation, and the focus must not be left
+    // on a hidden control.
+    const page = mount("#character");
+    page.fix.focus();
+    page.store.set({ rotationBuilder: { view: { open: true } } });
+    assert.deepEqual(shown(page.shells), ["rotation"]);
+    assert.equal(page.doc.activeElement, page.shells[1].querySelector("h1"));
+    assert.equal(page.doc.activeElement.id, "area-rotation-title");
+  });
+
+  it("goes to an area named in any case, canonically", () => {
+    const page = mount("#Results");
+    assert.deepEqual(shown(page.shells), ["results"]);
+    assert.equal(page.win.location.hash, "#results");
+    page.visit("#Fight");
+    assert.deepEqual(shown(page.shells), ["fight"]);
+    assert.equal(page.win.location.hash, "#fight");
   });
 
   it("shows a control's area when a view reveals it", () => {

@@ -4,6 +4,12 @@
 // aria-current="page", and the Run bar's Fix link shows the area its field
 // is in. At each of the phone and desktop widths. Run in Chrome through
 // playwright-core with `npm run test:browser`.
+//
+// Fran's QA of #251 adds: "Edit rotation…" leaves the focus on Rotation's
+// h1 (B1); the batch's and the fight log's live regions still speak while
+// another area is shown (B2); below the wide breakpoint a control the
+// keyboard focuses is never under the bottom nav (B3); and an area's name
+// in the hash is matched in any case.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -26,6 +32,15 @@ const PAIR_MIN = "50";
 const PAIR_MAX = "40";
 const MIN = "#cfg-weapons-mainHand-min";
 const MAX = "#cfg-weapons-mainHand-max";
+// The narrow widths, where the nav is a bar at the bottom of the screen.
+const BOTTOM_NAV_WIDTHS = [390, 360];
+// Enough Tab presses to go through an area's controls.
+const TAB_SWEEP = 160;
+// A short batch and a live fight long enough to say a key event.
+const BATCH_FIGHTS = "20";
+const LIVE_FIGHT_SECONDS = "30";
+const BATCH_TIMEOUT = 60_000;
+const SPOKEN_TIMEOUT = 20_000;
 
 let server;
 let base;
@@ -108,6 +123,13 @@ for (const width of WIDTHS) {
           "the nav shows",
         );
         assert.deepEqual(errors, []);
+        await context.close();
+      }
+      // Any case (Fran's QA of #251): #Fight is #fight.
+      {
+        const { context, page } = await open(width, "#Fight");
+        const state = await assertAt(page, "fight", "#Fight");
+        assert.equal(state.hash, "#fight");
         await context.close();
       }
       for (const hash of ["", "#nowhere"]) {
@@ -193,14 +215,188 @@ for (const width of WIDTHS) {
 
     test("Edit rotation opens the builder in Rotation; Back closes it", async () => {
       const { context, page, errors } = await open(width, "#character");
-      await page.locator("#cfg-rotation-edit").click();
-      await assertAt(page, "rotation");
+      // From the keyboard (B1): the focus goes to Rotation's h1, not body.
+      await page.locator("#cfg-rotation-edit").focus();
+      await page.keyboard.press("Enter");
+      const state = await assertAt(page, "rotation");
+      assert.equal(state.focus, "area-rotation-title");
       assert.equal(await page.locator("#rotation-builder").isVisible(), true);
       await page.goBack();
       await assertAt(page, "character");
       assert.equal(await page.locator("#rotation-builder").isVisible(), false);
       assert.deepEqual(errors, []);
       await context.close();
+    });
+  });
+}
+
+// The live regions' messages while another area is shown (B2): each change
+// that leaves #results-announce or #live-announcer with text, with whether
+// the region was in a hidden subtree (not in the accessibility tree) and
+// the area shown at the time.
+async function watchLiveRegions(page) {
+  await page.evaluate(() => {
+    const doc = globalThis.document;
+    globalThis.__said = [];
+    for (const id of ["results-announce", "live-announcer"]) {
+      const region = doc.getElementById(id);
+      new globalThis.MutationObserver(() => {
+        if (region.textContent.trim() === "") {
+          return;
+        }
+        globalThis.__said.push({
+          id,
+          text: region.textContent,
+          inHidden: region.closest("[hidden]") !== null,
+          area: [...doc.querySelectorAll("[data-area]")].find(
+            (shell) => !shell.hidden,
+          )?.dataset.area,
+        });
+      }).observe(region, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
+  });
+}
+
+const said = (page) => page.evaluate(() => globalThis.__said);
+
+// The run settings fold away on phones: open them for a field.
+async function settingsField(page, id) {
+  const field = page.locator(`#${id}`);
+  if (!(await field.isVisible())) {
+    await page.locator("#run-settings-toggle").click();
+  }
+  return field;
+}
+
+// Whether the accessibility tree has the node (it is not ignored).
+async function inAccessibilityTree(page, selector) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send("DOM.getDocument");
+  const { nodeId } = await cdp.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector,
+  });
+  const { nodes } = await cdp.send("Accessibility.getPartialAXTree", {
+    nodeId,
+    fetchRelatives: false,
+  });
+  await cdp.detach();
+  return nodes.length > 0 && nodes[0].ignored !== true;
+}
+
+for (const width of WIDTHS) {
+  describe(`announcements from another area at ${width}`, () => {
+    test("a batch's progress and finish are said while Character is shown", async () => {
+      const { context, page, errors } = await open(width, "#character");
+      await (await settingsField(page, "run-mode-batch")).check();
+      await (await settingsField(page, "run-iterations")).fill(BATCH_FIGHTS);
+      await watchLiveRegions(page);
+      await page.locator("#run-button").click();
+      await assertAt(page, "results");
+      await page.locator('[data-nav-area="character"]').click();
+      await assertAt(page, "character");
+      await page.waitForFunction(
+        () =>
+          /^Batch finished/.test(
+            globalThis.document.getElementById("results-announce").textContent,
+          ),
+        null,
+        { timeout: BATCH_TIMEOUT },
+      );
+      const messages = (await said(page)).filter(
+        ({ id }) => id === "results-announce",
+      );
+      const finished = messages.at(-1);
+      assert.match(finished.text, /^Batch finished/);
+      assert.equal(finished.area, "character");
+      assert.deepEqual(
+        messages.filter(({ inHidden }) => inHidden),
+        [],
+        "no message went into a hidden subtree",
+      );
+      assert.equal(await inAccessibilityTree(page, "#results-announce"), true);
+      assert.deepEqual(errors, []);
+      await context.close();
+    });
+
+    test("the fight log's key events are said while Character is shown", async () => {
+      const { context, page, errors } = await open(width, "#fight");
+      await page.locator("#announce-toggle").check();
+      await (
+        await settingsField(page, "run-duration")
+      ).fill(LIVE_FIGHT_SECONDS);
+      await watchLiveRegions(page);
+      await page.locator('[data-nav-area="character"]').click();
+      await assertAt(page, "character");
+      await page.locator("#run-button").click();
+      await assertAt(page, "fight");
+      await page.locator('[data-nav-area="character"]').click();
+      await assertAt(page, "character");
+      await page.waitForFunction(
+        () =>
+          globalThis.__said.some(
+            ({ id, area }) => id === "live-announcer" && area === "character",
+          ),
+        null,
+        { timeout: SPOKEN_TIMEOUT },
+      );
+      const messages = (await said(page)).filter(
+        ({ id }) => id === "live-announcer",
+      );
+      assert.deepEqual(
+        messages.filter(({ inHidden }) => inHidden),
+        [],
+        "no message went into a hidden subtree",
+      );
+      assert.equal(await inAccessibilityTree(page, "#live-announcer"), true);
+      await page.locator("#stop-button").click();
+      assert.deepEqual(errors, []);
+      await context.close();
+    });
+  });
+}
+
+// Tabs through an area from the top of the page and returns each focused
+// control the bottom nav covers, by id or tag, with its box (B3).
+async function coveredByNav(page) {
+  await page.evaluate(() => globalThis.scrollTo(0, 0));
+  await page.locator('[data-nav-area="results"]').focus();
+  const covered = [];
+  for (let press = 0; press < TAB_SWEEP; press += 1) {
+    await page.keyboard.press("Tab");
+    const hit = await page.evaluate(() => {
+      const doc = globalThis.document;
+      const node = doc.activeElement;
+      if (node === null || node.closest("[data-area]") === null) {
+        return null;
+      }
+      const nav = doc.getElementById("area-nav").getBoundingClientRect();
+      const box = node.getBoundingClientRect();
+      return box.bottom > nav.top
+        ? { id: node.id || node.tagName, top: box.top, bottom: box.bottom }
+        : null;
+    });
+    if (hit !== null) {
+      covered.push(hit);
+    }
+  }
+  return covered;
+}
+
+for (const width of BOTTOM_NAV_WIDTHS) {
+  describe(`the bottom nav at ${width}`, () => {
+    test("covers no control the keyboard focuses", async () => {
+      for (const area of ["character", "rotation"]) {
+        const { context, page, errors } = await open(width, `#${area}`);
+        await assertAt(page, area);
+        assert.deepEqual(await coveredByNav(page), [], area);
+        assert.deepEqual(errors, []);
+        await context.close();
+      }
     });
   });
 }

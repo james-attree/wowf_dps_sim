@@ -18,7 +18,12 @@ import {
 // focuses the new screen's h1; Back puts the focus back where it was when
 // that screen was left, which is the control that opened the next one.
 // A move the page makes itself (Run showing its fight, the rotation builder
-// opening) leaves the focus to the view that made it.
+// opening) leaves the focus to the view that made it, unless the focus was
+// in the area it leaves: that control is hidden now, so the new area's h1
+// takes the focus rather than the page dropping it (Fran's QA of #251, B1:
+// "Edit rotation…" is in Character and opens the builder in Rotation).
+//
+// An area's name in the hash is matched in any case: #Fight is #fight.
 
 export const APP_TITLE = "WoW Forever Rogue Simulator";
 
@@ -35,10 +40,11 @@ const PAGE_TOP = 0;
 // "#rotation/rule/2" as { area, sub, param }. An unknown area is the default
 // one; an unknown sub is the area's top level.
 export function parseRoute(hash, subs = SUBS) {
-  const [area, sub, param] = String(hash ?? "")
+  const [head, sub, param] = String(hash ?? "")
     .replace(/^#/, "")
     .split(SEPARATOR)
     .map((part) => decodeURIComponent(part));
+  const area = head.toLowerCase();
   if (!isArea(area)) {
     return { area: DEFAULT_AREA, sub: null, param: null };
   }
@@ -60,7 +66,7 @@ export const isRouteHash = (hash) => {
   const head = String(hash ?? "")
     .replace(/^#/, "")
     .split(SEPARATOR)[0];
-  return head === "" || isArea(head);
+  return head === "" || isArea(head.toLowerCase());
 };
 
 // "Rotation · WoW Forever Rogue Simulator".
@@ -138,6 +144,11 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
   const left = new Map();
   let last = store.get();
 
+  // The area a node is in, or null when it is outside every area (the nav,
+  // the Run bar).
+  const areaOf = (node) =>
+    node?.closest?.("[data-area]")?.getAttribute("data-area") ?? null;
+
   const entryIndex = () => {
     const state = win.history.state;
     return typeof state?.routerIndex === "number" ? state.routerIndex : null;
@@ -145,6 +156,8 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
 
   function show(next, focus) {
     const from = route?.area ?? null;
+    const had = doc.activeElement;
+    const stranded = areaOf(had) !== null && areaOf(had) !== next.area;
     route = next;
     for (const [area, shell] of shells) {
       shell.hidden = area !== next.area;
@@ -163,7 +176,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     }
     syncPanels(from, next.area);
     const heading = shells.get(next.area)?.querySelector("h1");
-    if (focus === "heading") {
+    if (focus === "heading" || (focus === "none" && stranded)) {
       heading?.focus();
     } else if (focus === "restore") {
       const back = left.get(index);
@@ -198,11 +211,6 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     win.history.pushState({ routerIndex: index }, "", formatRoute(next));
     show(next, focus);
   }
-
-  // The area a node is in, or null when it is outside every area (the nav,
-  // the Run bar).
-  const areaOf = (node) =>
-    node?.closest?.("[data-area]")?.getAttribute("data-area") ?? null;
 
   function onHashChange() {
     const hash = win.location.hash;

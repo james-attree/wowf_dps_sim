@@ -168,6 +168,22 @@
         <p id="run-help" class="run-help"></p>
       </section>
 
+      <!-- Live regions stay outside the area shells so they still speak
+           while their area is hidden (#239 B2). -->
+      <div
+        id="live-announcer"
+        class="visually-hidden"
+        role="status"
+        aria-live="polite"
+      ></div>
+      <p
+        id="results-announce"
+        class="visually-hidden"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></p>
+
       <section id="area-character" class="area" data-area="character">
         <h1 id="area-character-title" class="area-title" tabindex="-1">
           Character
@@ -775,7 +791,8 @@
         >
           <div class="section-heading">
             <div>
-              <p class="eyebrow">COMBAT</p>
+              <p class="eyebrow" aria-hidden="true">COMBAT</p>
+              <h2 id="resources-heading" class="visually-hidden">Combat</h2>
             </div>
             <output id="time-value" aria-live="off" class="elapsed-time"
               >00:00</output
@@ -951,12 +968,6 @@
             ><span id="log-step" aria-hidden="true"></span>
           </p>
           <p id="log-readout" class="visually-hidden" aria-live="polite"></p>
-          <div
-            id="live-announcer"
-            class="visually-hidden"
-            role="status"
-            aria-live="polite"
-          ></div>
         </section>
       </section>
 
@@ -977,13 +988,6 @@
             </div>
           </div>
           <div id="results-body"></div>
-          <p
-            id="results-announce"
-            class="visually-hidden"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          ></p>
         </section>
       </section>
     </main>

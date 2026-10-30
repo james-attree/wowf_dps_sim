@@ -2261,6 +2261,15 @@ th[aria-sort="ascending"] {
    equal links, the current one in the accent with a bar along its top. The
    page leaves room for it under the footer. */
 @media (max-width: 1023.98px) {
+  /* A control the keyboard focuses near the bottom of the screen is scrolled
+     clear of the bar, its safe-area inset and a small gap (Fran's QA of #251,
+     B3; proposal section 2). */
+  html {
+    scroll-padding-bottom: calc(
+      var(--area-nav-height) + env(safe-area-inset-bottom) + 12px
+    );
+  }
+
   body {
     padding-bottom: calc(
       var(--area-nav-height) + 16px + env(safe-area-inset-bottom)
