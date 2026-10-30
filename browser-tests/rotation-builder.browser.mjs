@@ -377,7 +377,7 @@ for (const width of WIDTHS) {
         assert.equal(bar.height, STRIP_PX, `strip ${bar.height}px`);
         assert.equal(
           await page.getAttribute("#run-status-text", "data-dock"),
-          "Can't run · Rotation errors",
+          "Rotation errors",
         );
       }
       assert.deepEqual(errors, []);

@@ -4,6 +4,7 @@ import {
   rotationErrorCount,
   talentErrorCount,
 } from "./run-model.js";
+import { anyStale } from "./stale.js";
 
 // The page's areas and the sections in them (#239, Phase 4.5 UX1; Fran's
 // approved UX proposal, §3 and §4). Plain data and plain functions: no DOM,
@@ -31,7 +32,7 @@ const NO_STATUS = Object.freeze({ errors: 0, warnings: 0, edited: false });
 // was edited. The errors follow Run's one blocked count (#237): every setting
 // that blocks Run is in exactly one section, so the areas' errors add up to
 // blockedCount (the equality test in test/sections.test.js). `edited` is
-// false for now: the stale state is UX4's (#242).
+// Results' alone (#242): a kept result is out of date.
 const status = (errors, warnings = 0) => ({ errors, warnings, edited: false });
 
 // The stats form: its fields' errors, as the form's footer counts them.
@@ -53,8 +54,10 @@ export const rotationStatus = (state) => {
 // (fights only count in batch mode, as Run counts them).
 export const fightStatus = (state) => status(fieldErrors(state.run).length);
 
-// Results hold nothing to fix.
-export const resultsStatus = () => NO_STATUS;
+// Results hold nothing to fix; they are edited when a kept result is out of
+// date (#242, js/views/stale.js).
+export const resultsStatus = (state) =>
+  anyStale(state) ? { ...NO_STATUS, edited: true } : NO_STATUS;
 
 // No chip summaries yet: the areas' summary rows come with the dock (UX2,
 // #240) and the Character rows (UX6, #244). A section's summary is null until then.

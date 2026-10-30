@@ -350,6 +350,11 @@ describe("js/main.js on a stand-in page", () => {
       return original.call(this, seconds);
     };
     await import("../js/main.js");
+    // The page opens in Batch mode (#242, UX4): these fights are live.
+    const liveMode = element("#run-mode-live");
+    liveMode.value = "live";
+    liveMode.checked = true;
+    liveMode.listeners.get("change")();
   });
 
   it("starts idle with the seed in the bar, and Run starts the fight (#153)", () => {
@@ -365,7 +370,11 @@ describe("js/main.js on a stand-in page", () => {
     assert.equal(sum(secondsSeen), 0, "no time before the first frame");
     assert.ok(pendingFrame, "Run asks for a frame");
     assert.equal(element("#run-button").disabled, true);
-    assert.equal(element("#run-announce").textContent, "Running");
+    // Run moved the page to Fight (#242): said with the run's own message.
+    assert.equal(
+      element("#run-announce").textContent,
+      "Running. Showing Fight.",
+    );
   });
 
   it("gives no time on the first frame, then each frame's own seconds", () => {
@@ -741,6 +750,11 @@ describe("icons on the live page (stub DOM)", () => {
     globalThis.requestAnimationFrame = (callback) => frames.push(callback);
     globalThis.cancelAnimationFrame = () => {};
     await import("../js/main.js?icons-stub-dom");
+    // The page opens in Batch mode (#242, UX4): this fight is live.
+    const liveMode = stubDocument.querySelector("#run-mode-live");
+    liveMode.value = "live";
+    liveMode.checked = true;
+    liveMode.fire("change");
     // The page starts idle (#153): Run starts the fight.
     stubDocument.querySelector("#run-button").fire("click");
     let timestamp = 1000;

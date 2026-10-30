@@ -4,7 +4,7 @@ import { buildLabel, poisonName } from "./build-label.js";
 import { createConfigForm, pageDefaultConfig } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
 import { createRotationBuilder } from "./rotation-builder.js";
-import { createRunActions, emptyBatch } from "./run-actions.js";
+import { createRunActions, emptyBatch, emptyRan } from "./run-actions.js";
 import { createStore } from "./store.js";
 import { createTalentTree } from "./talent-tree.js";
 import { createConfigFormView } from "./views/config-form.js";
@@ -12,6 +12,7 @@ import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
 import { createResultsCardView } from "./views/results-card.js";
 import { createResultsPanelView } from "./views/results-panel.js";
+import { createResultViewsView } from "./views/result-views.js";
 import { createRotationBuilderView } from "./views/rotation-builder.js";
 import { mountRouter } from "./views/router.js";
 import { PAGE_SECTIONS, createSections } from "./views/sections.js";
@@ -34,7 +35,8 @@ import { createVisualiserView } from "./views/visualiser.js";
 // batch on the page keeps it.
 //
 // The page starts idle (#153), with an empty fight at 0:00 on the visualiser
-// and a fresh seed in the bar, so a fight can be repeated with
+// and a fresh seed in the bar, set to run an average (#242, UX4: the quick
+// answer is Run's first job; "Watch fight" is the second), so a fight can be repeated with
 // runFight({ seed, duration, config }). Fights are k("batch.duration") long
 // (300 s) in both modes; a batch is k("fight.iterations") fights (1,000).
 const config = pageDefaultConfig();
@@ -47,7 +49,7 @@ const client = new BatchClient();
 const store = createStore({
   config,
   run: {
-    mode: "live",
+    mode: "batch",
     state: "idle",
     seed,
     duration,
@@ -65,6 +67,7 @@ const store = createStore({
   batch: emptyBatch(client.mode),
   frame: 0,
   results: { time: 0, damage: 0 },
+  ran: emptyRan(),
 });
 
 const live = createLiveRun(store, {
@@ -79,6 +82,7 @@ const actions = createRunActions({
   client,
   drawSeed,
   now: () => performance.now(),
+  stamp: () => Date.now(),
 });
 // The running batch's elapsed time between progress messages (#155): a
 // once-a-second tick, only while a batch runs.
@@ -120,8 +124,14 @@ const renders = {
     createVisualiserView(document, store);
     createResultsView(document, store);
   },
-  results: () =>
-    createResultsPanelView(document, store, { buildLabel, poisonName }),
+  results: () => {
+    // The Results area's two kept views, Average and Live fight (#242).
+    createResultViewsView(document, store, {
+      ...actions,
+      commitEdits: formActions.commitEdits,
+    });
+    createResultsPanelView(document, store, { buildLabel, poisonName });
+  },
 };
 const sections = createSections();
 for (const section of PAGE_SECTIONS) {

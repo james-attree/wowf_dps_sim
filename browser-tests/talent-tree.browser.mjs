@@ -155,7 +155,7 @@ for (const width of WIDTHS) {
       assert.equal(
         bar.shown,
         width < WIDE_PX
-          ? "Can't run · Talents over cap"
+          ? "Talents over cap"
           : "Can't run · Talents over the level cap",
       );
       assert.equal(bar.clipped, false, "no ellipsis");

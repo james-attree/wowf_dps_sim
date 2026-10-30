@@ -570,7 +570,7 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(batch.status, "running");
     assert.equal(run.state, "running");
     assert.deepEqual(batch.progress, { completed: 0, total: 4, mean: null });
-    assert.equal(batch.previous, before.result, "greyed until progress");
+    assert.equal(batch.previous, before.result, "greyed till the result");
     assert.equal(batch.result, null);
     assert.equal(batch.mode, "main");
     assert.equal(page.model().status, "0/4 fights · Running batch");
@@ -591,7 +591,8 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(page.client.calls.length, 1, "Run is off while running");
 
     page.client.job.onProgress({ completed: 2, total: 4, mean: 310 });
-    assert.equal(page.store.get().batch.previous, null);
+    // Kept on the card as the previous average while this one runs (#242).
+    assert.equal(page.store.get().batch.previous, before.result);
     assert.deepEqual(page.store.get().batch.progress, {
       completed: 2,
       total: 4,
@@ -991,7 +992,7 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     withErrors(page, 4);
     assert.equal(page.model().run.disabled, true);
     assert.equal(page.model().reason, "Can't run · Rotation has 4 errors");
-    assert.equal(page.model().statusShort, "Can't run · Rotation errors");
+    assert.equal(page.model().statusShort, "Rotation errors");
     withErrors(page, 1);
     assert.equal(page.model().reason, "Can't run · Rotation has 1 error");
   });
@@ -1055,18 +1056,15 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     const page = setup();
     assert.equal(page.model().statusShort, null);
     overCap(page);
-    assert.equal(page.model().statusShort, "Can't run · Talents over cap");
+    assert.equal(page.model().statusShort, "Talents over cap");
     page.actions.setMode("batch");
-    assert.equal(page.model().statusShort, "Can't run · Talents over cap");
+    assert.equal(page.model().statusShort, "Talents over cap");
 
     const { doc, el } = standIn();
     createControlsView(doc, page.store, page.actions);
     const status = el("run-status-text");
     assert.equal(status.textContent, "Can't run · Talents over the level cap");
-    assert.equal(
-      status.getAttribute("data-short"),
-      "Can't run · Talents over cap",
-    );
+    assert.equal(status.getAttribute("data-short"), "Talents over cap");
     assert.equal(
       el("run-reason").textContent,
       "Can't run · Talents over the level cap",
@@ -1866,6 +1864,8 @@ describe("Run never starts with stale settings (#247)", () => {
     const wiring = wired();
     const { page, el } = wiring;
     repro(wiring);
+    // Another button's press is kept from focusing Run (#242, Fran's #253
+    // check in real Chrome), so the field keeps the focus and its edit.
     for (const button of [1, 2]) {
       const press = el("run-button").fire("mousedown", {
         button,
@@ -1874,7 +1874,7 @@ describe("Run never starts with stale settings (#247)", () => {
           this.prevented += 1;
         },
       });
-      assert.equal(press.prevented, 0, `button ${button}`);
+      assert.equal(press.prevented, 1, `button ${button}`);
       assert.equal(blocked(page.store.get()), false, "the edit is not checked");
     }
     const press = el("run-button").fire("mousedown", {
@@ -1945,9 +1945,10 @@ describe("the phone dock (#240, UX2)", () => {
     page.actions.run();
     page.client.job.onProgress({ completed: 2, total: 4, mean: 310 });
     assert.equal(dockText(page.store.get()).status, "Running · 2/4");
+    // No mean yet: a dash, labelled as the live one is (#242).
     assert.deepEqual(dockDps(page.store.get()), {
       value: NO_DPS,
-      label: "DPS avg",
+      label: "DPS",
     });
     page.client.job.resolve(
       batchResult({

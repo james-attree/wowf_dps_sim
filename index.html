@@ -113,22 +113,22 @@
                   <legend>Mode</legend>
                   <label class="run-mode-pill">
                     <input
-                      id="run-mode-live"
-                      type="radio"
-                      name="run-mode"
-                      value="live"
-                      checked
-                    />
-                    <span>Live</span>
-                  </label>
-                  <label class="run-mode-pill">
-                    <input
                       id="run-mode-batch"
                       type="radio"
                       name="run-mode"
                       value="batch"
+                      checked
                     />
                     <span>Batch</span>
+                  </label>
+                  <label class="run-mode-pill">
+                    <input
+                      id="run-mode-live"
+                      type="radio"
+                      name="run-mode"
+                      value="live"
+                    />
+                    <span>Live</span>
                   </label>
                 </fieldset>
                 <div class="run-field">
@@ -744,7 +744,8 @@
                 Changes apply to the next run
               </p>
               <p id="cfg-edited" class="config-edited" hidden>
-                Edited — applies to the next run
+                Edited — applies to the next run. The results say “Out of date”
+                until you run again.
               </p>
               <div id="cfg-fix" class="config-fix" hidden>
                 <p id="cfg-fix-heading"></p>
@@ -1054,6 +1055,104 @@
         <h1 id="area-results-title" class="area-title" tabindex="-1">
           Results
         </h1>
+        <!-- Two kept results (#242, UX4; proposal §5): the average and the
+             live fight, each with its own label, out-of-date banner and Run
+             buttons. Running one never clears the other. -->
+        <nav class="result-switch" aria-label="Result views">
+          <a
+            id="result-view-average"
+            class="result-switch-link"
+            href="#results/average"
+            data-result-view="average"
+            >Average</a
+          >
+          <a
+            id="result-view-live"
+            class="result-switch-link"
+            href="#results/live"
+            data-result-view="live"
+            >Live fight</a
+          >
+        </nav>
+        <div id="results-average" class="result-view" data-result="average">
+          <p id="results-average-label" class="result-label"></p>
+          <div
+            id="results-average-stale"
+            class="stale-banner"
+            data-stale="batch"
+            hidden
+          ></div>
+          <div class="result-actions">
+            <button
+              id="results-average-run"
+              class="run-button result-action"
+              type="button"
+              data-run-as="batch"
+            >
+              Run average
+            </button>
+            <button
+              id="results-average-watch"
+              class="pause-button result-action"
+              type="button"
+              data-run-as="live"
+            >
+              Watch fight
+            </button>
+          </div>
+        </div>
+        <section
+          id="results-live"
+          class="result-view"
+          data-result="live"
+          aria-labelledby="results-live-heading"
+          hidden
+        >
+          <h2 id="results-live-heading" class="visually-hidden">Live fight</h2>
+          <p id="results-live-label" class="result-label"></p>
+          <div
+            id="results-live-stale"
+            class="stale-banner"
+            data-stale="live"
+            hidden
+          ></div>
+          <div class="result-actions">
+            <button
+              id="results-live-run"
+              class="run-button result-action"
+              type="button"
+              data-run-as="live"
+            >
+              Watch fight
+            </button>
+            <button
+              id="results-live-average"
+              class="pause-button result-action"
+              type="button"
+              data-run-as="batch"
+            >
+              Run an average
+            </button>
+          </div>
+          <dl id="results-live-totals" class="result-live-totals">
+            <div>
+              <dt>Total damage</dt>
+              <dd id="results-live-damage">—</dd>
+            </div>
+            <div>
+              <dt>Damage per second</dt>
+              <dd id="results-live-dps">—</dd>
+            </div>
+            <div>
+              <dt>Fight time</dt>
+              <dd id="results-live-time">—</dd>
+            </div>
+          </dl>
+          <p class="result-live-more">
+            <a href="#fight">Open the fight</a> for its meters, effects and
+            combat log.
+          </p>
+        </section>
         <section
           id="results-panel"
           class="panel results-panel"
@@ -1061,7 +1160,7 @@
         >
           <div class="section-heading">
             <div>
-              <p class="eyebrow">BATCH RESULTS</p>
+              <p class="eyebrow">AVERAGE</p>
               <h2 id="results-heading">Results</h2>
               <p id="results-meta" class="results-meta" hidden></p>
             </div>

@@ -2,6 +2,7 @@ import { el, toDom, toMarkup } from "../svg.js";
 import { breakdownModel, num, pct } from "./results-render.js";
 import { clock } from "./run-model.js";
 import { formatNumber } from "../charts.js";
+import { isStale, staleBanner } from "./stale.js";
 
 // The desktop results column's summary card (#241, UX3; proposal sections 3
 // and 5). From 1024px up the page has a column beside the areas: the Run
@@ -17,10 +18,14 @@ import { formatNumber } from "../charts.js";
 const count = (value) => formatNumber(value, 0);
 const fights = (n) => `${count(n)} ${n === 1 ? "fight" : "fights"}`;
 
+// No fight finished yet.
+const NO_FIGHTS = 0;
+
 const line = (cls, children) => el("p", { class: cls }, children);
 
 // The average: a finished or stopped batch's mean with its 95% interval, the
 // fights, the build, the damage per fight and the ability that did most.
+
 function average(result, buildLabel) {
   const summary = result.summary;
   const ci = summary.ci95;
@@ -56,16 +61,48 @@ function average(result, buildLabel) {
   ];
 }
 
+// Mid-run (#242, UX4; Fran's #253 N7): the progress and the running
+// average, then the average kept from before, marked as the previous one
+// and greyed until the new one replaces it. A first batch has none.
+function runningPart(batch, run, buildLabel) {
+  const total = batch.progress?.total ?? run.iterations;
+  const completed = batch.progress?.completed ?? NO_FIGHTS;
+  const mean = batch.progress?.mean ?? null;
+  const previous = batch.previous ?? null;
+  const kept = previous !== null && previous.completed > NO_FIGHTS;
+  return [
+    line("results-card-status", [
+      `Running batch · ${count(completed)} of ${fights(total)}`,
+    ]),
+    completed > NO_FIGHTS &&
+      mean !== null &&
+      line("results-card-running", [`Running average ${num(mean)} DPS`]),
+    kept &&
+      el("div", { class: "results-card-previous" }, [
+        line("results-card-previous-title", ["Previous average"]),
+        ...average(previous, buildLabel),
+      ]),
+  ];
+}
+
+// The average's out-of-date line (#242): the card's version of the Results
+// banner, over the average it is about.
+function staleLine(state) {
+  const banner = staleBanner(state, "batch");
+  return (
+    banner !== null &&
+    el("div", { class: "results-card-stale" }, [
+      el("strong", {}, [banner.title]),
+      " ",
+      banner.short,
+    ])
+  );
+}
+
 function batchPart(batch, run, buildLabel) {
   const result = batch.result;
   if (batch.status === "running") {
-    const total = batch.progress?.total ?? run.iterations;
-    const completed = batch.progress?.completed ?? 0;
-    return [
-      line("results-card-status", [
-        `Running batch · ${count(completed)} of ${fights(total)}`,
-      ]),
-    ];
+    return runningPart(batch, run, buildLabel);
   }
   if ((batch.status === "done" || batch.status === "cancelled") && result) {
     if (result.completed === 0) {
@@ -117,11 +154,16 @@ export function liveText({ run, results }) {
 export function cardModel(state, { buildLabel }) {
   const { batch, run } = state;
   const status = batch.status;
+  const running = status === "running";
+  const liveStale = isStale(state, "live") ? " · out of date" : "";
   return {
-    busy: status === "running",
-    body: batchPart(batch, run, buildLabel),
+    busy: running,
+    body: [
+      ...(running ? [] : [staleLine(state)]),
+      ...batchPart(batch, run, buildLabel),
+    ].filter(Boolean),
     open: ["running", "done", "cancelled", "error"].includes(status),
-    live: `Live fight: ${liveText(state)}`,
+    live: `Live fight: ${liveText(state)}${liveStale}`,
   };
 }
 
@@ -153,7 +195,11 @@ export function createResultsCardView(doc, store, labels) {
   }
   render(store.get());
   return store.subscribe(({ state, changed }) => {
-    if (["run", "batch", "results"].some((s) => changed.includes(s))) {
+    if (
+      ["run", "batch", "results", "config", "ran"].some((s) =>
+        changed.includes(s),
+      )
+    ) {
       render(state);
     }
   });

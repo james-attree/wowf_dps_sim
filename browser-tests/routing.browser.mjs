@@ -326,6 +326,8 @@ for (const width of WIDTHS) {
     test("the fight log's key events are said while Character is shown", async () => {
       const { context, page, errors } = await open(width, "#fight");
       await page.locator("#announce-toggle").check();
+      // A live fight: the page opens in Batch mode (#242).
+      await (await settingsField(page, "run-mode-live")).check();
       await (
         await settingsField(page, "run-duration")
       ).fill(LIVE_FIGHT_SECONDS);

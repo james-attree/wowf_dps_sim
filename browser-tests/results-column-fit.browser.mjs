@@ -281,6 +281,8 @@ describe("the GCD readout stays in its card (Fran's #253 check, B1)", () => {
       const { context, page, errors } = await open(width, { hash: "#fight" });
       try {
         await toArea(page, "fight");
+        // The page opens in Batch mode (#242).
+        await page.check("#run-mode-live");
         await page.fill("#run-duration", "30");
         await page.locator("#run-button").click();
         await page.waitForFunction(

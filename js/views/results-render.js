@@ -323,19 +323,26 @@ export function breakdown(result, id, { sort = DEFAULT_SORT } = {}) {
     (row) =>
       ` ${row.name} does its damage in ticks, so its average and crit rate are per tick and its miss rate is of applications.`,
   );
-  return el("div", { class: "results-section" }, [
+  return el("div", { class: "results-section", "data-breakdown-section": "" }, [
     el("h3", { id: `${id}-breakdown-h` }, ["Damage by ability"]),
-    el(
-      "div",
-      {
-        class: "table-scroll",
-        role: "region",
-        "aria-labelledby": `${id}-breakdown-h`,
-        tabindex: "0",
-        "data-breakdown": "",
-      },
-      [breakdownTable(model, { sort })],
-    ),
+    // When the table is wider than its box it scrolls inside it (#242,
+    // Fran's #253 note): a line over it says so and its right edge fades,
+    // both only while there is more to the right (js/views/results-panel.js
+    // measures it). The region is focusable, so the arrow keys scroll it.
+    el("div", { class: "scroll-hint-wrap", "data-scroll-hint": "" }, [
+      el("p", { class: "scroll-hint", "aria-hidden": "true" }, [SCROLL_HINT]),
+      el(
+        "div",
+        {
+          class: "table-scroll",
+          role: "region",
+          "aria-labelledby": `${id}-breakdown-h`,
+          tabindex: "0",
+          "data-breakdown": "",
+        },
+        [breakdownTable(model, { sort })],
+      ),
+    ]),
     el(
       "p",
       { class: "visually-hidden", role: "status", "data-sort-status": "" },
@@ -530,10 +537,54 @@ export function timelineFigure(result, id, mode = "cumulative") {
   return timelineChart(result.timeline, { id: `${id}-timeline`, mode });
 }
 
+export const SCROLL_HINT = "Scroll for more columns →";
+
 // The charts go after every table (decision: tables and text first): the
 // histogram, then damage over time, each from js/charts.js (#148) in a
-// sideways-scrolling region with its table in a <details>.
-export function charts(result, id, { timelineMode = "cumulative" } = {}) {
+// sideways-scrolling region. Each has a Chart / Table switch (#242, UX4;
+// proposal §5), two aria-pressed buttons, in place of the <details> its
+// table was folded in: the one not chosen is hidden.
+export const CHART_VIEWS = Object.freeze([
+  Object.freeze({ value: "chart", label: "Chart" }),
+  Object.freeze({ value: "table", label: "Table" }),
+]);
+
+function viewSwitch(name, label, chosen) {
+  return el(
+    "div",
+    {
+      class: "chart-view-switch",
+      role: "group",
+      "aria-label": `Show ${label} as`,
+    },
+    CHART_VIEWS.map(({ value, label: text }) =>
+      el(
+        "button",
+        {
+          type: "button",
+          class: "chart-view-button",
+          "data-chart-view": name,
+          value,
+          "aria-pressed": String(value === chosen),
+        },
+        [text],
+      ),
+    ),
+  );
+}
+
+// A chart and its table, the one not chosen hidden.
+const shownAs = (chosen, value) => (chosen === value ? {} : { hidden: "" });
+
+export function charts(
+  result,
+  id,
+  {
+    timelineMode = "cumulative",
+    histogramView = "chart",
+    timelineView = "chart",
+  } = {},
+) {
   const scroller = (label, extra, children) =>
     el(
       "div",
@@ -548,41 +599,69 @@ export function charts(result, id, { timelineMode = "cumulative" } = {}) {
     );
   return el("div", { class: "results-section" }, [
     el("h3", { id: `${id}-charts-h` }, ["Charts"]),
-    el("div", { class: "chart-block" }, [
+    el("div", { class: "chart-block", "data-chart-block": "histogram" }, [
       el("h4", {}, ["DPS per fight"]),
-      scroller("DPS per fight", {}, [
-        histogramChart(result, { id: `${id}-hist` }),
-      ]),
-      el("details", {}, [
-        el("summary", {}, ["The histogram as a table"]),
-        histogramTable(result),
-      ]),
+      viewSwitch("histogram", "DPS per fight", histogramView),
+      scroller(
+        "DPS per fight",
+        { "data-chart-part": "chart", ...shownAs(histogramView, "chart") },
+        [histogramChart(result, { id: `${id}-hist` })],
+      ),
+      el(
+        "div",
+        {
+          class: "chart-table",
+          "data-chart-part": "table",
+          ...shownAs(histogramView, "table"),
+        },
+        [histogramTable(result)],
+      ),
     ]),
-    el("div", { class: "chart-block", "data-timeline-block": "" }, [
-      el("h4", {}, ["Damage over time"]),
-      el("fieldset", { class: "chart-mode" }, [
-        el("legend", {}, ["Show"]),
-        ...TIMELINE_MODES.map(({ value, label }) =>
-          el("label", {}, [
-            el("input", {
-              type: "radio",
-              name: `${id}-mode`,
-              value,
-              "data-timeline-mode": "",
-              ...(value === timelineMode ? { checked: "" } : {}),
-            }),
-            ` ${label}`,
-          ]),
+    el(
+      "div",
+      {
+        class: "chart-block",
+        "data-timeline-block": "",
+        "data-chart-block": "timeline",
+      },
+      [
+        el("h4", {}, ["Damage over time"]),
+        viewSwitch("timeline", "damage over time", timelineView),
+        el("fieldset", { class: "chart-mode" }, [
+          el("legend", {}, ["Show"]),
+          ...TIMELINE_MODES.map(({ value, label }) =>
+            el("label", {}, [
+              el("input", {
+                type: "radio",
+                name: `${id}-mode`,
+                value,
+                "data-timeline-mode": "",
+                ...(value === timelineMode ? { checked: "" } : {}),
+              }),
+              ` ${label}`,
+            ]),
+          ),
+        ]),
+        scroller(
+          "Damage over time",
+          {
+            "data-timeline": "",
+            "data-chart-part": "chart",
+            ...shownAs(timelineView, "chart"),
+          },
+          [timelineFigure(result, id, timelineMode)],
         ),
-      ]),
-      scroller("Damage over time", { "data-timeline": "" }, [
-        timelineFigure(result, id, timelineMode),
-      ]),
-      el("details", {}, [
-        el("summary", {}, ["The damage over time as a table"]),
-        timelineTable(result.timeline),
-      ]),
-    ]),
+        el(
+          "div",
+          {
+            class: "chart-table",
+            "data-chart-part": "table",
+            ...shownAs(timelineView, "table"),
+          },
+          [timelineTable(result.timeline)],
+        ),
+      ],
+    ),
   ]);
 }
 
@@ -666,8 +745,9 @@ function errorBanner(error) {
         " in the run controls above to try again. If it keeps happening, copy the detail below into an issue.",
       ),
     ],
-    el("details", {}, [
-      el("summary", {}, ["Technical detail"]),
+    // Shown, not folded away (#242: no disclosures on Results).
+    el("p", { class: "results-detail" }, [
+      "Technical detail: ",
       el("code", {}, [detail || "No detail was given."]),
     ]),
   );
@@ -676,8 +756,9 @@ function errorBanner(error) {
 function emptyState() {
   return el("div", { class: "results-empty" }, [
     el("strong", {}, ["No batch results yet"]),
-    "Pick a build, rotation and poisons, switch to Batch and ",
-    ...pressRun("press ", " in the run controls above. "),
+    "Pick a build, rotation and poisons, then press ",
+    el("strong", {}, ["Run average"]),
+    " above. ",
     "You'll get the average DPS with its confidence interval, damage by ability, aura uptime and wasted energy.",
   ]);
 }
