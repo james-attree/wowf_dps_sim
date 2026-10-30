@@ -87,6 +87,8 @@ async function titleOf(page, want) {
     .catch(() => {});
   return page.title();
 }
+const titleIs = async (page, want) =>
+  assert.equal(await titleOf(page, want), want);
 const activeId = (page) =>
   page.evaluate(
     () => document.activeElement?.dataset?.key ?? document.activeElement?.id,
@@ -118,10 +120,7 @@ describe("Rotation's screens", () => {
     try {
       await page.click("#cfg-rotation-edit");
       await hashIs(page, "#rotation");
-      assert.equal(
-        await titleOf(page, `Rotation · ${APP}`),
-        `Rotation · ${APP}`,
-      );
+      await titleIs(page, `Rotation · ${APP}`);
       assert.equal(
         await focusOf(page, "area-rotation-title"),
         "area-rotation-title",
@@ -146,10 +145,7 @@ describe("Rotation's screens", () => {
       assert.equal(await edit.getAttribute("href"), "#rotation/rule/2");
       await edit.click();
       await hashIs(page, "#rotation/rule/2");
-      assert.equal(
-        await titleOf(page, `Rule 2: ${name} · ${APP}`),
-        `Rule 2: ${name} · ${APP}`,
-      );
+      await titleIs(page, `Rule 2: ${name} · ${APP}`);
       assert.equal(
         await focusOf(page, "area-rotation-title"),
         "area-rotation-title",
@@ -174,10 +170,7 @@ describe("Rotation's screens", () => {
       // Export or import, and Escape back to the list.
       await page.click("[data-key='share']");
       await hashIs(page, "#rotation/share");
-      assert.equal(
-        await titleOf(page, `Export or import · ${APP}`),
-        `Export or import · ${APP}`,
-      );
+      await titleIs(page, `Export or import · ${APP}`);
       assert.equal(
         await focusOf(page, "area-rotation-title"),
         "area-rotation-title",
@@ -212,10 +205,7 @@ describe("Rotation's screens", () => {
       assert.match(await titleOf(page, "Rule 3: "), /^Rule 3: /);
       await page.goto(`${base}#rotation/rule/99`);
       await hashIs(page, "#rotation");
-      assert.equal(
-        await titleOf(page, `Rotation · ${APP}`),
-        `Rotation · ${APP}`,
-      );
+      await titleIs(page, `Rotation · ${APP}`);
       assert.equal(await page.locator("#rotation-builder li.rule").count(), 7);
       assert.deepEqual(errors, []);
     } finally {
