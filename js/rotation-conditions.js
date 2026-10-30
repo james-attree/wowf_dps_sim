@@ -420,8 +420,19 @@ export function conditionWakeAt(condition, state) {
   if (rate === 0) {
     return null;
   }
-  const gap = condition.value - type.read(condition, state);
+  const now = type.read(condition, state);
+  const gap = condition.value - now;
   if (gap === 0) {
+    // At t = 0 the next double up is the smallest one, which moves no value
+    // off its threshold, so the wake-ups would crawl to the hard stop (#234):
+    // wake when the value has moved by an ulp of itself (2 * |value| *
+    // EPSILON is at least one). Only at 0, so later wakes stay as they were.
+    if (state.time === 0) {
+      return Math.max(
+        Number.MIN_VALUE,
+        (2 * Math.abs(now) * Number.EPSILON) / Math.abs(rate),
+      );
+    }
     return nudgeUp(state.time);
   }
   // Moving away from the value: it is never met.

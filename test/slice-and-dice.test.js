@@ -53,17 +53,15 @@ function advance(sim, seconds) {
 // Blade Flurry starts the GCD, so Slice and Dice lands once that GCD has ticked off.
 function castBothBuffs(rogue, sim) {
   delete sim.cooldowns["blade-flurry"];
-  // One over the two costs: see the wake edge below.
-  rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy + 1;
+  // Exactly the two costs: at t = 0 a rule's threshold met exactly wakes
+  // once its energy has moved (conditionWakeAt, #234).
+  rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
   rogue.comboPoints = k("rotation.finisherComboPoints");
   const mainHand = rogue.weapons.mainHand;
   const offHand = rogue.weapons.offHand;
   mainHand.swingTimer = mainHand.speed;
   offHand.swingTimer = offHand.speed;
 
-  // Energy exactly at a rule's threshold at t = 0, with the GCD running,
-  // wakes the core in a loop (conditionWakeAt's nudge from 0 moves no
-  // energy), an edge left for the #234 engine polish.
   const half = k("gcd.duration") / 2;
   advance(sim, half);
   assert.equal(sim.activeBuffs["slice-and-dice"], undefined);

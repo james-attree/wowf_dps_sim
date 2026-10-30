@@ -1386,7 +1386,10 @@ Each condition type in `js/rotation-conditions.js` declares its drift:
 fight time (energy and other pools below their cap, `auraRemaining`,
 `debuffRemaining`, `fightTime`, `fightTimeRemaining`, `energyToCap`).
 `conditionWakeAt(condition, state)` follows the number on that line and gives
-the first time it meets the value, or null; a type without a drift is a
+the first time it meets the value, or null. A number at its value now wakes
+just after now, the next double up; at t = 0 that is the smallest double,
+which moves no number, so there the wake is when the number has moved by an
+ulp of itself (#234). A type without a drift is a
 `TypeError` when the module loads. There is no fixed polling. `runOnCore`
 keeps counts on `sim.coreStats` (`events`, `decisions`, `conditionWakes`,
 `energyWakes`, `casts`); two test-only options, `pollEvery` and
