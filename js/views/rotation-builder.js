@@ -1071,8 +1071,8 @@ export function createRotationBuilderView(doc, store, actions) {
 
   // An action's screen becomes the route: pushed when it is another screen
   // (Duplicate's copy, a new rule, a message's rule), so Back returns; put in
-  // the route's place when only its number moved (a rule moved or deleted)
-  // or the route named no screen (#rotation/rule/99).
+  // the route's place when only its number moved (a rule moved), its rule
+  // was deleted, or the route named no screen (#rotation/rule/99).
   function syncHash(before) {
     const win = doc.defaultView;
     if (
@@ -1088,7 +1088,13 @@ export function createRotationBuilderView(doc, store, actions) {
     }
     const routeWas =
       before === null ? null : screenHash(before) === formatRoute(route);
-    if (routeWas && !sameScreen(before, view.screen)) {
+    // A rule deleted on its own screen (Fran's #255 check, P2): the list
+    // takes its entry's place, so Back never reopens #rotation/rule/<n> at
+    // the rule that moved up into its number.
+    const gone =
+      before?.kind === "rule" &&
+      !(view.rules ?? []).some((rule) => rule.uid === before.uid);
+    if (routeWas && !gone && !sameScreen(before, view.screen)) {
       win.location.hash = want;
     } else {
       win.location.replace(want);

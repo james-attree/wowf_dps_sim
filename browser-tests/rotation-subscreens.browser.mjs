@@ -213,6 +213,49 @@ describe("Rotation's screens", () => {
     }
   });
 
+  // Fran's #255 check, P2: Delete on a rule's screen put the list on top of
+  // it in the history, so Back reopened #rotation/rule/3 at the rule that
+  // moved up into number 3. The list now takes the deleted rule's entry.
+  test("Back after a Delete never opens the rule that took its number", async () => {
+    const { context, page, errors } = await openPage(1280, 800, "#rotation");
+    try {
+      await page.locator("#rotation-builder li.rule").first().waitFor();
+      const before = await page.evaluate(() => history.length);
+      const third = ruleCard(page, 2);
+      const deleted = await third.getAttribute("data-uid");
+      await third.locator("[data-key$='.edit']").click();
+      await hashIs(page, "#rotation/rule/3");
+      await page.locator("#rotation-builder .rule-screen").waitFor();
+      await page.locator(`[data-key='${deleted}.del']`).click();
+      await hashIs(page, "#rotation");
+      await page.locator("#rotation-builder li.rule").first().waitFor();
+      assert.equal(await page.locator("#rotation-builder li.rule").count(), 6);
+      // The Delete added no entry: the list replaced the rule's.
+      assert.equal(await page.evaluate(() => history.length), before + 1);
+      const now = await page.evaluate(() =>
+        [...document.querySelectorAll("#rotation-builder li.rule")].map(
+          (rule) => rule.dataset.uid,
+        ),
+      );
+      assert.equal(now.includes(deleted), false);
+      await page.goBack();
+      await page.waitForFunction(
+        () => globalThis.location.hash !== "#rotation/rule/3",
+      );
+      assert.notEqual(
+        await page.evaluate(() => globalThis.location.hash),
+        "#rotation/rule/3",
+      );
+      assert.equal(
+        await page.locator("#rotation-builder .rule-screen").count(),
+        0,
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
   test("an import on Export or import stays there, its status shown", async () => {
     const { context, page, errors } = await openPage(
       1280,
