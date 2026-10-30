@@ -118,24 +118,17 @@ describe("Rotation's screens", () => {
   test("each screen has its route, title, h1 and back link", async () => {
     const { context, page, errors } = await openPage(1280, 800);
     try {
-      await page.click("#cfg-rotation-edit");
+      await page.click(`[data-nav-area="rotation"]`);
       await hashIs(page, "#rotation");
       await titleIs(page, `Rotation · ${APP}`);
       assert.equal(
         await focusOf(page, "area-rotation-title"),
         "area-rotation-title",
       );
-      assert.equal(
-        await page.locator("#rotation-back").getAttribute("href"),
-        "#character",
-      );
-      // Read as "Back to Character"; drawn "‹ Character".
-      assert.equal(
-        await page
-          .getByRole("link", { name: "Back to Character", exact: true })
-          .getAttribute("id"),
-        "rotation-back",
-      );
+      // The list is Rotation's top (#244, UX6): no back link, and the
+      // preset the sim uses is on it.
+      assert.equal(await page.isVisible("#rotation-back"), false);
+      assert.ok(await page.isVisible("#cfg-rotation"));
       // A rule's screen, from its Edit link.
       const name = (await ruleCard(page, 1).locator(".rule-name").innerText())
         .trim()
@@ -179,14 +172,9 @@ describe("Rotation's screens", () => {
       await page.keyboard.press("Escape");
       await hashIs(page, "#rotation");
       assert.equal(await focusOf(page, "share"), "share");
-      // The list's back link closes the builder, back to Fight setup's
-      // Edit rotation link (Fran's #251 check).
-      await page.click("#rotation-back");
+      // Leaving Rotation closes the builder.
+      await page.click(`[data-nav-area="character"]`);
       await hashIs(page, "#character");
-      assert.equal(
-        await focusOf(page, "cfg-rotation-edit"),
-        "cfg-rotation-edit",
-      );
       assert.equal(await page.isVisible("#rotation-builder"), false);
       assert.deepEqual(errors, []);
     } finally {

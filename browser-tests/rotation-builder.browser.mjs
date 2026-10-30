@@ -49,8 +49,8 @@ async function openBuilder(width) {
         ? route.fulfill({ status: 200, contentType: "image/jpeg", body: ICON })
         : route.abort(),
   );
-  await page.goto(base);
-  await page.click("#cfg-rotation-edit");
+  // Rotation's list holds the preset the sim uses (#244, UX6).
+  await page.goto(`${base}#rotation`);
   await page.locator("#rotation-builder").waitFor({ state: "visible" });
   return { context, page, errors };
 }

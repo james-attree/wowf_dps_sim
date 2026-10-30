@@ -34,7 +34,9 @@ const WHEEL_SCREENS = [
   { width: 1440, height: 900 },
   { width: 1024, height: 576 },
 ];
-const WHEEL_AREAS = ["character", "rotation"];
+// Screens longer than the window: Character's list is short since #244
+// (UX6), so its Gear and weapons screen.
+const WHEEL_AREAS = ["character/gear", "rotation"];
 const WHEEL_PX = 400;
 // A small notch, so a full column scrolls in steps and its end is seen.
 const NOTCH_PX = 60;
@@ -642,7 +644,11 @@ describe("a wheel over the column scrolls the page (Fran's #253 re-check, B2)", 
       test(`${width}x${height}, ${area}: the page scrolls under a wheel over the column`, async () => {
         const { context, page, errors } = await open(width, { height });
         try {
-          await toArea(page, area);
+          const [top, sub] = area.split("/");
+          await toArea(page, top);
+          if (sub !== undefined) {
+            await page.locator(`#${top}-row-${sub}`).click();
+          }
           await page.evaluate(() => globalThis.scrollTo(0, 0));
           const point = await overColumn(page);
           await page.mouse.move(point.x, point.y);
