@@ -42,18 +42,23 @@ export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 // rotation's only and does not end the fight; simulation.run(duration) does,
 // so give both the same number (runFight and SimRunner do). Without it
 // fightTimeRemaining reads as Infinity. A bad one is a RangeError.
+//
+// `options.engine` is the engine simulation.run uses (Simulation's `engine`:
+// "legacy", the default, or "events", the event core of #197). Like
+// duration it is createFight's own, not the Rogue's.
 export function createFight(seed, config, options) {
   const fightSeed = normalizeSeed(seed);
-  // duration is createFight's own; the rest are the Rogue's, which checks
+  // duration and engine are createFight's own; the rest are the Rogue's, which checks
   // them. Options that are not an object go to the Rogue as they are, and it
   // refuses them.
   const plain =
     options !== null && typeof options === "object" && !Array.isArray(options);
-  const { duration, ...rogueOptions } = plain ? options : {};
+  const { duration, engine, ...rogueOptions } = plain ? options : {};
   const rogue = new Rogue(config, plain ? rogueOptions : options);
   const simulation = new Simulation(rogue, {
     seed: fightSeed,
     fightLength: duration,
+    engine,
   });
   return {
     seed: fightSeed,

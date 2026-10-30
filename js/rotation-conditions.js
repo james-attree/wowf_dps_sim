@@ -76,8 +76,30 @@ const aura = { kind: "id", of: "aura" };
 const debuff = { kind: "id", of: "debuff" };
 const isTrue = { kind: "boolean", optional: true, default: true };
 
-// Every type: its params, and how it reads the state. `read` gives the number
-// a comparison uses, or `test` gives the answer outright.
+// How a type's answer can change between two fight events (E6, #197): the
+// Phase 3.5 core runs the rotation only at events, so every type says when it
+// would next need a look.
+//
+//   AT_EVENTS     the answer changes only at a fight event (a cast, a swing,
+//                 a tick, an aura or a cooldown running out), and the core
+//                 looks again after every event.
+//   a function    (c, state) => the rate, per second of fight time, at which
+//                 the number `read` gives is moving now. The core wakes the
+//                 rotation when it would cross the condition's value
+//                 (conditionWakeAt). The rate holds until the next event:
+//                 whatever changes it (Adrenaline Rush, a cast) is one.
+//
+// Every type must declare one; a type without is an error when this module
+// loads (and test/rotation-wakes.test.js holds each to its answer).
+export const AT_EVENTS = "events";
+
+// Below the cap energy moves at its regeneration rate; at it, not at all.
+// Combo points have a rate of 0.
+const poolDrift = (pool) => (pool.value < pool.max ? pool.regenPerSecond : 0);
+const remainingDrift = (auras, id) => (Object.hasOwn(auras, id) ? -1 : 0);
+
+// Every type: its params, how it reads the state, and its drift. `read` gives
+// the number a comparison uses, or `test` gives the answer outright.
 const TYPES = {
   // A resource pool's current value ("energy >= 40").
   resource: {
@@ -86,29 +108,34 @@ const TYPES = {
       ...compare,
     },
     read: (c, state) => state.resources[c.resource].value,
+    drift: (c, state) => poolDrift(state.resources[c.resource]),
   },
   // Combo points: the same as resource with resource "comboPoints".
   comboPoints: {
     params: compare,
     read: (c, state) => state.resources.comboPoints.value,
+    drift: AT_EVENTS,
   },
   // A self buff is up. `active` is true by default; false means "is not up".
   auraActive: {
     params: { aura, active: isTrue },
     test: (c, state) =>
       Object.hasOwn(state.auras, c.aura) === (c.active ?? true),
+    drift: AT_EVENTS,
   },
   // Seconds left on a self buff. Not up counts as 0.
   auraRemaining: {
     params: { aura, ...compare },
     read: (c, state) =>
       Object.hasOwn(state.auras, c.aura) ? state.auras[c.aura].remaining : 0,
+    drift: (c, state) => remainingDrift(state.auras, c.aura),
   },
   // A debuff on the target is up.
   debuffActive: {
     params: { debuff, active: isTrue },
     test: (c, state) =>
       Object.hasOwn(state.debuffs, c.debuff) === (c.active ?? true),
+    drift: AT_EVENTS,
   },
   // Seconds left on a target debuff. Not up counts as 0.
   debuffRemaining: {
@@ -117,6 +144,7 @@ const TYPES = {
       Object.hasOwn(state.debuffs, c.debuff)
         ? state.debuffs[c.debuff].remaining
         : 0,
+    drift: (c, state) => remainingDrift(state.debuffs, c.debuff),
   },
   // Stacks of a target debuff. Not up counts as 0.
   debuffStacks: {
@@ -125,6 +153,7 @@ const TYPES = {
       Object.hasOwn(state.debuffs, c.debuff)
         ? state.debuffs[c.debuff].stacks
         : 0,
+    drift: AT_EVENTS,
   },
   // The ability's own cooldown is over. `ready` is true by default; false
   // means "is on cooldown". It says nothing about the GCD or the energy.
@@ -133,9 +162,15 @@ const TYPES = {
     test: (c, state) =>
       (!Object.hasOwn(state.cooldowns, c.ability) ||
         state.cooldowns[c.ability] <= 0) === (c.ready ?? true),
+    // A cooldown ends at an event of its own.
+    drift: AT_EVENTS,
   },
   // Seconds of fight time that have passed.
-  fightTime: { params: compare, read: (c, state) => state.time },
+  fightTime: {
+    params: compare,
+    read: (c, state) => state.time,
+    drift: () => 1,
+  },
   // Seconds of fight left. With no fight length in the state it is Infinity.
   fightTimeRemaining: {
     params: compare,
@@ -143,6 +178,8 @@ const TYPES = {
       state.duration === null
         ? Infinity
         : Math.max(0, state.duration - state.time),
+    drift: (c, state) =>
+      state.duration !== null && state.time < state.duration ? -1 : 0,
   },
   // Seconds until energy reaches its cap at the current regeneration rate: 0
   // at the cap, Infinity when it does not regenerate.
@@ -156,6 +193,11 @@ const TYPES = {
       // Below the cap, a rate of 0 divides to Infinity: it never gets there.
       return (max - energy) / regenPerSecond;
     },
+    // Below the cap and regenerating it counts down with the clock.
+    drift: (c, state) => {
+      const { value: energy, max, regenPerSecond } = state.resources.energy;
+      return energy < max && regenPerSecond > 0 ? -1 : 0;
+    },
   },
   // The build or the host grants the ability (Blade Flurry, Adrenaline Rush
   // and Cold Blood come from talents). Strict: with no build selected and no
@@ -163,6 +205,7 @@ const TYPES = {
   abilityGranted: {
     params: { ability },
     test: (c, state) => state.granted.includes(c.ability),
+    drift: AT_EVENTS,
   },
   // The build does not hold the ability back. False only when a build is
   // selected, a talent grants the ability, and the build does not have it. With
@@ -176,8 +219,28 @@ const TYPES = {
         state.talentAbilities.includes(c.ability) &&
         !state.granted.includes(c.ability)
       ),
+    drift: AT_EVENTS,
   },
 };
+
+for (const [type, { drift }] of Object.entries(TYPES)) {
+  if (drift !== AT_EVENTS && typeof drift !== "function") {
+    throw new TypeError(
+      `The ${type} condition type does not say when it changes (drift): the event core (#197) could not wake the rotation for it.`,
+    );
+  }
+}
+
+// Each type's drift as data, for the core and its tests: "events" (AT_EVENTS)
+// or "continuous" (a rate the core follows between events).
+export const CONDITION_DRIFT = Object.freeze(
+  Object.fromEntries(
+    Object.entries(TYPES).map(([type, { drift }]) => [
+      type,
+      drift === AT_EVENTS ? AT_EVENTS : "continuous",
+    ]),
+  ),
+);
 
 export const CONDITION_TYPES = Object.freeze(Object.keys(TYPES));
 
@@ -331,6 +394,41 @@ export function compileCondition(condition) {
   const compare = COMPARE[condition.op];
   const { value } = condition;
   return (state) => compare(read(condition, state), value);
+}
+
+// The next double up from a time, or a little past it: never the same time.
+function nudgeUp(time) {
+  return time + Math.max(Math.abs(time) * Number.EPSILON, Number.MIN_VALUE);
+}
+
+// The earliest fight time after state.time at which the condition's answer
+// can change with no event in between (E6, #197), or null when it cannot: a
+// type that changes only at events (AT_EVENTS), a number standing still, or
+// one moving away from the condition's value. The number is followed on a
+// straight line at its drift, so the time is when it meets the value; when it
+// is at the value now, the answer changes as soon as it moves, so the time is
+// just after now. A time past a cap or an end the line does not reach (energy
+// above its cap) is a wake-up that finds nothing new, never a missed one. For
+// a checked condition, as evaluateTrusted.
+export function conditionWakeAt(condition, state) {
+  const type = TYPES[condition.type];
+  if (type.drift === AT_EVENTS) {
+    return null;
+  }
+  const rate = type.drift(condition, state);
+  if (rate === 0) {
+    return null;
+  }
+  const gap = condition.value - type.read(condition, state);
+  if (gap === 0) {
+    return nudgeUp(state.time);
+  }
+  // Moving away from the value: it is never met.
+  if (gap > 0 !== rate > 0) {
+    return null;
+  }
+  const wake = state.time + gap / rate;
+  return Number.isFinite(wake) ? Math.max(wake, nudgeUp(state.time)) : null;
 }
 
 // True when the condition holds in `state`. A bad condition is a RangeError

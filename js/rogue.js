@@ -263,7 +263,8 @@ export class Rogue {
   // (this.config.rotation, js/rotation-interpreter.js) and casts through the
   // host (js/rotation-host.js). The default is the placeholder Combat list
   // (js/rotation-default.js). The haste and the white swings below are not
-  // part of the rotation.
+  // part of the rotation. Returns what decide gives ({ casts, outcome }),
+  // which the event core counts (js/core/fight.js).
   castRotation(simulation) {
     // One host per simulation, not one per step: the host holds no state of
     // its own, so a Rogue that moves to another Simulation builds a new one.
@@ -275,7 +276,7 @@ export class Rogue {
         duration: simulation.fightLength,
       });
     }
-    decide(this.rotationProgram, this.rotationHostObject);
+    return decide(this.rotationProgram, this.rotationHostObject);
   }
 
   rotation(simulation, dt) {

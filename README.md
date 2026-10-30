@@ -392,28 +392,40 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
 - `js/core/scheduler.js` — `Scheduler` (#193), the event queue of the Phase
   3.5 core: `schedule`, cancel tokens, `reschedule`, `runUntil`, `runToEnd`,
   the fixed order at one timestamp (`ORDER`), and a hard stop
-  (`SchedulerHardStopError`). Nothing uses it yet; the legacy engine is the
-  default. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+  (`SchedulerHardStopError`). The event core (`js/core/fight.js`, #197) runs
+  on it; the legacy engine is the default. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
 - `js/core/energy.js` — `EnergyPool` (#194), continuous energy for the Phase
   3.5 core: the line `min(cap, value0 + rate * (now - t0))`, re-based on a
   gain, a spend or a rate or cap change (`modifiersChanged()`), and a one-shot
-  threshold wake-up event (`wakeAt`). Nothing uses it yet; the legacy pool in
-  `js/resource.js` stays. See "Planned: event-queue engine" in
+  threshold wake-up event (`wakeAt`), and the waste at the cap (`waste()`).
+  The event core (#197) puts it in place of the legacy pool in
+  `js/resource.js` for a run. See "Planned: event-queue engine" in
   [Mechanics](docs/mechanics.md).
 - `js/core/swing.js` — `SwingTimer` (#195), weapon swings for the Phase 3.5
   core: one pending swing event per hand, the legacy haste rule (haste read at
-  each swing), times anchored as `anchor + n * interval`. Nothing uses it yet;
-  `Weapon.tick` in `js/weapon.js` stays. See "Planned: event-queue engine" in
+  each swing), times anchored as `anchor + n * interval`. The event core (#197)
+  runs it; `Weapon.tick` in `js/weapon.js` stays for legacy. See "Planned: event-queue engine" in
   [Mechanics](docs/mechanics.md).
 - `js/core/timers.js` — `Timer`, `TimerSet`, `refreshedEnd` and
   `createTimers` (#195): the GCD, cooldowns, aura expiries and Premeditation's
-  point expiry as expiry-class events at `start + duration`. Nothing uses them
-  yet. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+  point expiry as expiry-class events at `start + duration`. The event core
+  (#197) runs them. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
 - `js/core/dots.js` — `DotTicks` (#196), DoT ticks for the Phase 3.5 core:
   one pending tick event per DoT at `anchor + n * interval`, a restart refresh
   (a cast DoT) and a keep-clock refresh (a proc's DoT or a poison). The tick
-  body is `Simulation.resolveDotTick`, shared with the legacy loop. Nothing
-  uses it yet. See "Planned: event-queue engine" in
+  body is `Simulation.resolveDotTick`, shared with the legacy loop. The
+  event core (`js/core/fight.js`, #197) runs it. It differs from legacy in
+  three edges: the first main-hand swing at 0, a refresh from a DoT's own last
+  tick that keeps the DoT, and same-time ticks of two DoTs in schedule order.
+  See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+- `js/core/fight.js` — `runOnCore` and `ENGINES` (#197), the event core: a
+  legacy `Simulation` run from event to event on the scheduler, with the
+  energy pool, swings, DoT ticks and timers above, and the rotation run only
+  at decision points (after any other event, at an energy threshold, and
+  where a time-moving condition crosses its value, `conditionWakeAt` in
+  `js/rotation-conditions.js`). `new Simulation(rogue, { engine: "events" })`
+  or `createFight(seed, config, { engine: "events" })` uses it; legacy is the
+  default. See "Decision points and the rotation" in
   [Mechanics](docs/mechanics.md).
 - `js/fight.js` — `runFight({ seed, duration, config })`, the headless entry
   point, and `createFight(seed, config, options)`, the `Rogue` and `Simulation`

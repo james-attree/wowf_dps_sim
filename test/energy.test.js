@@ -509,6 +509,18 @@ describe("energy pool: the threshold wake-up", () => {
       scheduler.runToEnd();
       assert.equal(woke.length, 1);
     }
+    // So does a gain right after it (#225): a proc's energy re-bases the line
+    // too, and the ran wake is not scheduled again.
+    {
+      const { pool, scheduler, woke } = setup();
+      pool.spend(CAP);
+      pool.wakeAt(20);
+      scheduler.runUntil(2.5);
+      pool.gain(10);
+      assert.equal(scheduler.pendingCount, 0);
+      scheduler.runToEnd();
+      assert.equal(woke.length, 1);
+    }
     // From the handler: woke, can't act yet, wait for more.
     {
       const rearms = [];
@@ -573,5 +585,56 @@ describe("energy pool: refusals", () => {
         /Resource "energy" has a regen rate of .*; it must be a finite number, 0 or more\./,
       );
     }
+  });
+});
+
+// Issue #197: the event core takes a fight over from the legacy pool (value,
+// baseMax) and gives back what was lost to the cap (waste), as Resource does.
+describe("EnergyPool: taking over a fight, and its waste", () => {
+  const make = (options = {}) => {
+    const scheduler = new Scheduler({ endTime: 300, handle() {} });
+    const modifiers = new ModifierPipeline([]);
+    const pool = new EnergyPool({
+      definition: ENERGY,
+      modifiers,
+      scheduler,
+      ...options,
+    });
+    return { pool, scheduler };
+  };
+
+  it("starts at a given value and cap, and checks the value", () => {
+    const { pool } = make({ value: 30, baseMax: 80 });
+    assert.equal(pool.value, 30);
+    assert.equal(pool.max, 80);
+    // Above the cap is clamped to it, as the definition's start is.
+    assert.equal(make({ value: 90, baseMax: 80 }).pool.value, 80);
+    for (const value of [-1, Number.NaN, Number.POSITIVE_INFINITY, "30"]) {
+      assert.throws(() => make({ value }), RangeError, String(value));
+    }
+  });
+
+  it("counts the time at the cap and the regen it lost there", () => {
+    const { pool, scheduler } = make({ value: CAP - RATE });
+    // One second to reach the cap, then three at it.
+    scheduler.runUntil(4);
+    assert.deepEqual(pool.waste(), { cappedTime: 3, overflow: 3 * RATE });
+    // A spend re-bases: the capped part so far is kept.
+    pool.spend(RATE);
+    scheduler.runUntil(6);
+    assert.deepEqual(pool.waste(), { cappedTime: 4, overflow: 4 * RATE });
+  });
+
+  it("counts what a gain could not add", () => {
+    const { pool } = make({ value: CAP - 5 });
+    pool.gain(20);
+    assert.equal(pool.value, CAP);
+    assert.deepEqual(pool.waste(), { cappedTime: 0, overflow: 15 });
+  });
+
+  it("has no expiry to clear", () => {
+    const { pool } = make({ value: 10 });
+    assert.equal(pool.clearExpiry(), undefined);
+    assert.equal(pool.value, 10);
   });
 });

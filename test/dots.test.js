@@ -244,6 +244,35 @@ describe("DoT ticks on events (DotTicks)", () => {
     assert.equal(scheduler.pendingCount, 0);
   });
 
+  // #229 QA: clear() resets what the DoT reads, and a keep-clock
+  // application after it starts a fresh clock.
+  it("clear() stops the DoT at once: not running, and a keep-clock application after it starts fresh", () => {
+    const { scheduler, ticks, at } = setup();
+    at(0, (d) =>
+      d.apply("p", {
+        interval: 3,
+        duration: 12,
+        refresh: DOT_REFRESH.keepClock,
+      }),
+    );
+    at(4, (d) => {
+      d.clear("p");
+      assert.equal(d.running("p"), false);
+      assert.equal(d.endsAt("p"), null);
+      assert.equal(d.ticks("p"), 0);
+      assert.deepEqual(d.runningIds, []);
+    });
+    at(5, (d) =>
+      d.apply("p", {
+        interval: 3,
+        duration: 6,
+        refresh: DOT_REFRESH.keepClock,
+      }),
+    );
+    scheduler.runToEnd();
+    assert.deepEqual(timesOf(ticks, "p"), [3, 8, 11]);
+  });
+
   it("stops at clear(), with no tick left", () => {
     const { scheduler, dots, ticks, at } = setup();
     at(0, (d) => d.apply("r", { interval: 2, duration: 10 }));
@@ -563,6 +592,29 @@ const dotHits = (hits, name) =>
   hits.filter((event) => event.origin === "dot" && event.name === name);
 
 describe("DoTs, procs and poisons on events (test host)", () => {
+  // #229 QA: as legacy, a tick's onDotTick procs run after its damage.
+  it("fires a DoT tick's onDotTick procs after the tick's damage, as legacy", () => {
+    const tickProc = defineProc({
+      id: "tick-proc",
+      trigger: "onDotTick",
+      scope: { abilities: ["rupture"] },
+      chance: { mode: "flat", value: 1 },
+      actions: [{ type: "gainResource", resource: "energy", amount: 1 }],
+    });
+    const { sim, host } = eventFight({ procs: [tickProc] });
+    const order = [];
+    sim.on("hit", (event) => order.push(`hit:${event.name}@${event.time}`));
+    sim.on("proc", () => order.push(`proc@${sim.currentTime}`));
+    host.at(1, () => sim.resolveDotAttack(RUPTURE, "skill", 400, 4, true));
+    host.run();
+    assert.deepEqual(order.slice(1), [
+      "hit:Rupture@3",
+      "proc@3",
+      "hit:Rupture@5",
+      "proc@5",
+    ]);
+  });
+
   it("ticks a cast Rupture on its own events at exact multiples of rupture.tickInterval, the damage split as legacy", () => {
     const interval = k("rupture.tickInterval");
     const { sim, host, hits } = eventFight();
@@ -858,5 +910,45 @@ describe("poison charges on events", () => {
     const poison = hits.filter((event) => event.name === "Instant Poison");
     assert.equal(poison.length, 250);
     assert.ok(poison.every((event) => event.outcome === "hit"));
+  });
+});
+
+// Issue #197: a DoT the event core takes over mid-fight (js/core/fight.js)
+// keeps the clock of its legacy entry, nextTickIn, and ticks up to its end.
+describe("DotTicks.apply with nextTickIn", () => {
+  it("ticks first after nextTickIn, then every interval, up to the end", () => {
+    const { scheduler, ticks, at } = setup();
+    at(1, (d) =>
+      d.apply("rupture", { interval: 2, duration: 7, nextTickIn: 0.5 }),
+    );
+    scheduler.runToEnd();
+    // 1.5, 3.5, 5.5, 7.5; 9.5 is past the end at 8.
+    assert.deepEqual(timesOf(ticks, "rupture"), [1.5, 3.5, 5.5, 7.5]);
+    assert.deepEqual(
+      ticks.map(([, , tick, last]) => [tick, last]),
+      [
+        [1, false],
+        [2, false],
+        [3, false],
+        [4, true],
+      ],
+    );
+  });
+
+  it("ticks at once for 0, and refuses a bad nextTickIn", () => {
+    const { scheduler, dots, ticks, at } = setup();
+    at(2, (d) =>
+      d.apply("rupture", { interval: 3, duration: 3, nextTickIn: 0 }),
+    );
+    scheduler.runToEnd();
+    // A tick at the end itself is inside, as for any keep-clock DoT.
+    assert.deepEqual(timesOf(ticks, "rupture"), [2, 5]);
+    for (const nextTickIn of [-1, Number.NaN, Number.POSITIVE_INFINITY, "1"]) {
+      assert.throws(
+        () => dots.apply("x", { interval: 3, duration: 3, nextTickIn }),
+        /nextTickIn must be a finite number/,
+        String(nextTickIn),
+      );
+    }
   });
 });

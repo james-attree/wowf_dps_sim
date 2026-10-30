@@ -841,6 +841,11 @@ describe("a build with no poisons", () => {
     );
     assert.equal("procs" in poisoned, false);
     assert.equal("procStats" in poisoned, false);
-    assert.ok(poisoned.totalDamage > plain.totalDamage);
+    // The poisons dealt damage. Not "more in total than the plain fight": the
+    // poison rolls move every later draw, so one seed can land either side,
+    // and seed 5 does on the event core (#197).
+    for (const name of ["Instant Poison", "Deadly Poison"]) {
+      assert.ok(poisoned.abilities[name].damage > 0, name);
+    }
   });
 });

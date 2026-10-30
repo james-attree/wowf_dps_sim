@@ -53,9 +53,10 @@ How the fixed step works today, because it is what changes:
   many seeds barely moves (see "Fixed step" in mechanics.md).
 - Energy is added as `rate * dt` each step, with the regen rate cut where an
   Adrenaline Rush aura runs out inside the step (`regenerateResource`).
-- `scripts/scripted-fight.mjs` (the golden finisher case) replaces
-  `Rogue.prototype.rotation` for the duration of a run. It relies on the
-  per-step rotation call.
+- `scripts/scripted-fight.mjs` (the golden finisher case) replaced
+  `Rogue.prototype.rotation` for the duration of a run, relying on the
+  per-step rotation call. Since #197 it hooks `Rogue.prototype.castRotation`,
+  which both engines call.
 
 ## Goals and benefits
 
@@ -290,8 +291,10 @@ tested in `test/dots.test.js` with a test host (`test/core-host.js`): exact
 Rupture tick times, no stale tick after a refresh, a Hemorrhage window that
 ends at a tick, internal cooldowns, extra attacks and poisons on events, and
 200 seeds where the fight on events equals the legacy loop hit for hit
-(mechanics.md "Planned: event-queue engine (Phase 3.5)"). The shipped engine
-does not use it until #197 and #198.
+for casts scripted at .125 s offsets, which never tie with a swing or a tick
+(three edges differ, listed in mechanics.md "Planned: event-queue engine (Phase 3.5)"). The shipped engine
+runs it on the `"events"` engine from #197; the default stays legacy until
+#198 and #199.
 
 **6. Decision points and rotation (E6).** Done when: there is no per-frame
 polling; the count of rotation evaluations in a fight is at most the count of
@@ -300,6 +303,16 @@ rotation (R3) both run on the new core; the Cold Blood rule works; the
 scripted-fight harness is re-pointed to the decision hook, with the golden
 finisher case still reaching Rupture ticks and a tick crit; each R2 condition
 type declares its wake-up times and a test fails for one that does not.
+Landed in #197: `js/core/fight.js` (`runOnCore`, the `"events"` engine of
+`Simulation` and `createFight`; legacy stays the default), each condition
+type's drift and `conditionWakeAt` in `js/rotation-conditions.js`, the
+scripted fight hooked on `Rogue.prototype.castRotation`, and the energy pool's
+waste. Tested in `test/core-fight.test.js` (a 1/64 s poll on top casts the
+same, the decisions are at most the events, Cold Blood, the pool's host
+contract, the scripted golden case), `test/core-rules.test.js` (the legacy
+step tests' rules on the core), `test/core-engine-files.test.js` (the proc
+and poison files on the core) and `test/rotation-wakes.test.js`. The runner,
+the stream and `runFight`'s engine are #198; parity and the default are #199.
 
 **7. Event stream, `SimRunner`, live adapter (E7 to E9).** Done when: the
 Phase 3 contract tests for the stream and the runner pass unchanged against the

@@ -9,6 +9,8 @@ import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
 import { damageTags } from "./damage-tags.js";
 import { EventStream, RingLog, SIM_EVENT_TYPES } from "./event-stream.js";
+import { DOT_REFRESH } from "./core/dots.js";
+import { ENGINES, runOnCore } from "./core/fight.js";
 import { ProcRunner } from "./procs.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
@@ -85,7 +87,30 @@ function readFightLength(fightLength) {
   return fightLength;
 }
 
+// The engine a Simulation runs on when its constructor is not told: legacy
+// (fixed steps) unless a caller changed it with Simulation.useEngine.
+let defaultEngine = ENGINES.legacy;
+
+function readEngine(engine) {
+  if (!Object.values(ENGINES).includes(engine)) {
+    throw new RangeError(
+      `Unknown engine ${JSON.stringify(engine)}. Known: ${Object.values(ENGINES).join(", ")}.`,
+    );
+  }
+  return engine;
+}
+
 export class Simulation {
+  // Set the engine every Simulation built after this runs on, when its own
+  // options do not say, and return the one it replaces. For tests that run a
+  // whole test file on the event core (#197, test/core-engine-files.test.js);
+  // an app or a batch run passes its engine to the constructor instead.
+  static useEngine(engine) {
+    const previous = defaultEngine;
+    defaultEngine = readEngine(engine);
+    return previous;
+  }
+
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
   // rng.defaultSeed. The rogue draws from the same rng.
@@ -95,8 +120,25 @@ export class Simulation {
   // does not decide how long the fight runs, which is run(duration)'s
   // argument, so the host that runs the fight passes the same number to both
   // (createFight's options.duration; runFight and SimRunner do).
-  constructor(rogue, { seed = k("rng.defaultSeed"), rng, fightLength } = {}) {
+  //
+  // `engine` is how run() moves the fight on (ENGINES in js/core/fight.js):
+  // "legacy", fixed steps of k("sim.fixedStep") (the default), or "events",
+  // the Phase 3.5 event core (#197), which jumps from event to event and runs
+  // the rotation only at its decision points. step() is always a fixed step.
+  constructor(
+    rogue,
+    {
+      seed = k("rng.defaultSeed"),
+      rng,
+      fightLength,
+      engine = defaultEngine,
+    } = {},
+  ) {
     this.rogue = rogue;
+    this.engine = readEngine(engine);
+    // The event core while it runs this fight (js/core/fight.js), told where
+    // a DoT starts; null on the legacy engine.
+    this.core = null;
     this.fightLength = readFightLength(fightLength);
     this.seed = normalizeSeed(seed);
     this.rng = rng ?? createRng(this.seed);
@@ -408,11 +450,22 @@ export class Simulation {
   // boundary gives the same fight as one long call. A split inside a step
   // does not, because the short step at the end of the call is a step of its
   // own.
+  //
+  // On the "events" engine the same duration is run on the event core
+  // instead (runOnCore, js/core/fight.js): the fight ends `duration` after it
+  // started, and a split anywhere gives the same fight as one long call only
+  // where no event falls on the split (the core starts each call from the
+  // fight as the last one left it).
   run(duration) {
     if (!Number.isFinite(duration) || duration < 0) {
       throw new RangeError(
         `Simulation.run needs a finite duration in seconds, 0 or more. Got ${duration}.`,
       );
+    }
+    if (this.engine === ENGINES.events) {
+      runOnCore(this, duration);
+      this.end();
+      return;
     }
     const stepSize = k("sim.fixedStep");
     // The step is a power of two, so this division is exact and `leftover`
@@ -973,6 +1026,7 @@ export class Simulation {
         attackType: "skill",
         bleed: false,
       };
+      this.core?.dotApplied(id, DOT_REFRESH.keepClock);
     }
     this.recordAbility(source, hit.outcome, 0);
     this.addCombatEvent(
@@ -1022,6 +1076,7 @@ export class Simulation {
         attackType,
         bleed: context.tags.includes("bleed"),
       };
+      this.core?.dotApplied(source.id, DOT_REFRESH.restart);
     }
     // The application deals no damage; the ticks do.
     this.recordAbility(source, result.outcome, 0);
