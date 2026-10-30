@@ -52,5 +52,6 @@ export const WARNING_DATA = Object.freeze({
   cooldownNotChecked: ["ability"],
   grantedNotTalent: ["ability", "condition"],
   unlockedNotTalent: ["ability", "condition"],
+  duplicateCondition: ["ability", "condition", "same"],
   starves: ["ability", "below", "reason"],
 });

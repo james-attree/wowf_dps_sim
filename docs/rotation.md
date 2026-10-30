@@ -663,10 +663,15 @@ Three more are not pooling traps but rules or checks that do nothing, or never l
 | A rule the same as one above it                           | `rules[i]`               | The one above is tried first under the same conditions, so this one is never reached. Compared after normalising: conditions in any order, keys in any order, and a param written out at its `CONDITION_PARAMS` default (`active: true`, `ready: true`) counts as left out. |
 | An `abilityGranted` check on an ability no talent grants  | `rules[i].conditions[j]` | The fight grants only talent and host abilities, so it is never true and the rule never casts.                                                                                                                                                                              |
 | An `abilityUnlocked` check on an ability no talent grants | `rules[i].conditions[j]` | Only a talent ability can be locked, so it is always true and does nothing. It also counts as always holding for `starves`.                                                                                                                                                 |
+| A condition the same as an earlier one of its rule        | `rules[i].conditions[j]` | It changes nothing. Compared as rules are; a repeated `abilityUnlocked` check on an ability no talent grants gets `unlockedNotTalent` instead.                                                                                                                              |
 
 One cause gives one warning: a rule that repeats an earlier one gets only
 `duplicateRule`, and is left out of every `starves` `below` (a duplicated
-Backstab is not said to starve itself). A rule with a `grantedNotTalent`
+Backstab is not said to starve itself). For `duplicateRule` a condition
+repeated within a rule counts once and an `abilityUnlocked` check on an
+ability no talent grants not at all, since neither changes what the rule
+does: Sinister Strike with no conditions, then Sinister Strike with only
+that check, is one rule twice (#215, #216). A rule with a `grantedNotTalent`
 check never casts, so it gets only that warning (one per such check), holds
 nothing back, and is left out of every `starves` `below` too. A finisher with
 `finisherNoComboPoints` and no on-GCD rule above it that can cast waits at 0
@@ -678,19 +683,21 @@ rotation waits at it instead.
 
 ### Warning codes
 
-| Code                    | Data                         | Path                     | When                                                                                                                                                            |
-| ----------------------- | ---------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `duplicateRule`         | `ability`, `same`            | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                                         |
-| `finisherNoComboPoints` | `ability`, `condition`       | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.                |
-| `cooldownNotChecked`    | `ability`                    | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                              |
-| `grantedNotTalent`      | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition. The rule never casts: its only warnings.                     |
-| `unlockedNotTalent`     | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityUnlocked` on `ability`, which no talent grants, so it is always true; `condition` is `j`. One per such condition.                                       |
-| `starves`               | `ability`, `below`, `reason` | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it that can cast (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. |
+| Code                    | Data                           | Path                     | When                                                                                                                                                            |
+| ----------------------- | ------------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `duplicateRule`         | `ability`, `same`              | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                                         |
+| `finisherNoComboPoints` | `ability`, `condition`         | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.                |
+| `cooldownNotChecked`    | `ability`                      | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                              |
+| `grantedNotTalent`      | `ability`, `condition`         | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition. The rule never casts: its only warnings.                     |
+| `unlockedNotTalent`     | `ability`, `condition`         | `rules[i].conditions[j]` | `abilityUnlocked` on `ability`, which no talent grants, so it is always true; `condition` is `j`. One per such condition.                                       |
+| `duplicateCondition`    | `ability`, `condition`, `same` | `rules[i].conditions[j]` | The same as condition `same` of the rule, earlier; `condition` is `j`. One per repeat, except an `unlockedNotTalent` one.                                       |
+| `starves`               | `ability`, `below`, `reason`   | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it that can cast (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. |
 
 `ability` is always the rule's action, except for `grantedNotTalent` and
 `unlockedNotTalent`, where it is the condition's. Per rule the order is
 `finisherNoComboPoints`, `cooldownNotChecked`, then `grantedNotTalent` and
-`unlockedNotTalent` in condition order, then `starves`.
+`unlockedNotTalent` in condition order, then `duplicateCondition` in
+condition order, then `starves`.
 
 The default rotation, every preset and every example below give no warnings
 (test/rotation-warnings.test.js). A message names the ability as the

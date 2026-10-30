@@ -7,7 +7,11 @@ import { defaultRotation } from "../js/rotation-default.js";
 import { exportRotation, importRotation } from "../js/rotation-io.js";
 import { listPresets, presetRotation } from "../js/rotation-presets.js";
 import { rotationContext, validateRotation } from "../js/rotation-validator.js";
-import { rotationWarnings, warningContext } from "../js/rotation-warnings.js";
+import {
+  rotationWarnings,
+  sameRuleKey,
+  warningContext,
+} from "../js/rotation-warnings.js";
 
 // Issue #189: warnings for pooling traps in a valid rotation. They are advice:
 // validateRotation is unchanged, and a rotation with warnings imports and runs.
@@ -1017,7 +1021,7 @@ describe("rotationWarnings: duplicateRule (#214)", () => {
     for (const [first, second] of [
       [rule("backstab", energy(1)), rule("backstab", energy(2))],
       [rule("backstab", energy(1)), rule("sinister-strike", energy(1))],
-      [rule("backstab", energy(1)), rule("backstab", energy(1), energy(1))],
+      [rule("backstab", energy(1)), rule("backstab", energy(1), energy(2))],
       [
         rule("backstab", { type: "auraActive", aura: "slice-and-dice" }),
         rule("backstab", {
@@ -1029,6 +1033,58 @@ describe("rotationWarnings: duplicateRule (#214)", () => {
     ]) {
       assert.deepEqual(dup([first, second]), [], JSON.stringify(second));
     }
+  });
+
+  // #215/#216 (Kira's QA): what changes nothing is left out of the
+  // comparison: a repeated condition counts once, an unlockedNotTalent
+  // check not at all.
+  it("counts a repeated condition once and an unlockedNotTalent check not at all", () => {
+    const twice = rule("backstab", energy(1), energy(1));
+    assert.deepEqual(
+      dup([rule("backstab", energy(1)), twice]).map(({ path, same }) => [
+        path,
+        same,
+      ]),
+      [["rules[1]", 0]],
+    );
+    // Kira's case: the unreachable Sinister Strike is one duplicate, not a
+    // rule of its own that starves Eviscerate again.
+    const trap = rotation(
+      rule("sinister-strike"),
+      rule("sinister-strike", unlocked("sinister-strike")),
+      rule("eviscerate", enoughPoints),
+    );
+    const warnings = rotationWarnings(trap);
+    assert.deepEqual(
+      warnings.map(({ code, path }) => [code, path]),
+      [
+        ["starves", "rules[0]"],
+        ["duplicateRule", "rules[1]"],
+      ],
+    );
+    assert.deepEqual(warnings[0].below, [2]);
+    // A talent ability's unlocked check does change the rule.
+    assert.deepEqual(
+      dup([
+        rule("ghostly-strike", ready("ghostly-strike")),
+        rule(
+          "ghostly-strike",
+          unlocked("ghostly-strike"),
+          ready("ghostly-strike"),
+        ),
+      ]),
+      [],
+    );
+    // sameRuleKey, which the form's draftEdited compares with, still tells
+    // them apart.
+    assert.notEqual(
+      sameRuleKey(rule("backstab", energy(1))),
+      sameRuleKey(twice),
+    );
+    assert.notEqual(
+      sameRuleKey(rule("sinister-strike")),
+      sameRuleKey(rule("sinister-strike", unlocked("sinister-strike"))),
+    );
   });
 
   it("is the only warning for the copy, and is not counted as starved (#210's QA)", () => {
@@ -1402,6 +1458,101 @@ describe("rotationWarnings: 'holds back' counts only on-GCD rules (Kira's QA on 
         ),
       ),
       [finisherText("Eviscerate (eviscerate)", undefined, HELD)],
+    );
+  });
+});
+
+describe("rotationWarnings: duplicateCondition (#215)", () => {
+  const repeats = (rules) =>
+    rotationWarnings(rotation(...rules)).filter(
+      (warning) => warning.code === "duplicateCondition",
+    );
+  const sdc = { type: "auraActive", aura: "slice-and-dice" };
+
+  it("warns at each condition the same as an earlier one of its rule", () => {
+    const warnings = repeats([
+      rule("eviscerate", enoughPoints),
+      rule(
+        "backstab",
+        sdc,
+        energy(1),
+        { ...sdc, active: true },
+        energy(1),
+        sdc,
+      ),
+    ]);
+    assert.deepEqual(
+      warnings.map(({ path, ability, condition, same }) => [
+        path,
+        ability,
+        condition,
+        same,
+      ]),
+      [
+        ["rules[1].conditions[2]", "backstab", 2, 0],
+        ["rules[1].conditions[3]", "backstab", 3, 1],
+        ["rules[1].conditions[4]", "backstab", 4, 0],
+      ],
+    );
+    assert.equal(
+      warnings[0].message,
+      "This condition is the same as an earlier one in the rule for Backstab (backstab), so it changes nothing. Delete it.",
+    );
+    assert.ok(warnings.every((warning) => Object.isFrozen(warning)));
+  });
+
+  it("leaves a different condition, and a repeated unlockedNotTalent check, alone", () => {
+    assert.deepEqual(
+      repeats([
+        rule("eviscerate", enoughPoints),
+        rule("backstab", energy(1), energy(2), { ...sdc, active: false }, sdc),
+      ]),
+      [],
+    );
+    const warnings = rotationWarnings(
+      rotation(
+        rule("eviscerate", enoughPoints),
+        rule("backstab", unlocked("backstab"), unlocked("backstab")),
+      ),
+    );
+    assert.deepEqual(
+      warnings.map(({ code, path }) => [code, path]),
+      [
+        ["unlockedNotTalent", "rules[1].conditions[0]"],
+        ["unlockedNotTalent", "rules[1].conditions[1]"],
+      ],
+    );
+  });
+
+  it("comes after the talent warnings and before starves, and on a rule that never casts", () => {
+    const warnings = rotationWarnings(
+      rotation(
+        rule("backstab", unlocked("backstab"), energy(0), energy(0)),
+        rule("eviscerate", enoughPoints),
+      ),
+    );
+    assert.deepEqual(
+      warnings.map(({ code }) => code),
+      ["unlockedNotTalent", "duplicateCondition", "starves"],
+    );
+    const never = rotationWarnings(
+      rotation(
+        rule(
+          "backstab",
+          { type: "abilityGranted", ability: "backstab" },
+          sdc,
+          sdc,
+        ),
+        rule("eviscerate", enoughPoints),
+        rule("sinister-strike"),
+      ),
+    );
+    assert.deepEqual(
+      never.map(({ code, path }) => [code, path]),
+      [
+        ["grantedNotTalent", "rules[0].conditions[0]"],
+        ["duplicateCondition", "rules[0].conditions[2]"],
+      ],
     );
   });
 });

@@ -48,6 +48,14 @@ import {
 //   unlockedNotTalent  An abilityUnlocked condition on an ability no talent
 //      grants. Only a talent ability can be locked, so it is always true and
 //      does nothing (one per such condition).
+//   duplicateCondition  A condition the same as an earlier one of its rule
+//      (conditionKey): it changes nothing (one per repeat; an
+//      unlockedNotTalent one has that warning instead, #215).
+//
+// duplicateRule compares rules as sameRuleKey does, less what changes
+// nothing: a repeated condition counts once and an unlockedNotTalent one
+// not at all (Kira's QA on #216), so SS() then SS(abilityUnlocked SS) is one
+// rule twice. sameRuleKey itself, which draftEdited uses, is unchanged.
 //   starves  An on-GCD rule whose conditions always hold (none, or only the
 //      cheap cases of alwaysHolds and unlockedNotTalent checks, which are
 //      always true) that has an on-GCD rule below it. Whenever the GCD is
@@ -177,6 +185,42 @@ export function sameRuleKey(rule) {
     rule.action,
     rule.conditions.map(conditionKey).sort(),
   ]);
+}
+
+// A rule's key for duplicateRule: sameRuleKey's, with each condition once
+// and the unlockedNotTalent ones left out (#215, #216).
+function warningRuleKey(rule, talentGranted) {
+  const kept = rule.conditions
+    .filter((condition) => !unlockedNotTalent(condition, talentGranted))
+    .map(conditionKey);
+  return JSON.stringify([rule.action, [...new Set(kept)].sort()]);
+}
+
+// A duplicateCondition for each condition the same as an earlier one of the
+// rule, in condition order (#215). An unlockedNotTalent repeat already has
+// its own warning, one per condition.
+function duplicateConditionWarnings(rule, path, talentGranted) {
+  const seen = new Map();
+  const warnings = [];
+  rule.conditions.forEach((condition, at) => {
+    const key = conditionKey(condition);
+    if (!seen.has(key)) {
+      seen.set(key, at);
+      return;
+    }
+    if (unlockedNotTalent(condition, talentGranted)) {
+      return;
+    }
+    warnings.push(
+      rotationError(
+        "duplicateCondition",
+        `${path}.conditions[${at}]`,
+        `This condition is the same as an earlier one in the rule for ${abilityLabel(rule.action)}, so it changes nothing. Delete it.`,
+        { ability: rule.action, condition: at, same: seen.get(key) },
+      ),
+    );
+  });
+  return warnings;
 }
 
 function finisherWarning(rule, path, hasBelow, context) {
@@ -324,7 +368,7 @@ export function rotationWarnings(rotation, context) {
   const first = new Map();
   const same = new Map();
   rules.forEach((rule, index) => {
-    const key = sameRuleKey(rule);
+    const key = warningRuleKey(rule, talentGrantedAbilities);
     if (first.has(key)) {
       same.set(index, first.get(key));
     } else {
@@ -368,7 +412,10 @@ export function rotationWarnings(rotation, context) {
       );
       return;
     }
-    const talent = talentWarnings(rule, path, talentGrantedAbilities);
+    const talent = [
+      ...talentWarnings(rule, path, talentGrantedAbilities),
+      ...duplicateConditionWarnings(rule, path, talentGrantedAbilities),
+    ];
     if (silent.has(index)) {
       warnings.push(...talent);
       return;
