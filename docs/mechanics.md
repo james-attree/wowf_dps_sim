@@ -3180,7 +3180,12 @@ steps out of a carry of the given time (#158); #234 removed it with the
 unchanged. An `engine` key, like any option a function does not take, is a
 `RangeError` in `runFight`, `SimRunner`, `BatchRunner`, `new Simulation` and
 `createLiveRun`'s `run` and `clear` (#236 QA); `createFight`'s options give
-"Unknown Rogue option".
+"Unknown Rogue option". `new Simulation`, `run` and `clear` read only the
+options an object has of its own, as `runFight` does (#209): one it inherits
+is not given. `new Simulation(rogue)` with no options is the defaults, but
+null, an array or a value that is not an object is a `RangeError` ("Simulation
+needs an options object"); `run` and `clear` need a seed, so they take no
+less than an options object and refuse undefined too (#238 QA).
 
 `createLiveRun`'s `run({ seed, duration, config })` gives the runner one
 `advance` per frame of its own seconds (`FrameClock.seconds`, at most
