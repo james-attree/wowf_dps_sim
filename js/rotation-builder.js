@@ -644,15 +644,29 @@ export function createRotationBuilder(store, formActions) {
     const edited = isEdited();
     const id = choice();
     const kind = kindOf(id);
-    const skipped = rotation.rules
+    const skips = rotation.rules
       .map((rule, index) => [skipOf(rule, talents), index])
       .filter(([skip]) => skip !== null);
+    // A skip no talent lifts (a talent check on a baseline ability) is the
+    // same with any build: said on its own, not "with no talents" (#244, P1).
+    const skipped = skips.filter(([skip]) => skip.talent !== null);
+    const unavailable = skips.filter(([skip]) => skip.talent === null);
+    const ruleList = (list) =>
+      list.map(([, index]) => `rule ${index + 1}`).join(", ");
     const anyTalent = rules.some((rule) => abilityFacts(rule.action).talent);
     // "skipped with no talents" when none are picked, as "this build" reads
     // oddly then (Fran's #232 QA, nit 5; #234).
-    const context = `${
+    const byBuild =
       skipped.length > 0
-        ? `${count(skipped.length, "rule")} ${skipped.length === 1 ? "is" : "are"} skipped with ${talents.build.selected ? "this build" : "no talents"} (${skipped.map(([, index]) => `rule ${index + 1}`).join(", ")}).`
+        ? `${count(skipped.length, "rule")} ${skipped.length === 1 ? "is" : "are"} skipped with ${talents.build.selected ? "this build" : "no talents"} (${ruleList(skipped)}).`
+        : null;
+    const never =
+      unavailable.length > 0
+        ? `${count(unavailable.length, "rule")} ${unavailable.length === 1 ? "is" : "are"} skipped with any talents: ${unavailable.length === 1 ? "its check isn't" : "their checks aren't"} available to this spec or build (${ruleList(unavailable)}).`
+        : null;
+    const context = `${
+      byBuild !== null || never !== null
+        ? [byBuild, never].filter((part) => part !== null).join(" ")
         : anyTalent
           ? "Every talent ability in the list has its talent."
           : "No rule needs a talent."

@@ -220,7 +220,7 @@ describe("Rotation's screens", () => {
     const { context, page, errors } = await openPage(1280, 800, "#rotation");
     try {
       await page.locator("#rotation-builder li.rule").first().waitFor();
-      const before = await page.evaluate(() => history.length);
+      const before = await page.evaluate(() => globalThis.history.length);
       const third = ruleCard(page, 2);
       const deleted = await third.getAttribute("data-uid");
       await third.locator("[data-key$='.edit']").click();
@@ -231,7 +231,10 @@ describe("Rotation's screens", () => {
       await page.locator("#rotation-builder li.rule").first().waitFor();
       assert.equal(await page.locator("#rotation-builder li.rule").count(), 6);
       // The Delete added no entry: the list replaced the rule's.
-      assert.equal(await page.evaluate(() => history.length), before + 1);
+      assert.equal(
+        await page.evaluate(() => globalThis.history.length),
+        before + 1,
+      );
       const now = await page.evaluate(() =>
         [...document.querySelectorAll("#rotation-builder li.rule")].map(
           (rule) => rule.dataset.uid,

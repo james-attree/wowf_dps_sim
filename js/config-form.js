@@ -59,7 +59,8 @@ import { formErrorCount } from "./views/run-model.js";
 //                   uses: the selected one, or its last valid version while
 //                   its draft has errors (stale is then the note, else null).
 //                   A rule the build skips ends "— skipped: no X talent" (D9),
-//                   or "— skipped with no talents" with none picked (#234).
+//                   or "— skipped with no talents" with none picked (#234);
+//                   one no talent lifts says so with any build (#244).
 //   poisonOptions   { simulated, notSimulated: [{ id, label }] } for the two
 //                   poison selects (#152); id is the config id ("instant").
 //   poisons         { mainHand, offHand }: poisonInfo() of each hand's poison,
@@ -379,10 +380,12 @@ export function summaryOf(rotation, { talents = null, errors = 0 } = {}) {
       if (skip === null) {
         return line;
       }
-      // With no talents every skip is that, so the line says it plainly
-      // rather than "…is not locked by the build … — skipped: no Blade
-      // Flurry talent" (Fran's #232 QA, nit 4; #234).
-      return talents.build.selected
+      // With no talents a talent's skip is that, so the line says it
+      // plainly rather than "…is not locked by the build … — skipped: no
+      // Blade Flurry talent" (Fran's #232 QA, nit 4; #234). A skip no talent
+      // lifts (talent null) is the same with any build, so it says why
+      // (#244, P1).
+      return talents.build.selected || skip.talent === null
         ? `${line} — skipped: ${skip.text}`
         : `${line} — skipped with no talents`;
     }),

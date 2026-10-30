@@ -9,7 +9,7 @@ import { skipOf, talentState } from "../js/rotation-skips.js";
 describe("the skip text for a guard on a non-talent ability (#243)", () => {
   const state = talentState({ talents: {} });
 
-  it("abilityGranted on Sinister Strike: never granted, no talent named", () => {
+  it("abilityGranted on Sinister Strike: no talent named, the check unavailable (#244)", () => {
     const rule = {
       action: "sinister-strike",
       conditions: [{ type: "abilityGranted", ability: "sinister-strike" }],
@@ -17,7 +17,7 @@ describe("the skip text for a guard on a non-talent ability (#243)", () => {
     assert.deepEqual(skipOf(rule, state), {
       ability: "sinister-strike",
       talent: null,
-      text: "Sinister Strike is never granted (no talent gives it)",
+      text: "Sinister Strike's talent check isn't available to this spec or build (Sinister Strike is baseline)",
     });
     assert.doesNotMatch(skipOf(rule, state).text, /talent$/);
   });
