@@ -502,10 +502,13 @@ param of the wrong type, and is written in the message as `NaN` or `Infinity`
 **The context** is which ids exist. `abilities` is every id in the spell data,
 `castable` the abilities the rogue casts, `auras` the self buffs and `debuffs`
 the target debuffs as `{ id: maxStacks }`, and `talentGrantedAbilities` the
-abilities a talent grants, whose rules need a guard (an array or a `Set` of
-id strings; it is copied, `null` is taken as absent, and anything else, such
-as a string or a plain object, is a `TypeError` that says what was given,
-#207). Each defaults to the engine's own (`js/ability-data.js`,
+abilities a talent grants, whose rules need a guard. The four lists are each
+an array or a `Set` of id strings; a list is copied, `null` is taken as
+absent, and anything else, such as a string or a plain object, is a
+`TypeError` that says what was given (#207, #210). `debuffs` given as
+anything but an object (an array, a `Map`, a number) is a `TypeError` too,
+and so is a context that is not an object; a `null` context is none (#210).
+Each defaults to the engine's own (`js/ability-data.js`,
 `js/abilities.js`, `js/auras.js`, and `talentGrantedAbilities` from
 `js/talent-build.js`) and a caller may replace any of them, for a test or for a
 build that has fewer abilities.

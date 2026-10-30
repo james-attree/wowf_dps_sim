@@ -5,6 +5,7 @@ import { CONDITION_PARAMS, compareNumbers } from "./rotation-conditions.js";
 import { rotationError } from "./rotation-schema.js";
 import {
   abilityLabel,
+  contextObject,
   idList,
   rotationContext,
   validateRotation,
@@ -94,7 +95,8 @@ const ENGINE_ON_GCD = Object.freeze(
   ).map((definition) => definition.id),
 );
 
-export function warningContext(given = {}) {
+export function warningContext(context) {
+  const given = contextObject("warningContext", context);
   const list = (field, fallback) =>
     idList("warningContext", field, given[field], fallback);
   return {
@@ -311,7 +313,7 @@ function starvesWarning(rules, index, path, below, context, talentGranted) {
   );
 }
 
-export function rotationWarnings(rotation, context = {}) {
+export function rotationWarnings(rotation, context) {
   if (validateRotation(rotation, context).length > 0) {
     return [];
   }

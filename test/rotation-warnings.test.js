@@ -642,6 +642,35 @@ describe("rotationWarnings: data, not names", () => {
     }
   });
 
+  it("takes a null context as none and refuses one that is not an object (#210)", () => {
+    assert.deepEqual(warningContext(null), warningContext());
+    const ok = rotation(rule("sinister-strike"));
+    assert.deepEqual(rotationWarnings(ok, null), rotationWarnings(ok));
+    for (const [context, shown] of [
+      [5, "a number"],
+      [[], "an array"],
+      [new Set(), "a Set"],
+    ]) {
+      assert.throws(
+        () => warningContext(context),
+        (error) =>
+          error instanceof TypeError &&
+          error.message ===
+            `warningContext: the context must be an object, not ${shown}.`,
+        shown,
+      );
+      // The validator reads the context first, so its name is the one given.
+      assert.throws(
+        () => rotationWarnings(ok, context),
+        (error) =>
+          error instanceof TypeError &&
+          error.message ===
+            `rotationContext: the context must be an object, not ${shown}.`,
+        shown,
+      );
+    }
+  });
+
   it("the engine's lists come from the ability data", () => {
     const context = warningContext();
     assert.deepEqual(context.cooldowns, [
