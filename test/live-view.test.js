@@ -8,6 +8,7 @@ import { FrameClock } from "../js/frame-clock.js";
 import { iconUrl } from "../js/icons.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import "./legacy-engine.js";
 
 // Issue #76. The live page is a view of the engine runFight uses: js/main.js
 // turns animation frames into whole fixed steps (js/frame-clock.js), steps the

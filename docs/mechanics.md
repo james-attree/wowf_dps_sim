@@ -1130,7 +1130,7 @@ every change due at that instant. Parity is measured over many seeds, so the
 difference from the fixed step is allowed.
 
 **Scheduler (#193).** `js/core/scheduler.js` holds the queue; the event core
-(#197) runs on it, and the legacy engine stays the default. `new Scheduler({ endTime, handle })`
+(#197) runs on it, and is the default engine since #199. `new Scheduler({ endTime, handle })`
 takes the fight's end time and one `handle(event, scheduler)` function that is
 called for each event in order. `schedule({ time, order, kind, payload })`
 adds an event at an absolute time, with `order` one of `ORDER` (`ORDER.energy`
@@ -1338,10 +1338,11 @@ non-empty string a `TypeError`. A proc's internal cooldown keeps its absolute
 **Decision points and the rotation (E6, #197).** `js/core/fight.js` runs a
 whole fight on the scheduler. `new Simulation(rogue, { engine: "events" })`
 (or `createFight(seed, config, { engine: "events" })`) makes `run()` go there;
-`"legacy"` (fixed steps) stays the default, `step()` is always a fixed step,
-and an unknown engine is a `RangeError`. `Simulation.useEngine(engine)` sets
-the default for Simulations built after it and returns the one it replaced,
-for tests that run a whole file on the core. The Simulation stays the store of
+`"events"` is the default since #199 (`"legacy"`, the fixed steps, stays by
+name until #200), `step()` is always a fixed step, and an unknown engine is a
+`RangeError`. `Simulation.useEngine(engine)` sets the default for Simulations
+built after it and returns the one it replaced, for tests that run a whole
+file on one engine (`test/legacy-engine.js` pins a file to legacy). The Simulation stays the store of
 the fight's state and does every hit, tick and proc as on legacy; the core
 only says when. For the run it puts an `EnergyPool` in place of the legacy
 energy pool (taking over its value and cap, and giving the value and the
@@ -3214,14 +3215,14 @@ effect after the events at that time, and the rest of the given time is kept
 for `resume`, as a legacy step's is. Between calls `fight`'s `rogue` and
 `simulation` read the fight at the time reached: energy, the GCD, auras and
 cooldowns move with the time alone, with no step to round them to. A fight of
-no length runs its events at 0, as `Simulation.run(0)` does on the core.
+no length handles no events, as legacy takes no step for it (#199).
 
 `createLiveRun`'s `run({ seed, duration, config, engine })` and
 `clear({ seed, config, engine })` pass the engine on. On `"events"` a frame
 is one `advance` of its own seconds (`FrameClock.seconds`, at most
 `k("sim.maxFrameTime")`, 0 for the first frame and the first after a resume)
 instead of whole steps. The page (`js/main.js`) and the batch Worker pass no
-engine, so they run legacy until #199. `BatchRunner` and `runBatch` take no
+engine, so they run the default, the event core since #199. `BatchRunner` and `runBatch` take no
 engine option yet; under `Simulation.useEngine` their fights run on the
 default engine.
 

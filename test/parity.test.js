@@ -86,19 +86,22 @@ describe("parity: legacy against legacy is exactly 0 (#192)", () => {
 
   it("the means are runFight's, seeds 1 to N", () => {
     const c = report.cases.find(({ name }) => name === SHORT);
-    const dps = [1, 2, 3].map((seed) => runFight({ seed, duration: 300 }).dps);
+    const dps = [1, 2, 3].map(
+      (seed) => runFight({ seed, duration: 300, engine: "legacy" }).dps,
+    );
     assert.equal(c.engine.dpsMean, mean(dps));
     assert.equal(c.engine.dpsSd, standardDeviation(dps));
   });
 });
 
 describe("parity: a different engine is caught", () => {
+  // Offsets from legacy, the engine they are compared with.
   const plusTen = (options) => {
-    const result = runFight(options);
+    const result = runFight({ ...options, engine: "legacy" });
     return { ...result, dps: result.dps + 10 };
   };
   const bySeed = (options) => {
-    const result = runFight(options);
+    const result = runFight({ ...options, engine: "legacy" });
     return { ...result, dps: result.dps + options.seed };
   };
   const engines = { ...ENGINES, plusTen, bySeed };
@@ -1069,7 +1072,7 @@ describe("parity: the #199 harness fixes", () => {
     );
     assert.deepEqual(
       ENGINES.legacy(structuredClone(options)),
-      runFight(structuredClone(options)),
+      runFight({ ...structuredClone(options), engine: "legacy" }),
     );
     const [cross] = runParity({
       engine: "events",

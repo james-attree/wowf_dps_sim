@@ -396,7 +396,7 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   3.5 core: `schedule`, cancel tokens, `reschedule`, `runUntil`, `runToEnd`,
   the fixed order at one timestamp (`ORDER`), and a hard stop
   (`SchedulerHardStopError`). The event core (`js/core/fight.js`, #197) runs
-  on it; the legacy engine is the default. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+  on it, and is the default engine since #199. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
 - `js/core/energy.js` — `EnergyPool` (#194), continuous energy for the Phase
   3.5 core: the line `min(cap, value0 + rate * (now - t0))`, re-based on a
   gain, a spend or a rate or cap change (`modifiersChanged()`), and a one-shot
@@ -439,8 +439,8 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   call, and returns a plain object: seed, simulated duration, total damage, DPS,
   a per-ability breakdown (`Simulation.abilityStats`), the combat log,
   `dataVersion` (which data snapshot the fight ran on), and `config` (the
-  SimConfig it used). `engine` (#198) is `"legacy"` (the default) or
-  `"events"`, the event core; the result does not record it. An option other
+  SimConfig it used). `engine` (#198) is `"events"`, the event core (the
+  default since #199), or `"legacy"`, until #200; the result does not record it. An option other
   than `seed`, `duration`, `config` and `engine` is a `RangeError`. `createFight` returns `dataVersion` and `config` too. The same seed and duration give a deep-equal result, and it
   loads in Node with no DOM.
 - `js/sim-runner.js` — `SimRunner` (P3-1, #136), the run controller over the

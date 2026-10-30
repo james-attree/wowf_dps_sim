@@ -44,29 +44,28 @@ function events(options) {
 
 describe("runFight engine option (#198)", () => {
   it("runs the event core, with the result's shape and no engine in it", () => {
-    const legacy = runFight({ seed: 4, duration: 20 });
+    const legacy = runFight({ seed: 4, duration: 20, engine: "legacy" });
     const core = runFight({ seed: 4, duration: 20, engine: EVENTS });
     assert.deepEqual(Object.keys(core), Object.keys(legacy));
     assert.equal(core.duration, 20);
     assert.ok(core.totalDamage > 0);
-    assert.deepEqual(
-      runFight({ seed: 4, duration: 20, engine: "legacy" }),
-      legacy,
-    );
+    // The event core is the default since #199.
+    assert.deepEqual(runFight({ seed: 4, duration: 20 }), core);
   });
 
   it("gives what the default engine gives when useEngine set it", () => {
-    const core = runFight({
+    // Legacy, now that the default is the event core (#199).
+    const legacy = runFight({
       seed: 8,
       duration: 15,
       config: TALENTED,
-      engine: EVENTS,
+      engine: "legacy",
     });
-    const previous = Simulation.useEngine(EVENTS);
+    const previous = Simulation.useEngine("legacy");
     try {
       assert.deepEqual(
         runFight({ seed: 8, duration: 15, config: TALENTED }),
-        core,
+        legacy,
       );
     } finally {
       Simulation.useEngine(previous);
@@ -84,13 +83,13 @@ describe("runFight engine option (#198)", () => {
 });
 
 describe("SimRunner engine option (#198)", () => {
-  it("is legacy by default, the one named, or the default useEngine set", () => {
-    assert.equal(new SimRunner({ seed: 1, duration: 1 }).engine, "legacy");
+  it("is events by default (#199), the one named, or the default useEngine set", () => {
+    assert.equal(new SimRunner({ seed: 1, duration: 1 }).engine, EVENTS);
     assert.equal(
-      new SimRunner({ seed: 1, duration: 1, engine: EVENTS }).engine,
-      EVENTS,
+      new SimRunner({ seed: 1, duration: 1, engine: "legacy" }).engine,
+      "legacy",
     );
-    const previous = Simulation.useEngine(EVENTS);
+    const previous = Simulation.useEngine("legacy");
     let made;
     try {
       made = new SimRunner({ seed: 1, duration: 1 });
@@ -98,10 +97,13 @@ describe("SimRunner engine option (#198)", () => {
       Simulation.useEngine(previous);
     }
     // Fixed when the runner is made.
-    assert.equal(made.engine, EVENTS);
+    assert.equal(made.engine, "legacy");
     made.run();
     made.advance(Infinity);
-    assert.deepEqual(made.result, headless({ seed: 1, duration: 1 }));
+    assert.deepEqual(
+      made.result,
+      runFight({ seed: 1, duration: 1, engine: "legacy" }),
+    );
   });
 
   it("refuses an unknown engine when it is made", () => {

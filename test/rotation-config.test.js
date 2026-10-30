@@ -92,7 +92,8 @@ describe("SimConfig.rotation", () => {
     });
     const counts = casts(result);
     assert.ok(counts.Eviscerate > 3);
-    assert.ok(counts["Sinister Strike"] > counts.Eviscerate);
+    // Each Eviscerate spends the point a Sinister Strike before it built.
+    assert.ok(counts["Sinister Strike"] >= counts.Eviscerate);
     assert.equal(counts["Blade Flurry"], undefined);
   });
 

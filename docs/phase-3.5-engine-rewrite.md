@@ -352,7 +352,10 @@ within a tolerance Kira signs off, with any difference above it explained. The
 engine default switches to the new core. The golden fixtures are regenerated
 with `npm run golden:update -- --write` in their own commit, and Kira reviews
 the diff of every fixture and signs off. If the mean is outside 2%, the PR does
-not merge and the cause is fixed or James decides.
+not merge and the cause is fixed or James decides. Landed in #199: the default
+is `"events"` (`js/simulation.js`), tests that pin legacy itself import
+`test/legacy-engine.js` or name the engine until #200, and all 7 fixtures
+moved (as the risk below says).
 
 **9. Remove the legacy engine, docs.** Done when: the fixed-step loop,
 `Simulation.step` as a public method (or a documented shim if the live page or

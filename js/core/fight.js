@@ -191,12 +191,14 @@ class CoreRun {
   #fight;
   #scheduler;
   #closed = false;
+  #empty;
 
   constructor(sim, duration, { pollEvery, afterEvent }) {
     if (sim.core !== null && sim.core !== undefined) {
       throw new Error("The event core is already running this fight.");
     }
     const start = sim.currentTime;
+    this.#empty = duration === 0;
     this.stats = sim.coreStats ??= emptyStats();
     let fight = null;
     // On the fight's clock, not from 0 at each open: two runs of one fight
@@ -252,7 +254,11 @@ class CoreRun {
     if (this.#closed) {
       throw new Error("This event core run is closed.");
     }
-    this.#scheduler.runUntil(t);
+    // A fight of no length has no events: legacy takes no step for a
+    // duration of 0, so nothing at time 0 happens either (#199, the flip).
+    if (!this.#empty) {
+      this.#scheduler.runUntil(t);
+    }
     this.#fight.advance();
   }
 
