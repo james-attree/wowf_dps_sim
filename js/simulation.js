@@ -70,6 +70,8 @@ function readFightLength(fightLength) {
   return fightLength;
 }
 
+const SIMULATION_OPTIONS = Object.freeze(["seed", "rng", "fightLength"]);
+
 export class Simulation {
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
@@ -84,7 +86,17 @@ export class Simulation {
   // run() moves the fight on the event core (js/core/fight.js, #197), which
   // jumps from event to event and runs the rotation only at its decision
   // points. The fixed-step engine is gone (#234; tag legacy-engine-final).
-  constructor(rogue, { seed = k("rng.defaultSeed"), rng, fightLength } = {}) {
+  // An option with any other name (an `engine`, say) is a RangeError, as in
+  // runFight, before the fight touches the rogue (#236 QA).
+  constructor(rogue, options = {}) {
+    for (const key of Object.keys(options)) {
+      if (!SIMULATION_OPTIONS.includes(key)) {
+        throw new RangeError(
+          `Simulation has no option ${JSON.stringify(key)}. Options: ${SIMULATION_OPTIONS.join(", ")}.`,
+        );
+      }
+    }
+    const { seed = k("rng.defaultSeed"), rng, fightLength } = options;
     this.rogue = rogue;
     // The event core while it runs this fight (js/core/fight.js), told where
     // a DoT starts; null between runs.

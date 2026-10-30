@@ -3151,7 +3151,10 @@ Before #234 the runner also took `engine: "legacy"`, which paid whole fixed
 steps out of a carry of the given time (#158); #234 removed it with the
 `engine` option of `SimRunner`, `runFight`, `createFight` and
 `createLiveRun`. The result never recorded the engine, and its shape is
-unchanged.
+unchanged. An `engine` key, like any option a function does not take, is a
+`RangeError` in `runFight`, `SimRunner`, `BatchRunner`, `new Simulation` and
+`createLiveRun`'s `run` and `clear` (#236 QA); `createFight`'s options give
+"Unknown Rogue option".
 
 `createLiveRun`'s `run({ seed, duration, config })` gives the runner one
 `advance` per frame of its own seconds (`FrameClock.seconds`, at most

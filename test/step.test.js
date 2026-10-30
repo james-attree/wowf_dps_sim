@@ -75,6 +75,46 @@ describe("runOnCore, cut into steps", () => {
     }
   });
 
+  it("refuses an option it does not know, an engine too, before it touches the rogue (#236 QA)", () => {
+    for (const key of ["engine", "duration", "sed"]) {
+      const rogue = new Rogue();
+      assert.throws(
+        () => new Simulation(rogue, { seed: 1, [key]: "legacy" }),
+        (error) =>
+          error instanceof RangeError &&
+          error.message ===
+            `Simulation has no option "${key}". Options: seed, rng, fightLength.`,
+        key,
+      );
+      // The rogue's pipeline is not taken: a fight on it still starts.
+      assert.equal(new Simulation(rogue, { seed: 1 }).seed, 1, key);
+    }
+  });
+
+  it("refuses a run whose duration is not finite and 0 or more, with its own message", () => {
+    for (const bad of [
+      -0.001,
+      NaN,
+      Infinity,
+      -Infinity,
+      undefined,
+      null,
+      "1",
+    ]) {
+      const sim = new Simulation(new Rogue(), { seed: 1 });
+      assert.throws(
+        () => sim.run(bad),
+        (error) =>
+          error instanceof RangeError &&
+          error.message ===
+            `Simulation.run needs a finite duration in seconds, 0 or more. Got ${bad}.`,
+        String(bad),
+      );
+      assert.equal(sim.currentTime, 0, String(bad));
+      assert.equal(sim.core, null, String(bad));
+    }
+  });
+
   it("gives two engines the same final state for the same seed and steps", () => {
     const steps = repeat(60 * 90, 1 / 60);
     const first = fight(1234, steps);
