@@ -59,7 +59,7 @@ export const FINISHER_SCRIPT = [
 // Keep this list short: every case is a file to review whenever results move
 // on purpose. A case with a script runs it (scripts/scripted-fight.mjs) instead
 // of the placeholder rotation; any other case is plain runFight.
-// Frozen all the way down (#213): a caller, such as the parity harness, reads
+// Frozen all the way down (#213): a caller, such as test/fight-cases.js, reads
 // the cases and copies a config before it runs one, and never changes one in
 // place.
 function deepFreeze(value) {

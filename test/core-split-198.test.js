@@ -3,15 +3,16 @@ import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { DOT_REFRESH, DOT_TICK_KIND, DotTicks } from "../js/core/dots.js";
 import { EnergyPool } from "../js/core/energy.js";
-import { ENGINES, openCore, runOnCore } from "../js/core/fight.js";
+import { openCore, runOnCore } from "../js/core/fight.js";
 import { Scheduler } from "../js/core/scheduler.js";
 import { SWING_KIND, SwingTimer } from "../js/core/swing.js";
 import { createFight, fightResult, runFight } from "../js/fight.js";
 import { RESOURCE_DEFINITIONS } from "../js/resource-data.js";
 import { createRng } from "../js/rng.js";
 import { SimRunner } from "../js/sim-runner.js";
-import { PARITY_CASES, PARITY_ONLY_CASES } from "../scripts/parity.mjs";
+import { EXTRA_CASES, FIGHT_CASES } from "./fight-cases.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
+import { POLL_STEP } from "./poll-step.js";
 
 // #198, from #197's QA (M1 and M2 on PR #230). M1: a fight cut into pieces on
 // the event core is the fight run in one piece, event for event. The core's
@@ -21,20 +22,18 @@ import { COMBAT_GRANTS } from "./combat-grants.js";
 // option really runs the core, the re-ask cap, and the DoT refresh rules
 // across a run.
 
-const EVENTS = ENGINES.events;
-const HEMO = PARITY_ONLY_CASES.find(
+const HEMO = EXTRA_CASES.find(
   ({ name }) => name === "dot-hemorrhage-rupture-120s",
 );
-// The distinct configs the parity gate runs.
+// The distinct configs of the core's test cases.
 const CONFIGS = [
-  ...new Map(PARITY_CASES.map((c) => [JSON.stringify(c.config), c])).values(),
+  ...new Map(FIGHT_CASES.map((c) => [JSON.stringify(c.config), c])).values(),
 ];
 
 // A fight on the event core with the events it reports logged in full.
 function logged(seed, config, duration) {
   const fight = createFight(seed, structuredClone(config), {
     duration,
-    engine: EVENTS,
   });
   const log = [];
   // sim.run reports an end at the end of every call, so the ends are left
@@ -79,7 +78,7 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
     }
   });
 
-  it("every parity config, at random cuts and at cuts on event times", () => {
+  it("every test config, at random cuts and at cuts on event times", () => {
     const rng = createRng(198);
     for (const { name, config } of CONFIGS) {
       for (const seed of [3, 17, 44]) {
@@ -113,8 +112,8 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
   // whose last tick has run with time left (poisons seed 28).
   it("the cuts that need the energy line and an idle DoT carried", () => {
     const named = (name) =>
-      PARITY_CASES.find((c) => c.name === name) ??
-      PARITY_ONLY_CASES.find((c) => c.name === name);
+      FIGHT_CASES.find((c) => c.name === name) ??
+      EXTRA_CASES.find((c) => c.name === name);
     for (const [name, seed, cuts] of [
       [
         "five-minute-seed-1-300s",
@@ -146,7 +145,6 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
     for (const cuts of [[], [0.371]]) {
       const { simulation, rogue } = createFight(4, undefined, {
         duration: 10,
-        engine: EVENTS,
       });
       const definition = simulation.auraDefinitions.get("blade-flurry");
       rogue.castRotation = (sim) => {
@@ -170,7 +168,6 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
   it("an aura replaced between runs is timed from its field, not carried", () => {
     const { simulation, rogue } = createFight(4, undefined, {
       duration: 10,
-      engine: EVENTS,
     });
     const definition = simulation.auraDefinitions.get("blade-flurry");
     rogue.castRotation = (sim) => {
@@ -196,16 +193,15 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
 
   it("through createFight with the engine option and the runner's frames", () => {
     const fight = { seed: 30, duration: 120, config: HEMO.config };
-    const expected = runFight({ ...fight, engine: EVENTS });
+    const expected = runFight({ ...fight });
     const pieces = createFight(30, structuredClone(HEMO.config), {
       duration: 120,
-      engine: EVENTS,
     });
     pieces.simulation.run(85.5022);
     pieces.simulation.run(120 - 85.5022);
     pieces.simulation.end();
     assert.deepEqual(fightResult(pieces), expected);
-    const runner = new SimRunner({ ...fight, engine: EVENTS });
+    const runner = new SimRunner({ ...fight });
     runner.run();
     runner.advance(85.5022);
     runner.advance(Infinity);
@@ -215,13 +211,12 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
   it("takes the carry once, and only at the time it was left", () => {
     const { simulation } = createFight(5, undefined, {
       duration: 30,
-      engine: EVENTS,
     });
     runOnCore(simulation, 4);
     assert.equal(simulation.coreCarry.time, 4);
     // A legacy step in between moves the fight on: the next run starts
     // afresh from the fields, as #197 did.
-    simulation.step(0.25);
+    runOnCore(simulation, 0.25);
     const { mainHand } = simulation.rogue.weapons;
     const left = mainHand.swingTimer;
     const swings = [];
@@ -241,7 +236,6 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
   it("uses a field changed between runs in place of the clock it carried", () => {
     const { simulation } = createFight(6, undefined, {
       duration: 30,
-      engine: EVENTS,
     });
     runOnCore(simulation, 3.1);
     const { mainHand } = simulation.rogue.weapons;
@@ -277,7 +271,6 @@ describe("what the carry leaves to the fields (#198)", () => {
   it("energy set between runs is read from the field", () => {
     const { simulation } = createFight(6, undefined, {
       duration: 30,
-      engine: EVENTS,
     });
     runOnCore(simulation, 3.1);
     simulation.rogue.resources.energy.value = 10;
@@ -288,7 +281,6 @@ describe("what the carry leaves to the fields (#198)", () => {
     // Granted, as the untalented default casts no Adrenaline Rush (#199).
     const { simulation } = createFight(6, undefined, {
       duration: 30,
-      engine: EVENTS,
       ...COMBAT_GRANTS,
     });
     runOnCore(simulation, 3.1);
@@ -307,7 +299,6 @@ describe("what the carry leaves to the fields (#198)", () => {
   it("a DoT's tick time set between runs is read from the field", () => {
     const { simulation } = createFight(30, structuredClone(HEMO.config), {
       duration: 120,
-      engine: EVENTS,
     });
     runOnCore(simulation, 10);
     const dot = simulation.activeDots.rupture;
@@ -331,7 +322,6 @@ describe("what the carry leaves to the fields (#198)", () => {
   function ruptureTicksAfter(change) {
     const { simulation } = createFight(30, structuredClone(HEMO.config), {
       duration: 120,
-      engine: EVENTS,
     });
     runOnCore(simulation, 10);
     const dot = simulation.activeDots.rupture;
@@ -378,11 +368,10 @@ describe("what the carry leaves to the fields (#198)", () => {
   });
 
   it("the check poll goes on with its grid, and a step in between drops it", () => {
-    const pollEvery = k("sim.fixedStep");
+    const pollEvery = POLL_STEP;
     const asks = (cuts) => {
       const { simulation, rogue } = createFight(2, undefined, {
         duration: 10,
-        engine: EVENTS,
       });
       const castRotation = rogue.castRotation.bind(rogue);
       const times = new Set();
@@ -404,10 +393,9 @@ describe("what the carry leaves to the fields (#198)", () => {
     );
     const { simulation } = createFight(2, undefined, {
       duration: 10,
-      engine: EVENTS,
     });
     runOnCore(simulation, 4.01, { pollEvery });
-    simulation.step(0.25);
+    runOnCore(simulation, 0.25);
     assert.doesNotThrow(() => runOnCore(simulation, 1, { pollEvery }));
   });
 });
@@ -579,24 +567,19 @@ describe("the clocks the core carries (#198)", () => {
 });
 
 describe("M2: what #197's mutants E2, F3, E6, E7 and F33 broke (#198)", () => {
-  it("E2: engine 'events' runs the fight on the core, not on legacy steps", () => {
-    const make = (engine) =>
-      createFight(9, undefined, { duration: 30, engine });
-    const events = make(EVENTS);
-    events.simulation.run(30);
-    const byHand = make(ENGINES.legacy);
+  it("E2: Simulation.run runs the fight on the core", () => {
+    const make = () => createFight(9, undefined, { duration: 30 });
+    const run = make();
+    run.simulation.run(30);
+    const byHand = make();
     runOnCore(byHand.simulation, 30);
     byHand.simulation.end();
-    const legacy = make(ENGINES.legacy);
-    legacy.simulation.run(30);
-    assert.deepEqual(fightResult(events), fightResult(byHand));
-    assert.notDeepEqual(fightResult(events), fightResult(legacy));
+    assert.deepEqual(fightResult(run), fightResult(byHand));
   });
 
   it("F3: a rotation whose casts change nothing is asked rules + 1 times at a time", () => {
     const { simulation, rogue } = createFight(1, undefined, {
       duration: 5,
-      engine: EVENTS,
     });
     const rules = rogue.rotationProgram.rules.length;
     assert.ok(rules > 0);
@@ -616,7 +599,6 @@ describe("M2: what #197's mutants E2, F3, E6, E7 and F33 broke (#198)", () => {
   function refreshedAt(seed) {
     const { simulation } = createFight(seed, undefined, {
       duration: 30,
-      engine: EVENTS,
     });
     const ticks = { proc: [], rupture: [] };
     const run = openCore(simulation, 30, {
@@ -662,7 +644,6 @@ describe("M2: what #197's mutants E2, F3, E6, E7 and F33 broke (#198)", () => {
   it("F33: an aura refreshed on the core runs from the refresh", () => {
     const { simulation, rogue } = createFight(4, undefined, {
       duration: 30,
-      engine: EVENTS,
     });
     const definition = simulation.auraDefinitions.get("blade-flurry");
     let refreshed = null;
@@ -690,35 +671,36 @@ describe("M2: what #197's mutants E2, F3, E6, E7 and F33 broke (#198)", () => {
   });
 });
 
-describe("step() while a core is open (#231 QA)", () => {
+// #231 QA asked this of Simulation.step; with step gone (#234) a second core
+// run is what could reach a fight a core holds.
+describe("a second core run while one is open (#231 QA)", () => {
   it("throws a clear error and leaves the fight as it was", () => {
-    const runner = new SimRunner({ seed: 3, duration: 20, engine: "events" });
+    const runner = new SimRunner({ seed: 3, duration: 20 });
     runner.run();
     runner.advance(5);
     const { simulation } = runner.fight;
     const time = simulation.currentTime;
     assert.throws(
-      () => simulation.step(1 / 64),
-      /Simulation\.step cannot run while the event core holds this fight/,
+      () => runOnCore(simulation, 1 / 64),
+      /The event core is already running this fight/,
     );
     assert.equal(simulation.currentTime, time);
     runner.advance(Infinity);
-    assert.equal(
-      runner.result.dps,
-      runFight({ seed: 3, duration: 20, engine: "events" }).dps,
-    );
+    assert.equal(runner.result.dps, runFight({ seed: 3, duration: 20 }).dps);
   });
 
   it("works again once the core run is closed", () => {
     const { simulation } = createFight(3, undefined, {
       duration: 20,
-      engine: EVENTS,
     });
     const run = openCore(simulation, 20);
     run.runUntil(5);
-    assert.throws(() => simulation.step(1 / 64), /Close the core run first/);
+    assert.throws(
+      () => runOnCore(simulation, 1 / 64),
+      /The event core is already running this fight/,
+    );
     run.close();
-    simulation.step(1 / 64);
+    runOnCore(simulation, 1 / 64);
     assert.equal(simulation.currentTime, 5 + 1 / 64);
   });
 });
@@ -728,8 +710,8 @@ describe("step() while a core is open (#231 QA)", () => {
 // sees a GCD or cooldown ending within sim.tickEpsilon as ready and casts
 // early. The next run keeps the last decision's wakes instead.
 describe("a cut just before a decision time is the fight in one run (#231 QA B1)", () => {
-  // The finishers case's config: the parity gate runs it as five-minute
-  // (SAME_CONFIG_AS, #199), whose config it is.
+  // The finishers case's config: the default, as five-minute's
+  // (test/fight-cases.js).
   const FINISHERS = CONFIGS.find(
     ({ name }) => name === "five-minute-seed-1-300s",
   );
@@ -745,7 +727,7 @@ describe("a cut just before a decision time is the fight in one run (#231 QA B1)
     }
   });
 
-  it("the runner's frame times, i / 60, over every parity config", () => {
+  it("the runner's frame times, i / 60, over every test config", () => {
     const cuts = Array.from({ length: 60 * 60 - 1 }, (_, i) => (i + 1) / 60);
     for (const { name, config } of CONFIGS) {
       for (const seed of [1, 2]) {
@@ -764,7 +746,6 @@ describe("a cut just before a decision time is the fight in one run (#231 QA B1)
     const cut = 98.80000000000001;
     const left = createFight(16, structuredClone(HEMO.config), {
       duration: 120,
-      engine: EVENTS,
     }).simulation;
     left.run(cut);
     const { energy } = left.coreCarry.wakes;
@@ -775,7 +756,6 @@ describe("a cut just before a decision time is the fight in one run (#231 QA B1)
   it("keeps a condition wake that lay past the last run's end", () => {
     const { simulation } = createFight(16, structuredClone(HEMO.config), {
       duration: 120,
-      engine: EVENTS,
     });
     simulation.run(98.80000000000001);
     const { condition } = simulation.coreCarry.wakes;
@@ -790,7 +770,6 @@ describe("a cut just before a decision time is the fight in one run (#231 QA B1)
     const casts = (change) => {
       const { simulation } = createFight(5, structuredClone(FINISHERS.config), {
         duration: 20,
-        engine: EVENTS,
         ...COMBAT_GRANTS,
       });
       const times = [];

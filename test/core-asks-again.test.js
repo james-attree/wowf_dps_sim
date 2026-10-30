@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ENGINES, openCore } from "../js/core/fight.js";
+import { openCore } from "../js/core/fight.js";
 import { createFight } from "../js/fight.js";
 import { ModifierPipeline } from "../js/modifiers.js";
 import { compileRotation } from "../js/rotation-interpreter.js";
-import { PARITY_CASES, PARITY_ONLY_CASES } from "../scripts/parity.mjs";
+import { EXTRA_CASES, FIGHT_CASES } from "./fight-cases.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
 
 // #231 QA (X1 and the field-drop mutants): a run that starts on a fight
@@ -12,11 +12,10 @@ import { COMBAT_GRANTS } from "./combat-grants.js";
 // run on an unchanged fight does not. One change per thing decisionMarks
 // (js/core/fight.js) checks, so dropping any one of them fails a test.
 
-const EVENTS = ENGINES.events;
-const DEFAULT = PARITY_CASES.find(
+const DEFAULT = FIGHT_CASES.find(
   ({ name }) => name === "five-minute-seed-1-300s",
 );
-const HEMO = PARITY_ONLY_CASES.find(
+const HEMO = EXTRA_CASES.find(
   ({ name }) => name === "dot-hemorrhage-rupture-120s",
 );
 
@@ -29,7 +28,6 @@ function fightAt(
 ) {
   const fight = createFight(seed, structuredClone(config), {
     duration,
-    engine: EVENTS,
     ...(config === DEFAULT.config ? COMBAT_GRANTS : {}),
   });
   fight.simulation.run(cut);
@@ -216,7 +214,6 @@ describe("a fight changed between runs asks the rotation again (#231 QA)", () =>
     // its place can change in place.
     const fight = createFight(5, structuredClone(DEFAULT.config), {
       duration: 60,
-      engine: EVENTS,
     });
     fight.rogue.build = { ...fight.rogue.build };
     fight.simulation.run(2.5);

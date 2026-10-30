@@ -8,13 +8,12 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
 
-// The rules the legacy step-based tests pin, run on the event core
-// (js/core/fight.js, #197): the DoT ticks, Deadly Poison's clock, the charges a
-// tick leaves alone, the armor a bleed skips, an onDotTick proc and the pool
-// clamp. The originals (poison-procs, bleed-armor, target-debuffs and procs
-// tests) step the fight with Simulation.step, which is always legacy; these
-// move it with runOnCore instead. Each harness is quiet: no rotation and no
-// auto attack, so the only events are the ones a test sets up.
+// Rules pinned on the event core (js/core/fight.js, #197): the DoT ticks,
+// Deadly Poison's clock, the charges a tick leaves alone, the armor a bleed
+// skips, an onDotTick proc and the pool clamp. Each harness moves the fight
+// with runOnCore (since #234 the only engine; Simulation.step is gone) and is
+// quiet: no rotation and no auto attack, so the only events are the ones a test
+// sets up.
 
 const HIT = 0.99; // a plain landed swing (no crit, full bonus hit)
 const NO_CRIT = 0.99; // a tick's crit roll at a crit chance of 0
@@ -51,7 +50,6 @@ function harness({ poisons, rolls, seed = 1, procs, config } = {}) {
   const tape = rolls === undefined ? null : scripted(rolls);
   const sim = new Simulation(rogue, {
     ...(tape ? { rng: tape.rng } : { seed }),
-    engine: "events",
   });
   return { rogue, sim, tape, step: (seconds) => runOnCore(sim, seconds) };
 }
@@ -61,7 +59,7 @@ function fresh() {
   const rogue = new Rogue();
   rogue.critChance = 0;
   quiet(rogue);
-  const sim = new Simulation(rogue, { rng: testRng, engine: "events" });
+  const sim = new Simulation(rogue, { rng: testRng });
   return { rogue, sim, step: (seconds) => runOnCore(sim, seconds) };
 }
 
@@ -173,7 +171,7 @@ describe("poisons on the event core (poison-procs.test.js)", () => {
       rogue.critChance = 0;
       quiet(rogue);
       const tape = scripted([HIT, 0.1, 0.5, 0.5]);
-      const sim = new Simulation(rogue, { rng: tape.rng, engine: "events" });
+      const sim = new Simulation(rogue, { rng: tape.rng });
       swing(sim);
       runOnCore(sim, 3);
       return sim.combatLog[0].status;

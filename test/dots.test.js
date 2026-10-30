@@ -13,6 +13,7 @@ import { Simulation } from "../js/simulation.js";
 import { coreHost } from "./core-host.js";
 import { setRoll, testRng } from "./rolls.js";
 import { referenceBuild } from "./talentsforever.js";
+import { quiet } from "./quiet.js";
 
 // E5 (#196): DoT ticks, procs and poisons on the core's events. DotTicks
 // (js/core/dots.js) on a bare scheduler first, then a legacy Simulation on
@@ -575,7 +576,7 @@ function eventFight({
   const rogue = new Rogue(config, { procs });
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
-  rogue.rotation = () => {};
+  quiet(rogue);
   setRoll(roll);
   const sim = new Simulation(rogue, { rng: testRng });
   const hits = [];
@@ -811,9 +812,10 @@ describe("DoTs, procs and poisons on events (test host)", () => {
   });
 });
 
-describe("the same fight on both engines", () => {
-  // Weapon speeds and cast times on the 1/64 s step, so both engines see the
-  // same times. The step loop's first frame is 1/64 s; the events' is 0.
+// This was the same fight on both engines, draw for draw over 200 seeds; the
+// fixed-step half went with that engine (#234; tag legacy-engine-final). The
+// event half stays: the fight repeats and its cases are not empty.
+describe("a fight of swings, procs, poisons, Rupture and Hemorrhage on events", () => {
   const config = {
     talents: referenceBuild(),
     poisons: { mainHand: "instant", offHand: "deadly" },
@@ -830,36 +832,6 @@ describe("the same fight on both engines", () => {
       " ",
     );
 
-  function legacy(seed) {
-    const rogue = new Rogue(config);
-    // Legacy until #200: the legacy half of the pair, through rogue.rotation.
-    const sim = new Simulation(rogue, { seed, engine: "legacy" });
-    rogue.rotation = (s, dt) => {
-      for (const [time, cast] of casts) {
-        if (s.currentTime === time) {
-          cast(s);
-        }
-      }
-      const haste = s.modifiers.resolve("haste", 1);
-      for (const weapon of [rogue.weapons.mainHand, rogue.weapons.offHand]) {
-        weapon.tick(dt, haste, (w) =>
-          s.resolveAttack(w.attack, "weapon", w.rollDamage()),
-        );
-      }
-    };
-    const hits = [];
-    sim.on("hit", (event) =>
-      hits.push(
-        row({
-          ...event,
-          time: event.time === k("sim.fixedStep") ? 0 : event.time,
-        }),
-      ),
-    );
-    sim.run(60);
-    return { sim, hits };
-  }
-
   function onEvents(seed) {
     const sim = new Simulation(new Rogue(config), { seed });
     const hits = [];
@@ -872,19 +844,16 @@ describe("the same fight on both engines", () => {
     return { sim, hits };
   }
 
-  it("gives the same hits, draw for draw, over 200 seeds: swings, procs, poisons, Rupture and Hemorrhage", () => {
+  it("repeats hit for hit on a seed, and ticks Rupture and Deadly Poison, over 200 seeds", () => {
     let ruptureTicks = 0;
     let poisonTicks = 0;
     for (let seed = 1; seed <= 200; seed++) {
-      const a = legacy(seed);
-      const b = onEvents(seed);
-      assert.deepEqual(b.hits, a.hits, `seed ${seed}`);
-      assert.equal(b.sim.damageDone, a.sim.damageDone, `seed ${seed}`);
-      assert.deepEqual(
-        b.sim.abilityBreakdown(),
-        a.sim.abilityBreakdown(),
-        `seed ${seed}`,
-      );
+      const a = onEvents(seed);
+      if (seed <= 20) {
+        const b = onEvents(seed);
+        assert.deepEqual(b.hits, a.hits, `seed ${seed}`);
+        assert.equal(b.sim.damageDone, a.sim.damageDone, `seed ${seed}`);
+      }
       ruptureTicks += a.sim.abilityBreakdown().Rupture?.ticks ?? 0;
       poisonTicks += a.sim.abilityBreakdown()["Deadly Poison"]?.ticks ?? 0;
     }

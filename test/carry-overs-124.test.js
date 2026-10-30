@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { expandTalents } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { quiet } from "./quiet.js";
 
 // Follow-ups from the reviews of #123 and #124 (D5), each a gap a mutant got
 // through: when Puncturing Wounds rolls, the keys expandTalents ignores and
@@ -46,7 +47,7 @@ describe("Puncturing Wounds is rolled when a Backstab has been cast", () => {
     );
     rogue.bonusHitChance = 1;
     rogue.critChance = 0;
-    rogue.rotation = () => {};
+    quiet(rogue);
     // The weapon roll, the attack table, the crit roll, then the proc's roll.
     const tape = scripted([0.5, HIT, HIT, roll]);
     const simulation = new Simulation(rogue, { rng: tape.rng });

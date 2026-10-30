@@ -5,6 +5,7 @@ import { CONSTANTS, k } from "../data/constants.js";
 import { createRng, normalizeSeed } from "../js/rng.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { runOnCore } from "../js/core/fight.js";
 
 // The published mulberry32, written out with its literals so a change to
 // rng.mulberry32 in data/constants.js is caught here.
@@ -26,7 +27,7 @@ function fight(seed, { frames = 600, fps = 60 } = {}) {
   const rogue = new Rogue();
   const sim = new Simulation(rogue, { seed });
   for (let frame = 1; frame <= frames; frame++) {
-    sim.step(1 / fps);
+    runOnCore(sim, 1 / fps);
   }
   return sim;
 }
@@ -152,7 +153,7 @@ describe("Simulation rng", () => {
       },
     });
     for (let frame = 1; frame <= 600; frame++) {
-      sim.step(1 / 60);
+      runOnCore(sim, 1 / 60);
     }
     assert.ok(seen.length > 0);
     assert.equal(sim.damageDone, fight(5).damageDone);
@@ -170,7 +171,7 @@ describe("Simulation rng", () => {
     const fps = 60;
     const frames = fps * 120;
     for (let frame = 1; frame <= frames; frame++) {
-      sim.step(1 / fps);
+      runOnCore(sim, 1 / fps);
     }
     assert.ok(sim.damageDone > 0);
 

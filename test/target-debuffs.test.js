@@ -13,6 +13,8 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { Weapon } from "../js/weapon.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 const TICK_DAMAGE = 100;
 const HIT_ROLL = 0.9;
@@ -22,7 +24,7 @@ const INHERITED = ["__proto__", "constructor", "toString", "hasOwnProperty"];
 
 function fresh() {
   const rogue = new Rogue();
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.critChance = 0;
   const sim = new Simulation(rogue, { rng: testRng });
   return { rogue, sim };
@@ -49,13 +51,13 @@ function tickDamage(id, { hemorrhage = false, bleed = false } = {}) {
   if (hemorrhage) {
     sim.applyAura(AURAS.hemorrhage);
   }
-  sim.step(tickInterval);
+  runOnCore(sim, tickInterval);
   return sim.damageDone;
 }
 
 function stepFor(sim, seconds) {
   for (let t = 0; t < seconds - STEP / 2; t += STEP) {
-    sim.step(STEP);
+    runOnCore(sim, STEP);
   }
 }
 
@@ -283,7 +285,7 @@ describe("charges", () => {
       tickDamage: TICK_DAMAGE,
       icon: null,
     };
-    sim.step(interval);
+    runOnCore(sim, interval);
     assert.ok(sim.damageDone > 0);
     assert.equal(sim.activeDebuffs["test-aura"].charges, 3);
   });
@@ -468,7 +470,7 @@ describe("Expose Armor", () => {
       icon: null,
       bleed: true,
     };
-    sim.step(interval);
+    runOnCore(sim, interval);
     assert.equal(sim.damageDone, TICK_DAMAGE);
   });
 

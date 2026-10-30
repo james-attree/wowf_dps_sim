@@ -19,6 +19,8 @@ import {
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 // Damage modifier hooks by tag (A3, #97). A damage event has an ability id, a
 // school and tags (js/damage-tags.js), and a modifier scopes itself by any of
@@ -57,7 +59,7 @@ function source(id, extra = {}) {
 
 function build(modifiers, { crit = 0 } = {}) {
   const rogue = new Rogue(undefined, { modifiers });
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.critChance = crit;
   rogue.bonusHitChance = 0;
   const sim = new Simulation(rogue, { rng: testRng });
@@ -586,7 +588,7 @@ describe("data-only damage modifiers by tag, through the engine", () => {
     setRoll(HIT);
     const { sim } = build([DAMAGE_UP(0.2, { tags: ["poison"] })]);
     sim.resolveDotAttack(source("deadly-poison"), "skill", 1000, 12);
-    sim.step(k("rupture.tickInterval"));
+    runOnCore(sim, k("rupture.tickInterval"));
     close(sim.abilityStats["deadly-poison"].damage, 1200 / TICKS);
     assert.equal(sim.abilityStats["deadly-poison"].ticks, 1);
   });
@@ -712,7 +714,7 @@ describe("data-only damage modifiers by tag, through the engine", () => {
         icon: null,
         bleed,
       };
-      sim.step(interval);
+      runOnCore(sim, interval);
       return sim.combatLog[0];
     };
     assert.equal(tick("rupture").status, "Crit");
@@ -731,7 +733,7 @@ describe("data-only damage modifiers by tag, through the engine", () => {
       setRoll(HIT);
       sim.resolveDotAttack(source("made-up-by-a-test"), attackType, 1000, 12);
       setRoll(0.5);
-      sim.step(k("rupture.tickInterval"));
+      runOnCore(sim, k("rupture.tickInterval"));
       return sim.combatLog[0].status;
     };
     assert.equal(tickStatus("weapon", "white"), "Crit");
@@ -757,7 +759,7 @@ describe("data-only damage modifiers by tag, through the engine", () => {
         icon: null,
       };
     }
-    sim.step(interval);
+    runOnCore(sim, interval);
     const bonus = k("dot.critMultiplier") - 1;
     close(sim.abilityStats["deadly-poison"].damage, 100 * (1 + bonus * 2));
     close(sim.abilityStats.rupture.damage, 100 * (1 + bonus));

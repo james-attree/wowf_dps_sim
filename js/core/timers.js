@@ -1,15 +1,14 @@
 // Expiry timers for the Phase 3.5 core (E4, #195): the GCD, cooldowns, aura
-// expiries and Premeditation's point expiry. Not used by the legacy engine,
-// which counts each of them down per step (Simulation.step, tickGcd,
-// Resource.tick).
+// expiries and Premeditation's point expiry (the fixed-step engine that counted
+// them down per step was removed in #234).
 //
 // A timer stores the absolute time it ends, start + duration, and keeps one
 // event there (order class "expiry"). A restart replaces the event, so there
 // is never more than one pending per timer. The event is at the exact time:
 // a 20 s cooldown started at t has its event at t + 20, a 1 s GCD at t + 1.
-// Reads compare with k("sim.tickEpsilon"), as legacy does: a timer is running
-// while more than that is left, and ready (not running) from then on. See
-// docs/mechanics.md "Planned: event-queue engine (Phase 3.5)".
+// Reads compare with k("sim.tickEpsilon"), as the removed fixed-step engine
+// did: a timer is running while more than that is left, and ready (not running)
+// from then on. See docs/mechanics.md "Event-queue engine (Phase 3.5)".
 //
 // What happens at the event (an aura's onExpire hook, the points going) is
 // the host's: it gets the event, of the timer's kind, with its payload.

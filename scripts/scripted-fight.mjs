@@ -16,12 +16,11 @@ import { Rogue } from "../js/rogue.js";
 //      and Dice / Blade Flurry haste are not part of the call, so they work as
 //      they do in a real fight.
 //
-// castRotation is the call both engines make (#197): the legacy one from
-// Rogue.rotation each step, the event core at each decision point
-// (js/core/fight.js), so a script runs on either. Nothing under js/ changes.
-// The result is exactly what runFight returns: the same fields, the same
-// seeded rng, the same fixed step on the legacy engine. Rogue.prototype is put
-// back in a finally block, so a scripted run never leaks into another.
+// castRotation is the call the event core makes at each decision point
+// (js/core/fight.js, #197). Nothing under js/ changes. The result is exactly
+// what runFight returns: the same fields and the same seeded rng.
+// Rogue.prototype is put back in a finally block, so a scripted run never
+// leaks into another.
 
 // The script is a list of keys of Rogue.abilities, such as "sinisterStrike",
 // "hemorrhage", "rupture" and "eviscerate".

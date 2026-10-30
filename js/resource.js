@@ -10,9 +10,11 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 // count is available before the pool is reset.
 //
 // The cap goes through the modifier pipeline (kind resourceMax, scoped by the
-// resource's id), so a talent or an aura changes it as data. The rate of a
-// regenerating resource is combined by Simulation.regenerateResource, and a
-// cost modifier by the executor; the kind names come from the definition.
+// resource's id), so a talent or an aura changes it as data. A regenerating
+// resource (energy) is a Resource between event core runs; during one the
+// core's continuous EnergyPool (js/core/energy.js) stands in for it, combines
+// the rate and hands back the value and the waste at close. A cost modifier
+// is combined by the executor; the kind names come from the definition.
 //
 // This module is pure: no DOM, no clock, no random numbers.
 
@@ -145,28 +147,6 @@ export class Resource {
     return spent;
   }
 
-  // Refill over dt seconds at `rate` per second, up to the cap, and count the
-  // time spent at the cap and what the cap turned away. A pool already at (or
-  // above) its cap is capped for all of dt; one that reaches it during dt is
-  // capped from the moment it does, (max - before) / rate seconds in. The
-  // overflow is the regeneration past the cap; the excess of a pool already
-  // above a cap that fell is not regeneration, and clamp() takes it away
-  // uncounted.
-  regenerate(dt, rate) {
-    const before = this.value;
-    const max = this.max;
-    const regenerated = rate * dt;
-    this.value = Math.min(before + regenerated, max);
-    if (before >= max) {
-      this.cappedTime += dt;
-      this.overflow += regenerated;
-    } else if (before + regenerated > max) {
-      // Never below 0 should rounding put the moment past dt.
-      this.cappedTime += Math.max(0, dt - (max - before) / rate);
-      this.overflow += before + regenerated - max;
-    }
-  }
-
   // The counters as plain data: { cappedTime, overflow }.
   waste() {
     return { cappedTime: this.cappedTime, overflow: this.overflow };
@@ -186,8 +166,8 @@ export class Resource {
 
   // Bring a pool that is above its cap down to it. The cap can fall while the
   // pool holds more (a resourceMax aura running out), and a cast that neither
-  // gains nor spends would otherwise leave the excess in place. The host calls
-  // this once a step (Rogue.tickResources). It never raises a pool.
+  // gains nor spends would otherwise leave the excess in place. The event core
+  // calls this after each event (js/core/fight.js). It never raises a pool.
   clamp() {
     this.value = Math.min(this.value, this.max);
   }

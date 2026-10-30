@@ -1,12 +1,12 @@
-// Weapon swings for the Phase 3.5 core (E4, #195). Not used by the legacy
-// engine, which keeps Weapon.tick (js/weapon.js) and Rogue.rotation.
+// Weapon swings for the Phase 3.5 core (E4, #195). The fixed-step engine's
+// Weapon.tick and Rogue.rotation were removed in #234.
 //
-// One SwingTimer per hand keeps one pending swing event (kind SWING_KIND,
-// order class "swing", payload { hand }). The host's handler resolves the
-// swing and then calls swung(), which reads the interval and schedules the
-// next one. That is the legacy haste rule: the interval is the weapon speed
+// One SwingTimer per hand keeps one pending swing event (kind SWING_KIND, order
+// class "swing", payload { hand }). The host's handler resolves the swing and
+// then calls swung(), which reads the interval and schedules the next one. That
+// is the haste rule the fixed-step engine had: the interval is the weapon speed
 // divided by the haste multiplier read when a swing happens
-// (modifiers.resolve("haste", 1), as Rogue.rotation does), and a haste change
+// (modifiers.resolve("haste", 1)), and a haste change
 // between two swings does not move the one already counting down. Changing
 // that rule is a non-goal of Phase 3.5.
 //
@@ -14,7 +14,7 @@
 // the anchor is at anchor + n * interval, not the last swing plus a delta, so
 // a constant-haste fight has every swing at exactly start + n * speed. When
 // the interval changes at a swing, that swing's time is the new anchor. See
-// docs/mechanics.md "Planned: event-queue engine (Phase 3.5)".
+// docs/mechanics.md "Event-queue engine (Phase 3.5)".
 //
 // Pure: no DOM, no clock, no random numbers.
 
@@ -22,7 +22,7 @@ import { ORDER } from "./scheduler.js";
 
 export const SWING_KIND = "swing";
 
-// A legacy Weapon's hand ("main" or "off", js/weapon.js) -> the engine's name
+// A Weapon's hand ("main" or "off", js/weapon.js) -> the engine's name
 // for it: the key of rogue.weapons, the modifier scope's hand
 // (js/modifiers.js) and a proc event's hand (#198, from #195 QA). The swing
 // event's payload and `hand` carry the engine's name.
@@ -37,8 +37,8 @@ export class SwingTimer {
   // "main" or "off", for the refusals.
   #label;
 
-  // `weapon` has a speed in seconds and a hand ("main" or "off"), as a legacy
-  // Weapon; `modifiers` the rogue's ModifierPipeline (or anything with
+  // `weapon` has a speed in seconds and a hand ("main" or "off"), as a Weapon
+  // (js/weapon.js); `modifiers` the rogue's ModifierPipeline (or anything with
   // resolve(kind, base)); `scheduler` the core's Scheduler. `hand` and the
   // payload's hand are the engine's name for it, "mainHand" or "offHand"
   // (SWING_HANDS); any other weapon hand is a RangeError.
@@ -84,8 +84,7 @@ export class SwingTimer {
   }
 
   // Schedule the first swing at the absolute time `at` (now by default): the
-  // main hand starts due, the off hand k("weapon.offHand").initialSwing later,
-  // as in legacy.
+  // main hand starts due, the off hand k("weapon.offHand").initialSwing later.
   start(at = this.#scheduler.now) {
     if (this.#event !== null && this.#event.state === "pending") {
       throw new Error(
@@ -175,7 +174,7 @@ export class SwingTimer {
     return this.#event?.state === "pending" ? this.#event.time : null;
   }
 
-  // Seconds until the pending swing, as the legacy Weapon's swingTimer; null
+  // Seconds until the pending swing, as the Weapon's swingTimer; null
   // when there is none.
   get swingTimer() {
     const next = this.nextSwingTime;

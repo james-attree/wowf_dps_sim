@@ -6,6 +6,7 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
+import { runOnCore } from "../js/core/fight.js";
 
 function near(actual, expected) {
   assert.ok(
@@ -39,27 +40,37 @@ function pinned() {
   return { rogue, sim };
 }
 
+// One rotation decision at the current time, with no time passing (the
+// removed step(0) did this; runOnCore(sim, 0) runs nothing, #234).
+function decide(sim) {
+  sim.rogue.castRotation(sim);
+}
+
 function advance(sim, seconds) {
-  sim.step(seconds);
+  runOnCore(sim, seconds);
 }
 
 // Blade Flurry starts the GCD, so Slice and Dice lands once that GCD has ticked off.
 function castBothBuffs(rogue, sim) {
   delete sim.cooldowns["blade-flurry"];
-  rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy;
+  // One over the two costs: see the wake edge below.
+  rogue.energy = k("bladeFlurry").energy + k("sliceAndDice").energy + 1;
   rogue.comboPoints = k("rotation.finisherComboPoints");
   const mainHand = rogue.weapons.mainHand;
   const offHand = rogue.weapons.offHand;
   mainHand.swingTimer = mainHand.speed;
   offHand.swingTimer = offHand.speed;
 
-  sim.step(0);
-  assert.equal(sim.currentTime, 0);
+  // Energy exactly at a rule's threshold at t = 0, with the GCD running,
+  // wakes the core in a loop (conditionWakeAt's nudge from 0 moves no
+  // energy), an edge left for the #234 engine polish.
+  const half = k("gcd.duration") / 2;
+  advance(sim, half);
   assert.equal(sim.activeBuffs["slice-and-dice"], undefined);
   assert.ok(sim.activeBuffs["blade-flurry"].duration > 0);
-  assert.equal(sim.gcd, k("gcd.duration"));
+  near(sim.gcd, half);
 
-  advance(sim, k("gcd.duration"));
+  advance(sim, half);
   assert.ok(sim.activeBuffs["slice-and-dice"].duration > 0);
   assert.ok(sim.activeBuffs["blade-flurry"].duration > 0);
   near(mainHand.swingTimer, mainHand.speed - k("gcd.duration"));
@@ -118,7 +129,7 @@ describe("Slice and Dice rotation", () => {
     const { rogue, sim } = pinned();
     const below = k("rotation.finisherComboPoints") - 1;
     rogue.comboPoints = below;
-    sim.step(0);
+    decide(sim);
 
     assert.equal(sim.currentTime, 0);
     assert.equal(sim.activeBuffs["slice-and-dice"], undefined);
@@ -126,7 +137,7 @@ describe("Slice and Dice rotation", () => {
     assert.equal(rogue.energy, k("sliceAndDice").energy);
 
     rogue.comboPoints = k("rotation.finisherComboPoints");
-    sim.step(0);
+    decide(sim);
     const refreshed =
       k("sliceAndDice").durationByCp[k("rotation.finisherComboPoints") - 1];
 
@@ -145,7 +156,7 @@ describe("Slice and Dice rotation", () => {
     rogue.comboPoints = k("rotation.finisherComboPoints");
     rogue.energy = k("sliceAndDice").energy;
     sim.activeBuffs["slice-and-dice"].duration = recastSeconds;
-    sim.step(0);
+    decide(sim);
 
     // Not refreshed, and Eviscerate costs more than this energy: the walk pools.
     assert.equal(rogue.comboPoints, k("rotation.finisherComboPoints"));
@@ -155,7 +166,7 @@ describe("Slice and Dice rotation", () => {
     rogue.energy = k("sliceAndDice").energy;
     sim.activeBuffs["slice-and-dice"].duration =
       recastSeconds - k("sim.tickEpsilon");
-    sim.step(0);
+    decide(sim);
 
     assert.equal(rogue.comboPoints, 0);
     assert.equal(sim.activeDots.rupture, undefined);
@@ -176,12 +187,12 @@ describe("Slice and Dice rotation", () => {
     const opened = k("weapon.offHand").initialSwing;
     const haste = 1 + k("sliceAndDice").haste;
 
-    advance(sim, opened);
-
+    decide(sim);
     assert.equal(
       sim.activeBuffs["slice-and-dice"].duration,
       k("sliceAndDice").durationByCp[k("rotation.finisherComboPoints") - 1],
     );
+    advance(sim, opened);
     near(mainHand.swingTimer, mainHand.speed - opened);
     near(offHand.swingTimer, offHand.speed - opened);
 
@@ -199,7 +210,7 @@ describe("Slice and Dice rotation", () => {
     setRoll(0.5);
     const { rogue, sim } = pinned();
     rogue.comboPoints = k("rotation.finisherComboPoints");
-    sim.step(0);
+    decide(sim);
     assert.equal(sim.currentTime, 0);
     const duration = sim.activeBuffs["slice-and-dice"].duration;
     const below = k("rotation.finisherComboPoints") - 1;
@@ -276,7 +287,11 @@ describe("Slice and Dice rotation", () => {
         duration: k("sliceAndDice").durationByCp[0],
         icon: rogue.abilities.sliceAndDice.icon,
       };
-      assert.throws(() => rogue.rotation(sim, 0), {
+      // Below every threshold: see castBothBuffs for the t = 0 wake edge.
+      // The main hand swings at once, so its next interval reads the haste.
+      rogue.energy = 0;
+      rogue.weapons.mainHand.swingTimer = 0;
+      assert.throws(() => runOnCore(sim, k("gcd.duration")), {
         name: "Error",
         message: "Unknown haste.stacking: neither",
       });

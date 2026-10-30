@@ -12,6 +12,7 @@ import { defaultConfig } from "../js/sim-config.js";
 import { buildWithout } from "./builds.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
 import { referenceBuild } from "./talentsforever.js";
+import { runOnCore } from "../js/core/fight.js";
 
 // R3 (#140): the Rogue's host for the interpreter, and the decision about
 // abilityUnlocked (docs/rotation.md, "Granted and unlocked").
@@ -296,7 +297,7 @@ describe("rotationStateReader: the view built a part at a time", () => {
       const reader = rotationStateReader(rogue, simulation, { duration: 90 });
       const seen = { auras: 0, debuffs: 0, cooldowns: 0, rushes: 0 };
       for (let index = 0; index < 1200; index += 1) {
-        simulation.step(0.1);
+        runOnCore(simulation, 0.1);
         const view = reader();
         const expected = rotationState(rogue, simulation, { duration: 90 });
         assert.deepEqual(read(view), expected, `at step ${index}`);

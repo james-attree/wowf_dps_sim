@@ -14,6 +14,8 @@ import {
 } from "../js/fight-metrics.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { referenceBuild } from "./talentsforever.js";
+import { runOnCore } from "../js/core/fight.js";
+import { POLL_STEP } from "./poll-step.js";
 
 // Issue #146 (S3): aura uptime, and (B) resource waste. Most of these are contract tests: they read
 // events and results, never an engine step, so they have to pass unchanged on
@@ -310,8 +312,13 @@ describe("one fight, more hand-built cases", () => {
 });
 
 describe("one fight, from a real fight", () => {
-  it("agrees with the engine's own auras, step by step", () => {
-    const dt = k("sim.fixedStep");
+  // Sampled every POLL_STEP: an aura up at the start of a sample is counted
+  // for the whole of it. On events an aura starts and ends at its own time,
+  // so each apply, refresh, stack change or removal can move the sampled
+  // total by up to a sample from the summary's (before #234 the fixed-step
+  // engine stamped them on steps, and the two agreed exactly).
+  it("agrees with the engine's own auras, sampled, to a sample per change", () => {
+    const dt = POLL_STEP;
     let sawFullStacks = false;
     for (const [seed, config, duration] of [
       [107, TALENTED, 120],
@@ -321,6 +328,11 @@ describe("one fight, from a real fight", () => {
       const { simulation } = createFight(seed, config);
       const auras = new FightAuras();
       auras.attach(simulation);
+      const changes = new Map();
+      simulation.on("aura", (event) => {
+        const key = `${event.aura}/${event.target}`;
+        changes.set(key, (changes.get(key) ?? 0) + 1);
+      });
       const expected = new Map();
       const add = (key, field, value) => {
         const entry = expected.get(key) ?? {
@@ -348,7 +360,7 @@ describe("one fight, from a real fight", () => {
             }
           }
         }
-        simulation.step(dt);
+        runOnCore(simulation, dt);
       }
       simulation.end();
       const summary = auras.summary();
@@ -363,10 +375,17 @@ describe("one fight, from a real fight", () => {
           stackSeconds: 0,
           full: 0,
         };
-        assert.equal(r.uptime, want.uptime, `${key} seed ${seed}`);
+        assert.ok(changes.has(key), `${key} seed ${seed} changed`);
+        const slack = ((changes.get(key) ?? 0) + 1) * dt + ROUNDING;
+        const near = (actual, wanted, label) =>
+          assert.ok(
+            Math.abs(actual - wanted) <= slack,
+            `${label} seed ${seed}: ${actual} vs ${wanted} sampled`,
+          );
+        near(r.uptime, want.uptime, `${key} uptime`);
         if (r.stacks !== null) {
-          assert.equal(r.stacks.stackSeconds, want.stackSeconds, key);
-          assert.equal(r.stacks.fullStackUptime, want.full, key);
+          near(r.stacks.stackSeconds, want.stackSeconds, `${key} stacks`);
+          near(r.stacks.fullStackUptime, want.full, `${key} full`);
           sawFullStacks ||= r.stacks.fullStackUptime > 0;
         } else {
           assert.equal(want.full, want.uptime, key);
@@ -390,7 +409,7 @@ describe("one fight, from a real fight", () => {
       // At least its duration, and less than one stamp of the fixed-step
       // engine longer (docs/mechanics.md, "Stamping").
       assert.ok(r.uptime >= duration, `${id} ${r.uptime}`);
-      assert.ok(r.uptime < duration + k("sim.fixedStep"), `${id} ${r.uptime}`);
+      assert.ok(r.uptime < duration + POLL_STEP, `${id} ${r.uptime}`);
     }
     assert.equal(summary.duration, 60);
   });
@@ -741,13 +760,15 @@ function endWith(time, energy, comboPoints) {
 function drive(seed, config, duration) {
   const { simulation } = createFight(seed, config);
   const pool = simulation.rogue.resources.energy;
-  const dt = k("sim.fixedStep");
+  const dt = POLL_STEP;
   const starts = [];
   const steps = Math.round(duration / dt);
   for (let index = 0; index < steps; index += 1) {
     starts.push({ value: pool.value, max: pool.max });
-    simulation.step(dt);
+    runOnCore(simulation, dt);
   }
+  // The value at the end, so each sample has a start and an end.
+  starts.push({ value: pool.value, max: pool.max });
   let end = null;
   simulation.on("end", (event) => {
     end = event;
@@ -920,49 +941,66 @@ describe("FightResources", () => {
     assert.equal(summary.energyCappedTime, FIGHT);
     assert.equal(summary.energyCappedFraction, 1);
     assert.equal(summary.energyOverflow, FIGHT * k("energy.regenPerSecond"));
-    // The default rotation spends at once, yet the steps before the first
-    // cast that spends are capped, and counted.
+    // The default rotation spends at the first decision, at t = 0, so on
+    // events it is never at the cap in its first second (the fixed-step
+    // engine counted the steps before its first cast, until #234).
     const opening = drive(1, {}, 1);
-    const atCap = opening.starts.findIndex((start) => start.value < start.max);
-    assert.ok(atCap > 0);
-    assert.ok(opening.end.resources.energy.cappedTime >= atCap * opening.dt);
+    assert.equal(opening.starts[0].value, opening.starts[0].max);
+    assert.equal(opening.end.resources.energy.cappedTime, 0);
   });
 });
 
+// Energy sampled every POLL_STEP (drive): a sample that starts and ends at
+// the cap was capped for all of it (no spend refills to the cap within a
+// sample), and a capped moment lies in a sample with an end at the cap. The
+// engine's own count must lie between the two. (The fixed-step engine, until
+// #234, was capped by whole steps, and the per-step sum was exact.)
+function cappedBounds({ starts, dt }) {
+  const atCap = ({ value, max }) => value >= max;
+  let low = 0;
+  let high = 0;
+  for (let index = 0; index + 1 < starts.length; index += 1) {
+    const [start, after] = [starts[index], starts[index + 1]];
+    if (atCap(start) && atCap(after)) {
+      low += dt;
+    }
+    if (atCap(start) || atCap(after)) {
+      high += dt;
+    }
+  }
+  return { low, high };
+}
+
 describe("agreement with the engine: capped time", () => {
-  it("is the per-step energy at the cap, exactly, at a constant rate", () => {
-    // The default build has no Adrenaline Rush, so the rate never changes:
-    // a step that starts at the cap is capped for all of it, and one that
-    // reaches the cap is capped from the moment it does.
+  it("is within the sampled bounds of the energy at the cap, at a constant rate", () => {
+    // The default build has no Adrenaline Rush, so the rate never changes,
+    // and all the regen past the cap is lost there.
+    // On events the default rotation casts the moment it can pay, so it is
+    // seldom at the cap; one of these seeds is, for a whole sample or more.
     const rate = k("energy.regenPerSecond");
+    let sawCap = false;
     for (const seed of [1, 2, 3]) {
-      const { starts, dt, end } = drive(seed, {}, FIGHT);
-      let capped = 0;
-      let overflow = 0;
-      for (const { value, max } of starts) {
-        if (value >= max) {
-          capped += dt;
-          overflow += rate * dt;
-        } else if (value + rate * dt > max) {
-          capped += dt - (max - value) / rate;
-          overflow += value + rate * dt - max;
-        }
-      }
-      assert.ok(capped > 0, `seed ${seed}`);
-      close(end.resources.energy.cappedTime, capped, `seed ${seed} capped`);
+      const fight = drive(seed, {}, FIGHT);
+      const { low, high } = cappedBounds(fight);
+      const { cappedTime, overflow } = fight.end.resources.energy;
+      sawCap ||= low > 0;
+      assert.ok(cappedTime >= low - ROUNDING, `seed ${seed} ${cappedTime}`);
+      assert.ok(cappedTime <= high + ROUNDING, `seed ${seed} ${cappedTime}`);
       assert.ok(
-        end.resources.energy.overflow >= overflow - ROUNDING,
+        overflow >= rate * cappedTime - ROUNDING * FIGHT,
         `seed ${seed} overflow`,
       );
     }
+    assert.ok(sawCap, "some fight was at the cap for a whole sample");
   });
 
-  it("is at least the steps that start at the cap with Adrenaline Rush", () => {
+  it("is within the sampled bounds with Adrenaline Rush", () => {
     for (const seed of [1, 2]) {
-      const { starts, dt, end } = drive(seed, TALENTED, FIGHT);
-      const atCap = starts.filter(({ value, max }) => value >= max).length;
-      const { cappedTime } = end.resources.energy;
-      assert.ok(cappedTime >= atCap * dt - ROUNDING, `seed ${seed}`);
+      const fight = drive(seed, TALENTED, FIGHT);
+      const { low, high } = cappedBounds(fight);
+      const { cappedTime } = fight.end.resources.energy;
+      assert.ok(cappedTime >= low - ROUNDING, `seed ${seed}`);
+      assert.ok(cappedTime <= high + ROUNDING, `seed ${seed}`);
       assert.ok(cappedTime <= FIGHT, `seed ${seed}`);
     }
   });

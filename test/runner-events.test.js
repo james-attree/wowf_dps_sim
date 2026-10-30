@@ -13,14 +13,12 @@ import { Simulation } from "../js/simulation.js";
 import { createStore } from "../js/store.js";
 import { referenceBuild } from "./talentsforever.js";
 
-// Issue #198: the engine choice through runFight, SimRunner and the live
-// adapter, and what the event core gives behind them: any split of the time
+// Issue #198: the event core behind runFight, SimRunner and the live
+// adapter: any split of the time
 // is the same fight, there is no step and no carry, Stop then Run is the
 // same fight, live equals headless, and procs and poisons run through the
-// runner. The runner's contract tests also run on the event core
-// (test/runner-engine-files.test.js).
+// runner. (The engine choice itself went with the fixed-step engine, #234.)
 
-const EVENTS = "events";
 const TALENTED = {
   talents: referenceBuild(),
   poisons: { mainHand: "instant", offHand: "deadly" },
@@ -34,86 +32,46 @@ const CASES = [
 ];
 
 const headless = ({ seed, duration, config }) =>
-  runFight({ seed, duration, config, engine: EVENTS });
+  runFight({ seed, duration, config });
 
 function events(options) {
-  const runner = new SimRunner({ engine: EVENTS, ...options });
+  const runner = new SimRunner({ ...options });
   runner.run();
   return runner;
 }
 
-describe("runFight engine option (#198)", () => {
-  it("runs the event core, with the result's shape and no engine in it", () => {
-    const legacy = runFight({ seed: 4, duration: 20, engine: "legacy" });
-    const core = runFight({ seed: 4, duration: 20, engine: EVENTS });
-    assert.deepEqual(Object.keys(core), Object.keys(legacy));
+// #234 removed the fixed-step engine and with it the engine option: the
+// event core is the only engine, and an engine option is an unknown option.
+describe("no engine option (#234)", () => {
+  it("runFight runs the event core and refuses an engine option", () => {
+    const core = runFight({ seed: 4, duration: 20 });
     assert.equal(core.duration, 20);
     assert.ok(core.totalDamage > 0);
-    // The event core is the default since #199.
+    assert.equal("engine" in core, false);
     assert.deepEqual(runFight({ seed: 4, duration: 20 }), core);
-  });
-
-  it("gives what the default engine gives when useEngine set it", () => {
-    // Legacy, now that the default is the event core (#199).
-    const legacy = runFight({
-      seed: 8,
-      duration: 15,
-      config: TALENTED,
-      engine: "legacy",
-    });
-    const previous = Simulation.useEngine("legacy");
-    try {
-      assert.deepEqual(
-        runFight({ seed: 8, duration: 15, config: TALENTED }),
-        legacy,
-      );
-    } finally {
-      Simulation.useEngine(previous);
-    }
-  });
-
-  it("refuses an unknown engine", () => {
-    for (const bad of ["Events", "", null, 1]) {
-      assert.throws(() => runFight({ seed: 1, duration: 1, engine: bad }), {
+    for (const engine of ["events", "legacy"]) {
+      assert.throws(() => runFight({ seed: 1, duration: 1, engine }), {
         name: "RangeError",
-        message: /Unknown engine/,
+        message: /runFight has no option "engine"/,
       });
     }
   });
+
+  it("Simulation has no useEngine and no step", () => {
+    assert.equal(Simulation.useEngine, undefined);
+    assert.equal(Simulation.prototype.step, undefined);
+  });
 });
 
-describe("SimRunner engine option (#198)", () => {
-  it("is events by default (#199), the one named, or the default useEngine set", () => {
-    assert.equal(new SimRunner({ seed: 1, duration: 1 }).engine, EVENTS);
-    assert.equal(
-      new SimRunner({ seed: 1, duration: 1, engine: "legacy" }).engine,
-      "legacy",
-    );
-    const previous = Simulation.useEngine("legacy");
-    let made;
-    try {
-      made = new SimRunner({ seed: 1, duration: 1 });
-    } finally {
-      Simulation.useEngine(previous);
-    }
-    // Fixed when the runner is made.
-    assert.equal(made.engine, "legacy");
-    made.run();
-    made.advance(Infinity);
-    assert.deepEqual(
-      made.result,
-      runFight({ seed: 1, duration: 1, engine: "legacy" }),
-    );
-  });
-
-  it("refuses an unknown engine when it is made", () => {
-    assert.throws(
-      () => new SimRunner({ seed: 1, duration: 1, engine: "fast" }),
-      {
+describe("SimRunner on the event core (#198)", () => {
+  it("has no engine, and refuses an engine option when it is made", () => {
+    assert.equal("engine" in new SimRunner({ seed: 1, duration: 1 }), false);
+    for (const engine of ["events", "legacy"]) {
+      assert.throws(() => new SimRunner({ seed: 1, duration: 1, engine }), {
         name: "RangeError",
-        message: /Unknown engine "fast"/,
-      },
-    );
+        message: /SimRunner has no option "engine"/,
+      });
+    }
   });
 
   for (const fight of CASES) {
@@ -215,7 +173,7 @@ describe("SimRunner's end of a fight on the event core (#198)", () => {
       cappedTime: simulation.rogue.resources.energy.cappedTime,
       overflow: simulation.rogue.resources.energy.overflow,
     });
-    const runner = new SimRunner({ seed: 4, duration: 40, engine: EVENTS });
+    const runner = new SimRunner({ seed: 4, duration: 40 });
     let atEnd = null;
     runner.on("end", () => {
       atEnd = seen(runner.fight.simulation);
@@ -224,7 +182,6 @@ describe("SimRunner's end of a fight on the event core (#198)", () => {
     runner.advance(Infinity);
     const fight = createFight(4, normalizeConfig(undefined), {
       duration: 40,
-      engine: EVENTS,
     });
     let expected = null;
     fight.simulation.on("end", () => {
@@ -236,7 +193,7 @@ describe("SimRunner's end of a fight on the event core (#198)", () => {
   });
 
   it("runs a fight that a handler started again at the last time in full", () => {
-    const runner = new SimRunner({ seed: 3, duration: 0, engine: EVENTS });
+    const runner = new SimRunner({ seed: 3, duration: 0 });
     let again = true;
     runner.on("*", () => {
       if (again) {
@@ -293,7 +250,7 @@ describe("FrameClock.seconds (#198)", () => {
     assert.equal(clock.seconds(60_000), k("sim.maxFrameTime"));
     clock.restart();
     assert.equal(clock.seconds(70_000), 0);
-    assert.equal(clock.carry, 0, "no carry");
+    assert.equal("carry" in clock, false, "no carry");
     assert.throws(() => clock.seconds(Number.NaN), /FrameClock.seconds needs/);
   });
 });
@@ -301,7 +258,7 @@ describe("FrameClock.seconds (#198)", () => {
 describe("the live adapter on the event core (#198)", () => {
   const config = pageDefaultConfig();
 
-  function live(engine) {
+  function live() {
     const store = createStore({
       config,
       run: { state: "idle", seed: null, duration: null },
@@ -326,7 +283,7 @@ describe("the live adapter on the event core (#198)", () => {
       now += ms;
       callback(now);
     };
-    return { store, frames, live: target, tick, engine };
+    return { store, frames, live: target, tick };
   }
 
   // 1x is real-time frames, 4x frames four times as long, and max the
@@ -342,8 +299,8 @@ describe("the live adapter on the event core (#198)", () => {
     it(`equals headless at ${speed}`, () => {
       const seed = 4242;
       const duration = 12;
-      const { live: target, tick, frames, store } = live(EVENTS);
-      target.run({ seed, duration, config, engine: EVENTS });
+      const { live: target, tick, frames, store } = live();
+      target.run({ seed, duration, config });
       let guard = 0;
       while (frames.pending) {
         tick(ms);
@@ -359,8 +316,8 @@ describe("the live adapter on the event core (#198)", () => {
   it("Stop then Run reproduces the same fight, and a pause is never simulated", () => {
     const seed = 17;
     const duration = 8;
-    const { live: target, tick, frames } = live(EVENTS);
-    target.run({ seed, duration, config, engine: EVENTS });
+    const { live: target, tick, frames } = live();
+    target.run({ seed, duration, config });
     tick(16);
     tick(16);
     target.pause();
@@ -368,7 +325,7 @@ describe("the live adapter on the event core (#198)", () => {
     tick(1e6);
     assert.equal(target.fight().simulation.currentTime, 0.016);
     target.stop();
-    target.run({ seed, duration, config, engine: EVENTS });
+    target.run({ seed, duration, config });
     while (frames.pending) {
       tick(23);
     }
@@ -376,12 +333,8 @@ describe("the live adapter on the event core (#198)", () => {
   });
 
   it("clears to an event-core fight at 0:00", () => {
-    const { live: target, store } = live(EVENTS);
-    target.clear({ seed: 3, config, engine: EVENTS });
+    const { live: target, store } = live();
+    target.clear({ seed: 3, config });
     assert.deepEqual(store.get().results, { time: 0, damage: 0 });
-    assert.throws(
-      () => target.clear({ seed: 3, config, engine: "steps" }),
-      RangeError,
-    );
   });
 });

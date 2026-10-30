@@ -42,23 +42,18 @@ export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 // rotation's only and does not end the fight; simulation.run(duration) does,
 // so give both the same number (runFight and SimRunner do). Without it
 // fightTimeRemaining reads as Infinity. A bad one is a RangeError.
-//
-// `options.engine` is the engine simulation.run uses (Simulation's `engine`:
-// "legacy", the default, or "events", the event core of #197). Like
-// duration it is createFight's own, not the Rogue's.
 export function createFight(seed, config, options) {
   const fightSeed = normalizeSeed(seed);
-  // duration and engine are createFight's own; the rest are the Rogue's, which checks
+  // duration is createFight's own; the rest are the Rogue's, which checks
   // them. Options that are not an object go to the Rogue as they are, and it
   // refuses them.
   const plain =
     options !== null && typeof options === "object" && !Array.isArray(options);
-  const { duration, engine, ...rogueOptions } = plain ? options : {};
+  const { duration, ...rogueOptions } = plain ? options : {};
   const rogue = new Rogue(config, plain ? rogueOptions : options);
   const simulation = new Simulation(rogue, {
     seed: fightSeed,
     fightLength: duration,
-    engine,
   });
   return {
     seed: fightSeed,
@@ -90,7 +85,7 @@ export function fightResult(fight) {
   };
 }
 
-const RUN_FIGHT_OPTIONS = ["seed", "duration", "config", "engine"];
+const RUN_FIGHT_OPTIONS = ["seed", "duration", "config"];
 
 // Headless entry point: build a rogue and a simulation, run one fight, and
 // hand back the result as plain data. It touches no DOM, reads no clock, and
@@ -113,12 +108,10 @@ const RUN_FIGHT_OPTIONS = ["seed", "duration", "config", "engine"];
 //   config     the SimConfig the fight used, in full form (js/sim-config.js).
 //              Pass it back as `config` to repeat the fight exactly.
 //
-// Options: { seed, duration, config, engine }. `config` is optional.
-// `engine` is optional too (#198): the engine the fight runs on, "legacy" or
-// "events" (createFight's option, Simulation's `engine`); without it the
-// Simulation's default, legacy until #199. The result does not record it. An
-// option with any other name is a RangeError, so a misspelt "confg" cannot
-// quietly run the default fight.
+// Options: { seed, duration, config }. `config` is optional. The fight runs on
+// the event core, the only engine since #234 (an `engine` option is gone with
+// the fixed-step engine). An option with any other name is a RangeError, so a
+// misspelt "confg" cannot quietly run the default fight.
 export function runFight(options) {
   // null, undefined, an array, and anything that is not an object have no seed
   // or duration to read, so they get the same RangeError as a bad seed.
@@ -138,11 +131,11 @@ export function runFight(options) {
       );
     }
   }
-  const { seed, duration, config, engine } = options;
+  const { seed, duration, config } = options;
   // A seed is required so no fight is repeatable by accident or random by
   // accident. createFight rejects anything that is not an integer.
   // The rotation is told the length the fight runs (#191).
-  const fight = createFight(seed, config, { duration, engine });
+  const fight = createFight(seed, config, { duration });
   // One run call for the whole fight. A bad duration is already refused,
   // by createFight, as a RangeError.
   fight.simulation.run(duration);

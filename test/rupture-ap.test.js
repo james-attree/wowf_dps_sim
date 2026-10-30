@@ -4,6 +4,8 @@ import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 // Issue #25. The Cataclysm tooltip prints these per tick. 4 CP is
 // 0.03428571, and 7 × that is within 1e-7 of the stored total 0.24.
@@ -48,7 +50,7 @@ function near(actual, expected) {
 
 function harness(comboPoints) {
   const rogue = new Rogue();
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.critChance = 0;
   rogue.comboPoints = comboPoints;
   rogue.energy = k("energy.max");
@@ -139,8 +141,11 @@ describe("Rupture AP coefficients", () => {
         const dt = 1 / fps;
         const frames = Math.round(duration * fps);
         for (let frame = 1; frame <= frames; frame += 1) {
-          sim.step(dt);
+          runOnCore(sim, dt);
         }
+        // Frames of 1 / fps add up to a hair under the duration; the core
+        // ticks at the duration exactly, so run the rest of the way to it.
+        runOnCore(sim, Math.max(0, duration - sim.currentTime));
         near(sim.currentTime, stats.durationByCp[comboPoints - 1]);
         const landed = sim.combatLog.filter(
           (event) => event.name === "Rupture" && event.damage > 0,

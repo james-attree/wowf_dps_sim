@@ -13,6 +13,7 @@ import {
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { talentCatalogue } from "../js/talents.js";
+import { quiet } from "./quiet.js";
 
 // D8a PR 1 (#119): Malice, Lethality and Improved Slice and Dice as data, and
 // the `duration` modifier kind. Each number in data/talent-effects.js is read
@@ -210,7 +211,7 @@ describe("Improved Slice and Dice lengthens the aura Slice and Dice puts up", ()
   function cast(rank, points) {
     const options = rank === undefined ? undefined : only(IMPROVED_SND, rank);
     const rogue = new Rogue(undefined, options);
-    rogue.rotation = () => {};
+    quiet(rogue);
     const simulation = new Simulation(rogue, { seed: 1 });
     rogue.comboPoints = points;
     rogue.energy = rogue.maxEnergy;

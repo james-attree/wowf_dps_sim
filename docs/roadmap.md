@@ -38,13 +38,42 @@ issues when that phase starts.
 - U — UI
 - H — history and persistence
 
+## Phase 3.5 status
+
+Phase 3.5 replaces the fixed-step engine with an event-queue core
+([proposal](phase-3.5-engine-rewrite.md), the
+[design](mechanics.md#event-queue-engine-phase-35)), tracked by
+[#201](https://github.com/james-attree/wowf_dps_sim/issues/201). The event core has been the default since #199 and, with
+#234, the only engine. The parity gate that guarded the switch-over is
+retired: its final numbers are in
+[Parity harness](mechanics.md#parity-harness), and the goldens and the bench
+are the ongoing guard. This is a snapshot as of 2026-10-30. GitHub is the
+source of truth, and this list will go stale.
+
+- [#187](https://github.com/james-attree/wowf_dps_sim/issues/187) — [P3.5-01] Unify seed validation and error wording — merged (PR #202)
+- [#188](https://github.com/james-attree/wowf_dps_sim/issues/188) — [P3.5-02] Validator: every talent-granted ability must be guarded — merged (PR #203)
+- [#189](https://github.com/james-attree/wowf_dps_sim/issues/189) — [P3.5-03] Validator warnings for pooling traps — merged (PR #206)
+- [#190](https://github.com/james-attree/wowf_dps_sim/issues/190) — [P3.5-04] Partial talent builds (fewer than 51 points), capped by level − 9 — merged (PR #205)
+- [#191](https://github.com/james-attree/wowf_dps_sim/issues/191) — [P3.5-05] Fight length reaches the rotation (E10) — merged (PR #209)
+- [#192](https://github.com/james-attree/wowf_dps_sim/issues/192) — [P3.5-06] Design note, parity harness and re-baselined bench (E11 harness) — merged (PR #213)
+- [#193](https://github.com/james-attree/wowf_dps_sim/issues/193) — [P3.5-07] Scheduler (E3) — merged (PR #223)
+- [#194](https://github.com/james-attree/wowf_dps_sim/issues/194) — [P3.5-08] Continuous energy (E4) — merged (PR #225)
+- [#195](https://github.com/james-attree/wowf_dps_sim/issues/195) — [P3.5-09] Swings, GCD, cooldowns, aura and Premeditation expiries (E4) — merged (PR #227)
+- [#196](https://github.com/james-attree/wowf_dps_sim/issues/196) — [P3.5-10] DoT ticks, procs and poisons on events (E5) — merged (PR #229)
+- [#197](https://github.com/james-attree/wowf_dps_sim/issues/197) — [P3.5-11] Decision points and the rotation (E6) — merged (PR #230)
+- [#198](https://github.com/james-attree/wowf_dps_sim/issues/198) — [P3.5-12] Re-point SimRunner, event stream and live adapter (E7–E9) — merged (PR #231)
+- [#199](https://github.com/james-attree/wowf_dps_sim/issues/199) — [P3.5-13] Parity gate and switch-over (goldens move here, once) — merged (PR #232): the event core is the default
+- [#207](https://github.com/james-attree/wowf_dps_sim/issues/207) — [P3.5-15] Guard Hemorrhage, Ghostly Strike and Premeditation as talent-granted abilities — merged (PR #210)
+- [#200](https://github.com/james-attree/wowf_dps_sim/issues/200) — [P3.5-14] Remove the legacy engine, docs and phase wrap-up — closed; continued in #234
+- [#234](https://github.com/james-attree/wowf_dps_sim/issues/234) — [P3.5-14] Phase 3.5 wrap-up: remove the legacy engine, docs and polish (continues #200) — in progress: PR 1 removes the fixed-step engine (last commit tagged `legacy-engine-final`) and retires the parity gate; PR 2 is engine polish; PR 3 makes the scripted finishers case finish on seeds 1 to 200 with its own golden
+
 ## Phase 3 status
 
 Phase 3 is rotation as data, stats and poison inputs, run controls and batch
 results. James approved the plan on the tracker,
 [#156](https://github.com/james-attree/wowf_dps_sim/issues/156), with the
 event-queue engine rewrite to follow as Phase 3.5
-([proposal](phase-3.5-engine-rewrite.md); planned, not started). The headless
+([proposal](phase-3.5-engine-rewrite.md); see Phase 3.5 status). The headless
 issues (#136 to #148) came first, then a review checkpoint before the UI issues
 (#149 onwards). The phase ends with a larger review by James. This is a
 snapshot as of 2026-10-29. GitHub is the source of truth, and this list will go
@@ -100,7 +129,7 @@ of truth, and this list will go stale.
 - [#100](https://github.com/james-attree/wowf_dps_sim/issues/100) — [P2-11] A7: Classic 1.12 combat table — merged (PR #121). Attacks resolve on the Classic attack table (miss, dodge, parry, glancing, block, crit, hit), with a white swing as one roll and a yellow attack as two, and glancing blows, crit suppression and a `config.target.behind` position (default behind: no parry, no block). It changed the draws of every fight, so the golden fixtures were regenerated in a separate commit and the script of the finisher fixture was adjusted. `runFight`'s shape is unchanged. See [Attack table](mechanics.md#attack-table).
 - [#101](https://github.com/james-attree/wowf_dps_sim/issues/101) — [P2-12] A4: Proc system — merged (PR #123). A proc is data (`js/procs.js`): a trigger (`onHit`, `onCrit`, `onWhiteHit`, `onAbility` by ability id or tag, `onDotTick`), a chance (`flat`, `ppm`, `perSpent` by combo points spent), an optional internal cooldown, a modifier-scope filter and actions (`gainResource` for combo points or an energy restore, `applyAura`, `dealDamage`, `extraAttack`). A proc draws a random number only when it could fire. Hosts pass procs as `options.procs` to `Rogue` and `createFight`; `runFight`'s shape and the golden fixtures are unchanged, and no talent is wired in until D7. It also folds in the #120 items: a pool above a fallen cap is clamped each step, resource ids are checked with `Object.hasOwn` and when an ability loads, and a negative amount throws. See [Procs](mechanics.md#procs).
 - [#102](https://github.com/james-attree/wowf_dps_sim/issues/102) — [P2-13] D5: Combat talent effects as data — merged (PR #124). `data/talent-effects.js` has one entry per Combat talent (modifier rank tables, procs, a granted ability, or a `noDpsEffect` reason, and a hash of the snapshot text it was written from), and `expandTalents` turns `{ talent id: rank }` into the `modifiers` and `procs` that `createFight` takes. 11 of the 17 have an effect (11 confirmed, no twelfth). A talented run is reachable through `createFight` options; `runFight` and the goldens are unchanged, and `config.talents` is read by D7. It also folds in Kira's #123 items (tests for the real gaps, `procsFromTalents` input checks, a `ppm` proc needing an attack, whole combo points). See [Talent effects](mechanics.md#talent-effects).
-- [#119](https://github.com/james-attree/wowf_dps_sim/issues/119) — [P2-19] D8a: Assassination talents as data — PR 1 merged (#125), PR 2 merged (#126). Ruthlessness 3/3 and Relentless Strikes 1/1 are `onAbility` procs on the `finisher` tag (a flat chance by rank; 20% per combo point spent) and Cold Blood 1/1 is a granted ability: an instant off-GCD 3 minute cooldown whose one-charge aura adds +100% crit to the abilities of its text, spent by the first one that lands. A Rogue option `abilities` carries the grants, the Cold Blood rotation rule (the Scout's, isolated in `js/rotation-rules.js`) applies only when it is granted, and the crit suppression now comes off before the 0 to 1 clamp. The reference build's `unmapped` list is empty. `runFight`'s shape and the golden fixtures are unchanged. See [Talent effects](mechanics.md#talent-effects).
+- [#119](https://github.com/james-attree/wowf_dps_sim/issues/119) — [P2-19] D8a: Assassination talents as data — PR 1 merged (#125), PR 2 merged (#126). Ruthlessness 3/3 and Relentless Strikes 1/1 are `onAbility` procs on the `finisher` tag (a flat chance by rank; 20% per combo point spent) and Cold Blood 1/1 is a granted ability: an instant off-GCD 3 minute cooldown whose one-charge aura adds +100% crit to the abilities of its text, spent by the first one that lands. A Rogue option `abilities` carries the grants, the Cold Blood rotation rule (the Scout's, isolated in `js/rotation-rules.js`, since R3 a rule of the rotation data) applies only when it is granted, and the crit suppression now comes off before the 0 to 1 clamp. The reference build's `unmapped` list is empty. `runFight`'s shape and the golden fixtures are unchanged. See [Talent effects](mechanics.md#talent-effects).
 
 - [#103](https://github.com/james-attree/wowf_dps_sim/issues/103) — [P2-14] D6: Talent coverage check and CI step — merged (PR #131). `npm run talents:coverage` lists, per tree, the talents with an effect, the `noDpsEffect` ones and the ones with none, and CI runs it. See [Talent effects](mechanics.md#talent-effects).
 - [#104](https://github.com/james-attree/wowf_dps_sim/issues/104) — [P2-15] D9: Poison definitions from the snapshot — merged (PR #132). `js/poisons.js` reads each rogue poison's numbers from `spell_desc`; Instant and Deadly deal damage and the others are no-ops with a reason. See [Poison definitions](mechanics.md#poison-definitions-d9-issue-104).
@@ -137,7 +166,8 @@ mode is a view of it.
   is a development-machine target, not a CI guarantee, and no test asserts it.
   See [Benchmark](mechanics.md#benchmark).
 - Live mode is a view of the engine. `js/main.js` builds the fight with
-  `createFight`, steps it in whole steps of `sim.fixedStep`, and shows the seed.
+  `createFight`, steps it in whole steps of `sim.fixedStep`, and shows the seed
+  (since #234 it gives each frame's seconds to the event core).
   See [Live page](mechanics.md#live-page).
 
 Issues:

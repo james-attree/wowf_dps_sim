@@ -8,6 +8,8 @@ import { defaultConfig, defaultDaggerConfig } from "../js/sim-config.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
 import { SOURCE_TAGS } from "../scripts/provenance.mjs";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 const FIELDS = ["value", "unit", "source", "ref", "note", "retune"];
 const BARE_DASH = new Set(["-", "–"]);
@@ -211,7 +213,6 @@ describe("constants", () => {
       "log.maxEvents",
       "rng.defaultSeed",
       "rng.mulberry32",
-      "sim.fixedStep",
       "sim.maxFrameTime",
       "sim.msPerSecond",
       "sim.tickEpsilon",
@@ -575,7 +576,7 @@ describe("simulator values other than white miss", () => {
     mock.restoreAll();
     setRoll(0);
     const ticking = new Rogue();
-    ticking.rotation = () => {};
+    quiet(ticking);
     const fight = new Simulation(ticking, { rng: testRng });
     fight.activeDots.rupture = {
       duration: 2,
@@ -585,7 +586,7 @@ describe("simulator values other than white miss", () => {
       icon: null,
     };
     fight.activeDebuffs.hemorrhage = { duration: 15, icon: null };
-    fight.step(2);
+    runOnCore(fight, 2);
     assert.equal(
       fight.damageDone,
       100 * (1 + k("hemorrhage.ruptureBonus").bonus) * k("dot.critMultiplier"),
@@ -593,19 +594,19 @@ describe("simulator values other than white miss", () => {
 
     mock.restoreAll();
     setRoll(0.5);
-    const quiet = new Rogue();
-    quiet.energy = 0;
-    quiet.rotation = () => {};
-    const regen = new Simulation(quiet, { rng: testRng });
+    const idle = new Rogue();
+    idle.energy = 0;
+    quiet(idle);
+    const regen = new Simulation(idle, { rng: testRng });
     regen.activeBuffs["adrenaline-rush"] = { duration: 15, icon: null };
-    regen.step(1);
-    assert.equal(quiet.energy, 20);
+    runOnCore(regen, 1);
+    assert.equal(idle.energy, 20);
 
     const plain = new Rogue();
     plain.energy = 0;
-    plain.rotation = () => {};
+    quiet(plain);
     const base = new Simulation(plain, { rng: testRng });
-    base.step(1);
+    runOnCore(base, 1);
     assert.equal(plain.energy, 10);
   });
 

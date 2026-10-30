@@ -13,8 +13,7 @@
     "data:refresh": "node scripts/refresh-data.mjs",
     "icons:check": "node scripts/check-icons.mjs",
     "golden:update": "node scripts/golden-update.mjs",
-    "bench": "node scripts/bench.mjs",
-    "parity": "node scripts/parity.mjs"
+    "bench": "node scripts/bench.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

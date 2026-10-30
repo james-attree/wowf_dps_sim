@@ -12,10 +12,12 @@ import {
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 function fresh() {
   const rogue = new Rogue();
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.critChance = 0;
   const sim = new Simulation(rogue, { rng: testRng });
   return { rogue, sim };
@@ -265,11 +267,11 @@ describe("applying an aura", () => {
       ["apply", 1, false],
       ["apply", 1, true],
     ]);
-    sim.step(1);
+    runOnCore(sim, 1);
     assert.deepEqual(calls.at(-1), ["expire", "test-aura"]);
     assert.equal(calls.length, 3);
     assert.equal(sim.activeBuffs["test-aura"], undefined);
-    sim.step(1);
+    runOnCore(sim, 1);
     assert.equal(calls.length, 3);
   });
 
@@ -282,7 +284,7 @@ describe("applying an aura", () => {
       onExpire: (s) => s.applyAura(second, { duration: 5 }),
     });
     sim.applyAura(first, { duration: 1 });
-    sim.step(1);
+    runOnCore(sim, 1);
     assert.equal(sim.activeBuffs.first, undefined);
     assert.equal(sim.activeBuffs.second.duration, 5);
   });
@@ -339,7 +341,7 @@ describe("aura effects", () => {
     const rate = k("energy.regenPerSecond");
     const plain = fresh();
     plain.rogue.energy = 0;
-    plain.sim.step(1);
+    runOnCore(plain.sim, 1);
     const gained = plain.rogue.energy;
     assert.ok(gained > 0);
 
@@ -348,7 +350,7 @@ describe("aura effects", () => {
     boosted.sim.applyAura(define({ effects: { energyRegenMultiplier: 2 } }), {
       duration: 0.5,
     });
-    boosted.sim.step(1);
+    runOnCore(boosted.sim, 1);
     // Half a second at the base rate, then half at double.
     const expected = (rate * 0.5 + rate * 2 * 0.5) * (gained / rate);
     assert.ok(Math.abs(boosted.rogue.energy - expected) < 1e-9);
@@ -363,7 +365,7 @@ describe("aura effects", () => {
       if (aura) {
         sim.applyAura(aura, { duration: 30 });
       }
-      sim.step(interval);
+      runOnCore(sim, interval);
       return sim.damageDone;
     };
     const bonus = define({
@@ -394,7 +396,7 @@ describe("aura effects", () => {
       if (stacks > 0) {
         assert.equal(sim.activeDebuffs["test-aura"].stacks, stacks);
       }
-      sim.step(interval);
+      runOnCore(sim, interval);
       return sim.damageDone;
     };
     const plain = tick(0);

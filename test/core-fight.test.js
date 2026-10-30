@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
-import { ENGINES, runOnCore } from "../js/core/fight.js";
-import { createFight } from "../js/fight.js";
+import { runOnCore } from "../js/core/fight.js";
+import { createFight, runFight } from "../js/fight.js";
+import { SimRunner } from "../js/sim-runner.js";
 import { Rogue } from "../js/rogue.js";
 import { importRotation } from "../js/rotation-io.js";
 import { loadPreset } from "../js/rotation-presets.js";
@@ -11,6 +12,7 @@ import { GOLDEN_CASES } from "../scripts/golden-update.mjs";
 import { runScriptedFight } from "../scripts/scripted-fight.mjs";
 import { setRoll, testRng } from "./rolls.js";
 import { referenceBuild } from "./talentsforever.js";
+import { POLL_STEP } from "./poll-step.js";
 
 // Issue #197 (E6): a whole fight on the Phase 3.5 event core
 // (js/core/fight.js), with the rotation run at decision points only.
@@ -102,7 +104,7 @@ const CONFIGS = {
 
 // A fight on the core, run in one call, with every cast and its time.
 function coreFight(seed, config, duration, options = {}) {
-  const fight = createFight(seed, config, { duration, engine: "events" });
+  const fight = createFight(seed, config, { duration });
   const { simulation: sim, rogue } = fight;
   const casts = [];
   const castRotation = rogue.castRotation.bind(rogue);
@@ -123,7 +125,7 @@ describe("the event core: a whole fight at decision points (#197)", () => {
   // times but for rounding. A decision point the core missed would show as a
   // cast the poll makes first, or a cast at a later time.
   it("casts what polling the rotation every 1/64 s casts, for the default, a preset, talents, poisons and an imported rotation", () => {
-    const step = k("sim.fixedStep");
+    const step = POLL_STEP;
     for (const [name, config] of Object.entries(CONFIGS)) {
       const tally = new Map();
       for (const seed of [1, 2, 3]) {
@@ -182,7 +184,7 @@ describe("the event core: a whole fight at decision points (#197)", () => {
         `${name}: ${JSON.stringify(stats)}`,
       );
       assert.ok(
-        stats.decisions < (duration / k("sim.fixedStep")) * 0.1,
+        stats.decisions < (duration / POLL_STEP) * 0.1,
         `${name}: ${stats.decisions} decisions`,
       );
     }
@@ -237,7 +239,6 @@ describe("the event core: a whole fight at decision points (#197)", () => {
   it("gives the legacy pool back after the run, with the value and the waste", () => {
     const { simulation: sim, rogue } = createFight(3, undefined, {
       duration: 60,
-      engine: "events",
     });
     const legacy = rogue.resources.energy;
     // Nothing casts, so the pool sits at the cap.
@@ -258,7 +259,6 @@ describe("the event core: a whole fight at decision points (#197)", () => {
   it("carries a fight across two runs: a DoT ticks on its clock, and the swings go on", () => {
     const { simulation: sim, rogue } = createFight(5, undefined, {
       duration: 30,
-      engine: "events",
     });
     rogue.castRotation = () => ({ casts: [], outcome: "none" });
     const ticks = [];
@@ -314,7 +314,7 @@ describe("the event core: a whole fight at decision points (#197)", () => {
     const { simulation: sim, rogue } = createFight(
       1,
       { rotation: rotation.rotation },
-      { duration: 30, engine: "events" },
+      { duration: 30 },
     );
     // No swings: the only thing that can set off the cast is the wake.
     for (const weapon of Object.values(rogue.weapons)) {
@@ -339,41 +339,25 @@ describe("the event core: a whole fight at decision points (#197)", () => {
     assert.ok(Math.abs(casts[0][0] - 12.3) < 1e-6, JSON.stringify(casts));
   });
 
-  it("knows its engines, and makes events the default (#199)", () => {
-    assert.deepEqual(Object.values(ENGINES), ["legacy", "events"]);
-    assert.equal(new Simulation(new Rogue()).engine, "events");
-    assert.equal(createFight(1).simulation.engine, "events");
-    assert.equal(
-      createFight(1, undefined, { engine: "legacy" }).simulation.engine,
-      "legacy",
+  it("is the only engine: no engine option or switch is left (#234)", () => {
+    assert.equal(Simulation.useEngine, undefined);
+    assert.equal(new Simulation(new Rogue()).engine, undefined);
+    assert.throws(
+      () => runFight({ seed: 1, duration: 1, engine: "legacy" }),
+      /no option "engine"/,
     );
-    for (const engine of ["fixed", "", null, 1]) {
-      assert.throws(
-        () => new Simulation(new Rogue(), { engine }),
-        /Unknown engine/,
-        String(engine),
-      );
-      assert.throws(() => Simulation.useEngine(engine), /Unknown engine/);
-    }
-    assert.equal(Simulation.useEngine("legacy"), "events");
-    try {
-      assert.equal(new Simulation(new Rogue()).engine, "legacy");
-    } finally {
-      assert.equal(Simulation.useEngine("events"), "legacy");
-    }
+    assert.throws(
+      () => new SimRunner({ seed: 1, duration: 1, engine: "legacy" }),
+      /no option "engine"/,
+    );
   });
 
   it("runs the scripted golden case to Rupture ticks and a tick crit", () => {
     const scripted = GOLDEN_CASES.find((goldenCase) => goldenCase.script);
-    const previous = Simulation.useEngine("events");
-    try {
-      const result = runScriptedFight(scripted);
-      const rupture = result.abilities.Rupture;
-      assert.ok(rupture.ticks > 0, JSON.stringify(rupture));
-      assert.ok(rupture.tickCrits > 0, JSON.stringify(rupture));
-    } finally {
-      Simulation.useEngine(previous);
-    }
+    const result = runScriptedFight(scripted);
+    const rupture = result.abilities.Rupture;
+    assert.ok(rupture.ticks > 0, JSON.stringify(rupture));
+    assert.ok(rupture.tickCrits > 0, JSON.stringify(rupture));
   });
 });
 
@@ -390,7 +374,7 @@ describe("the event core at the #196 edges", () => {
       rogue.weapons.offHand.swingTimer = 1e9;
     }
     setRoll(0.99);
-    const sim = new Simulation(rogue, { rng: testRng, engine: "events" });
+    const sim = new Simulation(rogue, { rng: testRng });
     const hits = [];
     sim.on("hit", (event) => hits.push(event));
     return { rogue, sim, hits };
@@ -460,10 +444,9 @@ describe("the event core at the #196 edges", () => {
   });
 
   // (a) The core's first main-hand swing is at 0 and every later one at
-  // exactly n x speed; legacy swings first after its first 1/64 s step and
-  // rounds each swing up to a step (2.6 s comes at 2.609375). So the swing procs, and the
-  // decision points they set, move in every fight.
-  it("swings at exact multiples of the speed, not on legacy's 1/64 s grid", () => {
+  // exactly n x speed (the removed fixed-step engine rounded each swing up to
+  // a 1/64 s step: 2.6 s came at 2.609375).
+  it("swings at exact multiples of the speed, on no step grid", () => {
     const { rogue, sim, hits } = quietFight({ swings: true });
     const speed = rogue.weapons.mainHand.speed;
     runOnCore(sim, speed * 3.5);
@@ -472,33 +455,5 @@ describe("the event core at the #196 edges", () => {
     main.forEach((time, n) => {
       assert.ok(Math.abs(time - n * speed) < 1e-9, JSON.stringify(main));
     });
-
-    const legacy = new Rogue();
-    legacy.bonusHitChance = 1;
-    legacy.critChance = 0;
-    legacy.castRotation = () => ({ casts: [], outcome: "none" });
-    const old = new Simulation(legacy, { rng: testRng, engine: "legacy" });
-    const times = [];
-    old.on("hit", (e) => {
-      if (e.name === "Main-hand") {
-        times.push(e.time);
-      }
-    });
-    old.run(speed * 1.5);
-    const step = k("sim.fixedStep");
-    assert.equal(times[0], step);
-    assert.equal(times[1] / step, Math.round(times[1] / step));
-    assert.ok(times[1] > main[1] && times[1] < main[1] + step);
   });
-});
-
-// Each test leaves the default engine as it found it. useEngine returns the
-// engine it replaces, so setting and putting it back reads the current one.
-let engineBefore;
-beforeEach(() => {
-  engineBefore = Simulation.useEngine(ENGINES.events);
-  Simulation.useEngine(engineBefore);
-});
-afterEach(() => {
-  Simulation.useEngine(engineBefore);
 });

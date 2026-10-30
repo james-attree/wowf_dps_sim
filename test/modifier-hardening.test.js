@@ -12,6 +12,8 @@ import {
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 // Tests added after the QA of the modifier pipeline (PR #115). Each one pins
 // something the first tests left open: a mutated copy of the engine that
@@ -50,7 +52,7 @@ function source(id, extra = {}) {
 function build(modifiers, config, { rotate = false } = {}) {
   const rogue = new Rogue(config, { modifiers });
   if (!rotate) {
-    rogue.rotation = () => {};
+    quiet(rogue);
   }
   rogue.critChance = 0;
   rogue.bonusHitChance = 0;
@@ -83,7 +85,7 @@ function tickOnce(sim, id, { bleed, damage = 100 } = {}) {
     icon: null,
     bleed,
   };
-  sim.step(interval);
+  runOnCore(sim, interval);
   return sim.abilityStats[id];
 }
 
@@ -435,7 +437,7 @@ describe("aura modifiers with more than one stack", () => {
     );
   });
 
-  it("splits a step's energy where each timed aura runs out", () => {
+  it("splits the energy where each timed aura runs out", () => {
     const boost = (id, value) =>
       defineAura({
         id,
@@ -447,7 +449,8 @@ describe("aura modifiers with more than one stack", () => {
     rogue.energy = 0;
     sim.applyAura(boost("short-boost", 2), { duration: 0.1 });
     sim.applyAura(boost("long-boost", 3), { duration: 0.2 });
-    sim.regenerateResources(0.2);
+    quiet(rogue);
+    runOnCore(sim, 0.2);
     const base = k("energy.regenPerSecond");
     close(rogue.energy, base * (6 * 0.1 + 3 * 0.1));
   });
@@ -554,7 +557,6 @@ describe("the constants that cite the dev, not James", () => {
     "log.maxEvents",
     "sim.msPerSecond",
     "sim.tickEpsilon",
-    "sim.fixedStep",
     "sim.maxFrameTime",
     "config.minWeaponSpeed",
     "rng.defaultSeed",
@@ -624,7 +626,7 @@ describe("a rank table is checked whole", () => {
 describe("a pipeline takes one fight", () => {
   it("is not taken over by a second Simulation on the same rogue", () => {
     const rogue = new Rogue();
-    rogue.rotation = () => {};
+    quiet(rogue);
     const first = new Simulation(rogue, { seed: 1 });
     assert.throws(
       () => new Simulation(rogue, { seed: 2 }),

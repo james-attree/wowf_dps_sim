@@ -4,6 +4,8 @@ import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 const CONSOLE_METHODS = [
   "assert",
@@ -41,7 +43,7 @@ function primeDot(sim, id, name) {
 
 function tickDot({ hemorrhage }) {
   const rogue = new Rogue();
-  rogue.rotation = () => {};
+  quiet(rogue);
   const sim = new Simulation(rogue, { rng: testRng });
   primeDot(sim, "rupture", "Rupture");
   if (hemorrhage) {
@@ -55,7 +57,7 @@ function tickDot({ hemorrhage }) {
       sim.activeDebuffs.hemorrhage = aura;
     }
   }
-  sim.step(k("rupture.tickInterval"));
+  runOnCore(sim, k("rupture.tickInterval"));
   return sim;
 }
 
@@ -71,7 +73,7 @@ describe("simulation output", () => {
     const sim = new Simulation(new Rogue(), { rng: testRng });
     const dt = 1 / 10;
     for (let frame = 0; frame < 50; frame += 1) {
-      sim.step(dt);
+      runOnCore(sim, dt);
     }
 
     assert.ok(sim.damageDone > 0);
@@ -116,6 +118,16 @@ function near(actual, expected) {
   );
 }
 
+// The core puts each expiry at its own time; a frame loop sees it at the end
+// of the frame it falls in, so up to one frame later.
+function within(actual, expected, dt) {
+  assert.ok(
+    actual >= expected - k("sim.tickEpsilon") &&
+      actual <= expected + dt + k("sim.tickEpsilon"),
+    `${actual} is not within a frame of ${dt} after ${expected}`,
+  );
+}
+
 function runGhostlyStrike(fps) {
   const rogue = new Rogue();
   rogue.bonusHitChance = 1;
@@ -124,35 +136,27 @@ function runGhostlyStrike(fps) {
   const skill = rogue.abilities.ghostlyStrike;
   const cooldown = skill.cooldown;
   const buffDuration = skill.duration;
-  const lead = fps;
-  let frame = 0;
   let castTime = null;
-  rogue.rotation = () => {
-    frame += 1;
-    if (frame !== lead) {
-      return;
+  // Cast at the first decision (t = 0), then nothing.
+  rogue.castRotation = () => {
+    if (castTime === null) {
+      const result = skill.cast(rogue, sim);
+      assert.ok(result?.landed);
+      castTime = sim.currentTime;
+      assert.equal(sim.cooldowns[skill.id], cooldown);
+      assert.equal(sim.activeBuffs[skill.id].duration, buffDuration);
+      assert.equal(sim.activeDebuffs[skill.id], undefined);
     }
-    const result = skill.cast(rogue, sim);
-    assert.ok(result?.landed);
-    castTime = sim.currentTime;
+    return { casts: [], outcome: "none" };
   };
   const dt = 1 / fps;
-  const lastFrame = lead + Math.round(cooldown * fps);
+  const lastFrame = Math.round(cooldown * fps) + 1;
   let buffGoneAt = null;
   let readyAt = null;
   let lastBuffDuration = 0;
   let lastCooldown = 0;
   for (let f = 1; f <= lastFrame; f += 1) {
-    sim.step(dt);
-    if (f === lead) {
-      assert.equal(sim.cooldowns[skill.id], cooldown);
-      assert.equal(sim.activeBuffs[skill.id].duration, buffDuration);
-      assert.equal(sim.activeDebuffs[skill.id], undefined);
-      assert.equal(castTime, sim.currentTime);
-    }
-    if (f <= lead) {
-      continue;
-    }
+    runOnCore(sim, dt);
     const buff = sim.activeBuffs[skill.id];
     if (buff) {
       lastBuffDuration = buff.duration;
@@ -179,7 +183,7 @@ function runGhostlyStrike(fps) {
 function runDot(fps, duration) {
   const rogue = new Rogue();
   rogue.critChance = 0;
-  rogue.rotation = () => {};
+  quiet(rogue);
   const sim = new Simulation(rogue, { rng: testRng });
   const tickInterval = k("rupture.tickInterval");
   const tickDamage = 100;
@@ -204,7 +208,7 @@ function runDot(fps, duration) {
   let expiredAt = null;
   let previousRemaining = null;
   for (let frame = 1; frame <= frames; frame += 1) {
-    sim.step(dt);
+    runOnCore(sim, dt);
     const dot = sim.activeDots.rupture;
     if (dot) {
       previousRemaining = dot.duration;
@@ -227,50 +231,36 @@ describe("buff and cooldown duration", () => {
     mock.restoreAll();
   });
 
-  it("is ready at exactly t + 20 and the buff lasts its full duration at 30 and 144 fps", () => {
+  it("is ready at t + 20 and the buff lasts its full duration, to a frame at 30 and 144 fps", () => {
     setRoll(0.5);
     assert.equal(k("ghostlyStrike").cooldown, 20);
 
     const fights = {};
     for (const fps of FRAME_RATES) {
       const fight = runGhostlyStrike(fps);
-      near(fight.readyAt - fight.castTime, fight.cooldown);
-      near(fight.buffGoneAt - fight.castTime, fight.buffDuration);
-      assert.ok(fight.lastCooldown > k("sim.tickEpsilon"));
-      assert.ok(fight.lastBuffDuration > k("sim.tickEpsilon"));
+      assert.equal(fight.castTime, 0);
+      within(fight.readyAt - fight.castTime, fight.cooldown, 1 / fps);
+      within(fight.buffGoneAt - fight.castTime, fight.buffDuration, 1 / fps);
+      // Frames of 1 / fps add up to a hair under the expiry, so the last
+      // frame before it can still list the buff with ~1e-14 s left; the
+      // core ends it at its own time (#234).
+      assert.ok(fight.lastCooldown > 0);
+      assert.ok(fight.lastBuffDuration > 0);
       fights[fps] = fight;
     }
 
-    near(
-      fights[30].readyAt - fights[30].castTime,
-      fights[144].readyAt - fights[144].castTime,
-    );
-    near(
-      fights[30].buffGoneAt - fights[30].castTime,
-      fights[144].buffGoneAt - fights[144].castTime,
+    assert.ok(Math.abs(fights[30].readyAt - fights[144].readyAt) <= 1 / 30);
+    assert.ok(
+      Math.abs(fights[30].buffGoneAt - fights[144].buffGoneAt) <= 1 / 30,
     );
   });
 
-  it("ticks a cooldown that was already running and leaves a new one whole", () => {
+  it("ticks a cooldown and a debuff that were already running", () => {
     const running = k("premeditation").cooldown;
-    const applied = k("ghostlyStrike").cooldown;
-    const buffDuration = k("bladeFlurry").duration;
-
     for (const fps of FRAME_RATES) {
       const rogue = new Rogue();
-      const debuffDuration = k("hemorrhage.ruptureBonus").duration;
+      quiet(rogue);
       const runningDebuff = k("rupture").durationByCp[0];
-      rogue.rotation = (sim) => {
-        sim.cooldowns["ghostly-strike"] = applied;
-        sim.activeBuffs["blade-flurry"] = {
-          duration: buffDuration,
-          icon: null,
-        };
-        sim.activeDebuffs.hemorrhage = {
-          duration: debuffDuration,
-          icon: null,
-        };
-      };
       const sim = new Simulation(rogue, { rng: testRng });
       sim.cooldowns.premeditation = running;
       sim.activeDebuffs.rupture = {
@@ -278,12 +268,9 @@ describe("buff and cooldown duration", () => {
         icon: null,
       };
       const dt = 1 / fps;
-      sim.step(dt);
+      runOnCore(sim, dt);
 
       near(sim.cooldowns.premeditation, running - dt);
-      assert.equal(sim.cooldowns["ghostly-strike"], applied);
-      assert.equal(sim.activeBuffs["blade-flurry"].duration, buffDuration);
-      assert.equal(sim.activeDebuffs.hemorrhage.duration, debuffDuration);
       near(sim.activeDebuffs.rupture.duration, runningDebuff - dt);
     }
   });
@@ -318,17 +305,17 @@ function adrenalineBonus(steps) {
     rogue.energy = 0;
     rogue.maxEnergy = k("energy.max") * k("adrenalineRush").duration;
     let applied = false;
-    rogue.rotation = (sim) => {
-      if (!apply || applied) {
-        return;
+    rogue.castRotation = (sim) => {
+      if (apply && !applied) {
+        rogue.abilities.adrenalineRush.cast(rogue, sim);
+        applied = true;
+        assert.ok(sim.activeBuffs["adrenaline-rush"]);
       }
-      rogue.abilities.adrenalineRush.cast(rogue, sim);
-      applied = true;
-      assert.ok(sim.activeBuffs["adrenaline-rush"]);
+      return { casts: [], outcome: "none" };
     };
     const sim = new Simulation(rogue, { rng: testRng });
     for (const dt of steps) {
-      sim.step(dt);
+      runOnCore(sim, dt);
     }
     assert.equal(applied, apply);
     assert.ok(rogue.energy < rogue.maxEnergy);
@@ -437,63 +424,9 @@ describe("DoT expiry", () => {
     mock.restoreAll();
   });
 
-  it("expires a DoT inside tick epsilon and still lands a due tick", () => {
-    const rogue = new Rogue();
-    rogue.critChance = 0;
-    rogue.rotation = () => {};
-    const sim = new Simulation(rogue, { rng: testRng });
-    const tickDamage = 100;
-    sim.activeDots.rupture = {
-      duration: k("sim.tickEpsilon"),
-      tickInterval: k("rupture.tickInterval"),
-      timeUntilNextTick: k("sim.tickEpsilon"),
-      tickDamage,
-      icon: null,
-    };
-    sim.step(0);
-
-    assert.equal(sim.activeDots.rupture, undefined);
-    assert.equal(sim.damageDone, tickDamage);
-    assert.equal(sim.currentTime, 0);
-  });
-
-  it("expires inside tick epsilon without a tick that is not due", () => {
-    const rogue = new Rogue();
-    rogue.critChance = 0;
-    rogue.rotation = () => {};
-    const sim = new Simulation(rogue, { rng: testRng });
-    sim.activeDots.rupture = {
-      duration: k("sim.tickEpsilon"),
-      tickInterval: k("rupture.tickInterval"),
-      timeUntilNextTick: k("rupture.tickInterval"),
-      tickDamage: 100,
-      icon: null,
-    };
-    sim.step(0);
-
-    assert.equal(sim.activeDots.rupture, undefined);
-    assert.equal(sim.damageDone, 0);
-  });
-
-  it("keeps a DoT whose remaining duration is above tick epsilon", () => {
-    const rogue = new Rogue();
-    rogue.critChance = 0;
-    rogue.rotation = () => {};
-    const sim = new Simulation(rogue, { rng: testRng });
-    const duration = k("sim.tickEpsilon") + k("sim.tickEpsilon");
-    sim.activeDots.rupture = {
-      duration,
-      tickInterval: k("rupture.tickInterval"),
-      timeUntilNextTick: k("rupture.tickInterval"),
-      tickDamage: 100,
-      icon: null,
-    };
-    sim.step(0);
-
-    assert.equal(sim.activeDots.rupture.duration, duration);
-    assert.equal(sim.damageDone, 0);
-  });
-
+  // The tick-epsilon edges (a due tick inside it, none that is not due, a
+  // DoT kept above it) were fixed-step step(0) tests; the core's are in
+  // test/dots.test.js (#234).
   it("expires on the duration boundary at 30 and 144 fps, with the same ticks", () => {
     const durations = [
       ...k("rupture").durationByCp,
@@ -512,85 +445,20 @@ describe("DoT expiry", () => {
         const result = fights[fps][i];
         assert.equal(result.ticks, ticks, `${fps} fps, ${duration}s`);
         assert.equal(result.damage, ticks * result.tickDamage);
-        near(result.expiredAt, duration);
-        assert.ok(result.previousRemaining > k("sim.tickEpsilon"));
+        // The core drops the entry at its last tick, so a 15 s DoT on a 2 s
+        // clock leaves activeDots at 14 (docs/mechanics.md, event order).
+        within(result.expiredAt, ticks * k("rupture.tickInterval"), 1 / fps);
+        assert.ok(result.previousRemaining >= 0);
       }
       assert.equal(fights[30][i].ticks, fights[144][i].ticks);
-      near(fights[30][i].expiredAt, fights[144][i].expiredAt);
+      assert.ok(
+        Math.abs(fights[30][i].expiredAt - fights[144][i].expiredAt) <= 1 / 30,
+      );
     }
   });
 });
 
-// #155 (Kira QA): a step that Adrenaline Rush runs out in is regenerated in
-// order of time. The bonus covers the start of the step, so the pool reaches
-// its cap during the bonus part, and cappedTime counts the rest of the step.
-// In the old order (the plain rate first) the cap came later and cappedTime
-// was short.
-describe("Adrenaline Rush running out inside a step", () => {
-  function ready() {
-    setRoll(0.5);
-    const rogue = new Rogue();
-    rogue.rotation = () => {};
-    const sim = new Simulation(rogue, { rng: testRng });
-    sim.gcd = 0;
-    rogue.abilities.adrenalineRush.cast(rogue, sim);
-    sim.activeBuffs["adrenaline-rush"].duration = 0.5;
-    return { rogue, sim };
-  }
-  const base = k("energy.regenPerSecond");
-  const boosted = base * k("adrenalineRush").regenMultiplier;
-
-  it("regenerates the boosted part first, so the cap is reached at its end", () => {
-    const { rogue, sim } = ready();
-    const pool = rogue.resources.energy;
-    rogue.energy = rogue.maxEnergy - boosted * 0.5;
-    const before = pool.waste();
-    sim.regenerateResources(1);
-    assert.equal(rogue.energy, rogue.maxEnergy);
-    near(pool.cappedTime - before.cappedTime, 0.5);
-    near(pool.overflow - before.overflow, base * 0.5);
-  });
-
-  it("gives the same energy below the cap as before", () => {
-    const { rogue, sim } = ready();
-    rogue.energy = 0;
-    sim.regenerateResources(1);
-    near(rogue.energy, boosted * 0.5 + base * 0.5);
-    assert.equal(rogue.resources.energy.cappedTime, 0);
-  });
-
-  it("two timed contributions: one piece per expiry, in order of time", () => {
-    const { sim } = ready();
-    const calls = [];
-    const pool = {
-      definition: {
-        regen: { perSecond: "energy.regenPerSecond", modifier: "m" },
-      },
-      regenerate: (dt, rate) => calls.push([dt, rate]),
-    };
-    const pieces = [];
-    sim.modifiers = {
-      contributions: () => [
-        { id: "short", duration: 0.25, bonus: 1 },
-        { id: "static", duration: Infinity, bonus: 100 },
-        { id: "long", duration: 0.75, bonus: 10 },
-      ],
-      combine: (modifier, rate, active) => {
-        pieces.push(active.map(({ id }) => id).join(","));
-        return active.reduce((sum, { bonus }) => sum + bonus, rate);
-      },
-    };
-    sim.regenerateResource(pool, 1);
-    assert.deepEqual(pieces, ["static,long,short", "static,long", "static"]);
-    assert.equal(calls.length, 3);
-    const expected = [
-      [0.25, base + 111],
-      [0.5, base + 110],
-      [0.25, base + 100],
-    ];
-    calls.forEach(([dt, rate], index) => {
-      near(dt, expected[index][0]);
-      assert.equal(rate, expected[index][1]);
-    });
-  });
-});
+// The #155 tests of Adrenaline Rush running out inside a fixed step
+// (regenerateResources) went with that step in #234. The core splits the
+// energy where each timed aura runs out (test/modifier-hardening.test.js),
+// and the pool's cap and waste are in test/energy.test.js.

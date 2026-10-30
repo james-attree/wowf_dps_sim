@@ -12,6 +12,8 @@ import { createRng } from "../js/rng.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 function recorder(endTime, onEvent = () => {}) {
   const ran = [];
@@ -778,7 +780,7 @@ describe("scheduler: randomised against a sorted-array reference", () => {
 describe("DoT tick interval check (#193)", () => {
   function simWithDot(tickInterval) {
     const rogue = new Rogue();
-    rogue.rotation = () => {};
+    quiet(rogue);
     const sim = new Simulation(rogue, { rng: testRng });
     sim.activeDots.rupture = {
       name: "Rupture",
@@ -794,7 +796,7 @@ describe("DoT tick interval check (#193)", () => {
   for (const bad of [0, -2, Number.NaN, Infinity]) {
     it(`refuses a tick interval of ${bad}`, () => {
       const sim = simWithDot(bad);
-      assert.throws(() => sim.step(0.1), {
+      assert.throws(() => runOnCore(sim, 0.1), {
         name: "RangeError",
         message: `DoT "rupture" has tick interval ${bad}; it must be a finite number of seconds above 0.`,
       });
@@ -803,7 +805,7 @@ describe("DoT tick interval check (#193)", () => {
 
   it("still ticks a DoT with a normal interval", () => {
     const sim = simWithDot(k("rupture.tickInterval"));
-    sim.step(2);
+    runOnCore(sim, 2);
     assert.equal(sim.combatLog.length, 1);
     assert.ok(sim.damageDone > 0);
   });

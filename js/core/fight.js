@@ -1,14 +1,14 @@
-// The event core's fight (E6, #197): a legacy Simulation run on the Phase 3.5
-// scheduler (js/core/scheduler.js) instead of fixed steps. The Simulation stays
-// the store of the fight's state (the auras, the cooldowns, the GCD, the DoTs,
-// the totals) and does every hit, tick and proc as it does on legacy; this
-// module only says when. Simulation.run comes here on the "events" engine
-// (Simulation option `engine`), and step() is always legacy.
+// The event core's fight (E6, #197): a Simulation run on the Phase 3.5
+// scheduler (js/core/scheduler.js). The Simulation stays the store of the
+// fight's state (the auras, the cooldowns, the GCD, the DoTs, the totals) and
+// does every hit, tick and proc; this module only says when. Simulation.run
+// comes here; it is the only engine since #234 removed the fixed-step one
+// (tag legacy-engine-final).
 //
 // What moves the fight:
 //
 //   energy          the continuous EnergyPool (js/core/energy.js) is put in
-//                   place of the legacy energy pool for the run, and wakes
+//                   place of the fight's energy Resource for the run, and wakes
 //                   the rotation when it reaches the cheapest cost it lacks.
 //   expiry          a timer for the GCD, each cooldown, each aura and each
 //                   pool's expiry (Premeditation's points), js/core/timers.js.
@@ -29,9 +29,9 @@
 // a 1/64 s poll on top and checks it never casts).
 //
 // The timers follow the Simulation's own fields. Before each event every
-// running timer writes its time left back (aura.duration, cooldowns[id],
-// gcd, a DoT's duration and timeUntilNextTick, a pool's expiryRemaining), so
-// the legacy code reads the fight as it is now; after it, a field that the
+// running timer writes its time left back (aura.duration, cooldowns[id], gcd, a
+// DoT's duration and timeUntilNextTick, a pool's expiryRemaining), so the
+// Simulation's code reads the fight as it is now; after it, a field that the
 // event changed (a cast, a refresh, a charge used up) moves its timer. The
 // energy pool is told after every event that a modifier may have changed
 // (EnergyPool.modifiersChanged: the host contract #194 set).
@@ -43,8 +43,6 @@ import { EnergyPool, WAKE_KIND } from "./energy.js";
 import { ORDER, Scheduler } from "./scheduler.js";
 import { SWING_KIND, SwingTimer } from "./swing.js";
 import { TIMER_KINDS, Timer, TimerSet } from "./timers.js";
-
-export const ENGINES = Object.freeze({ legacy: "legacy", events: "events" });
 
 export const DECISION_KIND = "decision";
 // A test's extra look at the rotation (runOnCore's pollEvery).
@@ -137,7 +135,7 @@ function emptyStats() {
 
 // Run `sim` for `duration` seconds on the event core. The fight goes on from
 // where it is (sim.currentTime, the auras and timers as they stand) and is
-// left as legacy would leave it, so a second run, or step(), carries on.
+// left in the Simulation's own fields, so a second run carries on.
 // A second run goes on exactly as one run would (#198, from #197 QA M1):
 // the core keeps the fight's clock, and close() leaves sim.coreCarry, the
 // exact ends, clocks, swing grids and energy line, which the next run takes
@@ -171,14 +169,13 @@ export function runOnCore(sim, duration, options = {}) {
 //   const run = openCore(sim, duration);
 //   run.runUntil(t);   // every event at or before t, then the fight at t
 //   run.nextTime;      // the next event's time, or null
-//   run.close();       // the fight as legacy keeps it; then sim.end()
+//   run.close();       // the fight back in the fields; then sim.end()
 //
-// Between two calls the Simulation's fields read the fight at `time` (the
-// GCD, cooldowns, auras and DoTs left, sim.currentTime): what js/live-feed.js
-// reads each frame. rogue.resources.energy is the core's continuous pool
-// until close(), with the same value, max and waste reads. While it is open
-// the fight is the core's: step() throws, and so does a second openCore
-// or run() on the events engine. Same options as runOnCore.
+// Between two calls the Simulation's fields read the fight at `time` (the GCD,
+// cooldowns, auras and DoTs left, sim.currentTime): what js/live-feed.js reads
+// each frame. rogue.resources.energy is the core's continuous pool until
+// close(), with the same value, max and waste reads. While it is open the fight
+// is the core's: a second openCore or run() throws. Same options as runOnCore.
 export function openCore(
   sim,
   duration,
@@ -254,15 +251,15 @@ class CoreRun {
     if (this.#closed) {
       throw new Error("This event core run is closed.");
     }
-    // A fight of no length has no events: legacy takes no step for a
-    // duration of 0, so nothing at time 0 happens either (#199, the flip).
+    // A fight of no length has no events: nothing at time 0 happens
+    // either (#199, kept from the fixed-step engine).
     if (!this.#empty) {
       this.#scheduler.runUntil(t);
     }
     this.#fight.advance();
   }
 
-  // Put the fight back as legacy keeps it (the legacy energy pool, each
+  // Put the fight back in the Simulation's fields (the energy Resource, each
   // swing's time left). A second call does nothing.
   close() {
     if (this.#closed) {
@@ -310,7 +307,7 @@ class CoreFight {
     this.decision = null;
     // The time of the last decision point and how many ran at it (decide).
     this.askedAt = null;
-    this.legacyEnergy = null;
+    this.energyResource = null;
     this.energy = null;
     this.swings = null;
     this.readState = null;
@@ -341,25 +338,25 @@ class CoreFight {
     let intact =
       this.carried !== null &&
       sameMarks(this.carried.marks, decisionMarks(sim));
-    // The continuous pool in place of the legacy one, from its value.
-    const legacy = rogue.resources.energy;
-    if (legacy !== undefined) {
+    // The continuous pool in place of the energy Resource, from its value.
+    const resource = rogue.resources.energy;
+    if (resource !== undefined) {
       const make = (line) =>
         new EnergyPool({
-          definition: legacy.definition,
-          modifiers: legacy.modifiers,
+          definition: resource.definition,
+          modifiers: resource.modifiers,
           scheduler,
-          value: legacy.value,
-          baseMax: legacy.baseMax,
+          value: resource.value,
+          baseMax: resource.baseMax,
           line,
         });
       // The last run's line while the pool, its value, rate and cap are as
       // it left them (carry()).
       const item = this.carried?.energy;
       let pool =
-        item?.pool === legacy &&
-        item.written === legacy.value &&
-        item.baseMax === legacy.baseMax
+        item?.pool === resource &&
+        item.written === resource.value &&
+        item.baseMax === resource.baseMax
           ? make(item.line)
           : make();
       if (
@@ -371,7 +368,7 @@ class CoreFight {
       }
       pool.onChange = (change, before, source) =>
         sim.emitResource(pool, change, before, source);
-      this.legacyEnergy = legacy;
+      this.energyResource = resource;
       this.energy = pool;
       rogue.resources.energy = pool;
     }
@@ -492,8 +489,8 @@ class CoreFight {
           },
         ]),
       ),
-      // A DoT whose last tick has run while it has time left: legacy has
-      // dropped its entry, but a proc that applies it again before its end
+      // A DoT whose last tick has run while it has time left: its entry is
+      // dropped, but a proc that applies it again before its end
       // goes on with its clock (keep-clock).
       idleDots: new Map(
         this.dots.runningIds
@@ -523,9 +520,9 @@ class CoreFight {
         this.energy === null
           ? undefined
           : {
-              pool: this.legacyEnergy,
-              written: this.legacyEnergy.value,
-              baseMax: this.legacyEnergy.baseMax,
+              pool: this.energyResource,
+              written: this.energyResource.value,
+              baseMax: this.energyResource.baseMax,
               line: this.energy.line,
             },
     };
@@ -539,16 +536,16 @@ class CoreFight {
       : this.scheduler.now + value;
   }
 
-  // Put the fight back as legacy keeps it: the legacy energy pool with the
+  // Put the fight back in the Simulation's fields: the energy Resource with the
   // value and the waste of the run, and each swing's time left.
   finish() {
     const { rogue } = this;
     if (this.energy !== null) {
       const { cappedTime, overflow } = this.energy.waste();
-      this.legacyEnergy.value = this.energy.value;
-      this.legacyEnergy.cappedTime += cappedTime;
-      this.legacyEnergy.overflow += overflow;
-      rogue.resources.energy = this.legacyEnergy;
+      this.energyResource.value = this.energy.value;
+      this.energyResource.cappedTime += cappedTime;
+      this.energyResource.overflow += overflow;
+      rogue.resources.energy = this.energyResource;
     }
     if (this.swings !== null) {
       for (const timer of this.swings) {
@@ -582,7 +579,7 @@ class CoreFight {
         this.seen.gcd = 0;
         break;
       // An expiry the pool counts down itself: tick() it through what was
-      // left, so it runs out as on legacy (Resource.tick).
+      // left, so it runs out as Resource.tick says.
       case TIMER_KINDS.cooldown:
         this.sim.cooldowns[event.payload.id] = 0;
         this.seen.cooldowns.delete(event.payload.id);
@@ -654,7 +651,7 @@ class CoreFight {
       }
       const next = this.dots.nextTickAt(id);
       if (next === null) {
-        // Ran out between ticks: legacy drops the entry at its end.
+        // Ran out between ticks: drop the entry at its end.
         delete sim.activeDots[id];
         continue;
       }
@@ -838,13 +835,13 @@ class CoreFight {
     const casts = result?.casts.length ?? 0;
     this.stats.casts += casts;
     this.settle();
-    // A cast changes what the rotation sees (combo points, energy, an aura),
-    // so the rotation is asked again at the same time: an off-GCD rule (Cold
-    // Blood) can follow the cast that made it true, as the next legacy step
-    // would cast it. A real cast spends a GCD, a cooldown or a resource, so a
-    // rule casts once per instant; the count stops a host whose casts change
-    // nothing from asking forever: the first ask and as many re-asks as the
-    // rotation has rules, so rules.length + 1 asks at one time.
+    // A cast changes what the rotation sees (combo points, energy, an aura), so
+    // the rotation is asked again at the same time: an off-GCD rule (Cold
+    // Blood) can follow the cast that made it true at the same instant. A real
+    // cast spends a GCD, a cooldown or a resource, so a rule casts once per
+    // instant; the count stops a host whose casts change nothing from asking
+    // forever: the first ask and as many re-asks as the rotation has rules, so
+    // rules.length + 1 asks at one time.
     const now = this.scheduler.now;
     this.askedAt =
       this.askedAt?.time === now

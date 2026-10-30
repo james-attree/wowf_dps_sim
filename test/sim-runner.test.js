@@ -85,10 +85,9 @@ function inState(state, options) {
 function countDraws() {
   const counts = [];
   const wrapped = new WeakSet();
-  // The first of these a fight calls wraps its rng: step on legacy, run in
-  // runFight, and on, which SimRunner calls before the event core (#198)
-  // draws anything.
-  for (const name of ["step", "run", "on"]) {
+  // The first of these a fight calls wraps its rng: run in runFight, and on,
+  // which SimRunner calls before the event core (#198) draws anything.
+  for (const name of ["run", "on"]) {
     const original = Simulation.prototype[name];
     mock.method(Simulation.prototype, name, function counted(...args) {
       wrap(this);
@@ -633,9 +632,6 @@ describe("SimRunner interface", () => {
       "config",
       "constructor",
       "duration",
-      // The engine's name, "legacy" or "events" (#198): a string, not an
-      // engine object.
-      "engine",
       "fight",
       "on",
       "onError",
@@ -734,25 +730,20 @@ describe("SimRunner result and advance(duration) (#158)", () => {
     });
   }
 
-  // A legacy fixed-step artefact, so it names legacy: the default is the
-  // event core since #199. Legacy until #200.
-  it("can end a step short after many small calls, and the next call finishes the same fight", () => {
+  // The fixed-step engine could end a step short here: its carry was a float
+  // sum that fell just under the last step (until #234). The event core sums
+  // what it is given exactly (a compensated sum), so 600 calls of 1/60 reach
+  // the end.
+  it("finishes on the call that brings the time to the length, after many small calls", () => {
     const duration = 10;
-    const target = runner({ seed: 2, duration, engine: "legacy" });
+    const target = runner({ seed: 2, duration });
     target.run();
-    let given = 0;
     for (let frame = 0; frame < duration * 60; frame += 1) {
+      assert.equal(target.state, "running", `frame ${frame}`);
       target.advance(1 / 60);
-      given += 1 / 60;
     }
-    assert.ok(given >= duration, "the host's own sum reached the length");
-    // The carry's float sum fell just under the last step.
-    assert.equal(target.state, "running");
-    assert.equal(target.time, duration - k("sim.fixedStep"));
-    assert.equal(target.advance(1 / 60), "finished");
-    assert.deepEqual(
-      target.result,
-      runFight({ seed: 2, duration, engine: "legacy" }),
-    );
+    assert.equal(target.state, "finished");
+    assert.equal(target.time, duration);
+    assert.deepEqual(target.result, runFight({ seed: 2, duration }));
   });
 });

@@ -8,10 +8,8 @@ import { k } from "../data/constants.js";
 // The events and their fields are in docs/events.md.
 //
 // Nothing here knows a step or a frame. Events say what happened and when in
-// fight seconds. The Phase 3.5 event core emits the same events through the
-// same Simulation (#198: SimRunner's `engine: "events"`), and every handler,
-// and every test of this contract, stays as it is
-// (test/runner-engine-files.test.js runs them on it).
+// fight seconds. The Phase 3.5 event core, the one engine since #234, emits
+// them through the Simulation.
 //
 // Delivery rules (each one has a test in test/event-stream.test.js):
 //   Order     Events reach every handler in the order they were emitted. A

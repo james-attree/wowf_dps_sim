@@ -6,6 +6,7 @@ import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
 import { Weapon } from "../js/weapon.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
+import { runOnCore } from "../js/core/fight.js";
 
 function rawHit(weapon, attackPower, weaponRoll) {
   return weaponRoll + (attackPower / k("ap.perDps")) * weapon.speed;
@@ -112,10 +113,7 @@ describe("Weapon", () => {
       ["main", rogue.weapons.mainHand],
       ["off", rogue.weapons.offHand],
     ]) {
-      weapon.swingTimer = 0;
-      weapon.tick(0, 1, (swung) => {
-        swings[hand] = swung.rollDamage();
-      });
+      swings[hand] = weapon.rollDamage();
     }
 
     const mainHand = rogue.weapons.mainHand;
@@ -161,127 +159,34 @@ const SWING_FRAME_RATES = [30, 144];
 // window at 30 fps. Not a sample weapon.
 const FAST_WEAPON_SPEED = 0.5;
 
-function near(actual, expected) {
-  assert.ok(
-    Math.abs(actual - expected) <= k("sim.tickEpsilon"),
-    `${actual} is not within tick epsilon of ${expected}`,
-  );
-}
-
-function runClock(rogue, fps, seconds) {
+// White swings of a rogue that casts nothing, run in frames of 1 / fps,
+// counted from the hit events (every swing has one, a miss included; the
+// combat log keeps only the last log.maxEvents).
+function countAutoAttacks(fps, rogue = new Rogue()) {
+  rogue.castRotation = () => ({ casts: [], outcome: "none" });
   const sim = new Simulation(rogue, { rng: testRng });
-  const dt = 1 / fps;
-  const frames = Math.round(seconds * fps);
-  for (let frame = 1; frame <= frames; frame += 1) {
-    sim.step(dt);
-  }
-  return sim;
-}
-
-function countAutoAttacks(fps, haste) {
-  const rogue = new Rogue();
-  const started = {
-    main: rogue.weapons.mainHand.swingTimer,
-    off: rogue.weapons.offHand.swingTimer,
-  };
   const swings = { main: 0, off: 0 };
-  rogue.rotation = (_simulation, dt) => {
-    rogue.weapons.mainHand.tick(dt, haste, () => {
+  sim.on("hit", (event) => {
+    if (event.ability === "main-hand") {
       swings.main += 1;
-    });
-    rogue.weapons.offHand.tick(dt, haste, () => {
+    } else if (event.ability === "off-hand") {
       swings.off += 1;
-    });
-  };
-  const sim = runClock(rogue, fps, SWING_WINDOW_SECONDS);
-  return { swings, started, sim, rogue };
+    }
+  });
+  const dt = 1 / fps;
+  const frames = Math.round(SWING_WINDOW_SECONDS * fps);
+  for (let frame = 1; frame <= frames; frame += 1) {
+    runOnCore(sim, dt);
+  }
+  return { swings, sim, rogue };
 }
 
-describe("swing timer overshoot", () => {
+// Weapon.tick and its overshoot carry were the fixed-step engine's swing
+// timer, removed in #234; the event core's (js/core/swing.js) swings at the
+// due time itself, with haste read there (test/swing.test.js).
+describe("swing timer over a fight in frames", () => {
   afterEach(() => {
     mock.restoreAll();
-  });
-
-  it("leaves the remaining time when a step does not reach the next swing", () => {
-    const mainHand = k("weapon.mainHand");
-    const weapon = new Weapon(
-      new Rogue(),
-      mainHand.min,
-      mainHand.max,
-      mainHand.speed,
-      "main",
-    );
-    const dt = k("weapon.offHand").initialSwing;
-    weapon.swingTimer = mainHand.speed;
-    let swings = 0;
-    weapon.tick(dt, 1, () => {
-      swings += 1;
-    });
-
-    assert.equal(swings, 0);
-    near(weapon.swingTimer, mainHand.speed - dt);
-  });
-
-  it("carries the overshoot instead of starting a full interval", () => {
-    const mainHand = k("weapon.mainHand");
-    const weapon = new Weapon(
-      new Rogue(),
-      mainHand.min,
-      mainHand.max,
-      mainHand.speed,
-      "main",
-    );
-    const remaining = 0.2;
-    const dt = 0.5;
-    weapon.swingTimer = remaining;
-    let swings = 0;
-    weapon.tick(dt, 1, () => {
-      swings += 1;
-    });
-
-    assert.equal(swings, 1);
-    near(weapon.swingTimer, mainHand.speed - (dt - remaining));
-  });
-
-  it("keeps the overshoot when haste shortens the following interval", () => {
-    const mainHand = k("weapon.mainHand");
-    const weapon = new Weapon(
-      new Rogue(),
-      mainHand.min,
-      mainHand.max,
-      mainHand.speed,
-      "main",
-    );
-    const haste = 1 + k("bladeFlurry").haste;
-    const remaining = 0.25;
-    const dt = 0.4;
-    weapon.swingTimer = remaining;
-    let swings = 0;
-    weapon.tick(dt, haste, () => {
-      swings += 1;
-    });
-
-    assert.equal(swings, 1);
-    near(weapon.swingTimer, mainHand.speed / haste - (dt - remaining));
-  });
-
-  it("fires every swing a single step covers", () => {
-    const rogue = new Rogue();
-    const weapon = rogue.weapons.mainHand;
-    const speed = weapon.speed;
-    let swings = 0;
-    rogue.rotation = (_simulation, dt) => {
-      weapon.tick(dt, 1, () => {
-        swings += 1;
-      });
-    };
-    const total = speed * 2 + speed / 2;
-    const sim = new Simulation(rogue, { rng: testRng });
-    sim.step(total);
-
-    assert.equal(swings, 3);
-    near(weapon.swingTimer, speed / 2);
-    near(sim.currentTime, total);
   });
 
   it("stays within 1 of 60 / speed for 60s at 30 fps and 144 fps", () => {
@@ -289,60 +194,40 @@ describe("swing timer overshoot", () => {
       ["main", k("weapon.mainHand").speed],
       ["off", k("weapon.offHand").speed],
     ];
-    const haste = 1 + k("bladeFlurry").haste;
     const fights = {};
-
     for (const fps of SWING_FRAME_RATES) {
-      fights[fps] = {
-        plain: countAutoAttacks(fps, 1),
-        hasted: countAutoAttacks(fps, haste),
-      };
-      for (const [name, fight, rate] of [
-        ["plain", fights[fps].plain, 1],
-        ["Blade Flurry", fights[fps].hasted, haste],
-      ]) {
-        for (const [hand, speed] of hands) {
-          const interval = speed / rate;
-          const swings = fight.swings[hand];
-          const expected = SWING_WINDOW_SECONDS / interval;
-          assert.ok(
-            Math.abs(swings - expected) <= 1,
-            `${fps} fps ${hand} ${name}: ${swings} swings, expected ${expected}`,
-          );
-          const weapon =
-            fight.rogue.weapons[hand === "main" ? "mainHand" : "offHand"];
-          near(
-            weapon.swingTimer,
-            fight.started[hand] - fight.sim.currentTime + swings * interval,
-          );
-        }
+      fights[fps] = countAutoAttacks(fps);
+      for (const [hand, speed] of hands) {
+        const swings = fights[fps].swings[hand];
+        const expected = SWING_WINDOW_SECONDS / speed;
+        assert.ok(
+          Math.abs(swings - expected) <= 1,
+          `${fps} fps ${hand}: ${swings} swings, expected ${expected}`,
+        );
       }
     }
-
-    assert.deepEqual(fights[30].plain.swings, fights[144].plain.swings);
-    assert.deepEqual(fights[30].hasted.swings, fights[144].hasted.swings);
+    assert.deepEqual(fights[30].swings, fights[144].swings);
   });
 
   it("does not drop swings of a fast weapon over 60s at 30 fps or 144 fps", () => {
     const counts = [];
     for (const fps of SWING_FRAME_RATES) {
       const rogue = new Rogue();
-      const weapon = new Weapon(rogue, 1, 1, FAST_WEAPON_SPEED, "main");
-      weapon.swingTimer = 0;
-      let swings = 0;
-      rogue.rotation = (_simulation, dt) => {
-        weapon.tick(dt, 1, () => {
-          swings += 1;
-        });
-      };
-      const sim = runClock(rogue, fps, SWING_WINDOW_SECONDS);
+      rogue.weapons.mainHand = new Weapon(
+        rogue,
+        1,
+        1,
+        FAST_WEAPON_SPEED,
+        "main",
+      );
+      rogue.weapons.mainHand.swingTimer = 0;
+      const { swings } = countAutoAttacks(fps, rogue);
       const expected = SWING_WINDOW_SECONDS / FAST_WEAPON_SPEED;
       assert.ok(
-        Math.abs(swings - expected) <= 1,
-        `${fps} fps: ${swings} swings, expected ${expected}`,
+        Math.abs(swings.main - expected) <= 1,
+        `${fps} fps: ${swings.main} swings, expected ${expected}`,
       );
-      near(weapon.swingTimer, 0 - sim.currentTime + swings * FAST_WEAPON_SPEED);
-      counts.push(swings);
+      counts.push(swings.main);
     }
     assert.equal(counts[0], counts[1]);
   });
@@ -382,7 +267,7 @@ function sampleFight(fps) {
   let sliceAndDiceUptime = 0;
   for (let frame = 1; frame <= frames; frame += 1) {
     const before = sim.currentTime;
-    sim.step(dt);
+    runOnCore(sim, dt);
     if (sim.activeBuffs["slice-and-dice"]) {
       sliceAndDiceUptime += sim.currentTime - before;
     }
@@ -449,9 +334,12 @@ describe("swing timer fight regression", () => {
     for (const uptime of [slow.sliceAndDiceUptime, fast.sliceAndDiceUptime]) {
       assert.ok(uptime > 26.5 && uptime < 27.5, `SnD uptime ${uptime}`);
     }
+    // Sampled per frame, while the core puts each cast and expiry at its own
+    // time (#234): a frame of 1 / 30 s at most at each of the two casts and
+    // two ends.
     assert.ok(
-      Math.abs(slow.sliceAndDiceUptime - fast.sliceAndDiceUptime) <
-        1 / SWING_FRAME_RATES[0],
+      Math.abs(slow.sliceAndDiceUptime - fast.sliceAndDiceUptime) <=
+        4 / SWING_FRAME_RATES[0],
     );
   });
 });

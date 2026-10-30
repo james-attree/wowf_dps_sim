@@ -4,20 +4,18 @@ import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { quiet } from "./quiet.js";
 
-// Issue #41. The GCD readiness check uses sim.tickEpsilon. A GCD armed on
-// frame 0 of the 30 fps and 60 fps clocks overshoots and clamps to zero.
-// Arming it on the third frame leaves a positive remainder within
-// sim.tickEpsilon at 10, 30, 60, and 144 fps. 30 and 144 are the rates the
-// swing-timer fight uses.
-const FRAME_RATES = [10, 30, 60, 144];
-const ARM_FRAME = 3;
+// Issue #41. The GCD readiness check uses sim.tickEpsilon. (The frame-by-frame
+// remainders at 10, 30, 60 and 144 fps were the fixed-step engine's, which
+// counted the GCD down a frame at a time; it went in #234, tag
+// legacy-engine-final. The event core ends the GCD at its own time.)
 
 function pinnedSim() {
   const rogue = new Rogue();
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
-  rogue.rotation = () => {};
+  quiet(rogue);
   const sim = new Simulation(rogue, { rng: testRng });
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
@@ -46,52 +44,5 @@ describe("GCD tick epsilon", () => {
     assert.equal(castHemorrhage(waiting.rogue, waiting.sim), null);
     assert.equal(waiting.sim.gcd, above);
     assert.equal(waiting.rogue.energy, k("start.state").energy);
-  });
-
-  it("comes ready on the expected frame at 10, 30, 60, and 144 fps", () => {
-    setRoll(0.5);
-
-    for (const fps of FRAME_RATES) {
-      const { rogue, sim } = pinnedSim();
-      const frameMs = k("sim.msPerSecond") / fps;
-      // The step js/main.js hands the engine for this frame: the difference of
-      // two browser timestamps in seconds. It carries the same float error the
-      // issue #41 check is about, which a plain 1 / fps would not.
-      const stepAt = (frame) =>
-        (frame * frameMs - (frame - 1) * frameMs) / k("sim.msPerSecond");
-      const countdownFrames = Math.round(k("gcd.duration") * fps);
-      const readyFrame = ARM_FRAME + countdownFrames;
-
-      for (let frame = 1; frame <= ARM_FRAME; frame += 1) {
-        sim.step(stepAt(frame));
-      }
-      sim.setGcd();
-
-      for (let frame = ARM_FRAME + 1; frame < readyFrame; frame += 1) {
-        sim.step(stepAt(frame));
-      }
-      assert.ok(
-        sim.gcd > k("sim.tickEpsilon"),
-        `${fps} fps remainder ${sim.gcd} was already within tick epsilon`,
-      );
-      assert.equal(
-        castHemorrhage(rogue, sim),
-        null,
-        `${fps} fps cast a frame early`,
-      );
-
-      sim.step(stepAt(readyFrame));
-      assert.ok(
-        sim.gcd > 0,
-        `${fps} fps remainder was exact zero, so it did not exercise tick epsilon`,
-      );
-      assert.ok(
-        sim.gcd <= k("sim.tickEpsilon"),
-        `${fps} fps remainder ${sim.gcd} is outside tick epsilon`,
-      );
-      const cast = castHemorrhage(rogue, sim);
-      assert.equal(cast?.landed, true, `${fps} fps was not ready`);
-      assert.equal(sim.gcd, k("gcd.duration"), `${fps} fps`);
-    }
   });
 });

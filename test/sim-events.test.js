@@ -6,6 +6,8 @@ import { createFight, fightResult, runFight } from "../js/fight.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
 import { referenceBuild } from "./talentsforever.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 // Issue #137 (P3-2, E7-lite). The contract tests for the event stream of a
 // fight, and of the SimRunner that carries it. They read events, results and
@@ -348,6 +350,8 @@ describe("the resource events that fights seldom make", () => {
   it("reports a gift of combo points running out, with no source", () => {
     const fight = createFight(1);
     const { simulation } = fight;
+    // A rogue that casts nothing: a Sinister Strike adds points of its own.
+    quiet(simulation.rogue);
     const events = [];
     simulation.on("resource", (event) => {
       if (event.resource === "comboPoints") {
@@ -357,7 +361,7 @@ describe("the resource events that fights seldom make", () => {
     const points = simulation.rogue.resources.comboPoints;
     points.gain(2, "gift");
     points.armExpiry(2, 1);
-    simulation.step(2);
+    runOnCore(simulation, 2);
     assert.deepEqual(
       events.map(({ change, before, after, source }) => [
         change,
@@ -395,7 +399,7 @@ describe("the resource events that fights seldom make", () => {
     const events = [];
     simulation.on("resource", (event) => events.push(event));
     simulation.rogue.resources.energy.value = 0;
-    simulation.step(1);
+    runOnCore(simulation, 1);
     assert.ok(simulation.rogue.resources.energy.value > 0);
     assert.deepEqual(events, []);
   });
@@ -481,7 +485,7 @@ describe("what the stream is not allowed to change", () => {
     const before = seen.length;
     assert.ok(before > 0);
     off();
-    simulation.step(SHORT);
+    runOnCore(simulation, SHORT);
     assert.equal(seen.length, before);
   });
 });
@@ -572,7 +576,7 @@ describe("the combat log ring", () => {
     const { simulation } = createFight(12345);
     let longest = 0;
     for (let second = 0; second < LONG; second += 10) {
-      simulation.step(10);
+      runOnCore(simulation, 10);
       longest = Math.max(longest, simulation.combatLog.length);
     }
     assert.equal(longest, MAX);
