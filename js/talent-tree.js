@@ -438,16 +438,18 @@ function rotationLines(ranks, rotation, info) {
 // With no points spent the fight is untalented (#199): the engine skips
 // every talent ability the rotation lists (Blade Flurry, Adrenaline Rush and
 // Cold Blood, in the default rotation).
+// The verb follows the skipped rules, not the names: one ability in two rules
+// is "rules need".
 function emptyBuildNote(lines) {
-  const skipped = [
-    ...new Set(lines.filter(({ ok }) => !ok).map(({ name }) => name)),
-  ];
+  const skippedRules = lines.filter(({ ok }) => !ok);
+  const skipped = [...new Set(skippedRules.map(({ name }) => name))];
+  const need = skippedRules.length === 1 ? "rule needs" : "rules need";
   const names =
     skipped.length > 1
       ? `${skipped.slice(0, -1).join(", ")} and ${skipped.at(-1)}`
       : skipped.join("");
   return skipped.length > 0
-    ? `With no talents picked, the fight is untalented: the sim skips ${names}, whose rules need the talent.`
+    ? `With no talents picked, the fight is untalented: the sim skips ${names}, whose ${need} the talent.`
     : "With no talents picked, the fight is untalented.";
 }
 

@@ -319,7 +319,7 @@ describe("talent tree model (#204)", () => {
       }).effects.rotation.note;
     assert.equal(
       note([{ action: "cold-blood", conditions: [] }]),
-      "With no talents picked, the fight is untalented: the sim skips Cold Blood, whose rules need the talent.",
+      "With no talents picked, the fight is untalented: the sim skips Cold Blood, whose rule needs the talent.",
     );
     assert.equal(
       note([
@@ -331,6 +331,35 @@ describe("talent tree model (#204)", () => {
     assert.equal(
       note([{ action: "sinister-strike", conditions: [] }]),
       "With no talents picked, the fight is untalented.",
+    );
+  });
+
+  // #232 QA B1: the verb follows the skipped rules, not the names.
+  it("says 'rule needs' for one skipped rule, 'rules need' for one ability in two (#232)", () => {
+    const note = (rules) =>
+      talentTreeView({}, 60, {
+        info: talentInfo(),
+        config: { rotation: { rules } },
+      }).effects.rotation.note;
+    // Fran's repro: one guarded Cold Blood rule and a Sinister Strike.
+    assert.equal(
+      note([
+        {
+          action: "cold-blood",
+          conditions: [{ type: "abilityGranted", ability: "cold-blood" }],
+        },
+        { action: "sinister-strike", conditions: [] },
+      ]),
+      "With no talents picked, the fight is untalented: the sim skips Cold Blood, whose rule needs the talent.",
+    );
+    // One name, two rules: listed once, plural verb.
+    assert.equal(
+      note([
+        { action: "blade-flurry", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+        { action: "blade-flurry", conditions: [] },
+      ]),
+      "With no talents picked, the fight is untalented: the sim skips Blade Flurry, whose rules need the talent.",
     );
   });
 
