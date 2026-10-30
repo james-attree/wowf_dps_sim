@@ -1189,6 +1189,13 @@ h3 {
   font-size: 0.72rem;
 }
 
+/* Before the first event the log has its empty line and the Announce toggle
+   only: the order caption and the Procs row come with the first event (#245,
+   Fran's #258 check, P1). */
+.combat-log-panel:has(#combat-log-empty) :is(.log-caption, .proc-row) {
+  display: none;
+}
+
 .combat-log-scroll {
   height: clamp(150px, 32vh, 280px);
   overflow-y: auto;
