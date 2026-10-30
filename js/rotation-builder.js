@@ -1359,7 +1359,11 @@ export function createRotationBuilder(store, formActions) {
     if (id !== shownChoice) {
       const first = shownChoice === null;
       shownChoice = id;
-      screen = null;
+      // A rotation imported on Export or import stays there, its status
+      // and the banner above it shown; a rule's screen goes with its rules.
+      if (screen?.kind !== "share") {
+        screen = null;
+      }
       grab = null;
       banner = null;
       addAction = null;
