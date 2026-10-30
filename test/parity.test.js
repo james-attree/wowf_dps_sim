@@ -13,10 +13,13 @@ import {
   HELP_TEXT,
   MAX_SEEDS,
   EngineResultError,
+  GATE_TOLERANCE,
+  MAX_DURATION,
   PARITY_ONLY_CASES,
   SCRIPT_LEFT_OFF,
   checkResult,
   compareCase,
+  copyResult,
   parityCases,
   PARITY_CASES,
   resultsDiffer,
@@ -30,6 +33,7 @@ import {
   standardDeviation,
   studentTCdf,
   studentTQuantile,
+  withinGate,
 } from "../scripts/parity.mjs";
 
 // The parity harness (#192, E11). With only the legacy engine, legacy against
@@ -60,6 +64,7 @@ describe("parity: legacy against legacy is exactly 0 (#192)", () => {
             : name,
         ),
         "dot-hemorrhage-rupture-120s",
+        "partial-build-8-points-300s",
       ],
     );
   });
@@ -224,7 +229,13 @@ describe("parity: the cases", () => {
     );
     const entry = SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"];
     assert.equal(entry.as, "finishers-50s-without-script");
-    assert.match(entry.reason, /Rogue\.prototype\.rotation/);
+    // Since #197 the script hooks castRotation, which both engines call, so
+    // the reason is only that it does not finish on every seed (#199).
+    assert.doesNotMatch(entry.reason, /Rogue\.prototype\.rotation|legacy-only/);
+    assert.match(
+      entry.reason,
+      /^its script was written for seed 68 and does not finish on 79 of seeds 1 to 200 on legacy \(70 on events\)$/,
+    );
     assert.deepEqual(
       PARITY_CASES.filter(({ scriptLeftOff }) => scriptLeftOff !== null).map(
         ({ name, golden, scriptLeftOff }) => [name, golden, scriptLeftOff],
@@ -331,6 +342,30 @@ describe("parity: the cases", () => {
     }
   });
 
+  it("include a partial build (#199): Blade Flurry and Adrenaline Rush stay locked, on both engines", () => {
+    const partial = PARITY_CASES.find(
+      ({ name }) => name === "partial-build-8-points-300s",
+    );
+    assert.equal(partial.golden, null);
+    assert.equal(partial.duration, 300);
+    assert.equal(partial.config.rotation, undefined);
+    assert.equal(
+      Object.values(partial.config.talents).reduce((x, y) => x + y, 0),
+      8,
+    );
+    for (const engine of ["legacy", "events"]) {
+      const { abilities } = ENGINES[engine]({
+        seed: 1,
+        duration: 120,
+        config: structuredClone(partial.config),
+      });
+      assert.equal(abilities["Blade Flurry"]?.casts ?? 0, 0, engine);
+      assert.equal(abilities["Adrenaline Rush"]?.casts ?? 0, 0, engine);
+      assert.ok(abilities["Sinister Strike"].casts > 0, engine);
+      assert.ok(abilities["Slice and Dice"].casts > 0, engine);
+    }
+  });
+
   it("include the default fight at 300 s", () => {
     assert.ok(
       PARITY_CASES.some(
@@ -418,7 +453,7 @@ describe("parity: arguments and the command", () => {
   it("refuses an unknown engine or case and a bad seed count", () => {
     assert.throws(() => runParity({ engine: "core" }), {
       name: "RangeError",
-      message: 'Unknown engine "core". Engines: legacy.',
+      message: 'Unknown engine "core". Engines: legacy, events.',
     });
     assert.throws(() => runParity({ against: "toString" }), RangeError);
     assert.throws(() => runParity({ cases: ["nope"] }), {
@@ -459,6 +494,8 @@ describe("parity: arguments and the command", () => {
         "12",
         "--cases",
         `${SHORT},other-seed-12345-90s`,
+        "--duration",
+        "300",
         "--json",
       ]),
       {
@@ -468,7 +505,13 @@ describe("parity: arguments and the command", () => {
         against: "legacy",
         seeds: 12,
         cases: [SHORT, "other-seed-12345-90s"],
+        duration: 300,
       },
+    );
+    assert.equal(parseArgs(["--duration", "0.5"]).duration, 0.5);
+    assert.equal(
+      parseArgs(["--duration", String(MAX_DURATION)]).duration,
+      MAX_DURATION,
     );
     assert.equal(parseArgs(["-h"]).help, true);
     assert.equal(DEFAULT_SEEDS, 200);
@@ -484,6 +527,12 @@ describe("parity: arguments and the command", () => {
       ["--engine"],
       ["--engine", "--json"],
       ["--cases"],
+      ["--duration"],
+      ["--duration", "0"],
+      ["--duration", "-5"],
+      ["--duration", "1e2"],
+      ["--duration", "300s"],
+      ["--duration", String(MAX_DURATION + 1)],
       ["--fast"],
     ]) {
       assert.throws(() => parseArgs(argv), Error, argv.join(" "));
@@ -499,7 +548,7 @@ describe("parity: arguments and the command", () => {
     assert.equal(cli(["--fast"], io), 1);
     assert.match(err.at(-1), /^Unknown argument: --fast/);
     assert.equal(cli(["--engine", "core", "--seeds", "1"], io), 1);
-    assert.equal(err.at(-1), 'Unknown engine "core". Engines: legacy.');
+    assert.equal(err.at(-1), 'Unknown engine "core". Engines: legacy, events.');
     const fake = (options) =>
       runParity({
         ...options,
@@ -711,7 +760,10 @@ describe("parity: the gate (#213, for #199)", () => {
       0,
     );
     assert.doesNotMatch(out[0], /Gate/);
-    assert.match(out[0], /relative to B: \|A - B\| \/ B 3\.0000%/);
+    assert.match(
+      out[0],
+      /relative to B: \(A - B\) \/ B \+3\.0000%, 95% CI \[\+3\.0000%, \+3\.0000%\]; \|A - B\| \/ B 3\.0000%$/m,
+    );
   });
 });
 
@@ -824,5 +876,200 @@ describe("parity: a seed differs when its DPS or any cast count does (#213)", ()
     });
     assert.equal(c.difference.mean, 0);
     assert.equal(c.seedsDiffering, 1);
+  });
+});
+
+describe("parity: the #199 harness fixes", () => {
+  const gateRun = (b, a, gate = 2) =>
+    runParity({
+      engine: "a",
+      against: "b",
+      seeds: 2,
+      cases: [SHORT],
+      engines: { a: fakeEngine(() => a), b: fakeEngine(() => b) },
+      gate,
+    }).cases[0];
+
+  it("a difference of exactly the gate passes on either side of B, and just over fails (#213 QA)", () => {
+    // Exactly 2% computes as just over 2 for some means (Kira's #213 QA
+    // found 0.98 x B at 2.000000000000007): these pass only with the
+    // tolerance.
+    for (const b of [226.85, 199.21]) {
+      const c = gateRun(b, 0.98 * b);
+      assert.ok(c.relativeDifferencePercent > 2, `${b} rounds over 2`);
+      assert.equal(c.gatePassed, true);
+    }
+    for (const b of [100, 144.52, 226.85, 256.77, 199.21, 3.3, 1e6, 0.07]) {
+      for (const factor of [1.02, 0.98]) {
+        assert.equal(
+          gateRun(b, factor * b).gatePassed,
+          true,
+          `${factor} x ${b}`,
+        );
+      }
+      for (const factor of [1.0201, 0.9799]) {
+        assert.equal(
+          gateRun(b, factor * b).gatePassed,
+          false,
+          `${factor} x ${b}`,
+        );
+      }
+    }
+    assert.equal(GATE_TOLERANCE, 1e-9);
+    assert.equal(withinGate(2 + GATE_TOLERANCE, 2), true);
+    assert.equal(withinGate(2 + 2 * GATE_TOLERANCE, 2), false);
+    assert.equal(withinGate(0, 0), true);
+  });
+
+  it("reports the signed difference as a percentage of B, next to the signed interval", () => {
+    const down = gateRun(200, 190, null);
+    assert.equal(down.signedDifferencePercent, -5);
+    assert.equal(down.relativeDifferencePercent, 5);
+    assert.deepEqual(down.differenceCiPercent, { low: -5, high: -5 });
+    const up = gateRun(200, 203, null);
+    close(up.signedDifferencePercent, 1.5);
+    close(up.relativeDifferencePercent, 1.5);
+    const text = formatReport({
+      engine: "a",
+      against: "b",
+      seeds: 2,
+      duration: null,
+      confidence: CONFIDENCE,
+      gate: null,
+      cases: [down],
+    });
+    assert.match(
+      text,
+      /relative to B: \(A - B\) \/ B -5\.0000%, 95% CI \[-5\.0000%, -5\.0000%\]; \|A - B\| \/ B 5\.0000%$/m,
+    );
+    const zero = runParity({ seeds: 2, cases: [SHORT] }).cases[0];
+    assert.equal(zero.signedDifferencePercent, 0);
+    assert.match(
+      formatReport(runParity({ seeds: 2, cases: [SHORT] })),
+      /\(A - B\) \/ B 0\.0000%, 95% CI \[0\.0000%, 0\.0000%\]/,
+    );
+  });
+
+  it("copies each result as its call returns, so a reused or later-changed result object cannot move a counted seed", () => {
+    // One object for every call, changed in place on the next call: without
+    // the copy every seed would read the last call's numbers.
+    const shared = { dps: 0, abilities: { Jab: { damage: 0, casts: 0 } } };
+    const reuse = ({ seed }) => {
+      shared.dps = 100 + seed;
+      shared.abilities.Jab.damage = 100 + seed;
+      shared.abilities.Jab.casts = seed;
+      return shared;
+    };
+    const [c] = runParity({
+      engine: "reuse",
+      against: "base",
+      seeds: 3,
+      cases: [SHORT],
+      engines: { reuse, base: fakeEngine(() => 100) },
+    }).cases;
+    assert.equal(c.engine.dpsMean, 102);
+    assert.equal(c.engine.dpsSd, 1);
+    assert.deepEqual(c.engine.abilities.Jab, { damage: 102, casts: 2 });
+    assert.deepEqual(c.difference.mean, 2);
+    // copyResult keeps dps and a deep copy of abilities, and nothing else.
+    const result = {
+      dps: 5,
+      abilities: { Jab: { damage: 5, casts: 1 } },
+      simulation: {},
+    };
+    const copy = copyResult(result);
+    assert.deepEqual(copy, {
+      dps: 5,
+      abilities: { Jab: { damage: 5, casts: 1 } },
+    });
+    assert.notEqual(copy.abilities, result.abilities);
+    assert.notEqual(copy.abilities.Jab, result.abilities.Jab);
+  });
+
+  it("--duration runs every chosen case for that long, and says so", () => {
+    const seen = [];
+    const record = (options) => {
+      seen.push(options.duration);
+      return { dps: 1, abilities: {} };
+    };
+    const report = runParity({
+      engine: "record",
+      against: "record",
+      seeds: 1,
+      cases: [SHORT, "talented-build-seed-107-60s"],
+      engines: { record },
+      duration: 300,
+    });
+    assert.deepEqual(seen, [300, 300, 300, 300]);
+    assert.equal(report.duration, 300);
+    assert.deepEqual(
+      report.cases.map(({ duration }) => duration),
+      [300, 300],
+    );
+    assert.match(formatReport(report), /seeds 1 to 1, every case at 300 s,/);
+    assert.match(formatReport(report), /^short-seed-1-10s \(300 s\)$/m);
+    seen.length = 0;
+    const own = runParity({
+      engine: "record",
+      against: "record",
+      seeds: 1,
+      cases: [SHORT],
+      engines: { record },
+    });
+    assert.deepEqual(seen, [10, 10]);
+    assert.equal(own.duration, null);
+    assert.doesNotMatch(formatReport(own), /every case at/);
+    for (const duration of [
+      0,
+      -1,
+      Number.NaN,
+      Infinity,
+      MAX_DURATION + 1,
+      "300",
+    ]) {
+      assert.throws(
+        () =>
+          runParity({
+            seeds: 1,
+            cases: [SHORT],
+            duration,
+            engines: { legacy: record },
+          }),
+        {
+          name: "RangeError",
+          message: /^duration must be a number of seconds over 0, at most 3600/,
+        },
+      );
+    }
+    assert.equal(MAX_DURATION, 3600);
+  });
+
+  it("the events engine is the event core: it differs from legacy, and events against events is exactly 0", () => {
+    const options = { seed: 3, duration: 30, config: {} };
+    assert.deepEqual(
+      ENGINES.events(structuredClone(options)),
+      runFight({ ...structuredClone(options), engine: "events" }),
+    );
+    assert.deepEqual(
+      ENGINES.legacy(structuredClone(options)),
+      runFight(structuredClone(options)),
+    );
+    const [cross] = runParity({
+      engine: "events",
+      against: "legacy",
+      seeds: 3,
+      cases: [SHORT],
+    }).cases;
+    assert.ok(cross.seedsDiffering > 0);
+    const [same] = runParity({
+      engine: "events",
+      against: "events",
+      seeds: 3,
+      cases: [SHORT],
+      gate: 0,
+    }).cases;
+    assert.deepEqual(same.difference, { mean: 0, sd: 0, low: 0, high: 0 });
+    assert.equal(same.seedsDiffering, 0);
+    assert.equal(same.gatePassed, true);
   });
 });

@@ -8,20 +8,27 @@ import { GOLDEN_CASES } from "./golden-update.mjs";
 // DPS for each, the per-ability mean damage and casts, and the 95% confidence
 // interval of the DPS difference. Phase 3.5 builds a new engine next to the
 // legacy one (docs/phase-3.5-engine-rewrite.md); #199 uses this harness as its
-// gate. Until the new engine exists, the only engine is "legacy", and legacy
-// against legacy must give a difference of exactly 0 (test/parity.test.js),
-// which proves the harness. See "Parity harness" in docs/mechanics.md.
+// gate. The engines are "legacy" (the step loop) and "events" (the event core,
+// js/core/, #197 and #198). The same engine on both sides must give a
+// difference of exactly 0 (test/parity.test.js), which proves the harness. See
+// "Parity harness" in docs/mechanics.md.
 //
 //   npm run parity                                   legacy vs legacy, 200 seeds
 //   npm run parity -- --seeds 20 --cases short-seed-1-10s
+//   npm run parity -- --engine events --against legacy --duration 300 --gate 2
 //   npm run parity -- --engine legacy --against legacy --json
 //
 // Nothing here changes a fight or writes a file.
 
 // An engine runs one fight and returns a runFight-shaped result (dps and
 // abilities are what the harness reads). A new engine is added here by name.
+// "events" is runFight's engine option (#198): the same fight on the event
+// core. The default engine of runFight is still legacy until #199's flip.
 export const ENGINES = Object.freeze({
-  legacy: ({ seed, duration, config }) => runFight({ seed, duration, config }),
+  legacy: ({ seed, duration, config }) =>
+    runFight({ seed, duration, config, engine: "legacy" }),
+  events: ({ seed, duration, config }) =>
+    runFight({ seed, duration, config, engine: "events" }),
 });
 
 export const DEFAULT_ENGINE = "legacy";
@@ -30,6 +37,20 @@ export const DEFAULT_SEEDS = 200;
 // take a few minutes per engine.
 export const MAX_SEEDS = 10000;
 export const CONFIDENCE = 0.95;
+// --duration overrides every chosen case's own duration (#199 gates at 300 s;
+// a 3,600 s run is its drift check, so that is the longest).
+export const MAX_DURATION = 3600;
+// The gate compares |A - B| / B with the limit allowing this many percentage
+// points of floating-point error, so a difference of exactly the limit passes
+// whichever side of B it is on: 0.98 x 144.52 against 144.52 computes as
+// 2.000000000000007%, and 1.02 x B as 1.9999999999999962% (#213 QA). No real
+// difference is this close to the limit without being at it.
+export const GATE_TOLERANCE = 1e-9;
+
+// Whether a case's |A - B| / B percentage passes a gate of `gate` percent.
+export function withinGate(relativePercent, gate) {
+  return relativePercent <= gate + GATE_TOLERANCE;
+}
 
 // Frozen all the way down: an engine gets its own copy of a case's config
 // (compareCase), and the cases themselves are never changed in place.
@@ -47,12 +68,14 @@ export function deepFreeze(value) {
 // with the engine's own rotation.
 //
 // scripted-finishers-seed-68-50s: its script (scripts/scripted-fight.mjs)
-// replaces Rogue.prototype.rotation, which only the legacy engine has, so a
-// new engine cannot run it. It was also written for seed 68: on seeds 1 to 200
-// it runs to its 50 s end with casts still waiting on 79 of them, and
-// runScriptedFight throws for those. Before the legacy engine is deleted
-// (#200), this case needs a new-engine equivalent of the hook that finishes on
-// every seed from 1 to 200, or James agrees to retire it.
+// hooks Rogue.prototype.castRotation, which both engines call since #197, so
+// either engine can run it on its own seed. But it was written for seed 68: on
+// seeds 1 to 200 it runs to its 50 s end with casts still waiting on 79 of
+// them on legacy and 70 on events (#199), and runScriptedFight throws for
+// those. So it cannot be averaged over seeds 1 to 200. Before the legacy engine is
+// deleted (#200), this case needs a script that finishes on every seed from 1
+// to 200, or James agrees to retire it from parity. Its golden fixture (seed
+// 68) is unaffected.
 //
 // Every scripted golden case must be listed here and every listed case must be
 // scripted: parityCases throws otherwise, and test/parity.test.js pins this list.
@@ -60,7 +83,7 @@ export const SCRIPT_LEFT_OFF = deepFreeze({
   "scripted-finishers-seed-68-50s": {
     as: "finishers-50s-without-script",
     reason:
-      "its script replaces Rogue.prototype.rotation, a legacy-only hook, and does not finish on 79 of seeds 1 to 200",
+      "its script was written for seed 68 and does not finish on 79 of seeds 1 to 200 on legacy (70 on events)",
   },
 });
 
@@ -71,6 +94,12 @@ export const SCRIPT_LEFT_OFF = deepFreeze({
 // Hemorrhage, and spends any other five-point finisher on Eviscerate.
 // test/parity.test.js checks that legacy casts both and that Rupture deals
 // damage.
+//
+// partial-build-8-points-300s is #199's partial-build config: the 8-point
+// build of test/partial-builds.test.js (#190), with the default rotation. A
+// selected build without Blade Flurry or Adrenaline Rush locks them, so the
+// rotation falls through to Sinister Strike and Slice and Dice; #199's
+// abilityGranted change must keep that.
 export const PARITY_ONLY_CASES = deepFreeze([
   {
     name: "dot-hemorrhage-rupture-120s",
@@ -120,6 +149,17 @@ export const PARITY_ONLY_CASES = deepFreeze([
             ],
           },
         ],
+      },
+    },
+  },
+  {
+    name: "partial-build-8-points-300s",
+    duration: 300,
+    config: {
+      talents: {
+        "combat.improved-eviscerate": 3,
+        "combat.improved-sinister-strike": 2,
+        "combat.precision": 3,
       },
     },
   },
@@ -429,36 +469,56 @@ export function resultsDiffer(x, y) {
   return false;
 }
 
-// |A - B| / B as a percentage, B being the reference (--against, legacy by
-// default). A 0 reference mean gives 0 for a 0 difference, Infinity otherwise.
+// A value as a percentage of B's mean, B being the reference (--against,
+// legacy by default). A 0 reference mean gives 0 for a 0 value, Infinity (of
+// the value's sign) otherwise.
 function percentOf(value, reference) {
   if (value === 0) {
     return 0;
   }
-  return reference === 0 ? Infinity : (100 * value) / reference;
+  return reference === 0
+    ? Math.sign(value) * Infinity
+    : (100 * value) / reference;
+}
+
+// What the harness keeps of a checked result: a copy of its dps and
+// abilities, taken as the call returns, so an engine that reuses or changes a
+// result object after returning it (on a later call) cannot change a seed
+// already counted (#213 QA, for #199).
+export function copyResult(result) {
+  return { dps: result.dps, abilities: structuredClone(result.abilities) };
 }
 
 // One case: run both engines on seeds 1..seeds, A then B for each seed, so that
 // state left behind by one fight shows up as a difference. Each call gets its
 // own options and its own copy of the config, so an engine that changes its
-// input cannot change what the other one runs.
+// input cannot change what the other one runs. `duration` (--duration)
+// replaces the case's own duration when it is given.
 export function compareCase(
   parityCase,
-  { engine, against, seeds, engines = ENGINES, gate = null },
+  { engine, against, seeds, engines = ENGINES, gate = null, duration = null },
 ) {
   const runA = engines[engine];
   const runB = engines[against];
   const a = [];
   const b = [];
+  const seconds = duration ?? parityCase.duration;
   const optionsFor = (seed) => ({
     seed,
-    duration: parityCase.duration,
+    duration: seconds,
     config: structuredClone(parityCase.config),
   });
+  const run = (fn, seed, name) =>
+    copyResult(
+      checkResult(fn(optionsFor(seed)), {
+        name: parityCase.name,
+        seed,
+        engine: name,
+      }),
+    );
   for (let seed = 1; seed <= seeds; seed += 1) {
-    const where = { name: parityCase.name, seed };
-    a.push(checkResult(runA(optionsFor(seed)), { ...where, engine }));
-    b.push(checkResult(runB(optionsFor(seed)), { ...where, engine: against }));
+    a.push(run(runA, seed, engine));
+    b.push(run(runB, seed, against));
   }
   const summaryA = engineSummary(a);
   const summaryB = engineSummary(b);
@@ -474,16 +534,19 @@ export function compareCase(
     b.map(({ dps }) => dps),
   );
   const reference = summaryB.dpsMean;
-  const relativePercent = percentOf(Math.abs(difference.mean), reference);
+  const signedPercent = percentOf(difference.mean, reference);
+  const relativePercent = Math.abs(signedPercent);
   return {
     name: parityCase.name,
-    duration: parityCase.duration,
+    duration: seconds,
     scriptLeftOff: parityCase.scriptLeftOff,
     seeds,
     engine: summaryA,
     against: summaryB,
     difference,
-    // |mean A - mean B| / mean B, and the interval as a percentage of mean B.
+    // (mean A - mean B) / mean B, its absolute value (what the gate reads),
+    // and the interval, all as percentages of mean B.
+    signedDifferencePercent: signedPercent,
     relativeDifferencePercent: relativePercent,
     differenceCiPercent:
       difference.low === null
@@ -492,7 +555,7 @@ export function compareCase(
             low: percentOf(difference.low, reference),
             high: percentOf(difference.high, reference),
           },
-    gatePassed: gate === null ? null : relativePercent <= gate,
+    gatePassed: gate === null ? null : withinGate(relativePercent, gate),
     seedsDiffering: a.filter((x, index) => resultsDiffer(x, b[index])).length,
     abilityDifference: Object.fromEntries(
       names.map((name) => {
@@ -514,10 +577,19 @@ export function runParity({
   cases = PARITY_CASES.map(({ name }) => name),
   engines = ENGINES,
   gate = null,
+  duration = null,
 } = {}) {
   if (gate !== null && !(isFiniteNumber(gate) && gate >= 0)) {
     throw new RangeError(
       `gate must be a percentage of at least 0, got ${gate}.`,
+    );
+  }
+  if (
+    duration !== null &&
+    !(isFiniteNumber(duration) && duration > 0 && duration <= MAX_DURATION)
+  ) {
+    throw new RangeError(
+      `duration must be a number of seconds over 0, at most ${MAX_DURATION}, got ${duration}.`,
     );
   }
   for (const name of [engine, against]) {
@@ -542,12 +614,20 @@ export function runParity({
     return found;
   });
   const results = chosen.map((parityCase) =>
-    compareCase(parityCase, { engine, against, seeds, engines, gate }),
+    compareCase(parityCase, {
+      engine,
+      against,
+      seeds,
+      engines,
+      gate,
+      duration,
+    }),
   );
   return {
     engine,
     against,
     seeds,
+    duration,
     confidence: CONFIDENCE,
     gate:
       gate === null
@@ -564,11 +644,21 @@ function fixed(value, digits = 2) {
   return value === null ? "n/a" : value.toFixed(digits);
 }
 
+// A percentage with its sign, so a negative and a positive difference read
+// apart at a glance: +0.0330, -0.2170, 0.0000.
+function signed(value, digits = 4) {
+  if (value === null) {
+    return "n/a";
+  }
+  const text = value.toFixed(digits);
+  return value > 0 && !/^0\.0*$/.test(text) ? `+${text}` : text;
+}
+
 export function formatReport(report) {
   const { engine, against, seeds } = report;
   const percent = Math.round(report.confidence * 100);
   const lines = [
-    `Parity: A ${engine} vs B ${against}, seeds 1 to ${seeds}, Node ${process.version}`,
+    `Parity: A ${engine} vs B ${against}, seeds 1 to ${seeds}${report.duration === null || report.duration === undefined ? "" : `, every case at ${report.duration} s`}, Node ${process.version}`,
   ];
   for (const c of report.cases) {
     lines.push(
@@ -580,7 +670,7 @@ export function formatReport(report) {
       `  DPS A (${engine}): mean ${fixed(c.engine.dpsMean)}, SD ${fixed(c.engine.dpsSd)}`,
       `  DPS B (${against}): mean ${fixed(c.against.dpsMean)}, SD ${fixed(c.against.dpsSd)}`,
       `  difference (A - B): mean ${fixed(c.difference.mean, 4)}, ${percent}% CI [${fixed(c.difference.low, 4)}, ${fixed(c.difference.high, 4)}], ${c.seedsDiffering} of ${c.seeds} seeds differ`,
-      `  relative to B: |A - B| / B ${fixed(c.relativeDifferencePercent, 4)}%, ${percent}% CI [${fixed(c.differenceCiPercent.low, 4)}%, ${fixed(c.differenceCiPercent.high, 4)}%]${c.gatePassed === null ? "" : `, gate ${report.gate.percent}%: ${c.gatePassed ? "pass" : "FAIL"}`}`,
+      `  relative to B: (A - B) / B ${signed(c.signedDifferencePercent)}%, ${percent}% CI [${signed(c.differenceCiPercent.low)}%, ${signed(c.differenceCiPercent.high)}%]; |A - B| / B ${fixed(c.relativeDifferencePercent, 4)}%${c.gatePassed === null ? "" : `, gate ${report.gate.percent}%: ${c.gatePassed ? "pass" : "FAIL"}`}`,
       "  per ability (mean damage / mean casts, A | B | A - B):",
     );
     for (const [name, diff] of Object.entries(c.abilityDifference)) {
@@ -605,19 +695,23 @@ export function formatReport(report) {
 export const HELP_TEXT = `Compare two engines over seeds 1 to N on the golden configs.
 
 Usage: npm run parity [-- --engine NAME] [-- --against NAME] [-- --seeds N]
-                      [-- --cases A,B] [-- --gate PCT] [-- --json]
+                      [-- --cases A,B] [-- --duration S] [-- --gate PCT]
+                      [-- --json]
 
   --engine NAME   The engine to measure (default ${DEFAULT_ENGINE}). Engines: ${Object.keys(ENGINES).join(", ")}.
   --against NAME  The engine to compare it with (default ${DEFAULT_ENGINE}).
   --seeds N       Seeds 1 to N (a positive integer, at most ${MAX_SEEDS}, default ${DEFAULT_SEEDS}).
   --cases A,B     Only these cases, by name (default: all ${PARITY_CASES.length}).
+  --duration S    Run every chosen case for S seconds instead of its own
+                  duration (over 0, at most ${MAX_DURATION}; #199 gates at 300).
   --gate PCT      Fail (exit 2) if any case's |mean A - mean B| / mean B is over
-                  PCT percent. B is the reference (#199: --against legacy, 2).
+                  PCT percent (to within ${GATE_TOLERANCE} of a point, so exactly PCT passes on
+                  either side). B is the reference (#199: --against legacy, 2).
   --json          Print the report as JSON instead of text.
   --help          Show this text.
 
-The difference is paired by seed, with a ${Math.round(CONFIDENCE * 100)}% Student t interval, also given as
-a percentage of mean B. The gate is on the point estimate. The same engine on
+The difference is paired by seed, with a ${Math.round(CONFIDENCE * 100)}% Student t interval, also given,
+signed, as a percentage of mean B. The gate is on the point estimate. The same engine on
 both sides gives exactly 0. A result without a finite dps, or with abilities
 that are not { damage, casts } numbers, stops the run (exit 1).`;
 
@@ -657,6 +751,19 @@ export function parseArgs(argv) {
     } else if (arg === "--cases") {
       index += 1;
       options.cases = needValue(argv, index, arg, "case names").split(",");
+    } else if (arg === "--duration") {
+      index += 1;
+      const text = needValue(argv, index, arg, "a number of seconds");
+      if (
+        !/^[0-9]+(\.[0-9]+)?$/.test(text) ||
+        Number(text) <= 0 ||
+        Number(text) > MAX_DURATION
+      ) {
+        throw new Error(
+          `--duration needs a number of seconds over 0, at most ${MAX_DURATION}, such as 300, got "${text}".\n\n${HELP_TEXT}`,
+        );
+      }
+      options.duration = Number(text);
     } else if (arg === "--gate") {
       index += 1;
       const text = needValue(argv, index, arg, "a percentage");
@@ -701,7 +808,14 @@ export function cli(
       return 0;
     }
     const runOptions = {};
-    for (const key of ["engine", "against", "seeds", "cases", "gate"]) {
+    for (const key of [
+      "engine",
+      "against",
+      "seeds",
+      "cases",
+      "duration",
+      "gate",
+    ]) {
       if (options[key] !== undefined) {
         runOptions[key] = options[key];
       }
