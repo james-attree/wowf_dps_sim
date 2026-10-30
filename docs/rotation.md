@@ -307,6 +307,13 @@ fixed for the fight, so the host asks once. The rotation builder and the
 stats form's summary use the same test (`js/rotation-skips.js`), so a rule
 they show as skipped is the one the engine passes over.
 
+One gap: the preview reads the config only, and the config has no host
+grants. A host that passes an ability in its `abilities` option (Blade Flurry
+with no build, say) makes it usable in the engine, but the builder, the
+summary and the talent tree still say the rule is skipped. The app passes no
+host grants, so its fights match the preview; a host of your own that grants
+abilities does not.
+
 Two conditions still say whether a talent ability is there:
 
 - `abilityGranted` is **strict**. It is true only when the ability is in the

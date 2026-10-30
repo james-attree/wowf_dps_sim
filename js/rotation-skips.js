@@ -19,6 +19,10 @@ const GUARDS = Object.freeze(["abilityGranted", "abilityUnlocked"]);
 // The part of a fight's state a talent check reads, for config's build. A
 // build the config can't hold (over its level's cap) never gets here: the
 // config keeps the last legal one (#204), so this reads that.
+// The config has no host grants (Rogue's `abilities` option), so `granted` is
+// the build's alone: an ability a host grants with no build (Blade Flurry,
+// say) is usable in the engine but shown here as skipped. The app passes no
+// host grants (docs/rotation.md, "Granted and unlocked").
 export function talentState(config) {
   let build;
   try {

@@ -409,7 +409,8 @@ function detailOf(ranks, id, level, info, catalogue) {
 // The rules of the rotation that cast a talent's ability, and whether this
 // build lets them, by the engine's own test (Rogue.lockedByBuild): a talent
 // ability casts only with its talent, with no points spent too (no talents
-// is untalented, #199).
+// is untalented, #199). Like the rotation preview it knows no host grants:
+// see js/rotation-skips.js talentState.
 function rotationLines(ranks, rotation, info) {
   const granting = new Map();
   for (const talent of info.values()) {
