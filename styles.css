@@ -1205,6 +1205,18 @@ h3 {
     height: clamp(160px, 30vh, 260px);
     max-height: 50vh;
   }
+
+  /* #200 (Fran's #224 QA, N2): on a narrow screen a long name wraps to two
+     lines, then ends in an ellipsis, rather than cutting off on one. Its full
+     name stays the row's title; the damage and status columns are unchanged. */
+  .combat-log-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-height: 760px) {
@@ -1543,9 +1555,9 @@ h3 {
 }
 
 /* #200 (Fran's #224 QA, N1): the "What to check" text can still scroll at
-   the 160px cap on wide screens, so it is a focusable, labelled region
-   (index.html). Below the narrow breakpoint it has no cap and grows with its
-   warnings. */
+   the height cap above on wide screens. While it does, it is a focusable,
+   labelled region (js/views/config-form.js, Fran's #226 QA, 2). Below the
+   narrow breakpoint it has no cap and grows with its warnings. */
 .import-warnings pre:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;

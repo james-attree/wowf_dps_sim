@@ -100,7 +100,11 @@
   color: #f3eee2;
 }
 
+/* #200 (Fran's #226 QA, 5): scrolled into view, a banner lands below the
+   sticky run bar (its height is --run-bar-height, set by js/views/controls.js),
+   with the bar's own gap under it. */
 .rot-banner {
+  scroll-margin-top: calc(var(--run-bar-height, 0px) + 12px);
   padding: 10px 12px;
   border: 1px solid;
   border-radius: 10px;

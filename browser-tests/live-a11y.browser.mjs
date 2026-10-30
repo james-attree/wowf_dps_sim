@@ -180,7 +180,7 @@ for (const width of WIDTHS) {
       );
       assert.equal(
         await page.textContent("#log-hint"),
-        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
+        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home jumps to the oldest event, End to the newest.",
       );
 
       // A step through the log: one spoken reading.
@@ -202,7 +202,7 @@ for (const width of WIDTHS) {
       // U9 polish: the hint stays the log's description, out of sight.
       assert.equal(
         await page.textContent("#log-hint"),
-        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
+        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home jumps to the oldest event, End to the newest.",
       );
       assert.equal(await page.isVisible("#log-step"), true);
       assert.equal(
@@ -411,7 +411,7 @@ for (const width of [390, 360]) {
       const fits = await page.evaluate(() => {
         const hint = document.querySelector("#log-hint");
         hint.textContent =
-          "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.";
+          "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home jumps to the oldest event, End to the newest.";
         hint.classList.add("visually-hidden");
         const step = document.querySelector("#log-step");
         step.textContent = "10:00.0 · Sinister Strike · Crit · 12,345";
@@ -487,7 +487,7 @@ for (const width of [...WIDTHS, 360]) {
       await messages(page);
       assert.equal(
         await page.textContent("#log-hint"),
-        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
+        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home jumps to the oldest event, End to the newest.",
       );
       const layout = () =>
         page.evaluate(() => {
@@ -624,6 +624,81 @@ for (const width of [390, 360]) {
       console.log(
         `# ${width}px: Sinister Strike with 123,456 cut: ${rows.cut}`,
       );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+// #200 (Fran's #224 QA, N2): on a narrow screen a long name wraps to two
+// lines, no more, and keeps its full name as the title; on a wide one it stays
+// on one line. The damage stays right-aligned in its column, and the page
+// never scrolls sideways.
+for (const width of [1280, 390, 360]) {
+  test(`a long log name wraps to two lines at most at ${width}px (#200)`, async () => {
+    const { context, page, errors } = await openPage(width);
+    try {
+      await clickCentre(page.locator("#run-button"));
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll("#combat-log .combat-log-entry").length >=
+          5,
+        null,
+        { timeout: 20_000 },
+      );
+      await clickCentre(page.locator("#pause-button"));
+      await settle(page);
+      const LONG =
+        "Instant Poison VI from a Sinister Strike off hand, a long name";
+      const at = await page.evaluate((long) => {
+        const [first, second] = document.querySelectorAll(
+          "#combat-log .combat-log-entry",
+        );
+        const name = first.querySelector(".combat-log-name");
+        name.textContent = long;
+        name.title = long;
+        const short = second.querySelector(".combat-log-name");
+        short.textContent = "Kick";
+        first.querySelector(".combat-log-damage").textContent = "123,456";
+        second.querySelector(".combat-log-damage").textContent = "7";
+        const right = (row) =>
+          row.querySelector(".combat-log-damage").getBoundingClientRect().right;
+        const damage = first.querySelector(".combat-log-damage");
+        return {
+          lines:
+            name.getBoundingClientRect().height /
+            short.getBoundingClientRect().height,
+          more: name.scrollHeight > name.clientHeight + 1,
+          title: name.title,
+          clamp: getComputedStyle(name).webkitLineClamp,
+          damageRight: [right(first), right(second)],
+          damageAlign: getComputedStyle(damage).textAlign,
+          damageCut: damage.scrollWidth > damage.clientWidth,
+          wide:
+            document.documentElement.scrollWidth >
+            document.documentElement.clientWidth,
+        };
+      }, LONG);
+      if (width < 520) {
+        assert.equal(at.clamp, "2");
+        assert.ok(at.lines > 1.5 && at.lines < 2.5, `two lines: ${at.lines}`);
+        assert.equal(at.more, true, "the rest is clamped, with an ellipsis");
+      } else {
+        assert.ok(at.lines < 1.5, `one line: ${at.lines}`);
+      }
+      assert.equal(at.title, LONG, "the full name is the title");
+      assert.ok(
+        Math.abs(at.damageRight[0] - at.damageRight[1]) <= 1,
+        `damage right-aligned: ${at.damageRight}`,
+      );
+      assert.equal(at.damageCut, false, "the damage not cut");
+      assert.equal(at.wide, false, "no sideways scroll");
+      if (process.env.U9_SHOTS) {
+        await page.locator("#combat-log").screenshot({
+          path: `${process.env.U9_SHOTS}/log-name-wrap-${width}.png`,
+        });
+      }
       assert.deepEqual(errors, []);
     } finally {
       await context.close();

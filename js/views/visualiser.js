@@ -519,14 +519,15 @@ export function timedEffectReading(
 
 // The log's description while paused (#150; Home and End, Fran's #221 check;
 // "Newest events first" as in the log header, and which way the arrows go,
-// Fran's #224 QA, N3, #200).
+// Fran's #224 QA, N3, #200; Home and End named as the oldest and newest
+// event, Fran's #226 QA, 4).
 // A combat log row's id counts up from 0 in each fight (docs/events.md, the
 // "hit" event's id), so a kept log whose oldest id is above this has dropped
 // rows.
 const FIRST_LOG_ROW_ID = 0;
 
 export const LOG_HINT =
-  "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.";
+  "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home jumps to the oldest event, End to the newest.";
 
 // What the step announcer says at the ends of the log (U9 polish).
 const LOG_EDGE = { start: "Start of log", end: "End of log" };

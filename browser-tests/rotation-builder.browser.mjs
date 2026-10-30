@@ -370,6 +370,9 @@ for (const width of WIDTHS) {
 // clipped and the page does not scroll sideways. Fran's #224 QA (N1): nor
 // cut off at the bottom. A box that still scrolls (the "What to check" text
 // at its 160px cap on wide screens) must be a focusable, labelled region.
+// Fran's #226 QA (1): nor clipped by a box around it, one that hides its
+// overflow or caps its height (her mutation E, an import box capped at 100px
+// with its overflow hidden, passed before).
 for (const width of [1280, 390, 360]) {
   test(`the rotation warnings lists fit at ${width}px (#200)`, async () => {
     const { context, page, errors } = await openBuilder(width);
@@ -379,6 +382,29 @@ for (const width of [1280, 390, 360]) {
       const fits = (selector) =>
         page.evaluate((selector) => {
           const root = document.querySelector(selector);
+          root.scrollIntoView({ block: "nearest" });
+          const region = (el) =>
+            el.tabIndex === 0 &&
+            el.getAttribute("role") === "region" &&
+            el.hasAttribute("aria-label");
+          // The boxes around it, up to the page, that can clip it: overflow
+          // not visible (hidden, clip, auto or scroll) or a max-height.
+          const around = [];
+          for (
+            let el = root.parentElement;
+            el !== null && el !== document.body;
+            el = el.parentElement
+          ) {
+            const style = getComputedStyle(el);
+            if (
+              style.overflowX !== "visible" ||
+              style.overflowY !== "visible" ||
+              style.maxHeight !== "none"
+            ) {
+              around.push(el);
+            }
+          }
+          const at = root.getBoundingClientRect();
           const parts = [root, ...root.querySelectorAll("*")].filter(
             (el) => el.getClientRects().length > 0,
           );
@@ -402,12 +428,25 @@ for (const width of [1280, 390, 360]) {
                 (el) =>
                   getComputedStyle(el).overflowY !== "visible" &&
                   el.scrollHeight > el.clientHeight + 1 &&
-                  !(
-                    el.tabIndex === 0 &&
-                    el.getAttribute("role") === "region" &&
-                    el.hasAttribute("aria-label")
-                  ),
+                  !region(el),
               )
+              .map((el) => el.outerHTML.slice(0, 80)),
+            // Its edges inside each box around it that can clip it, and that
+            // box not cutting off what it holds (unless it is a region).
+            clippedAround: around
+              .filter((el) => {
+                const box = el.getBoundingClientRect();
+                const outside =
+                  at.top < box.top - 1 ||
+                  at.bottom > box.bottom + 1 ||
+                  at.left < box.left - 1 ||
+                  at.right > box.right + 1;
+                const capped =
+                  getComputedStyle(el).overflowY !== "visible" &&
+                  el.scrollHeight > el.clientHeight + 1 &&
+                  !region(el);
+                return outside || capped;
+              })
               .map((el) => el.outerHTML.slice(0, 80)),
             wide:
               document.documentElement.scrollWidth >
@@ -444,7 +483,13 @@ for (const width of [1280, 390, 360]) {
       assert.deepEqual(imported.outside, [], "import warnings on the page");
       assert.deepEqual(imported.clipped, [], "import warnings not clipped");
       assert.deepEqual(imported.cutOff, [], "import warnings not cut off");
-      // The text is a focusable region named "What to check" (N1), and below
+      assert.deepEqual(
+        imported.clippedAround,
+        [],
+        "import warnings not clipped by a box around them",
+      );
+      // Three warnings fit the box at every width, so it is not a Tab stop
+      // (Fran's #226 QA, 2; the region case is the next test), and below
       // 520px it has no height cap, so all of it shows.
       const box = await page.evaluate(() => {
         const pre = document.querySelector("#cfg-import-warnings-text");
@@ -456,9 +501,10 @@ for (const width of [1280, 390, 360]) {
           scrolls: pre.scrollHeight > pre.clientHeight + 1,
         };
       });
-      assert.equal(box.tabIndex, 0);
-      assert.equal(box.role, "region");
-      assert.equal(box.label, "What to check");
+      assert.equal(box.scrolls, false, "three warnings fit");
+      assert.equal(box.tabIndex, -1, "not a Tab stop");
+      assert.equal(box.role, null);
+      assert.equal(box.label, null);
       if (width < 520) {
         assert.equal(box.maxHeight, "none");
         assert.equal(box.scrolls, false, "all of the text shows");
@@ -479,10 +525,188 @@ for (const width of [1280, 390, 360]) {
       assert.deepEqual(banner.outside, [], "builder warnings on the page");
       assert.deepEqual(banner.clipped, [], "builder warnings not clipped");
       assert.deepEqual(banner.cutOff, [], "builder warnings not cut off");
+      assert.deepEqual(
+        banner.clippedAround,
+        [],
+        "builder warnings not clipped by a box around them",
+      );
       assert.equal(banner.wide, false, "no sideways scroll (builder)");
       if (process.env.U9_SHOTS) {
         await page.locator("#rb-warnings").screenshot({
           path: `${process.env.U9_SHOTS}/builder-warnings-${width}.png`,
+        });
+      }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+// #200 (Fran's #226 QA, 2): the "What to check" text is a focusable,
+// labelled region only while it scrolls. Many warnings overflow its cap on a
+// wide screen; on a narrow one it has no cap, so the same text is not a region,
+// and it changes over as the window is resized.
+test("the What to check box is a region only while it scrolls (#200)", async () => {
+  const { context, page, errors } = await openBuilder(1280);
+  try {
+    const box = () =>
+      page.evaluate(() => {
+        const pre = document.querySelector("#cfg-import-warnings-text");
+        return {
+          scrolls: pre.scrollHeight > pre.clientHeight,
+          tabIndex: pre.tabIndex,
+          role: pre.getAttribute("role"),
+          label: pre.getAttribute("aria-label"),
+        };
+      });
+    const region = { tabIndex: 0, role: "region", label: "What to check" };
+    const none = { tabIndex: -1, role: null, label: null };
+    await page.evaluate(() => {
+      document.querySelector(".paste-import").open = true;
+    });
+    await page.fill(
+      "#cfg-import-text",
+      JSON.stringify({
+        schemaVersion: 1,
+        name: "Many warnings",
+        rules: Array.from({ length: 12 }, (_, at) => ({
+          action: at % 2 === 0 ? "sinister-strike" : "eviscerate",
+          conditions: [],
+        })),
+      }),
+    );
+    await clickCentre(page.locator("#cfg-import-paste"));
+    await page.locator("#cfg-import-warnings").waitFor({ state: "visible" });
+    // Closed, it has no size, so it is not a region; opening it is read.
+    await page.evaluate(() => {
+      document.querySelector("#cfg-import-warnings").open = false;
+    });
+    await page.waitForFunction(
+      () =>
+        !document
+          .querySelector("#cfg-import-warnings-text")
+          .hasAttribute("role"),
+    );
+    assert.deepEqual(
+      { ...(await box()), scrolls: undefined },
+      {
+        ...none,
+        scrolls: undefined,
+      },
+    );
+    await page.evaluate(() => {
+      document.querySelector("#cfg-import-warnings").open = true;
+    });
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#cfg-import-warnings-text")
+          .getAttribute("role") === "region",
+    );
+    const wide = await box();
+    assert.equal(wide.scrolls, true, "many warnings scroll at 1280px");
+    assert.deepEqual(
+      { ...wide, scrolls: undefined },
+      {
+        ...region,
+        scrolls: undefined,
+      },
+    );
+    if (process.env.U9_SHOTS) {
+      await page.locator(".import-box").screenshot({
+        path: `${process.env.U9_SHOTS}/import-region-1280.png`,
+      });
+    }
+    // Focused, then the window narrows: no cap, no region, and the focus
+    // goes to the box's summary rather than being lost.
+    await page.focus("#cfg-import-warnings-text");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(
+      () =>
+        !document
+          .querySelector("#cfg-import-warnings-text")
+          .hasAttribute("role"),
+    );
+    const narrow = await box();
+    assert.equal(narrow.scrolls, false, "no cap below 520px");
+    assert.deepEqual(
+      { ...narrow, scrolls: undefined },
+      {
+        ...none,
+        scrolls: undefined,
+      },
+    );
+    assert.equal(
+      await page.evaluate(() =>
+        document.activeElement.matches("#cfg-import-warnings > summary"),
+      ),
+      true,
+    );
+    // Wide again: a region again.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#cfg-import-warnings-text")
+          .getAttribute("role") === "region",
+    );
+    assert.deepEqual(
+      { ...(await box()), scrolls: undefined },
+      {
+        ...region,
+        scrolls: undefined,
+      },
+    );
+    assert.deepEqual(errors, []);
+  } finally {
+    await context.close();
+  }
+});
+
+// #200 (Fran's #226 QA, 5): after Duplicate, the builder's warnings banner
+// scrolled into view lands fully below the sticky run bar, not under it. The
+// sticky part is the whole bar at 520px and up, the compact row below.
+for (const width of [1280, 390, 360]) {
+  test(`the warnings banner scrolls in below the run bar at ${width}px (#200)`, async () => {
+    const { context, page, errors } = await openBuilder(width);
+    try {
+      await clickCentre(rule(page, 0).locator("[data-key$='.dup']"));
+      await page.locator("#rb-warnings").waitFor({ state: "visible" });
+      // Scrolled past it first, so it comes in from above the bar.
+      await page.evaluate(() => {
+        globalThis.scrollTo(0, document.documentElement.scrollHeight);
+        document
+          .querySelector("#rb-warnings")
+          .scrollIntoView({ block: "start" });
+      });
+      await page.waitForTimeout(100);
+      const at = await page.evaluate(() => {
+        const narrow = globalThis.matchMedia("(max-width: 519.98px)").matches;
+        const bar = document.querySelector(
+          narrow ? "#run-bar" : "#run-controls",
+        );
+        const banner = document
+          .querySelector("#rb-warnings")
+          .getBoundingClientRect();
+        return {
+          barPosition: getComputedStyle(bar).position,
+          barBottom: bar.getBoundingClientRect().bottom,
+          top: banner.top,
+          bottom: banner.bottom,
+          height: banner.height,
+          viewport: globalThis.innerHeight,
+        };
+      });
+      assert.equal(at.barPosition, "sticky");
+      assert.ok(at.barBottom > 0, JSON.stringify(at));
+      assert.ok(at.top >= at.barBottom, JSON.stringify(at));
+      if (at.height <= at.viewport - at.barBottom) {
+        assert.ok(at.bottom <= at.viewport, JSON.stringify(at));
+      }
+      if (process.env.U9_SHOTS) {
+        await page.screenshot({
+          path: `${process.env.U9_SHOTS}/builder-banner-scroll-${width}.png`,
         });
       }
       assert.deepEqual(errors, []);
