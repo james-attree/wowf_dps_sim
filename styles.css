@@ -2985,14 +2985,18 @@ th[aria-sort="ascending"] {
   margin: 0 0 12px;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  /* Half of one row's height, so one row is a pill as before and a
+     wrapped switch (200% text on a phone) is a rounded box, not an oval
+     (#245, Fran's #258 check, P3): half a link, the padding and the border. */
+  border-radius: calc(var(--result-switch-link-height) / 2 + 5px);
   background: var(--surface);
+  --result-switch-link-height: 2.75rem;
 }
 
 .result-switch-link {
   display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
+  min-height: var(--result-switch-link-height);
   padding: 0 1.1rem;
   border-radius: 999px;
   color: #e7ddc9;
