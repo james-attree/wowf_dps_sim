@@ -570,7 +570,7 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(batch.status, "running");
     assert.equal(run.state, "running");
     assert.deepEqual(batch.progress, { completed: 0, total: 4, mean: null });
-    assert.equal(batch.previous, before.result, "greyed until progress");
+    assert.equal(batch.previous, before.result, "greyed till the result");
     assert.equal(batch.result, null);
     assert.equal(batch.mode, "main");
     assert.equal(page.model().status, "0/4 fights · Running batch");
@@ -591,7 +591,8 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(page.client.calls.length, 1, "Run is off while running");
 
     page.client.job.onProgress({ completed: 2, total: 4, mean: 310 });
-    assert.equal(page.store.get().batch.previous, null);
+    // Kept on the card as the previous average while this one runs (#242).
+    assert.equal(page.store.get().batch.previous, before.result);
     assert.deepEqual(page.store.get().batch.progress, {
       completed: 2,
       total: 4,

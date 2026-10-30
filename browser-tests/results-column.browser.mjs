@@ -114,7 +114,7 @@ const layout = (page) =>
 
 for (const width of WIDTHS) {
   describe(`the desktop results column at ${width}px (#241)`, () => {
-    test("Run is in a sticky column beside the areas; nothing sticks to the top; no sideways scroll", async () => {
+    test("Run is in a sticky column beside the areas, a bar on Results; nothing sticks to the top; no sideways scroll", async () => {
       const { context, page, errors } = await open(width);
       try {
         for (const area of AREAS) {
@@ -129,18 +129,27 @@ for (const width of WIDTHS) {
           assert.notEqual(at.strip, "fixed", `no dock, ${say}`);
           assert.equal(at.dps, false, say);
           assert.equal(at.runInColumn, true, say);
-          assert.equal(at.columnPosition, "sticky", say);
-          assert.ok(at.column.width >= COLUMN_MIN_PX - 1, say);
-          assert.ok(at.column.width <= COLUMN_MAX_PX + 1, say);
-          // Beside the area, on its right, inside the screen.
-          assert.ok(at.column.left >= at.area.right, say);
-          assert.ok(at.column.right <= at.viewport, say);
-          // Still in reach at the foot of the page.
-          if (at.scrolled > 0) {
-            assert.ok(
-              Math.abs(at.column.top - COLUMN_TOP_PX) <= 1,
-              `the column stays at the top when scrolled, ${say}`,
-            );
+          if (area === "results") {
+            // Results has its own Run (#242, UX4; Fran's #253 N4): the run
+            // bar goes across the top of the area, which gets the width.
+            assert.equal(at.columnPosition, "static", say);
+            assert.ok(Math.abs(at.column.left - at.area.left) <= 1, say);
+            assert.ok(Math.abs(at.column.width - at.area.width) <= 1, say);
+            assert.ok(at.column.bottom <= at.area.top + 1, say);
+          } else {
+            assert.equal(at.columnPosition, "sticky", say);
+            assert.ok(at.column.width >= COLUMN_MIN_PX - 1, say);
+            assert.ok(at.column.width <= COLUMN_MAX_PX + 1, say);
+            // Beside the area, on its right, inside the screen.
+            assert.ok(at.column.left >= at.area.right, say);
+            assert.ok(at.column.right <= at.viewport, say);
+            // Still in reach at the foot of the page.
+            if (at.scrolled > 0) {
+              assert.ok(
+                Math.abs(at.column.top - COLUMN_TOP_PX) <= 1,
+                `the column stays at the top when scrolled, ${say}`,
+              );
+            }
           }
           assert.ok(at.run.top >= 0 && at.run.bottom <= SCREEN_HEIGHT, say);
           // The card: in the column on every area but Results.
@@ -174,7 +183,9 @@ describe("the desktop summary card (#241)", () => {
       assert.match(await cardText(page), /Live fight: none yet · open$/);
       assert.equal(await page.locator("#results-card-open").isVisible(), false);
 
-      // A short live fight: its DPS is on the card's live line.
+      // A short live fight: its DPS is on the card's live line. The page
+      // opens in Batch mode (#242).
+      await page.check("#run-mode-live");
       await page.fill("#run-duration", SHORT_FIGHT_SECONDS);
       await page.locator("#run-button").click();
       await page.waitForFunction(

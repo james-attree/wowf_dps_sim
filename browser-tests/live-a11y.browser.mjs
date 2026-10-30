@@ -86,6 +86,8 @@ function observeLiveRegions() {
   });
 }
 
+const MODE_SETTLE_MS = 300;
+
 async function openPage(width) {
   const context = await browser.newContext({
     viewport: { width, height: 900 },
@@ -102,6 +104,11 @@ async function openPage(width) {
   );
   await page.goto(base);
   await page.locator("#run-button").waitFor({ state: "visible" });
+  // The page opens in Batch mode (#242, UX4); these tests start live.
+  await page.evaluate(() =>
+    globalThis.document.querySelector("#run-mode-live").click(),
+  );
+  await page.waitForTimeout(MODE_SETTLE_MS);
   await page.evaluate(observeLiveRegions);
   return { context, page, errors };
 }
@@ -154,8 +161,9 @@ for (const width of WIDTHS) {
 
       await clickCentre(page.locator("#run-button"));
       await page.waitForTimeout(1500);
+      // Run moved the page to Fight, which it says (#242, comment a).
       assert.deepEqual(await messages(page), [
-        { id: "run-announce", text: "Running" },
+        { id: "run-announce", text: "Running. Showing Fight." },
       ]);
 
       await clickCentre(page.locator("#pause-button"));
@@ -334,7 +342,13 @@ for (const width of WIDTHS) {
         { timeout: 60_000 },
       );
       await settle(page);
-      const said = await messages(page);
+      const all = await messages(page);
+      // The bar says only the move Run made to Results (#242, comment a).
+      const moves = all.filter(({ id }) => id === "run-announce");
+      assert.deepEqual(moves, [
+        { id: "run-announce", text: "Showing Results." },
+      ]);
+      const said = all.filter(({ id }) => id !== "run-announce");
       assert.ok(said.length >= 2, JSON.stringify(said));
       assert.ok(
         said.every(({ id }) => id === "results-announce"),

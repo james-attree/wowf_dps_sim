@@ -127,7 +127,8 @@ export function createRunActions({
       return;
     }
     const { duration, iterations } = run();
-    // At once, before any message: running, 0 of N, the last result greyed.
+    // At once, before any message: running, 0 of N, the last result greyed
+    // till this run's is in.
     store.batch(() => {
       store.update((state) => ({
         batch: {
@@ -166,9 +167,10 @@ export function createRunActions({
             if (settled) {
               return;
             }
+            // The previous average stays on the card till this one is in
+            // (#242, N7).
             setBatch({
               progress: { ...progress },
-              previous: null,
               elapsedMs: now() - startedAt,
               mode: client.mode,
             });

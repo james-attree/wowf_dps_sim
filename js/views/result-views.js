@@ -64,6 +64,15 @@ function averageLabel(state) {
   return parts.join(" · ");
 }
 
+// How the kept fight stands. In Batch mode the run slice is the batch's, so
+// a kept fight that was not stopped finished (as the card reads it).
+function liveWord(run) {
+  if ((run.stoppedAt ?? null) !== null) {
+    return "stopped";
+  }
+  return run.mode === "live" ? STATE_WORDS[run.state] : STATE_WORDS.finished;
+}
+
 // "Live fight · 300 s · seed 42 · ran at 09:05 · finished".
 function liveLabel(state) {
   const record = ranOf(state, "live");
@@ -79,7 +88,7 @@ function liveLabel(state) {
   if (at !== null) {
     parts.push(`ran at ${at}`);
   }
-  const word = STATE_WORDS[state.run.state];
+  const word = liveWord(state.run);
   if (word !== undefined) {
     parts.push(word);
   }
@@ -110,7 +119,8 @@ export function resultViewsModel(state) {
       label: liveLabel(state),
       stale: liveStale,
       run:
-        liveStale !== null || state.run.state === "finished"
+        liveStale !== null ||
+        (liveRecord !== null && liveWord(state.run) === STATE_WORDS.finished)
           ? "Watch again"
           : "Watch fight",
       average: "Run an average",
@@ -186,7 +196,7 @@ export function createResultViewsView(doc, store, actions) {
       }
       for (const link of links) {
         if (link.getAttribute("data-result-view") === shown) {
-          link.setAttribute("aria-current", "page");
+          link.setAttribute("aria-current", "true");
         } else {
           link.removeAttribute("aria-current");
         }

@@ -204,7 +204,8 @@ for (const width of PHONE_WIDTHS) {
       try {
         assertDpsShown(await dock(page), "idle");
 
-        // A live run, running and paused.
+        // A live run, running and paused. The page opens in Batch (#242).
+        await (await settingsField(page, "run-mode-live")).check();
         await (
           await settingsField(page, "run-duration")
         ).fill(LONG_FIGHT_SECONDS);
@@ -287,8 +288,8 @@ for (const width of PHONE_WIDTHS) {
           ["Stopped · 99.9k", WIDEST_DPS],
           ["Running · 99.9k/100k", "—"],
           ["Ready · seed 4294967295", "—"],
-          ["Can't run · Talents over cap", "—"],
-          ["Can't run · Rotation errors", "—"],
+          ["Talents over cap", "—"],
+          ["Rotation errors", "—"],
         ];
         // First in the page's own font, whatever this machine resolves it
         // to: the DPS is whole however wide the font (CI's Linux falls back
