@@ -311,6 +311,29 @@ describe("talent tree model (#204)", () => {
     );
   });
 
+  it("names one skipped ability alone, and none when nothing is skipped (#199)", () => {
+    const note = (rules) =>
+      talentTreeView({}, 60, {
+        info: talentInfo(),
+        config: { rotation: { rules } },
+      }).effects.rotation.note;
+    assert.equal(
+      note([{ action: "cold-blood", conditions: [] }]),
+      "With no talents picked, the fight is untalented: the sim skips Cold Blood, whose rules need the talent.",
+    );
+    assert.equal(
+      note([
+        { action: "blade-flurry", conditions: [] },
+        { action: "adrenaline-rush", conditions: [] },
+      ]),
+      "With no talents picked, the fight is untalented: the sim skips Blade Flurry and Adrenaline Rush, whose rules need the talent.",
+    );
+    assert.equal(
+      note([{ action: "sinister-strike", conditions: [] }]),
+      "With no talents picked, the fight is untalented.",
+    );
+  });
+
   it("pointsLine and talentTreeView never throw on the edges", () => {
     assert.equal(pointsLine(0, 1, 10), "0 of 1 spent, 1 left");
     assert.equal(

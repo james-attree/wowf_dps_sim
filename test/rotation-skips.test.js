@@ -63,6 +63,16 @@ describe("skipOf, by the rule's action (#199)", () => {
     assert.equal(skipOf(byAction("blade-flurry"), full), null);
   });
 
+  it("names the rule's own action, whatever its first condition names", () => {
+    const state = talentState({ talents: {} });
+    const rule = {
+      action: "blade-flurry",
+      conditions: [{ type: "abilityUnlocked", ability: "adrenaline-rush" }],
+    };
+    assert.equal(skipOf(rule, state)?.ability, "blade-flurry");
+    assert.equal(skipOf(rule, state)?.text, "no Blade Flurry talent");
+  });
+
   it("still skips a rule by a failing talent check on another ability", () => {
     const state = talentState({
       talents: buildWithout(["combat.adrenaline-rush"]),
