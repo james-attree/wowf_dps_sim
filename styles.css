@@ -2546,14 +2546,36 @@ th[aria-sort="ascending"] {
     grid-row: 2;
   }
 
+  /* Taller than a short screen (with run-field errors, say), the column
+     scrolls on its own so its foot, the live line and "Open full results",
+     is in reach without scrolling to the page's end (Fran's #253 check,
+     N1). Its fields, buttons and links stay in the tab order, and tabbing
+     to one scrolls the column to it, so keyboards reach all of it. */
   .simulator > .run-column {
     position: sticky;
     top: 16px;
     display: grid;
+    align-content: start;
     grid-column: 2;
     grid-row: 1 / span 2;
     gap: 12px;
+    max-height: calc(100dvh - 32px);
     margin-top: 14px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Run, Pause, Stop and Reset two by two, so none is left alone on a row
+     (Fran's #253 check, N5). A long label wraps inside its button. */
+  .run-column .run-buttons {
+    display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .run-column .run-buttons button {
+    min-width: 0;
+    text-wrap: balance;
   }
 
   .run-controls {
