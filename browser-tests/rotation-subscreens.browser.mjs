@@ -25,6 +25,18 @@ const SIZES = [
   [360, 640],
 ];
 const WIDE_PX = 1024;
+// N3's screens off Results (#244, UX6), and how far to tab on each.
+const WIDE_SCREENS = [
+  "#character",
+  "#character/gear",
+  "#character/stats",
+  "#character/talents",
+  "#rotation",
+  "#rotation/rule/1",
+  "#rotation/share",
+  "#fight",
+];
+const MAX_TABS = 40;
 
 let server;
 let base;
@@ -456,29 +468,63 @@ for (const [width, height] of [
           `${area} at ${width}`,
         );
       }
-      // Tabbing on from the area's link in the nav reaches the area before
-      // the Run button.
+      // Every wide screen off Results (#244, UX6): in the page, its back
+      // link (if it has one), then its h1, then the Run column; tabbing on
+      // from its area's link in the nav reaches the back link, else the
+      // area, before the Run button.
       if (width >= WIDE_PX) {
-        await page.click(`[data-nav-area="fight"]`);
-        await hashIs(page, "#fight");
-        await focusOf(page, "area-fight-title");
-        const stops = [];
-        for (let i = 0; i < 40; i += 1) {
-          await page.keyboard.press("Tab");
-          stops.push(await activeId(page));
+        for (const hash of WIDE_SCREENS) {
+          const area = hash.slice(1).split("/")[0];
+          await page.evaluate((to) => {
+            globalThis.location.hash = to;
+          }, hash);
+          await hashIs(page, hash);
+          await focusOf(page, `area-${area}-title`);
+          const order = await page.evaluate((area) => {
+            const shell = document.getElementById(`area-${area}`);
+            const back = shell.querySelector(".back-link");
+            const shown = back !== null && back.checkVisibility();
+            const before = (a, b) =>
+              Boolean(
+                a.compareDocumentPosition(b) &
+                globalThis.Node.DOCUMENT_POSITION_FOLLOWING,
+              );
+            const title = shell.querySelector("h1");
+            const column = document.getElementById("run-column");
+            return {
+              back: shown ? back.id : null,
+              backFirst: shown ? before(back, title) : null,
+              h1First: before(title, column),
+            };
+          }, area);
+          assert.equal(order.h1First, true, `${hash} at ${width}`);
+          if (order.back !== null) {
+            assert.equal(order.backFirst, true, `${hash} at ${width}`);
+          }
+          await page.locator(`[data-nav-area="${area}"]`).focus();
+          const stops = [];
+          for (let i = 0; i < MAX_TABS; i += 1) {
+            await page.keyboard.press("Tab");
+            stops.push(
+              await page.evaluate((area) => {
+                const at = document.activeElement;
+                return {
+                  id: at?.id || at?.dataset?.key || at?.tagName,
+                  inArea: at?.closest(`#area-${area}`) !== null,
+                  run: at?.id === "run-button",
+                };
+              }, area),
+            );
+          }
+          const shown = stops.map((stop) => stop.id).join(" ");
+          const firstIn = stops.findIndex((stop) => stop.inArea);
+          const firstRun = stops.findIndex((stop) => stop.run);
+          assert.ok(firstIn !== -1, `${hash}: ${shown}`);
+          assert.ok(firstRun === -1 || firstIn < firstRun, `${hash}: ${shown}`);
+          if (order.back !== null) {
+            assert.equal(stops[firstIn].id, order.back, `${hash}: ${shown}`);
+          }
         }
-        const firstRun = stops.indexOf("run-button");
-        const inArea = await page.evaluate(
-          (stops) =>
-            stops.findIndex(
-              (id) =>
-                id !== undefined &&
-                document.getElementById(id)?.closest("#area-fight") !== null,
-            ),
-          stops,
-        );
-        assert.ok(inArea !== -1, stops.join(" "));
-        assert.ok(firstRun === -1 || inArea < firstRun, stops.join(" "));
       }
       assert.deepEqual(errors, []);
     } finally {
