@@ -231,6 +231,26 @@ describe("createLiveRun (#153)", () => {
     assert.equal(live.state, "idle");
   });
 
+  it("reads only its own options: an inherited one is not given (#238 QA)", () => {
+    const { live, store } = setup();
+    // A duration on the prototype is not this run's: the length is the
+    // default, 300 s, not 1.5 s.
+    live.run(
+      Object.assign(Object.create({ duration: 1.5, engine: "legacy" }), {
+        seed: SEED,
+        config,
+      }),
+    );
+    assert.equal(store.get().run.seed, SEED);
+    assert.equal(store.get().run.duration, 300);
+    live.stop();
+    // A seed on the prototype is no seed: the seed check refuses it.
+    assert.throws(
+      () => live.run(Object.assign(Object.create({ seed: SEED }), { config })),
+      /seed must be an integer; got undefined/,
+    );
+  });
+
   it("defaults the length to batch.duration (300 s)", () => {
     const { live, store } = setup();
     live.run({ seed: SEED, config });
@@ -254,6 +274,28 @@ describe("clear(): an empty picture at 0:00 (#153)", () => {
       );
     }
     assert.equal(store.get(), before, "nothing drawn");
+  });
+
+  it("reads only its own options: an inherited seed is no seed (#238 QA)", () => {
+    const { live, store } = setup();
+    const before = store.get();
+    assert.throws(
+      () =>
+        live.clear(
+          Object.assign(Object.create({ seed: SEED, engine: "legacy" }), {
+            config,
+          }),
+        ),
+      /seed must be an integer; got undefined/,
+    );
+    assert.equal(store.get(), before, "nothing drawn");
+    live.clear(
+      Object.assign(Object.create({ engine: "legacy" }), {
+        seed: SEED,
+        config,
+      }),
+    );
+    assert.ok(store.get() !== before, "own options draw");
   });
 
   it("draws a fresh fight without running it, only while idle", () => {

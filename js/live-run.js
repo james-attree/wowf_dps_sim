@@ -53,6 +53,12 @@ function checkOptions(where, options, names) {
   }
 }
 
+// Own options only, as checkOptions and runFight read them (#209): one an
+// object inherits is not given (#238 QA).
+function own(options, key) {
+  return Object.hasOwn(options, key) ? options[key] : undefined;
+}
+
 export function createLiveRun(store, frames) {
   const clock = new FrameClock();
   let runner = null;
@@ -136,7 +142,9 @@ export function createLiveRun(store, frames) {
     // finished, as SimRunner.run() is.
     run(options) {
       checkOptions("live.run", options, RUN_OPTIONS);
-      const { seed, duration, config } = options;
+      const seed = own(options, "seed");
+      const duration = own(options, "duration");
+      const config = own(options, "config");
       const state = runner?.state ?? "idle";
       if (state !== "idle" && state !== "finished") {
         throw new Error(
@@ -153,7 +161,8 @@ export function createLiveRun(store, frames) {
     // reset), so a running fight is never hidden.
     clear(options) {
       checkOptions("live.clear", options, CLEAR_OPTIONS);
-      const { seed, config } = options;
+      const seed = own(options, "seed");
+      const config = own(options, "config");
       const state = runner?.state ?? "idle";
       if (state !== "idle") {
         throw new Error(

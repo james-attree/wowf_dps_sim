@@ -96,7 +96,15 @@ export class Simulation {
         );
       }
     }
-    const { seed = k("rng.defaultSeed"), rng, fightLength } = options;
+    // Own options only, as the check above and runFight read them (#209):
+    // one an object inherits is not given (#238 QA).
+    const own = (key) =>
+      Object.hasOwn(options, key) ? options[key] : undefined;
+    // A seed of undefined (none given) is the default; null is not, and
+    // normalizeSeed rejects it, as before.
+    const seed = own("seed") === undefined ? k("rng.defaultSeed") : own("seed");
+    const rng = own("rng");
+    const fightLength = own("fightLength");
     this.rogue = rogue;
     // The event core while it runs this fight (js/core/fight.js), told where
     // a DoT starts; null between runs.

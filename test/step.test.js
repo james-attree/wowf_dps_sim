@@ -91,6 +91,33 @@ describe("runOnCore, cut into steps", () => {
     }
   });
 
+  it("reads only its own options: an inherited one is not given (#238 QA)", () => {
+    // fightLength 7 and seed 99 on the prototype are not this fight's.
+    const inherited = new Simulation(
+      new Rogue(),
+      Object.assign(Object.create({ fightLength: 7, seed: 99 }), { seed: 1 }),
+    );
+    assert.equal(inherited.fightLength, null);
+    assert.equal(inherited.seed, 1);
+    const defaults = new Simulation(
+      new Rogue(),
+      Object.create({ seed: 99, fightLength: 7 }),
+    );
+    assert.equal(defaults.seed, new Simulation(new Rogue()).seed);
+    assert.equal(defaults.fightLength, null);
+    // An inherited name the check does not see is not read either.
+    const engine = new Simulation(
+      new Rogue(),
+      Object.assign(Object.create({ engine: "legacy" }), { seed: 1 }),
+    );
+    assert.equal(engine.seed, 1);
+    // Own options still count.
+    assert.equal(
+      new Simulation(new Rogue(), { seed: 1, fightLength: 7 }).fightLength,
+      7,
+    );
+  });
+
   it("refuses a run whose duration is not finite and 0 or more, with its own message", () => {
     for (const bad of [
       -0.001,
