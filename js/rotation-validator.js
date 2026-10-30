@@ -105,6 +105,12 @@ function described(value) {
   if (typeof value === "string") {
     return `the string ${JSON.stringify(value)}`;
   }
+  if (Array.isArray(value)) {
+    return "an array";
+  }
+  if (value instanceof Set || value instanceof Map) {
+    return `a ${value.constructor.name}`;
+  }
   return typeof value === "object" ? "an object" : `a ${typeof value}`;
 }
 
@@ -114,7 +120,7 @@ function described(value) {
 // what was given, so a string is refused, not spread into its characters, and
 // null or {} do not fail later as "not iterable". js/rotation-warnings.js
 // reads its lists through this too.
-export function idList(where, field, given, fallback) {
+export function idList(where, field, given, fallback, kind = "ability") {
   // null is taken as absent, as the other lists' `??` takes it (Kira's QA
   // on #215): it must not throw before the rotation's own errors come back.
   if (given === undefined || given === null) {
@@ -122,25 +128,69 @@ export function idList(where, field, given, fallback) {
   }
   if (!Array.isArray(given) && !(given instanceof Set)) {
     throw new TypeError(
-      `${where}: ${field} must be an array or a Set of ability ids, not ${described(given)}.`,
+      `${where}: ${field} must be an array or a Set of ${kind} ids, not ${described(given)}.`,
     );
   }
   const list = [...given];
   const bad = list.findIndex((id) => typeof id !== "string");
   if (bad !== -1) {
     throw new TypeError(
-      `${where}: ${field} must hold ability id strings, not ${described(list[bad])}.`,
+      `${where}: ${field} must hold ${kind} id strings, not ${described(list[bad])}.`,
     );
   }
   return Object.freeze(list);
 }
 
-export function rotationContext(given = {}) {
+// A context (validateRotation's, rotationWarnings') as an object to read:
+// none, undefined or null, is the engine's; anything else that is not a plain
+// object (an array, a Set, a string) is a TypeError naming `where` (#210).
+export function contextObject(where, given) {
+  if (given === undefined || given === null) {
+    return {};
+  }
+  if (
+    typeof given !== "object" ||
+    Array.isArray(given) ||
+    given instanceof Set
+  ) {
+    throw new TypeError(
+      `${where}: the context must be an object, not ${described(given)}.`,
+    );
+  }
+  return given;
+}
+
+// The debuffs a context gives: the engine's when left out (undefined or
+// null), else an object of debuff id to its most stacks (#210).
+function debuffMap(given) {
+  if (given === undefined || given === null) {
+    return ENGINE_DEBUFFS;
+  }
+  if (
+    typeof given !== "object" ||
+    Array.isArray(given) ||
+    given instanceof Set ||
+    given instanceof Map
+  ) {
+    throw new TypeError(
+      `rotationContext: debuffs must be an object of debuff id to its most stacks, not ${described(given)}.`,
+    );
+  }
+  return given;
+}
+
+// The ids and debuffs a rotation is checked against. Each list is read
+// through idList (an array or a Set, #210), so a Set works wherever the
+// validator reads it and a string is refused, not spread.
+export function rotationContext(context) {
+  const given = contextObject("rotationContext", context);
+  const list = (field, fallback, kind) =>
+    idList("rotationContext", field, given[field], fallback, kind);
   return {
-    abilities: given.abilities ?? ENGINE_ABILITIES,
-    castable: given.castable ?? ENGINE_CASTABLE,
-    auras: given.auras ?? ENGINE_AURAS,
-    debuffs: given.debuffs ?? ENGINE_DEBUFFS,
+    abilities: list("abilities", ENGINE_ABILITIES),
+    castable: list("castable", ENGINE_CASTABLE),
+    auras: list("auras", ENGINE_AURAS, "aura"),
+    debuffs: debuffMap(given.debuffs),
     talentGrantedAbilities: idList(
       "rotationContext",
       "talentGrantedAbilities",
@@ -375,7 +425,7 @@ function talentGuardError(rule, path, context) {
 // Every error in a rotation, as { code, path, message, ...data }
 // (rotationError, #212), in reading order. An empty list means the rotation is
 // valid. See the top of this file for the checks.
-export function validateRotation(rotation, context = {}) {
+export function validateRotation(rotation, context) {
   const top = rotationTopShape(rotation);
   if (top.stop) {
     return top.errors;

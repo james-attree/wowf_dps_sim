@@ -204,6 +204,30 @@ describe("SwingTimer (#195)", () => {
     assert.deepEqual(timesOf(swings, "off"), [12]);
   });
 
+  it("a restart after swings starts a new grid from its own time (#227)", () => {
+    // start() drops the old interval, so the first swing after a restart is
+    // the new anchor: a hand that swung at 0, 2.6, 5.2 and restarts at 7
+    // swings at 7, 9.6, 12.2, not on the old grid (7.8, 10.4).
+    const { scheduler, timers, swings } = setup({ endTime: 20 });
+    timers.off.stop();
+    scheduler.runUntil(6);
+    assert.deepEqual(timesOf(swings, "main"), [0, 2.6, 5.2]);
+    timers.main.stop();
+    timers.main.start(7);
+    scheduler.runUntil(13);
+    assert.deepEqual(timesOf(swings, "main").slice(3), [
+      7,
+      7 + 2.6,
+      7 + 2 * 2.6,
+    ]);
+    assert.deepEqual(timers.main.state, {
+      next: 7 + 3 * 2.6,
+      anchor: 7,
+      interval: 2.6,
+      count: 3,
+    });
+  });
+
   it("refuses a swing interval that is not finite and above 0", () => {
     for (const bad of [0, -1, Number.NaN]) {
       const haste = hasteSource();

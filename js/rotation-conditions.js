@@ -120,7 +120,7 @@ const TYPES = {
   auraActive: {
     params: { aura, active: isTrue },
     test: (c, state) =>
-      Object.hasOwn(state.auras, c.aura) === (c.active ?? true),
+      Object.hasOwn(state.auras, c.aura) === (c.active ?? isTrue.default),
     drift: AT_EVENTS,
   },
   // Seconds left on a self buff. Not up counts as 0.
@@ -134,7 +134,7 @@ const TYPES = {
   debuffActive: {
     params: { debuff, active: isTrue },
     test: (c, state) =>
-      Object.hasOwn(state.debuffs, c.debuff) === (c.active ?? true),
+      Object.hasOwn(state.debuffs, c.debuff) === (c.active ?? isTrue.default),
     drift: AT_EVENTS,
   },
   // Seconds left on a target debuff. Not up counts as 0.
@@ -161,7 +161,7 @@ const TYPES = {
     params: { ability, ready: isTrue },
     test: (c, state) =>
       (!Object.hasOwn(state.cooldowns, c.ability) ||
-        state.cooldowns[c.ability] <= 0) === (c.ready ?? true),
+        state.cooldowns[c.ability] <= 0) === (c.ready ?? isTrue.default),
     // A cooldown ends at an event of its own.
     drift: AT_EVENTS,
   },
@@ -420,8 +420,19 @@ export function conditionWakeAt(condition, state) {
   if (rate === 0) {
     return null;
   }
-  const gap = condition.value - type.read(condition, state);
+  const now = type.read(condition, state);
+  const gap = condition.value - now;
   if (gap === 0) {
+    // At t = 0 the next double up is the smallest one, which moves no value
+    // off its threshold, so the wake-ups would crawl to the hard stop (#234):
+    // wake when the value has moved by |value| * EPSILON, at least an ulp of
+    // it. Only at 0, so later wakes stay as they were.
+    if (state.time === 0) {
+      return Math.max(
+        Number.MIN_VALUE,
+        (Math.abs(now) * Number.EPSILON) / Math.abs(rate),
+      );
+    }
     return nudgeUp(state.time);
   }
   // Moving away from the value: it is never met.

@@ -4,7 +4,7 @@ import { describe, it, mock } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { k } from "../data/constants.js";
-import { runFight } from "../js/fight.js";
+import { createFight, runFight } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 
@@ -402,6 +402,57 @@ describe("runFight inputs", () => {
     // An object without a seed or duration still fails on that field.
     assert.throws(() => runFight({}), RangeError);
     assert.throws(() => runFight([]), RangeError);
+  });
+
+  // #209: one message for every bad duration, none and null included, and
+  // the checks in order: seed, then config, then duration.
+  it("names runFight in every bad-duration message, after the seed and config", () => {
+    const durationError = (got) => (error) =>
+      error instanceof RangeError &&
+      error.message ===
+        `runFight needs a finite duration in seconds, 0 or more. Got ${got}.`;
+    for (const duration of [undefined, null, -1, NaN, Infinity, "5"]) {
+      assert.throws(
+        () => runFight({ seed: 1, duration }),
+        durationError(String(duration)),
+        String(duration),
+      );
+    }
+    assert.throws(() => runFight({ seed: 1 }), durationError("undefined"));
+    const seedError = (error) =>
+      error instanceof RangeError &&
+      error.message === "A seed must be an integer; got 1.5.";
+    const configError = (error) =>
+      error instanceof TypeError &&
+      error.message === "config must be an object, not number.";
+    assert.throws(
+      () => runFight({ seed: 1.5, config: 5, duration: -1 }),
+      seedError,
+    );
+    assert.throws(() => runFight({ seed: 1.5, duration: null }), seedError);
+    assert.throws(
+      () => runFight({ seed: 1, config: 5, duration: -1 }),
+      configError,
+    );
+    assert.throws(
+      () => runFight({ seed: 1, config: 5, duration: null }),
+      configError,
+    );
+    // createFight checks the config before its fight length too.
+    assert.throws(() => createFight(1, 5, { duration: -1 }), configError);
+  });
+
+  it("reads only its own options, not inherited ones (#209)", () => {
+    const options = Object.create({ duration: 1, config: 5 });
+    options.seed = 1;
+    assert.throws(
+      () => runFight(options),
+      (error) =>
+        error instanceof RangeError && error.message.endsWith("Got undefined."),
+    );
+    const inheritedSeed = Object.create({ seed: 1 });
+    inheritedSeed.duration = 1;
+    assert.throws(() => runFight(inheritedSeed), /seed/);
   });
 });
 

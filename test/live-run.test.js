@@ -213,6 +213,24 @@ describe("createLiveRun (#153)", () => {
     assert.throws(() => live.run({ seed: 1, config }), /while paused/);
   });
 
+  it("refuses an option it does not know, an engine too, and starts nothing (#236 QA)", () => {
+    const { live, store, frames } = setup();
+    for (const key of ["engine", "driver", "confg"]) {
+      assert.throws(
+        () =>
+          live.run({ seed: SEED, duration: DURATION, config, [key]: "legacy" }),
+        (error) =>
+          error instanceof RangeError &&
+          error.message ===
+            `live.run has no option "${key}". Options: seed, duration, config.`,
+        key,
+      );
+    }
+    assert.equal(store.get().run.state, "idle");
+    assert.equal(frames.pending, null);
+    assert.equal(live.state, "idle");
+  });
+
   it("defaults the length to batch.duration (300 s)", () => {
     const { live, store } = setup();
     live.run({ seed: SEED, config });
@@ -222,6 +240,22 @@ describe("createLiveRun (#153)", () => {
 });
 
 describe("clear(): an empty picture at 0:00 (#153)", () => {
+  it("refuses an option it does not know, an engine or a duration too (#236 QA)", () => {
+    const { live, store } = setup();
+    const before = store.get();
+    for (const key of ["engine", "duration"]) {
+      assert.throws(
+        () => live.clear({ seed: SEED, config, [key]: 3 }),
+        (error) =>
+          error instanceof RangeError &&
+          error.message ===
+            `live.clear has no option "${key}". Options: seed, config.`,
+        key,
+      );
+    }
+    assert.equal(store.get(), before, "nothing drawn");
+  });
+
   it("draws a fresh fight without running it, only while idle", () => {
     const { live, store, frames, tick } = setup();
     live.clear({ seed: SEED, config });

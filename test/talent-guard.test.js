@@ -246,7 +246,7 @@ describe("talent guard (#188): read from the data, not a list in the validator",
       ["cold-blood", 'the string "cold-blood"'],
       [{}, "an object"],
       [{ 0: "cold-blood", length: 1 }, "an object"],
-      [new Map([["cold-blood", true]]), "an object"],
+      [new Map([["cold-blood", true]]), "a Map"],
       [7, "a number"],
       [true, "a boolean"],
     ];
@@ -296,7 +296,7 @@ describe("talent guard (#188): read from the data, not a list in the validator",
     for (const [given, shown] of [
       [["cold-blood", null], "null"],
       [new Set([1]), "a number"],
-      [[["cold-blood"]], "an object"],
+      [[["cold-blood"]], "an array"],
       [["cold-blood", undefined], "undefined"],
     ]) {
       assert.throws(

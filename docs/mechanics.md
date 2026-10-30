@@ -262,19 +262,19 @@ Each swing calls `Simulation.resolveAttack` with attack type `"weapon"`.
 `Simulation` stores `gcdDuration` from `k("gcd.duration")` (`classic-1.12`,
 on the retune list). The note says this is the rogue GCD and that wowsims
 uses the same length for its minimum. `Simulation.setGcd` sets `gcd` to that
-duration. `Simulation.tickGcd` subtracts the frame and floors at zero. It
-does not compare the remainder with `k("sim.tickEpsilon")`, so a positive
-remainder can stay on `gcd`. The note on `k("sim.tickEpsilon")` lists the
-GCD among the timers that use that tolerance. The countdown does not snap
-that remainder. `Ability.cast` is what compares it.
+duration. The event core keeps the GCD's end as one expiry event at the
+exact time (see Expiry timers) and writes the time left back to `gcd` at
+each event. At its end `gcd` is 0. The note on `k("sim.tickEpsilon")` lists
+the GCD among the timers that use that tolerance: `Ability.cast` compares
+the remainder with it.
 
 `Ability.cast` in `js/ability.js` treats `triggersGcd` as on unless the
 catalogue says the ability does not start the GCD (`startsGcd`, from
 `abilities.offGcd`). An ability that triggers the GCD is ready when `simulation.gcd`
 is at or below `k("sim.tickEpsilon")`. A larger remainder still waits. A
-cast that proceeds calls `setGcd`. The stored remainder can still be
-positive on that frame, so the cast can land about one frame earlier than a
-check for exact zero. An ability that does not trigger the GCD skips that
+cast that proceeds calls `setGcd`. A remainder within the tolerance is
+ready, so a cast can land up to `k("sim.tickEpsilon")` before the exact end
+(on the core the GCD's end is an event, so a decision runs at it). An ability that does not trigger the GCD skips that
 wait, does not start a GCD, and does not clear one that is already running.
 The comment on that branch says a later off-GCD ability would inherit the
 same rule.
@@ -462,10 +462,12 @@ retune list. Its note says expiry always removes that many points, even when
 the cap meant fewer were added, and that the result is clamped so combo
 points do not go below zero.
 
-`Rogue.tickResources` (each pool's `tick`) runs in `Simulation.step` before the rotation, so
-the cast step does not count. When the remaining time is at or below
-`k("sim.tickEpsilon")`, combo points drop by the armed amount, clamped at
-zero, and the timer is cleared. A finisher, or a later cast that actually
+The expiry is a timer on the event core (`js/core/fight.js`, the `points`
+timer kind). When it runs out, the core calls the pool's `tick` with the time
+that was left, so `Resource.tick` decides it as before: with the remaining time
+at or below `k("sim.tickEpsilon")`, combo points drop by the armed amount,
+clamped at zero, and the timer is cleared. The rotation decides after that, at
+the same time. A finisher, or a later cast that actually
 adds a combo point, clears the timer first, so those points are not removed
 on top of being spent or folded into a new builder.
 
@@ -481,8 +483,8 @@ The default rotation tries it on cooldown, after Blade Flurry, as the second
 `onCooldown` id in `k("rotation.priority")`. It does not wait for an energy
 threshold. While the ability is on cooldown, `Ability.cast` returns without
 refreshing the buff. The regen multiplier is under Energy:
-`k("adrenalineRush").regenMultiplier` on the portion of a later frame still
-inside the buff.
+`k("adrenalineRush").regenMultiplier` while the buff is up: the energy
+pool's rate changes at the buff's start and end (`modifiersChanged`).
 
 ## Blade Flurry
 
@@ -538,8 +540,8 @@ missing, or its remaining duration is at or below
 `wowf-designer` and on the retune list, and `k("rotation.priority")` records
 the same decision. A longer remaining duration spends those combo points on
 Eviscerate instead. Blade Flurry and Adrenaline Rush are tried earlier and
-start the GCD, so when one of them is ready it takes this frame and Slice
-and Dice waits until the GCD is clear.
+start the GCD, so when one of them is ready it takes that decision and
+Slice and Dice waits until the GCD is clear.
 
 While the buff is up, its haste modifier gives
 `k("sliceAndDice").haste` to `stackHaste`. The note says that haste
@@ -649,15 +651,14 @@ is positive, the sim stores
 
 with `timeUntilNextTick` set to one interval. That division splits the
 whole-DoT total, including the `k("rupture.apByCP")` term, evenly across
-the ticks. The cast frame does not reduce that timer, because the dot is
-stored after the tick loop. Otherwise no dot is stored.
+the ticks. Otherwise no dot is stored.
 `k("dot.snapshot")` (`classic-1.12`, on the retune list) says Rupture damage
 is fixed when the cast resolves. The stored `tickDamage` is that snapshot.
 The per-tick crit roll is not part of it.
 
-The tick loop in `Simulation.step` runs before the rotation, so a dot cast
-this step does not tick until a later step, and the first tick waits out
-one interval. For each tick still inside the dot's remaining time:
+Each tick is its own event (`js/core/dots.js`, see DoT ticks under
+Event-queue engine): the first is one interval after the cast, and the
+n-th at the cast time plus n intervals. Each tick:
 
 1. Start from `tickDamage`.
 2. For each `dotDamageTaken` effect on the target that names this DoT's id
@@ -684,12 +685,9 @@ one interval. For each tick still inside the dot's remaining time:
 4. Apply armor unless `skipsArmor` skips it (a bleed or a nature tick).
 5. Add the result to the damage total. Tick damage is not floored here.
 
-The time until the next tick is reduced only by the part of the frame still
-inside the dot (`min(dt, duration)`). A tick that falls due in that window
-deals a full tick. The duration itself loses the whole frame, and the dot is
-removed when duration is at or below `k("sim.tickEpsilon")`. A long frame can
-fire several ticks. Each one schedules the next by adding
-`k("rupture.tickInterval")`.
+Every tick deals a full tick. The dot is removed when its time left is at
+or below `k("sim.tickEpsilon")`. A cast DoT has `floor(duration / interval)`
+ticks, the count its damage is split over.
 
 Before its ticks, each DoT's `tickInterval` is checked (#193). One that is not
 a finite number above 0 throws a `RangeError` naming the DoT, for example
@@ -1129,6 +1127,11 @@ call in the wrong state is a plain `Error`: `runUntil` from inside a handler,
 and any call after a hard stop (below). A handler's error goes through with
 `now` at that event's time. An event is frozen, so not even
 `Object.defineProperty` can move one that is already in the queue.
+Cancelling is lazy: a cancelled event keeps its heap slot until it reaches
+the top, where `nextTime` and `runUntil` drop it, so a host that cancels and
+reschedules often (a refresh every few seconds) holds one dead slot per
+refresh until its time passes. `pendingCount` counts live events only, and
+the hard stops count events that ran, not slots (#223).
 
 **Hard stop (#193).** A run throws `SchedulerHardStopError`, naming the event
 (its kind, time, class and `seq`), when more than
@@ -1141,7 +1144,9 @@ carries the event's `order` and the scheduler's `endTime` as fields. The event
 that trips the stop does not run: it stays "pending" and in `pendingCount`.
 After a hard stop the scheduler will not run again, and `runUntil`,
 `schedule` and `reschedule` throw a plain `Error` that names the stop, before
-any check of their arguments; `cancel` still works. Both limits are 10,000 and are
+any check of their arguments; `cancel` still works. `runUntil` from inside
+a handler is refused as such before its time is checked. `stoppedBy` is the
+error that stopped the scheduler, or `null`. Both limits are 10,000 and are
 `engineering` rows (the dev's numbers, not decisions by James, not on the
 retune list), far above a real fight.
 
@@ -1166,7 +1171,10 @@ there only if one of them moved, bringing a value above a cap that fell down
 to it. A read never re-bases, so with no modifier the value is exactly
 `min(cap, e0 + rate * t)`. As on the legacy pool, `onChange(change, before,
 source)` hears a gain or a spend that moved the value; regeneration is not
-reported, and the start value is the definition's.
+reported, and the start value is the definition's. A gain or a spend of 0
+changes nothing and does not re-base. After the scheduler's hard stop, a
+gain, a spend, `spendAll`, `wakeAt`, `resumeWake` and `modifiersChanged`
+throw a plain `Error` naming the stop before they change anything (#225).
 
 **Threshold wake-up (#194).** `pool.wakeAt(amount)` schedules one event of
 kind `"resource-threshold"` (`WAKE_KIND`), in the energy class, with the
@@ -1178,7 +1186,8 @@ at least the amount. The handler always finds the energy, and the time is
 within a few units in the last place of the exact one. Every re-base (a gain,
 a spend, a rate or cap change) cancels the event and schedules it again from
 the new line. While the amount cannot be reached (a rate of 0, or an amount
-above the cap), no event is scheduled until a re-base makes it reachable. The
+above the cap, or a rate so small that the time overflows to `Infinity`), no
+event is scheduled until a re-base makes it reachable. The
 pool keeps one threshold: a second `wakeAt` replaces the first,
 `cancelWake()` drops it, and the event is one-shot. The rotation chooses the
 amount (decision points, #197). The pool counts what it loses to the cap as
@@ -1275,8 +1284,8 @@ already counting down. While the interval stays the same, the next swing is at
 `anchor + n * interval`, so with constant haste the n-th swing is at exactly
 `start + n * speed`. When the interval read at a swing differs from the last
 one, that swing is the new anchor. An interval that is not a finite number
-above 0 (haste of 0 or less) is a `RangeError`; legacy stops swinging
-silently. `swung()` outside that hand's own swing event, just run, is a plain
+above 0 (haste of 0 or less) is a `RangeError`; the removed
+fixed-step engine stopped swinging silently. `swung()` outside that hand's own swing event, just run, is a plain
 `Error`, as is `start` while a swing is pending; `stop()` cancels it.
 `nextSwingTime` and `swingTimer` (seconds to it, the legacy field) read it.
 Over 60 s the swing count is the same at any `runUntil` granularity. Until
@@ -1379,7 +1388,10 @@ Each condition type in `js/rotation-conditions.js` declares its drift:
 fight time (energy and other pools below their cap, `auraRemaining`,
 `debuffRemaining`, `fightTime`, `fightTimeRemaining`, `energyToCap`).
 `conditionWakeAt(condition, state)` follows the number on that line and gives
-the first time it meets the value, or null; a type without a drift is a
+the first time it meets the value, or null. A number at its value now wakes
+just after now, the next double up; at t = 0 that is the smallest double,
+which moves no number, so there the wake is when the number has moved by an
+ulp of itself (#234). A type without a drift is a
 `TypeError` when the module loads. There is no fixed polling. `runOnCore`
 keeps counts on `sim.coreStats` (`events`, `decisions`, `conditionWakes`,
 `energyWakes`, `casts`); two test-only options, `pollEvery` and
@@ -1551,7 +1563,7 @@ message that names the field and the value. A value of the wrong type is a
 - A weapon's `min` and `max` are whole numbers of 0 or more with `min` not above
   `max`, and `speed` is a finite number of `config.minWeaponSpeed` (0.1 s) or
   more. The swing loop does one pass per swing, so a speed of 1e-9 s made
-  `runFight` run for more than 10 s. 0.1 s is above the fixed step, well under
+  `runFight` run for more than 10 s. 0.1 s is well under
   any real weapon, and a 60 s fight with both hands at it takes about 20 ms. The
   `Weapon` constructor enforces the same bound. `config.minWeaponSpeed` is an
   engineering constant, not game data. `type` is one of
@@ -3164,7 +3176,10 @@ Before #234 the runner also took `engine: "legacy"`, which paid whole fixed
 steps out of a carry of the given time (#158); #234 removed it with the
 `engine` option of `SimRunner`, `runFight`, `createFight` and
 `createLiveRun`. The result never recorded the engine, and its shape is
-unchanged.
+unchanged. An `engine` key, like any option a function does not take, is a
+`RangeError` in `runFight`, `SimRunner`, `BatchRunner`, `new Simulation` and
+`createLiveRun`'s `run` and `clear` (#236 QA); `createFight`'s options give
+"Unknown Rogue option".
 
 `createLiveRun`'s `run({ seed, duration, config })` gives the runner one
 `advance` per frame of its own seconds (`FrameClock.seconds`, at most

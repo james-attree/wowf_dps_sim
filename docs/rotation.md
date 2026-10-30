@@ -312,7 +312,8 @@ grants. A host that passes an ability in its `abilities` option (Blade Flurry
 with no build, say) makes it usable in the engine, but the builder, the
 summary and the talent tree still say the rule is skipped. The app passes no
 host grants, so its fights match the preview; a host of your own that grants
-abilities does not.
+abilities does not match the preview: the engine casts rules the preview
+calls skipped.
 
 Two conditions still say whether a talent ability is there:
 
@@ -501,10 +502,13 @@ param of the wrong type, and is written in the message as `NaN` or `Infinity`
 **The context** is which ids exist. `abilities` is every id in the spell data,
 `castable` the abilities the rogue casts, `auras` the self buffs and `debuffs`
 the target debuffs as `{ id: maxStacks }`, and `talentGrantedAbilities` the
-abilities a talent grants, whose rules need a guard (an array or a `Set` of
-id strings; it is copied, `null` is taken as absent, and anything else, such
-as a string or a plain object, is a `TypeError` that says what was given,
-#207). Each defaults to the engine's own (`js/ability-data.js`,
+abilities a talent grants, whose rules need a guard. The four lists are each
+an array or a `Set` of id strings; a list is copied, `null` is taken as
+absent, and anything else, such as a string or a plain object, is a
+`TypeError` that says what was given (#207, #210). `debuffs` given as
+anything but an object (an array, a `Map`, a number) is a `TypeError` too,
+and so is a context that is not an object; a `null` context is none (#210).
+Each defaults to the engine's own (`js/ability-data.js`,
 `js/abilities.js`, `js/auras.js`, and `talentGrantedAbilities` from
 `js/talent-build.js`) and a caller may replace any of them, for a test or for a
 build that has fewer abilities.
@@ -659,10 +663,15 @@ Three more are not pooling traps but rules or checks that do nothing, or never l
 | A rule the same as one above it                           | `rules[i]`               | The one above is tried first under the same conditions, so this one is never reached. Compared after normalising: conditions in any order, keys in any order, and a param written out at its `CONDITION_PARAMS` default (`active: true`, `ready: true`) counts as left out. |
 | An `abilityGranted` check on an ability no talent grants  | `rules[i].conditions[j]` | The fight grants only talent and host abilities, so it is never true and the rule never casts.                                                                                                                                                                              |
 | An `abilityUnlocked` check on an ability no talent grants | `rules[i].conditions[j]` | Only a talent ability can be locked, so it is always true and does nothing. It also counts as always holding for `starves`.                                                                                                                                                 |
+| A condition the same as an earlier one of its rule        | `rules[i].conditions[j]` | It changes nothing. Compared as rules are; a repeated `abilityUnlocked` check on an ability no talent grants gets `unlockedNotTalent` instead.                                                                                                                              |
 
 One cause gives one warning: a rule that repeats an earlier one gets only
 `duplicateRule`, and is left out of every `starves` `below` (a duplicated
-Backstab is not said to starve itself). A rule with a `grantedNotTalent`
+Backstab is not said to starve itself). For `duplicateRule` a condition
+repeated within a rule counts once and an `abilityUnlocked` check on an
+ability no talent grants not at all, since neither changes what the rule
+does: Sinister Strike with no conditions, then Sinister Strike with only
+that check, is one rule twice (#215, #216). A rule with a `grantedNotTalent`
 check never casts, so it gets only that warning (one per such check), holds
 nothing back, and is left out of every `starves` `below` too. A finisher with
 `finisherNoComboPoints` and no on-GCD rule above it that can cast waits at 0
@@ -674,19 +683,21 @@ rotation waits at it instead.
 
 ### Warning codes
 
-| Code                    | Data                         | Path                     | When                                                                                                                                                            |
-| ----------------------- | ---------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `duplicateRule`         | `ability`, `same`            | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                                         |
-| `finisherNoComboPoints` | `ability`, `condition`       | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.                |
-| `cooldownNotChecked`    | `ability`                    | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                              |
-| `grantedNotTalent`      | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition. The rule never casts: its only warnings.                     |
-| `unlockedNotTalent`     | `ability`, `condition`       | `rules[i].conditions[j]` | `abilityUnlocked` on `ability`, which no talent grants, so it is always true; `condition` is `j`. One per such condition.                                       |
-| `starves`               | `ability`, `below`, `reason` | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it that can cast (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. |
+| Code                    | Data                           | Path                     | When                                                                                                                                                            |
+| ----------------------- | ------------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `duplicateRule`         | `ability`, `same`              | `rules[i]`               | The same as the rule at index `same` above it. The rule's only warning.                                                                                         |
+| `finisherNoComboPoints` | `ability`, `condition`         | `rules[i].conditions`    | A finisher with no combo points condition that needs a point. `condition` is the index of its combo points condition that holds at 0, or `null`.                |
+| `cooldownNotChecked`    | `ability`                      | `rules[i].conditions`    | An on-GCD cooldown with no `cooldownReady` for it.                                                                                                              |
+| `grantedNotTalent`      | `ability`, `condition`         | `rules[i].conditions[j]` | `abilityGranted` on `ability`, which no talent grants; `condition` is `j`. One per such condition. The rule never casts: its only warnings.                     |
+| `unlockedNotTalent`     | `ability`, `condition`         | `rules[i].conditions[j]` | `abilityUnlocked` on `ability`, which no talent grants, so it is always true; `condition` is `j`. One per such condition.                                       |
+| `duplicateCondition`    | `ability`, `condition`, `same` | `rules[i].conditions[j]` | The same as condition `same` of the rule, earlier; `condition` is `j`. One per repeat, except an `unlockedNotTalent` one.                                       |
+| `starves`               | `ability`, `below`, `reason`   | `rules[i]`               | Its conditions always hold. `below` is the index of every on-GCD rule below it that can cast (frozen, rule order); `reason` is `noConditions` or `alwaysHolds`. |
 
 `ability` is always the rule's action, except for `grantedNotTalent` and
 `unlockedNotTalent`, where it is the condition's. Per rule the order is
 `finisherNoComboPoints`, `cooldownNotChecked`, then `grantedNotTalent` and
-`unlockedNotTalent` in condition order, then `starves`.
+`unlockedNotTalent` in condition order, then `duplicateCondition` in
+condition order, then `starves`.
 
 The default rotation, every preset and every example below give no warnings
 (test/rotation-warnings.test.js). A message names the ability as the
@@ -704,8 +715,14 @@ rules[0].conditions: Eviscerate (eviscerate) is a finisher, but its rule has no 
 rules[0]: Sinister Strike (sinister-strike) starts the global cooldown and its rule has no conditions, so it is cast or waited for whenever the global cooldown is clear. The 2 rules below it for Backstab (backstab) and Eviscerate (eviscerate) never cast. Give it conditions or move it below them.
 rules[3]: Backstab (backstab) is never reached: a rule above it casts it under the same conditions. Delete this one.
 rules[1].conditions[0]: Sinister Strike (sinister-strike) isn't granted by a talent, so 'is granted' is never true here and this rule never casts.
-rules[0].conditions[1]: Eviscerate (eviscerate) doesn't need a talent, so 'is unlocked' is always true and does nothing.
+rules[0].conditions[1]: Eviscerate (eviscerate) doesn't need a talent, so 'is not locked' is always true and does nothing.
+rules[2].conditions[1]: This condition is the same as an earlier one in the rule for Sinister Strike (sinister-strike), so it changes nothing. Delete it.
 ```
+
+`unlockedNotTalent` is about abilities no talent grants. A talent ability's
+`abilityUnlocked` check is not warned for, though with no build selected it
+is true too: since #199 no build is untalented, so the engine passes over
+that rule anyway (see "Granted and unlocked: no build selected").
 
 The warnings do not know the fight: an unconditional Backstab rule is warned
 for even though, without a dagger main hand, the interpreter passes it over.

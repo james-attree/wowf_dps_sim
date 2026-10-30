@@ -628,7 +628,11 @@ describe("rotation error codes (#212): import", () => {
       rule("eviscerate"),
       SS,
       SS,
-      rule("backstab"),
+      rule(
+        "backstab",
+        { type: "auraActive", aura: "slice-and-dice" },
+        { type: "auraActive", aura: "slice-and-dice" },
+      ),
     );
     const result = importRotation(exportRotation(trap));
     assert.equal(result.ok, true);
