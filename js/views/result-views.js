@@ -197,9 +197,11 @@ export function createResultViewsView(doc, store, actions) {
       if (panel !== null) {
         panel.hidden = shown !== "average";
       }
+      // The shown view's link is the current page, as the area nav's is
+      // (#245, Fran's #254 check): each view has its own route.
       for (const link of links) {
         if (link.getAttribute("data-result-view") === shown) {
-          link.setAttribute("aria-current", "true");
+          link.setAttribute("aria-current", "page");
         } else {
           link.removeAttribute("aria-current");
         }

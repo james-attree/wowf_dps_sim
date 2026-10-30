@@ -3032,7 +3032,7 @@ th[aria-sort="ascending"] {
   text-decoration: none;
 }
 
-.result-switch-link[aria-current="true"] {
+.result-switch-link[aria-current="page"] {
   background: var(--accent);
   color: #1b160d;
 }
