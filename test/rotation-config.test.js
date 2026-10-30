@@ -4,6 +4,7 @@ import { createFight, runFight } from "../js/fight.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
+import { Simulation } from "../js/simulation.js";
 
 // R3 (#140): SimConfig.rotation. The default is the placeholder Combat
 // rotation; a rotation in the config is what the fight casts, and the result
@@ -73,28 +74,45 @@ describe("SimConfig.rotation", () => {
   });
 
   it("is what a rotation says: a finisher first pools for the energy", () => {
-    const result = runFight({
-      seed: 6,
-      duration: 30,
-      config: {
-        rotation: {
-          schemaVersion: 1,
-          name: "Finisher or wait",
-          rules: [
-            {
-              action: "eviscerate",
-              conditions: [{ type: "comboPoints", op: ">=", value: 1 }],
-            },
-            { action: "sinister-strike", conditions: [] },
-          ],
+    const fight = () =>
+      runFight({
+        seed: 6,
+        duration: 30,
+        config: {
+          rotation: {
+            schemaVersion: 1,
+            name: "Finisher or wait",
+            rules: [
+              {
+                action: "eviscerate",
+                conditions: [{ type: "comboPoints", op: ">=", value: 1 }],
+              },
+              { action: "sinister-strike", conditions: [] },
+            ],
+          },
         },
-      },
-    });
-    const counts = casts(result);
-    assert.ok(counts.Eviscerate > 3);
-    // Each Eviscerate spends the point a Sinister Strike before it built.
-    assert.ok(counts["Sinister Strike"] >= counts.Eviscerate);
-    assert.equal(counts["Blade Flurry"], undefined);
+      });
+    // Each Eviscerate that lands spends the point a landed Sinister Strike
+    // built. A missed or dodged Eviscerate keeps its point, so the next one
+    // can follow with no Sinister Strike between: compare landed counts, not
+    // casts. Checked on both engines (it holds on seeds 1-200 on each).
+    const landed = (stats) =>
+      stats.casts - stats.misses - stats.dodges - stats.parries;
+    for (const engine of ["events", "legacy"]) {
+      const previous = Simulation.useEngine(engine);
+      try {
+        const result = fight();
+        assert.ok(casts(result).Eviscerate > 3, engine);
+        assert.ok(
+          landed(result.abilities.Eviscerate) <=
+            landed(result.abilities["Sinister Strike"]),
+          engine,
+        );
+        assert.equal(casts(result)["Blade Flurry"], undefined, engine);
+      } finally {
+        Simulation.useEngine(previous);
+      }
+    }
   });
 
   it("is the same on the SimRunner as on runFight", () => {
