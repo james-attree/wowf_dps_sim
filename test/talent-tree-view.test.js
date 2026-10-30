@@ -395,7 +395,7 @@ describe("talent tree view (#204)", () => {
     tile("assassination.lethality").focus();
     const detail = $("talents-detail");
     assert.equal(
-      detail.find((node) => node.tagName === "H3").textContent,
+      detail.find((node) => node.tagName === "H2").textContent,
       "Lethality",
     );
     const add = detail.find((node) => node.getAttribute("data-step") === "add");

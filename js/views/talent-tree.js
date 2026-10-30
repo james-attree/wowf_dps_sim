@@ -157,7 +157,7 @@ export function createTalentTreeView(
     for (const tree of view.trees) {
       const count = make("span", { class: "talent-tree-points" });
       const head = make(
-        "h3",
+        "h2",
         { class: "talent-tree-head", id: `talents-tree-h-${tree.id}` },
         [icon(tree.iconUrl, 24), make("span", {}, [tree.name]), count],
       );
@@ -479,7 +479,7 @@ export function createTalentTreeView(
     const focused = doc.activeElement?.getAttribute?.("data-step") ?? null;
     if (data === null) {
       detail.replaceChildren(
-        make("h3", { id: "talents-detail-heading", class: "visually-hidden" }, [
+        make("h2", { id: "talents-detail-heading", class: "visually-hidden" }, [
           "Talent details",
         ]),
         make("p", { class: "talent-detail-empty" }, [
@@ -512,7 +512,7 @@ export function createTalentTreeView(
       make("div", { class: "talent-detail-head" }, [
         icon(data.iconUrl, 40),
         make("div", {}, [
-          make("h3", { id: "talents-detail-heading" }, [data.name]),
+          make("h2", { id: "talents-detail-heading" }, [data.name]),
           make("p", { class: "talent-detail-sub" }, [data.sub]),
         ]),
         make("div", { class: "talent-stepper" }, [
@@ -627,7 +627,7 @@ export function createTalentTreeView(
         ]),
       );
     }
-    const cover = [make("h3", {}, ["What the sim covers"])];
+    const cover = [make("h2", {}, ["What the sim covers"])];
     if (coverage.plain !== null) {
       cover.push(make("p", {}, [coverage.plain]));
     }
@@ -649,12 +649,12 @@ export function createTalentTreeView(
     }
     effects.replaceChildren(
       make("div", { class: "effects-block" }, [
-        make("h3", {}, ["Character stats"]),
+        make("h2", {}, ["Character stats"]),
         make("p", {}, [stats.text]),
         make("p", { class: "effects-sheet" }, [stats.sheet]),
       ]),
       make("div", { class: "effects-block" }, [
-        make("h3", {}, [rotation.title]),
+        make("h2", {}, [rotation.title]),
         lines,
         rotation.note === null
           ? null
