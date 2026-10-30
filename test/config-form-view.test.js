@@ -791,3 +791,37 @@ describe("index.html's form", async () => {
     ]);
   });
 });
+
+describe("a field typed in is checked on blur (#247)", () => {
+  it("Backspace then the same digit: no change fires, and blur checks it", () => {
+    const { $, commit, store } = page();
+    commit("weapons.mainHand.min", "50");
+    commit("weapons.mainHand.max", "40");
+    const min = $("cfg-weapons-mainHand-min");
+    const max = $("cfg-weapons-mainHand-max");
+    assert.equal(max.getAttribute("aria-invalid"), "true");
+    min.value = "5";
+    min.fire("input");
+    assert.equal(max.getAttribute("aria-invalid"), null, "typing cleared it");
+    min.value = "50";
+    min.fire("input");
+    assert.equal($("cfg-status-ok").hidden, false, "no error while typing");
+    min.fire("blur");
+    assert.equal(max.getAttribute("aria-invalid"), "true", "checked again");
+    assert.equal(min.getAttribute("aria-invalid"), "true", "the Min marked");
+    assert.equal(
+      blockedCount({ ...store.get(), run: { mode: "live", errors: {} } }),
+      1,
+    );
+    assert.deepEqual(store.get().form.edited, []);
+  });
+
+  it("blur after a change, or with nothing typed, writes nothing", () => {
+    const { $, commit, store } = page();
+    commit("weapons.mainHand.min", "30");
+    const before = store.get().form;
+    $("cfg-weapons-mainHand-min").fire("blur");
+    $("cfg-weapons-mainHand-max").fire("blur");
+    assert.equal(store.get().form, before);
+  });
+});

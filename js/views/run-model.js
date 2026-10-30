@@ -164,6 +164,16 @@ export function formErrorCount(form) {
     .length;
 }
 
+// The form error to fix first (#247): the first with a message, the one the
+// form's footer lists first. For Min above Max that is the Max, which holds
+// the pair's message; the Min is only marked. Null when there is none.
+export function firstFormError(form) {
+  const found = Object.entries(form?.errors ?? {}).find(
+    ([, message]) => message !== null,
+  );
+  return found === undefined ? null : found[0];
+}
+
 // The talent tree's build over its level's cap (#204): one setting to fix.
 export const talentErrorCount = (state) =>
   typeof state.talents?.error === "string" ? 1 : 0;

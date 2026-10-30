@@ -10,6 +10,7 @@ import { summarizeRule } from "./rotation-summary.js";
 import { validateRotation } from "./rotation-validator.js";
 import { rotationWarnings, sameRuleKey } from "./rotation-warnings.js";
 import { defaultConfig, normalizeConfig } from "./sim-config.js";
+import { formErrorCount } from "./views/run-model.js";
 
 // The stats form's model (Phase 3, #151, roadmap task U2): everything the
 // "Fight setup" form does except drawing it. No DOM, no clock, so it runs and
@@ -395,6 +396,7 @@ export function formFromConfig(config, revision = 0) {
   return {
     values: formValues(config),
     errors: {},
+    edited: [],
     rotationChoice,
     imported,
     drafts: {},
@@ -430,9 +432,15 @@ export function configFromForm(form, base) {
 // form has errors, the rotation builder's draft has errors (#217, D17: config
 // holds its last valid version, which must not run as if it were the edit),
 // or the talent tree's build is over its level's cap (#204,
-// state.talents.error; Run is disabled then).
+// state.talents.error; Run is disabled then). The form's count is
+// formErrorCount, the one Run's blocked check uses (#247). A field typed in
+// but not yet checked (form.edited) is not in the config either, so that is
+// null too: a run never uses a config the fields do not show (#247).
 export function nextRunConfig(state) {
-  if (Object.keys(state.form?.errors ?? {}).length > 0) {
+  if (formErrorCount(state.form) > 0) {
+    return null;
+  }
+  if ((state.form?.edited?.length ?? 0) > 0) {
     return null;
   }
   if ((state.form?.rotationErrors?.length ?? 0) > 0) {
@@ -514,8 +522,14 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
 
   // Write `next` as the form; when it has no errors, write the config it
   // describes too. A config normalizeConfig refuses is a FORM_ERROR instead.
+  // A field typed in since the last commit (next.edited) is checked again
+  // here, whatever its value (#247: typing back the value it had on focus
+  // fires no change, and typing cleared its error).
   function commit(next) {
-    const errors = { ...next.errors };
+    const errors =
+      (next.edited?.length ?? 0) > 0
+        ? validateValues(next.values)
+        : { ...next.errors };
     delete errors[FORM_ERROR];
     let config = null;
     if (Object.keys(errors).length === 0) {
@@ -537,6 +551,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
         form: {
           ...next,
           errors,
+          edited: [],
           rotationErrors: check.errors,
           rotationWarnings: check.warnings,
           exportOff:
@@ -598,6 +613,9 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       const values = { ...form().values, [path]: value };
       const errors = { ...form().errors };
       const now = validateValues(values);
+      const min = path.endsWith(".min") ? path : pairedMin(path);
+      // Max's error is the pair's while its Min is marked (a null message).
+      const paired = min !== null && errors[min] === null;
       for (const key of [path, pairedMin(path)]) {
         if (key !== null && key in errors && !(key in now)) {
           delete errors[key];
@@ -615,7 +633,33 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
           delete errors[path];
         }
       }
-      store.set({ form: { ...form(), values, errors, canUndo: false } });
+      // The pair's error goes once the pair check passes, whichever of the
+      // two is typed in, even when the typed field is now invalid on its own
+      // (#247, Fran's flow J: 4.5 in Max kept "at least the min damage" until
+      // blur, where 1.5 in Min dropped it). Its own message waits for change.
+      if (paired && now[min] !== null) {
+        delete errors[min];
+        delete errors[min.replace(/\.min$/, ".max")];
+      }
+      const edited = form().edited ?? [];
+      store.set({
+        form: {
+          ...form(),
+          values,
+          errors,
+          edited: edited.includes(path) ? edited : [...edited, path],
+          canUndo: false,
+        },
+      });
+    },
+    // Check the fields typed in since the last commit (#247): the form view
+    // calls it when an edited field loses focus, and the Run bar before Run.
+    // Nothing typed, nothing to do.
+    commitEdits() {
+      if ((form().edited?.length ?? 0) > 0) {
+        forget();
+        commit(form());
+      }
     },
     // A committed edit: check every field, and write the config when all pass.
     change(path, raw) {

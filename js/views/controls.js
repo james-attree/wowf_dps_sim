@@ -1,9 +1,12 @@
 import { NARROW_QUERY } from "./breakpoints.js";
+import { fieldId } from "./config-form.js";
 import {
   announceKey,
+  blocked,
   controlsModel,
   errorsText,
   fieldErrors,
+  firstFormError,
   focusTarget,
   formErrorCount,
   rotationErrorCount,
@@ -260,11 +263,24 @@ export function createControlsView(doc, store, actions = {}) {
     open = !open;
     render(store.get());
   });
-  errorsLink.addEventListener("click", (event) => {
-    event?.preventDefault?.();
+  // The form field the footer lists first (#247, Fran's nit 4: for Min
+  // above Max the link went to Min while the footer named the Max), else
+  // the form's first invalid field.
+  function firstFormField() {
+    const path = firstFormError(store.get().form);
+    const named = path === null ? null : doc.querySelector(`#${fieldId(path)}`);
+    if (named?.getAttribute?.("aria-invalid") === "true") {
+      return named;
+    }
+    return doc.querySelector('#config-form [aria-invalid="true"]');
+  }
+
+  // Focus the first setting to fix: what the "Fix" link and a blocked Run
+  // (#247) do.
+  function fixFirst() {
     const [first] = fieldErrors(store.get().run);
     if (first === undefined) {
-      const field = doc.querySelector('#config-form [aria-invalid="true"]');
+      const field = firstFormField();
       if (field !== null) {
         field.focus?.();
         return;
@@ -290,8 +306,35 @@ export function createControlsView(doc, store, actions = {}) {
     open = true;
     render(store.get());
     inputs[first].focus?.();
+  }
+  errorsLink.addEventListener("click", (event) => {
+    event?.preventDefault?.();
+    fixFirst();
   });
-  buttons.run.addEventListener("click", () => call("run"));
+
+  // Run checks the fields typed in first (#247): a run never uses a config
+  // the fields do not show. Pressing Run blurs the field, which checks it
+  // too, and an error then disables Run before the click; so the press
+  // checks, and when that blocks Run it keeps focus off the button, which
+  // would drop it to the page, and sends it to the first setting to fix.
+  buttons.run.addEventListener("mousedown", (event) => {
+    if (buttons.run.disabled) {
+      return;
+    }
+    call("commitEdits");
+    if (blocked(store.get())) {
+      event?.preventDefault?.();
+      fixFirst();
+    }
+  });
+  buttons.run.addEventListener("click", () => {
+    call("commitEdits");
+    if (blocked(store.get())) {
+      fixFirst();
+      return;
+    }
+    call("run");
+  });
   buttons.pause.addEventListener("click", () => {
     const { run } = store.get();
     if (run.mode !== "live") {
