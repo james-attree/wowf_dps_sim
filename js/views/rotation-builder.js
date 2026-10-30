@@ -273,6 +273,10 @@ export function createRotationBuilderView(doc, store, actions) {
   // A message's id, from its key ("r3.msg.0" is rb-r3-msg-0): its field
   // points at it, so the warning is said there (#244).
   const msgId = (message) => `rb-${message.key.replaceAll(".", "-")}`;
+  // Its text alone, which the field's description names (#245, Fran's #256
+  // N1): not the "⚠ Check" tag or the fix button's name, which is the next
+  // tab stop anyway.
+  const msgTextId = (message) => `${msgId(message)}-text`;
 
   function messageNode(message) {
     return h(
@@ -286,7 +290,7 @@ export function createRotationBuilderView(doc, store, actions) {
       },
       h("span", { class: "msg-kind" }, message.kindText),
       " ",
-      message.text,
+      h("span", { id: msgTextId(message), class: "msg-text" }, message.text),
       message.fix === null
         ? null
         : h(
@@ -418,7 +422,7 @@ export function createRotationBuilderView(doc, store, actions) {
                   [
                     condition.note === null ? null : noteId,
                     condition.typeInvalid ? errIds.join(" ") : null,
-                    ...(condition.messages ?? []).map(msgId),
+                    ...(condition.messages ?? []).map(msgTextId),
                   ]
                     .filter((part) => part !== null && part !== "")
                     .join(" ") || null,
