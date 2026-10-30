@@ -262,19 +262,19 @@ Each swing calls `Simulation.resolveAttack` with attack type `"weapon"`.
 `Simulation` stores `gcdDuration` from `k("gcd.duration")` (`classic-1.12`,
 on the retune list). The note says this is the rogue GCD and that wowsims
 uses the same length for its minimum. `Simulation.setGcd` sets `gcd` to that
-duration. `Simulation.tickGcd` subtracts the frame and floors at zero. It
-does not compare the remainder with `k("sim.tickEpsilon")`, so a positive
-remainder can stay on `gcd`. The note on `k("sim.tickEpsilon")` lists the
-GCD among the timers that use that tolerance. The countdown does not snap
-that remainder. `Ability.cast` is what compares it.
+duration. The event core keeps the GCD's end as one expiry event at the
+exact time (see Expiry timers) and writes the time left back to `gcd` at
+each event. At its end `gcd` is 0. The note on `k("sim.tickEpsilon")` lists
+the GCD among the timers that use that tolerance: `Ability.cast` compares
+the remainder with it.
 
 `Ability.cast` in `js/ability.js` treats `triggersGcd` as on unless the
 catalogue says the ability does not start the GCD (`startsGcd`, from
 `abilities.offGcd`). An ability that triggers the GCD is ready when `simulation.gcd`
 is at or below `k("sim.tickEpsilon")`. A larger remainder still waits. A
-cast that proceeds calls `setGcd`. The stored remainder can still be
-positive on that frame, so the cast can land about one frame earlier than a
-check for exact zero. An ability that does not trigger the GCD skips that
+cast that proceeds calls `setGcd`. A remainder within the tolerance is
+ready, so a cast can land up to `k("sim.tickEpsilon")` before the exact end
+(on the core the GCD's end is an event, so a decision runs at it). An ability that does not trigger the GCD skips that
 wait, does not start a GCD, and does not clear one that is already running.
 The comment on that branch says a later off-GCD ability would inherit the
 same rule.
@@ -481,8 +481,8 @@ The default rotation tries it on cooldown, after Blade Flurry, as the second
 `onCooldown` id in `k("rotation.priority")`. It does not wait for an energy
 threshold. While the ability is on cooldown, `Ability.cast` returns without
 refreshing the buff. The regen multiplier is under Energy:
-`k("adrenalineRush").regenMultiplier` on the portion of a later frame still
-inside the buff.
+`k("adrenalineRush").regenMultiplier` while the buff is up: the energy
+pool's rate changes at the buff's start and end (`modifiersChanged`).
 
 ## Blade Flurry
 
@@ -538,8 +538,8 @@ missing, or its remaining duration is at or below
 `wowf-designer` and on the retune list, and `k("rotation.priority")` records
 the same decision. A longer remaining duration spends those combo points on
 Eviscerate instead. Blade Flurry and Adrenaline Rush are tried earlier and
-start the GCD, so when one of them is ready it takes this frame and Slice
-and Dice waits until the GCD is clear.
+start the GCD, so when one of them is ready it takes that decision and
+Slice and Dice waits until the GCD is clear.
 
 While the buff is up, its haste modifier gives
 `k("sliceAndDice").haste` to `stackHaste`. The note says that haste
@@ -649,15 +649,14 @@ is positive, the sim stores
 
 with `timeUntilNextTick` set to one interval. That division splits the
 whole-DoT total, including the `k("rupture.apByCP")` term, evenly across
-the ticks. The cast frame does not reduce that timer, because the dot is
-stored after the tick loop. Otherwise no dot is stored.
+the ticks. Otherwise no dot is stored.
 `k("dot.snapshot")` (`classic-1.12`, on the retune list) says Rupture damage
 is fixed when the cast resolves. The stored `tickDamage` is that snapshot.
 The per-tick crit roll is not part of it.
 
-The tick loop in `Simulation.step` runs before the rotation, so a dot cast
-this step does not tick until a later step, and the first tick waits out
-one interval. For each tick still inside the dot's remaining time:
+Each tick is its own event (`js/core/dots.js`, see DoT ticks under
+Event-queue engine): the first is one interval after the cast, and the
+n-th at the cast time plus n intervals. Each tick:
 
 1. Start from `tickDamage`.
 2. For each `dotDamageTaken` effect on the target that names this DoT's id
@@ -684,12 +683,9 @@ one interval. For each tick still inside the dot's remaining time:
 4. Apply armor unless `skipsArmor` skips it (a bleed or a nature tick).
 5. Add the result to the damage total. Tick damage is not floored here.
 
-The time until the next tick is reduced only by the part of the frame still
-inside the dot (`min(dt, duration)`). A tick that falls due in that window
-deals a full tick. The duration itself loses the whole frame, and the dot is
-removed when duration is at or below `k("sim.tickEpsilon")`. A long frame can
-fire several ticks. Each one schedules the next by adding
-`k("rupture.tickInterval")`.
+Every tick deals a full tick. The dot is removed when its time left is at
+or below `k("sim.tickEpsilon")`. A cast DoT has `floor(duration / interval)`
+ticks, the count its damage is split over.
 
 Before its ticks, each DoT's `tickInterval` is checked (#193). One that is not
 a finite number above 0 throws a `RangeError` naming the DoT, for example
@@ -1275,8 +1271,8 @@ already counting down. While the interval stays the same, the next swing is at
 `anchor + n * interval`, so with constant haste the n-th swing is at exactly
 `start + n * speed`. When the interval read at a swing differs from the last
 one, that swing is the new anchor. An interval that is not a finite number
-above 0 (haste of 0 or less) is a `RangeError`; legacy stops swinging
-silently. `swung()` outside that hand's own swing event, just run, is a plain
+above 0 (haste of 0 or less) is a `RangeError`; the removed
+fixed-step engine stopped swinging silently. `swung()` outside that hand's own swing event, just run, is a plain
 `Error`, as is `start` while a swing is pending; `stop()` cancels it.
 `nextSwingTime` and `swingTimer` (seconds to it, the legacy field) read it.
 Over 60 s the swing count is the same at any `runUntil` granularity. Until

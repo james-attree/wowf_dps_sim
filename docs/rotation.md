@@ -312,7 +312,8 @@ grants. A host that passes an ability in its `abilities` option (Blade Flurry
 with no build, say) makes it usable in the engine, but the builder, the
 summary and the talent tree still say the rule is skipped. The app passes no
 host grants, so its fights match the preview; a host of your own that grants
-abilities does not.
+abilities does not match the preview: the engine casts rules the preview
+calls skipped.
 
 Two conditions still say whether a talent ability is there:
 

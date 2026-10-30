@@ -26,8 +26,10 @@ export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 // maximum, prerequisites, row gating; an illegal one is a RangeError that
 // names the talent ids) and its modifiers,
 // procs and granted abilities are the rogue's, so runFight and the live page
-// run a talented fight from the SimConfig alone. The rotation casts Blade
-// Flurry and Adrenaline Rush only when the build has the talent. No ranks is no
+// run a talented fight from the SimConfig alone. The rotation casts a
+// talent's ability (Cold Blood, Blade Flurry, Adrenaline Rush, Ghostly Strike,
+// Premeditation, Hemorrhage; see talentGrantedAbilities in
+// js/talent-build.js) only when the build has the talent. No ranks is no
 // build, and no build is untalented (#199): the rotation casts no talent
 // ability unless the host grants it (options.abilities). The returned `build` is what was applied
 // (js/talent-build.js applyBuild), including `unmapped`, the talents of the
