@@ -498,7 +498,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(status.ok, true);
     assert.equal(
       status.message,
-      'Imported "Trap" with 2 warnings. It still runs; see the warnings below.',
+      'Imported "Trap" with 2 warnings. It still runs; see What to check above.',
     );
     assert.equal(status.detail, "");
     assert.equal(
@@ -542,11 +542,11 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(importedText("A", 0), 'Imported "A".');
     assert.equal(
       importedText("A", 1),
-      'Imported "A" with 1 warning. It still runs; see the warnings below.',
+      'Imported "A" with 1 warning. It still runs; see What to check above.',
     );
     assert.equal(
       importedText("A", 3),
-      'Imported "A" with 3 warnings. It still runs; see the warnings below.',
+      'Imported "A" with 3 warnings. It still runs; see What to check above.',
     );
   });
 

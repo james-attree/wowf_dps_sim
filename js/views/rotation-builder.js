@@ -1002,7 +1002,12 @@ export function createRotationBuilderView(doc, store, actions) {
   // history.back(); the list's is how the builder is closed (Fran's #251
   // check), back to the "Edit rotation…" link that opened it.
   function drawHeading(screen) {
-    if (heading !== null) {
+    // A page without child lists (the unit tests' stand-in) gets the text.
+    const patchable = (node) =>
+      typeof node?.childNodes?.[Symbol.iterator] === "function";
+    if (heading !== null && !patchable(heading)) {
+      heading.textContent = `${screen.heading.hidden ?? ""}${screen.heading.text}`;
+    } else if (heading !== null) {
       const part = screen.heading;
       patchChildren(
         doc,
@@ -1035,17 +1040,21 @@ export function createRotationBuilderView(doc, store, actions) {
       } else {
         back.setAttribute("data-return-focus", screen.back.focus);
       }
-      patchChildren(
-        doc,
-        back,
-        h(
-          "x",
-          {},
-          h("span", { key: "mark", "aria-hidden": "true" }, "‹ "),
-          h("span", { key: "hidden", class: "visually-hidden" }, "Back to "),
-          h("span", { key: "text" }, screen.back.text),
-        ).children,
-      );
+      if (!patchable(back)) {
+        back.textContent = `‹ ${screen.back.text}`;
+      } else {
+        patchChildren(
+          doc,
+          back,
+          h(
+            "x",
+            {},
+            h("span", { key: "mark", "aria-hidden": "true" }, "‹ "),
+            h("span", { key: "hidden", class: "visually-hidden" }, "Back to "),
+            h("span", { key: "text" }, screen.back.text),
+          ).children,
+        );
+      }
     }
     if (share !== null) {
       share.hidden = !view.open || screen.kind !== "share";

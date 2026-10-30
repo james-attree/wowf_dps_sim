@@ -31,8 +31,20 @@ describe("routes", () => {
     // An area's name in any case (Fran's QA of #251): #Fight is #fight.
     assert.deepEqual(parseRoute("#Fight"), top("fight"));
     assert.deepEqual(parseRoute("#RESULTS"), top("results"));
-    // No sub-screens yet (UX5, UX6): a sub is dropped.
+    // Character has no sub-screens yet (UX6): a sub is dropped.
     assert.deepEqual(parseRoute("#character/stats"), top("character"));
+    // Rotation's (#243, UX5): a rule's screen and Export or import.
+    assert.deepEqual(parseRoute("#rotation/rule/2"), {
+      area: "rotation",
+      sub: "rule",
+      param: "2",
+    });
+    assert.deepEqual(parseRoute("#rotation/share"), {
+      area: "rotation",
+      sub: "share",
+      param: null,
+    });
+    assert.deepEqual(parseRoute("#rotation/other"), top("rotation"));
   });
 
   it("parse a sub and its param when the area has it", () => {

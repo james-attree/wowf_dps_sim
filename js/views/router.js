@@ -274,10 +274,12 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     // rotation…" link that opened it (#243, Fran's #251 check), and the Run
     // bar's warnings link to the h1 the warnings are under.
     const active = doc.activeElement;
-    const returnTo =
+    const returnId =
       direction === "forward"
-        ? doc.getElementById(active?.getAttribute?.("data-return-focus") ?? "")
+        ? (active?.getAttribute?.("data-return-focus") ?? null)
         : null;
+    const returnTo =
+      returnId === null ? null : (doc.getElementById(returnId) ?? null);
     // A view's switch in the same area (Results' Average and Live, #242)
     // keeps the focus on the switch, which stays shown.
     const within =

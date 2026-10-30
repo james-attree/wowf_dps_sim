@@ -10,9 +10,21 @@ import { WIDE_QUERY } from "./breakpoints.js";
 // the area (#240, UX2): both are drawn before the area, and the column stays
 // before it in the page, where index.html has it.
 export function placeRunColumn(doc, area) {
+  // A page that can't move nodes (the unit tests' stand-ins) keeps its order.
+  if (
+    typeof doc.getElementById !== "function" ||
+    typeof doc.querySelectorAll !== "function"
+  ) {
+    return;
+  }
   const column = doc.getElementById("run-column");
   const shells = [...doc.querySelectorAll("[data-area]")];
-  if (column === null || shells.length === 0) {
+  if (
+    column == null ||
+    shells.length === 0 ||
+    typeof column.after !== "function" ||
+    typeof column.before !== "function"
+  ) {
     return;
   }
   const win = doc.defaultView;
