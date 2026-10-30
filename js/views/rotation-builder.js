@@ -270,11 +270,16 @@ export function createRotationBuilderView(doc, store, actions) {
 
   const rid = (uid, part) => `rb-${uid}-${part}`;
 
+  // A message's id, from its key ("r3.msg.0" is rb-r3-msg-0): its field
+  // points at it, so the warning is said there (#244).
+  const msgId = (message) => `rb-${message.key.replaceAll(".", "-")}`;
+
   function messageNode(message) {
     return h(
       "p",
       {
         key: message.key,
+        id: msgId(message),
         "data-key": message.key,
         class: `rule-msg is-${message.kind}`,
         tabindex: "-1",
@@ -413,6 +418,7 @@ export function createRotationBuilderView(doc, store, actions) {
                   [
                     condition.note === null ? null : noteId,
                     condition.typeInvalid ? errIds.join(" ") : null,
+                    ...(condition.messages ?? []).map(msgId),
                   ]
                     .filter((part) => part !== null && part !== "")
                     .join(" ") || null,
