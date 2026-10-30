@@ -3077,14 +3077,14 @@ and its level. The build label (`js/build-label.js`) adds the points out of the
 cap to every build, "Combat 0/5/0 · 5/51", and the level below 60, "Combat
 0/31/0 · level 40 · 31/31" (#204, Fran's U6 spec D17).
 
-**Gating the granted abilities.** With a selected build, an ability a talent
-grants (`talentGrantedAbilities`, read from the `ability` fields of
-`data/talent-effects.js`: Cold Blood, Blade Flurry, Adrenaline Rush) is cast
-only when the build has that talent. Without a build the default rotation
-casts Blade Flurry and Adrenaline Rush (never Cold Blood), as it did before. A
-host that passes the ability in `options.abilities` still grants it to a build
-that lacks the talent. `Rogue.lockedByBuild(ability)` is the test the rotation
-makes.
+**Gating the granted abilities.** An ability a talent grants
+(`talentGrantedAbilities`, read from the `ability` fields of
+`data/talent-effects.js`: Cold Blood, Blade Flurry, Adrenaline Rush, Ghostly
+Strike, Premeditation and Hemorrhage) is cast only when the build has that
+talent. With no talents picked the fight is untalented (#199): the rotation
+skips every ability a talent grants. A host that passes the ability in
+`options.abilities` still grants it to a build that lacks the talent.
+`Rogue.lockedByBuild(ability)` is the test the rotation makes.
 
 **Weapons.** The build never changes `config.weapons`: the weapons are the
 character's and the build only reads them. Hack and Slash's crit bonus is
