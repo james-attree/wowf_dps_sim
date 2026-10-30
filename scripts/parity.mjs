@@ -63,31 +63,6 @@ export function deepFreeze(value) {
   return value;
 }
 
-// Scripted golden cases whose script the harness leaves off, by golden case
-// name: the name the parity case runs under, which says it has no script, and
-// the reason the report prints. Such a case runs its config at its duration,
-// with the engine's own rotation.
-//
-// scripted-finishers-seed-68-50s: its script (scripts/scripted-fight.mjs)
-// hooks Rogue.prototype.castRotation, which both engines call since #197, so
-// either engine can run it on its own seed. But it was written for seed 68: on
-// seeds 1 to 200 it runs to its 50 s end with casts still waiting on 79 of
-// them on legacy and 70 on events (#199), and runScriptedFight throws for
-// those. So it cannot be averaged over seeds 1 to 200. Before the legacy engine is
-// deleted (#200), this case needs a script that finishes on every seed from 1
-// to 200, or James agrees to retire it from parity. Its golden fixture (seed
-// 68) is unaffected.
-//
-// Every scripted golden case must be listed here and every listed case must be
-// scripted: parityCases throws otherwise, and test/parity.test.js pins this list.
-export const SCRIPT_LEFT_OFF = deepFreeze({
-  "scripted-finishers-seed-68-50s": {
-    as: "finishers-50s-without-script",
-    reason:
-      "its script was written for seed 68 and does not finish on 79 of seeds 1 to 200 on legacy (70 on events)",
-  },
-});
-
 // Parity-only cases: not golden cases, so they have no fixture and nothing
 // else runs them. dot-hemorrhage-rupture-120s puts DoT tick timing under the
 // gate (#213): a 49-point Subtlety/Assassination/Combat build with Hemorrhage,
@@ -172,9 +147,14 @@ export const PARITY_ONLY_CASES = deepFreeze([
 // length, so two cases with one config differ only by the seeds' draws, and
 // over seeds 1 to N those are the same fights. Without --duration a trimmed
 // case would only have run for less time. short-seed-1-10s,
-// other-seed-12345-90s and scripted-finishers-seed-68-50s (its script left
-// off, so the default config) all run the default config, as
-// five-minute-seed-1-300s does. Their golden fixtures are unaffected.
+// other-seed-12345-90s and scripted-finishers-seed-68-50s all run the
+// default config, as five-minute-seed-1-300s does. Their golden fixtures are
+// unaffected.
+//
+// The harness runs no script (#199 dropped SCRIPT_LEFT_OFF), so a
+// scripted golden case is in the gate only through its config, trimmed here.
+// scripted-finishers-seed-68-50s's script was written for seed 68 and does
+// not finish on every seed from 1 to 200; a script that does is #200's.
 //
 // A trimmed case must name a run case with a deep-equal config, and two run
 // cases must not share a config: parityCases throws otherwise, and
@@ -186,22 +166,14 @@ export const SAME_CONFIG_AS = deepFreeze({
 });
 
 // The parity cases: each golden case (scripts/golden-update.mjs) by name, with
-// its config and duration (a scripted one under its SCRIPT_LEFT_OFF name, with
-// the reason), less those SAME_CONFIG_AS trims, then the parity-only cases.
+// its config and duration, less those SAME_CONFIG_AS trims, then the
+// parity-only cases. A scripted golden case must be trimmed: the harness runs
+// no script.
 export function parityCases(
   goldenCases,
-  leftOff = SCRIPT_LEFT_OFF,
   parityOnly = PARITY_ONLY_CASES,
   sameConfigAs = SAME_CONFIG_AS,
 ) {
-  for (const name of Object.keys(leftOff)) {
-    const found = goldenCases.find((c) => c.name === name);
-    if (found === undefined || found.script === undefined) {
-      throw new RangeError(
-        `SCRIPT_LEFT_OFF lists "${name}", which is not a scripted golden case. Remove it from the list.`,
-      );
-    }
-  }
   for (const [name, kept] of Object.entries(sameConfigAs)) {
     const trimmed = goldenCases.find((c) => c.name === name);
     const run = goldenCases.find((c) => c.name === kept);
@@ -220,29 +192,18 @@ export function parityCases(
     ...goldenCases
       .filter(({ name }) => !Object.hasOwn(sameConfigAs, name))
       .map(({ name, duration, config, script }) => {
-        if (script === undefined) {
-          return { name, golden: name, duration, config, scriptLeftOff: null };
-        }
-        if (!Object.hasOwn(leftOff, name)) {
+        if (script !== undefined) {
           throw new RangeError(
-            `Golden case "${name}" is scripted, and the parity harness cannot run a script. Add it to SCRIPT_LEFT_OFF with the reason, or give the harness a way to run it.`,
+            `Golden case "${name}" is scripted, and the parity harness runs no script. Trim it in SAME_CONFIG_AS for the case with its config, or give the harness a way to run its script (#200).`,
           );
         }
-        const { as, reason } = leftOff[name];
-        return {
-          name: as,
-          golden: name,
-          duration,
-          config,
-          scriptLeftOff: reason,
-        };
+        return { name, golden: name, duration, config };
       }),
     ...parityOnly.map(({ name, duration, config }) => ({
       name,
       golden: null,
       duration,
       config,
-      scriptLeftOff: null,
     })),
   ];
   const names = cases.map(({ name }) => name);
@@ -586,7 +547,6 @@ export function compareCase(
   return {
     name: parityCase.name,
     duration: seconds,
-    scriptLeftOff: parityCase.scriptLeftOff,
     seeds,
     engine: summaryA,
     against: summaryB,
@@ -710,10 +670,7 @@ export function formatReport(report) {
   for (const c of report.cases) {
     lines.push(
       "",
-      `${c.name} (${c.duration} s${c.scriptLeftOff === null ? "" : ", config only"})`,
-      ...(c.scriptLeftOff === null
-        ? []
-        : [`  script left off: ${c.scriptLeftOff}`]),
+      `${c.name} (${c.duration} s)`,
       `  DPS A (${engine}): mean ${fixed(c.engine.dpsMean)}, SD ${fixed(c.engine.dpsSd)}`,
       `  DPS B (${against}): mean ${fixed(c.against.dpsMean)}, SD ${fixed(c.against.dpsSd)}`,
       `  difference (A - B): mean ${fixed(c.difference.mean, 4)}, ${percent}% CI [${fixed(c.difference.low, 4)}, ${fixed(c.difference.high, 4)}], ${c.seedsDiffering} of ${c.seeds} seeds differ`,

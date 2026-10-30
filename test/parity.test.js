@@ -17,7 +17,6 @@ import {
   MAX_DURATION,
   PARITY_ONLY_CASES,
   SAME_CONFIG_AS,
-  SCRIPT_LEFT_OFF,
   checkResult,
   compareCase,
   copyResult,
@@ -217,119 +216,53 @@ describe("parity: the cases", () => {
     );
   });
 
-  it("leave off only the scripts SCRIPT_LEFT_OFF names, under a name that says so", () => {
-    // Pinned: a change to the list, or to which golden cases are scripted,
-    // must come with a change here.
-    assert.deepEqual(Object.keys(SCRIPT_LEFT_OFF), [
-      "scripted-finishers-seed-68-50s",
-    ]);
+  it("run no script: the scripted golden case is in the gate by its config (#199)", () => {
+    // Pinned: a change to which golden cases are scripted must come with a
+    // change here.
     assert.deepEqual(
       GOLDEN_CASES.filter(({ script }) => script !== undefined).map(
         ({ name }) => name,
       ),
       ["scripted-finishers-seed-68-50s"],
     );
-    const entry = SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"];
-    assert.equal(entry.as, "finishers-50s-without-script");
-    // Since #197 the script hooks castRotation, which both engines call, so
-    // the reason is only that it does not finish on every seed (#199).
-    assert.doesNotMatch(entry.reason, /Rogue\.prototype\.rotation|legacy-only/);
-    assert.match(
-      entry.reason,
-      /^its script was written for seed 68 and does not finish on 79 of seeds 1 to 200 on legacy \(70 on events\)$/,
-    );
-    // Without its script it is the default config, so SAME_CONFIG_AS trims
-    // it (#199): no parity case runs with its script left off.
+    // SCRIPT_LEFT_OFF is gone (#199); a script for every seed is #200's. Its
+    // config is the default one, so SAME_CONFIG_AS trims it for
+    // five-minute-seed-1-300s.
     assert.equal(
       SAME_CONFIG_AS["scripted-finishers-seed-68-50s"],
       "five-minute-seed-1-300s",
     );
-    assert.deepEqual(
-      PARITY_CASES.filter(({ scriptLeftOff }) => scriptLeftOff !== null),
-      [],
-    );
-    assert.deepEqual(
-      parityCases(
-        GOLDEN_CASES.filter(({ script }) => script !== undefined),
-        SCRIPT_LEFT_OFF,
-        [],
-        {},
-      )
-        .filter(({ scriptLeftOff }) => scriptLeftOff !== null)
-        .map(({ name, golden, scriptLeftOff }) => [
-          name,
-          golden,
-          scriptLeftOff,
-        ]),
-      [
-        [
-          "finishers-50s-without-script",
-          "scripted-finishers-seed-68-50s",
-          entry.reason,
-        ],
-      ],
-    );
-    // The golden name is not a parity case name: --cases takes the new one.
     assert.equal(
       PARITY_CASES.some(
-        ({ name }) => name === "scripted-finishers-seed-68-50s",
+        ({ name, golden }) =>
+          name === "finishers-50s-without-script" ||
+          golden === "scripted-finishers-seed-68-50s",
       ),
       false,
     );
     assert.equal(
-      PARITY_CASES.some((c) => "script" in c),
+      PARITY_CASES.some((c) => "script" in c || "scriptLeftOff" in c),
       false,
     );
   });
 
-  it("refuses a scripted case not on the list, a listed case with no script, and a repeated name", () => {
+  it("refuses a scripted case that is not trimmed, and a repeated name", () => {
     const plain = { name: "plain", duration: 10, config: {} };
-    const scripted = {
-      ...plain,
-      name: "scripted",
-      config: { poisons: {} },
-      script: ["eviscerate"],
-    };
-    const why = { scripted: { as: "plain-without-script", reason: "why" } };
+    const scripted = { ...plain, name: "scripted", script: ["eviscerate"] };
     assert.deepEqual(
-      parityCases([plain, scripted], why, [], {}).map((c) => [
-        c.name,
-        c.scriptLeftOff,
-      ]),
-      [
-        ["plain", null],
-        ["plain-without-script", "why"],
-      ],
+      parityCases([plain, scripted], [], { scripted: "plain" }).map(
+        (c) => c.name,
+      ),
+      ["plain"],
     );
     // A case that quietly becomes scripted.
-    assert.throws(() => parityCases([plain, scripted], {}, [], {}), {
+    const other = { ...scripted, config: { poisons: {} } };
+    assert.throws(() => parityCases([plain, other], [], {}), {
       name: "RangeError",
-      message: /^Golden case "scripted" is scripted, .*SCRIPT_LEFT_OFF/,
+      message:
+        /^Golden case "scripted" is scripted, and the parity harness runs no script\. Trim it in SAME_CONFIG_AS/,
     });
-    // A case that quietly stops being scripted, or is renamed or removed.
-    assert.throws(
-      () =>
-        parityCases([plain, { ...scripted, script: undefined }], why, [], {}),
-      {
-        name: "RangeError",
-        message:
-          /^SCRIPT_LEFT_OFF lists "scripted", which is not a scripted golden case/,
-      },
-    );
-    assert.throws(() => parityCases([plain], why, [], {}), RangeError);
-    assert.throws(
-      () =>
-        parityCases(
-          [plain, scripted],
-          {
-            scripted: { as: "plain", reason: "why" },
-          },
-          [],
-          {},
-        ),
-      { name: "RangeError", message: 'Two parity cases are named "plain".' },
-    );
-    assert.throws(() => parityCases([plain], {}, [plain], {}), {
+    assert.throws(() => parityCases([plain], [plain], {}), {
       message: 'Two parity cases are named "plain".',
     });
   });
@@ -367,13 +300,13 @@ describe("parity: the cases", () => {
     const a = { name: "a", duration: 10, config: { poisons: {} } };
     const b = { ...a, name: "b", duration: 20 };
     const c = { name: "c", duration: 10, config: {} };
-    assert.throws(() => parityCases([a, b], {}, [], {}), {
+    assert.throws(() => parityCases([a, b], [], {}), {
       name: "RangeError",
       message:
         'Parity cases "a" and "b" have the same config. Trim one in SAME_CONFIG_AS.',
     });
     assert.deepEqual(
-      parityCases([a, b, c], {}, [], { b: "a" }).map(({ name }) => name),
+      parityCases([a, b, c], [], { b: "a" }).map(({ name }) => name),
       ["a", "c"],
     );
     // Not the same config, an unknown case on either side, or a chain.
@@ -383,13 +316,13 @@ describe("parity: the cases", () => {
       { b: "nope" },
       { b: "a", a: "b" },
     ]) {
-      assert.throws(() => parityCases([a, b, c], {}, [], trim), {
+      assert.throws(() => parityCases([a, b, c], [], trim), {
         name: "RangeError",
         message: /^SAME_CONFIG_AS trims "/,
       });
     }
     // A parity-only case that repeats a golden config is refused too.
-    assert.throws(() => parityCases([c], {}, [{ ...c, name: "d" }], {}), {
+    assert.throws(() => parityCases([c], [{ ...c, name: "d" }], {}), {
       message: /have the same config/,
     });
   });
@@ -405,7 +338,6 @@ describe("parity: the cases", () => {
     };
     frozenDeep(GOLDEN_CASES, "GOLDEN_CASES");
     frozenDeep(PARITY_CASES, "PARITY_CASES");
-    frozenDeep(SCRIPT_LEFT_OFF, "SCRIPT_LEFT_OFF");
     frozenDeep(SAME_CONFIG_AS, "SAME_CONFIG_AS");
     frozenDeep(PARITY_ONLY_CASES, "PARITY_ONLY_CASES");
     const talented = GOLDEN_CASES.find(({ config }) => config?.talents);

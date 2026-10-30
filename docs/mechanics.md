@@ -1885,25 +1885,20 @@ works.
 one per distinct config, then the parity-only cases. The default fight is
 `five-minute-seed-1-300s` (the default config at 300 s). Three other golden
 cases run the default config too: `short-seed-1-10s`, `other-seed-12345-90s`
-and the scripted `scripted-finishers-seed-68-50s` with its script left off.
-Over seeds 1 to N they are the same fights, only shorter, so the harness
-trims them (`SAME_CONFIG_AS` in `scripts/parity.mjs`, #199); their fixtures
-are unaffected. The harness refuses to load if a trim names a case with a
-different config, or if two cases it runs share a config.
+and the scripted `scripted-finishers-seed-68-50s` (its config, as the harness
+runs no script). Over seeds 1 to N they are the same fights, only shorter, so
+the harness trims them (`SAME_CONFIG_AS` in `scripts/parity.mjs`, #199); their
+fixtures are unaffected. The harness refuses to load if a trim names a case
+with a different config, or if two cases it runs share a config.
 
-The scripted case's script is still listed in `SCRIPT_LEFT_OFF` with the
-reason it cannot run under the harness. Since #197 the script hooks
-`Rogue.prototype.castRotation`, which both engines call, so either engine can
-run it; but it was written for seed 68. On 79 of seeds 1 to 200 on legacy (70
-on events) it does not finish: the fight runs to its 50 s end with one or two
-casts still waiting, and `runScriptedFight` throws. It does not hang. Without
-a trim it would run as `finishers-50s-without-script`, its config for its 50 s
-with "script left off" and the reason in the report. The harness refuses to
-load if a scripted golden case is missing from the list, a listed case is not
-scripted, or two cases share a name, and `test/parity.test.js` pins both
-lists. Before the legacy engine is deleted (#200), this case needs a script
-that finishes on every seed from 1 to 200, or James agrees to retire it from
-parity.
+The harness runs no script: #199 dropped the scripted case's script from the
+gate (`SCRIPT_LEFT_OFF` is gone), and a scripted golden case that is not
+trimmed makes the harness refuse to load. The script was written for seed 68.
+Since #197 it hooks `Rogue.prototype.castRotation`, which both engines call,
+but on 79 of seeds 1 to 200 on legacy (70 on events) it does not finish: the
+fight runs to its 50 s end with one or two casts still waiting, and
+`runScriptedFight` throws. A script that finishes on every seed is #200's. Its
+golden fixture (seed 68) is unaffected.
 
 `dot-hemorrhage-rupture-120s` is a parity-only case (`PARITY_ONLY_CASES`, no
 fixture): a 49-point build with Hemorrhage, and a rotation that keeps Rupture
