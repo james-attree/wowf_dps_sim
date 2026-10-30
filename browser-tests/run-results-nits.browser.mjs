@@ -14,6 +14,7 @@ import { startStaticServer } from "../scripts/serve.mjs";
 
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const WIDE = { width: 1280, height: 800 };
+const PHONE = { width: 390, height: 844 };
 const LONG_BATCH_FIGHTS = "4000";
 const LONG_FIGHT_SECONDS = "600";
 const RUN_TIMEOUT = 60_000;
@@ -21,6 +22,12 @@ const MIDDLE = "middle";
 // Fran's #254 case: "99" typed, "100" selected.
 const TYPED = "99";
 const SELECTED = "100";
+// Back from a rule screen left scrolled down: the browser put the old
+// scroll back after the router focused the h1 on some runs only, so the walk
+// is done a few times (Fran's #256 L1: 6 of 8 runs on the PR then).
+const BACK_TRIES = 3;
+const RULE_TO_COPY = 3;
+const SETTLE_MS = 300;
 
 let server;
 let base;
@@ -149,6 +156,58 @@ describe("a middle-click on Run (#245, Fran's #254 check)", () => {
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
+    }
+  });
+});
+
+describe("browser Back on a phone (#245, Fran's #256 L1)", () => {
+  test("shows the screen's h1, which has the focus", async () => {
+    for (let run = 0; run < BACK_TRIES; run += 1) {
+      const { context, page, errors } = await open(PHONE, "#rotation");
+      try {
+        assert.equal(
+          await page.evaluate(() => globalThis.history.scrollRestoration),
+          "manual",
+        );
+        await page.locator("#rotation-builder li.rule").first().waitFor();
+        // Two copies, each from far down its screen, then the Back link.
+        const copy = page
+          .locator("#rotation-builder li.rule")
+          .nth(RULE_TO_COPY)
+          .locator("[data-key$='.dup']");
+        await copy.scrollIntoViewIfNeeded();
+        await copy.focus();
+        await page.keyboard.press("Enter");
+        await page.waitForTimeout(SETTLE_MS);
+        const again = page.locator(
+          "#rotation-builder .rule-foot [data-key$='.dup']",
+        );
+        await again.scrollIntoViewIfNeeded();
+        await again.focus();
+        await page.keyboard.press("Enter");
+        await page.waitForTimeout(SETTLE_MS);
+        await page.locator("#rotation-back").focus();
+        await page.keyboard.press("Enter");
+        await page.waitForTimeout(SETTLE_MS);
+        for (const step of ["the second copy", "the first copy"]) {
+          await page.goBack();
+          await page.waitForTimeout(SETTLE_MS);
+          const seen = await page.evaluate(() => {
+            const h1 = globalThis.document.getElementById(
+              "area-rotation-title",
+            );
+            const box = h1.getBoundingClientRect();
+            return {
+              focused: globalThis.document.activeElement === h1,
+              inView: box.top >= 0 && box.bottom <= globalThis.innerHeight,
+            };
+          });
+          assert.deepEqual(seen, { focused: true, inView: true }, step);
+        }
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
     }
   });
 });

@@ -254,14 +254,23 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     const stranded =
       areaOf(had) !== null && doc.activeElement === had && !canFocus(doc, had);
     const heading = shells.get(next.area)?.querySelector("h1");
-    if (focus === "heading" || (focus === "none" && stranded)) {
+    // The focus on the h1 shows the page from its top, the h1 with it
+    // (#245, Fran's #256 L1): the browser's own scroll for the entry would
+    // leave a phone scrolled past it after Back (start() turns it off).
+    const toHeading = () => {
       heading?.focus();
+      if (from !== null) {
+        win.scrollTo?.(PAGE_TOP, PAGE_TOP);
+      }
+    };
+    if (focus === "heading" || (focus === "none" && stranded)) {
+      toHeading();
     } else if (focus === "restore") {
       const back = left.get(index);
       if (canFocus(doc, back)) {
         back.focus();
       } else {
-        heading?.focus();
+        toHeading();
       }
     }
   }
@@ -400,6 +409,11 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
             param: null,
           };
     index = entryIndex() ?? 0;
+    // Back and Forward show a screen as show() leaves it, not where the
+    // browser had it scrolled (#245, Fran's #256 L1).
+    if (win.history !== undefined && "scrollRestoration" in win.history) {
+      win.history.scrollRestoration = "manual";
+    }
     win.history.replaceState(
       { routerIndex: index },
       "",
