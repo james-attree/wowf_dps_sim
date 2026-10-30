@@ -159,13 +159,9 @@ export function createTalentTreeView(
       const head = make(
         "h2",
         { class: "talent-tree-head", id: `talents-tree-h-${tree.id}` },
-        // A hidden comma: "Assassination, 0 points" (Fran's qa-256 P-d).
-        [
-          icon(tree.iconUrl, 24),
-          make("span", {}, [tree.name]),
-          make("span", { class: "visually-hidden" }, [", "]),
-          count,
-        ],
+        // Named "Assassination, 0 points" in drawTrees (Fran's qa-256
+        // P-d): its words as shown, with the pause a comma gives.
+        [icon(tree.iconUrl, 24), make("span", {}, [tree.name]), count],
       );
       const grid = make("div", { class: "talent-grid", role: "group" });
       const section = make(
@@ -378,6 +374,9 @@ export function createTalentTreeView(
     for (const tree of view.trees) {
       const { section, grid, count } = sections.get(tree.id);
       write(count, tree.pointsText);
+      treeHeads
+        .get(tree.id)
+        .setAttribute("aria-label", `${tree.name}, ${tree.pointsText}`);
       grid.setAttribute("aria-label", tree.label);
       const current = tree.id === view.tab;
       if (isNarrow) {

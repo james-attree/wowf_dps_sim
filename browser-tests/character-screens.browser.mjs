@@ -1,8 +1,8 @@
 // Browser test for Character's screens (#244, UX6): #character is a list of
 // three rows (Gear and weapons, Stats, Talents), each with its summary and a
 // chip for what it needs fixed; each row opens its screen, whose h1 takes
-// the focus and whose back link returns it to the row. Fight has
-// "Attacking from behind" under Target; Rotation's list has the preset the
+// the focus and whose back link returns it to the row. Fight's Target says
+// the sim attacks from behind (no control); Rotation's list has the preset the
 // sim uses. Talent tiles' and the narrow tab strip's edges are 3:1 or more
 // on what they sit on (WCAG 1.4.11). Fonts are pinned to DejaVu Sans, CI's.
 // `npm run test:browser`; Chrome as in the other files.
@@ -94,6 +94,29 @@ const titled = (page, want) =>
     .then(() => page.title());
 const focused = (page) =>
   page.evaluate(() => globalThis.document.activeElement?.id ?? null);
+// What a screen reader is given for an element: Chrome's own accessible
+// name and description, from its accessibility tree.
+async function axOf(page, selector) {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { nodeId } = await cdp
+      .send("DOM.getDocument")
+      .then(({ root }) =>
+        cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector }),
+      );
+    const { nodes } = await cdp.send("Accessibility.getPartialAXTree", {
+      nodeId,
+      fetchRelatives: false,
+    });
+    const node = nodes[0];
+    return {
+      name: node?.name?.value ?? "",
+      description: node?.description?.value ?? "",
+    };
+  } finally {
+    await cdp.detach();
+  }
+}
 async function focusIs(page, id) {
   await page
     .waitForFunction(
@@ -173,13 +196,25 @@ for (const width of [WIDE, PHONE]) {
         await chip.waitFor({ state: "visible" });
         assert.match((await chip.innerText()).trim(), /^\d+ to fix$/);
         assert.equal(await page.isVisible("#character-stats-status"), false);
-        // The row's description holds the chip.
-        assert.match(
-          await page
-            .locator("#character-row-gear")
-            .getAttribute("aria-describedby"),
-          /character-gear-status/,
-        );
+        // Read once each: the row's name is its label and its chip, its
+        // description its summary (Fran's qa-256 P-a).
+        const fix = (await chip.innerText()).trim();
+        assert.deepEqual(await axOf(page, "#character-row-gear"), {
+          name: `Gear and weapons, ${fix}`,
+          description: (
+            await page
+              .locator("#character-row-gear .character-row-summary")
+              .innerText()
+          ).trim(),
+        });
+        assert.deepEqual(await axOf(page, "#character-row-stats"), {
+          name: "Stats",
+          description: ROWS[1].summary,
+        });
+        assert.deepEqual(await axOf(page, "#talents-edit"), {
+          name: "Talents",
+          description: "No talents",
+        });
         assert.deepEqual(errors, []);
       } finally {
         await context.close();
@@ -189,27 +224,22 @@ for (const width of [WIDE, PHONE]) {
 }
 
 describe("Fight's target and Rotation's preset (#244)", () => {
-  test("Attacking from behind is a labelled box under Target, kept across areas", async () => {
+  test("Fight's Target says the sim attacks from behind, with no control", async () => {
     const { context, page, errors } = await open(WIDE, "#fight");
     try {
-      const box = page.getByRole("checkbox", { name: "Attacking from behind" });
-      assert.equal(await box.getAttribute("id"), "cfg-target-behind");
       assert.equal(
         (await page.locator("#fight-target h2").innerText()).trim(),
         "Target",
       );
-      assert.equal(await box.isChecked(), true);
-      await box.uncheck();
-      await page.click(`[data-nav-area="character"]`);
-      await hashIs(page, "#character");
-      await page.click(`[data-nav-area="fight"]`);
-      await hashIs(page, "#fight");
-      assert.equal(await box.isChecked(), false);
-      await page.click(`[data-nav-area="character"]`);
-      await page.click("#cfg-reset");
-      await page.click(`[data-nav-area="fight"]`);
-      await hashIs(page, "#fight");
-      assert.equal(await box.isChecked(), true, "Reset to defaults");
+      assert.equal(
+        (await page.locator("#fight-target-text").innerText()).trim(),
+        "You attack from behind: the target can't parry or block. Attacks from the front are out of scope.",
+      );
+      assert.equal(
+        await page.locator("#fight-target input, #fight-target select").count(),
+        0,
+      );
+      assert.equal(await page.locator("#cfg-target-behind").count(), 0);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
