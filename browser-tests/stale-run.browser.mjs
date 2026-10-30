@@ -4,8 +4,12 @@
 // had cleared the pair's error: Run started with the last valid Max. Also a
 // blocked Run sends focus to the first setting to fix (nit 2), the Fix link
 // and the footer name the same field (nit 4), and Max clears the pair's
-// error while typed as Min does (nit 5). Run in Chrome through playwright-core
-// with `npm run test:browser`.
+// error while typed as Min does (nit 5). #240 (Fran's #249 Run nits): a pair
+// in error is checked as typed, so the repro never shows Ready (N2) and a
+// field's own error shows at once (N1); a press on the disabled Run sends
+// focus to the field to fix (N5); and the run after the fix is checked for
+// the settings it used (N6). Run in Chrome through playwright-core with
+// `npm run test:browser`.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -26,6 +30,10 @@ const NOT_WHOLE = "4.5";
 const FIXED_MAX = "60";
 // Long enough for a started run to show.
 const SETTLE_MS = 300;
+// N6's run: one seeded fight, so two runs of the same settings agree.
+const N6_SEED = "424242";
+const N6_FIGHTS = "1";
+const BATCH_TIMEOUT = 60_000;
 const MIN = "#cfg-weapons-mainHand-min";
 const MAX = "#cfg-weapons-mainHand-max";
 
@@ -106,6 +114,15 @@ const read = (page) =>
     };
   });
 
+// The run settings are folded away at the narrow widths.
+async function settingsField(page, id) {
+  const field = page.locator(`#${id}`);
+  if (!(await field.isVisible())) {
+    await page.locator("#run-settings-toggle").click();
+  }
+  return field;
+}
+
 function agree(state, step) {
   assert.equal(state.runCount, state.footerCount, `${step}: the counts`);
   assert.equal(state.disabled, state.runCount > 0, `${step}: Run's state`);
@@ -125,9 +142,17 @@ describe("Run never starts with stale settings (#247)", () => {
       await min.click();
       await min.press("End");
       await min.press("Backspace");
+      assert.equal((await read(page)).runCount, 0, "Min 5 passes");
       await min.press(LAST_DIGIT);
       assert.equal(await min.inputValue(), PAIR_MIN, "Min reads 50 again");
-      await page.locator("#run-button").click();
+      // #240 N2: the pair is checked as typed, so 50 again is not Ready.
+      const typed = await read(page);
+      agree(typed, "50 typed back");
+      assert.equal(typed.runCount, 1, "the pair's error is back");
+      assert.match(typed.status, /^Can't run/);
+      // A press on the disabled Run (Chrome sends it no click, and drops
+      // focus to the page): #240 N5 sends focus to the field to fix.
+      await page.locator("#run-button").click({ force: true });
       await page.waitForTimeout(SETTLE_MS);
 
       const after = await read(page);
@@ -154,6 +179,7 @@ describe("Run never starts with stale settings (#247)", () => {
       agree(typing, "typing a value that passes");
       assert.equal(typing.runCount, 0);
       await min.press(LAST_DIGIT);
+      assert.equal((await read(page)).runCount, 1, "#240 N2: checked as typed");
       await min.blur();
       const blurred = await read(page);
       agree(blurred, "blurred");
@@ -168,17 +194,23 @@ describe("Run never starts with stale settings (#247)", () => {
 
     test(`a blocked Run sends focus to the first setting to fix, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
-      const { min } = await pairError(page);
-      await min.click();
-      await min.fill(NOT_WHOLE);
+      const min = page.locator(MIN);
+      const max = page.locator(MAX);
+      await max.fill(FIXED_MAX);
+      await max.blur();
+      await min.fill(PAIR_MIN);
+      await min.blur();
+      // A field not in error is not marked while typed: Run checks it.
+      await max.click();
+      await max.fill(PAIR_MAX);
       assert.equal((await read(page)).disabled, false, "typing adds no error");
       await page.locator("#run-button").click();
       await page.waitForTimeout(SETTLE_MS);
       const state = await read(page);
       assert.match(state.status, /^Can't run/, "no run started");
       agree(state, "after Run");
-      assert.equal(state.focus, MIN.slice(1), "nit 2: not the page body");
-      assert.equal(state.footerFirst, MIN, "the field the footer names");
+      assert.equal(state.focus, MAX.slice(1), "nit 2: not the page body");
+      assert.equal(state.footerFirst, MAX, "the field the footer names");
       assert.deepEqual(errors, []);
       await context.close();
     });
@@ -195,7 +227,7 @@ describe("Run never starts with stale settings (#247)", () => {
       await context.close();
     });
 
-    test(`Max typed invalid on its own clears the pair's error as Min does, at ${width}`, async () => {
+    test(`Max typed invalid on its own swaps the pair's error for its own, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
       const { max } = await pairError(page);
       await max.click();
@@ -203,9 +235,10 @@ describe("Run never starts with stale settings (#247)", () => {
       await max.pressSequentially(NOT_WHOLE);
       const typing = await read(page);
       agree(typing, "typing 4.5 into Max");
-      assert.equal(typing.runCount, 0, "the pair's error went, as for Min");
+      // #240 N1: the Max's own message at once, not a lingering pair's.
+      assert.equal(typing.runCount, 1, "the Max's own error, as typed");
       assert.doesNotMatch(typing.footerText, /at least the min/);
-      assert.equal(await max.getAttribute("aria-invalid"), null);
+      assert.equal(await max.getAttribute("aria-invalid"), "true");
       assert.equal(
         await page.locator(MIN).getAttribute("aria-invalid"),
         null,
@@ -214,28 +247,66 @@ describe("Run never starts with stale settings (#247)", () => {
       await max.blur();
       const committed = await read(page);
       agree(committed, "committed");
-      assert.equal(committed.runCount, 1, "the Max's own error, on change");
+      assert.equal(committed.runCount, 1, "the Max's own error, still");
       assert.equal(await max.getAttribute("aria-invalid"), "true");
       assert.deepEqual(errors, []);
       await context.close();
     });
   }
 
-  test("a run after the repro is fixed uses what the fields show", async () => {
+  // #240 N6: the run after the fix is one seeded fight, and its mean is the
+  // one of the same fight with 50 and 60 committed directly, not the one with
+  // the last valid Max (Min 50 and the page's own Max).
+  async function oneFight(page) {
+    await (await settingsField(page, "run-mode-batch")).check();
+    await (await settingsField(page, "run-iterations")).fill(N6_FIGHTS);
+    const seed = await settingsField(page, "run-seed");
+    await seed.fill(N6_SEED);
+    await seed.blur();
+  }
+  async function meanOf(page) {
+    await page.waitForFunction(
+      () =>
+        / · Done$/.test(
+          globalThis.document.getElementById("run-status-text").textContent,
+        ),
+      null,
+      { timeout: BATCH_TIMEOUT },
+    );
+    const status = await page.locator("#run-status-text").textContent();
+    return /([\d,.]+) DPS mean/.exec(status)[1];
+  }
+  async function committedRun(values) {
+    const { context, page } = await open(WIDTHS[0]);
+    await oneFight(page);
+    for (const [selector, value] of values) {
+      await page.locator(selector).fill(value);
+      await page.locator(selector).blur();
+    }
+    await page.locator("#run-button").click();
+    const mean = await meanOf(page);
+    await context.close();
+    return mean;
+  }
+
+  test("a run after the repro is fixed uses what the fields show (#240 N6)", async () => {
     const { context, page, errors } = await open(WIDTHS[0]);
+    await oneFight(page);
     const { min, max } = await pairError(page);
-    await page
-      .locator("#run-button")
-      .click({ trial: true })
-      .catch(() => {});
     await max.click();
     await max.fill(FIXED_MAX);
     await page.locator("#run-button").click();
-    await page.waitForTimeout(SETTLE_MS);
-    const state = await read(page);
-    assert.doesNotMatch(state.status, /^Can't run/, "the run started");
+    const mean = await meanOf(page);
     assert.equal(await min.inputValue(), PAIR_MIN);
+    assert.equal(await max.inputValue(), FIXED_MAX);
     assert.deepEqual(errors, []);
     await context.close();
+    const shown = await committedRun([
+      [MIN, PAIR_MIN],
+      [MAX, FIXED_MAX],
+    ]);
+    const stale = await committedRun([[MIN, PAIR_MIN]]);
+    assert.notEqual(shown, stale, "the two settings give two means");
+    assert.equal(mean, shown, "the run used Min 50 and Max 60");
   });
 });

@@ -60,7 +60,7 @@
 .rotation-panel input[type="text"],
 .rotation-panel input[type="number"],
 .rotation-pick select {
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   background: #15120d;
   color: #f3eee2;
@@ -101,10 +101,12 @@
 }
 
 /* #200 (Fran's #226 QA, 5): scrolled into view, a banner lands below the
-   sticky run bar (its height is --run-bar-height, set by js/views/controls.js),
-   with the bar's own gap under it. */
+   chrome over the screen's top (--chrome-top, styles.css: the sticky run bar
+   when wide) and above what covers its foot (--chrome-bottom: the phone dock
+   and nav, #240), with a gap. */
 .rot-banner {
-  scroll-margin-top: calc(var(--run-bar-height, 0px) + 12px);
+  scroll-margin-top: calc(var(--chrome-top) + 12px);
+  scroll-margin-bottom: calc(var(--chrome-bottom) + 12px);
   padding: 10px 12px;
   border: 1px solid;
   border-radius: 10px;
@@ -233,7 +235,7 @@
 .rule-grip {
   width: 44px;
   height: 44px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   background: #15120d;
   color: var(--text-muted);
@@ -321,7 +323,7 @@
 .icon-button {
   width: 44px;
   height: 44px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   background: #15120d;
   color: #f3eee2;

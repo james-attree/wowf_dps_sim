@@ -361,7 +361,9 @@ for (const width of WIDTHS) {
 }
 
 // Tabs through an area from the top of the page and returns each focused
-// control the bottom nav covers, by id or tag, with its box (B3).
+// control the chrome covers, by id or tag, with its box (B3). Below 1024px
+// the chrome is the bottom nav, the dock's strip above it and, after a
+// Duplicate, the builder's pinned messages at the top (#240).
 async function coveredByNav(page) {
   await page.evaluate(() => globalThis.scrollTo(0, 0));
   await page.locator('[data-nav-area="results"]').focus();
@@ -375,8 +377,24 @@ async function coveredByNav(page) {
         return null;
       }
       const nav = doc.getElementById("area-nav").getBoundingClientRect();
+      const strip = doc.getElementById("run-bar");
+      const floor =
+        getComputedStyle(strip).position === "fixed"
+          ? strip.getBoundingClientRect().top
+          : nav.top;
+      const pinned = [...doc.querySelectorAll(".builder-messages")].find(
+        (box) =>
+          box.checkVisibility() &&
+          getComputedStyle(box).position === "sticky" &&
+          !box.contains(node),
+      );
       const box = node.getBoundingClientRect();
-      return box.bottom > nav.top
+      const messages = pinned?.getBoundingClientRect();
+      const underMessages =
+        messages !== undefined &&
+        box.top < messages.bottom &&
+        box.bottom > messages.top;
+      return box.bottom > Math.min(floor, nav.top) || underMessages
         ? { id: node.id || node.tagName, top: box.top, bottom: box.bottom }
         : null;
     });
@@ -390,13 +408,42 @@ async function coveredByNav(page) {
 for (const width of BOTTOM_NAV_WIDTHS) {
   describe(`the bottom nav at ${width}`, () => {
     test("covers no control the keyboard focuses", async () => {
-      for (const area of ["character", "rotation"]) {
+      for (const area of AREAS) {
         const { context, page, errors } = await open(width, `#${area}`);
         await assertAt(page, area);
         assert.deepEqual(await coveredByNav(page), [], area);
         assert.deepEqual(errors, []);
         await context.close();
       }
+    });
+
+    // Fran's #251 check: widened to Results with a batch in it and to the
+    // builder after a Duplicate brings up its warnings (#240).
+    test("covers no control after a batch or a Duplicate", async () => {
+      const { context, page, errors } = await open(width, "#fight");
+      await (await settingsField(page, "run-mode-batch")).check();
+      await (await settingsField(page, "run-iterations")).fill(BATCH_FIGHTS);
+      await page.locator("#run-button").click();
+      await assertAt(page, "results");
+      await page.waitForFunction(
+        () =>
+          /^Batch finished/.test(
+            globalThis.document.getElementById("results-announce").textContent,
+          ),
+        null,
+        { timeout: BATCH_TIMEOUT },
+      );
+      assert.deepEqual(await coveredByNav(page), [], "results");
+      await page.locator('[data-nav-area="rotation"]').click();
+      await assertAt(page, "rotation");
+      await page
+        .locator("#rotation-builder li.rule [data-key$='.dup']")
+        .first()
+        .click();
+      await page.locator("#rb-warnings").waitFor({ state: "visible" });
+      assert.deepEqual(await coveredByNav(page), [], "after Duplicate");
+      assert.deepEqual(errors, []);
+      await context.close();
     });
   });
 }

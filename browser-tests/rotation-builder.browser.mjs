@@ -10,7 +10,9 @@ import { startStaticServer } from "../scripts/serve.mjs";
 
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const WIDTHS = [1280, 390, 360];
-const NARROW_BAR_MAX_PX = 64;
+// The phone dock's strip (#240), below the wide breakpoint.
+const STRIP_PX = 48;
+const WIDE_PX = 1024;
 
 let server;
 let base;
@@ -370,11 +372,11 @@ for (const width of WIDTHS) {
           document.documentElement.clientWidth,
       );
       assert.ok(overflow <= 0, `${overflow}px of sideways scroll`);
-      if (width < 520) {
+      if (width < WIDE_PX) {
         const bar = await page.locator("#run-bar").boundingBox();
-        assert.ok(bar.height <= NARROW_BAR_MAX_PX, `bar ${bar.height}px`);
+        assert.equal(bar.height, STRIP_PX, `strip ${bar.height}px`);
         assert.equal(
-          await page.getAttribute("#run-status-text", "data-short"),
+          await page.getAttribute("#run-status-text", "data-dock"),
           "Can't run · Rotation errors",
         );
       }
@@ -384,7 +386,8 @@ for (const width of WIDTHS) {
 }
 
 // Fran's #228 QA (nit 1; #234): a Duplicate that brings up the warnings
-// banner above the screen scrolls it into view, below the sticky run bar,
+// banner above the screen scrolls it into view, below the sticky run bar
+// (below 1024px the messages are pinned in view instead, #240),
 // when the focus it moves to the new rule stays on screen too. When the two
 // cannot both be on screen the focus wins (WCAG 2.4.11), and the new rule's
 // own warning is brought on screen instead.
@@ -411,9 +414,14 @@ for (const width of [1280, 390, 360]) {
             ),
         );
         return page.evaluate((at) => {
-          const bar = document.querySelector("#run-bar");
+          // What covers the screen (#240): the sticky run bar at the top when
+          // wide; the dock and nav at the foot, and the pinned messages at
+          // the top, below the wide breakpoint.
+          const root = getComputedStyle(document.documentElement);
+          const length = (name) => parseFloat(root.getPropertyValue(name));
           const banner = document.querySelector("#rb-warnings");
-          const margin = parseFloat(getComputedStyle(banner).scrollMarginTop);
+          const messages = banner.closest(".builder-messages");
+          const pinned = getComputedStyle(messages).position === "sticky";
           const focus = document.activeElement.getBoundingClientRect();
           const card = document.querySelectorAll("#rotation-builder li.rule")[
             at + 1
@@ -421,43 +429,52 @@ for (const width of [1280, 390, 360]) {
           // The new rule's own warning: it is never reached.
           const chip = card.querySelector(".rule-msgs");
           return {
-            margin,
-            sticky: getComputedStyle(bar).position === "sticky",
-            barBottom: bar.getBoundingClientRect().bottom,
+            pinned,
+            top: length("--chrome-top"),
+            messagesBottom: messages.getBoundingClientRect().bottom,
+            bottom: globalThis.innerHeight - length("--chrome-bottom"),
             bannerTop: banner.getBoundingClientRect().top,
             focusTop: focus.top,
             focusBottom: focus.bottom,
             chipTop: chip?.getBoundingClientRect().top ?? null,
             key: document.activeElement.getAttribute("data-key"),
-            height: globalThis.innerHeight,
           };
         }, at);
       };
       const onScreen = (at, top, bottom = top) =>
-        top >= (at.sticky ? at.barBottom : 0) - 1 && bottom <= at.height + 1;
+        top >= at.top - 1 && bottom <= at.bottom + 1;
+      // The focus clears the pinned messages too (WCAG 2.4.11).
+      const focusShown = (at) =>
+        onScreen(at, at.focusTop, at.focusBottom) &&
+        (!at.pinned || at.focusTop >= at.messagesBottom - 1);
 
       const near = await after(DUPLICATED_NEAR, TALL_SCREEN);
       assert.ok(near.key !== null, "the focus is on the new rule");
       assert.ok(
-        onScreen(near, near.focusTop, near.focusBottom),
+        focusShown(near),
         `the focus on screen: ${JSON.stringify(near)}`,
       );
       assert.ok(
         onScreen(near, near.bannerTop),
-        `the banner in view below the bar: ${JSON.stringify(near)}`,
+        `the banner in view below the chrome: ${JSON.stringify(near)}`,
       );
-      assert.ok(near.bannerTop >= near.margin - 1, "not under the run bar");
 
       // A rule far below the banner, on a shorter screen.
       const far = await after(DUPLICATED_FAR, SCREEN);
-      assert.ok(
-        onScreen(far, far.focusTop, far.focusBottom),
-        `the focus wins: ${JSON.stringify(far)}`,
-      );
-      assert.ok(
-        far.chipTop !== null && onScreen(far, far.chipTop),
-        `the new rule's warning on screen: ${JSON.stringify(far)}`,
-      );
+      assert.ok(focusShown(far), `the focus wins: ${JSON.stringify(far)}`);
+      if (far.pinned) {
+        // Below the wide breakpoint the banner is pinned in view (#240,
+        // Fran's #251 check: it was above the screen).
+        assert.ok(
+          onScreen(far, far.bannerTop),
+          `the banner pinned in view: ${JSON.stringify(far)}`,
+        );
+      } else {
+        assert.ok(
+          far.chipTop !== null && onScreen(far, far.chipTop),
+          `the new rule's warning on screen: ${JSON.stringify(far)}`,
+        );
+      }
       for (const { errors } of opened) {
         assert.deepEqual(errors, []);
       }
@@ -826,8 +843,9 @@ test("the What to check box is a region only while it scrolls (#200)", async () 
 });
 
 // #200 (Fran's #226 QA, 5): after Duplicate, the builder's warnings banner
-// scrolled into view lands fully below the sticky run bar, not under it. The
-// sticky part is the whole bar at 520px and up, the compact row below.
+// scrolled into view lands fully below the sticky run bar, not under it, at
+// 1024px and up; below, where the bar is the phone dock (#240), fully above
+// the dock and the nav.
 for (const width of [1280, 390, 360]) {
   test(`the warnings banner scrolls in below the run bar at ${width}px (#200)`, async () => {
     const { context, page, errors } = await openBuilder(width);
@@ -843,27 +861,36 @@ for (const width of [1280, 390, 360]) {
       });
       await page.waitForTimeout(100);
       const at = await page.evaluate(() => {
-        const narrow = globalThis.matchMedia("(max-width: 519.98px)").matches;
-        const bar = document.querySelector(
-          narrow ? "#run-bar" : "#run-controls",
-        );
+        const root = getComputedStyle(document.documentElement);
+        const length = (name) => parseFloat(root.getPropertyValue(name));
+        const bar = document.querySelector("#run-controls");
         const banner = document
           .querySelector("#rb-warnings")
           .getBoundingClientRect();
         return {
           barPosition: getComputedStyle(bar).position,
           barBottom: bar.getBoundingClientRect().bottom,
+          chromeTop: length("--chrome-top"),
+          floor: globalThis.innerHeight - length("--chrome-bottom"),
           top: banner.top,
           bottom: banner.bottom,
           height: banner.height,
-          viewport: globalThis.innerHeight,
         };
       });
-      assert.equal(at.barPosition, "sticky");
-      assert.ok(at.barBottom > 0, JSON.stringify(at));
-      assert.ok(at.top >= at.barBottom, JSON.stringify(at));
-      if (at.height <= at.viewport - at.barBottom) {
-        assert.ok(at.bottom <= at.viewport, JSON.stringify(at));
+      // Wide: below the sticky bar. Below the wide breakpoint nothing sticks
+      // at the top (#240): above the dock and nav at the foot.
+      if (width >= WIDE_PX) {
+        assert.equal(at.barPosition, "sticky");
+        assert.ok(at.barBottom > 0, JSON.stringify(at));
+        assert.ok(at.top >= at.barBottom, JSON.stringify(at));
+        assert.ok(at.chromeTop >= at.barBottom - 1, JSON.stringify(at));
+      } else {
+        assert.equal(at.barPosition, "static");
+        assert.equal(at.chromeTop, 0);
+        assert.ok(at.top >= 0, JSON.stringify(at));
+      }
+      if (at.height <= at.floor - at.top) {
+        assert.ok(at.bottom <= at.floor, JSON.stringify(at));
       }
       if (process.env.U9_SHOTS) {
         await page.screenshot({

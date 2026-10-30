@@ -107,8 +107,10 @@ describe("Run's blocked check is its count (#237)", () => {
       await min.fill(NOT_WHOLE);
       const typing = await read(page);
       agree(typing, "typing");
-      assert.equal(typing.runCount, 0, "typing never adds an error");
-      assert.equal(await min.getAttribute("aria-invalid"), null);
+      // A pair in error is checked as typed (#240, Fran's #249 N1): the
+      // Min's own message takes the pair's at once.
+      assert.equal(typing.runCount, 1, "the Min's own error, as typed");
+      assert.equal(await min.getAttribute("aria-invalid"), "true");
 
       await min.blur();
       const committed = await read(page);

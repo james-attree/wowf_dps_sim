@@ -265,7 +265,7 @@ describe("a null Min never stands alone (#237)", () => {
     );
   };
 
-  it("typing a Min invalid on its own drops its mark; change gives its message", () => {
+  it("typing a Min invalid on its own in a pair in error gives its own message at once (#240 N1)", () => {
     const { store, actions, form } = setup();
     actions.change(MIN, PAIR_MIN);
     actions.change(MAX, PAIR_MAX);
@@ -273,9 +273,9 @@ describe("a null Min never stands alone (#237)", () => {
     assert.match(form().errors[MAX], /at least the min damage/);
     check(store, 1, "the pair");
     actions.input(MIN, NOT_WHOLE);
-    assert.ok(!(MIN in form().errors), "typing never adds one");
-    assert.ok(!(MAX in form().errors));
-    check(store, 0, "typing");
+    assert.equal(typeof form().errors[MIN], "string", "checked as typed");
+    assert.ok(!(MAX in form().errors), "the pair's error goes");
+    check(store, 1, "typing");
     actions.change(MIN, NOT_WHOLE);
     assert.equal(typeof form().errors[MIN], "string");
     check(store, 1, "committed");
@@ -294,7 +294,10 @@ describe("a null Min never stands alone (#237)", () => {
       actions.change(MIN, PAIR_MIN);
       actions.change(MAX, PAIR_MAX);
       actions.input(MIN, typed);
-      check(store, typed === PAIR_MIN ? 1 : 0, `typed ${typed}`);
+      // A pair in error is checked as typed (#240 N1, N2): only a Min that
+      // passes on its own and with the Max (40 or 30) clears it.
+      const passes = typed === PAIR_MAX || typed === FIXED_MIN;
+      check(store, passes ? 0 : 1, `typed ${typed}`);
       actions.input(MAX, typed);
       check(store, formErrorCount(store.get().form), `then Max ${typed}`);
     }
@@ -789,6 +792,23 @@ describe("a field typed in is checked again before it is used (#247)", () => {
     return page;
   };
 
+  it("a field typed invalid that was not in error: no config to run until it is checked", () => {
+    const { store, actions, form, config } = setup();
+    actions.change(MAX, FIXED_MAX);
+    actions.change(MIN, PAIR_MIN);
+    const stale = config();
+    actions.input(MAX, PAIR_MAX);
+    assert.deepEqual(form().errors, {}, "typing never adds one");
+    assert.equal(
+      nextRunConfig({ ...store.get(), run }),
+      null,
+      "never the config the fields don't show",
+    );
+    actions.commitEdits();
+    assert.match(form().errors[MAX], /at least the min damage/);
+    assert.equal(config(), stale, "the config is not written");
+  });
+
   it("typing marks the field edited; a commit clears it", () => {
     const { actions, form } = setup();
     assert.deepEqual(form().edited, []);
@@ -799,10 +819,12 @@ describe("a field typed in is checked again before it is used (#247)", () => {
     assert.deepEqual(form().edited, []);
   });
 
-  it("Fran's repro: no config to run until the field is checked, and then the pair's error", () => {
+  it("Fran's repro: the pair's error is back as Min reads 50 again (#240 N2), and commitEdits keeps it", () => {
     const { store, actions, form, config } = repro();
     const stale = config();
-    assert.deepEqual(form().errors, {}, "typing cleared the pair's error");
+    assert.match(form().errors[MAX], /at least the min damage/);
+    assert.equal(form().errors[MIN], null);
+    assert.equal(blocked({ ...store.get(), run }), true, "never Ready");
     assert.equal(form().values[MIN], PAIR_MIN);
     assert.equal(form().values[MAX], PAIR_MAX);
     assert.notEqual(stale.weapons.mainHand.max, PAIR_MAX, "the old Max");
@@ -865,18 +887,48 @@ describe("a field typed in is checked again before it is used (#247)", () => {
     assert.notEqual(nextRunConfig(lone), null);
   });
 
-  it("Max typed invalid on its own drops the pair's error, as Min does (nit 5)", () => {
+  it("Max typed invalid on its own swaps the pair's error for its own (nit 5; #240 N1)", () => {
     const { store, actions, form } = setup();
     actions.change(MIN, PAIR_MIN);
     actions.change(MAX, PAIR_MAX);
     actions.input(MAX, NOT_WHOLE);
-    assert.deepEqual(form().errors, {}, "no stale pair message");
-    assert.equal(formErrorCount(form()), 0);
-    assert.equal(blocked({ ...store.get(), run }), false);
+    assert.doesNotMatch(
+      form().errors[MAX],
+      /at least the min/,
+      "no stale pair message",
+    );
+    assert.ok(!(MIN in form().errors));
+    assert.equal(formErrorCount(form()), 1);
+    assert.equal(blocked({ ...store.get(), run }), true);
     actions.change(MAX, NOT_WHOLE);
     assert.equal(typeof form().errors[MAX], "string");
     assert.doesNotMatch(form().errors[MAX], /at least the min/);
     assert.ok(!(MIN in form().errors));
+  });
+
+  it("a field in error is checked as typed: its message follows the value (#240 N1)", () => {
+    const TYPED_MAX = 45;
+    const { store, actions, form } = setup();
+    actions.change(MIN, PAIR_MIN);
+    actions.change(MAX, NOT_WHOLE);
+    assert.match(form().errors[MAX], /whole number/);
+    actions.input(MAX, TYPED_MAX);
+    assert.match(form().errors[MAX], /at least the min damage/, "no blur");
+    assert.equal(form().errors[MIN], null);
+    actions.input(MAX, FIXED_MAX);
+    assert.deepEqual(form().errors, {});
+    assert.equal(blocked({ ...store.get(), run }), false);
+    actions.input(MAX, PAIR_MAX);
+    assert.match(form().errors[MAX], /at least the min damage/, "back again");
+  });
+
+  it("a field not in error when typing began is still never marked by typing", () => {
+    const { actions, form } = setup();
+    actions.change(MIN, PAIR_MIN);
+    actions.input("character.attackPower", -1);
+    assert.deepEqual(form().errors, {});
+    actions.commitEdits();
+    assert.equal(typeof form().errors["character.attackPower"], "string");
   });
 
   it("a typed Max still under the Min keeps the pair's error", () => {

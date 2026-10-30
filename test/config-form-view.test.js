@@ -307,7 +307,9 @@ describe("errors", () => {
     const min = $("cfg-weapons-mainHand-min");
     min.value = "1.5";
     min.fire("input");
-    same(1, "typing drops the Min's mark with the Max's error");
+    // A pair in error is checked as typed (#240 N1): Min's own error takes
+    // the pair's place at once.
+    same(2, "typing swaps the pair's error for the Min's own");
     min.fire("change");
     same(2, "the Min's own error");
     commit("weapons.mainHand.min", "30");
@@ -793,7 +795,7 @@ describe("index.html's form", async () => {
 });
 
 describe("a field typed in is checked on blur (#247)", () => {
-  it("Backspace then the same digit: no change fires, and blur checks it", () => {
+  it("Backspace then the same digit: no change fires; the pair is checked as typed (#240 N2) and on blur", () => {
     const { $, commit, store } = page();
     commit("weapons.mainHand.min", "50");
     commit("weapons.mainHand.max", "40");
@@ -805,7 +807,8 @@ describe("a field typed in is checked on blur (#247)", () => {
     assert.equal(max.getAttribute("aria-invalid"), null, "typing cleared it");
     min.value = "50";
     min.fire("input");
-    assert.equal($("cfg-status-ok").hidden, false, "no error while typing");
+    assert.equal($("cfg-status-ok").hidden, true, "never Ready while typing");
+    assert.equal(max.getAttribute("aria-invalid"), "true", "back at once");
     min.fire("blur");
     assert.equal(max.getAttribute("aria-invalid"), "true", "checked again");
     assert.equal(min.getAttribute("aria-invalid"), "true", "the Min marked");
