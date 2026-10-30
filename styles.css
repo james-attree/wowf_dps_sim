@@ -3114,6 +3114,7 @@ th[aria-sort="ascending"] {
 }
 
 .results-card-previous-title {
+  color: inherit;
   font-size: 0.72rem;
   font-weight: 750;
   letter-spacing: 0.08em;

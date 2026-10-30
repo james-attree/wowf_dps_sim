@@ -21,6 +21,9 @@ const fights = (n) => `${count(n)} ${n === 1 ? "fight" : "fights"}`;
 // No fight finished yet.
 const NO_FIGHTS = 0;
 
+// The previous average's heading: one card, so one id.
+const PREVIOUS_TITLE = "results-card-previous-title";
+
 const line = (cls, children) => el("p", { class: cls }, children);
 
 // The average: a finished or stopped batch's mean with its 95% interval, the
@@ -77,11 +80,25 @@ function runningPart(batch, run, buildLabel) {
     completed > NO_FIGHTS &&
       mean !== null &&
       line("results-card-running", [`Running average ${num(mean)} DPS`]),
+    // A group named by its heading, so its figures are not read as the
+    // running batch's (#245, Fran's #254 check).
     kept &&
-      el("div", { class: "results-card-previous" }, [
-        line("results-card-previous-title", ["Previous average"]),
-        ...average(previous, buildLabel),
-      ]),
+      el(
+        "div",
+        {
+          class: "results-card-previous",
+          role: "group",
+          "aria-labelledby": PREVIOUS_TITLE,
+        },
+        [
+          el(
+            "h3",
+            { id: PREVIOUS_TITLE, class: "results-card-previous-title" },
+            ["Previous average"],
+          ),
+          ...average(previous, buildLabel),
+        ],
+      ),
   ];
 }
 
