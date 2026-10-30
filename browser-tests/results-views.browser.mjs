@@ -226,7 +226,8 @@ describe("two kept results (#242)", () => {
       const average = await page.locator("#results-panel").innerText();
       assert.match(average, /Damage by ability/);
 
-      // Live fight view: nothing yet, then Watch fight runs one, on Fight.
+      // Live fight view: nothing yet, then Watch fight runs one there, its
+      // meters and log under the view (#245, UX7).
       await page.locator("#result-view-live").click();
       await page.locator("#results-live").waitFor({ state: "visible" });
       assert.equal(await page.locator("#results-panel").isVisible(), false);
@@ -243,20 +244,26 @@ describe("two kept results (#242)", () => {
         await page.locator("#results-live-label").textContent(),
         "Live fight · none yet",
       );
+      assert.equal(await page.locator("#results-live-empty").isVisible(), true);
+      assert.equal(await page.locator("#damage-panel").isVisible(), false);
+      assert.equal(await page.locator("#combat-log").isVisible(), true);
       await page.locator("#results-live-run").click();
       await liveDone(page);
-      assert.equal(await page.locator("#area-fight").isVisible(), true);
-
-      await page.goto(`${base}#results/live`);
-      await page.locator("#results-live").waitFor({ state: "visible" });
+      assert.equal(
+        await page.evaluate(() => globalThis.location.hash),
+        "#results/live",
+      );
+      assert.equal(await page.locator("#results-live").isVisible(), true);
+      assert.equal(
+        await page.locator("#results-live-empty").isVisible(),
+        false,
+      );
+      assert.equal(await page.locator("#damage-panel").isVisible(), true);
       assert.match(
         await page.locator("#results-live-label").textContent(),
         /^Live fight · 4 s · seed \d+ · ran at \d\d:\d\d · finished$/,
       );
-      assert.match(
-        await page.locator("#results-live-dps").textContent(),
-        /^[\d,]+\.\d$/,
-      );
+      assert.match(await page.locator("#dps-value").textContent(), /^[\d,]+$/);
       // The average is still there.
       await page.locator("#result-view-average").click();
       await page.locator("#results-panel").waitFor({ state: "visible" });

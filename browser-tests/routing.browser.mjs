@@ -334,7 +334,9 @@ for (const width of WIDTHS) {
     });
 
     test("the fight log's key events are said while Character is shown", async () => {
-      const { context, page, errors } = await open(width, "#fight");
+      // The log and its Announce toggle are under Results' Live view, there
+      // before a first fight (#245, UX7).
+      const { context, page, errors } = await open(width, "#results/live");
       await page.locator("#announce-toggle").check();
       // A live fight: the page opens in Batch mode (#242).
       await (await settingsField(page, "run-mode-live")).check();
@@ -345,7 +347,7 @@ for (const width of WIDTHS) {
       await page.locator('[data-nav-area="character"]').click();
       await assertAt(page, "character");
       await page.locator("#run-button").click();
-      await assertAt(page, "fight");
+      await assertAt(page, "results");
       await page.locator('[data-nav-area="character"]').click();
       await assertAt(page, "character");
       await page.waitForFunction(

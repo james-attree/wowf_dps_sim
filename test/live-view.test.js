@@ -370,10 +370,11 @@ describe("js/main.js on a stand-in page", () => {
     assert.equal(sum(secondsSeen), 0, "no time before the first frame");
     assert.ok(pendingFrame, "Run asks for a frame");
     assert.equal(element("#run-button").disabled, true);
-    // Run moved the page to Fight (#242): said with the run's own message.
+    // Run moved the page to Results' Live view (#242, #245): said with the
+    // run's own message.
     assert.equal(
       element("#run-announce").textContent,
-      "Running. Showing Fight.",
+      "Running. Showing Results.",
     );
   });
 

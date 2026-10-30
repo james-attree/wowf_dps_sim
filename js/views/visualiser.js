@@ -434,10 +434,8 @@ export function createVisualiserView(doc, store, { clock } = {}) {
 
         const name = doc.createElement("span");
         name.className = "combat-log-name";
+        // The name wraps in full (#245, UX7): no title to hover for it.
         name.textContent = event.fromProc ? `↳ ${event.name}` : event.name;
-        // The full name on hover, for a name a wide damage cuts short on a
-        // phone (Fran's #222 check, #200).
-        name.title = event.name;
 
         const damage = doc.createElement("span");
         damage.className = "combat-log-damage";

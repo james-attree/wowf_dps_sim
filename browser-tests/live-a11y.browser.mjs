@@ -161,9 +161,9 @@ for (const width of WIDTHS) {
 
       await clickCentre(page.locator("#run-button"));
       await page.waitForTimeout(1500);
-      // Run moved the page to Fight, which it says (#242, comment a).
+      // Run moved the page to Results' Live view, which it says (#242, #245).
       assert.deepEqual(await messages(page), [
-        { id: "run-announce", text: "Running. Showing Fight." },
+        { id: "run-announce", text: "Running. Showing Results." },
       ]);
 
       await clickCentre(page.locator("#pause-button"));
@@ -581,11 +581,11 @@ for (const width of [...WIDTHS, 360]) {
   });
 }
 
-// #200 (Fran's #222 check): at 360px a six-digit damage can cut a skill name
-// short ("Sinister …"); each row's name cell carries the full name as its
-// title, and the damage itself is never cut.
+// #200 (Fran's #222 check): at 360px a six-digit damage once cut a skill
+// name short ("Sinister …"). The name wraps now, with no title (#245, UX7),
+// and the damage itself is never cut.
 for (const width of [390, 360]) {
-  test(`a log row's name has its full name as a title at ${width}px (#200)`, async () => {
+  test(`a log row's name has no title at ${width}px (#200, #245)`, async () => {
     const { context, page, errors } = await openPage(width);
     try {
       await clickCentre(page.locator("#run-button"));
@@ -609,7 +609,6 @@ for (const width of [390, 360]) {
         const name = row.querySelector(".combat-log-name");
         const damage = row.querySelector(".combat-log-damage");
         name.textContent = "Sinister Strike";
-        name.title = "Sinister Strike";
         damage.textContent = "123,456";
         const box = row.getBoundingClientRect();
         const cell = damage.getBoundingClientRect();
@@ -621,9 +620,10 @@ for (const width of [390, 360]) {
           wide: document.documentElement.scrollWidth > globalThis.innerWidth,
         };
       });
+      // The name wraps in full (#245, UX7): no title to hover for it.
       for (const [text, title] of rows.titles) {
         assert.ok(text.length > 0);
-        assert.equal(title, text, "the title is the full name");
+        assert.equal(title, "", "no title");
       }
       assert.equal(rows.damageInside, true, "the damage inside its row");
       assert.equal(rows.damageCut, false, "the damage not cut");
@@ -645,10 +645,9 @@ for (const width of [390, 360]) {
   });
 }
 
-// #200 (Fran's #224 QA, N2): on a narrow screen a long name wraps, in full
-// with no ellipsis however long (a touch screen cannot reach the title, Fran's
-// #228 QA, nit 3; #234), and keeps its full name as the title; on a wide one
-// it stays on one line. The damage stays right-aligned in its column, and the
+// #200 (Fran's #224 QA, N2): a long name wraps, in full with no ellipsis
+// however long (a touch screen cannot reach a title, Fran's #228 QA, nit 3;
+// #234), at every width and with no title since #245 (UX7). The damage stays right-aligned in its column, and the
 // page never scrolls sideways.
 for (const width of [1280, 390, 360]) {
   test(`a long log name wraps in full at ${width}px (#200, #234)`, async () => {
@@ -672,7 +671,6 @@ for (const width of [1280, 390, 360]) {
         );
         const name = first.querySelector(".combat-log-name");
         name.textContent = long;
-        name.title = long;
         const short = second.querySelector(".combat-log-name");
         short.textContent = "Kick";
         first.querySelector(".combat-log-damage").textContent = "123,456";
@@ -687,6 +685,8 @@ for (const width of [1280, 390, 360]) {
           more: name.scrollHeight > name.clientHeight + 1,
           title: name.title,
           clamp: getComputedStyle(name).webkitLineClamp,
+          wrap: getComputedStyle(name).whiteSpace,
+          ellipsis: getComputedStyle(name).textOverflow,
           damageRight: [right(first), right(second)],
           damageAlign: getComputedStyle(damage).textAlign,
           damageCut: damage.scrollWidth > damage.clientWidth,
@@ -695,14 +695,16 @@ for (const width of [1280, 390, 360]) {
             document.documentElement.clientWidth,
         };
       }, LONG);
+      // At every width since #245 (UX7): in full, no clamp, no title. A wide
+      // row has room for it on one line.
+      assert.equal(at.clamp, "none", "no line clamp");
+      assert.notEqual(at.wrap, "nowrap", "it may wrap");
+      assert.notEqual(at.ellipsis, "ellipsis", "no ellipsis");
       if (width < 520) {
-        assert.equal(at.clamp, "none", "no line clamp");
         assert.ok(at.lines > 2.5, `three lines or more: ${at.lines}`);
-        assert.equal(at.more, false, "nothing cut off, no ellipsis");
-      } else {
-        assert.ok(at.lines < 1.5, `one line: ${at.lines}`);
       }
-      assert.equal(at.title, LONG, "the full name is the title");
+      assert.equal(at.more, false, "nothing cut off");
+      assert.equal(at.title, "", "no title");
       assert.ok(
         Math.abs(at.damageRight[0] - at.damageRight[1]) <= 1,
         `damage right-aligned: ${at.damageRight}`,

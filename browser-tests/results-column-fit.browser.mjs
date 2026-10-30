@@ -218,19 +218,22 @@ describe("the GCD readout stays in its card (Fran's #253 check, B1)", () => {
   widths.push(...MORE_WIDTHS);
   for (const font of FONTS) {
     test(`${font}: nothing in the cooldown cards spills, ${SWEEP_FROM} to ${SWEEP_TO}; the grid never narrows to ${WIDEN_TO}`, async (t) => {
+      // The meters are under Results' Live view since #245 (UX7).
       const { context, page, errors } = await open(SWEEP_FROM, {
         font,
-        hash: "#fight",
+        hash: "#results/live",
       });
       try {
         if (!(await hasFont(page, font))) {
           t.skip(`${font} is not installed here`);
           return;
         }
-        await toArea(page, "fight");
-        // The longest the readout says, as a paused fight shows it.
+        // The longest the readout says, as a paused fight shows it, with
+        // the meters shown as a fight shows them.
         await page.evaluate(() => {
           const doc = globalThis.document;
+          doc.getElementById("results-live-empty").hidden = true;
+          doc.getElementById("results-live-fight").hidden = false;
           doc.getElementById("gcd-status").textContent = "On cooldown";
           doc.getElementById("gcd-value").textContent = "1.5s";
         });

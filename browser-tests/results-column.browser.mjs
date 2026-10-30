@@ -228,12 +228,14 @@ describe("the desktop summary card (#241)", () => {
       );
       assert.equal(await card.isVisible(), false, "not shown on Results");
       await toArea(page, "character");
+      // The live fight is under Results' Live view since #245 (UX7).
       await card.getByRole("link", { name: "Open the live fight" }).click();
       await page.waitForFunction(
         () =>
-          globalThis.document.querySelector('[data-area="fight"]')?.hidden ===
-          false,
+          globalThis.document.querySelector('[data-area="results"]')?.hidden ===
+            false && globalThis.location.hash === "#results/live",
       );
+      assert.equal(await page.locator("#damage-panel").isVisible(), true);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
