@@ -38,6 +38,21 @@ import { SimRunner } from "./sim-runner.js";
 //
 // fight() is the runner's current fight ({ rogue, simulation }) or null, for
 // tests and tools; the views never read it.
+// live.run's and live.clear's options; any other name (an `engine`, say) is a
+// RangeError, as in runFight and SimRunner (#236 QA).
+const RUN_OPTIONS = Object.freeze(["seed", "duration", "config"]);
+const CLEAR_OPTIONS = Object.freeze(["seed", "config"]);
+
+function checkOptions(where, options, names) {
+  for (const key of Object.keys(options)) {
+    if (!names.includes(key)) {
+      throw new RangeError(
+        `${where} has no option ${JSON.stringify(key)}. Options: ${names.join(", ")}.`,
+      );
+    }
+  }
+}
+
 export function createLiveRun(store, frames) {
   const clock = new FrameClock();
   let runner = null;
@@ -119,7 +134,9 @@ export function createLiveRun(store, frames) {
     // A new fight from `seed`, `duration` and `config` (SimRunner's
     // options), started at once. Allowed while idle or
     // finished, as SimRunner.run() is.
-    run({ seed, duration, config }) {
+    run(options) {
+      checkOptions("live.run", options, RUN_OPTIONS);
+      const { seed, duration, config } = options;
       const state = runner?.state ?? "idle";
       if (state !== "idle" && state !== "finished") {
         throw new Error(
@@ -134,7 +151,9 @@ export function createLiveRun(store, frames) {
     // The picture of a fight from `seed` and `config` at 0:00, with no runner
     // behind it. Allowed while idle (before the first run, or after stop or
     // reset), so a running fight is never hidden.
-    clear({ seed, config }) {
+    clear(options) {
+      checkOptions("live.clear", options, CLEAR_OPTIONS);
+      const { seed, config } = options;
       const state = runner?.state ?? "idle";
       if (state !== "idle") {
         throw new Error(

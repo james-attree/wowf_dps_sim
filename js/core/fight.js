@@ -578,12 +578,12 @@ class CoreFight {
         this.sim.gcd = 0;
         this.seen.gcd = 0;
         break;
-      // An expiry the pool counts down itself: tick() it through what was
-      // left, so it runs out as Resource.tick says.
       case TIMER_KINDS.cooldown:
         this.sim.cooldowns[event.payload.id] = 0;
         this.seen.cooldowns.delete(event.payload.id);
         break;
+      // An expiry the pool counts down itself: tick() it through what was
+      // left, so it runs out as Resource.tick says.
       case TIMER_KINDS.points: {
         const pool = this.rogue.resources[event.payload.id];
         this.seen.points.delete(event.payload.id);

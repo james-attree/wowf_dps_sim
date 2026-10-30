@@ -4,6 +4,12 @@
 // lazy cancellation: a cancelled event stays in the heap and is skipped when
 // it comes out. Pure: no DOM, no clock, no random numbers.
 //
+// A cancelled event keeps its heap slot until it reaches the top, so a host
+// that cancels and reschedules often (a refresh every few seconds) holds one
+// dead slot per refresh until its time passes; nextTime and runUntil drop
+// them as they come out (#223). pendingCount counts only live events, and
+// the hard stops count events that ran, not slots.
+//
 // Times are plain doubles in seconds, used exactly as given. Callers compute
 // them from an anchor (`applied_at + n * interval`, `start + duration`), as
 // docs/mechanics.md "Event-queue engine (Phase 3.5)" says, so times
@@ -221,6 +227,12 @@ export class Scheduler {
       this.#pop();
     }
     return heap.length > 0 ? heap[0].time : null;
+  }
+  // The SchedulerHardStopError that stopped the scheduler, or null while it
+  // runs. A component that must not change its state after a stop (the
+  // EnergyPool, #225) checks it before it does.
+  get stoppedBy() {
+    return this.#stoppedBy;
   }
   // The event whose handler is running, or null outside a handler (#198:
   // SwingTimer.swung() checks it is called from its own swing).

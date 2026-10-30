@@ -546,7 +546,8 @@ export class ProcRunner {
     });
   }
 
-  // One DoT tick (Simulation.step), with the context of the DoT.
+  // One DoT tick (a DoT tick event on the core, js/core/dots.js), with the
+  // context of the DoT.
   onDotTick(context) {
     if (!this.active) {
       return;

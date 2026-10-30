@@ -253,15 +253,13 @@ describe("the resource cap", () => {
 
   it("holds energy at the new cap while it regenerates", () => {
     const { rogue, sim } = harness({ modifiers: [MAX] });
-    // From 90, not 100: at exactly 100 at t = 0 the energy >= 100 rule's
-    // wake-up falls on t = 0 again and again (conditionWakeAt nudges up by
-    // an ulp of 0, which moves no energy), and a rogue that never casts
-    // never clears it. Left for the #234 engine polish.
-    rogue.energy = 90;
-    runOnCore(sim, 1);
-    assert.equal(rogue.energy, 100);
+    // Exactly 100 at t = 0, the energy >= 100 rule's threshold: its wake-up
+    // is once the energy has moved, not t = 0 again (conditionWakeAt, #234).
+    rogue.energy = 100;
     runOnCore(sim, 1);
     assert.equal(rogue.energy, 110);
+    runOnCore(sim, 1);
+    assert.equal(rogue.energy, 120);
     runOnCore(sim, 5);
     assert.equal(rogue.energy, 120);
     // The cap is the one the pipeline gives, so a plain Rogue stops at 100.

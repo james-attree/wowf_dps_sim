@@ -26,8 +26,10 @@ export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 // maximum, prerequisites, row gating; an illegal one is a RangeError that
 // names the talent ids) and its modifiers,
 // procs and granted abilities are the rogue's, so runFight and the live page
-// run a talented fight from the SimConfig alone. The rotation casts Blade
-// Flurry and Adrenaline Rush only when the build has the talent. No ranks is no
+// run a talented fight from the SimConfig alone. The rotation casts a
+// talent's ability (Cold Blood, Blade Flurry, Adrenaline Rush, Ghostly Strike,
+// Premeditation, Hemorrhage; see talentGrantedAbilities in
+// js/talent-build.js) only when the build has the talent. No ranks is no
 // build, and no build is untalented (#199): the rotation casts no talent
 // ability unless the host grants it (options.abilities). The returned `build` is what was applied
 // (js/talent-build.js applyBuild), including `unmapped`, the talents of the
@@ -131,13 +133,26 @@ export function runFight(options) {
       );
     }
   }
-  const { seed, duration, config } = options;
+  // Own options only: one an object inherits is not given (#209).
+  const own = (key) => (Object.hasOwn(options, key) ? options[key] : undefined);
+  const seed = own("seed");
+  const duration = own("duration");
+  const config = own("config");
   // A seed is required so no fight is repeatable by accident or random by
-  // accident. createFight rejects anything that is not an integer.
+  // accident. createFight rejects anything that is not an integer, then a
+  // bad config; the duration is checked after both, with runFight's own
+  // message for every bad one, none included (#209), as SimRunner's.
+  const valid = Number.isFinite(duration) && duration >= 0;
   // The rotation is told the length the fight runs (#191).
-  const fight = createFight(seed, config, { duration });
-  // One run call for the whole fight. A bad duration is already refused,
-  // by createFight, as a RangeError.
+  const fight = createFight(seed, config, {
+    duration: valid ? duration : undefined,
+  });
+  if (!valid) {
+    throw new RangeError(
+      `runFight needs a finite duration in seconds, 0 or more. Got ${duration}.`,
+    );
+  }
+  // One run call for the whole fight.
   fight.simulation.run(duration);
   return fightResult(fight);
 }

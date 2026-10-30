@@ -531,6 +531,83 @@ describe("validateRotation: the context", () => {
     );
   });
 
+  // #210 (Kira's QA): every list is an array or a Set, the debuffs an
+  // object, and the context itself an object; none or null is the engine's.
+  it("refuses a context or a part of one of the wrong kind, and takes Sets", () => {
+    const sets = {
+      abilities: new Set(["sinister-strike", "rupture"]),
+      castable: new Set(["sinister-strike", "rupture"]),
+      auras: new Set(["slice-and-dice"]),
+    };
+    const buffRule = rotation(
+      rule("rupture", { type: "auraActive", aura: "slice-and-dice" }),
+      rule("sinister-strike"),
+    );
+    assert.deepEqual(validateRotation(buffRule, sets), []);
+    assert.match(
+      validateRotation(rotation(rule("eviscerate")), sets)[0].message,
+      /"eviscerate" is not an ability in the spell data/,
+    );
+    assert.deepEqual(validateRotation(valid, null), []);
+    assert.deepEqual(validateRotation(valid), []);
+    assert.deepEqual(rotationContext(null), rotationContext());
+    assert.deepEqual(
+      rotationContext({ debuffs: null }).debuffs,
+      rotationContext().debuffs,
+    );
+    const typeError = (message) => (error) =>
+      error instanceof TypeError && error.message === message;
+    const cases = [
+      [5, "rotationContext: the context must be an object, not a number."],
+      [
+        "ctx",
+        'rotationContext: the context must be an object, not the string "ctx".',
+      ],
+      [[], "rotationContext: the context must be an object, not an array."],
+      [new Set(), "rotationContext: the context must be an object, not a Set."],
+      [
+        { auras: "slice-and-dice" },
+        'rotationContext: auras must be an array or a Set of aura ids, not the string "slice-and-dice".',
+      ],
+      [
+        { auras: [1] },
+        "rotationContext: auras must hold aura id strings, not a number.",
+      ],
+      [
+        { abilities: {} },
+        "rotationContext: abilities must be an array or a Set of ability ids, not an object.",
+      ],
+      [
+        { castable: "rupture" },
+        'rotationContext: castable must be an array or a Set of ability ids, not the string "rupture".',
+      ],
+      [
+        { debuffs: ["rupture"] },
+        "rotationContext: debuffs must be an object of debuff id to its most stacks, not an array.",
+      ],
+      [
+        { debuffs: new Map() },
+        "rotationContext: debuffs must be an object of debuff id to its most stacks, not a Map.",
+      ],
+      [
+        { debuffs: 3 },
+        "rotationContext: debuffs must be an object of debuff id to its most stacks, not a number.",
+      ],
+    ];
+    for (const [context, message] of cases) {
+      assert.throws(
+        () => rotationContext(context),
+        typeError(message),
+        message,
+      );
+      assert.throws(
+        () => validateRotation(valid, context),
+        typeError(message),
+        message,
+      );
+    }
+  });
+
   it("takes the spell data and the debuffs from the context", () => {
     const narrow = { abilities: ["rupture"], castable: ["rupture"] };
     assert.match(

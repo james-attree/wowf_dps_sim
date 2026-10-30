@@ -121,15 +121,15 @@ How the fixed step works today, because it is what changes:
 
 ## Scope, mapped to the roadmap
 
-| Roadmap task | In this phase                                                                                                                                                |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| E3           | Min-heap scheduler keyed by time, a tie-break class and a sequence number. `runUntil(t)` and `runToEnd()`.                                                   |
-| E4           | Swings, GCD, cooldowns, aura and Premeditation expiry as events. Energy continuous at the regen rate, with a wake-up when energy reaches the next cost.      |
-| E5           | DoTs as scheduled tick events, ticks at exact multiples of the interval from the application.                                                                |
-| E6           | Decision points: the rotation runs when state changes, not per frame.                                                                                        |
-| E7 to E9     | Finishing and re-pointing the Phase 3 versions (event stream, `SimRunner`, live adapter) onto the new core, keeping their interface.                         |
-| E11          | Parity test against the legacy engine: mean DPS within 2% over many seeds, with the Phase 3 rotation (R3) and the Q-fixes in.                                |
-| E10          | Not part of this phase. The new core takes the end time through `runToEnd`. Check the status of E10 when this phase is planned and fold it in if it is open. |
+| Roadmap task | In this phase                                                                                                                                                  |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E3           | Min-heap scheduler keyed by time, a tie-break class and a sequence number. `runUntil(t)` and `runToEnd()`.                                                     |
+| E4           | Swings, GCD, cooldowns, aura and Premeditation expiry as events. Energy continuous at the regen rate, with a wake-up when energy reaches the next cost.        |
+| E5           | DoTs as scheduled tick events, ticks at exact multiples of the interval from the application.                                                                  |
+| E6           | Decision points: the rotation runs when state changes, not per frame.                                                                                          |
+| E7 to E9     | Finishing and re-pointing the Phase 3 versions (event stream, `SimRunner`, live adapter) onto the new core, keeping their interface.                           |
+| E11          | Parity test against the legacy engine: mean DPS within 2% over many seeds, with the Phase 3 rotation (R3) and the Q-fixes in.                                  |
+| E10          | Folded in as #191 (PR #209): the fight's length reaches the rotation as `duration` (`fightTimeRemaining`). The new core takes the end time through `runToEnd`. |
 
 ## Design
 

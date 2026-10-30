@@ -810,3 +810,95 @@ describe("DoT tick interval check (#193)", () => {
     assert.ok(sim.damageDone > 0);
   });
 });
+
+describe("scheduler: after a hard stop, and checks in order (#225, #223)", () => {
+  // A handler that keeps scheduling at now trips the per-timestamp stop.
+  function stopped() {
+    const { scheduler } = recorder(10, (event, self) => {
+      if (event.kind === "loop") {
+        at(self, self.now, "decision", "loop");
+      }
+    });
+    const later = at(scheduler, 5, "swing", "later");
+    at(scheduler, 1, "decision", "loop");
+    assert.equal(scheduler.stoppedBy, null);
+    let error;
+    try {
+      scheduler.runToEnd();
+    } catch (thrown) {
+      error = thrown;
+    }
+    assert.ok(error instanceof SchedulerHardStopError);
+    return { scheduler, error, later };
+  }
+
+  it("stoppedBy is the error that stopped it, and null before", () => {
+    const { scheduler, error } = stopped();
+    assert.equal(scheduler.stoppedBy, error);
+  });
+
+  it("reschedule after a stop is the stopped error, before the event is checked", () => {
+    const { scheduler } = stopped();
+    // An event of another scheduler: the stop is named first, not the
+    // foreign event (Kira's S3 mutant on #225).
+    const other = recorder(10).scheduler;
+    const foreign = at(other, 1, "swing");
+    for (const event of [foreign, null, "x"]) {
+      assert.throws(
+        () => scheduler.reschedule(event, 2),
+        (thrown) =>
+          thrown.constructor === Error &&
+          /stopped by a hard stop and cannot reschedule an event/.test(
+            thrown.message,
+          ),
+        String(event),
+      );
+    }
+  });
+
+  it("runUntil from a handler is refused as such, whatever time it is given", () => {
+    // The in-handler check comes before the time's (Kira's S7 mutant on #225).
+    for (const bad of [Number.NaN, -1, "1", 100, 3]) {
+      const { scheduler } = recorder(10, (event, self) => {
+        if (event.kind === "inner") {
+          self.runUntil(bad);
+        }
+      });
+      at(scheduler, 2, "decision", "inner");
+      assert.throws(
+        () => scheduler.runToEnd(),
+        (thrown) =>
+          thrown.constructor === Error &&
+          thrown.message ===
+            "runUntil cannot be called from inside an event handler.",
+        String(bad),
+      );
+    }
+  });
+});
+
+describe("DoT tick interval: a tiny one hits the hard stop, not a hang (#223 g)", () => {
+  // #223 (g) was the fixed-step loop spinning on a tiny interval. That loop
+  // went in #234; on the core each tick is an event, so a tiny interval
+  // trips the per-run hard stop.
+  for (const interval of [1e-9, Number.MIN_VALUE]) {
+    it(`interval ${interval}: SchedulerHardStopError`, () => {
+      const rogue = new Rogue();
+      quiet(rogue);
+      const sim = new Simulation(rogue, { rng: testRng });
+      sim.activeDots.rupture = {
+        name: "Rupture",
+        duration: 6,
+        tickInterval: interval,
+        timeUntilNextTick: interval,
+        tickDamage: 1,
+        icon: null,
+      };
+      assert.throws(
+        () => runOnCore(sim, 1),
+        (thrown) =>
+          thrown instanceof SchedulerHardStopError && thrown.scope === "run",
+      );
+    });
+  }
+});

@@ -251,4 +251,38 @@ describe("condition drift (#197)", () => {
       null,
     );
   });
+
+  // #234: at t = 0 the next double up is the smallest one, which moves no
+  // number off a threshold it sits on; the wake is where it has moved.
+  it("wakes at t = 0 on a threshold where the number has left it", () => {
+    const zero = (changes = {}) => state({ time: 0, duration: 60, ...changes });
+    const energy = (value) => ({
+      resources: {
+        ...state().resources,
+        energy: { value, max: 120, regenPerSecond: 10 },
+      },
+    });
+    const cases = [
+      [
+        { type: "resource", resource: "energy", op: ">", value: 100 },
+        energy(100),
+      ],
+      [{ type: "resource", resource: "energy", op: ">", value: 0 }, energy(0)],
+      [{ type: "fightTime", op: ">", value: 0 }, {}],
+      [{ type: "fightTimeRemaining", op: "<", value: 60 }, {}],
+    ];
+    for (const [condition, changes] of cases) {
+      const base = zero(changes);
+      const wake = conditionWakeAt(condition, base);
+      assert.ok(wake > 0 && wake < 1e-12, `${condition.type}: ${wake}`);
+      assert.notEqual(
+        evaluate(condition, later(base, wake)),
+        evaluate(condition, base),
+        `${condition.type} at ${wake}`,
+      );
+    }
+    // Later than 0 the wake is still the next double up.
+    const at30 = conditionWakeAt(cases[0][0], state(energy(100)));
+    assert.equal(at30, 30 + 30 * Number.EPSILON);
+  });
 });
