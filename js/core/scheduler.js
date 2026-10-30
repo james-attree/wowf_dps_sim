@@ -166,11 +166,21 @@ export class Scheduler {
 
   // endTime: the fight's end in seconds (runToEnd runs to it).
   // handle(event, scheduler): called for each event, in order.
-  constructor({ endTime, handle } = {}) {
+  // startTime: where now starts, 0 by default and at most endTime. A host
+  // that takes a fight over part way through (the event core, #198) starts
+  // its scheduler at the fight's time, so every run of one fight schedules on
+  // the same clock.
+  constructor({ endTime, handle, startTime = 0 } = {}) {
     checkTime(endTime, "Scheduler endTime");
     if (endTime < 0) {
       throw new RangeError(
         `Scheduler endTime must be 0 or more. Got ${endTime}.`,
+      );
+    }
+    checkTime(startTime, "Scheduler startTime");
+    if (startTime < 0 || startTime > endTime) {
+      throw new RangeError(
+        `Scheduler startTime must be from 0 to the end time (${endTime} s). Got ${startTime}.`,
       );
     }
     if (typeof handle !== "function") {
@@ -179,6 +189,7 @@ export class Scheduler {
       );
     }
     this.#endTime = endTime;
+    this.#now = startTime;
     this.#handle = handle;
     this.#maxPerTimestamp = k("sim.maxEventsPerTimestamp");
     // Scaled by the fight length, since a fight has no maximum duration. A

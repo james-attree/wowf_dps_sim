@@ -260,7 +260,7 @@ describe("openCore: the event core held open (#198)", () => {
     assert.equal(simulation.currentTime, 5);
     assert.ok(simulation.damageDone > 0);
     assert.ok(rogue.energy >= 0 && rogue.energy <= rogue.maxEnergy);
-    assert.equal(run.duration, 30);
+    assert.equal(run.endTime, 30);
     assert.ok(run.nextTime === null || run.nextTime >= 5);
     run.close();
   });

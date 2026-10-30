@@ -1272,7 +1272,7 @@ first is in every fight once the core ships (#197, #198):
   entry at the end of that step whether the refresh restarts it (a cast DoT)
   or keeps its clock (a proc's DoT or a poison), so on legacy the refresh is
   lost.
-- (d) Ticks of two different DoTs at the same time run in the order they
+- (c) Ticks of two different DoTs at the same time run in the order they
   were scheduled (the scheduler's seq) on the core, and in the order the DoTs
   were first put in `activeDots` on legacy. Each tick's damage is the same;
   only which one draws its rolls first changes, so the mean is not moved, but
@@ -1355,6 +1355,22 @@ changed moves its timer, the energy pool is told a modifier may have changed
 would. So a second `run`, or a `step()`, carries on from where the core left
 the fight.
 
+A second `run` on the core is the same fight as one longer run, wherever the
+split falls, on an event's time or between two (#198, from #197 QA M1). The
+fields hold time left, which is the end minus now, rounded; a run that
+re-based every timer from them would move later events by an ulp or so, and
+an energy wake or a swing could then change places with a DoT tick at the
+same time. So the core keeps the fight's own clock (its scheduler starts at
+`sim.currentTime`, not 0), and on closing it leaves `sim.coreCarry`: the
+exact end of each GCD, cooldown, aura and points timer, each DoT's tick clock
+(also one whose last tick has run while it has time left, which a proc can
+refresh on its clock), each swing's grid (its anchor, interval and count),
+the check poll's next time and the energy pool's line. The next run takes each one while its field still
+holds what was written; a field changed between the runs, or a run that does
+not start where the last one closed (a `step()` in between), starts from the
+field as before. Only `sim.coreStats` sees the split: each run asks the
+rotation once at its start.
+
 The rotation (`Rogue.castRotation`, which both engines call) runs at decision
 points only, in the decision class after the other events at a time: once at
 the time of any other event (a cast, a swing, a tick, a proc, an aura or
@@ -1362,8 +1378,9 @@ cooldown running out, the GCD ending), when energy reaches the cheapest cost
 the rotation lacked (`EnergyPool.wakeAt`), and where a condition that moves
 with time would cross its value with no event in between. A cast asks again at
 the same time, so an off-GCD rule (Cold Blood) follows the cast that enabled
-it; the re-asks stop when a decision casts nothing, or after as many at one
-time as the rotation has rules.
+it; the re-asks stop when a decision casts nothing, or after as many
+re-asks at one time as the rotation has rules: a rotation that casts at
+every ask is asked the rule count plus one times at that time.
 Each condition type in `js/rotation-conditions.js` declares its drift:
 `AT_EVENTS` (its answer changes only at an event) or a rate per second of
 fight time (energy and other pools below their cap, `auraRemaining`,

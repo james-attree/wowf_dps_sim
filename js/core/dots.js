@@ -180,6 +180,50 @@ export class DotTicks {
     return Object.freeze({ id, tick: dot.ticks, last: dot.event === null });
   }
 
+  // The DoT's clock, { anchor, interval, sinceAnchor, ticks, endsAt,
+  // lastTick, next } (next: the pending tick's time or null), or null for
+  // one never applied. The core carries it from one run to the next on the
+  // same fight (js/core/fight.js, #198 from #197 QA M1).
+  state(id) {
+    checkId(id);
+    const dot = this.#dots.get(id);
+    if (dot === undefined) {
+      return null;
+    }
+    const { anchor, interval, sinceAnchor, ticks, endsAt, lastTick } = dot;
+    return Object.freeze({
+      anchor,
+      interval,
+      sinceAnchor,
+      ticks,
+      endsAt,
+      lastTick,
+      next: this.nextTickAt(id),
+    });
+  }
+
+  // Go on from a state(id) of an earlier run: the same clock, and the
+  // pending tick at its time.
+  resume(id, { anchor, interval, sinceAnchor, ticks, endsAt, lastTick, next }) {
+    checkId(id);
+    this.#dots.get(id)?.event?.cancel();
+    const dot = {
+      payload: Object.freeze({ id }),
+      anchor,
+      interval,
+      sinceAnchor,
+      ticks,
+      endsAt,
+      lastTick,
+      event: null,
+    };
+    this.#dots.set(id, dot);
+    if (next !== null) {
+      dot.event = this.#tickEvent(dot, next);
+    }
+    return dot.event;
+  }
+
   // Stop the DoT now, with no more ticks.
   clear(id) {
     checkId(id);
@@ -243,13 +287,15 @@ export class DotTicks {
 
   #scheduleNext(dot) {
     const time = this.#tickTime(dot);
-    dot.event = this.#fits(dot, time)
-      ? this.#scheduler.schedule({
-          time,
-          order: ORDER["dot-tick"],
-          kind: DOT_TICK_KIND,
-          payload: dot.payload,
-        })
-      : null;
+    dot.event = this.#fits(dot, time) ? this.#tickEvent(dot, time) : null;
+  }
+
+  #tickEvent(dot, time) {
+    return this.#scheduler.schedule({
+      time,
+      order: ORDER["dot-tick"],
+      kind: DOT_TICK_KIND,
+      payload: dot.payload,
+    });
   }
 }

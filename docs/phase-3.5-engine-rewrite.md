@@ -332,8 +332,12 @@ its own swing event only). Tested in `test/runner-engine-files.test.js` (the
 sim-runner, event-stream, live-run, live-feed, run-controls and
 ability-breakdown files on the core), `test/runner-events.test.js` (any
 split, no step artefact, Stop then Run, live equals headless at 1x, 4x and
-max, procs and poisons through the runner, the feed between calls) and
-`test/core-checks-198.test.js`. The step-artefact test (#185(f)'s
+max, procs and poisons through the runner, the feed between calls),
+`test/core-checks-198.test.js` and `test/core-split-198.test.js` (#197's QA
+M1 and M2: a fight split on the core through `runOnCore`, `sim.run` and the
+runner is the fight in one run, event for event, with the clocks each run
+hands the next; the engine option, the re-ask cap and the DoT refresh rules
+across a run). The step-artefact test (#185(f)'s
 "600 × advance(1/60) ends one step short" in `test/sim-runner.test.js`) is
 skipped on the core and stays for legacy until the step code goes (#200). The
 UI and the Worker are unchanged: they run legacy until #199 switches the

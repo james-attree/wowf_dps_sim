@@ -61,6 +61,8 @@ export class EnergyPool {
   // counted when it ends, or when waste() reads it).
   #cappedTime = 0;
   #overflow = 0;
+  // Waste counts from here: the start, or a carried line's hand-over.
+  #wasteFrom;
 
   // `definition` is a row of js/resource-data.js with a regen rule;
   // `modifiers` the rogue's ModifierPipeline (or anything with resolve(kind,
@@ -69,8 +71,13 @@ export class EnergyPool {
   // the value at the scheduler's now in place of the definition's start (the
   // event core takes a fight over from the legacy pool with it, #197).
   // `baseMax` likewise replaces the definition's cap before modifiers (a
-  // test's or the page's maxEnergy).
-  constructor({ definition, modifiers, scheduler, value, baseMax } = {}) {
+  // test's or the page's maxEnergy). `line`, { value0, t0 } with t0 no later
+  // than now, goes on with the line of a pool an earlier run on the same
+  // fight left (the core's carry, #198 from #197 QA M1), in place of
+  // `value`: the value is read from it as there, so a run split in two reads
+  // what one run would. Waste counts from now: the earlier run counted the
+  // time before.
+  constructor({ definition, modifiers, scheduler, value, baseMax, line } = {}) {
     if (definition?.regen === undefined) {
       throw new RangeError(
         `EnergyPool needs a resource definition with a regen rule. "${String(definition?.id)}" has none.`,
@@ -94,10 +101,22 @@ export class EnergyPool {
     this.#scheduler = scheduler;
     this.#rate = this.#readRate();
     this.#cap = this.#readCap();
-    const start = value ?? startValue(definition.start);
-    checkAmount(definition, "start at", start);
-    this.#value0 = Math.min(start, this.#cap);
-    this.#t0 = scheduler.now;
+    this.#wasteFrom = scheduler.now;
+    if (line === undefined) {
+      const start = value ?? startValue(definition.start);
+      checkAmount(definition, "start at", start);
+      this.#value0 = Math.min(start, this.#cap);
+      this.#t0 = scheduler.now;
+    } else {
+      if (!(Number.isFinite(line?.t0) && line.t0 <= scheduler.now)) {
+        throw new RangeError(
+          `Resource "${definition.id}": a carried line needs a finite t0 no later than now (${scheduler.now}). Got ${String(line?.t0)}.`,
+        );
+      }
+      checkAmount(definition, "carry a line from", line.value0);
+      this.#value0 = Math.min(line.value0, this.#cap);
+      this.#t0 = line.t0;
+    }
     // As on the legacy Resource: onChange(change, before, source) after a
     // gain or a spend that moved the value. Regeneration is not reported.
     this.onChange = null;
@@ -147,13 +166,14 @@ export class EnergyPool {
   // The time the current piece spends at the cap up to `time`, and what it
   // would have regenerated in that time.
   #pieceWaste(time) {
+    const from = Math.max(this.#t0, this.#wasteFrom);
     if (this.#rate === 0) {
-      return { capped: this.#value0 >= this.#cap ? time - this.#t0 : 0 };
+      return { capped: this.#value0 >= this.#cap ? time - from : 0 };
     }
     const reach =
       this.#value0 >= this.#cap
-        ? this.#t0
-        : this.#t0 + (this.#cap - this.#value0) / this.#rate;
+        ? from
+        : Math.max(from, this.#t0 + (this.#cap - this.#value0) / this.#rate);
     return { capped: Math.max(0, time - reach) };
   }
 

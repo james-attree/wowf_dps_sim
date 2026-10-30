@@ -98,6 +98,37 @@ export class SwingTimer {
     return this.#event;
   }
 
+  // The pending swing and the grid it is on, { next, anchor, interval,
+  // count }, or null when none is pending. The core carries it from one run
+  // to the next on the same fight (js/core/fight.js, #198 from #197 QA M1).
+  get state() {
+    const next = this.nextSwingTime;
+    if (next === null) {
+      return null;
+    }
+    return Object.freeze({
+      next,
+      anchor: this.#anchor,
+      interval: this.#interval,
+      count: this.#count,
+    });
+  }
+
+  // Go on from a state() of this hand's timer in an earlier run: the pending
+  // swing at its time, on the same grid, so the run ticks as one run would.
+  resume({ next, anchor, interval, count }) {
+    if (this.#event !== null && this.#event.state === "pending") {
+      throw new Error(
+        `The ${this.#label} hand is already swinging; stop() it first.`,
+      );
+    }
+    this.#anchor = anchor;
+    this.#interval = interval;
+    this.#count = count;
+    this.#event = this.#schedule(next);
+    return this.#event;
+  }
+
   stop() {
     this.#event?.cancel();
     this.#event = null;
