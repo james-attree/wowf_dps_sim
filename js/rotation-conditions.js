@@ -425,12 +425,12 @@ export function conditionWakeAt(condition, state) {
   if (gap === 0) {
     // At t = 0 the next double up is the smallest one, which moves no value
     // off its threshold, so the wake-ups would crawl to the hard stop (#234):
-    // wake when the value has moved by an ulp of itself (2 * |value| *
-    // EPSILON is at least one). Only at 0, so later wakes stay as they were.
+    // wake when the value has moved by |value| * EPSILON, at least an ulp of
+    // it. Only at 0, so later wakes stay as they were.
     if (state.time === 0) {
       return Math.max(
         Number.MIN_VALUE,
-        (2 * Math.abs(now) * Number.EPSILON) / Math.abs(rate),
+        (Math.abs(now) * Number.EPSILON) / Math.abs(rate),
       );
     }
     return nudgeUp(state.time);
