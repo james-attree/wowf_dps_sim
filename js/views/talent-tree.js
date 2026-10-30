@@ -159,7 +159,13 @@ export function createTalentTreeView(
       const head = make(
         "h2",
         { class: "talent-tree-head", id: `talents-tree-h-${tree.id}` },
-        [icon(tree.iconUrl, 24), make("span", {}, [tree.name]), count],
+        // A hidden comma: "Assassination, 0 points" (Fran's qa-256 P-d).
+        [
+          icon(tree.iconUrl, 24),
+          make("span", {}, [tree.name]),
+          make("span", { class: "visually-hidden" }, [", "]),
+          count,
+        ],
       );
       const grid = make("div", { class: "talent-grid", role: "group" });
       const section = make(
@@ -627,7 +633,7 @@ export function createTalentTreeView(
         ]),
       );
     }
-    const cover = [make("h2", {}, ["What the sim covers"])];
+    const cover = [make("h3", {}, ["What the sim covers"])];
     if (coverage.plain !== null) {
       cover.push(make("p", {}, [coverage.plain]));
     }
@@ -647,14 +653,19 @@ export function createTalentTreeView(
         ]),
       );
     }
+    // The blocks are one group beside the trees, under its own h2 (Fran's
+    // qa-256 P-d), not three more sections like a tree.
     effects.replaceChildren(
+      make("h2", { id: "talents-effects-heading", class: "visually-hidden" }, [
+        "What your talents change",
+      ]),
       make("div", { class: "effects-block" }, [
-        make("h2", {}, ["Character stats"]),
+        make("h3", {}, ["Character stats"]),
         make("p", {}, [stats.text]),
         make("p", { class: "effects-sheet" }, [stats.sheet]),
       ]),
       make("div", { class: "effects-block" }, [
-        make("h2", {}, [rotation.title]),
+        make("h3", {}, [rotation.title]),
         lines,
         rotation.note === null
           ? null

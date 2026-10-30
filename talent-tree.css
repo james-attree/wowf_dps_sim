@@ -151,10 +151,11 @@
   background: #13110d;
 }
 /* The Talents screen's sections are under its h1 (#244, UX6), so their
-   headings are h2s, drawn as the h3s they were. */
+   headings are h2s, drawn as the h3s they were; the effects blocks are h3s
+   under a hidden h2. */
 .talent-tree-head,
 .talent-detail h2,
-.effects-block h2 {
+.effects-block h3 {
   color: #d4c8b1;
   font-weight: 600;
   letter-spacing: normal;
@@ -585,7 +586,7 @@
   border-radius: 12px;
   background: #13110d;
 }
-.effects-block h2 {
+.effects-block h3 {
   margin-bottom: 4px;
   font-size: 0.82rem;
 }
