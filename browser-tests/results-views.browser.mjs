@@ -109,6 +109,15 @@ async function toArea(page, area) {
   );
 }
 
+// A Character sub-screen (#244, UX6): the fields live on #character/gear
+// and #character/stats.
+async function toScreen(page, hash) {
+  await page.evaluate((to) => {
+    globalThis.location.hash = to;
+  }, hash);
+  await page.waitForFunction((to) => globalThis.location.hash === to, hash);
+}
+
 // The run settings, opened first where they fold away (below 520 px).
 async function settingsField(page, selector) {
   const field = page.locator(selector);
@@ -273,6 +282,7 @@ describe("out of date after an edit (#242)", () => {
       await page.locator("#run-button").click();
       await batchDone(page);
       await toArea(page, "character");
+      await toScreen(page, "#character/stats");
       await observeRunAnnounce(page);
       const card = page.locator("#results-card");
       assert.doesNotMatch(await card.innerText(), /Out of date/);
@@ -329,9 +339,11 @@ for (const width of MOUSE_WIDTHS) {
       try {
         await observeRunAnnounce(page);
         for (const button of ["right", "middle"]) {
+          await toScreen(page, "#character/gear");
           await page.fill(MAX, PAIR_MAX);
           await page.fill(MIN, PAIR_MIN);
-          // Typed, not committed: the focus is in Min.
+          await toScreen(page, "#character/stats");
+          // Typed, not committed: the focus is in Attack power.
           await page.locator(ATTACK_POWER).focus();
           await page.locator(ATTACK_POWER).pressSequentially("9");
           const before = await page.inputValue(ATTACK_POWER);
@@ -347,6 +359,7 @@ for (const width of MOUSE_WIDTHS) {
             /^Running/,
             `${button}: no run`,
           );
+          await toScreen(page, "#character/gear");
           await page.fill(MIN, "");
         }
         assert.deepEqual(errors, []);
@@ -356,12 +369,15 @@ for (const width of MOUSE_WIDTHS) {
     });
 
     test("a middle or right press on a disabled Run leaves the focus where it was", async () => {
-      const { context, page, errors } = await open(width);
+      const { context, page, errors } = await open(width, {
+        hash: "#character/gear",
+      });
       try {
         await page.fill(MIN, PAIR_MIN);
         await page.fill(MAX, PAIR_MAX);
         await page.locator(MAX).blur();
         await page.waitForTimeout(SETTLE_MS);
+        await toScreen(page, "#character/stats");
         assert.equal(await page.isDisabled("#run-button"), true);
         for (const button of ["middle", "right"]) {
           await page.locator(ATTACK_POWER).focus();

@@ -175,6 +175,8 @@ export function createRotationBuilderView(doc, store, actions) {
   const heading = doc.querySelector("#area-rotation-title");
   const back = doc.querySelector("#rotation-back");
   const share = doc.querySelector("#rotation-share");
+  // The rotation select and its summary (#244): on the list only.
+  const pick = doc.querySelector("#rotation-pick");
   const body = doc.createElement("div");
   body.className = "rotation-builder-body";
   const live = doc.createElement("p");
@@ -195,18 +197,15 @@ export function createRotationBuilderView(doc, store, actions) {
   // can say why it does nothing.
   const off = (disabled) => (disabled ? "true" : null);
 
+  // The talents are Character's Talents screen (#244, UX6): revealing the
+  // tree shows it, and its h1 takes the focus.
   function editTalents() {
-    const edit = doc.querySelector("#talents-edit");
-    if (edit === null) {
+    const tree = doc.querySelector("#talent-tree");
+    if (tree === null) {
       return;
     }
-    // The talents are in the Character area (#239): it is shown first.
-    reveal(edit);
-    if (edit.getAttribute("aria-expanded") !== "true") {
-      edit.click();
-    }
-    doc.querySelector("#talent-tree")?.scrollIntoView?.({ block: "nearest" });
-    edit.focus();
+    reveal(tree);
+    doc.querySelector("#area-character-title")?.focus?.();
   }
 
   function pointerDrag(event, uid) {
@@ -271,11 +270,16 @@ export function createRotationBuilderView(doc, store, actions) {
 
   const rid = (uid, part) => `rb-${uid}-${part}`;
 
+  // A message's id, from its key ("r3.msg.0" is rb-r3-msg-0): its field
+  // points at it, so the warning is said there (#244).
+  const msgId = (message) => `rb-${message.key.replaceAll(".", "-")}`;
+
   function messageNode(message) {
     return h(
       "p",
       {
         key: message.key,
+        id: msgId(message),
         "data-key": message.key,
         class: `rule-msg is-${message.kind}`,
         tabindex: "-1",
@@ -414,6 +418,7 @@ export function createRotationBuilderView(doc, store, actions) {
                   [
                     condition.note === null ? null : noteId,
                     condition.typeInvalid ? errIds.join(" ") : null,
+                    ...(condition.messages ?? []).map(msgId),
                   ]
                     .filter((part) => part !== null && part !== "")
                     .join(" ") || null,
@@ -459,6 +464,7 @@ export function createRotationBuilderView(doc, store, actions) {
           text,
         ),
       ),
+      (condition.messages ?? []).map(messageNode),
     );
   }
 
@@ -996,11 +1002,10 @@ export function createRotationBuilderView(doc, store, actions) {
     node?.focus();
   }
 
-  // The h1 and back link: "Rotation" and "‹ Character" on the list, the
-  // rule's name (its number aria-hidden, "Rule 2: " hidden text) or "Export
-  // or import" and "‹ Rotation" on a screen. The back links are links, not
-  // history.back(); the list's is how the builder is closed (Fran's #251
-  // check), back to the "Edit rotation…" link that opened it.
+  // The h1 and back link: "Rotation" and no back link on the list (#244: it
+  // is the area's top), the rule's name (its number aria-hidden, "Rule 2: "
+  // hidden text) or "Export or import" and "‹ Rotation" on a screen. The
+  // back links are links, not history.back().
   function drawHeading(screen) {
     // A page without child lists (the unit tests' stand-in) gets the text.
     const patchable = (node) =>
@@ -1034,6 +1039,12 @@ export function createRotationBuilderView(doc, store, actions) {
       );
     }
     if (back !== null) {
+      back.hidden = screen.back === null;
+    }
+    if (pick !== null) {
+      pick.hidden = !view.open || screen.kind !== "list";
+    }
+    if (back !== null && screen.back !== null) {
       back.setAttribute("href", screen.back.href);
       if (screen.back.focus === null) {
         back.removeAttribute("data-return-focus");
@@ -1071,8 +1082,8 @@ export function createRotationBuilderView(doc, store, actions) {
 
   // An action's screen becomes the route: pushed when it is another screen
   // (Duplicate's copy, a new rule, a message's rule), so Back returns; put in
-  // the route's place when only its number moved (a rule moved or deleted)
-  // or the route named no screen (#rotation/rule/99).
+  // the route's place when only its number moved (a rule moved), its rule
+  // was deleted, or the route named no screen (#rotation/rule/99).
   function syncHash(before) {
     const win = doc.defaultView;
     if (
@@ -1088,7 +1099,13 @@ export function createRotationBuilderView(doc, store, actions) {
     }
     const routeWas =
       before === null ? null : screenHash(before) === formatRoute(route);
-    if (routeWas && !sameScreen(before, view.screen)) {
+    // A rule deleted on its own screen (Fran's #255 check, P2): the list
+    // takes its entry's place, so Back never reopens #rotation/rule/<n> at
+    // the rule that moved up into its number.
+    const gone =
+      before?.kind === "rule" &&
+      !(view.rules ?? []).some((rule) => rule.uid === before.uid);
+    if (routeWas && !gone && !sameScreen(before, view.screen)) {
       win.location.hash = want;
     } else {
       win.location.replace(want);
@@ -1125,9 +1142,23 @@ export function createRotationBuilderView(doc, store, actions) {
     const win = doc.defaultView;
     if (win?.location !== undefined) {
       event.preventDefault?.();
-      win.location.hash = view.screen.back.href;
+      // From a number box its edit is kept as it goes: said, as the list
+      // gives no other sign of it (#244, Fran's #255 check, P6).
+      const kept = event.target?.tagName === "INPUT";
+      const back = view.screen.back;
+      win.location.hash = back.href;
+      if (kept) {
+        say(`Kept. Back to ${back.text}.`);
+      }
     }
   });
+
+  function say(text) {
+    live.textContent = "";
+    requestAnimationFrame(() => {
+      live.textContent = text;
+    });
+  }
 
   function draw() {
     const slice = store.get().rotationBuilder;

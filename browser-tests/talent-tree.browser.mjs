@@ -50,6 +50,7 @@ async function openTree(width) {
         : route.abort(),
   );
   await page.goto(base);
+  // Character's Talents row opens its screen (#244, UX6).
   await page.click("#talents-edit");
   await page.locator("#talent-tree").waitFor({ state: "visible" });
   return { context, page };
@@ -173,8 +174,8 @@ for (const width of WIDTHS) {
       await clickCentre(page, "assassination.malice");
       await page.fill("#talents-level", "10");
       await page.press("#talents-level", "Enter");
-      // Close the tree so the link has to open it again.
-      await page.click("#talents-edit");
+      // Leave the tree's screen so the link has to open it again.
+      await page.click("#character-back");
       await page.locator("#talent-tree").waitFor({ state: "hidden" });
       assert.equal(
         await page.locator("#run-reason").textContent(),
@@ -185,8 +186,8 @@ for (const width of WIDTHS) {
       await link.click();
       await page.locator("#talent-tree").waitFor({ state: "visible" });
       assert.equal(
-        await page.locator("#talents-edit").getAttribute("aria-expanded"),
-        "true",
+        await page.evaluate(() => globalThis.location.hash),
+        "#character/talents",
       );
       assert.equal(
         await page.evaluate(() => document.activeElement?.id),

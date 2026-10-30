@@ -263,6 +263,8 @@ for (const width of PHONE_WIDTHS) {
 
         // Blocked, with the widest status.
         await toArea(page, "character");
+        // Main hand's fields are on Gear and weapons (#244, UX6).
+        await page.locator("#character-row-gear").click();
         await page.locator(MIN).fill("50");
         await page.locator(MAX).fill("40");
         await page.locator(MAX).blur();

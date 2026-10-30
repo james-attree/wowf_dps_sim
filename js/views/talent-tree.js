@@ -5,9 +5,11 @@ import { NARROW_QUERY } from "./breakpoints.js";
 // The talent tree picker's view (U6, #204; Fran's spec and mockup in
 // design/u6-talent-tree/). It draws the store's `talents` slice, which
 // js/talent-tree.js fills (the view never reads the talent catalogue), and
-// calls that model's actions. It owns the summary row in Fight setup
-// (#talents-summary, #talents-edit) and the #talent-tree section under the
-// form.
+// calls that model's actions. It writes the build's summary in Character's
+// Talents row (#talents-summary) and owns the #talent-tree section, which is
+// Character's Talents screen (#244, UX6: js/views/character-screens.js opens
+// the tree on that screen and closes it off it; the screen's back link
+// closes it, so the tree has no Close button now).
 //
 // The tiles are made once and updated in place, so focus stays on the tile
 // you act on. Each tree is one roving tab stop: the arrow keys move between
@@ -96,10 +98,8 @@ export function createTalentTreeView(
 ) {
   const $ = (id) => doc.querySelector(`#${id}`);
   const summary = $("talents-summary");
-  const edit = $("talents-edit");
   const panel = $("talent-tree");
   const reset = $("talents-reset");
-  const close = $("talents-close");
   const level = $("talents-level");
   const levelError = $("talents-level-error");
   const points = $("talents-points");
@@ -157,8 +157,10 @@ export function createTalentTreeView(
     for (const tree of view.trees) {
       const count = make("span", { class: "talent-tree-points" });
       const head = make(
-        "h3",
+        "h2",
         { class: "talent-tree-head", id: `talents-tree-h-${tree.id}` },
+        // Named "Assassination, 0 points" in drawTrees (Fran's qa-256
+        // P-d): its words as shown, with the pause a comma gives.
         [icon(tree.iconUrl, 24), make("span", {}, [tree.name]), count],
       );
       const grid = make("div", { class: "talent-grid", role: "group" });
@@ -372,6 +374,9 @@ export function createTalentTreeView(
     for (const tree of view.trees) {
       const { section, grid, count } = sections.get(tree.id);
       write(count, tree.pointsText);
+      treeHeads
+        .get(tree.id)
+        .setAttribute("aria-label", `${tree.name}, ${tree.pointsText}`);
       grid.setAttribute("aria-label", tree.label);
       const current = tree.id === view.tab;
       if (isNarrow) {
@@ -479,7 +484,7 @@ export function createTalentTreeView(
     const focused = doc.activeElement?.getAttribute?.("data-step") ?? null;
     if (data === null) {
       detail.replaceChildren(
-        make("h3", { id: "talents-detail-heading", class: "visually-hidden" }, [
+        make("h2", { id: "talents-detail-heading", class: "visually-hidden" }, [
           "Talent details",
         ]),
         make("p", { class: "talent-detail-empty" }, [
@@ -512,7 +517,7 @@ export function createTalentTreeView(
       make("div", { class: "talent-detail-head" }, [
         icon(data.iconUrl, 40),
         make("div", {}, [
-          make("h3", { id: "talents-detail-heading" }, [data.name]),
+          make("h2", { id: "talents-detail-heading" }, [data.name]),
           make("p", { class: "talent-detail-sub" }, [data.sub]),
         ]),
         make("div", { class: "talent-stepper" }, [
@@ -647,7 +652,12 @@ export function createTalentTreeView(
         ]),
       );
     }
+    // The blocks are one group beside the trees, under its own h2 (Fran's
+    // qa-256 P-d), not three more sections like a tree.
     effects.replaceChildren(
+      make("h2", { id: "talents-effects-heading", class: "visually-hidden" }, [
+        "What your talents change",
+      ]),
       make("div", { class: "effects-block" }, [
         make("h3", {}, ["Character stats"]),
         make("p", {}, [stats.text]),
@@ -689,8 +699,6 @@ export function createTalentTreeView(
       buildLegend();
     }
     write(summary, view.summary);
-    edit.setAttribute("aria-expanded", String(state.open));
-    write(edit, state.open ? "Close talents" : "Edit talents");
     panel.hidden = !state.open;
     if (doc.activeElement !== level) {
       level.value = state.levelText;
@@ -718,12 +726,6 @@ export function createTalentTreeView(
       view.errorBanner === null ? "" : "talents-over",
     ].filter((part) => part !== "");
     level.setAttribute("aria-describedby", describedBy.join(" "));
-    edit.setAttribute(
-      "aria-describedby",
-      view.errorBanner === null
-        ? "talents-summary-label talents-summary"
-        : "talents-summary-label talents-summary talents-over",
-    );
     drawPoints(view);
     drawMessage(state, view);
     drawTrees(view);
@@ -737,11 +739,6 @@ export function createTalentTreeView(
     announce(state);
   }
 
-  edit.addEventListener("click", () => actions.toggle());
-  close.addEventListener("click", () => {
-    actions.setOpen(false);
-    edit.focus?.();
-  });
   reset.addEventListener("click", () => actions.resetAll());
   level.addEventListener("change", () => actions.setLevel(level.value));
   level.addEventListener("keydown", (event) => {

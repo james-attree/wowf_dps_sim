@@ -1,10 +1,13 @@
 import { k } from "../../data/constants.js";
 import { NARROW_QUERY } from "./breakpoints.js";
 import { fieldErrors, formErrorCount } from "./run-model.js";
+import { reveal } from "./sections.js";
 import { anyStale } from "./stale.js";
 
 // The "Fight setup" form (#151, U2). This view owns the form#config-form and
-// everything in it, and no other element. It draws the store's `form` slice
+// everything in it, and no other element but the fields that live outside it
+// (#244, UX6): the rotation select and its summary on Rotation's list. It
+// draws the store's `form` slice
 // and calls the model's actions (js/config-form.js, which js/main.js hands
 // in); it never writes the store itself and imports nothing from the engine
 // (#150). Edits apply to the next run: the form writes `config`, and the fight
@@ -162,8 +165,8 @@ export function createConfigFormView(doc, store, actions) {
       : parseField(control.value, isPercent(control));
   };
 
-  // The summary is closed on a narrow screen (Fran's notes, section 5): below
-  // 520 px, the same breakpoint as the run bar (js/views/breakpoints.js).
+  // The summary is closed on a narrow screen (Fran's notes, section 5), the
+  // same breakpoint as the run bar (js/views/breakpoints.js).
   if (win.matchMedia?.(NARROW_QUERY).matches) {
     summaryDetails.open = false;
   }
@@ -327,6 +330,9 @@ export function createConfigFormView(doc, store, actions) {
       link.textContent = fieldName(path);
       link.addEventListener("click", (event) => {
         event.preventDefault();
+        // A field on another of Character's screens has it shown first
+        // (#244).
+        reveal(control);
         control.focus();
       });
       item.append(link);
@@ -416,6 +422,17 @@ export function createConfigFormView(doc, store, actions) {
     importStatus.classList.toggle("is-warning", warned);
   }
 
+  // A new import status is brought on screen once the banner above it is
+  // drawn: at 1024x576 it sat just under the fold (#244, Fran's #255
+  // check, P3). html's scroll-padding keeps it clear of the phone dock.
+  function showImportStatus() {
+    win.requestAnimationFrame?.(() => {
+      if (importStatus.checkVisibility?.() !== false) {
+        importStatus.scrollIntoView?.({ block: "nearest" });
+      }
+    });
+  }
+
   let toastTimer = null;
   function hideToast() {
     win.clearTimeout?.(toastTimer);
@@ -465,6 +482,9 @@ export function createConfigFormView(doc, store, actions) {
     }
     if (previous === null || state.importStatus !== previous.importStatus) {
       drawImport(state.importStatus);
+      if (previous !== null && state.importStatus?.message) {
+        showImportStatus();
+      }
     }
     if (state.canUndo && !previous?.canUndo) {
       showToast();

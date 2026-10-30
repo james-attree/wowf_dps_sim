@@ -25,6 +25,18 @@ const SIZES = [
   [360, 640],
 ];
 const WIDE_PX = 1024;
+// N3's screens off Results (#244, UX6), and how far to tab on each.
+const WIDE_SCREENS = [
+  "#character",
+  "#character/gear",
+  "#character/stats",
+  "#character/talents",
+  "#rotation",
+  "#rotation/rule/1",
+  "#rotation/share",
+  "#fight",
+];
+const MAX_TABS = 40;
 
 let server;
 let base;
@@ -118,24 +130,17 @@ describe("Rotation's screens", () => {
   test("each screen has its route, title, h1 and back link", async () => {
     const { context, page, errors } = await openPage(1280, 800);
     try {
-      await page.click("#cfg-rotation-edit");
+      await page.click(`[data-nav-area="rotation"]`);
       await hashIs(page, "#rotation");
       await titleIs(page, `Rotation · ${APP}`);
       assert.equal(
         await focusOf(page, "area-rotation-title"),
         "area-rotation-title",
       );
-      assert.equal(
-        await page.locator("#rotation-back").getAttribute("href"),
-        "#character",
-      );
-      // Read as "Back to Character"; drawn "‹ Character".
-      assert.equal(
-        await page
-          .getByRole("link", { name: "Back to Character", exact: true })
-          .getAttribute("id"),
-        "rotation-back",
-      );
+      // The list is Rotation's top (#244, UX6): no back link, and the
+      // preset the sim uses is on it.
+      assert.equal(await page.isVisible("#rotation-back"), false);
+      assert.ok(await page.isVisible("#cfg-rotation"));
       // A rule's screen, from its Edit link.
       const name = (await ruleCard(page, 1).locator(".rule-name").innerText())
         .trim()
@@ -179,14 +184,10 @@ describe("Rotation's screens", () => {
       await page.keyboard.press("Escape");
       await hashIs(page, "#rotation");
       assert.equal(await focusOf(page, "share"), "share");
-      // The list's back link closes the builder, back to Fight setup's
-      // Edit rotation link (Fran's #251 check).
-      await page.click("#rotation-back");
+      // Leaving Rotation closes the builder.
+      await page.click(`[data-nav-area="character"]`);
       await hashIs(page, "#character");
-      assert.equal(
-        await focusOf(page, "cfg-rotation-edit"),
-        "cfg-rotation-edit",
-      );
+      await focusOf(page, "area-character-title");
       assert.equal(await page.isVisible("#rotation-builder"), false);
       assert.deepEqual(errors, []);
     } finally {
@@ -213,13 +214,119 @@ describe("Rotation's screens", () => {
     }
   });
 
-  test("an import on Export or import stays there, its status shown", async () => {
+  // Fran's #255 check, P6: Escape in a number box kept the edit and left
+  // for the list with nothing said.
+  test("Escape in a number box says the edit is kept", async () => {
+    const { context, page, errors } = await openPage(1280, 800, "#rotation");
+    try {
+      await page.locator("#rotation-builder li.rule").first().waitFor();
+      // The first rule whose screen has a number box.
+      const box = page.locator("#rotation-builder .rule-screen input").first();
+      for (let n = 1; (await box.count()) === 0; n += 1) {
+        await ruleCard(page, n - 1)
+          .locator("[data-key$='.edit']")
+          .click();
+        await page.locator("#rotation-builder .rule-screen").waitFor();
+        if ((await box.count()) === 0) {
+          await page.click("#rotation-back");
+          await hashIs(page, "#rotation");
+        }
+      }
+      await box.fill("4");
+      await box.press("Escape");
+      await hashIs(page, "#rotation");
+      await page.waitForFunction(
+        () =>
+          document.querySelector("#rotation-builder .builder-live")
+            ?.textContent === "Kept. Back to Rotation.",
+        null,
+        { timeout: 3000 },
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  // Fran's #255 check, P2: Delete on a rule's screen put the list on top of
+  // it in the history, so Back reopened #rotation/rule/3 at the rule that
+  // moved up into number 3. The list now takes the deleted rule's entry.
+  test("Back after a Delete never opens the rule that took its number", async () => {
+    const { context, page, errors } = await openPage(1280, 800, "#rotation");
+    try {
+      await page.locator("#rotation-builder li.rule").first().waitFor();
+      const before = await page.evaluate(() => globalThis.history.length);
+      const third = ruleCard(page, 2);
+      const deleted = await third.getAttribute("data-uid");
+      await third.locator("[data-key$='.edit']").click();
+      await hashIs(page, "#rotation/rule/3");
+      await page.locator("#rotation-builder .rule-screen").waitFor();
+      await page.locator(`[data-key='${deleted}.del']`).click();
+      await hashIs(page, "#rotation");
+      await page.locator("#rotation-builder li.rule").first().waitFor();
+      assert.equal(await page.locator("#rotation-builder li.rule").count(), 6);
+      // The Delete added no entry: the list replaced the rule's.
+      assert.equal(
+        await page.evaluate(() => globalThis.history.length),
+        before + 1,
+      );
+      const now = await page.evaluate(() =>
+        [...document.querySelectorAll("#rotation-builder li.rule")].map(
+          (rule) => rule.dataset.uid,
+        ),
+      );
+      assert.equal(now.includes(deleted), false);
+      await page.goBack();
+      await page.waitForFunction(
+        () => globalThis.location.hash !== "#rotation/rule/3",
+      );
+      assert.notEqual(
+        await page.evaluate(() => globalThis.location.hash),
+        "#rotation/rule/3",
+      );
+      assert.equal(
+        await page.locator("#rotation-builder .rule-screen").count(),
+        0,
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
+// Fran's #255 check: P3, at 1024x576 the import status sat under the fold;
+// P4, an import was spoken twice, its status then "Rotation: Imported:
+// Warned." by the builder. The status is brought on screen, at every size,
+// and is the one thing said.
+for (const [width, height] of SIZES) {
+  test(`an import on Export or import stays there, its status on screen and said once, at ${width}x${height}`, async () => {
     const { context, page, errors } = await openPage(
-      1280,
-      800,
+      width,
+      height,
       "#rotation/share",
     );
     try {
+      // What each live region says, in order.
+      await page.evaluate(() => {
+        globalThis.__said = [];
+        const watch = new globalThis.MutationObserver((changes) => {
+          for (const change of changes) {
+            const region =
+              change.target.closest?.("[role='status']") ??
+              change.target.parentElement?.closest("[role='status']");
+            const text = region?.textContent.trim();
+            if (text) {
+              globalThis.__said.push(text);
+            }
+          }
+        });
+        watch.observe(document.body, {
+          subtree: true,
+          childList: true,
+          characterData: true,
+        });
+      });
       await page.locator("#cfg-import-text").waitFor({ state: "visible" });
       await page.fill(
         "#cfg-import-text",
@@ -245,12 +352,40 @@ describe("Rotation's screens", () => {
       );
       const { banner, h1: title } = await placed(page);
       assert.ok(banner.top >= title.bottom - 1, "the banner is under the h1");
+      // P3: on screen, above the dock where there is one.
+      await page.waitForFunction(
+        () => {
+          const dock = document.getElementById("run-controls");
+          const fixed = getComputedStyle(dock).position === "fixed";
+          const seen = fixed
+            ? dock.getBoundingClientRect().top
+            : globalThis.innerHeight;
+          const box = document
+            .getElementById("cfg-import-status")
+            .getBoundingClientRect();
+          return box.top >= 0 && box.bottom <= seen;
+        },
+        null,
+        { timeout: 3000 },
+      );
+      // P4: the builder says nothing of it.
+      await page.waitForTimeout(300);
+      const said = await page.evaluate(() => globalThis.__said);
+      assert.equal(
+        said.some((text) => text.startsWith("Rotation: ")),
+        false,
+        said.join(" | "),
+      );
+      assert.ok(
+        said.some((text) => text.startsWith("Imported")),
+        said.join(" | "),
+      );
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
     }
   });
-});
+}
 
 // Fran's #252 and #253 checks (D1, D2): after a Duplicate the warning is on
 // screen under the h1, the h1 focused, and so after a second Duplicate.
@@ -334,29 +469,63 @@ for (const [width, height] of [
           `${area} at ${width}`,
         );
       }
-      // Tabbing on from the area's link in the nav reaches the area before
-      // the Run button.
+      // Every wide screen off Results (#244, UX6): in the page, its back
+      // link (if it has one), then its h1, then the Run column; tabbing on
+      // from its area's link in the nav reaches the back link, else the
+      // area, before the Run button.
       if (width >= WIDE_PX) {
-        await page.click(`[data-nav-area="fight"]`);
-        await hashIs(page, "#fight");
-        await focusOf(page, "area-fight-title");
-        const stops = [];
-        for (let i = 0; i < 40; i += 1) {
-          await page.keyboard.press("Tab");
-          stops.push(await activeId(page));
+        for (const hash of WIDE_SCREENS) {
+          const area = hash.slice(1).split("/")[0];
+          await page.evaluate((to) => {
+            globalThis.location.hash = to;
+          }, hash);
+          await hashIs(page, hash);
+          await focusOf(page, `area-${area}-title`);
+          const order = await page.evaluate((area) => {
+            const shell = document.getElementById(`area-${area}`);
+            const back = shell.querySelector(".back-link");
+            const shown = back !== null && back.checkVisibility();
+            const before = (a, b) =>
+              Boolean(
+                a.compareDocumentPosition(b) &
+                globalThis.Node.DOCUMENT_POSITION_FOLLOWING,
+              );
+            const title = shell.querySelector("h1");
+            const column = document.getElementById("run-column");
+            return {
+              back: shown ? back.id : null,
+              backFirst: shown ? before(back, title) : null,
+              h1First: before(title, column),
+            };
+          }, area);
+          assert.equal(order.h1First, true, `${hash} at ${width}`);
+          if (order.back !== null) {
+            assert.equal(order.backFirst, true, `${hash} at ${width}`);
+          }
+          await page.locator(`[data-nav-area="${area}"]`).focus();
+          const stops = [];
+          for (let i = 0; i < MAX_TABS; i += 1) {
+            await page.keyboard.press("Tab");
+            stops.push(
+              await page.evaluate((area) => {
+                const at = document.activeElement;
+                return {
+                  id: at?.id || at?.dataset?.key || at?.tagName,
+                  inArea: at?.closest(`#area-${area}`) !== null,
+                  run: at?.id === "run-button",
+                };
+              }, area),
+            );
+          }
+          const shown = stops.map((stop) => stop.id).join(" ");
+          const firstIn = stops.findIndex((stop) => stop.inArea);
+          const firstRun = stops.findIndex((stop) => stop.run);
+          assert.ok(firstIn !== -1, `${hash}: ${shown}`);
+          assert.ok(firstRun === -1 || firstIn < firstRun, `${hash}: ${shown}`);
+          if (order.back !== null) {
+            assert.equal(stops[firstIn].id, order.back, `${hash}: ${shown}`);
+          }
         }
-        const firstRun = stops.indexOf("run-button");
-        const inArea = await page.evaluate(
-          (stops) =>
-            stops.findIndex(
-              (id) =>
-                id !== undefined &&
-                document.getElementById(id)?.closest("#area-fight") !== null,
-            ),
-          stops,
-        );
-        assert.ok(inArea !== -1, stops.join(" "));
-        assert.ok(firstRun === -1 || inArea < firstRun, stops.join(" "));
       }
       assert.deepEqual(errors, []);
     } finally {

@@ -1091,17 +1091,18 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     assert.match(css, /#run-summary\[data-dock\]::before,/);
   });
 
-  it("Fix 1 setting opens the talent tree and focuses its Level input", () => {
+  // The tree is Character's Talents screen (#244, UX6): revealing its Level
+  // input shows the screen (the router's, browser-tests/character-screens),
+  // so the Talents row is never clicked.
+  it("Fix 1 setting focuses the talent tree's Level input", () => {
     const page = setup();
     const { doc, el } = standIn({
       absent: ['#config-form [aria-invalid="true"]'],
     });
     const edit = el("talents-edit");
-    edit.setAttribute("aria-expanded", "false");
     let opened = 0;
     edit.click = () => {
       opened += 1;
-      edit.setAttribute("aria-expanded", "true");
     };
     createControlsView(doc, page.store, page.actions);
     overCap(page);
@@ -1113,10 +1114,10 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
       "Can't run · Talents over the level cap",
     );
     assert.equal(link.fire("click").prevented, 1);
-    assert.equal(opened, 1, "the tree opens");
+    assert.equal(opened, 0, "the row is not clicked");
     assert.equal(el("talents-level").focused, 1, "Level has the focus");
     link.fire("click");
-    assert.equal(opened, 1, "an open tree is not toggled shut");
+    assert.equal(opened, 0, "the row is not clicked");
     assert.equal(el("talents-level").focused, 2);
   });
 });

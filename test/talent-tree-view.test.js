@@ -128,7 +128,6 @@ const IDS = [
   "talents-edit",
   "talent-tree",
   "talents-reset",
-  "talents-close",
   "talents-level",
   "talents-level-error",
   "talents-points",
@@ -220,17 +219,18 @@ describe("talent tree view helpers (#204)", () => {
 });
 
 describe("talent tree view (#204)", () => {
-  it("draws the summary row and opens and closes the panel", () => {
-    const { $, store, queries } = page();
+  // The tree is Character's Talents screen (#244, UX6): its row is a link
+  // (#character/talents) and js/views/character-screens.js opens and closes
+  // it with the route, so the row has no aria-expanded and there is no Close.
+  it("draws the summary row and shows the panel while it is open", () => {
+    const { $, store, actions, queries } = page();
     assert.deepEqual(queries, [NARROW_QUERY]);
     assert.equal($("talents-summary").textContent, "No talents");
     assert.equal($("talent-tree").hidden, true);
-    assert.equal($("talents-edit").getAttribute("aria-expanded"), "false");
-    $("talents-edit").click();
+    actions.setOpen(true);
     assert.equal($("talent-tree").hidden, false);
-    assert.equal($("talents-edit").getAttribute("aria-expanded"), "true");
-    assert.equal($("talents-edit").textContent, "Close talents");
-    $("talents-close").click();
+    assert.equal($("talents-edit").getAttribute("aria-expanded"), null);
+    actions.setOpen(false);
     assert.equal(store.get().talents.open, false);
     assert.equal($("talent-tree").hidden, true);
   });
@@ -395,7 +395,7 @@ describe("talent tree view (#204)", () => {
     tile("assassination.lethality").focus();
     const detail = $("talents-detail");
     assert.equal(
-      detail.find((node) => node.tagName === "H3").textContent,
+      detail.find((node) => node.tagName === "H2").textContent,
       "Lethality",
     );
     const add = detail.find((node) => node.getAttribute("data-step") === "add");
@@ -477,7 +477,8 @@ describe("talent tree markup (#204)", () => {
       assert.match(html, new RegExp(`id="${id}"`), id);
     }
     assert.doesNotMatch(html, /id="cfg-talents"/);
-    assert.match(html, /aria-controls="talent-tree"/);
+    assert.match(html, /id="talents-edit"[^>]*href="#character\/talents"/);
+    assert.doesNotMatch(html, /id="talents-close"/);
     assert.match(
       html,
       /id="talents-live"[^>]*role="status"|role="status"[^>]*id="talents-live"/,

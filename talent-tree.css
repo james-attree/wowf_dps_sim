@@ -12,39 +12,15 @@
 .talents-panel[hidden] {
   display: none;
 }
-/* ---- Summary row (replaces the Talents select in Fight setup) ------------ */
-.talents-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.talents-summary-label {
-  display: block;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 650;
-}
-.talents-summary-value {
-  display: block;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-.talents-panel .section-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.talents-panel h2 {
-  font-size: 1.05rem;
-}
+/* The summary is Character's Talents row (#244, UX6; styles.css's
+   .character-row); the panel is the Talents screen, so it has no heading
+   of its own. */
 .talents-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
+  margin-bottom: 8px;
 }
 
 /* ---- Level and points ----------------------------------------------------- */
@@ -174,6 +150,16 @@
   border-radius: 12px;
   background: #13110d;
 }
+/* The Talents screen's sections are under its h1 (#244, UX6), so their
+   headings are h2s, drawn as the h3s they were; the effects blocks are h3s
+   under a hidden h2. */
+.talent-tree-head,
+.talent-detail h2,
+.effects-block h3 {
+  color: #d4c8b1;
+  font-weight: 600;
+  letter-spacing: normal;
+}
 .talent-tree-head {
   display: flex;
   align-items: center;
@@ -207,13 +193,18 @@
 .talent-gutter.is-met {
   color: #e7ddc9;
 }
+/* A tile's edge is what shows the control is there, so it keeps 3:1 on the
+   tree (#13110d) and on its own fill (WCAG 1.4.11; #244, UX6): open
+   #8a7a5c, 4.51:1 and 4.73:1 (was #54452b, 2.03:1); locked or with no
+   points left #766a55, 3.56:1 and 3.73:1 (was #3a3224, 1.49:1). Locked is
+   told apart by its lock badge and grey icon as before. */
 .talent {
   position: relative;
   z-index: 1;
   width: 44px;
   height: 44px;
   padding: 0;
-  border: 2px solid #54452b;
+  border: 2px solid #8a7a5c;
   border-radius: 8px;
   background: #0b0a08;
   cursor: pointer;
@@ -321,7 +312,7 @@
 }
 .talent.is-locked,
 .talent.is-nopoints {
-  border-color: #3a3224;
+  border-color: #766a55;
   cursor: default;
 }
 .talent.cov-notSimulated {
@@ -428,7 +419,7 @@
 .talent-detail-head img {
   border-radius: 6px;
 }
-.talent-detail h3 {
+.talent-detail h2 {
   font-size: 0.95rem;
 }
 .talent-detail-sub {
@@ -612,12 +603,15 @@
   list-style: none;
 }
 
-/* ---- Narrow (matches js/views/breakpoints.js, 520 px) ----------------------- */
+/* ---- Narrow (matches js/views/breakpoints.js, 32.5em) --------------------- */
+/* The tab strip's line and the chosen tab's edge are a control's, so they
+   are --control-border, 3:1 or more on the panel (#244, UX6; was --border,
+   about 1.6:1), and so is the tree they open onto. */
 .talents-tabs {
   display: flex;
   gap: 4px;
   margin-top: 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--control-border);
 }
 .talents-tabs[hidden] {
   display: none;
@@ -657,7 +651,7 @@
   font-variant-numeric: tabular-nums;
 }
 .talents-tab[aria-selected="true"] {
-  border-color: var(--border);
+  border-color: var(--control-border);
   background: #13110d;
   color: #f3eee2;
   box-shadow: inset 0 3px 0 var(--accent);
@@ -672,6 +666,7 @@
     margin-top: 0;
   }
   .talent-tree {
+    border-color: var(--control-border);
     border-top: 0;
     border-radius: 0 0 12px 12px;
   }

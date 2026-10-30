@@ -31,8 +31,15 @@ describe("routes", () => {
     // An area's name in any case (Fran's QA of #251): #Fight is #fight.
     assert.deepEqual(parseRoute("#Fight"), top("fight"));
     assert.deepEqual(parseRoute("#RESULTS"), top("results"));
-    // Character has no sub-screens yet (UX6): a sub is dropped.
-    assert.deepEqual(parseRoute("#character/stats"), top("character"));
+    // Character's sub-screens (#244, UX6); any other sub is dropped.
+    for (const sub of ["gear", "stats", "talents"]) {
+      assert.deepEqual(parseRoute(`#character/${sub}`), {
+        area: "character",
+        sub,
+        param: null,
+      });
+    }
+    assert.deepEqual(parseRoute("#character/armor"), top("character"));
     // Rotation's (#243, UX5): a rule's screen and Export or import.
     assert.deepEqual(parseRoute("#rotation/rule/2"), {
       area: "rotation",

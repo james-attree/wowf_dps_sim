@@ -49,8 +49,8 @@ async function openBuilder(width) {
         ? route.fulfill({ status: 200, contentType: "image/jpeg", body: ICON })
         : route.abort(),
   );
-  await page.goto(base);
-  await page.click("#cfg-rotation-edit");
+  // Rotation's list holds the preset the sim uses (#244, UX6).
+  await page.goto(`${base}#rotation`);
   await page.locator("#rotation-builder").waitFor({ state: "visible" });
   return { context, page, errors };
 }
@@ -282,9 +282,10 @@ for (const width of WIDTHS) {
         .locator("#cfg-rotation option")
         .nth(1)
         .getAttribute("value");
-      await toArea(page, "character");
+      // The preset select is on Rotation's list (#244, UX6).
       await page.selectOption("#cfg-rotation", other);
       await page.selectOption("#cfg-rotation", "default");
+      await toArea(page, "character");
       await toArea(page, "rotation");
       assert.deepEqual(await names(page), edited);
       await clickCentre(page.locator("[data-key='revert']"));

@@ -1153,7 +1153,7 @@ h3 {
   margin-bottom: 8px;
 }
 
-/* One line at 390 px: the tools wrap under it instead (#155, Fran's QA 8). */
+/* One line on a phone (390 wide): the tools wrap under it instead (#155, Fran's QA 8). */
 .combat-log-heading h2 {
   white-space: nowrap;
 }
@@ -1481,7 +1481,7 @@ h3 {
 }
 
 /* The stats form (#151, Fran's notes). Above the damage panel; the two hands
-   sit side by side from 720 px and stack below it. */
+   sit side by side from 45em and stack below it. */
 .config-panel {
   margin-bottom: 14px;
 }
@@ -1883,6 +1883,138 @@ a.pill-button {
   .config-panel .pill-button {
     min-height: 44px;
   }
+}
+
+/* Character's list (#244, UX6): a row per screen, its name, what is set and
+   a chip when something there needs fixing. Each row is a link to its
+   screen (#character/gear, #character/stats, #character/talents). */
+.character-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.character-rows[hidden] {
+  display: none;
+}
+
+.character-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "name chip go"
+    "summary summary go";
+  align-items: center;
+  gap: 2px 10px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: #f3eee2;
+  text-decoration: none;
+}
+
+.character-row:hover {
+  border-color: var(--accent);
+  background: #2a241b;
+}
+
+.character-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.character-row-name {
+  grid-area: name;
+  font-weight: 650;
+}
+
+/* A row is named by its label and its chip, "Gear and weapons, 2 to fix";
+   its summary is hidden from the name and is its description instead
+   (Fran's qa-256 P-a). The comma is heard, not shown: a zero font
+   size keeps it in the name, with no space before it. */
+.character-row:has(.status-chip:not([hidden])) .character-row-name::after {
+  content: ",";
+  font-size: 0;
+}
+
+.character-row-summary {
+  grid-area: summary;
+  min-width: 0;
+  color: #d4c8b1;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+.character-row-go {
+  grid-area: go;
+  color: var(--accent);
+  font-size: 1.25rem;
+}
+
+/* "N to fix", "N over the cap": the error red of a field's error line. */
+.status-chip {
+  grid-area: chip;
+  padding: 2px 9px;
+  border: 1px solid #f19389;
+  border-radius: 999px;
+  background: #2a1513;
+  color: #f19389;
+  font-size: 0.75rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.status-chip[hidden] {
+  display: none;
+}
+
+/* A screen's parts the list hides (js/views/character-screens.js). */
+.config-panel [data-screen][hidden],
+.config-footer[hidden] {
+  display: none;
+}
+
+/* Rotation's list (#244, UX6): the preset the sim uses, and what it does. */
+.rotation-pick-panel {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.rotation-pick-panel[hidden] {
+  display: none;
+}
+
+.rotation-pick-panel .field {
+  margin-top: 0;
+}
+
+.rotation-pick select:focus-visible,
+.rotation-summary summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Fight's Target (#244, UX6): it is always attacked from behind. */
+.fight-target {
+  margin-bottom: 14px;
+}
+
+.fight-target h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.fight-target-text {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
 /* The batch results panel (#154). From Fran's mockup.css
@@ -2348,10 +2480,10 @@ th[aria-sort="ascending"] {
   margin-top: 8px;
 }
 
-/* Decision 3 (Phase 3): the charts' fixed 640 x 300 viewBox with 11 px text
+/* Decision 3 (Phase 3): the charts' fixed 640 x 300 viewBox with 11-unit text
    is unreadable squeezed to a phone, so below the page's narrow breakpoint
-   the SVG keeps 520 px and its .chart-scroll region scrolls sideways. A
-   responsive chart layout is on the Phase 5 polish list. */
+   the SVG keeps a fixed minimum width and its .chart-scroll region scrolls
+   sideways. A responsive chart layout is on the Phase 5 polish list. */
 @media (width < 32.5em) {
   .chart-scroll .chart {
     min-width: 520px;

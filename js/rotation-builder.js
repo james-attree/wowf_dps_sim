@@ -146,6 +146,13 @@ export function fixFor(entry, at, rotation) {
       };
     case "duplicateRule":
       return { label: `Delete rule ${at + 1}`, remove: true };
+    case "duplicateCondition":
+      return rule.conditions[entry.condition] === undefined
+        ? null
+        : {
+            label: `Delete condition ${entry.condition + 1}`,
+            removeCondition: entry.condition,
+          };
     default:
       return null;
   }
@@ -402,9 +409,8 @@ export function createRotationBuilder(store, formActions) {
         back: { href: "#rotation", text: "Rotation", focus: null },
       };
     }
-    // The list's back link goes to Character, to the "Edit rotation…" link
-    // that opens the builder there (Fran's #251 check: the builder could
-    // not be closed from Rotation).
+    // The list is Rotation's top, with the rotation select on it (#244,
+    // UX6), so it has no back link: the nav goes elsewhere.
     return {
       kind: "list",
       uid: null,
@@ -412,11 +418,7 @@ export function createRotationBuilder(store, formActions) {
       param: null,
       title: "Rotation",
       heading: { n: null, hidden: null, text: "Rotation" },
-      back: {
-        href: "#character",
-        text: "Character",
-        focus: "cfg-rotation-edit",
-      },
+      back: null,
     };
   }
 
@@ -565,9 +567,12 @@ export function createRotationBuilder(store, formActions) {
           conditionsLabel: `Conditions of rule ${n}, all must hold`,
           conditions: rule.conditions.map((condition, j) => {
             const m = j + 1;
-            const own = keyed.filter(
+            // A condition's errors mark its fields; its warnings (a repeat,
+            // #238) are messages under it, with their fix (#244).
+            const mine = keyed.filter(
               (x) => x.place.at === "condition" && x.place.condition === j,
             );
+            const own = mine.filter((x) => x.kind === "error");
             const badParams = new Set(
               own.map((x) => x.entry.param ?? x.place.param ?? "type"),
             );
@@ -595,6 +600,9 @@ export function createRotationBuilder(store, formActions) {
                     ),
                 ),
               errors: own.map((x) => entryText(x.entry, rotation)),
+              messages: mine
+                .filter((x) => x.kind === "warning")
+                .map((x) => message(x, index, rule, x.k2)),
               removeLabel: `Remove rule ${n}, condition ${m}: ${conditionLine(condition)}`,
             };
           }),
@@ -644,15 +652,39 @@ export function createRotationBuilder(store, formActions) {
     const edited = isEdited();
     const id = choice();
     const kind = kindOf(id);
-    const skipped = rotation.rules
+    const skips = rotation.rules
       .map((rule, index) => [skipOf(rule, talents), index])
       .filter(([skip]) => skip !== null);
+    // A skip no talent lifts (a talent check on a baseline ability) is the
+    // same with any build: said on its own, not "with no talents" (#244, P1).
+    const skipped = skips.filter(([skip]) => skip.talent !== null);
+    const unavailable = skips.filter(([skip]) => skip.talent === null);
+    const ruleList = (list) =>
+      list.map(([, index]) => `rule ${index + 1}`).join(", ");
+    // "rules 1 and 3", "rules 1, 3 and 4".
+    const andList = (list) => {
+      const ns = list.map(([, index]) => String(index + 1));
+      return `rules ${ns.slice(0, -1).join(", ")} and ${ns.at(-1)}`;
+    };
     const anyTalent = rules.some((rule) => abilityFacts(rule.action).talent);
     // "skipped with no talents" when none are picked, as "this build" reads
     // oddly then (Fran's #232 QA, nit 5; #234).
-    const context = `${
+    const byBuild =
       skipped.length > 0
-        ? `${count(skipped.length, "rule")} ${skipped.length === 1 ? "is" : "are"} skipped with ${talents.build.selected ? "this build" : "no talents"} (${skipped.map(([, index]) => `rule ${index + 1}`).join(", ")}).`
+        ? `${count(skipped.length, "rule")} ${skipped.length === 1 ? "is" : "are"} skipped with ${talents.build.selected ? "this build" : "no talents"} (${ruleList(skipped)}).`
+        : null;
+    // "1 rule never casts with any build: its talent check is on a baseline
+    // ability (rule 1)."; "2 rules never cast …: their talent checks are on
+    // baseline abilities (rules 1 and 3)." (Fran's qa-256 P-c).
+    const never =
+      unavailable.length > 0
+        ? unavailable.length === 1
+          ? `1 rule never casts with any build: its talent check is on a baseline ability (${ruleList(unavailable)}).`
+          : `${count(unavailable.length, "rule")} never cast with any build: their talent checks are on baseline abilities (${andList(unavailable)}).`
+        : null;
+    const context = `${
+      byBuild !== null || never !== null
+        ? [byBuild, never].filter((part) => part !== null).join(" ")
         : anyTalent
           ? "Every talent ability in the list has its talent."
           : "No rule needs a talent."
@@ -1018,6 +1050,9 @@ export function createRotationBuilder(store, formActions) {
             focus: `${target.uid}.value`,
           },
         );
+      } else if (fix.removeCondition !== undefined) {
+        screen = { kind: "rule", uid };
+        actions.removeCondition(uid, rule.conditions[fix.removeCondition].uid);
       } else if (fix.remove) {
         actions.remove(uid);
       } else if (fix.moveTo !== undefined) {
@@ -1367,7 +1402,10 @@ export function createRotationBuilder(store, formActions) {
       grab = null;
       banner = null;
       addAction = null;
-      if (!first && open) {
+      // An import there is spoken by its own status ("Imported …"), so it
+      // is not said twice (#244, Fran's #255 check, P4).
+      const importedHere = id === "imported" && screen?.kind === "share";
+      if (!first && open && !importedHere) {
         extra = say(
           isEdited()
             ? `Rotation: ${originLabel(id)}, with your edits from this session. Revert to ${kindOf(id)} is in the builder.`

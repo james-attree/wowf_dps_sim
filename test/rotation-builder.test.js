@@ -95,13 +95,11 @@ describe("the builder opens on the rotation picked in Fight setup", () => {
     assert.equal(view().errors, null);
   });
 
-  it("closes from its back link, back to the link that opened it (Fran's #251 check)", () => {
+  // The list is Rotation's top (#244, UX6): the preset select is on it, so
+  // there is no back link to Character.
+  it("its list has no back link; it closes", () => {
     const { builder, view } = setup();
-    assert.deepEqual(view().screen.back, {
-      href: "#character",
-      text: "Character",
-      focus: "cfg-rotation-edit",
-    });
+    assert.equal(view().screen.back, null);
     builder.toggle();
     assert.equal(view().open, false);
   });
@@ -546,6 +544,53 @@ describe("quick fixes (section 6)", () => {
         .form.rotationWarnings.filter((w) => w.path.startsWith("rules[5]"))
         .filter((w) => w.code === "finisherNoComboPoints").length,
       0,
+    );
+  });
+
+  it("a repeated condition says which it repeats, and its fix deletes it (#238, #244)", () => {
+    const { store, builder, view, uid, slice } = setup();
+    const evis = uid(5);
+    openRule(builder, view, evis);
+    const first = view().rules[5].body.conditions[0];
+    builder.addCondition(evis);
+    const added = view().rules[5].body.conditions.at(-1).uid;
+    const want = store.get().config.rotation.rules[5].conditions[0];
+    builder.setConditionType(evis, added, want.type);
+    for (const [param, value] of Object.entries(want)) {
+      if (param !== "type") {
+        builder.setParam(evis, added, param, String(value));
+      }
+    }
+    const at = view().rules[5].body.conditions.length - 1;
+    const repeat = view().rules[5].body.conditions[at];
+    assert.deepEqual(repeat.errors, [], "a warning, not an error");
+    assert.ok(repeat.fields.every((field) => !field.invalid));
+    assert.equal(repeat.typeInvalid, false);
+    const message = repeat.messages.find(
+      (m) => m.code === "duplicateCondition",
+    );
+    assert.ok(message, "the open rule shows the repeat under its condition");
+    assert.equal(message.kindText, "⚠ Check");
+    assert.equal(
+      message.text,
+      `Condition ${at + 1} is the same as condition 1, so it changes nothing. Delete it.`,
+    );
+    assert.equal(message.fix.label, `Delete condition ${at + 1}`);
+    builder.fix(message.fix.id);
+    assert.deepEqual(
+      view().rules[5].body.conditions.map((c) => c.uid),
+      [first.uid],
+    );
+    assert.equal(
+      store
+        .get()
+        .form.rotationWarnings.filter((w) => w.code === "duplicateCondition")
+        .length,
+      0,
+    );
+    assert.equal(
+      slice().announce.text,
+      `Condition ${at + 1} removed from rule 6.`,
     );
   });
 

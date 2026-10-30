@@ -22,7 +22,7 @@ function setup() {
 }
 
 describe("Rotation's screens (#243)", () => {
-  it("opens on the list, its back link to Character", () => {
+  it("opens on the list, Rotation's top with no back link (#244)", () => {
     const { view } = setup();
     assert.equal(view().screen.kind, "list");
     assert.equal(view().screen.title, "Rotation");
@@ -31,7 +31,7 @@ describe("Rotation's screens (#243)", () => {
       hidden: null,
       text: "Rotation",
     });
-    assert.equal(view().screen.back.href, "#character");
+    assert.equal(view().screen.back, null);
     assert.equal(view().rules[0].edit.href, "#rotation/rule/1");
     assert.match(view().rules[0].edit.label, /^Edit rule 1, /);
   });

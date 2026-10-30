@@ -70,7 +70,8 @@ async function open(width) {
         ? route.fulfill({ status: 200, contentType: "image/jpeg", body: ICON })
         : route.abort(),
   );
-  await page.goto(base);
+  // The weapons' fields are on Character's Gear and weapons (#244, UX6).
+  await page.goto(`${base}#character/gear`);
   await page.locator("#run-button").waitFor({ state: "visible" });
   return { context, page, errors };
 }

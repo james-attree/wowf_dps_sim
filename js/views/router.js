@@ -31,14 +31,34 @@ export const APP_TITLE = "WoW Forever Rogue Simulator";
 // The areas' sub-screens. Results has two views (#242, UX4): the average,
 // its first and #results itself, and the live fight. Rotation (#243, UX5)
 // has a rule's screen, #rotation/rule/2, and Export or import,
-// #rotation/share (js/views/rotation-builder.js shows them). UX6 (#244) adds
-// Character's. A route's sub or param that is not one of its area's is
-// dropped, so #character/stats is #character.
+// #rotation/share (js/views/rotation-builder.js shows them). Character
+// (#244, UX6) has Gear and weapons, Stats and Talents
+// (js/views/character-screens.js). A route's sub or param that is not one of
+// its area's is dropped, so #character/armor is #character.
 export const SUBS = Object.freeze({
+  character: Object.freeze(["gear", "stats", "talents"]),
   results: Object.freeze(["average", "live"]),
   rotation: Object.freeze(["rule", "share"]),
 });
+
+// A sub-screen's own name, for the page's title (#244): "Stats · WoW Forever
+// Rogue Simulator". Rotation's screens name themselves
+// (js/views/rotation-builder.js).
+export const SCREEN_NAMES = Object.freeze({
+  character: Object.freeze({
+    gear: "Gear and weapons",
+    stats: "Stats",
+    talents: "Talents",
+  }),
+});
 export const RESULT_VIEWS = SUBS.results;
+
+// The subs that take a param: a rule's screen, #rotation/rule/2. Any other
+// sub's extra part is dropped, so #character/gear/x is #character/gear
+// (Fran's qa-256 P-b), replacing its history entry as other bad routes do.
+export const PARAM_SUBS = Object.freeze({
+  rotation: Object.freeze(["rule"]),
+});
 
 const SEPARATOR = "/";
 
@@ -50,7 +70,7 @@ const ONE_MOVE = 1;
 
 // "#rotation/rule/2" as { area, sub, param }. An unknown area is the default
 // one; an unknown sub is the area's top level.
-export function parseRoute(hash, subs = SUBS) {
+export function parseRoute(hash, subs = SUBS, params = PARAM_SUBS) {
   const [head, sub, param] = String(hash ?? "")
     .replace(/^#/, "")
     .split(SEPARATOR)
@@ -62,7 +82,8 @@ export function parseRoute(hash, subs = SUBS) {
   if (sub === undefined || !(subs[area] ?? []).includes(sub)) {
     return { area, sub: null, param: null };
   }
-  return { area, sub, param: param === undefined ? null : param };
+  const takes = (params[area] ?? []).includes(sub);
+  return { area, sub, param: param === undefined || !takes ? null : param };
 }
 
 export function formatRoute({ area, sub = null, param = null }) {
@@ -80,8 +101,9 @@ export const isRouteHash = (hash) => {
   return head === "" || isArea(head.toLowerCase());
 };
 
-// "Rotation · WoW Forever Rogue Simulator".
-export const titleFor = (route) => `${areaLabel(route.area)} · ${APP_TITLE}`;
+// "Rotation · WoW Forever Rogue Simulator", or a sub-screen's name.
+export const titleFor = (route) =>
+  `${SCREEN_NAMES[route.area]?.[route.sub] ?? areaLabel(route.area)} · ${APP_TITLE}`;
 
 const isRunning = (state) =>
   state.run?.mode === "batch"
@@ -182,6 +204,23 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
   const areaOf = (node) =>
     node?.closest?.("[data-area]")?.getAttribute("data-area") ?? null;
 
+  // The sub-screen a node is on (#244): the nearest data-screen, a list of
+  // the screens it shows on ("list" is the area's top). The current screen
+  // when it is one of them, else the first.
+  const subOf = (node, area) => {
+    const screens = (
+      node?.closest?.("[data-screen]")?.getAttribute("data-screen") ?? ""
+    )
+      .split(" ")
+      .filter((screen) => screen !== "");
+    if (screens.length === 0) {
+      return null;
+    }
+    const here = route?.area === area ? (route.sub ?? "list") : null;
+    const screen = screens.includes(here) ? here : screens[0];
+    return screen === "list" ? null : screen;
+  };
+
   const entryIndex = () => {
     const state = win.history.state;
     return typeof state?.routerIndex === "number" ? state.routerIndex : null;
@@ -190,7 +229,6 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
   function show(next, focus) {
     const from = route?.area ?? null;
     const had = doc.activeElement;
-    const stranded = areaOf(had) !== null && areaOf(had) !== next.area;
     route = next;
     for (const [area, shell] of shells) {
       shell.hidden = area !== next.area;
@@ -209,6 +247,12 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
       win.scrollTo?.(PAGE_TOP, PAGE_TOP);
     }
     syncPanels(from, next.area);
+    // The focus was in a screen that is hidden now: another area, or another
+    // of this area's screens (#244: a Character row opens its screen). A
+    // view that has moved it already (Rotation's Back, to the rule's Edit
+    // link) keeps it there.
+    const stranded =
+      areaOf(had) !== null && doc.activeElement === had && !canFocus(doc, had);
     const heading = shells.get(next.area)?.querySelector("h1");
     if (focus === "heading" || (focus === "none" && stranded)) {
       heading?.focus();
@@ -261,8 +305,9 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
       if (target !== null) {
         win.history.replaceState({ routerIndex: index }, "");
         const area = areaOf(target);
-        if (area !== null && area !== route.area) {
-          show({ area, sub: null, param: null }, "none");
+        const sub = area === null ? null : subOf(target, area);
+        if (area !== null && (area !== route.area || sub !== route.sub)) {
+          show({ area, sub, param: null }, "none");
         }
         return;
       }
@@ -297,7 +342,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
   function onReveal(event) {
     const area = areaOf(event.target);
     if (area !== null) {
-      go(area);
+      go(area, { sub: subOf(event.target, area) });
     }
   }
 
@@ -349,7 +394,11 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     const next =
       target === null
         ? parseRoute(hash)
-        : { area: areaOf(target) ?? DEFAULT_AREA, sub: null, param: null };
+        : {
+            area: areaOf(target) ?? DEFAULT_AREA,
+            sub: areaOf(target) === null ? null : subOf(target, areaOf(target)),
+            param: null,
+          };
     index = entryIndex() ?? 0;
     win.history.replaceState(
       { routerIndex: index },

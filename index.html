@@ -275,78 +275,101 @@
       ></p>
 
       <section id="area-character" class="area" data-area="character">
+        <!-- Character's screens (#244, UX6): the list (#character) and its
+             sub-screens, #character/gear, #character/stats and
+             #character/talents. js/views/character-screens.js shows the
+             parts marked data-screen for the screen it is on, and names the
+             back link and the h1. -->
+        <a id="character-back" class="back-link" href="#character" hidden
+          ><span aria-hidden="true">‹ </span
+          ><span class="visually-hidden">Back to </span
+          ><span>Character</span></a
+        >
         <h1 id="area-character-title" class="area-title" tabindex="-1">
           Character
         </h1>
+        <ul
+          id="character-rows"
+          class="character-rows"
+          data-screen="list"
+          aria-labelledby="area-character-title"
+        >
+          <li>
+            <a
+              id="character-row-gear"
+              class="character-row"
+              href="#character/gear"
+              aria-describedby="character-gear-summary"
+              ><span class="character-row-name">Gear and weapons</span
+              ><span
+                id="character-gear-summary"
+                class="character-row-summary"
+                aria-hidden="true"
+              ></span
+              ><span
+                id="character-gear-status"
+                class="status-chip"
+                hidden
+              ></span
+              ><span class="character-row-go" aria-hidden="true">›</span></a
+            >
+          </li>
+          <li>
+            <a
+              id="character-row-stats"
+              class="character-row"
+              href="#character/stats"
+              aria-describedby="character-stats-summary"
+              ><span class="character-row-name">Stats</span
+              ><span
+                id="character-stats-summary"
+                class="character-row-summary"
+                aria-hidden="true"
+              ></span
+              ><span
+                id="character-stats-status"
+                class="status-chip"
+                hidden
+              ></span
+              ><span class="character-row-go" aria-hidden="true">›</span></a
+            >
+          </li>
+          <li>
+            <!-- The talent tree's row (#204, js/views/talent-tree.js writes
+                 #talents-summary). -->
+            <a
+              id="talents-edit"
+              class="character-row"
+              href="#character/talents"
+              aria-describedby="talents-summary"
+              ><span class="character-row-name" id="talents-summary-label"
+                >Talents</span
+              ><span
+                id="talents-summary"
+                class="character-row-summary talents-summary-value"
+                aria-hidden="true"
+                >No talents</span
+              ><span
+                id="character-talents-status"
+                class="status-chip"
+                hidden
+              ></span
+              ><span class="character-row-go" aria-hidden="true">›</span></a
+            >
+          </li>
+        </ul>
         <form
           id="config-form"
-          class="panel config-panel"
-          aria-labelledby="config-heading"
+          class="config-panel"
+          aria-labelledby="area-character-title"
           novalidate
         >
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">SETUP</p>
-              <h2 id="config-heading">Fight setup</h2>
-            </div>
-          </div>
           <div class="config-grid">
-            <fieldset class="config-fieldset build-fieldset">
-              <legend>Build</legend>
-              <!-- The talent tree's summary row (#204); js/views/talent-tree.js
-                   owns it and the #talent-tree section under the form. -->
-              <div class="field talents-summary">
-                <div>
-                  <span class="talents-summary-label" id="talents-summary-label"
-                    >Talents</span
-                  >
-                  <span class="talents-summary-value" id="talents-summary"
-                    >No talents</span
-                  >
-                </div>
-                <button
-                  id="talents-edit"
-                  class="pill-button"
-                  type="button"
-                  aria-expanded="false"
-                  aria-controls="talent-tree"
-                  aria-describedby="talents-summary-label talents-summary"
-                >
-                  Edit talents
-                </button>
-              </div>
-              <div class="field">
-                <label for="cfg-rotation">Rotation</label>
-                <!-- U7 (#217): js/views/rotation-builder.js owns the button and
-                     the #rotation-builder section under the form. -->
-                <div class="rotation-pick">
-                  <select
-                    id="cfg-rotation"
-                    name="rotation"
-                    aria-describedby="cfg-rotation-summary"
-                  ></select>
-                  <a id="cfg-rotation-edit" class="pill-button" href="#rotation"
-                    >Edit rotation…</a
-                  >
-                </div>
-              </div>
-              <details id="cfg-summary" class="rotation-summary" open>
-                <summary>What this rotation does</summary>
-                <div id="cfg-rotation-summary">
-                  <p id="cfg-summary-stale" class="summary-stale" hidden></p>
-                  <p id="cfg-summary-name" class="rotation-summary-name"></p>
-                  <ol
-                    id="cfg-summary-rules"
-                    class="rotation-summary-rules"
-                  ></ol>
-                </div>
-              </details>
-              <p class="field-help rotation-share-note">
-                <a href="#rotation/share">Export or import</a> is in Rotation.
-              </p>
-            </fieldset>
-            <fieldset class="config-fieldset character-fieldset">
-              <legend>Character</legend>
+            <fieldset
+              class="config-fieldset character-fieldset"
+              data-screen="stats"
+            >
+              <legend>Character stats</legend>
               <div class="field">
                 <label for="cfg-character-attackPower">Attack power</label>
                 <div class="field-control">
@@ -427,7 +450,7 @@
                 Without talents (the talent tree adds its own).
               </p>
             </fieldset>
-            <div class="hands">
+            <div class="hands" data-screen="gear">
               <fieldset class="config-fieldset hand-fieldset">
                 <legend>Main hand</legend>
                 <div class="field">
@@ -525,6 +548,7 @@
                   <label for="cfg-poisons-mainHand">Poison</label>
                   <select
                     id="cfg-poisons-mainHand"
+                    aria-label="Main hand poison"
                     name="poisons.mainHand"
                     data-field="poisons.mainHand"
                   ></select>
@@ -658,6 +682,7 @@
                   <label for="cfg-poisons-offHand">Poison</label>
                   <select
                     id="cfg-poisons-offHand"
+                    aria-label="Off hand poison"
                     name="poisons.offHand"
                     data-field="poisons.offHand"
                   ></select>
@@ -697,7 +722,7 @@
               </fieldset>
             </div>
           </div>
-          <div class="config-footer">
+          <div class="config-footer" data-screen="list gear stats">
             <button id="cfg-reset" class="pill-button" type="button">
               Reset to defaults
             </button>
@@ -728,22 +753,14 @@
         <section
           id="talent-tree"
           class="panel talents-panel"
-          aria-labelledby="talents-heading"
+          aria-labelledby="area-character-title"
+          data-screen="talents"
           hidden
         >
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">BUILD</p>
-              <h2 id="talents-heading">Talents</h2>
-            </div>
-            <div class="talents-actions">
-              <button id="talents-reset" class="pill-button" type="button">
-                Reset all
-              </button>
-              <button id="talents-close" class="pill-button" type="button">
-                Close talents
-              </button>
-            </div>
+          <div class="talents-actions">
+            <button id="talents-reset" class="pill-button" type="button">
+              Reset all
+            </button>
           </div>
           <div class="talents-bar">
             <div class="field talents-level">
@@ -791,19 +808,38 @@
 
       <section id="area-rotation" class="area" data-area="rotation">
         <!-- The screen's back link and h1 (#243, UX5): js/views/rotation-builder.js
-             names them for the list, a rule's screen or Export or import. -->
-        <a
-          id="rotation-back"
-          class="back-link"
-          href="#character"
-          data-return-focus="cfg-rotation-edit"
+             names them for a rule's screen or Export or import; the list is
+             the area's top, with no back link (#244, UX6). -->
+        <a id="rotation-back" class="back-link" href="#rotation" hidden
           ><span aria-hidden="true">‹ </span
-          ><span class="visually-hidden">Back to </span
-          ><span>Character</span></a
+          ><span class="visually-hidden">Back to </span><span>Rotation</span></a
         >
         <h1 id="area-rotation-title" class="area-title" tabindex="-1">
           Rotation
         </h1>
+        <!-- The rotation the sim uses and what it does (#244, UX6: moved
+             here from Character). js/views/config-form.js owns them; the
+             builder view shows them on the list. -->
+        <div id="rotation-pick" class="panel rotation-pick-panel" hidden>
+          <div class="field">
+            <label for="cfg-rotation">Rotation the sim uses</label>
+            <div class="rotation-pick">
+              <select
+                id="cfg-rotation"
+                name="rotation"
+                aria-describedby="cfg-rotation-summary"
+              ></select>
+            </div>
+          </div>
+          <details id="cfg-summary" class="rotation-summary" open>
+            <summary>What this rotation does</summary>
+            <div id="cfg-rotation-summary">
+              <p id="cfg-summary-stale" class="summary-stale" hidden></p>
+              <p id="cfg-summary-name" class="rotation-summary-name"></p>
+              <ol id="cfg-summary-rules" class="rotation-summary-rules"></ol>
+            </div>
+          </details>
+        </div>
         <section
           id="rotation-builder"
           class="panel rotation-panel"
@@ -854,6 +890,20 @@
 
       <section id="area-fight" class="area" data-area="fight">
         <h1 id="area-fight-title" class="area-title" tabindex="-1">Fight</h1>
+        <!-- The target (#244, UX6): the sim is built for attacking from
+             behind, so this says so; it is no setting (James's ruling on
+             Fran's qa-256; js/config-form.js fromBehind). -->
+        <section
+          id="fight-target"
+          class="panel fight-target"
+          aria-labelledby="fight-target-heading"
+        >
+          <h2 id="fight-target-heading">Target</h2>
+          <p id="fight-target-text" class="fight-target-text">
+            You attack from behind: the target can't parry or block. Attacks
+            from the front are out of scope.
+          </p>
+        </section>
         <section
           id="damage-panel"
           class="damage-panel"

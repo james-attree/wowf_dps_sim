@@ -59,7 +59,8 @@ import { formErrorCount } from "./views/run-model.js";
 //                   uses: the selected one, or its last valid version while
 //                   its draft has errors (stale is then the note, else null).
 //                   A rule the build skips ends "— skipped: no X talent" (D9),
-//                   or "— skipped with no talents" with none picked (#234).
+//                   or "— skipped with no talents" with none picked (#234);
+//                   one no talent lifts says so with any build (#244).
 //   poisonOptions   { simulated, notSimulated: [{ id, label }] } for the two
 //                   poison selects (#152); id is the config id ("instant").
 //   poisons         { mainHand, offHand }: poisonInfo() of each hand's poison,
@@ -165,7 +166,21 @@ function pairedMin(path) {
 // the page's poisons (#152, Scout: Instant on the main hand, Deadly on the off
 // hand). The engine's default keeps no poisons, so goldens do not move.
 export function pageDefaultConfig() {
-  return { ...defaultConfig(), poisons: { ...k("ui.pageDefaultPoisons") } };
+  return fromBehind({
+    ...defaultConfig(),
+    poisons: { ...k("ui.pageDefaultPoisons") },
+  });
+}
+
+// The sim is built for attacking from behind (docs/mechanics.md, "Scope:
+// behind only"; James's ruling on Fran's qa-256): every config the page
+// builds or runs has target.behind true, whatever it was given (a stored or
+// imported false too), with no message. The page has no control for it.
+export function fromBehind(config) {
+  if (config?.target?.behind === true) {
+    return config;
+  }
+  return { ...config, target: { ...config?.target, behind: true } };
 }
 
 // A poison select's value: its config id, "" for None. The config id is the
@@ -379,10 +394,12 @@ export function summaryOf(rotation, { talents = null, errors = 0 } = {}) {
       if (skip === null) {
         return line;
       }
-      // With no talents every skip is that, so the line says it plainly
-      // rather than "…is not locked by the build … — skipped: no Blade
-      // Flurry talent" (Fran's #232 QA, nit 4; #234).
-      return talents.build.selected
+      // With no talents a talent's skip is that, so the line says it
+      // plainly rather than "…is not locked by the build … — skipped: no
+      // Blade Flurry talent" (Fran's #232 QA, nit 4; #234). A skip no talent
+      // lifts (talent null) is the same with any build, so it says why
+      // (#244, P1).
+      return talents.build.selected || skip.talent === null
         ? `${line} — skipped: ${skip.text}`
         : `${line} — skipped with no talents`;
     }),
@@ -414,7 +431,7 @@ export function formFromConfig(config, revision = 0) {
 }
 
 // The config the form describes, on top of `base` (which keeps the sections
-// the form does not edit: the target, and the build, config.talents and
+// the form does not edit: the target (always from behind, fromBehind), and the build, config.talents and
 // config.talentLevel, which the talent tree owns (#204); the form used to
 // rebuild the talents from a select and wiped any other build). normalizeConfig checks it: the
 // backstop behind the field checks, so a config it refuses never reaches the
@@ -425,7 +442,7 @@ export function configFromForm(form, base) {
     write(config, path, form.values[path]);
   }
   config.rotation = rotationOf(form.rotationChoice, form.imported, form.drafts);
-  return normalizeConfig(config);
+  return normalizeConfig(fromBehind(config));
 }
 
 // What #153's Run starts: a snapshot of the store's config, or null while the
@@ -449,7 +466,7 @@ export function nextRunConfig(state) {
   if (typeof state.talents?.error === "string") {
     return null;
   }
-  return normalizeConfig(state.config);
+  return normalizeConfig(fromBehind(state.config));
 }
 
 function slug(name) {
@@ -516,6 +533,9 @@ export function listedLines(entries, most = MAX_LISTED) {
 // Creating the model fills the `form` slice from the store's config.
 export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
   let saved = null;
+  if (store.get().config?.target?.behind !== true) {
+    store.set({ config: fromBehind(store.get().config) });
+  }
   store.set({ form: formFromConfig(store.get().config) });
 
   const form = () => store.get().form;
@@ -787,7 +807,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
     // config from before, until anything else is done.
     reset() {
       const before = store.get();
-      const config = normalizeConfig(defaults());
+      const config = normalizeConfig(fromBehind(defaults()));
       store.batch(() => {
         store.set({
           form: {

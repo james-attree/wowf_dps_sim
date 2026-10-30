@@ -278,6 +278,8 @@ const COPY = {
       )}.${entry.reason === "alwaysHolds" ? " Change its conditions so they are sometimes false." : ""}`,
   duplicateRule: (entry) =>
     `Never reached: same as rule ${entry.same + 1}. Change its conditions or delete it.`,
+  duplicateCondition: (entry) =>
+    `Condition ${entry.condition + 1} is the same as condition ${entry.same + 1}, so it changes nothing. Delete it.`,
   // The two #214 warnings, word for word as rotationWarnings words them
   // (js/rotation-warnings.js), with the builder's name for the ability (no
   // id). A test holds the two equal.

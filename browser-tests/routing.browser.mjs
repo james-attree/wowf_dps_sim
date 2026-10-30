@@ -194,7 +194,8 @@ for (const width of WIDTHS) {
     });
 
     test("the Fix link shows the area its field is in", async () => {
-      const { context, page, errors } = await open(width, "#character");
+      // Main hand's fields are on Gear and weapons (#244, UX6).
+      const { context, page, errors } = await open(width, "#character/gear");
       await page.locator(MIN).fill(PAIR_MIN);
       await page.locator(MIN).blur();
       await page.locator(MAX).fill(PAIR_MAX);
@@ -205,18 +206,24 @@ for (const width of WIDTHS) {
       await page.locator('[data-nav-area="results"]').click();
       await assertAt(page, "results");
       // The Run bar stays on every area; its Fix link sends the focus to
-      // the first setting to fix (#247), in Character.
+      // the first setting to fix (#247), on Character's Gear and weapons.
       await page.locator("#run-errors-link").click();
-      const state = await assertAt(page, "character");
+      await page.waitForFunction(
+        () => globalThis.location.hash === "#character/gear",
+      );
+      const state = await read(page);
+      assert.deepEqual(state.shown, ["character"]);
+      assert.equal(state.title, `Gear and weapons · ${APP_TITLE}`);
       assert.equal(`#${state.focus}`, MAX);
       assert.deepEqual(errors, []);
       await context.close();
     });
 
-    test("Edit rotation opens the builder in Rotation; Back closes it", async () => {
+    test("Rotation's nav link opens the builder; Back closes it", async () => {
       const { context, page, errors } = await open(width, "#character");
       // From the keyboard (B1): the focus goes to Rotation's h1, not body.
-      await page.locator("#cfg-rotation-edit").focus();
+      // Rotation's list is the builder (#244, UX6: no Edit rotation link).
+      await page.locator('[data-nav-area="rotation"]').focus();
       await page.keyboard.press("Enter");
       const state = await assertAt(page, "rotation");
       assert.equal(state.focus, "area-rotation-title");
