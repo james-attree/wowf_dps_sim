@@ -436,6 +436,13 @@ for (const [width, height] of SIZES) {
   });
 }
 
+const positiveTabindex = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("[tabindex]")]
+      .filter((node) => node.tabIndex > 0)
+      .map((node) => node.id || node.outerHTML.slice(0, 60)),
+  );
+
 // N3 (Fran's #253 check): from the wide breakpoint up, off Results, an
 // area's h1 is read and tabbed to before the Run column; on Results the
 // column is the bar above them (#242), and on a phone the dock is before
@@ -469,6 +476,10 @@ for (const [width, height] of [
           `${area} at ${width}`,
         );
       }
+      // The walks start at the nav, so a positive tabindex (first in the
+      // tab order wherever it is) would slip past them (#245, Fran's #256
+      // check): there is none, on any screen.
+      assert.deepEqual(await positiveTabindex(page), [], `at ${width}`);
       // Every wide screen off Results (#244, UX6): in the page, its back
       // link (if it has one), then its h1, then the Run column; tabbing on
       // from its area's link in the nav reaches the back link, else the
@@ -499,6 +510,7 @@ for (const [width, height] of [
             };
           }, area);
           assert.equal(order.h1First, true, `${hash} at ${width}`);
+          assert.deepEqual(await positiveTabindex(page), [], hash);
           if (order.back !== null) {
             assert.equal(order.backFirst, true, `${hash} at ${width}`);
           }
