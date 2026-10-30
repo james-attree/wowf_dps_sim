@@ -73,8 +73,8 @@ function readFightLength(fightLength) {
 const SIMULATION_OPTIONS = Object.freeze(["seed", "rng", "fightLength"]);
 
 // An ordinary object: made by a literal, Object.create or a class. A Map, a
-// Set, a WeakMap or another built-in is not: its contents are not options, so read as
-// options it would quietly be the defaults (#248 QA).
+// Set, a WeakMap or another built-in is not: its contents are not options, so
+// read as options it would quietly be the defaults (#248 QA).
 function isOrdinaryObject(value) {
   return (
     typeof value === "object" &&
