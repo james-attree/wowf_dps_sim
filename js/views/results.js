@@ -1,20 +1,18 @@
 import { formatNumber } from "../charts.js";
 
 // The fight totals (#149): elapsed time, damage and DPS. This view owns those
-// three elements and the tiles' section. In live mode it draws them from the
+// three elements. It draws them from the
 // results slice ({ time, damage }, in fight seconds and damage done) each time
 // it changes.
 //
-// In batch mode the tiles and the timer are hidden (#155, Fran's Phase 3 QA
-// 3): they are one fight's numbers, and the results panel (#154) is the one
-// place a batch's numbers show, with its own formatting. #154 had them show
-// the batch's mean fight, rounded differently from the panel and with the
-// timer at 00:00, which read as two answers.
+// The live fight is kept beside the average (#242, UX4): running a batch
+// leaves it as it was, so the tiles show it in both modes. (#155 hid them in
+// batch mode, when #154 had them show the batch's mean fight; the average is
+// only on Results and in the results column now.)
 //
 // The damage and DPS tiles have commas (#45, Scout): "25,180" and "1,234",
 // as #run-announce says them.
 export function createResultsView(doc, store) {
-  const panel = doc.querySelector("#damage-panel");
   const timeValue = doc.querySelector("#time-value");
   const damageValue = doc.querySelector("#damage-value");
   const dpsValue = doc.querySelector("#dps-value");
@@ -39,25 +37,8 @@ export function createResultsView(doc, store) {
     write(dpsValue, formatNumber(time > 0 ? damage / time : 0, 0));
   }
 
-  function show(mode) {
-    const hidden = mode === "batch";
-    panel.hidden = hidden;
-    timeValue.hidden = hidden;
-  }
-
-  // The mode the tiles were last drawn for: a switch of mode shows or hides
-  // them, and any other run change does not.
-  const modeOf = (state) => (state.run?.mode === "batch" ? "batch" : "live");
-  let drawnMode = modeOf(store.get());
-  show(drawnMode);
   return store.subscribe(({ state, changed }) => {
-    const mode = modeOf(state);
-    const switched = changed.includes("run") && mode !== drawnMode;
-    if (switched) {
-      show(mode);
-      drawnMode = mode;
-    }
-    if (mode === "live" && (changed.includes("results") || switched)) {
+    if (changed.includes("results")) {
       render(state.results);
     }
   });

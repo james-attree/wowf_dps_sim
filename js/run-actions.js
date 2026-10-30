@@ -4,10 +4,11 @@ import { nextRunConfig } from "./config-form.js";
 // toggle, the fields and "New seed" do to the page's store (js/store.js). The
 // bar (js/views/controls.js) calls these and never writes the store itself.
 // No DOM and no clock: the host hands in the live run (js/live-run.js), a
-// BatchClient (js/batch-client.js), drawSeed() for a random uint32 and now()
-// in milliseconds for the batch's elapsed time.
+// BatchClient (js/batch-client.js), drawSeed() for a random uint32, now()
+// in milliseconds for the batch's elapsed time, and stamp() for the wall
+// clock time a result ran at (#242, its "ran at 09:12"), or null.
 //
-//   const actions = createRunActions({ store, live, client, drawSeed, now });
+//   const actions = createRunActions({ store, live, client, drawSeed, now, stamp });
 //
 // The run slice:
 //   mode        "live" | "batch"
@@ -25,6 +26,16 @@ import { nextRunConfig } from "./config-form.js";
 // The batch slice is #154's (docs/design 154 §10):
 //   { status, progress, startedAt, elapsedMs, result, error, previous, mode }
 //
+// The ran slice (#242, UX4) is what each kept result ran with, so the live
+// fight and the average are two results kept side by side, and each knows
+// when the settings changed after it ran (js/views/stale.js):
+//   { live: Ran | null, batch: Ran | null }
+//   Ran = { config, seed, duration, iterations, at }
+// `live` is the fight in results (js/live-run.js writes its numbers), set
+// when it starts and cleared when it is stopped or reset; `batch` is the
+// average in batch.result, set when it arrives and cleared by Reset. Running
+// one never touches the other.
+//
 // Config applies to the next run: Run snapshots nextRunConfig(state)
 // (js/config-form.js), and the fight or batch keeps it.
 export function emptyBatch(mode) {
@@ -40,13 +51,33 @@ export function emptyBatch(mode) {
   };
 }
 
-export function createRunActions({ store, live, client, drawSeed, now }) {
+export const emptyRan = () => ({ live: null, batch: null });
+
+export function createRunActions({
+  store,
+  live,
+  client,
+  drawSeed,
+  now,
+  stamp = () => null,
+}) {
   const run = () => store.get().run;
   const setRun = (patch) =>
     store.update((state) => ({ run: { ...state.run, ...patch } }));
   const setBatch = (patch) =>
     store.update((state) => ({ batch: { ...state.batch, ...patch } }));
   const locked = () => run().state === "running" || run().state === "paused";
+  const setRan = (patch) =>
+    store.update((state) => ({
+      ran: { ...(state.ran ?? emptyRan()), ...patch },
+    }));
+  const record = (prepared, { duration, iterations }) => ({
+    config: prepared.config,
+    seed: prepared.seed,
+    duration,
+    iterations,
+    at: stamp(),
+  });
 
   // A field error that blocks Run in this mode. Fights only count in batch
   // mode, where their field is shown (js/views/run-model.js fieldErrors).
@@ -82,6 +113,7 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
     const { duration } = run();
     store.batch(() => {
       setRun({ stoppedAt: null, shown: true, snapshot: prepared.config });
+      setRan({ live: record(prepared, { duration, iterations: null }) });
       live.run({ seed: prepared.seed, duration, config: prepared.config });
     });
   }
@@ -110,9 +142,11 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
     });
     let settled = false;
     const startedAt = store.get().batch.startedAt;
+    const ran = record(prepared, { duration, iterations });
     const settle = (patch) => {
       settled = true;
       store.batch(() => {
+        setRan({ batch: patch.result === undefined ? null : ran });
         setBatch({
           ...patch,
           previous: null,
@@ -163,7 +197,7 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
       );
   }
 
-  return {
+  const actions = {
     run() {
       if (run().mode === "batch") {
         runBatch();
@@ -195,6 +229,7 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
       }
       store.batch(() => {
         setRun({ stoppedAt: store.get().results.time, snapshot: null });
+        setRan({ live: null });
         live.stop();
       });
     },
@@ -217,6 +252,7 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
         store.batch(() => {
           store.set({ batch: emptyBatch(client.mode) });
           setRun({ state: "idle", snapshot: null });
+          setRan({ batch: null });
         });
         return;
       }
@@ -227,7 +263,17 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
         const { seed } = run();
         live.clear({ seed: seed ?? 0, config: store.get().config });
         setRun({ stoppedAt: null, shown: false, snapshot: null });
+        setRan({ live: null });
       });
+    },
+    // Run in a given mode (#242): the Results views' own buttons, "Run
+    // average again" and "Watch fight". Nothing happens while a run is on.
+    runAs(mode) {
+      if (locked()) {
+        return;
+      }
+      actions.setMode(mode);
+      actions.run();
     },
     // Switch between live and batch while nothing runs.
     setMode(mode) {
@@ -277,4 +323,5 @@ export function createRunActions({ store, live, client, drawSeed, now }) {
       });
     },
   };
+  return actions;
 }

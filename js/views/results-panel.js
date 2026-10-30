@@ -22,8 +22,9 @@ import {
 //   outcome;
 // - aria-busy on the panel while a batch runs.
 //
-// The panel has no buttons of its own besides the sort buttons and the
-// timeline mode radios (decision 8)
+// The panel has no buttons of its own besides the sort buttons, the
+// charts' Chart / Table switches (#242) and the timeline mode radios
+// (decision 8)
 // and never takes focus. `labels` = { buildLabel, poisonName } from
 // js/build-label.js, handed in by js/main.js.
 export function createResultsPanelView(doc, store, labels) {
@@ -34,6 +35,8 @@ export function createResultsPanelView(doc, store, labels) {
   const live = doc.querySelector("#results-announce");
   let sort = DEFAULT_SORT;
   let timelineMode = "cumulative";
+  // Each chart's Chart / Table choice (#242), kept across results.
+  const chartViews = { histogram: "chart", timeline: "chart" };
   let shownResult = null;
   let lastBatch = null;
 
@@ -43,7 +46,13 @@ export function createResultsPanelView(doc, store, labels) {
       shownResult = result;
       sort = DEFAULT_SORT;
     }
-    const model = panelModel(state, { ...labels, sort, timelineMode });
+    const model = panelModel(state, {
+      ...labels,
+      sort,
+      timelineMode,
+      histogramView: chartViews.histogram,
+      timelineView: chartViews.timeline,
+    });
     title.textContent = model.title;
     meta.textContent = model.meta;
     meta.hidden = model.meta === "";
@@ -53,11 +62,69 @@ export function createResultsPanelView(doc, store, labels) {
       panel.removeAttribute("aria-busy");
     }
     body.replaceChildren(...model.body.map((node) => toDom(node, doc)));
+    measureHints();
+  }
+
+  // The breakdown's scroll hint (#242): shown while the table is wider than
+  // its box and not scrolled to its end.
+  const SCROLL_SLACK = 1;
+  function measureHint(wrap) {
+    const region = wrap.querySelector(".table-scroll");
+    if (!region || typeof region.scrollWidth !== "number") {
+      return;
+    }
+    const more =
+      region.scrollLeft + region.clientWidth <
+      region.scrollWidth - SCROLL_SLACK;
+    const overflow = region.scrollWidth > region.clientWidth + SCROLL_SLACK;
+    wrap.setAttribute(
+      "data-overflow",
+      overflow ? (more ? "more" : "end") : "none",
+    );
+  }
+  function measureHints() {
+    for (const wrap of body.querySelectorAll?.("[data-scroll-hint]") ?? []) {
+      measureHint(wrap);
+    }
+  }
+  body.addEventListener(
+    "scroll",
+    (event) => {
+      const wrap = event.target?.closest?.("[data-scroll-hint]");
+      if (wrap) {
+        measureHint(wrap);
+      }
+    },
+    true,
+  );
+  const win = doc.defaultView;
+  win?.addEventListener?.("resize", measureHints);
+  if (typeof win?.ResizeObserver === "function") {
+    new win.ResizeObserver(measureHints).observe(body);
+  }
+
+  // A chart's Chart / Table switch (#242) shows one and hides the other in
+  // place, so the pressed button keeps focus.
+  function chooseView(button) {
+    const name = button.getAttribute("data-chart-view");
+    const block = button.closest("[data-chart-block]");
+    chartViews[name] = button.value;
+    for (const other of block.querySelectorAll("button[data-chart-view]")) {
+      other.setAttribute("aria-pressed", String(other === button));
+    }
+    for (const part of block.querySelectorAll("[data-chart-part]")) {
+      part.hidden = part.getAttribute("data-chart-part") !== button.value;
+    }
   }
 
   // A sort swaps the breakdown table only, then puts focus back on the
   // pressed column's button and says the new order.
   body.addEventListener("click", (event) => {
+    const view = event.target.closest?.("button[data-chart-view]");
+    if (view && body.contains(view) && !view.closest("[inert]")) {
+      chooseView(view);
+      return;
+    }
     const button = event.target.closest?.("button[data-sort]");
     const result = store.get().batch.result;
     if (!button || !result || !body.contains(button)) {
@@ -74,7 +141,9 @@ export function createResultsPanelView(doc, store, labels) {
     region
       .querySelector(`button[data-sort="${sort.key}"]`)
       ?.focus({ preventScroll: true });
-    const status = region.parentElement.querySelector("[data-sort-status]");
+    const status = region
+      .closest("[data-breakdown-section]")
+      ?.querySelector("[data-sort-status]");
     if (status) {
       status.textContent = sortMessage(sort);
     }

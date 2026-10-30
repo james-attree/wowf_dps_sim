@@ -17,7 +17,16 @@ import {
   parseRunField,
   summaryText,
 } from "./run-model.js";
-import { reveal } from "./sections.js";
+import { areaLabel, reveal } from "./sections.js";
+import { STALE_ANNOUNCEMENT, staleKinds } from "./stale.js";
+
+// "Running" and "Showing Fight" as "Running. Showing Fight."
+const joinMessages = (first, second) => {
+  if (first === "" || second === "") {
+    return first + second;
+  }
+  return /[.!?]$/.test(first) ? `${first} ${second}` : `${first}. ${second}`;
+};
 
 // The run control bar (#153): the one home of Run, Pause, Stop and Reset, the
 // live/batch mode toggle, the fight length, fights and seed fields, the run
@@ -110,22 +119,45 @@ export function createControlsView(doc, store, actions = {}) {
   // rotation builder's pattern), so each message is a fresh change. A page
   // with no frames (the tests' stand-in documents) writes it at once.
   const view = doc.defaultView;
+  // Two messages in one frame are said as one (#242): Run's "Running" and
+  // the area it moved to, "Showing Fight", are "Running. Showing Fight."
   let pendingAnnounce = null;
-  const announce = (text) => {
+  let pendingText = "";
+  // With no frames, a follow-up joins the message of the run it follows
+  // when only the route has changed between them (the router's `route`
+  // and `moved` come right after the run's change).
+  let joinable = false;
+  const announceAlso = (text) => {
+    if (typeof view?.requestAnimationFrame !== "function" && joinable) {
+      announcer.textContent = joinMessages(announcer.textContent, text);
+      return;
+    }
+    announce(text, true);
+  };
+  // A change before the frame replaces the waiting message; a follow-up
+  // (`join`) is said with it.
+  const announce = (text, join = false) => {
     if (pendingAnnounce !== null) {
       view.cancelAnimationFrame(pendingAnnounce);
       pendingAnnounce = null;
+      if (join) {
+        text = joinMessages(pendingText, text);
+      }
     }
+    pendingText = "";
     announcer.textContent = "";
     if (text === "") {
       return;
     }
     if (typeof view?.requestAnimationFrame !== "function") {
       announcer.textContent = text;
+      joinable = true;
       return;
     }
+    pendingText = text;
     pendingAnnounce = view.requestAnimationFrame(() => {
       pendingAnnounce = null;
+      pendingText = "";
       announcer.textContent = text;
     });
   };
@@ -155,6 +187,7 @@ export function createControlsView(doc, store, actions = {}) {
   }
 
   let lastAnnounce = null;
+  let lastStale = null;
   let lastFocus = null;
   function render(state) {
     const model = controlsModel(state);
@@ -259,6 +292,13 @@ export function createControlsView(doc, store, actions = {}) {
       announce(model.announce);
     }
     lastAnnounce = key;
+    // A kept result going out of date is said once per change (#242): when
+    // an edit makes one stale, not on each edit after it.
+    const stale = staleKinds(state);
+    if (lastStale !== null && stale.some((kind) => !lastStale.includes(kind))) {
+      announce(STALE_ANNOUNCEMENT);
+    }
+    lastStale = stale;
 
     // Focus follows the state's main control, and leaves a control that was
     // just disabled under it (Reset after a finished fight), but only from
@@ -371,11 +411,18 @@ export function createControlsView(doc, store, actions = {}) {
   // too, and an error then disables Run before the click; so the press
   // checks, and when that blocks Run it keeps focus off the button, which
   // would drop it to the page, and sends it to the first setting to fix.
+  // Another button (right, middle) does not press Run, and does not focus it
+  // either (#242, Fran's #252 note): the browser's own focus on mousedown
+  // would blur the field being typed in, commit it and, with an error, send
+  // the focus on to the setting to fix.
+  const otherButton = (event) =>
+    event?.button !== undefined && event.button !== MAIN_BUTTON;
   buttons.run.addEventListener("mousedown", (event) => {
-    if (
-      buttons.run.disabled ||
-      (event?.button !== undefined && event.button !== MAIN_BUTTON)
-    ) {
+    if (otherButton(event)) {
+      event.preventDefault?.();
+      return;
+    }
+    if (buttons.run.disabled) {
       return;
     }
     call("commitEdits");
@@ -388,13 +435,28 @@ export function createControlsView(doc, store, actions = {}) {
   // to the page (#240, Fran's #249 N5, after arrow-key stepping): it goes to
   // the first setting to fix. Focus moved to Run while a typed edit makes it
   // blocked (a script, a screen reader) ends the same way.
+  // Another button's press on a disabled Run drops the focus to the page
+  // too: it goes back where it was.
   row.addEventListener("pointerdown", (event) => {
-    if (
-      event?.target === buttons.run &&
-      buttons.run.disabled &&
-      (event.button ?? MAIN_BUTTON) === MAIN_BUTTON
-    ) {
+    if (event?.target !== buttons.run || !buttons.run.disabled) {
+      return;
+    }
+    if (!otherButton(event)) {
       later(refocus);
+      return;
+    }
+    const had = doc.activeElement ?? null;
+    const back = () => {
+      if (had !== null && had !== doc.body && lost()) {
+        had.focus?.();
+      }
+    };
+    back();
+    later(back);
+  });
+  row.addEventListener("mousedown", (event) => {
+    if (event?.target === buttons.run && otherButton(event)) {
+      event.preventDefault?.();
     }
   });
   doc.addEventListener?.("focusout", (event) => {
@@ -455,12 +517,20 @@ export function createControlsView(doc, store, actions = {}) {
   // when it stuck to the top on wide screens).
   render(store.get());
   return store.subscribe(({ state, changed }) => {
+    if (changed.some((slice) => slice !== "route" && slice !== "moved")) {
+      joinable = false;
+    }
     if (
-      ["run", "batch", "results", "form", "talents"].some((s) =>
-        changed.includes(s),
+      ["run", "batch", "results", "form", "talents", "config", "ran"].some(
+        (s) => changed.includes(s),
       )
     ) {
       render(state);
+    }
+    // Run moved the page to its area (js/views/router.js, #242): said here,
+    // with the run's own message when they come together.
+    if (changed.includes("moved") && (state.moved ?? null) !== null) {
+      announceAlso(`Showing ${areaLabel(state.moved.area)}.`);
     }
   });
 }

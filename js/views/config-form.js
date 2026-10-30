@@ -1,6 +1,7 @@
 import { k } from "../../data/constants.js";
 import { NARROW_QUERY } from "./breakpoints.js";
 import { fieldErrors, formErrorCount } from "./run-model.js";
+import { anyStale } from "./stale.js";
 
 // The "Fight setup" form (#151, U2). This view owns the form#config-form and
 // everything in it, and no other element. It draws the store's `form` slice
@@ -591,15 +592,17 @@ export function createConfigFormView(doc, store, actions) {
 
   render(store.get().form);
   const edited = $("cfg-edited");
+  // Also while a kept result is out of date (#242): the results say so
+  // until the next run.
   const drawEdited = (state) => {
-    edited.hidden = !editedSinceRun(state);
+    edited.hidden = !editedSinceRun(state) && !anyStale(state);
   };
   drawEdited(store.get());
   return store.subscribe(({ state, changed }) => {
     if (changed.includes("form")) {
       render(state.form);
     }
-    if (changed.includes("config") || changed.includes("run")) {
+    if (["config", "run", "ran", "batch"].some((s) => changed.includes(s))) {
       drawEdited(state);
     }
     const nowBar = barErrorsOf(state);

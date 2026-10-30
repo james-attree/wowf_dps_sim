@@ -245,7 +245,7 @@ describe("the results panel states (#154)", () => {
     assert.doesNotMatch(text(single.body), /\b1 fights/);
   });
 
-  it("shows a finished batch: tables, no panel buttons besides the sort", () => {
+  it("shows a finished batch: tables, no panel buttons besides the sort and the charts' Chart / Table (#242)", () => {
     const shown = model({ status: "done", result: done, elapsedMs: 2000 });
     assert.equal(shown.title, "Results");
     assert.equal(shown.busy, false);
@@ -257,7 +257,7 @@ describe("the results panel states (#154)", () => {
     const buttons = html.match(/<button[^>]*>/g) ?? [];
     assert.ok(buttons.length > 0);
     for (const button of buttons) {
-      assert.match(button, /data-sort=/);
+      assert.match(button, /data-sort=|data-chart-view=/);
     }
     assert.match(text(shown.body), /Damage by ability/);
     assert.match(html, /Instant Poison/);
@@ -287,7 +287,7 @@ describe("the results panel states (#154)", () => {
     assert.equal(/Average DPS/.test(text(shown.body)), false);
   });
 
-  it("shows an error as an alert with the technical detail folded away", () => {
+  it("shows an error as an alert with the technical detail shown, not folded away (#242)", () => {
     const shown = model({
       status: "error",
       error: { name: "Error", message: "boom" },
@@ -295,8 +295,8 @@ describe("the results panel states (#154)", () => {
     });
     const html = markup(shown.body);
     assert.match(html, /role="alert"/);
-    assert.match(html, /<details>/);
-    assert.match(text(shown.body), /boom/);
+    assert.doesNotMatch(html, /<details/);
+    assert.match(text(shown.body), /Technical detail: Error: boom/);
   });
 });
 
@@ -329,8 +329,45 @@ describe("the results panel charts (#154)", () => {
     ]) {
       assert.ok(html.includes(toMarkup(part)));
     }
-    assert.match(html, /<summary>The histogram as a table<\/summary>/);
-    assert.match(html, /<summary>The damage over time as a table<\/summary>/);
+    // No disclosures on Results (#242): a Chart / Table switch for each.
+    assert.doesNotMatch(html, /<details|<summary/);
+    assert.match(html, /role="group" aria-label="Show DPS per fight as"/);
+    assert.match(html, /role="group" aria-label="Show damage over time as"/);
+  });
+
+  it("show the chart and hide the table until Table is chosen (#242)", () => {
+    const parts = (html) =>
+      [...html.matchAll(/data-chart-part="(chart|table)"( hidden="")?/g)].map(
+        ([, part, hidden]) => `${part}${hidden ? " hidden" : ""}`,
+      );
+    const chart = markup(model({ status: "done", result: done }).body);
+    assert.deepEqual(parts(chart), [
+      "chart",
+      "table hidden",
+      "chart",
+      "table hidden",
+    ]);
+    assert.equal((chart.match(/aria-pressed="true"/g) ?? []).length, 2);
+    const table = markup(
+      model(
+        { status: "done", result: done },
+        { histogramView: "table", timelineView: "table" },
+      ).body,
+    );
+    assert.deepEqual(parts(table), [
+      "chart hidden",
+      "table",
+      "chart hidden",
+      "table",
+    ]);
+  });
+
+  it("say the breakdown scrolls when it is wider than its box (#242)", () => {
+    const html = markup(model({ status: "done", result: done }).body);
+    assert.match(
+      html,
+      /<div class="scroll-hint-wrap" data-scroll-hint=""><p class="scroll-hint" aria-hidden="true">Scroll for more columns →<\/p><div class="table-scroll"/,
+    );
   });
 
   it("scroll sideways in labelled, focusable regions", () => {

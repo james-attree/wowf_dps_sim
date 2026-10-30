@@ -1,5 +1,6 @@
 import { k } from "../../data/constants.js";
 import { formatNumber } from "../charts.js";
+import { isStale, staleStatus } from "./stale.js";
 
 // What the run control bar (#153) shows, as plain data: the field rules, the
 // buttons' labels and states, the status line, what a screen reader hears on
@@ -89,11 +90,11 @@ function pausedAnnouncement(state, time, damage) {
 
 // The status line's DPS, to 1 dp with commas, as speech says it (U9 polish,
 // Fran's #220 check): "2,541.1".
-function dpsText(damage, time) {
+export function dpsText(damage, time) {
   return dpsNumber(damage, time, 1);
 }
 
-function secondsText(seconds) {
+export function secondsText(seconds) {
   return Number.isInteger(seconds) ? String(seconds) : seconds.toFixed(1);
 }
 
@@ -259,10 +260,12 @@ function narrowStatus(state, reason) {
   if (reason === null) {
     return null;
   }
+  // The short reason alone (#242, Fran's #252 note): "Can't run" is said by
+  // Run's state and the full reason in #run-reason.
   if (talentsOnly(state)) {
-    return `Can't run · ${TALENTS_OVER_CAP_SHORT}`;
+    return TALENTS_OVER_CAP_SHORT;
   }
-  return rotationOnly(state) ? `Can't run · ${ROTATION_ERRORS_SHORT}` : null;
+  return rotationOnly(state) ? ROTATION_ERRORS_SHORT : null;
 }
 
 // "100k" for 100,000, "1.5k" for 1,500, "999" under a thousand: the total of
@@ -303,10 +306,14 @@ function liveModel(state) {
     text = `Ready · seed ${seedText(run.seed)}`;
     announce = "Ready";
   }
+  const stale = !active && isStale(state, "live");
+  if (stale) {
+    text = staleStatus(state, "live");
+  }
   const reason = !active && blocked(state) ? blockedReason(state) : null;
   return {
     run: {
-      label: status === "finished" ? "Run again" : "Run",
+      label: status === "finished" || stale ? "Run again" : "Run",
       disabled: active || blocked(state),
     },
     reason,
@@ -360,9 +367,17 @@ function batchModel(state) {
     text = `Ready · ${fightCount(run.iterations)} · seed ${seedText(run.seed)}`;
     announce = "Ready";
   }
+  // An average run with other settings than today's (#242).
+  const stale = !running && isStale(state, "batch");
+  if (stale) {
+    text = staleStatus(state, "batch");
+  }
   const reason = !running && blocked(state) ? blockedReason(state) : null;
   return {
-    run: { label: "Run batch", disabled: running || blocked(state) },
+    run: {
+      label: stale ? "Run again" : "Run batch",
+      disabled: running || blocked(state),
+    },
     reason,
     // Visible, never pressable: aria-disabled with the help line as the
     // reason, so a screen reader finds it and hears why.
@@ -401,14 +416,18 @@ export function summaryText(run) {
   return `Live · ${seconds} s · seed ${seed}`;
 }
 
+// An out-of-date result (#242): what the dock's status says.
+export const STALE_SHORT = "⟳ Out of date";
+
 // The phone dock's two lines (#240, UX2; proposal section 4), short enough
 // to fit beside the DPS and two buttons on the narrowest phones: the summary
 // without the seed ("Live · 300 s", "Batch · 1k × 300 s"), and a status
 // that leaves out what the summary, the DPS readout or the results say (a
 // live fight's length, a finished batch's total). The long lines, "Ready ·
 // seed …" and the blocked reason, only come with no DPS beside them.
-// Blocked, it is the narrow row's short reason ("Can't run · Talents over
-// cap") or "Can't run", over the "Fix N settings" link.
+// Blocked, it is the narrow row's short reason ("Talents over cap") or
+// "Can't run", over the "Fix N settings" link. A kept result of the mode's
+// that ran with other settings says it is out of date (#242).
 export function dockText(state) {
   const { run, batch, results } = state;
   const bad = new Set(fieldErrors(run));
@@ -423,6 +442,9 @@ export function dockText(state) {
     return { summary, status: model.statusShort ?? "Can't run" };
   }
   const ready = `Ready · seed ${seedText(run.seed)}`;
+  if (!isLocked(run) && isStale(state, run.mode)) {
+    return { summary, status: STALE_SHORT };
+  }
   if (run.mode === "batch") {
     const result = batch.result;
     const total = batch.progress?.total ?? run.iterations;
@@ -462,7 +484,7 @@ export function dockDps(state) {
       result?.completed > 0;
     return {
       value: has && !blocked ? formatNumber(result.summary.mean, 1) : NO_DPS,
-      label: "DPS avg",
+      label: has && isStale(state, "batch") ? "avg, was" : "DPS avg",
     };
   }
   const time = results?.time ?? 0;
@@ -470,7 +492,8 @@ export function dockDps(state) {
     !blocked && ["running", "paused", "finished"].includes(run.state);
   return {
     value: shown && time > 0 ? dpsText(results.damage ?? 0, time) : NO_DPS,
-    label: "DPS",
+    label:
+      shown && !isLocked(run) && isStale(state, "live") ? "DPS was" : "DPS",
   };
 }
 

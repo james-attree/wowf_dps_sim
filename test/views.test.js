@@ -336,19 +336,16 @@ describe("page views", () => {
     assert.equal(doc.el("#dps-value").writes, writes, "other slices: no draw");
   });
 
-  it("batch mode hides the tiles and the timer: the panel has the numbers (#155)", () => {
+  it("batch mode keeps the tiles and the timer: they are the kept live fight's (#242)", () => {
     const doc = recordingDocument();
     const { store } = pageStore();
     createResultsView(doc, store);
     store.set({ results: { time: 10, damage: 2000 } });
     assert.equal(doc.el("#dps-value").textContent, "200");
 
-    store.set({ run: pageRun({ mode: "batch" }) });
-    assert.equal(doc.el("#damage-panel").hidden, true);
-    assert.equal(doc.el("#time-value").hidden, true);
-
-    // Running and done alike, and the live clock draws nothing meanwhile.
+    // A batch running or done leaves the live fight's numbers as they were.
     const writes = doc.el("#dps-value").writes;
+    store.set({ run: pageRun({ mode: "batch" }) });
     store.set({
       run: pageRun({ mode: "batch", state: "running" }),
       batch: {
@@ -357,21 +354,14 @@ describe("page views", () => {
         progress: { completed: 40, total: 100, mean: 250.4 },
       },
     });
-    store.set({ results: { time: 20, damage: 9000 } });
     store.set({
       run: pageRun({ mode: "batch", state: "done" }),
       batch: { ...emptyBatch("main"), status: "done" },
     });
-    assert.equal(doc.el("#damage-panel").hidden, true);
-    assert.equal(doc.el("#time-value").hidden, true);
+    assert.notEqual(doc.el("#time-value").hidden, true);
     assert.equal(doc.el("#dps-value").writes, writes, "no batch numbers drawn");
-
-    // Back to live mode: shown, with the live fight.
-    store.set({ run: pageRun({ mode: "live" }) });
-    assert.equal(doc.el("#damage-panel").hidden, false);
-    assert.equal(doc.el("#time-value").hidden, false);
-    assert.equal(doc.el("#time-value").textContent, "00:20");
-    assert.equal(doc.el("#dps-value").textContent, "450");
+    assert.equal(doc.el("#time-value").textContent, "00:10");
+    assert.equal(doc.el("#dps-value").textContent, "200");
   });
 
   it("the visualiser redraws on frame changes and on nothing else", () => {
