@@ -1131,9 +1131,23 @@ export function createRotationBuilderView(doc, store, actions) {
     const win = doc.defaultView;
     if (win?.location !== undefined) {
       event.preventDefault?.();
-      win.location.hash = view.screen.back.href;
+      // From a number box its edit is kept as it goes: said, as the list
+      // gives no other sign of it (#244, Fran's #255 check, P6).
+      const kept = event.target?.tagName === "INPUT";
+      const back = view.screen.back;
+      win.location.hash = back.href;
+      if (kept) {
+        say(`Kept. Back to ${back.text}.`);
+      }
     }
   });
+
+  function say(text) {
+    live.textContent = "";
+    requestAnimationFrame(() => {
+      live.textContent = text;
+    });
+  }
 
   function draw() {
     const slice = store.get().rotationBuilder;

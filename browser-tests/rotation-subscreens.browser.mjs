@@ -213,6 +213,40 @@ describe("Rotation's screens", () => {
     }
   });
 
+  // Fran's #255 check, P6: Escape in a number box kept the edit and left
+  // for the list with nothing said.
+  test("Escape in a number box says the edit is kept", async () => {
+    const { context, page, errors } = await openPage(1280, 800, "#rotation");
+    try {
+      await page.locator("#rotation-builder li.rule").first().waitFor();
+      // The first rule whose screen has a number box.
+      const box = page.locator("#rotation-builder .rule-screen input").first();
+      for (let n = 1; (await box.count()) === 0; n += 1) {
+        await ruleCard(page, n - 1)
+          .locator("[data-key$='.edit']")
+          .click();
+        await page.locator("#rotation-builder .rule-screen").waitFor();
+        if ((await box.count()) === 0) {
+          await page.click("#rotation-back");
+          await hashIs(page, "#rotation");
+        }
+      }
+      await box.fill("4");
+      await box.press("Escape");
+      await hashIs(page, "#rotation");
+      await page.waitForFunction(
+        () =>
+          document.querySelector("#rotation-builder .builder-live")
+            ?.textContent === "Kept. Back to Rotation.",
+        null,
+        { timeout: 3000 },
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
   // Fran's #255 check, P2: Delete on a rule's screen put the list on top of
   // it in the history, so Back reopened #rotation/rule/3 at the rule that
   // moved up into number 3. The list now takes the deleted rule's entry.
