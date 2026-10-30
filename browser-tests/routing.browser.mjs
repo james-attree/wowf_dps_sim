@@ -89,8 +89,11 @@ const read = (page) =>
     shown: [...globalThis.document.querySelectorAll("[data-area]")]
       .filter((shell) => !shell.hidden)
       .map((shell) => shell.dataset.area),
+    // The nav's links only: the Average / Live switch is "page" too (#245).
     current: [
-      ...globalThis.document.querySelectorAll('[aria-current="page"]'),
+      ...globalThis.document.querySelectorAll(
+        '[data-nav-area][aria-current="page"]',
+      ),
     ].map((link) => link.dataset.navArea),
     focus: globalThis.document.activeElement?.id ?? null,
   }));
