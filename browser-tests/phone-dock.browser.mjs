@@ -26,6 +26,7 @@ const RUN_TIMEOUT = 60_000;
 // Longer than RUN_TAP_GUARD_MS (js/views/controls.js).
 const TAP_GUARD_WAIT_MS = 600;
 const WIDEST_DPS = "123,456.7";
+const PHONE_FONT_CSS = ':root { font-family: "Liberation Sans" !important; }';
 const MIN = "#cfg-weapons-mainHand-min";
 const MAX = "#cfg-weapons-mainHand-max";
 
@@ -145,10 +146,15 @@ const overlaps = (a, b) =>
   b.top < a.bottom - 1;
 
 // The DPS is whole: inside the screen and the strip, not ellipsized, and
-// clear of the buttons beside it.
-function assertDpsShown(at, state) {
+// clear of the buttons beside it. With lines, the summary and the status
+// beside it are not ellipsized either.
+function assertDpsShown(at, state, { lines = true } = {}) {
   const where = `${state}: ${JSON.stringify(at)}`;
-  assert.deepEqual(at.clipped, [], where);
+  assert.deepEqual(
+    lines ? at.clipped : at.clipped.filter((id) => id === "run-dps-value"),
+    [],
+    where,
+  );
   assert.ok(at.dps.left >= 0 && at.dps.right <= at.width, where);
   assert.ok(at.dps.top >= at.strip.top - 1, where);
   assert.ok(at.dps.bottom <= at.strip.bottom + 1, where);
@@ -285,18 +291,31 @@ for (const width of PHONE_WIDTHS) {
           ["Can't run · Talents over cap", "—"],
           ["Can't run · Rotation errors", "—"],
         ];
-        for (const [status, dps] of lines) {
-          await page.evaluate(
-            ({ status, dps }) => {
-              const doc = globalThis.document;
-              doc.getElementById("run-summary").dataset.dock =
-                "Batch · 100k × 3,600 s";
-              doc.getElementById("run-status-text").dataset.dock = status;
-              doc.getElementById("run-dps-value").textContent = dps;
-            },
-            { status, dps },
-          );
-          assertDpsShown(await dock(page), status);
+        // First in the page's own font, whatever this machine resolves it
+        // to: the DPS is whole however wide the font (CI's Linux falls back
+        // to DejaVu Sans, far wider than a phone's). The lines may ellipsize
+        // there. Then in Liberation Sans, Arial's metrics, near a phone's
+        // own Roboto or San Francisco and on every runner with Chrome: the
+        // lines fit too.
+        for (const pinned of [false, true]) {
+          if (pinned) {
+            await page.addStyleTag({ content: PHONE_FONT_CSS });
+          }
+          for (const [status, dps] of lines) {
+            await page.evaluate(
+              ({ status, dps }) => {
+                const doc = globalThis.document;
+                doc.getElementById("run-summary").dataset.dock =
+                  "Batch · 100k × 3,600 s";
+                doc.getElementById("run-status-text").dataset.dock = status;
+                doc.getElementById("run-dps-value").textContent = dps;
+              },
+              { status, dps },
+            );
+            assertDpsShown(await dock(page), `${status}, pinned ${pinned}`, {
+              lines: pinned,
+            });
+          }
         }
         assert.deepEqual(errors, []);
       } finally {
