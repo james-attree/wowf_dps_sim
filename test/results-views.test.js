@@ -245,6 +245,57 @@ describe("Results views (#242)", () => {
     );
   });
 
+  it("names each cause together; only fields count as settings (#259 check, P1)", () => {
+    const ROTATION = { rotationErrors: ["a"] };
+    const TALENTS = { error: "Over the cap" };
+    const ONE = { attackPower: "Too high" };
+    const TWO = { attackPower: "Too high", critChance: "Too high" };
+    const cases = [
+      [{ form: { errors: {}, ...ROTATION } }, "the rotation"],
+      [{ talents: TALENTS }, "the talents"],
+      [{ form: { errors: ONE } }, "1 setting"],
+      [{ form: { errors: TWO } }, "2 settings"],
+      [
+        { form: { errors: {}, ...ROTATION }, talents: TALENTS },
+        "the rotation and the talents",
+      ],
+      [{ form: { errors: ONE, ...ROTATION } }, "the rotation and 1 setting"],
+      [
+        { form: { errors: TWO }, talents: TALENTS },
+        "the talents and 2 settings",
+      ],
+      [
+        { form: { errors: TWO, ...ROTATION }, talents: TALENTS },
+        "the rotation, the talents and 2 settings",
+      ],
+      [
+        {
+          form: { errors: ONE, ...ROTATION },
+          talents: TALENTS,
+          run: {
+            ...RUN,
+            shown: true,
+            state: "finished",
+            errors: { duration: "Too short" },
+          },
+        },
+        "the rotation, the talents and 2 settings",
+      ],
+    ];
+    for (const [over, what] of cases) {
+      const model = resultViewsModel(state({ now: edited(), ...over }));
+      const want = `Out of date — fix ${what}, then Run again.`;
+      assert.equal(model.average.stale.title, want, what);
+      assert.equal(model.live.stale.title, want, what);
+      assert.ok(
+        text(
+          cardModel(state({ now: edited(), ...over }), { buildLabel }).body,
+        ).startsWith(want),
+        what,
+      );
+    }
+  });
+
   it("a running batch is the Average's", () => {
     const model = resultViewsModel(
       state({

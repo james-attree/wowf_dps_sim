@@ -255,12 +255,33 @@ export function staleFixTitle(state) {
   if (!blocked(state)) {
     return null;
   }
-  const what = rotationOnly(state)
-    ? "the rotation"
-    : talentsOnly(state)
-      ? "the talents"
-      : settings(blockedCount(state));
-  return `Out of date — fix ${what}, then Run again.`;
+  return `Out of date — fix ${listed(fixParts(state))}, then Run again.`;
+}
+
+const NONE_TO_FIX = 0;
+const LAST_ONE = 1;
+const FIRST_PART = 0;
+
+// What blocks Run, each cause by its name (#245, Fran's #259 check, P1):
+// the rotation, the talents, then the run and stats fields, which alone
+// are counted as settings. Never "2 settings" for the rotation and the
+// talents.
+export function fixParts(state) {
+  const fields = fieldErrors(state.run).length + formErrorCount(state.form);
+  return [
+    ...(rotationErrorCount(state) > NONE_TO_FIX ? ["the rotation"] : []),
+    ...(talentErrorCount(state) > NONE_TO_FIX ? ["the talents"] : []),
+    ...(fields > NONE_TO_FIX ? [settings(fields)] : []),
+  ];
+}
+
+// "a", "a and b", "a, b and c".
+function listed(parts) {
+  if (parts.length <= LAST_ONE) {
+    return parts.join("");
+  }
+  const last = parts.length - LAST_ONE;
+  return `${parts.slice(FIRST_PART, last).join(", ")} and ${parts[last]}`;
 }
 
 function blockedReason(state) {
