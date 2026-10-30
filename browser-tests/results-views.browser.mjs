@@ -118,11 +118,11 @@ async function toScreen(page, hash) {
   await page.waitForFunction((to) => globalThis.location.hash === to, hash);
 }
 
-// The run settings, opened first where they fold away (below 520 px).
+// The run settings are Fight's (#245): shown first where they are not.
 async function settingsField(page, selector) {
   const field = page.locator(selector);
   if (!(await field.isVisible())) {
-    await page.locator("#run-settings-toggle").click();
+    await page.locator('[data-nav-area="fight"]').click();
   }
   return field;
 }
@@ -186,8 +186,10 @@ describe("Run defaults to an average (#242)", () => {
       assert.equal(await page.isChecked("#run-mode-batch"), true);
       assert.equal(await page.isChecked("#run-mode-live"), false);
       await observeRunAnnounce(page);
-      await page.fill("#run-iterations", BATCH_FIGHTS);
-      await page.fill("#run-duration", SHORT_FIGHT_SECONDS);
+      await (await settingsField(page, "#run-iterations")).fill(BATCH_FIGHTS);
+      await (
+        await settingsField(page, "#run-duration")
+      ).fill(SHORT_FIGHT_SECONDS);
       await page.locator("#run-button").click();
       await batchDone(page);
       assert.equal(
@@ -214,8 +216,10 @@ describe("two kept results (#242)", () => {
   test("running live never clears the average, or the reverse; each has its own label", async () => {
     const { context, page, errors } = await open(WIDE);
     try {
-      await page.fill("#run-iterations", BATCH_FIGHTS);
-      await page.fill("#run-duration", SHORT_FIGHT_SECONDS);
+      await (await settingsField(page, "#run-iterations")).fill(BATCH_FIGHTS);
+      await (
+        await settingsField(page, "#run-duration")
+      ).fill(SHORT_FIGHT_SECONDS);
       await page.locator("#run-button").click();
       await batchDone(page);
       const label = page.locator("#results-average-label");
@@ -284,8 +288,10 @@ describe("out of date after an edit (#242)", () => {
   test("Results, the column's card and the Run bar say so; it is said once", async () => {
     const { context, page, errors } = await open(WIDE);
     try {
-      await page.fill("#run-iterations", BATCH_FIGHTS);
-      await page.fill("#run-duration", SHORT_FIGHT_SECONDS);
+      await (await settingsField(page, "#run-iterations")).fill(BATCH_FIGHTS);
+      await (
+        await settingsField(page, "#run-duration")
+      ).fill(SHORT_FIGHT_SECONDS);
       await page.locator("#run-button").click();
       await batchDone(page);
       await toArea(page, "character");
@@ -415,10 +421,9 @@ describe("the phone dock's summary under its ellipsis (#252 note)", () => {
       await (
         await settingsField(page, "#run-iterations")
       ).fill(LONG.iterations);
-      await page.fill("#run-duration", LONG.duration);
-      await page.fill("#run-seed", LONG.seed);
+      await (await settingsField(page, "#run-duration")).fill(LONG.duration);
+      await (await settingsField(page, "#run-seed")).fill(LONG.seed);
       await page.locator("#run-seed").blur();
-      await page.locator("#run-settings-toggle").click();
       await page.waitForTimeout(SETTLE_MS);
       const summary = page.locator("#run-summary");
       // Seen: the dock's shorter line; heard: the whole one.
@@ -454,8 +459,12 @@ describe("the damage table on Results (#253 N4, #242)", () => {
             t.skip(`${font} is not installed here`);
             return;
           }
-          await page.fill("#run-iterations", BATCH_FIGHTS);
-          await page.fill("#run-duration", SHORT_FIGHT_SECONDS);
+          await (
+            await settingsField(page, "#run-iterations")
+          ).fill(BATCH_FIGHTS);
+          await (
+            await settingsField(page, "#run-duration")
+          ).fill(SHORT_FIGHT_SECONDS);
           await page.locator("#run-button").click();
           await batchDone(page);
           const overflow = await tableOverflow(page);
@@ -480,7 +489,9 @@ describe("the damage table on Results (#253 N4, #242)", () => {
       const { context, page, errors } = await open(width, { font: FONTS[0] });
       try {
         await (await settingsField(page, "#run-iterations")).fill(BATCH_FIGHTS);
-        await page.fill("#run-duration", SHORT_FIGHT_SECONDS);
+        await (
+          await settingsField(page, "#run-duration")
+        ).fill(SHORT_FIGHT_SECONDS);
         await page.locator("#run-button").click();
         await batchDone(page);
         const overflow = await tableOverflow(page);

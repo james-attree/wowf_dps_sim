@@ -99,81 +99,6 @@
           class="run-controls"
           aria-label="Run controls"
         >
-          <div id="run-settings" class="run-settings">
-            <button
-              id="run-settings-toggle"
-              class="run-settings-toggle"
-              type="button"
-              aria-expanded="false"
-              aria-controls="run-settings-body"
-            >
-              Run settings
-            </button>
-            <div id="run-settings-body" class="run-settings-body">
-              <div class="run-row run-row-inputs">
-                <fieldset class="run-mode">
-                  <legend>Mode</legend>
-                  <label class="run-mode-pill">
-                    <input
-                      id="run-mode-batch"
-                      type="radio"
-                      name="run-mode"
-                      value="batch"
-                      checked
-                    />
-                    <span>Batch</span>
-                  </label>
-                  <label class="run-mode-pill">
-                    <input
-                      id="run-mode-live"
-                      type="radio"
-                      name="run-mode"
-                      value="live"
-                    />
-                    <span>Live</span>
-                  </label>
-                </fieldset>
-                <div class="run-field">
-                  <label for="run-duration">Fight length (s)</label>
-                  <input
-                    id="run-duration"
-                    type="text"
-                    inputmode="decimal"
-                    autocomplete="off"
-                    size="6"
-                  />
-                  <p id="run-duration-error" class="field-error" hidden></p>
-                </div>
-                <div id="run-iterations-field" class="run-field" hidden>
-                  <label for="run-iterations">Fights</label>
-                  <input
-                    id="run-iterations"
-                    type="text"
-                    inputmode="numeric"
-                    autocomplete="off"
-                    size="7"
-                  />
-                  <p id="run-iterations-error" class="field-error" hidden></p>
-                </div>
-                <div class="run-field run-seed-field">
-                  <label for="run-seed">Seed</label>
-                  <div class="run-seed-input">
-                    <input
-                      id="run-seed"
-                      type="text"
-                      inputmode="numeric"
-                      autocomplete="off"
-                      size="11"
-                    />
-                    <button id="run-seed-new" class="pill-button" type="button">
-                      <span aria-hidden="true">⟳</span> New
-                    </button>
-                  </div>
-                  <p id="run-seed-error" class="field-error" hidden></p>
-                </div>
-              </div>
-            </div>
-          </div>
           <div id="run-bar" class="run-row run-row-actions">
             <div class="run-buttons">
               <button id="run-button" class="run-button" type="button">
@@ -229,6 +154,12 @@
               <span id="run-progress-text"></span>
             </div>
           </div>
+          <!-- The fight's settings are Fight's (#245; proposal section 5,
+               the column's Run panel): on wide screens the panel links
+               there. -->
+          <a id="run-fight-link" class="run-fight-link" href="#fight"
+            >Change fight settings</a
+          >
           <p id="run-help" class="run-help"></p>
         </section>
 
@@ -890,20 +821,83 @@
 
       <section id="area-fight" class="area" data-area="fight">
         <h1 id="area-fight-title" class="area-title" tabindex="-1">Fight</h1>
-        <!-- The target (#244, UX6): the sim is built for attacking from
-             behind, so this says so; it is no setting (James's ruling on
-             Fran's qa-256; js/config-form.js fromBehind). -->
-        <section
-          id="fight-target"
-          class="panel fight-target"
-          aria-labelledby="fight-target-heading"
-        >
-          <h2 id="fight-target-heading">Target</h2>
-          <p id="fight-target-text" class="fight-target-text">
-            You attack from behind: the target can't parry or block. Attacks
-            from the front are out of scope.
+        <!-- The fight's settings (#245; proposal section 3): the run type,
+             its length, fights and seed, then the target. The ids are the
+             Run bar's, as before (js/views/controls.js draws them). The
+             target is a note, not a setting: the sim is built for attacking
+             from behind (James's ruling on Fran's qa-256; js/config-form.js
+             fromBehind). -->
+        <div id="run-settings" class="panel fight-settings">
+          <div class="run-row run-row-inputs">
+            <fieldset class="run-mode">
+              <legend>Run type</legend>
+              <label class="run-mode-pill">
+                <input
+                  id="run-mode-batch"
+                  type="radio"
+                  name="run-mode"
+                  value="batch"
+                  checked
+                />
+                <span>Average</span>
+              </label>
+              <label class="run-mode-pill">
+                <input
+                  id="run-mode-live"
+                  type="radio"
+                  name="run-mode"
+                  value="live"
+                />
+                <span>Live fight</span>
+              </label>
+            </fieldset>
+            <div class="run-field">
+              <label for="run-duration">Fight length (s)</label>
+              <input
+                id="run-duration"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                size="6"
+              />
+              <p id="run-duration-error" class="field-error" hidden></p>
+            </div>
+            <div id="run-iterations-field" class="run-field" hidden>
+              <label for="run-iterations">Fights</label>
+              <input
+                id="run-iterations"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                size="7"
+              />
+              <p id="run-iterations-error" class="field-error" hidden></p>
+            </div>
+            <div class="run-field run-seed-field">
+              <label for="run-seed">Seed</label>
+              <div class="run-seed-input">
+                <input
+                  id="run-seed"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  size="11"
+                />
+                <button id="run-seed-new" class="pill-button" type="button">
+                  <span aria-hidden="true">⟳</span> New seed
+                </button>
+              </div>
+              <p id="run-seed-error" class="field-error" hidden></p>
+            </div>
+          </div>
+          <p id="fight-target" class="fight-target-note">
+            <strong>Target:</strong>
+            <span id="fight-target-text"
+              >You attack from behind: the target can't parry or block. Attacks
+              from the front are out of scope.</span
+            >
           </p>
-        </section>
+        </div>
       </section>
 
       <section id="area-results" class="area" data-area="results">

@@ -286,16 +286,95 @@ h3 {
   line-height: 16px;
 }
 
-/* The inputs row lines up at the top, and the Mode toggle sits level with the
-   inputs under their labels (16 px line + the 3 px gap), so an error line
-   under a field no longer pushes Mode down (#155, Fran's QA 9). The narrow
-   settings section sets its own. */
+/* Fight's settings (#245; proposal section 3): the run type on a line of
+   its own, then the fight length, fights and seed side by side (wrapping on
+   a phone), lined up at the top so an error line under one field moves no
+   other (#155, Fran's QA 9), then the target note under them. */
+.fight-settings {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
 .run-row-inputs {
   align-items: flex-start;
 }
 
 .run-row-inputs > .run-mode {
-  margin-top: 19px;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+}
+
+/* The run type's name is above its two choices, as the fields' labels are
+   above them, and the choices, the seed and its New seed wrap rather than
+   push the page wider (a phone at 200% text). */
+.fight-settings .run-mode legend {
+  float: none;
+  width: 100%;
+  margin: 0 0 3px;
+  padding: 0;
+  line-height: inherit;
+}
+
+.fight-settings .run-mode-pill span {
+  white-space: nowrap;
+}
+
+.fight-settings .run-field {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fight-settings .run-seed-input {
+  flex-wrap: wrap;
+}
+
+/* A flex button drops the space after its icon; the gap puts it back. */
+#run-seed-new {
+  gap: 0.3em;
+}
+
+.fight-settings .run-field input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fight-target-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.fight-target-note strong {
+  color: #e7ddc9;
+}
+
+/* On wide screens the Run panel links to Fight's settings (#245; proposal
+   section 5), except on Fight, where they are in view. Below the wide
+   breakpoint the area nav's Fight does it. */
+.run-fight-link {
+  display: none;
+}
+
+@media (width >= 64em) {
+  .run-fight-link {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: 31px;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 650;
+  }
+
+  :root:has(#area-fight:not([hidden])) .run-fight-link {
+    display: none;
+  }
+}
+
+.run-fight-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .run-field input {
@@ -400,16 +479,9 @@ h3 {
   display: none;
 }
 
-/* The narrow layout's parts (Scout, #153). Wide screens draw the bar as
-   before: the settings wrappers add no boxes, and the toggle and the summary
-   are not shown. The errors link shows at every width while Run is blocked
-   (#155, Fran's QA 1), after the status that says why. */
-.run-settings,
-.run-settings-body {
-  display: contents;
-}
-
-.run-settings-toggle,
+/* The narrow layout's parts (Scout, #153). Wide screens do not show the
+   summary. The errors link shows at every width while Run is blocked (#155,
+   Fran's QA 1), after the status that says why. */
 .run-summary,
 .run-dps,
 .run-errors-link {
@@ -447,83 +519,22 @@ h3 {
   font-weight: 700;
 }
 
-/* Below 520 the settings (mode, fight length, fights, seed) fold into a
-   section, closed by default, that scrolls away with the page; Run and the
-   status are in the dock (below). js/views/controls.js puts the section after
-   the dock's row in the DOM. */
+/* Below 520 the bar's parts are the dock's (below). Fight's settings get
+   the bigger touch targets, and inputs at the full text size so a phone
+   does not zoom into them. */
 @media (width < 32.5em) {
   .run-controls {
     display: contents;
   }
 
-  .run-settings {
-    display: block;
-    margin-bottom: 8px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--surface);
-  }
-
-  .run-settings-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    min-height: 44px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 14px;
-    background: none;
-    color: #e7ddc9;
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 650;
-    cursor: pointer;
-  }
-
-  .run-settings-toggle::after {
-    content: "▾" / "";
-    color: var(--accent);
-  }
-
-  .run-settings.is-open .run-settings-toggle::after {
-    content: "▴" / "";
-  }
-
-  .run-settings-toggle:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-
-  .run-settings-body {
-    display: none;
-    padding: 0 12px 12px;
-  }
-
-  .run-settings.is-open .run-settings-body {
-    display: block;
-  }
-
-  .run-settings-body .run-row-inputs {
-    align-items: flex-start;
-  }
-
-  .run-settings-body .run-row-inputs > .run-mode {
-    margin-top: 0;
-  }
-
-  .run-settings-body .run-mode legend {
-    line-height: 44px;
-  }
-
-  .run-settings-body .run-mode-pill span,
-  .run-settings-body .run-field input,
-  .run-settings-body .pill-button {
+  .fight-settings .run-mode-pill span,
+  .fight-settings .run-field input,
+  .fight-settings .pill-button {
     min-height: 44px;
   }
 
-  .run-settings-body .run-field input {
-    font-size: 16px;
+  .fight-settings .run-field input {
+    font-size: 1rem;
   }
 
   .run-help {
@@ -2005,22 +2016,6 @@ a.pill-button {
   outline-offset: 1px;
 }
 
-/* Fight's Target (#244, UX6): it is always attacked from behind. */
-.fight-target {
-  margin-bottom: 14px;
-}
-
-.fight-target h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.fight-target-text {
-  margin: 6px 0 0;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
 /* The batch results panel (#154). From Fran's mockup.css
    (design/154-results-panel), without the mockup chrome and the unused
    button rules; the narrow query is the page's (below 32.5em, #153). Only the
@@ -2796,30 +2791,6 @@ th[aria-sort="ascending"] {
     box-shadow: none;
   }
 
-  .run-column .run-row-inputs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 12px;
-  }
-
-  .run-column .run-row-inputs > .run-mode {
-    grid-column: 1 / -1;
-    margin-top: 0;
-  }
-
-  .run-column .run-seed-field {
-    grid-column: 1 / -1;
-  }
-
-  .run-column .run-field input {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .run-column .run-seed-input input {
-    flex: 1;
-  }
-
   .results-card {
     display: grid;
     gap: 6px;
@@ -2887,22 +2858,6 @@ th[aria-sort="ascending"] {
 
   .simulator:has(> #area-results:not([hidden])) .run-buttons button {
     text-wrap: nowrap;
-  }
-
-  .simulator:has(> #area-results:not([hidden])) .run-row-inputs {
-    display: flex;
-  }
-
-  .simulator:has(> #area-results:not([hidden])) .run-row-inputs > .run-mode {
-    margin-top: 1.2rem;
-  }
-
-  .simulator:has(> #area-results:not([hidden])) .run-field input {
-    width: auto;
-  }
-
-  .simulator:has(> #area-results:not([hidden])) .run-seed-input input {
-    flex: 0 1 auto;
   }
 
   .simulator:has(> #area-results:not([hidden])) .run-controls {

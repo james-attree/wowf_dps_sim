@@ -53,6 +53,9 @@ const SHORT = [
   { width: 1024, height: 576, errors: false },
   { width: 1024, height: 600, errors: true },
 ];
+// A screen short enough that a finished batch's column still has more to
+// scroll: since the fields went to Fight (#245) the column fits 1024x576.
+const HANDOFF_HEIGHT = 480;
 const BUTTON_WIDTHS = [1024, 1060, 1100, 1280, 1440];
 const SHORT_FIGHT_SECONDS = "4";
 const BATCH_FIGHTS = "5";
@@ -113,6 +116,15 @@ async function toArea(page, area) {
       false,
     area,
   );
+}
+
+// The run settings are Fight's (#245): shown first where they are not.
+async function settingsField(page, selector) {
+  const field = page.locator(selector);
+  if (!(await field.isVisible())) {
+    await page.locator('[data-nav-area="fight"]').click();
+  }
+  return field;
 }
 
 const shot = async (page, name) => {
@@ -287,8 +299,8 @@ describe("the GCD readout stays in its card (Fran's #253 check, B1)", () => {
       try {
         await toArea(page, "fight");
         // The page opens in Batch mode (#242).
-        await page.check("#run-mode-live");
-        await page.fill("#run-duration", "30");
+        await (await settingsField(page, "#run-mode-live")).check();
+        await (await settingsField(page, "#run-duration")).fill("30");
         await page.locator("#run-button").click();
         await page.waitForFunction(
           () =>
@@ -412,9 +424,9 @@ describe("200% text at 1024 (Fran's #253 check, N6)", () => {
 
 // A finished batch fills the card, as tall as the column gets.
 async function finishBatch(page) {
-  await page.check("#run-mode-batch");
-  await page.fill("#run-iterations", BATCH_FIGHTS);
-  await page.fill("#run-duration", SHORT_FIGHT_SECONDS);
+  await (await settingsField(page, "#run-mode-batch")).check();
+  await (await settingsField(page, "#run-iterations")).fill(BATCH_FIGHTS);
+  await (await settingsField(page, "#run-duration")).fill(SHORT_FIGHT_SECONDS);
   await page.locator("#run-button").click();
   await page.waitForFunction(
     () =>
@@ -435,16 +447,18 @@ describe("the column scrolls on its own on a short screen (Fran's #253 check, N1
         await finishBatch(page);
         await toArea(page, "character");
         if (withErrors) {
-          await page.fill("#run-duration", "0");
-          await page.fill("#run-iterations", "0");
-          await page.locator("#run-seed").fill("x");
+          await (await settingsField(page, "#run-duration")).fill("0");
+          await (await settingsField(page, "#run-iterations")).fill("0");
+          await (await settingsField(page, "#run-seed")).fill("x");
           await page.locator("#run-seed").blur();
           await page.waitForFunction(
             () =>
               globalThis.document.querySelectorAll(
-                ".run-column .field-error:not([hidden])",
+                "#run-settings .field-error:not([hidden])",
               ).length > 0,
           );
+          // The errors are Fight's (#245); the column says so on Character.
+          await toArea(page, "character");
         }
         await page.evaluate(() => globalThis.scrollTo(0, 0));
         const at = await page.evaluate(() => {
@@ -524,9 +538,13 @@ describe("a stopped batch on the card (Fran's #253 check, N2)", () => {
   test("says how many of the fights asked for ran", async () => {
     const { context, page, errors } = await open(1280, { hash: "#fight" });
     try {
-      await page.check("#run-mode-batch");
-      await page.fill("#run-iterations", LONG_BATCH_FIGHTS);
-      await page.fill("#run-duration", LONG_BATCH_SECONDS);
+      await (await settingsField(page, "#run-mode-batch")).check();
+      await (
+        await settingsField(page, "#run-iterations")
+      ).fill(LONG_BATCH_FIGHTS);
+      await (
+        await settingsField(page, "#run-duration")
+      ).fill(LONG_BATCH_SECONDS);
       await page.locator("#run-button").click();
       await page.waitForFunction(
         () =>
@@ -582,7 +600,7 @@ describe("the Run panel's buttons in the column (Fran's #253 check, N5)", () => 
       const { context, page, errors } = await open(BUTTON_WIDTHS[0], { font });
       try {
         for (const mode of ["live", "batch"]) {
-          await page.check(`#run-mode-${mode}`);
+          await (await settingsField(page, `#run-mode-${mode}`)).check();
           for (const width of BUTTON_WIDTHS) {
             await page.setViewportSize({ width, height: SCREEN_HEIGHT });
             const rows = await buttonRows(page);
@@ -676,8 +694,10 @@ describe("a wheel over the column scrolls the page (Fran's #253 re-check, B2)", 
     }
   }
 
-  test("1024x576 after a batch: a full column scrolls to its end first, then the page", async () => {
-    const { context, page, errors } = await open(1024, { height: 576 });
+  test(`1024x${HANDOFF_HEIGHT} after a batch: a full column scrolls to its end first, then the page`, async () => {
+    const { context, page, errors } = await open(1024, {
+      height: HANDOFF_HEIGHT,
+    });
     try {
       await finishBatch(page);
       await toArea(page, "character");
@@ -711,7 +731,7 @@ describe("a wheel over the column scrolls the page (Fran's #253 re-check, B2)", 
         steps[firstPage].column >= start.columnEnd - SLACK,
         `the column was at its end when the page moved, ${say}`,
       );
-      await shot(page, "1024x576-wheel-handoff");
+      await shot(page, `1024x${HANDOFF_HEIGHT}-wheel-handoff`);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();

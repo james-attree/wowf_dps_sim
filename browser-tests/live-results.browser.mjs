@@ -68,7 +68,7 @@ async function open({ width, height }, hash) {
 async function field(page, id) {
   const control = page.locator(`#${id}`);
   if (!(await control.isVisible())) {
-    await page.locator("#run-settings-toggle").click();
+    await page.locator('[data-nav-area="fight"]').click();
   }
   return control;
 }

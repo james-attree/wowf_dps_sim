@@ -668,14 +668,9 @@ describe("index.html's form", async () => {
   });
 
   it("has a labelled control and an error line for every field", () => {
-    // Fight's "Attacking from behind" box is under Fight's Target heading
-    // (#244, UX6), outside the form.
-    const target = html.match(
-      /<section\s+id="fight-target"[\s\S]*?<\/section>/,
-    )[0];
     for (const { path } of FORM_FIELDS) {
       const id = fieldId(path);
-      const form = path === "target.behind" ? target : formHtml;
+      const form = formHtml;
       assert.match(form, new RegExp(`id="${id}"`), path);
       assert.match(
         form,

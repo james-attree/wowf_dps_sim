@@ -115,11 +115,11 @@ const read = (page) =>
     };
   });
 
-// The run settings are folded away at the narrow widths.
+// The run settings are Fight's (#245): shown first for a field.
 async function settingsField(page, id) {
   const field = page.locator(`#${id}`);
   if (!(await field.isVisible())) {
-    await page.locator("#run-settings-toggle").click();
+    await page.locator('[data-nav-area="fight"]').click();
   }
   return field;
 }
@@ -264,6 +264,11 @@ describe("Run never starts with stale settings (#247)", () => {
     const seed = await settingsField(page, "run-seed");
     await seed.fill(N6_SEED);
     await seed.blur();
+    // Back from Fight (#245) to the weapons' fields.
+    await page.evaluate(() => {
+      globalThis.location.hash = "#character/gear";
+    });
+    await page.locator(MIN).waitFor({ state: "visible" });
   }
   async function meanOf(page) {
     await page.waitForFunction(

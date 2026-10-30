@@ -119,7 +119,7 @@ function batchPart(batch, run, buildLabel) {
   }
   return [
     line("results-card-status", [
-      "No average yet. Choose Batch above, then Run batch.",
+      "No average yet. Choose Average in Fight, then Run batch.",
     ]),
   ];
 }

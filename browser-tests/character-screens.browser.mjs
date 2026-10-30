@@ -224,12 +224,12 @@ for (const width of [WIDE, PHONE]) {
 }
 
 describe("Fight's target and Rotation's preset (#244)", () => {
-  test("Fight's Target says the sim attacks from behind, with no control", async () => {
+  test("Fight's Target note says the sim attacks from behind, with no control", async () => {
     const { context, page, errors } = await open(WIDE, "#fight");
     try {
       assert.equal(
-        (await page.locator("#fight-target h2").innerText()).trim(),
-        "Target",
+        (await page.locator("#fight-target strong").innerText()).trim(),
+        "Target:",
       );
       assert.equal(
         (await page.locator("#fight-target-text").innerText()).trim(),
