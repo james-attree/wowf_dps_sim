@@ -616,6 +616,10 @@
   display: grid;
   gap: 10px;
 }
+/* Room between the banner above it and the rule's line. */
+.builder-messages:has(> :not([hidden])) + .rule-screen {
+  margin-top: 12px;
+}
 .rule-screen .rule-body {
   padding-top: 10px;
 }

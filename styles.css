@@ -1743,6 +1743,7 @@ h3 {
 .back-link {
   display: inline-flex;
   align-items: center;
+  gap: 0.25em;
   min-height: 44px;
   color: var(--accent);
   font-size: 0.85rem;
