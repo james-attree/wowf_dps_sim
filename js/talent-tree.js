@@ -573,7 +573,10 @@ export function talentTreeView(
         info,
         catalogue,
       );
-      const parts = [`${talent.name}, ${rank} of ${talent.max}`];
+      // The rank as the tile shows it ("0/5"), so the name holds the tile's
+      // visible text (WCAG 2.5.3, Fran's #232 QA; #200).
+      const rankText = `${rank}/${talent.max}`;
+      const parts = [`${talent.name}, ${rankText}`];
       if (state === "locked") {
         parts.push(`locked: ${lock.text.replace(/\.$/, "")}`);
       }
@@ -593,7 +596,7 @@ export function talentTreeView(
         col: talent.col,
         rank,
         max: talent.max,
-        rankText: `${rank}/${talent.max}`,
+        rankText,
         state,
         coverage: known.coverage,
         active: !talent.passive,

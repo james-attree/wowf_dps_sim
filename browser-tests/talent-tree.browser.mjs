@@ -84,10 +84,7 @@ for (const width of WIDTHS) {
       );
       await clickCentre(page, malice);
       assert.match(await spent(page), /^1 of \d+$/);
-      assert.match(
-        await tile(page, malice).getAttribute("aria-label"),
-        /1 of 5/,
-      );
+      assert.match(await tile(page, malice).getAttribute("aria-label"), /1\/5/);
     });
 
     test("one Shift-click on an unfocused tile removes a point", async () => {
@@ -103,10 +100,7 @@ for (const width of WIDTHS) {
       );
       await clickCentre(page, malice, ["Shift"]);
       assert.match(await spent(page), /^2 of \d+$/);
-      assert.match(
-        await tile(page, malice).getAttribute("aria-label"),
-        /1 of 5/,
-      );
+      assert.match(await tile(page, malice).getAttribute("aria-label"), /1\/5/);
     });
 
     test("a tile keeps its nodes through a select and a rank change", async () => {
@@ -196,5 +190,64 @@ for (const width of WIDTHS) {
         "talents-level",
       );
     });
+  });
+}
+
+// #200 (Fran's #232 QA, axe label-content-name-mismatch, WCAG 2.5.3): every
+// shown tile's accessible name holds its visible text, as words in the same
+// order, the way axe compares them (NFKD, so "ⓘ" reads "i"; punctuation and
+// parentheticals dropped). Empty, partial, maxed, locked, not-simulated and
+// no-DPS tiles all appear, at desktop and narrow widths.
+for (const width of [1280, 390, 360]) {
+  test(`each talent tile's name holds its visible text at ${width}px (#200)`, async () => {
+    const { context, page } = await openTree(width);
+    try {
+      // Some points: Malice partial (1/5), Remorseless Attacks maxed (2/2).
+      await clickCentre(page, "assassination.malice");
+      await clickCentre(page, "assassination.remorseless-attacks");
+      await clickCentre(page, "assassination.remorseless-attacks");
+      if (width < 520) {
+        await page.locator("#talents-tab-assassination").click();
+      }
+      const tiles = await page.evaluate(() => {
+        const words = (text) =>
+          text
+            .normalize("NFKD")
+            .replace(/\([^()]*\)/g, "")
+            .toLowerCase()
+            .split(/[^\p{L}\p{N}]+/u)
+            .filter(Boolean);
+        const within = (name, label) =>
+          label.length === 0 ||
+          name.some((_, at) => label.every((word, j) => name[at + j] === word));
+        return [...document.querySelectorAll("button.talent")]
+          .filter((tile) => tile.getClientRects().length > 0)
+          .map((tile) => {
+            const visible = tile.innerText.replace(/\s+/g, " ").trim();
+            const name = tile.getAttribute("aria-label") ?? "";
+            return {
+              id: tile.dataset.id,
+              visible,
+              name,
+              ok: within(words(name), words(visible)),
+            };
+          });
+      });
+      assert.ok(tiles.length >= 17, `tiles shown: ${tiles.length}`);
+      assert.deepEqual(
+        tiles.filter((tile) => !tile.ok),
+        [],
+        "every tile's name holds its visible text",
+      );
+      const malice = tiles.find((tile) => tile.id === "assassination.malice");
+      assert.match(malice.name, /^Malice, 1\/5\b/);
+      if (process.env.U9_SHOTS) {
+        await page.locator("#talent-tree").screenshot({
+          path: `${process.env.U9_SHOTS}/talent-tiles-${width}.png`,
+        });
+      }
+    } finally {
+      await context.close();
+    }
   });
 }

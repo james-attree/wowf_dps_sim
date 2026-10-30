@@ -79,7 +79,7 @@ describe("talent tree model (#204)", () => {
     assert.equal(talents().message, null, "a refused add has no banner");
     const lethality = cell(talents().view, "assassination.lethality");
     assert.equal(lethality.state, "locked");
-    assert.match(lethality.label, /^Lethality, 0 of 5, locked: Needs 10/);
+    assert.match(lethality.label, /^Lethality, 0\/5, locked: Needs 10/);
   });
 
   it("refuses a removal that would strand talents, naming every blocker", () => {

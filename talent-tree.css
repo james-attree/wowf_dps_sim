@@ -269,6 +269,11 @@
   font-weight: 750;
   line-height: 1;
 }
+/* #200 (Fran's #232 QA): a tile's not-simulated mark, drawn here rather
+   than as text, so it is not part of the tile's visible label (WCAG 2.5.3). */
+.talent-cov.is-notsim::before {
+  content: "ⓘ";
+}
 .talent-active {
   position: absolute;
   left: -4px;
