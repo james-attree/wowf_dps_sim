@@ -146,6 +146,13 @@ export function fixFor(entry, at, rotation) {
       };
     case "duplicateRule":
       return { label: `Delete rule ${at + 1}`, remove: true };
+    case "duplicateCondition":
+      return rule.conditions[entry.condition] === undefined
+        ? null
+        : {
+            label: `Delete condition ${entry.condition + 1}`,
+            removeCondition: entry.condition,
+          };
     default:
       return null;
   }
@@ -560,9 +567,12 @@ export function createRotationBuilder(store, formActions) {
           conditionsLabel: `Conditions of rule ${n}, all must hold`,
           conditions: rule.conditions.map((condition, j) => {
             const m = j + 1;
-            const own = keyed.filter(
+            // A condition's errors mark its fields; its warnings (a repeat,
+            // #238) are messages under it, with their fix (#244).
+            const mine = keyed.filter(
               (x) => x.place.at === "condition" && x.place.condition === j,
             );
+            const own = mine.filter((x) => x.kind === "error");
             const badParams = new Set(
               own.map((x) => x.entry.param ?? x.place.param ?? "type"),
             );
@@ -590,6 +600,9 @@ export function createRotationBuilder(store, formActions) {
                     ),
                 ),
               errors: own.map((x) => entryText(x.entry, rotation)),
+              messages: mine
+                .filter((x) => x.kind === "warning")
+                .map((x) => message(x, index, rule, x.k2)),
               removeLabel: `Remove rule ${n}, condition ${m}: ${conditionLine(condition)}`,
             };
           }),
@@ -1027,6 +1040,9 @@ export function createRotationBuilder(store, formActions) {
             focus: `${target.uid}.value`,
           },
         );
+      } else if (fix.removeCondition !== undefined) {
+        screen = { kind: "rule", uid };
+        actions.removeCondition(uid, rule.conditions[fix.removeCondition].uid);
       } else if (fix.remove) {
         actions.remove(uid);
       } else if (fix.moveTo !== undefined) {

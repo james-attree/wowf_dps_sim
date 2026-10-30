@@ -683,9 +683,13 @@ export function applyBuild(
 // build selected, the rotation casts one of these only when the build has the
 // talent (Rogue.rotation); an ability no talent grants is never held back.
 // Object.freeze does not stop a Set's add, delete or clear, so those throw
-// (#207); has, size and iteration work as on any Set.
+// (#207); has, size and iteration work as on any Set. It is a Set
+// (instanceof) with no set data of its own: the values are in a Set only it
+// can reach, so even Set.prototype.add.call(it, id) cannot change them; that
+// throws, as for any object that is not a real Set (#210, #244).
 function readOnlySet(values) {
-  const set = new Set(values);
+  const inner = new Set(values);
+  const set = Object.create(Set.prototype);
   for (const method of ["add", "delete", "clear"]) {
     Object.defineProperty(set, method, {
       value() {
@@ -693,6 +697,19 @@ function readOnlySet(values) {
       },
     });
   }
+  Object.defineProperties(set, {
+    size: { get: () => inner.size },
+    has: { value: (id) => inner.has(id) },
+    forEach: {
+      value(each, self) {
+        inner.forEach((id) => each.call(self, id, id, set));
+      },
+    },
+    values: { value: () => inner.values() },
+    keys: { value: () => inner.keys() },
+    entries: { value: () => inner.entries() },
+    [Symbol.iterator]: { value: () => inner.values() },
+  });
   return Object.freeze(set);
 }
 

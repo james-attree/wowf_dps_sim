@@ -458,6 +458,7 @@ export function createRotationBuilderView(doc, store, actions) {
           text,
         ),
       ),
+      (condition.messages ?? []).map(messageNode),
     );
   }
 
