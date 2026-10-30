@@ -21,7 +21,7 @@ import {
 import { areaLabel, reveal } from "./sections.js";
 import { STALE_ANNOUNCEMENT, staleKinds } from "./stale.js";
 
-// "Running" and "Showing Fight" as "Running. Showing Fight."
+// "Running" and "Showing Results" as "Running. Showing Results."
 const joinMessages = (first, second) => {
   if (first === "" || second === "") {
     return first + second;
@@ -122,7 +122,7 @@ export function createControlsView(doc, store, actions = {}) {
   // with no frames (the tests' stand-in documents) writes it at once.
   const view = doc.defaultView;
   // Two messages in one frame are said as one (#242): Run's "Running" and
-  // the area it moved to, "Showing Fight", are "Running. Showing Fight."
+  // the area it moved to, "Showing Results", are "Running. Showing Results."
   let pendingAnnounce = null;
   let pendingText = "";
   // With no frames, a follow-up joins the message of the run it follows

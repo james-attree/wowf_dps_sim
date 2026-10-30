@@ -168,7 +168,7 @@ export function createResultViewsView(doc, store, actions) {
     // Run button rather than to the page.
     if (shown !== model.view) {
       const was = shown === null ? null : views[shown];
-      const focused = was?.contains(doc.activeElement) ?? false;
+      const focused = was?.contains?.(doc.activeElement) ?? false;
       shown = model.view;
       for (const name of VIEWS) {
         views[name].hidden = name !== shown;
@@ -202,7 +202,7 @@ export function createResultViewsView(doc, store, actions) {
     const fight = doc.querySelector("#results-live-fight");
     if (empty !== null && fight !== null && fight.hidden !== model.live.empty) {
       // Reset hides the fight: a focus in it (the combat log) goes to Watch.
-      const focused = fight.contains(doc.activeElement);
+      const focused = fight.contains?.(doc.activeElement) === true;
       empty.hidden = !model.live.empty;
       fight.hidden = model.live.empty;
       if (focused && model.live.empty) {
