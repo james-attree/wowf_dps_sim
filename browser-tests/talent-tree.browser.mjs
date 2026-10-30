@@ -206,41 +206,77 @@ for (const width of [1280, 390, 360]) {
       await clickCentre(page, "assassination.malice");
       await clickCentre(page, "assassination.remorseless-attacks");
       await clickCentre(page, "assassination.remorseless-attacks");
-      if (width < 520) {
-        await page.locator("#talents-tab-assassination").click();
+      // Narrow screens show one tree at a time: every tree is checked
+      // (Fran's #233 QA, nit 6; #234), wide ones show all three at once.
+      const tabs =
+        width < 520 ? ["assassination", "combat", "subtlety"] : [null];
+      const tiles = [];
+      for (const tab of tabs) {
+        if (tab !== null) {
+          await page.locator(`#talents-tab-${tab}`).click();
+        }
+        const shown = await page.evaluate(() => {
+          const words = (text) =>
+            text
+              .normalize("NFKD")
+              .replace(/\([^()]*\)/g, "")
+              .toLowerCase()
+              .split(/[^\p{L}\p{N}]+/u)
+              .filter(Boolean);
+          const within = (name, label) =>
+            label.length === 0 ||
+            name.some((_, at) =>
+              label.every((word, j) => name[at + j] === word),
+            );
+          return [...document.querySelectorAll("button.talent")]
+            .filter((tile) => tile.getClientRects().length > 0)
+            .map((tile) => {
+              const visible = tile.innerText.replace(/\s+/g, " ").trim();
+              const name = tile.getAttribute("aria-label") ?? "";
+              return {
+                id: tile.dataset.id,
+                visible,
+                name,
+                ok: within(words(name), words(visible)),
+              };
+            });
+        });
+        assert.ok(shown.length >= 17, `tiles shown (${tab}): ${shown.length}`);
+        tiles.push(...shown);
       }
-      const tiles = await page.evaluate(() => {
-        const words = (text) =>
-          text
-            .normalize("NFKD")
-            .replace(/\([^()]*\)/g, "")
-            .toLowerCase()
-            .split(/[^\p{L}\p{N}]+/u)
-            .filter(Boolean);
-        const within = (name, label) =>
-          label.length === 0 ||
-          name.some((_, at) => label.every((word, j) => name[at + j] === word));
-        return [...document.querySelectorAll("button.talent")]
-          .filter((tile) => tile.getClientRects().length > 0)
-          .map((tile) => {
-            const visible = tile.innerText.replace(/\s+/g, " ").trim();
-            const name = tile.getAttribute("aria-label") ?? "";
-            return {
-              id: tile.dataset.id,
-              visible,
-              name,
-              ok: within(words(name), words(visible)),
-            };
-          });
-      });
-      assert.ok(tiles.length >= 17, `tiles shown: ${tiles.length}`);
       assert.deepEqual(
         tiles.filter((tile) => !tile.ok),
         [],
         "every tile's name holds its visible text",
       );
-      const malice = tiles.find((tile) => tile.id === "assassination.malice");
-      assert.match(malice.name, /^Malice, 1\/5\b/);
+      const named = (id) => tiles.find((tile) => tile.id === id).name;
+      assert.match(named("assassination.malice"), /^Malice, 1\/5\b/);
+      // "DPS" as the legend says it, and "ability" before a lock reason
+      // (Fran's #233 QA, nits 4 and 5; #234).
+      assert.match(named("combat.deflection"), /, no DPS effect$/);
+      assert.match(
+        named("combat.adrenaline-rush"),
+        /^Adrenaline Rush, 0\/1, ability, locked: /,
+      );
+      // The coverage marks are drawn with empty alt text, not text nodes
+      // (nits 2 and 3).
+      const marks = await page.evaluate(() =>
+        [...document.querySelectorAll(".talent-cov")].map((mark) => ({
+          text: mark.textContent,
+          content: getComputedStyle(mark, "::before").content,
+        })),
+      );
+      assert.ok(marks.length > 0);
+      assert.deepEqual(
+        marks.filter((mark) => mark.text !== ""),
+        [],
+        "no text in a coverage mark",
+      );
+      assert.deepEqual(
+        [...new Set(marks.map((mark) => mark.content))].sort(),
+        ['"–" / ""', '"ⓘ" / ""'],
+        "each mark's glyph has empty alt text",
+      );
       if (process.env.U9_SHOTS) {
         await page.locator("#talent-tree").screenshot({
           path: `${process.env.U9_SHOTS}/talent-tiles-${width}.png`,

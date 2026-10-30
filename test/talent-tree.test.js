@@ -58,7 +58,7 @@ describe("talent tree model (#204)", () => {
     assert.equal(config().talentLevel, 60);
     assert.equal(
       talents().announce.text,
-      "Improved Sinister Strike 1 of 2. Combat 1 point. 1 of 51 spent, 50 left.",
+      "Improved Sinister Strike 1/2. Combat 1 point. 1 of 51 spent, 50 left.",
     );
     assert.equal(talents().view.summary, "Combat 0/1/0 · 1/51");
     assert.equal(
@@ -297,6 +297,34 @@ describe("talent tree model (#204)", () => {
     assert.equal(byName.get("Cold Blood").ok, false);
   });
 
+  it("follows a rule's own talent checks, as the preview does (Fran's #232 QA, nit 2; #234)", () => {
+    // Blade Flurry taken, Cold Blood not: a Blade Flurry rule guarded by
+    // "Cold Blood is granted" is skipped, as the builder, the summary and
+    // the engine skip it; unguarded, it casts.
+    const ranks = { ...referenceBuild() };
+    delete ranks["assassination.cold-blood"];
+    const lines = (conditions) =>
+      talentTreeView(ranks, 60, {
+        info: talentInfo(),
+        config: {
+          rotation: { rules: [{ action: "blade-flurry", conditions }] },
+        },
+      }).effects.rotation.lines;
+    assert.deepEqual(
+      lines([
+        { type: "abilityUnlocked", ability: "blade-flurry" },
+        { type: "abilityGranted", ability: "cold-blood" },
+      ]).map(({ ok, text }) => [ok, text]),
+      [[false, " · rule 1 skipped: no Cold Blood talent"]],
+    );
+    assert.deepEqual(
+      lines([{ type: "abilityUnlocked", ability: "blade-flurry" }]).map(
+        ({ ok, text }) => [ok, text],
+      ),
+      [[true, " · rule 1 casts it"]],
+    );
+  });
+
   it("with no talents, skips every talent ability's rule and says so (#199)", () => {
     const { talents } = setup();
     const { lines, note } = talents().view.effects.rotation;
@@ -307,7 +335,7 @@ describe("talent tree model (#204)", () => {
     }
     assert.equal(
       note,
-      "With no talents picked, the fight is untalented: the sim skips Blade Flurry, Adrenaline Rush and Cold Blood, whose rules need the talent.",
+      "With no talents picked, the fight is untalented: the sim skips Blade Flurry, Adrenaline Rush and Cold Blood, whose rules need their talents.",
     );
   });
 
@@ -326,7 +354,15 @@ describe("talent tree model (#204)", () => {
         { action: "blade-flurry", conditions: [] },
         { action: "adrenaline-rush", conditions: [] },
       ]),
-      "With no talents picked, the fight is untalented: the sim skips Blade Flurry and Adrenaline Rush, whose rules need the talent.",
+      "With no talents picked, the fight is untalented: the sim skips Blade Flurry and Adrenaline Rush, whose rules need their talents.",
+    );
+    // One ability in two rules: "rules need", but "the talent" (#234).
+    assert.equal(
+      note([
+        { action: "cold-blood", conditions: [] },
+        { action: "cold-blood", conditions: [] },
+      ]),
+      "With no talents picked, the fight is untalented: the sim skips Cold Blood, whose rules need the talent.",
     );
     assert.equal(
       note([{ action: "sinister-strike", conditions: [] }]),

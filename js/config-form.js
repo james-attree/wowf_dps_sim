@@ -55,7 +55,8 @@ import { defaultConfig, normalizeConfig } from "./sim-config.js";
 //   summary         { name, rules: [text], stale } of the rotation the sim
 //                   uses: the selected one, or its last valid version while
 //                   its draft has errors (stale is then the note, else null).
-//                   A rule the build skips ends "— skipped: no X talent" (D9).
+//                   A rule the build skips ends "— skipped: no X talent" (D9),
+//                   or "— skipped with no talents" with none picked (#234).
 //   poisonOptions   { simulated, notSimulated: [{ id, label }] } for the two
 //                   poison selects (#152); id is the config id ("instant").
 //   poisons         { mainHand, offHand }: poisonInfo() of each hand's poison,
@@ -372,7 +373,15 @@ export function summaryOf(rotation, { talents = null, errors = 0 } = {}) {
     rules: rotation.rules.map((rule) => {
       const skip = talents === null ? null : skipOf(rule, talents);
       const line = summarizeRule(rule);
-      return skip === null ? line : `${line} — skipped: ${skip.text}`;
+      if (skip === null) {
+        return line;
+      }
+      // With no talents every skip is that, so the line says it plainly
+      // rather than "…is not locked by the build … — skipped: no Blade
+      // Flurry talent" (Fran's #232 QA, nit 4; #234).
+      return talents.build.selected
+        ? `${line} — skipped: ${skip.text}`
+        : `${line} — skipped with no talents`;
     }),
     stale: errors > 0 ? staleNote(errors) : null,
   };

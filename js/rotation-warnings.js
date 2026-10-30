@@ -289,7 +289,7 @@ const TALENT_MESSAGES = {
   grantedNotTalent: (label) =>
     `${label} isn't granted by a talent, so 'is granted' is never true here and this rule never casts.`,
   unlockedNotTalent: (label) =>
-    `${label} doesn't need a talent, so 'is unlocked' is always true and does nothing.`,
+    `${label} doesn't need a talent, so 'is not locked' is always true and does nothing.`,
 };
 
 function talentWarnings(rule, path, talentGranted) {

@@ -631,12 +631,13 @@ for (const width of [390, 360]) {
   });
 }
 
-// #200 (Fran's #224 QA, N2): on a narrow screen a long name wraps to two
-// lines, no more, and keeps its full name as the title; on a wide one it stays
-// on one line. The damage stays right-aligned in its column, and the page
-// never scrolls sideways.
+// #200 (Fran's #224 QA, N2): on a narrow screen a long name wraps, in full
+// with no ellipsis however long (a touch screen cannot reach the title, Fran's
+// #228 QA, nit 3; #234), and keeps its full name as the title; on a wide one
+// it stays on one line. The damage stays right-aligned in its column, and the
+// page never scrolls sideways.
 for (const width of [1280, 390, 360]) {
-  test(`a long log name wraps to two lines at most at ${width}px (#200)`, async () => {
+  test(`a long log name wraps in full at ${width}px (#200, #234)`, async () => {
     const { context, page, errors } = await openPage(width);
     try {
       await clickCentre(page.locator("#run-button"));
@@ -650,7 +651,7 @@ for (const width of [1280, 390, 360]) {
       await clickCentre(page.locator("#pause-button"));
       await settle(page);
       const LONG =
-        "Instant Poison VI from a Sinister Strike off hand, a long name";
+        "Instant Poison VI from a Sinister Strike off hand, a made-up name long enough for three lines";
       const at = await page.evaluate((long) => {
         const [first, second] = document.querySelectorAll(
           "#combat-log .combat-log-entry",
@@ -681,9 +682,9 @@ for (const width of [1280, 390, 360]) {
         };
       }, LONG);
       if (width < 520) {
-        assert.equal(at.clamp, "2");
-        assert.ok(at.lines > 1.5 && at.lines < 2.5, `two lines: ${at.lines}`);
-        assert.equal(at.more, true, "the rest is clamped, with an ellipsis");
+        assert.equal(at.clamp, "none", "no line clamp");
+        assert.ok(at.lines > 2.5, `three lines or more: ${at.lines}`);
+        assert.equal(at.more, false, "nothing cut off, no ellipsis");
       } else {
         assert.ok(at.lines < 1.5, `one line: ${at.lines}`);
       }

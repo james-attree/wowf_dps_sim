@@ -84,7 +84,7 @@ const duplicateText = (label) =>
 const grantedText = (label) =>
   `${label} isn't granted by a talent, so 'is granted' is never true here and this rule never casts.`;
 const unlockedText = (label) =>
-  `${label} doesn't need a talent, so 'is unlocked' is always true and does nothing.`;
+  `${label} doesn't need a talent, so 'is not locked' is always true and does nothing.`;
 const codes = (value, context) =>
   rotationWarnings(value, context).map((warning) => warning.code);
 
