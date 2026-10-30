@@ -881,7 +881,7 @@ describe("createFight and runFight options", () => {
   it("runFight rejects an option it does not know, naming it", () => {
     assert.throws(
       () => runFight({ seed: 1, duration: 5, confg: {} }),
-      /runFight has no option "confg"\. Options: seed, duration, config, engine\./,
+      /runFight has no option "confg"\. Options: seed, duration, config\./,
     );
     assert.throws(
       () => runFight({ seed: 1, duration: 5, script: [] }),

@@ -18,6 +18,8 @@ import {
 import { rotationState } from "../js/rotation-state.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
 import { referenceBuild } from "./talentsforever.js";
+import { runOnCore } from "../js/core/fight.js";
+import { POLL_STEP } from "./poll-step.js";
 
 // R2 (#139): the condition vocabulary, docs/rotation.md. The examples are read
 // out of the page, so the page cannot drift from the code.
@@ -587,7 +589,7 @@ describe("evaluate is pure", () => {
 describe("rotationState builds the view from a fight", () => {
   it("is frozen all the way down", () => {
     const fight = createFight(1);
-    fight.simulation.step(k("sim.fixedStep"));
+    runOnCore(fight.simulation, POLL_STEP);
     const view = rotationState(fight.rogue, fight.simulation);
     const check = (value, path) => {
       assert.ok(Object.isFrozen(value), path);
@@ -702,7 +704,7 @@ describe("rotationState builds the view from a fight", () => {
       i < 200 && !simulation.activeBuffs["adrenaline-rush"];
       i++
     ) {
-      simulation.step(k("sim.fixedStep"));
+      runOnCore(simulation, POLL_STEP);
     }
     assert.ok(
       simulation.activeBuffs["adrenaline-rush"],
@@ -723,12 +725,12 @@ describe("rotationState builds the view from a fight", () => {
   it("does not change the fight: the same seed gives the same fight", () => {
     const run = (observe) => {
       const fight = createFight(7, { talents: referenceBuild() });
-      const steps = Math.round(60 / k("sim.fixedStep"));
+      const steps = Math.round(60 / POLL_STEP);
       for (let i = 0; i < steps; i++) {
         if (observe) {
           rotationState(fight.rogue, fight.simulation, { duration: 60 });
         }
-        fight.simulation.step(k("sim.fixedStep"));
+        runOnCore(fight.simulation, POLL_STEP);
       }
       return {
         damage: fight.simulation.damageDone,
@@ -776,7 +778,7 @@ describe("the vocabulary answers what the code rotation asks, step by step", () 
     it(label, () => {
       const { rogue, simulation } = make();
       const seen = { missing: false, up: false, cp: new Set() };
-      const steps = Math.round(SECONDS / k("sim.fixedStep"));
+      const steps = Math.round(SECONDS / POLL_STEP);
       for (let i = 0; i < steps; i++) {
         const view = rotationState(rogue, simulation, { duration: SECONDS });
         const ok = (condition) => evaluate(condition, view);
@@ -880,7 +882,7 @@ describe("the vocabulary answers what the code rotation asks, step by step", () 
           ok({ type: "fightTime", op: "==", value: simulation.currentTime }),
           true,
         );
-        simulation.step(k("sim.fixedStep"));
+        runOnCore(simulation, POLL_STEP);
       }
       // The fight went through both a missing and a running Slice and Dice, and
       // through the finisher combo points, so the comparisons above were not

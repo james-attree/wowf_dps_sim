@@ -11,6 +11,7 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { talentCatalogue } from "../js/talents.js";
 import { decodeBuildLink } from "./talentsforever.js";
+import { quiet } from "./quiet.js";
 
 // D8a PR 2 (#119): Ruthlessness, Relentless Strikes and Cold Blood as data and
 // as behaviour. Each number in data/talent-effects.js is read back out of the
@@ -64,7 +65,7 @@ function harness(options, rolls, { hit = 1 } = {}) {
   const rogue = new Rogue(undefined, options);
   rogue.bonusHitChance = hit;
   rogue.critChance = 0.3;
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.energy = 100;
   const tape = scripted(rolls);
   const simulation = new Simulation(rogue, { rng: tape.rng });

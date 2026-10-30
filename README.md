@@ -50,14 +50,15 @@ criteria and what is left open for review, and
 
 ## How the engine fits together
 
-A fight is a seed plus the steps it is given. `js/rng.js` is the one source of
-randomness. `Simulation.step(dt)` is the only way time moves, and
-`Simulation.run(duration)` calls it with the fixed step `sim.fixedStep`.
+A fight is a seed plus the time it is given. `js/rng.js` is the one source of
+randomness. The engine is an event core (`js/core/`, Phase 3.5): every swing,
+tick, expiry and decision is an event at its own exact time, and
+`Simulation.run(duration)` runs the fight from event to event.
 `runFight({ seed, duration, config })` in `js/fight.js` builds a fight, runs it and
 returns plain data, with no DOM. `config` is an optional SimConfig (character,
 weapons, a talent build, poisons); leave it out for the default fight. The live
-page builds the same fight with `createFight` and feeds it whole fixed steps, so
-a seed gives the same fight live and headless. The golden tests pin seven `runFight` results, and
+page builds the same fight with `createFight` and gives it each frame's seconds,
+so a seed gives the same fight live and headless, however the time is split. The golden tests pin seven `runFight` results, and
 `npm run bench` times one. [Mechanics](docs/mechanics.md#simulation-clock) has
 the details, and [Known limits of Phase 1](docs/mechanics.md#known-limits-of-phase-1)
 says what to keep in mind.
@@ -122,7 +123,6 @@ dependencies.
 | `npm run golden:update`    | `node scripts/golden-update.mjs`                       |
 | `npm run icons:check`      | `node scripts/check-icons.mjs`                         |
 | `npm run bench`            | `node scripts/bench.mjs`                               |
-| `npm run parity`           | `node scripts/parity.mjs`                              |
 | `npm run serve`            | `node scripts/serve.mjs`                               |
 
 `npm run test:browser` needs a local Chrome or Chromium; `npm ci` does not
@@ -376,59 +376,57 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   result. `tick()`, which the page calls about once a second, moves a running
   batch's elapsed time between progress messages (#155). `emptyBatch(mode)` is the idle slice. Engine lint applies.
 - `js/frame-clock.js` — `FrameClock`, which turns frame timestamps in
-  milliseconds into a whole number of `sim.fixedStep` steps. It carries the
-  remainder between frames and caps one frame at `sim.maxFrameTime`, which is
-  `sim.maxFrameTime / sim.fixedStep` steps (16 at the current values). It takes
-  timestamps as arguments and reads no clock.
+  milliseconds into seconds of fight time: 0 for the first frame and the first
+  after a resume, and at most `sim.maxFrameTime` for one frame. There is no
+  step and no carry since #234. It takes timestamps as arguments and reads no
+  clock.
 - `js/rng.js` — `createRng(seed)`, the seeded mulberry32 generator the
   `Simulation` owns. Every random draw in the engine goes through it.
   `normalizeSeed(seed)` is the one seed check: every entry point that takes a
   seed throws the same `RangeError`, "A seed must be an integer; got <value>."
   (#187).
-- `js/simulation.js` — `step(dt)` advances the fight by `dt` seconds and reads
-  no clock. `run(duration)` repeats the fixed step `sim.fixedStep` for a
-  duration, with a short last step, for headless runs. Each step handles
-  energy, buffs, debuffs, cooldowns, the GCD, DoTs, and Premeditation expiry,
-  applies armor to direct hits and to ticks (bleeds and nature damage can skip
-  it), rolls DoT crits, runs the rotation, and records damage, the combat log,
-  and per-ability totals (`abilityStats`, from `recordAbility`).
+- `js/simulation.js` — the fight's state, and every hit, tick and proc:
+  `run(duration)` runs the fight on the event core (`runOnCore`) and ends it,
+  reading no clock. It applies armor to direct hits and to ticks (bleeds and
+  nature damage can skip it), rolls DoT crits, and records damage, the combat
+  log, and per-ability totals (`abilityStats`, from `recordAbility`); the core
+  says when. `step(dt)`, the fixed-step engine, went in #234.
 - `js/core/scheduler.js` — `Scheduler` (#193), the event queue of the Phase
   3.5 core: `schedule`, cancel tokens, `reschedule`, `runUntil`, `runToEnd`,
   the fixed order at one timestamp (`ORDER`), and a hard stop
   (`SchedulerHardStopError`). The event core (`js/core/fight.js`, #197) runs
-  on it, and is the default engine since #199. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+  on it; it has been the default engine since #199 and the only one since
+  #234. See "Event-queue engine" in [Mechanics](docs/mechanics.md).
 - `js/core/energy.js` — `EnergyPool` (#194), continuous energy for the Phase
   3.5 core: the line `min(cap, value0 + rate * (now - t0))`, re-based on a
   gain, a spend or a rate or cap change (`modifiersChanged()`), and a one-shot
   threshold wake-up event (`wakeAt`), and the waste at the cap (`waste()`).
-  The event core (#197) puts it in place of the legacy pool in
-  `js/resource.js` for a run. See "Planned: event-queue engine" in
+  The event core (#197) puts it in place of the `Resource` pool in
+  `js/resource.js` for a run. See "Event-queue engine" in
   [Mechanics](docs/mechanics.md).
 - `js/core/swing.js` — `SwingTimer` (#195), weapon swings for the Phase 3.5
-  core: one pending swing event per hand, the legacy haste rule (haste read at
-  each swing), times anchored as `anchor + n * interval`. The event core (#197)
-  runs it; `Weapon.tick` in `js/weapon.js` stays for legacy. See "Planned: event-queue engine" in
+  core: one pending swing event per hand, the haste rule the fixed-step engine
+  had (haste read at each swing), times anchored as `anchor + n * interval`.
+  The event core (#197) runs it. See "Event-queue engine" in
   [Mechanics](docs/mechanics.md).
 - `js/core/timers.js` — `Timer`, `TimerSet`, `refreshedEnd` and
   `createTimers` (#195): the GCD, cooldowns, aura expiries and Premeditation's
   point expiry as expiry-class events at `start + duration`. The event core
-  (#197) runs them. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+  (#197) runs them. See "Event-queue engine" in [Mechanics](docs/mechanics.md).
 - `js/core/dots.js` — `DotTicks` (#196), DoT ticks for the Phase 3.5 core:
   one pending tick event per DoT at `anchor + n * interval`, a restart refresh
   (a cast DoT) and a keep-clock refresh (a proc's DoT or a poison). The tick
-  body is `Simulation.resolveDotTick`, shared with the legacy loop. The
-  event core (`js/core/fight.js`, #197) runs it. It differs from legacy in
-  three edges: the first main-hand swing at 0, a refresh from a DoT's own last
+  body is `Simulation.resolveDotTick`. The event core (`js/core/fight.js`,
+  #197) runs it. It differed from the fixed-step engine in three edges: the first main-hand swing at 0, a refresh from a DoT's own last
   tick that keeps the DoT, and same-time ticks of two DoTs in schedule order.
-  See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
-- `js/core/fight.js` — `runOnCore` and `ENGINES` (#197), the event core: a
-  legacy `Simulation` run from event to event on the scheduler, with the
+  See "Event-queue engine" in [Mechanics](docs/mechanics.md).
+- `js/core/fight.js` — `runOnCore` and `openCore` (#197, #198), the event
+  core: a `Simulation` run from event to event on the scheduler, with the
   energy pool, swings, DoT ticks and timers above, and the rotation run only
   at decision points (after any other event, at an energy threshold, and
   where a time-moving condition crosses its value, `conditionWakeAt` in
-  `js/rotation-conditions.js`). `new Simulation(rogue, { engine: "events" })`
-  or `createFight(seed, config, { engine: "events" })` uses it; legacy is the
-  default. See "Decision points and the rotation" in
+  `js/rotation-conditions.js`). `Simulation.run` and `SimRunner` run on it;
+  the `engine` option went in #234. See "Decision points and the rotation" in
   [Mechanics](docs/mechanics.md).
 - `js/fight.js` — `runFight({ seed, duration, config })`, the headless entry
   point, and `createFight(seed, config, options)`, the `Rogue` and `Simulation`
@@ -439,9 +437,9 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   call, and returns a plain object: seed, simulated duration, total damage, DPS,
   a per-ability breakdown (`Simulation.abilityStats`), the combat log,
   `dataVersion` (which data snapshot the fight ran on), and `config` (the
-  SimConfig it used). `engine` (#198) is `"events"`, the event core (the
-  default since #199), or `"legacy"`, until #200; the result does not record it. An option other
-  than `seed`, `duration`, `config` and `engine` is a `RangeError`. `createFight` returns `dataVersion` and `config` too. The same seed and duration give a deep-equal result, and it
+  SimConfig it used). An option other than `seed`, `duration` and `config` is
+  a `RangeError` (the `engine` option went with the fixed-step engine in
+  #234). `createFight` returns `dataVersion` and `config` too. The same seed and duration give a deep-equal result, and it
   loads in Node with no DOM.
 - `js/sim-runner.js` — `SimRunner` (P3-1, #136), the run controller over the
   fight: states `idle`, `running`, `paused`, `finished`; `run`, `pause`,
@@ -450,11 +448,9 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   handle is frozen but the rogue and simulation are the live engine objects,
   so a caller reads them and never writes or steps them). `result` is the same
   object on every read, not a copy, and is live and read-only in the same way.
-  `advance(duration)` runs a whole fight in one call; on legacy many small
-  calls can leave it one step short until the next call (the carry, in
-  Mechanics). The `engine` option (#198) picks legacy or `"events"`, where the
-  event core is held open for the fight and `advance` has no step and no
-  carry; `runner.engine` names it. The live page runs
+  `advance(duration)` runs a whole fight in one call. The event core is held
+  open for the fight (#198), and `advance` has no step and no carry, so any
+  split of the time is the same fight. The live page runs
   on it since #153 (`js/live-run.js`). Its default length is `batch.duration`
   (300 s). See the Run controller section of
   [Mechanics](docs/mechanics.md).
@@ -642,8 +638,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   resource's cap, start value, regen rule, cost modifier kind and what a target
   change does, all constants ids.
 - `js/resource.js` — The `Resource` pool (D3). `gain`, `spend`, `spendAll` (the
-  count it took, before the reset), `regenerate`, an expiry (Premeditation's
-  rule) and `targetChanged`. The cap goes through `resourceMax` modifiers. Each
+  count it took, before the reset), `clamp`, an expiry (Premeditation's
+  rule) and `targetChanged`. During a core run energy is an `EnergyPool`
+  instead (`js/core/energy.js`); the pool's per-step `regenerate` went in
+  #234. The cap goes through `resourceMax` modifiers. Each
   pool counts what it lost to its cap: `cappedTime` and `overflow` (#146). The
   generic executor and the procs use these by resource id. See
   [Resources](docs/mechanics.md#resources).
@@ -731,8 +729,9 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   turns the Instant and Deadly Poison definitions into procs (A5, #105). See
   [Poison definitions](docs/mechanics.md#poison-definitions-d9-issue-104) and
   [Poison procs](docs/mechanics.md#poison-procs-a5-issue-105).
-- `js/weapon.js` — Swing timer, damage roll, and type for a main-hand or
-  off-hand weapon. A speed below `config.minWeaponSpeed` throws a `RangeError`.
+- `js/weapon.js` — Speed, swing timer field, damage roll, and type for a
+  main-hand or off-hand weapon (the swings themselves are
+  `js/core/swing.js`'s since #234, when `Weapon.tick` went). A speed below `config.minWeaponSpeed` throws a `RangeError`.
   `WEAPON_ATTACKS` gives the `main-hand` and `off-hand` ids and their labels.
 - `js/gcd-meter.js` — Sets the GCD meter's ARIA range from
   `simulation.gcdDuration` (`gcd.duration`).
@@ -775,14 +774,6 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   several runs and prints the median and slowest. `--target-ms N` changes the
   target it compares with. The only place besides `test/bench.test.js` that
   reads a timer.
-- `scripts/parity.mjs` — `npm run parity`: runs two engines over seeds 1 to N
-  on the golden configs (one case per config), a DoT case and a partial
-  build, and prints mean DPS, per-ability means and the paired 95% interval of
-  the difference, also as a signed percentage of B's mean. `--duration S` runs every case for S seconds.
-  `--gate PCT` exits 2 if a case is more than PCT percent off. The engines are
-  `legacy` and `events`; #199 gates `--engine events --against legacy
---duration 300 --gate 2`. See
-  [Parity harness](docs/mechanics.md#parity-harness).
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a
   review diff.
@@ -906,8 +897,6 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   each type (the `end` event's `resources` included), `hit` damage adding up to `totalDamage`, results and rng draws
   equal with and without subscribers, the ring-buffer log, and the runner's
   `on` (pause, stop and run from handlers, state handlers that throw or re-enter).
-- `test/fixed-step.test.js` — `Simulation.run`: the fixed step, total time,
-  a 5-minute fight, and results that do not depend on how a duration is split.
 - `test/gcd-epsilon.test.js` — GCD readiness within `sim.tickEpsilon`.
 - `test/gcd-flags.test.js` — Which abilities start the GCD.
 - `test/gcd-meter.test.js` — The GCD meter's ARIA range.
@@ -920,7 +909,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `test/pages.test.js` — The data-credit footer and the Pages workflow. Every
   published `js` file must be imported by the page.
 - `test/live-view.test.js` — The live page as a view of the engine: `FrameClock`
-  (the first frame, the carry, the frame cap, `restart`), `createFight`, a live
+  (the first frame, the frame cap, `restart`), `createFight`, a live
   fight against `runFight`, and `js/main.js` on a stand-in page (idle at load
   with the seed in the bar, Run, pause, resume, a late frame from a
   backgrounded tab, the finish at 300 s equal to `runFight`, Stop then Run,
@@ -1031,10 +1020,6 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   tests on a real batch result.
 - `test/snapshots/` — The chart snapshots for `test/charts.test.js` (`.snap`
   files, exact markup). Rewritten only with `UPDATE_SNAPSHOTS=1`.
-- `test/rotation-equivalence.test.js` — The Combat rotation as JSON against the
-  code rotation it replaced (`test/legacy-rotation.js`): the same fights, field
-  for field, log and rng draws included, over builds, weapons, poisons, seeds
-  and lengths.
 - `test/rotation-interpreter.test.js`, `test/rotation-host.test.js`,
   `test/rotation-default.test.js`, `test/rotation-config.test.js`,
   `test/can-cast.test.js` — The walk rule, the host, the default rotation and
@@ -1084,8 +1069,9 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   Adrenaline Rush energy, buff and debuff lists, and DoT expiry.
 - `test/slice-and-dice.test.js` — Slice and Dice refresh, swing haste, and
   `haste.stacking`.
-- `test/step.test.js` — `Simulation.step(dt)`: time moves only by `dt`, rejected
-  steps, no wall-clock reads, and the same state for the same seed and steps.
+- `test/step.test.js` — Time moves only by the seconds a fight is given
+  (`runOnCore`): rejected durations, no wall-clock reads, and the same state
+  for the same seed and cuts.
 - `test/talents.test.js` — The talent catalogue: the 17, 17 and 19 tree counts,
   unique ids, every field against the snapshot, known talents end to end, the
   lookups, the freeze, and the load-time validation with deliberately broken

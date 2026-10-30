@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ENGINES, openCore, runOnCore } from "../js/core/fight.js";
+import { openCore, runOnCore } from "../js/core/fight.js";
 import { ORDER, Scheduler } from "../js/core/scheduler.js";
 import { SWING_HANDS, SWING_KIND, SwingTimer } from "../js/core/swing.js";
 import {
@@ -227,7 +227,7 @@ describe("Scheduler nextTime and current (#198)", () => {
 
 describe("openCore: the event core held open (#198)", () => {
   const fight = (seed = 9, duration = 30) =>
-    createFight(seed, TALENTED, { duration, engine: ENGINES.events });
+    createFight(seed, TALENTED, { duration });
   const picture = ({ simulation }) => ({
     time: simulation.currentTime,
     damage: simulation.damageDone,

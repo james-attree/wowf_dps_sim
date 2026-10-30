@@ -4,7 +4,6 @@ import { k } from "../data/constants.js";
 import { ORDER, Scheduler } from "../js/core/scheduler.js";
 import { SWING_KIND, SwingTimer } from "../js/core/swing.js";
 import { createRng } from "../js/rng.js";
-import { Weapon } from "../js/weapon.js";
 
 // A haste source the test changes; resolve("haste", 1) as the pipeline is
 // asked by Rogue.rotation.
@@ -187,72 +186,6 @@ describe("SwingTimer (#195)", () => {
     haste.haste = 2;
     scheduler.runUntil(3 * 2.6); // reads 2 at 7.8: new anchor
     assert.equal(timers.main.nextSwingTime, 3 * 2.6 + 1.3);
-  });
-
-  // Legacy's rule, from Weapon.tick: per step, haste as Rogue.rotation reads
-  // it at the end of the step, a swing when the timer is within tickEpsilon,
-  // and the interval added on. The core's haste source reads the same value
-  // (the haste of the step that holds the swing), so the two must swing the
-  // same number of times, each legacy swing landing in the step that holds
-  // the core's. A core swing within tickEpsilon past a step boundary belongs
-  // to the step that ends there, as legacy's timer comparison has it.
-  it("matches legacy Weapon.tick at the fixed step with random haste changes (seeds 1 to 50, 300 s)", () => {
-    const step = k("sim.fixedStep");
-    const duration = 300;
-    const steps = duration / step;
-    for (let seed = 1; seed <= 50; seed++) {
-      const rng = createRng(seed);
-      // Haste for each step, changing at random step boundaries.
-      const hasteOfStep = new Float64Array(steps + 1);
-      let h = 1;
-      for (let i = 1; i <= steps; i++) {
-        if (rng() < 0.01) {
-          h = [1, 1.3, 1.2, 1.3 * 1.2][Math.floor(rng() * 4)];
-        }
-        hasteOfStep[i] = h;
-      }
-      const legacy = { main: [], off: [] };
-      const rogue = { random: () => 0, getAttackPower: () => 0 };
-      const weapons = {
-        main: new Weapon(rogue, 1, 2, 2.6, "main", "sword"),
-        off: new Weapon(rogue, 1, 2, 2.5, "off", "sword"),
-      };
-      weapons.off.swingTimer = k("weapon.offHand").initialSwing;
-      for (let i = 1; i <= steps; i++) {
-        for (const hand of ["main", "off"]) {
-          weapons[hand].tick(step, hasteOfStep[i], () =>
-            legacy[hand].push(i * step),
-          );
-        }
-      }
-      const source = {
-        resolve: (kind, base) =>
-          base *
-          hasteOfStep[
-            Math.max(
-              1,
-              Math.ceil((scheduler.now - k("sim.tickEpsilon")) / step),
-            )
-          ],
-      };
-      let scheduler;
-      const core = setup({ endTime: duration, haste: source });
-      scheduler = core.scheduler;
-      // setup() asked haste for nothing yet: the first read is at t = 0.
-      core.scheduler.runToEnd();
-      for (const hand of ["main", "off"]) {
-        const ours = timesOf(core.swings, hand);
-        assert.equal(ours.length, legacy[hand].length, `seed ${seed} ${hand}`);
-        ours.forEach((time, n) => {
-          const landed = legacy[hand][n];
-          assert.ok(
-            landed >= time - k("sim.tickEpsilon") &&
-              landed - time < step + k("sim.tickEpsilon"),
-            `seed ${seed} ${hand} swing ${n}: core ${time}, legacy ${landed}`,
-          );
-        });
-      }
-    }
   });
 
   it("stop() cancels the pending swing and start() needs it stopped", () => {

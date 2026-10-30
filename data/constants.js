@@ -19,7 +19,6 @@ const SEEDED_RNG = "Developer, 26 Oct 2026, issue #71";
 // small steps, a capped live frame) and not these numbers; the rows that cited
 // James for a number he never gave cite the dev instead.
 const DEVELOPER = "Developer, 26 Oct 2026";
-const FIXED_STEP = "Developer, 26 Oct 2026, issue #73";
 const LIVE_VIEW = "Developer, 26 Oct 2026, issue #76";
 const SCHEDULER_193 = "Developer, 29 Oct 2026, issue #193";
 const NOT_JAMES =
@@ -872,7 +871,7 @@ export const CONSTANTS = {
     "s",
     WOWF_DESIGNER,
     COMBAT_ROTATION,
-    "At rotation.finisherComboPoints, the placeholder rotation casts Cold Blood only with more than this left on Slice and Dice. Until issue #155 it also recast Slice and Dice at or below this; since then its Slice and Dice rules are the Combat swords preset's (rotation.pooling), and this refresh survives only in the pre-#155 rotation test/legacy-rotation.js keeps for the equivalence test.",
+    "At rotation.finisherComboPoints, the placeholder rotation casts Cold Blood only with more than this left on Slice and Dice. Until issue #155 it also recast Slice and Dice at or below this; since then its Slice and Dice rules are the Combat swords preset's (rotation.pooling).",
     true,
   ),
 
@@ -1315,7 +1314,7 @@ export const CONSTANTS = {
     "s",
     ENGINEERING,
     `${DEV_JUDGEMENT_111}: an engineering judgement call by the dev, not a decision by James. The shortest swing time a SimConfig weapon (and a Weapon) may have, because the #111 QA found a 1e-9 s speed made runFight hang`,
-    "Not a game rule. A weapon swings once per speed / haste seconds, and a swing of a billionth of a second means a billion swings a second, so the fight never finishes. 0.1 s is far below any real weapon (the default weapons are 1.6 s to 2.6 s) and above sim.fixedStep, so one step never holds more than a handful of swings even with haste. Raise or lower it here if a test bench needs it.",
+    "Not a game rule. A weapon swings once per speed / haste seconds, and a swing of a billionth of a second means a billion swings a second, so the fight never finishes. 0.1 s is far below any real weapon (the default weapons are 1.6 s to 2.6 s), so a fight never holds more than about ten swings a second per hand even with haste. Raise or lower it here if a test bench needs it.",
     false,
   ),
   "abilities.tabs": entry(
@@ -1484,7 +1483,7 @@ export const CONSTANTS = {
     "s",
     ENGINEERING,
     `${LIVE_VIEW}: ${NOT_JAMES} The issue asked for a live view on the same engine; the 0.25 s cap on the time one animation frame may feed the fight is the dev's number, so a hidden tab or a long pause cannot run it forward by the time it missed`,
-    "Not a game rule. The live page takes at most 0.25 s of an animation frame (sim.maxFrameTime / sim.fixedStep steps, 16 at these values) and drops the rest, so a frame that arrives seconds late, as the first frame after a backgrounded tab does, advances the fight by 0.25 s and no more. At 60 fps a frame is about one step, so the cap never acts in normal use; it only starts to slow the fight below 4 frames per second.",
+    "Not a game rule. The live page takes at most 0.25 s of an animation frame and drops the rest, so a frame that arrives seconds late, as the first frame after a backgrounded tab does, advances the fight by 0.25 s and no more. At 60 fps a frame is about 1/60 s, so the cap never acts in normal use; it only starts to slow the fight below 4 frames per second.",
     false,
   ),
   "sim.msPerSecond": entry(
@@ -1493,14 +1492,6 @@ export const CONSTANTS = {
     ENGINEERING,
     `${DEVELOPER}: ${NOT_JAMES} The performance clock converts milliseconds to seconds`,
     "Unit conversion, not a game rule.",
-    false,
-  ),
-  "sim.fixedStep": entry(
-    0.015625,
-    "s",
-    ENGINEERING,
-    `${FIXED_STEP}: ${NOT_JAMES} The issue chose one fixed small step so a seed gives one fight; 1/64 s is the dev's value, the one time step every headless run uses`,
-    "Not a game rule. 1/64 s, close to a 60 fps frame and well below every game timer (GCD, swing speeds, DoT tick interval), so sim.tickEpsilon, swing timers and the GCD act as they do at live frame rates. It is a power of two, so adding it up is exact in floating point, a duration that is a whole number of steps lands on exactly that time, and a split at a step boundary reproduces the same fight. Results depend on the step size: changing it changes every seeded fight (the average DPS over many seeds barely moves).",
     false,
   ),
   "sim.tickEpsilon": entry(

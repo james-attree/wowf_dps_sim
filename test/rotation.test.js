@@ -5,6 +5,7 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
 
 // The placeholder Combat rotation casts Blade Flurry and Adrenaline Rush only
 // when they are granted: since #199 no talents is untalented, so the fights
@@ -31,8 +32,10 @@ function hold(sim, rogue, ids) {
   }
 }
 
+// One ask of the rotation at t = 0, as the event core's first decision makes
+// it (Rogue.castRotation), with no time passing.
 function atZero(sim) {
-  sim.step(0);
+  sim.rogue.castRotation(sim);
   assert.equal(sim.currentTime, 0);
 }
 
@@ -233,7 +236,7 @@ describe("placeholder Combat rotation", () => {
       const dt = 1 / fps;
       const frames = Math.round(FIGHT_SECONDS * fps);
       for (let frame = 1; frame <= frames; frame += 1) {
-        sim.step(dt);
+        runOnCore(sim, dt);
       }
 
       for (const name of OMITTED) {

@@ -239,19 +239,21 @@ is that hit times `k("ambush").weaponMultiplier`, plus
 on `k("ambush")` says its dagger, behind and stealth requirements are not
 enforced, and the note on `k("backstab")` says its behind requirement is not.
 The note on
-`k("sinisterStrike")` is weapon damage plus the bonus. `Rogue.rotation`
+`k("sinisterStrike")` is weapon damage plus the bonus. The default rotation
 does not cast Backstab or Ambush.
 
-`Weapon.tick` subtracts the frame from `swingTimer`. While the timer is at
-or below `k("sim.tickEpsilon")` and the interval is positive, it fires a
-swing and adds one interval. Time past a swing stays on the timer, so a long
-frame can hold several swings and a short frame does not drop the leftover.
-The interval is weapon speed divided by the haste multiplier passed in from
-`Rogue.rotation` (see Haste stacking). The main-hand timer starts due, so
-the first tick swings it. The off-hand timer starts at
+Each hand has a `SwingTimer` (`js/core/swing.js`, #195) that
+keeps one pending swing event. When it fires, the swing is resolved and the
+next one is scheduled one interval on. The interval is weapon speed divided
+by the haste multiplier read at that swing,
+`simulation.modifiers.resolve("haste", 1)` (see Haste stacking). While the
+interval stays the same, the n-th swing after the last change is at
+`anchor + n * interval`, so swings do not drift. The main hand swings at the
+fight's start. The off hand's first swing is at
 `k("weapon.offHand").initialSwing`. The note says that delay keeps the hands
-from swinging together on the first frame. Haste does not rewrite a delay
-that is already counting down.
+from swinging together at the start. Haste does not rewrite a delay that is
+already counting down. Before #234 the fixed-step `Weapon.tick` did this per
+frame, with the same haste rule.
 
 Each swing calls `Simulation.resolveAttack` with attack type `"weapon"`.
 
@@ -283,20 +285,21 @@ note says this is applied. Premeditation has `triggersGcd` off. Slice and
 Dice, Blade Flurry, Adrenaline Rush, and the other abilities have it
 on, so a successful cast starts the GCD. This is the rule from #57.
 
-The GCD is ticked before `Rogue.rotation`, so a GCD started during this
-frame's casts is not reduced until the next frame. The same is true of a
-cooldown, a buff, or a debuff applied during the rotation: `tickAuras` has
-already run.
+The decision runs after every expiry due at the same time (see Tolerance and
+the order at one time), so a GCD that ends at a decision's time is ready for
+it. A GCD, cooldown, buff, or debuff started at a decision runs its full
+length from that time.
 
 The live page (`js/views/visualiser.js`) sets the GCD status to "On cooldown" while `simulation.gcd > 0`,
-and to "Ready" otherwise. On the frame where the remainder is still positive and
-already within `k("sim.tickEpsilon")`, that label can read "On cooldown"
-while `Ability.cast` treats the GCD as ready.
+and to "Ready" otherwise. When the remainder is still positive and already
+within `k("sim.tickEpsilon")`, that label can read "On cooldown" while
+`Ability.cast` treats the GCD as ready.
 
 ## Sample rotation
 
-`Rogue.rotation` reads `k("rotation.priority")` (`wowf-designer`, on the
-retune list). The ref records the placeholder Combat rotation. It tries, in
+The default rotation (`js/rotation-default.js`, run by `Rogue.castRotation` at
+each decision) reads `k("rotation.priority")` (`wowf-designer`, on the retune
+list). The ref records the placeholder Combat rotation. It tries, in
 order:
 
 1. Each ability in `onCooldown`, in order: Blade Flurry, then Adrenaline
@@ -306,7 +309,9 @@ order:
    Dice if that buff is missing or its remaining duration is at or below
    `k("rotation.sliceAndDiceRefreshSeconds")`. Otherwise Eviscerate.
 3. Otherwise Sinister Strike.
-4. Both weapon swings, with the haste multiplier from `stackHaste`.
+
+Weapon swings are not in the list: they are events of their own, with the
+haste multiplier from `stackHaste` (see Weapon swings and normalised speed).
 
 Ghostly Strike, Premeditation, Hemorrhage, and Rupture stay implemented and
 are not in this list. This replaces the earlier rule that refreshed Slice and
@@ -318,15 +323,15 @@ Eviscerate is still the branch taken when the buff is longer than that.
 
 Each cast still has to pass `Ability.cast` (cooldown, combo points for a
 spender, energy, and the GCD). Every ability in the list starts the GCD, so
-the first one that succeeds blocks the rest of that frame. Weapon swings run
-after the casts, whether or not a cast succeeded.
+the first one that succeeds blocks the rest of that decision. Weapon swings
+are events of their own (see Weapon swings and normalised speed), not part of the rotation.
 
 ## Energy
 
 Energy is a resource, a pool described as data in `js/resource-data.js` (see
 [Resources](#resources)). The fight starts at `k("start.state").energy`. That
-object is an assumption on the retune list. `Resource.regenerate` adds
-`rate * dt` and caps at the pool's cap, which is `k("energy.max")`
+object is an assumption on the retune list. Energy caps at the pool's cap,
+which is `k("energy.max")`
 (`classic-1.12`, on the retune list) through any `resourceMax` modifiers. The
 note on `k("energy.max")` says the cap matches the export's Vigor bonus.
 `rogue.energy` and `rogue.maxEnergy` read and set the pool, so the page and the
@@ -334,30 +339,26 @@ tests use the names they always did.
 
 Regen per second is `k("energy.regenPerSecond")` (`wowf-export`, not on the
 retune list). The note says Forever regenerates continuously, and that
-Classic used a periodic tick. The engine adds `rate * dt` every frame. It
+Classic used a periodic tick. The engine regenerates continuously (below). It
 does not wait for a tick.
 
-`Simulation.regenerateResources` runs once per step over every pool that has a
-regen rule (today energy; combo points have none) and asks the modifier
-pipeline for the contributions of the kind that rule names, `energyRegen` (see Modifiers). Adrenaline Rush's
-`energyRegenMultiplier` effect compiles into an `energyRegen` `mult` modifier
-(`k("adrenalineRush").regenMultiplier`, once per stack). With none, the step is
-`k("energy.regenPerSecond") * dt`, as before. Static contributions (a talent's
-`add` or `mult`) apply for the whole step. A timed one applies to the slice of
-the step still inside its aura, including the step the aura runs out, and the
-rest of the frame uses the rate without it. The slices are added in order of
-time (#155): the aura covers the start of the step, so the slice with every
-timed contribution comes first, then the slice without the shortest, and the
-rate without any of them last. Each add is capped, so the pool reaches its cap
-at the right moment and `cappedTime` counts the right part of the step (until
-#155 the base-rate slice came first). The energy at the end of the step is the
-same either way only at the 1/64 s step (`k("sim.fixedStep")`), which every
-headless run and golden fixture uses, so no golden fixture moved. At other step
-lengths, such as a live frame, the two orders are not guaranteed to agree. The cast frame
-itself stays at the base rate, because the buff is applied later, inside
-`Rogue.rotation`. With more than one timed contribution the step is cut where
-each runs out, and each applies to the part it covers. One aura gives exactly
-the two slices of the earlier model, so the golden fixtures are unchanged.
+During a core run, energy is an `EnergyPool` (`js/core/energy.js`, #194). It
+reads `min(cap, value0 + rate * (now - t0))`, so energy is exact at any time
+and nothing is added per step. The rate is the pool's regen rule through the
+modifier contributions of the kind that rule names, `energyRegen` (see
+Modifiers). Adrenaline Rush's `energyRegenMultiplier` effect compiles into an
+`energyRegen` `mult` modifier (`k("adrenalineRush").regenMultiplier`, once per
+stack). With none, the rate is `k("energy.regenPerSecond")`. The rate and the
+cap change only at events (an aura applying or expiring), and each change
+starts a new line from the value at that time, so a timed contribution
+applies exactly while its aura is up. The cast that applies Adrenaline Rush
+does not get the faster rate before it: the buff starts at the cast. The pool
+counts what it loses at the cap (`cappedTime`, overflow) as the `Resource`
+does.
+
+Before #234 the fixed-step engine added the regeneration per step
+(`Simulation.regenerateResources`, `Resource.regenerate`). It sliced a step where a timed contribution ran out (#155); the
+event core needs no slices.
 
 `Ability.cast` spends the cost before the attack roll. The cost is the
 base cost resolved through the `energyCost` modifiers for that ability (never
@@ -407,7 +408,7 @@ expiry. Slice and Dice is covered in its own section. It deals no damage.
 The placeholder Combat rotation's damaging finisher is Eviscerate, when
 combo points are at `k("rotation.finisherComboPoints")` and Slice and Dice
 is present with more than `k("rotation.sliceAndDiceRefreshSeconds")` left.
-Rupture is implemented and `Rogue.rotation` does not call it.
+Rupture is implemented and the default rotation does not call it.
 
 Eviscerate, in `Eviscerate.damage`, rolls an inclusive integer from min to
 max. The attack-power term is attack power times combo points times
@@ -449,7 +450,7 @@ start the GCD. The `premeditation` constant's note says the
 export spell_desc has no Stealth requirement and that Classic required it.
 The note on `k("premeditation.cpExpiry")` says Classic needed Stealth. The
 engine does not check for it. There is no Stealth check in `Premeditation`.
-`Rogue.rotation` does not cast it.
+The default rotation does not cast it.
 
 On a successful cast the executor arms the combo point pool's expiry
 (`Resource.armExpiry`, from the ability's `expires` data) and sets the removal amount to
@@ -476,7 +477,7 @@ The constant is `wowf-export` and is not on the retune list. The note says
 the engine uses the export cooldown, and that casting starts the GCD. It is
 not an attack. It does not generate combo points.
 
-`Rogue.rotation` tries it on cooldown, after Blade Flurry, as the second
+The default rotation tries it on cooldown, after Blade Flurry, as the second
 `onCooldown` id in `k("rotation.priority")`. It does not wait for an energy
 threshold. While the ability is on cooldown, `Ability.cast` returns without
 refreshing the buff. The regen multiplier is under Energy:
@@ -491,7 +492,8 @@ constant is `wowf-export` and is not on the retune list. The note says cleave
 is ignored on a single target, and that casting starts the GCD. It is not an
 attack and it grants no combo points. There is no second target.
 
-`Rogue.rotation` tries it on every frame, first in `k("rotation.priority")`.
+The default rotation tries it at every decision, first in
+`k("rotation.priority")`.
 When the cast succeeds it takes the GCD, so Adrenaline Rush, Slice and Dice,
 Eviscerate, and Sinister Strike wait. While the buff's duration is still
 positive, its haste fraction `k("bladeFlurry").haste` is passed to
@@ -529,7 +531,7 @@ modified one, so the refresh check and the time left follow with no other
 change. A length of 0 stays 0, and with no `duration` modifier the length is
 untouched, so an untalented fight is unchanged.
 
-`Rogue.rotation` considers it only when combo points are at
+The default rotation considers it only when combo points are at
 `k("rotation.finisherComboPoints")`. The cast is attempted when the buff is
 missing, or its remaining duration is at or below
 `k("rotation.sliceAndDiceRefreshSeconds")`. Both thresholds are
@@ -539,8 +541,8 @@ Eviscerate instead. Blade Flurry and Adrenaline Rush are tried earlier and
 start the GCD, so when one of them is ready it takes this frame and Slice
 and Dice waits until the GCD is clear.
 
-While the buff's duration is positive, `Rogue.rotation` passes
-`k("sliceAndDice").haste` through `stackHaste`. The note says that haste
+While the buff is up, its haste modifier gives
+`k("sliceAndDice").haste` to `stackHaste`. The note says that haste
 shortens the next swing of both weapons. A swing already counting down keeps
 its remaining time. The `haste.stacking` note says wowsims rescales that
 swing in `UpdateSwingTimers`. This engine does not. The combination with
@@ -554,7 +556,7 @@ The note says Classic attack-speed effects multiply, as wowsims does in
 `MultiplyMeleeSpeed`, and that Slice and Dice and Blade Flurry each
 contribute.
 
-`Rogue.rotation` sets the swing multiplier to
+Each swing reads its multiplier as
 `simulation.modifiers.resolve("haste", 1)`. The `haste` kind has the `haste`
 stacking form: the pipeline starts at 1 and, for each `haste` modifier in
 order, replaces the multiplier with `stackHaste` of the current multiplier and
@@ -562,7 +564,7 @@ the modifier's value, once per stack (an aura's `haste` effect compiles into a
 `haste` `add` modifier, and its stacks repeat it). Static haste modifiers come
 first, then the auras in the registry order of `js/auras.js`, Slice and Dice
 then Blade Flurry, whichever was cast first. It names no aura. With no haste
-modifier the multiplier is exactly 1. `Weapon.tick` divides weapon speed by
+modifier the multiplier is exactly 1. The swing timer divides weapon speed by
 the result. Both hands use the same multiplier.
 
 - Multiplicative: `stackHaste` returns the current multiplier times
@@ -575,13 +577,13 @@ the result. Both hands use the same multiplier.
 - Any other value throws `Unknown haste.stacking: …` from `stackHaste`.
 
 One buff alone is `1 + haste` under either setting, because the multiplier
-starts at 1. The `1` there is the unhasted multiplier in `Rogue.rotation`,
-not a constant.
+starts at 1. The `1` there is the unhasted multiplier the swing passes to
+`resolve`, not a constant.
 
-`Weapon.tick` does not multiply `swingTimer` when a buff is applied or
-removed. It subtracts the frame from the time already left and, only after a
-swing fires, adds `speed / hasteMultiplier` using the multiplier on that
-tick. The next swing is the one that shortens. The swing that was already
+The swing timer does not move a pending swing when a buff is applied or
+removed. Only when a swing fires does it schedule the next one,
+`speed / hasteMultiplier` later, using the multiplier at that swing. The next
+swing is the one that shortens. The swing that was already
 counting down keeps its remaining time, including the off-hand's opening
 delay. The notes on `sliceAndDice` and `haste.stacking` both say this. The
 `haste.stacking` note says wowsims rescales the swing in progress in
@@ -877,97 +879,75 @@ poison counter is in the `runFight` result.
 
 ## Simulation clock
 
-The engine has no clock of its own. `Simulation.step(dt)` is the only way time
-moves: `dt` is a time step in seconds, and `step` adds it to `currentTime`. No
-file under `js/` except `js/main.js` reads `performance`, `Date`, or any other
-wall clock, and lint rejects `performance` and `Date` there (and `Math.random`,
-see Random numbers). A `dt` that is negative, `NaN`, or infinite throws a
-`RangeError`. Two simulations with the same seed that are given the same steps
-end in the same state.
+The engine has no clock of its own. Fight time moves only when a caller hands
+it seconds: `Simulation.run(duration)` for a headless fight, or a core run
+(`runOnCore`, `openCore` in `js/core/fight.js`) that a host such as `SimRunner`
+feeds in pieces. No file under `js/` except `js/main.js` reads `performance`,
+`Date`, or any other wall clock, and lint rejects `performance` and `Date`
+there (and `Math.random`, see Random numbers). A duration that is negative,
+`NaN`, or infinite throws a `RangeError`. Two simulations with the same seed
+that are given the same time end in the same state, however that time is
+split.
 
-Elsewhere in this document, "frame" is older wording for one `step`.
+The engine is the event core (Phase 3.5, see Event-queue engine): every swing,
+tick, expiry and decision is an event at its own exact time, and the fight
+moves from event to event. It has been the default since #199 and the only
+engine since #234, which removed the fixed-step engine (`Simulation.step`, the
+`sim.fixedStep` constant and the `engine` option). The last commit with the
+fixed-step engine is tagged `legacy-engine-final` (see Parity harness, retired
+for the final events-against-legacy numbers).
+
+Elsewhere in this document, "frame" means one animation frame of the live page,
+and "step" in a section written before #234 means the removed fixed step.
 
 ### How the pieces fit
 
-A fight is a seed plus the steps it is given. The same seed and the same steps
-end in the same state, whoever drives them.
+A fight is a seed plus the time it is given. The same seed and the same total
+time end in the same state, whoever drives them and however the time is split.
 
 - `createRng(seed)` (`js/rng.js`) is the one source of randomness. The
   `Simulation` owns it (see Random numbers).
-- `Simulation.step(dt)` is the only way time moves. `Simulation.run(duration)`
-  calls it with `k("sim.fixedStep")` for a duration (see Fixed step).
+- `Simulation.run(duration)` runs the fight for `duration` seconds on the event
+  core and ends it (see Headless runs).
 - `createFight(seed)` and `runFight({ seed, duration })` (`js/fight.js`) build
   the `Rogue` and `Simulation` pair. `runFight` runs it with one `run` call and
   returns plain data (see Headless fight). `createFight`'s `options.duration`
   is the fight length the rotation reads as `fightTimeRemaining` (#191); it does
   not end the fight, and `runFight` and `SimRunner` pass the duration they run.
 - The live page (`js/main.js`, through `js/live-run.js`) runs the same pair in
-  a `SimRunner`, which gives it whole fixed steps from `FrameClock` (see Live
-  page). It is a view of the
-  engine and holds no combat rule.
+  a `SimRunner`, which holds one core run open and gives it each frame's
+  seconds from `FrameClock` (see Live page). It is a view of the engine and
+  holds no combat rule.
 - The golden tests pin the `runFight` result for seven fixed cases, one of
   them a scripted list of casts and three of them the reference talent build
   (one with poisons, one with the combat-swords preset; see Golden-seed tests).
   They fail when anything on this path changes a number.
 - `npm run bench` times a seeded 5-minute `runFight` (see Benchmark).
-- `npm run parity` runs two named engines over seeds 1 to N on the golden
-  configs and reports the DPS difference (see Parity harness). Its engines are
-  `legacy` and `events` (the event core); #199's gate runs events against
-  legacy.
+
+The goldens and the bench are the ongoing guard on the engine: the goldens pin
+its numbers exactly, and the bench its cost. There is no second engine to
+compare with since #234.
 
 What a reader should not assume is under Known limits of Phase 1 (written at the
-end of Phase 1, still true) and Known limits at the end of Phase 2.
+end of Phase 1) and Known limits at the end of Phase 2.
 
-### Fixed step
+### Headless runs
 
-Headless runs use one step size, `k("sim.fixedStep")` (`engineering`, retune
-off). It is about a 60 fps frame and far below every game timer, so the GCD,
-swing timers, DoT ticks, and the `k("sim.tickEpsilon")` handling behave as they
-do at live frame rates. It is a power of two, so adding it up is exact in
-floating point.
+`Simulation.run(duration)` runs the core for `duration` seconds and then ends
+the fight (`Simulation.end`). The fight ends exactly `duration` seconds after it
+started: the core runs every event at or before that time and leaves the
+fight's fields reading it there. `0` runs nothing. The `run` call does no
+timing and draws no randomness of its own; the seed and the time decide the
+fight.
 
-`Simulation.run(duration)` advances the fight by `duration` seconds:
-
-1. Take `floor(duration / k("sim.fixedStep"))` whole steps, each a
-   `step(k("sim.fixedStep"))`.
-2. If time is left over, take one shorter step for it.
-
-The leftover is exact when the call starts from a step boundary, so the fight
-then ends exactly `duration` seconds after the call began. A call that starts
-between boundaries is exact only up to float rounding. A duration of a whole
-number of steps ends on a step boundary, and any other duration ends on it
-after one short step. A `duration` that is negative, `NaN`, or infinite throws
-a `RangeError`, and `0` takes no step. The `run` call does no timing and draws
-no randomness of its own; the seed and the calls decide the fight.
-
-Results depend on the step size and on where the steps fall, because swings,
-casts, and ticks land on step boundaries and then the rng can be drawn in a
-different order. QA measured how much, for seeds 1 to 200, by comparing each
-seed's total damage with the `run` result at `k("sim.fixedStep")`:
-
-| Change                                   | 10 s    | 60 s    | 120 s    | 300 s     |
-| ---------------------------------------- | ------- | ------- | -------- | --------- |
-| Step of 0.01 s instead of the fixed step | 0 / 200 | 3 / 200 | 53 / 200 | 142 / 200 |
-| A `run` split 0.1 s in, then the rest    | -       | 1 / 200 | 52 / 200 | 142 / 200 |
-| A `run` split half a step off a boundary | 0 / 200 | 0 / 200 | -        | 120 / 200 |
-
-(Each count is the number of seeds, out of 200, whose total damage differs. A
-dash means that case was not measured. The figures are QA-measured over seeds
-1 to 200; we re-ran them and got the same counts.) So the effect is small for
-short fights and common at 5 minutes. Over many seeds the mean damage barely
-moves: by under 0.04% in those runs, and `test/fixed-step.test.js` holds the
-mean within 2% of 60 and 144 fps. That is
-why every headless run uses `k("sim.fixedStep")` and one `run` call per fight,
-and why changing the step or the way a duration is split can change the seeded
-fights and the golden fixtures.
-
-Splitting a fight over several `run` calls gives the same fight as one call
-when each call but the last is a whole number of steps long, so every split
-lands on a step boundary. A call that ends inside a step takes a short step
-there, which a single long call would not. The short step moves every later
-step boundary by that amount, so the fight can differ from the unsplit one,
-as the table shows. The total time is the duration asked for either way.
-`runFight` makes one `run` call, so it is never split.
+The results do not depend on how the time is cut. Events are at their own
+times, not on step boundaries, so a fight run in one call and the same fight
+cut into any number of `runOnCore` calls (on an event's time or between two)
+are the same fight, field for field (#198, from #197 QA M1). Each call keeps
+the fight's clock and goes on from the exact state the last one left
+(`sim.coreCarry`). Under the fixed step, the step size and where the steps
+fell changed the seeded fights (at 300 s, 142 of seeds 1 to 200 differed at a
+0.01 s step); that table went with the fixed step in #234.
 
 ### Live page
 
@@ -1011,42 +991,43 @@ or going and the pause, at most one message per
 `k("ui.announceIntervalSeconds")`. These are display rules only. The runner builds the fight
 with `createFight(seed, config)` from `js/fight.js`; the page shows the seed in
 the control bar's Seed field (editable, 0 to 4,294,967,295; empty draws a new
-one at Run; the same seed can be replayed in `runFight`), and
-from each animation frame it gives the runner whole steps of
-`k("sim.fixedStep")` through `advance`. It holds no combat or timing rule. The conversion from a frame
-timestamp to a number of steps lives in `FrameClock` (`js/frame-clock.js`),
-which reads no clock itself:
+one at Run; the same seed can be replayed in `runFight`), and from each
+animation frame it gives the runner that frame's seconds through `advance`. It
+holds no combat or timing rule. The conversion from a frame timestamp to
+seconds of fight time lives in `FrameClock` (`js/frame-clock.js`), which reads
+no clock itself:
 
-1. The first frame, and the first frame after a resume, take no steps. They
+1. The first frame, and the first frame after a resume, give no time. They
    only record the timestamp.
-2. After that, `elapsed = (time - previousTime) / k("sim.msPerSecond")`,
-   floored at 0 and capped at `k("sim.maxFrameTime")`.
-3. `available = carry + elapsed`, `steps = floor(available / k("sim.fixedStep"))`,
-   and `carry = available - steps * k("sim.fixedStep")`. The leftover under
-   one step carries to the next frame.
+2. After that, a frame gives
+   `(time - previousTime) / k("sim.msPerSecond")` seconds, floored at 0 and
+   capped at `k("sim.maxFrameTime")`.
 
-`k("sim.msPerSecond")` and `k("sim.maxFrameTime")` are `engineering` and retune
-is off, and `js/frame-clock.js` is their only reader. One frame takes at most
-`k("sim.maxFrameTime") / k("sim.fixedStep")` steps (16 at the values in
-`data/constants.js`; the number follows the two constants and is not stored).
-A backgrounded tab, a stalled main thread, or a long pause never turns into
-one huge step or a burst of catch-up, and the excess time is dropped. It is not
-a game rule: a 60 or 144 fps display never reaches it, and a page that runs
-below the reciprocal of `k("sim.maxFrameTime")` frames per second (4 at these
-values) runs slower than real time. Pausing cancels the animation frame, and
-resume restarts the frame clock, so the paused gap is not simulated.
+There is no step and no carry (#234): the core takes any length of time, so
+nothing is left over between frames. `k("sim.msPerSecond")` and
+`k("sim.maxFrameTime")` are `engineering` and retune is off, and
+`js/frame-clock.js` is their only reader. A backgrounded tab, a stalled main
+thread, or a long pause never turns into one huge frame or a burst of
+catch-up, and the excess time is dropped. It is not a game rule: a 60 or 144
+fps display never reaches it, and a page that runs below the reciprocal of
+`k("sim.maxFrameTime")` frames per second (4 at the values in
+`data/constants.js`) runs slower than real time. Pausing cancels the animation
+frame, and resume restarts the frame clock, so the paused gap is not
+simulated.
 
-Every step is the same size as in `run`, so a seed gives the same fight live
-and headless when both take the same steps (`test/live-view.test.js`). The page
-has no short step, so a live fight always sits on a step boundary.
+`SimRunner` adds the frames' seconds up with a compensated (Neumaier) sum, so
+600 frames of 1/60 s reach exactly 10 s, and the fight's events are at their
+own times whatever the frames are. A seed therefore gives the same fight live
+and headless, however uneven the frames (`test/live-view.test.js`,
+`test/sim-runner.test.js`).
 
 The DPS readout is high for the first moments. The page's first animation frame
-takes no step. The first step comes with the first frame that fills one. It
-fires the opening casts at fight time `k("sim.fixedStep")`, and the readout is
-`damageDone / currentTime`, so an opening hit that lands is divided by that one
-tiny step while the clock still reads 00:00. It can show thousands of DPS, and falls as
-fight time accumulates. This is display only. Damage, casts, and the headless
-result's `dps` (total damage over the whole duration) are not affected.
+gives no time. The opening casts are at fight time 0, inside the first frame
+that gives time, and the readout is `damageDone / currentTime`, so an opening
+hit that lands is divided by that one short frame while the clock still reads
+00:00. It can show thousands of DPS, and falls as fight time accumulates. This
+is display only. Damage, casts, and the headless result's `dps` (total damage
+over the whole duration) are not affected.
 
 ### Other time inputs
 
@@ -1057,27 +1038,19 @@ live page, which ends its fight there and shows it as finished (#153). A
 headless caller passes the duration to `run`, or to `runFight` (see Headless
 fight).
 
-### Tolerance and the order inside a step
+### Tolerance and the order at one time
 
-`k("sim.tickEpsilon")` (`engineering`, retune off) is the tolerance for
-`tickAuras` (buffs and debuffs), cooldown expiry, DoT ticks and DoT expiry,
-`Rogue.tickResources` (Premeditation expiry), and `Weapon.tick`. The note also names the GCD.
-`Simulation.tickGcd` does not read it. `Ability.cast` treats the GCD as ready
-when the remainder is at or below it. See Global cooldown.
+`k("sim.tickEpsilon")` (`engineering`, retune off) is the tolerance the core's
+timers read: an aura, cooldown, GCD or points timer is running while more than
+it is left and ready from then on, and a keep-clock DoT ticks up to it past its
+end (see Event-queue engine). `Ability.cast` treats the GCD as ready when the
+remainder is at or below it. See Global cooldown.
 
-One step, in `Simulation.step`, does this in order:
-
-1. Advance `currentTime` and regenerate energy, using Adrenaline Rush time
-   from before the countdown.
-2. Tick buffs, debuffs, and cooldowns. A cooldown at or below
-   `k("sim.tickEpsilon")` becomes zero.
-3. Tick the GCD. A remainder inside `k("sim.tickEpsilon")` stays positive
-   until the subtraction reaches zero. `Ability.cast` already treats it as
-   ready.
-4. Tick dots that were already running.
-5. Tick the resources (`Rogue.tickResources`: Premeditation expiry).
-6. Run `Rogue.rotation`, which may cast and then swing. Anything applied
-   here keeps the duration it was given until the next step.
+Events due at the same time run in a fixed order of classes: energy changes,
+then expiries, then DoT ticks, then swings, then the decision, last, so the
+rotation sees everything due at that instant (see Event-queue engine, "Order
+at one timestamp"). Anything applied at a decision keeps the duration it was
+given until time moves on.
 
 The combat log keeps the newest `k("log.maxEvents")` rows (`engineering`,
 retune off). That cap is display, not a game rule.
@@ -1085,13 +1058,16 @@ retune off). That cap is display, not a game rule.
 It is a ring buffer fed by the fight's `hit` events. The events, with their
 fields and the rules for handlers, are in [Events](events.md).
 
-## Planned: event-queue engine (Phase 3.5)
+## Event-queue engine (Phase 3.5)
 
-**Planned, not current behaviour.** This records the decisions the Phase 3.5
-rewrite builds on (#192; the proposal is
-[docs/phase-3.5-engine-rewrite.md](phase-3.5-engine-rewrite.md)). The engine
-described in the rest of this document is still the fixed-step one, and this
-section changes when the new core lands.
+**The engine since #199, and the only one since #234.** This records the
+decisions the Phase 3.5 rewrite built on (#192; the proposal is
+[docs/phase-3.5-engine-rewrite.md](phase-3.5-engine-rewrite.md)). It was
+written while the fixed-step engine ("legacy") was still the default, so it
+compares with it throughout; #234 removed that engine, and those comparisons
+are the record of what the core kept and what it changed. The last commit
+with the fixed-step engine is the tag `legacy-engine-final` (see Parity
+harness).
 
 **Time.** Times stay plain doubles in seconds, as `currentTime` is now. An
 event's time is computed from its anchor and never by adding a delta to the
@@ -1112,8 +1088,8 @@ times.
 
 **Order at one timestamp.** Events due at the same time run in a fixed order:
 by `time`, then by an order class, then by `seq`, the order they were scheduled
-in. The classes follow the order of a fixed step (see Tolerance and the order
-inside a step), so the rotation sees the state after everything due at that
+in. The classes followed the order of a fixed step (the old "Tolerance and the
+order inside a step"; now Tolerance and the order at one time), so the rotation sees the state after everything due at that
 instant:
 
 1. energy and regeneration changes;
@@ -1123,7 +1099,7 @@ instant:
 4. swings;
 5. decision points, last: the rotation runs once per timestamp.
 
-The fixed step casts before it swings (step 6, `Rogue.rotation`), while the
+The fixed step cast before it swung (step 6, `Rogue.rotation`), while the
 classes above put a swing before a decision at the same time. The new core
 keeps the classes: decisions last, after swings (#193), so the rotation sees
 every change due at that instant. Parity is measured over many seeds, so the
@@ -1170,9 +1146,9 @@ any check of their arguments; `cancel` still works. Both limits are 10,000 and a
 retune list), far above a real fight.
 
 **Continuous energy (#194).** `js/core/energy.js` holds the new core's energy
-pool; the event core (#197) puts it in place of the legacy pool for a run,
-and the legacy pool (`js/resource.js`, regenerated
-per step by `Simulation.regenerateResource`) stays for the legacy engine.
+pool; the event core (#197) puts it in place of the `Resource` pool
+(`js/resource.js`) for a run. (The `Resource` pool's per-step regeneration,
+`Simulation.regenerateResource`, went with the legacy engine in #234.)
 `new EnergyPool({ definition, modifiers, scheduler })` takes a resource
 definition with a regen rule (energy; one without, such as combo points, is a
 `RangeError`), the rogue's `ModifierPipeline`, and the scheduler, whose `now`
@@ -1224,7 +1200,7 @@ act on energy it holds rather than wait for it.
 
 **DoT ticks (#196).** `js/core/dots.js` holds the new core's DoT clocks; the
 event core (`js/core/fight.js`, #197) runs them on the `"events"` engine, and
-the legacy `step()` loop still ticks DoTs itself. `new DotTicks({ scheduler })` keeps one pending event per DoT, of kind
+the legacy `step()` loop ticked DoTs itself until #234. `new DotTicks({ scheduler })` keeps one pending event per DoT, of kind
 `"dot-tick"` (`DOT_TICK_KIND`) in the DoT class, with the payload `{ id }`.
 `apply(id, { interval, duration, refresh })` starts or refreshes a DoT at the
 scheduler's `now`, and its n-th tick is at `anchor + n * interval`, never a sum
@@ -1283,8 +1259,8 @@ first is in every fight once the core ships (#197, #198):
 on both engines, so it is not a difference.)
 
 **Swings (#195).** `js/core/swing.js` holds the new core's swing timer;
-the event core (#197) runs it, and the legacy `Weapon.tick` stays for the
-legacy engine.
+the event core (#197) runs it. (The legacy `Weapon.tick` went with the
+fixed-step engine in #234.)
 `new SwingTimer({ weapon, modifiers, scheduler })` takes a weapon (its speed
 and hand), the rogue's `ModifierPipeline` and the scheduler. It keeps one
 pending event of kind `"swing"` (`SWING_KIND`), in the swing class, with the
@@ -1292,7 +1268,7 @@ payload `{ hand }`. `start(at)` schedules the first swing at an absolute time:
 the host starts the main hand at 0 and the off hand at
 `k("weapon.offHand").initialSwing`, as legacy does. The host's handler resolves
 the swing and then calls `swung()`, which reads the interval, the weapon speed
-divided by `modifiers.resolve("haste", 1)` as `Rogue.rotation` reads it, and
+divided by `modifiers.resolve("haste", 1)` as legacy's `Rogue.rotation` read it, and
 schedules the next swing. That is the legacy haste rule: haste is read when a
 swing happens, and a change between two swings does not move the swing
 already counting down. While the interval stays the same, the next swing is at
@@ -1303,10 +1279,10 @@ above 0 (haste of 0 or less) is a `RangeError`; legacy stops swinging
 silently. `swung()` outside that hand's own swing event, just run, is a plain
 `Error`, as is `start` while a swing is pending; `stop()` cancels it.
 `nextSwingTime` and `swingTimer` (seconds to it, the legacy field) read it.
-Over 60 s the swing count is the same at any `runUntil` granularity, and a
-test drives the legacy `Weapon.tick` at the fixed step beside it with random
-haste changes: the same swings, each legacy one in the step that holds the
-core's. At one timestamp, decisions run after swings (#193), so haste from a
+Over 60 s the swing count is the same at any `runUntil` granularity. Until
+#234 a test drove the legacy `Weapon.tick` at the fixed step beside it with
+random haste changes and found the same swings, each legacy one in the step
+that held the core's. At one timestamp, decisions run after swings (#193), so haste from a
 cast at t reaches the swing after the one at t, where the fixed step casts
 first; parity (#199) covers that.
 
@@ -1336,15 +1312,11 @@ non-empty string a `TypeError`. A proc's internal cooldown keeps its absolute
 `readyAt` and needs no event.
 
 **Decision points and the rotation (E6, #197).** `js/core/fight.js` runs a
-whole fight on the scheduler. `new Simulation(rogue, { engine: "events" })`
-(or `createFight(seed, config, { engine: "events" })`) makes `run()` go there;
-`"events"` is the default since #199 (`"legacy"`, the fixed steps, stays by
-name until #200), `step()` is always a fixed step, and an unknown engine is a
-`RangeError`. `Simulation.useEngine(engine)` sets the default for Simulations
-built after it and returns the one it replaced, for tests that run a whole
-file on one engine (`test/legacy-engine.js` pins a file to legacy). The Simulation stays the store of
-the fight's state and does every hit, tick and proc as on legacy; the core
-only says when. For the run it puts an `EnergyPool` in place of the legacy
+whole fight on the scheduler, and `Simulation.run` always goes there. It was
+the `"events"` engine, the default since #199; #234 removed the `engine`
+option, `Simulation.useEngine`, the fixed-step `"legacy"` engine and
+`Simulation.step`. The Simulation stays the store of the fight's state and
+does every hit, tick and proc as it did on legacy; the core only says when. For the run it puts an `EnergyPool` in place of the legacy
 energy pool (taking over its value and cap, and giving the value and the
 waste back at the end), starts a `SwingTimer` per hand from each weapon's
 `swingTimer`, a `DotTicks` entry for each DoT already up (from its
@@ -1353,9 +1325,8 @@ Premeditation's points. `Simulation.resolveDotAttack` and `resolveProcDot`
 tell it where a DoT starts or is refreshed. Before each event every timer
 writes its time left back to the legacy fields; after it, a field the event
 changed moves its timer, the energy pool is told a modifier may have changed
-(the #194 host contract), and the non-energy pools are clamped as a step
-would. So a second `run`, or a `step()`, carries on from where the core left
-the fight.
+(the #194 host contract), and the non-energy pools are clamped to their caps.
+So a second `run` carries on from where the core left the fight.
 
 A second `run` on the core is the same fight as one longer run, wherever the
 split falls, on an event's time or between two (#198, from #197 QA M1). The
@@ -1369,8 +1340,7 @@ exact end of each GCD, cooldown, aura and points timer, each DoT's tick clock
 refresh on its clock), each swing's grid (its anchor, interval and count),
 the check poll's next time and the energy pool's line. The next run takes each one while its field still
 holds what was written; a field changed between the runs, or a run that does
-not start where the last one closed (a `step()` in between), starts from the
-field as before. Only `sim.coreStats` can see the split. When nothing a
+not start where the last one closed, starts from the field as before. Only `sim.coreStats` can see the split. When nothing a
 decision reads was changed between the runs, the next run does not ask the rotation at its start, since one run
 would not ask at that time: it keeps the last decision's wakes, the energy
 threshold at the very time it had and the condition crossing even when it lay
@@ -1392,9 +1362,9 @@ field changed inside one is not seen: replace the object, or clear
 `sim.coreCarry`, to have the rotation asked. A DoT's tick clock is taken only
 while its entry's `timeUntilNextTick`, `tickInterval` and `duration` are as
 written. While a core run is open (`openCore`, as SimRunner holds one) the fight
-is the core's, and `step()` throws until it is closed.
+is the core's, and a second core run on it throws until it is closed.
 
-The rotation (`Rogue.castRotation`, which both engines call) runs at decision
+The rotation (`Rogue.castRotation`) runs at decision
 points only, in the decision class after the other events at a time: once at
 the time of any other event (a cast, a swing, a tick, a proc, an aura or
 cooldown running out, the GCD ending), when energy reaches the cheapest cost
@@ -1426,23 +1396,22 @@ Adrenaline Rush; the waste given back; a DoT and the swings across split runs;
 a condition wake in the second of two runs;
 the scripted golden case on the core (Rupture ticks and a tick crit); and the
 #196 edges (a), (d) and same-time main- and off-hand swings.
-`test/core-rules.test.js` runs the rules the legacy step-based tests pin
+`test/core-rules.test.js` runs the rules the legacy step-based tests pinned
 (poisons on DoT ticks, Deadly Poison's clock, refresh and crits, an `applyDot`
 proc, a Rupture tick's snapshot, charges and Expose Armor on ticks, an
 `onDotTick` proc and the pool clamp) on the core, with a DoT dropped after
-its last tick, an aura's `onExpire` and the GCD length. `test/core-engine-files.test.js`
-runs the proc and poison test files with `Simulation.useEngine("events")`, and
+its last tick, an aura's `onExpire` and the GCD length, and
 `test/rotation-wakes.test.js` holds every condition type to its drift and its
-wake-up times (never at or before now). Timing differs from legacy as the #196 edges say; parity
-against legacy is #199.
+wake-up times (never at or before now). Timing differs from legacy as the #196
+edges say; parity against legacy was #199, and its final numbers are under
+Parity harness.
 
 ## Headless fight
 
 `runFight({ seed, duration, config })` in `js/fight.js` is the one entry point
 for a headless fight. `config` is optional (see SimConfig). It builds a `Rogue`
 and a `Simulation` with that seed, makes a
-single `Simulation.run(duration)` call (so every step is `k("sim.fixedStep")`),
-and returns the result as plain data. The module imports only engine files, so
+single `Simulation.run(duration)` call on the event core, and returns the result as plain data. The module imports only engine files, so
 it loads in Node with no `document`, `window`, `performance`, or other browser
 global, and it reads no clock. The same `seed` and `duration` always give a
 deep-equal result.
@@ -1776,7 +1745,8 @@ Flurry or Adrenaline Rush. The switch to the event core then moved all seven,
 since the core draws the seed's numbers in event order, not step order (see
 "Golden fixtures and the rng draw order change" in
 [docs/phase-3.5-engine-rewrite.md](phase-3.5-engine-rewrite.md#risks)). One
-seed is not a parity check; the mean over seeds is (`npm run parity`).
+seed is not a parity check; the mean over seeds was (`npm run parity`, retired in
+#234; see Parity harness).
 
 **What `five-minute-seed-1-300s` cannot catch.** With no talents, every finisher
 in it is a Slice and Dice cast with at most 5 s left on the buff, under the old
@@ -1798,7 +1768,7 @@ a case fails, the message lists the fields that changed (for example
 When to update them:
 
 - A change meant to move results (a rule fix, a new ability in the rotation, a
-  retuned constant, a different `k("sim.fixedStep")`): regenerate the fixtures
+  retuned constant, a change to the core's event order): regenerate the fixtures
   in the same pull request, and say in the description what changed and why the
   new numbers are right.
 - A change that must not move results (a refactor, a speed-up, a rename): the
@@ -1838,91 +1808,42 @@ fetches at test time. See [docs/icons.md](icons.md).
 
 ## Parity harness
 
-`npm run parity` (`scripts/parity.mjs`, #192) is the E11 harness the Phase 3.5
-switch-over is gated on (#199). It runs two named engines, A (`--engine`) and B
-(`--against`, the reference), over seeds 1 to N (`--seeds`, default 200) for
-each parity case (`--cases` picks some by name), each at its own duration or
-all at `--duration S` seconds (over 0, at most 3,600; #199 gates at 300), and
-prints for each case:
+Retired in #234. `npm run parity` (`scripts/parity.mjs`, #192) was the E11
+harness the Phase 3.5 switch-over was gated on (#199): it ran two named
+engines over seeds 1 to N on the golden configs and failed when a case's mean
+DPS differed by more than a gate. With the fixed-step engine gone there is
+nothing left to compare with, so #234 removed the harness, its `npm run
+parity` script and its tests (`test/parity.test.js`). The goldens and the
+bench are the ongoing guard (see Golden-seed tests and Benchmark).
 
-- the mean and the sample standard deviation of DPS for each engine;
-- the per-ability mean damage and mean casts for each, and their difference
-  (an ability one engine never used counts as 0 for it);
-- the difference A - B, paired by seed (both engines run the same seeds): its
-  mean and the 95% Student t interval `mean ± t(0.975, N - 1) · sd / √N`, and
-  how many seeds differ: a seed differs when its DPS or any ability's cast
-  count does;
-- the same difference relative to B: `(mean A - mean B) / mean B` as a signed
-  percentage next to the interval as a signed percentage of `mean B` (#199,
-  from #213 QA), then `|mean A - mean B| / mean B`, which is what the gate
-  reads.
+The last commit with both engines is tagged `legacy-engine-final`. The final
+events-against-legacy numbers there (#232) are, on seeds 1 to 200, every case
+at 300 s, with a 2% gate on `|mean events - mean legacy| / mean legacy` (the
+95% interval is the paired Student t interval as a percentage of the legacy
+mean):
 
-`--json` prints the same report as JSON. For each seed, A runs before B, so a
-fight that leaves state behind for the next one shows as a difference. Each
-engine call gets its own `{ seed, duration, config }`, with a
-`structuredClone` of the case's config, and the cases (and `GOLDEN_CASES`) are
-frozen all the way down, so an engine that changes its input cannot change what
-the other engine runs. What the harness keeps of each result is a copy of its
-`dps` and `abilities` (`copyResult`), taken as the call returns, so an engine
-that reuses one result object, or changes one after returning it, cannot change
-a seed already counted (#199, from #213 QA).
+| Case                                  | Events − legacy | 95% interval        | Mean DPS, events / legacy |
+| ------------------------------------- | --------------- | ------------------- | ------------------------- |
+| `five-minute-seed-1-300s`             | −0.0609%        | [−0.4078, +0.2860]% | 139.45 / 139.54           |
+| `talented-build-seed-107-60s`         | +0.0329%        | [−0.4771, +0.5429]% | 226.92 / 226.85           |
+| `poisons-instant-deadly-seed-107-60s` | +0.4796%        | [−0.2564, +1.2156]% | 258.00 / 256.77           |
+| `combat-swords-preset-seed-142-120s`  | −0.2721%        | [−0.7821, +0.2379]% | 226.22 / 226.84           |
+| `dot-hemorrhage-rupture-120s`         | +0.0702%        | [−0.4517, +0.5921]% | 199.35 / 199.21           |
+| `partial-build-8-points-300s`         | +0.1147%        | [−0.1763, +0.4057]% | 151.14 / 150.97           |
 
-**The gate.** `--gate PCT` makes the run exit 2 if any case's
-`|mean A - mean B| / mean B` is over PCT percent; the report marks each case
-pass or FAIL and lists the failures. The gate is on the point estimate; the
-interval is reported, not gated. A difference of exactly PCT passes on either
-side of B: the comparison allows `GATE_TOLERANCE` (1e-9 percentage points) of
-floating-point error, since an exact 2% can compute as 2.0000000000000075%
-(#199, from #213 QA). B stays the denominator. #199's gate is the event core
-against legacy (`--engine events --against legacy --duration 300 --gate 2`,
-B = legacy) on seeds 1 to 200. It is on the mean, so it does not need the two
-engines to agree seed by seed, and no tie order is imposed for it: the core
-keeps its own same-time order (the scheduler's seq), which is deterministic
-per seed.
+Every case passes the 2% gate. A case's name is its config's; the run puts
+every case at 300 s on seeds 1 to 200, whatever the name says. The difference
+is paired by seed, so both engines ran the same seeds. To reproduce them:
 
-An engine result must have a finite `dps` and `abilities` as an object of
-`{ damage, casts }` with finite numbers. Anything else (NaN, a missing field, a
-string) stops the run with an error naming the engine, case and seed, and the
-command exits 1.
+```sh
+git checkout legacy-engine-final
+node scripts/parity.mjs --engine events --against legacy --duration 300 --gate 2
+```
 
-The engines are listed in `ENGINES`: `legacy` and `events`, each
-`runFight` with that `engine` (#198). The same engine on both sides must give a
-difference of exactly 0 with a [0, 0] interval on every case, and
-`test/parity.test.js` checks it for both, which is what shows the harness
-works.
-
-**The cases** are the golden cases' configs and durations (not their seeds),
-one per distinct config, then the parity-only cases. The default fight is
-`five-minute-seed-1-300s` (the default config at 300 s). Three other golden
-cases run the default config too: `short-seed-1-10s`, `other-seed-12345-90s`
-and the scripted `scripted-finishers-seed-68-50s` (its config, as the harness
-runs no script). Over seeds 1 to N they are the same fights, only shorter, so
-the harness trims them (`SAME_CONFIG_AS` in `scripts/parity.mjs`, #199); their
-fixtures are unaffected. The harness refuses to load if a trim names a case
-with a different config, or if two cases it runs share a config.
-
-The harness runs no script: #199 dropped the scripted case's script from the
-gate (`SCRIPT_LEFT_OFF` is gone), and a scripted golden case that is not
-trimmed makes the harness refuse to load. The script was written for seed 68.
-Since #197 it hooks `Rogue.prototype.castRotation`, which both engines call,
-but on 79 of seeds 1 to 200 on legacy (70 on events) it does not finish: the
-fight runs to its 50 s end with one or two casts still waiting, and
-`runScriptedFight` throws. A script that finishes on every seed is #200's. Its
-golden fixture (seed 68) is unaffected.
-
-`dot-hemorrhage-rupture-120s` is a parity-only case (`PARITY_ONLY_CASES`, no
-fixture): a 49-point build with Hemorrhage, and a rotation that keeps Rupture
-up, so DoT tick timing is under the gate. Legacy casts Rupture about five to
-seven times and Hemorrhage about 40 times in its 120 s.
-`partial-build-8-points-300s` is #199's partial-build config: the 8-point
-build of `test/partial-builds.test.js` (#190) with the default rotation, so
-Blade Flurry and Adrenaline Rush stay locked and the rotation falls through to
-Sinister Strike and Slice and Dice.
-
-Running all six cases on 200 seeds at 300 s, events against legacy, took
-about 55 s on our box (Node v24.22.1, under load from other runs).
-A bad flag, engine, case or engine result exits 1; a failed `--gate` exits 2;
-otherwise the run exits 0.
+The scripted finishers case was not under the gate: its script was written for
+seed 68 and does not finish on 70 of seeds 1 to 200 on the event core. Making it finish on seeds 1 to
+200, with a golden of its own, is the third #234 PR; there is no parity to
+rejoin.
 
 ## Benchmark
 
@@ -1952,6 +1873,15 @@ legacy baseline the new core is compared with at Phase 3.5 issues 6 and 8, on
 the same machine and with the same bench. It was not measured on Node 22, the
 CI version, which this box does not have.
 
+Re-measured for #234 (the legacy engine removed), on the same box (8 vCPU,
+Node v24.22.1, load average about 1.5): 30 `npm run bench` runs of this branch
+interleaved with 30 of `main` at e5d6855 (the tag `legacy-engine-final`, the
+event core already the default there). The median warm median was 4.6 ms on
+both (4.4 to 6.4 ms here, 4.4 to 5.8 ms on `main`), and the median cold run
+24.6 ms here against 25.1 ms on `main` (23.5 to 38.0 ms, 23.6 to 49.6 ms). The
+removal changes no fight, so the same work is timed and the two match within
+noise; both are well under the 50 ms target.
+
 `npm run bench` compares the median with `TARGET_MS` (50) and exits with status
 1 when it is not under it. `--target-ms N` compares with `N` instead, so a
 test can check the report and the exit status without depending on the speed
@@ -1979,13 +1909,11 @@ What a reader should not assume from the sections above. These were written at
 the end of Phase 1; the limits Phase 2 adds or changes are under Known limits
 at the end of Phase 2.
 
-- **Step size and splits.** A different step size, or a `run` split that ends
-  inside a step, can change a seeded fight. QA measured seeds 1 to 200: the
-  effect is small for short fights (0 to 3 seeds in 200 up to 60 s) and common
-  at 5 minutes (120 to 142 in 200), while the mean damage over many seeds moves
-  by under 0.04%. Changing `k("sim.fixedStep")` can change the golden
-  fixtures. Use one `run` call per fight at the fixed step, as `runFight` does
-  (see Fixed step for the table). The live page never takes a short step.
+- **Step size and splits.** Gone with the fixed step in #234: on the event
+  core a `run` split anywhere gives the same fight as one call (see Headless
+  runs). Under the fixed step a different step size, or a split inside a
+  step, could change a seeded fight (120 to 142 of seeds 1 to 200 at
+  5 minutes).
 - **First DPS frame.** The live DPS readout reads high at 00:00 (see Live page).
 - **Benchmark numbers are local.** The 22 ms warm and 40 ms cold figures are
   from our box (8 vCPU Xeon, Node 20). The GitHub Actions runner measured about
@@ -2177,7 +2105,7 @@ for a DoT tick, which sees the DoT's tags), dodge and parry reduction (the attac
 `resolveAttack`'s optional arguments), crit damage (the crit multiplier, for
 skills and ticks), damage (before crit and armor), armor ignore
 (`armorMultiplier`), energy regeneration (`regenerateResources`), energy cost
-(`Ability.cast`), a resource's cap (`Resource.max`, kind `resourceMax`), and haste (`Rogue.rotation`). The damage modifier is the one
+(`Ability.cast`), a resource's cap (`Resource.max`, kind `resourceMax`), and haste (each swing, `js/core/swing.js`). The damage modifier is the one
 place a tag changes the damage itself, and it comes first: see
 [Damage tags](#damage-tags) for where in the formula. `parryReduction` is read for the parry band, which has width only from the
 front (`config.target.behind` false). Damage modifiers on a
@@ -2506,9 +2434,10 @@ A definition holds constants ids, not numbers:
   `character.startingComboPoints`).
 - `regen`: `{ perSecond, modifier, tick }`. `perSecond` is the base rate,
   `modifier` the kind of the modifiers that change it (`energyRegen`, so
-  Adrenaline Rush's bonus stays exact for the part of a step inside the buff,
-  as in [Energy](#energy)), and `tick` how it is applied. `energy.tickMode` is
-  `continuous` (`rate * dt` every step, `engineering`), the only mode there is.
+  Adrenaline Rush's bonus applies exactly while the buff is up, as in
+  [Energy](#energy)), and `tick` how it is applied. `energy.tickMode` is
+  `continuous` (a line in time, the core's `EnergyPool`, `engineering`), the
+  only mode there is.
 - `costModifier`: the modifier kind that changes what an ability pays from this
   resource (`energyCost`).
 - `whole`: `true` when the pool holds whole units only (combo points). A gain
@@ -2521,9 +2450,10 @@ A definition holds constants ids, not numbers:
 
 `Resource` has `gain(amount)` (capped, returns what it added), `spend(amount)`,
 `spendAll()` (returns the count it took, read before the reset), `has`,
-`regenerate(dt, rate)`, an expiry (`armExpiry`, `clearExpiry`, `tick`, which is
+`clamp()`, an expiry (`armExpiry`, `clearExpiry`, `tick`, which is
 Premeditation's rule: points that go unless a later gain or a spend cancels
-them), and `targetChanged()`. The cap, `max`, is
+them), and `targetChanged()`. It has no regeneration of its own since #234:
+during a core run energy is an `EnergyPool` (see Energy). The cap, `max`, is
 `modifiers.resolve("resourceMax", baseMax, { resource: id })`, so a max-energy
 talent is a modifier with `scope: { resources: ["energy"] }`.
 
@@ -2535,8 +2465,8 @@ a finisher's proc that depends on how many points it spent reads the count
 An amount must be a finite number of 0 or more: `gain` and `spend` throw a
 `RangeError` for a negative, NaN, infinite or non-number amount, so a bad
 data row fails where it is used and cannot add a resource by spending a
-negative. `Resource.clamp()` brings a pool down to its cap. `Rogue` calls it
-each step before the regeneration, so a cap that falls (a `resourceMax`
+negative. `Resource.clamp()` brings a pool down to its cap. The event core
+calls it after each event (energy's `EnergyPool` caps itself), so a cap that falls (a `resourceMax`
 modifier that goes with an aura) takes the excess with it, and a cast that
 neither gains nor spends no longer leaves it in place for ever. A default
 fight never has a pool above its cap, so nothing changes there. An ability's
@@ -3183,57 +3113,39 @@ A caller that wrote to it would change what every later read of `result`
 returns, until the next `run` sets it to null and a later finish builds a new
 one. Read it; to change a result, change your own copy (`structuredClone`).
 
-**`advance(seconds)` and the carry (#158).** `advance` adds `seconds` to a
-carry of fight time, then takes the steps the carry pays for, in the plan
-`Simulation.run` follows: `floor(duration / k("sim.fixedStep"))` whole steps,
-then one shorter closing step for what is left, so the fight ends exactly at
-`duration`. What is left over, always less than the next step, waits for the
-next call. Time given after the last step is dropped.
+**`advance(seconds)` on the event core (#198, #234).** Each `run` opens the
+event core once for the whole fight (`openCore`, `js/core/fight.js`), and
+`advance(seconds)` runs it on to the time given. There is no step and no
+carry, so the call that brings the given time to `duration` finishes the
+fight (600 calls of `1 / 60` finish a 10 s fight on the 600th), and any split
+of the time is the same fight as one call. Time given after the end is
+dropped. The runner keeps the given time as a compensated sum, so the time
+reached is the given seconds' sum correctly rounded (200 calls of `0.01`
+reach exactly 2 s).
 
 - `advance(duration)` as the first call of a run, or `advance(Infinity)`, runs
-  the whole fight in one call and returns `"finished"`. The step,
-  1/64 s, is a power of two, so taking whole steps off the carry is exact and
-  the carry left for the closing step is exactly the closing step's length.
-- Many small calls, such as a frame loop's `advance(1 / 60)`, can end one step
-  short. The carry is a floating-point sum of the calls' seconds and rounds
-  differently from the host's own sum, so it can fall a hair under the last
-  step even when the host's total has reached `duration` (600 calls of
-  `1 / 60` for a 10 s fight stop at 9.984375 s, still `running`). The next
-  call of any size that covers the gap finishes the fight. The result is the
-  same fight: steps are only ever taken whole, so the fight cannot drift, and a
-  run to the end equals `runFight` for any split of the time. A host loops
-  until the state is `"finished"` and does not count seconds. The live page
-  hands over whole steps (`advance(k("sim.fixedStep"))`, `js/live-run.js`),
-  which never falls short.
+  the whole fight in one call and returns `"finished"`.
+- The core runs one event time at a time, so a `pause` or `stop` from an event
+  handler takes effect after the events at that time, and the rest of the given
+  time is kept for `resume`.
+- Between calls `fight`'s `rogue` and `simulation` read the fight at the time
+  reached: energy, the GCD, auras and cooldowns move with the time alone, with
+  no step to round them to.
+- A fight of no length handles no events (#199).
+- A run to the end equals `runFight` for any split of the time. A host loops
+  until the state is `"finished"` and does not count seconds.
 
-**The engine behind the runner (#198).** `new SimRunner({ ..., engine })`
-takes `"legacy"` (the fixed steps above, the default until #199) or
-`"events"`, the Phase 3.5 event core; `runner.engine` names the one it runs,
-fixed when the runner is made (an unknown one is a `RangeError` then), and
-`runFight({ seed, duration, config, engine })` takes the same option. The
-result does not record the engine and its shape is unchanged. On `"events"`
-each `run` opens the event core once for the whole fight (`openCore`,
-`js/core/fight.js`) and `advance(seconds)` runs it on to the time given: there
-is no step and no carry, so the call that brings the given time to `duration`
-finishes the fight (600 calls of `1 / 60` finish a 10 s fight on the 600th),
-and any split of the time is the same fight as one call. The runner keeps the
-given time as a compensated sum, so the time reached is the given seconds'
-sum correctly rounded (200 calls of `0.01` reach exactly 2 s). The core runs
-one event time at a time, so a `pause` or `stop` from an event handler takes
-effect after the events at that time, and the rest of the given time is kept
-for `resume`, as a legacy step's is. Between calls `fight`'s `rogue` and
-`simulation` read the fight at the time reached: energy, the GCD, auras and
-cooldowns move with the time alone, with no step to round them to. A fight of
-no length handles no events, as legacy takes no step for it (#199).
+Before #234 the runner also took `engine: "legacy"`, which paid whole fixed
+steps out of a carry of the given time (#158); #234 removed it with the
+`engine` option of `SimRunner`, `runFight`, `createFight` and
+`createLiveRun`. The result never recorded the engine, and its shape is
+unchanged.
 
-`createLiveRun`'s `run({ seed, duration, config, engine })` and
-`clear({ seed, config, engine })` pass the engine on. On `"events"` a frame
-is one `advance` of its own seconds (`FrameClock.seconds`, at most
-`k("sim.maxFrameTime")`, 0 for the first frame and the first after a resume)
-instead of whole steps. The page (`js/main.js`) and the batch Worker pass no
-engine, so they run the default, the event core since #199. `BatchRunner` and `runBatch` take no
-engine option yet; under `Simulation.useEngine` their fights run on the
-default engine.
+`createLiveRun`'s `run({ seed, duration, config })` gives the runner one
+`advance` per frame of its own seconds (`FrameClock.seconds`, at most
+`k("sim.maxFrameTime")`, 0 for the first frame and the first after a resume).
+The page (`js/main.js`), the batch Worker, `BatchRunner` and `runBatch` all
+run on the event core.
 
 ## Aura uptime (S3, issue #146)
 
@@ -3319,14 +3231,13 @@ depend on how the batch was sliced.
   hour's duration (`k("coldBlood").duration`, longer than any fight) and one
   charge, so it runs out with `reason: "charges"` when the next listed ability
   lands; its uptime is the time from the cast to that hit.
-- **Stamping.** On today's fixed-step engine an `expire` event carries the time
-  at the end of the move in which the aura ran out ([Events](events.md#the-contract-has-no-step-and-no-frame)),
-  so an uptime can be longer than the aura's exact time by less than
-  `k("sim.fixedStep")` (1/64 s) per expiry. That is the events contract, and it is
-  what the engine itself holds: `test/fight-metrics.test.js` checks, step by
-  step, that the uptimes, stack-seconds and full-stack time equal the engine's
-  own `activeBuffs` and `activeDebuffs`. An event-queue engine stamps the exact
-  time, and the same code gives the exact uptime.
+- **Stamping.** The event core stamps an `expire` event with the aura's exact
+  end ([Events](events.md#the-contract-has-no-step-and-no-frame)), so the
+  uptime is exact. (The fixed-step engine, removed in #234, stamped the end of
+  the step, up to 1/64 s late.) `test/fight-metrics.test.js` samples a real
+  fight and checks that the uptimes, stack-seconds and full-stack time agree
+  with the engine's own `activeBuffs` and `activeDebuffs`, to a sample per
+  change.
 
 Energy-capped time and combo point waste (the rest of #146) are not observable
 from the per-change events (energy regeneration is not reported, and a gain lost
@@ -3342,26 +3253,31 @@ constants change.
 
 How much energy and how many combo points a fight lost to the cap. Neither can
 be read from the per-change events: regeneration sends none, and a gain that
-the cap stops moves nothing, so it sends none either. So each `Resource` pool
-(`js/resource.js`) counts it exactly as the fight runs, and the `end` event
+the cap stops moves nothing, so it sends none either. So each pool counts it
+exactly as the fight runs (energy's `EnergyPool`, `js/core/energy.js`, during
+a core run, and a `Resource`, `js/resource.js`, for combo points and between
+runs), and the `end` event
 carries the counts as `resources` ([Events](events.md#end)). The counters draw
 no randomness and send no event: every fight, result and golden is the same
 as before.
 
 ### What the pool counts
 
-| Counter      | Definition                                                                                                                                                                                                                                                       |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cappedTime` | Seconds of regeneration spent at the cap. `regenerate(dt, rate)` from at or above the cap adds all of `dt`; from below, if `before + rate * dt` passes the cap, it adds the part after the moment it reaches it: `dt - (max - before) / rate`. No `dt`, no time. |
-| `overflow`   | What the cap took. `gain(amount)` adds `amount - added`; `regenerate` adds `max(0, before + rate * dt - max)`, or all of `rate * dt` from at or above the cap.                                                                                                   |
+| Counter      | Definition                                                                                                                                                                                                                                                                                                     |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cappedTime` | Seconds of regeneration spent at the cap. For each piece of the energy line (from one re-base to the next), the time from the moment the line reaches the cap, `t0 + (cap - value0) / rate`, or from the piece's start if it began at the cap, to the piece's end. A pool with no regeneration counts no time. |
+| `overflow`   | What the cap took. `gain(amount)` adds `amount - added`; regeneration adds `rate` times the piece's capped time.                                                                                                                                                                                               |
 
-- The opening seconds count: energy starts full (`start.state`), so the steps
-  before the first spend are at the cap.
-- On today's fixed-step engine a step regenerates first, then the rotation
-  spends. A step's regeneration is cut into pieces where Adrenaline Rush runs
-  out, and each piece is counted at its own rate, so the counts are exact for
-  the engine's own energy. `test/fight-metrics.test.js` checks, step by step,
-  that `cappedTime` equals the energy each step starts from.
+- The opening seconds count: energy starts full (`start.state`), so any time
+  before the first spend is at the cap. The default rotation spends at its
+  first decision, at 0, so it starts with none.
+- Energy is exact at any time on the event core, and a regen rate changes only
+  at an event (Adrenaline Rush applying or running out) and starts a new piece,
+  so the counts are exact for the engine's own energy.
+  `test/fight-metrics.test.js` samples real fights and checks that
+  `cappedTime` lies between the bounds the samples give. (On the fixed-step
+  engine, removed in #234, a step regenerated first and the rotation spent
+  after, sliced where Adrenaline Rush ran out.)
 - A pool above a cap that fell (the max went down) is at the cap: its
   regeneration time counts and its regeneration is overflow, but the excess
   above the new cap is not (the engine's clamp removes it, and it was never

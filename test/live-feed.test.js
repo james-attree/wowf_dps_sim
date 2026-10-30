@@ -6,13 +6,15 @@ import { abilityCatalogue } from "../js/abilities.js";
 import { cooldownOf, createLiveFeed, procName } from "../js/live-feed.js";
 import { defaultConfig, defaultDaggerConfig } from "../js/sim-config.js";
 import { referenceBuild } from "./talentsforever.js";
+import { runOnCore } from "../js/core/fight.js";
+import { POLL_STEP } from "./poll-step.js";
 
 // Issue #150. The live feed turns a running fight into the plain slices the
 // visualiser draws: the combat log and the combo points from the event stream,
 // the continuous values read at the frame. These tests hold it to the engine
 // it reads, frame by frame, so the page draws what it drew before.
 
-const STEP = k("sim.fixedStep");
+const STEP = POLL_STEP;
 const SEEDS = [1, 20261029, 4242];
 // A Rupture rotation, so the log has DoT ticks (a tick shows its status as
 // its outcome).
@@ -43,14 +45,14 @@ const CONFIGS = {
   rupture: ruptureConfig,
   procs: procConfig,
 };
-// Uneven frames, in whole steps: 0 to 6, the way FrameClock hands them out.
+// Uneven frames, in whole 1/64 s steps: 0 to 6.
 const FRAME_STEPS = [1, 0, 3, 1, 6, 2, 1, 1, 4, 0, 5];
 
 function frames(fight, count, visit) {
   for (let frame = 0; frame < count; frame++) {
     const steps = FRAME_STEPS[frame % FRAME_STEPS.length];
     for (let step = 0; step < steps; step++) {
-      fight.simulation.step(STEP);
+      runOnCore(fight.simulation, STEP);
     }
     visit(frame);
   }
@@ -297,7 +299,12 @@ describe("live feed (#150)", () => {
             (event) => event.type === "aura" && event.aura === effect.id,
           );
           assert.notEqual(last.change, "expire", effect.id);
-          assert.equal(effect.duration, last.duration, effect.id);
+          // On the core an aura's seconds are its expiry less the time, so
+          // they come back to within float error, not bit for bit.
+          assert.ok(
+            Math.abs(effect.duration - last.duration) < 1e-9,
+            `${effect.id}: ${effect.duration} vs ${last.duration}`,
+          );
           assert.equal(effect.stacks, last.stacks, effect.id);
           seen += 1;
         }

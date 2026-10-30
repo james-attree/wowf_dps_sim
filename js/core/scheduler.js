@@ -1,12 +1,12 @@
-// Event scheduler for the Phase 3.5 core (E3, #193). Not used by the legacy
-// engine, which stays the default. A binary min-heap of events ordered by
+// Event scheduler for the Phase 3.5 core (E3, #193). The one engine since
+// #234 removed the fixed-step one. A binary min-heap of events ordered by
 // time, then order class, then seq (the order they were scheduled in), with
 // lazy cancellation: a cancelled event stays in the heap and is skipped when
 // it comes out. Pure: no DOM, no clock, no random numbers.
 //
 // Times are plain doubles in seconds, used exactly as given. Callers compute
 // them from an anchor (`applied_at + n * interval`, `start + duration`), as
-// docs/mechanics.md "Planned: event-queue engine (Phase 3.5)" says, so times
+// docs/mechanics.md "Event-queue engine (Phase 3.5)" says, so times
 // that should coincide compare equal.
 
 import { k } from "../../data/constants.js";

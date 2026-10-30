@@ -386,8 +386,9 @@ without casting (`test/can-cast.test.js` holds the two together).
 **In a fight.** `SimConfig` has a `rotation` field (default `defaultRotation()`).
 `normalizeConfig` validates it and a bad one is a `RangeError` before the
 fight starts (before the `Simulation`, and so the rng, exists); the result's `config` records it in full, so a recorded config repeats
-the fight. `Rogue.rotation` asks the interpreter what to cast, and then does
-the haste and the white swings as it did.
+the fight. `Rogue.castRotation` asks the interpreter what to cast at each
+decision point; the white swings and their haste are the core's own events
+(`js/core/swing.js`).
 
 **The fight length (#191).** The Rogue tells the state view the fight's length
 (`duration`): `createFight(seed, config, { duration })` sets the Simulation's

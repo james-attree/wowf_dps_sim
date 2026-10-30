@@ -4,6 +4,7 @@ import { createFight, expandTalents } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { defaultConfig } from "../js/sim-config.js";
 import { Simulation } from "../js/simulation.js";
+import { quiet } from "./quiet.js";
 
 // Carry-overs from QA of #126 and #130, taken with D6 (#103): a block from the
 // front does not use up Cold Blood's charge, and `modifiers: null` is "none"
@@ -29,7 +30,7 @@ function coldBloodFromFront(rolls) {
   const rogue = new Rogue(config, { modifiers, procs, abilities });
   rogue.bonusHitChance = 1;
   rogue.critChance = 0.3;
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.energy = 100;
   let at = 0;
   const simulation = new Simulation(rogue, {

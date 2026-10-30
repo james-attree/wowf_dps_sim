@@ -6,6 +6,8 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 // Issue #19. 30 fps and 144 fps are the two rates the swing-timer fight uses.
 const FRAME_RATES = [30, 144];
@@ -22,7 +24,7 @@ function near(actual, expected) {
 
 function harness() {
   const rogue = new Rogue();
-  rogue.rotation = () => {};
+  quiet(rogue);
   const sim = new Simulation(rogue, { rng: testRng });
   assert.equal(sim.currentTime, 0);
   return { rogue, sim };
@@ -40,13 +42,14 @@ function watchCasts(sim) {
   return casts;
 }
 
+// The rotation's look at the fight `fps` times a second: the event core's
+// decisions, and a poll every 1 / fps on top (runOnCore's pollEvery). The
+// fixed-step engine asked once a frame; #234 removed it.
 function runFrames(sim, fps, seconds) {
-  const dt = 1 / fps;
-  const frames = Math.round(seconds * fps);
-  for (let frame = 1; frame <= frames; frame += 1) {
-    sim.step(dt);
-  }
+  runOnCore(sim, seconds, { pollEvery: 1 / fps });
 }
+
+const NONE = { casts: [], outcome: "none" };
 
 // Issue #59. The recast is the first frame these are all true, not a gap of
 // the cooldown plus two GCDs. Cooldown and the GCD are the spell checks.
@@ -116,12 +119,13 @@ describe("Adrenaline Rush cooldown", () => {
       const skill = rogue.abilities.adrenalineRush;
       const casts = watchCasts(sim);
       let blockedAt = null;
-      rogue.rotation = () => {
+      rogue.castRotation = () => {
         const remaining = sim.cooldowns[skill.id] ?? 0;
         const events = sim.combatLog.length;
         skill.cast(rogue, sim);
-        if (casts.length === 0) {
-          return;
+        // Only the wait between the first cast and the recast.
+        if (casts.length !== 1) {
+          return NONE;
         }
         if (remaining > 0) {
           assert.equal(sim.cooldowns[skill.id], remaining, `${fps} fps`);
@@ -129,16 +133,11 @@ describe("Adrenaline Rush cooldown", () => {
           assert.equal(skill.onCooldown(rogue, sim), true, `${fps} fps`);
           blockedAt = sim.currentTime;
         }
+        return NONE;
       };
 
       const dt = 1 / fps;
-      const frames = Math.round((cooldown + 1) * fps);
-      for (let frame = 1; frame <= frames; frame += 1) {
-        sim.step(dt);
-        if (casts.length >= 2) {
-          break;
-        }
-      }
+      runFrames(sim, fps, cooldown + 1);
 
       assert.equal(casts.length, 2, `${fps} fps`);
       assert.ok(
@@ -147,7 +146,7 @@ describe("Adrenaline Rush cooldown", () => {
       );
       near(casts[1] - blockedAt, dt);
       near(casts[1] - casts[0], cooldown);
-      assert.equal(sim.cooldowns[skill.id], cooldown);
+      near(sim.cooldowns[skill.id], cooldown - (cooldown + 1 - casts[1]));
       gaps[fps] = casts[1] - casts[0];
     }
 
@@ -163,8 +162,9 @@ describe("Adrenaline Rush cooldown", () => {
       const { rogue, sim } = harness();
       const skill = rogue.abilities.adrenalineRush;
       const casts = watchCasts(sim);
-      rogue.rotation = () => {
+      rogue.castRotation = () => {
         skill.cast(rogue, sim);
+        return NONE;
       };
       runFrames(sim, fps, LONG_FIGHT_SECONDS);
 
@@ -192,9 +192,9 @@ describe("Adrenaline Rush cooldown", () => {
       const sim = new Simulation(rogue, { rng: testRng });
       assert.equal(sim.currentTime, 0);
       const casts = watchCasts(sim);
-      const play = rogue.rotation.bind(rogue);
+      const play = rogue.castRotation.bind(rogue);
       let firstReady = null;
-      rogue.rotation = (simulation, dt) => {
+      rogue.castRotation = (simulation) => {
         if (
           casts.length === 1 &&
           firstReady === null &&
@@ -202,7 +202,7 @@ describe("Adrenaline Rush cooldown", () => {
         ) {
           firstReady = simulation.currentTime;
         }
-        play(simulation, dt);
+        return play(simulation);
       };
       runFrames(sim, fps, LONG_FIGHT_SECONDS);
 

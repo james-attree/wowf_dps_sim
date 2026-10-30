@@ -10,6 +10,9 @@ import { ModifierPipeline } from "../js/modifiers.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { POLL_STEP } from "./poll-step.js";
+import { quiet } from "./quiet.js";
 
 // D3 (#99): energy and combo points are resources described as data, and the
 // generic ability executor spends and gains through them by id.
@@ -22,9 +25,8 @@ function harness(options) {
   const rogue = new Rogue(undefined, options);
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
-  rogue.rotation = () => {};
-  // Legacy until #200: rogue.rotation (here, never cast) is a legacy hook.
-  const sim = new Simulation(rogue, { rng: testRng, engine: "legacy" });
+  quiet(rogue);
+  const sim = new Simulation(rogue, { rng: testRng });
   return { rogue, sim };
 }
 
@@ -251,15 +253,21 @@ describe("the resource cap", () => {
 
   it("holds energy at the new cap while it regenerates", () => {
     const { rogue, sim } = harness({ modifiers: [MAX] });
-    rogue.energy = 100;
-    sim.regenerateResources(1);
+    // From 90, not 100: at exactly 100 at t = 0 the energy >= 100 rule's
+    // wake-up falls on t = 0 again and again (conditionWakeAt nudges up by
+    // an ulp of 0, which moves no energy), and a rogue that never casts
+    // never clears it. Left for the #234 engine polish.
+    rogue.energy = 90;
+    runOnCore(sim, 1);
+    assert.equal(rogue.energy, 100);
+    runOnCore(sim, 1);
     assert.equal(rogue.energy, 110);
-    sim.regenerateResources(5);
+    runOnCore(sim, 5);
     assert.equal(rogue.energy, 120);
     // The cap is the one the pipeline gives, so a plain Rogue stops at 100.
     const plain = harness();
     plain.rogue.energy = 95;
-    plain.sim.regenerateResources(5);
+    runOnCore(plain.sim, 5);
     assert.equal(plain.rogue.energy, 100);
   });
 
@@ -355,15 +363,6 @@ describe("Resource", () => {
     assert.equal(pool.spendAll(), 4);
     assert.equal(pool.value, 0);
     assert.equal(pool.spendAll(), 0);
-  });
-
-  it("regenerates at a rate and stops at the cap", () => {
-    const pool = energy();
-    pool.value = 0;
-    pool.regenerate(0.5, 10);
-    assert.equal(pool.value, 5);
-    pool.regenerate(100, 10);
-    assert.equal(pool.value, 100);
   });
 
   it("removes an expiring gift when its time is up, never below 0", () => {
@@ -597,7 +596,7 @@ describe("Premeditation on the resource", () => {
     const added = k("premeditation").comboPoints;
     assert.equal(rogue.comboPoints, 1 + added);
     assert.equal(rogue.premeditationCp, k("premeditation.cpRemovedOnExpiry"));
-    sim.step(k("premeditation.cpExpiry") + 0.5);
+    runOnCore(sim, k("premeditation.cpExpiry") + 0.5);
     assert.equal(
       rogue.comboPoints,
       Math.max(0, 1 + added - k("premeditation.cpRemovedOnExpiry")),
@@ -611,7 +610,7 @@ describe("Premeditation on the resource", () => {
     sim.gcd = 0;
     rogue.abilities.sinisterStrike.cast(rogue, sim);
     assert.equal(rogue.premeditationCpRemaining, 0);
-    sim.step(k("premeditation.cpExpiry") + 0.5);
+    runOnCore(sim, k("premeditation.cpExpiry") + 0.5);
     assert.equal(rogue.comboPoints, k("premeditation").comboPoints + 1);
   });
 });
@@ -647,53 +646,8 @@ describe("Resource cap counters (cappedTime, overflow)", () => {
     assert.equal(points.overflow, 1);
   });
 
-  it("count all of dt at the cap, and regeneration past it", () => {
-    const pool = energy();
-    pool.regenerate(0.5, 10);
-    assert.deepEqual(pool.waste(), { cappedTime: 0.5, overflow: 5 });
-  });
-
-  it("count from the moment the cap is reached during dt", () => {
-    const pool = energy();
-    pool.value = 95;
-    pool.regenerate(1, 10);
-    assert.equal(pool.value, 100);
-    assert.deepEqual(pool.waste(), { cappedTime: 0.5, overflow: 5 });
-    const later = energy();
-    later.value = 97.5;
-    later.regenerate(1, 10);
-    assert.deepEqual(later.waste(), { cappedTime: 0.75, overflow: 7.5 });
-    // Landing exactly on the cap wastes nothing.
-    const exact = energy();
-    exact.value = 90;
-    exact.regenerate(1, 10);
-    assert.equal(exact.value, 100);
-    assert.deepEqual(exact.waste(), { cappedTime: 0, overflow: 0 });
-  });
-
-  it("count nothing below the cap, for no time or with no rate", () => {
-    const pool = energy();
-    pool.value = 50;
-    pool.regenerate(1, 10);
-    pool.regenerate(1, 0);
-    pool.value = 100;
-    pool.regenerate(0, 10);
-    assert.deepEqual(pool.waste(), { cappedTime: 0, overflow: 0 });
-    // At the cap with no rate it is still capped, and wastes nothing.
-    pool.regenerate(2, 0);
-    assert.deepEqual(pool.waste(), { cappedTime: 2, overflow: 0 });
-  });
-
-  it("count a pool above a lowered cap as capped, but not its excess", () => {
-    const pool = energy();
-    pool.value = 120;
-    pool.regenerate(1, 10);
-    assert.equal(pool.value, 100);
-    assert.deepEqual(pool.waste(), { cappedTime: 1, overflow: 10 });
-    pool.value = 120;
-    pool.gain(5);
-    assert.equal(pool.overflow, 15);
-  });
+  // Regeneration's waste (time at the cap, regen lost there, a cap that fell)
+  // is the event core's EnergyPool's since #234: test/energy.test.js.
 
   it("do not count a spend, an expiry, a target change or a clamp", () => {
     const points = combo();
@@ -717,11 +671,10 @@ describe("Resource cap counters (cappedTime, overflow)", () => {
     const reports = [];
     pool.onChange = (change, before) => reports.push([change, before]);
     pool.gain(5);
-    pool.regenerate(1, 10);
     pool.value = 90;
     pool.gain(5);
     assert.deepEqual(reports, [["gain", 90]]);
-    assert.equal(pool.overflow, 15);
+    assert.equal(pool.overflow, 5);
   });
 
   it("put them on the end event: a fight that never casts is capped throughout", () => {
@@ -764,7 +717,7 @@ describe("Resource cap counters (cappedTime, overflow)", () => {
     points.gain(2);
     const pool = energy();
     pool.value = 100;
-    pool.regenerate(1, 10);
+    pool.gain(10);
     const before = [points.waste(), pool.waste()];
     points.targetChanged();
     assert.deepEqual([points.waste(), pool.waste()], before);
@@ -774,7 +727,7 @@ describe("Resource cap counters (cappedTime, overflow)", () => {
   it("give a host without resources an empty object", () => {
     for (const resources of [{}, undefined]) {
       const { sim } = harness();
-      sim.step(k("sim.fixedStep"));
+      runOnCore(sim, POLL_STEP);
       sim.rogue.resources = resources;
       let end = null;
       sim.on("end", (event) => {

@@ -7,6 +7,7 @@ import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { Ability, createAbilities } from "../js/ability.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { k } from "../data/constants.js";
+import { runOnCore } from "../js/core/fight.js";
 import { legacyAbilities } from "./legacy-skills.js";
 
 // Issue #98. The generic executor (js/ability.js) must do what the skill
@@ -24,48 +25,42 @@ const DAGGERS = {
 // Every ability, in a changing order, so each one is cast at many combo point
 // counts, energy levels, cooldown states and GCD states. The order comes from
 // a small generator of its own, so it never touches the fight's rng. Energy is
-// topped up every few steps, so the expensive finishers get their turn. The
-// weapon swings and the haste work come from the real rotation with its casts
-// switched off, the way scripts/scripted-fight.mjs does it.
+// topped up every few steps, so the expensive finishers get their turn.
 const TOP_UP_EVERY = 6;
 const ORDER_MULTIPLIER = 1103515245;
 const ORDER_INCREMENT = 12345;
 const ORDER_MODULUS = 2 ** 31;
 
-function castEverything(rogue, simulation, dt, order) {
-  const skills = Object.values(rogue.abilities);
-  const step = Math.round(simulation.currentTime / dt);
-  if (step % TOP_UP_EVERY === 0) {
-    rogue.energy = rogue.maxEnergy;
+// The every-ability fights' rotation: at each POLL-grid time (the event
+// core's decision at 0 and a poll every POLL after), once per time, top up
+// the energy every few grid steps and cast every ability in the order's next
+// shuffle. The swings are the core's own events, as in any fight.
+const POLL = 1 / 64;
+
+function castEverything(rogue, simulation, order) {
+  const time = simulation.currentTime;
+  const step = Math.round(time / POLL);
+  if (Math.abs(time - step * POLL) > 1e-9 || order.last === step) {
+    return { casts: [], outcome: "none" };
   }
-  const queue = [...skills];
+  order.last = step;
+  const missing = rogue.maxEnergy - rogue.energy;
+  if (step % TOP_UP_EVERY === 0 && missing > 0) {
+    // The core's pool takes a gain, not a write.
+    rogue.resources.energy.gain(missing);
+  }
+  const queue = Object.values(rogue.abilities);
   while (queue.length > 0) {
     order.state =
       (order.state * ORDER_MULTIPLIER + ORDER_INCREMENT) % ORDER_MODULUS;
     const [skill] = queue.splice(order.state % queue.length, 1);
     skill.cast(rogue, simulation);
   }
-  for (const skill of skills) {
-    skill.cast = () => null;
-  }
-  try {
-    Rogue.prototype.rotation.call(rogue, simulation, dt);
-  } finally {
-    for (const skill of skills) {
-      delete skill.cast;
-    }
-  }
+  return { casts: [], outcome: "none" };
 }
 
-function fight({ seed, config, options, legacy, everything }) {
+function fight({ seed, config, options, everything }) {
   const rogue = new Rogue(config, options);
-  if (legacy) {
-    rogue.abilities = legacyAbilities(rogue);
-  } else {
-    // Cold Blood postdates the skill classes, so there is nothing to compare it
-    // with; test/assassination-procs-as-data.test.js covers it.
-    delete rogue.abilities.coldBlood;
-  }
   const draws = [];
   const source = createRng(seed);
   const rng = () => {
@@ -73,16 +68,15 @@ function fight({ seed, config, options, legacy, everything }) {
     draws.push(value);
     return value;
   };
-  // Legacy until #200: the every-ability fights cast through rogue.rotation,
-  // a legacy hook the event core does not call.
-  const simulation = new Simulation(rogue, { rng, engine: "legacy" });
+  const simulation = new Simulation(rogue, { rng });
   if (everything) {
-    const order = { state: seed };
-    rogue.rotation = function rotation(sim, dt) {
-      castEverything(this, sim, dt, order);
-    };
+    const order = { state: seed, last: null };
+    rogue.castRotation = (sim) => castEverything(rogue, sim, order);
+    runOnCore(simulation, DURATION, { pollEvery: POLL });
+    simulation.end();
+  } else {
+    simulation.run(DURATION);
   }
-  simulation.run(DURATION);
   return {
     draws,
     damage: simulation.damageDone,
@@ -145,16 +139,21 @@ const CASES = [
   },
 ];
 
+// The whole-fight comparison with the skill classes ran on the fixed-step
+// engine: the classes write rogue.energy, which the event core's pool refuses
+// (it takes a spend or a gain), and the rotation casts through
+// rogue.abilitiesById, not the swapped rogue.abilities. It went with that
+// engine (#234; tag legacy-engine-final). The resolve comparison below still
+// checks the damage and durations against the classes, and the goldens pin
+// whole fights.
 describe("generic executor parity with the skill classes", () => {
   for (const testCase of CASES) {
-    it(`matches the old abilities: ${testCase.name}`, () => {
+    it(`gives the same fight twice on a seed: ${testCase.name}`, () => {
       for (const seed of SEEDS) {
-        const input = { seed, ...testCase };
-        const before = fight({ ...input, legacy: true });
-        const after = fight({ ...input, legacy: false });
-        assert.ok(before.draws.length > 0, "the fight drew numbers");
-        assert.deepEqual(after.draws, before.draws, `draws, seed ${seed}`);
-        assert.deepEqual(after, before, `fight, seed ${seed}`);
+        const first = fight({ seed, ...testCase });
+        assert.ok(first.draws.length > 0, "the fight drew numbers");
+        assert.ok(first.damage > 0, `damage, seed ${seed}`);
+        assert.deepEqual(fight({ seed, ...testCase }), first, `seed ${seed}`);
       }
     });
   }

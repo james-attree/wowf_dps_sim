@@ -1,5 +1,6 @@
-// Continuous energy for the Phase 3.5 core (E4, #194). Not used by the legacy
-// engine, which keeps js/resource.js and Simulation.regenerateResource.
+// Continuous energy for the Phase 3.5 core (E4, #194). Between runs the
+// fight's energy is a js/resource.js Resource; a core run puts this pool in
+// its place and writes the value and the waste back at close.
 //
 // The pool stores (value0, t0, rate, cap) and reads as
 //   min(cap, value0 + rate * (now - t0))
@@ -7,16 +8,16 @@
 // change of rate or cap first re-bases (value0 = the value now, t0 = now), so
 // each piece of the line starts where the last one ended. The rate is the
 // definition's base through the regen modifiers and the cap the base cap
-// through the resourceMax modifiers, both read from the same ModifierPipeline
-// as legacy. They change only at events (an aura applying or expiring), and
-// the host says so by calling modifiersChanged() from that event. When neither
-// moved there is no re-base, so a fight with no modifier reads exactly
-// min(cap, e0 + rate * t). See docs/mechanics.md "Planned: event-queue engine
-// (Phase 3.5)".
+// through the resourceMax modifiers, both read from the fight's
+// ModifierPipeline. They change only at events (an aura applying or expiring),
+// and the host says so by calling modifiersChanged() from that event. When
+// neither moved there is no re-base, so a fight with no modifier reads exactly
+// min(cap, e0 + rate * t). See docs/mechanics.md "Event-queue engine (Phase
+// 3.5)".
 //
-// The pool counts what it loses to the cap as the legacy Resource does
+// The pool counts what it loses to the cap as the Resource does
 // (cappedTime, overflow, waste()), so a fight's end event reads the same
-// fields on either engine.
+// fields after the run.
 //
 // The pool also keeps one threshold wake-up: wakeAt(amount) schedules a
 // one-shot event (kind WAKE_KIND, order class "energy") at the time the value
@@ -69,7 +70,7 @@ export class EnergyPool {
   // base, context)); `scheduler` the core's Scheduler, whose now is the
   // pool's clock and which runs the threshold event. `value`, when given, is
   // the value at the scheduler's now in place of the definition's start (the
-  // event core takes a fight over from the legacy pool with it, #197).
+  // event core takes a fight over from the energy Resource with it, #197).
   // `baseMax` likewise replaces the definition's cap before modifiers (a
   // test's or the page's maxEnergy). `line`, { value0, t0 } with t0 no later
   // than now, goes on with the line of a pool an earlier run on the same
@@ -117,8 +118,9 @@ export class EnergyPool {
       this.#value0 = Math.min(line.value0, this.#cap);
       this.#t0 = line.t0;
     }
-    // As on the legacy Resource: onChange(change, before, source) after a
-    // gain or a spend that moved the value. Regeneration is not reported.
+    // As on the Resource (js/resource.js): onChange(change, before, source)
+    // after a gain or a spend that moved the value. Regeneration is not
+    // reported.
     this.onChange = null;
   }
 
@@ -222,7 +224,7 @@ export class EnergyPool {
   }
 
   // Nothing on energy expires: a proc that gains energy clears the pool's
-  // expiry as it does on the legacy Resource (js/procs.js), and here there is
+  // expiry as it does on the Resource (js/procs.js), and here there is
   // none to clear.
   clearExpiry() {}
 

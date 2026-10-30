@@ -1,8 +1,14 @@
 # Phase 3.5: event-queue engine
 
-Status: planned, not started. This is a proposal for James to review. No
-issues exist for it yet, and nothing here is scheduled until James decides it
-is. Phase 3 comes first and is not blocked by this document.
+Status: done through #199; the legacy engine is removed in #234 (tag
+`legacy-engine-final` on the last commit that had it). This page is the plan as
+written, with a "Landed in" note under each issue; the current engine is
+described in mechanics.md ("Simulation clock" and "Event-queue engine (Phase
+3.5)"), and the status list is in the roadmap ("Phase 3.5 status").
+
+Originally: planned, not started. This was a proposal for James to review. No
+issues existed for it yet, and nothing here was scheduled until James decided
+it was. Phase 3 came first and was not blocked by this document.
 
 This phase replaces the fixed-step core of `Simulation` with an event queue:
 time jumps from one event to the next instead of advancing in steps of
@@ -230,7 +236,7 @@ Done when: the harness runs under `npm run`, has a test, and the legacy
 self-comparison is exactly zero.
 Landed in #192: `npm run parity` (`scripts/parity.mjs`, tested in
 `test/parity.test.js`), and the time and ordering note in mechanics.md
-("Planned: event-queue engine (Phase 3.5)"). The scripted golden case runs its
+("Event-queue engine (Phase 3.5)"). The scripted golden case runs its
 config without its script (since #199 trimmed as the default config, the
 script itself left to #200), and a
 parity-only DoT case (`dot-hemorrhage-rupture-120s`) covers Rupture ticks.
@@ -248,7 +254,7 @@ Landed in #193: `js/core/scheduler.js`, tested in `test/scheduler.test.js`
 decisions last at one timestamp, the hard stop
 (`k("sim.maxEventsPerTimestamp")`, `k("sim.maxEventsPerSecond")`), and a
 runtime check that a legacy DoT's `tickInterval` is a finite number above 0
-(mechanics.md "Planned: event-queue engine (Phase 3.5)" and "Bleeds and
+(mechanics.md "Event-queue engine (Phase 3.5)" and "Bleeds and
 damage over time").
 
 **3. Continuous energy (E4).** The pool stores `(value0, t0, rate, cap)`, with
@@ -262,7 +268,7 @@ Landed in #194: `js/core/energy.js` (`EnergyPool`), tested in
 200 seeded runs across an Adrenaline Rush apply and expiry against Kira's #183
 chronological regen model. The host calls `modifiersChanged()` at a modifier
 event, and the threshold wake-up is one-shot, in the energy class (mechanics.md
-"Planned: event-queue engine (Phase 3.5)").
+"Event-queue engine (Phase 3.5)").
 
 **4. Swings, GCD, cooldowns, expiries (E4).** Done when: swing count over 60 s
 is the same at any query granularity and equals the exact count for the weapon
@@ -276,7 +282,7 @@ where the interval last changed) and `js/core/timers.js` (`Timer`,
 Premeditation's points), tested in `test/swing.test.js` and
 `test/timers.test.js`, including the same swings at any query granularity
 and against the legacy `Weapon.tick` with random haste changes (mechanics.md
-"Planned: event-queue engine (Phase 3.5)").
+"Event-queue engine (Phase 3.5)").
 
 **5. DoT ticks, procs, poisons (E5).** Done when: Rupture ticks land exactly
 every `k("rupture.tickInterval")` for its duration (a test that asserts
@@ -293,7 +299,7 @@ Rupture tick times, no stale tick after a refresh, a Hemorrhage window that
 ends at a tick, internal cooldowns, extra attacks and poisons on events, and
 200 seeds where the fight on events equals the legacy loop hit for hit
 for casts scripted at .125 s offsets, which never tie with a swing or a tick
-(three edges differ, listed in mechanics.md "Planned: event-queue engine (Phase 3.5)"). The shipped engine
+(three edges differ, listed in mechanics.md "Event-queue engine (Phase 3.5)"). The shipped engine
 runs it on the `"events"` engine from #197; the default stays legacy until
 #198 and #199.
 
@@ -365,6 +371,14 @@ reads it, and the step-only parts of `FrameClock` are gone; "Simulation clock",
 "Benchmark" and "Known limits of Phase 1" in mechanics.md describe the new
 engine; `npm run provenance` is clean; no constant is left with no reader; the
 bench is re-measured and its numbers written down.
+Landed in #234 (the first of three PRs; #200 closed into it): the fixed-step
+loop, `Simulation.step`, `k("sim.fixedStep")`, the `engine` option and the
+step-only parts of `FrameClock` are gone (`k("sim.maxFrameTime")` stays: the
+frame cap reads it). The parity gate is retired, since there is nothing left to
+compare: the final numbers and how to reproduce them from the tag are in
+mechanics.md ("Parity harness"), and the goldens plus the bench are the guard
+from here. Engine polish and the scripted finishers (finish on seeds 1-200,
+with their own golden) are the second and third PRs.
 
 Issues 3 to 5 each need their own tests, since the legacy tests mostly drive
 `step(dt)`. Where a test pins a rule (not a timing), port it to the new core.

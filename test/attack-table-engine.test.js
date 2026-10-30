@@ -4,6 +4,8 @@ import { CONSTANTS, k } from "../data/constants.js";
 import { createFight, runFight } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 // The Classic attack table (A7, #100) through the engine: the draws a swing and
 // a skill take, the position of the rogue (config.target.behind), and the crit
@@ -16,7 +18,7 @@ function source(id) {
 // A simulation whose rng returns the given values in turn and counts draws.
 function scripted(values, config) {
   const rogue = new Rogue(config);
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.critChance = 0.148; // 10% once the 4.8% suppression comes off
   rogue.bonusHitChance = 0;
   let draws = 0;
@@ -109,7 +111,7 @@ describe("the draws of a swing and a skill through the engine", () => {
         attackType: "skill",
         bleed: true,
       };
-      sim.step(interval);
+      runOnCore(sim, interval);
       return sim.combatLog[0].status;
     };
     assert.equal(tick(0.148, 0.099), "Crit");

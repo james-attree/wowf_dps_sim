@@ -4,15 +4,18 @@ import { afterEach, describe, it, mock } from "node:test";
 import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
-// Issue #72. The engine advances only through Simulation.step(dt), with dt in
-// seconds. It reads no clock, so two engines given the same seed and the same
-// steps end in the same state.
+// Issue #72. A fight advances only by seconds given to it (runOnCore here, the
+// event core's run; Simulation.step went with the fixed-step engine in #234).
+// It reads no clock, so two fights given the same seed and the same cuts end in
+// the same state.
 
 function fight(seed, steps) {
   const sim = new Simulation(new Rogue(), { seed });
   for (const dt of steps) {
-    sim.step(dt);
+    runOnCore(sim, dt);
   }
   return sim;
 }
@@ -41,7 +44,7 @@ function state(sim) {
   };
 }
 
-describe("Simulation.step", () => {
+describe("runOnCore, cut into steps", () => {
   afterEach(() => {
     mock.restoreAll();
   });
@@ -49,17 +52,17 @@ describe("Simulation.step", () => {
   it("adds the time step, in seconds, to currentTime", () => {
     const sim = new Simulation(new Rogue(), { seed: 1 });
     assert.equal(sim.currentTime, 0);
-    sim.step(0.25);
+    runOnCore(sim, 0.25);
     assert.equal(sim.currentTime, 0.25);
-    sim.step(1);
+    runOnCore(sim, 1);
     assert.equal(sim.currentTime, 1.25);
-    sim.step(0);
+    runOnCore(sim, 0);
     assert.equal(sim.currentTime, 1.25);
   });
 
-  it("takes no wall-clock timestamp: update and lastFrameTime are gone", () => {
+  it("takes no wall-clock timestamp: step, update and lastFrameTime are gone", () => {
     const sim = new Simulation(new Rogue(), { seed: 1 });
-    assert.equal(typeof sim.step, "function");
+    assert.equal(sim.step, undefined);
     assert.equal(sim.update, undefined);
     assert.equal("lastFrameTime" in sim, false);
   });
@@ -67,7 +70,7 @@ describe("Simulation.step", () => {
   it("refuses a step that is negative, NaN, infinite, or not a number", () => {
     for (const bad of [-0.001, NaN, Infinity, -Infinity, undefined, "1"]) {
       const sim = new Simulation(new Rogue(), { seed: 1 });
-      assert.throws(() => sim.step(bad), RangeError, String(bad));
+      assert.throws(() => runOnCore(sim, bad), RangeError, String(bad));
       assert.equal(sim.currentTime, 0, String(bad));
     }
   });
@@ -115,18 +118,14 @@ describe("Simulation.step", () => {
   it("gives the same state however a stretch of time is split into steps", () => {
     // Lands on the same boundaries: 10 s as 100 steps of 0.1 and as 10 of 1.
     // The fight is quiet, so only the timers and energy are compared.
-    const quiet = () => {
-      const rogue = new Rogue();
-      rogue.rotation = () => {};
-      return new Simulation(rogue, { seed: 5 });
-    };
-    const fine = quiet();
+    const quietFight = () => new Simulation(quiet(new Rogue()), { seed: 5 });
+    const fine = quietFight();
     for (const dt of repeat(100, 0.1)) {
-      fine.step(dt);
+      runOnCore(fine, dt);
     }
-    const coarse = quiet();
+    const coarse = quietFight();
     for (const dt of repeat(10, 1)) {
-      coarse.step(dt);
+      runOnCore(coarse, dt);
     }
     assert.ok(Math.abs(fine.currentTime - coarse.currentTime) < 1e-9);
     assert.ok(

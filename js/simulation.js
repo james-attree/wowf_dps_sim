@@ -10,26 +10,9 @@ import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
 import { damageTags } from "./damage-tags.js";
 import { EventStream, RingLog, SIM_EVENT_TYPES } from "./event-stream.js";
 import { DOT_REFRESH } from "./core/dots.js";
-import { ENGINES, runOnCore } from "./core/fight.js";
+import { runOnCore } from "./core/fight.js";
 import { ProcRunner } from "./procs.js";
 import { createRng, normalizeSeed } from "./rng.js";
-
-// Auras already running lose this step. One applied during rotation is not
-// in the map yet, so it keeps the duration it was given. Returns the auras
-// still up and, in the order they were applied, the ones that ran out.
-function tickAuras(auras, dt) {
-  const kept = {};
-  const expired = [];
-  for (const [id, aura] of Object.entries(auras)) {
-    aura.duration -= dt;
-    if (aura.duration > k("sim.tickEpsilon")) {
-      kept[id] = aura;
-    } else {
-      expired.push([id, aura]);
-    }
-  }
-  return { kept, expired };
-}
 
 // Bleeds (physical periodic damage) and nature damage ignore armor. Other
 // damage uses armor.mitigation. The event's tags say which it is
@@ -87,31 +70,7 @@ function readFightLength(fightLength) {
   return fightLength;
 }
 
-// The engine a Simulation runs on when its constructor is not told: events
-// (the event core, #199) unless a caller changed it with Simulation.useEngine.
-// The legacy fixed-step engine stays until #200 removes it.
-let defaultEngine = ENGINES.events;
-
-function readEngine(engine) {
-  if (!Object.values(ENGINES).includes(engine)) {
-    throw new RangeError(
-      `Unknown engine ${JSON.stringify(engine)}. Known: ${Object.values(ENGINES).join(", ")}.`,
-    );
-  }
-  return engine;
-}
-
 export class Simulation {
-  // Set the engine every Simulation built after this runs on, when its own
-  // options do not say, and return the one it replaces. For tests that run a
-  // whole test file on the event core (#197, test/core-engine-files.test.js);
-  // an app or a batch run passes its engine to the constructor instead.
-  static useEngine(engine) {
-    const previous = defaultEngine;
-    defaultEngine = readEngine(engine);
-    return previous;
-  }
-
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
   // rng.defaultSeed. The rogue draws from the same rng.
@@ -122,26 +81,16 @@ export class Simulation {
   // argument, so the host that runs the fight passes the same number to both
   // (createFight's options.duration; runFight and SimRunner do).
   //
-  // `engine` is how run() moves the fight on (ENGINES in js/core/fight.js):
-  // "legacy", fixed steps of k("sim.fixedStep") (the default), or "events",
-  // the Phase 3.5 event core (#197), which jumps from event to event and runs
-  // the rotation only at its decision points. step() is always a fixed step.
-  constructor(
-    rogue,
-    {
-      seed = k("rng.defaultSeed"),
-      rng,
-      fightLength,
-      engine = defaultEngine,
-    } = {},
-  ) {
+  // run() moves the fight on the event core (js/core/fight.js, #197), which
+  // jumps from event to event and runs the rotation only at its decision
+  // points. The fixed-step engine is gone (#234; tag legacy-engine-final).
+  constructor(rogue, { seed = k("rng.defaultSeed"), rng, fightLength } = {}) {
     this.rogue = rogue;
-    this.engine = readEngine(engine);
     // The event core while it runs this fight (js/core/fight.js), told where
-    // a DoT starts; null on the legacy engine.
+    // a DoT starts; null between runs.
     this.core = null;
     // What the last event core run on this fight left for the next one to go
-    // on from exactly (js/core/fight.js carry()); null on the legacy engine.
+    // on from exactly (js/core/fight.js carry()); null before the first run.
     this.coreCarry = null;
     this.fightLength = readFightLength(fightLength);
     this.seed = normalizeSeed(seed);
@@ -314,92 +263,12 @@ export class Simulation {
     return Object.freeze(waste);
   }
 
-  // Advance the fight by dt seconds. The engine reads no clock: the host
-  // (js/main.js live, a test or a batch runner headless) decides the step.
-  step(dt) {
-    if (!Number.isFinite(dt) || dt < 0) {
-      throw new RangeError(
-        `Simulation.step needs a finite time step in seconds, 0 or more. Got ${dt}.`,
-      );
-    }
-    // While a core is open (openCore, SimRunner on the events engine) the
-    // fight is the core's: energy is its continuous pool, and a step would
-    // move the clock under it.
-    if (this.core !== null && this.core !== undefined) {
-      throw new Error(
-        "Simulation.step cannot run while the event core holds this fight (openCore). Close the core run first.",
-      );
-    }
-    this.currentTime += dt;
-
-    // This step covers the interval that just ended. Read the auras before
-    // their countdown so the part of the step still inside an
-    // energyRegen aura (Adrenaline Rush) regenerates at the bonus rate,
-    // including the step it runs out.
-    this.regenerateResources(dt);
-
-    // Timers already running lose this step. A buff, debuff, or cooldown
-    // applied during rotation keeps its full duration until the next one.
-    const buffs = tickAuras(this.activeBuffs, dt);
-    const debuffs = tickAuras(this.activeDebuffs, dt);
-    this.activeBuffs = buffs.kept;
-    this.activeDebuffs = debuffs.kept;
-    // Expiry hooks run once both maps are settled, so a hook sees the fight
-    // as it is after this step's countdown.
-    for (const [id, aura] of [...buffs.expired, ...debuffs.expired]) {
-      const definition = this.auraDefinitions.get(id);
-      if (definition !== undefined) {
-        this.emitAura(definition, aura, "expire", { reason: "time" });
-      }
-      definition?.onExpire?.(this, aura);
-    }
-    this.cooldowns = Object.fromEntries(
-      Object.entries(this.cooldowns).map(([key, value]) => {
-        const remaining = value - dt;
-        return [key, remaining <= k("sim.tickEpsilon") ? 0 : remaining];
-      }),
-    );
-
-    this.tickGcd(dt);
-
-    // Handle existing DoTs before rotation so newly cast DoTs start ticking next update.
-    for (const [dotId, dot] of Object.entries(this.activeDots)) {
-      const elapsed = Math.min(dt, dot.duration);
-      dot.duration -= dt;
-      dot.timeUntilNextTick -= elapsed;
-
-      // A tick interval of 0 or less would tick forever at this time (#193).
-      // NaN and Infinity are refused too: they would never tick, silently.
-      if (!(dot.tickInterval > 0 && dot.tickInterval < Infinity)) {
-        throw new RangeError(
-          `DoT "${dotId}" has tick interval ${dot.tickInterval}; it must be a finite number of seconds above 0.`,
-        );
-      }
-      const dotContext = this.abilityContext(dotId, dot);
-      while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
-        this.resolveDotTick(dotId, dot, dotContext);
-        dot.timeUntilNextTick += dot.tickInterval;
-        this.procs.onDotTick(dotContext);
-      }
-
-      if (dot.duration <= k("sim.tickEpsilon")) {
-        delete this.activeDots[dotId];
-      }
-    }
-
-    // Points already counting down lose this step (Premeditation). A cast
-    // during rotation keeps the full premeditation.cpExpiry until the next one.
-    this.rogue.tickResources(dt);
-
-    this.rogue.rotation(this, dt);
-  }
-
   // One tick of the DoT `dot` (an activeDots entry) under `dotId`: an aura on
   // the target that raises the DoT's damage (Hemorrhage on Rupture), the
   // per-tick crit roll, armor (a bleed skips it), the fight totals and the
-  // log. `dotContext` is abilityContext(dotId, dot). The caller moves the
-  // tick clock and then fires the tick's procs (procs.onDotTick): step() does
-  // for the legacy engine, the core's dot-tick handler for the new one (#196).
+  // log. `dotContext` is abilityContext(dotId, dot). The caller (the core's
+  // dot-tick handler, #196) moves the tick clock and then fires the tick's
+  // procs (procs.onDotTick).
   resolveDotTick(dotId, dot, dotContext) {
     let dotTickDamage = dot.tickDamage;
 
@@ -455,104 +324,24 @@ export class Simulation {
     );
   }
 
-  // Run the fight for `duration` seconds in fixed steps of k("sim.fixedStep"),
-  // then one shorter step for what is left, so the fight ends exactly
-  // `duration` after it started. This is the headless entry point: the same
-  // seed and the same calls give the same fight. A split that lands on a step
-  // boundary gives the same fight as one long call. A split inside a step
-  // does not, because the short step at the end of the call is a step of its
-  // own.
-  //
-  // On the "events" engine the same duration is run on the event core
-  // instead (runOnCore, js/core/fight.js): the fight ends `duration` after it
-  // started, and a split anywhere, on an event's time or between two, gives
-  // the same fight as one long call (#198, from #197 QA M1). Each call keeps
-  // the fight's clock and goes on from the exact state the last one left
-  // (sim.coreCarry); only the core's counts (coreStats) see the split. A
-  // host that hands the fight time in pieces can also hold one core open
-  // (openCore, as SimRunner does since #198).
+  // Run the fight for `duration` seconds on the event core (runOnCore,
+  // js/core/fight.js), then end it. This is the headless entry point: the same
+  // seed and the same calls give the same fight. The fight ends `duration`
+  // after it started, and a split anywhere, on an event's time or between two,
+  // gives the same fight as one long call (#198, from #197 QA M1). Each call
+  // keeps the fight's clock and goes on from the exact state the last one left
+  // (sim.coreCarry); only the core's counts (coreStats) see the split. A host
+  // that hands the fight time in pieces can also hold one core open (openCore,
+  // as SimRunner does since #198), or call runOnCore itself to move the fight
+  // on without ending it.
   run(duration) {
     if (!Number.isFinite(duration) || duration < 0) {
       throw new RangeError(
         `Simulation.run needs a finite duration in seconds, 0 or more. Got ${duration}.`,
       );
     }
-    if (this.engine === ENGINES.events) {
-      runOnCore(this, duration);
-      this.end();
-      return;
-    }
-    const stepSize = k("sim.fixedStep");
-    // The step is a power of two, so this division is exact and `leftover`
-    // is the exact remainder, never a rounding artefact.
-    const wholeSteps = Math.floor(duration / stepSize);
-    for (let index = 0; index < wholeSteps; index++) {
-      this.step(stepSize);
-    }
-    const leftover = duration - wholeSteps * stepSize;
-    if (leftover > 0) {
-      this.step(leftover);
-    }
+    runOnCore(this, duration);
     this.end();
-  }
-
-  // Regenerate every resource that has a regen rule (energy) over a step of dt
-  // seconds. The base rate holds for the part of the step no timed modifier of
-  // the rule's kind covers. Each such modifier (Adrenaline Rush's) changes the
-  // rate for the part of the step its aura was still up, so the pieces are cut
-  // where an aura runs out. One aura gives two pieces, in order of time: the
-  // boosted rate while the aura is up, then the base rate (#155). Static modifiers (a talent) apply to every piece. The rate is
-  // combined through the pipeline, so a flat bonus and a multiplier stack as
-  // modifiers.stacking says.
-  regenerateResources(dt) {
-    const { resources } = this.rogue;
-    for (const id in resources) {
-      if (resources[id].definition.regen !== undefined) {
-        this.regenerateResource(resources[id], dt);
-      }
-    }
-  }
-
-  regenerateResource(pool, dt) {
-    const { perSecond, modifier } = pool.definition.regen;
-    const base = k(perSecond);
-    const all = this.modifiers.contributions(modifier);
-    if (all.length === 0) {
-      pool.regenerate(dt, base);
-      return;
-    }
-    // A timed contribution (Adrenaline Rush) covers the start of the step,
-    // up to the moment it runs out, so the step is regenerated in order of
-    // time (#155): first with every contribution, then without each as it
-    // runs out, the shortest first, and the rest at the rate the untimed ones
-    // leave. Order matters to the cap: the pool reaches it at the right
-    // moment, and its cappedTime counts the right part of the step. Each
-    // segment combines the same contributions in the same order (untimed,
-    // then timed from the longest) as before, so the rates are unchanged.
-    const applied = all.filter(({ duration }) => duration === Infinity);
-    const timed = all
-      .filter(({ duration }) => duration !== Infinity)
-      .map((contribution) => ({
-        contribution,
-        covered: Math.min(dt, contribution.duration),
-      }))
-      .sort((a, b) => b.covered - a.covered);
-    let elapsed = 0;
-    for (let last = timed.length - 1; last >= 0; last -= 1) {
-      const { covered } = timed[last];
-      const active = applied.concat(
-        timed.slice(0, last + 1).map(({ contribution }) => contribution),
-      );
-      pool.regenerate(
-        covered - elapsed,
-        this.modifiers.combine(modifier, base, active),
-      );
-      elapsed = covered;
-    }
-    pool.regenerate(
-      dt - elapsed,
-      this.modifiers.combine(modifier, base, applied),
-    );
   }
 
   // Put an aura up. `duration` (seconds) defaults to the definition's; a
@@ -872,12 +661,6 @@ export class Simulation {
     this.gcd = this.gcdDuration;
   }
 
-  tickGcd(dt) {
-    if (this.gcd > 0) {
-      this.gcd = Math.max(0, this.gcd - dt);
-    }
-  }
-
   updateDamage(d) {
     this.damageDone += d;
   }
@@ -1000,8 +783,8 @@ export class Simulation {
   // landed application refreshes the DoT to `duration` and keeps its tick
   // clock (wowsims ApplyOrRefresh: the aura is refreshed, the ticks go on), and
   // each tick is the stacks × tickDamage. The application deals no damage and
-  // is logged like a DoT cast (0 damage; Hit or Resist). The ticks are in
-  // step(), or on the core's dot-tick events (js/core/dots.js, #196).
+  // is logged like a DoT cast (0 damage; Hit or Resist). The ticks are
+  // the core's dot-tick events (js/core/dots.js, #196).
   resolveProcDot({
     id,
     name,

@@ -6,6 +6,8 @@ import { poisonCatalogue, poisonProcs } from "../js/poisons.js";
 import { defineProc } from "../js/procs.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 // Instant and Deadly Poison through the proc pipeline (A5, #105).
 
@@ -29,7 +31,7 @@ function harness({ poisons, rolls, seed = 1, modifiers, procs, weapons }) {
   const rogue = new Rogue({ poisons, weapons }, { modifiers, procs });
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
-  rogue.rotation = () => {};
+  quiet(rogue);
   const tape = rolls === undefined ? null : scripted(rolls);
   const sim = new Simulation(rogue, tape ? { rng: tape.rng } : { seed });
   return { rogue, sim, tape };
@@ -526,7 +528,7 @@ describe("which attacks roll a poison", () => {
     rogue.resources.comboPoints.gain(5);
     skill(rogue, "rupture").cast(rogue, sim);
     for (let i = 0; i < 10; i++) {
-      sim.step(2);
+      runOnCore(sim, 2);
     }
     assert.equal(rolls(sim, "mainHand"), 0);
     assert.equal(rolls(sim, "offHand"), 0);
@@ -555,7 +557,7 @@ describe("Deadly Poison", () => {
     const times = [];
     for (let at = 0; at < 14; at++) {
       const before = sim.abilityStats["deadly-poison"].ticks;
-      sim.step(1);
+      runOnCore(sim, 1);
       if (sim.abilityStats["deadly-poison"].ticks > before) {
         times.push(at + 1);
       }
@@ -602,7 +604,7 @@ describe("Deadly Poison", () => {
       rolls: [HIT, 0.1, 0.5, HIT, 0.1, 0.5, NO_CRIT, NO_CRIT],
     });
     swing(sim);
-    sim.step(1);
+    runOnCore(sim, 1);
     assert.equal(sim.activeDots["deadly-poison"].duration, 11);
     swing(sim);
     const dot = sim.activeDots["deadly-poison"];
@@ -610,10 +612,10 @@ describe("Deadly Poison", () => {
     assert.equal(sim.activeDebuffs["deadly-poison"].duration, 12);
     assert.equal(dot.timeUntilNextTick, 2, "the next tick is still at 3 s");
     assert.equal(dot.tickDamage, 46);
-    sim.step(2);
+    runOnCore(sim, 2);
     assert.equal(sim.abilityStats["deadly-poison"].ticks, 1);
     assert.equal(sim.abilityStats["deadly-poison"].damage, 46);
-    sim.step(3);
+    runOnCore(sim, 3);
     assert.equal(sim.abilityStats["deadly-poison"].ticks, 2);
     assert.equal(sim.activeDots["deadly-poison"].duration, 7);
   });
@@ -639,7 +641,7 @@ describe("Deadly Poison", () => {
       rolls: [HIT, 0.1, 0.5, NO_CRIT],
     });
     swing(hit.sim);
-    hit.sim.step(3);
+    runOnCore(hit.sim, 3);
     assert.equal(hit.sim.abilityStats["deadly-poison"].damage, 23);
     // A tick crit: the crit roll is below the chance, and the damage is 2x.
     const crit = harness({
@@ -648,7 +650,7 @@ describe("Deadly Poison", () => {
     });
     crit.rogue.critChance = 0.5;
     swing(crit.sim);
-    crit.sim.step(3);
+    runOnCore(crit.sim, 3);
     assert.equal(crit.sim.abilityStats["deadly-poison"].damage, 23 * 2);
     assert.equal(crit.sim.abilityStats["deadly-poison"].tickCrits, 1);
   });
@@ -712,7 +714,7 @@ describe("modifiers and tags on the poisons", () => {
         rolls: [HIT, 0.1, 0.5, 0.5],
       });
       swing(sim);
-      sim.step(3);
+      runOnCore(sim, 3);
       return sim.combatLog[0].status;
     };
     assert.equal(status("poison"), "Crit");
@@ -745,7 +747,7 @@ describe("modifiers and tags on the poisons", () => {
     swing(sim);
     assert.equal(tape.left(), 1);
     assert.equal(sim.activeDots["test-dot"].tickDamage, 10);
-    sim.step(2);
+    runOnCore(sim, 2);
     // Physical, so it took armor: one stack of 10 is under 10, two would not be.
     const damage = sim.abilityStats["test-dot"].damage;
     assert.ok(damage > 0 && damage < 10, `${damage}`);

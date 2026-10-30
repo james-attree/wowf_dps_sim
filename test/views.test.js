@@ -19,6 +19,8 @@ import {
   logRowSpoken,
   timedEffectReading,
 } from "../js/views/visualiser.js";
+import { runOnCore } from "../js/core/fight.js";
+import { POLL_STEP } from "./poll-step.js";
 
 // Issue #149 (U1). The views js/main.js hands the store to: each owns its own
 // part of the page and no other, draws only when its slices change, and talks
@@ -383,12 +385,8 @@ describe("page views", () => {
     store.set({ rotation: [] });
     assert.equal(energy.writes, before);
 
-    for (
-      let step = 0;
-      step < k("sim.maxFrameTime") / k("sim.fixedStep");
-      step++
-    ) {
-      fight.simulation.step(k("sim.fixedStep"));
+    for (let step = 0; step < k("sim.maxFrameTime") / POLL_STEP; step++) {
+      runOnCore(fight.simulation, POLL_STEP);
     }
     store.update(({ frame }) => ({ frame: frame + 1, ...feed.read() }));
     assert.equal(energy.writes, before + 1);

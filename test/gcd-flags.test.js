@@ -5,6 +5,7 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { COMBAT_GRANTS } from "./combat-grants.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
 
 const FRAME_RATES = [30, 144];
 
@@ -127,25 +128,27 @@ describe("gcd.flags", () => {
     assert.equal(alone.rogue.comboPoints, k("premeditation").comboPoints);
   });
 
-  it("casts Blade Flurry on the opening frame and holds the next on-GCD cast", () => {
+  it("casts Blade Flurry at 0 and holds the next on-GCD cast", () => {
     setRoll(0.5);
     for (const fps of FRAME_RATES) {
       // Granted: the untalented default casts no Blade Flurry (#199).
       const rogue = new Rogue(undefined, COMBAT_GRANTS);
       const sim = new Simulation(rogue, { rng: testRng });
       assert.equal(sim.currentTime, 0);
-      sim.step(1 / fps);
+      runOnCore(sim, 1 / fps);
 
-      assert.equal(sim.gcd, k("gcd.duration"), `${fps} fps`);
+      // Cast at 0 on the core: one frame of the GCD and the buff has run.
+      const near = (actual, expected) =>
+        assert.ok(Math.abs(actual - expected) < 1e-9, `${fps} fps`);
+      near(sim.gcd, k("gcd.duration") - 1 / fps);
       assert.equal(
         rogue.comboPoints,
         k("character.startingComboPoints"),
         `${fps} fps`,
       );
-      assert.equal(
+      near(
         sim.activeBuffs["blade-flurry"].duration,
-        k("bladeFlurry").duration,
-        `${fps} fps`,
+        k("bladeFlurry").duration - 1 / fps,
       );
       assert.equal(sim.cooldowns.premeditation, undefined, `${fps} fps`);
       assert.equal(sim.activeBuffs["adrenaline-rush"], undefined, `${fps} fps`);

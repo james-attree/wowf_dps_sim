@@ -109,7 +109,7 @@ export class Rogue {
       Object.values(this.abilities).map((ability) => [ability.id, ability]),
     );
     // The rotation the fight casts from (config.rotation, R3 #140), checked
-    // and compiled once here. rotation() asks the interpreter what to cast.
+    // and compiled once here. castRotation() asks the interpreter what to cast.
     this.rotationProgram = compileRotation(this.config.rotation);
     // The host of the current Simulation, built at the first decision point.
     this.rotationHostFor = null;
@@ -213,16 +213,6 @@ export class Rogue {
     this.resources.comboPoints.clearExpiry();
   }
 
-  // Count every resource's timed expiry down. The simulation steps it where it
-  // always stepped Premeditation, before the rotation.
-  tickResources(dt) {
-    const { resources } = this;
-    for (const id in resources) {
-      resources[id].clamp();
-      resources[id].tick(dt);
-    }
-  }
-
   // Character stats are read through these accessors.
   // The stat as the character has it, through the modifier pipeline. The
   // context says which attack is asking (Simulation.attackContext); without
@@ -262,11 +252,12 @@ export class Rogue {
   // What to cast at this decision point: the interpreter walks the rotation
   // (this.config.rotation, js/rotation-interpreter.js) and casts through the
   // host (js/rotation-host.js). The default is the placeholder Combat list
-  // (js/rotation-default.js). The haste and the white swings below are not
-  // part of the rotation. Returns what decide gives ({ casts, outcome }),
-  // which the event core counts (js/core/fight.js).
+  // (js/rotation-default.js). The haste and the white swings are not part of
+  // the rotation: the core's swing timers run them (js/core/swing.js). Returns
+  // what decide gives ({ casts, outcome }), which the event core counts
+  // (js/core/fight.js).
   castRotation(simulation) {
-    // One host per simulation, not one per step: the host holds no state of
+    // One host per simulation, not one per decision: the host holds no state of
     // its own, so a Rogue that moves to another Simulation builds a new one.
     // The fight length is the Simulation's (#191): what createFight was told,
     // or null, which fightTimeRemaining reads as Infinity.
@@ -277,24 +268,5 @@ export class Rogue {
       });
     }
     return decide(this.rotationProgram, this.rotationHostObject);
-  }
-
-  rotation(simulation, dt) {
-    this.castRotation(simulation);
-
-    // Whatever gives haste (Slice and Dice, Blade Flurry, a talent) shortens
-    // the next swing of both weapons. haste.stacking chooses the product or
-    // the sum. A swing already counting down keeps its remaining time.
-    // wowsims rescales that swing. The pipeline names no source: the haste
-    // modifiers of the auras that are up combine in registry order, each
-    // stack applying again.
-    const hasteMultiplier = simulation.modifiers.resolve("haste", 1);
-
-    this.weapons.mainHand.tick(dt, hasteMultiplier, (weapon) => {
-      simulation.resolveAttack(weapon.attack, "weapon", weapon.rollDamage());
-    });
-    this.weapons.offHand.tick(dt, hasteMultiplier, (weapon) => {
-      simulation.resolveAttack(weapon.attack, "weapon", weapon.rollDamage());
-    });
   }
 }

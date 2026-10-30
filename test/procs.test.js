@@ -17,6 +17,8 @@ import {
 import { createResources } from "../js/resource.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 // A scripted rng: each draw takes the next value, and a draw past the end
 // throws, so a test sees exactly how many draws a path takes.
@@ -38,7 +40,7 @@ function harness({ procs = [], rolls, config, seed = 1 } = {}) {
   const rogue = new Rogue(config, { procs });
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
-  rogue.rotation = () => {};
+  quiet(rogue);
   const tape = rolls === undefined ? null : scripted(rolls);
   const sim = new Simulation(rogue, tape ? { rng: tape.rng } : { seed });
   return { rogue, sim, tape };
@@ -472,12 +474,12 @@ describe("triggers", () => {
       "a DoT application is not a hit",
     );
     const interval = k("rupture.tickInterval");
-    sim.rogue.rotation = () => {};
+    quiet(sim.rogue);
     rogue.energy = 0;
-    sim.step(interval);
+    runOnCore(sim, interval);
     assert.equal(sim.procs.stats.tick.rolls, 1);
     assert.equal(sim.procs.stats.tick.fires, 1);
-    sim.step(interval);
+    runOnCore(sim, interval);
     assert.equal(sim.procs.stats.tick.rolls, 2);
     assert.equal(sim.procs.stats.tick.fires, 1);
     assert.equal(sim.procs.stats.hit.rolls, 0, "a tick is not a hit");
@@ -719,7 +721,7 @@ describe("actions", () => {
       const rogue = new Rogue(undefined, { procs: [strike], ...options });
       rogue.bonusHitChance = 1;
       rogue.critChance = 0;
-      rogue.rotation = () => {};
+      quiet(rogue);
       const sim = new Simulation(rogue, { rng: scripted([HIT, 0]).rng });
       swing(sim);
       return sim.abilityStats[id].damage;
@@ -1029,10 +1031,10 @@ describe("the #120 follow-ups", () => {
     rogue.abilities.adrenalineRush.cast(rogue, sim);
     assert.equal(points.value, k("combo.max") + 3);
     // ...and the step after it brings the pool down to the cap.
-    sim.step(0.1);
+    runOnCore(sim, 0.1);
     assert.equal(points.value, k("combo.max"));
     points.value = 1;
-    sim.step(0.1);
+    runOnCore(sim, 0.1);
     assert.equal(points.value, 1);
     rogue.resources.energy.value = 0;
     rogue.resources.energy.clamp();

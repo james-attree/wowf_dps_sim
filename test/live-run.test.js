@@ -4,20 +4,16 @@ import { k } from "../data/constants.js";
 import { pageDefaultConfig } from "../js/config-form.js";
 import { runFight } from "../js/fight.js";
 import { createLiveRun } from "../js/live-run.js";
-import { SimRunner } from "../js/sim-runner.js";
 import { createStore } from "../js/store.js";
 
 // Issue #153 (PR 1). The contract tests for the live page's run: a SimRunner
 // driven by animation frames and mirrored into the store. They drive the
 // frames by hand and read the store and the runner's result, never a step.
 
-const STEP = k("sim.fixedStep");
 const CAP_MS = k("sim.maxFrameTime") * k("sim.msPerSecond");
 const SEED = 4242;
 const DURATION = 3; // seconds: a short fight keeps these quick
 const config = pageDefaultConfig();
-// legacy, or events when a wrapper file set the default (#198).
-const ENGINE = new SimRunner({ seed: 1, duration: 1 }).engine;
 
 function setup() {
   const store = createStore({
@@ -104,17 +100,11 @@ describe("createLiveRun (#153)", () => {
     assert.equal(store.get().results.time, 0, "the first frame takes no step");
     assert.equal(store.get().frame, 2);
     tick(1000 / 60);
-    if (ENGINE === "events") {
-      // The frame's own time on the event core (#198), as the clock reads
-      // it from the millisecond timestamps.
-      const time = store.get().results.time;
-      assert.ok(Math.abs(time - 1 / 60) < 1e-9, `${time}`);
-      assert.equal(live.fight().simulation.currentTime, time);
-    } else {
-      // One whole step on legacy.
-      assert.equal(store.get().results.time, STEP);
-      assert.equal(live.fight().simulation.currentTime, STEP);
-    }
+    // The frame's own time on the event core (#198), as the clock reads it
+    // from the millisecond timestamps.
+    const time = store.get().results.time;
+    assert.ok(Math.abs(time - 1 / 60) < 1e-9, `${time}`);
+    assert.equal(live.fight().simulation.currentTime, time);
   });
 
   it("finishes at the duration with runFight's result, and stops asking for frames", () => {

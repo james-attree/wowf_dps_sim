@@ -68,7 +68,7 @@ function resourcesView(rogue, simulation) {
 // serves every view of a fight: the value, the cap and the regeneration rate
 // are worked out (through the modifiers, for the last two) when read. It looks
 // the pool up on the rogue each time, so a host that swaps a pool in (the
-// event core puts its continuous energy pool in place of the legacy one,
+// event core puts its continuous energy pool in place of the energy Resource,
 // #197) is read from then on.
 class LazyResource {
   #resources;

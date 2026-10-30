@@ -1,10 +1,10 @@
-// DoT ticks for the Phase 3.5 core (E5, #196). Not used by the legacy engine,
-// which counts each DoT down per step (Simulation.step, timeUntilNextTick).
+// DoT ticks for the Phase 3.5 core (E5, #196). The fixed-step engine that
+// counted each DoT down per step was removed in #234.
 //
 // One DoT per id keeps one pending tick event (kind DOT_TICK_KIND, order class
 // "dot-tick", payload { id }). The host's handler calls ticked(event), which
 // schedules the next tick, and then runs the tick body
-// (Simulation.resolveDotTick, then procs.onDotTick), as legacy does. A refresh
+// (Simulation.resolveDotTick, then procs.onDotTick). A refresh
 // from the tick's own procs therefore replaces the tick just scheduled.
 //
 // Times are anchored: the n-th tick is at anchor + n * interval, never the
@@ -12,17 +12,17 @@
 // t + 2i, and so on. Two refresh rules, by what applied the DoT:
 //   restart     a cast DoT (Rupture, Simulation.resolveDotAttack). The anchor
 //               is now and the ticks are n = 1 to floor(duration / interval),
-//               the count legacy splits the damage over. Any tick of the old
+//               the count the damage is split over. Any tick of the old
 //               application is cancelled, so none is left stale.
 //   keep-clock  a DoT a proc applies (Simulation.resolveProcDot, wowsims
 //               ApplyOrRefresh). While it is running, the tick clock goes on
 //               and only the end moves, to now + duration. Ticks go on while
 //               anchor + n * interval is no more than
 //               k("sim.tickEpsilon") past the end. When it is not running, it
-//               starts fresh, as legacy does when the DoT has gone.
+//               starts fresh, as a DoT that has gone does.
 // A DoT is running while more than k("sim.tickEpsilon") is left before its
-// end, as legacy keeps it in activeDots. See docs/mechanics.md "Planned:
-// event-queue engine (Phase 3.5)".
+// end, and it is kept in activeDots that long. See docs/mechanics.md
+// "Event-queue engine (Phase 3.5)".
 //
 // Damage, snapshots and stacks stay with the host (the activeDots entry).
 //
@@ -67,13 +67,13 @@ export class DotTicks {
   // tick event, or null when no tick fits in the duration. `nextTickIn` is
   // for a DoT that was already ticking before the core took the fight over
   // (js/core/fight.js): it starts afresh with its first tick that many
-  // seconds from now and ticks up to its end, as a legacy entry does.
+  // seconds from now and ticks up to its end.
   apply(
     id,
     { interval, duration, refresh = DOT_REFRESH.restart, nextTickIn } = {},
   ) {
     checkId(id);
-    // The legacy rule (#193): 0 or less would tick forever at one time, and
+    // The rule since #193: 0 or less would tick forever at one time, and
     // NaN or Infinity would never tick, silently. A string is refused too.
     if (!(
       typeof interval === "number" &&
@@ -108,8 +108,7 @@ export class DotTicks {
       running.endsAt = now + duration;
       running.lastTick = null;
       // The pending tick stays (its place among ticks at one time too),
-      // unless the new end comes before it, as legacy's entry would run out
-      // first.
+      // unless the new end comes before it: the DoT runs out first.
       if (running.event?.state !== "pending") {
         this.#scheduleNext(running);
       } else if (!this.#fits(running, running.event.time)) {

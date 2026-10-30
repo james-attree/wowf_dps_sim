@@ -15,6 +15,7 @@ import {
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { quiet } from "./quiet.js";
 
 function withConstant(id, value, run) {
   const row = CONSTANTS[id];
@@ -33,7 +34,7 @@ function pipeline(...specs) {
 
 function fresh(modifiers, config) {
   const rogue = new Rogue(config, { modifiers });
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.critChance = 0;
   rogue.bonusHitChance = 0;
   const sim = new Simulation(rogue, { rng: testRng });
@@ -657,7 +658,7 @@ describe("modifiers at the engine's hooks", () => {
         ],
       },
     );
-    rogue.rotation = () => {};
+    quiet(rogue);
     rogue.critChance = 0;
     rogue.bonusHitChance = 1;
     const sim = new Simulation(rogue, { rng: testRng });

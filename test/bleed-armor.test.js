@@ -5,6 +5,8 @@ import { AURAS } from "../js/auras.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { runOnCore } from "../js/core/fight.js";
+import { quiet } from "./quiet.js";
 
 const TICK_DAMAGE = 100;
 // 0.9 * attack.rollScale lands in the hit band for a white swing and a yellow
@@ -58,7 +60,7 @@ const NAMES = {
 
 function tickDot(id, { hemorrhage = false, bleed = false, critChance } = {}) {
   const rogue = new Rogue();
-  rogue.rotation = () => {};
+  quiet(rogue);
   if (critChance !== undefined) {
     rogue.critChance = critChance;
   }
@@ -79,14 +81,14 @@ function tickDot(id, { hemorrhage = false, bleed = false, critChance } = {}) {
   if (hemorrhage) {
     sim.applyAura(AURAS.hemorrhage);
   }
-  sim.step(tickInterval);
+  runOnCore(sim, tickInterval);
   return sim;
 }
 
 function directHit(id, attackType) {
   setRoll(HIT_ROLL);
   const rogue = new Rogue();
-  rogue.rotation = () => {};
+  quiet(rogue);
   rogue.critChance = 0;
   const sim = new Simulation(rogue, { rng: testRng });
   const result = sim.resolveAttack(
@@ -269,7 +271,7 @@ describe("bleed ticks and armor", () => {
   it("keeps a cast Rupture tick at its pre-armor snapshot", () => {
     setRoll(HIT_ROLL);
     const rogue = new Rogue();
-    rogue.rotation = () => {};
+    quiet(rogue);
     rogue.critChance = 0;
     rogue.comboPoints = k("combo.max");
     rogue.energy = k("energy.max");
@@ -285,7 +287,7 @@ describe("bleed ticks and armor", () => {
     const dot = sim.activeDots.rupture;
     assert.equal(dot.bleed, true);
     assert.equal(dot.tickDamage, Math.floor(raw) / ticks);
-    sim.step(k("rupture.tickInterval"));
+    runOnCore(sim, k("rupture.tickInterval"));
     assert.equal(sim.damageDone, dot.tickDamage);
     assert.ok(sim.damageDone > 0);
     assert.ok(sim.damageDone > dot.tickDamage * expectedMultiplier());

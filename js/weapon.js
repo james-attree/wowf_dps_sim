@@ -59,20 +59,10 @@ export class Weapon {
     this.attack = WEAPON_ATTACKS[hand];
     // 'dagger' selects the dagger weapon percent. Any other type does not.
     this.type = type;
-    this.swingTimer = 0; // seconds until the next swing; 0 means one is due
-  }
-
-  tick(dt, hasteMultiplier, onSwingTriggered) {
-    const interval = this.speed / hasteMultiplier;
-    this.swingTimer -= dt;
-    // A step can cover several swings. Time past each one stays on the timer,
-    // so the next swing is not delayed by a full interval.
-    if (interval > 0) {
-      while (this.swingTimer <= k("sim.tickEpsilon")) {
-        onSwingTriggered(this);
-        this.swingTimer += interval;
-      }
-    }
+    // Seconds until the next swing; 0 means one is due. The event core's
+    // SwingTimer (js/core/swing.js) reads it at a run's start and writes it
+    // back at its close.
+    this.swingTimer = 0;
   }
 
   rollWeaponDamage() {

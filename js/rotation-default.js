@@ -17,10 +17,9 @@ import { ROTATION_SCHEMA_VERSION } from "./rotation-schema.js";
 // rotation.pooling.recastSeconds left, or when it has at most
 // rotation.pooling.windowSeconds left and energy is full. They replace the
 // single rule the default had before #155 (recast at
-// rotation.sliceAndDiceRefreshSeconds left), which test/legacy-rotation.js
-// keeps as the code rotation. Only those rules changed: Eviscerate and the
-// builder are as before, and Cold Blood still waits while Slice and Dice has
-// rotation.sliceAndDiceRefreshSeconds or less left.
+// rotation.sliceAndDiceRefreshSeconds left). Only those rules changed:
+// Eviscerate and the builder are as before, and Cold Blood still waits while
+// Slice and Dice has rotation.sliceAndDiceRefreshSeconds or less left.
 //
 // Blade Flurry and Adrenaline Rush start the GCD (gcd.flags), so an on-GCD rule
 // that holds but cannot be cast holds the walk (docs/rotation.md). The code
