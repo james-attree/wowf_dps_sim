@@ -14,6 +14,10 @@
 // min(cap, e0 + rate * t). See docs/mechanics.md "Planned: event-queue engine
 // (Phase 3.5)".
 //
+// The pool counts what it loses to the cap as the legacy Resource does
+// (cappedTime, overflow, waste()), so a fight's end event reads the same
+// fields on either engine.
+//
 // The pool also keeps one threshold wake-up: wakeAt(amount) schedules a
 // one-shot event (kind WAKE_KIND, order class "energy") at the time the value
 // first reaches the amount, and every re-base moves it. The rotation (E6)
@@ -53,12 +57,20 @@ export class EnergyPool {
   #cap;
   #wakeAmount = null;
   #wake = null;
+  // The waste of the pieces before the current one (the current one is
+  // counted when it ends, or when waste() reads it).
+  #cappedTime = 0;
+  #overflow = 0;
 
   // `definition` is a row of js/resource-data.js with a regen rule;
   // `modifiers` the rogue's ModifierPipeline (or anything with resolve(kind,
   // base, context)); `scheduler` the core's Scheduler, whose now is the
-  // pool's clock and which runs the threshold event.
-  constructor({ definition, modifiers, scheduler } = {}) {
+  // pool's clock and which runs the threshold event. `value`, when given, is
+  // the value at the scheduler's now in place of the definition's start (the
+  // event core takes a fight over from the legacy pool with it, #197).
+  // `baseMax` likewise replaces the definition's cap before modifiers (a
+  // test's or the page's maxEnergy).
+  constructor({ definition, modifiers, scheduler, value, baseMax } = {}) {
     if (definition?.regen === undefined) {
       throw new RangeError(
         `EnergyPool needs a resource definition with a regen rule. "${String(definition?.id)}" has none.`,
@@ -77,12 +89,14 @@ export class EnergyPool {
     this.modifiers = modifiers;
     this.maxContext = Object.freeze({ resource: definition.id });
     // The cap and the rate before modifiers.
-    this.baseMax = k(definition.max);
+    this.baseMax = baseMax ?? k(definition.max);
     this.baseRate = k(definition.regen.perSecond);
     this.#scheduler = scheduler;
     this.#rate = this.#readRate();
     this.#cap = this.#readCap();
-    this.#value0 = Math.min(startValue(definition.start), this.#cap);
+    const start = value ?? startValue(definition.start);
+    checkAmount(definition, "start at", start);
+    this.#value0 = Math.min(start, this.#cap);
     this.#t0 = scheduler.now;
     // As on the legacy Resource: onChange(change, before, source) after a
     // gain or a spend that moved the value. Regeneration is not reported.
@@ -130,8 +144,24 @@ export class EnergyPool {
     return this.value >= amount;
   }
 
+  // The time the current piece spends at the cap up to `time`, and what it
+  // would have regenerated in that time.
+  #pieceWaste(time) {
+    if (this.#rate === 0) {
+      return { capped: this.#value0 >= this.#cap ? time - this.#t0 : 0 };
+    }
+    const reach =
+      this.#value0 >= this.#cap
+        ? this.#t0
+        : this.#t0 + (this.#cap - this.#value0) / this.#rate;
+    return { capped: Math.max(0, time - reach) };
+  }
+
   // Start a new piece of the line at now from `value0`, and move the wake-up.
   #rebase(value0) {
+    const { capped } = this.#pieceWaste(this.#scheduler.now);
+    this.#cappedTime += capped;
+    this.#overflow += capped * this.#rate;
     this.#value0 = value0;
     this.#t0 = this.#scheduler.now;
     this.#placeWake();
@@ -148,6 +178,7 @@ export class EnergyPool {
     checkAmount(this.definition, "gain", amount);
     const before = this.value;
     const after = Math.min(before + amount, this.#cap);
+    this.#overflow += before + amount - after;
     this.#rebase(after);
     this.#report("gain", before, source);
     return after - before;
@@ -168,6 +199,22 @@ export class EnergyPool {
     this.#rebase(0);
     this.#report("spend", spent, source);
     return spent;
+  }
+
+  // Nothing on energy expires: a proc that gains energy clears the pool's
+  // expiry as it does on the legacy Resource (js/procs.js), and here there is
+  // none to clear.
+  clearExpiry() {}
+
+  // What the pool lost to its cap so far, as Resource#waste: the seconds it
+  // spent at the cap and the energy it would have gained in them, plus what a
+  // gain could not add.
+  waste() {
+    const { capped } = this.#pieceWaste(this.#scheduler.now);
+    return {
+      cappedTime: this.#cappedTime + capped,
+      overflow: this.#overflow + capped * this.#rate,
+    };
   }
 
   // The host calls this from the event where a modifier of the rate or the cap
@@ -193,7 +240,10 @@ export class EnergyPool {
   // One threshold at a time; a second call replaces the first. While the
   // amount cannot be reached (rate 0, or above the cap) no event is
   // scheduled, and a re-base that makes it reachable schedules it. The event
-  // is one-shot. Returns the event, or null when none is scheduled.
+  // is one-shot. Once it has run the host may re-arm at once, from its
+  // handler or from anywhere after it, with another wakeAt: the ran wake is
+  // dropped first, so the new amount is never lost (#225). Returns the event,
+  // or null when none is scheduled.
   wakeAt(amount) {
     checkAmount(this.definition, "wake at", amount);
     // Drop a wake that has run first: #placeWake drops a ran wake with its

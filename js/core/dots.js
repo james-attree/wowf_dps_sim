@@ -64,8 +64,14 @@ export class DotTicks {
 
   // Apply the DoT `id` now: `interval` seconds between ticks, for `duration`
   // seconds, by the refresh rule `refresh` (DOT_REFRESH). Returns the pending
-  // tick event, or null when no tick fits in the duration.
-  apply(id, { interval, duration, refresh = DOT_REFRESH.restart } = {}) {
+  // tick event, or null when no tick fits in the duration. `nextTickIn` is
+  // for a DoT that was already ticking before the core took the fight over
+  // (js/core/fight.js): it starts afresh with its first tick that many
+  // seconds from now and ticks up to its end, as a legacy entry does.
+  apply(
+    id,
+    { interval, duration, refresh = DOT_REFRESH.restart, nextTickIn } = {},
+  ) {
     checkId(id);
     // The legacy rule (#193): 0 or less would tick forever at one time, and
     // NaN or Infinity would never tick, silently. A string is refused too.
@@ -113,6 +119,26 @@ export class DotTicks {
       return running.event;
     }
     running?.event?.cancel();
+    if (nextTickIn !== undefined) {
+      if (!(Number.isFinite(nextTickIn) && nextTickIn >= 0)) {
+        throw new RangeError(
+          `DoT "${id}": nextTickIn must be a finite number of seconds, 0 or more. Got ${shown(nextTickIn)}.`,
+        );
+      }
+      const dot = {
+        payload: Object.freeze({ id }),
+        anchor: now + nextTickIn - interval,
+        interval,
+        sinceAnchor: 0,
+        ticks: 0,
+        endsAt: now + duration,
+        lastTick: null,
+        event: null,
+      };
+      this.#dots.set(id, dot);
+      this.#scheduleNext(dot);
+      return dot.event;
+    }
     const dot = {
       payload: Object.freeze({ id }),
       anchor: now,

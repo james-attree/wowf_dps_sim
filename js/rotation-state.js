@@ -66,26 +66,27 @@ function resourcesView(rogue, simulation) {
 
 // One resource of the lazy view. It reads the pool when asked, so one of them
 // serves every view of a fight: the value, the cap and the regeneration rate
-// are worked out (through the modifiers, for the last two) when read.
+// are worked out (through the modifiers, for the last two) when read. It looks
+// the pool up on the rogue each time, so a host that swaps a pool in (the
+// event core puts its continuous energy pool in place of the legacy one,
+// #197) is read from then on.
 class LazyResource {
-  #pool;
+  #resources;
+  #id;
   #simulation;
-
-  constructor(pool, simulation) {
-    this.#pool = pool;
+  constructor(rogue, id, simulation) {
+    this.#resources = rogue.resources;
+    this.#id = id;
     this.#simulation = simulation;
   }
-
   get value() {
-    return this.#pool.value;
+    return this.#resources[this.#id].value;
   }
-
   get max() {
-    return this.#pool.max;
+    return this.#resources[this.#id].max;
   }
-
   get regenPerSecond() {
-    return regenPerSecond(this.#pool, this.#simulation);
+    return regenPerSecond(this.#resources[this.#id], this.#simulation);
   }
 }
 
@@ -173,7 +174,7 @@ export function rotationStateReader(rogue, simulation, options = {}) {
   const duration = options.duration ?? null;
   const resources = {};
   for (const id of Object.keys(rogue.resources)) {
-    resources[id] = new LazyResource(rogue.resources[id], simulation);
+    resources[id] = new LazyResource(rogue, id, simulation);
   }
   const build = Object.freeze({ selected: rogue.build.selected });
   const granted = Object.freeze([...rogue.granted]);

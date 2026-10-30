@@ -107,7 +107,7 @@ describe("runScriptedFight", () => {
   });
 
   it("throws a RangeError when called with no options or a non-object", () => {
-    const original = Rogue.prototype.rotation;
+    const original = Rogue.prototype.castRotation;
     for (const options of [
       undefined,
       null,
@@ -123,11 +123,11 @@ describe("runScriptedFight", () => {
     }
     assert.throws(() => runScriptedFight(), RangeError);
     assert.throws(() => runScriptedFight(null), RangeError);
-    assert.equal(Rogue.prototype.rotation, original);
+    assert.equal(Rogue.prototype.castRotation, original);
   });
 
   it("rejects inherited property names as ability names", () => {
-    const original = Rogue.prototype.rotation;
+    const original = Rogue.prototype.castRotation;
     const inherited = [
       "constructor",
       "toString",
@@ -152,7 +152,7 @@ describe("runScriptedFight", () => {
         name,
       );
     }
-    assert.equal(Rogue.prototype.rotation, original);
+    assert.equal(Rogue.prototype.castRotation, original);
   });
 
   it("rejects an entry that is not a string", () => {
@@ -165,7 +165,7 @@ describe("runScriptedFight", () => {
   });
 
   it("says an array entry is an array, not the names inside it", () => {
-    const original = Rogue.prototype.rotation;
+    const original = Rogue.prototype.castRotation;
     for (const entry of [[BUILDER], [BUILDER, BUILDER], []]) {
       assert.throws(
         () => runScriptedFight({ seed: 1, duration: 5, script: [entry] }),
@@ -180,21 +180,21 @@ describe("runScriptedFight", () => {
       () => runScriptedFight({ seed: 1, duration: 5, script: [[BUILDER]] }),
       (error) => !error.message.includes(`"${BUILDER}"`),
     );
-    assert.equal(Rogue.prototype.rotation, original);
+    assert.equal(Rogue.prototype.castRotation, original);
   });
 
   it("puts the rotation back, even after a failure", () => {
-    const original = Rogue.prototype.rotation;
+    const original = Rogue.prototype.castRotation;
     runScriptedFight({ seed: 1, duration: 5, script: [BUILDER] });
-    assert.equal(Rogue.prototype.rotation, original);
+    assert.equal(Rogue.prototype.castRotation, original);
     assert.throws(() =>
       runScriptedFight({ seed: 1, duration: 5, script: ["nope"] }),
     );
-    assert.equal(Rogue.prototype.rotation, original);
+    assert.equal(Rogue.prototype.castRotation, original);
     assert.throws(() =>
       runScriptedFight({ seed: 1, duration: -1, script: [BUILDER] }),
     );
-    assert.equal(Rogue.prototype.rotation, original);
+    assert.equal(Rogue.prototype.castRotation, original);
     // Skills have no cast override left over on the instance.
     const rogue = new Rogue();
     new Simulation(rogue, { seed: 1 });

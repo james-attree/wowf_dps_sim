@@ -376,6 +376,33 @@ describe("aura effects", () => {
     assert.equal(tick("rupture", "Rupture", bonus), tick("rupture", "Rupture"));
   });
 
+  // #229 QA: Hemorrhage stacks add its bonus once per stack.
+  it("adds dotDamageTaken's bonus once per stack", () => {
+    setRoll(0.5);
+    const tick = (stacks) => {
+      const { sim } = fresh();
+      const interval = primeDot(sim, "garrote", "Garrote");
+      const aura = define({
+        target: "target",
+        maxStacks: 3,
+        stackRule: "add",
+        effects: { dotDamageTaken: { ids: ["garrote"], bonus: 0.5 } },
+      });
+      for (let i = 0; i < stacks; i += 1) {
+        sim.applyAura(aura, { duration: 30 });
+      }
+      if (stacks > 0) {
+        assert.equal(sim.activeDebuffs["test-aura"].stacks, stacks);
+      }
+      sim.step(interval);
+      return sim.damageDone;
+    };
+    const plain = tick(0);
+    assert.ok(plain > 0);
+    assert.equal(tick(1), plain * 1.5);
+    assert.equal(tick(3), plain * 2.5);
+  });
+
   it("fails on a second definition under the same id", () => {
     const { sim } = fresh();
     sim.applyAura(AURAS.hemorrhage);

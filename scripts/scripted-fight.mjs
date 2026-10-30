@@ -4,22 +4,31 @@ import { Rogue } from "../js/rogue.js";
 // A scripted-cast fight for the golden cases (#85). The placeholder rotation
 // (rotation.priority) never casts Eviscerate or Rupture, so a fixture made with
 // runFight alone cannot pin their maths. runScriptedFight runs the real
-// runFight with the rogue's rotation replaced for that one call:
+// runFight with the rogue's rotation call (Rogue.prototype.castRotation)
+// replaced for that one call:
 //
-//   1. Each step, the script's casts run first, in order, on the real skills.
-//      A cast waits (and so does everything after it) until the skill can be
-//      cast: the energy is there, the GCD is clear, and it is off cooldown.
+//   1. Each time the rotation is asked, the script's casts run first, in
+//      order, on the real skills. A cast waits (and so does everything after
+//      it) until the skill can be cast: the energy is there, the GCD is clear,
+//      and it is off cooldown.
 //   2. Then the rogue's own rotation runs with every skill's cast disabled, so
-//      the placeholder rotation casts nothing, but the weapon swings and the
-//      Slice and Dice / Blade Flurry haste work as they do in a real fight.
+//      the placeholder rotation casts nothing. The weapon swings and the Slice
+//      and Dice / Blade Flurry haste are not part of the call, so they work as
+//      they do in a real fight.
 //
-// Nothing under js/ changes. The result is exactly what runFight returns: the
-// same fields, the same seeded rng, the same fixed step. Rogue.prototype is
-// put back in a finally block, so a scripted run never leaks into another.
+// castRotation is the call both engines make (#197): the legacy one from
+// Rogue.rotation each step, the event core at each decision point
+// (js/core/fight.js), so a script runs on either. Nothing under js/ changes.
+// The result is exactly what runFight returns: the same fields, the same
+// seeded rng, the same fixed step on the legacy engine. Rogue.prototype is put
+// back in a finally block, so a scripted run never leaks into another.
 
 // The script is a list of keys of Rogue.abilities, such as "sinisterStrike",
 // "hemorrhage", "rupture" and "eviscerate".
-export function scriptedRotation(script, original = Rogue.prototype.rotation) {
+export function scriptedRotation(
+  script,
+  original = Rogue.prototype.castRotation,
+) {
   const queue = [...script];
   const state = {
     queue,
@@ -27,7 +36,11 @@ export function scriptedRotation(script, original = Rogue.prototype.rotation) {
     get remaining() {
       return queue.length;
     },
-    rotation(simulation, dt) {
+    // What castRotation returns: the script's casts, as the event core counts
+    // them. The disabled rotation's own "casts" cast nothing, so they are not
+    // passed on.
+    castRotation(simulation) {
+      const casts = [];
       while (queue.length > 0) {
         // Own keys only: "constructor" and "toString" are on every object but
         // are not abilities.
@@ -48,22 +61,24 @@ export function scriptedRotation(script, original = Rogue.prototype.rotation) {
         const before = simulation.abilityStats[skill.id]?.casts ?? 0;
         skill.cast(this, simulation);
         if ((simulation.abilityStats[skill.id]?.casts ?? 0) === before) {
-          break; // not castable yet: try again next step
+          break; // not castable yet: try again the next time it is asked
         }
+        casts.push(skill.id);
         queue.shift();
       }
-      // Weapon swings and haste, with the placeholder casts switched off.
+      // The rogue's own rotation, with the placeholder casts switched off.
       const skills = Object.values(this.abilities);
       for (const skill of skills) {
         skill.cast = () => null;
       }
       try {
-        return original.call(this, simulation, dt);
+        original.call(this, simulation);
       } finally {
         for (const skill of skills) {
           delete skill.cast;
         }
       }
+      return { casts, outcome: casts.length > 0 ? "cast" : "none" };
     },
   };
   return state;
@@ -81,9 +96,9 @@ export function runScriptedFight(options) {
   if (!Array.isArray(script) || script.length === 0) {
     throw new RangeError("runScriptedFight needs a non-empty script array.");
   }
-  const original = Rogue.prototype.rotation;
+  const original = Rogue.prototype.castRotation;
   const scripted = scriptedRotation(script, original);
-  Rogue.prototype.rotation = scripted.rotation;
+  Rogue.prototype.castRotation = scripted.castRotation;
   try {
     const result = runFight({ seed, duration, config });
     if (scripted.remaining > 0) {
@@ -93,6 +108,6 @@ export function runScriptedFight(options) {
     }
     return result;
   } finally {
-    Rogue.prototype.rotation = original;
+    Rogue.prototype.castRotation = original;
   }
 }

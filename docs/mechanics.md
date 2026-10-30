@@ -1128,8 +1128,8 @@ keeps the classes: decisions last, after swings (#193), so the rotation sees
 every change due at that instant. Parity is measured over many seeds, so the
 difference from the fixed step is allowed.
 
-**Scheduler (#193).** `js/core/scheduler.js` holds the queue; nothing uses it
-yet, and the legacy engine stays the default. `new Scheduler({ endTime, handle })`
+**Scheduler (#193).** `js/core/scheduler.js` holds the queue; the event core
+(#197) runs on it, and the legacy engine stays the default. `new Scheduler({ endTime, handle })`
 takes the fight's end time and one `handle(event, scheduler)` function that is
 called for each event in order. `schedule({ time, order, kind, payload })`
 adds an event at an absolute time, with `order` one of `ORDER` (`ORDER.energy`
@@ -1169,7 +1169,8 @@ any check of their arguments; `cancel` still works. Both limits are 10,000 and a
 retune list), far above a real fight.
 
 **Continuous energy (#194).** `js/core/energy.js` holds the new core's energy
-pool; nothing uses it yet, and the legacy pool (`js/resource.js`, regenerated
+pool; the event core (#197) puts it in place of the legacy pool for a run,
+and the legacy pool (`js/resource.js`, regenerated
 per step by `Simulation.regenerateResource`) stays for the legacy engine.
 `new EnergyPool({ definition, modifiers, scheduler })` takes a resource
 definition with a regen rule (energy; one without, such as combo points, is a
@@ -1203,9 +1204,11 @@ the new line. While the amount cannot be reached (a rate of 0, or an amount
 above the cap), no event is scheduled until a re-base makes it reachable. The
 pool keeps one threshold: a second `wakeAt` replaces the first,
 `cancelWake()` drops it, and the event is one-shot. The rotation chooses the
-amount (decision points, #197). The pool does not yet count the time at the
-cap or the overflow (#146); the end-event contract arrives with the runner
-re-point (#198).
+amount (decision points, #197). The pool counts what it loses to the cap as
+the legacy `Resource` does: `waste()` gives `{ cappedTime, overflow }`, the
+seconds at the cap and the energy those seconds and any gain past the cap
+would have added. The end-event contract arrives with the runner re-point
+(#198).
 
 Re-arming: once the wake has run, `wakeAt` sets a new threshold straight
 away, from the wake's own handler or from outside, with nothing read in
@@ -1218,10 +1221,9 @@ end; the scheduler's hard stop (`k("sim.maxEventsPerTimestamp")` events at
 one time) ends it with a `SchedulerHardStopError`. The rotation (#197) must
 act on energy it holds rather than wait for it.
 
-**DoT ticks (#196).** `js/core/dots.js` holds the new core's DoT clocks;
-nothing in the shipped engine uses it yet (the host that wires it into a fight
-arrives with #197 and #198), and the legacy `step()` loop still ticks DoTs
-itself. `new DotTicks({ scheduler })` keeps one pending event per DoT, of kind
+**DoT ticks (#196).** `js/core/dots.js` holds the new core's DoT clocks; the
+event core (`js/core/fight.js`, #197) runs them on the `"events"` engine, and
+the legacy `step()` loop still ticks DoTs itself. `new DotTicks({ scheduler })` keeps one pending event per DoT, of kind
 `"dot-tick"` (`DOT_TICK_KIND`) in the DoT class, with the payload `{ id }`.
 `apply(id, { interval, duration, refresh })` starts or refreshes a DoT at the
 scheduler's `now`, and its n-th tick is at `anchor + n * interval`, never a sum
@@ -1257,14 +1259,31 @@ with the same `RangeError`; a poison never uses up a charge
 (`k("poison.charges")`). A test host (`test/core-host.js`) runs the same seeded
 fight with swings, DoT ticks, aura expiries and scripted casts on the
 scheduler, and over 200 seeds every hit, the damage and the ability
-breakdown equal the legacy loop's. Three edges differ from legacy, none of
-them reached by a shipped rotation: the first main-hand swing is at 0, not
-after the first 1/64 s step; a restart refresh from a DoT's own last tick
-keeps the DoT (legacy deletes it at the end of that step); and a keep-clock
-refresh that changes the interval keeps the pending tick's time.
+breakdown equal the legacy loop's. Those seeds script their casts at
+.125 s offsets, which never tie with a swing or a tick; "hit for hit" holds
+for those, not for every fight. Three edges differ from legacy, and the
+first is in every fight once the core ships (#197, #198):
+
+- (a) The first main-hand swing is at 0, not after the first 1/64 s step,
+  and every later swing keeps that clock: default 2.6 s swings land at 2.6,
+  5.2, ... on the core and at 2.609375, ... on legacy, so whatever is anchored
+  on main-hand hits (the Deadly Poison clock, a swing proc) moves with them.
+- (b) A refresh from a DoT's own last tick keeps the DoT. Legacy deletes the
+  entry at the end of that step whether the refresh restarts it (a cast DoT)
+  or keeps its clock (a proc's DoT or a poison), so on legacy the refresh is
+  lost.
+- (d) Ticks of two different DoTs at the same time run in the order they
+  were scheduled (the scheduler's seq) on the core, and in the order the DoTs
+  were first put in `activeDots` on legacy. Each tick's damage is the same;
+  only which one draws its rolls first changes, so the mean is not moved, but
+  a single seed can be.
+
+(A keep-clock refresh that changes the interval keeps the pending tick's time
+on both engines, so it is not a difference.)
 
 **Swings (#195).** `js/core/swing.js` holds the new core's swing timer;
-nothing uses it yet, and the legacy `Weapon.tick` stays for the legacy engine.
+the event core (#197) runs it, and the legacy `Weapon.tick` stays for the
+legacy engine.
 `new SwingTimer({ weapon, modifiers, scheduler })` takes a weapon (its speed
 and hand), the rogue's `ModifierPipeline` and the scheduler. It keeps one
 pending event of kind `"swing"` (`SWING_KIND`), in the swing class, with the
@@ -1291,8 +1310,8 @@ cast at t reaches the swing after the one at t, where the fixed step casts
 first; parity (#199) covers that.
 
 **Expiry timers (#195).** `js/core/timers.js` holds the GCD, cooldowns, aura
-expiries and Premeditation's point expiry for the new core; nothing uses them
-yet. A `Timer` (one end) or `TimerSet` (ends by id, payload `{ id }`) stores
+expiries and Premeditation's point expiry for the new core; the event core
+(#197) runs them. A `Timer` (one end) or `TimerSet` (ends by id, payload `{ id }`) stores
 the absolute end, `start + duration`, and keeps one event there, in the
 expiry class. `start(duration)` sets it from now and `setEndsAt(time)` sets an
 absolute end (a refresh); either replaces an end already set, so one event at
@@ -1314,6 +1333,68 @@ amount: k("premeditation.cpRemovedOnExpiry") }`, started for
 that is not a finite number above 0 is a `RangeError`, an id that is not a
 non-empty string a `TypeError`. A proc's internal cooldown keeps its absolute
 `readyAt` and needs no event.
+
+**Decision points and the rotation (E6, #197).** `js/core/fight.js` runs a
+whole fight on the scheduler. `new Simulation(rogue, { engine: "events" })`
+(or `createFight(seed, config, { engine: "events" })`) makes `run()` go there;
+`"legacy"` (fixed steps) stays the default, `step()` is always a fixed step,
+and an unknown engine is a `RangeError`. `Simulation.useEngine(engine)` sets
+the default for Simulations built after it and returns the one it replaced,
+for tests that run a whole file on the core. The Simulation stays the store of
+the fight's state and does every hit, tick and proc as on legacy; the core
+only says when. For the run it puts an `EnergyPool` in place of the legacy
+energy pool (taking over its value and cap, and giving the value and the
+waste back at the end), starts a `SwingTimer` per hand from each weapon's
+`swingTimer`, a `DotTicks` entry for each DoT already up (from its
+`timeUntilNextTick`), and timers for the GCD, the cooldowns, the auras and
+Premeditation's points. `Simulation.resolveDotAttack` and `resolveProcDot`
+tell it where a DoT starts or is refreshed. Before each event every timer
+writes its time left back to the legacy fields; after it, a field the event
+changed moves its timer, the energy pool is told a modifier may have changed
+(the #194 host contract), and the non-energy pools are clamped as a step
+would. So a second `run`, or a `step()`, carries on from where the core left
+the fight.
+
+The rotation (`Rogue.castRotation`, which both engines call) runs at decision
+points only, in the decision class after the other events at a time: once at
+the time of any other event (a cast, a swing, a tick, a proc, an aura or
+cooldown running out, the GCD ending), when energy reaches the cheapest cost
+the rotation lacked (`EnergyPool.wakeAt`), and where a condition that moves
+with time would cross its value with no event in between. A cast asks again at
+the same time, so an off-GCD rule (Cold Blood) follows the cast that enabled
+it; the re-asks stop when a decision casts nothing, or after as many at one
+time as the rotation has rules.
+Each condition type in `js/rotation-conditions.js` declares its drift:
+`AT_EVENTS` (its answer changes only at an event) or a rate per second of
+fight time (energy and other pools below their cap, `auraRemaining`,
+`debuffRemaining`, `fightTime`, `fightTimeRemaining`, `energyToCap`).
+`conditionWakeAt(condition, state)` follows the number on that line and gives
+the first time it meets the value, or null; a type without a drift is a
+`TypeError` when the module loads. There is no fixed polling. `runOnCore`
+keeps counts on `sim.coreStats` (`events`, `decisions`, `conditionWakes`,
+`energyWakes`, `casts`); two test-only options, `pollEvery` and
+`afterEvent`, add a look at the rotation every so many seconds and a hook
+after each event.
+
+Tests: `test/core-fight.test.js` runs the default, the combat-swords preset,
+the reference build with and without poisons and an imported rotation, and
+checks the same fights with a 1/64 s poll on top cast the same abilities at
+the same times (the poll never finds a cast); that the decisions are at most
+the events and a small share of 1/64 s steps; Cold Blood with and without the
+talent; the pool's rate and cap equal a fresh read after every event through
+Adrenaline Rush; the waste given back; a DoT and the swings across split runs;
+a condition wake in the second of two runs;
+the scripted golden case on the core (Rupture ticks and a tick crit); and the
+#196 edges (a), (d) and same-time main- and off-hand swings.
+`test/core-rules.test.js` runs the rules the legacy step-based tests pin
+(poisons on DoT ticks, Deadly Poison's clock, refresh and crits, an `applyDot`
+proc, a Rupture tick's snapshot, charges and Expose Armor on ticks, an
+`onDotTick` proc and the pool clamp) on the core, with a DoT dropped after
+its last tick, an aura's `onExpire` and the GCD length. `test/core-engine-files.test.js`
+runs the proc and poison test files with `Simulation.useEngine("events")`, and
+`test/rotation-wakes.test.js` holds every condition type to its drift and its
+wake-up times (never at or before now). Timing differs from legacy as the #196 edges say; parity
+against legacy is #199.
 
 ## Headless fight
 
@@ -1597,9 +1678,10 @@ seven times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
 Hemorrhage comes just before Rupture, so the fixture has Rupture ticks with
 the Hemorrhage bonus and, after the debuff runs out, without it.
 `scripts/scripted-fight.mjs` runs it on the real `runFight`: it swaps
-`Rogue.prototype.rotation` for the one call so the script casts first, then
-the rogue's own rotation runs with its skill casts switched off, so only the
-weapon swings and the haste buffs are left. Nothing under `js/` changes, and a
+`Rogue.prototype.castRotation` (the rotation call both engines make, #197)
+for the one call so the script casts first, then the rogue's own rotation runs
+with its skill casts switched off, so only the weapon swings and the haste
+buffs are left. Nothing under `js/` changes, and a
 script that has not finished by the end of the fight throws. The fixture has
 8 Rupture ticks (3 of them crits) and an Eviscerate that hits without a crit.
 
@@ -1751,9 +1833,10 @@ default config at 300 s). The scripted golden case,
 `scripted-finishers-seed-68-50s`, runs as `finishers-50s-without-script`: its
 config (the default) for its 50 s without its script, and the report says
 "script left off" with the reason. The exclusion is the named list
-`SCRIPT_LEFT_OFF` in `scripts/parity.mjs`: the script replaces
-`Rogue.prototype.rotation`, which only the legacy engine has, and it was
-written for seed 68. On 79 of seeds 1 to 200 it does not finish: the fight runs
+`SCRIPT_LEFT_OFF` in `scripts/parity.mjs`: the script replaced
+`Rogue.prototype.rotation`, which only the legacy engine has (since #197 it
+hooks `Rogue.prototype.castRotation`, which both engines call; the list's
+reason is updated with #199), and it was written for seed 68. On 79 of seeds 1 to 200 it does not finish: the fight runs
 to its 50 s end with one or two casts still waiting, and `runScriptedFight`
 throws. It does not hang. The harness refuses to load if a scripted golden case
 is missing from the list, a listed case is not scripted, or two cases share a
@@ -2478,7 +2561,8 @@ this, and the code is `Ability.resolve` and the `DAMAGE` kinds in
 
 **Result shape.** Unchanged. `runFight` and `createFight` return the same
 fields, and the four golden fixtures, including the scripted one, are
-byte-identical. The seams `Rogue.prototype.rotation`, a per-instance
+byte-identical. The seams `Rogue.prototype.rotation` (the scripted fight
+hooks `castRotation` since #197), a per-instance
 `skill.cast` and the `rogue.abilities` keys work as before, so
 `scripts/scripted-fight.mjs` is unchanged.
 
