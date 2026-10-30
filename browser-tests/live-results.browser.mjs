@@ -27,6 +27,7 @@ const SCREENS = [
   "#results/live",
 ];
 const LIVE_SECONDS = "4";
+const LONG_SECONDS = "600";
 const RUN_TIMEOUT = 60_000;
 // Half a pixel of rounding either way.
 const SLACK = 1;
@@ -191,6 +192,54 @@ describe("200% text on a 360px phone (#245)", () => {
           });
         }
       }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
+// Watch lands on Results, where the strip sits in the page, narrower than
+// the dock by the page's margins: with CI's widest font and a four-figure
+// DPS its status line wrapped there rather than being cut (#245).
+const WIDE_DPS = "6,083.4";
+describe("the strip on Results on a 360px phone (#245)", () => {
+  test("a running fight's lines are whole beside a wide DPS", async () => {
+    const { context, page, errors } = await open(PHONE, "#character");
+    try {
+      await page.addStyleTag({
+        content: `:root, button, input { font-family: "${PINNED_FONT}" !important; }`,
+      });
+      await (await field(page, "run-mode-live")).check();
+      await (await field(page, "run-duration")).fill(LONG_SECONDS);
+      await page.locator("#run-button").click();
+      await page.waitForFunction(
+        () =>
+          /^Running/.test(
+            globalThis.document.getElementById("run-status-text")?.dataset
+              .dock ?? "",
+          ),
+        null,
+        { timeout: RUN_TIMEOUT },
+      );
+      assert.equal(await hashOf(page), "#results/live");
+      const at = await page.evaluate((dps) => {
+        const doc = globalThis.document;
+        doc.getElementById("run-dps-value").textContent = dps;
+        const cut = (id) => {
+          const node = doc.getElementById(id);
+          return node.scrollWidth > node.clientWidth;
+        };
+        return {
+          cut: ["run-dps-value", "run-summary", "run-status-text"].filter(cut),
+          status: doc.getElementById("run-status-text").dataset.dock,
+        };
+      }, WIDE_DPS);
+      assert.deepEqual(at.cut, [], JSON.stringify(at));
+      if (SHOTS) {
+        await page.screenshot({ path: `${SHOTS}/strip-results-360.png` });
+      }
+      await page.locator("#stop-button").click();
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
