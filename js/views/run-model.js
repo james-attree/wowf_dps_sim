@@ -505,7 +505,9 @@ export function dockDps(state) {
     }
     return {
       value: formatNumber(result.summary.mean, 1),
-      label: isStale(state, "batch") ? "avg, was" : "DPS avg",
+      // Out of date: "was, avg", the proposal's order (#245, Fran's #254
+      // check).
+      label: isStale(state, "batch") ? "was, avg" : "DPS avg",
     };
   }
   const time = results?.time ?? 0;

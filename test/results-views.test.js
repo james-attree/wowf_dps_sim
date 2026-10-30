@@ -149,7 +149,7 @@ describe("stale state (#242)", () => {
   it("the dock says out of date for the mode's result", () => {
     const s = state({ now: edited() });
     assert.equal(dockText(s).status, STALE_SHORT);
-    assert.equal(dockDps(s).label, "avg, was");
+    assert.equal(dockDps(s).label, "was, avg", "the proposal's order (#245)");
     assert.equal(dockText(state()).status.startsWith("Done"), true);
   });
 });
