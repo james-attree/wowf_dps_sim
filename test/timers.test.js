@@ -96,6 +96,19 @@ describe("Timer and TimerSet (#195)", () => {
     assert.deepEqual(timers.cooldowns.runningIds, []);
   });
 
+  it("reads exactly tickEpsilon left as ended: running needs more than it (#227)", () => {
+    const { timers } = setup();
+    // At now 0 an end at EPS leaves exactly EPS.
+    timers.gcd.setEndsAt(EPS);
+    timers.cooldowns.setEndsAt("a", EPS);
+    timers.cooldowns.setEndsAt("b", 2 * EPS);
+    assert.equal(timers.gcd.running, false);
+    assert.equal(timers.gcd.ready, true);
+    assert.equal(timers.gcd.remaining, 0);
+    assert.equal(timers.cooldowns.ready("a"), true);
+    assert.deepEqual(timers.cooldowns.runningIds, ["b"]);
+  });
+
   it("gives the same event times at any query granularity", () => {
     const run = (points) => {
       const { scheduler, log, at, timers } = setup(60);
