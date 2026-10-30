@@ -402,9 +402,8 @@ export function createRotationBuilder(store, formActions) {
         back: { href: "#rotation", text: "Rotation", focus: null },
       };
     }
-    // The list's back link goes to Character, to the "Edit rotation…" link
-    // that opens the builder there (Fran's #251 check: the builder could
-    // not be closed from Rotation).
+    // The list is Rotation's top, with the rotation select on it (#244,
+    // UX6), so it has no back link: the nav goes elsewhere.
     return {
       kind: "list",
       uid: null,
@@ -412,11 +411,7 @@ export function createRotationBuilder(store, formActions) {
       param: null,
       title: "Rotation",
       heading: { n: null, hidden: null, text: "Rotation" },
-      back: {
-        href: "#character",
-        text: "Character",
-        focus: "cfg-rotation-edit",
-      },
+      back: null,
     };
   }
 

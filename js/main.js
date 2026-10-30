@@ -7,6 +7,7 @@ import { createRotationBuilder } from "./rotation-builder.js";
 import { createRunActions, emptyBatch, emptyRan } from "./run-actions.js";
 import { createStore } from "./store.js";
 import { createTalentTree } from "./talent-tree.js";
+import { createCharacterScreensView } from "./views/character-screens.js";
 import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
@@ -108,7 +109,11 @@ const builder = createRotationBuilder(store, formActions);
 // views, so an area is shown before a view moves the focus into it.
 const renders = {
   setup: () => createConfigFormView(document, store, formActions),
-  talents: () => createTalentTreeView(document, store, createTalentTree(store)),
+  talents: () => {
+    const tree = createTalentTree(store);
+    createTalentTreeView(document, store, tree);
+    createCharacterScreensView(document, store, { setOpen: tree.setOpen });
+  },
   rotation: () => {
     createRotationBuilderView(document, store, builder);
     // The Run bar is outside the areas: it stays on every screen. It is

@@ -175,6 +175,8 @@ export function createRotationBuilderView(doc, store, actions) {
   const heading = doc.querySelector("#area-rotation-title");
   const back = doc.querySelector("#rotation-back");
   const share = doc.querySelector("#rotation-share");
+  // The rotation select and its summary (#244): on the list only.
+  const pick = doc.querySelector("#rotation-pick");
   const body = doc.createElement("div");
   body.className = "rotation-builder-body";
   const live = doc.createElement("p");
@@ -195,18 +197,15 @@ export function createRotationBuilderView(doc, store, actions) {
   // can say why it does nothing.
   const off = (disabled) => (disabled ? "true" : null);
 
+  // The talents are Character's Talents screen (#244, UX6): revealing the
+  // tree shows it, and its h1 takes the focus.
   function editTalents() {
-    const edit = doc.querySelector("#talents-edit");
-    if (edit === null) {
+    const tree = doc.querySelector("#talent-tree");
+    if (tree === null) {
       return;
     }
-    // The talents are in the Character area (#239): it is shown first.
-    reveal(edit);
-    if (edit.getAttribute("aria-expanded") !== "true") {
-      edit.click();
-    }
-    doc.querySelector("#talent-tree")?.scrollIntoView?.({ block: "nearest" });
-    edit.focus();
+    reveal(tree);
+    doc.querySelector("#area-character-title")?.focus?.();
   }
 
   function pointerDrag(event, uid) {
@@ -996,11 +995,10 @@ export function createRotationBuilderView(doc, store, actions) {
     node?.focus();
   }
 
-  // The h1 and back link: "Rotation" and "‹ Character" on the list, the
-  // rule's name (its number aria-hidden, "Rule 2: " hidden text) or "Export
-  // or import" and "‹ Rotation" on a screen. The back links are links, not
-  // history.back(); the list's is how the builder is closed (Fran's #251
-  // check), back to the "Edit rotation…" link that opened it.
+  // The h1 and back link: "Rotation" and no back link on the list (#244: it
+  // is the area's top), the rule's name (its number aria-hidden, "Rule 2: "
+  // hidden text) or "Export or import" and "‹ Rotation" on a screen. The
+  // back links are links, not history.back().
   function drawHeading(screen) {
     // A page without child lists (the unit tests' stand-in) gets the text.
     const patchable = (node) =>
@@ -1034,6 +1032,12 @@ export function createRotationBuilderView(doc, store, actions) {
       );
     }
     if (back !== null) {
+      back.hidden = screen.back === null;
+    }
+    if (pick !== null) {
+      pick.hidden = !view.open || screen.kind !== "list";
+    }
+    if (back !== null && screen.back !== null) {
       back.setAttribute("href", screen.back.href);
       if (screen.back.focus === null) {
         back.removeAttribute("data-return-focus");

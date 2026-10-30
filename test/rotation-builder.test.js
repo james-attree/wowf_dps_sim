@@ -95,13 +95,11 @@ describe("the builder opens on the rotation picked in Fight setup", () => {
     assert.equal(view().errors, null);
   });
 
-  it("closes from its back link, back to the link that opened it (Fran's #251 check)", () => {
+  // The list is Rotation's top (#244, UX6): the preset select is on it, so
+  // there is no back link to Character.
+  it("its list has no back link; it closes", () => {
     const { builder, view } = setup();
-    assert.deepEqual(view().screen.back, {
-      href: "#character",
-      text: "Character",
-      focus: "cfg-rotation-edit",
-    });
+    assert.equal(view().screen.back, null);
     builder.toggle();
     assert.equal(view().open, false);
   });

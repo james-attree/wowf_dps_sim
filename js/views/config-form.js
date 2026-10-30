@@ -1,10 +1,13 @@
 import { k } from "../../data/constants.js";
 import { NARROW_QUERY } from "./breakpoints.js";
 import { fieldErrors, formErrorCount } from "./run-model.js";
+import { reveal } from "./sections.js";
 import { anyStale } from "./stale.js";
 
 // The "Fight setup" form (#151, U2). This view owns the form#config-form and
-// everything in it, and no other element. It draws the store's `form` slice
+// everything in it, and no other element but the fields that live outside it
+// (#244, UX6): the rotation select and its summary on Rotation's list, and
+// Fight's "Attacking from behind" box (data-field target.behind). It draws the store's `form` slice
 // and calls the model's actions (js/config-form.js, which js/main.js hands
 // in); it never writes the store itself and imports nothing from the engine
 // (#150). Edits apply to the next run: the form writes `config`, and the fight
@@ -155,15 +158,19 @@ export function createConfigFormView(doc, store, actions) {
   const paths = Object.keys(store.get().form.values);
   const controls = new Map(paths.map((path) => [path, $(fieldId(path))]));
   const isPercent = (control) => control.getAttribute("data-percent") !== null;
+  const isBox = (control) => control.getAttribute("type") === "checkbox";
   const readControl = (path) => {
     const control = controls.get(path);
+    if (isBox(control)) {
+      return control.checked === true;
+    }
     return control.tagName === "SELECT"
       ? control.value
       : parseField(control.value, isPercent(control));
   };
 
-  // The summary is closed on a narrow screen (Fran's notes, section 5): below
-  // 520 px, the same breakpoint as the run bar (js/views/breakpoints.js).
+  // The summary is closed on a narrow screen (Fran's notes, section 5), the
+  // same breakpoint as the run bar (js/views/breakpoints.js).
   if (win.matchMedia?.(NARROW_QUERY).matches) {
     summaryDetails.open = false;
   }
@@ -247,7 +254,11 @@ export function createConfigFormView(doc, store, actions) {
 
   function fillValues(values) {
     for (const [path, control] of controls) {
-      control.value = formatField(values[path], isPercent(control));
+      if (isBox(control)) {
+        control.checked = values[path] === true;
+      } else {
+        control.value = formatField(values[path], isPercent(control));
+      }
     }
   }
 
@@ -327,6 +338,9 @@ export function createConfigFormView(doc, store, actions) {
       link.textContent = fieldName(path);
       link.addEventListener("click", (event) => {
         event.preventDefault();
+        // A field on another of Character's screens has it shown first
+        // (#244).
+        reveal(control);
         control.focus();
       });
       item.append(link);
@@ -351,7 +365,9 @@ export function createConfigFormView(doc, store, actions) {
   // "Main hand, Max damage": the field's legend and label, as a link's text.
   function fieldName(path) {
     const label = doc.querySelector(`label[for="${fieldId(path)}"]`);
-    const own = label?.firstChild?.textContent ?? path;
+    const own = isBox(controls.get(path))
+      ? (label?.textContent ?? path)
+      : (label?.firstChild?.textContent ?? path);
     const hand = path.startsWith("weapons.mainHand")
       ? "Main hand, "
       : path.startsWith("weapons.offHand")
@@ -488,7 +504,7 @@ export function createConfigFormView(doc, store, actions) {
   }
 
   for (const [path, control] of controls) {
-    if (control.tagName !== "SELECT") {
+    if (control.tagName !== "SELECT" && !isBox(control)) {
       control.addEventListener("input", () =>
         actions.input(path, readControl(path)),
       );

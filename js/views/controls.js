@@ -401,11 +401,8 @@ export function createControlsView(doc, store, actions = {}) {
         return;
       }
       // Else the talent tree's over-cap build (#204, Fran's QA of #208):
-      // open the tree and focus its Level input.
-      const edit = doc.querySelector("#talents-edit");
-      if (edit?.getAttribute?.("aria-expanded") === "false") {
-        edit.click?.();
-      }
+      // show the Talents screen (#244, revealing its Level input does) and
+      // focus the input.
       const level = doc.querySelector("#talents-level");
       reveal(level);
       level?.focus?.();

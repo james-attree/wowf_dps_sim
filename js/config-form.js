@@ -151,6 +151,14 @@ export const FORM_FIELDS = Object.freeze(
           ? ""
           : "Choose a poison.",
     })),
+    // Fight's "Attacking from behind" box (#244, UX6): config.target.behind,
+    // which the attack table reads (behind: no parry, no block). A box
+    // cannot hold anything else, so this only catches an outside value.
+    {
+      path: "target.behind",
+      check: (value) =>
+        typeof value === "boolean" ? "" : "Choose front or behind.",
+    },
   ].map(Object.freeze),
 );
 
@@ -417,7 +425,7 @@ export function formFromConfig(config, revision = 0) {
 }
 
 // The config the form describes, on top of `base` (which keeps the sections
-// the form does not edit: the target, and the build, config.talents and
+// the form does not edit: the target's other settings, and the build, config.talents and
 // config.talentLevel, which the talent tree owns (#204); the form used to
 // rebuild the talents from a select and wiped any other build). normalizeConfig checks it: the
 // backstop behind the field checks, so a config it refuses never reaches the
