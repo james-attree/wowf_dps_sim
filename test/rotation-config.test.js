@@ -73,35 +73,41 @@ describe("SimConfig.rotation", () => {
   });
 
   it("is what a rotation says: a finisher first pools for the energy", () => {
-    const result = runFight({
-      seed: 6,
-      duration: 30,
-      config: {
-        rotation: {
-          schemaVersion: 1,
-          name: "Finisher or wait",
-          rules: [
-            {
-              action: "eviscerate",
-              conditions: [{ type: "comboPoints", op: ">=", value: 1 }],
-            },
-            { action: "sinister-strike", conditions: [] },
-          ],
-        },
+    const config = {
+      rotation: {
+        schemaVersion: 1,
+        name: "Finisher or wait",
+        rules: [
+          {
+            action: "eviscerate",
+            conditions: [{ type: "comboPoints", op: ">=", value: 1 }],
+          },
+          { action: "sinister-strike", conditions: [] },
+        ],
       },
-    });
-    const counts = casts(result);
+    };
+    const counts = casts(runFight({ seed: 6, duration: 30, config }));
     assert.ok(counts.Eviscerate > 3);
+    assert.equal(counts["Blade Flurry"], undefined);
     // Each Eviscerate that lands spends a point a landed Sinister Strike
     // built; a missed or dodged one keeps it, so compare landed counts, not
-    // casts (seeds 1-200 hold on both engines).
+    // casts. Over seeds 1-200 (Kira's #232 re-check): some have more
+    // Eviscerate casts than Sinister Strike ones (8, 10, 29, ...), and 80
+    // land as many of each (5, 9, 11, ...), so the bound is <=, of landed.
     const landed = ({ casts, misses, dodges, parries }) =>
       casts - misses - dodges - parries;
-    assert.ok(
-      landed(result.abilities.Eviscerate) <=
-        landed(result.abilities["Sinister Strike"]),
-    );
-    assert.equal(counts["Blade Flurry"], undefined);
+    let equal = 0;
+    let moreCasts = 0;
+    for (let seed = 1; seed <= 200; seed += 1) {
+      const { abilities } = runFight({ seed, duration: 30, config });
+      const evis = abilities.Eviscerate;
+      const strike = abilities["Sinister Strike"];
+      assert.ok(landed(evis) <= landed(strike), `seed ${seed}`);
+      equal += landed(evis) === landed(strike) ? 1 : 0;
+      moreCasts += evis.casts > strike.casts ? 1 : 0;
+    }
+    // The seeds still cover both edges.
+    assert.ok(equal > 0 && moreCasts > 0, `${equal}, ${moreCasts}`);
   });
 
   it("is the same on the SimRunner as on runFight", () => {
