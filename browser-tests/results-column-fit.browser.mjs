@@ -4,7 +4,10 @@
 // font size, as Fran measured it, and the browser's own text size, which
 // the em breakpoints follow); N1, the column scrolls on its own on a short
 // screen; N2, a stopped batch says how many of its fights ran; N5, the Run
-// panel's buttons two by two, none alone on a row.
+// panel's buttons two by two, none alone on a row. Fran's re-check at
+// 3821ea4: B2, a mouse wheel over the column scrolls the page (it scrolls
+// the column first when the column has more to show); and the cooldown
+// grid never goes back to fewer columns as the window widens.
 
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -20,6 +23,25 @@ const SWEEP_TO = 1500;
 const SWEEP_STEP = 20;
 // Either side of the sweep too: the column's own widths and the wide edge.
 const MORE_WIDTHS = [1024, 1100, 1280, 1600];
+// The column count from the column's first width to a wide screen, and
+// where the area stops growing (Fran's re-check: 2, 4, 2 from 1580 up).
+const WIDEN_FROM = 1024;
+const WIDEN_TO = 1920;
+const WIDEN_STEP = 16;
+const FULL_AREA_FROM = 1580;
+const WHEEL_SCREENS = [
+  { width: 1024, height: 900 },
+  { width: 1440, height: 900 },
+  { width: 1024, height: 576 },
+];
+const WHEEL_AREAS = ["character", "rotation"];
+const WHEEL_PX = 400;
+// A small notch, so a full column scrolls in steps and its end is seen.
+const NOTCH_PX = 60;
+const MAX_NOTCHES = 40;
+// Past Chrome's wheel latching, so each notch picks its scroller afresh.
+const NOTCH_GAP_MS = 350;
+const SETTLE_MS = 2000;
 // DejaVu Sans is CI's fallback, the widest; Inter is the page's own.
 const FONTS = ["DejaVu Sans", "Liberation Sans", "Inter"];
 const TEXT_WIDTH = 1024;
@@ -93,7 +115,9 @@ async function toArea(page, area) {
 
 const shot = async (page, name) => {
   if (SHOTS) {
-    await page.screenshot({ path: `${SHOTS}/fix-${name}.png` });
+    await page.screenshot({
+      path: `${SHOTS}/${process.env.SHOTS_PREFIX ?? "fix"}-${name}.png`,
+    });
   }
 };
 
@@ -176,6 +200,14 @@ const cooldownFit = (page) =>
     return out;
   }, SLACK);
 
+const gridColumns = (page) =>
+  page.evaluate(
+    () =>
+      getComputedStyle(
+        globalThis.document.querySelector(".cooldown-grid"),
+      ).gridTemplateColumns.split(" ").length,
+  );
+
 describe("the GCD readout stays in its card (Fran's #253 check, B1)", () => {
   const widths = [];
   for (let width = SWEEP_FROM; width <= SWEEP_TO; width += SWEEP_STEP) {
@@ -183,7 +215,7 @@ describe("the GCD readout stays in its card (Fran's #253 check, B1)", () => {
   }
   widths.push(...MORE_WIDTHS);
   for (const font of FONTS) {
-    test(`${font}: nothing in the cooldown cards spills, ${SWEEP_FROM} to ${SWEEP_TO}`, async (t) => {
+    test(`${font}: nothing in the cooldown cards spills, ${SWEEP_FROM} to ${SWEEP_TO}; the grid never narrows to ${WIDEN_TO}`, async (t) => {
       const { context, page, errors } = await open(SWEEP_FROM, {
         font,
         hash: "#fight",
@@ -212,6 +244,31 @@ describe("the GCD readout stays in its card (Fran's #253 check, B1)", () => {
           }
         }
         assert.deepEqual(bad, []);
+
+        // Widening from 1024 to 1920: the cooldown grid never drops a
+        // column, and from where the area stops growing nothing in it
+        // spills (Fran's re-check: it went 2, 4, 2).
+        const counts = [];
+        const wide = [];
+        for (let width = WIDEN_FROM; width <= WIDEN_TO; width += WIDEN_STEP) {
+          await page.setViewportSize({ width, height: SCREEN_HEIGHT });
+          counts.push([width, await gridColumns(page)]);
+          if (width >= FULL_AREA_FROM) {
+            const found = [
+              ...(await cooldownFit(page)),
+              ...(await spills(page, "[data-area]:not([hidden]) *")),
+            ];
+            if (found.length > 0) {
+              wide.push(`${width}: ${found.join("; ")}`);
+            }
+          }
+        }
+        const drops = counts.filter(
+          ([, count], at) => at > 0 && count < counts[at - 1][1],
+        );
+        assert.deepEqual(drops, [], JSON.stringify(counts));
+        assert.equal(counts.at(-1)[1], 4, "four at a wide screen");
+        assert.deepEqual(wide, []);
         assert.deepEqual(errors, []);
       } finally {
         await context.close();
@@ -545,4 +602,108 @@ describe("the Run panel's buttons in the column (Fran's #253 check, N5)", () => 
       }
     });
   }
+});
+
+// Where the page and the column have scrolled to.
+const scrolled = (page) =>
+  page.evaluate(() => {
+    const column = globalThis.document.querySelector(".run-column");
+    return {
+      page: globalThis.scrollY,
+      column: column.scrollTop,
+      columnEnd: column.scrollHeight - column.clientHeight,
+    };
+  });
+
+// A point over the column, on its visible part and on no field (a wheel
+// over a number field is the field's), as a resting pointer would be.
+const overColumn = (page) =>
+  page.evaluate(() => {
+    const doc = globalThis.document;
+    const column = doc.querySelector(".run-column");
+    const box = column.getBoundingClientRect();
+    const top = Math.max(box.top, 0);
+    const bottom = Math.min(box.bottom, globalThis.innerHeight);
+    const x = box.left + box.width / 2;
+    for (let y = bottom - 4; y > top; y -= 4) {
+      const hit = doc.elementFromPoint(x, y);
+      if (column.contains(hit) && !hit.closest("input, select, textarea")) {
+        return { x, y };
+      }
+    }
+    return { x, y: (top + bottom) / 2 };
+  });
+
+describe("a wheel over the column scrolls the page (Fran's #253 re-check, B2)", () => {
+  for (const { width, height } of WHEEL_SCREENS) {
+    for (const area of WHEEL_AREAS) {
+      test(`${width}x${height}, ${area}: the page scrolls under a wheel over the column`, async () => {
+        const { context, page, errors } = await open(width, { height });
+        try {
+          await toArea(page, area);
+          await page.evaluate(() => globalThis.scrollTo(0, 0));
+          const point = await overColumn(page);
+          await page.mouse.move(point.x, point.y);
+          const before = await scrolled(page);
+          await page.mouse.wheel(0, WHEEL_PX);
+          // The page moves, or the column if it has more to show; at
+          // 1024x576 with nothing run the column fits, so the page.
+          await page
+            .waitForFunction(() => globalThis.scrollY > 0, null, {
+              timeout: SETTLE_MS,
+            })
+            .catch(() => {});
+          const after = await scrolled(page);
+          const say = JSON.stringify({ point, before, after });
+          assert.equal(before.page, 0, say);
+          assert.ok(after.page > 0, `the page scrolled, ${say}`);
+          assert.deepEqual(errors, []);
+        } finally {
+          await context.close();
+        }
+      });
+    }
+  }
+
+  test("1024x576 after a batch: a full column scrolls to its end first, then the page", async () => {
+    const { context, page, errors } = await open(1024, { height: 576 });
+    try {
+      await finishBatch(page);
+      await toArea(page, "character");
+      await page.evaluate(() => globalThis.scrollTo(0, 0));
+      const start = await scrolled(page);
+      assert.ok(
+        start.columnEnd > 0,
+        `the column has more, ${JSON.stringify(start)}`,
+      );
+      const point = await overColumn(page);
+      await page.mouse.move(point.x, point.y);
+      const steps = [];
+      for (let notch = 0; notch < MAX_NOTCHES; notch += 1) {
+        await page.mouse.wheel(0, NOTCH_PX);
+        await page.waitForTimeout(NOTCH_GAP_MS);
+        const at = await scrolled(page);
+        steps.push(at);
+        if (at.page > 0 && at.column >= at.columnEnd - SLACK) {
+          break;
+        }
+      }
+      const say = JSON.stringify(steps);
+      const firstPage = steps.findIndex((at) => at.page > 0);
+      assert.ok(firstPage >= 0, `the page scrolled in the end, ${say}`);
+      // Until the column was at its end, the page stayed put.
+      for (const at of steps.slice(0, firstPage)) {
+        assert.equal(at.page, 0, say);
+      }
+      assert.ok(steps[0].column > 0, `the column scrolled first, ${say}`);
+      assert.ok(
+        steps[firstPage].column >= start.columnEnd - SLACK,
+        `the column was at its end when the page moved, ${say}`,
+      );
+      await shot(page, "1024x576-wheel-handoff");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
 });

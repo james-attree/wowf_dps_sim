@@ -2550,7 +2550,9 @@ th[aria-sort="ascending"] {
      scrolls on its own so its foot, the live line and "Open full results",
      is in reach without scrolling to the page's end (Fran's #253 check,
      N1). Its fields, buttons and links stay in the tab order, and tabbing
-     to one scrolls the column to it, so keyboards reach all of it. */
+     to one scrolls the column to it, so keyboards reach all of it. Its
+     scroll chains to the page's: a wheel over it scrolls the page when it
+     has nothing to scroll or is at its end (Fran's #253 re-check, B2). */
   .simulator > .run-column {
     position: sticky;
     top: 16px;
@@ -2562,7 +2564,6 @@ th[aria-sort="ascending"] {
     max-height: calc(100dvh - 32px);
     margin-top: 14px;
     overflow-y: auto;
-    overscroll-behavior: contain;
   }
 
   /* Run, Pause, Stop and Reset two by two, so none is left alone on a row
@@ -2619,9 +2620,12 @@ th[aria-sort="ascending"] {
 
   /* The areas are narrower here than the screen (the column is beside
      them), so their own layouts follow the area's width, not the screen's:
-     the rules the page uses below 45em wide apply to an area up to 47.5rem
-     wide (Fran's #253 check, B1: four cooldown cards need more than the
-     45em). In rem, so bigger text narrows the cards with it (N6). */
+     the rules the page uses below 45em wide apply to an area narrower than
+     47.5rem (Fran's #253 check, B1: four cooldown cards need more than the
+     45em). At the default text size the area stops growing at exactly
+     47.5rem, and keeps four from there: a wider window never goes back to
+     two (Fran's re-check). In rem, so bigger text narrows the cards with
+     it (N6). */
   .simulator > .area {
     container: area / inline-size;
   }
@@ -2641,7 +2645,7 @@ th[aria-sort="ascending"] {
   }
 }
 
-@container area (width <= 47.5rem) {
+@container area (width < 47.5rem) {
   .cooldown-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
