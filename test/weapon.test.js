@@ -5,6 +5,7 @@ import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
 import { Weapon } from "../js/weapon.js";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 
 function rawHit(weapon, attackPower, weaponRoll) {
   return weaponRoll + (attackPower / k("ap.perDps")) * weapon.speed;
@@ -349,7 +350,9 @@ describe("swing timer overshoot", () => {
 
 function sampleFight(fps) {
   setRoll(0.5);
-  const rogue = new Rogue();
+  // Granted: the rotation's Blade Flurry and Adrenaline Rush are in this
+  // fight, and no talents is untalented (#199).
+  const rogue = new Rogue(undefined, COMBAT_GRANTS);
   const sim = new Simulation(rogue, { rng: testRng });
   const counts = {};
   const add = (name) => {

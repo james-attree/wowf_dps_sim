@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 import { setRoll, testRng } from "./rolls.js";
 
 const FRAME_RATES = [30, 144];
@@ -129,7 +130,8 @@ describe("gcd.flags", () => {
   it("casts Blade Flurry on the opening frame and holds the next on-GCD cast", () => {
     setRoll(0.5);
     for (const fps of FRAME_RATES) {
-      const rogue = new Rogue();
+      // Granted: the untalented default casts no Blade Flurry (#199).
+      const rogue = new Rogue(undefined, COMBAT_GRANTS);
       const sim = new Simulation(rogue, { rng: testRng });
       assert.equal(sim.currentTime, 0);
       sim.step(1 / fps);

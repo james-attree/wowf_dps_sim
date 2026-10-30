@@ -28,8 +28,8 @@ export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 // procs and granted abilities are the rogue's, so runFight and the live page
 // run a talented fight from the SimConfig alone. The rotation casts Blade
 // Flurry and Adrenaline Rush only when the build has the talent. No ranks is no
-// build: the fight is the default one, as before talents, and the rotation
-// casts everything on its list. The returned `build` is what was applied
+// build, and no build is untalented (#199): the rotation casts no talent
+// ability unless the host grants it (options.abilities). The returned `build` is what was applied
 // (js/talent-build.js applyBuild), including `unmapped`, the talents of the
 // build the simulator does not model yet.
 //

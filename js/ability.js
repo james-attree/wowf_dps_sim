@@ -260,7 +260,8 @@ export class Ability {
   // affords the cost; and, on the GCD, the GCD is clear (a remainder within
   // sim.tickEpsilon counts as clear). An off-GCD ability skips the GCD check.
   // The rotation interpreter (js/rotation-interpreter.js) asks this; the build
-  // lock is its own check (Rogue.lockedByBuild). test/can-cast.test.js holds
+  // lock is its own check (Rogue.lockedByBuild, which with no build locks every
+  // talent ability the host does not grant, #199). test/can-cast.test.js holds
   // the two together: cast() acts exactly when this is true.
   canCast(rogue, simulation) {
     if (!this.mainHandAllowed(rogue)) {

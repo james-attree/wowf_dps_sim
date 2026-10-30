@@ -248,14 +248,14 @@ export class Rogue {
     );
   }
 
-  // True when a build is selected, a talent grants the ability, and the build
-  // does not have that talent. With no build the rotation casts everything on
-  // its list, as it did before talents (D7, #106).
+  // True when a talent grants the ability and neither the build nor the host
+  // grants it. No build is truly untalented (#199): with no talents picked a
+  // talent ability is locked too, as with a build that lacks its talent. The
+  // grants are fixed for the fight (this.granted), so the rotation host asks
+  // once (js/rotation-host.js, usable).
   lockedByBuild(ability) {
     return (
-      this.build.selected &&
-      talentGrantedAbilities.has(ability.id) &&
-      !this.granted.has(ability.id)
+      talentGrantedAbilities.has(ability.id) && !this.granted.has(ability.id)
     );
   }
 

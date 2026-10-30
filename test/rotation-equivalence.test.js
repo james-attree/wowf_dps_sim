@@ -6,6 +6,7 @@ import { defaultConfig, defaultDaggerConfig } from "../js/sim-config.js";
 import { legacyCastRotation, legacyRotation } from "./legacy-rotation.js";
 import { buildWithout } from "./builds.js";
 import { referenceBuild } from "./talentsforever.js";
+import "./legacy-engine.js";
 
 // R3 (#140): the placeholder Combat rotation, written as a RotationRule list
 // and walked by the interpreter, is the code rotation it replaced, fight for

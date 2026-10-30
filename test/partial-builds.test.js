@@ -310,11 +310,17 @@ describe("a partial build locks the talent abilities it lacks (#190, before #199
     });
   }
 
-  it("with no build, Blade Flurry and Adrenaline Rush are still cast (unchanged)", () => {
+  it("with no build, Blade Flurry and Adrenaline Rush are not cast either (#199)", () => {
     const fight = createFight(1);
+    assert.equal(fight.build.selected, false);
+    const { rogue } = fight;
+    assert.equal(rogue.lockedByBuild(rogue.abilities.bladeFlurry), true);
+    assert.equal(rogue.lockedByBuild(rogue.abilities.adrenalineRush), true);
     fight.simulation.run(120);
-    assert.ok(casts(fight, "blade-flurry") >= 1);
-    assert.ok(casts(fight, "adrenaline-rush") >= 1);
+    assert.equal(casts(fight, "blade-flurry"), 0);
+    assert.equal(casts(fight, "adrenaline-rush"), 0);
+    assert.ok(casts(fight, "sinister-strike") > 0);
+    assert.ok(casts(fight, "slice-and-dice") > 0);
   });
 });
 

@@ -10,6 +10,7 @@ import {
 import { compileRotation, decide } from "../js/rotation-interpreter.js";
 import { defaultConfig } from "../js/sim-config.js";
 import { buildWithout } from "./builds.js";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 import { referenceBuild } from "./talentsforever.js";
 
 // R3 (#140): the Rogue's host for the interpreter, and the decision about
@@ -69,10 +70,22 @@ describe("rotationHost", () => {
     assert.equal(host.canCast("sinister-strike"), true);
     rogue.energy = 10;
     assert.equal(host.canCast("sinister-strike"), false);
-    // Blade Flurry and Adrenaline Rush: with no build selected, not locked.
+    // Blade Flurry and Adrenaline Rush: with no build selected the fight is
+    // untalented (#199), so they are locked and not usable either.
     rogue.energy = 100;
-    assert.equal(host.canCast("blade-flurry"), true);
-    assert.equal(host.canCast("adrenaline-rush"), true);
+    for (const id of ["blade-flurry", "adrenaline-rush"]) {
+      assert.equal(host.canCast(id), false, id);
+      assert.equal(host.usable(id), false, id);
+    }
+    assert.equal(host.usable("sinister-strike"), true);
+    // A host grant unlocks them.
+    const granted = fightWith({}, COMBAT_GRANTS);
+    granted.rogue.energy = 100;
+    const grantedHost = rotationHost(granted.rogue, granted.simulation);
+    for (const id of ["blade-flurry", "adrenaline-rush"]) {
+      assert.equal(grantedHost.canCast(id), true, id);
+      assert.equal(grantedHost.usable(id), true, id);
+    }
   });
 
   it("hands the interpreter an unfrozen view, equal to the frozen one", () => {
@@ -126,9 +139,9 @@ describe("rotationHost", () => {
     assert.equal(locked.rogue.lockedByBuild(flurry), true);
     assert.equal(flurry.canCast(locked.rogue, locked.simulation), true);
     assert.equal(host.canCast("blade-flurry"), false);
-    // Locked is not "unusable": a build lock is answered by abilityUnlocked
-    // in the rule, and host.usable is about the weapon only.
-    assert.equal(host.usable("blade-flurry"), true);
+    // Locked is "not usable" too (#199): the interpreter passes its rule
+    // over whatever the rule's conditions say.
+    assert.equal(host.usable("blade-flurry"), false);
     const rotation = compileRotation({
       schemaVersion: 1,
       name: "Flurry first",
@@ -273,13 +286,13 @@ describe("rotationStateReader: the view built a part at a time", () => {
   // It must say what rotationState says, at every moment of a fight: with
   // auras, debuffs and cooldowns coming and going, the energy rate doubling
   // under Adrenaline Rush, and every kind of build.
-  for (const [name, talents] of [
-    ["no build", {}],
+  for (const [name, talents, options] of [
+    ["no build, Blade Flurry and Adrenaline Rush granted", {}, COMBAT_GRANTS],
     ["the reference build", referenceBuild()],
     ["a build without Adrenaline Rush", noRush],
   ]) {
     it(`reads what rotationState gives, all through a fight: ${name}`, () => {
-      const { rogue, simulation } = fightWith(talents);
+      const { rogue, simulation } = fightWith(talents, options);
       const reader = rotationStateReader(rogue, simulation, { duration: 90 });
       const seen = { auras: 0, debuffs: 0, cooldowns: 0, rushes: 0 };
       for (let index = 0; index < 1200; index += 1) {
@@ -310,7 +323,7 @@ describe("rotationStateReader: the view built a part at a time", () => {
   });
 
   it("keeps a part once it is read, for the rest of that view", () => {
-    const { rogue, simulation } = fightWith({});
+    const { rogue, simulation } = fightWith({}, COMBAT_GRANTS);
     rogue.energy = 100;
     rogue.castRotation(simulation);
     const view = rotationStateReader(rogue, simulation)();

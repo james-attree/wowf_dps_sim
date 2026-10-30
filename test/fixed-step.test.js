@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import "./legacy-engine.js";
 
 // Issue #73. Simulation.run(duration) repeats the fixed step
 // k("sim.fixedStep") and ends with one shorter step, so the fight lasts

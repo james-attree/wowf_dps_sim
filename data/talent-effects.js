@@ -327,9 +327,9 @@ const RAW = {
     ability: "adrenaline-rush",
   },
   // Issue #207. The three Subtlety talents that grant an ability the engine
-  // casts. Each entry is the ability link alone, so with a build selected the
-  // rotation casts the ability only when the build has the talent
-  // (Rogue.lockedByBuild), and a rule that casts it needs a guard
+  // casts. Each entry is the ability link alone, so the rotation casts the
+  // ability only when the build has the talent, with no build too (#199,
+  // Rogue.lockedByBuild), and a rule that casts it needs a guard
   // (js/rotation-validator.js). The rest of Subtlety is not mapped yet.
   "subtlety.ghostly-strike": {
     textHash:

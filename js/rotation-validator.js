@@ -320,8 +320,11 @@ function conditionMeaningErrors(condition, where, context) {
 //   TRANSITIONAL  abilityGranted or abilityUnlocked. Every other talent
 //                 ability, until issue #199: the default rotation and the
 //                 combat-swords preset guard Blade Flurry and Adrenaline Rush
-//                 with abilityUnlocked, and refusing that now would move the
-//                 goldens. #199 makes this list ["abilityGranted"].
+//                 with abilityUnlocked. Since #199 the engine passes over a
+//                 talent ability the fight lacks, with no build too
+//                 (host.usable), so the guard no longer decides a cast; the
+//                 list stays as it is, and whether to tighten it is its own
+//                 change.
 //
 // A rule with no such guard is an error, not a warning. Which abilities this
 // covers comes from the data (context.talentGrantedAbilities), not from a list

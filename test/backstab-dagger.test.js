@@ -6,6 +6,7 @@ import { createFight } from "../js/fight.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { rotationHost } from "../js/rotation-host.js";
 import { compileRotation, decide } from "../js/rotation-interpreter.js";
+import { talentGrantedAbilities } from "../js/talent-build.js";
 
 // Issue #122, with the carry-over from #108: Backstab needs a dagger in the
 // main hand. A cast with any other main hand is refused as a failed cast: no
@@ -127,7 +128,11 @@ describe("Backstab needs a dagger", () => {
 
   it("host.usable is false only for Backstab, and only off a dagger (#155)", () => {
     for (const type of ["dagger", ...OTHERS]) {
-      const { rogue, simulation } = ready(type);
+      // Every talent ability granted, so only the weapon is asked: a talent
+      // ability the build lacks is not usable either (#199).
+      const { rogue, simulation } = createFight(5, config(type), {
+        abilities: [...talentGrantedAbilities],
+      });
       const host = rotationHost(rogue, simulation);
       const unusable = ABILITY_DEFINITIONS.map(({ id }) => id).filter(
         (id) => !host.usable(id),

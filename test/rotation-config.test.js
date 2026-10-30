@@ -64,14 +64,11 @@ describe("SimConfig.rotation", () => {
     const plain = runFight({ seed: 6, duration });
     const small = runFight({ seed: 6, duration, config: { rotation: SMALL } });
     assert.ok(casts(plain)["Slice and Dice"] > 0);
-    assert.ok(casts(plain)["Blade Flurry"] > 0);
     const used = Object.entries(casts(small))
       .filter(([, n]) => n > 0)
       .map(([name]) => name);
     assert.ok(used.includes("Sinister Strike"));
-    assert.ok(
-      !used.includes("Blade Flurry") && !used.includes("Slice and Dice"),
-    );
+    assert.ok(!used.includes("Slice and Dice"));
     assert.notEqual(small.totalDamage, plain.totalDamage);
   });
 
@@ -95,7 +92,15 @@ describe("SimConfig.rotation", () => {
     });
     const counts = casts(result);
     assert.ok(counts.Eviscerate > 3);
-    assert.ok(counts["Sinister Strike"] > counts.Eviscerate);
+    // Each Eviscerate that lands spends a point a landed Sinister Strike
+    // built; a missed or dodged one keeps it, so compare landed counts, not
+    // casts (seeds 1-200 hold on both engines).
+    const landed = ({ casts, misses, dodges, parries }) =>
+      casts - misses - dodges - parries;
+    assert.ok(
+      landed(result.abilities.Eviscerate) <=
+        landed(result.abilities["Sinister Strike"]),
+    );
     assert.equal(counts["Blade Flurry"], undefined);
   });
 

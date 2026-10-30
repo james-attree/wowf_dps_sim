@@ -55,11 +55,20 @@ const AURA_MAPS = Object.freeze(["activeBuffs", "activeDebuffs"]);
 const CONDITION_WAKE = Object.freeze({ wake: "condition" });
 
 // What a decision reads, as a flat list of values and objects, for telling
-// whether the fight was changed between two runs (#231 QA B1): the timers'
-// fields, every aura and DoT entry with its own fields, the pools, the
-// swings, the rotation, build and modifiers, and the fight length. carry()
-// keeps the list a run closes with; the next run compares it with the one
-// it opens on.
+// whether the fight was changed between two runs (#231 QA B1): sim.gcd and the
+// fight length; the rotation program, config, build (and its selected flag),
+// the granted set (and its size) and the modifier pipeline, each by identity (a
+// pipeline's static modifiers are frozen and indexed when it is made, and its
+// timed ones come from the auras); each weapon and its swingTimer; every
+// cooldown, aura and DoT entry, by identity and with its own fields; each pool
+// by identity with its value, baseMax and expiryRemaining; and the abilities
+// map, and each ability by identity with its own fields (cost, triggersGcd,
+// cooldown, ...; #231 QA X1). Nested objects are compared by identity, not
+// looked into: a field changed inside one (an aura's modifier spec, an
+// ability's definition) is not seen. The energy pool's rate and cap are checked
+// apart (begin). carry() keeps the list a run closes with; the next run
+// compares it with the one it opens on. It is built twice per run (at close and
+// at the next start), never per event.
 function decisionMarks(sim) {
   const { rogue } = sim;
   const marks = [
@@ -95,6 +104,12 @@ function decisionMarks(sim) {
   entries(sim.activeDots);
   for (const [id, pool] of Object.entries(rogue.resources)) {
     marks.push(id, pool, pool.value, pool.baseMax, pool.expiryRemaining);
+  }
+  // Each ability's own fields (cost, triggersGcd, cooldown, ...), #231 QA X1.
+  // An ability added or removed changes the list's length.
+  marks.push("abilities", rogue.abilitiesById);
+  for (const [id, ability] of rogue.abilitiesById) {
+    marks.push(id, ability, ...Object.entries(ability).flat());
   }
   return marks;
 }
@@ -176,12 +191,14 @@ class CoreRun {
   #fight;
   #scheduler;
   #closed = false;
+  #empty;
 
   constructor(sim, duration, { pollEvery, afterEvent }) {
     if (sim.core !== null && sim.core !== undefined) {
       throw new Error("The event core is already running this fight.");
     }
     const start = sim.currentTime;
+    this.#empty = duration === 0;
     this.stats = sim.coreStats ??= emptyStats();
     let fight = null;
     // On the fight's clock, not from 0 at each open: two runs of one fight
@@ -237,7 +254,11 @@ class CoreRun {
     if (this.#closed) {
       throw new Error("This event core run is closed.");
     }
-    this.#scheduler.runUntil(t);
+    // A fight of no length has no events: legacy takes no step for a
+    // duration of 0, so nothing at time 0 happens either (#199, the flip).
+    if (!this.#empty) {
+      this.#scheduler.runUntil(t);
+    }
     this.#fight.advance();
   }
 

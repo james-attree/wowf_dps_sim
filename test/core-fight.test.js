@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { ENGINES, runOnCore } from "../js/core/fight.js";
 import { createFight } from "../js/fight.js";
@@ -339,13 +339,13 @@ describe("the event core: a whole fight at decision points (#197)", () => {
     assert.ok(Math.abs(casts[0][0] - 12.3) < 1e-6, JSON.stringify(casts));
   });
 
-  it("knows its engines, and keeps legacy the default", () => {
+  it("knows its engines, and makes events the default (#199)", () => {
     assert.deepEqual(Object.values(ENGINES), ["legacy", "events"]);
-    assert.equal(new Simulation(new Rogue()).engine, "legacy");
-    assert.equal(createFight(1).simulation.engine, "legacy");
+    assert.equal(new Simulation(new Rogue()).engine, "events");
+    assert.equal(createFight(1).simulation.engine, "events");
     assert.equal(
-      createFight(1, undefined, { engine: "events" }).simulation.engine,
-      "events",
+      createFight(1, undefined, { engine: "legacy" }).simulation.engine,
+      "legacy",
     );
     for (const engine of ["fixed", "", null, 1]) {
       assert.throws(
@@ -355,11 +355,11 @@ describe("the event core: a whole fight at decision points (#197)", () => {
       );
       assert.throws(() => Simulation.useEngine(engine), /Unknown engine/);
     }
-    assert.equal(Simulation.useEngine("events"), "legacy");
+    assert.equal(Simulation.useEngine("legacy"), "events");
     try {
-      assert.equal(new Simulation(new Rogue()).engine, "events");
+      assert.equal(new Simulation(new Rogue()).engine, "legacy");
     } finally {
-      assert.equal(Simulation.useEngine("legacy"), "events");
+      assert.equal(Simulation.useEngine("events"), "legacy");
     }
   });
 
@@ -477,7 +477,7 @@ describe("the event core at the #196 edges", () => {
     legacy.bonusHitChance = 1;
     legacy.critChance = 0;
     legacy.castRotation = () => ({ casts: [], outcome: "none" });
-    const old = new Simulation(legacy, { rng: testRng });
+    const old = new Simulation(legacy, { rng: testRng, engine: "legacy" });
     const times = [];
     old.on("hit", (e) => {
       if (e.name === "Main-hand") {
@@ -492,6 +492,13 @@ describe("the event core at the #196 edges", () => {
   });
 });
 
+// Each test leaves the default engine as it found it. useEngine returns the
+// engine it replaces, so setting and putting it back reads the current one.
+let engineBefore;
+beforeEach(() => {
+  engineBefore = Simulation.useEngine(ENGINES.events);
+  Simulation.useEngine(engineBefore);
+});
 afterEach(() => {
-  Simulation.useEngine("legacy");
+  Simulation.useEngine(engineBefore);
 });

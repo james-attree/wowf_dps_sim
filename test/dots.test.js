@@ -832,7 +832,8 @@ describe("the same fight on both engines", () => {
 
   function legacy(seed) {
     const rogue = new Rogue(config);
-    const sim = new Simulation(rogue, { seed });
+    // Legacy until #200: the legacy half of the pair, through rogue.rotation.
+    const sim = new Simulation(rogue, { seed, engine: "legacy" });
     rogue.rotation = (s, dt) => {
       for (const [time, cast] of casts) {
         if (s.currentTime === time) {

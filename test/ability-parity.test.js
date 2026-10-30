@@ -73,7 +73,9 @@ function fight({ seed, config, options, legacy, everything }) {
     draws.push(value);
     return value;
   };
-  const simulation = new Simulation(rogue, { rng });
+  // Legacy until #200: the every-ability fights cast through rogue.rotation,
+  // a legacy hook the event core does not call.
+  const simulation = new Simulation(rogue, { rng, engine: "legacy" });
   if (everything) {
     const order = { state: seed };
     rogue.rotation = function rotation(sim, dt) {

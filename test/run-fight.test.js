@@ -149,10 +149,11 @@ describe("runFight per-ability breakdown", () => {
   });
 
   it("counts a non-attack cast as a cast with no damage", () => {
-    const rush = fiveMinutes.abilities["Adrenaline Rush"];
-    assert.ok(rush.casts >= 1);
-    assert.equal(rush.damage, 0);
-    assert.equal(sum(COUNTERS.map((field) => rush[field])), 0);
+    // Slice and Dice: the untalented default casts no Adrenaline Rush (#199).
+    const dice = fiveMinutes.abilities["Slice and Dice"];
+    assert.ok(dice.casts >= 1);
+    assert.equal(dice.damage, 0);
+    assert.equal(sum(COUNTERS.map((field) => dice[field])), 0);
   });
 
   it("counts DoT ticks apart from casts, and the application deals no damage", () => {
@@ -351,9 +352,11 @@ describe("runFight, a 5-minute fight", () => {
     assert.equal(result.dps, result.totalDamage / FIVE_MINUTES);
   });
 
-  it("casts the cooldowns the placeholder rotation uses", () => {
-    assert.ok(result.abilities["Adrenaline Rush"].casts >= 1);
-    assert.ok(result.abilities["Blade Flurry"].casts >= 1);
+  it("casts the placeholder rotation, less the talent abilities with no talents (#199)", () => {
+    assert.equal(result.abilities["Adrenaline Rush"], undefined);
+    assert.equal(result.abilities["Blade Flurry"], undefined);
+    assert.equal(result.abilities["Cold Blood"], undefined);
+    assert.ok(result.abilities["Slice and Dice"].casts >= 1);
     assert.ok(result.abilities["Sinister Strike"].casts > 1);
   });
 

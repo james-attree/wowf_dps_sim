@@ -520,12 +520,23 @@ describe("a selected build gates the abilities a talent grants", () => {
     assert.equal(fight.simulation.activeBuffs["blade-flurry"], undefined);
   });
 
-  it("with no build, the rotation casts its whole list, as before talents", () => {
+  it("with no build, the fight is untalented: no talent ability is cast (#199)", () => {
     const fight = createFight(1);
     fight.simulation.run(SECONDS);
-    assert.ok(casts(fight, "blade-flurry") >= 1);
-    assert.ok(casts(fight, "adrenaline-rush") >= 1);
-    assert.equal(casts(fight, "cold-blood"), 0);
+    for (const id of ASSASSINATION_ABILITIES) {
+      assert.equal(casts(fight, id), 0, id);
+    }
+    assert.ok(casts(fight, "sinister-strike") > 0);
+    assert.ok(casts(fight, "slice-and-dice") > 0);
+    // A host grant still casts them, guard or not (Cold Blood's
+    // abilityGranted reads the grant too).
+    const granted = createFight(1, undefined, {
+      abilities: ["blade-flurry", "adrenaline-rush"],
+    });
+    granted.simulation.run(SECONDS);
+    assert.ok(casts(granted, "blade-flurry") >= 1);
+    assert.ok(casts(granted, "adrenaline-rush") >= 1);
+    assert.equal(casts(granted, "cold-blood"), 0);
   });
 
   it("an ability the host grants is cast even when the build lacks the talent", () => {
@@ -547,8 +558,10 @@ describe("a selected build gates the abilities a talent grants", () => {
     assert.equal(rogue.lockedByBuild(rogue.abilities.sliceAndDice), false);
     const full = createFight(1, { talents: REFERENCE }).rogue;
     assert.equal(full.lockedByBuild(full.abilities.bladeFlurry), false);
+    // No build is untalented (#199): locked too.
     const none = createFight(1).rogue;
-    assert.equal(none.lockedByBuild(none.abilities.bladeFlurry), false);
+    assert.equal(none.lockedByBuild(none.abilities.bladeFlurry), true);
+    assert.equal(none.lockedByBuild(none.abilities.sinisterStrike), false);
   });
 });
 
@@ -578,7 +591,7 @@ describe("the Subtlety talent abilities are held back by a build without them (#
     ]);
   });
 
-  it("locks them for the reference build, not for the Subtlety build or no build", () => {
+  it("locks them for the reference build and no build (#199), not for the Subtlety build", () => {
     const reference = createFight(1, { talents: REFERENCE }).rogue;
     const subtlety = createFight(1, { talents: SUBTLETY_THREE }).rogue;
     const none = createFight(1).rogue;
@@ -589,7 +602,7 @@ describe("the Subtlety talent abilities are held back by a build without them (#
         key,
       );
       assert.equal(subtlety.lockedByBuild(subtlety.abilities[key]), false, key);
-      assert.equal(none.lockedByBuild(none.abilities[key]), false, key);
+      assert.equal(none.lockedByBuild(none.abilities[key]), true, key);
     }
   });
 

@@ -231,7 +231,8 @@ self-comparison is exactly zero.
 Landed in #192: `npm run parity` (`scripts/parity.mjs`, tested in
 `test/parity.test.js`), and the time and ordering note in mechanics.md
 ("Planned: event-queue engine (Phase 3.5)"). The scripted golden case runs its
-config without its script, as `finishers-50s-without-script`, and a
+config without its script (since #199 trimmed as the default config, the
+script itself left to #200), and a
 parity-only DoT case (`dot-hemorrhage-rupture-120s`) covers Rupture ticks.
 `--gate 2` is #199's gate: `|mean A - mean B| / mean B` at most 2% on every
 case, on the point estimate, with B = legacy (mechanics.md "Parity harness").
@@ -351,7 +352,10 @@ within a tolerance Kira signs off, with any difference above it explained. The
 engine default switches to the new core. The golden fixtures are regenerated
 with `npm run golden:update -- --write` in their own commit, and Kira reviews
 the diff of every fixture and signs off. If the mean is outside 2%, the PR does
-not merge and the cause is fixed or James decides.
+not merge and the cause is fixed or James decides. Landed in #199: the default
+is `"events"` (`js/simulation.js`), tests that pin legacy itself import
+`test/legacy-engine.js` or name the engine until #200, and all 7 fixtures
+moved (as the risk below says).
 
 **9. Remove the legacy engine, docs.** Done when: the fixed-step loop,
 `Simulation.step` as a public method (or a documented shim if the live page or

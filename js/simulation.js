@@ -87,9 +87,10 @@ function readFightLength(fightLength) {
   return fightLength;
 }
 
-// The engine a Simulation runs on when its constructor is not told: legacy
-// (fixed steps) unless a caller changed it with Simulation.useEngine.
-let defaultEngine = ENGINES.legacy;
+// The engine a Simulation runs on when its constructor is not told: events
+// (the event core, #199) unless a caller changed it with Simulation.useEngine.
+// The legacy fixed-step engine stays until #200 removes it.
+let defaultEngine = ENGINES.events;
 
 function readEngine(engine) {
   if (!Object.values(ENGINES).includes(engine)) {

@@ -4,6 +4,7 @@ import { k } from "../data/constants.js";
 import { SIM_EVENT_TYPES } from "../js/event-stream.js";
 import { createFight, fightResult, runFight } from "../js/fight.js";
 import { SimRunner } from "../js/sim-runner.js";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 import { referenceBuild } from "./talentsforever.js";
 
 // Issue #137 (P3-2, E7-lite). The contract tests for the event stream of a
@@ -24,6 +25,9 @@ const CASES = [
   { seed: 107, duration: 60, config: TALENTED },
   { seed: 12345, duration: LONG },
   { seed: 99, duration: 31.4159, config: TALENTED },
+  // With the two Combat cooldowns granted (#199: no talents is untalented):
+  // this fight refreshes Slice and Dice, which the others do not.
+  { seed: 12345, duration: LONG, fightOptions: COMBAT_GRANTS },
 ];
 
 const NUMBER = "number";
@@ -150,8 +154,8 @@ function checkShape(event) {
 }
 
 // Run a whole fight with a wildcard subscriber and return the events.
-function eventsOf({ seed, duration, config }) {
-  const fight = createFight(seed, config);
+function eventsOf({ seed, duration, config, fightOptions }) {
+  const fight = createFight(seed, config, fightOptions);
   const events = [];
   fight.simulation.on("*", (event) => events.push(event));
   fight.simulation.run(duration);
@@ -160,8 +164,8 @@ function eventsOf({ seed, duration, config }) {
 
 // Run a fight with its rng counted. Returns what the rng gave, the result,
 // and the log the result carries.
-function countedFight({ seed, duration, config }, subscribe) {
-  const fight = createFight(seed, config);
+function countedFight({ seed, duration, config, fightOptions }, subscribe) {
+  const fight = createFight(seed, config, fightOptions);
   const { simulation } = fight;
   const source = simulation.rng;
   const values = [];
@@ -399,7 +403,7 @@ describe("the resource events that fights seldom make", () => {
 
 describe("what the stream is not allowed to change", () => {
   for (const options of CASES) {
-    const label = `seed ${options.seed}, ${options.duration} s`;
+    const label = `seed ${options.seed}, ${options.duration} s${options.fightOptions ? ", granted" : ""}`;
 
     it(`gives the same result, log and rng draws with and without subscribers (${label})`, () => {
       const plain = countedFight(options);
@@ -412,7 +416,10 @@ describe("what the stream is not allowed to change", () => {
       assert.ok(plain.values.length > 0);
       assert.deepEqual(watched.values, plain.values);
       assert.deepEqual(watched.result, plain.result);
-      assert.deepEqual(plain.result, runFight(options));
+      if (!options.fightOptions) {
+        // runFight takes no host grants; the granted case stops above.
+        assert.deepEqual(plain.result, runFight(options));
+      }
     });
 
     it(`gives the same fight when every handler throws (${label})`, () => {
@@ -764,7 +771,7 @@ describe("a handler that calls the runner during an event", () => {
   const reference = runFight({ seed: 1, duration: SHORT });
 
   // Pause from the nth hit, then resume from the outside.
-  for (const nth of [1, 2, 7, 30]) {
+  for (const nth of [1, 2, 7, 20]) {
     it(`pauses at hit ${nth} and resumes to the same result and events`, () => {
       const target = runner();
       const events = [];

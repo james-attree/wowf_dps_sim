@@ -23,7 +23,8 @@ function harness(options) {
   rogue.bonusHitChance = 1;
   rogue.critChance = 0;
   rogue.rotation = () => {};
-  const sim = new Simulation(rogue, { rng: testRng });
+  // Legacy until #200: rogue.rotation (here, never cast) is a legacy hook.
+  const sim = new Simulation(rogue, { rng: testRng, engine: "legacy" });
   return { rogue, sim };
 }
 

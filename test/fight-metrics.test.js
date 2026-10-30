@@ -396,13 +396,17 @@ describe("one fight, from a real fight", () => {
   });
 
   it("clips an aura still up at the end to the fight", () => {
+    // Adrenaline Rush (15 s) goes up about 1 s in and is still up at 10 s.
+    // Not Blade Flurry: the event core casts it at 0, not after the first
+    // fixed step, so it is up for the whole fight there (#199).
     const { summary, events } = observed(107, TALENTED, 10);
-    const flurry = events.find(
-      (event) => event.type === "aura" && event.aura === "blade-flurry",
+    const rush = events.find(
+      (event) => event.type === "aura" && event.aura === "adrenaline-rush",
     );
-    assert.equal(flurry.change, "apply");
-    const r = row(summary, "blade-flurry");
-    assert.equal(r.uptime, 10 - flurry.time);
+    assert.equal(rush.change, "apply");
+    assert.ok(rush.time > 0 && rush.time + k("adrenalineRush").duration > 10);
+    const r = row(summary, "adrenaline-rush");
+    assert.equal(r.uptime, 10 - rush.time);
     assert.ok(r.uptimeFraction < 1);
     for (const each of summary.rows) {
       assert.ok(each.uptime <= summary.duration, each.id);

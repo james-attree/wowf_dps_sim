@@ -11,6 +11,7 @@ import { RESOURCE_DEFINITIONS } from "../js/resource-data.js";
 import { createRng } from "../js/rng.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { PARITY_CASES, PARITY_ONLY_CASES } from "../scripts/parity.mjs";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 
 // #198, from #197's QA (M1 and M2 on PR #230). M1: a fight cut into pieces on
 // the event core is the fight run in one piece, event for event. The core's
@@ -108,7 +109,7 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
   });
 
   // Cuts where a part of the carry alone keeps the fight the same: the
-  // energy line (finishers seed 14, hemorrhage seed 22) and a poison DoT
+  // energy line (default config seed 14, hemorrhage seed 22) and a poison DoT
   // whose last tick has run with time left (poisons seed 28).
   it("the cuts that need the energy line and an idle DoT carried", () => {
     const named = (name) =>
@@ -116,7 +117,7 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
       PARITY_ONLY_CASES.find((c) => c.name === name);
     for (const [name, seed, cuts] of [
       [
-        "finishers-50s-without-script",
+        "five-minute-seed-1-300s",
         14,
         [2.0646, 13.833, 25.3399, 27.1388, 51.5573, 52.6346],
       ],
@@ -284,9 +285,11 @@ describe("what the carry leaves to the fields (#198)", () => {
   });
 
   it("a regen rate changed between runs does not reach back over the carried line", () => {
+    // Granted, as the untalented default casts no Adrenaline Rush (#199).
     const { simulation } = createFight(6, undefined, {
       duration: 30,
       engine: EVENTS,
+      ...COMBAT_GRANTS,
     });
     runOnCore(simulation, 3.1);
     const left = simulation.rogue.resources.energy.value;
@@ -725,7 +728,11 @@ describe("step() while a core is open (#231 QA)", () => {
 // sees a GCD or cooldown ending within sim.tickEpsilon as ready and casts
 // early. The next run keeps the last decision's wakes instead.
 describe("a cut just before a decision time is the fight in one run (#231 QA B1)", () => {
-  const FINISHERS = CONFIGS.find(({ name }) => name.startsWith("finishers"));
+  // The finishers case's config: the parity gate runs it as five-minute
+  // (SAME_CONFIG_AS, #199), whose config it is.
+  const FINISHERS = CONFIGS.find(
+    ({ name }) => name === "five-minute-seed-1-300s",
+  );
 
   it("Kira's repro: finishers seed 5 cut 1e-12 and 2e-9 before the GCD ends at 3", () => {
     for (const cut of [3 - 1e-12, 3 - 2e-9]) {
@@ -784,6 +791,7 @@ describe("a cut just before a decision time is the fight in one run (#231 QA B1)
       const { simulation } = createFight(5, structuredClone(FINISHERS.config), {
         duration: 20,
         engine: EVENTS,
+        ...COMBAT_GRANTS,
       });
       const times = [];
       simulation.on("cast", (event) => times.push(event.time));

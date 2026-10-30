@@ -35,8 +35,11 @@ less with full energy (the combat-swords preset's rules, #173), else Cold Blood
 when the build grants it and Eviscerate; otherwise Sinister Strike. A rotation
 that casts Cold Blood must say "when granted" (`abilityGranted`), or the
 validator rejects it (#173); since #188 every ability a talent grants needs its
-guard, and until #199 Blade Flurry, Adrenaline Rush and (since #207) Ghostly
-Strike, Hemorrhage and Premeditation may use `abilityUnlocked` instead.
+guard, and Blade Flurry, Adrenaline Rush and (since #207) Ghostly Strike,
+Hemorrhage and Premeditation may use `abilityUnlocked` instead. With no talents
+picked the fight is untalented (#199): the sim casts none of the abilities a
+talent grants unless the host grants it, so the default fight casts no Blade
+Flurry, Adrenaline Rush or Cold Blood.
 The page's first fight adds Instant Poison on the main hand and Deadly Poison
 on the off hand (`pageDefaultConfig()`, #152); `runFight`'s default has no
 poisons, so the goldens do not move. The page's "Fight setup" form (Phase 3)
@@ -393,7 +396,7 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   3.5 core: `schedule`, cancel tokens, `reschedule`, `runUntil`, `runToEnd`,
   the fixed order at one timestamp (`ORDER`), and a hard stop
   (`SchedulerHardStopError`). The event core (`js/core/fight.js`, #197) runs
-  on it; the legacy engine is the default. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
+  on it, and is the default engine since #199. See "Planned: event-queue engine" in [Mechanics](docs/mechanics.md).
 - `js/core/energy.js` — `EnergyPool` (#194), continuous energy for the Phase
   3.5 core: the line `min(cap, value0 + rate * (now - t0))`, re-based on a
   gain, a spend or a rate or cap change (`modifiersChanged()`), and a one-shot
@@ -436,8 +439,8 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   call, and returns a plain object: seed, simulated duration, total damage, DPS,
   a per-ability breakdown (`Simulation.abilityStats`), the combat log,
   `dataVersion` (which data snapshot the fight ran on), and `config` (the
-  SimConfig it used). `engine` (#198) is `"legacy"` (the default) or
-  `"events"`, the event core; the result does not record it. An option other
+  SimConfig it used). `engine` (#198) is `"events"`, the event core (the
+  default since #199), or `"legacy"`, until #200; the result does not record it. An option other
   than `seed`, `duration`, `config` and `engine` is a `RangeError`. `createFight` returns `dataVersion` and `config` too. The same seed and duration give a deep-equal result, and it
   loads in Node with no DOM.
 - `js/sim-runner.js` — `SimRunner` (P3-1, #136), the run controller over the
@@ -773,10 +776,12 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   target it compares with. The only place besides `test/bench.test.js` that
   reads a timer.
 - `scripts/parity.mjs` — `npm run parity`: runs two engines over seeds 1 to N
-  on the golden configs and a DoT case, and prints mean DPS, per-ability means
-  and the paired 95% interval of the difference, also as a percentage of B's
-  mean. `--gate PCT` exits 2 if a case is more than PCT percent off. Only the
-  legacy engine exists until Phase 3.5, so it compares legacy with itself. See
+  on the golden configs (one case per config), a DoT case and a partial
+  build, and prints mean DPS, per-ability means and the paired 95% interval of
+  the difference, also as a signed percentage of B's mean. `--duration S` runs every case for S seconds.
+  `--gate PCT` exits 2 if a case is more than PCT percent off. The engines are
+  `legacy` and `events`; #199 gates `--engine events --against legacy
+--duration 300 --gate 2`. See
   [Parity harness](docs/mechanics.md#parity-harness).
 - `scripts/refresh-data.mjs` — Downloads the talentsforever rogue export,
   pretty-prints it with values unchanged, writes the manifest, and prints a

@@ -5,9 +5,11 @@ import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { talentCatalogue } from "./talents.js";
 
 // Which rules the current talent build skips (Phase 4, #217, U7 spec D9 and
-// section 8). A rule is skipped when one of its own talent checks
-// (abilityGranted, abilityUnlocked) fails for the build. The answer is the
-// engine's: each check is evaluated with evaluateTrusted against the state
+// section 8). A rule is skipped when its action is a talent ability the build
+// does not grant (the engine's host.usable, Rogue.lockedByBuild: with no
+// build too, #199), or when one of its own talent checks (abilityGranted,
+// abilityUnlocked) fails for the build. The answer is the engine's: each
+// check is evaluated with evaluateTrusted against the state
 // the fight would have (js/rotation-state.js: build.selected, granted,
 // talentAbilities), so nothing here copies the talent rules. Used by the
 // rotation builder's cards and context line and by the stats form's summary.
@@ -17,6 +19,10 @@ const GUARDS = Object.freeze(["abilityGranted", "abilityUnlocked"]);
 // The part of a fight's state a talent check reads, for config's build. A
 // build the config can't hold (over its level's cap) never gets here: the
 // config keeps the last legal one (#204), so this reads that.
+// The config has no host grants (Rogue's `abilities` option), so `granted` is
+// the build's alone: an ability a host grants with no build (Blade Flurry,
+// say) is usable in the engine but shown here as skipped. The app passes no
+// host grants (docs/rotation.md, "Granted and unlocked").
 export function talentState(config) {
   let build;
   try {
@@ -44,11 +50,26 @@ export function grantingTalentName(ability) {
 
 const nameOf = (id) => abilityCatalogue.get(id)?.name ?? id;
 
+// The skip for an ability the build lacks: { ability, talent, text }.
+function skipFor(ability) {
+  const talent = grantingTalentName(ability) ?? nameOf(ability);
+  return { ability, talent, text: `no ${talent} talent` };
+}
+
 // Why `rule` is skipped with this build: { ability, talent, text } for its
-// first talent check that fails ("no Cold Blood talent"), or null when every
-// one holds. A condition with a param missing (an unfinished edit) is passed
+// action when that is a talent ability the build lacks, else for its first
+// talent check that fails ("no Cold Blood talent"), or null when every one
+// holds. A condition with a param missing (an unfinished edit) is passed
 // over: it is an error of its own.
 export function skipOf(rule, state) {
+  // The engine passes over a talent ability the build does not grant, with
+  // no build too, whatever the rule's conditions say (#199).
+  if (
+    state.talentAbilities.includes(rule.action) &&
+    !state.granted.includes(rule.action)
+  ) {
+    return skipFor(rule.action);
+  }
   const failing = rule.conditions.find(
     (condition) =>
       GUARDS.includes(condition.type) &&
@@ -58,8 +79,7 @@ export function skipOf(rule, state) {
   if (failing === undefined) {
     return null;
   }
-  const talent = grantingTalentName(failing.ability) ?? nameOf(failing.ability);
-  return { ability: failing.ability, talent, text: `no ${talent} talent` };
+  return skipFor(failing.ability);
 }
 
 // The talents a rule's checks find taken: { ability, talent } for its first

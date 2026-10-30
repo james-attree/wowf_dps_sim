@@ -25,7 +25,8 @@ import { ROTATION_SCHEMA_VERSION } from "./rotation-schema.js";
 // Blade Flurry and Adrenaline Rush start the GCD (gcd.flags), so an on-GCD rule
 // that holds but cannot be cast holds the walk (docs/rotation.md). The code
 // rotation tried each of them and went on, so each rule says when it can be
-// cast: `abilityUnlocked` (the selected build has the talent), `cooldownReady`,
+// cast: `abilityUnlocked` (the selected build has the talent; with no build the
+// engine skips both anyway, #199), `cooldownReady`,
 // and for Blade Flurry the energy it costs, so that one it cannot afford does
 // not hold back Adrenaline Rush, which costs none. Cold Blood is cast only when
 // granted (the validator requires that, #155): with no build and no host grant

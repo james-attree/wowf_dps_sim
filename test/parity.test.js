@@ -13,10 +13,13 @@ import {
   HELP_TEXT,
   MAX_SEEDS,
   EngineResultError,
+  GATE_TOLERANCE,
+  MAX_DURATION,
   PARITY_ONLY_CASES,
-  SCRIPT_LEFT_OFF,
+  SAME_CONFIG_AS,
   checkResult,
   compareCase,
+  copyResult,
   parityCases,
   PARITY_CASES,
   resultsDiffer,
@@ -30,6 +33,7 @@ import {
   standardDeviation,
   studentTCdf,
   studentTQuantile,
+  withinGate,
 } from "../scripts/parity.mjs";
 
 // The parity harness (#192, E11). With only the legacy engine, legacy against
@@ -38,7 +42,7 @@ import {
 const execFileAsync = promisify(execFile);
 const root = fileURLToPath(new URL("..", import.meta.url));
 const SCRIPT = fileURLToPath(new URL("../scripts/parity.mjs", import.meta.url));
-const SHORT = "short-seed-1-10s";
+const SHORT = "five-minute-seed-1-300s";
 
 function close(actual, expected, tolerance = 1e-9) {
   assert.ok(
@@ -50,16 +54,16 @@ function close(actual, expected, tolerance = 1e-9) {
 describe("parity: legacy against legacy is exactly 0 (#192)", () => {
   const report = runParity({ seeds: 3 });
 
-  it("covers every golden case, in order, then the parity-only cases", () => {
+  it("covers one golden case per config, in order, then the parity-only cases", () => {
     assert.deepEqual(
       report.cases.map(({ name }) => name),
       [
-        ...GOLDEN_CASES.map(({ name }) =>
-          Object.hasOwn(SCRIPT_LEFT_OFF, name)
-            ? SCRIPT_LEFT_OFF[name].as
-            : name,
-        ),
+        "five-minute-seed-1-300s",
+        "talented-build-seed-107-60s",
+        "poisons-instant-deadly-seed-107-60s",
+        "combat-swords-preset-seed-142-120s",
         "dot-hemorrhage-rupture-120s",
+        "partial-build-8-points-300s",
       ],
     );
   });
@@ -82,19 +86,22 @@ describe("parity: legacy against legacy is exactly 0 (#192)", () => {
 
   it("the means are runFight's, seeds 1 to N", () => {
     const c = report.cases.find(({ name }) => name === SHORT);
-    const dps = [1, 2, 3].map((seed) => runFight({ seed, duration: 10 }).dps);
+    const dps = [1, 2, 3].map(
+      (seed) => runFight({ seed, duration: 300, engine: "legacy" }).dps,
+    );
     assert.equal(c.engine.dpsMean, mean(dps));
     assert.equal(c.engine.dpsSd, standardDeviation(dps));
   });
 });
 
 describe("parity: a different engine is caught", () => {
+  // Offsets from legacy, the engine they are compared with.
   const plusTen = (options) => {
-    const result = runFight(options);
+    const result = runFight({ ...options, engine: "legacy" });
     return { ...result, dps: result.dps + 10 };
   };
   const bySeed = (options) => {
-    const result = runFight(options);
+    const result = runFight({ ...options, engine: "legacy" });
     return { ...result, dps: result.dps + options.seed };
   };
   const engines = { ...ENGINES, plusTen, bySeed };
@@ -196,7 +203,9 @@ describe("parity: the cases", () => {
         config,
       })),
       [
-        ...GOLDEN_CASES.map(({ name, duration, config }) => ({
+        ...GOLDEN_CASES.filter(
+          ({ name }) => !Object.hasOwn(SAME_CONFIG_AS, name),
+        ).map(({ name, duration, config }) => ({
           golden: name,
           duration,
           config,
@@ -210,88 +219,114 @@ describe("parity: the cases", () => {
     );
   });
 
-  it("leave off only the scripts SCRIPT_LEFT_OFF names, under a name that says so", () => {
-    // Pinned: a change to the list, or to which golden cases are scripted,
-    // must come with a change here.
-    assert.deepEqual(Object.keys(SCRIPT_LEFT_OFF), [
-      "scripted-finishers-seed-68-50s",
-    ]);
+  it("run no script: the scripted golden case is in the gate by its config (#199)", () => {
+    // Pinned: a change to which golden cases are scripted must come with a
+    // change here.
     assert.deepEqual(
       GOLDEN_CASES.filter(({ script }) => script !== undefined).map(
         ({ name }) => name,
       ),
       ["scripted-finishers-seed-68-50s"],
     );
-    const entry = SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"];
-    assert.equal(entry.as, "finishers-50s-without-script");
-    assert.match(entry.reason, /Rogue\.prototype\.rotation/);
-    assert.deepEqual(
-      PARITY_CASES.filter(({ scriptLeftOff }) => scriptLeftOff !== null).map(
-        ({ name, golden, scriptLeftOff }) => [name, golden, scriptLeftOff],
-      ),
-      [
-        [
-          "finishers-50s-without-script",
-          "scripted-finishers-seed-68-50s",
-          entry.reason,
-        ],
-      ],
+    // SCRIPT_LEFT_OFF is gone (#199); a script for every seed is #200's. Its
+    // config is the default one, so SAME_CONFIG_AS trims it for
+    // five-minute-seed-1-300s.
+    assert.equal(
+      SAME_CONFIG_AS["scripted-finishers-seed-68-50s"],
+      "five-minute-seed-1-300s",
     );
-    // The golden name is not a parity case name: --cases takes the new one.
     assert.equal(
       PARITY_CASES.some(
-        ({ name }) => name === "scripted-finishers-seed-68-50s",
+        ({ name, golden }) =>
+          name === "finishers-50s-without-script" ||
+          golden === "scripted-finishers-seed-68-50s",
       ),
       false,
     );
     assert.equal(
-      PARITY_CASES.some((c) => "script" in c),
+      PARITY_CASES.some((c) => "script" in c || "scriptLeftOff" in c),
       false,
     );
   });
 
-  it("refuses a scripted case not on the list, a listed case with no script, and a repeated name", () => {
+  it("refuses a scripted case that is not trimmed, and a repeated name", () => {
     const plain = { name: "plain", duration: 10, config: {} };
     const scripted = { ...plain, name: "scripted", script: ["eviscerate"] };
-    const why = { scripted: { as: "plain-without-script", reason: "why" } };
     assert.deepEqual(
-      parityCases([plain, scripted], why, []).map((c) => [
-        c.name,
-        c.scriptLeftOff,
-      ]),
-      [
-        ["plain", null],
-        ["plain-without-script", "why"],
-      ],
+      parityCases([plain, scripted], [], { scripted: "plain" }).map(
+        (c) => c.name,
+      ),
+      ["plain"],
     );
     // A case that quietly becomes scripted.
-    assert.throws(() => parityCases([plain, scripted], {}, []), {
+    const other = { ...scripted, config: { poisons: {} } };
+    assert.throws(() => parityCases([plain, other], [], {}), {
       name: "RangeError",
-      message: /^Golden case "scripted" is scripted, .*SCRIPT_LEFT_OFF/,
+      message:
+        /^Golden case "scripted" is scripted, and the parity harness runs no script\. Trim it in SAME_CONFIG_AS/,
     });
-    // A case that quietly stops being scripted, or is renamed or removed.
-    assert.throws(
-      () => parityCases([plain, { ...scripted, script: undefined }], why, []),
-      {
-        name: "RangeError",
-        message:
-          /^SCRIPT_LEFT_OFF lists "scripted", which is not a scripted golden case/,
-      },
-    );
-    assert.throws(() => parityCases([plain], why, []), RangeError);
-    assert.throws(
-      () =>
-        parityCases(
-          [plain, scripted],
-          {
-            scripted: { as: "plain", reason: "why" },
-          },
-          [],
-        ),
-      { name: "RangeError", message: 'Two parity cases are named "plain".' },
-    );
-    assert.throws(() => parityCases([plain], {}, [plain]), {
+    assert.throws(() => parityCases([plain], [plain], {}), {
       message: 'Two parity cases are named "plain".',
+    });
+  });
+
+  it("run one case per distinct config: SAME_CONFIG_AS trims the rest (#199)", () => {
+    // Pinned: the default config's other three golden cases are trimmed for
+    // five-minute-seed-1-300s.
+    assert.deepEqual(SAME_CONFIG_AS, {
+      "short-seed-1-10s": "five-minute-seed-1-300s",
+      "other-seed-12345-90s": "five-minute-seed-1-300s",
+      "scripted-finishers-seed-68-50s": "five-minute-seed-1-300s",
+    });
+    for (const [name, kept] of Object.entries(SAME_CONFIG_AS)) {
+      const config = (n) => GOLDEN_CASES.find((c) => c.name === n).config;
+      assert.deepEqual(config(name), config(kept));
+      assert.equal(
+        PARITY_CASES.some((c) => c.golden === name),
+        false,
+      );
+      assert.ok(PARITY_CASES.some((c) => c.name === kept));
+    }
+    const configs = PARITY_CASES.map(({ config }) => JSON.stringify(config));
+    assert.equal(new Set(configs).size, configs.length);
+    // Every golden case is run or trimmed.
+    for (const { name } of GOLDEN_CASES) {
+      assert.ok(
+        Object.hasOwn(SAME_CONFIG_AS, name) ||
+          PARITY_CASES.some((c) => c.golden === name),
+        name,
+      );
+    }
+  });
+
+  it("refuses two cases with one config, and a trim that does not match", () => {
+    const a = { name: "a", duration: 10, config: { poisons: {} } };
+    const b = { ...a, name: "b", duration: 20 };
+    const c = { name: "c", duration: 10, config: {} };
+    assert.throws(() => parityCases([a, b], [], {}), {
+      name: "RangeError",
+      message:
+        'Parity cases "a" and "b" have the same config. Trim one in SAME_CONFIG_AS.',
+    });
+    assert.deepEqual(
+      parityCases([a, b, c], [], { b: "a" }).map(({ name }) => name),
+      ["a", "c"],
+    );
+    // Not the same config, an unknown case on either side, or a chain.
+    for (const trim of [
+      { c: "a" },
+      { nope: "a" },
+      { b: "nope" },
+      { b: "a", a: "b" },
+    ]) {
+      assert.throws(() => parityCases([a, b, c], [], trim), {
+        name: "RangeError",
+        message: /^SAME_CONFIG_AS trims "/,
+      });
+    }
+    // A parity-only case that repeats a golden config is refused too.
+    assert.throws(() => parityCases([c], [{ ...c, name: "d" }], {}), {
+      message: /have the same config/,
     });
   });
 
@@ -306,7 +341,7 @@ describe("parity: the cases", () => {
     };
     frozenDeep(GOLDEN_CASES, "GOLDEN_CASES");
     frozenDeep(PARITY_CASES, "PARITY_CASES");
-    frozenDeep(SCRIPT_LEFT_OFF, "SCRIPT_LEFT_OFF");
+    frozenDeep(SAME_CONFIG_AS, "SAME_CONFIG_AS");
     frozenDeep(PARITY_ONLY_CASES, "PARITY_ONLY_CASES");
     const talented = GOLDEN_CASES.find(({ config }) => config?.talents);
     assert.throws(() => {
@@ -328,6 +363,30 @@ describe("parity: the cases", () => {
       assert.ok(abilities.Hemorrhage.casts > 10, `seed ${seed} Hemorrhage`);
       assert.ok(abilities.Rupture.casts >= 3, `seed ${seed} Rupture casts`);
       assert.ok(abilities.Rupture.damage > 0, `seed ${seed} Rupture damage`);
+    }
+  });
+
+  it("include a partial build (#199): Blade Flurry and Adrenaline Rush stay locked, on both engines", () => {
+    const partial = PARITY_CASES.find(
+      ({ name }) => name === "partial-build-8-points-300s",
+    );
+    assert.equal(partial.golden, null);
+    assert.equal(partial.duration, 300);
+    assert.equal(partial.config.rotation, undefined);
+    assert.equal(
+      Object.values(partial.config.talents).reduce((x, y) => x + y, 0),
+      8,
+    );
+    for (const engine of ["legacy", "events"]) {
+      const { abilities } = ENGINES[engine]({
+        seed: 1,
+        duration: 120,
+        config: structuredClone(partial.config),
+      });
+      assert.equal(abilities["Blade Flurry"]?.casts ?? 0, 0, engine);
+      assert.equal(abilities["Adrenaline Rush"]?.casts ?? 0, 0, engine);
+      assert.ok(abilities["Sinister Strike"].casts > 0, engine);
+      assert.ok(abilities["Slice and Dice"].casts > 0, engine);
     }
   });
 
@@ -418,7 +477,7 @@ describe("parity: arguments and the command", () => {
   it("refuses an unknown engine or case and a bad seed count", () => {
     assert.throws(() => runParity({ engine: "core" }), {
       name: "RangeError",
-      message: 'Unknown engine "core". Engines: legacy.',
+      message: 'Unknown engine "core". Engines: legacy, events.',
     });
     assert.throws(() => runParity({ against: "toString" }), RangeError);
     assert.throws(() => runParity({ cases: ["nope"] }), {
@@ -458,7 +517,9 @@ describe("parity: arguments and the command", () => {
         "--seeds",
         "12",
         "--cases",
-        `${SHORT},other-seed-12345-90s`,
+        `${SHORT},talented-build-seed-107-60s`,
+        "--duration",
+        "300",
         "--json",
       ]),
       {
@@ -467,8 +528,14 @@ describe("parity: arguments and the command", () => {
         engine: "legacy",
         against: "legacy",
         seeds: 12,
-        cases: [SHORT, "other-seed-12345-90s"],
+        cases: [SHORT, "talented-build-seed-107-60s"],
+        duration: 300,
       },
+    );
+    assert.equal(parseArgs(["--duration", "0.5"]).duration, 0.5);
+    assert.equal(
+      parseArgs(["--duration", String(MAX_DURATION)]).duration,
+      MAX_DURATION,
     );
     assert.equal(parseArgs(["-h"]).help, true);
     assert.equal(DEFAULT_SEEDS, 200);
@@ -484,6 +551,12 @@ describe("parity: arguments and the command", () => {
       ["--engine"],
       ["--engine", "--json"],
       ["--cases"],
+      ["--duration"],
+      ["--duration", "0"],
+      ["--duration", "-5"],
+      ["--duration", "1e2"],
+      ["--duration", "300s"],
+      ["--duration", String(MAX_DURATION + 1)],
       ["--fast"],
     ]) {
       assert.throws(() => parseArgs(argv), Error, argv.join(" "));
@@ -499,7 +572,7 @@ describe("parity: arguments and the command", () => {
     assert.equal(cli(["--fast"], io), 1);
     assert.match(err.at(-1), /^Unknown argument: --fast/);
     assert.equal(cli(["--engine", "core", "--seeds", "1"], io), 1);
-    assert.equal(err.at(-1), 'Unknown engine "core". Engines: legacy.');
+    assert.equal(err.at(-1), 'Unknown engine "core". Engines: legacy, events.');
     const fake = (options) =>
       runParity({
         ...options,
@@ -512,11 +585,7 @@ describe("parity: arguments and the command", () => {
     out.length = 0;
     assert.equal(cli(["--seeds", "2"], { ...io, run: fake }), 0);
     assert.equal(out[0], formatReport(fake({ seeds: 2 })));
-    assert.ok(
-      out[0].includes(
-        `finishers-50s-without-script (50 s, config only)\n  script left off: ${SCRIPT_LEFT_OFF["scripted-finishers-seed-68-50s"].reason}\n`,
-      ),
-    );
+    assert.doesNotMatch(out[0], /script left off/);
   });
 
   it("npm run parity runs the script, and it reports a 0 difference", async () => {
@@ -695,7 +764,7 @@ describe("parity: the gate (#213, for #199)", () => {
       2,
     );
     assert.match(out[0], /gate 2%: FAIL/);
-    assert.match(out[0], /Gate 2%: FAIL on short-seed-1-10s\.$/);
+    assert.match(out[0], /Gate 2%: FAIL on five-minute-seed-1-300s\.$/);
     out.length = 0;
     assert.equal(
       cli(["--seeds", "2", "--cases", SHORT, "--gate", "3"], {
@@ -711,7 +780,10 @@ describe("parity: the gate (#213, for #199)", () => {
       0,
     );
     assert.doesNotMatch(out[0], /Gate/);
-    assert.match(out[0], /relative to B: \|A - B\| \/ B 3\.0000%/);
+    assert.match(
+      out[0],
+      /relative to B: \(A - B\) \/ B \+3\.0000%, 95% CI \[\+3\.0000%, \+3\.0000%\]; \|A - B\| \/ B 3\.0000%$/m,
+    );
   });
 });
 
@@ -764,7 +836,7 @@ describe("parity: engine results are checked (#213)", () => {
     const engines = { ...ENGINES, broken };
     assert.throws(
       () => runParity({ engine: "broken", seeds: 1, cases: [SHORT], engines }),
-      /^EngineResultError: Engine "broken" on short-seed-1-10s, seed 1 returned dps NaN/,
+      /^EngineResultError: Engine "broken" on five-minute-seed-1-300s, seed 1 returned dps NaN/,
     );
     // B is checked too.
     assert.throws(
@@ -824,5 +896,200 @@ describe("parity: a seed differs when its DPS or any cast count does (#213)", ()
     });
     assert.equal(c.difference.mean, 0);
     assert.equal(c.seedsDiffering, 1);
+  });
+});
+
+describe("parity: the #199 harness fixes", () => {
+  const gateRun = (b, a, gate = 2) =>
+    runParity({
+      engine: "a",
+      against: "b",
+      seeds: 2,
+      cases: [SHORT],
+      engines: { a: fakeEngine(() => a), b: fakeEngine(() => b) },
+      gate,
+    }).cases[0];
+
+  it("a difference of exactly the gate passes on either side of B, and just over fails (#213 QA)", () => {
+    // Exactly 2% computes as just over 2 for some means (Kira's #213 QA
+    // found 0.98 x B at 2.000000000000007): these pass only with the
+    // tolerance.
+    for (const b of [226.85, 199.21]) {
+      const c = gateRun(b, 0.98 * b);
+      assert.ok(c.relativeDifferencePercent > 2, `${b} rounds over 2`);
+      assert.equal(c.gatePassed, true);
+    }
+    for (const b of [100, 144.52, 226.85, 256.77, 199.21, 3.3, 1e6, 0.07]) {
+      for (const factor of [1.02, 0.98]) {
+        assert.equal(
+          gateRun(b, factor * b).gatePassed,
+          true,
+          `${factor} x ${b}`,
+        );
+      }
+      for (const factor of [1.0201, 0.9799]) {
+        assert.equal(
+          gateRun(b, factor * b).gatePassed,
+          false,
+          `${factor} x ${b}`,
+        );
+      }
+    }
+    assert.equal(GATE_TOLERANCE, 1e-9);
+    assert.equal(withinGate(2 + GATE_TOLERANCE, 2), true);
+    assert.equal(withinGate(2 + 2 * GATE_TOLERANCE, 2), false);
+    assert.equal(withinGate(0, 0), true);
+  });
+
+  it("reports the signed difference as a percentage of B, next to the signed interval", () => {
+    const down = gateRun(200, 190, null);
+    assert.equal(down.signedDifferencePercent, -5);
+    assert.equal(down.relativeDifferencePercent, 5);
+    assert.deepEqual(down.differenceCiPercent, { low: -5, high: -5 });
+    const up = gateRun(200, 203, null);
+    close(up.signedDifferencePercent, 1.5);
+    close(up.relativeDifferencePercent, 1.5);
+    const text = formatReport({
+      engine: "a",
+      against: "b",
+      seeds: 2,
+      duration: null,
+      confidence: CONFIDENCE,
+      gate: null,
+      cases: [down],
+    });
+    assert.match(
+      text,
+      /relative to B: \(A - B\) \/ B -5\.0000%, 95% CI \[-5\.0000%, -5\.0000%\]; \|A - B\| \/ B 5\.0000%$/m,
+    );
+    const zero = runParity({ seeds: 2, cases: [SHORT] }).cases[0];
+    assert.equal(zero.signedDifferencePercent, 0);
+    assert.match(
+      formatReport(runParity({ seeds: 2, cases: [SHORT] })),
+      /\(A - B\) \/ B 0\.0000%, 95% CI \[0\.0000%, 0\.0000%\]/,
+    );
+  });
+
+  it("copies each result as its call returns, so a reused or later-changed result object cannot move a counted seed", () => {
+    // One object for every call, changed in place on the next call: without
+    // the copy every seed would read the last call's numbers.
+    const shared = { dps: 0, abilities: { Jab: { damage: 0, casts: 0 } } };
+    const reuse = ({ seed }) => {
+      shared.dps = 100 + seed;
+      shared.abilities.Jab.damage = 100 + seed;
+      shared.abilities.Jab.casts = seed;
+      return shared;
+    };
+    const [c] = runParity({
+      engine: "reuse",
+      against: "base",
+      seeds: 3,
+      cases: [SHORT],
+      engines: { reuse, base: fakeEngine(() => 100) },
+    }).cases;
+    assert.equal(c.engine.dpsMean, 102);
+    assert.equal(c.engine.dpsSd, 1);
+    assert.deepEqual(c.engine.abilities.Jab, { damage: 102, casts: 2 });
+    assert.deepEqual(c.difference.mean, 2);
+    // copyResult keeps dps and a deep copy of abilities, and nothing else.
+    const result = {
+      dps: 5,
+      abilities: { Jab: { damage: 5, casts: 1 } },
+      simulation: {},
+    };
+    const copy = copyResult(result);
+    assert.deepEqual(copy, {
+      dps: 5,
+      abilities: { Jab: { damage: 5, casts: 1 } },
+    });
+    assert.notEqual(copy.abilities, result.abilities);
+    assert.notEqual(copy.abilities.Jab, result.abilities.Jab);
+  });
+
+  it("--duration runs every chosen case for that long, and says so", () => {
+    const seen = [];
+    const record = (options) => {
+      seen.push(options.duration);
+      return { dps: 1, abilities: {} };
+    };
+    const report = runParity({
+      engine: "record",
+      against: "record",
+      seeds: 1,
+      cases: [SHORT, "talented-build-seed-107-60s"],
+      engines: { record },
+      duration: 45,
+    });
+    assert.deepEqual(seen, [45, 45, 45, 45]);
+    assert.equal(report.duration, 45);
+    assert.deepEqual(
+      report.cases.map(({ duration }) => duration),
+      [45, 45],
+    );
+    assert.match(formatReport(report), /seeds 1 to 1, every case at 45 s,/);
+    assert.match(formatReport(report), /^five-minute-seed-1-300s \(45 s\)$/m);
+    seen.length = 0;
+    const own = runParity({
+      engine: "record",
+      against: "record",
+      seeds: 1,
+      cases: ["talented-build-seed-107-60s"],
+      engines: { record },
+    });
+    assert.deepEqual(seen, [60, 60]);
+    assert.equal(own.duration, null);
+    assert.doesNotMatch(formatReport(own), /every case at/);
+    for (const duration of [
+      0,
+      -1,
+      Number.NaN,
+      Infinity,
+      MAX_DURATION + 1,
+      "300",
+    ]) {
+      assert.throws(
+        () =>
+          runParity({
+            seeds: 1,
+            cases: [SHORT],
+            duration,
+            engines: { legacy: record },
+          }),
+        {
+          name: "RangeError",
+          message: /^duration must be a number of seconds over 0, at most 3600/,
+        },
+      );
+    }
+    assert.equal(MAX_DURATION, 3600);
+  });
+
+  it("the events engine is the event core: it differs from legacy, and events against events is exactly 0", () => {
+    const options = { seed: 3, duration: 30, config: {} };
+    assert.deepEqual(
+      ENGINES.events(structuredClone(options)),
+      runFight({ ...structuredClone(options), engine: "events" }),
+    );
+    assert.deepEqual(
+      ENGINES.legacy(structuredClone(options)),
+      runFight({ ...structuredClone(options), engine: "legacy" }),
+    );
+    const [cross] = runParity({
+      engine: "events",
+      against: "legacy",
+      seeds: 3,
+      cases: [SHORT],
+    }).cases;
+    assert.ok(cross.seedsDiffering > 0);
+    const [same] = runParity({
+      engine: "events",
+      against: "events",
+      seeds: 3,
+      cases: [SHORT],
+      gate: 0,
+    }).cases;
+    assert.deepEqual(same.difference, { mean: 0, sd: 0, low: 0, high: 0 });
+    assert.equal(same.seedsDiffering, 0);
+    assert.equal(same.gatePassed, true);
   });
 });

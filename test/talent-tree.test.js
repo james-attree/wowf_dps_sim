@@ -297,6 +297,72 @@ describe("talent tree model (#204)", () => {
     assert.equal(byName.get("Cold Blood").ok, false);
   });
 
+  it("with no talents, skips every talent ability's rule and says so (#199)", () => {
+    const { talents } = setup();
+    const { lines, note } = talents().view.effects.rotation;
+    assert.ok(lines.length > 0);
+    for (const line of lines) {
+      assert.equal(line.ok, false, line.name);
+      assert.match(line.text, /skipped: no /);
+    }
+    assert.equal(
+      note,
+      "With no talents picked, the fight is untalented: the sim skips Blade Flurry, Adrenaline Rush and Cold Blood, whose rules need the talent.",
+    );
+  });
+
+  it("names one skipped ability alone, and none when nothing is skipped (#199)", () => {
+    const note = (rules) =>
+      talentTreeView({}, 60, {
+        info: talentInfo(),
+        config: { rotation: { rules } },
+      }).effects.rotation.note;
+    assert.equal(
+      note([{ action: "cold-blood", conditions: [] }]),
+      "With no talents picked, the fight is untalented: the sim skips Cold Blood, whose rule needs the talent.",
+    );
+    assert.equal(
+      note([
+        { action: "blade-flurry", conditions: [] },
+        { action: "adrenaline-rush", conditions: [] },
+      ]),
+      "With no talents picked, the fight is untalented: the sim skips Blade Flurry and Adrenaline Rush, whose rules need the talent.",
+    );
+    assert.equal(
+      note([{ action: "sinister-strike", conditions: [] }]),
+      "With no talents picked, the fight is untalented.",
+    );
+  });
+
+  // #232 QA B1: the verb follows the skipped rules, not the names.
+  it("says 'rule needs' for one skipped rule, 'rules need' for one ability in two (#232)", () => {
+    const note = (rules) =>
+      talentTreeView({}, 60, {
+        info: talentInfo(),
+        config: { rotation: { rules } },
+      }).effects.rotation.note;
+    // Fran's repro: one guarded Cold Blood rule and a Sinister Strike.
+    assert.equal(
+      note([
+        {
+          action: "cold-blood",
+          conditions: [{ type: "abilityGranted", ability: "cold-blood" }],
+        },
+        { action: "sinister-strike", conditions: [] },
+      ]),
+      "With no talents picked, the fight is untalented: the sim skips Cold Blood, whose rule needs the talent.",
+    );
+    // One name, two rules: listed once, plural verb.
+    assert.equal(
+      note([
+        { action: "blade-flurry", conditions: [] },
+        { action: "sinister-strike", conditions: [] },
+        { action: "blade-flurry", conditions: [] },
+      ]),
+      "With no talents picked, the fight is untalented: the sim skips Blade Flurry, whose rules need the talent.",
+    );
+  });
+
   it("pointsLine and talentTreeView never throw on the edges", () => {
     assert.equal(pointsLine(0, 1, 10), "0 of 1 spent, 1 left");
     assert.equal(

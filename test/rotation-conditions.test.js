@@ -16,6 +16,7 @@ import {
   evaluateTrusted,
 } from "../js/rotation-conditions.js";
 import { rotationState } from "../js/rotation-state.js";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 import { referenceBuild } from "./talentsforever.js";
 
 // R2 (#139): the condition vocabulary, docs/rotation.md. The examples are read
@@ -692,7 +693,8 @@ describe("rotationState builds the view from a fight", () => {
   });
 
   it("reports the regeneration rate with Adrenaline Rush up", () => {
-    const fight = createFight(1);
+    // Granted: the untalented default casts no Adrenaline Rush (#199).
+    const fight = createFight(1, undefined, COMBAT_GRANTS);
     const { simulation, rogue } = fight;
     // Step until the rotation has cast it.
     for (
@@ -824,9 +826,12 @@ describe("the vocabulary answers what the code rotation asks, step by step", () 
                 (key) => rogue.abilities[key].id === id,
               )
             ];
+          // abilityUnlocked is about a selected build: with none it is true,
+          // while the engine skips a talent ability no one grants anyway
+          // (#199, Rogue.lockedByBuild through host.usable).
           assert.equal(
             ok({ type: "abilityUnlocked", ability: id }),
-            !rogue.lockedByBuild(ability),
+            !(rogue.build.selected && rogue.lockedByBuild(ability)),
             `unlocked ${id} at ${view.time}`,
           );
           assert.equal(
