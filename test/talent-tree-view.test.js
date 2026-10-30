@@ -275,7 +275,7 @@ describe("talent tree view (#204)", () => {
     assert.match(node.getAttribute("class"), /\bis-maxed\b/);
     assert.equal(
       $("talents-live").textContent,
-      "Improved Sinister Strike 2 of 2. Combat 2 points. 2 of 51 spent, 49 left.",
+      "Improved Sinister Strike 2/2. Combat 2 points. 2 of 51 spent, 49 left.",
     );
     node.dispatch("keydown", { key: "-" });
     assert.equal(store.get().config.talents[id], 1);

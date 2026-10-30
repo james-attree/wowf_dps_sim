@@ -1206,14 +1206,14 @@ h3 {
     max-height: 50vh;
   }
 
-  /* #200 (Fran's #224 QA, N2): on a narrow screen a long name wraps to two
-     lines, then ends in an ellipsis, rather than cutting off on one. Its full
-     name stays the row's title; the damage and status columns are unchanged. */
+  /* #200 (Fran's #224 QA, N2): on a narrow screen a long name wraps rather
+     than cutting off on one line. It wraps in full, with no ellipsis, since a
+     touch screen cannot reach the row's title (Fran's #228 QA, nit 3; #234).
+     Every real name fits on two lines; the damage and status columns are
+     unchanged. */
   .combat-log-name {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    overflow: visible;
+    text-overflow: clip;
     white-space: normal;
     overflow-wrap: anywhere;
   }

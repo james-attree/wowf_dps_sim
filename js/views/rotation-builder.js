@@ -922,11 +922,56 @@ export function createRotationBuilderView(doc, store, actions) {
     node?.focus();
   }
 
+  // Fran's #228 QA (nit 1; #234): a warnings banner that an action (a
+  // Duplicate, say) brings up above the screen is scrolled into view, below
+  // the sticky run bar (the banner's scroll-margin-top), but only when the
+  // focus the action moved stays on screen too: the focus wins (WCAG 2.4.11).
+  // When the two cannot both be on screen, the focused rule's own warning is
+  // brought into view instead, on the same terms.
+  function revealWarnings() {
+    const banner = section.querySelector("#rb-warnings");
+    const win = doc.defaultView;
+    if (typeof banner?.getBoundingClientRect !== "function" || !win) {
+      return;
+    }
+    const inset =
+      Number.parseFloat(win.getComputedStyle(banner).scrollMarginTop) || 0;
+    // Hidden means above the screen or under the run bar while it sticks
+    // (narrow screens); on a wide one the bar scrolls away.
+    const bar = doc.getElementById?.("run-bar") ?? null;
+    const covered =
+      bar !== null && win.getComputedStyle(bar).position === "sticky"
+        ? bar.getBoundingClientRect().bottom
+        : 0;
+    const active = doc.activeElement;
+    const focusBottom =
+      active === null || active === doc.body
+        ? null
+        : active.getBoundingClientRect().bottom;
+    const card = active?.closest?.("li.rule") ?? null;
+    const targets = [banner, card?.querySelector(".rule-msgs") ?? null];
+    for (const target of targets) {
+      if (target === null) {
+        continue;
+      }
+      const top = target.getBoundingClientRect().top;
+      if (top >= covered) {
+        return;
+      }
+      const shift = inset - top;
+      if (focusBottom === null || focusBottom + shift <= win.innerHeight) {
+        win.scrollBy(0, -shift);
+        return;
+      }
+    }
+  }
+
   function draw() {
     const slice = store.get().rotationBuilder;
     if (slice === undefined || slice.view === view) {
       return;
     }
+    const hadWarnings = view !== null && view.warnings !== null;
     view = slice.view;
     if (toggle !== null) {
       if (toggle.textContent !== view.toggle) {
@@ -955,6 +1000,9 @@ export function createRotationBuilderView(doc, store, actions) {
     if (focus !== undefined && focus.seq !== focused) {
       focused = focus.seq;
       focusKey(focus.key);
+      if (view.open && !hadWarnings && view.warnings !== null) {
+        revealWarnings();
+      }
     }
   }
 

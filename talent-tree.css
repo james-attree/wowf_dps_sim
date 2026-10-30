@@ -269,10 +269,18 @@
   font-weight: 750;
   line-height: 1;
 }
-/* #200 (Fran's #232 QA): a tile's not-simulated mark, drawn here rather
-   than as text, so it is not part of the tile's visible label (WCAG 2.5.3). */
+/* #200 (Fran's #232 QA): a tile's not-simulated and no-DPS marks, drawn
+   here rather than as text, so they are not part of the tile's visible label
+   (WCAG 2.5.3; the "–" too, Fran's #233 QA, nit 3). Each has empty alt text
+   after the slash, so a screen reader never reads the glyph even if the badge
+   loses its aria-hidden (nit 2); the first line is for browsers without it. */
 .talent-cov.is-notsim::before {
   content: "ⓘ";
+  content: "ⓘ" / "";
+}
+.talent-cov.is-nodps::before {
+  content: "–";
+  content: "–" / "";
 }
 .talent-active {
   position: absolute;

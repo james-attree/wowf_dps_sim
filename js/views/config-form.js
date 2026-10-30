@@ -428,23 +428,30 @@ export function createConfigFormView(doc, store, actions) {
   // height, styles.css), so a box with nothing to scroll is not a Tab stop
   // that does nothing. Checked on every draw, when the box is opened or
   // changes size (a resize, a wrap), and when the window resizes. A box that
-  // loses its region while focused hands the focus to its summary.
+  // loses its region while focused hands the focus to its summary. An
+  // attribute is set or removed only when it changes, not on every resize
+  // (Fran's #228 QA, nit 5; #234).
   function markWarningsRegion() {
     const box = importWarningsText;
     // A closed or hidden box shows nothing to scroll (and keeps the sizes
     // it had when open).
     const shown = !importWarnings.hidden && importWarnings.open !== false;
-    if (shown && box.scrollHeight > box.clientHeight) {
-      box.setAttribute("tabindex", "0");
-      box.setAttribute("role", "region");
-      box.setAttribute("aria-label", WARNINGS_REGION_LABEL);
-      return;
-    }
+    const region = shown && box.scrollHeight > box.clientHeight;
+    const regionAttributes = {
+      tabindex: "0",
+      role: "region",
+      "aria-label": WARNINGS_REGION_LABEL,
+    };
     const focused = doc.activeElement === box;
-    box.removeAttribute("tabindex");
-    box.removeAttribute("role");
-    box.removeAttribute("aria-label");
-    if (focused) {
+    for (const [name, value] of Object.entries(regionAttributes)) {
+      const now = box.getAttribute(name);
+      if (region && now !== value) {
+        box.setAttribute(name, value);
+      } else if (!region && now !== null) {
+        box.removeAttribute(name);
+      }
+    }
+    if (!region && focused) {
       importWarnings.querySelector?.("summary")?.focus?.();
     }
   }
