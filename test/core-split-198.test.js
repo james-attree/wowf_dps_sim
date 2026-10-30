@@ -108,7 +108,7 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
   });
 
   // Cuts where a part of the carry alone keeps the fight the same: the
-  // energy line (finishers seed 14, hemorrhage seed 22) and a poison DoT
+  // energy line (default config seed 14, hemorrhage seed 22) and a poison DoT
   // whose last tick has run with time left (poisons seed 28).
   it("the cuts that need the energy line and an idle DoT carried", () => {
     const named = (name) =>
@@ -116,7 +116,7 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
       PARITY_ONLY_CASES.find((c) => c.name === name);
     for (const [name, seed, cuts] of [
       [
-        "finishers-50s-without-script",
+        "five-minute-seed-1-300s",
         14,
         [2.0646, 13.833, 25.3399, 27.1388, 51.5573, 52.6346],
       ],
@@ -725,7 +725,11 @@ describe("step() while a core is open (#231 QA)", () => {
 // sees a GCD or cooldown ending within sim.tickEpsilon as ready and casts
 // early. The next run keeps the last decision's wakes instead.
 describe("a cut just before a decision time is the fight in one run (#231 QA B1)", () => {
-  const FINISHERS = CONFIGS.find(({ name }) => name.startsWith("finishers"));
+  // The finishers case's config: the parity gate runs it as five-minute
+  // (SAME_CONFIG_AS, #199), whose config it is.
+  const FINISHERS = CONFIGS.find(
+    ({ name }) => name === "five-minute-seed-1-300s",
+  );
 
   it("Kira's repro: finishers seed 5 cut 1e-12 and 2e-9 before the GCD ends at 3", () => {
     for (const cut of [3 - 1e-12, 3 - 2e-9]) {

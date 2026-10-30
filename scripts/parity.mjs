@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { runFight } from "../js/fight.js";
 import { GOLDEN_CASES } from "./golden-update.mjs";
 
@@ -14,7 +15,7 @@ import { GOLDEN_CASES } from "./golden-update.mjs";
 // "Parity harness" in docs/mechanics.md.
 //
 //   npm run parity                                   legacy vs legacy, 200 seeds
-//   npm run parity -- --seeds 20 --cases short-seed-1-10s
+//   npm run parity -- --seeds 20 --cases five-minute-seed-1-300s --duration 10
 //   npm run parity -- --engine events --against legacy --duration 300 --gate 2
 //   npm run parity -- --engine legacy --against legacy --json
 //
@@ -165,13 +166,33 @@ export const PARITY_ONLY_CASES = deepFreeze([
   },
 ]);
 
+// Golden cases the gate does not run, by golden case name, with the golden
+// case that has the same config and is run instead (#199). The gate runs one
+// case per distinct config: with --duration every case runs for the same
+// length, so two cases with one config differ only by the seeds' draws, and
+// over seeds 1 to N those are the same fights. Without --duration a trimmed
+// case would only have run for less time. short-seed-1-10s,
+// other-seed-12345-90s and scripted-finishers-seed-68-50s (its script left
+// off, so the default config) all run the default config, as
+// five-minute-seed-1-300s does. Their golden fixtures are unaffected.
+//
+// A trimmed case must name a run case with a deep-equal config, and two run
+// cases must not share a config: parityCases throws otherwise, and
+// test/parity.test.js pins this list.
+export const SAME_CONFIG_AS = deepFreeze({
+  "short-seed-1-10s": "five-minute-seed-1-300s",
+  "other-seed-12345-90s": "five-minute-seed-1-300s",
+  "scripted-finishers-seed-68-50s": "five-minute-seed-1-300s",
+});
+
 // The parity cases: each golden case (scripts/golden-update.mjs) by name, with
 // its config and duration (a scripted one under its SCRIPT_LEFT_OFF name, with
-// the reason), then the parity-only cases.
+// the reason), less those SAME_CONFIG_AS trims, then the parity-only cases.
 export function parityCases(
   goldenCases,
   leftOff = SCRIPT_LEFT_OFF,
   parityOnly = PARITY_ONLY_CASES,
+  sameConfigAs = SAME_CONFIG_AS,
 ) {
   for (const name of Object.keys(leftOff)) {
     const found = goldenCases.find((c) => c.name === name);
@@ -181,25 +202,41 @@ export function parityCases(
       );
     }
   }
+  for (const [name, kept] of Object.entries(sameConfigAs)) {
+    const trimmed = goldenCases.find((c) => c.name === name);
+    const run = goldenCases.find((c) => c.name === kept);
+    if (
+      trimmed === undefined ||
+      run === undefined ||
+      Object.hasOwn(sameConfigAs, kept) ||
+      !isDeepStrictEqual(trimmed.config, run.config)
+    ) {
+      throw new RangeError(
+        `SAME_CONFIG_AS trims "${name}" for "${kept}", which is not a golden case that is run with the same config.`,
+      );
+    }
+  }
   const cases = [
-    ...goldenCases.map(({ name, duration, config, script }) => {
-      if (script === undefined) {
-        return { name, golden: name, duration, config, scriptLeftOff: null };
-      }
-      if (!Object.hasOwn(leftOff, name)) {
-        throw new RangeError(
-          `Golden case "${name}" is scripted, and the parity harness cannot run a script. Add it to SCRIPT_LEFT_OFF with the reason, or give the harness a way to run it.`,
-        );
-      }
-      const { as, reason } = leftOff[name];
-      return {
-        name: as,
-        golden: name,
-        duration,
-        config,
-        scriptLeftOff: reason,
-      };
-    }),
+    ...goldenCases
+      .filter(({ name }) => !Object.hasOwn(sameConfigAs, name))
+      .map(({ name, duration, config, script }) => {
+        if (script === undefined) {
+          return { name, golden: name, duration, config, scriptLeftOff: null };
+        }
+        if (!Object.hasOwn(leftOff, name)) {
+          throw new RangeError(
+            `Golden case "${name}" is scripted, and the parity harness cannot run a script. Add it to SCRIPT_LEFT_OFF with the reason, or give the harness a way to run it.`,
+          );
+        }
+        const { as, reason } = leftOff[name];
+        return {
+          name: as,
+          golden: name,
+          duration,
+          config,
+          scriptLeftOff: reason,
+        };
+      }),
     ...parityOnly.map(({ name, duration, config }) => ({
       name,
       golden: null,
@@ -213,6 +250,16 @@ export function parityCases(
   if (repeated !== undefined) {
     throw new RangeError(`Two parity cases are named "${repeated}".`);
   }
+  cases.forEach((a, index) => {
+    const b = cases
+      .slice(index + 1)
+      .find((other) => isDeepStrictEqual(a.config, other.config));
+    if (b !== undefined) {
+      throw new RangeError(
+        `Parity cases "${a.name}" and "${b.name}" have the same config. Trim one in SAME_CONFIG_AS.`,
+      );
+    }
+  });
   return deepFreeze(cases);
 }
 

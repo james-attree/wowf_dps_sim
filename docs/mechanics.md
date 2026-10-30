@@ -1872,20 +1872,28 @@ difference of exactly 0 with a [0, 0] interval on every case, and
 works.
 
 **The cases** are the golden cases' configs and durations (not their seeds),
-then the parity-only cases. The default fight is `five-minute-seed-1-300s` (the
-default config at 300 s). The scripted golden case,
-`scripted-finishers-seed-68-50s`, runs as `finishers-50s-without-script`: its
-config (the default) for its 50 s without its script, and the report says
-"script left off" with the reason. The exclusion is the named list
-`SCRIPT_LEFT_OFF` in `scripts/parity.mjs`. Since #197 the script hooks
+one per distinct config, then the parity-only cases. The default fight is
+`five-minute-seed-1-300s` (the default config at 300 s). Three other golden
+cases run the default config too: `short-seed-1-10s`, `other-seed-12345-90s`
+and the scripted `scripted-finishers-seed-68-50s` with its script left off.
+Over seeds 1 to N they are the same fights, only shorter, so the harness
+trims them (`SAME_CONFIG_AS` in `scripts/parity.mjs`, #199); their fixtures
+are unaffected. The harness refuses to load if a trim names a case with a
+different config, or if two cases it runs share a config.
+
+The scripted case's script is still listed in `SCRIPT_LEFT_OFF` with the
+reason it cannot run under the harness. Since #197 the script hooks
 `Rogue.prototype.castRotation`, which both engines call, so either engine can
 run it; but it was written for seed 68. On 79 of seeds 1 to 200 on legacy (70
 on events) it does not finish: the fight runs to its 50 s end with one or two
-casts still waiting, and `runScriptedFight` throws. It does not hang. The harness refuses to load if a scripted golden case
-is missing from the list, a listed case is not scripted, or two cases share a
-name, and `test/parity.test.js` pins the list. Before the legacy engine is
-deleted (#200), this case needs a script that finishes on every seed from 1
-to 200, or James agrees to retire it from parity.
+casts still waiting, and `runScriptedFight` throws. It does not hang. Without
+a trim it would run as `finishers-50s-without-script`, its config for its 50 s
+with "script left off" and the reason in the report. The harness refuses to
+load if a scripted golden case is missing from the list, a listed case is not
+scripted, or two cases share a name, and `test/parity.test.js` pins both
+lists. Before the legacy engine is deleted (#200), this case needs a script
+that finishes on every seed from 1 to 200, or James agrees to retire it from
+parity.
 
 `dot-hemorrhage-rupture-120s` is a parity-only case (`PARITY_ONLY_CASES`, no
 fixture): a 49-point build with Hemorrhage, and a rotation that keeps Rupture
@@ -1896,7 +1904,7 @@ build of `test/partial-builds.test.js` (#190) with the default rotation, so
 Blade Flurry and Adrenaline Rush stay locked and the rotation falls through to
 Sinister Strike and Slice and Dice.
 
-Running all nine cases on 200 seeds at 300 s, events against legacy, took
+Running all six cases on 200 seeds at 300 s, events against legacy, took
 about 55 s on our box (Node v24.22.1, under load from other runs).
 A bad flag, engine, case or engine result exits 1; a failed `--gate` exits 2;
 otherwise the run exits 0.
