@@ -880,7 +880,7 @@ h3 {
   padding: 10px;
 }
 
-.timed-effects-panel > h3 {
+.timed-effects-panel > h4 {
   margin-bottom: 7px;
 }
 
@@ -1154,7 +1154,7 @@ h3 {
 }
 
 /* One line on a phone (390 wide): the tools wrap under it instead (#155, Fran's QA 8). */
-.combat-log-heading h2 {
+.combat-log-heading h3 {
   white-space: nowrap;
 }
 
@@ -1228,11 +1228,12 @@ h3 {
   color: #f0d475;
 }
 
+/* A name wraps in full at every width, with no ellipsis and no title to
+   hover for the rest (#245, UX7; #200 did it on phones). */
 .combat-log-name {
-  overflow: hidden;
+  min-width: 0;
   color: #e7ddc9;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .combat-log-damage {
@@ -1361,18 +1362,6 @@ h3 {
   .combat-log-scroll {
     height: clamp(160px, 30vh, 260px);
     max-height: 50vh;
-  }
-
-  /* #200 (Fran's #224 QA, N2): on a narrow screen a long name wraps rather
-     than cutting off on one line. It wraps in full, with no ellipsis, since a
-     touch screen cannot reach the row's title (Fran's #228 QA, nit 3; #234).
-     Every real name fits on two lines; the damage and status columns are
-     unchanged. */
-  .combat-log-name {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
-    overflow-wrap: anywhere;
   }
 }
 
@@ -3120,39 +3109,36 @@ th[aria-sort="ascending"] {
   text-transform: uppercase;
 }
 
-.result-live-totals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 8px;
+/* The live fight under Results' Live view (#245, UX7): its panels' headings
+   are a level under the view's "Live fight", drawn as they were on Fight. */
+.result-live-empty {
   margin: 0;
-}
-
-.result-live-totals > div {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-}
-
-.result-live-totals dt {
   color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.result-live-totals dd {
-  margin: 2px 0 0;
-  font-size: 1.3rem;
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-}
-
-.result-live-more {
-  margin: 0;
   font-size: 0.85rem;
 }
 
-.result-live-more a {
-  color: var(--accent);
+.result-live-fight > * {
+  margin-top: 0;
+}
+
+.result-live-fight {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.result-live-fight h3 {
+  color: inherit;
+  font-size: 1rem;
+  font-weight: bold;
+  letter-spacing: -0.025em;
+}
+
+.result-live-fight h4 {
+  margin: 0;
+  color: #d4c8b1;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 /* More columns than fit: the table's right edge fades and a line says it

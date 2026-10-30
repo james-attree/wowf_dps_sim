@@ -250,7 +250,7 @@
             <span id="results-card-live">Live fight: none yet</span> ·
             <a
               class="results-card-link"
-              href="#fight"
+              href="#results/live"
               aria-label="Open the live fight"
               >open</a
             >
@@ -904,214 +904,6 @@
             from the front are out of scope.
           </p>
         </section>
-        <section
-          id="damage-panel"
-          class="damage-panel"
-          aria-labelledby="damage-heading"
-        >
-          <h2 id="damage-heading" class="visually-hidden">Fight totals</h2>
-          <div class="stats-grid">
-            <div class="stat-card">
-              <span class="stat-label">Total damage</span>
-              <output id="damage-value" aria-live="off" class="stat-value"
-                >0</output
-              >
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">Damage per second</span>
-              <output id="dps-value" aria-live="off" class="stat-value"
-                >0</output
-              >
-              <span class="stat-unit">DPS</span>
-            </div>
-          </div>
-        </section>
-
-        <section
-          data-fight-frame
-          class="resources-panel panel"
-          aria-labelledby="resources-heading"
-        >
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow" aria-hidden="true">COMBAT</p>
-              <h2 id="resources-heading" class="visually-hidden">Combat</h2>
-            </div>
-            <output id="time-value" aria-live="off" class="elapsed-time"
-              >00:00</output
-            >
-          </div>
-
-          <div class="resource-grid">
-            <section
-              class="resource-card combo-panel"
-              aria-labelledby="combo-heading"
-            >
-              <div class="resource-label">
-                <h3 id="combo-heading">Combo points</h3>
-                <output id="combo-value" aria-live="off"
-                  >0 <span class="value-divider">/</span> 5</output
-                >
-              </div>
-              <div
-                id="combo-meter"
-                class="combo-meter"
-                role="meter"
-                aria-label="Combo points"
-                aria-valuemin="0"
-                aria-valuemax="5"
-                aria-valuenow="0"
-                aria-valuetext="0 of 5"
-              >
-                <span class="combo-point"></span>
-                <span class="combo-point"></span>
-                <span class="combo-point"></span>
-                <span class="combo-point"></span>
-                <span class="combo-point"></span>
-              </div>
-              <p id="combo-spend" class="combo-spend"></p>
-            </section>
-
-            <section
-              class="resource-card energy-panel"
-              aria-labelledby="energy-heading"
-            >
-              <div class="resource-label">
-                <h3 id="energy-heading">Energy</h3>
-                <div class="energy-readout">
-                  <span id="energy-cap" class="cap-tag" hidden>AT CAP</span>
-                  <output id="energy-value" aria-live="off"
-                    >0 <span class="value-divider">/</span> 100</output
-                  >
-                </div>
-              </div>
-              <div
-                id="energy-meter"
-                class="energy-meter"
-                role="meter"
-                aria-label="Rogue energy"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                aria-valuenow="0"
-                aria-valuetext="0 of 100"
-              >
-                <div id="energy-fill" class="energy-fill"></div>
-              </div>
-            </section>
-          </div>
-
-          <div class="cooldown-grid">
-            <section
-              class="resource-card gcd-panel"
-              aria-labelledby="gcd-heading"
-            >
-              <div class="resource-label">
-                <h3 id="gcd-heading">GCD</h3>
-                <div class="gcd-readout">
-                  <span id="gcd-status" class="gcd-status" aria-live="off"
-                    >Ready</span
-                  >
-                  <output id="gcd-value" aria-live="off">0.0s</output>
-                </div>
-              </div>
-              <div
-                id="gcd-meter"
-                class="gcd-meter"
-                role="meter"
-                aria-label="Global cooldown remaining"
-                aria-valuemin="0"
-                aria-valuemax="1"
-                aria-valuenow="0"
-                aria-valuetext="Ready"
-              >
-                <div id="gcd-fill" class="gcd-fill"></div>
-              </div>
-            </section>
-            <section
-              class="resource-card timed-effects-panel"
-              aria-labelledby="active-buffs-heading"
-            >
-              <h3 id="active-buffs-heading">Active effects</h3>
-              <p id="active-buffs-empty" class="timed-effects-empty">None</p>
-              <div
-                id="active-buffs"
-                class="timed-effects"
-                role="list"
-                aria-labelledby="active-buffs-heading"
-              ></div>
-            </section>
-            <section
-              class="resource-card timed-effects-panel"
-              aria-labelledby="active-debuffs-heading"
-            >
-              <h3 id="active-debuffs-heading">Debuffs</h3>
-              <p id="active-debuffs-empty" class="timed-effects-empty">None</p>
-              <div
-                id="active-debuffs"
-                class="timed-effects"
-                role="list"
-                aria-labelledby="active-debuffs-heading"
-              ></div>
-            </section>
-            <section
-              class="resource-card timed-effects-panel"
-              aria-labelledby="skill-cooldowns-heading"
-            >
-              <h3 id="skill-cooldowns-heading">Cooldowns</h3>
-              <p id="skill-cooldowns-empty" class="timed-effects-empty">None</p>
-              <div
-                id="skill-cooldowns"
-                class="timed-effects"
-                role="list"
-                aria-labelledby="skill-cooldowns-heading"
-              ></div>
-            </section>
-          </div>
-        </section>
-
-        <section
-          data-fight-frame
-          class="combat-log-panel panel"
-          aria-labelledby="combat-log-heading"
-        >
-          <div class="section-heading combat-log-heading">
-            <div>
-              <p class="eyebrow">EVENTS</p>
-              <h2 id="combat-log-heading">Combat log</h2>
-            </div>
-            <div class="log-tools">
-              <label class="announce-toggle">
-                <input id="announce-toggle" type="checkbox" />
-                Announce key events
-              </label>
-              <span class="log-caption">Newest events first</span>
-            </div>
-          </div>
-          <section class="proc-row" aria-labelledby="procs-heading">
-            <h3 id="procs-heading">Procs</h3>
-            <p id="procs-empty" class="timed-effects-empty">None</p>
-            <ul id="proc-chips" class="proc-chips"></ul>
-          </section>
-          <div
-            class="combat-log-scroll"
-            role="region"
-            aria-label="Combat log events"
-            aria-keyshortcuts="ArrowLeft ArrowRight Home End"
-            aria-describedby="log-hint"
-            tabindex="0"
-          >
-            <ol id="combat-log" class="combat-log" aria-live="off">
-              <li id="combat-log-empty" class="combat-log-empty">
-                Waiting for combat events…
-              </li>
-            </ol>
-          </div>
-          <p class="log-readout">
-            <span id="log-hint"></span
-            ><span id="log-step" aria-hidden="true"></span>
-          </p>
-          <p id="log-readout" class="visually-hidden" aria-live="polite"></p>
-        </section>
       </section>
 
       <section id="area-results" class="area" data-area="results">
@@ -1197,24 +989,232 @@
               Run an average
             </button>
           </div>
-          <dl id="results-live-totals" class="result-live-totals">
-            <div>
-              <dt>Total damage</dt>
-              <dd id="results-live-damage">—</dd>
-            </div>
-            <div>
-              <dt>Damage per second</dt>
-              <dd id="results-live-dps">—</dd>
-            </div>
-            <div>
-              <dt>Fight time</dt>
-              <dd id="results-live-time">—</dd>
-            </div>
-          </dl>
-          <p class="result-live-more">
-            <a href="#fight">Open the fight</a> for its meters, effects and
-            combat log.
+          <!-- Before the first Watch there is no fight to show: its meters,
+               effects and combat log come with it (#245, UX7). -->
+          <p id="results-live-empty" class="result-live-empty">
+            No live fight yet. Watch fight to see its meters, effects and combat
+            log here.
           </p>
+          <div id="results-live-fight" class="result-live-fight" hidden>
+            <section
+              id="damage-panel"
+              class="damage-panel"
+              aria-labelledby="damage-heading"
+            >
+              <h3 id="damage-heading" class="visually-hidden">Fight totals</h3>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <span class="stat-label">Total damage</span>
+                  <output id="damage-value" aria-live="off" class="stat-value"
+                    >0</output
+                  >
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Damage per second</span>
+                  <output id="dps-value" aria-live="off" class="stat-value"
+                    >0</output
+                  >
+                  <span class="stat-unit">DPS</span>
+                </div>
+              </div>
+            </section>
+
+            <section
+              data-fight-frame
+              class="resources-panel panel"
+              aria-labelledby="resources-heading"
+            >
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow" aria-hidden="true">COMBAT</p>
+                  <h3 id="resources-heading" class="visually-hidden">Combat</h3>
+                </div>
+                <output id="time-value" aria-live="off" class="elapsed-time"
+                  >00:00</output
+                >
+              </div>
+
+              <div class="resource-grid">
+                <section
+                  class="resource-card combo-panel"
+                  aria-labelledby="combo-heading"
+                >
+                  <div class="resource-label">
+                    <h4 id="combo-heading">Combo points</h4>
+                    <output id="combo-value" aria-live="off"
+                      >0 <span class="value-divider">/</span> 5</output
+                    >
+                  </div>
+                  <div
+                    id="combo-meter"
+                    class="combo-meter"
+                    role="meter"
+                    aria-label="Combo points"
+                    aria-valuemin="0"
+                    aria-valuemax="5"
+                    aria-valuenow="0"
+                    aria-valuetext="0 of 5"
+                  >
+                    <span class="combo-point"></span>
+                    <span class="combo-point"></span>
+                    <span class="combo-point"></span>
+                    <span class="combo-point"></span>
+                    <span class="combo-point"></span>
+                  </div>
+                  <p id="combo-spend" class="combo-spend"></p>
+                </section>
+
+                <section
+                  class="resource-card energy-panel"
+                  aria-labelledby="energy-heading"
+                >
+                  <div class="resource-label">
+                    <h4 id="energy-heading">Energy</h4>
+                    <div class="energy-readout">
+                      <span id="energy-cap" class="cap-tag" hidden>AT CAP</span>
+                      <output id="energy-value" aria-live="off"
+                        >0 <span class="value-divider">/</span> 100</output
+                      >
+                    </div>
+                  </div>
+                  <div
+                    id="energy-meter"
+                    class="energy-meter"
+                    role="meter"
+                    aria-label="Rogue energy"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="0"
+                    aria-valuetext="0 of 100"
+                  >
+                    <div id="energy-fill" class="energy-fill"></div>
+                  </div>
+                </section>
+              </div>
+
+              <div class="cooldown-grid">
+                <section
+                  class="resource-card gcd-panel"
+                  aria-labelledby="gcd-heading"
+                >
+                  <div class="resource-label">
+                    <h4 id="gcd-heading">GCD</h4>
+                    <div class="gcd-readout">
+                      <span id="gcd-status" class="gcd-status" aria-live="off"
+                        >Ready</span
+                      >
+                      <output id="gcd-value" aria-live="off">0.0s</output>
+                    </div>
+                  </div>
+                  <div
+                    id="gcd-meter"
+                    class="gcd-meter"
+                    role="meter"
+                    aria-label="Global cooldown remaining"
+                    aria-valuemin="0"
+                    aria-valuemax="1"
+                    aria-valuenow="0"
+                    aria-valuetext="Ready"
+                  >
+                    <div id="gcd-fill" class="gcd-fill"></div>
+                  </div>
+                </section>
+                <section
+                  class="resource-card timed-effects-panel"
+                  aria-labelledby="active-buffs-heading"
+                >
+                  <h4 id="active-buffs-heading">Active effects</h4>
+                  <p id="active-buffs-empty" class="timed-effects-empty">
+                    None
+                  </p>
+                  <div
+                    id="active-buffs"
+                    class="timed-effects"
+                    role="list"
+                    aria-labelledby="active-buffs-heading"
+                  ></div>
+                </section>
+                <section
+                  class="resource-card timed-effects-panel"
+                  aria-labelledby="active-debuffs-heading"
+                >
+                  <h4 id="active-debuffs-heading">Debuffs</h4>
+                  <p id="active-debuffs-empty" class="timed-effects-empty">
+                    None
+                  </p>
+                  <div
+                    id="active-debuffs"
+                    class="timed-effects"
+                    role="list"
+                    aria-labelledby="active-debuffs-heading"
+                  ></div>
+                </section>
+                <section
+                  class="resource-card timed-effects-panel"
+                  aria-labelledby="skill-cooldowns-heading"
+                >
+                  <h4 id="skill-cooldowns-heading">Cooldowns</h4>
+                  <p id="skill-cooldowns-empty" class="timed-effects-empty">
+                    None
+                  </p>
+                  <div
+                    id="skill-cooldowns"
+                    class="timed-effects"
+                    role="list"
+                    aria-labelledby="skill-cooldowns-heading"
+                  ></div>
+                </section>
+              </div>
+            </section>
+
+            <section
+              data-fight-frame
+              class="combat-log-panel panel"
+              aria-labelledby="combat-log-heading"
+            >
+              <div class="section-heading combat-log-heading">
+                <div>
+                  <p class="eyebrow">EVENTS</p>
+                  <h3 id="combat-log-heading">Combat log</h3>
+                </div>
+                <div class="log-tools">
+                  <label class="announce-toggle">
+                    <input id="announce-toggle" type="checkbox" />
+                    Announce key events
+                  </label>
+                  <span class="log-caption">Newest events first</span>
+                </div>
+              </div>
+              <section class="proc-row" aria-labelledby="procs-heading">
+                <h4 id="procs-heading">Procs</h4>
+                <p id="procs-empty" class="timed-effects-empty">None</p>
+                <ul id="proc-chips" class="proc-chips"></ul>
+              </section>
+              <div
+                class="combat-log-scroll"
+                role="region"
+                aria-label="Combat log events"
+                aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+                aria-describedby="log-hint"
+                tabindex="0"
+              >
+                <ol id="combat-log" class="combat-log" aria-live="off">
+                  <li id="combat-log-empty" class="combat-log-empty">
+                    Waiting for combat events…
+                  </li>
+                </ol>
+              </div>
+              <p class="log-readout">
+                <span id="log-hint"></span
+                ><span id="log-step" aria-hidden="true"></span>
+              </p>
+              <p
+                id="log-readout"
+                class="visually-hidden"
+                aria-live="polite"
+              ></p>
+            </section>
+          </div>
         </section>
         <section
           id="results-panel"

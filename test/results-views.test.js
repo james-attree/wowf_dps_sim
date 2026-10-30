@@ -176,8 +176,9 @@ describe("Results views (#242)", () => {
       model.live.label,
       "Live fight · 30 s · seed 242 · ran at 09:12 · finished",
     );
-    assert.equal(model.live.dps, "1,000.0");
-    assert.equal(model.live.time, "00:30");
+    // Its totals are the fight's own readouts now (#245), shown once it
+    // has started.
+    assert.equal(model.live.empty, false);
   });
 
   it("before any run both say none yet", () => {
@@ -192,7 +193,6 @@ describe("Results views (#242)", () => {
     assert.equal(model.average.label, "Average · none yet");
     assert.equal(model.live.label, "Live fight · none yet");
     assert.equal(model.live.empty, true);
-    assert.equal(model.live.dps, "—");
     assert.equal(model.average.run, "Run average");
     assert.equal(model.live.run, "Watch fight");
   });
@@ -235,13 +235,26 @@ describe("Run moves to the result it makes (#242)", () => {
       null,
     );
   });
-  it("a live fight shows Fight", () => {
-    const next = followRoute(idle, running("live"), {
-      area: "results",
-      sub: null,
-    });
-    assert.equal(next.area, "fight");
-    assert.equal(next.run, true);
+  // A live fight shows Results' Live view (#245, UX7), where its meters
+  // and combat log are, from any area or the Average view.
+  it("a live fight shows Results' Live view", () => {
+    for (const route of [
+      { area: "results", sub: null },
+      { area: "results", sub: "average" },
+      { area: "fight", sub: null },
+      { area: "character", sub: null },
+    ]) {
+      assert.deepEqual(followRoute(idle, running("live"), route), {
+        area: "results",
+        sub: "live",
+        param: null,
+        run: true,
+      });
+    }
+    assert.equal(
+      followRoute(idle, running("live"), { area: "results", sub: "live" }),
+      null,
+    );
   });
 });
 
