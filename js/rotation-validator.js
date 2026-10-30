@@ -108,10 +108,34 @@ function described(value) {
   if (Array.isArray(value)) {
     return "an array";
   }
-  if (value instanceof Set || value instanceof Map) {
-    return `a ${value.constructor.name}`;
+  if (typeof value === "object" && !isOrdinaryObject(value)) {
+    return article(builtinTag(value));
   }
   return typeof value === "object" ? "an object" : `a ${typeof value}`;
+}
+
+// A built-in object's kind, from its tag: "Map", "WeakMap", "RegExp".
+function builtinTag(value) {
+  return Object.prototype.toString
+    .call(value)
+    .replace(/^\[object (.*)\]$/, "$1");
+}
+
+function article(name) {
+  return `${/^[AEIOU]/i.test(name) ? "an" : "a"} ${name}`;
+}
+
+// An ordinary object: one whose fields are its properties, made by a literal,
+// Object.create or a class. Arrays, Sets, Maps, WeakMaps, RegExps, Promises,
+// Errors and the other built-ins with a tag of their own are not: their
+// contents are not fields, so read as a context they would quietly be the
+// defaults (#248 QA).
+function isOrdinaryObject(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.prototype.toString.call(value) === "[object Object]"
+  );
 }
 
 // A context's list of ability ids (#207) as a frozen array: `fallback` when it
@@ -142,20 +166,16 @@ export function idList(where, field, given, fallback, kind = "ability") {
 }
 
 // A context (validateRotation's, rotationWarnings') as an object to read:
-// none, undefined or null, is the engine's; anything else that is not a plain
-// object (an array, a Set, a Map, a string) is a TypeError naming `where`
-// (#210). A Map is refused as its debuffs are: its entries are not
-// properties, so read as an object it would quietly be the defaults (#238 QA).
+// none, undefined or null, is the engine's; anything else that is not an
+// ordinary object (a string, an array, a Set, a Map, a WeakMap) is a
+// TypeError naming `where` (#210). A Map (#238 QA), a WeakMap or another
+// built-in (#248 QA) is refused as its debuffs are: its contents are not properties,
+// so read as an object it would quietly be the defaults.
 export function contextObject(where, given) {
   if (given === undefined || given === null) {
     return {};
   }
-  if (
-    typeof given !== "object" ||
-    Array.isArray(given) ||
-    given instanceof Set ||
-    given instanceof Map
-  ) {
+  if (!isOrdinaryObject(given)) {
     throw new TypeError(
       `${where}: the context must be an object, not ${described(given)}.`,
     );
@@ -169,12 +189,7 @@ function debuffMap(given) {
   if (given === undefined || given === null) {
     return ENGINE_DEBUFFS;
   }
-  if (
-    typeof given !== "object" ||
-    Array.isArray(given) ||
-    given instanceof Set ||
-    given instanceof Map
-  ) {
+  if (!isOrdinaryObject(given)) {
     throw new TypeError(
       `rotationContext: debuffs must be an object of debuff id to its most stacks, not ${described(given)}.`,
     );

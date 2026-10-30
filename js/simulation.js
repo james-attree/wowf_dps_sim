@@ -72,10 +72,28 @@ function readFightLength(fightLength) {
 
 const SIMULATION_OPTIONS = Object.freeze(["seed", "rng", "fightLength"]);
 
-// What a bad options value was, for the RangeError (#238 QA).
+// An ordinary object: made by a literal, Object.create or a class. A Map, a
+// Set, a WeakMap or another built-in is not: its contents are not options, so read as
+// options it would quietly be the defaults (#248 QA).
+function isOrdinaryObject(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.prototype.toString.call(value) === "[object Object]"
+  );
+}
+
+// What a bad options value was, for the RangeError (#238 QA): null, an array,
+// a built-in's kind ("a Map", "a WeakMap"), or the type.
 function describe(value) {
   if (value === null) return "null";
   if (Array.isArray(value)) return "an array";
+  if (typeof value === "object") {
+    const tag = Object.prototype.toString
+      .call(value)
+      .replace(/^\[object (.*)\]$/, "$1");
+    return `${/^[AEIOU]/i.test(tag) ? "an" : "a"} ${tag}`;
+  }
   return typeof value;
 }
 
@@ -98,13 +116,10 @@ export class Simulation {
   //
   // No options (undefined) is the defaults, as it always was. null, an array
   // or anything that is not an object is a RangeError that says so, not
-  // Object.keys's TypeError (#238 QA).
+  // Object.keys's TypeError (#238 QA); so is a Map, a Set, a WeakMap or
+  // another built-in, which would otherwise be quietly the defaults (#248 QA).
   constructor(rogue, options = {}) {
-    if (
-      options === null ||
-      typeof options !== "object" ||
-      Array.isArray(options)
-    ) {
+    if (!isOrdinaryObject(options)) {
       throw new RangeError(
         `Simulation needs an options object: { ${SIMULATION_OPTIONS.join(", ")} }, or none. Got ${describe(options)}.`,
       );

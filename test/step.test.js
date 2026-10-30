@@ -98,6 +98,13 @@ describe("runOnCore, cut into steps", () => {
       [7, "number"],
       ["seed", "string"],
       [true, "boolean"],
+      // #248 QA: only an ordinary object is read as options. A Map's entries
+      // are not options; it was quietly the defaults.
+      [new Map([["seed", 5]]), "a Map"],
+      [new WeakMap(), "a WeakMap"],
+      [new Date(0), "a Date"],
+      [new Set(), "a Set"],
+      [() => ({ seed: 1 }), "function"],
     ]) {
       const rogue = new Rogue();
       assert.throws(

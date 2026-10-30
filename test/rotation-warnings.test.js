@@ -655,6 +655,8 @@ describe("rotationWarnings: data, not names", () => {
       [[], "an array"],
       [new Set(), "a Set"],
       [new Map(), "a Map"], // #238 QA
+      [new WeakMap(), "a WeakMap"], // #248 QA
+      [new Date(0), "a Date"], // #248 QA
     ]) {
       assert.throws(
         () => warningContext(context),
