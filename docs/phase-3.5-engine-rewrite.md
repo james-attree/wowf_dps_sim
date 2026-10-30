@@ -283,6 +283,15 @@ Hemorrhage window is boosted and one outside it is not; proc internal
 cooldowns, poison charges and `extra` attacks keep their rules, with the
 existing proc and poison tests passing on the new core, unmodified where they
 do not mention steps.
+Landed in #196: `js/core/dots.js` (`DotTicks`, ticks anchored at
+`anchor + n * interval`, a restart and a keep-clock refresh) and
+`Simulation.resolveDotTick` (the legacy tick body, shared by both engines),
+tested in `test/dots.test.js` with a test host (`test/core-host.js`): exact
+Rupture tick times, no stale tick after a refresh, a Hemorrhage window that
+ends at a tick, internal cooldowns, extra attacks and poisons on events, and
+200 seeds where the fight on events equals the legacy loop hit for hit
+(mechanics.md "Planned: event-queue engine (Phase 3.5)"). The shipped engine
+does not use it until #197 and #198.
 
 **6. Decision points and rotation (E6).** Done when: there is no per-frame
 polling; the count of rotation evaluations in a fight is at most the count of

@@ -323,58 +323,7 @@ export class Simulation {
       }
       const dotContext = this.abilityContext(dotId, dot);
       while (dot.timeUntilNextTick <= k("sim.tickEpsilon")) {
-        let dotTickDamage = dot.tickDamage;
-
-        // An aura on the target can raise the damage the DoT takes
-        // (hemorrhage.ruptureBonus.bonus: Rupture ticks only).
-        for (const { value, stacks } of this.auraEffects("dotDamageTaken")) {
-          if (value.ids.includes(dotId)) {
-            dotTickDamage *= 1 + value.bonus * stacks;
-          }
-        }
-
-        let dotHitCrit = "Hit";
-        // roll crit for each tick
-        const tickCritChance = this.rogue.getCritChance(dotContext);
-        if (
-          k("dot.canCrit") &&
-          rollCrit(
-            k("dot.critSuppression")
-              ? suppressCrit(tickCritChance)
-              : tickCritChance,
-            this.rng,
-          )
-        ) {
-          dotTickDamage *= this.modifiers.resolve(
-            "critDamage",
-            k("dot.critMultiplier"),
-            dotContext,
-          );
-          dotHitCrit = "Crit";
-        }
-        dotTickDamage = this.applyArmor(
-          dotTickDamage,
-          skipsArmor(dotContext),
-          dotContext,
-        );
-        this.updateDamage(dotTickDamage);
-        const dotSource = { id: dotId, name: dot.name ?? dotId };
-        this.recordAbility(
-          dotSource,
-          dotHitCrit === "Crit" ? "crit" : "hit",
-          dotTickDamage,
-          { tick: true },
-        );
-        this.addCombatEvent(
-          dotSource.name,
-          "skill",
-          dotTickDamage,
-          dotHitCrit,
-          dotHitCrit === "Crit" ? "crit" : "hit",
-          dot.icon,
-          dotId,
-          "dot",
-        );
+        this.resolveDotTick(dotId, dot, dotContext);
         dot.timeUntilNextTick += dot.tickInterval;
         this.procs.onDotTick(dotContext);
       }
@@ -389,6 +338,67 @@ export class Simulation {
     this.rogue.tickResources(dt);
 
     this.rogue.rotation(this, dt);
+  }
+
+  // One tick of the DoT `dot` (an activeDots entry) under `dotId`: an aura on
+  // the target that raises the DoT's damage (Hemorrhage on Rupture), the
+  // per-tick crit roll, armor (a bleed skips it), the fight totals and the
+  // log. `dotContext` is abilityContext(dotId, dot). The caller moves the
+  // tick clock and then fires the tick's procs (procs.onDotTick): step() does
+  // for the legacy engine, the core's dot-tick handler for the new one (#196).
+  resolveDotTick(dotId, dot, dotContext) {
+    let dotTickDamage = dot.tickDamage;
+
+    // An aura on the target can raise the damage the DoT takes
+    // (hemorrhage.ruptureBonus.bonus: Rupture ticks only).
+    for (const { value, stacks } of this.auraEffects("dotDamageTaken")) {
+      if (value.ids.includes(dotId)) {
+        dotTickDamage *= 1 + value.bonus * stacks;
+      }
+    }
+
+    let dotHitCrit = "Hit";
+    // roll crit for each tick
+    const tickCritChance = this.rogue.getCritChance(dotContext);
+    if (
+      k("dot.canCrit") &&
+      rollCrit(
+        k("dot.critSuppression")
+          ? suppressCrit(tickCritChance)
+          : tickCritChance,
+        this.rng,
+      )
+    ) {
+      dotTickDamage *= this.modifiers.resolve(
+        "critDamage",
+        k("dot.critMultiplier"),
+        dotContext,
+      );
+      dotHitCrit = "Crit";
+    }
+    dotTickDamage = this.applyArmor(
+      dotTickDamage,
+      skipsArmor(dotContext),
+      dotContext,
+    );
+    this.updateDamage(dotTickDamage);
+    const dotSource = { id: dotId, name: dot.name ?? dotId };
+    this.recordAbility(
+      dotSource,
+      dotHitCrit === "Crit" ? "crit" : "hit",
+      dotTickDamage,
+      { tick: true },
+    );
+    this.addCombatEvent(
+      dotSource.name,
+      "skill",
+      dotTickDamage,
+      dotHitCrit,
+      dotHitCrit === "Crit" ? "crit" : "hit",
+      dot.icon,
+      dotId,
+      "dot",
+    );
   }
 
   // Run the fight for `duration` seconds in fixed steps of k("sim.fixedStep"),
@@ -923,7 +933,7 @@ export class Simulation {
   // clock (wowsims ApplyOrRefresh: the aura is refreshed, the ticks go on), and
   // each tick is the stacks × tickDamage. The application deals no damage and
   // is logged like a DoT cast (0 damage; Hit or Resist). The ticks are in
-  // step().
+  // step(), or on the core's dot-tick events (js/core/dots.js, #196).
   resolveProcDot({
     id,
     name,
