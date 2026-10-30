@@ -11,6 +11,7 @@ import { runFight } from "../js/fight.js";
 import { createLiveRun } from "../js/live-run.js";
 import { createRunActions, emptyBatch } from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
+import { NOT_WIDE_QUERY } from "../js/views/breakpoints.js";
 import { editedSinceRun } from "../js/views/config-form.js";
 import {
   NARROW_QUERY,
@@ -1081,7 +1082,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
       new URL("../styles.css", import.meta.url),
       "utf8",
     );
-    const dock = css.indexOf("@media (max-width: 1023.98px) {");
+    const dock = css.indexOf(`@media ${NOT_WIDE_QUERY} {`);
     const short = css.indexOf("#run-status-text[data-dock]::before {");
     assert.ok(dock >= 0 && short > dock, "inside the dock query");
     assert.ok(short < css.indexOf("@media", dock + 1), "the first dock block");
@@ -1582,7 +1583,7 @@ describe("the narrow control bar (#153, Scout)", () => {
     };
     createControlsView(doc, page.store, page.actions);
     assert.deepEqual(queries, [NARROW_QUERY]);
-    assert.equal(NARROW_QUERY, "(max-width: 519.98px)");
+    assert.equal(NARROW_QUERY, "(width < 32.5em)");
     assert.deepEqual(order, ["run-bar", "run-settings", "run-help"]);
 
     el("run-seed").focus();
@@ -1640,7 +1641,7 @@ describe("the narrow control bar (#153, Scout)", () => {
       assert.ok(at(id) > at("run-bar"), id);
     }
 
-    const start = css.indexOf("@media (max-width: 519.98px)");
+    const start = css.indexOf(`@media ${NARROW_QUERY}`);
     assert.ok(start > 0, "the narrow block");
     const outside = css.slice(0, start);
     let depth = 0;
@@ -1675,7 +1676,7 @@ describe("the narrow control bar (#153, Scout)", () => {
     // Below the wide breakpoint the row is the dock's strip (#240): fixed
     // above the area nav and its safe-area inset, 48 px (two 18 px lines
     // beside 44 px buttons), in the page's flow on Results.
-    const from = css.indexOf("@media (max-width: 1023.98px) {", start);
+    const from = css.indexOf(`@media ${NOT_WIDE_QUERY} {`, start);
     assert.ok(from > start, "the dock block follows the narrow block");
     const dock = css.slice(from, css.indexOf("\n}\n", from));
     const strip = rule(dock, "  .run-row-actions");

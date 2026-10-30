@@ -88,6 +88,7 @@
 }
 .builder-name input {
   width: 100%;
+  min-width: 0;
 }
 .builder-origin,
 .builder-context,
@@ -101,8 +102,8 @@
 }
 
 /* #200 (Fran's #226 QA, 5): scrolled into view, a banner lands below the
-   chrome over the screen's top (--chrome-top, styles.css: the sticky run bar
-   when wide) and above what covers its foot (--chrome-bottom: the phone dock
+   chrome over the screen's top (--chrome-top, styles.css: none at any width
+   since #241) and above what covers its foot (--chrome-bottom: the phone dock
    and nav, #240), with a gap. */
 .rot-banner {
   scroll-margin-top: calc(var(--chrome-top) + 12px);
@@ -265,6 +266,7 @@
 .rule-title {
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 .rule-name {
@@ -272,6 +274,9 @@
   margin: 0;
   padding-top: 4px;
   text-align: left;
+  /* A long action name in a narrow title column (bigger text, Fran's #253
+     check, N6) breaks rather than spilling over the move buttons. */
+  overflow-wrap: anywhere;
 }
 .rule-line {
   color: var(--text-muted);
@@ -293,6 +298,8 @@
   color: #d8cfbd;
   font-size: 0.74rem;
   line-height: 1.6;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .chip.is-alt {
   border-color: #8f7a4d;
@@ -465,7 +472,15 @@
 .add-rule-row .field {
   flex: 1 1 220px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
+}
+/* The action list's longest name sets the select's own width; with bigger
+   text (Fran's #253 check, N6) that is wider than the panel, so it fills
+   the field instead and the chosen name is cut inside the box. */
+.add-rule-row select {
+  width: 100%;
+  min-width: 0;
 }
 .add-rule-row .field-help,
 .add-rule-row .field-error {
@@ -497,8 +512,12 @@
   font-size: 0.82rem;
   line-height: 1.4;
 }
+/* One column no wider than the panel: with bigger text (text-only 200%,
+   Fran's #253 check, N6) the input's own width would push the column, and
+   the builder with it, past the panel. */
 .rotation-panel .builder-name {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
 }
 .rule-icon {
@@ -539,7 +558,7 @@
 .builder-origin.is-edited .link-button {
   font-size: inherit;
 }
-@media (max-width: 519.98px) {
+@media (width < 32.5em) {
   /* 360 px: a chip that wraps keeps a readable shape. */
   .chip {
     border-radius: 10px;

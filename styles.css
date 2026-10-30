@@ -46,9 +46,10 @@
   /* The phone run dock's strip (#240), above the nav; none on Results. */
   --strip-height: 48px;
   --dock-strip: 0px;
-  /* The sticky run bar on wide screens (js/views/controls.js measures it);
-     nothing sticks to the top below the wide breakpoint. */
-  --chrome-top: var(--run-bar-height, 0px);
+  /* Nothing sticks to the top of the page at any width (#241, UX3): on
+     wide screens Run is in the results column, below the wide breakpoint
+     in the phone dock (#240). */
+  --chrome-top: 0px;
   --chrome-bottom: 0px;
   /* The rotation builder's messages, pinned under the top chrome below the
      wide breakpoint (js/views/rotation-builder.js measures them). */
@@ -195,11 +196,10 @@ h3 {
 }
 
 /* The run control bar (#153): the one home of Run, Pause, Stop and Reset.
-   Sticky, so the controls stay in reach while the page scrolls. */
+   On wide screens it is the Run panel at the top of the results column,
+   which stays in reach while the page scrolls (#241); below the wide
+   breakpoint it is the phone dock (#240). */
 .run-controls {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   display: grid;
   gap: 8px;
   margin-bottom: 12px;
@@ -392,6 +392,17 @@ h3 {
   font-size: 0.72rem;
 }
 
+/* The results column (#241, UX3): on wide screens the Run panel, then the
+   summary card, beside the areas. Below the wide breakpoint the column adds
+   no box (the Run panel is the phone dock) and the card is not shown. */
+.run-column {
+  display: contents;
+}
+
+.results-card {
+  display: none;
+}
+
 /* The narrow layout's parts (Scout, #153). Wide screens draw the bar as
    before: the settings wrappers add no boxes, and the toggle and the summary
    are not shown. The errors link shows at every width while Run is blocked
@@ -427,7 +438,7 @@ h3 {
    section, closed by default, that scrolls away with the page; Run and the
    status are in the dock (below). js/views/controls.js puts the section after
    the dock's row in the DOM. */
-@media (max-width: 519.98px) {
+@media (width < 32.5em) {
   .run-controls {
     display: contents;
   }
@@ -515,7 +526,7 @@ h3 {
    a fight or batch runs; Reset, or Stop while it runs. On Results the strip
    leaves the dock and sits in the page above the results, so the dock is the
    nav alone. */
-@media (max-width: 1023.98px) {
+@media (width < 64em) {
   .run-controls {
     position: static;
     box-shadow: none;
@@ -781,7 +792,8 @@ h3 {
 }
 
 .resource-label {
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   margin-bottom: 9px;
 }
 
@@ -852,11 +864,19 @@ h3 {
   margin-bottom: 7px;
 }
 
+/* The GCD's status and time never spill out of the card (Fran's #253
+   check, B1): in a narrow card, or with bigger text, the readout goes under
+   the label, then the time under the status, each line kept whole. */
 .gcd-readout {
-  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 12px;
+  min-width: 0;
+  margin-left: auto;
 }
 
 .gcd-status {
+  white-space: nowrap;
   color: #8ee0b6;
   font-size: 0.75rem;
   font-weight: 650;
@@ -1266,13 +1286,13 @@ h3 {
   font-weight: 650;
 }
 
-@media (max-width: 720px) {
+@media (width <= 45em) {
   .cooldown-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 519.98px) {
+@media (width < 32.5em) {
   body {
     padding: 14px 12px;
     place-items: start center;
@@ -1336,7 +1356,7 @@ h3 {
   }
 }
 
-@media (max-height: 760px) {
+@media (height <= 47.5em) {
   body {
     padding-top: 10px;
     padding-bottom: 10px;
@@ -1680,7 +1700,7 @@ h3 {
   outline-offset: 1px;
 }
 
-@media (max-width: 519.98px) {
+@media (width < 32.5em) {
   .import-warnings pre {
     max-height: none;
   }
@@ -1783,13 +1803,13 @@ h3 {
   background: none;
 }
 
-@media (max-width: 720px) {
+@media (width <= 45em) {
   .hands {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 519.98px) {
+@media (width < 32.5em) {
   .character-fieldset {
     grid-template-columns: 1fr;
   }
@@ -1808,7 +1828,7 @@ h3 {
 
 /* The batch results panel (#154). From Fran's mockup.css
    (design/154-results-panel), without the mockup chrome and the unused
-   button rules; the narrow query is the page's (519.98px, #153). Only the
+   button rules; the narrow query is the page's (below 32.5em, #153). Only the
    partial (amber) and error (red) tints are new colours; their contrast is in
    the spec, section 9. */
 /* ---- Panel --------------------------------------------------------------- */
@@ -2181,7 +2201,7 @@ th[aria-sort="ascending"] {
 }
 
 /* ---- Narrow -------------------------------------------------------------- */
-@media (max-width: 519.98px) {
+@media (width < 32.5em) {
   .results-panel .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2257,7 +2277,7 @@ th[aria-sort="ascending"] {
    is unreadable squeezed to a phone, so below the page's narrow breakpoint
    the SVG keeps 520 px and its .chart-scroll region scrolls sideways. A
    responsive chart layout is on the Phase 5 polish list. */
-@media (max-width: 519.98px) {
+@media (width < 32.5em) {
   .chart-scroll .chart {
     min-width: 520px;
   }
@@ -2392,7 +2412,7 @@ th[aria-sort="ascending"] {
 /* Below the wide breakpoint: a bar fixed to the bottom of the screen, four
    equal links, the current one in the accent with a bar along its top. The
    page leaves room for it under the footer. */
-@media (max-width: 1023.98px) {
+@media (width < 64em) {
   /* The chrome at the foot: the dock's strip (none on Results), the nav
      and the safe-area inset under it (#240; proposal section 4). The page
      leaves that room under the footer, and html's scroll-padding keeps a
@@ -2453,9 +2473,9 @@ th[aria-sort="ascending"] {
 
 /* From the wide breakpoint: a sticky column left of the page, one link per
    row, the current one raised with a bar down its left edge. */
-@media (min-width: 1024px) {
+@media (width >= 64em) {
   body {
-    grid-template-columns: 208px minmax(0, 760px);
+    grid-template-columns: clamp(160px, 16vw, 208px) minmax(0, 1224px);
     justify-content: center;
     column-gap: 24px;
   }
@@ -2499,4 +2519,229 @@ th[aria-sort="ascending"] {
     box-shadow: inset 3px 0 0 var(--accent);
     color: var(--accent);
   }
+}
+
+/* The wide layout's results column (#241, UX3; proposal sections 3 and 5):
+   the areas on the left, the column on the right, between 360 and 440 wide,
+   sticky so Run and the average stay in reach while the page scrolls.
+   Nothing sticks to the top, so --chrome-top stays 0. On Results the card
+   is not shown (the full results are the area itself); the Run panel stays,
+   as Results has no Run of its own yet. */
+@media (width >= 64em) {
+  .simulator {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(360px, 28vw, 440px);
+    grid-template-rows: auto 1fr;
+    column-gap: 24px;
+    align-items: start;
+    width: 100%;
+  }
+
+  .simulator > * {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .simulator > .area {
+    grid-row: 2;
+  }
+
+  /* Taller than a short screen (with run-field errors, say), the column
+     scrolls on its own so its foot, the live line and "Open full results",
+     is in reach without scrolling to the page's end (Fran's #253 check,
+     N1). Its fields, buttons and links stay in the tab order, and tabbing
+     to one scrolls the column to it, so keyboards reach all of it. Its
+     scroll chains to the page's: a wheel over it scrolls the page when it
+     has nothing to scroll or is at its end (Fran's #253 re-check, B2). */
+  .simulator > .run-column {
+    position: sticky;
+    top: 16px;
+    display: grid;
+    align-content: start;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    gap: 12px;
+    max-height: calc(100dvh - 32px);
+    margin-top: 14px;
+    overflow-y: auto;
+  }
+
+  /* Run, Pause, Stop and Reset two by two, so none is left alone on a row
+     (Fran's #253 check, N5). A long label wraps inside its button. */
+  .run-column .run-buttons {
+    display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .run-column .run-buttons button {
+    min-width: 0;
+    text-wrap: balance;
+  }
+
+  .run-controls {
+    margin-bottom: 0;
+    padding: 12px 14px;
+    box-shadow: none;
+  }
+
+  .run-column .run-row-inputs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+
+  .run-column .run-row-inputs > .run-mode {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
+
+  .run-column .run-seed-field {
+    grid-column: 1 / -1;
+  }
+
+  .run-column .run-field input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .run-column .run-seed-input input {
+    flex: 1;
+  }
+
+  .results-card {
+    display: grid;
+    gap: 6px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  /* The areas are narrower here than the screen (the column is beside
+     them), so their own layouts follow the area's width, not the screen's:
+     the rules the page uses below 45em wide apply to an area narrower than
+     47.5rem (Fran's #253 check, B1: four cooldown cards need more than the
+     45em). At the default text size the area stops growing at exactly
+     47.5rem, and keeps four from there: a wider window never goes back to
+     two (Fran's re-check). In rem, so bigger text narrows the cards with
+     it (N6). */
+  .simulator > .area {
+    container: area / inline-size;
+  }
+
+  :root:has(#area-results:not([hidden])) .results-card {
+    display: none;
+  }
+
+  /* The heading scale (James on #241): each area's h1 is the screen's
+     heading, so it is the biggest text; "Rogue" is the app's name above it. */
+  .app-title {
+    font-size: 1.25rem;
+  }
+
+  .area-title {
+    font-size: 1.9rem;
+  }
+}
+
+@container area (width < 47.5rem) {
+  .cooldown-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hands {
+    grid-template-columns: 1fr;
+  }
+
+  .results-panel .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.results-card-title {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.results-card-body {
+  display: grid;
+  gap: 6px;
+}
+
+.results-card-dps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 1.9rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.results-card-unit {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.results-card-dps .badge {
+  align-self: center;
+}
+
+.results-card-ci,
+.results-card-meta,
+.results-card-status {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.results-card-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+}
+
+.results-card-facts dt {
+  color: var(--text-muted);
+}
+
+.results-card-facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.results-card-link {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.results-card-open:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 24px;
+  font-size: 0.85rem;
+}
+
+.results-card-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.results-card-live {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
 }

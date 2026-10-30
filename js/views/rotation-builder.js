@@ -937,7 +937,9 @@ export function createRotationBuilderView(doc, store, actions) {
   // view as soon as it is drawn; what can be hidden then is the focused
   // rule, under the pinned messages, and it is scrolled clear of them.
   // --chrome-top and --chrome-bottom (styles.css) are what covers the
-  // screen's top and foot: the sticky run bar, or the phone dock and nav.
+  // screen's top and foot: the phone dock and nav below the wide breakpoint;
+  // nothing on wide screens, where Run is in the results column beside the
+  // areas (#241, UX3), so --chrome-top is 0 at every width.
   function revealWarnings() {
     const banner = section.querySelector("#rb-warnings");
     const win = doc.defaultView;

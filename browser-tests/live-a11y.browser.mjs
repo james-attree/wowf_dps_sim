@@ -112,7 +112,7 @@ function messages(page) {
 }
 
 // One real mouse click at the centre of a control, scrolled to the middle
-// of the screen first so the sticky run bar can't sit over it.
+// of the screen first so the phone dock can't sit over it.
 async function clickCentre(locator) {
   await locator.evaluate((el) => el.scrollIntoView({ block: "center" }));
   const box = await locator.boundingBox();
