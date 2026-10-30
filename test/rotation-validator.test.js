@@ -551,6 +551,8 @@ describe("validateRotation: the context", () => {
     assert.deepEqual(validateRotation(valid, null), []);
     assert.deepEqual(validateRotation(valid), []);
     assert.deepEqual(rotationContext(null), rotationContext());
+    // An ordinary object with no prototype is still a context (#248 QA).
+    assert.deepEqual(rotationContext(Object.create(null)), rotationContext());
     assert.deepEqual(
       rotationContext({ debuffs: null }).debuffs,
       rotationContext().debuffs,
@@ -569,6 +571,42 @@ describe("validateRotation: the context", () => {
       [
         new Map([["abilities", ["x"]]]),
         "rotationContext: the context must be an object, not a Map.",
+      ],
+      // #248 QA: only an ordinary object is read as a context. A WeakMap or a
+      // Date has no fields of its own and was quietly the defaults.
+      [
+        new WeakMap(),
+        "rotationContext: the context must be an object, not a WeakMap.",
+      ],
+      // #250 QA, polish 3: "a Uint8Array", as it is read.
+      [
+        new Uint8Array(1),
+        "rotationContext: the context must be an object, not a Uint8Array.",
+      ],
+      [
+        new ArrayBuffer(1),
+        "rotationContext: the context must be an object, not an ArrayBuffer.",
+      ],
+      [
+        new Date(0),
+        "rotationContext: the context must be an object, not a Date.",
+      ],
+      [/x/, "rotationContext: the context must be an object, not a RegExp."],
+      [
+        new WeakSet(),
+        "rotationContext: the context must be an object, not a WeakSet.",
+      ],
+      [
+        Promise.resolve(),
+        "rotationContext: the context must be an object, not a Promise.",
+      ],
+      [
+        new Error("x"),
+        "rotationContext: the context must be an object, not an Error.",
+      ],
+      [
+        () => ({ abilities: [] }),
+        "rotationContext: the context must be an object, not a function.",
       ],
       [
         { auras: "slice-and-dice" },
@@ -593,6 +631,10 @@ describe("validateRotation: the context", () => {
       [
         { debuffs: new Map() },
         "rotationContext: debuffs must be an object of debuff id to its most stacks, not a Map.",
+      ],
+      [
+        { debuffs: new Date(0) },
+        "rotationContext: debuffs must be an object of debuff id to its most stacks, not a Date.",
       ],
       [
         { debuffs: 3 },

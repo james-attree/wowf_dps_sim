@@ -11,6 +11,11 @@ import {
   rotationTopShape,
   ruleShape,
 } from "./rotation-schema.js";
+import {
+  builtinTag,
+  isOrdinaryObject,
+  withArticle,
+} from "./ordinary-object.js";
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 import { talentGrantedAbilities } from "./talent-build.js";
 
@@ -108,8 +113,8 @@ function described(value) {
   if (Array.isArray(value)) {
     return "an array";
   }
-  if (value instanceof Set || value instanceof Map) {
-    return `a ${value.constructor.name}`;
+  if (typeof value === "object" && !isOrdinaryObject(value)) {
+    return withArticle(builtinTag(value));
   }
   return typeof value === "object" ? "an object" : `a ${typeof value}`;
 }
@@ -142,20 +147,16 @@ export function idList(where, field, given, fallback, kind = "ability") {
 }
 
 // A context (validateRotation's, rotationWarnings') as an object to read:
-// none, undefined or null, is the engine's; anything else that is not a plain
-// object (an array, a Set, a Map, a string) is a TypeError naming `where`
-// (#210). A Map is refused as its debuffs are: its entries are not
-// properties, so read as an object it would quietly be the defaults (#238 QA).
+// none, undefined or null, is the engine's; anything else that is not an
+// ordinary object (a string, an array, a Set, a Map, a WeakMap) is a
+// TypeError naming `where` (#210). A Map (#238 QA), a WeakMap or another
+// built-in (#248 QA) is refused as its debuffs are: its contents are not properties,
+// so read as an object it would quietly be the defaults.
 export function contextObject(where, given) {
   if (given === undefined || given === null) {
     return {};
   }
-  if (
-    typeof given !== "object" ||
-    Array.isArray(given) ||
-    given instanceof Set ||
-    given instanceof Map
-  ) {
+  if (!isOrdinaryObject(given)) {
     throw new TypeError(
       `${where}: the context must be an object, not ${described(given)}.`,
     );
@@ -169,12 +170,7 @@ function debuffMap(given) {
   if (given === undefined || given === null) {
     return ENGINE_DEBUFFS;
   }
-  if (
-    typeof given !== "object" ||
-    Array.isArray(given) ||
-    given instanceof Set ||
-    given instanceof Map
-  ) {
+  if (!isOrdinaryObject(given)) {
     throw new TypeError(
       `rotationContext: debuffs must be an object of debuff id to its most stacks, not ${described(given)}.`,
     );

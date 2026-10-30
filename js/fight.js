@@ -1,4 +1,5 @@
 import { dataVersion } from "./data-version.js";
+import { describeValue, isOrdinaryObject } from "./ordinary-object.js";
 import { Rogue } from "./rogue.js";
 import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
@@ -116,14 +117,12 @@ const RUN_FIGHT_OPTIONS = ["seed", "duration", "config"];
 // misspelt "confg" cannot quietly run the default fight.
 export function runFight(options) {
   // null, undefined, an array, and anything that is not an object have no seed
-  // or duration to read, so they get the same RangeError as a bad seed.
-  if (
-    options === null ||
-    typeof options !== "object" ||
-    Array.isArray(options)
-  ) {
+  // or duration to read, so they get the same RangeError as a bad seed; so
+  // does a Map, a Set or another built-in, even with its own seed and
+  // duration, as in Simulation (Kira's #250 QA, polish 4).
+  if (!isOrdinaryObject(options)) {
     throw new RangeError(
-      "runFight needs an options object: { seed, duration }.",
+      `runFight needs an options object: { seed, duration }. Got ${describeValue(options)}.`,
     );
   }
   for (const key of Object.keys(options)) {

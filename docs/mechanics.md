@@ -2925,7 +2925,7 @@ has no miss or dodge on a Cold Blood attack in either, so they would not move
 if this rule changed. Three tests pin it (the Cold Blood test in
 `test/assassination-procs-as-data.test.js`, and the front-block cases in
 `test/carry-overs-103.test.js`); with the rule changed to spend the charge on
-every outcome, those fail and the six golden fixtures do not. If real Classic
+every outcome, those fail and the seven golden fixtures do not. If real Classic
 spends the charge on a miss or a block, change the condition where
 `resolveAttack` (`js/simulation.js`) calls `consumeUseCharges`, and the tests
 that pin it.
@@ -3185,7 +3185,8 @@ unchanged. An `engine` key, like any option a function does not take, is a
 options an object has of its own, as `runFight` does (#209): one it inherits
 is not given. `new Simulation(rogue)` with no options is the defaults, but
 null, an array or a value that is not an object is a `RangeError` ("Simulation
-needs an options object"); `run` and `clear` need a seed, so they take no
+needs an options object"), and so is a built-in such as a `Map` or a
+`WeakMap`, whose contents are not options (#248 QA); `run` and `clear` need a seed, so they take no
 less than an options object and refuse undefined too (#238 QA).
 
 `createLiveRun`'s `run({ seed, duration, config })` gives the runner one

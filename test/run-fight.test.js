@@ -404,6 +404,54 @@ describe("runFight inputs", () => {
     assert.throws(() => runFight([]), RangeError);
   });
 
+  // Issue #234 (Kira's #250 QA, polish 4). Only an ordinary object is read as
+  // options, as in Simulation: a Map or another built-in with its own seed and
+  // duration was a fight on them.
+  it("refuses a Map or another built-in, even with its own seed and duration", () => {
+    for (const [bad, got] of [
+      [new Map(), "a Map"],
+      [new Set(), "a Set"],
+      [new WeakMap(), "a WeakMap"],
+      [new Uint8Array(1), "a Uint8Array"],
+      [/seed/, "a RegExp"],
+    ]) {
+      Object.assign(bad, { seed: 1, duration: 1 });
+      assert.throws(
+        () => runFight(bad),
+        (error) =>
+          error instanceof RangeError &&
+          error.message ===
+            `runFight needs an options object: { seed, duration }. Got ${got}.`,
+        got,
+      );
+    }
+    for (const [bad, got] of [
+      [null, "null"],
+      [[], "an array"],
+      [7, "number"],
+    ]) {
+      assert.throws(
+        () => runFight(bad),
+        {
+          name: "RangeError",
+          message: `runFight needs an options object: { seed, duration }. Got ${got}.`,
+        },
+        got,
+      );
+    }
+    // An object made by Object.create or a class is still options.
+    class Options {
+      seed = 1;
+      duration = 1;
+    }
+    assert.equal(runFight(new Options()).seed, 1);
+    assert.equal(
+      runFight(Object.assign(Object.create(null), { seed: 2, duration: 1 }))
+        .seed,
+      2,
+    );
+  });
+
   // #209: one message for every bad duration, none and null included, and
   // the checks in order: seed, then config, then duration.
   it("names runFight in every bad-duration message, after the seed and config", () => {
