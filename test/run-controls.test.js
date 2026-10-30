@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
-import { FORM_ERROR, pageDefaultConfig } from "../js/config-form.js";
+import {
+  FORM_ERROR,
+  createConfigForm,
+  pageDefaultConfig,
+} from "../js/config-form.js";
 import { runFight } from "../js/fight.js";
 import { createLiveRun } from "../js/live-run.js";
 import { createRunActions, emptyBatch } from "../js/run-actions.js";
@@ -21,6 +25,7 @@ import {
   controlsModel,
   errorsText,
   fieldErrors,
+  firstFormError,
   grouped,
   parseRunField,
   spokenTenths,
@@ -1686,5 +1691,102 @@ describe("the narrow control bar (#153, Scout)", () => {
     );
     assert.match(narrow, /\.run-controls\[data-slot="pause"\] #run-button/);
     assert.match(narrow, /\.run-controls\[data-slot="run"\] #pause-button/);
+  });
+});
+
+describe("Run never starts with stale settings (#247)", () => {
+  const MIN = "weapons.mainHand.min";
+  const MAX = "weapons.mainHand.max";
+  const PAIR_MIN = 50;
+  const PAIR_MAX = 40;
+  const FIXED_MAX = 60;
+  const MAX_ID = "cfg-weapons-mainHand-max";
+  const MIN_ID = "cfg-weapons-mainHand-min";
+  // The bar, with the form's model on the same store, as js/main.js wires
+  // them; the stand-in form fields are marked as the form view marks them.
+  const wired = () => {
+    const page = setup();
+    const form = createConfigForm(page.store);
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, {
+      ...page.actions,
+      commitEdits: form.commitEdits,
+    });
+    const mark = () => {
+      const { errors } = page.store.get().form;
+      for (const [path, id] of [
+        [MIN, MIN_ID],
+        [MAX, MAX_ID],
+      ]) {
+        el(id).setAttribute("aria-invalid", path in errors ? "true" : null);
+      }
+    };
+    page.store.subscribe(mark);
+    return { page, form, el };
+  };
+  // Fran's repro: Min 50, Max 40, then Backspace (5) and 0 in Min.
+  const BACKSPACED = 5;
+  const repro = ({ form }) => {
+    form.change(MIN, PAIR_MIN);
+    form.change(MAX, PAIR_MAX);
+    form.input(MIN, BACKSPACED);
+    form.input(MIN, PAIR_MIN);
+  };
+
+  it("pressing Run checks the typed field; blocked, it keeps focus off Run and sends it to the field to fix", () => {
+    const wiring = wired();
+    const { page, el } = wiring;
+    repro(wiring);
+    assert.equal(el("run-button").disabled, false, "typing adds no error");
+    const press = el("run-button").fire("mousedown");
+    assert.equal(blocked(page.store.get()), true, "checked again");
+    assert.equal(press.prevented, 1, "focus stays off the button");
+    assert.equal(el(MAX_ID).focused, 1, "the field the footer names");
+    assert.equal(el(MIN_ID).focused, 0);
+    el("run-button").fire("click");
+    assert.equal(page.store.get().run.state, "idle", "no run");
+    assert.equal(page.store.get().run.snapshot, null);
+  });
+
+  it("a click on Run checks the typed field first, and runs what the fields show", () => {
+    const wiring = wired();
+    const { page, form, el } = wiring;
+    repro(wiring);
+    el("run-button").fire("click");
+    assert.equal(page.store.get().run.state, "idle", "blocked, so no run");
+    assert.equal(el(MAX_ID).focused, 1);
+    form.input(MAX, FIXED_MAX);
+    el("run-button").fire("mousedown");
+    el("run-button").fire("click");
+    assert.equal(page.store.get().run.state, "running");
+    const { snapshot } = page.store.get().run;
+    assert.equal(snapshot.weapons.mainHand.min, PAIR_MIN);
+    assert.equal(snapshot.weapons.mainHand.max, FIXED_MAX);
+  });
+
+  it("the Fix link goes to the field the footer lists first (nit 4)", () => {
+    const wiring = wired();
+    const { page, form, el } = wiring;
+    form.change(MIN, PAIR_MIN);
+    form.change(MAX, PAIR_MAX);
+    assert.equal(firstFormError(page.store.get().form), MAX);
+    const event = el("run-errors-link").fire("click");
+    assert.equal(event.prevented, 1);
+    assert.equal(el(MAX_ID).focused, 1, "the Max, which holds the message");
+    assert.equal(el(MIN_ID).focused, 0, "not the marked Min");
+  });
+
+  it("firstFormError is the first error with a message, in the footer's order", () => {
+    assert.equal(firstFormError({ errors: {} }), null);
+    assert.equal(firstFormError(undefined), null);
+    assert.equal(firstFormError({ errors: { [MIN]: null } }), null);
+    assert.equal(
+      firstFormError({ errors: { [MAX]: "Pair.", [MIN]: null } }),
+      MAX,
+    );
+    assert.equal(
+      firstFormError({ errors: { [MIN]: null, [MAX]: "Pair.", a: "A." } }),
+      MAX,
+    );
   });
 });
