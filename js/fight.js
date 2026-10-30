@@ -133,13 +133,26 @@ export function runFight(options) {
       );
     }
   }
-  const { seed, duration, config } = options;
+  // Own options only: one an object inherits is not given (#209).
+  const own = (key) => (Object.hasOwn(options, key) ? options[key] : undefined);
+  const seed = own("seed");
+  const duration = own("duration");
+  const config = own("config");
   // A seed is required so no fight is repeatable by accident or random by
-  // accident. createFight rejects anything that is not an integer.
+  // accident. createFight rejects anything that is not an integer, then a
+  // bad config; the duration is checked after both, with runFight's own
+  // message for every bad one, none included (#209), as SimRunner's.
+  const valid = Number.isFinite(duration) && duration >= 0;
   // The rotation is told the length the fight runs (#191).
-  const fight = createFight(seed, config, { duration });
-  // One run call for the whole fight. A bad duration is already refused,
-  // by createFight, as a RangeError.
+  const fight = createFight(seed, config, {
+    duration: valid ? duration : undefined,
+  });
+  if (!valid) {
+    throw new RangeError(
+      `runFight needs a finite duration in seconds, 0 or more. Got ${duration}.`,
+    );
+  }
+  // One run call for the whole fight.
   fight.simulation.run(duration);
   return fightResult(fight);
 }
