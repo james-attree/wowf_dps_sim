@@ -37,8 +37,11 @@ function setup({
     handle(event, s) {
       onEvent(event, s);
       if (event.kind === SWING_KIND) {
-        swings.push([event.payload.hand, event.time]);
-        timers[event.payload.hand].swung();
+        // The payload names the engine's hand (#198); the log keeps the
+        // weapon's "main" / "off".
+        const hand = event.payload.hand === "mainHand" ? "main" : "off";
+        swings.push([hand, event.time]);
+        timers[hand].swung();
       }
     },
   });
@@ -138,8 +141,8 @@ describe("SwingTimer (#195)", () => {
     });
     s2.runUntil(0.5);
     assert.deepEqual(seen, [
-      [SWING_KIND, ORDER.swing, { hand: "main" }],
-      [SWING_KIND, ORDER.swing, { hand: "off" }],
+      [SWING_KIND, ORDER.swing, { hand: "mainHand" }],
+      [SWING_KIND, ORDER.swing, { hand: "offHand" }],
     ]);
     assert.ok(Object.isFrozen(seen[0][2]));
   });

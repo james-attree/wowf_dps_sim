@@ -3136,6 +3136,35 @@ next call. Time given after the last step is dropped.
   hands over whole steps (`advance(k("sim.fixedStep"))`, `js/live-run.js`),
   which never falls short.
 
+**The engine behind the runner (#198).** `new SimRunner({ ..., engine })`
+takes `"legacy"` (the fixed steps above, the default until #199) or
+`"events"`, the Phase 3.5 event core; `runner.engine` names the one it runs,
+fixed when the runner is made (an unknown one is a `RangeError` then), and
+`runFight({ seed, duration, config, engine })` takes the same option. The
+result does not record the engine and its shape is unchanged. On `"events"`
+each `run` opens the event core once for the whole fight (`openCore`,
+`js/core/fight.js`) and `advance(seconds)` runs it on to the time given: there
+is no step and no carry, so the call that brings the given time to `duration`
+finishes the fight (600 calls of `1 / 60` finish a 10 s fight on the 600th),
+and any split of the time is the same fight as one call. The runner keeps the
+given time as a compensated sum, so the time reached is the given seconds'
+sum correctly rounded (200 calls of `0.01` reach exactly 2 s). The core runs
+one event time at a time, so a `pause` or `stop` from an event handler takes
+effect after the events at that time, and the rest of the given time is kept
+for `resume`, as a legacy step's is. Between calls `fight`'s `rogue` and
+`simulation` read the fight at the time reached: energy, the GCD, auras and
+cooldowns move with the time alone, with no step to round them to. A fight of
+no length runs its events at 0, as `Simulation.run(0)` does on the core.
+
+`createLiveRun`'s `run({ seed, duration, config, engine })` and
+`clear({ seed, config, engine })` pass the engine on. On `"events"` a frame
+is one `advance` of its own seconds (`FrameClock.seconds`, at most
+`k("sim.maxFrameTime")`, 0 for the first frame and the first after a resume)
+instead of whole steps. The page (`js/main.js`) and the batch Worker pass no
+engine, so they run legacy until #199. `BatchRunner` and `runBatch` take no
+engine option yet; under `Simulation.useEngine` their fights run on the
+default engine.
+
 ## Aura uptime (S3, issue #146)
 
 `js/fight-metrics.js` says how long each aura was up in a fight, and the same

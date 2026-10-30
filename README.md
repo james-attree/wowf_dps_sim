@@ -436,8 +436,9 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   call, and returns a plain object: seed, simulated duration, total damage, DPS,
   a per-ability breakdown (`Simulation.abilityStats`), the combat log,
   `dataVersion` (which data snapshot the fight ran on), and `config` (the
-  SimConfig it used). An option other than `seed`, `duration` and `config` is a
-  `RangeError`. `createFight` returns `dataVersion` and `config` too. The same seed and duration give a deep-equal result, and it
+  SimConfig it used). `engine` (#198) is `"legacy"` (the default) or
+  `"events"`, the event core; the result does not record it. An option other
+  than `seed`, `duration`, `config` and `engine` is a `RangeError`. `createFight` returns `dataVersion` and `config` too. The same seed and duration give a deep-equal result, and it
   loads in Node with no DOM.
 - `js/sim-runner.js` — `SimRunner` (P3-1, #136), the run controller over the
   fight: states `idle`, `running`, `paused`, `finished`; `run`, `pause`,
@@ -446,8 +447,11 @@ frames)` with `run({ seed, duration, config })`, `pause`, `resume`, `stop`,
   handle is frozen but the rogue and simulation are the live engine objects,
   so a caller reads them and never writes or steps them). `result` is the same
   object on every read, not a copy, and is live and read-only in the same way.
-  `advance(duration)` runs a whole fight in one call; many small calls can
-  leave it one step short until the next call (the carry, in Mechanics). The live page runs
+  `advance(duration)` runs a whole fight in one call; on legacy many small
+  calls can leave it one step short until the next call (the carry, in
+  Mechanics). The `engine` option (#198) picks legacy or `"events"`, where the
+  event core is held open for the fight and `advance` has no step and no
+  carry; `runner.engine` names it. The live page runs
   on it since #153 (`js/live-run.js`). Its default length is `batch.duration`
   (300 s). See the Run controller section of
   [Mechanics](docs/mechanics.md).

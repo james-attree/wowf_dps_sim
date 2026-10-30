@@ -159,6 +159,7 @@ export class Scheduler {
   #sameTime = Number.NaN;
   #sameTimeCount = 0;
   #running = false;
+  #current = null;
   #stoppedBy = null;
   #maxPerTimestamp;
   #maxPerRun;
@@ -198,6 +199,22 @@ export class Scheduler {
   // Events scheduled that have neither run nor been cancelled.
   get pendingCount() {
     return this.#pending;
+  }
+  // The time of the next event that will run (the earliest pending one), or
+  // null when none is pending. A host that has to stop between two times
+  // (SimRunner pausing, #198) runs to it with runUntil(nextTime) and looks
+  // again: the same events in the same order as one longer runUntil.
+  get nextTime() {
+    const heap = this.#heap;
+    while (heap.length > 0 && heap[0].cancelled) {
+      this.#pop();
+    }
+    return heap.length > 0 ? heap[0].time : null;
+  }
+  // The event whose handler is running, or null outside a handler (#198:
+  // SwingTimer.swung() checks it is called from its own swing).
+  get current() {
+    return this.#current;
   }
 
   // Schedule an event and return it (its token). `time` is absolute, in
@@ -304,11 +321,14 @@ export class Scheduler {
         event[MARK_RAN]();
         this.#pending -= 1;
         this.#eventsRun += 1;
+        this.#current = event;
         this.#handle(event, this);
+        this.#current = null;
       }
       this.#now = t;
     } finally {
       this.#running = false;
+      this.#current = null;
     }
   }
 

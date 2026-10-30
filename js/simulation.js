@@ -455,7 +455,9 @@ export class Simulation {
   // instead (runOnCore, js/core/fight.js): the fight ends `duration` after it
   // started, and a split anywhere gives the same fight as one long call only
   // where no event falls on the split (the core starts each call from the
-  // fight as the last one left it).
+  // fight as the last one left it). A host that hands the fight time in
+  // pieces holds one core open instead (openCore, as SimRunner does since
+  // #198), so any split is one run.
   run(duration) {
     if (!Number.isFinite(duration) || duration < 0) {
       throw new RangeError(

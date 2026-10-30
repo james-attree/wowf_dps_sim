@@ -79,36 +79,122 @@ function emptyStats() {
 // of the decision points (what it casts is recorded in
 // sim.coreStats.pollCasts), and `afterEvent(event, fight)` is called after
 // each event is handled.
-export function runOnCore(
+export function runOnCore(sim, duration, options = {}) {
+  const run = openCore(sim, duration, options);
+  try {
+    run.runUntil(duration);
+  } finally {
+    run.close();
+  }
+  return run.stats;
+}
+
+// The event core held open over many calls, for a host that hands it time in
+// pieces (SimRunner, #198: a live frame, a batch run, a paused fight). One
+// scheduler for the whole `duration`, so the pieces are one run: runUntil(a)
+// then runUntil(b) handles the same events in the same order as runUntil(b),
+// with no carry and no step. Times are seconds since the open (the fight's
+// time when it was opened, 0 for a new fight).
+//
+//   const run = openCore(sim, duration);
+//   run.runUntil(t);   // every event at or before t, then the fight at t
+//   run.nextTime;      // the next event's time, or null
+//   run.close();       // the fight as legacy keeps it; then sim.end()
+//
+// Between two calls the Simulation's fields read the fight at `time` (the
+// GCD, cooldowns, auras and DoTs left, sim.currentTime): what js/live-feed.js
+// reads each frame. rogue.resources.energy is the core's continuous pool
+// until close(), with the same value, max and waste reads. While it is open
+// the fight is the core's: do not step() or run() it. Same options as
+// runOnCore.
+export function openCore(
   sim,
   duration,
   { pollEvery = null, afterEvent = null } = {},
 ) {
-  const start = sim.currentTime;
-  const stats = (sim.coreStats ??= emptyStats());
-  const epsilon = k("sim.tickEpsilon");
+  return new CoreRun(sim, duration, { pollEvery, afterEvent });
+}
 
-  let fight = null;
-  const scheduler = new Scheduler({
-    endTime: duration,
-    handle: (event) => {
-      fight.handle(event);
-      fight.afterEvent?.(event, fight);
-    },
-  });
-  fight = new CoreFight(sim, scheduler, { start, stats, epsilon, pollEvery });
-  fight.afterEvent = afterEvent;
-  sim.core = fight;
-  try {
-    fight.begin();
-    scheduler.runToEnd();
-    fight.advance();
-  } finally {
-    fight.finish();
-    sim.core = null;
+class CoreRun {
+  #fight;
+  #scheduler;
+  #closed = false;
+
+  constructor(sim, duration, { pollEvery, afterEvent }) {
+    if (sim.core !== null && sim.core !== undefined) {
+      throw new Error("The event core is already running this fight.");
+    }
+    const start = sim.currentTime;
+    this.stats = sim.coreStats ??= emptyStats();
+    let fight = null;
+    const scheduler = new Scheduler({
+      endTime: duration,
+      handle: (event) => {
+        fight.handle(event);
+        fight.afterEvent?.(event, fight);
+      },
+    });
+    fight = new CoreFight(sim, scheduler, {
+      start,
+      stats: this.stats,
+      epsilon: k("sim.tickEpsilon"),
+      pollEvery,
+    });
+    fight.afterEvent = afterEvent;
+    this.#fight = fight;
+    this.#scheduler = scheduler;
+    sim.core = fight;
+    try {
+      fight.begin();
+    } catch (error) {
+      this.close();
+      throw error;
+    }
   }
-  sim.currentTime = start + duration;
-  return stats;
+
+  // Seconds since the open the fight has reached.
+  get time() {
+    return this.#scheduler.now;
+  }
+
+  get duration() {
+    return this.#scheduler.endTime;
+  }
+
+  // The time of the next event, or null when none is pending.
+  get nextTime() {
+    return this.#scheduler.nextTime;
+  }
+
+  get closed() {
+    return this.#closed;
+  }
+
+  // Handle every event at or before `t` (seconds since the open, from time
+  // to duration), then write the fight's timers at `t` into the Simulation.
+  runUntil(t) {
+    if (this.#closed) {
+      throw new Error("This event core run is closed.");
+    }
+    this.#scheduler.runUntil(t);
+    this.#fight.advance();
+  }
+
+  // Put the fight back as legacy keeps it (the legacy energy pool, each
+  // swing's time left). A second call does nothing.
+  close() {
+    if (this.#closed) {
+      return;
+    }
+    this.#closed = true;
+    const fight = this.#fight;
+    try {
+      fight.finish();
+    } finally {
+      fight.sim.core = null;
+      fight.sim.currentTime = fight.now;
+    }
+  }
 }
 
 class CoreFight {

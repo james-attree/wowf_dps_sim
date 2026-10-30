@@ -4,6 +4,7 @@ import {
   SIM_EVENT_TYPES,
   createErrorReporter,
 } from "./event-stream.js";
+import { ENGINES, openCore } from "./core/fight.js";
 import { createFight, fightResult } from "./fight.js";
 import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
@@ -15,11 +16,17 @@ import { normalizeConfig } from "./sim-config.js";
 // with whatever it likes, and a batch runner gives it all the time at once.
 //
 // The interface says nothing about steps. A host hands over seconds of fight
-// time and the runner decides how the engine uses them (today a whole number
-// of k("sim.fixedStep") steps, with the rest carried to the next call). Pause
-// is a state, not a frame count. A later engine core (Phase 3.5) can replace
-// the stepping behind this class and leave the contract, and the tests of it,
-// as they are.
+// time and the runner decides how the engine uses them. Pause is a state, not
+// a frame count. The `engine` option (#198) picks what is behind the class,
+// and the contract, and the tests of it, are the same for both:
+//
+//   legacy   a whole number of k("sim.fixedStep") steps, with the rest
+//            carried to the next call (the default until #199).
+//   events   the Phase 3.5 event core (js/core/fight.js openCore), held open
+//            for the whole fight: advance(seconds) runs it to
+//            min(time + seconds, duration) with no step and no carry, so the
+//            fight reaches exactly the time it was given, and any split of
+//            the time gives the same fight as one call.
 //
 // States and transitions. Every action not listed for a state is invalid.
 //
@@ -93,7 +100,7 @@ export const RUNNER_STATES = Object.freeze([
   "finished",
 ]);
 
-const OPTIONS = ["seed", "duration", "config", "driver"];
+const OPTIONS = ["seed", "duration", "config", "driver", "engine"];
 
 function readDuration(duration) {
   if (!Number.isFinite(duration) || duration < 0) {
@@ -123,15 +130,28 @@ export class SimRunner {
   #config;
   #duration;
   #driver;
+  #engine;
   #state = "idle";
   #fight = null;
+  // The open event core of the current fight (engine "events"), else null.
+  #core = null;
+  // Whether the core has run the events at `duration` (a fight of no length
+  // runs those at 0 before it finishes, as Simulation.run(0) does).
+  #coreAtEnd = false;
   #result = null;
   #time = 0;
-  // Fight time handed over by advance() and not spent yet. It always stays
-  // below one engine step, so splitting the same time differently gives the
-  // same fight.
+  // Fight time handed over by advance() and not spent yet. On legacy it
+  // stays below one engine step between calls, so splitting the same time
+  // differently gives the same fight; on events it is 0 between calls unless
+  // a pause stopped the spending part-way.
   #pending = 0;
   #stepsTaken = 0;
+  // Events engine: the fight time given by advance() since run(), as a
+  // compensated (Neumaier) sum, so the time reached is the given seconds'
+  // sum correctly rounded: 600 calls of 1/60 reach exactly 10, where a plain
+  // float sum would overshoot to 10.000000000000076.
+  #given = 0;
+  #givenError = 0;
   #driving = false;
   #advancing = false;
   #errors = createErrorReporter();
@@ -148,6 +168,10 @@ export class SimRunner {
   //             passes (the page passes its frame loop, a test
   //             can run the whole fight inside start). stop is called when it
   //             leaves "running". Without a driver the host calls advance().
+  //   engine    optional, "legacy" or "events" (createFight's option,
+  //             Simulation's `engine`, #198). Without it, the Simulation's
+  //             default when the runner is made (legacy until #199). An
+  //             unknown engine is a RangeError.
   // An option with any other name is a RangeError, as in runFight.
   constructor(options) {
     if (
@@ -174,7 +198,10 @@ export class SimRunner {
     // Validate the config, and the talent build in it, now and not at the
     // first run(): a bad config is an error where it was written.
     this.#config = normalizeConfig(options.config);
-    createFight(this.#seed, this.#config);
+    const probe = createFight(this.#seed, this.#config, {
+      engine: options.engine,
+    });
+    this.#engine = probe.simulation.engine;
   }
 
   // One of RUNNER_STATES.
@@ -192,6 +219,11 @@ export class SimRunner {
     return this.#duration;
   }
 
+  // The engine every run uses: "legacy" or "events" (#198).
+  get engine() {
+    return this.#engine;
+  }
+
   // The SimConfig the runs use, in full form. A copy: changing it changes
   // nothing.
   get config() {
@@ -199,8 +231,9 @@ export class SimRunner {
   }
 
   // Fight seconds simulated so far in the current run. 0 when idle, and the
-  // result's duration when finished. It can trail the time given to advance()
-  // by less than one engine step.
+  // result's duration when finished. On legacy it can trail the time given to
+  // advance() by less than one engine step; on events it is the time given
+  // (up to the end), unless a pause from a handler stopped it short.
   get time() {
     return this.#time;
   }
@@ -280,10 +313,11 @@ export class SimRunner {
   // Infinity runs it to the end. Time past the end of the fight is dropped.
   // Does nothing unless the state is "running". Returns the state afterwards,
   // which is "finished" when this call reached the end of the fight.
-  // advance(duration) as a run's first call finishes it. Many small calls can
-  // leave it one step short: the carry is a float sum that can fall just under
-  // the last step, and the next call finishes the same fight (docs/mechanics.md,
-  // Run controller).
+  // advance(duration) as a run's first call finishes it. On legacy many small
+  // calls can leave it one step short: the carry is a float sum that can fall
+  // just under the last step, and the next call finishes the same fight
+  // (docs/mechanics.md, Run controller). On events there is no carry: the
+  // call that brings the time to `duration` finishes it.
   advance(seconds) {
     if (typeof seconds !== "number" || Number.isNaN(seconds) || seconds < 0) {
       throw new RangeError(
@@ -294,10 +328,14 @@ export class SimRunner {
       return this.#state;
     }
     this.#pending += seconds;
+    this.#give(seconds);
     // Called from an event handler, in the middle of the outer call's engine
     // move: the time is banked and the outer call spends it.
     if (this.#advancing) {
       return this.#state;
+    }
+    if (this.#core !== null) {
+      return this.#advanceCore();
     }
     const stepSize = k("sim.fixedStep");
     // The same plan Simulation.run follows: whole steps, then one shorter
@@ -340,8 +378,71 @@ export class SimRunner {
     return this.#state;
   }
 
+  // Add `seconds` to #given (Neumaier's compensated sum).
+  #give(seconds) {
+    const sum = this.#given;
+    if (sum === Infinity || seconds === Infinity) {
+      this.#given = Infinity;
+      this.#givenError = 0;
+      return;
+    }
+    const total = sum + seconds;
+    this.#givenError +=
+      Math.abs(sum) >= seconds ? sum - total + seconds : seconds - total + sum;
+    this.#given = total;
+  }
+
+  // The events engine's advance: run the open core to the time given, one
+  // event time at a time, so a pause or stop from a handler takes effect
+  // after the events of that time (the "move" on this engine) and the rest of
+  // the time stays given, as a legacy step's does. A handler's advance() adds
+  // to the time given, and this loop runs it.
+  #advanceCore() {
+    const fight = this.#fight;
+    const core = this.#core;
+    const duration = this.#duration;
+    this.#advancing = true;
+    try {
+      for (;;) {
+        if (this.#state !== "running" || this.#fight !== fight) {
+          break;
+        }
+        const given = this.#given + this.#givenError;
+        const target = given < duration ? given : duration;
+        // A fight of no length still runs its events at 0, as
+        // Simulation.run(0) does.
+        if (!(
+          core.time < target ||
+          (target === duration && !this.#coreAtEnd)
+        )) {
+          break;
+        }
+        const next = core.nextTime;
+        const to = next !== null && next < target ? next : target;
+        core.runUntil(to);
+        if (to === duration && this.#fight === fight) {
+          this.#coreAtEnd = true;
+        }
+      }
+    } finally {
+      this.#advancing = false;
+    }
+    if (this.#fight !== fight) {
+      return this.#state;
+    }
+    this.#time = fight.simulation.currentTime;
+    // A fight that was paused as its last move ends when it is resumed.
+    if (this.#state === "running" && this.#coreAtEnd) {
+      this.#finish();
+    }
+    return this.#state;
+  }
+
   #finish() {
     const fight = this.#fight;
+    // The fight as legacy leaves it (the legacy energy pool and its waste)
+    // before the "end" event reads it. A second call does nothing.
+    this.#core?.close();
     fight.simulation.end();
     // A handler of the "end" event may have paused or stopped the runner. A
     // paused one finishes when it is resumed.
@@ -350,6 +451,7 @@ export class SimRunner {
     }
     this.#result = fightResult(this.#fight);
     this.#fight = null;
+    this.#core = null;
     this.#move("finished");
   }
 
@@ -367,6 +469,7 @@ export class SimRunner {
       // The rotation is told the length the runner runs (#191).
       const fight = createFight(this.#seed, normalizeConfig(this.#config), {
         duration: this.#duration,
+        engine: this.#engine,
       });
       this.#fight = fight;
       // Events of a fight the runner has let go of (stopped, or run again) are
@@ -376,12 +479,24 @@ export class SimRunner {
           this.#events.emit(type, event);
         }
       });
+      // A fight that is let go of (stop, reset, run again) keeps its core
+      // open: it may be inside one of its events, and nothing reads it again.
+      this.#core =
+        this.#engine === ENGINES.events
+          ? openCore(fight.simulation, this.#duration)
+          : null;
+      this.#coreAtEnd = false;
+      this.#given = 0;
+      this.#givenError = 0;
       this.#result = null;
       this.#time = 0;
       this.#pending = 0;
       this.#stepsTaken = 0;
     } else if (target === "idle") {
       this.#fight = null;
+      this.#core = null;
+      this.#given = 0;
+      this.#givenError = 0;
       this.#result = null;
       this.#time = 0;
       this.#pending = 0;

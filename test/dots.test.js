@@ -761,7 +761,7 @@ describe("DoTs, procs and poisons on events (test host)", () => {
         ["Main-hand", speed * 2],
       ],
     );
-    assert.equal(host.swings.main.nextSwingTime, speed * 3);
+    assert.equal(host.swings.mainHand.nextSwingTime, speed * 3);
   });
 
   it("chains extra attacks only with hackAndSlash.chain on, up to proc.maxChainDepth", () => {
