@@ -17,6 +17,10 @@ const WIDE = { width: 1280, height: 800 };
 const LONG_BATCH_FIGHTS = "4000";
 const LONG_FIGHT_SECONDS = "600";
 const RUN_TIMEOUT = 60_000;
+const MIDDLE = "middle";
+// Fran's #254 case: "99" typed, "100" selected.
+const TYPED = "99";
+const SELECTED = "100";
 
 let server;
 let base;
@@ -62,8 +66,11 @@ async function field(page, id) {
   return control;
 }
 
+// The focus once the press's own tasks (a timeout after it) have run.
 const focused = (page) =>
-  page.evaluate(() => {
+  page.evaluate(async () => {
+    await new Promise((resolve) => globalThis.setTimeout(resolve));
+    await new Promise((resolve) => globalThis.requestAnimationFrame(resolve));
     const at = globalThis.document.activeElement;
     return at === globalThis.document.body ? "body" : at?.id;
   });
@@ -110,6 +117,35 @@ describe("a press on a Run disabled by a run in progress (#245)", () => {
       await pressRun(page);
       assert.equal(await focused(page), "pause-button");
       await page.locator("#stop-button").click();
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
+describe("a middle-click on Run (#245, Fran's #254 check)", () => {
+  test("pastes no selection into the field being typed in", async () => {
+    const { context, page, errors } = await open(WIDE);
+    try {
+      const seed = await field(page, "run-seed");
+      const fights = await field(page, "run-iterations");
+      await fights.fill(TYPED);
+      await seed.fill(SELECTED);
+      // A selection made by the mouse is the primary selection.
+      await seed.dblclick();
+      await fights.focus();
+      await page.keyboard.press("End");
+      await pressRun(page, MIDDLE);
+      assert.equal(await fights.inputValue(), TYPED);
+      // The check itself: a middle-click on the field does paste.
+      await seed.dblclick();
+      await fights.focus();
+      const box = await fights.boundingBox();
+      await page.mouse.click(box.x + box.width - 1, box.y + box.height / 2, {
+        button: MIDDLE,
+      });
+      assert.equal(await fights.inputValue(), `${TYPED}${SELECTED}`);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
