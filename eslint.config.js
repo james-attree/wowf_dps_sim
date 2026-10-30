@@ -30,7 +30,7 @@ const engineDomMessage =
 const engineRandomMessage =
   "Engine modules must not use Math.random. Draw from the simulation's seeded rng (js/rng.js) so a fight repeats for the same seed.";
 const engineClockMessage =
-  "Engine modules must not read a wall clock. Advance time with Simulation.step(dt), and let the host supply dt.";
+  "Engine modules must not read a wall clock. Advance time with Simulation.run(duration) or a SimRunner, and let the host supply the seconds.";
 
 // The page: its bootstrap and its view modules (issue #149). They touch the
 // DOM and draw, so the engine rules do not apply; the display-name rule does.

@@ -462,10 +462,12 @@ retune list. Its note says expiry always removes that many points, even when
 the cap meant fewer were added, and that the result is clamped so combo
 points do not go below zero.
 
-`Rogue.tickResources` (each pool's `tick`) runs in `Simulation.step` before the rotation, so
-the cast step does not count. When the remaining time is at or below
-`k("sim.tickEpsilon")`, combo points drop by the armed amount, clamped at
-zero, and the timer is cleared. A finisher, or a later cast that actually
+The expiry is a timer on the event core (`js/core/fight.js`, the `points`
+timer kind). When it runs out, the core calls the pool's `tick` with the time
+that was left, so `Resource.tick` decides it as before: with the remaining time
+at or below `k("sim.tickEpsilon")`, combo points drop by the armed amount,
+clamped at zero, and the timer is cleared. The rotation decides after that, at
+the same time. A finisher, or a later cast that actually
 adds a combo point, clears the timer first, so those points are not removed
 on top of being spent or folded into a new builder.
 
@@ -1561,7 +1563,7 @@ message that names the field and the value. A value of the wrong type is a
 - A weapon's `min` and `max` are whole numbers of 0 or more with `min` not above
   `max`, and `speed` is a finite number of `config.minWeaponSpeed` (0.1 s) or
   more. The swing loop does one pass per swing, so a speed of 1e-9 s made
-  `runFight` run for more than 10 s. 0.1 s is above the fixed step, well under
+  `runFight` run for more than 10 s. 0.1 s is well under
   any real weapon, and a 60 s fight with both hands at it takes about 20 ms. The
   `Weapon` constructor enforces the same bound. `config.minWeaponSpeed` is an
   engineering constant, not game data. `type` is one of
