@@ -1369,7 +1369,10 @@ the check poll's next time and the energy pool's line. The next run takes each o
 holds what was written; a field changed between the runs, or a run that does
 not start where the last one closed (a `step()` in between), starts from the
 field as before. Only `sim.coreStats` sees the split: each run asks the
-rotation once at its start.
+rotation once at its start. A DoT's tick clock is taken only while its entry's
+`timeUntilNextTick`, `tickInterval` and `duration` are as written. While a
+core run is open (`openCore`, as SimRunner holds one) the fight is the
+core's, and `step()` throws until it is closed.
 
 The rotation (`Rogue.castRotation`, which both engines call) runs at decision
 points only, in the decision class after the other events at a time: once at

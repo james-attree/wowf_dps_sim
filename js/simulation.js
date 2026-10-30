@@ -321,6 +321,14 @@ export class Simulation {
         `Simulation.step needs a finite time step in seconds, 0 or more. Got ${dt}.`,
       );
     }
+    // While a core is open (openCore, SimRunner on the events engine) the
+    // fight is the core's: energy is its continuous pool, and a step would
+    // move the clock under it.
+    if (this.core !== null && this.core !== undefined) {
+      throw new Error(
+        "Simulation.step cannot run while the event core holds this fight (openCore). Close the core run first.",
+      );
+    }
     this.currentTime += dt;
 
     // This step covers the interval that just ended. Read the auras before

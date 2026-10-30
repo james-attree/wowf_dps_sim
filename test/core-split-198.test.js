@@ -323,6 +323,57 @@ describe("what the carry leaves to the fields (#198)", () => {
     assert.equal(ticks[0], 10.3);
   });
 
+  // Rupture's ticks over 8 s after a run to 10 s on the Hemorrhage case,
+  // with `change` made to its entry between the two runs.
+  function ruptureTicksAfter(change) {
+    const { simulation } = createFight(30, structuredClone(HEMO.config), {
+      duration: 120,
+      engine: EVENTS,
+    });
+    runOnCore(simulation, 10);
+    const dot = simulation.activeDots.rupture;
+    assert.ok(dot !== undefined);
+    change(dot);
+    const ticks = [];
+    const run = openCore(simulation, 8, {
+      afterEvent: (event) => {
+        if (event.kind === DOT_TICK_KIND && event.payload.id === "rupture") {
+          ticks.push(event.time);
+        }
+      },
+    });
+    run.runUntil(18);
+    run.close();
+    return ticks;
+  }
+
+  it("a DoT left as it was goes on with its clock", () => {
+    assert.deepEqual(
+      ruptureTicksAfter(() => {}),
+      [12, 14, 16, 18],
+    );
+  });
+
+  it("a DoT's tick interval set between runs is read from the field (S10)", () => {
+    const ticks = ruptureTicksAfter((dot) => {
+      assert.equal(dot.tickInterval, 2);
+      dot.tickInterval = 0.5;
+    });
+    assert.equal(ticks[0], 12);
+    assert.equal(ticks[1], 12.5);
+    assert.equal(ticks.length, 13);
+  });
+
+  it("a DoT's duration set between runs is read from the field (K9)", () => {
+    // Its next tick is at 12; with 0.25 s past that left, it is the last.
+    const ticks = ruptureTicksAfter((dot) => {
+      assert.equal(dot.timeUntilNextTick, 2);
+      assert.ok(dot.duration > 4);
+      dot.duration = dot.timeUntilNextTick + 0.25;
+    });
+    assert.deepEqual(ticks, [12]);
+  });
+
   it("the check poll goes on with its grid, and a step in between drops it", () => {
     const pollEvery = k("sim.fixedStep");
     const asks = (cuts) => {
@@ -633,5 +684,38 @@ describe("M2: what #197's mutants E2, F3, E6, E7 and F33 broke (#198)", () => {
       [refreshed, "refresh"],
       [refreshed + 5, "expire"],
     ]);
+  });
+});
+
+describe("step() while a core is open (#231 QA)", () => {
+  it("throws a clear error and leaves the fight as it was", () => {
+    const runner = new SimRunner({ seed: 3, duration: 20, engine: "events" });
+    runner.run();
+    runner.advance(5);
+    const { simulation } = runner.fight;
+    const time = simulation.currentTime;
+    assert.throws(
+      () => simulation.step(1 / 64),
+      /Simulation\.step cannot run while the event core holds this fight/,
+    );
+    assert.equal(simulation.currentTime, time);
+    runner.advance(Infinity);
+    assert.equal(
+      runner.result.dps,
+      runFight({ seed: 3, duration: 20, engine: "events" }).dps,
+    );
+  });
+
+  it("works again once the core run is closed", () => {
+    const { simulation } = createFight(3, undefined, {
+      duration: 20,
+      engine: EVENTS,
+    });
+    const run = openCore(simulation, 20);
+    run.runUntil(5);
+    assert.throws(() => simulation.step(1 / 64), /Close the core run first/);
+    run.close();
+    simulation.step(1 / 64);
+    assert.equal(simulation.currentTime, 5 + 1 / 64);
   });
 });

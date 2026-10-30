@@ -111,8 +111,8 @@ export function runOnCore(sim, duration, options = {}) {
 // GCD, cooldowns, auras and DoTs left, sim.currentTime): what js/live-feed.js
 // reads each frame. rogue.resources.energy is the core's continuous pool
 // until close(), with the same value, max and waste reads. While it is open
-// the fight is the core's: do not step() or run() it. Same options as
-// runOnCore.
+// the fight is the core's: step() throws, and so does a second openCore
+// or run() on the events engine. Same options as runOnCore.
 export function openCore(
   sim,
   duration,
@@ -306,6 +306,7 @@ class CoreFight {
         item !== undefined &&
         item.entry === dot &&
         item.timeUntilNextTick === dot.timeUntilNextTick &&
+        item.tickInterval === dot.tickInterval &&
         item.duration === dot.duration &&
         item.state !== null
       ) {
@@ -384,6 +385,7 @@ class CoreFight {
           {
             entry,
             timeUntilNextTick: entry.timeUntilNextTick,
+            tickInterval: entry.tickInterval,
             duration: entry.duration,
             state: this.dots.state(id),
           },
