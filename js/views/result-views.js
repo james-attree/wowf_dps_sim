@@ -1,12 +1,4 @@
-import { formatNumber } from "../charts.js";
-import {
-  blocked,
-  clock,
-  dpsText,
-  grouped,
-  isLocked,
-  secondsText,
-} from "./run-model.js";
+import { blocked, grouped, isLocked, secondsText } from "./run-model.js";
 import { ranClock, ranOf, staleBanner } from "./stale.js";
 
 // The Results area's two kept views (#242, UX4; Fran's approved UX proposal
@@ -18,8 +10,9 @@ import { ranClock, ranOf, staleBanner } from "./stale.js";
 //
 // The average's numbers are js/views/results-panel.js's panel, which this
 // view shows under the Average view and hides under the Live one. The live
-// fight's are three readouts here; its meters, effects and log stay on the
-// Fight area, which a link opens.
+// fight's totals, meters, effects and combat log are under the Live view
+// (#245, UX7; js/views/visualiser.js and js/views/results.js draw them),
+// shown once a fight has started; before that it says there is none yet.
 
 export const VIEWS = Object.freeze(["average", "live"]);
 
@@ -33,9 +26,6 @@ const STATE_WORDS = Object.freeze({
 });
 
 const ONE = 1;
-const NO_TIME = 0;
-const NO_DAMAGE = 0;
-const WHOLE = 0;
 const MAIN_BUTTON = 0;
 const fightsWord = (count) => (count === ONE ? "fight" : "fights");
 
@@ -95,14 +85,10 @@ function liveLabel(state) {
   return parts.join(" · ");
 }
 
-const NONE = "—";
-
 // What the two views show, as plain data (the tests walk it).
 export function resultViewsModel(state) {
   const locked = isLocked(state.run);
   const liveRecord = ranOf(state, "live");
-  const time = state.results?.time ?? NO_TIME;
-  const damage = state.results?.damage ?? NO_DAMAGE;
   const averageStale = staleBanner(state, "batch");
   const liveStale = staleBanner(state, "live");
   return {
@@ -125,10 +111,6 @@ export function resultViewsModel(state) {
           : "Watch fight",
       average: "Run an average",
       empty: liveRecord === null,
-      damage:
-        liveRecord === null ? NONE : formatNumber(Math.floor(damage), WHOLE),
-      dps: liveRecord === null ? NONE : dpsText(damage, time),
-      time: liveRecord === null ? NONE : clock(time),
     },
   };
 }
@@ -186,7 +168,7 @@ export function createResultViewsView(doc, store, actions) {
     // Run button rather than to the page.
     if (shown !== model.view) {
       const was = shown === null ? null : views[shown];
-      const focused = was?.contains(doc.activeElement) ?? false;
+      const focused = was?.contains?.(doc.activeElement) ?? false;
       shown = model.view;
       for (const name of VIEWS) {
         views[name].hidden = name !== shown;
@@ -216,9 +198,17 @@ export function createResultViewsView(doc, store, actions) {
     write(doc.querySelector("#results-average-watch"), model.average.watch);
     write(primary.live, model.live.run);
     write(doc.querySelector("#results-live-average"), model.live.average);
-    write(doc.querySelector("#results-live-damage"), model.live.damage);
-    write(doc.querySelector("#results-live-dps"), model.live.dps);
-    write(doc.querySelector("#results-live-time"), model.live.time);
+    const empty = doc.querySelector("#results-live-empty");
+    const fight = doc.querySelector("#results-live-fight");
+    if (empty !== null && fight !== null && fight.hidden !== model.live.empty) {
+      // Reset hides the fight: a focus in it (the combat log) goes to Watch.
+      const focused = fight.contains?.(doc.activeElement) === true;
+      empty.hidden = !model.live.empty;
+      fight.hidden = model.live.empty;
+      if (focused && model.live.empty) {
+        primary.live?.focus();
+      }
+    }
     // aria-disabled, not disabled, while a run is going: the pressed button
     // keeps the focus (#253, Fran: a disabled button drops it to the page).
     for (const button of buttons) {

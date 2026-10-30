@@ -67,6 +67,9 @@ const PAGE_TOP = 0;
 // The run moves' count, which makes each `moved` a change.
 const NO_MOVES = 0;
 const ONE_MOVE = 1;
+// Where Run goes (#245): Results, on its Live view for a live fight.
+const RESULTS_AREA = "results";
+const LIVE_VIEW = "live";
 
 // "#rotation/rule/2" as { area, sub, param }. An unknown area is the default
 // one; an unknown sub is the area's top level.
@@ -112,8 +115,9 @@ const isRunning = (state) =>
 const builderOpen = (state) => state.rotationBuilder?.view?.open === true;
 
 // The area a store change shows, or null for none (proposal §3: the page
-// goes where the work is). Run shows the live fight (Fight) or the batch
-// (Results) when it starts; a resumed fight stays where it is. The rotation
+// goes where the work is). Run shows the live fight (Results' Live view,
+// #245) or the batch (Results' Average) when it starts; a resumed fight
+// stays where it is. The rotation
 // builder is the Rotation area: opening it from anywhere goes there, to the
 // screen it opened at (a message's rule, #243), and closing it there goes
 // back to Character, where its opener is.
@@ -140,13 +144,14 @@ export function followRoute(before, after, route) {
   }
   const resumed = before.run?.state === "paused";
   if (!isRunning(before) && isRunning(after) && !resumed) {
-    const batch = after.run?.mode === "batch";
-    const shows = batch ? "results" : "fight";
-    const onAverage = route.sub === null || route.sub === "average";
-    if (shows === area && (!batch || onAverage)) {
+    // Both are on Results (#245, UX7): an average on its Average view, a
+    // live fight on its Live view, with the fight's meters and combat log.
+    const sub = after.run?.mode === "batch" ? null : LIVE_VIEW;
+    const shown = route.sub === LIVE_VIEW ? LIVE_VIEW : null;
+    if (area === RESULTS_AREA && shown === sub) {
       return null;
     }
-    return { area: shows, sub: null, param: null, run: true };
+    return { area: RESULTS_AREA, sub, param: null, run: true };
   }
   return null;
 }

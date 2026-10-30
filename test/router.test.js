@@ -102,8 +102,9 @@ const builder = (open) => ({ rotationBuilder: { view: { open } } });
 
 describe("followArea", () => {
   it("shows the live fight or the batch when Run starts", () => {
-    assert.equal(followArea(idle(), running(), "character"), "fight");
-    assert.equal(followArea(idle(), running(), "fight"), null);
+    // A live fight is on Results' Live view (#245, UX7).
+    assert.equal(followArea(idle(), running(), "character"), "results");
+    assert.equal(followArea(idle(), running(), "fight"), "results");
     const batch = {
       run: { mode: "batch", state: "idle" },
       batch: { status: "running" },
@@ -446,7 +447,9 @@ describe("mountRouter", () => {
     const page = mount("#character");
     page.runButton.focus();
     page.store.set({ run: { mode: "live", state: "running", errors: {} } });
-    assert.deepEqual(shown(page.shells), ["fight"]);
+    // On Results' Live view (#245, UX7).
+    assert.deepEqual(shown(page.shells), ["results"]);
+    assert.equal(page.win.location.hash, "#results/live");
     assert.equal(page.doc.activeElement, page.runButton);
   });
 

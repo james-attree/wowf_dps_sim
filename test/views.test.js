@@ -960,7 +960,7 @@ describe("page views", () => {
     ]);
   });
 
-  it("#200: a log row's name cell has the full name as its title", () => {
+  it("#245: a log row's name cell has the full name and no title", () => {
     const doc = recordingDocument();
     const store = createStore(plainReading());
     createVisualiserView(doc, store);
@@ -974,10 +974,11 @@ describe("page views", () => {
     const names = doc
       .el("#combat-log")
       .children.map((row) => row.children[2])
-      .map((cell) => [cell.className, cell.textContent, cell.title]);
+      .map((cell) => [cell.className, cell.textContent, cell.title ?? ""]);
+    // The name wraps in full (UX7): nothing is left to hover for.
     assert.deepEqual(names, [
-      ["combat-log-name", "↳ Instant Poison VI", "Instant Poison VI"],
-      ["combat-log-name", "Sinister Strike", "Sinister Strike"],
+      ["combat-log-name", "↳ Instant Poison VI", ""],
+      ["combat-log-name", "Sinister Strike", ""],
     ]);
   });
 

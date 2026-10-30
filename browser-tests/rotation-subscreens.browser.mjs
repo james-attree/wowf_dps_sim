@@ -26,6 +26,7 @@ const SIZES = [
 ];
 const WIDE_PX = 1024;
 // N3's screens off Results (#244, UX6), and how far to tab on each.
+const FIGHT_NOTE_ONLY = "#fight";
 const WIDE_SCREENS = [
   "#character",
   "#character/gear",
@@ -520,6 +521,13 @@ for (const [width, height] of [
           const shown = stops.map((stop) => stop.id).join(" ");
           const firstIn = stops.findIndex((stop) => stop.inArea);
           const firstRun = stops.findIndex((stop) => stop.run);
+          // Fight holds only its Target note since its meters and log went
+          // to Results (#245, UX7): nothing in it to tab to until the fight
+          // fields move there. Its h1 is still before the column (above).
+          if (hash === FIGHT_NOTE_ONLY) {
+            assert.equal(firstIn, -1, `${hash}: ${shown}`);
+            continue;
+          }
           assert.ok(firstIn !== -1, `${hash}: ${shown}`);
           assert.ok(firstRun === -1 || firstIn < firstRun, `${hash}: ${shown}`);
           if (order.back !== null) {
