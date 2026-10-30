@@ -33,6 +33,8 @@ import { defaultConfig, normalizeConfig } from "./sim-config.js";
 //                   now. A message of null marks a field invalid with its
 //                   message on another field (the Min of a Min/Max pair).
 //                   FORM_ERROR is the normalizeConfig backstop's message.
+//                   js/views/run-model.js formErrorCount is the one count of
+//                   them (#237): one per message, FORM_ERROR included.
 //   rotationChoice  "default", a preset id, or "imported": the origin the
 //                   rotation comes from, tracked as an id (U7 D20, #217).
 //   imported        { name, rotation } of the last imported rotation, or null.
@@ -442,11 +444,6 @@ export function nextRunConfig(state) {
   return normalizeConfig(state.config);
 }
 
-// How many fields need fixing: one for each message.
-export function errorCount(errors) {
-  return Object.values(errors).filter((message) => message !== null).length;
-}
-
 function slug(name) {
   const text = name
     .toLowerCase()
@@ -610,6 +607,12 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
         const max = path.replace(/\.min$/, ".max");
         if (max in errors && !(max in now)) {
           delete errors[max];
+        }
+        // A null Min only marks its Max's error (#237): with that gone it
+        // marks nothing, so it goes too. A Min still invalid on its own gets
+        // its message on change, as any field typed invalid does.
+        if (errors[path] === null && !(max in errors)) {
+          delete errors[path];
         }
       }
       store.set({ form: { ...form(), values, errors, canUndo: false } });

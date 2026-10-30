@@ -153,9 +153,12 @@ export function fieldErrors(run) {
   );
 }
 
-// The stats form's errors that count (#151): one per message. A Min marked
-// by its Max's error (null message) is the Max's error, counted once, the way
-// the form's footer counts them (js/views/config-form.js).
+// The stats form's errors that count (#151, #237): the one count of them, so
+// Run, the bar's Fix link and the form's footer (js/views/config-form.js)
+// always agree. One per message: a Min marked by its Max's error (a null
+// message) is the Max's error, counted once. FORM_ERROR, the normalizeConfig
+// backstop, is one setting to fix; it only stands alone (js/config-form.js
+// commit sets it when no field has an error).
 export function formErrorCount(form) {
   return Object.values(form?.errors ?? {}).filter((message) => message !== null)
     .length;
@@ -183,15 +186,10 @@ export function blockedCount(state) {
 }
 
 // Run is blocked by an invalid run field, an invalid stats form field (#151),
-// a talent build over its cap (#204) or a rotation with errors (#217).
-function blocked(state) {
-  return (
-    fieldErrors(state.run).length > 0 ||
-    Object.keys(state.form?.errors ?? {}).length > 0 ||
-    talentErrorCount(state) > 0 ||
-    rotationErrorCount(state) > 0
-  );
-}
+// a talent build over its cap (#204) or a rotation with errors (#217): by
+// exactly what blockedCount counts, so it never says "0 settings to fix"
+// (#237).
+export const blocked = (state) => blockedCount(state) > 0;
 
 // "1 fight", "4 fights" (#155, Fran's QA 5: never "1 fights").
 const fightsWord = (count) => (count === 1 ? "fight" : "fights");

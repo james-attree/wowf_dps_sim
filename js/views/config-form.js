@@ -1,6 +1,6 @@
 import { k } from "../../data/constants.js";
 import { NARROW_QUERY } from "./breakpoints.js";
-import { fieldErrors } from "./run-model.js";
+import { fieldErrors, formErrorCount } from "./run-model.js";
 
 // The "Fight setup" form (#151, U2). This view owns the form#config-form and
 // everything in it, and no other element. It draws the store's `form` slice
@@ -301,8 +301,8 @@ export function createConfigFormView(doc, store, actions) {
     const backstop = Object.entries(errors).find(
       ([path]) => !controls.has(path),
     );
-    const count =
-      fields.length + (backstop === undefined ? 0 : 1) + barErrors.length;
+    // The same count as Run's (#237): js/views/run-model.js formErrorCount.
+    const count = formErrorCount({ errors }) + barErrors.length;
     const listed = fields.length + barErrors.length;
     statusOk.hidden = count > 0;
     fix.hidden = listed === 0;

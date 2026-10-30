@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import {
+  FORM_ERROR,
   FORM_FIELDS,
   createConfigForm,
   pageDefaultConfig,
@@ -25,6 +26,7 @@ import {
   poisonRankText,
   runGateText,
 } from "../js/views/config-form.js";
+import { blockedCount } from "../js/views/run-model.js";
 
 // Issue #151 (U2), the stats form's view on a stand-in page: it shows chances
 // as percentages and stores them 0 to 1, marks errors for assistive tech,
@@ -286,6 +288,40 @@ describe("errors", () => {
     assert.equal($("cfg-fix").hidden, true);
     assert.equal($("cfg-run-gate").textContent, "");
     assert.deepEqual($("cfg-fix-list").children, []);
+  });
+
+  it("the footer's count is Run's, for a null Min, the backstop and the bar (#237)", () => {
+    const run = { mode: "live", errors: { duration: "Bad." } };
+    const { $, commit, store, actions } = page({ run });
+    const gate = () => $("cfg-run-gate").textContent;
+    const runCount = () => blockedCount(store.get());
+    const same = (count, step) => {
+      assert.equal(runCount(), count, step);
+      assert.equal(gate(), count === 0 ? "" : runGateText(count), step);
+      assert.equal($("cfg-status-ok").hidden, count > 0, step);
+    };
+    same(1, "the bar's");
+    commit("weapons.mainHand.min", "50");
+    commit("weapons.mainHand.max", "40");
+    same(2, "the pair counts once");
+    const min = $("cfg-weapons-mainHand-min");
+    min.value = "1.5";
+    min.fire("input");
+    same(1, "typing drops the Min's mark with the Max's error");
+    min.fire("change");
+    same(2, "the Min's own error");
+    commit("weapons.mainHand.min", "30");
+    same(1, "fixed");
+    // The normalizeConfig backstop: one setting, with no field to link.
+    store.set({ config: { ...store.get().config, target: { level: "high" } } });
+    actions.change("character.attackPower", 900);
+    assert.equal(typeof store.get().form.errors[FORM_ERROR], "string");
+    same(2, "the backstop");
+    assert.equal($("cfg-fix-heading").textContent, fixHeadingText(2));
+    store.set({ run: { ...run, errors: {} } });
+    same(1, "the backstop alone");
+    assert.equal($("cfg-fix").hidden, true, "no field to list");
+    assert.equal($("cfg-form-error").hidden, false);
   });
 
   it("the fix list keeps its links while the same fields stay wrong", () => {
