@@ -180,7 +180,7 @@ for (const width of WIDTHS) {
       );
       assert.equal(
         await page.textContent("#log-hint"),
-        "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
+        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
       );
 
       // A step through the log: one spoken reading.
@@ -202,7 +202,7 @@ for (const width of WIDTHS) {
       // U9 polish: the hint stays the log's description, out of sight.
       assert.equal(
         await page.textContent("#log-hint"),
-        "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
+        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
       );
       assert.equal(await page.isVisible("#log-step"), true);
       assert.equal(
@@ -411,7 +411,7 @@ for (const width of [390, 360]) {
       const fits = await page.evaluate(() => {
         const hint = document.querySelector("#log-hint");
         hint.textContent =
-          "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.";
+          "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.";
         hint.classList.add("visually-hidden");
         const step = document.querySelector("#log-step");
         step.textContent = "10:00.0 · Sinister Strike · Crit · 12,345";
@@ -487,7 +487,7 @@ for (const width of [...WIDTHS, 360]) {
       await messages(page);
       assert.equal(
         await page.textContent("#log-hint"),
-        "Paused. Left and Right arrow keys step through the log. Home and End jump to its start and end.",
+        "Paused. Newest events first. Left and Right arrow keys step through the log: Left goes to older events, Right to newer. Home and End jump to its start and end.",
       );
       const layout = () =>
         page.evaluate(() => {
@@ -559,6 +559,130 @@ for (const width of [...WIDTHS, 360]) {
           .locator(".combat-log-scroll")
           .locator("..")
           .screenshot({ path: `${process.env.U9_SHOTS}/rows-${width}.png` });
+      }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+// #200 (Fran's #222 check): at 360px a six-digit damage can cut a skill name
+// short ("Sinister …"); each row's name cell carries the full name as its
+// title, and the damage itself is never cut.
+for (const width of [390, 360]) {
+  test(`a log row's name has its full name as a title at ${width}px (#200)`, async () => {
+    const { context, page, errors } = await openPage(width);
+    try {
+      await clickCentre(page.locator("#run-button"));
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll("#combat-log .combat-log-entry").length >=
+          5,
+        null,
+        { timeout: 20_000 },
+      );
+      await clickCentre(page.locator("#pause-button"));
+      await settle(page);
+      const rows = await page.evaluate(() => {
+        const all = [...document.querySelectorAll("#combat-log li")];
+        const titles = all.map((row) => {
+          const name = row.querySelector(".combat-log-name");
+          return [name.textContent.replace(/^↳ /, ""), name.title];
+        });
+        // The widest a realistic name and damage get, in the first row.
+        const row = all[0];
+        const name = row.querySelector(".combat-log-name");
+        const damage = row.querySelector(".combat-log-damage");
+        name.textContent = "Sinister Strike";
+        name.title = "Sinister Strike";
+        damage.textContent = "123,456";
+        const box = row.getBoundingClientRect();
+        const cell = damage.getBoundingClientRect();
+        return {
+          titles,
+          cut: name.scrollWidth > name.clientWidth,
+          damageInside: cell.left >= box.left && cell.right <= box.right,
+          damageCut: damage.scrollWidth > damage.clientWidth,
+          wide: document.documentElement.scrollWidth > globalThis.innerWidth,
+        };
+      });
+      for (const [text, title] of rows.titles) {
+        assert.ok(text.length > 0);
+        assert.equal(title, text, "the title is the full name");
+      }
+      assert.equal(rows.damageInside, true, "the damage inside its row");
+      assert.equal(rows.damageCut, false, "the damage not cut");
+      assert.equal(rows.wide, false, "no sideways scroll");
+      if (process.env.U9_SHOTS) {
+        await page
+          .locator("#combat-log li")
+          .first()
+          .screenshot({ path: `${process.env.U9_SHOTS}/row-${width}.png` });
+      }
+      // Whether the name is cut at this width, for the PR (not a pass/fail).
+      console.log(
+        `# ${width}px: Sinister Strike with 123,456 cut: ${rows.cut}`,
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+// #200 (Fran's #224 QA, N3): the log header and the paused hint say the
+// order in one phrase, "Newest events first", and the header fits.
+for (const width of [1280, 390, 360]) {
+  test(`the log header and the hint say "Newest events first" at ${width}px (#200)`, async () => {
+    const { context, page, errors } = await openPage(width);
+    try {
+      const phrase = "Newest events first";
+      assert.equal(await page.textContent(".log-caption"), phrase);
+      await clickCentre(page.locator("#run-button"));
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll("#combat-log .combat-log-entry").length >=
+          5,
+        null,
+        { timeout: 20_000 },
+      );
+      await clickCentre(page.locator("#pause-button"));
+      await settle(page);
+      const hint = await page.textContent("#log-hint");
+      assert.ok(hint.startsWith(`Paused. ${phrase}. `), hint);
+      assert.match(hint, /Left goes to older events, Right to newer\./);
+      const header = page.locator(".log-tools").locator("xpath=..");
+      const fit = await header.evaluate((root) => {
+        const parts = [root, ...root.querySelectorAll("*")].filter(
+          (el) => el.getClientRects().length > 0,
+        );
+        return {
+          cut: parts
+            .filter(
+              (el) =>
+                el.scrollWidth > el.clientWidth + 1 ||
+                el.scrollHeight > el.clientHeight + 1,
+            )
+            .map((el) => el.outerHTML.slice(0, 80)),
+          outside: parts
+            .filter((el) => {
+              const at = el.getBoundingClientRect();
+              return at.left < -1 || at.right > globalThis.innerWidth + 1;
+            })
+            .map((el) => el.outerHTML.slice(0, 80)),
+          wide:
+            document.documentElement.scrollWidth >
+            document.documentElement.clientWidth,
+        };
+      });
+      assert.deepEqual(fit.cut, [], "nothing in the log header is cut");
+      assert.deepEqual(fit.outside, [], "the log header is on the page");
+      assert.equal(fit.wide, false, "no sideways scroll");
+      if (process.env.U9_SHOTS) {
+        await header.screenshot({
+          path: `${process.env.U9_SHOTS}/log-header-${width}.png`,
+        });
       }
       assert.deepEqual(errors, []);
     } finally {

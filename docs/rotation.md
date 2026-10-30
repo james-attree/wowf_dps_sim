@@ -225,7 +225,7 @@ is false when it is missing. `auraActive` is the way to ask "is it up" itself.
 | `debuffStacks`       | `debuff`, `op`, `value`   | Stacks of a target debuff compare. Not up is 0.                                                  |
 | `cooldownReady`      | `ability`, `ready`?       | The ability's own cooldown is over (`ready` defaults to `true`; `false` means "is on cooldown"). |
 | `fightTime`          | `op`, `value`             | Seconds of fight time so far compare.                                                            |
-| `fightTimeRemaining` | `op`, `value`             | Seconds of fight left compare. With no fight length known it is `Infinity`.                      |
+| `fightTimeRemaining` | `op`, `value`             | Seconds of fight left compare; 0 at and past the length. With no length known, `Infinity`.       |
 | `energyToCap`        | `op`, `value`             | Seconds until energy reaches its cap at the current regeneration rate compare. 0 at the cap.     |
 | `abilityGranted`     | `ability`                 | The build or the host grants the ability. Strict: see below.                                     |
 | `abilityUnlocked`    | `ability`                 | The build does not hold the ability back. See below.                                             |
@@ -398,6 +398,16 @@ decides when the fight ends, so give both the same number. With no length
 finite number of seconds, 0 or more, is a `RangeError` (`null` and `undefined`
 are none). No default rotation or golden reads it, so their fights are
 unchanged.
+
+**At and past the length, it reads 0.** `fightTimeRemaining` is
+`max(0, duration - time)` (`js/rotation-conditions.js`), so it never goes
+below 0. When `run` is given the same number as the length, the fight's last
+decision is at `time == duration`, where it reads 0: a `<= 0` or `== 0` rule
+holds there, at that one decision only. When the fight runs past its length
+(`run(duration)` longer than the length told), it reads 0 at every decision
+from the length on, so a `<= 0` or `== 0` rule holds at each of them, and a
+`< x` rule with `x > 0` keeps holding too. A `< 0` rule never holds, and a
+`> 0` rule stops holding at the length (Kira's QA on #209, #200).
 
 **What it costs.** A five minute fight has 19,200 decision points, and the old
 code rotation did about 1 µs of work at each, so anything the interpreter adds

@@ -1,6 +1,6 @@
 import { abilityCatalogue } from "./abilities.js";
 import { AURAS } from "./auras.js";
-import { compareNumbers } from "./rotation-conditions.js";
+import { CONDITION_PARAMS, compareNumbers } from "./rotation-conditions.js";
 
 // The readable form of a rotation (roadmap R4, issue #141): one line of plain
 // text per rule, for the builder, a preset's description and an error report.
@@ -58,21 +58,29 @@ function remainingLine(subject, condition) {
     : `${subject} has ${condition.op} ${condition.value}s left`;
 }
 
-// Each type's words. `active` and `ready` are true when they are left out.
+// A boolean param's value, or its default from CONDITION_PARAMS when it is
+// left out (the builder reads the same spec, #200), so the default is written
+// in one place.
+function flag(condition, param) {
+  return condition[param] ?? CONDITION_PARAMS[condition.type][param].default;
+}
+
+// Each type's words. `active` and `ready` take their CONDITION_PARAMS default
+// (true) when they are left out.
 const LINES = {
   resource: (c) => resourceLine(c.resource, c),
   comboPoints: (c) => resourceLine("comboPoints", c),
   auraActive: (c) =>
-    `${auraName(c.aura)} is ${(c.active ?? true) ? "up" : "not up"}`,
+    `${auraName(c.aura)} is ${flag(c, "active") ? "up" : "not up"}`,
   auraRemaining: (c) => remainingLine(auraName(c.aura), c),
   debuffActive: (c) =>
-    `${auraName(c.debuff)} is ${(c.active ?? true) ? "up" : "not up"} on the target`,
+    `${auraName(c.debuff)} is ${flag(c, "active") ? "up" : "not up"} on the target`,
   debuffRemaining: (c) =>
     remainingLine(`${auraName(c.debuff)} on the target`, c),
   debuffStacks: (c) =>
     `${auraName(c.debuff)} on the target has ${c.op} ${c.value} stacks`,
   cooldownReady: (c) =>
-    `${abilityName(c.ability)} is ${(c.ready ?? true) ? "ready" : "on cooldown"}`,
+    `${abilityName(c.ability)} is ${flag(c, "ready") ? "ready" : "on cooldown"}`,
   fightTime: (c) => `fight time ${c.op} ${c.value}s`,
   fightTimeRemaining: (c) => `fight time left ${c.op} ${c.value}s`,
   energyToCap: (c) => `time to energy cap ${c.op} ${c.value}s`,

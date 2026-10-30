@@ -1542,6 +1542,21 @@ h3 {
   overflow-wrap: anywhere;
 }
 
+/* #200 (Fran's #224 QA, N1): the "What to check" text can still scroll at
+   the 160px cap on wide screens, so it is a focusable, labelled region
+   (index.html). Below the narrow breakpoint it has no cap and grows with its
+   warnings. */
+.import-warnings pre:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 519.98px) {
+  .import-warnings pre {
+    max-height: none;
+  }
+}
+
 .pill-button {
   display: inline-flex;
   align-items: center;

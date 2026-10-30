@@ -4,7 +4,10 @@ import { readFile, readdir } from "node:fs/promises";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { AURAS } from "../js/auras.js";
-import { CONDITION_TYPES } from "../js/rotation-conditions.js";
+import {
+  CONDITION_PARAMS,
+  CONDITION_TYPES,
+} from "../js/rotation-conditions.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import {
   summarizeCondition,
@@ -72,6 +75,10 @@ const CASES = [
   ],
   [{ type: "debuffActive", debuff: "rupture" }, "Rupture is up on the target"],
   [
+    { type: "debuffActive", debuff: "rupture", active: true },
+    "Rupture is up on the target",
+  ],
+  [
     { type: "debuffActive", debuff: "rupture", active: false },
     "Rupture is not up on the target",
   ],
@@ -88,6 +95,10 @@ const CASES = [
     "Expose Armor on the target has >= 5 stacks",
   ],
   [{ type: "cooldownReady", ability: "blade-flurry" }, "Blade Flurry is ready"],
+  [
+    { type: "cooldownReady", ability: "blade-flurry", ready: true },
+    "Blade Flurry is ready",
+  ],
   [
     { type: "cooldownReady", ability: "blade-flurry", ready: false },
     "Blade Flurry is on cooldown",
@@ -109,6 +120,44 @@ describe("summarizeCondition", () => {
     for (const [condition, text] of CASES) {
       assert.equal(summarizeCondition(condition), text);
     }
+  });
+
+  // #200 (U7 review): a left-out boolean reads its CONDITION_PARAMS default,
+  // the spec the builder uses, not a `?? true` of its own.
+  it("writes a left-out boolean as its CONDITION_PARAMS default (#200)", () => {
+    const booleans = Object.entries(CONDITION_PARAMS).flatMap(
+      ([type, params]) =>
+        Object.entries(params)
+          .filter(([, spec]) => spec.kind === "boolean")
+          .map(([param, spec]) => [type, param, spec.default]),
+    );
+    assert.deepEqual(
+      booleans.map(([type, param]) => `${type}.${param}`).sort(),
+      ["auraActive.active", "cooldownReady.ready", "debuffActive.active"],
+    );
+    for (const [type, param, fallback] of booleans) {
+      const base = CASES.find(([condition]) => condition.type === type)[0];
+      const leftOut = { ...base };
+      delete leftOut[param];
+      assert.equal(
+        summarizeCondition(leftOut),
+        summarizeCondition({ ...base, [param]: fallback }),
+        `${type}.${param}`,
+      );
+      assert.notEqual(
+        summarizeCondition(leftOut),
+        summarizeCondition({ ...base, [param]: !fallback }),
+        `${type}.${param}`,
+      );
+    }
+  });
+
+  it("has no hard-coded boolean default of its own (#200)", async () => {
+    const source = await readFile(
+      new URL("../js/rotation-summary.js", import.meta.url),
+      "utf8",
+    );
+    assert.doesNotMatch(source, /\?\?\s*(true|false)\b/);
   });
 
   it("is a valid rotation's condition, each of them", () => {
