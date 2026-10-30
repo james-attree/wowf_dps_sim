@@ -10,6 +10,7 @@ import { createTalentTree } from "./talent-tree.js";
 import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
+import { createResultsCardView } from "./views/results-card.js";
 import { createResultsPanelView } from "./views/results-panel.js";
 import { createRotationBuilderView } from "./views/rotation-builder.js";
 import { mountRouter } from "./views/router.js";
@@ -141,3 +142,6 @@ const router = mountRouter(document, store, sections, {
   },
 });
 router.start();
+// The desktop results column's summary card (#241): outside the areas, like
+// the Run panel above it, so it shows on every area but Results.
+createResultsCardView(document, store, { buildLabel });

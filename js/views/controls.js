@@ -447,30 +447,12 @@ export function createControlsView(doc, store, actions = {}) {
   }
 
   place();
-  narrow?.addEventListener?.("change", () => {
-    place();
-    sizeBar();
-  });
+  narrow?.addEventListener?.("change", place);
 
-  // #200 (Fran's #226 QA, 5): the sticky bar's height, as --run-bar-height on
-  // the page, so a banner scrolled into view (its scroll-margin-top) and a
-  // focused control (the page's scroll-padding-top) land below the bar, not
-  // under it. It changes height as it wraps, so it is measured, not guessed.
-  // Below the wide breakpoint nothing sticks to the top (#240): styles.css
-  // sets --chrome-top to 0 there and the measure is not used.
-  const root = doc.documentElement;
-  function sizeBar() {
-    const stuck = bar;
-    if (typeof stuck.offsetHeight === "number") {
-      root?.style?.setProperty?.("--run-bar-height", `${stuck.offsetHeight}px`);
-    }
-  }
-  sizeBar();
-  if (typeof view?.ResizeObserver === "function") {
-    const watch = new view.ResizeObserver(sizeBar);
-    watch.observe(bar);
-    watch.observe(row);
-  }
+  // Nothing sticks to the top at any width any more (#241, UX3): on wide
+  // screens the bar is the Run panel in the results column, below them the
+  // phone dock (#240). So it is not measured for --chrome-top (#200 did,
+  // when it stuck to the top on wide screens).
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (

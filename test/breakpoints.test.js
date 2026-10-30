@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
-import { NARROW_PX, NARROW_QUERY } from "../js/views/breakpoints.js";
+import {
+  NARROW_PX,
+  NARROW_QUERY,
+  WIDE_PX,
+  WIDE_QUERY,
+} from "../js/views/breakpoints.js";
 import { NARROW_QUERY as CONTROLS_QUERY } from "../js/views/controls.js";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
@@ -96,5 +101,32 @@ describe("the narrow breakpoint", () => {
     const selectors = rule[1].split(",").map((part) => part.trim());
     assert.ok(selectors.includes(".table-scroll"), ".table-scroll");
     assert.ok(selectors.includes(".chart-scroll"), ".chart-scroll");
+  });
+
+  it("styles.css's wide blocks use the wide query and its complement (#241)", async () => {
+    assert.equal(WIDE_PX, 1024);
+    assert.equal(WIDE_QUERY, `(min-width: ${WIDE_PX}px)`);
+    const css = await read("../styles.css");
+    const queries = [...css.matchAll(/@media ([^{]+)\{/g)].map(([, query]) =>
+      query.trim(),
+    );
+    const wide = queries.filter((query) => /min-width/.test(query));
+    assert.ok(wide.length >= 1, "the desktop layout");
+    for (const query of wide) {
+      assert.equal(query, WIDE_QUERY);
+    }
+    const below = queries.filter((query) => {
+      const width = /max-width: ([\d.]+)px/.exec(query);
+      return width !== null && Number(width[1]) > WIDE_PX - 1;
+    });
+    assert.ok(below.length >= 2, "the phone dock and the pinned messages");
+    for (const query of below) {
+      assert.equal(query, "(max-width: 1023.98px)");
+      const max = Number(/max-width: ([\d.]+)px/.exec(query)[1]);
+      assert.ok(
+        max < WIDE_PX && max > WIDE_PX - 1,
+        "1024 is wide, 1023 is not",
+      );
+    }
   });
 });

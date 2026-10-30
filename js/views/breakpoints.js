@@ -6,3 +6,12 @@
 // import it); test/breakpoints.test.js pins the two together.
 export const NARROW_PX = 520;
 export const NARROW_QUERY = "(max-width: 519.98px)";
+
+// The wide breakpoint (#241, UX3; proposal section 3). From 1024 px up the
+// page has the nav down the left, the areas, and the results column on the
+// right with Run in it; nothing sticks to the top. Below it the Run panel is
+// the phone dock (#240). styles.css repeats the query as (min-width: 1024px)
+// and its complement as (max-width: 1023.98px); test/breakpoints.test.js pins
+// all three together.
+export const WIDE_PX = 1024;
+export const WIDE_QUERY = "(min-width: 1024px)";

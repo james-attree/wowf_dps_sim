@@ -46,9 +46,10 @@
   /* The phone run dock's strip (#240), above the nav; none on Results. */
   --strip-height: 48px;
   --dock-strip: 0px;
-  /* The sticky run bar on wide screens (js/views/controls.js measures it);
-     nothing sticks to the top below the wide breakpoint. */
-  --chrome-top: var(--run-bar-height, 0px);
+  /* Nothing sticks to the top of the page at any width (#241, UX3): on
+     wide screens Run is in the results column, below the wide breakpoint
+     in the phone dock (#240). */
+  --chrome-top: 0px;
   --chrome-bottom: 0px;
   /* The rotation builder's messages, pinned under the top chrome below the
      wide breakpoint (js/views/rotation-builder.js measures them). */
@@ -195,11 +196,10 @@ h3 {
 }
 
 /* The run control bar (#153): the one home of Run, Pause, Stop and Reset.
-   Sticky, so the controls stay in reach while the page scrolls. */
+   On wide screens it is the Run panel at the top of the results column,
+   which stays in reach while the page scrolls (#241); below the wide
+   breakpoint it is the phone dock (#240). */
 .run-controls {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   display: grid;
   gap: 8px;
   margin-bottom: 12px;
@@ -390,6 +390,17 @@ h3 {
 .run-help {
   color: var(--text-muted);
   font-size: 0.72rem;
+}
+
+/* The results column (#241, UX3): on wide screens the Run panel, then the
+   summary card, beside the areas. Below the wide breakpoint the column adds
+   no box (the Run panel is the phone dock) and the card is not shown. */
+.run-column {
+  display: contents;
+}
+
+.results-card {
+  display: none;
 }
 
 /* The narrow layout's parts (Scout, #153). Wide screens draw the bar as
@@ -2455,7 +2466,7 @@ th[aria-sort="ascending"] {
    row, the current one raised with a bar down its left edge. */
 @media (min-width: 1024px) {
   body {
-    grid-template-columns: 208px minmax(0, 760px);
+    grid-template-columns: clamp(160px, 16vw, 208px) minmax(0, 1224px);
     justify-content: center;
     column-gap: 24px;
   }
@@ -2499,4 +2510,173 @@ th[aria-sort="ascending"] {
     box-shadow: inset 3px 0 0 var(--accent);
     color: var(--accent);
   }
+}
+
+/* The wide layout's results column (#241, UX3; proposal sections 3 and 5):
+   the areas on the left, the column on the right, between 360 and 440 wide,
+   sticky so Run and the average stay in reach while the page scrolls.
+   Nothing sticks to the top, so --chrome-top stays 0. On Results the card
+   is not shown (the full results are the area itself); the Run panel stays,
+   as Results has no Run of its own yet. */
+@media (min-width: 1024px) {
+  .simulator {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(360px, 28vw, 440px);
+    grid-template-rows: auto 1fr;
+    column-gap: 24px;
+    align-items: start;
+    width: 100%;
+  }
+
+  .simulator > * {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .simulator > .area {
+    grid-row: 2;
+  }
+
+  .simulator > .run-column {
+    position: sticky;
+    top: 16px;
+    display: grid;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .run-controls {
+    margin-bottom: 0;
+    padding: 12px 14px;
+    box-shadow: none;
+  }
+
+  .run-column .run-row-inputs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+
+  .run-column .run-row-inputs > .run-mode {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
+
+  .run-column .run-seed-field {
+    grid-column: 1 / -1;
+  }
+
+  .run-column .run-field input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .run-column .run-seed-input input {
+    flex: 1;
+  }
+
+  .results-card {
+    display: grid;
+    gap: 6px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  :root:has(#area-results:not([hidden])) .results-card {
+    display: none;
+  }
+
+  /* The heading scale (James on #241): each area's h1 is the screen's
+     heading, so it is the biggest text; "Rogue" is the app's name above it. */
+  .app-title {
+    font-size: 1.25rem;
+  }
+
+  .area-title {
+    font-size: 1.9rem;
+  }
+}
+
+.results-card-title {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.results-card-body {
+  display: grid;
+  gap: 6px;
+}
+
+.results-card-dps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 1.9rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.results-card-dps .badge {
+  align-self: center;
+}
+
+.results-card-ci,
+.results-card-meta,
+.results-card-status {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.results-card-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+}
+
+.results-card-facts dt {
+  color: var(--text-muted);
+}
+
+.results-card-facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.results-card-link {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.results-card-open:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 24px;
+  font-size: 0.85rem;
+}
+
+.results-card-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.results-card-live {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
 }
