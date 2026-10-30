@@ -50,9 +50,19 @@ export function grantingTalentName(ability) {
 
 const nameOf = (id) => abilityCatalogue.get(id)?.name ?? id;
 
-// The skip for an ability the build lacks: { ability, talent, text }.
+// The skip for an ability the build lacks: { ability, talent, text }. A
+// guard on an ability no talent grants (abilityGranted on Sinister Strike)
+// is never true: no talent to name, so it says so (#243, Fran's #235 nit;
+// it read "no Sinister Strike talent"). talent is null then.
 function skipFor(ability) {
-  const talent = grantingTalentName(ability) ?? nameOf(ability);
+  const talent = grantingTalentName(ability);
+  if (talent === null) {
+    return {
+      ability,
+      talent: null,
+      text: `${nameOf(ability)} is never granted (no talent gives it)`,
+    };
+  }
   return { ability, talent, text: `no ${talent} talent` };
 }
 
