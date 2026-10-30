@@ -352,10 +352,10 @@ describe("the event core: a whole fight at decision points (#197)", () => {
     );
   });
 
-  it("runs the scripted golden cases to Rupture ticks and a tick crit", () => {
+  it("runs the scripted golden case to Rupture ticks and a tick crit", () => {
     const scripted = GOLDEN_CASES.filter((goldenCase) => goldenCase.script);
-    // #85's case and #234's.
-    assert.equal(scripted.length, 2);
+    // #234's case; #85's was retired.
+    assert.equal(scripted.length, 1);
     for (const goldenCase of scripted) {
       const result = runScriptedFight(goldenCase);
       const rupture = result.abilities.Rupture;

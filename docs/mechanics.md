@@ -916,7 +916,7 @@ time end in the same state, whoever drives them and however the time is split.
   a `SimRunner`, which holds one core run open and gives it each frame's
   seconds from `FrameClock` (see Live page). It is a view of the engine and
   holds no combat rule.
-- The golden tests pin the `runFight` result for eight fixed cases, two of
+- The golden tests pin the `runFight` result for seven fixed cases, one of
   them a scripted list of casts and three of them the reference talent build
   (one with poisons, one with the combat-swords preset; see Golden-seed tests).
   They fail when anything on this path changes a number.
@@ -1673,11 +1673,11 @@ A golden test pins the whole result of a fixed fight, so a change to a rule, a
 constant, or the engine shows up in review as a diff of numbers. The cases are
 listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
 10 s), a 5-minute fight (seed 1, 300 s), another seed (12345, 90 s), a
-scripted-cast fight (seed 68, 50 s, described below) and its in-budget twin
-added by #234 (same seed and length, also below), the two config cases
+scripted-cast fight (seed 68, 50 s, described below; #234's in-budget script
+in place of #85's), the two config cases
 added by #107 (the talented build, the poison fight, described below), and the
 combat-swords preset case added by #164 (seed 142, 120 s, described below):
-eight in all. Each
+seven in all. Each
 has a fixture in `test/golden/<name>.json` holding the `runFight` result:
 `seed`, `duration`, `totalDamage`, `dps`, every ability's record, and the capped
 log. The one result field it leaves out is `dataVersion` (see Data version).
@@ -1695,8 +1695,9 @@ reaches goes to Slice and Dice (none, 12 and 3 casts; see example 1 in
 [docs/rotation.md](rotation.md#1-todays-placeholder-combat-rotation)). So they
 cannot pin finisher damage, DoT ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
 `script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
-energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT` is Sinister Strike
-seven times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
+energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT_IN_BUDGET` is
+Sinister Strike six times, Hemorrhage, Rupture, Sinister Strike four times,
+then Eviscerate.
 Hemorrhage comes just before Rupture, so the fixture has Rupture ticks with
 the Hemorrhage bonus and, after the debuff runs out, without it.
 `scripts/scripted-fight.mjs` runs it on the real `runFight`: it swaps
@@ -1704,30 +1705,30 @@ the Hemorrhage bonus and, after the debuff runs out, without it.
 for the one call so the script casts first, then the rogue's own rotation runs
 with its skill casts switched off, so only the weapon swings and the haste
 buffs are left. Nothing under `js/` changes, and a
-script that has not finished by the end of the fight throws. The fixture has
-8 Rupture ticks (2 of them crits) and an Eviscerate that crits.
+script that has not finished by the end of the fight throws. Its case,
+`scripted-finishers-in-budget-seed-68-50s`, has 8 Rupture ticks (1 of them a
+crit), ticks with and without the Hemorrhage bonus, a Sinister Strike miss, and
+an Eviscerate that hits without a crit.
 
-**The in-budget scripted case (#234).** `FINISHER_SCRIPT` was written for
-seed 68 and does not finish on 70 of seeds 1 to 200. The cause is energy, not a
+**The in-budget scripted case (#234).** It replaces #85's case,
+`scripted-finishers-seed-68-50s`, which #234 retired with its fixture by
+James's decision. #85's script (Sinister Strike seven times, Hemorrhage,
+Rupture, Sinister Strike five times, then Eviscerate) was written for seed 68
+and does not finish on 70 of seeds 1 to 200. The cause is energy, not a
 stuck cast: it costs 12 × 45 + 35 + 25 + 35 = 635 energy, and from the 100 a
 fight starts with at 10 a second (`energy.regenPerSecond`) the Eviscerate's
 energy arrives at 53.5 s when every attack lands, after the 50 s fight ends.
 A Sinister Strike that misses or is dodged still counts as a cast and refunds
 80% of its cost (`skill.missEnergyRefund`), so the script finishes only on a
 seed with enough of those; on all 70 that do not, Eviscerate is the one cast
-still waiting. `FINISHER_SCRIPT_IN_BUDGET` is Sinister Strike six times,
-Hemorrhage, Rupture, Sinister Strike four times, then Eviscerate: 545 energy,
-so with every attack landed its last cast goes out at 44.5 s, and a seed with
+still waiting. `FINISHER_SCRIPT_IN_BUDGET` costs 545 energy, so with every
+attack landed its last cast goes out at 44.5 s, and a seed with
 misses only finishes sooner (44.5 s is the latest on seeds 1 to 1,000). Six
 Sinister Strikes and Hemorrhage are seven builders, so Rupture still goes out at
-5 combo points when two of them do not land. Its case,
-`scripted-finishers-in-budget-seed-68-50s`, runs it on the same seed and
-length, and its fixture has 8 Rupture ticks (1 of them a crit), ticks with and
-without the Hemorrhage bonus, a Sinister Strike miss, and an Eviscerate that
-hits without a crit. `test/golden.test.js` runs the script on seeds 1 to 200
-(about a quarter of a second) and checks that every one finishes, and that
-`FINISHER_SCRIPT` still does not, with Eviscerate waiting. The #85 case was
-kept beside it with its fixture unchanged.
+5 combo points when two of them do not land. Its case runs on the same seed
+and length as #85's did. `test/golden.test.js` runs the script on seeds 1 to
+200 (about a quarter of a second) and checks that every one finishes, and that
+#85's script, kept in the test, still does not, with Eviscerate waiting.
 
 **Config cases (#107).** A case may carry `config`, a partial SimConfig that
 `runGoldenCase` passes to `runFight` (or `runScriptedFight`) like any caller's.
@@ -1823,7 +1824,7 @@ lint`, and `npm run provenance` never write a fixture. To add a case, add it to
 `GOLDEN_CASES` and run the script with `--write`; to remove one, delete its
 entry and its file. A fixture file with no matching case fails the tests, and
 the message says to delete the file or add the case. `.DS_Store` is the one
-file the check ignores. To change a scripted case, edit `FINISHER_SCRIPT`,
+file the check ignores. To change the scripted case, edit
 `FINISHER_SCRIPT_IN_BUDGET` or the seed in `scripts/golden-update.mjs`, then
 regenerate. Keep a seed that still has tick crits, and an in-budget script that
 finishes on seeds 1 to 200: `test/golden.test.js` checks both.

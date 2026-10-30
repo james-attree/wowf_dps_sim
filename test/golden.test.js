@@ -19,7 +19,6 @@ import { dataVersion } from "../js/data-version.js";
 import { defaultConfig } from "../js/sim-config.js";
 import { runFight } from "../js/fight.js";
 import {
-  FINISHER_SCRIPT,
   FINISHER_SCRIPT_IN_BUDGET,
   GOLDEN_CASES,
   GOLDEN_DIR,
@@ -421,15 +420,9 @@ describe("the golden:update script", () => {
 });
 
 // Issue #85. The placeholder rotation never casts Eviscerate or Rupture, so the
-// other cases cannot pin them. The scripted cases cast a script instead: the
-// #85 case FINISHER_SCRIPT, and the #234 case FINISHER_SCRIPT_IN_BUDGET, which
-// finishes on every seed.
+// other cases cannot pin them. The scripted case casts a script instead:
+// #234's FINISHER_SCRIPT_IN_BUDGET, which finishes on every seed.
 const SCRIPTED = [
-  {
-    name: "scripted-finishers-seed-68-50s",
-    script: FINISHER_SCRIPT,
-    sinisterStrikes: 12,
-  },
   {
     name: "scripted-finishers-in-budget-seed-68-50s",
     script: FINISHER_SCRIPT_IN_BUDGET,
@@ -440,16 +433,25 @@ const SCRIPTED = [
 describe("the scripted golden cases", () => {
   const scripted = GOLDEN_CASES.filter((goldenCase) => goldenCase.script);
 
-  it("are the two cases with a script, each casting its own script", () => {
+  it("is the one case with a script, casting its own script", () => {
     assert.deepEqual(
       scripted.map(({ name, script }) => ({ name, script })),
       SCRIPTED.map(({ name, script }) => ({ name, script })),
     );
   });
 
-  // Issue #234. FINISHER_SCRIPT costs more energy than a 50 s fight gives when
-  // every attack lands, so it finishes only on some seeds. The in-budget
-  // script fits with room to spare, and finishes on every seed from 1 to 200.
+  // Issue #234. #85's script (scripted-finishers-seed-68-50s, retired by
+  // James's decision; its fixture is gone) costs more energy than a 50 s fight
+  // gives when every attack lands, so it finishes only on some seeds. These
+  // tests run the script itself and read no fixture. The in-budget script fits
+  // with room to spare, and finishes on every seed from 1 to 200.
+  const RETIRED_SCRIPT = [
+    ...Array(7).fill("sinisterStrike"),
+    "hemorrhage",
+    "rupture",
+    ...Array(5).fill("sinisterStrike"),
+    "eviscerate",
+  ];
   function scriptCost(list) {
     const rogue = new Rogue();
     return list.reduce((total, key) => total + rogue.abilities[key].cost, 0);
@@ -461,11 +463,11 @@ describe("the scripted golden cases", () => {
     );
     const start = new Rogue().energy;
     const regen = k("energy.regenPerSecond");
-    assert.equal(scriptCost(FINISHER_SCRIPT), 635);
+    assert.equal(scriptCost(RETIRED_SCRIPT), 635);
     assert.equal(scriptCost(FINISHER_SCRIPT_IN_BUDGET), 545);
     // The energy for the last cast arrives this long into the fight: 53.5 s
-    // for FINISHER_SCRIPT, 44.5 s for the in-budget one.
-    assert.ok((scriptCost(FINISHER_SCRIPT) - start) / regen > duration);
+    // for the retired script, 44.5 s for the in-budget one.
+    assert.ok((scriptCost(RETIRED_SCRIPT) - start) / regen > duration);
     assert.ok(
       (scriptCost(FINISHER_SCRIPT_IN_BUDGET) - start) / regen <= duration - 5,
     );
@@ -486,11 +488,11 @@ describe("the scripted golden cases", () => {
     }
   });
 
-  it("FINISHER_SCRIPT does not finish on every seed, and the one left waiting is Eviscerate", () => {
+  it("the retired #85 script does not finish on every seed, and the one left waiting is Eviscerate", () => {
     let unfinished = 0;
     for (let seed = 1; seed <= 200; seed++) {
       try {
-        runScriptedFight({ seed, duration: 50, script: FINISHER_SCRIPT });
+        runScriptedFight({ seed, duration: 50, script: RETIRED_SCRIPT });
       } catch (error) {
         assert.match(
           error.message,

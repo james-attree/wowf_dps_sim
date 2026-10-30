@@ -58,7 +58,7 @@ tick, expiry and decision is an event at its own exact time, and
 returns plain data, with no DOM. `config` is an optional SimConfig (character,
 weapons, a talent build, poisons); leave it out for the default fight. The live
 page builds the same fight with `createFight` and gives it each frame's seconds,
-so a seed gives the same fight live and headless, however the time is split. The golden tests pin eight `runFight` results, and
+so a seed gives the same fight live and headless, however the time is split. The golden tests pin seven `runFight` results, and
 `npm run bench` times one. [Mechanics](docs/mechanics.md#simulation-clock) has
 the details, and [Known limits of Phase 1](docs/mechanics.md#known-limits-of-phase-1)
 says what to keep in mind.
