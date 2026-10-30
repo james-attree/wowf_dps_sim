@@ -258,14 +258,40 @@ describe("Rotation's screens", () => {
       await context.close();
     }
   });
+});
 
-  test("an import on Export or import stays there, its status shown", async () => {
+// Fran's #255 check: P3, at 1024x576 the import status sat under the fold;
+// P4, an import was spoken twice, its status then "Rotation: Imported:
+// Warned." by the builder. The status is brought on screen, at every size,
+// and is the one thing said.
+for (const [width, height] of SIZES) {
+  test(`an import on Export or import stays there, its status on screen and said once, at ${width}x${height}`, async () => {
     const { context, page, errors } = await openPage(
-      1280,
-      800,
+      width,
+      height,
       "#rotation/share",
     );
     try {
+      // What each live region says, in order.
+      await page.evaluate(() => {
+        globalThis.__said = [];
+        const watch = new MutationObserver((changes) => {
+          for (const change of changes) {
+            const region =
+              change.target.closest?.("[role='status']") ??
+              change.target.parentElement?.closest("[role='status']");
+            const text = region?.textContent.trim();
+            if (text) {
+              globalThis.__said.push(text);
+            }
+          }
+        });
+        watch.observe(document.body, {
+          subtree: true,
+          childList: true,
+          characterData: true,
+        });
+      });
       await page.locator("#cfg-import-text").waitFor({ state: "visible" });
       await page.fill(
         "#cfg-import-text",
@@ -291,12 +317,40 @@ describe("Rotation's screens", () => {
       );
       const { banner, h1: title } = await placed(page);
       assert.ok(banner.top >= title.bottom - 1, "the banner is under the h1");
+      // P3: on screen, above the dock where there is one.
+      await page.waitForFunction(
+        () => {
+          const dock = document.getElementById("run-controls");
+          const fixed = getComputedStyle(dock).position === "fixed";
+          const seen = fixed
+            ? dock.getBoundingClientRect().top
+            : globalThis.innerHeight;
+          const box = document
+            .getElementById("cfg-import-status")
+            .getBoundingClientRect();
+          return box.top >= 0 && box.bottom <= seen;
+        },
+        null,
+        { timeout: 3000 },
+      );
+      // P4: the builder says nothing of it.
+      await page.waitForTimeout(300);
+      const said = await page.evaluate(() => globalThis.__said);
+      assert.equal(
+        said.some((text) => text.startsWith("Rotation: ")),
+        false,
+        said.join(" | "),
+      );
+      assert.ok(
+        said.some((text) => text.startsWith("Imported")),
+        said.join(" | "),
+      );
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
     }
   });
-});
+}
 
 // Fran's #252 and #253 checks (D1, D2): after a Duplicate the warning is on
 // screen under the h1, the h1 focused, and so after a second Duplicate.

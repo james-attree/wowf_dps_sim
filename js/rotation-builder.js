@@ -1381,7 +1381,10 @@ export function createRotationBuilder(store, formActions) {
       grab = null;
       banner = null;
       addAction = null;
-      if (!first && open) {
+      // An import there is spoken by its own status ("Imported …"), so it
+      // is not said twice (#244, Fran's #255 check, P4).
+      const importedHere = id === "imported" && screen?.kind === "share";
+      if (!first && open && !importedHere) {
         extra = say(
           isEdited()
             ? `Rotation: ${originLabel(id)}, with your edits from this session. Revert to ${kindOf(id)} is in the builder.`

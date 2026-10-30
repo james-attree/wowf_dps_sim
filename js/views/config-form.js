@@ -416,6 +416,17 @@ export function createConfigFormView(doc, store, actions) {
     importStatus.classList.toggle("is-warning", warned);
   }
 
+  // A new import status is brought on screen once the banner above it is
+  // drawn: at 1024x576 it sat just under the fold (#244, Fran's #255
+  // check, P3). html's scroll-padding keeps it clear of the phone dock.
+  function showImportStatus() {
+    win.requestAnimationFrame?.(() => {
+      if (importStatus.checkVisibility?.() !== false) {
+        importStatus.scrollIntoView?.({ block: "nearest" });
+      }
+    });
+  }
+
   let toastTimer = null;
   function hideToast() {
     win.clearTimeout?.(toastTimer);
@@ -465,6 +476,9 @@ export function createConfigFormView(doc, store, actions) {
     }
     if (previous === null || state.importStatus !== previous.importStatus) {
       drawImport(state.importStatus);
+      if (previous !== null && state.importStatus?.message) {
+        showImportStatus();
+      }
     }
     if (state.canUndo && !previous?.canUndo) {
       showToast();
