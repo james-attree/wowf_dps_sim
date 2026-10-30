@@ -2,8 +2,8 @@
 // strip fixed above the 52px bottom nav, a 100px dock; on Results the strip
 // goes back into the page and the dock is the nav alone. The strip's DPS is
 // never clipped at 360px, the dock sits above the safe-area inset, and no
-// banner or focused control is left under the chrome. At 1024px and up the
-// run controls keep their sticky top bar.
+// banner or focused control is left under the chrome. At 1024px and up Run
+// is in the results column instead (#241): browser-tests/results-column.browser.mjs.
 
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -13,7 +13,6 @@ import { startStaticServer } from "../scripts/serve.mjs";
 
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const PHONE_WIDTHS = [390, 360];
-const DESKTOP_WIDTH = 1280;
 const SCREEN_HEIGHT = 800;
 const DOCK_PX = 100;
 const NAV_PX = 52;
@@ -444,47 +443,3 @@ async function assertBannersClear(page, selector) {
     }
   }
 }
-
-describe(`the desktop at ${DESKTOP_WIDTH}`, () => {
-  test("keeps the sticky top bar, with no dock", async () => {
-    const { context, page, errors } = await open(DESKTOP_WIDTH);
-    try {
-      for (const area of ["character", "rotation", "fight", "results"]) {
-        await toArea(page, area);
-        await page.evaluate(() =>
-          globalThis.scrollTo(0, globalThis.document.body.scrollHeight),
-        );
-        const at = await page.evaluate(() => {
-          const doc = globalThis.document;
-          const controls = doc.getElementById("run-controls");
-          const style = getComputedStyle(controls);
-          const root = getComputedStyle(doc.documentElement);
-          return {
-            position: style.position,
-            // Scrolled past the bar's place in the page.
-            scrolled: globalThis.scrollY > controls.offsetTop,
-            top: style.top,
-            boxTop: controls.getBoundingClientRect().top,
-            barHeight: controls.getBoundingClientRect().height,
-            strip: getComputedStyle(doc.getElementById("run-bar")).position,
-            dps: doc.getElementById("run-dps").checkVisibility(),
-            chromeTop: parseFloat(root.getPropertyValue("--chrome-top")),
-            chromeBottom: parseFloat(root.getPropertyValue("--chrome-bottom")),
-          };
-        });
-        assert.equal(at.position, "sticky", area);
-        assert.equal(at.top, "0px", area);
-        if (at.scrolled) {
-          assert.equal(at.boxTop, 0, `${area} still at the top when scrolled`);
-        }
-        assert.notEqual(at.strip, "fixed", area);
-        assert.equal(at.dps, false, area);
-        assert.ok(Math.abs(at.chromeTop - at.barHeight) <= 1, area);
-        assert.equal(at.chromeBottom, 0, area);
-      }
-      assert.deepEqual(errors, []);
-    } finally {
-      await context.close();
-    }
-  });
-});

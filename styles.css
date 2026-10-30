@@ -2586,6 +2586,13 @@ th[aria-sort="ascending"] {
     background: var(--surface);
   }
 
+  /* The areas are narrower here than the screen (the column is beside
+     them), so their own layouts follow the area's width, not the screen's:
+     the rules the page uses below 720 wide apply to an area that narrow. */
+  .simulator > .area {
+    container: area / inline-size;
+  }
+
   :root:has(#area-results:not([hidden])) .results-card {
     display: none;
   }
@@ -2598,6 +2605,20 @@ th[aria-sort="ascending"] {
 
   .area-title {
     font-size: 1.9rem;
+  }
+}
+
+@container area (max-width: 680px) {
+  .cooldown-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hands {
+    grid-template-columns: 1fr;
+  }
+
+  .results-panel .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2623,6 +2644,13 @@ th[aria-sort="ascending"] {
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
+}
+
+.results-card-unit {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+  letter-spacing: 0;
 }
 
 .results-card-dps .badge {

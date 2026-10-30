@@ -30,7 +30,7 @@ function average(result, buildLabel) {
   return [
     line("results-card-dps", [
       num(summary.mean),
-      el("span", { class: "stat-unit" }, ["DPS"]),
+      el("span", { class: "results-card-unit" }, ["DPS"]),
       partial && el("span", { class: "badge badge-partial" }, ["PARTIAL"]),
     ]),
     line("results-card-ci", [
@@ -83,23 +83,27 @@ function batchPart(batch, run, buildLabel) {
 }
 
 // The live fight's line: its DPS while it runs, is paused or has finished;
-// where it stopped; or that none has run.
+// where it stopped; or that none has run. In Batch mode the run slice's
+// state is the batch's, so a live fight kept from before (one with time on
+// it that was not stopped) is a finished one: nothing runs while paused.
 export function liveText({ run, results }) {
   const time = results?.time ?? 0;
   const damage = results?.damage ?? 0;
   const dps = time > 0 ? `${num(damage / time)} DPS` : null;
-  const shown = {
-    running: () => `${dps} so far`,
-    paused: () => `${dps}, paused at ${clock(time)}`,
-    finished: () => dps,
-  };
-  if (run.mode === "live" && dps !== null && shown[run.state]) {
-    return shown[run.state]();
+  const stoppedAt = run.stoppedAt ?? null;
+  if (run.mode === "live") {
+    const shown = {
+      running: () => `${dps} so far`,
+      paused: () => `${dps}, paused at ${clock(time)}`,
+      finished: () => dps,
+    };
+    if (dps !== null && shown[run.state]) {
+      return shown[run.state]();
+    }
+  } else if (stoppedAt === null && dps !== null) {
+    return dps;
   }
-  if (run.mode === "live" && (run.stoppedAt ?? null) !== null) {
-    return `stopped at ${clock(run.stoppedAt)}`;
-  }
-  return "none yet";
+  return stoppedAt === null ? "none yet" : `stopped at ${clock(stoppedAt)}`;
 }
 
 // The card's model: its body (the average, or why there is none), whether

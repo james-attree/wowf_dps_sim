@@ -101,8 +101,8 @@
 }
 
 /* #200 (Fran's #226 QA, 5): scrolled into view, a banner lands below the
-   chrome over the screen's top (--chrome-top, styles.css: the sticky run bar
-   when wide) and above what covers its foot (--chrome-bottom: the phone dock
+   chrome over the screen's top (--chrome-top, styles.css: none at any width
+   since #241) and above what covers its foot (--chrome-bottom: the phone dock
    and nav, #240), with a gap. */
 .rot-banner {
   scroll-margin-top: calc(var(--chrome-top) + 12px);

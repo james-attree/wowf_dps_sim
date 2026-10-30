@@ -77,8 +77,8 @@ const focusedKey = (page) =>
   page.evaluate(() => document.activeElement?.getAttribute("data-key"));
 
 // One real mouse click at the centre of a control.
-// Scrolled to the middle of the screen first, so the sticky run bar at
-// narrow widths can't sit over it.
+// Scrolled to the middle of the screen first, so the phone dock at narrow
+// widths can't sit over it.
 async function clickCentre(locator) {
   await locator.evaluate((el) => el.scrollIntoView({ block: "center" }));
   const box = await locator.boundingBox();
@@ -386,8 +386,8 @@ for (const width of WIDTHS) {
 }
 
 // Fran's #228 QA (nit 1; #234): a Duplicate that brings up the warnings
-// banner above the screen scrolls it into view, below the sticky run bar
-// (below 1024px the messages are pinned in view instead, #240),
+// banner above the screen scrolls it into view, clear of the chrome (none at
+// the top from 1024px up, #241; below, the messages are pinned in view, #240),
 // when the focus it moves to the new rule stays on screen too. When the two
 // cannot both be on screen the focus wins (WCAG 2.4.11), and the new rule's
 // own warning is brought on screen instead.
@@ -414,9 +414,9 @@ for (const width of [1280, 390, 360]) {
             ),
         );
         return page.evaluate((at) => {
-          // What covers the screen (#240): the sticky run bar at the top when
-          // wide; the dock and nav at the foot, and the pinned messages at
-          // the top, below the wide breakpoint.
+          // What covers the screen: nothing when wide (#241: Run is in the
+          // column beside the areas); the dock and nav at the foot, and the
+          // pinned messages at the top, below the wide breakpoint (#240).
           const root = getComputedStyle(document.documentElement);
           const length = (name) => parseFloat(root.getPropertyValue(name));
           const banner = document.querySelector("#rb-warnings");
@@ -428,7 +428,22 @@ for (const width of [1280, 390, 360]) {
           ];
           // The new rule's own warning: it is never reached.
           const chip = card.querySelector(".rule-msgs");
+          // Is a box's centre the box itself, not something over it?
+          const uncovered = (node) => {
+            if (!node) return null;
+            const box = node.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+              box.left + box.width / 2,
+              box.top + box.height / 2,
+            );
+            return hit !== null && node.contains(hit);
+          };
           return {
+            controlsPosition: getComputedStyle(
+              document.querySelector("#run-controls"),
+            ).position,
+            chipUncovered: uncovered(chip),
+            bannerUncovered: uncovered(banner),
             pinned,
             top: length("--chrome-top"),
             messagesBottom: messages.getBoundingClientRect().bottom,
@@ -470,10 +485,16 @@ for (const width of [1280, 390, 360]) {
           `the banner pinned in view: ${JSON.stringify(far)}`,
         );
       } else {
+        // D1 (#234, at 1280; #241): nothing sticks at the top now, so the
+        // new rule's warning is on screen and nothing covers it.
         assert.ok(
           far.chipTop !== null && onScreen(far, far.chipTop),
           `the new rule's warning on screen: ${JSON.stringify(far)}`,
         );
+        assert.equal(far.chipUncovered, true, JSON.stringify(far));
+        assert.equal(far.top, 0, JSON.stringify(far));
+        assert.notEqual(far.controlsPosition, "sticky", JSON.stringify(far));
+        assert.equal(near.bannerUncovered, true, JSON.stringify(near));
       }
       for (const { errors } of opened) {
         assert.deepEqual(errors, []);
@@ -843,9 +864,10 @@ test("the What to check box is a region only while it scrolls (#200)", async () 
 });
 
 // #200 (Fran's #226 QA, 5): after Duplicate, the builder's warnings banner
-// scrolled into view lands fully below the sticky run bar, not under it, at
-// 1024px and up; below, where the bar is the phone dock (#240), fully above
-// the dock and the nav.
+// scrolled into view is not under the run controls: from 1024px up they are
+// in the column beside the areas and nothing sticks at the top (#241);
+// below, where the bar is the phone dock (#240), fully above the dock and
+// the nav.
 for (const width of [1280, 390, 360]) {
   test(`the warnings banner scrolls in below the run bar at ${width}px (#200)`, async () => {
     const { context, page, errors } = await openBuilder(width);
@@ -869,7 +891,16 @@ for (const width of [1280, 390, 360]) {
           .getBoundingClientRect();
         return {
           barPosition: getComputedStyle(bar).position,
-          barBottom: bar.getBoundingClientRect().bottom,
+          uncovered: (() => {
+            const hit = document.elementFromPoint(
+              banner.left + banner.width / 2,
+              banner.top + banner.height / 2,
+            );
+            return (
+              hit !== null &&
+              document.querySelector("#rb-warnings").contains(hit)
+            );
+          })(),
           chromeTop: length("--chrome-top"),
           floor: globalThis.innerHeight - length("--chrome-bottom"),
           top: banner.top,
@@ -877,17 +908,14 @@ for (const width of [1280, 390, 360]) {
           height: banner.height,
         };
       });
-      // Wide: below the sticky bar. Below the wide breakpoint nothing sticks
-      // at the top (#240): above the dock and nav at the foot.
+      // Nothing sticks at the top at any width (#240 below 1024px, #241
+      // from 1024px up): the banner is at or below the top of the screen,
+      // and nothing is over it.
+      assert.equal(at.barPosition, "static");
+      assert.equal(at.chromeTop, 0);
+      assert.ok(at.top >= 0, JSON.stringify(at));
       if (width >= WIDE_PX) {
-        assert.equal(at.barPosition, "sticky");
-        assert.ok(at.barBottom > 0, JSON.stringify(at));
-        assert.ok(at.top >= at.barBottom, JSON.stringify(at));
-        assert.ok(at.chromeTop >= at.barBottom - 1, JSON.stringify(at));
-      } else {
-        assert.equal(at.barPosition, "static");
-        assert.equal(at.chromeTop, 0);
-        assert.ok(at.top >= 0, JSON.stringify(at));
+        assert.equal(at.uncovered, true, JSON.stringify(at));
       }
       if (at.height <= at.floor - at.top) {
         assert.ok(at.bottom <= at.floor, JSON.stringify(at));
