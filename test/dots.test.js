@@ -390,6 +390,52 @@ describe("DoT ticks on events (DotTicks)", () => {
     assert.throws(() => dots.ticked(foreign), /own pending tick event/);
   });
 
+  it("refuses ticked() for its pending tick at the same time, before it runs, and for a tick that ran without it", () => {
+    const scheduler = new Scheduler({
+      endTime: 10,
+      handle(event) {
+        if (event.kind === "probe") {
+          // Due now, still pending: the expiry class runs before DoT ticks.
+          assert.equal(dot.state, "pending");
+          assert.equal(dot.time, scheduler.now);
+          assert.throws(() => dots.ticked(dot), /own pending tick event/);
+        }
+        // A tick event the handler does not pass to ticked().
+      },
+    });
+    const dots = new DotTicks({ scheduler });
+    const dot = dots.apply("r", { interval: 2, duration: 4 });
+    scheduler.schedule({ time: 2, order: ORDER.expiry, kind: "probe" });
+    scheduler.runUntil(3);
+    assert.equal(dot.state, "ran");
+    // Ran, but at 2 and not now (3).
+    assert.throws(() => dots.ticked(dot), /own pending tick event/);
+  });
+
+  it("schedules a tick again on a keep-clock refresh after its pending tick was cancelled from outside", () => {
+    const { scheduler, ticks, at } = setup({ endTime: 20 });
+    let first = null;
+    at(0, (d) => {
+      first = d.apply("p", {
+        interval: 3,
+        duration: 12,
+        refresh: DOT_REFRESH.keepClock,
+      });
+    });
+    at(1, (d) => {
+      first.cancel();
+      assert.equal(d.nextTickAt("p"), null);
+      d.apply("p", {
+        interval: 3,
+        duration: 12,
+        refresh: DOT_REFRESH.keepClock,
+      });
+      assert.equal(d.nextTickAt("p"), 3);
+    });
+    scheduler.runToEnd();
+    assert.deepEqual(timesOf(ticks, "p"), [3, 6, 9, 12]);
+  });
+
   it("matches a reference model over 200 random seeds of applications", () => {
     const intervals = [1, 1.5, 2, 3];
     const durations = [0, 0.25, 1, 2.5, 5, 6, 11, 12, 16];
