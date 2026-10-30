@@ -482,9 +482,15 @@ export function dockDps(state) {
     const has =
       (batch.status === "done" || batch.status === "cancelled") &&
       result?.completed > 0;
+    // No mean yet: the dash's label is the live one's, so the idle dock
+    // keeps its room for "Ready · seed …" in Batch mode too (#242, the
+    // page now opens in Batch).
+    if (!has || blocked) {
+      return { value: NO_DPS, label: "DPS" };
+    }
     return {
-      value: has && !blocked ? formatNumber(result.summary.mean, 1) : NO_DPS,
-      label: has && isStale(state, "batch") ? "avg, was" : "DPS avg",
+      value: formatNumber(result.summary.mean, 1),
+      label: isStale(state, "batch") ? "avg, was" : "DPS avg",
     };
   }
   const time = results?.time ?? 0;

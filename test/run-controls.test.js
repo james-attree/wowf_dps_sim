@@ -1945,9 +1945,10 @@ describe("the phone dock (#240, UX2)", () => {
     page.actions.run();
     page.client.job.onProgress({ completed: 2, total: 4, mean: 310 });
     assert.equal(dockText(page.store.get()).status, "Running · 2/4");
+    // No mean yet: a dash, labelled as the live one is (#242).
     assert.deepEqual(dockDps(page.store.get()), {
       value: NO_DPS,
-      label: "DPS avg",
+      label: "DPS",
     });
     page.client.job.resolve(
       batchResult({
