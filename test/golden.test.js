@@ -473,30 +473,57 @@ describe("the scripted golden cases", () => {
     );
   });
 
-  it("FINISHER_SCRIPT_IN_BUDGET finishes on seeds 1 to 200, with Rupture and Eviscerate cast", () => {
-    // runScriptedFight throws when a cast is still waiting at the end.
+  it("FINISHER_SCRIPT_IN_BUDGET finishes on seeds 1 to 200, with Eviscerate cast by the budget's time", () => {
+    // runScriptedFight throws when a cast is still waiting at the end. The
+    // fight is the case's own length, and the latest Eviscerate is no later
+    // than the energy budget allows with every attack landed (44.5 s): a
+    // slower energy regen in the engine moves it later even when the script
+    // still finishes inside the fight (Kira's #248 QA, polish 1).
+    const { duration } = GOLDEN_CASES.find(
+      (goldenCase) => goldenCase.script === FINISHER_SCRIPT_IN_BUDGET,
+    );
+    const latestAllowed =
+      (scriptCost(FINISHER_SCRIPT_IN_BUDGET) - new Rogue().energy) /
+      k("energy.regenPerSecond");
+    assert.equal(latestAllowed, 44.5);
+    let latest = 0;
     for (let seed = 1; seed <= 200; seed++) {
-      const { abilities } = runScriptedFight({
+      const { abilities, log } = runScriptedFight({
         seed,
-        duration: 50,
+        duration,
         script: FINISHER_SCRIPT_IN_BUDGET,
       });
       assert.equal(abilities.Rupture?.casts, 1, `seed ${seed}`);
       assert.equal(abilities.Eviscerate?.casts, 1, `seed ${seed}`);
       assert.equal(abilities["Sinister Strike"]?.casts, 10, `seed ${seed}`);
       assert.equal(abilities.Hemorrhage?.casts, 1, `seed ${seed}`);
+      const eviscerates = log.filter((entry) => entry.name === "Eviscerate");
+      assert.equal(eviscerates.length, 1, `seed ${seed}`);
+      latest = Math.max(latest, eviscerates[0].time);
     }
+    // Within the engine's own float tolerance (sim.tickEpsilon, 1e-9 s): 62 of
+    // seeds 1-200 land exactly on 44.5 s, so a rate one ulp lower would put
+    // them at 44.50000000000001 (Kira's #250 QA, polish 1).
+    assert.ok(
+      latest <= latestAllowed + k("sim.tickEpsilon"),
+      `the latest Eviscerate is at ${latest} s, after the budget's ${latestAllowed} s`,
+    );
   });
 
   it("the retired #85 script does not finish on every seed, and the one left waiting is Eviscerate", () => {
+    const { duration } = GOLDEN_CASES.find(
+      (goldenCase) => goldenCase.script === FINISHER_SCRIPT_IN_BUDGET,
+    );
     let unfinished = 0;
     for (let seed = 1; seed <= 200; seed++) {
       try {
-        runScriptedFight({ seed, duration: 50, script: RETIRED_SCRIPT });
+        runScriptedFight({ seed, duration, script: RETIRED_SCRIPT });
       } catch (error) {
         assert.match(
           error.message,
-          /1 cast still waiting after 50s, next "eviscerate"/,
+          new RegExp(
+            `1 cast still waiting after ${duration}s, next "eviscerate"`,
+          ),
         );
         unfinished += 1;
       }

@@ -257,6 +257,38 @@ describe("createLiveRun (#153)", () => {
     assert.equal(live.state, "idle");
   });
 
+  // Issue #234 (Kira's #250 QA, polish 4). Only an ordinary object is read as
+  // options, as in Simulation: a Map with its own seed was a run on it.
+  it("refuses a Map or another built-in, even with its own seed, and starts nothing", () => {
+    const { live, store, frames } = setup();
+    for (const [bad, got] of [
+      [new Map(), "a Map"],
+      [new Set(), "a Set"],
+      [new Uint8Array(1), "a Uint8Array"],
+    ]) {
+      Object.assign(bad, { seed: SEED, duration: 1 });
+      assert.throws(
+        () => live.run(bad),
+        {
+          name: "RangeError",
+          message: `live.run needs an options object: { seed, duration, config }. Got ${got}.`,
+        },
+        got,
+      );
+      assert.throws(
+        () => live.clear(bad),
+        {
+          name: "RangeError",
+          message: `live.clear needs an options object: { seed, config }. Got ${got}.`,
+        },
+        got,
+      );
+    }
+    assert.equal(store.get().run.state, "idle");
+    assert.equal(frames.pending, null);
+    assert.equal(live.state, "idle");
+  });
+
   it("reads only its own options: an inherited one is not given (#238 QA)", () => {
     const { live, store } = setup();
     // A duration on the prototype is not this run's: the length is the

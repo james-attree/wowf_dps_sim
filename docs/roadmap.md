@@ -65,7 +65,7 @@ source of truth, and this list will go stale.
 - [#199](https://github.com/james-attree/wowf_dps_sim/issues/199) — [P3.5-13] Parity gate and switch-over (goldens move here, once) — merged (PR #232): the event core is the default
 - [#207](https://github.com/james-attree/wowf_dps_sim/issues/207) — [P3.5-15] Guard Hemorrhage, Ghostly Strike and Premeditation as talent-granted abilities — merged (PR #210)
 - [#200](https://github.com/james-attree/wowf_dps_sim/issues/200) — [P3.5-14] Remove the legacy engine, docs and phase wrap-up — closed; continued in #234
-- [#234](https://github.com/james-attree/wowf_dps_sim/issues/234) — [P3.5-14] Phase 3.5 wrap-up: remove the legacy engine, docs and polish (continues #200) — in progress: PR 1 removes the fixed-step engine (last commit tagged `legacy-engine-final`) and retires the parity gate; PR 2 is engine polish; PR 3 makes the scripted finishers case finish on seeds 1 to 200 with its own golden
+- [#234](https://github.com/james-attree/wowf_dps_sim/issues/234) — [P3.5-14] Phase 3.5 wrap-up: remove the legacy engine, docs and polish (continues #200) — PR 1 (#236) removed the fixed-step engine (last commit tagged `legacy-engine-final`) and retired the parity gate; PR 2 (#238) was engine polish; PR 3 (#248) made the scripted finishers case finish on seeds 1 to 200 with its own golden; PR 4 is the last polish and closes the issue
 
 ## Phase 3 status
 

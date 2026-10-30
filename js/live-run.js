@@ -2,6 +2,7 @@ import { FrameClock } from "./frame-clock.js";
 import { createLiveFeed } from "./live-feed.js";
 import { normalizeConfig } from "./sim-config.js";
 import { createFight } from "./fight.js";
+import { describeValue, isOrdinaryObject } from "./ordinary-object.js";
 import { SimRunner } from "./sim-runner.js";
 
 // The live page's run (#153): one SimRunner per Run, driven by animation
@@ -46,15 +47,13 @@ const CLEAR_OPTIONS = Object.freeze(["seed", "config"]);
 // live.run() and live.clear() need an options object: both need a seed, and
 // neither was ever callable without one (Object.keys and the destructuring
 // threw a TypeError). null, undefined, an array or anything that is not an
-// object is a RangeError that says so, as in runFight and SimRunner (#238 QA).
+// object is a RangeError that says so, as in runFight and SimRunner (#238 QA);
+// so is a Map, a Set or another built-in, even with its own seed, as in
+// Simulation (Kira's #250 QA, polish 4).
 function checkOptions(where, options, names) {
-  if (
-    options === null ||
-    typeof options !== "object" ||
-    Array.isArray(options)
-  ) {
+  if (!isOrdinaryObject(options)) {
     throw new RangeError(
-      `${where} needs an options object: { ${names.join(", ")} }. Got ${describe(options)}.`,
+      `${where} needs an options object: { ${names.join(", ")} }. Got ${describeValue(options)}.`,
     );
   }
   for (const key of Object.keys(options)) {
@@ -64,13 +63,6 @@ function checkOptions(where, options, names) {
       );
     }
   }
-}
-
-// What a bad options value was, for the RangeError (#238 QA).
-function describe(value) {
-  if (value === null) return "null";
-  if (Array.isArray(value)) return "an array";
-  return typeof value;
 }
 
 // Own options only, as checkOptions and runFight read them (#209): one an

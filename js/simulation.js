@@ -12,6 +12,7 @@ import { EventStream, RingLog, SIM_EVENT_TYPES } from "./event-stream.js";
 import { DOT_REFRESH } from "./core/dots.js";
 import { runOnCore } from "./core/fight.js";
 import { ProcRunner } from "./procs.js";
+import { describeValue, isOrdinaryObject } from "./ordinary-object.js";
 import { createRng, normalizeSeed } from "./rng.js";
 
 // Bleeds (physical periodic damage) and nature damage ignore armor. Other
@@ -72,13 +73,6 @@ function readFightLength(fightLength) {
 
 const SIMULATION_OPTIONS = Object.freeze(["seed", "rng", "fightLength"]);
 
-// What a bad options value was, for the RangeError (#238 QA).
-function describe(value) {
-  if (value === null) return "null";
-  if (Array.isArray(value)) return "an array";
-  return typeof value;
-}
-
 export class Simulation {
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
@@ -98,15 +92,12 @@ export class Simulation {
   //
   // No options (undefined) is the defaults, as it always was. null, an array
   // or anything that is not an object is a RangeError that says so, not
-  // Object.keys's TypeError (#238 QA).
+  // Object.keys's TypeError (#238 QA); so is a Map, a Set, a WeakMap or
+  // another built-in, which would otherwise be quietly the defaults (#248 QA).
   constructor(rogue, options = {}) {
-    if (
-      options === null ||
-      typeof options !== "object" ||
-      Array.isArray(options)
-    ) {
+    if (!isOrdinaryObject(options)) {
       throw new RangeError(
-        `Simulation needs an options object: { ${SIMULATION_OPTIONS.join(", ")} }, or none. Got ${describe(options)}.`,
+        `Simulation needs an options object: { ${SIMULATION_OPTIONS.join(", ")} }, or none. Got ${describeValue(options)}.`,
       );
     }
     for (const key of Object.keys(options)) {
