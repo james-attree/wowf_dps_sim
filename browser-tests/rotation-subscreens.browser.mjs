@@ -275,7 +275,7 @@ for (const [width, height] of SIZES) {
       // What each live region says, in order.
       await page.evaluate(() => {
         globalThis.__said = [];
-        const watch = new MutationObserver((changes) => {
+        const watch = new globalThis.MutationObserver((changes) => {
           for (const change of changes) {
             const region =
               change.target.closest?.("[role='status']") ??
