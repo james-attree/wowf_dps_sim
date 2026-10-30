@@ -365,6 +365,92 @@ for (const width of WIDTHS) {
   });
 }
 
+// Fran's #228 QA (nit 1; #234): a Duplicate that brings up the warnings
+// banner above the screen scrolls it into view, below the sticky run bar,
+// when the focus it moves to the new rule stays on screen too. When the two
+// cannot both be on screen the focus wins (WCAG 2.4.11), and the new rule's
+// own warning is brought on screen instead.
+const DUPLICATED_NEAR = 0;
+const DUPLICATED_FAR = 3;
+// A screen tall enough for the banner and the new rule's first condition.
+const TALL_SCREEN = 1400;
+const SCREEN = 900;
+for (const width of [1280, 390, 360]) {
+  test(`the warnings banner a Duplicate brings up is in view at ${width}px (#234)`, async () => {
+    const opened = [];
+    try {
+      const after = async (at, height) => {
+        const { context, page, errors } = await openBuilder(width);
+        opened.push({ context, errors });
+        await page.setViewportSize({ width, height });
+        assert.equal(await page.locator("#rb-warnings").count(), 0);
+        await clickCentre(rule(page, at).locator("[data-key$='.dup']"));
+        await page.locator("#rb-warnings").waitFor({ state: "visible" });
+        await page.evaluate(
+          () =>
+            new Promise((done) =>
+              globalThis.requestAnimationFrame(() => done()),
+            ),
+        );
+        return page.evaluate((at) => {
+          const bar = document.querySelector("#run-bar");
+          const banner = document.querySelector("#rb-warnings");
+          const margin = parseFloat(getComputedStyle(banner).scrollMarginTop);
+          const focus = document.activeElement.getBoundingClientRect();
+          const card = document.querySelectorAll("#rotation-builder li.rule")[
+            at + 1
+          ];
+          // The new rule's own warning: it is never reached.
+          const chip = card.querySelector(".rule-msgs");
+          return {
+            margin,
+            sticky: getComputedStyle(bar).position === "sticky",
+            barBottom: bar.getBoundingClientRect().bottom,
+            bannerTop: banner.getBoundingClientRect().top,
+            focusTop: focus.top,
+            focusBottom: focus.bottom,
+            chipTop: chip?.getBoundingClientRect().top ?? null,
+            key: document.activeElement.getAttribute("data-key"),
+            height: globalThis.innerHeight,
+          };
+        }, at);
+      };
+      const onScreen = (at, top, bottom = top) =>
+        top >= (at.sticky ? at.barBottom : 0) - 1 && bottom <= at.height + 1;
+
+      const near = await after(DUPLICATED_NEAR, TALL_SCREEN);
+      assert.ok(near.key !== null, "the focus is on the new rule");
+      assert.ok(
+        onScreen(near, near.focusTop, near.focusBottom),
+        `the focus on screen: ${JSON.stringify(near)}`,
+      );
+      assert.ok(
+        onScreen(near, near.bannerTop),
+        `the banner in view below the bar: ${JSON.stringify(near)}`,
+      );
+      assert.ok(near.bannerTop >= near.margin - 1, "not under the run bar");
+
+      // A rule far below the banner, on a shorter screen.
+      const far = await after(DUPLICATED_FAR, SCREEN);
+      assert.ok(
+        onScreen(far, far.focusTop, far.focusBottom),
+        `the focus wins: ${JSON.stringify(far)}`,
+      );
+      assert.ok(
+        far.chipTop !== null && onScreen(far, far.chipTop),
+        `the new rule's warning on screen: ${JSON.stringify(far)}`,
+      );
+      for (const { errors } of opened) {
+        assert.deepEqual(errors, []);
+      }
+    } finally {
+      for (const { context } of opened) {
+        await context.close();
+      }
+    }
+  });
+}
+
 // #200 (Kira's #206 QA, c1): the rotation warnings lists below 520px, the
 // imported file's "What to check" and the builder's warnings banner, are not
 // clipped and the page does not scroll sideways. Fran's #224 QA (N1): nor
@@ -372,7 +458,9 @@ for (const width of WIDTHS) {
 // at its 160px cap on wide screens) must be a focusable, labelled region.
 // Fran's #226 QA (1): nor clipped by a box around it, one that hides its
 // overflow or caps its height (her mutation E, an import box capped at 100px
-// with its overflow hidden, passed before).
+// with its overflow hidden, passed before). Fran's #228 QA (nit 2; #234): nor
+// by one that contains its paint at a fixed height, nor by a clip-path on it
+// or around it.
 for (const width of [1280, 390, 360]) {
   test(`the rotation warnings lists fit at ${width}px (#200)`, async () => {
     const { context, page, errors } = await openBuilder(width);
@@ -387,19 +475,27 @@ for (const width of [1280, 390, 360]) {
             el.tabIndex === 0 &&
             el.getAttribute("role") === "region" &&
             el.hasAttribute("aria-label");
+          // Paint containment clips to the box as overflow: hidden does
+          // ("strict" and "content" include it).
+          const paintContained = (el) =>
+            /\b(paint|strict|content)\b/.test(getComputedStyle(el).contain);
           // The boxes around it, up to the page, that can clip it: overflow
-          // not visible (hidden, clip, auto or scroll) or a max-height.
+          // not visible (hidden, clip, auto or scroll), a max-height, or
+          // paint containment.
           const around = [];
+          const ancestors = [];
           for (
             let el = root.parentElement;
             el !== null && el !== document.body;
             el = el.parentElement
           ) {
+            ancestors.push(el);
             const style = getComputedStyle(el);
             if (
               style.overflowX !== "visible" ||
               style.overflowY !== "visible" ||
-              style.maxHeight !== "none"
+              style.maxHeight !== "none" ||
+              paintContained(el)
             ) {
               around.push(el);
             }
@@ -442,10 +538,22 @@ for (const width of [1280, 390, 360]) {
                   at.left < box.left - 1 ||
                   at.right > box.right + 1;
                 const capped =
-                  getComputedStyle(el).overflowY !== "visible" &&
+                  (getComputedStyle(el).overflowY !== "visible" ||
+                    paintContained(el)) &&
                   el.scrollHeight > el.clientHeight + 1 &&
                   !region(el);
                 return outside || capped;
+              })
+              .map((el) => el.outerHTML.slice(0, 80)),
+            // A clip-path on it, on a part of it or on a box around it; not
+            // a visually hidden one-pixel text for screen readers.
+            clipPathed: [...ancestors, ...parts]
+              .filter((el) => {
+                const { width, height } = el.getBoundingClientRect();
+                return (
+                  getComputedStyle(el).clipPath !== "none" &&
+                  (width > 1 || height > 1)
+                );
               })
               .map((el) => el.outerHTML.slice(0, 80)),
             wide:
@@ -488,6 +596,11 @@ for (const width of [1280, 390, 360]) {
         [],
         "import warnings not clipped by a box around them",
       );
+      assert.deepEqual(
+        imported.clipPathed,
+        [],
+        "import warnings not clip-pathed",
+      );
       // Three warnings fit the box at every width, so it is not a Tab stop
       // (Fran's #226 QA, 2; the region case is the next test), and below
       // 520px it has no height cap, so all of it shows.
@@ -529,6 +642,11 @@ for (const width of [1280, 390, 360]) {
         banner.clippedAround,
         [],
         "builder warnings not clipped by a box around them",
+      );
+      assert.deepEqual(
+        banner.clipPathed,
+        [],
+        "builder warnings not clip-pathed",
       );
       assert.equal(banner.wide, false, "no sideways scroll (builder)");
       if (process.env.U9_SHOTS) {
@@ -618,6 +736,28 @@ test("the What to check box is a region only while it scrolls (#200)", async () 
         path: `${process.env.U9_SHOTS}/import-region-1280.png`,
       });
     }
+    // Resizes that leave it a region do not re-set its attributes (Fran's
+    // #228 QA, nit 5; #234).
+    const resets = await page.evaluate(async () => {
+      const pre = document.querySelector("#cfg-import-warnings-text");
+      const seen = [];
+      const observer = new globalThis.MutationObserver((records) =>
+        seen.push(...records.map((record) => record.attributeName)),
+      );
+      observer.observe(pre, {
+        attributes: true,
+        attributeFilter: ["tabindex", "role", "aria-label"],
+      });
+      for (let resize = 0; resize < 3; resize += 1) {
+        globalThis.dispatchEvent(new globalThis.Event("resize"));
+        await new Promise((done) =>
+          globalThis.requestAnimationFrame(() => done()),
+        );
+      }
+      observer.disconnect();
+      return seen;
+    });
+    assert.deepEqual(resets, [], "no attribute re-set on resize");
     // Focused, then the window narrows: no cap, no region, and the focus
     // goes to the box's summary rather than being lost.
     await page.focus("#cfg-import-warnings-text");

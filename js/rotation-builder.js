@@ -601,9 +601,11 @@ export function createRotationBuilder(store, formActions) {
       .map((rule, index) => [skipOf(rule, talents), index])
       .filter(([skip]) => skip !== null);
     const anyTalent = rules.some((rule) => abilityFacts(rule.action).talent);
+    // "skipped with no talents" when none are picked, as "this build" reads
+    // oddly then (Fran's #232 QA, nit 5; #234).
     const context = `${
       skipped.length > 0
-        ? `${count(skipped.length, "rule")} ${skipped.length === 1 ? "is" : "are"} skipped with this build (${skipped.map(([, index]) => `rule ${index + 1}`).join(", ")}).`
+        ? `${count(skipped.length, "rule")} ${skipped.length === 1 ? "is" : "are"} skipped with ${talents.build.selected ? "this build" : "no talents"} (${skipped.map(([, index]) => `rule ${index + 1}`).join(", ")}).`
         : anyTalent
           ? "Every talent ability in the list has its talent."
           : "No rule needs a talent."

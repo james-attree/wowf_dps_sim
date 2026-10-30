@@ -4,6 +4,7 @@ import { abilityCatalogue } from "./abilities.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { talentLabel } from "./build-label.js";
 import { iconUrl, talentIconUrl } from "./icons.js";
+import { skipOf, talentState } from "./rotation-skips.js";
 import { normalizeConfig } from "./sim-config.js";
 import { snapshot } from "./snapshot.js";
 import {
@@ -407,11 +408,15 @@ function detailOf(ranks, id, level, info, catalogue) {
 }
 
 // The rules of the rotation that cast a talent's ability, and whether this
-// build lets them, by the engine's own test (Rogue.lockedByBuild): a talent
-// ability casts only with its talent, with no points spent too (no talents
-// is untalented, #199). Like the rotation preview it knows no host grants:
-// see js/rotation-skips.js talentState.
+// build lets them: the rotation preview's own answer (js/rotation-skips.js
+// skipOf), so the tree, the builder's cards and the form's summary agree. A
+// talent ability casts only with its talent, with no points spent too (no
+// talents is untalented, #199), and only when the rule's own talent checks
+// hold: a Blade Flurry rule guarded by "Cold Blood is granted" is skipped
+// without Cold Blood (Fran's #232 QA, nit 2; #234). Like the preview it knows
+// no host grants: see talentState there.
 function rotationLines(ranks, rotation, info) {
+  const state = talentState({ talents: ranks });
   const granting = new Map();
   for (const talent of info.values()) {
     if (talent.ability !== null) {
@@ -424,13 +429,14 @@ function rotationLines(ranks, rotation, info) {
     if (talent === undefined) {
       return;
     }
-    const casts = rankOf(ranks, talent.id) > 0;
+    const skip = skipOf(rule, state);
     lines.push({
-      ok: casts,
+      ok: skip === null,
       name: talent.ability.name,
-      text: casts
-        ? ` · rule ${index + 1} casts it`
-        : ` · rule ${index + 1} skipped: no ${talent.name} talent`,
+      text:
+        skip === null
+          ? ` · rule ${index + 1} casts it`
+          : ` · rule ${index + 1} skipped: ${skip.text}`,
     });
   });
   return lines;
@@ -440,17 +446,20 @@ function rotationLines(ranks, rotation, info) {
 // every talent ability the rotation lists (Blade Flurry, Adrenaline Rush and
 // Cold Blood, in the default rotation).
 // The verb follows the skipped rules, not the names: one ability in two rules
-// is "rules need".
+// is "rules need". Two or more abilities need "their talents" (Fran's #232
+// QA, nit 1; #234).
 function emptyBuildNote(lines) {
   const skippedRules = lines.filter(({ ok }) => !ok);
   const skipped = [...new Set(skippedRules.map(({ name }) => name))];
-  const need = skippedRules.length === 1 ? "rule needs" : "rules need";
+  const verb = skippedRules.length === 1 ? "rule needs" : "rules need";
+  const need =
+    skipped.length > 1 ? `${verb} their talents` : `${verb} the talent`;
   const names =
     skipped.length > 1
       ? `${skipped.slice(0, -1).join(", ")} and ${skipped.at(-1)}`
       : skipped.join("");
   return skipped.length > 0
-    ? `With no talents picked, the fight is untalented: the sim skips ${names}, whose ${need} the talent.`
+    ? `With no talents picked, the fight is untalented: the sim skips ${names}, whose ${need}.`
     : "With no talents picked, the fight is untalented.";
 }
 
@@ -574,7 +583,12 @@ export function talentTreeView(
       // The rank as the tile shows it ("0/5"), so the name holds the tile's
       // visible text (WCAG 2.5.3, Fran's #232 QA; #200).
       const rankText = `${rank}/${talent.max}`;
+      // Name first (Scout, #233), then "ability" before the long lock reason
+      // so it does not read as an afterthought (Fran's #233 QA, nit 5; #234).
       const parts = [`${talent.name}, ${rankText}`];
+      if (!talent.passive) {
+        parts.push("ability");
+      }
       if (state === "locked") {
         parts.push(`locked: ${lock.text.replace(/\.$/, "")}`);
       }
@@ -582,10 +596,9 @@ export function talentTreeView(
         parts.push("no points left");
       }
       if (known.coverage !== "simulated") {
-        parts.push(COVERAGE_NAMES[known.coverage].toLowerCase());
-      }
-      if (!talent.passive) {
-        parts.push("ability");
+        // "no DPS effect", as the legend says it (Fran's #233 QA, nit 4).
+        const coverageName = COVERAGE_NAMES[known.coverage];
+        parts.push(coverageName[0].toLowerCase() + coverageName.slice(1));
       }
       return {
         id: talent.id,
@@ -777,7 +790,9 @@ export function createTalentTree(
     const view = viewOf(next);
     const talent = info.get(id);
     const tree = view.trees.find(({ id: treeId }) => treeId === talent.tree);
-    return `${talent.name} ${rankOf(next.ranks, id)} of ${talent.max}. ${tree.name} ${tree.pointsText}. ${view.pointsLine}.`;
+    // The rank as the tile's name says it, "1/5" (Fran's #233 QA, nit 1;
+    // #234); the points line stays "1 of 51 spent", as it is shown.
+    return `${talent.name} ${rankOf(next.ranks, id)}/${talent.max}. ${tree.name} ${tree.pointsText}. ${view.pointsLine}.`;
   }
 
   function known(id) {

@@ -284,7 +284,7 @@ const COPY = {
   grantedNotTalent: (entry) =>
     `${nameOf(entry.ability)} isn't granted by a talent, so 'is granted' is never true here and this rule never casts.`,
   unlockedNotTalent: (entry) =>
-    `${nameOf(entry.ability)} doesn't need a talent, so 'is unlocked' is always true and does nothing.`,
+    `${nameOf(entry.ability)} doesn't need a talent, so 'is not locked' is always true and does nothing.`,
 };
 
 // The builder's line for an entry; the engine's message for a code it has

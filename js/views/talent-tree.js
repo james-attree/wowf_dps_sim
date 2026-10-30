@@ -333,11 +333,11 @@ export function createTalentTreeView(
     return {
       rank: make("span", { class: "talent-rank", "aria-hidden": "true" }),
       lock,
-      // Its "ⓘ" is drawn by the stylesheet (talent-tree.css), not text, so
-      // the tile's visible text is just its rank, which its name holds
-      // (WCAG 2.5.3, Fran's #232 QA; #200).
+      // Their "ⓘ" and "–" are drawn by the stylesheet (talent-tree.css), not
+      // text, so the tile's visible text is just its rank, which its name
+      // holds (WCAG 2.5.3, Fran's #232 QA; "–" too, Fran's #233 QA, nit 3).
       notSimulated: hiddenSpan({ class: "talent-cov is-notsim" }),
-      noDps: hiddenSpan({ class: "talent-cov" }, ["–"]),
+      noDps: hiddenSpan({ class: "talent-cov is-nodps" }),
       active: hiddenSpan({ class: "talent-active" }),
     };
   }

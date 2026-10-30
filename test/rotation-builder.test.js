@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
+import { referenceBuild } from "../data/reference-build.js";
 import {
   createConfigForm,
   draftEdited,
   listedLines,
   nextRunConfig,
   pageDefaultConfig,
+  summaryOf,
 } from "../js/config-form.js";
 import {
   conditionFields,
@@ -58,6 +60,22 @@ function setup() {
 const DEFAULT_ACTIONS = defaultRotation().rules.map((rule) => rule.action);
 
 describe("the builder opens on the rotation picked in Fight setup", () => {
+  it("says a rule is skipped with no talents, or with this build (Fran's #232 QA, nit 5; #234)", () => {
+    const { store, view } = setup();
+    assert.equal(
+      view().context.text,
+      "3 rules are skipped with no talents (rule 1, rule 2, rule 5). ",
+    );
+    const ranks = { ...referenceBuild() };
+    delete ranks["assassination.cold-blood"];
+    store.update((state) => ({
+      config: { ...state.config, talents: ranks },
+    }));
+    assert.equal(
+      view().context.text,
+      "1 rule is skipped with this build (rule 5). ",
+    );
+  });
   it("shows its rules, unedited, and changes nothing", () => {
     const { store, view, actions } = setup();
     assert.equal(view().open, true);
@@ -635,7 +653,14 @@ describe("the config form's drafts (#217)", () => {
     const line = store
       .get()
       .form.summary.rules.find((rule) => rule.startsWith("Cold Blood"));
-    assert.match(line, /— skipped: no Cold Blood talent$/);
+    // With no talents it says that plainly (Fran's #232 QA, nit 4; #234).
+    assert.match(line, /— skipped with no talents$/);
+    const ranks = { ...referenceBuild() };
+    delete ranks["assassination.cold-blood"];
+    const built = summaryOf(defaultRotation(), {
+      talents: talentState({ talents: ranks }),
+    }).rules.find((rule) => rule.startsWith("Cold Blood"));
+    assert.match(built, /— skipped: no Cold Blood talent$/);
   });
 });
 
@@ -922,7 +947,7 @@ describe("Fran's re-check of #218 (c3b0f5a)", () => {
     );
     assert.equal(
       entryText(entries[1], rotation),
-      "Eviscerate doesn't need a talent, so 'is unlocked' is always true and does nothing.",
+      "Eviscerate doesn't need a talent, so 'is not locked' is always true and does nothing.",
     );
   });
 });
