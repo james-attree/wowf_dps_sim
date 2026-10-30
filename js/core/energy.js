@@ -274,6 +274,18 @@ export class EnergyPool {
     return this.#wake;
   }
 
+  // Put back a wake a run before left (CoreFight.begin, #231 QA B1): the
+  // amount, at the very time it had, so a fight run in two parts wakes as
+  // one run would. Worked out again here, the time can come out a hair
+  // earlier. A time null or before now is worked out as wakeAt does.
+  resumeWake(amount, time) {
+    checkAmount(this.definition, "wake at", amount);
+    this.#dropRanWake();
+    this.#wakeAmount = amount;
+    this.#placeWake(time);
+    return this.#wake;
+  }
+
   cancelWake() {
     this.#wakeAmount = null;
     this.#placeWake();
@@ -298,7 +310,7 @@ export class EnergyPool {
     }
   }
 
-  #placeWake() {
+  #placeWake(at = null) {
     this.#dropRanWake();
     if (this.#wake !== null) {
       this.#wake.cancel();
@@ -307,7 +319,10 @@ export class EnergyPool {
     if (this.#wakeAmount === null) {
       return;
     }
-    const time = this.#reachTime(this.#wakeAmount);
+    const time =
+      at !== null && at >= this.#scheduler.now
+        ? at
+        : this.#reachTime(this.#wakeAmount);
     if (time === null) {
       return;
     }

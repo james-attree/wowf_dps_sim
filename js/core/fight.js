@@ -54,6 +54,55 @@ const AURA_MAPS = Object.freeze(["activeBuffs", "activeDebuffs"]);
 // The payload of a decision point set for a condition crossing (armWakes).
 const CONDITION_WAKE = Object.freeze({ wake: "condition" });
 
+// What a decision reads, as a flat list of values and objects, for telling
+// whether the fight was changed between two runs (#231 QA B1): the timers'
+// fields, every aura and DoT entry with its own fields, the pools, the
+// swings, the rotation, build and modifiers, and the fight length. carry()
+// keeps the list a run closes with; the next run compares it with the one
+// it opens on.
+function decisionMarks(sim) {
+  const { rogue } = sim;
+  const marks = [
+    sim.gcd,
+    sim.fightLength,
+    rogue.rotationProgram,
+    rogue.config,
+    rogue.build,
+    rogue.build.selected,
+    rogue.granted,
+    rogue.granted.size,
+    sim.modifiers,
+    rogue.weapons.mainHand,
+    rogue.weapons.mainHand.swingTimer,
+    rogue.weapons.offHand,
+    rogue.weapons.offHand.swingTimer,
+  ];
+  const entries = (object) => {
+    for (const [id, value] of Object.entries(object)) {
+      marks.push(id, value);
+      if (value !== null && typeof value === "object") {
+        marks.push(...Object.entries(value).flat());
+      }
+    }
+  };
+  marks.push("cooldowns");
+  entries(sim.cooldowns);
+  for (const map of AURA_MAPS) {
+    marks.push(map);
+    entries(sim[map]);
+  }
+  marks.push("dots");
+  entries(sim.activeDots);
+  for (const [id, pool] of Object.entries(rogue.resources)) {
+    marks.push(id, pool, pool.value, pool.baseMax, pool.expiryRemaining);
+  }
+  return marks;
+}
+
+function sameMarks(a, b) {
+  return a.length === b.length && a.every((mark, i) => Object.is(mark, b[i]));
+}
+
 function nudgeUp(time) {
   return time + Math.max(Math.abs(time) * Number.EPSILON, Number.MIN_VALUE);
 }
@@ -78,7 +127,9 @@ function emptyStats() {
 // the core keeps the fight's clock, and close() leaves sim.coreCarry, the
 // exact ends, clocks, swing grids and energy line, which the next run takes
 // for every field still as it was written (see CoreFight.carry). Only the
-// core's own counts differ: each run asks the rotation once at its start.
+// core's own counts can differ. With nothing changed between the runs the
+// next one keeps the last decision's wakes and does not ask the rotation at
+// its start (#231 QA B1); on a changed fight it asks once there.
 // Does not end the fight (Simulation.run does). Two options are for tests
 // only: `pollEvery` adds a look at the rotation every so many seconds on top
 // of the decision points (what it casts is recorded in
@@ -248,6 +299,9 @@ class CoreFight {
     // While begin() runs: what the last run on this fight left
     // (sim.coreCarry, see carry()), when it closed at this run's start.
     this.carried = null;
+    // The condition wake the last decision asked for (armWakes), also when
+    // it is past the end and so not scheduled, for the carry.
+    this.conditionWake = null;
   }
 
   get now() {
@@ -261,6 +315,11 @@ class CoreFight {
     const carry = sim.coreCarry;
     sim.coreCarry = null;
     this.carried = carry?.time === scheduler.now ? carry : null;
+    // The fight is as the last run left it: nothing a decision reads was
+    // changed between the runs (#231 QA B1). Read before the pool is swapped.
+    let intact =
+      this.carried !== null &&
+      sameMarks(this.carried.marks, decisionMarks(sim));
     // The continuous pool in place of the legacy one, from its value.
     const legacy = rogue.resources.energy;
     if (legacy !== undefined) {
@@ -287,6 +346,7 @@ class CoreFight {
         (pool.line.rate !== item.line.rate || pool.line.cap !== item.line.cap)
       ) {
         pool = make();
+        intact = false;
       }
       pool.onChange = (change, before, source) =>
         sim.emitResource(pool, change, before, source);
@@ -344,7 +404,27 @@ class CoreFight {
       this.schedulePoll(carried?.poll ?? scheduler.now + this.pollEvery);
     }
     this.carried = null;
-    this.requestDecision(scheduler.now);
+    if (intact) {
+      // One run would not ask the rotation here: there is no event at this
+      // time, and the last decision's wakes are still the ones to keep. A
+      // decision here would see a GCD or cooldown ending within
+      // sim.tickEpsilon as ready and cast early (#231 QA B1).
+      this.resumeWakes(carry.wakes);
+    } else {
+      this.requestDecision(scheduler.now);
+    }
+  }
+
+  // The wakes the last decision of the run before armed (armWakes): the
+  // energy threshold on the carried line, and the condition crossing.
+  resumeWakes({ energy, condition }) {
+    if (this.energy !== null && energy !== null) {
+      this.energy.resumeWake(energy.amount, energy.time);
+    }
+    this.conditionWake = condition;
+    if (condition !== null && condition <= this.scheduler.endTime) {
+      this.requestDecision(condition, CONDITION_WAKE);
+    }
   }
 
   // What a run that starts where this one closes needs to go on as one run
@@ -410,6 +490,14 @@ class CoreFight {
         ]),
       ),
       poll: this.nextPoll,
+      wakes: {
+        energy:
+          this.energy?.wakeAmount == null
+            ? null
+            : { amount: this.energy.wakeAmount, time: this.energy.wakeTime },
+        condition: this.conditionWake,
+      },
+      marks: decisionMarks(sim),
       energy:
         this.energy === null
           ? undefined
@@ -814,6 +902,7 @@ class CoreFight {
       }
     }
     const at = Math.max(wake, nudgeUp(this.scheduler.now));
+    this.conditionWake = at === Number.POSITIVE_INFINITY ? null : at;
     if (at <= this.scheduler.endTime) {
       this.requestDecision(at, CONDITION_WAKE);
     }

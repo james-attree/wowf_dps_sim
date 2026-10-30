@@ -719,3 +719,82 @@ describe("step() while a core is open (#231 QA)", () => {
     assert.equal(simulation.currentTime, 5 + 1 / 64);
   });
 });
+
+// #231 QA B1: a run that starts on a fight left as it was does not ask the
+// rotation at its start. One run would not ask there, and a decision there
+// sees a GCD or cooldown ending within sim.tickEpsilon as ready and casts
+// early. The next run keeps the last decision's wakes instead.
+describe("a cut just before a decision time is the fight in one run (#231 QA B1)", () => {
+  const FINISHERS = CONFIGS.find(({ name }) => name.startsWith("finishers"));
+
+  it("Kira's repro: finishers seed 5 cut 1e-12 and 2e-9 before the GCD ends at 3", () => {
+    for (const cut of [3 - 1e-12, 3 - 2e-9]) {
+      for (const run of [byCore, bySim]) {
+        assertSame(
+          oneAndSplit(5, FINISHERS.config, 50, [cut], run),
+          `cut at ${cut}`,
+        );
+      }
+    }
+  });
+
+  it("the runner's frame times, i / 60, over every parity config", () => {
+    const cuts = Array.from({ length: 60 * 60 - 1 }, (_, i) => (i + 1) / 60);
+    for (const { name, config } of CONFIGS) {
+      for (const seed of [1, 2]) {
+        assertSame(
+          oneAndSplit(seed, config, 60, cuts, bySim),
+          `${name} seed ${seed}`,
+        );
+      }
+    }
+  });
+
+  it("keeps the energy wake at its own time (hemorrhage seed 16)", () => {
+    // Energy is already a hair over the threshold at the cut, while one run
+    // wakes at the time worked out before it: worked out again at the cut,
+    // the wake would cast at the cut.
+    const cut = 98.80000000000001;
+    const left = createFight(16, structuredClone(HEMO.config), {
+      duration: 120,
+      engine: EVENTS,
+    }).simulation;
+    left.run(cut);
+    const { energy } = left.coreCarry.wakes;
+    assert.ok(energy !== null && energy.time > cut, JSON.stringify(energy));
+    assertSame(oneAndSplit(16, HEMO.config, 120, [cut], bySim), "cut");
+  });
+
+  it("keeps a condition wake that lay past the last run's end", () => {
+    const { simulation } = createFight(16, structuredClone(HEMO.config), {
+      duration: 120,
+      engine: EVENTS,
+    });
+    simulation.run(98.80000000000001);
+    const { condition } = simulation.coreCarry.wakes;
+    assert.ok(condition > simulation.currentTime, String(condition));
+    assertSame(
+      oneAndSplit(16, HEMO.config, 120, [98.80000000000001], byCore),
+      "cut",
+    );
+  });
+
+  it("asks the rotation at the start once the fight was changed", () => {
+    const casts = (change) => {
+      const { simulation } = createFight(5, structuredClone(FINISHERS.config), {
+        duration: 20,
+        engine: EVENTS,
+      });
+      const times = [];
+      simulation.on("cast", (event) => times.push(event.time));
+      simulation.run(2.5);
+      change(simulation);
+      simulation.run(1);
+      return times;
+    };
+    const kept = casts(() => {});
+    assert.ok(!kept.includes(2.5), kept.join(", "));
+    // The GCD written as over: the rotation is asked at 2.5 and casts.
+    assert.ok(casts((sim) => (sim.gcd = 0)).includes(2.5));
+  });
+});
