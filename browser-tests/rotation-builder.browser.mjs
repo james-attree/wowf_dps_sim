@@ -53,6 +53,18 @@ async function openBuilder(width) {
   return { context, page, errors };
 }
 
+// The page's areas (#239): Fight setup's rotation controls are in the
+// Character area and the builder in Rotation. The nav moves between them;
+// the builder closes on leaving Rotation and opens on coming back.
+async function toArea(page, area) {
+  await page.click(`[data-nav-area="${area}"]`);
+  await page.waitForFunction(
+    (shown) =>
+      document.querySelector(`[data-area="${shown}"]`)?.hidden === false,
+    area,
+  );
+}
+
 const rules = (page) => page.locator("#rotation-builder li.rule");
 const rule = (page, at) => rules(page).nth(at);
 const names = (page) =>
@@ -171,6 +183,7 @@ for (const width of WIDTHS) {
         await page.locator("#run-status-text").textContent(),
         /Can't run · Rotation has 1 error/,
       );
+      await toArea(page, "character");
       // Export is off too, and says why (D17); a press writes no file.
       assert.equal(
         await page.getAttribute("#cfg-export", "aria-disabled"),
@@ -190,7 +203,7 @@ for (const width of WIDTHS) {
         await page.getAttribute("#cfg-summary-stale", "hidden"),
         null,
       );
-      await page.click("#cfg-rotation-edit");
+      // Leaving Rotation closed the builder.
       assert.equal(await page.isVisible("#rotation-builder"), false);
       await clickCentre(page.locator("#run-errors-link"));
       assert.equal(await page.isVisible("#rotation-builder"), true);
@@ -200,17 +213,18 @@ for (const width of WIDTHS) {
       );
       await page.keyboard.type("4");
       assert.equal(await page.isDisabled("#run-button"), false);
+      await page.waitForFunction(
+        () =>
+          document.querySelector("#rotation-builder .builder-live")
+            .textContent === "No errors left.",
+      );
+      await toArea(page, "character");
       assert.equal(await page.getAttribute("#cfg-summary-stale", "hidden"), "");
       assert.equal(
         await page.getAttribute("#cfg-export", "aria-disabled"),
         null,
       );
       assert.equal(await page.isVisible("#cfg-export-why"), false);
-      await page.waitForFunction(
-        () =>
-          document.querySelector("#rotation-builder .builder-live")
-            .textContent === "No errors left.",
-      );
     });
 
     test("a quick fix adds the missing combo point check", async () => {
@@ -231,8 +245,10 @@ for (const width of WIDTHS) {
         .locator("#cfg-rotation option")
         .nth(1)
         .getAttribute("value");
+      await toArea(page, "character");
       await page.selectOption("#cfg-rotation", other);
       await page.selectOption("#cfg-rotation", "default");
+      await toArea(page, "rotation");
       assert.deepEqual(await names(page), edited);
       await clickCentre(page.locator("[data-key='revert']"));
       assert.deepEqual(await names(page), before);
@@ -241,6 +257,7 @@ for (const width of WIDTHS) {
     });
 
     test("a refused import lists readable places, not raw paths (D4, section 5)", async () => {
+      await toArea(page, "character");
       await page.evaluate(() => {
         document.querySelector(".paste-import").open = true;
       });
@@ -268,6 +285,7 @@ for (const width of WIDTHS) {
     });
 
     test("a problem with the whole file reads 'File:' (Fran's P4 on #219)", async () => {
+      await toArea(page, "character");
       await page.evaluate(() => {
         document.querySelector(".paste-import").open = true;
       });
@@ -564,6 +582,7 @@ for (const width of [1280, 390, 360]) {
 
       // An imported rotation with warnings: a duplicate rule, a rule that
       // starves the one below, and a finisher with no combo point check.
+      await toArea(page, "character");
       await page.evaluate(() => {
         document.querySelector(".paste-import").open = true;
       });
@@ -629,8 +648,9 @@ for (const width of [1280, 390, 360]) {
         });
       }
 
-      // The builder's banner (open since openBuilder): a duplicated rule
+      // The builder's banner (open again in Rotation): a duplicated rule
       // warns, with its fix links.
+      await toArea(page, "rotation");
       await clickCentre(rule(page, 0).locator("[data-key$='.dup']"));
       await page.locator("#rb-warnings").waitFor({ state: "visible" });
       const banner = await fits("#rb-warnings");
@@ -680,6 +700,7 @@ test("the What to check box is a region only while it scrolls (#200)", async () 
       });
     const region = { tabIndex: 0, role: "region", label: "What to check" };
     const none = { tabIndex: -1, role: null, label: null };
+    await toArea(page, "character");
     await page.evaluate(() => {
       document.querySelector(".paste-import").open = true;
     });

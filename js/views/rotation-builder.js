@@ -1,4 +1,5 @@
 import { attachIconFallback } from "../icons.js";
+import { reveal } from "./sections.js";
 
 // The rotation builder's view (U7, #217; Fran's spec and mockup in
 // design/u7-rotation-builder/). It draws the store's `rotationBuilder.view`,
@@ -183,6 +184,8 @@ export function createRotationBuilderView(doc, store, actions) {
     if (edit === null) {
       return;
     }
+    // The talents are in the Character area (#239): it is shown first.
+    reveal(edit);
     if (edit.getAttribute("aria-expanded") !== "true") {
       edit.click();
     }

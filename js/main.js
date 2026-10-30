@@ -12,6 +12,8 @@ import { createControlsView } from "./views/controls.js";
 import { createResultsView } from "./views/results.js";
 import { createResultsPanelView } from "./views/results-panel.js";
 import { createRotationBuilderView } from "./views/rotation-builder.js";
+import { mountRouter } from "./views/router.js";
+import { PAGE_SECTIONS, createSections } from "./views/sections.js";
 import { createTalentTreeView } from "./views/talent-tree.js";
 import { createVisualiserView } from "./views/visualiser.js";
 
@@ -94,15 +96,48 @@ const formActions = createConfigForm(store);
 // The rotation builder (U7, #217) edits a draft through the form's actions;
 // the Run bar's "Fix" link opens it at the first rotation error.
 const builder = createRotationBuilder(store, formActions);
-createConfigFormView(document, store, formActions);
-createTalentTreeView(document, store, createTalentTree(store));
-createRotationBuilderView(document, store, builder);
-// Run checks the form's typed-in fields first (#247).
-createControlsView(document, store, {
-  ...actions,
-  fixRotation: builder.jumpToFirstError,
-  commitEdits: formActions.commitEdits,
+// The page's four areas (#239): each section is one of today's views, drawn
+// into its area's shell in index.html. js/views/sections.js holds their
+// status (what each adds to Run's blocked count); js/views/router.js shows
+// one area at a time and draws the nav. The router subscribes before the
+// views, so an area is shown before a view moves the focus into it.
+const renders = {
+  setup: () => createConfigFormView(document, store, formActions),
+  talents: () => createTalentTreeView(document, store, createTalentTree(store)),
+  rotation: () => {
+    createRotationBuilderView(document, store, builder);
+    // The Run bar is outside the areas: it stays on every screen. It is
+    // mounted here to keep the views' order (their store subscriptions) as
+    // it was before #239. Run checks the form's typed-in fields first (#247).
+    createControlsView(document, store, {
+      ...actions,
+      fixRotation: builder.jumpToFirstError,
+      commitEdits: formActions.commitEdits,
+    });
+  },
+  fight: () => {
+    createVisualiserView(document, store);
+    createResultsView(document, store);
+  },
+  results: () =>
+    createResultsPanelView(document, store, { buildLabel, poisonName }),
+};
+const sections = createSections();
+for (const section of PAGE_SECTIONS) {
+  sections.registerSection({
+    ...section,
+    render: () => {
+      renders[section.id]();
+      return () => {};
+    },
+  });
+}
+const router = mountRouter(document, store, sections, {
+  panels: {
+    rotation: {
+      isOpen: (state) => state.rotationBuilder?.view?.open === true,
+      toggle: () => builder.toggle(),
+    },
+  },
 });
-createVisualiserView(document, store);
-createResultsView(document, store);
-createResultsPanelView(document, store, { buildLabel, poisonName });
+router.start();

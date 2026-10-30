@@ -15,6 +15,7 @@ import {
   parseRunField,
   summaryText,
 } from "./run-model.js";
+import { reveal } from "./sections.js";
 
 // The run control bar (#153): the one home of Run, Pause, Stop and Reset, the
 // live/batch mode toggle, the fight length, fights and seed fields, the run
@@ -276,12 +277,14 @@ export function createControlsView(doc, store, actions = {}) {
   }
 
   // Focus the first setting to fix: what the "Fix" link and a blocked Run
-  // (#247) do.
+  // (#247) do. A setting in an area not shown has its area shown first
+  // (#239).
   function fixFirst() {
     const [first] = fieldErrors(store.get().run);
     if (first === undefined) {
       const field = firstFormField();
       if (field !== null) {
+        reveal(field);
         field.focus?.();
         return;
       }
@@ -300,7 +303,9 @@ export function createControlsView(doc, store, actions = {}) {
       if (edit?.getAttribute?.("aria-expanded") === "false") {
         edit.click?.();
       }
-      doc.querySelector("#talents-level")?.focus?.();
+      const level = doc.querySelector("#talents-level");
+      reveal(level);
+      level?.focus?.();
       return;
     }
     open = true;
