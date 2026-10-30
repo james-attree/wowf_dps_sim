@@ -648,8 +648,7 @@ export function validateBuild(
 
 // What a selected build gives a fight (D7). `ranks` is config.talents. A build
 // with no ranks is no build: `selected` is false, nothing is given, and the
-// fight is the one it was before talents (the placeholder rotation casts every
-// ability on its list). Any other build is validated, then expanded:
+// fight is untalented (the rotation casts no talent ability, #199). Any other build is validated, then expanded:
 //
 //   selected   whether a build was chosen (at least one rank above 0)
 //   points     the points it spends

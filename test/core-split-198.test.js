@@ -11,6 +11,7 @@ import { RESOURCE_DEFINITIONS } from "../js/resource-data.js";
 import { createRng } from "../js/rng.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { PARITY_CASES, PARITY_ONLY_CASES } from "../scripts/parity.mjs";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 
 // #198, from #197's QA (M1 and M2 on PR #230). M1: a fight cut into pieces on
 // the event core is the fight run in one piece, event for event. The core's
@@ -284,9 +285,11 @@ describe("what the carry leaves to the fields (#198)", () => {
   });
 
   it("a regen rate changed between runs does not reach back over the carried line", () => {
+    // Granted, as the untalented default casts no Adrenaline Rush (#199).
     const { simulation } = createFight(6, undefined, {
       duration: 30,
       engine: EVENTS,
+      ...COMBAT_GRANTS,
     });
     runOnCore(simulation, 3.1);
     const left = simulation.rogue.resources.energy.value;
@@ -788,6 +791,7 @@ describe("a cut just before a decision time is the fight in one run (#231 QA B1)
       const { simulation } = createFight(5, structuredClone(FINISHERS.config), {
         duration: 20,
         engine: EVENTS,
+        ...COMBAT_GRANTS,
       });
       const times = [];
       simulation.on("cast", (event) => times.push(event.time));

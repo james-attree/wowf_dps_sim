@@ -3,14 +3,19 @@ import { afterEach, describe, it, mock } from "node:test";
 import { k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 import { setRoll, testRng } from "./rolls.js";
+
+// The placeholder Combat rotation casts Blade Flurry and Adrenaline Rush only
+// when they are granted: since #199 no talents is untalented, so the fights
+// here get them from the host (test/combat-grants.js).
 
 const FRAME_RATES = [30, 144];
 const OMITTED = ["Ghostly Strike", "Premeditation", "Hemorrhage", "Rupture"];
 const FIGHT_SECONDS = 60;
 
 function pinned() {
-  const rogue = new Rogue();
+  const rogue = new Rogue(undefined, COMBAT_GRANTS);
   const sim = new Simulation(rogue, { rng: testRng });
   assert.equal(sim.currentTime, 0);
   rogue.weapons.mainHand.swingTimer = rogue.weapons.mainHand.speed;
@@ -216,7 +221,7 @@ describe("placeholder Combat rotation", () => {
     const fights = {};
 
     for (const fps of FRAME_RATES) {
-      const rogue = new Rogue();
+      const rogue = new Rogue(undefined, COMBAT_GRANTS);
       const sim = new Simulation(rogue, { rng: testRng });
       assert.equal(sim.currentTime, 0);
       const counts = {};

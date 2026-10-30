@@ -297,6 +297,20 @@ describe("talent tree model (#204)", () => {
     assert.equal(byName.get("Cold Blood").ok, false);
   });
 
+  it("with no talents, skips every talent ability's rule and says so (#199)", () => {
+    const { talents } = setup();
+    const { lines, note } = talents().view.effects.rotation;
+    assert.ok(lines.length > 0);
+    for (const line of lines) {
+      assert.equal(line.ok, false, line.name);
+      assert.match(line.text, /skipped: no /);
+    }
+    assert.equal(
+      note,
+      "With no talents picked, the fight is untalented: the sim skips Blade Flurry, Adrenaline Rush and Cold Blood, whose rules need the talent.",
+    );
+  });
+
   it("pointsLine and talentTreeView never throw on the edges", () => {
     assert.equal(pointsLine(0, 1, 10), "0 of 1 spent, 1 left");
     assert.equal(

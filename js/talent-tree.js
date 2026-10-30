@@ -407,11 +407,10 @@ function detailOf(ranks, id, level, info, catalogue) {
 }
 
 // The rules of the rotation that cast a talent's ability, and whether this
-// build lets them, by the engine's own test (Rogue.lockedByBuild and the
-// abilityGranted / abilityUnlocked conditions): with points spent, a talent
-// ability casts only with its talent; with no points spent (no build
-// selected) a rule casts it unless it asks for abilityGranted.
-function rotationLines(ranks, total, rotation, info) {
+// build lets them, by the engine's own test (Rogue.lockedByBuild): a talent
+// ability casts only with its talent, with no points spent too (no talents
+// is untalented, #199).
+function rotationLines(ranks, rotation, info) {
   const granting = new Map();
   for (const talent of info.values()) {
     if (talent.ability !== null) {
@@ -424,13 +423,7 @@ function rotationLines(ranks, total, rotation, info) {
     if (talent === undefined) {
       return;
     }
-    const has = rankOf(ranks, talent.id) > 0;
-    const strict = (rule.conditions ?? []).some(
-      (condition) =>
-        condition.type === "abilityGranted" &&
-        condition.ability === rule.action,
-    );
-    const casts = has || (total === 0 && !strict);
+    const casts = rankOf(ranks, talent.id) > 0;
     lines.push({
       ok: casts,
       name: talent.ability.name,
@@ -442,18 +435,20 @@ function rotationLines(ranks, total, rotation, info) {
   return lines;
 }
 
-// With no points spent no build is selected, so the engine treats every
-// ability as before talents (#190): a rule casts it unless it asks for
-// abilityGranted (Cold Blood's, in the default rotation).
+// With no points spent the fight is untalented (#199): the engine skips
+// every talent ability the rotation lists (Blade Flurry, Adrenaline Rush and
+// Cold Blood, in the default rotation).
 function emptyBuildNote(lines) {
   const skipped = [
     ...new Set(lines.filter(({ ok }) => !ok).map(({ name }) => name)),
   ];
-  const except =
-    skipped.length > 0
-      ? `, except ${skipped.join(", ")}, whose rule needs the talent`
-      : "";
-  return `With no talents picked, the sim casts every ability the rotation lists, as before talents${except}.`;
+  const names =
+    skipped.length > 1
+      ? `${skipped.slice(0, -1).join(", ")} and ${skipped.at(-1)}`
+      : skipped.join("");
+  return skipped.length > 0
+    ? `With no talents picked, the fight is untalented: the sim skips ${names}, whose rules need the talent.`
+    : "With no talents picked, the fight is untalented.";
 }
 
 function effectsOf(ranks, total, config, info) {
@@ -486,7 +481,7 @@ function effectsOf(ranks, total, config, info) {
     (talent) => talent.coverage === "notSimulated",
   );
   const noDps = picked.filter((talent) => talent.coverage === "noDps");
-  const lines = rotationLines(ranks, total, config?.rotation, info);
+  const lines = rotationLines(ranks, config?.rotation, info);
   const rotationName =
     typeof config?.rotation?.name === "string" && config.rotation.name !== ""
       ? config.rotation.name

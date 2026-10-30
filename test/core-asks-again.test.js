@@ -5,6 +5,7 @@ import { createFight } from "../js/fight.js";
 import { ModifierPipeline } from "../js/modifiers.js";
 import { compileRotation } from "../js/rotation-interpreter.js";
 import { PARITY_CASES, PARITY_ONLY_CASES } from "../scripts/parity.mjs";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 
 // #231 QA (X1 and the field-drop mutants): a run that starts on a fight
 // changed since the last run closed asks the rotation at its start, and a
@@ -19,6 +20,9 @@ const HEMO = PARITY_ONLY_CASES.find(
   ({ name }) => name === "dot-hemorrhage-rupture-120s",
 );
 
+// The default config's fights are given Blade Flurry and Adrenaline Rush
+// (COMBAT_GRANTS): since #199 the untalented default casts neither, and these
+// tests change their auras and cooldowns.
 function fightAt(
   cut,
   { seed = 5, config = DEFAULT.config, duration = 60 } = {},
@@ -26,6 +30,7 @@ function fightAt(
   const fight = createFight(seed, structuredClone(config), {
     duration,
     engine: EVENTS,
+    ...(config === DEFAULT.config ? COMBAT_GRANTS : {}),
   });
   fight.simulation.run(cut);
   assert.notEqual(fight.simulation.coreCarry, null, "the run left a carry");

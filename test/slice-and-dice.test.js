@@ -5,6 +5,7 @@ import { CONSTANTS, k } from "../data/constants.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
+import { COMBAT_GRANTS } from "./combat-grants.js";
 
 function near(actual, expected) {
   assert.ok(
@@ -27,7 +28,8 @@ function holdCooldowns(sim) {
 }
 
 function pinned() {
-  const rogue = new Rogue();
+  // Granted, so the rotation casts Blade Flurry with no talents (#199).
+  const rogue = new Rogue(undefined, COMBAT_GRANTS);
   const sim = new Simulation(rogue, { rng: testRng });
   assert.equal(sim.currentTime, 0);
   holdCooldowns(sim);

@@ -291,44 +291,40 @@ One example of each type:
 ### Granted and unlocked: no build selected
 
 Three of the Combat rogue's abilities come from talents: Blade Flurry,
-Adrenaline Rush and Cold Blood. The code rotation treats them in two different
-ways, and a rotation as data has to say both:
+Adrenaline Rush and Cold Blood (and, since #207, Ghostly Strike, Hemorrhage and
+Premeditation). Since #199, **no build is untalented**: with no talents picked
+and no host grant, the fight has none of them, and the engine does not cast
+them whatever the rotation says. Before #199 a fight with no build selected
+cast Blade Flurry and Adrenaline Rush, as the fight did before talents (D7,
+#106); the default fight's DPS drops by about 3.4% with the change (#199).
 
-- **Cold Blood** is cast only when it is granted. With no build selected and no
-  host grant, it is never cast.
-- **Blade Flurry and Adrenaline Rush** are skipped only when a build is selected
-  and lacks their talent (`Rogue.lockedByBuild`). With **no build selected**
-  they are cast, as the fight did before talents (D7, #106). That is the
-  default config, and the goldens depend on it.
+The engine's rule is one test, `Rogue.lockedByBuild`: a talent grants the
+ability, and neither the build nor the host grants it. The rotation host
+answers `usable` with it (`js/rotation-host.js`), and the interpreter passes
+over a rule that is not usable, never pooling for it and never holding the
+walk on it, as it does for a weapon the ability cannot use. The grants are
+fixed for the fight, so the host asks once. The rotation builder and the
+stats form's summary use the same test (`js/rotation-skips.js`), so a rule
+they show as skipped is the one the engine passes over.
 
-So there are two conditions, because one meaning cannot be both:
+Two conditions still say whether a talent ability is there:
 
 - `abilityGranted` is **strict**. It is true only when the ability is in the
   rogue's granted set: the build's grants plus the host's `abilities` option.
-  With no build selected and no host grant, **no talent ability is granted**
-  (the untalented rogue has none), so `abilityGranted` for Blade Flurry is
-  `false` there. Cold Blood uses it, and so behaves exactly as today.
-- `abilityUnlocked` is **the negation of `Rogue.lockedByBuild`**. It is `false`
-  only when a build is selected, a talent grants the ability, and the build does
-  not have it. In every other case it is `true`: with no build selected, for an
-  ability no talent grants, and when the build has the talent.
+  With no build selected and no host grant, **no talent ability is granted**,
+  so `abilityGranted` for Blade Flurry is `false` there. Cold Blood uses it.
+- `abilityUnlocked` is **unchanged**. It is `false` only when a build is
+  selected, a talent grants the ability, and the build does not have it. In
+  every other case it is `true`: with no build selected, for an ability no
+  talent grants, and when the build has the talent. With no build it says
+  `true` for Blade Flurry, but the rule is still passed over, because the
+  ability is not usable.
 
-Blade Flurry and Adrenaline Rush therefore carry `abilityUnlocked` in the
-Combat example below, not `abilityGranted`. Writing `abilityGranted` on them
-would be the cleaner reading ("no build means untalented") but it would stop
-the default fight from casting them, which changes every golden. That is a
-change of behaviour, not of vocabulary, so it is left out. R3 proves the
-default config is unchanged with a fixed-seed fight.
-
-**`abilityUnlocked` is not redundant on those two rules** (R3's decision). The
-interpreter's host does hold back an ability a build locks (`canCast` is false
-for it), but Blade Flurry and Adrenaline Rush are on the GCD, and an on-GCD
-rule that holds and cannot be cast ends the walk. Without `abilityUnlocked`, a
-build without Adrenaline Rush would hold the walk at that rule for as long as
-its other conditions held, and nothing below it would be cast. With the condition the locked rule is passed over. A rule for an
-ability a build can lack therefore carries `abilityUnlocked`, and
-`test/rotation-interpreter.test.js` and `test/rotation-equivalence.test.js`
-hold both halves.
+Blade Flurry and Adrenaline Rush carry `abilityUnlocked` in the Combat example
+below. The validator still requires a guard on every rule that casts a talent
+ability (rule 5), and still takes `abilityUnlocked` for those two; with the
+engine's skip the guard no longer decides whether they are cast, and whether
+to make rule 5 strict is its own change.
 
 ### The state a condition reads
 
@@ -1088,8 +1084,9 @@ walk goes past it, whether or not it could be cast (on cooldown, for one). The
 other five abilities are on it, so the first of them whose conditions hold is
 the pick. Blade Flurry and Adrenaline Rush start the GCD, so each says when it
 can be cast: a rule for one that is not ready, or that a selected build lacks
-(`abilityUnlocked`, which is true when no build is selected), or that Blade
-Flurry cannot pay for, is passed over and does not hold the walk. The energy
+(`abilityUnlocked`), or that Blade Flurry cannot pay for, is passed over and
+does not hold the walk. With no build both are passed over whatever the
+conditions say, since no build is untalented (#199). The energy
 condition is the Blade Flurry cost (the `bladeFlurry` row, 25), written as a
 number in the JSON; Adrenaline Rush costs none. Cold Blood is cast only when
 granted (`abilityGranted`). See "Granted and unlocked" above.

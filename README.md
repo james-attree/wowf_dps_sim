@@ -35,8 +35,11 @@ less with full energy (the combat-swords preset's rules, #173), else Cold Blood
 when the build grants it and Eviscerate; otherwise Sinister Strike. A rotation
 that casts Cold Blood must say "when granted" (`abilityGranted`), or the
 validator rejects it (#173); since #188 every ability a talent grants needs its
-guard, and until #199 Blade Flurry, Adrenaline Rush and (since #207) Ghostly
-Strike, Hemorrhage and Premeditation may use `abilityUnlocked` instead.
+guard, and Blade Flurry, Adrenaline Rush and (since #207) Ghostly Strike,
+Hemorrhage and Premeditation may use `abilityUnlocked` instead. With no talents
+picked the fight is untalented (#199): the sim casts none of the abilities a
+talent grants unless the host grants it, so the default fight casts no Blade
+Flurry, Adrenaline Rush or Cold Blood.
 The page's first fight adds Instant Poison on the main hand and Deadly Poison
 on the off hand (`pageDefaultConfig()`, #152); `runFight`'s default has no
 poisons, so the goldens do not move. The page's "Fight setup" form (Phase 3)

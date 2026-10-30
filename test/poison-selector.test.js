@@ -206,8 +206,14 @@ describe("a choice reaches the next run", () => {
     });
     assert.ok(result.abilities["Instant Poison"]?.damage > 0);
     assert.ok(result.abilities["Deadly Poison"]?.damage > 0);
-    const bare = fight(defaultConfig());
-    assert.ok(result.dps > bare.dps, "the page defaults add poison damage");
+    // Over 300 s: at 60 s one seed's draws can hide the poisons (they do on
+    // this seed since #199 took Blade Flurry out of the untalented fight).
+    const long = (config) =>
+      runFight({ seed: SEED, duration: 300, config }).dps;
+    assert.ok(
+      long(nextRunConfig(store.get())) > long(defaultConfig()),
+      "the page defaults add poison damage",
+    );
   });
 
   it("a poison the sim does not simulate is stored, and changes no DPS", () => {

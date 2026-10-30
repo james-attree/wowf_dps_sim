@@ -64,14 +64,11 @@ describe("SimConfig.rotation", () => {
     const plain = runFight({ seed: 6, duration });
     const small = runFight({ seed: 6, duration, config: { rotation: SMALL } });
     assert.ok(casts(plain)["Slice and Dice"] > 0);
-    assert.ok(casts(plain)["Blade Flurry"] > 0);
     const used = Object.entries(casts(small))
       .filter(([, n]) => n > 0)
       .map(([name]) => name);
     assert.ok(used.includes("Sinister Strike"));
-    assert.ok(
-      !used.includes("Blade Flurry") && !used.includes("Slice and Dice"),
-    );
+    assert.ok(!used.includes("Slice and Dice"));
     assert.notEqual(small.totalDamage, plain.totalDamage);
   });
 

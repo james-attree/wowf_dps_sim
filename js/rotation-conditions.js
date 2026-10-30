@@ -209,8 +209,9 @@ const TYPES = {
   },
   // The build does not hold the ability back. False only when a build is
   // selected, a talent grants the ability, and the build does not have it. With
-  // no build selected it is true, so the fight before talents casts everything,
-  // as the code rotation does (Rogue.lockedByBuild).
+  // no build selected it is true, as before; but since #199 no build is
+  // untalented, so the engine passes over a rule that casts a talent ability
+  // the fight lacks whatever this says (host.usable, Rogue.lockedByBuild).
   abilityUnlocked: {
     params: { ability },
     test: (c, state) =>
