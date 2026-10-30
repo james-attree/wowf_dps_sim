@@ -1153,7 +1153,7 @@ h3 {
   margin-bottom: 8px;
 }
 
-/* One line at 390 px: the tools wrap under it instead (#155, Fran's QA 8). */
+/* One line on a phone (390 wide): the tools wrap under it instead (#155, Fran's QA 8). */
 .combat-log-heading h2 {
   white-space: nowrap;
 }
@@ -1481,7 +1481,7 @@ h3 {
 }
 
 /* The stats form (#151, Fran's notes). Above the damage panel; the two hands
-   sit side by side from 720 px and stack below it. */
+   sit side by side from 45em and stack below it. */
 .config-panel {
   margin-bottom: 14px;
 }
@@ -2483,10 +2483,10 @@ th[aria-sort="ascending"] {
   margin-top: 8px;
 }
 
-/* Decision 3 (Phase 3): the charts' fixed 640 x 300 viewBox with 11 px text
+/* Decision 3 (Phase 3): the charts' fixed 640 x 300 viewBox with 11-unit text
    is unreadable squeezed to a phone, so below the page's narrow breakpoint
-   the SVG keeps 520 px and its .chart-scroll region scrolls sideways. A
-   responsive chart layout is on the Phase 5 polish list. */
+   the SVG keeps a fixed minimum width and its .chart-scroll region scrolls
+   sideways. A responsive chart layout is on the Phase 5 polish list. */
 @media (width < 32.5em) {
   .chart-scroll .chart {
     min-width: 520px;

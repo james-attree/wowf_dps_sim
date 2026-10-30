@@ -555,7 +555,7 @@
   font-size: inherit;
 }
 @media (width < 32.5em) {
-  /* 360 px: a chip that wraps keeps a readable shape. */
+  /* The narrowest phones: a chip that wraps keeps a readable shape. */
   .chip {
     border-radius: 10px;
   }
