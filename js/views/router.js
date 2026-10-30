@@ -53,6 +53,13 @@ export const SCREEN_NAMES = Object.freeze({
 });
 export const RESULT_VIEWS = SUBS.results;
 
+// The subs that take a param: a rule's screen, #rotation/rule/2. Any other
+// sub's extra part is dropped, so #character/gear/x is #character/gear
+// (Fran's qa-256 P-b), replacing its history entry as other bad routes do.
+export const PARAM_SUBS = Object.freeze({
+  rotation: Object.freeze(["rule"]),
+});
+
 const SEPARATOR = "/";
 
 // A new area is shown from the top of the page.
@@ -63,7 +70,7 @@ const ONE_MOVE = 1;
 
 // "#rotation/rule/2" as { area, sub, param }. An unknown area is the default
 // one; an unknown sub is the area's top level.
-export function parseRoute(hash, subs = SUBS) {
+export function parseRoute(hash, subs = SUBS, params = PARAM_SUBS) {
   const [head, sub, param] = String(hash ?? "")
     .replace(/^#/, "")
     .split(SEPARATOR)
@@ -75,7 +82,8 @@ export function parseRoute(hash, subs = SUBS) {
   if (sub === undefined || !(subs[area] ?? []).includes(sub)) {
     return { area, sub: null, param: null };
   }
-  return { area, sub, param: param === undefined ? null : param };
+  const takes = (params[area] ?? []).includes(sub);
+  return { area, sub, param: param === undefined || !takes ? null : param };
 }
 
 export function formatRoute({ area, sub = null, param = null }) {
