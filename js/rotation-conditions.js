@@ -120,7 +120,7 @@ const TYPES = {
   auraActive: {
     params: { aura, active: isTrue },
     test: (c, state) =>
-      Object.hasOwn(state.auras, c.aura) === (c.active ?? true),
+      Object.hasOwn(state.auras, c.aura) === (c.active ?? isTrue.default),
     drift: AT_EVENTS,
   },
   // Seconds left on a self buff. Not up counts as 0.
@@ -134,7 +134,7 @@ const TYPES = {
   debuffActive: {
     params: { debuff, active: isTrue },
     test: (c, state) =>
-      Object.hasOwn(state.debuffs, c.debuff) === (c.active ?? true),
+      Object.hasOwn(state.debuffs, c.debuff) === (c.active ?? isTrue.default),
     drift: AT_EVENTS,
   },
   // Seconds left on a target debuff. Not up counts as 0.
@@ -161,7 +161,7 @@ const TYPES = {
     params: { ability, ready: isTrue },
     test: (c, state) =>
       (!Object.hasOwn(state.cooldowns, c.ability) ||
-        state.cooldowns[c.ability] <= 0) === (c.ready ?? true),
+        state.cooldowns[c.ability] <= 0) === (c.ready ?? isTrue.default),
     // A cooldown ends at an event of its own.
     drift: AT_EVENTS,
   },
