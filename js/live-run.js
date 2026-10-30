@@ -43,7 +43,20 @@ import { SimRunner } from "./sim-runner.js";
 const RUN_OPTIONS = Object.freeze(["seed", "duration", "config"]);
 const CLEAR_OPTIONS = Object.freeze(["seed", "config"]);
 
+// live.run() and live.clear() need an options object: both need a seed, and
+// neither was ever callable without one (Object.keys and the destructuring
+// threw a TypeError). null, undefined, an array or anything that is not an
+// object is a RangeError that says so, as in runFight and SimRunner (#238 QA).
 function checkOptions(where, options, names) {
+  if (
+    options === null ||
+    typeof options !== "object" ||
+    Array.isArray(options)
+  ) {
+    throw new RangeError(
+      `${where} needs an options object: { ${names.join(", ")} }. Got ${describe(options)}.`,
+    );
+  }
   for (const key of Object.keys(options)) {
     if (!names.includes(key)) {
       throw new RangeError(
@@ -51,6 +64,19 @@ function checkOptions(where, options, names) {
       );
     }
   }
+}
+
+// What a bad options value was, for the RangeError (#238 QA).
+function describe(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "an array";
+  return typeof value;
+}
+
+// Own options only, as checkOptions and runFight read them (#209): one an
+// object inherits is not given (#238 QA).
+function own(options, key) {
+  return Object.hasOwn(options, key) ? options[key] : undefined;
 }
 
 export function createLiveRun(store, frames) {
@@ -136,7 +162,9 @@ export function createLiveRun(store, frames) {
     // finished, as SimRunner.run() is.
     run(options) {
       checkOptions("live.run", options, RUN_OPTIONS);
-      const { seed, duration, config } = options;
+      const seed = own(options, "seed");
+      const duration = own(options, "duration");
+      const config = own(options, "config");
       const state = runner?.state ?? "idle";
       if (state !== "idle" && state !== "finished") {
         throw new Error(
@@ -153,7 +181,8 @@ export function createLiveRun(store, frames) {
     // reset), so a running fight is never hidden.
     clear(options) {
       checkOptions("live.clear", options, CLEAR_OPTIONS);
-      const { seed, config } = options;
+      const seed = own(options, "seed");
+      const config = own(options, "config");
       const state = runner?.state ?? "idle";
       if (state !== "idle") {
         throw new Error(

@@ -17,23 +17,28 @@ export const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 export const GOLDEN_DIR = resolve(ROOT, "test", "golden");
 export const UPDATE_COMMAND = "npm run golden:update -- --write";
 
-// A scripted case (#85) casts these Rogue.abilities in this order, each as soon
-// as it can be cast, instead of following the placeholder rotation, which never
-// casts Eviscerate or Rupture. Hemorrhage goes last before Rupture so its
-// debuff is up for every Rupture tick, and Rupture needs 5 combo points for its
-// full 16 s, which outlasts the debuff, so the fixture has ticks both with and
-// without the bonus. Five builders at 5 combo points feed Eviscerate. The seed
-// was chosen so that the fight has Rupture ticks and a tick crit;
-// test/golden.test.js checks that it keeps them. After A7 (#100) the attack
-// table moved the draws and the crit chance: two of the first four Sinister
-// Strikes dodged, so Rupture went out at 3 combo points and lost the ticks
-// without the bonus. The script now opens with seven Sinister Strikes, so
-// Rupture still goes out at 5 combo points when two dodge (a landed extra only
-// wastes a point, as combo points stop at 5), and the seed was kept.
-// Whether the Eviscerate hits or crits depends on the seed and the default
-// sheet; the fixture records the outcome.
-export const FINISHER_SCRIPT = [
-  "sinisterStrike",
+// The scripted case (#85) casts these Rogue.abilities in this order, each as
+// soon as it can be cast, instead of following the placeholder rotation,
+// which never casts Eviscerate or Rupture. Hemorrhage goes last before Rupture
+// so its debuff is up for every Rupture tick, and Rupture needs 5 combo points
+// for its full 16 s, which outlasts the debuff, so the fixture has ticks both
+// with and without the bonus. Seven builders (six Sinister Strikes and
+// Hemorrhage) feed Rupture, so it still goes out at 5 combo points (16 s, 8
+// ticks) when two of them do not land; four Sinister Strikes feed Eviscerate.
+//
+// Issue #234. It replaces #85's script (12 Sinister Strikes), whose case
+// scripted-finishers-seed-68-50s was retired by James's decision: that script
+// cost 635 energy, so with every attack landed its Eviscerate waited for 53.5 s
+// of energy in a 50 s fight and finished only on 130 of seeds 1 to 200. This
+// one costs 10 × 45 + 35 + 25 + 35 = 545; the fight starts with 100 and
+// regenerates 10 a second, so with every attack landed it casts its last at
+// 44.5 s. An attack that does not land refunds skill.missEnergyRefund of its
+// cost, so a seed with misses finishes no later: on seeds 1 to 1,000 the last
+// cast is at 44.5 s at the latest. test/golden.test.js runs it on seeds 1 to
+// 200 and checks that it finishes on every one. Whether the Eviscerate hits
+// or crits depends on the seed and the default sheet; the fixture records the
+// outcome.
+export const FINISHER_SCRIPT_IN_BUDGET = [
   "sinisterStrike",
   "sinisterStrike",
   "sinisterStrike",
@@ -46,7 +51,6 @@ export const FINISHER_SCRIPT = [
   "sinisterStrike",
   "sinisterStrike",
   "sinisterStrike",
-  "sinisterStrike",
   "eviscerate",
 ];
 
@@ -55,7 +59,7 @@ export const FINISHER_SCRIPT = [
 // one runs the defaults, as the first four do. The config is not pinned (see
 // UNPINNED_FIELDS), but it is in this file, so a case says what it ran with.
 //
-// One short fight, one 5-minute fight, one more seed, and one scripted fight.
+// One short fight, one 5-minute fight, one more seed, and a scripted fight.
 // Keep this list short: every case is a file to review whenever results move
 // on purpose. A case with a script runs it (scripts/scripted-fight.mjs) instead
 // of the placeholder rotation; any other case is plain runFight.
@@ -74,11 +78,14 @@ export const GOLDEN_CASES = deepFreeze([
   { name: "short-seed-1-10s", seed: 1, duration: 10 },
   { name: "five-minute-seed-1-300s", seed: 1, duration: 300 },
   { name: "other-seed-12345-90s", seed: 12345, duration: 90 },
+  // Issue #234. Seed 68 for 50 s, as #85's scripted-finishers-seed-68-50s
+  // was (retired by James's decision), with the script that finishes on every
+  // seed.
   {
-    name: "scripted-finishers-seed-68-50s",
+    name: "scripted-finishers-in-budget-seed-68-50s",
     seed: 68,
     duration: 50,
-    script: FINISHER_SCRIPT,
+    script: FINISHER_SCRIPT_IN_BUDGET,
   },
   // Issue #107. The two cases below run the reference build (Assassination 18
   // / Combat 33 / Subtlety 0, the talentsforever.com link in

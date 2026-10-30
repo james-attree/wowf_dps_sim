@@ -143,7 +143,9 @@ export function idList(where, field, given, fallback, kind = "ability") {
 
 // A context (validateRotation's, rotationWarnings') as an object to read:
 // none, undefined or null, is the engine's; anything else that is not a plain
-// object (an array, a Set, a string) is a TypeError naming `where` (#210).
+// object (an array, a Set, a Map, a string) is a TypeError naming `where`
+// (#210). A Map is refused as its debuffs are: its entries are not
+// properties, so read as an object it would quietly be the defaults (#238 QA).
 export function contextObject(where, given) {
   if (given === undefined || given === null) {
     return {};
@@ -151,7 +153,8 @@ export function contextObject(where, given) {
   if (
     typeof given !== "object" ||
     Array.isArray(given) ||
-    given instanceof Set
+    given instanceof Set ||
+    given instanceof Map
   ) {
     throw new TypeError(
       `${where}: the context must be an object, not ${described(given)}.`,

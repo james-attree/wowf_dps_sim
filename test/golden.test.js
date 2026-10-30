@@ -19,7 +19,7 @@ import { dataVersion } from "../js/data-version.js";
 import { defaultConfig } from "../js/sim-config.js";
 import { runFight } from "../js/fight.js";
 import {
-  FINISHER_SCRIPT,
+  FINISHER_SCRIPT_IN_BUDGET,
   GOLDEN_CASES,
   GOLDEN_DIR,
   IGNORED_FILES,
@@ -39,6 +39,7 @@ import {
   updateGolden,
 } from "../scripts/golden-update.mjs";
 import { runScriptedFight } from "../scripts/scripted-fight.mjs";
+import { Rogue } from "../js/rogue.js";
 import { referenceBuild } from "./talentsforever.js";
 
 // Issues #77 and #85. The full headless result for a few fixed seeds and durations is
@@ -419,101 +420,88 @@ describe("the golden:update script", () => {
 });
 
 // Issue #85. The placeholder rotation never casts Eviscerate or Rupture, so the
-// other cases cannot pin them. This case casts FINISHER_SCRIPT instead.
-describe("the scripted golden case", () => {
-  const scripted = GOLDEN_CASES.filter((goldenCase) => goldenCase.script);
-  const [goldenCase] = scripted;
+// other cases cannot pin them. The scripted case casts a script instead:
+// #234's FINISHER_SCRIPT_IN_BUDGET, which finishes on every seed.
+const SCRIPTED = [
+  {
+    name: "scripted-finishers-in-budget-seed-68-50s",
+    script: FINISHER_SCRIPT_IN_BUDGET,
+    sinisterStrikes: 10,
+  },
+];
 
-  async function fixture() {
-    return parseGolden(await readFile(goldenPath(goldenCase.name), "utf8"));
+describe("the scripted golden cases", () => {
+  const scripted = GOLDEN_CASES.filter((goldenCase) => goldenCase.script);
+
+  it("is the one case with a script, casting its own script", () => {
+    assert.deepEqual(
+      scripted.map(({ name, script }) => ({ name, script })),
+      SCRIPTED.map(({ name, script }) => ({ name, script })),
+    );
+  });
+
+  // Issue #234. #85's script (scripted-finishers-seed-68-50s, retired by
+  // James's decision; its fixture is gone) costs more energy than a 50 s fight
+  // gives when every attack lands, so it finishes only on some seeds. These
+  // tests run the script itself and read no fixture. The in-budget script fits
+  // with room to spare, and finishes on every seed from 1 to 200.
+  const RETIRED_SCRIPT = [
+    ...Array(7).fill("sinisterStrike"),
+    "hemorrhage",
+    "rupture",
+    ...Array(5).fill("sinisterStrike"),
+    "eviscerate",
+  ];
+  function scriptCost(list) {
+    const rogue = new Rogue();
+    return list.reduce((total, key) => total + rogue.abilities[key].cost, 0);
   }
 
-  it("is the only scripted case, and it casts FINISHER_SCRIPT", () => {
-    assert.equal(scripted.length, 1);
-    assert.deepEqual(goldenCase.script, FINISHER_SCRIPT);
-  });
-
-  it("casts exactly the scripted abilities, never the placeholder rotation", async () => {
-    const { abilities } = await fixture();
-    // 1 cast per script entry, and no Slice and Dice, Blade Flurry or
-    // Adrenaline Rush, which the placeholder rotation would have cast.
-    const scriptedCasts = {
-      "Sinister Strike": 12,
-      Hemorrhage: 1,
-      Rupture: 1,
-      Eviscerate: 1,
-    };
-    assert.equal(
-      FINISHER_SCRIPT.length,
-      Object.values(scriptedCasts).reduce((sum, casts) => sum + casts, 0),
+  it("FINISHER_SCRIPT_IN_BUDGET fits the fight's energy with every attack landed", () => {
+    const { duration } = GOLDEN_CASES.find(
+      (goldenCase) => goldenCase.script === FINISHER_SCRIPT_IN_BUDGET,
     );
-    for (const [name, casts] of Object.entries(scriptedCasts)) {
-      assert.equal(abilities[name]?.casts, casts, name);
-    }
-    assert.deepEqual(Object.keys(abilities).sort(), [
-      "Eviscerate",
-      "Hemorrhage",
-      "Main-hand",
-      "Off-hand",
-      "Rupture",
-      "Sinister Strike",
-    ]);
-  });
-
-  it("pins Eviscerate, Rupture, DoT ticks and a tick crit", async () => {
-    const { abilities, log, totalDamage } = await fixture();
-    const eviscerate = abilities.Eviscerate;
-    assert.equal(eviscerate.casts, 1);
-    assert.ok(eviscerate.damage > 0, "Eviscerate landed and dealt damage");
-    // A cast of Rupture deals no damage. Its ticks do.
-    const rupture = abilities.Rupture;
-    assert.equal(rupture.casts, 1);
-    assert.equal(rupture.hits, 1, "the Rupture application landed");
-    assert.ok(rupture.ticks >= 5, "Rupture has several ticks");
-    assert.ok(rupture.tickCrits >= 1, "at least one Rupture tick crit");
-    assert.ok(rupture.tickCrits < rupture.ticks);
-    assert.ok(rupture.damage > 0);
-    // The log is not capped out in this fight, so every Rupture tick is in it.
-    assert.ok(log.length < k("log.maxEvents"));
-    const ticks = log.filter(
-      (event) => event.name === "Rupture" && event.damage > 0,
-    );
-    assert.equal(ticks.length, rupture.ticks);
-    assert.equal(
-      ticks.filter((event) => event.status === "Crit").length,
-      rupture.tickCrits,
-    );
-    const eviscerateEvents = log.filter((event) => event.name === "Eviscerate");
-    assert.equal(eviscerateEvents.length, 1);
-    assert.equal(eviscerateEvents[0].damage, eviscerate.damage);
-    // Ability damage adds up to the fight's total.
-    const sum = Object.values(abilities).reduce(
-      (total, record) => total + record.damage,
-      0,
-    );
-    assert.ok(Math.abs(sum - totalDamage) < 1e-6);
-  });
-
-  it("has Rupture ticks both with and without the Hemorrhage bonus", async () => {
-    // Hemorrhage is cast just before Rupture and lasts hemorrhage.ruptureBonus
-    // .duration, which ends inside the 16 s Rupture. Non-crit tick sizes
-    // therefore take exactly two values, one 1 + bonus times the other.
-    const { log } = await fixture();
-    const plain = new Set(
-      log
-        .filter(
-          (event) =>
-            event.name === "Rupture" &&
-            event.damage > 0 &&
-            event.status === "Hit",
-        )
-        .map((event) => event.damage),
-    );
-    assert.equal(plain.size, 2);
-    const [low, high] = [...plain].sort((a, b) => a - b);
+    const start = new Rogue().energy;
+    const regen = k("energy.regenPerSecond");
+    assert.equal(scriptCost(RETIRED_SCRIPT), 635);
+    assert.equal(scriptCost(FINISHER_SCRIPT_IN_BUDGET), 545);
+    // The energy for the last cast arrives this long into the fight: 53.5 s
+    // for the retired script, 44.5 s for the in-budget one.
+    assert.ok((scriptCost(RETIRED_SCRIPT) - start) / regen > duration);
     assert.ok(
-      Math.abs(high / low - (1 + k("hemorrhage.ruptureBonus").bonus)) < 1e-9,
+      (scriptCost(FINISHER_SCRIPT_IN_BUDGET) - start) / regen <= duration - 5,
     );
+  });
+
+  it("FINISHER_SCRIPT_IN_BUDGET finishes on seeds 1 to 200, with Rupture and Eviscerate cast", () => {
+    // runScriptedFight throws when a cast is still waiting at the end.
+    for (let seed = 1; seed <= 200; seed++) {
+      const { abilities } = runScriptedFight({
+        seed,
+        duration: 50,
+        script: FINISHER_SCRIPT_IN_BUDGET,
+      });
+      assert.equal(abilities.Rupture?.casts, 1, `seed ${seed}`);
+      assert.equal(abilities.Eviscerate?.casts, 1, `seed ${seed}`);
+      assert.equal(abilities["Sinister Strike"]?.casts, 10, `seed ${seed}`);
+      assert.equal(abilities.Hemorrhage?.casts, 1, `seed ${seed}`);
+    }
+  });
+
+  it("the retired #85 script does not finish on every seed, and the one left waiting is Eviscerate", () => {
+    let unfinished = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      try {
+        runScriptedFight({ seed, duration: 50, script: RETIRED_SCRIPT });
+      } catch (error) {
+        assert.match(
+          error.message,
+          /1 cast still waiting after 50s, next "eviscerate"/,
+        );
+        unfinished += 1;
+      }
+    }
+    assert.ok(unfinished > 0);
   });
 
   it("has no parry or block, because every golden case fights from behind", async () => {
@@ -547,20 +535,117 @@ describe("the scripted golden case", () => {
       }
     }
   });
-
-  it("matches runGoldenCase, and leaves the placeholder rotation as it was", async () => {
-    const plain = GOLDEN_CASES.find(
-      (c) => c.script === undefined && c.duration >= 60,
-    );
-    const before = runGoldenCase(plain);
-    assert.deepEqual(runGoldenCase(goldenCase), await fixture());
-    assert.deepEqual(runGoldenCase(plain), before);
-    assert.ok(
-      before.abilities["Slice and Dice"].casts > 0,
-      "the placeholder rotation still runs for a case with no script",
-    );
-  });
 });
+
+for (const { name, script, sinisterStrikes } of SCRIPTED) {
+  describe(`the scripted golden case ${name}`, () => {
+    const goldenCase = GOLDEN_CASES.find(
+      (candidate) => candidate.name === name,
+    );
+
+    async function fixture() {
+      return parseGolden(await readFile(goldenPath(goldenCase.name), "utf8"));
+    }
+
+    it("casts exactly the scripted abilities, never the placeholder rotation", async () => {
+      const { abilities } = await fixture();
+      // 1 cast per script entry, and no Slice and Dice, Blade Flurry or
+      // Adrenaline Rush, which the placeholder rotation would have cast.
+      const scriptedCasts = {
+        "Sinister Strike": sinisterStrikes,
+        Hemorrhage: 1,
+        Rupture: 1,
+        Eviscerate: 1,
+      };
+      assert.equal(
+        script.length,
+        Object.values(scriptedCasts).reduce((sum, casts) => sum + casts, 0),
+      );
+      for (const [name, casts] of Object.entries(scriptedCasts)) {
+        assert.equal(abilities[name]?.casts, casts, name);
+      }
+      assert.deepEqual(Object.keys(abilities).sort(), [
+        "Eviscerate",
+        "Hemorrhage",
+        "Main-hand",
+        "Off-hand",
+        "Rupture",
+        "Sinister Strike",
+      ]);
+    });
+
+    it("pins Eviscerate, Rupture, DoT ticks and a tick crit", async () => {
+      const { abilities, log, totalDamage } = await fixture();
+      const eviscerate = abilities.Eviscerate;
+      assert.equal(eviscerate.casts, 1);
+      assert.ok(eviscerate.damage > 0, "Eviscerate landed and dealt damage");
+      // A cast of Rupture deals no damage. Its ticks do.
+      const rupture = abilities.Rupture;
+      assert.equal(rupture.casts, 1);
+      assert.equal(rupture.hits, 1, "the Rupture application landed");
+      assert.ok(rupture.ticks >= 5, "Rupture has several ticks");
+      assert.ok(rupture.tickCrits >= 1, "at least one Rupture tick crit");
+      assert.ok(rupture.tickCrits < rupture.ticks);
+      assert.ok(rupture.damage > 0);
+      // The log is not capped out in this fight, so every Rupture tick is in it.
+      assert.ok(log.length < k("log.maxEvents"));
+      const ticks = log.filter(
+        (event) => event.name === "Rupture" && event.damage > 0,
+      );
+      assert.equal(ticks.length, rupture.ticks);
+      assert.equal(
+        ticks.filter((event) => event.status === "Crit").length,
+        rupture.tickCrits,
+      );
+      const eviscerateEvents = log.filter(
+        (event) => event.name === "Eviscerate",
+      );
+      assert.equal(eviscerateEvents.length, 1);
+      assert.equal(eviscerateEvents[0].damage, eviscerate.damage);
+      // Ability damage adds up to the fight's total.
+      const sum = Object.values(abilities).reduce(
+        (total, record) => total + record.damage,
+        0,
+      );
+      assert.ok(Math.abs(sum - totalDamage) < 1e-6);
+    });
+
+    it("has Rupture ticks both with and without the Hemorrhage bonus", async () => {
+      // Hemorrhage is cast just before Rupture and lasts hemorrhage.ruptureBonus
+      // .duration, which ends inside the 16 s Rupture. Non-crit tick sizes
+      // therefore take exactly two values, one 1 + bonus times the other.
+      const { log } = await fixture();
+      const plain = new Set(
+        log
+          .filter(
+            (event) =>
+              event.name === "Rupture" &&
+              event.damage > 0 &&
+              event.status === "Hit",
+          )
+          .map((event) => event.damage),
+      );
+      assert.equal(plain.size, 2);
+      const [low, high] = [...plain].sort((a, b) => a - b);
+      assert.ok(
+        Math.abs(high / low - (1 + k("hemorrhage.ruptureBonus").bonus)) < 1e-9,
+      );
+    });
+
+    it("matches runGoldenCase, and leaves the placeholder rotation as it was", async () => {
+      const plain = GOLDEN_CASES.find(
+        (c) => c.script === undefined && c.duration >= 60,
+      );
+      const before = runGoldenCase(plain);
+      assert.deepEqual(runGoldenCase(goldenCase), await fixture());
+      assert.deepEqual(runGoldenCase(plain), before);
+      assert.ok(
+        before.abilities["Slice and Dice"].casts > 0,
+        "the placeholder rotation still runs for a case with no script",
+      );
+    });
+  });
+}
 
 // Issue #107. A case may carry a config, which runFight gets like any
 // caller's. The first four cases carry none.

@@ -72,6 +72,13 @@ function readFightLength(fightLength) {
 
 const SIMULATION_OPTIONS = Object.freeze(["seed", "rng", "fightLength"]);
 
+// What a bad options value was, for the RangeError (#238 QA).
+function describe(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "an array";
+  return typeof value;
+}
+
 export class Simulation {
   // The simulation owns the one rng. Pass a seed for a repeatable fight, or an
   // rng function (returns [0, 1)) to script the rolls. Without either it uses
@@ -88,7 +95,20 @@ export class Simulation {
   // points. The fixed-step engine is gone (#234; tag legacy-engine-final).
   // An option with any other name (an `engine`, say) is a RangeError, as in
   // runFight, before the fight touches the rogue (#236 QA).
+  //
+  // No options (undefined) is the defaults, as it always was. null, an array
+  // or anything that is not an object is a RangeError that says so, not
+  // Object.keys's TypeError (#238 QA).
   constructor(rogue, options = {}) {
+    if (
+      options === null ||
+      typeof options !== "object" ||
+      Array.isArray(options)
+    ) {
+      throw new RangeError(
+        `Simulation needs an options object: { ${SIMULATION_OPTIONS.join(", ")} }, or none. Got ${describe(options)}.`,
+      );
+    }
     for (const key of Object.keys(options)) {
       if (!SIMULATION_OPTIONS.includes(key)) {
         throw new RangeError(
@@ -96,7 +116,15 @@ export class Simulation {
         );
       }
     }
-    const { seed = k("rng.defaultSeed"), rng, fightLength } = options;
+    // Own options only, as the check above and runFight read them (#209):
+    // one an object inherits is not given (#238 QA).
+    const own = (key) =>
+      Object.hasOwn(options, key) ? options[key] : undefined;
+    // A seed of undefined (none given) is the default; null is not, and
+    // normalizeSeed rejects it, as before.
+    const seed = own("seed") === undefined ? k("rng.defaultSeed") : own("seed");
+    const rng = own("rng");
+    const fightLength = own("fightLength");
     this.rogue = rogue;
     // The event core while it runs this fight (js/core/fight.js), told where
     // a DoT starts; null between runs.

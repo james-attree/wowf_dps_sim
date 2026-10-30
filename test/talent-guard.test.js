@@ -356,6 +356,7 @@ describe("talent guard (#188): nothing that ships moves", () => {
       assert.deepEqual(validateRotation(used), [], golden.name);
       checked += 1;
     }
+    // Every case but the scripted one (#85, #234).
     assert.equal(checked, GOLDEN_CASES.length - 1);
   });
 

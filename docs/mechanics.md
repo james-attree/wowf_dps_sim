@@ -1406,7 +1406,7 @@ the events and a small share of 1/64 s steps; Cold Blood with and without the
 talent; the pool's rate and cap equal a fresh read after every event through
 Adrenaline Rush; the waste given back; a DoT and the swings across split runs;
 a condition wake in the second of two runs;
-the scripted golden case on the core (Rupture ticks and a tick crit); and the
+the scripted golden cases on the core (Rupture ticks and a tick crit); and the
 #196 edges (a), (d) and same-time main- and off-hand swings.
 `test/core-rules.test.js` runs the rules the legacy step-based tests pinned
 (poisons on DoT ticks, Deadly Poison's clock, refresh and crits, an `applyDot`
@@ -1673,7 +1673,8 @@ A golden test pins the whole result of a fixed fight, so a change to a rule, a
 constant, or the engine shows up in review as a diff of numbers. The cases are
 listed in `GOLDEN_CASES` in `scripts/golden-update.mjs`: a short fight (seed 1,
 10 s), a 5-minute fight (seed 1, 300 s), another seed (12345, 90 s), a
-scripted-cast fight (seed 68, 50 s, described below), the two config cases
+scripted-cast fight (seed 68, 50 s, described below; #234's in-budget script
+in place of #85's), the two config cases
 added by #107 (the talented build, the poison fight, described below), and the
 combat-swords preset case added by #164 (seed 142, 120 s, described below):
 seven in all. Each
@@ -1694,8 +1695,9 @@ reaches goes to Slice and Dice (none, 12 and 3 casts; see example 1 in
 [docs/rotation.md](rotation.md#1-todays-placeholder-combat-rotation)). So they
 cannot pin finisher damage, DoT ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
 `script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
-energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT` is Sinister Strike
-seven times, Hemorrhage, Rupture, Sinister Strike five times, then Eviscerate.
+energy, the GCD, and the cooldown allow. `FINISHER_SCRIPT_IN_BUDGET` is
+Sinister Strike six times, Hemorrhage, Rupture, Sinister Strike four times,
+then Eviscerate.
 Hemorrhage comes just before Rupture, so the fixture has Rupture ticks with
 the Hemorrhage bonus and, after the debuff runs out, without it.
 `scripts/scripted-fight.mjs` runs it on the real `runFight`: it swaps
@@ -1703,8 +1705,30 @@ the Hemorrhage bonus and, after the debuff runs out, without it.
 for the one call so the script casts first, then the rogue's own rotation runs
 with its skill casts switched off, so only the weapon swings and the haste
 buffs are left. Nothing under `js/` changes, and a
-script that has not finished by the end of the fight throws. The fixture has
-8 Rupture ticks (3 of them crits) and an Eviscerate that hits without a crit.
+script that has not finished by the end of the fight throws. Its case,
+`scripted-finishers-in-budget-seed-68-50s`, has 8 Rupture ticks (1 of them a
+crit), ticks with and without the Hemorrhage bonus, a Sinister Strike miss, and
+an Eviscerate that hits without a crit.
+
+**The in-budget scripted case (#234).** It replaces #85's case,
+`scripted-finishers-seed-68-50s`, which #234 retired with its fixture by
+James's decision. #85's script (Sinister Strike seven times, Hemorrhage,
+Rupture, Sinister Strike five times, then Eviscerate) was written for seed 68
+and does not finish on 70 of seeds 1 to 200. The cause is energy, not a
+stuck cast: it costs 12 × 45 + 35 + 25 + 35 = 635 energy, and from the 100 a
+fight starts with at 10 a second (`energy.regenPerSecond`) the Eviscerate's
+energy arrives at 53.5 s when every attack lands, after the 50 s fight ends.
+A Sinister Strike that misses or is dodged still counts as a cast and refunds
+80% of its cost (`skill.missEnergyRefund`), so the script finishes only on a
+seed with enough of those; on all 70 that do not, Eviscerate is the one cast
+still waiting. `FINISHER_SCRIPT_IN_BUDGET` costs 545 energy, so with every
+attack landed its last cast goes out at 44.5 s, and a seed with
+misses only finishes sooner (44.5 s is the latest on seeds 1 to 1,000). Six
+Sinister Strikes and Hemorrhage are seven builders, so Rupture still goes out at
+5 combo points when two of them do not land. Its case runs on the same seed
+and length as #85's did. `test/golden.test.js` runs the script on seeds 1 to
+200 (about a quarter of a second) and checks that every one finishes, and that
+#85's script, kept in the test, still does not, with Eviscerate waiting.
 
 **Config cases (#107).** A case may carry `config`, a partial SimConfig that
 `runGoldenCase` passes to `runFight` (or `runScriptedFight`) like any caller's.
@@ -1800,9 +1824,10 @@ lint`, and `npm run provenance` never write a fixture. To add a case, add it to
 `GOLDEN_CASES` and run the script with `--write`; to remove one, delete its
 entry and its file. A fixture file with no matching case fails the tests, and
 the message says to delete the file or add the case. `.DS_Store` is the one
-file the check ignores. To change the scripted case, edit `FINISHER_SCRIPT` or
-the seed in `scripts/golden-update.mjs`, then regenerate. Keep a seed that
-still has tick crits: `test/golden.test.js` checks for them.
+file the check ignores. To change the scripted case, edit
+`FINISHER_SCRIPT_IN_BUDGET` or the seed in `scripts/golden-update.mjs`, then
+regenerate. Keep a seed that still has tick crits, and an in-budget script that
+finishes on seeds 1 to 200: `test/golden.test.js` checks both.
 `.prettierignore` lists `test/golden/`, because Prettier would reflow the
 one-line rows.
 
@@ -1853,9 +1878,10 @@ node scripts/parity.mjs --engine events --against legacy --duration 300 --gate 2
 ```
 
 The scripted finishers case was not under the gate: its script was written for
-seed 68 and does not finish on 70 of seeds 1 to 200 on the event core. Making it finish on seeds 1 to
-200, with a golden of its own, is the third #234 PR; there is no parity to
-rejoin.
+seed 68 and does not finish on 70 of seeds 1 to 200 on the event core. The
+third #234 PR covers it with a script that finishes on seeds 1 to 200 and a
+golden of its own (see "The in-budget scripted case" under Golden-seed tests);
+there is no parity to rejoin.
 
 ## Benchmark
 
@@ -2302,7 +2328,8 @@ its own.
   data in #95 does not give one, so this is the mechanism for later.
 - `Hemorrhage`: +15% to Rupture ticks only, 15 s, from
   `k("hemorrhage.ruptureBonus")`. A landed Hemorrhage refreshes it to the full
-  15 s. It is gone at 15 s (one fixed step before, it still counts).
+  15 s. Its expiry is an event at exactly 15 s: just before 15 s it still
+  counts, and at 15 s it is gone (test/target-debuffs.test.js).
 - `Expose Armor` (`k("exposeArmor")`): one stack per combo point spent (up to
   `k("combo.max")`, rule `highest`), 30 s, and each stack is an
   `armorReduction` of `armorPerComboPoint` (450) armor. Armor mitigation uses
@@ -3154,7 +3181,12 @@ steps out of a carry of the given time (#158); #234 removed it with the
 unchanged. An `engine` key, like any option a function does not take, is a
 `RangeError` in `runFight`, `SimRunner`, `BatchRunner`, `new Simulation` and
 `createLiveRun`'s `run` and `clear` (#236 QA); `createFight`'s options give
-"Unknown Rogue option".
+"Unknown Rogue option". `new Simulation`, `run` and `clear` read only the
+options an object has of its own, as `runFight` does (#209): one it inherits
+is not given. `new Simulation(rogue)` with no options is the defaults, but
+null, an array or a value that is not an object is a `RangeError` ("Simulation
+needs an options object"); `run` and `clear` need a seed, so they take no
+less than an options object and refuse undefined too (#238 QA).
 
 `createLiveRun`'s `run({ seed, duration, config })` gives the runner one
 `advance` per frame of its own seconds (`FrameClock.seconds`, at most
