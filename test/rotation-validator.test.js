@@ -565,6 +565,11 @@ describe("validateRotation: the context", () => {
       ],
       [[], "rotationContext: the context must be an object, not an array."],
       [new Set(), "rotationContext: the context must be an object, not a Set."],
+      // #238 QA: a Map's entries are not properties; it was the defaults.
+      [
+        new Map([["abilities", ["x"]]]),
+        "rotationContext: the context must be an object, not a Map.",
+      ],
       [
         { auras: "slice-and-dice" },
         'rotationContext: auras must be an array or a Set of aura ids, not the string "slice-and-dice".',
