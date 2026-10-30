@@ -225,7 +225,7 @@ describe("two kept results (#242)", () => {
       const label = page.locator("#results-average-label");
       assert.match(
         await label.textContent(),
-        /^Average · 5 × 4 s fights · seed \d+ · ran at \d\d:\d\d$/,
+        /^Average · 5 × 4 s fights · seed\u00a0\d+ · ran at \d\d:\d\d$/,
       );
       const average = await page.locator("#results-panel").innerText();
       assert.match(average, /Damage by ability/);
@@ -260,7 +260,7 @@ describe("two kept results (#242)", () => {
       assert.equal(await page.locator("#damage-panel").isVisible(), true);
       assert.match(
         await page.locator("#results-live-label").textContent(),
-        /^Live fight · 4 s · seed \d+ · ran at \d\d:\d\d · finished$/,
+        /^Live fight · 4 s · seed\u00a0\d+ · ran at \d\d:\d\d · finished$/,
       );
       assert.match(await page.locator("#dps-value").textContent(), /^[\d,]+$/);
       // The average is still there.
