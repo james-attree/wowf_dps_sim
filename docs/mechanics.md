@@ -1370,18 +1370,28 @@ the check poll's next time and the energy pool's line. The next run takes each o
 holds what was written; a field changed between the runs, or a run that does
 not start where the last one closed (a `step()` in between), starts from the
 field as before. Only `sim.coreStats` can see the split. When nothing a
-decision reads was changed between the runs (the timer fields, the auras and
-DoTs, the pools, the swings, the rotation, build and modifiers, the fight
-length), the next run does not ask the rotation at its start, since one run
+decision reads was changed between the runs, the next run does not ask the rotation at its start, since one run
 would not ask at that time: it keeps the last decision's wakes, the energy
 threshold at the very time it had and the condition crossing even when it lay
 past the last run's end. A decision there would see a GCD or cooldown that
 ends within `k("sim.tickEpsilon")` as ready and cast up to that much early
 (#231 QA B1). A run that starts on a changed fight asks the rotation once at
-its start. A DoT's tick clock is taken only while its entry's
-`timeUntilNextTick`, `tickInterval` and `duration` are as written. While a
-core run is open (`openCore`, as SimRunner holds one) the fight is the
-core's, and `step()` throws until it is closed.
+its start. What counts as changed (`decisionMarks` in js/core/fight.js):
+`sim.gcd` and `sim.fightLength`; the rotation program, config, build, the
+granted set and the modifier pipeline, each replaced, and the build's `selected`
+flag and the granted set's size (a pipeline's static modifiers are frozen and
+indexed when it is made; its timed ones come from the auras); a weapon replaced
+or its `swingTimer`; a cooldown, aura or DoT entry added, removed or replaced,
+or one of its own fields; a pool replaced or its value, `baseMax` or
+`expiryRemaining`; the abilities map replaced, an ability added, removed or
+replaced, or one of its own fields such as `cost`, `triggersGcd` or `cooldown`
+(#231 QA X1); and the energy pool's rate or cap. Objects inside those (an aura's
+modifier spec, an ability's `definition`) are compared by identity only, so a
+field changed inside one is not seen: replace the object, or clear
+`sim.coreCarry`, to have the rotation asked. A DoT's tick clock is taken only
+while its entry's `timeUntilNextTick`, `tickInterval` and `duration` are as
+written. While a core run is open (`openCore`, as SimRunner holds one) the fight
+is the core's, and `step()` throws until it is closed.
 
 The rotation (`Rogue.castRotation`, which both engines call) runs at decision
 points only, in the decision class after the other events at a time: once at
