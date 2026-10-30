@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
-import { pageDefaultConfig } from "../js/config-form.js";
+import { FORM_ERROR, pageDefaultConfig } from "../js/config-form.js";
 import { runFight } from "../js/fight.js";
 import { createLiveRun } from "../js/live-run.js";
 import { createRunActions, emptyBatch } from "../js/run-actions.js";
@@ -14,6 +14,8 @@ import {
   LIVE_HELP,
   MAX_SEED,
   MIN_FIGHT_SECONDS,
+  blocked,
+  blockedCount,
   clock,
   compact,
   controlsModel,
@@ -872,6 +874,89 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
     assert.equal(el("run-reason").textContent, "");
     assert.equal(link.hidden, true);
     assert.match(el("run-status-text").textContent, /^Ready/);
+  });
+});
+
+describe("Run's blocked check is its count (#237)", () => {
+  const MIN = "weapons.mainHand.min";
+  const MAX = "weapons.mainHand.max";
+  // Each blocker on its own, by the slice it lives in.
+  const FORM = {
+    none: {},
+    nullOnly: { [MIN]: null },
+    pair: { [MIN]: null, [MAX]: "Max damage must be at least the min damage." },
+    backstop: { [FORM_ERROR]: "This setup can't run: no." },
+    two: { "character.attackPower": "Bad.", [MIN]: null, [MAX]: "Bad." },
+  };
+  const RUN = {
+    none: {},
+    duration: { duration: "Bad." },
+    fights: { iterations: "Batch only." },
+  };
+  const TALENTS = { none: null, overCap: "Over the cap." };
+  const ROTATION = { none: [], bad: [{ path: "name", code: "nameEmpty" }] };
+
+  it("blocked(state) is blockedCount(state) > 0 for every mix, in both modes", () => {
+    const page = setup();
+    const base = page.store.get();
+    let seen = 0;
+    for (const mode of ["live", "batch"]) {
+      for (const [formName, errors] of Object.entries(FORM)) {
+        for (const [runName, runErrors] of Object.entries(RUN)) {
+          for (const [talentName, error] of Object.entries(TALENTS)) {
+            for (const [rotationName, rotationErrors] of Object.entries(
+              ROTATION,
+            )) {
+              const state = {
+                ...base,
+                run: { ...base.run, mode, errors: runErrors },
+                form: { ...base.form, errors, rotationErrors },
+                talents: { ...base.talents, error },
+              };
+              const mix = [
+                mode,
+                formName,
+                runName,
+                talentName,
+                rotationName,
+              ].join(" ");
+              const count = blockedCount(state);
+              assert.equal(blocked(state), count > 0, mix);
+              const model = controlsModel(state);
+              assert.equal(model.run.disabled, count > 0, mix);
+              assert.equal(model.reason === null, count === 0, mix);
+              assert.doesNotMatch(model.reason ?? "", /\b0 settings/, mix);
+              seen += 1;
+            }
+          }
+        }
+      }
+    }
+    assert.equal(
+      seen,
+      2 * Object.keys(FORM).length * Object.keys(RUN).length * 2 * 2,
+    );
+  });
+
+  it("null entries never count, and FORM_ERROR is one setting to fix", () => {
+    const page = setup();
+    const withForm = (errors) =>
+      page.store.set({ form: { ...page.store.get().form, errors } });
+    withForm(FORM.nullOnly);
+    assert.equal(blocked(page.store.get()), false, "a Min that marks nothing");
+    assert.equal(page.model().run.disabled, false);
+    withForm(FORM.pair);
+    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    withForm(FORM.backstop);
+    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    assert.equal(errorsText(page.store.get().run, 1), "Fix 1 setting");
+    withForm(FORM.two);
+    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    page.store.set({
+      talents: { ...page.store.get().talents, error: TALENTS.overCap },
+      form: { ...page.store.get().form, rotationErrors: ROTATION.bad },
+    });
+    assert.equal(page.model().reason, "Can't run · 4 settings to fix");
   });
 });
 

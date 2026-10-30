@@ -7,7 +7,6 @@ import {
   FORM_FIELDS,
   configFromForm,
   createConfigForm,
-  errorCount,
   formFromConfig,
   errorLine,
   importedText,
@@ -25,7 +24,11 @@ import { rotationWarnings } from "../js/rotation-warnings.js";
 import { listPresets, presetRotation } from "../js/rotation-presets.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
-import { blockedCount } from "../js/views/run-model.js";
+import {
+  blocked,
+  blockedCount,
+  formErrorCount,
+} from "../js/views/run-model.js";
 import * as testBuild from "./talentsforever.js";
 
 // Issue #151 (U2), the stats form's model. Fran's notes
@@ -163,7 +166,7 @@ describe("field checks (Fran's notes, section 3)", () => {
       "weapons.offHand.max": "Max damage must be at least the min damage (90).",
       "weapons.offHand.min": null,
     });
-    assert.equal(errorCount(errors), 1);
+    assert.equal(formErrorCount({ errors }), 1);
   });
 
   it("offers every weapon type the engine knows, and only those", () => {
@@ -219,7 +222,7 @@ describe("an invalid value never reaches the config", () => {
   it("fixing the Min clears the pair's error", () => {
     const { actions, form } = setup();
     actions.change("weapons.mainHand.max", 50);
-    assert.equal(errorCount(form().errors), 1);
+    assert.equal(formErrorCount({ errors: form().errors }), 1);
     actions.input("weapons.mainHand.min", 40);
     assert.deepEqual(form().errors, {});
   });
@@ -237,6 +240,75 @@ describe("an invalid value never reaches the config", () => {
     );
     assert.equal(store.get().config, before);
     assert.equal(nextRunConfig(store.get()), null);
+  });
+});
+
+describe("a null Min never stands alone (#237)", () => {
+  const MIN = "weapons.mainHand.min";
+  const MAX = "weapons.mainHand.max";
+  // Max under Min: the pair's error, on the Max, with the Min marked.
+  const PAIR_MIN = 50;
+  const PAIR_MAX = 40;
+  // Invalid on its own (not whole), so the Max is fine again.
+  const NOT_WHOLE = 1.5;
+  const FIXED_MIN = 30;
+  const run = { mode: "live", errors: {} };
+  const check = (store, count, step) => {
+    const state = { ...store.get(), run };
+    assert.equal(formErrorCount(state.form), count, step);
+    assert.equal(blockedCount(state), count, step);
+    assert.equal(blocked(state), count > 0, step);
+    const values = Object.values(state.form.errors);
+    assert.ok(
+      values.length === 0 || values.some((message) => message !== null),
+      `${step}: never only null entries`,
+    );
+  };
+
+  it("typing a Min invalid on its own drops its mark; change gives its message", () => {
+    const { store, actions, form } = setup();
+    actions.change(MIN, PAIR_MIN);
+    actions.change(MAX, PAIR_MAX);
+    assert.equal(form().errors[MIN], null);
+    assert.match(form().errors[MAX], /at least the min damage/);
+    check(store, 1, "the pair");
+    actions.input(MIN, NOT_WHOLE);
+    assert.ok(!(MIN in form().errors), "typing never adds one");
+    assert.ok(!(MAX in form().errors));
+    check(store, 0, "typing");
+    actions.change(MIN, NOT_WHOLE);
+    assert.equal(typeof form().errors[MIN], "string");
+    check(store, 1, "committed");
+  });
+
+  it("every typed Min after the pair's error keeps the count and blocked as one", () => {
+    for (const typed of [
+      NOT_WHOLE,
+      Number.NaN,
+      -1,
+      PAIR_MAX,
+      FIXED_MIN,
+      PAIR_MIN,
+    ]) {
+      const { store, actions } = setup();
+      actions.change(MIN, PAIR_MIN);
+      actions.change(MAX, PAIR_MAX);
+      actions.input(MIN, typed);
+      check(store, typed === PAIR_MIN ? 1 : 0, `typed ${typed}`);
+      actions.input(MAX, typed);
+      check(store, formErrorCount(store.get().form), `then Max ${typed}`);
+    }
+  });
+
+  it("the backstop's FORM_ERROR is one setting to fix, and stands alone", () => {
+    const { store, actions, form } = setup();
+    store.set({ config: { ...store.get().config, target: { level: "high" } } });
+    actions.change("character.attackPower", 900);
+    assert.deepEqual(Object.keys(form().errors), [FORM_ERROR]);
+    check(store, 1, "the backstop");
+    actions.change("character.attackPower", -1);
+    assert.ok(!(FORM_ERROR in form().errors), "a field error replaces it");
+    check(store, 1, "a field instead");
   });
 });
 
