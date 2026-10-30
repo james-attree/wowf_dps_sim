@@ -1709,7 +1709,7 @@ git diff points at the line that moved.
 
 None of the first three cases casts Eviscerate or Rupture: the placeholder
 rotation never calls Rupture, and in these three fights every finisher it
-reaches goes to Slice and Dice (1, 12 and 4 casts; see example 1 in
+reaches goes to Slice and Dice (none, 12 and 3 casts; see example 1 in
 [docs/rotation.md](rotation.md#1-todays-placeholder-combat-rotation)). So they
 cannot pin finisher damage, DoT ticks, or tick crits. The scripted case does. Its case in `GOLDEN_CASES` has a
 `script`: a list of `Rogue.abilities` names, cast in order, each as soon as the
@@ -1732,16 +1732,16 @@ run the reference build (Assassination 18 / Combat 33 / Subtlety 0, the
 talentsforever link in `data/reference-build.js`, applied through `applyBuild`)
 at seed 107 for 60 s:
 
-- `talented-build-seed-107-60s`: the talents and no poisons. 14,772.13 damage,
-  246.20 DPS, 288 random draws, 90 log rows. It casts Blade Flurry, Adrenaline
+- `talented-build-seed-107-60s`: the talents and no poisons. 15,009.86 damage,
+  250.16 DPS, 280 random draws, 88 log rows. It casts Blade Flurry, Adrenaline
   Rush, Cold Blood, Slice and Dice twice and two Eviscerates, and Ruthlessness,
   Relentless Strikes and Hack and Slash all fire.
 - `poisons-instant-deadly-seed-107-60s`: the same build with Instant Poison on
-  the main hand and Deadly Poison on the off hand. 16,953.36 damage, 282.56
-  DPS, 404 draws, 100 log rows (the cap). Instant Poison rolls 45 times and
-  fires 10; Deadly Poison rolls 23 times and fires 5, with 8 ticks.
+  the main hand and Deadly Poison on the off hand. 18,972.49 damage, 316.21
+  DPS, 396 draws, 100 log rows (the cap). Instant Poison rolls 47 times and
+  fires 7; Deadly Poison rolls 23 times and fires 9, with 15 ticks.
 
-The two fights differ by more than the poison damage (1,474 of the 2,181).
+The two fights differ by more than the poison damage (2,585 of the 3,963).
 That is the rng, not a rule: the poison rolls draw numbers between the swings,
 so from the first poison roll the two fights are different draws of the same
 seed (before #173 the poison fight dealt less than the talented one, with the
@@ -1757,8 +1757,8 @@ that the link is in one place.
 **Combat-swords preset case (#164).** `combat-swords-preset-seed-142-120s` runs
 the reference build with the combat-swords preset rotation
 ([docs/rotation.md](rotation.md#combat-swords)) at seed 142 for 120 s:
-30,883.65 damage, 257.36 DPS. It casts Blade Flurry, Adrenaline Rush, Cold
-Blood, Slice and Dice four times and Eviscerate five times, so it pins the
+31,185.73 damage, 259.88 DPS. It casts Blade Flurry twice, Adrenaline Rush,
+Cold Blood, Slice and Dice four times and Eviscerate three times, so it pins the
 preset's Slice and Dice pooling (#122).
 
 **Three fixtures moved on purpose in #173 (issue #155).** The default rotation
@@ -1768,6 +1768,15 @@ took the combat-swords preset's two Slice and Dice rules in place of its single
 `poisons-instant-deadly-seed-107-60s`, rewritten in that pull request. `short-seed-1-10s`, `five-minute-seed-1-300s`,
 `scripted-finishers-seed-68-50s` and `combat-swords-preset-seed-142-120s` did
 not move.
+
+**Every fixture moved in #199.** Option D (talent abilities need their talent)
+moved the three untalented cases under legacy: `short-seed-1-10s`,
+`five-minute-seed-1-300s` and `other-seed-12345-90s` no longer cast Blade
+Flurry or Adrenaline Rush. The switch to the event core then moved all seven,
+since the core draws the seed's numbers in event order, not step order (see
+"Golden fixtures and the rng draw order change" in
+[docs/phase-3.5-engine-rewrite.md](phase-3.5-engine-rewrite.md#risks)). One
+seed is not a parity check; the mean over seeds is (`npm run parity`).
 
 **What `five-minute-seed-1-300s` cannot catch.** With no talents, every finisher
 in it is a Slice and Dice cast with at most 5 s left on the buff, under the old
