@@ -119,10 +119,6 @@ export function poisonNoteText({ noDpsReason }) {
   return `Not simulated yet: ${reason}`;
 }
 
-// The "What to check" box's name while it is a scrolling region (#200,
-// Fran's wording).
-const WARNINGS_REGION_LABEL = "What to check";
-
 export function createConfigFormView(doc, store, actions) {
   const $ = (id) => doc.querySelector(`#${id}`);
   const form = $("config-form");
@@ -138,8 +134,6 @@ export function createConfigFormView(doc, store, actions) {
   const importStatus = $("cfg-import-status");
   const importDetail = $("cfg-import-detail");
   const importDetailText = $("cfg-import-detail-text");
-  const importWarnings = $("cfg-import-warnings");
-  const importWarningsText = $("cfg-import-warnings-text");
   const statusOk = $("cfg-status-ok");
   const fix = $("cfg-fix");
   const fixHeading = $("cfg-fix-heading");
@@ -415,51 +409,11 @@ export function createConfigFormView(doc, store, actions) {
     const failed = status?.ok === false && status.detail !== "";
     importDetail.hidden = !failed;
     importDetailText.textContent = failed ? status.detail : "";
-    // Warnings (issue #189) are shown the way errors are, but never block:
-    // the rotation was imported.
+    // Warnings (issue #189) never block: the rotation was imported. They
+    // are the Rotation messages' "What to check", under the h1 (#243, UX5),
+    // with the builder's own; the status says so.
     const warned = status?.ok === true && (status.warnings ?? "") !== "";
     importStatus.classList.toggle("is-warning", warned);
-    importWarnings.hidden = !warned;
-    importWarningsText.textContent = warned ? status.warnings : "";
-    markWarningsRegion();
-  }
-
-  // #200 (Fran's #226 QA, 2): the "What to check" text is a focusable,
-  // labelled region only while it overflows its box (wide screens cap its
-  // height, styles.css), so a box with nothing to scroll is not a Tab stop
-  // that does nothing. Checked on every draw, when the box is opened or
-  // changes size (a resize, a wrap), and when the window resizes. A box that
-  // loses its region while focused hands the focus to its summary. An
-  // attribute is set or removed only when it changes, not on every resize
-  // (Fran's #228 QA, nit 5; #234).
-  function markWarningsRegion() {
-    const box = importWarningsText;
-    // A closed or hidden box shows nothing to scroll (and keeps the sizes
-    // it had when open).
-    const shown = !importWarnings.hidden && importWarnings.open !== false;
-    const region = shown && box.scrollHeight > box.clientHeight;
-    const regionAttributes = {
-      tabindex: "0",
-      role: "region",
-      "aria-label": WARNINGS_REGION_LABEL,
-    };
-    const focused = doc.activeElement === box;
-    for (const [name, value] of Object.entries(regionAttributes)) {
-      const now = box.getAttribute(name);
-      if (region && now !== value) {
-        box.setAttribute(name, value);
-      } else if (!region && now !== null) {
-        box.removeAttribute(name);
-      }
-    }
-    if (!region && focused) {
-      importWarnings.querySelector?.("summary")?.focus?.();
-    }
-  }
-  importWarnings.addEventListener?.("toggle", markWarningsRegion);
-  win.addEventListener?.("resize", markWarningsRegion);
-  if (typeof win.ResizeObserver === "function") {
-    new win.ResizeObserver(markWarningsRegion).observe(importWarningsText);
   }
 
   let toastTimer = null;

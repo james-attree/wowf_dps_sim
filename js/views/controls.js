@@ -12,6 +12,7 @@ import {
   focusTarget,
   formErrorCount,
   rotationErrorCount,
+  warningsText,
   talentErrorCount,
   isLocked,
   parseRunField,
@@ -105,6 +106,7 @@ export function createControlsView(doc, store, actions = {}) {
   const settingsToggle = $("run-settings-toggle");
   const summary = $("run-summary");
   const errorsLink = $("run-errors-link");
+  const warningsLink = $("run-warnings-link");
   const reason = $("run-reason");
   const dpsValue = $("run-dps-value");
   const dpsLabel = $("run-dps-label");
@@ -214,6 +216,18 @@ export function createControlsView(doc, store, actions = {}) {
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
     row.classList.toggle("has-errors", fix !== null);
+    if (warningsLink !== null) {
+      const warned = warningsText(state, fix !== null);
+      warningsLink.hidden = warned === null;
+      write(warningsLink, warned ?? "");
+      // The mark is not read: "2 rotation warnings".
+      if (warned === null) {
+        warningsLink.removeAttribute("aria-label");
+      } else {
+        warningsLink.setAttribute("aria-label", warned.replace(/^⚠ /, ""));
+      }
+      row.classList.toggle("has-warnings", warned !== null);
+    }
 
     modeLive.checked = run.mode === "live";
     modeBatch.checked = run.mode === "batch";

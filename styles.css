@@ -51,15 +51,12 @@
      in the phone dock (#240). */
   --chrome-top: 0px;
   --chrome-bottom: 0px;
-  /* The rotation builder's messages, pinned under the top chrome below the
-     wide breakpoint (js/views/rotation-builder.js measures them). */
-  --chrome-pinned: 0px;
 }
 
 /* A control the keyboard focuses is scrolled clear of the chrome at either
    edge, with a small gap (Fran's QA of #251, B3; #240). */
 html {
-  scroll-padding-top: calc(var(--chrome-top) + var(--chrome-pinned) + 12px);
+  scroll-padding-top: calc(var(--chrome-top) + 12px);
   scroll-padding-bottom: calc(var(--chrome-bottom) + 12px);
 }
 
@@ -429,9 +426,25 @@ h3 {
   font-weight: 700;
 }
 
-.run-errors-link:focus-visible {
+.run-errors-link:focus-visible,
+.run-warnings-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* The rotation's warnings (#243): a link to them, under Rotation's h1. */
+.run-warnings-link {
+  display: none;
+}
+
+.run-warnings-link:not([hidden]) {
+  display: inline-flex;
+  order: 1;
+  align-items: center;
+  min-height: 31px;
+  color: #f0c46a;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 /* Below 520 the settings (mode, fight length, fights, seed) fold into a
@@ -709,6 +722,29 @@ h3 {
     display: none;
   }
 
+  /* Warned: the summary keeps its line and the link takes the status's,
+     with the same 44 tall touch target. */
+  .run-warnings-link:not([hidden]) {
+    position: relative;
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    min-height: 18px;
+    font-size: 0.8125rem;
+    line-height: 18px;
+    white-space: nowrap;
+  }
+
+  .run-warnings-link:not([hidden])::after {
+    position: absolute;
+    inset: -20px -8px -6px;
+    content: "";
+  }
+
+  .run-row-actions.has-warnings .run-status {
+    display: none;
+  }
+
   .run-row-actions.has-errors .run-status {
     grid-row: 1;
   }
@@ -730,22 +766,6 @@ h3 {
 
   #run-progress-text {
     display: none;
-  }
-
-  /* The rotation builder's messages stay in view while its rules scroll
-     under them (#240, Fran's #251 check: after Duplicate the warning was
-     above the screen). The page's scroll-padding-top leaves them room
-     (--chrome-pinned), so a focused rule never sits under them. */
-  #rotation-builder .builder-messages:not(:empty) {
-    position: sticky;
-    top: var(--chrome-top);
-    z-index: 4;
-    max-height: 33vh;
-    overflow-y: auto;
-  }
-
-  :root:has(#area-rotation:not([hidden]) .builder-messages:not(:empty)) {
-    --chrome-pinned: var(--builder-pinned-height, 0px);
   }
 }
 
@@ -1620,8 +1640,7 @@ h3 {
   font-size: 0.8rem;
 }
 
-.rotation-summary summary,
-.paste-import summary {
+.rotation-summary summary {
   cursor: pointer;
   color: #e7ddc9;
 }
@@ -1673,37 +1692,77 @@ h3 {
   color: #f0c46a;
 }
 
-.import-warnings summary {
-  color: #f0c46a;
-}
-
 .import-detail {
   margin-top: 4px;
   color: var(--text-muted);
   font-size: 0.75rem;
 }
 
+/* What a failed import got wrong, on Export or import (#243): all of it,
+   with no height cap to scroll in. */
 .import-detail pre {
-  max-height: 160px;
   margin: 4px 0 0;
-  overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-/* #200 (Fran's #224 QA, N1): the "What to check" text can still scroll at
-   the height cap above on wide screens. While it does, it is a focusable,
-   labelled region (js/views/config-form.js, Fran's #226 QA, 2). Below the
-   narrow breakpoint it has no cap and grows with its warnings. */
-.import-warnings pre:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.import-detail h2,
+.rotation-share h2 {
+  margin: 0;
+  color: #e7ddc9;
+  font-size: 0.9rem;
 }
 
-@media (width < 32.5em) {
-  .import-warnings pre {
-    max-height: none;
-  }
+/* Export or import (#243, #rotation/share): the file buttons, then the
+   paste box, then what an import said. */
+.rotation-share {
+  display: grid;
+  gap: 10px;
+}
+
+.rotation-share[hidden] {
+  display: none;
+}
+
+.rotation-share .rotation-io,
+.rotation-share .paste-import {
+  margin-top: 0;
+}
+
+.rotation-share textarea {
+  width: 100%;
+}
+
+.rotation-share .pill-button,
+.rotation-share textarea {
+  min-height: 44px;
+}
+
+/* A screen's back link, above its h1 (#243): "‹ Character" on Rotation's
+   list, "‹ Rotation" on a rule's screen or Export or import. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.back-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A link drawn as a button: "Edit rotation…", a rule's Edit. */
+a.pill-button {
+  text-decoration: none;
 }
 
 .pill-button {

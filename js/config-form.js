@@ -468,7 +468,7 @@ export function importedText(name, warnings) {
     return `Imported "${name}".`;
   }
   const count = warnings === 1 ? "1 warning" : `${warnings} warnings`;
-  return `Imported "${name}" with ${count}. It still runs; see the warnings below.`;
+  return `Imported "${name}" with ${count}. It still runs; see What to check above.`;
 }
 
 // One line of an import's detail or warnings: the entry's readable place

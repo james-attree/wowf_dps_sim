@@ -227,6 +227,7 @@ describe("Run moves to the result it makes (#242)", () => {
     assert.deepEqual(followRoute(idle, running("batch"), route), {
       area: "results",
       sub: null,
+      param: null,
       run: true,
     });
     assert.equal(

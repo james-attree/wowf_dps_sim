@@ -45,6 +45,12 @@ import { createStore } from "../js/store.js";
 // draft per origin, config.rotation following the draft only while it is
 // valid, Run blocked while it has errors, quick fixes, undo and revert.
 
+// A rule's screen (#243, UX5): its route, #rotation/rule/<n>, shown.
+function openRule(builder, view, ruleUid) {
+  const at = view().rules.findIndex((rule) => rule.uid === ruleUid);
+  builder.showScreen("rule", String(at + 1));
+}
+
 function setup() {
   const store = createStore({ config: normalizeConfig(pageDefaultConfig()) });
   const form = createConfigForm(store);
@@ -79,7 +85,8 @@ describe("the builder opens on the rotation picked in Fight setup", () => {
   it("shows its rules, unedited, and changes nothing", () => {
     const { store, view, actions } = setup();
     assert.equal(view().open, true);
-    assert.equal(view().toggle, "Close rotation builder");
+    assert.equal(view().screen.kind, "list");
+    assert.equal(view().screen.title, "Rotation");
     assert.equal(view().rules.length, DEFAULT_ACTIONS.length);
     assert.equal(view().origin.edited, false);
     assert.equal(view().name.value, defaultRotation().name);
@@ -88,12 +95,15 @@ describe("the builder opens on the rotation picked in Fight setup", () => {
     assert.equal(view().errors, null);
   });
 
-  it("closes again and hands focus back to its button", () => {
-    const { builder, view, slice } = setup();
+  it("closes from its back link, back to the link that opened it (Fran's #251 check)", () => {
+    const { builder, view } = setup();
+    assert.deepEqual(view().screen.back, {
+      href: "#character",
+      text: "Character",
+      focus: "cfg-rotation-edit",
+    });
     builder.toggle();
     assert.equal(view().open, false);
-    assert.equal(view().toggle, "Edit rotation…");
-    assert.equal(slice().focus.key, "toggle");
   });
 });
 
@@ -423,7 +433,7 @@ describe("errors keep the last valid version (D17, D19)", () => {
   function broken() {
     const page = setup();
     const evis = page.uid(5);
-    page.builder.toggleRule(evis);
+    openRule(page.builder, page.view, evis);
     const cuid = page.view().rules[5].body.conditions[0].uid;
     page.builder.setParam(evis, cuid, "value", "");
     return { ...page, evis, cuid };
@@ -494,7 +504,7 @@ describe("errors keep the last valid version (D17, D19)", () => {
     let errors = 0;
     for (let at = 0; errors <= max && at < view().rules.length; at += 1) {
       const rule = uid(at);
-      builder.toggleRule(rule);
+      openRule(builder, view, rule);
       for (let n = 0; n < k("rotation.maxConditionsPerRule"); n += 1) {
         builder.addCondition(rule);
       }
@@ -519,7 +529,7 @@ describe("quick fixes (section 6)", () => {
   it("a finisher without a combo point check gets one", () => {
     const { store, builder, view, uid } = setup();
     const evis = uid(5);
-    builder.toggleRule(evis);
+    openRule(builder, view, evis);
     const cuid = view().rules[5].body.conditions[0].uid;
     builder.removeCondition(evis, cuid);
     const message = view().rules[5].messages.find(
@@ -811,7 +821,7 @@ describe("half-typed number text follows copies and deletes (Scout's review of #
   it("a copy of a rule shows the copied text, never NaN", () => {
     const { store, builder, view, uid } = setup();
     const ruleUid = uid(5);
-    builder.toggleRule(ruleUid);
+    openRule(builder, view, ruleUid);
     const cuid = view().rules[5].body.conditions[0].uid;
     builder.setParam(ruleUid, cuid, "value", "abc");
     assert.equal(valueOf(view().rules[5], 0), "abc");
@@ -826,7 +836,7 @@ describe("half-typed number text follows copies and deletes (Scout's review of #
   it("deleting a rule drops its text; clearing all drops all of it", () => {
     const { store, builder, view, uid } = setup();
     const ruleUid = uid(5);
-    builder.toggleRule(ruleUid);
+    openRule(builder, view, ruleUid);
     const cuid = view().rules[5].body.conditions[0].uid;
     builder.setParam(ruleUid, cuid, "value", "abc");
     builder.duplicate(ruleUid);
@@ -894,7 +904,7 @@ describe("Fran's re-check of #218 (c3b0f5a)", () => {
     const { builder, view, uid } = setup();
     const at = view().rules.findIndex((rule) => rule.line.includes("CP"));
     const ruleUid = uid(at);
-    builder.toggleRule(ruleUid);
+    openRule(builder, view, ruleUid);
     const cuid = view().rules[at].body.conditions[0].uid;
     for (const text of ["1e1", "0x10"]) {
       builder.setParam(ruleUid, cuid, "value", text);

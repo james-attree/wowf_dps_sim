@@ -42,13 +42,6 @@
 .rotation-panel[hidden] {
   display: none;
 }
-.builder-head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: end;
-  gap: 8px;
-}
 .rotation-panel .pill-button,
 .rotation-panel select,
 .rotation-panel input,
@@ -149,11 +142,14 @@
 
 .rule-list-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
 }
-.rule-list-head h3 {
+.rule-list-head h2 {
+  margin: 0;
+  margin-right: auto;
   font-size: 0.95rem;
 }
 .rule-count {
@@ -397,7 +393,7 @@
   align-items: baseline;
   gap: 8px;
 }
-.cond-head h5 {
+.cond-head h2 {
   font-size: 0.85rem;
   margin: 0;
 }
@@ -608,11 +604,25 @@
   }
 }
 
-/* Scout, 29 Oct: the selected rule (new rules go above it). */
-.rule.is-selected {
-  box-shadow: inset 3px 0 0 var(--accent);
+/* ---- A rule's screen (#243, UX5; #rotation/rule/<n>) ---------------------- */
+/* The h1 is the rule's name, its number drawn before it as on the list. */
+.area-title .rule-num {
+  display: inline;
+  min-width: 0;
+  margin-right: 0.4em;
+  padding: 0;
 }
-.chip.is-sel {
-  color: #f3eee2;
-  border-color: var(--accent);
+.rule-screen {
+  display: grid;
+  gap: 10px;
+}
+/* Room between the banner above it and the rule's line. */
+.builder-messages:has(> :not([hidden])) + .rule-screen {
+  margin-top: 12px;
+}
+.rule-screen .rule-body {
+  padding-top: 10px;
+}
+.builder-share {
+  margin: 0;
 }
