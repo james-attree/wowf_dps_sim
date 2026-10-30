@@ -447,19 +447,30 @@ export function createControlsView(doc, store, actions = {}) {
   // the first setting to fix. Focus moved to Run while a typed edit makes it
   // blocked (a script, a screen reader) ends the same way.
   // Another button's press on a disabled Run drops the focus to the page
-  // too: it goes back where it was.
+  // too: it goes back where it was. So does any press on a Run disabled by
+  // a run in progress, not by an error (#245, Fran's #251 check): back to
+  // where it was, or from the page to the state's main control (Stop in a
+  // batch).
   row.addEventListener("pointerdown", (event) => {
     if (event?.target !== buttons.run || !buttons.run.disabled) {
       return;
     }
-    if (!otherButton(event)) {
+    if (!otherButton(event) && blocked(store.get())) {
       later(refocus);
       return;
     }
     const had = doc.activeElement ?? null;
     const back = () => {
-      if (had !== null && had !== doc.body && lost()) {
+      if (!lost()) {
+        return;
+      }
+      if (had !== null && had !== doc.body && !had.disabled) {
         had.focus?.();
+        return;
+      }
+      const main = buttons[focusTarget(store.get())];
+      if (main !== undefined && !main.disabled && !otherButton(event)) {
+        main.focus?.();
       }
     };
     back();
