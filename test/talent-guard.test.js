@@ -296,7 +296,7 @@ describe("talent guard (#188): read from the data, not a list in the validator",
     for (const [given, shown] of [
       [["cold-blood", null], "null"],
       [new Set([1]), "a number"],
-      [[["cold-blood"]], "an object"],
+      [[["cold-blood"]], "an array"],
       [["cold-blood", undefined], "undefined"],
     ]) {
       assert.throws(
