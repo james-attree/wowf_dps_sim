@@ -1987,13 +1987,12 @@ a.pill-button {
 }
 
 .rotation-pick select:focus-visible,
-.rotation-summary summary:focus-visible,
-.check-row input:focus-visible {
+.rotation-summary summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
-/* Fight's Target (#244, UX6): "Attacking from behind". */
+/* Fight's Target (#244, UX6): it is always attacked from behind. */
 .fight-target {
   margin-bottom: 14px;
 }
@@ -2003,21 +2002,10 @@ a.pill-button {
   font-size: 1rem;
 }
 
-.check-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  color: #f3eee2;
+.fight-target-text {
+  margin: 6px 0 0;
+  color: var(--text-muted);
   font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.check-row input {
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0;
-  accent-color: var(--accent);
 }
 
 /* The batch results panel (#154). From Fran's mockup.css

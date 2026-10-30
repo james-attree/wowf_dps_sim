@@ -84,6 +84,11 @@ export function characterRows(form) {
 // "1 to fix", "3 to fix"; "" for none.
 export const fixText = (count) => (count < ONE ? "" : `${count} to fix`);
 
+// A row's accessible name: its label and its chip, "Gear and weapons, 2 to
+// fix" or "Stats"; its summary is its description (#244, Fran's qa-256 P-a).
+export const rowName = (title, chip) =>
+  chip === "" ? title : `${title}, ${chip}`;
+
 // The screen a route is on, or null off Character.
 export function screenOf(route) {
   if (route?.area !== "character") {
@@ -107,6 +112,11 @@ export function createCharacterScreensView(doc, store, { setOpen }) {
     stats: $("character-stats-status"),
     talents: $("character-talents-status"),
   };
+  const rows = {
+    gear: $(SCREENS.gear.row),
+    stats: $(SCREENS.stats.row),
+    talents: $(SCREENS.talents.row),
+  };
   const summaries = {
     gear: $("character-gear-summary"),
     stats: $("character-stats-summary"),
@@ -119,12 +129,17 @@ export function createCharacterScreensView(doc, store, { setOpen }) {
       node.textContent = text;
     }
   };
-  const chip = (node, text) => {
-    if (node === null) {
-      return;
+  const chip = (screen, text) => {
+    const node = chips[screen];
+    if (node !== null) {
+      write(node, text);
+      node.hidden = text === "";
     }
-    write(node, text);
-    node.hidden = text === "";
+    const row = rows[screen];
+    const name = rowName(SCREENS[screen].title, text);
+    if (row !== null && row.getAttribute("aria-label") !== name) {
+      row.setAttribute("aria-label", name);
+    }
   };
 
   function drawScreen(screen) {
@@ -150,11 +165,11 @@ export function createCharacterScreensView(doc, store, { setOpen }) {
     const { gear, stats } = characterRows(state.form);
     write(summaries.gear, gear.summary);
     write(summaries.stats, stats.summary);
-    chip(chips.gear, fixText(gear.fix));
-    chip(chips.stats, fixText(stats.fix));
+    chip("gear", fixText(gear.fix));
+    chip("stats", fixText(stats.fix));
     const view = state.talents?.view;
     chip(
-      chips.talents,
+      "talents",
       view?.over === true ? `${view.total - view.cap} over the cap` : "",
     );
   }

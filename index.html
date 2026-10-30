@@ -299,7 +299,7 @@
               id="character-row-gear"
               class="character-row"
               href="#character/gear"
-              aria-describedby="character-gear-summary character-gear-status"
+              aria-describedby="character-gear-summary"
               ><span class="character-row-name">Gear and weapons</span
               ><span
                 id="character-gear-summary"
@@ -318,7 +318,7 @@
               id="character-row-stats"
               class="character-row"
               href="#character/stats"
-              aria-describedby="character-stats-summary character-stats-status"
+              aria-describedby="character-stats-summary"
               ><span class="character-row-name">Stats</span
               ><span
                 id="character-stats-summary"
@@ -339,7 +339,7 @@
               id="talents-edit"
               class="character-row"
               href="#character/talents"
-              aria-describedby="talents-summary character-talents-status"
+              aria-describedby="talents-summary"
               ><span class="character-row-name" id="talents-summary-label"
                 >Talents</span
               ><span
@@ -545,6 +545,7 @@
                   <label for="cfg-poisons-mainHand">Poison</label>
                   <select
                     id="cfg-poisons-mainHand"
+                    aria-label="Main hand poison"
                     name="poisons.mainHand"
                     data-field="poisons.mainHand"
                   ></select>
@@ -678,6 +679,7 @@
                   <label for="cfg-poisons-offHand">Poison</label>
                   <select
                     id="cfg-poisons-offHand"
+                    aria-label="Off hand poison"
                     name="poisons.offHand"
                     data-field="poisons.offHand"
                   ></select>
@@ -885,32 +887,19 @@
 
       <section id="area-fight" class="area" data-area="fight">
         <h1 id="area-fight-title" class="area-title" tabindex="-1">Fight</h1>
-        <!-- The target (#244, UX6): config.target.behind, which the attack
-             table reads (no parry or block from behind). js/views/config-form.js
-             owns the box, a field of the stats form. -->
+        <!-- The target (#244, UX6): the sim is built for attacking from
+             behind, so this says so; it is no setting (James's ruling on
+             Fran's qa-256; js/config-form.js fromBehind). -->
         <section
           id="fight-target"
           class="panel fight-target"
           aria-labelledby="fight-target-heading"
         >
           <h2 id="fight-target-heading">Target</h2>
-          <div class="field check-field">
-            <label class="check-row" for="cfg-target-behind">
-              <input
-                id="cfg-target-behind"
-                name="target.behind"
-                data-field="target.behind"
-                type="checkbox"
-                aria-describedby="cfg-target-behind-help"
-                data-help="cfg-target-behind-help"
-              />
-              <span>Attacking from behind</span>
-            </label>
-            <p class="field-help" id="cfg-target-behind-help">
-              From behind, the target can't parry or block.
-            </p>
-            <p class="field-error" id="cfg-target-behind-error" hidden></p>
-          </div>
+          <p id="fight-target-text" class="fight-target-text">
+            You attack from behind: the target can't parry or block. Attacks
+            from the front are out of scope.
+          </p>
         </section>
         <section
           id="damage-panel"

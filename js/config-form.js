@@ -151,14 +151,6 @@ export const FORM_FIELDS = Object.freeze(
           ? ""
           : "Choose a poison.",
     })),
-    // Fight's "Attacking from behind" box (#244, UX6): config.target.behind,
-    // which the attack table reads (behind: no parry, no block). A box
-    // cannot hold anything else, so this only catches an outside value.
-    {
-      path: "target.behind",
-      check: (value) =>
-        typeof value === "boolean" ? "" : "Choose front or behind.",
-    },
   ].map(Object.freeze),
 );
 
@@ -174,7 +166,21 @@ function pairedMin(path) {
 // the page's poisons (#152, Scout: Instant on the main hand, Deadly on the off
 // hand). The engine's default keeps no poisons, so goldens do not move.
 export function pageDefaultConfig() {
-  return { ...defaultConfig(), poisons: { ...k("ui.pageDefaultPoisons") } };
+  return fromBehind({
+    ...defaultConfig(),
+    poisons: { ...k("ui.pageDefaultPoisons") },
+  });
+}
+
+// The sim is built for attacking from behind (docs/mechanics.md, "Scope:
+// behind only"; James's ruling on Fran's qa-256): every config the page
+// builds or runs has target.behind true, whatever it was given (a stored or
+// imported false too), with no message. The page has no control for it.
+export function fromBehind(config) {
+  if (config?.target?.behind === true) {
+    return config;
+  }
+  return { ...config, target: { ...config?.target, behind: true } };
 }
 
 // A poison select's value: its config id, "" for None. The config id is the
@@ -425,7 +431,7 @@ export function formFromConfig(config, revision = 0) {
 }
 
 // The config the form describes, on top of `base` (which keeps the sections
-// the form does not edit: the target's other settings, and the build, config.talents and
+// the form does not edit: the target (always from behind, fromBehind), and the build, config.talents and
 // config.talentLevel, which the talent tree owns (#204); the form used to
 // rebuild the talents from a select and wiped any other build). normalizeConfig checks it: the
 // backstop behind the field checks, so a config it refuses never reaches the
@@ -436,7 +442,7 @@ export function configFromForm(form, base) {
     write(config, path, form.values[path]);
   }
   config.rotation = rotationOf(form.rotationChoice, form.imported, form.drafts);
-  return normalizeConfig(config);
+  return normalizeConfig(fromBehind(config));
 }
 
 // What #153's Run starts: a snapshot of the store's config, or null while the
@@ -460,7 +466,7 @@ export function nextRunConfig(state) {
   if (typeof state.talents?.error === "string") {
     return null;
   }
-  return normalizeConfig(state.config);
+  return normalizeConfig(fromBehind(state.config));
 }
 
 function slug(name) {
@@ -527,6 +533,9 @@ export function listedLines(entries, most = MAX_LISTED) {
 // Creating the model fills the `form` slice from the store's config.
 export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
   let saved = null;
+  if (store.get().config?.target?.behind !== true) {
+    store.set({ config: fromBehind(store.get().config) });
+  }
   store.set({ form: formFromConfig(store.get().config) });
 
   const form = () => store.get().form;
@@ -798,7 +807,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
     // config from before, until anything else is done.
     reset() {
       const before = store.get();
-      const config = normalizeConfig(defaults());
+      const config = normalizeConfig(fromBehind(defaults()));
       store.batch(() => {
         store.set({
           form: {
