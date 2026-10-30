@@ -254,9 +254,16 @@ export function createResultViewsView(doc, store, actions) {
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (
-      ["route", "run", "batch", "results", "ran", "config", "form"].some(
-        (slice) => changed.includes(slice),
-      )
+      [
+        "route",
+        "run",
+        "batch",
+        "results",
+        "ran",
+        "config",
+        "form",
+        "talents",
+      ].some((slice) => changed.includes(slice))
     ) {
       render(state);
     }

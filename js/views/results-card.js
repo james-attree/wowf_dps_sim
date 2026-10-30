@@ -213,8 +213,8 @@ export function createResultsCardView(doc, store, labels) {
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (
-      ["run", "batch", "results", "config", "ran"].some((s) =>
-        changed.includes(s),
+      ["run", "batch", "results", "config", "ran", "form", "talents"].some(
+        (s) => changed.includes(s),
       )
     ) {
       render(state);
