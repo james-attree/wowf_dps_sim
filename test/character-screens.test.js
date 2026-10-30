@@ -17,7 +17,6 @@ import {
   SCREENS,
   characterRows,
   fixText,
-  rowName,
   screenOf,
 } from "../js/views/character-screens.js";
 import { formatRoute, parseRoute, titleFor } from "../js/views/router.js";
@@ -140,18 +139,6 @@ describe("Always from behind (#244)", () => {
 });
 
 describe("Fran's qa-256 polish (#244)", () => {
-  it("a row's name is its label and its chip, once each (P-a)", () => {
-    assert.equal(
-      rowName(SCREENS.gear.title, fixText(2)),
-      "Gear and weapons, 2 to fix",
-    );
-    assert.equal(rowName(SCREENS.stats.title, fixText(0)), "Stats");
-    assert.equal(
-      rowName(SCREENS.talents.title, "4 over the cap"),
-      "Talents, 4 over the cap",
-    );
-  });
-
   it("an extra part after a sub is dropped, but a rule keeps its number (P-b)", () => {
     for (const sub of ["gear", "stats", "talents"]) {
       const route = parseRoute(`#character/${sub}/x`);

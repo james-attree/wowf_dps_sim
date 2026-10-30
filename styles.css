@@ -1932,6 +1932,15 @@ a.pill-button {
   font-weight: 650;
 }
 
+/* A row is named by its label and its chip, "Gear and weapons, 2 to fix";
+   its summary is hidden from the name and is its description instead
+   (Fran's qa-256 P-a). The comma is heard, not shown: a zero font
+   size keeps it in the name, with no space before it. */
+.character-row:has(.status-chip:not([hidden])) .character-row-name::after {
+  content: ",";
+  font-size: 0;
+}
+
 .character-row-summary {
   grid-area: summary;
   min-width: 0;
