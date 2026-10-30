@@ -11,11 +11,42 @@
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
+    <!-- The page's areas (#239): one link each, the current one marked
+         aria-current. js/views/router.js shows the area and draws the
+         badges (an area's settings to fix). -->
+    <nav id="area-nav" class="area-nav" aria-label="Areas">
+      <ul>
+        <li>
+          <a href="#character" data-nav-area="character"
+            ><span class="area-nav-label">Character</span
+            ><span class="area-nav-badge" data-badge="" hidden></span
+          ></a>
+        </li>
+        <li>
+          <a href="#rotation" data-nav-area="rotation"
+            ><span class="area-nav-label">Rotation</span
+            ><span class="area-nav-badge" data-badge="" hidden></span
+          ></a>
+        </li>
+        <li>
+          <a href="#fight" data-nav-area="fight"
+            ><span class="area-nav-label">Fight</span
+            ><span class="area-nav-badge" data-badge="" hidden></span
+          ></a>
+        </li>
+        <li>
+          <a href="#results" data-nav-area="results"
+            ><span class="area-nav-label">Results</span
+            ><span class="area-nav-badge" data-badge="" hidden></span
+          ></a>
+        </li>
+      </ul>
+    </nav>
     <main class="simulator">
       <header class="simulator-header">
         <div>
           <p class="eyebrow">COMBAT SIMULATOR</p>
-          <h1>Rogue</h1>
+          <p class="app-title">Rogue</p>
         </div>
       </header>
 
@@ -137,788 +168,827 @@
         <p id="run-help" class="run-help"></p>
       </section>
 
-      <form
-        id="config-form"
-        class="panel config-panel"
-        aria-labelledby="config-heading"
-        novalidate
-      >
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">SETUP</p>
-            <h2 id="config-heading">Fight setup</h2>
-          </div>
-        </div>
-        <div class="config-grid">
-          <fieldset class="config-fieldset build-fieldset">
-            <legend>Build</legend>
-            <!-- The talent tree's summary row (#204); js/views/talent-tree.js
-                 owns it and the #talent-tree section under the form. -->
-            <div class="field talents-summary">
-              <div>
-                <span class="talents-summary-label" id="talents-summary-label"
-                  >Talents</span
-                >
-                <span class="talents-summary-value" id="talents-summary"
-                  >No talents</span
-                >
-              </div>
-              <button
-                id="talents-edit"
-                class="pill-button"
-                type="button"
-                aria-expanded="false"
-                aria-controls="talent-tree"
-                aria-describedby="talents-summary-label talents-summary"
-              >
-                Edit talents
-              </button>
+      <!-- Live regions stay outside the area shells so they still speak
+           while their area is hidden (#239 B2). -->
+      <div
+        id="live-announcer"
+        class="visually-hidden"
+        role="status"
+        aria-live="polite"
+      ></div>
+      <p
+        id="results-announce"
+        class="visually-hidden"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></p>
+
+      <section id="area-character" class="area" data-area="character">
+        <h1 id="area-character-title" class="area-title" tabindex="-1">
+          Character
+        </h1>
+        <form
+          id="config-form"
+          class="panel config-panel"
+          aria-labelledby="config-heading"
+          novalidate
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">SETUP</p>
+              <h2 id="config-heading">Fight setup</h2>
             </div>
-            <div class="field">
-              <label for="cfg-rotation">Rotation</label>
-              <!-- U7 (#217): js/views/rotation-builder.js owns the button and
-                   the #rotation-builder section under the form. -->
-              <div class="rotation-pick">
-                <select
-                  id="cfg-rotation"
-                  name="rotation"
-                  aria-describedby="cfg-rotation-summary"
-                ></select>
+          </div>
+          <div class="config-grid">
+            <fieldset class="config-fieldset build-fieldset">
+              <legend>Build</legend>
+              <!-- The talent tree's summary row (#204); js/views/talent-tree.js
+                   owns it and the #talent-tree section under the form. -->
+              <div class="field talents-summary">
+                <div>
+                  <span class="talents-summary-label" id="talents-summary-label"
+                    >Talents</span
+                  >
+                  <span class="talents-summary-value" id="talents-summary"
+                    >No talents</span
+                  >
+                </div>
                 <button
-                  id="cfg-rotation-edit"
+                  id="talents-edit"
                   class="pill-button"
                   type="button"
                   aria-expanded="false"
-                  aria-controls="rotation-builder"
+                  aria-controls="talent-tree"
+                  aria-describedby="talents-summary-label talents-summary"
                 >
-                  Edit rotation…
+                  Edit talents
                 </button>
               </div>
-            </div>
-            <details id="cfg-summary" class="rotation-summary" open>
-              <summary>What this rotation does</summary>
-              <div id="cfg-rotation-summary">
-                <p id="cfg-summary-stale" class="summary-stale" hidden></p>
-                <p id="cfg-summary-name" class="rotation-summary-name"></p>
-                <ol id="cfg-summary-rules" class="rotation-summary-rules"></ol>
+              <div class="field">
+                <label for="cfg-rotation">Rotation</label>
+                <!-- U7 (#217): js/views/rotation-builder.js owns the button and
+                     the #rotation-builder section under the form. -->
+                <div class="rotation-pick">
+                  <select
+                    id="cfg-rotation"
+                    name="rotation"
+                    aria-describedby="cfg-rotation-summary"
+                  ></select>
+                  <button
+                    id="cfg-rotation-edit"
+                    class="pill-button"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="rotation-builder"
+                  >
+                    Edit rotation…
+                  </button>
+                </div>
               </div>
-            </details>
-            <div class="rotation-io">
-              <button id="cfg-export" class="pill-button" type="button">
-                Export…
-              </button>
-              <label class="pill-button file-button" for="cfg-import-file"
-                >Import…</label
-              >
-              <input
-                id="cfg-import-file"
-                class="visually-hidden"
-                type="file"
-                accept=".json,application/json"
-              />
-            </div>
-            <p id="cfg-export-why" class="field-error export-why" hidden></p>
-            <details class="paste-import">
-              <summary>Paste JSON</summary>
-              <label for="cfg-import-text">Rotation JSON</label>
-              <textarea
-                id="cfg-import-text"
-                rows="6"
-                spellcheck="false"
-              ></textarea>
-              <button id="cfg-import-paste" class="pill-button" type="button">
-                Import
-              </button>
-            </details>
-            <div class="import-box">
-              <p id="cfg-import-status" class="import-status" role="status"></p>
-              <details id="cfg-import-detail" class="import-detail" hidden>
-                <summary>What's wrong with it</summary>
-                <pre id="cfg-import-detail-text"></pre>
+              <details id="cfg-summary" class="rotation-summary" open>
+                <summary>What this rotation does</summary>
+                <div id="cfg-rotation-summary">
+                  <p id="cfg-summary-stale" class="summary-stale" hidden></p>
+                  <p id="cfg-summary-name" class="rotation-summary-name"></p>
+                  <ol
+                    id="cfg-summary-rules"
+                    class="rotation-summary-rules"
+                  ></ol>
+                </div>
               </details>
-              <details
-                id="cfg-import-warnings"
-                class="import-detail import-warnings"
-                hidden
-              >
-                <summary>What to check</summary>
-                <pre id="cfg-import-warnings-text"></pre>
+              <div class="rotation-io">
+                <button id="cfg-export" class="pill-button" type="button">
+                  Export…
+                </button>
+                <label class="pill-button file-button" for="cfg-import-file"
+                  >Import…</label
+                >
+                <input
+                  id="cfg-import-file"
+                  class="visually-hidden"
+                  type="file"
+                  accept=".json,application/json"
+                />
+              </div>
+              <p id="cfg-export-why" class="field-error export-why" hidden></p>
+              <details class="paste-import">
+                <summary>Paste JSON</summary>
+                <label for="cfg-import-text">Rotation JSON</label>
+                <textarea
+                  id="cfg-import-text"
+                  rows="6"
+                  spellcheck="false"
+                ></textarea>
+                <button id="cfg-import-paste" class="pill-button" type="button">
+                  Import
+                </button>
               </details>
+              <div class="import-box">
+                <p
+                  id="cfg-import-status"
+                  class="import-status"
+                  role="status"
+                ></p>
+                <details id="cfg-import-detail" class="import-detail" hidden>
+                  <summary>What's wrong with it</summary>
+                  <pre id="cfg-import-detail-text"></pre>
+                </details>
+                <details
+                  id="cfg-import-warnings"
+                  class="import-detail import-warnings"
+                  hidden
+                >
+                  <summary>What to check</summary>
+                  <pre id="cfg-import-warnings-text"></pre>
+                </details>
+              </div>
+            </fieldset>
+            <fieldset class="config-fieldset character-fieldset">
+              <legend>Character</legend>
+              <div class="field">
+                <label for="cfg-character-attackPower">Attack power</label>
+                <div class="field-control">
+                  <input
+                    id="cfg-character-attackPower"
+                    name="character.attackPower"
+                    data-field="character.attackPower"
+                    type="number"
+                    inputmode="numeric"
+                    step="1"
+                    min="0"
+                  />
+                </div>
+
+                <p
+                  class="field-error"
+                  id="cfg-character-attackPower-error"
+                  hidden
+                ></p>
+              </div>
+              <div class="field">
+                <label for="cfg-character-critChance"
+                  >Crit chance<span class="visually-hidden">
+                    (percent)</span
+                  ></label
+                >
+                <div class="field-control">
+                  <input
+                    id="cfg-character-critChance"
+                    name="character.critChance"
+                    data-field="character.critChance"
+                    aria-describedby="cfg-character-talent-help"
+                    data-help="cfg-character-talent-help"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.01"
+                    min="0"
+                    data-percent="true"
+                  />
+                  <span class="field-suffix" aria-hidden="true">%</span>
+                </div>
+
+                <p
+                  class="field-error"
+                  id="cfg-character-critChance-error"
+                  hidden
+                ></p>
+              </div>
+              <div class="field">
+                <label for="cfg-character-bonusHitChance"
+                  >Hit chance (bonus)<span class="visually-hidden">
+                    (percent)</span
+                  ></label
+                >
+                <div class="field-control">
+                  <input
+                    id="cfg-character-bonusHitChance"
+                    name="character.bonusHitChance"
+                    data-field="character.bonusHitChance"
+                    aria-describedby="cfg-character-talent-help"
+                    data-help="cfg-character-talent-help"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.01"
+                    min="0"
+                    data-percent="true"
+                  />
+                  <span class="field-suffix" aria-hidden="true">%</span>
+                </div>
+
+                <p
+                  class="field-error"
+                  id="cfg-character-bonusHitChance-error"
+                  hidden
+                ></p>
+              </div>
+              <p class="field-help" id="cfg-character-talent-help">
+                Without talents (the talent tree adds its own).
+              </p>
+            </fieldset>
+            <div class="hands">
+              <fieldset class="config-fieldset hand-fieldset">
+                <legend>Main hand</legend>
+                <div class="field">
+                  <label for="cfg-weapons-mainHand-type">Type</label>
+                  <select
+                    id="cfg-weapons-mainHand-type"
+                    name="weapons.mainHand.type"
+                    data-field="weapons.mainHand.type"
+                    aria-describedby="cfg-weapons-mainHand-type-help"
+                    data-help="cfg-weapons-mainHand-type-help"
+                  >
+                    <option value="dagger">Dagger</option>
+                    <option value="sword">Sword</option>
+                    <option value="mace">Mace</option>
+                    <option value="axe">Axe</option>
+                    <option value="fist">Fist weapon</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <p class="field-help" id="cfg-weapons-mainHand-type-help">
+                    Dagger uses 1.7 s normalized speed for abilities; others use
+                    2.4 s. Also enables weapon-type talents.
+                  </p>
+                  <p
+                    class="field-error"
+                    id="cfg-weapons-mainHand-type-error"
+                    hidden
+                  ></p>
+                </div>
+                <div class="field-pair">
+                  <div class="field">
+                    <label for="cfg-weapons-mainHand-min">Min damage</label>
+                    <div class="field-control">
+                      <input
+                        id="cfg-weapons-mainHand-min"
+                        name="weapons.mainHand.min"
+                        data-field="weapons.mainHand.min"
+                        type="number"
+                        inputmode="numeric"
+                        step="1"
+                        min="0"
+                      />
+                    </div>
+
+                    <p
+                      class="field-error"
+                      id="cfg-weapons-mainHand-min-error"
+                      hidden
+                    ></p>
+                  </div>
+                  <div class="field">
+                    <label for="cfg-weapons-mainHand-max">Max damage</label>
+                    <div class="field-control">
+                      <input
+                        id="cfg-weapons-mainHand-max"
+                        name="weapons.mainHand.max"
+                        data-field="weapons.mainHand.max"
+                        type="number"
+                        inputmode="numeric"
+                        step="1"
+                        min="0"
+                      />
+                    </div>
+
+                    <p
+                      class="field-error"
+                      id="cfg-weapons-mainHand-max-error"
+                      hidden
+                    ></p>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="cfg-weapons-mainHand-speed"
+                    >Speed<span class="visually-hidden"> (seconds)</span></label
+                  >
+                  <div class="field-control">
+                    <input
+                      id="cfg-weapons-mainHand-speed"
+                      name="weapons.mainHand.speed"
+                      data-field="weapons.mainHand.speed"
+                      type="number"
+                      inputmode="decimal"
+                      step="0.1"
+                      min="0"
+                    />
+                    <span class="field-suffix" aria-hidden="true">s</span>
+                  </div>
+
+                  <p
+                    class="field-error"
+                    id="cfg-weapons-mainHand-speed-error"
+                    hidden
+                  ></p>
+                </div>
+                <div class="field poison-field">
+                  <label for="cfg-poisons-mainHand">Poison</label>
+                  <select
+                    id="cfg-poisons-mainHand"
+                    name="poisons.mainHand"
+                    data-field="poisons.mainHand"
+                  ></select>
+                  <p
+                    id="cfg-poisons-mainHand-rank"
+                    class="field-help"
+                    hidden
+                  ></p>
+                  <p id="cfg-poisons-mainHand-line" class="field-help" hidden>
+                    <span id="cfg-poisons-mainHand-effect"></span
+                    ><span
+                      id="cfg-poisons-mainHand-charges"
+                      class="poison-charges"
+                      hidden
+                      ><span aria-hidden="true"> · </span>Charges not
+                      tracked</span
+                    >
+                  </p>
+                  <p id="cfg-poisons-mainHand-note" class="poison-note" hidden>
+                    <span aria-hidden="true">ⓘ </span
+                    ><span id="cfg-poisons-mainHand-note-text"></span>
+                  </p>
+                  <details
+                    id="cfg-poisons-mainHand-tooltip"
+                    class="poison-tooltip"
+                    hidden
+                  >
+                    <summary>Tooltip text</summary>
+                    <p id="cfg-poisons-mainHand-tooltip-text"></p>
+                  </details>
+                  <p
+                    class="field-error"
+                    id="cfg-poisons-mainHand-error"
+                    hidden
+                  ></p>
+                </div>
+              </fieldset>
+              <fieldset class="config-fieldset hand-fieldset">
+                <legend>Off hand</legend>
+                <div class="field">
+                  <label for="cfg-weapons-offHand-type">Type</label>
+                  <select
+                    id="cfg-weapons-offHand-type"
+                    name="weapons.offHand.type"
+                    data-field="weapons.offHand.type"
+                    aria-describedby="cfg-weapons-offHand-type-help"
+                    data-help="cfg-weapons-offHand-type-help"
+                  >
+                    <option value="dagger">Dagger</option>
+                    <option value="sword">Sword</option>
+                    <option value="mace">Mace</option>
+                    <option value="axe">Axe</option>
+                    <option value="fist">Fist weapon</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <p class="field-help" id="cfg-weapons-offHand-type-help">
+                    Enables weapon-type talents (e.g. Sword Specialization).
+                  </p>
+                  <p
+                    class="field-error"
+                    id="cfg-weapons-offHand-type-error"
+                    hidden
+                  ></p>
+                </div>
+                <div class="field-pair">
+                  <div class="field">
+                    <label for="cfg-weapons-offHand-min">Min damage</label>
+                    <div class="field-control">
+                      <input
+                        id="cfg-weapons-offHand-min"
+                        name="weapons.offHand.min"
+                        data-field="weapons.offHand.min"
+                        type="number"
+                        inputmode="numeric"
+                        step="1"
+                        min="0"
+                      />
+                    </div>
+
+                    <p
+                      class="field-error"
+                      id="cfg-weapons-offHand-min-error"
+                      hidden
+                    ></p>
+                  </div>
+                  <div class="field">
+                    <label for="cfg-weapons-offHand-max">Max damage</label>
+                    <div class="field-control">
+                      <input
+                        id="cfg-weapons-offHand-max"
+                        name="weapons.offHand.max"
+                        data-field="weapons.offHand.max"
+                        type="number"
+                        inputmode="numeric"
+                        step="1"
+                        min="0"
+                      />
+                    </div>
+
+                    <p
+                      class="field-error"
+                      id="cfg-weapons-offHand-max-error"
+                      hidden
+                    ></p>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="cfg-weapons-offHand-speed"
+                    >Speed<span class="visually-hidden"> (seconds)</span></label
+                  >
+                  <div class="field-control">
+                    <input
+                      id="cfg-weapons-offHand-speed"
+                      name="weapons.offHand.speed"
+                      data-field="weapons.offHand.speed"
+                      type="number"
+                      inputmode="decimal"
+                      step="0.1"
+                      min="0"
+                    />
+                    <span class="field-suffix" aria-hidden="true">s</span>
+                  </div>
+
+                  <p
+                    class="field-error"
+                    id="cfg-weapons-offHand-speed-error"
+                    hidden
+                  ></p>
+                </div>
+                <div class="field poison-field">
+                  <label for="cfg-poisons-offHand">Poison</label>
+                  <select
+                    id="cfg-poisons-offHand"
+                    name="poisons.offHand"
+                    data-field="poisons.offHand"
+                  ></select>
+                  <p
+                    id="cfg-poisons-offHand-rank"
+                    class="field-help"
+                    hidden
+                  ></p>
+                  <p id="cfg-poisons-offHand-line" class="field-help" hidden>
+                    <span id="cfg-poisons-offHand-effect"></span
+                    ><span
+                      id="cfg-poisons-offHand-charges"
+                      class="poison-charges"
+                      hidden
+                      ><span aria-hidden="true"> · </span>Charges not
+                      tracked</span
+                    >
+                  </p>
+                  <p id="cfg-poisons-offHand-note" class="poison-note" hidden>
+                    <span aria-hidden="true">ⓘ </span
+                    ><span id="cfg-poisons-offHand-note-text"></span>
+                  </p>
+                  <details
+                    id="cfg-poisons-offHand-tooltip"
+                    class="poison-tooltip"
+                    hidden
+                  >
+                    <summary>Tooltip text</summary>
+                    <p id="cfg-poisons-offHand-tooltip-text"></p>
+                  </details>
+                  <p
+                    class="field-error"
+                    id="cfg-poisons-offHand-error"
+                    hidden
+                  ></p>
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
-          <fieldset class="config-fieldset character-fieldset">
-            <legend>Character</legend>
-            <div class="field">
-              <label for="cfg-character-attackPower">Attack power</label>
+          </div>
+          <div class="config-footer">
+            <button id="cfg-reset" class="pill-button" type="button">
+              Reset to defaults
+            </button>
+            <div class="config-status">
+              <p id="cfg-status-ok" class="config-status-ok">
+                Changes apply to the next run
+              </p>
+              <p id="cfg-edited" class="config-edited" hidden>
+                Edited — applies to the next run
+              </p>
+              <div id="cfg-fix" class="config-fix" hidden>
+                <p id="cfg-fix-heading"></p>
+                <ul id="cfg-fix-list" class="config-fix-list"></ul>
+              </div>
+              <p id="cfg-form-error" class="field-error" hidden></p>
+              <p id="cfg-run-gate" class="visually-hidden" role="status"></p>
+            </div>
+            <div id="cfg-toast" class="config-toast" role="status">
+              <span id="cfg-toast-text"></span>
+              <button id="cfg-undo" class="pill-button" type="button" hidden>
+                Undo
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <section
+          id="talent-tree"
+          class="panel talents-panel"
+          aria-labelledby="talents-heading"
+          hidden
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">BUILD</p>
+              <h2 id="talents-heading">Talents</h2>
+            </div>
+            <div class="talents-actions">
+              <button id="talents-reset" class="pill-button" type="button">
+                Reset all
+              </button>
+              <button id="talents-close" class="pill-button" type="button">
+                Close talents
+              </button>
+            </div>
+          </div>
+          <div class="talents-bar">
+            <div class="field talents-level">
+              <label for="talents-level">Level</label>
               <div class="field-control">
                 <input
-                  id="cfg-character-attackPower"
-                  name="character.attackPower"
-                  data-field="character.attackPower"
+                  id="talents-level"
                   type="number"
                   inputmode="numeric"
                   step="1"
-                  min="0"
+                  aria-describedby="talents-level-help"
                 />
               </div>
-
-              <p
-                class="field-error"
-                id="cfg-character-attackPower-error"
-                hidden
-              ></p>
             </div>
-            <div class="field">
-              <label for="cfg-character-critChance"
-                >Crit chance<span class="visually-hidden">
-                  (percent)</span
-                ></label
-              >
-              <div class="field-control">
-                <input
-                  id="cfg-character-critChance"
-                  name="character.critChance"
-                  data-field="character.critChance"
-                  aria-describedby="cfg-character-talent-help"
-                  data-help="cfg-character-talent-help"
-                  type="number"
-                  inputmode="decimal"
-                  step="0.01"
-                  min="0"
-                  data-percent="true"
-                />
-                <span class="field-suffix" aria-hidden="true">%</span>
-              </div>
-
-              <p
-                class="field-error"
-                id="cfg-character-critChance-error"
-                hidden
-              ></p>
-            </div>
-            <div class="field">
-              <label for="cfg-character-bonusHitChance"
-                >Hit chance (bonus)<span class="visually-hidden">
-                  (percent)</span
-                ></label
-              >
-              <div class="field-control">
-                <input
-                  id="cfg-character-bonusHitChance"
-                  name="character.bonusHitChance"
-                  data-field="character.bonusHitChance"
-                  aria-describedby="cfg-character-talent-help"
-                  data-help="cfg-character-talent-help"
-                  type="number"
-                  inputmode="decimal"
-                  step="0.01"
-                  min="0"
-                  data-percent="true"
-                />
-                <span class="field-suffix" aria-hidden="true">%</span>
-              </div>
-
-              <p
-                class="field-error"
-                id="cfg-character-bonusHitChance-error"
-                hidden
-              ></p>
-            </div>
-            <p class="field-help" id="cfg-character-talent-help">
-              Without talents (the talent tree adds its own).
+            <div class="talents-points" id="talents-points"></div>
+            <p class="field-error" id="talents-level-error" hidden></p>
+            <p class="talents-help" id="talents-level-help">
+              Level sets your talent points (level − 9) and nothing else. Enter
+              that character's own stats under Character.
             </p>
-          </fieldset>
-          <div class="hands">
-            <fieldset class="config-fieldset hand-fieldset">
-              <legend>Main hand</legend>
-              <div class="field">
-                <label for="cfg-weapons-mainHand-type">Type</label>
-                <select
-                  id="cfg-weapons-mainHand-type"
-                  name="weapons.mainHand.type"
-                  data-field="weapons.mainHand.type"
-                  aria-describedby="cfg-weapons-mainHand-type-help"
-                  data-help="cfg-weapons-mainHand-type-help"
-                >
-                  <option value="dagger">Dagger</option>
-                  <option value="sword">Sword</option>
-                  <option value="mace">Mace</option>
-                  <option value="axe">Axe</option>
-                  <option value="fist">Fist weapon</option>
-                  <option value="other">Other</option>
-                </select>
-                <p class="field-help" id="cfg-weapons-mainHand-type-help">
-                  Dagger uses 1.7 s normalized speed for abilities; others use
-                  2.4 s. Also enables weapon-type talents.
-                </p>
-                <p
-                  class="field-error"
-                  id="cfg-weapons-mainHand-type-error"
-                  hidden
-                ></p>
-              </div>
-              <div class="field-pair">
-                <div class="field">
-                  <label for="cfg-weapons-mainHand-min">Min damage</label>
-                  <div class="field-control">
-                    <input
-                      id="cfg-weapons-mainHand-min"
-                      name="weapons.mainHand.min"
-                      data-field="weapons.mainHand.min"
-                      type="number"
-                      inputmode="numeric"
-                      step="1"
-                      min="0"
-                    />
-                  </div>
-
-                  <p
-                    class="field-error"
-                    id="cfg-weapons-mainHand-min-error"
-                    hidden
-                  ></p>
-                </div>
-                <div class="field">
-                  <label for="cfg-weapons-mainHand-max">Max damage</label>
-                  <div class="field-control">
-                    <input
-                      id="cfg-weapons-mainHand-max"
-                      name="weapons.mainHand.max"
-                      data-field="weapons.mainHand.max"
-                      type="number"
-                      inputmode="numeric"
-                      step="1"
-                      min="0"
-                    />
-                  </div>
-
-                  <p
-                    class="field-error"
-                    id="cfg-weapons-mainHand-max-error"
-                    hidden
-                  ></p>
-                </div>
-              </div>
-              <div class="field">
-                <label for="cfg-weapons-mainHand-speed"
-                  >Speed<span class="visually-hidden"> (seconds)</span></label
-                >
-                <div class="field-control">
-                  <input
-                    id="cfg-weapons-mainHand-speed"
-                    name="weapons.mainHand.speed"
-                    data-field="weapons.mainHand.speed"
-                    type="number"
-                    inputmode="decimal"
-                    step="0.1"
-                    min="0"
-                  />
-                  <span class="field-suffix" aria-hidden="true">s</span>
-                </div>
-
-                <p
-                  class="field-error"
-                  id="cfg-weapons-mainHand-speed-error"
-                  hidden
-                ></p>
-              </div>
-              <div class="field poison-field">
-                <label for="cfg-poisons-mainHand">Poison</label>
-                <select
-                  id="cfg-poisons-mainHand"
-                  name="poisons.mainHand"
-                  data-field="poisons.mainHand"
-                ></select>
-                <p id="cfg-poisons-mainHand-rank" class="field-help" hidden></p>
-                <p id="cfg-poisons-mainHand-line" class="field-help" hidden>
-                  <span id="cfg-poisons-mainHand-effect"></span
-                  ><span
-                    id="cfg-poisons-mainHand-charges"
-                    class="poison-charges"
-                    hidden
-                    ><span aria-hidden="true"> · </span>Charges not
-                    tracked</span
-                  >
-                </p>
-                <p id="cfg-poisons-mainHand-note" class="poison-note" hidden>
-                  <span aria-hidden="true">ⓘ </span
-                  ><span id="cfg-poisons-mainHand-note-text"></span>
-                </p>
-                <details
-                  id="cfg-poisons-mainHand-tooltip"
-                  class="poison-tooltip"
-                  hidden
-                >
-                  <summary>Tooltip text</summary>
-                  <p id="cfg-poisons-mainHand-tooltip-text"></p>
-                </details>
-                <p
-                  class="field-error"
-                  id="cfg-poisons-mainHand-error"
-                  hidden
-                ></p>
-              </div>
-            </fieldset>
-            <fieldset class="config-fieldset hand-fieldset">
-              <legend>Off hand</legend>
-              <div class="field">
-                <label for="cfg-weapons-offHand-type">Type</label>
-                <select
-                  id="cfg-weapons-offHand-type"
-                  name="weapons.offHand.type"
-                  data-field="weapons.offHand.type"
-                  aria-describedby="cfg-weapons-offHand-type-help"
-                  data-help="cfg-weapons-offHand-type-help"
-                >
-                  <option value="dagger">Dagger</option>
-                  <option value="sword">Sword</option>
-                  <option value="mace">Mace</option>
-                  <option value="axe">Axe</option>
-                  <option value="fist">Fist weapon</option>
-                  <option value="other">Other</option>
-                </select>
-                <p class="field-help" id="cfg-weapons-offHand-type-help">
-                  Enables weapon-type talents (e.g. Sword Specialization).
-                </p>
-                <p
-                  class="field-error"
-                  id="cfg-weapons-offHand-type-error"
-                  hidden
-                ></p>
-              </div>
-              <div class="field-pair">
-                <div class="field">
-                  <label for="cfg-weapons-offHand-min">Min damage</label>
-                  <div class="field-control">
-                    <input
-                      id="cfg-weapons-offHand-min"
-                      name="weapons.offHand.min"
-                      data-field="weapons.offHand.min"
-                      type="number"
-                      inputmode="numeric"
-                      step="1"
-                      min="0"
-                    />
-                  </div>
-
-                  <p
-                    class="field-error"
-                    id="cfg-weapons-offHand-min-error"
-                    hidden
-                  ></p>
-                </div>
-                <div class="field">
-                  <label for="cfg-weapons-offHand-max">Max damage</label>
-                  <div class="field-control">
-                    <input
-                      id="cfg-weapons-offHand-max"
-                      name="weapons.offHand.max"
-                      data-field="weapons.offHand.max"
-                      type="number"
-                      inputmode="numeric"
-                      step="1"
-                      min="0"
-                    />
-                  </div>
-
-                  <p
-                    class="field-error"
-                    id="cfg-weapons-offHand-max-error"
-                    hidden
-                  ></p>
-                </div>
-              </div>
-              <div class="field">
-                <label for="cfg-weapons-offHand-speed"
-                  >Speed<span class="visually-hidden"> (seconds)</span></label
-                >
-                <div class="field-control">
-                  <input
-                    id="cfg-weapons-offHand-speed"
-                    name="weapons.offHand.speed"
-                    data-field="weapons.offHand.speed"
-                    type="number"
-                    inputmode="decimal"
-                    step="0.1"
-                    min="0"
-                  />
-                  <span class="field-suffix" aria-hidden="true">s</span>
-                </div>
-
-                <p
-                  class="field-error"
-                  id="cfg-weapons-offHand-speed-error"
-                  hidden
-                ></p>
-              </div>
-              <div class="field poison-field">
-                <label for="cfg-poisons-offHand">Poison</label>
-                <select
-                  id="cfg-poisons-offHand"
-                  name="poisons.offHand"
-                  data-field="poisons.offHand"
-                ></select>
-                <p id="cfg-poisons-offHand-rank" class="field-help" hidden></p>
-                <p id="cfg-poisons-offHand-line" class="field-help" hidden>
-                  <span id="cfg-poisons-offHand-effect"></span
-                  ><span
-                    id="cfg-poisons-offHand-charges"
-                    class="poison-charges"
-                    hidden
-                    ><span aria-hidden="true"> · </span>Charges not
-                    tracked</span
-                  >
-                </p>
-                <p id="cfg-poisons-offHand-note" class="poison-note" hidden>
-                  <span aria-hidden="true">ⓘ </span
-                  ><span id="cfg-poisons-offHand-note-text"></span>
-                </p>
-                <details
-                  id="cfg-poisons-offHand-tooltip"
-                  class="poison-tooltip"
-                  hidden
-                >
-                  <summary>Tooltip text</summary>
-                  <p id="cfg-poisons-offHand-tooltip-text"></p>
-                </details>
-                <p
-                  class="field-error"
-                  id="cfg-poisons-offHand-error"
-                  hidden
-                ></p>
-              </div>
-            </fieldset>
           </div>
-        </div>
-        <div class="config-footer">
-          <button id="cfg-reset" class="pill-button" type="button">
-            Reset to defaults
-          </button>
-          <div class="config-status">
-            <p id="cfg-status-ok" class="config-status-ok">
-              Changes apply to the next run
-            </p>
-            <p id="cfg-edited" class="config-edited" hidden>
-              Edited — applies to the next run
-            </p>
-            <div id="cfg-fix" class="config-fix" hidden>
-              <p id="cfg-fix-heading"></p>
-              <ul id="cfg-fix-list" class="config-fix-list"></ul>
-            </div>
-            <p id="cfg-form-error" class="field-error" hidden></p>
-            <p id="cfg-run-gate" class="visually-hidden" role="status"></p>
-          </div>
-          <div id="cfg-toast" class="config-toast" role="status">
-            <span id="cfg-toast-text"></span>
-            <button id="cfg-undo" class="pill-button" type="button" hidden>
-              Undo
-            </button>
-          </div>
-        </div>
-      </form>
-
-      <section
-        id="talent-tree"
-        class="panel talents-panel"
-        aria-labelledby="talents-heading"
-        hidden
-      >
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">BUILD</p>
-            <h2 id="talents-heading">Talents</h2>
-          </div>
-          <div class="talents-actions">
-            <button id="talents-reset" class="pill-button" type="button">
-              Reset all
-            </button>
-            <button id="talents-close" class="pill-button" type="button">
-              Close talents
-            </button>
-          </div>
-        </div>
-        <div class="talents-bar">
-          <div class="field talents-level">
-            <label for="talents-level">Level</label>
-            <div class="field-control">
-              <input
-                id="talents-level"
-                type="number"
-                inputmode="numeric"
-                step="1"
-                aria-describedby="talents-level-help"
-              />
-            </div>
-          </div>
-          <div class="talents-points" id="talents-points"></div>
-          <p class="field-error" id="talents-level-error" hidden></p>
-          <p class="talents-help" id="talents-level-help">
-            Level sets your talent points (level − 9) and nothing else. Enter
-            that character's own stats under Character.
+          <div class="talents-message" id="talents-message"></div>
+          <div
+            class="talents-tabs"
+            id="talents-tabs"
+            role="tablist"
+            aria-label="Talent trees"
+            hidden
+          ></div>
+          <div class="talent-trees" id="talents-trees"></div>
+          <ul class="talents-legend" id="talents-legend" aria-label="Key"></ul>
+          <aside
+            class="talent-detail"
+            id="talents-detail"
+            aria-labelledby="talents-detail-heading"
+          ></aside>
+          <div class="talents-effects" id="talents-effects"></div>
+          <p class="visually-hidden" id="talents-keys">
+            Arrow keys move between talents. Enter, Space or plus adds a point.
+            Minus, Backspace or Delete removes one.
           </p>
-        </div>
-        <div class="talents-message" id="talents-message"></div>
-        <div
-          class="talents-tabs"
-          id="talents-tabs"
-          role="tablist"
-          aria-label="Talent trees"
+          <p class="visually-hidden" id="talents-live" role="status"></p>
+        </section>
+      </section>
+
+      <section id="area-rotation" class="area" data-area="rotation">
+        <h1 id="area-rotation-title" class="area-title" tabindex="-1">
+          Rotation
+        </h1>
+        <section
+          id="rotation-builder"
+          class="panel rotation-panel"
+          aria-labelledby="rotation-builder-title"
           hidden
-        ></div>
-        <div class="talent-trees" id="talents-trees"></div>
-        <ul class="talents-legend" id="talents-legend" aria-label="Key"></ul>
-        <aside
-          class="talent-detail"
-          id="talents-detail"
-          aria-labelledby="talents-detail-heading"
-        ></aside>
-        <div class="talents-effects" id="talents-effects"></div>
-        <p class="visually-hidden" id="talents-keys">
-          Arrow keys move between talents. Enter, Space or plus adds a point.
-          Minus, Backspace or Delete removes one.
-        </p>
-        <p class="visually-hidden" id="talents-live" role="status"></p>
+        ></section>
       </section>
 
-      <section
-        id="rotation-builder"
-        class="panel rotation-panel"
-        aria-labelledby="rotation-builder-title"
-        hidden
-      ></section>
-
-      <section
-        id="damage-panel"
-        class="damage-panel"
-        aria-labelledby="damage-heading"
-      >
-        <h2 id="damage-heading" class="visually-hidden">Fight totals</h2>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <span class="stat-label">Total damage</span>
-            <output id="damage-value" aria-live="off" class="stat-value"
-              >0</output
-            >
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Damage per second</span>
-            <output id="dps-value" aria-live="off" class="stat-value">0</output>
-            <span class="stat-unit">DPS</span>
-          </div>
-        </div>
-      </section>
-
-      <section
-        id="results-panel"
-        class="panel results-panel"
-        aria-labelledby="results-heading"
-      >
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">BATCH RESULTS</p>
-            <h2 id="results-heading">Results</h2>
-            <p id="results-meta" class="results-meta" hidden></p>
-          </div>
-        </div>
-        <div id="results-body"></div>
-        <p
-          id="results-announce"
-          class="visually-hidden"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        ></p>
-      </section>
-
-      <section
-        data-fight-frame
-        class="resources-panel panel"
-        aria-labelledby="resources-heading"
-      >
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">COMBAT</p>
-          </div>
-          <output id="time-value" aria-live="off" class="elapsed-time"
-            >00:00</output
-          >
-        </div>
-
-        <div class="resource-grid">
-          <section
-            class="resource-card combo-panel"
-            aria-labelledby="combo-heading"
-          >
-            <div class="resource-label">
-              <h3 id="combo-heading">Combo points</h3>
-              <output id="combo-value" aria-live="off"
-                >0 <span class="value-divider">/</span> 5</output
+      <section id="area-fight" class="area" data-area="fight">
+        <h1 id="area-fight-title" class="area-title" tabindex="-1">Fight</h1>
+        <section
+          id="damage-panel"
+          class="damage-panel"
+          aria-labelledby="damage-heading"
+        >
+          <h2 id="damage-heading" class="visually-hidden">Fight totals</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">Total damage</span>
+              <output id="damage-value" aria-live="off" class="stat-value"
+                >0</output
               >
             </div>
-            <div
-              id="combo-meter"
-              class="combo-meter"
-              role="meter"
-              aria-label="Combo points"
-              aria-valuemin="0"
-              aria-valuemax="5"
-              aria-valuenow="0"
-              aria-valuetext="0 of 5"
-            >
-              <span class="combo-point"></span>
-              <span class="combo-point"></span>
-              <span class="combo-point"></span>
-              <span class="combo-point"></span>
-              <span class="combo-point"></span>
+            <div class="stat-card">
+              <span class="stat-label">Damage per second</span>
+              <output id="dps-value" aria-live="off" class="stat-value"
+                >0</output
+              >
+              <span class="stat-unit">DPS</span>
             </div>
-            <p id="combo-spend" class="combo-spend"></p>
-          </section>
+          </div>
+        </section>
 
-          <section
-            class="resource-card energy-panel"
-            aria-labelledby="energy-heading"
-          >
-            <div class="resource-label">
-              <h3 id="energy-heading">Energy</h3>
-              <div class="energy-readout">
-                <span id="energy-cap" class="cap-tag" hidden>AT CAP</span>
-                <output id="energy-value" aria-live="off"
-                  >0 <span class="value-divider">/</span> 100</output
+        <section
+          data-fight-frame
+          class="resources-panel panel"
+          aria-labelledby="resources-heading"
+        >
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow" aria-hidden="true">COMBAT</p>
+              <h2 id="resources-heading" class="visually-hidden">Combat</h2>
+            </div>
+            <output id="time-value" aria-live="off" class="elapsed-time"
+              >00:00</output
+            >
+          </div>
+
+          <div class="resource-grid">
+            <section
+              class="resource-card combo-panel"
+              aria-labelledby="combo-heading"
+            >
+              <div class="resource-label">
+                <h3 id="combo-heading">Combo points</h3>
+                <output id="combo-value" aria-live="off"
+                  >0 <span class="value-divider">/</span> 5</output
                 >
               </div>
-            </div>
-            <div
-              id="energy-meter"
-              class="energy-meter"
-              role="meter"
-              aria-label="Rogue energy"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              aria-valuenow="0"
-              aria-valuetext="0 of 100"
-            >
-              <div id="energy-fill" class="energy-fill"></div>
-            </div>
-          </section>
-        </div>
-
-        <div class="cooldown-grid">
-          <section
-            class="resource-card gcd-panel"
-            aria-labelledby="gcd-heading"
-          >
-            <div class="resource-label">
-              <h3 id="gcd-heading">GCD</h3>
-              <div class="gcd-readout">
-                <span id="gcd-status" class="gcd-status" aria-live="off"
-                  >Ready</span
-                >
-                <output id="gcd-value" aria-live="off">0.0s</output>
+              <div
+                id="combo-meter"
+                class="combo-meter"
+                role="meter"
+                aria-label="Combo points"
+                aria-valuemin="0"
+                aria-valuemax="5"
+                aria-valuenow="0"
+                aria-valuetext="0 of 5"
+              >
+                <span class="combo-point"></span>
+                <span class="combo-point"></span>
+                <span class="combo-point"></span>
+                <span class="combo-point"></span>
+                <span class="combo-point"></span>
               </div>
-            </div>
-            <div
-              id="gcd-meter"
-              class="gcd-meter"
-              role="meter"
-              aria-label="Global cooldown remaining"
-              aria-valuemin="0"
-              aria-valuemax="1"
-              aria-valuenow="0"
-              aria-valuetext="Ready"
+              <p id="combo-spend" class="combo-spend"></p>
+            </section>
+
+            <section
+              class="resource-card energy-panel"
+              aria-labelledby="energy-heading"
             >
-              <div id="gcd-fill" class="gcd-fill"></div>
-            </div>
-          </section>
-          <section
-            class="resource-card timed-effects-panel"
-            aria-labelledby="active-buffs-heading"
-          >
-            <h3 id="active-buffs-heading">Active effects</h3>
-            <p id="active-buffs-empty" class="timed-effects-empty">None</p>
-            <div
-              id="active-buffs"
-              class="timed-effects"
-              role="list"
+              <div class="resource-label">
+                <h3 id="energy-heading">Energy</h3>
+                <div class="energy-readout">
+                  <span id="energy-cap" class="cap-tag" hidden>AT CAP</span>
+                  <output id="energy-value" aria-live="off"
+                    >0 <span class="value-divider">/</span> 100</output
+                  >
+                </div>
+              </div>
+              <div
+                id="energy-meter"
+                class="energy-meter"
+                role="meter"
+                aria-label="Rogue energy"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-valuetext="0 of 100"
+              >
+                <div id="energy-fill" class="energy-fill"></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="cooldown-grid">
+            <section
+              class="resource-card gcd-panel"
+              aria-labelledby="gcd-heading"
+            >
+              <div class="resource-label">
+                <h3 id="gcd-heading">GCD</h3>
+                <div class="gcd-readout">
+                  <span id="gcd-status" class="gcd-status" aria-live="off"
+                    >Ready</span
+                  >
+                  <output id="gcd-value" aria-live="off">0.0s</output>
+                </div>
+              </div>
+              <div
+                id="gcd-meter"
+                class="gcd-meter"
+                role="meter"
+                aria-label="Global cooldown remaining"
+                aria-valuemin="0"
+                aria-valuemax="1"
+                aria-valuenow="0"
+                aria-valuetext="Ready"
+              >
+                <div id="gcd-fill" class="gcd-fill"></div>
+              </div>
+            </section>
+            <section
+              class="resource-card timed-effects-panel"
               aria-labelledby="active-buffs-heading"
-            ></div>
-          </section>
-          <section
-            class="resource-card timed-effects-panel"
-            aria-labelledby="active-debuffs-heading"
-          >
-            <h3 id="active-debuffs-heading">Debuffs</h3>
-            <p id="active-debuffs-empty" class="timed-effects-empty">None</p>
-            <div
-              id="active-debuffs"
-              class="timed-effects"
-              role="list"
+            >
+              <h3 id="active-buffs-heading">Active effects</h3>
+              <p id="active-buffs-empty" class="timed-effects-empty">None</p>
+              <div
+                id="active-buffs"
+                class="timed-effects"
+                role="list"
+                aria-labelledby="active-buffs-heading"
+              ></div>
+            </section>
+            <section
+              class="resource-card timed-effects-panel"
               aria-labelledby="active-debuffs-heading"
-            ></div>
-          </section>
-          <section
-            class="resource-card timed-effects-panel"
-            aria-labelledby="skill-cooldowns-heading"
-          >
-            <h3 id="skill-cooldowns-heading">Cooldowns</h3>
-            <p id="skill-cooldowns-empty" class="timed-effects-empty">None</p>
-            <div
-              id="skill-cooldowns"
-              class="timed-effects"
-              role="list"
+            >
+              <h3 id="active-debuffs-heading">Debuffs</h3>
+              <p id="active-debuffs-empty" class="timed-effects-empty">None</p>
+              <div
+                id="active-debuffs"
+                class="timed-effects"
+                role="list"
+                aria-labelledby="active-debuffs-heading"
+              ></div>
+            </section>
+            <section
+              class="resource-card timed-effects-panel"
               aria-labelledby="skill-cooldowns-heading"
-            ></div>
+            >
+              <h3 id="skill-cooldowns-heading">Cooldowns</h3>
+              <p id="skill-cooldowns-empty" class="timed-effects-empty">None</p>
+              <div
+                id="skill-cooldowns"
+                class="timed-effects"
+                role="list"
+                aria-labelledby="skill-cooldowns-heading"
+              ></div>
+            </section>
+          </div>
+        </section>
+
+        <section
+          data-fight-frame
+          class="combat-log-panel panel"
+          aria-labelledby="combat-log-heading"
+        >
+          <div class="section-heading combat-log-heading">
+            <div>
+              <p class="eyebrow">EVENTS</p>
+              <h2 id="combat-log-heading">Combat log</h2>
+            </div>
+            <div class="log-tools">
+              <label class="announce-toggle">
+                <input id="announce-toggle" type="checkbox" />
+                Announce key events
+              </label>
+              <span class="log-caption">Newest events first</span>
+            </div>
+          </div>
+          <section class="proc-row" aria-labelledby="procs-heading">
+            <h3 id="procs-heading">Procs</h3>
+            <p id="procs-empty" class="timed-effects-empty">None</p>
+            <ul id="proc-chips" class="proc-chips"></ul>
           </section>
-        </div>
+          <div
+            class="combat-log-scroll"
+            role="region"
+            aria-label="Combat log events"
+            aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+            aria-describedby="log-hint"
+            tabindex="0"
+          >
+            <ol id="combat-log" class="combat-log" aria-live="off">
+              <li id="combat-log-empty" class="combat-log-empty">
+                Waiting for combat events…
+              </li>
+            </ol>
+          </div>
+          <p class="log-readout">
+            <span id="log-hint"></span
+            ><span id="log-step" aria-hidden="true"></span>
+          </p>
+          <p id="log-readout" class="visually-hidden" aria-live="polite"></p>
+        </section>
       </section>
 
-      <section
-        data-fight-frame
-        class="combat-log-panel panel"
-        aria-labelledby="combat-log-heading"
-      >
-        <div class="section-heading combat-log-heading">
-          <div>
-            <p class="eyebrow">EVENTS</p>
-            <h2 id="combat-log-heading">Combat log</h2>
-          </div>
-          <div class="log-tools">
-            <label class="announce-toggle">
-              <input id="announce-toggle" type="checkbox" />
-              Announce key events
-            </label>
-            <span class="log-caption">Newest events first</span>
-          </div>
-        </div>
-        <section class="proc-row" aria-labelledby="procs-heading">
-          <h3 id="procs-heading">Procs</h3>
-          <p id="procs-empty" class="timed-effects-empty">None</p>
-          <ul id="proc-chips" class="proc-chips"></ul>
-        </section>
-        <div
-          class="combat-log-scroll"
-          role="region"
-          aria-label="Combat log events"
-          aria-keyshortcuts="ArrowLeft ArrowRight Home End"
-          aria-describedby="log-hint"
-          tabindex="0"
+      <section id="area-results" class="area" data-area="results">
+        <h1 id="area-results-title" class="area-title" tabindex="-1">
+          Results
+        </h1>
+        <section
+          id="results-panel"
+          class="panel results-panel"
+          aria-labelledby="results-heading"
         >
-          <ol id="combat-log" class="combat-log" aria-live="off">
-            <li id="combat-log-empty" class="combat-log-empty">
-              Waiting for combat events…
-            </li>
-          </ol>
-        </div>
-        <p class="log-readout">
-          <span id="log-hint"></span
-          ><span id="log-step" aria-hidden="true"></span>
-        </p>
-        <p id="log-readout" class="visually-hidden" aria-live="polite"></p>
-        <div
-          id="live-announcer"
-          class="visually-hidden"
-          role="status"
-          aria-live="polite"
-        ></div>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">BATCH RESULTS</p>
+              <h2 id="results-heading">Results</h2>
+              <p id="results-meta" class="results-meta" hidden></p>
+            </div>
+          </div>
+          <div id="results-body"></div>
+        </section>
       </section>
     </main>
     <footer class="site-footer" aria-label="Data credit">
