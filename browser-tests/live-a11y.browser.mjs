@@ -161,9 +161,9 @@ for (const width of WIDTHS) {
 
       await clickCentre(page.locator("#run-button"));
       await page.waitForTimeout(1500);
-      // Run moved the page to Fight, which it says (#242, comment a).
+      // Run moved the page to Results' Live view, which it says (#242, #245).
       assert.deepEqual(await messages(page), [
-        { id: "run-announce", text: "Running. Showing Fight." },
+        { id: "run-announce", text: "Running. Showing Results." },
       ]);
 
       await clickCentre(page.locator("#pause-button"));
@@ -685,6 +685,8 @@ for (const width of [1280, 390, 360]) {
           more: name.scrollHeight > name.clientHeight + 1,
           title: name.title,
           clamp: getComputedStyle(name).webkitLineClamp,
+          wrap: getComputedStyle(name).whiteSpace,
+          ellipsis: getComputedStyle(name).textOverflow,
           damageRight: [right(first), right(second)],
           damageAlign: getComputedStyle(damage).textAlign,
           damageCut: damage.scrollWidth > damage.clientWidth,
@@ -693,10 +695,15 @@ for (const width of [1280, 390, 360]) {
             document.documentElement.clientWidth,
         };
       }, LONG);
-      // At every width since #245 (UX7): in full, no clamp, no title.
+      // At every width since #245 (UX7): in full, no clamp, no title. A wide
+      // row has room for it on one line.
       assert.equal(at.clamp, "none", "no line clamp");
-      assert.ok(at.lines > 1.5, `two lines or more: ${at.lines}`);
-      assert.equal(at.more, false, "nothing cut off, no ellipsis");
+      assert.notEqual(at.wrap, "nowrap", "it may wrap");
+      assert.notEqual(at.ellipsis, "ellipsis", "no ellipsis");
+      if (width < 520) {
+        assert.ok(at.lines > 2.5, `three lines or more: ${at.lines}`);
+      }
+      assert.equal(at.more, false, "nothing cut off");
       assert.equal(at.title, "", "no title");
       assert.ok(
         Math.abs(at.damageRight[0] - at.damageRight[1]) <= 1,

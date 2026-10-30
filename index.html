@@ -989,11 +989,11 @@
               Run an average
             </button>
           </div>
-          <!-- Before the first Watch there is no fight to show: its meters,
-               effects and combat log come with it (#245, UX7). -->
+          <!-- Before the first Watch there is no fight to show: its meters and
+               effects come with it (#245, UX7). The combat log stays, with its
+               own empty line, so Announce key events can be set beforehand. -->
           <p id="results-live-empty" class="result-live-empty">
-            No live fight yet. Watch fight to see its meters, effects and combat
-            log here.
+            No live fight yet. Watch fight to see its meters and effects here.
           </p>
           <div id="results-live-fight" class="result-live-fight" hidden>
             <section
@@ -1166,55 +1166,50 @@
                 </section>
               </div>
             </section>
-
-            <section
-              data-fight-frame
-              class="combat-log-panel panel"
-              aria-labelledby="combat-log-heading"
-            >
-              <div class="section-heading combat-log-heading">
-                <div>
-                  <p class="eyebrow">EVENTS</p>
-                  <h3 id="combat-log-heading">Combat log</h3>
-                </div>
-                <div class="log-tools">
-                  <label class="announce-toggle">
-                    <input id="announce-toggle" type="checkbox" />
-                    Announce key events
-                  </label>
-                  <span class="log-caption">Newest events first</span>
-                </div>
-              </div>
-              <section class="proc-row" aria-labelledby="procs-heading">
-                <h4 id="procs-heading">Procs</h4>
-                <p id="procs-empty" class="timed-effects-empty">None</p>
-                <ul id="proc-chips" class="proc-chips"></ul>
-              </section>
-              <div
-                class="combat-log-scroll"
-                role="region"
-                aria-label="Combat log events"
-                aria-keyshortcuts="ArrowLeft ArrowRight Home End"
-                aria-describedby="log-hint"
-                tabindex="0"
-              >
-                <ol id="combat-log" class="combat-log" aria-live="off">
-                  <li id="combat-log-empty" class="combat-log-empty">
-                    Waiting for combat events…
-                  </li>
-                </ol>
-              </div>
-              <p class="log-readout">
-                <span id="log-hint"></span
-                ><span id="log-step" aria-hidden="true"></span>
-              </p>
-              <p
-                id="log-readout"
-                class="visually-hidden"
-                aria-live="polite"
-              ></p>
-            </section>
           </div>
+          <section
+            data-fight-frame
+            class="combat-log-panel panel"
+            aria-labelledby="combat-log-heading"
+          >
+            <div class="section-heading combat-log-heading">
+              <div>
+                <p class="eyebrow">EVENTS</p>
+                <h3 id="combat-log-heading">Combat log</h3>
+              </div>
+              <div class="log-tools">
+                <label class="announce-toggle">
+                  <input id="announce-toggle" type="checkbox" />
+                  Announce key events
+                </label>
+                <span class="log-caption">Newest events first</span>
+              </div>
+            </div>
+            <section class="proc-row" aria-labelledby="procs-heading">
+              <h4 id="procs-heading">Procs</h4>
+              <p id="procs-empty" class="timed-effects-empty">None</p>
+              <ul id="proc-chips" class="proc-chips"></ul>
+            </section>
+            <div
+              class="combat-log-scroll"
+              role="region"
+              aria-label="Combat log events"
+              aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+              aria-describedby="log-hint"
+              tabindex="0"
+            >
+              <ol id="combat-log" class="combat-log" aria-live="off">
+                <li id="combat-log-empty" class="combat-log-empty">
+                  Waiting for combat events…
+                </li>
+              </ol>
+            </div>
+            <p class="log-readout">
+              <span id="log-hint"></span
+              ><span id="log-step" aria-hidden="true"></span>
+            </p>
+            <p id="log-readout" class="visually-hidden" aria-live="polite"></p>
+          </section>
         </section>
         <section
           id="results-panel"

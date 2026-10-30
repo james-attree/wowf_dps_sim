@@ -2998,9 +2998,12 @@ th[aria-sort="ascending"] {
 
 /* ---- Results views (#242, UX4) ------------------------------------------- */
 /* Average and Live fight: two kept results, one shown at a time, chosen by
-   a pair of links that read as a segmented switch. */
+   a pair of links that read as a segmented switch. With large text on a
+   phone they wrap, rather than the page scrolling sideways (#245). */
 .result-switch {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 4px;
   margin: 0 0 12px;
   padding: 4px;
@@ -3110,7 +3113,8 @@ th[aria-sort="ascending"] {
 }
 
 /* The live fight under Results' Live view (#245, UX7): its panels' headings
-   are a level under the view's "Live fight", drawn as they were on Fight. */
+   are a level under the view's "Live fight", drawn as they were on Fight.
+   Before the first Watch a line stands in for its meters and effects. */
 .result-live-empty {
   margin: 0;
   color: var(--text-muted);
@@ -3127,14 +3131,14 @@ th[aria-sort="ascending"] {
   min-width: 0;
 }
 
-.result-live-fight h3 {
+:where(#results-live) h3 {
   color: inherit;
   font-size: 1rem;
   font-weight: bold;
   letter-spacing: -0.025em;
 }
 
-.result-live-fight h4 {
+:where(#results-live) h4 {
   margin: 0;
   color: #d4c8b1;
   font-size: 0.8rem;
