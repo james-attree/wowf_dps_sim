@@ -12,39 +12,15 @@
 .talents-panel[hidden] {
   display: none;
 }
-/* ---- Summary row (replaces the Talents select in Fight setup) ------------ */
-.talents-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.talents-summary-label {
-  display: block;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 650;
-}
-.talents-summary-value {
-  display: block;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-.talents-panel .section-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.talents-panel h2 {
-  font-size: 1.05rem;
-}
+/* The summary is Character's Talents row (#244, UX6; styles.css's
+   .character-row); the panel is the Talents screen, so it has no heading
+   of its own. */
 .talents-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
+  margin-bottom: 8px;
 }
 
 /* ---- Level and points ----------------------------------------------------- */

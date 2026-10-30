@@ -6,7 +6,7 @@
    #b9d99a; the ratios are in Fran's spec. The narrow query is
    js/views/breakpoints.js's NARROW_QUERY. */
 
-/* ---- Fight setup ---------------------------------------------------------- */
+/* ---- Rotation's list: the preset the sim uses (#244, UX6) ---------------- */
 .rotation-pick {
   display: flex;
   flex-wrap: wrap;
@@ -20,7 +20,7 @@
 .rotation-pick .pill-button {
   min-height: 44px;
 }
-/* D19: the Fight setup summary says when it shows the last valid version. */
+/* D19: Rotation's summary says when it shows the last valid version. */
 .summary-stale {
   margin: 0 0 6px;
   padding: 6px 8px;
@@ -591,15 +591,19 @@
   .cond-type select {
     width: 100%;
   }
+  /* A field starts at its select's own width (its longest choice) and
+     grows to fill the line, so two short ones share a line and a long one
+     ("Adrenaline Rush") takes its own rather than being cut off (#244). */
   .cond-fields > .cond-field:not(.cond-type) {
-    flex: 1 1 40%;
+    flex: 1 1 auto;
   }
   .cond-fields select,
   .cond-value {
     width: 100%;
   }
   .rotation-panel select,
-  .rotation-panel input {
+  .rotation-panel input,
+  .rotation-pick select {
     font-size: 16px;
   }
 }
