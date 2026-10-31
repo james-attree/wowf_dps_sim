@@ -128,12 +128,17 @@ export class Rogue {
     this.rng = null;
     // Instant attacks use the normalized speed of the main-hand weapon for the
     // AP bonus: normalizedSpeed.dagger for a dagger, normalizedSpeed.oneHand for
-    // any other type (or none). Abilities roll the main hand only (issue #129).
-    this.normalizedWeaponSpeed = k(
-      weapons.mainHand.type === "dagger"
-        ? "normalizedSpeed.dagger"
-        : "normalizedSpeed.oneHand",
-    );
+    // any other type (or none). Abilities roll the main hand only (issue #129),
+    // but Mutilate (#267), which strikes with the off hand too, at the
+    // normalized speed of the off-hand type.
+    const normalized = (type) =>
+      k(
+        type === "dagger"
+          ? "normalizedSpeed.dagger"
+          : "normalizedSpeed.oneHand",
+      );
+    this.normalizedWeaponSpeed = normalized(weapons.mainHand.type);
+    this.offHandNormalizedSpeed = normalized(weapons.offHand?.type);
 
     this.abilities = createAbilities(this);
     this.abilitiesById = new Map(
@@ -260,12 +265,18 @@ export class Rogue {
     return this.modifiers.resolve("hitChance", this.bonusHitChance, context);
   }
 
-  rollWeaponDamageForSkill() {
+  rollWeaponDamageForSkill(hand = "mainHand") {
     // Weapon die plus attack power / ap.perDps, times the normalized speed of
-    // the main-hand type (the dagger or the one-hand constant, set above).
+    // the hand's type (the dagger or the one-hand constant, set above). The
+    // main hand by default; Mutilate's off-hand strike asks for the off hand
+    // (#267), with no off-hand penalty.
+    const speed =
+      hand === "mainHand"
+        ? this.normalizedWeaponSpeed
+        : this.offHandNormalizedSpeed;
     return (
-      this.weapons.mainHand.rollWeaponDamage() +
-      (this.getAttackPower() / k("ap.perDps")) * this.normalizedWeaponSpeed
+      this.weapons[hand].rollWeaponDamage() +
+      (this.getAttackPower() / k("ap.perDps")) * speed
     );
   }
 

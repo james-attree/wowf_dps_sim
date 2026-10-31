@@ -142,11 +142,12 @@ describe("the snapshot's text for the three talents", () => {
     });
   });
 
-  it("scopes Cold Blood to Mutilate too, which the engine has no definition for", () => {
+  it("scopes Cold Blood to Mutilate too, which the engine casts since #267", () => {
     const defined = new Set(ABILITY_DEFINITIONS.map((d) => d.id));
+    assert.ok(k("coldBlood").abilities.includes("mutilate"));
     assert.deepEqual(
       k("coldBlood").abilities.filter((id) => !defined.has(id)),
-      ["mutilate"],
+      [],
     );
   });
 

@@ -16,8 +16,9 @@ import { rotationStateReader } from "./rotation-state.js";
 //              would go ahead now (Ability.canCast: main hand, aura,
 //              cooldown, cost, GCD).
 //   onGcd      the ability starts the global cooldown (Ability.triggersGcd).
-//   usable     the main hand is the weapon type the ability needs
-//              (Ability.mainHandAllowed: Backstab needs a dagger), something
+//   usable     each hand is the weapon type the ability needs
+//              (Ability.mainHandAllowed: Backstab needs a dagger;
+//              Ability.offHandAllowed: Mutilate needs two, #267), something
 //              in the fight can put up an aura it requires
 //              (Ability.auraReachable: nothing grants Ambush's cutthroat
 //              aura yet, #261), and the ability is not a talent ability the
@@ -57,6 +58,7 @@ export function rotationHost(rogue, simulation, options = {}) {
       const found = ability(id);
       return (
         found.mainHandAllowed(rogue) &&
+        found.offHandAllowed(rogue) &&
         found.auraReachable(rogue) &&
         !rogue.lockedByBuild(found)
       );

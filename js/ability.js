@@ -56,6 +56,16 @@ const DAMAGE = {
     return Math.floor(rogue.random() * (max - min + 1) + min);
   },
 
+  // Mutilate's main-hand strike as the target stands with no poison: the
+  // cast itself rolls each hand (Ability.handDamage), so this is only what
+  // resolve() reports.
+  bothHands(spec, stats, rogue) {
+    return (
+      (rogue.rollWeaponDamageForSkill() + stats[spec.bonus]) *
+      stats[spec.multiplier]
+    );
+  },
+
   dot(spec, stats, rogue, spent, durations) {
     // Totals, not per tick. The DoT applicator divides this by the tick count.
     const apBySpent = k(spec.ap);
@@ -138,6 +148,20 @@ export class Ability {
     this.costContext = Object.freeze({ ability: this.id });
     // The main-hand weapon type a cast needs, or null for none (Backstab).
     this.requiresMainHand = definition.requiresMainHand ?? null;
+    // The off-hand weapon type a cast needs, or null for any (Mutilate needs
+    // a dagger, #267). An entry without the field takes any off hand.
+    this.requiresOffHand = definition.requiresOffHand ?? null;
+    // Mutilate strikes with each hand (#267); its off-hand strike is this
+    // source, recorded under the ability's id.
+    this.bothHands = definition.damage?.kind === "bothHands";
+    this.offHandSource = this.bothHands
+      ? Object.freeze({
+          id: definition.id,
+          name: catalogued.name,
+          icon: definition.icon ?? spellIconUrl(catalogued.name),
+          hand: "offHand",
+        })
+      : null;
     // The self auras a cast needs one of (js/required-auras.js), a frozen
     // list; empty for none (Ambush: ["cutthroat"], #261).
     this.requiresAura = requiredAuras(definition);
@@ -267,6 +291,37 @@ export class Ability {
     );
   }
 
+  // Whether the off hand is the type the ability needs (always, for one that
+  // needs none: every ability but Mutilate). Only the config's weapon type
+  // decides it.
+  offHandAllowed(rogue) {
+    return (
+      this.requiresOffHand === null ||
+      rogue.weapons.offHand?.type === this.requiresOffHand
+    );
+  }
+
+  // Whether the target has the aura that makes a two-hand strike "poisoned"
+  // (Mutilate: Deadly Poison, #267, A1). False for any other ability.
+  poisoned(simulation) {
+    const spec = this.definition.damage?.poisoned;
+    return spec !== undefined && simulation.hasAura(k(spec.aura));
+  }
+
+  // One hand's damage for a two-hand strike (#267, A3): (weapon roll +
+  // bonus) × multiplier, times the poisoned multiplier while poisoned (A1).
+  // One draw, the weapon roll.
+  handDamage(hand, simulation) {
+    const spec = this.definition.damage;
+    const stats = k(this.definition.row);
+    const damage =
+      (this.rogue.rollWeaponDamageForSkill(hand) + stats[spec.bonus]) *
+      stats[spec.multiplier];
+    return this.poisoned(simulation)
+      ? damage * stats[spec.poisoned.multiplier]
+      : damage;
+  }
+
   // Whether an aura the ability requires is up now (always, for one that
   // requires none). Ambush: the cutthroat aura, which nothing grants yet
   // (#261).
@@ -288,9 +343,13 @@ export class Ability {
   }
 
   // The checks a cast makes before any other, which spend and draw nothing:
-  // the main hand, then the required aura.
+  // the main hand, the off hand, then the required aura.
   requirementsMet(rogue, simulation) {
-    return this.mainHandAllowed(rogue) && this.auraMet(simulation);
+    return (
+      this.mainHandAllowed(rogue) &&
+      this.offHandAllowed(rogue) &&
+      this.auraMet(simulation)
+    );
   }
 
   // What a cast would pay now: the cost after the cost modifiers of its
@@ -391,6 +450,10 @@ export class Ability {
         simulation.setGcd();
       }
 
+      if (this.bothHands) {
+        return this.castBothHands(simulation, paid, cost);
+      }
+
       let result = null;
       let spent = 0;
       const { damage, duration } = this.resolve();
@@ -433,13 +496,7 @@ export class Ability {
         // A spend takes the points a gift would have removed.
         spends.clearExpiry();
       } else if (this.gainResource !== null) {
-        const gains = this.pool(this.gainResource);
-        const gained = gains.gain(this.gain, this.id);
-        if (this.expires !== null) {
-          gains.armExpiry(this.expires.amount, this.expires.after);
-        } else if (gained > 0) {
-          gains.clearExpiry();
-        }
+        this.award();
       }
 
       //  Put this attack on CD
@@ -461,6 +518,50 @@ export class Ability {
       return result;
     }
     return null;
+  }
+
+  // What a landed builder adds to its gain resource, and the expiry that
+  // goes with it.
+  award() {
+    const gains = this.pool(this.gainResource);
+    const gained = gains.gain(this.gain, this.id);
+    if (this.expires !== null) {
+      gains.armExpiry(this.expires.amount, this.expires.after);
+    } else if (gained > 0) {
+      gains.clearExpiry();
+    }
+  }
+
+  // Mutilate (#267, A3-A7), after the cast is told, paid and the GCD set. The
+  // main hand resolves fully first: attack roll, damage roll, crit roll
+  // (Simulation.resolveStrike), then, when it lands, the points and its
+  // procs (onHit, onCrit, onAbility). A main hand that does not land gives
+  // the miss refund and ends the cast: no off hand, no points. Then the off
+  // hand the same way, with its own procs (its poison) and onCrit only when
+  // the main hand did not crit, so Seal Fate adds at most 1. Cold Blood
+  // makes both crit and is used once, after the off hand, when a hand landed
+  // other than as a block. Returns the main hand's result.
+  castBothHands(simulation, paid, cost) {
+    const main = simulation.resolveStrike(this, () =>
+      this.handDamage("mainHand", simulation),
+    );
+    if (!main.landed) {
+      paid?.gain(cost * this.refund, this.id);
+      return main;
+    }
+    this.award();
+    if (this.cooldown > 0) {
+      simulation.cooldowns[this.id] = this.cooldown;
+    }
+    simulation.procs.onCast(this, main, 0);
+    const off = simulation.resolveStrike(this.offHandSource, () =>
+      this.handDamage("offHand", simulation),
+    );
+    simulation.procs.onStrike(this.offHandSource, off, main.outcome !== "crit");
+    if (main.outcome !== "block" || (off.landed && off.outcome !== "block")) {
+      simulation.consumeUseCharges(simulation.attackContext(this, "skill"));
+    }
+    return main;
   }
 }
 

@@ -701,7 +701,15 @@ export class Simulation {
   // and icon go in the combat log. A white swing then fires its procs
   // (js/procs.js); a skill's fire at the end of its cast. `extra` marks a swing
   // an extra attack made (it is recorded under the hand like any swing).
-  resolveAttack(source, attackType, baseDamage, { extra = false } = {}) {
+  // `roll` is a table roll already drawn (Mutilate's strikes, resolveStrike),
+  // and `useCharges: false` leaves the use charges (Cold Blood) for the caller
+  // to take once for a cast of two strikes.
+  resolveAttack(
+    source,
+    attackType,
+    baseDamage,
+    { extra = false, roll, useCharges = true } = {},
+  ) {
     const context = this.attackContext(source, attackType);
     const result = resolveAttack({
       attackType,
@@ -717,6 +725,7 @@ export class Simulation {
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
       rng: this.rng,
+      roll,
     });
     const damage = this.applyArmor(result.damage, skipsArmor(context), context);
     if (result.landed && damage > 0) {
@@ -737,7 +746,7 @@ export class Simulation {
       this.consumeHitCharges();
       // A block is a landed hit that never reaches the crit roll, so it does
       // not use up the charge of an aura that asked for one (Cold Blood).
-      if (result.outcome !== "block") {
+      if (useCharges && result.outcome !== "block") {
         this.consumeUseCharges(context);
       }
     }
@@ -746,6 +755,17 @@ export class Simulation {
       this.procs.onSwing(source, resolved, extra);
     }
     return resolved;
+  }
+
+  // One of Mutilate's strikes (#267, A4): the table roll is drawn first, then
+  // `rollDamage` draws the damage, then the crit roll on a hit, so each hand
+  // draws attack, damage, crit. The use charges are the caller's to take.
+  resolveStrike(source, rollDamage) {
+    const roll = this.rng() * k("attack.rollScale");
+    return this.resolveAttack(source, "skill", rollDamage(), {
+      roll,
+      useCharges: false,
+    });
   }
 
   // Damage a proc deals from a source of its own (js/procs.js, dealDamage).

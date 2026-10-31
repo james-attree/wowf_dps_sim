@@ -91,8 +91,8 @@ function counted(seed, config, options) {
 }
 
 // The six Assassination talents of the reference build (D8a, #119) are all
-// mapped, and so are the passives of #266 (P4.6-03), in catalogue order.
-// Mutilate, Improved Expose Armor and Venom have no entry yet.
+// mapped, and so are the passives of #266 (P4.6-03) and Mutilate (#267), in
+// catalogue order. Improved Expose Armor and Venom have no entry yet.
 const ASSASSINATION_MAPPED = [
   "assassination.improved-gouge",
   "assassination.remorseless-attacks",
@@ -106,6 +106,7 @@ const ASSASSINATION_MAPPED = [
   "assassination.cold-blood",
   "assassination.improved-poisons",
   "assassination.vigor",
+  "assassination.mutilate",
   "assassination.improved-kidney-shot",
   "assassination.seal-fate",
 ];
@@ -120,8 +121,8 @@ const MAPPED = talentCatalogue.talents.filter(
   (talent) => TALENT_EFFECTS[talent.id] !== undefined,
 );
 
-describe("the talent effects data covers the Combat tree, 14 Assassination talents and three Subtlety ones", () => {
-  it("has an entry for each of the 17 Combat talents, 14 Assassination ones and three Subtlety ones, in catalogue order, and no others", () => {
+describe("the talent effects data covers the Combat tree, 15 Assassination talents and three Subtlety ones", () => {
+  it("has an entry for each of the 17 Combat talents, 15 Assassination ones and three Subtlety ones, in catalogue order, and no others", () => {
     assert.equal(COMBAT.length, 17);
     assert.deepEqual(Object.keys(TALENT_EFFECTS), [
       ...ASSASSINATION_MAPPED,
@@ -148,7 +149,7 @@ describe("the talent effects data covers the Combat tree, 14 Assassination talen
   });
 
   it("says which text each entry was written from, and the snapshot still has that text", () => {
-    assert.equal(MAPPED.length, 34);
+    assert.equal(MAPPED.length, 35);
     for (const talent of MAPPED) {
       const hash = createHash("sha256")
         .update(talent.ranks.join("\n"))

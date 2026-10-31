@@ -50,6 +50,12 @@ const REQUIRED_AURA_IDS = new Map(
   ]),
 );
 
+const OFF_HAND_IDS = new Set(
+  ABILITY_DEFINITIONS.filter(
+    (definition) => definition.requiresOffHand !== undefined,
+  ).map((definition) => definition.id),
+);
+
 export function abilityFacts(id) {
   const ability = abilityCatalogue.get(id);
   const given = warningContext();
@@ -66,6 +72,9 @@ export function abilityFacts(id) {
     // The self auras the engine needs one of up for a cast (requiresAura,
     // #261): Ambush's "cutthroat". Empty for none.
     auras: Object.freeze([...(REQUIRED_AURA_IDS.get(id) ?? [])]),
+    // Whether the engine also needs a weapon type in the off hand
+    // (requiresOffHand, #267): Mutilate's two daggers.
+    offHand: OFF_HAND_IDS.has(id),
   });
 }
 

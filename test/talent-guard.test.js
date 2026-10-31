@@ -38,6 +38,7 @@ const LABELS = {
   "ghostly-strike": "Ghostly Strike (ghostly-strike)",
   hemorrhage: "Hemorrhage (hemorrhage)",
   premeditation: "Premeditation (premeditation)",
+  mutilate: "Mutilate (mutilate)",
 };
 const labelOf = (id) => LABELS[id] ?? id;
 
@@ -70,13 +71,14 @@ describe("talent guard (#188): which abilities it covers", () => {
       FROM_DATA,
     );
     // Today: Cold Blood, Blade Flurry and Adrenaline Rush (#188's list), and
-    // Ghostly Strike, Hemorrhage and Premeditation (#207).
+    // Ghostly Strike, Hemorrhage and Premeditation (#207), and Mutilate (#267).
     assert.deepEqual(FROM_DATA, [
       "adrenaline-rush",
       "blade-flurry",
       "cold-blood",
       "ghostly-strike",
       "hemorrhage",
+      "mutilate",
       "premeditation",
     ]);
     assert.ok(Object.isFrozen(rotationContext().talentGrantedAbilities));

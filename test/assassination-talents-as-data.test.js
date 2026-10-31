@@ -107,14 +107,14 @@ describe("the Assassination modifier tables match the snapshot's rank text", () 
     );
   });
 
-  it("names two abilities, Gouge and Mutilate, that the engine has no definition for", () => {
+  it("names one ability, Gouge, that the engine has no definition for (Mutilate is cast since #267)", () => {
     const defined = new Set(
       ABILITY_DEFINITIONS.map((definition) => definition.id),
     );
     const scoped = TALENT_EFFECTS[LETHALITY].modifiers[0].scope.abilities;
     assert.deepEqual(
       scoped.filter((id) => !defined.has(id)),
-      ["gouge", "mutilate"],
+      ["gouge"],
     );
     const { rogue } = createFight(1);
     for (const id of scoped) {
