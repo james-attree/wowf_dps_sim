@@ -25,6 +25,7 @@ import {
   MAX_SEED,
   NO_DPS,
   dockDps,
+  dockFixText,
   dockText,
   MIN_FIGHT_SECONDS,
   blocked,
@@ -966,10 +967,10 @@ describe("Run's blocked check is its count (#237)", () => {
       talents: { ...page.store.get().talents, error: TALENTS.overCap },
       form: { ...page.store.get().form, rotationErrors: ROTATION.bad },
     });
-    // Fran's #245 N1: the rotation and the talents are named, not counted.
+    // Fran's #245 N1: the talents and the rotation are named, not counted.
     assert.equal(
       page.model().reason,
-      "Can't run · fix the rotation, the talents and 2 settings",
+      "Can't run · fix 2 settings, the talents and the rotation",
     );
   });
 });
@@ -994,13 +995,13 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
       [{ errors: two }, "Can't run · 2 settings to fix", "Fix 2 settings"],
       [
         { rotation: ROTATION.bad, talents: TALENTS.overCap },
-        "Can't run · fix the rotation and the talents",
-        "Fix the rotation and the talents",
+        "Can't run · fix the talents and the rotation",
+        "Fix the talents and the rotation",
       ],
       [
         { errors: two, rotation: ROTATION.bad, talents: TALENTS.overCap },
-        "Can't run · fix the rotation, the talents and 2 settings",
-        "Fix the rotation, the talents and 2 settings",
+        "Can't run · fix 2 settings, the talents and the rotation",
+        "Fix 2 settings, the talents and the rotation",
       ],
     ];
     for (const [over, reason, fix] of cases) {
@@ -1012,6 +1013,54 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     }
     set({});
     assert.equal(link.hidden, true);
+  });
+
+  // Fran's #260 check, B2: below the wide breakpoint the link is the phone
+  // dock's, one line over the nav, so several causes are counted as
+  // issues; one cause is named as on wide screens. The wide panel keeps
+  // the named list, and the text follows the width as it changes.
+  it("the dock's Fix link counts issues; the wide one names them", () => {
+    const page = setup();
+    const media = fakeMedia(true);
+    const { doc, el } = standIn({
+      media,
+      absent: ['#config-form [aria-invalid="true"]'],
+    });
+    createControlsView(doc, page.store, page.actions);
+    const link = el("run-errors-link");
+    const set = ({ errors = {}, rotation = [], talents = null }) =>
+      page.store.set({
+        form: { ...page.store.get().form, errors, rotationErrors: rotation },
+        talents: { ...page.store.get().talents, error: talents },
+      });
+    const bad = [{ path: "name", code: "nameEmpty" }];
+    const three = {
+      "rogue.agility": "Bad.",
+      "rogue.strength": "Bad.",
+      "rogue.stamina": "Bad.",
+    };
+    set({ errors: three, rotation: bad, talents: "Over the cap." });
+    assert.equal(link.textContent, "Fix 5 issues");
+    assert.equal(dockFixText(page.store.get()), "Fix 5 issues");
+    media.flip(false);
+    assert.equal(
+      link.textContent,
+      "Fix 3 settings, the talents and the rotation",
+    );
+    media.flip(true);
+    set({ rotation: bad, talents: "Over the cap." });
+    assert.equal(link.textContent, "Fix 2 issues");
+    for (const [over, fix] of [
+      [{ talents: "Over the cap." }, "Fix the talents"],
+      [{ rotation: bad }, "Fix the rotation"],
+      [{ errors: three }, "Fix 3 settings"],
+    ]) {
+      set(over);
+      assert.equal(link.textContent, fix, "one cause is named");
+    }
+    set({});
+    assert.equal(link.hidden, true);
+    assert.equal(dockFixText(page.store.get()), null);
   });
 });
 
@@ -1046,7 +1095,7 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     });
     assert.equal(
       page.model().reason,
-      "Can't run · fix the rotation and 1 setting",
+      "Can't run · fix 1 setting and the rotation",
     );
     assert.equal(page.model().statusShort, null);
   });
@@ -1094,7 +1143,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
     assert.equal(
       page.model().reason,
-      "Can't run · fix the talents and 1 setting",
+      "Can't run · fix 1 setting and the talents",
     );
     assert.equal(page.model().statusShort, null, "that one fits the row");
   });
@@ -1628,7 +1677,9 @@ describe("the narrow control bar (#153, Scout)", () => {
       return fakeMedia(true);
     };
     createControlsView(doc, page.store, page.actions);
-    assert.deepEqual(queries, [], "no width query");
+    // The one width query is the dock's, for the Fix link's shorter text
+    // (Fran's #260 check, B2); nothing moves at it.
+    assert.deepEqual(queries, [NOT_WIDE_QUERY], "only the dock's query");
     assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
     assert.equal(NARROW_QUERY, "(width < 32.5em)");
   });

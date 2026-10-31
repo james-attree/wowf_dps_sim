@@ -265,16 +265,19 @@ describe("errors", () => {
     let links = $("cfg-fix-list").children.map((item) => item.children[0]);
     assert.deepEqual(
       links.map((link) => [link.textContent, link.href]),
-      [["Run bar, Fight length", "#run-errors-link"]],
+      [["Fight, Fight length", "#run-duration"]],
       "Fights is batch only, so not counted in live mode",
     );
+    // Fran's #260 check: one step, straight to the field in Fight.
+    links[0].click();
+    assert.equal($("run-duration").focused, 1);
 
     commit("character.attackPower", "");
     assert.equal($("cfg-run-gate").textContent, runGateText(2));
     links = $("cfg-fix-list").children.map((item) => item.children[0]);
     assert.deepEqual(
       links.map((link) => link.textContent),
-      ["Label of cfg-character-attackPower", "Run bar, Fight length"],
+      ["Label of cfg-character-attackPower", "Fight, Fight length"],
     );
 
     $("cfg-reset").click();

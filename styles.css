@@ -304,6 +304,10 @@ h3 {
    other (#155, Fran's QA 9), then the target note under them. */
 .fight-settings {
   display: grid;
+  /* One column no wider than Fight's panel (Fran's #260 check, B1): the
+     seed input's own width (its size) set the auto column's, and at 200%
+     text on a phone pushed the page wider. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   margin-bottom: 14px;
 }
@@ -540,6 +544,13 @@ h3 {
 
   .fight-settings .run-field input {
     font-size: 1rem;
+  }
+
+  /* Each field takes the panel's width and the seed input fills its row,
+     its New seed wrapping under it (Fran's #260 check, B1). */
+  .fight-settings .run-field,
+  .fight-settings .run-seed-input input {
+    width: 100%;
   }
 
   .run-help {
