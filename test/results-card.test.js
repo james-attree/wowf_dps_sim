@@ -145,6 +145,23 @@ describe("the desktop summary card (#241)", () => {
     assert.equal(model.open, true);
   });
 
+  it("the previous average mid-run is a group its h3 names (#245)", () => {
+    const markup = cardModel(
+      state({
+        status: "running",
+        progress: { completed: 3, total: 12, mean: 300 },
+        previous: done,
+      }),
+      LABELS,
+    )
+      .body.map(toMarkup)
+      .join("");
+    assert.match(
+      markup,
+      /<div class="results-card-previous" role="group" aria-labelledby="results-card-previous-title"><h3 id="results-card-previous-title" class="results-card-previous-title">Previous average<\/h3>/,
+    );
+  });
+
   it("a failed batch says so", () => {
     const model = cardModel(state({ status: "error", error: "boom" }), LABELS);
     assert.equal(text(model.body), "The batch failed.");

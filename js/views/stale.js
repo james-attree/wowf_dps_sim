@@ -131,15 +131,17 @@ export function ranClock(at) {
 
 // The banner over an out-of-date result (proposal §6), or null when it is
 // up to date: { title, detail, short }. `short` is the results column's
-// card's one line.
-export function staleBanner(state, kind) {
+// card's one line. While Run is blocked the caller hands in the title that
+// says what to fix (run-model.js staleFixTitle; #245): Run again cannot.
+export const STALE_TITLE = "Out of date — Run again.";
+export function staleBanner(state, kind, title = null) {
   if (!isStale(state, kind)) {
     return null;
   }
   const record = ranOf(state, kind);
   const names = namesText(changedNames(record.config, state.config));
   return {
-    title: "Out of date — Run again.",
+    title: title ?? STALE_TITLE,
     detail: `You changed ${names} after this ran, so these numbers are for the old settings.`,
     short: `${capital(names)} changed after this ran.`,
   };

@@ -1,4 +1,10 @@
-import { blocked, grouped, isLocked, secondsText } from "./run-model.js";
+import {
+  blocked,
+  grouped,
+  isLocked,
+  secondsText,
+  staleFixTitle,
+} from "./run-model.js";
 import { ranClock, ranOf, staleBanner } from "./stale.js";
 
 // The Results area's two kept views (#242, UX4; Fran's approved UX proposal
@@ -95,8 +101,10 @@ function liveLabel(state) {
 export function resultViewsModel(state) {
   const locked = isLocked(state.run);
   const liveRecord = ranOf(state, "live");
-  const averageStale = staleBanner(state, "batch");
-  const liveStale = staleBanner(state, "live");
+  // While Run is blocked, the title says what to fix (#245).
+  const fix = staleFixTitle(state);
+  const averageStale = staleBanner(state, "batch", fix);
+  const liveStale = staleBanner(state, "live", fix);
   return {
     view: viewOf(state.route),
     locked,
@@ -182,9 +190,11 @@ export function createResultViewsView(doc, store, actions) {
       if (panel !== null) {
         panel.hidden = shown !== "average";
       }
+      // The shown view's link is the current page, as the area nav's is
+      // (#245, Fran's #254 check): each view has its own route.
       for (const link of links) {
         if (link.getAttribute("data-result-view") === shown) {
-          link.setAttribute("aria-current", "true");
+          link.setAttribute("aria-current", "page");
         } else {
           link.removeAttribute("aria-current");
         }
@@ -250,9 +260,16 @@ export function createResultViewsView(doc, store, actions) {
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (
-      ["route", "run", "batch", "results", "ran", "config", "form"].some(
-        (slice) => changed.includes(slice),
-      )
+      [
+        "route",
+        "run",
+        "batch",
+        "results",
+        "ran",
+        "config",
+        "form",
+        "talents",
+      ].some((slice) => changed.includes(slice))
     ) {
       render(state);
     }

@@ -132,8 +132,9 @@ definitions are in [mechanics.md](mechanics.md#resource-waste-issue-146). The
 field is additive (#146): the two fields before it, their order and meaning are
 unchanged, and a subscriber that ignores it reads the same event as before.
 
-`time` is the fight duration. A host that moves a `Simulation` with `step()`
-itself calls `Simulation.end()` when it is done; it sends the event once.
+`time` is the fight duration. A host that runs the fight's core itself (as
+`SimRunner` does) calls `Simulation.end()` when it is done; it sends the event
+once.
 
 ## Delivery rules
 
