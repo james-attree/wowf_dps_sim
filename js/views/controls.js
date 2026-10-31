@@ -66,6 +66,8 @@ const joinMessages = (first, second) => {
 const FIELDS = ["duration", "iterations", "seed"];
 // The main (left) mouse button: only it presses Run (#240, Fran's #249 N4).
 const MAIN_BUTTON = 0;
+// The middle button, whose release pastes on Linux (#245).
+const MIDDLE_BUTTON = 1;
 // A Pause press this soon after Run started the run is the same tap twice
 // (#240, Fran's #249 N3), so it is ignored. In milliseconds.
 export const RUN_TAP_GUARD_MS = 500;
@@ -447,19 +449,30 @@ export function createControlsView(doc, store, actions = {}) {
   // the first setting to fix. Focus moved to Run while a typed edit makes it
   // blocked (a script, a screen reader) ends the same way.
   // Another button's press on a disabled Run drops the focus to the page
-  // too: it goes back where it was.
+  // too: it goes back where it was. So does any press on a Run disabled by
+  // a run in progress, not by an error (#245, Fran's #251 check): back to
+  // where it was, or from the page to the state's main control (Stop in a
+  // batch).
   row.addEventListener("pointerdown", (event) => {
     if (event?.target !== buttons.run || !buttons.run.disabled) {
       return;
     }
-    if (!otherButton(event)) {
+    if (!otherButton(event) && blocked(store.get())) {
       later(refocus);
       return;
     }
     const had = doc.activeElement ?? null;
     const back = () => {
-      if (had !== null && had !== doc.body && lost()) {
+      if (!lost()) {
+        return;
+      }
+      if (had !== null && had !== doc.body && !had.disabled) {
         had.focus?.();
+        return;
+      }
+      const main = buttons[focusTarget(store.get())];
+      if (main !== undefined && !main.disabled && !otherButton(event)) {
+        main.focus?.();
       }
     };
     back();
@@ -467,6 +480,14 @@ export function createControlsView(doc, store, actions = {}) {
   });
   row.addEventListener("mousedown", (event) => {
     if (event?.target === buttons.run && otherButton(event)) {
+      event.preventDefault?.();
+    }
+  });
+  // On Linux a middle-button release pastes the primary selection into the
+  // field that kept the focus ('99' became '99100'; #245, Fran's #254
+  // check): a release on Run, enabled or not, pastes nothing.
+  row.addEventListener("mouseup", (event) => {
+    if (event?.target === buttons.run && event.button === MIDDLE_BUTTON) {
       event.preventDefault?.();
     }
   });

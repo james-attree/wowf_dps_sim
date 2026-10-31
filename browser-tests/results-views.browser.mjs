@@ -233,7 +233,12 @@ describe("two kept results (#242)", () => {
       assert.equal(await page.locator("#results-panel").isVisible(), false);
       assert.equal(
         await page.locator("#result-view-live").getAttribute("aria-current"),
-        "true",
+        "page",
+        "as the area nav's (#245)",
+      );
+      assert.equal(
+        await page.locator("#result-view-average").getAttribute("aria-current"),
+        null,
       );
       assert.equal(
         await page.locator("#results-live-label").textContent(),
