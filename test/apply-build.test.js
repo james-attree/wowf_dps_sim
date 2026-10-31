@@ -299,22 +299,28 @@ describe("applyBuild", () => {
 
   it("an illegal build is an error, and an unmodelled talent is only reported", () => {
     assert.throws(() => applyBuild({ "combat.precision": 3 }), RangeError);
-    // Venom is a legal talent with no entry in the effects data.
-    assert.equal(TALENT_EFFECTS["assassination.venom"], undefined);
-    const withVenom = swap(BOUNDARY, {});
-    assert.deepEqual(applyBuild(withVenom).unmapped.slice(-1), [
-      "assassination.venom",
+    // Camouflage is a legal talent with no entry in the effects data. Venom
+    // was the example until #268 mapped it, and every Assassination talent
+    // with it.
+    assert.equal(TALENT_EFFECTS["subtlety.camouflage"], undefined);
+    const withCamouflage = swap(BOUNDARY, {
+      "assassination.venom": 0,
+      "subtlety.camouflage": 1,
+    });
+    assert.deepEqual(applyBuild(withCamouflage).unmapped, [
+      "subtlety.camouflage",
     ]);
   });
 
   it("names the abilities a talent grants, from the effects data", () => {
-    // The reference build's three, Mutilate (#267) and the three Subtlety
-    // ones (#207).
+    // The reference build's three, Mutilate (#267), Venom (#268) and the
+    // three Subtlety ones (#207).
     assert.deepEqual(
       [...talentGrantedAbilities].sort(),
       [
         ...ASSASSINATION_ABILITIES,
         "mutilate",
+        "venom",
         "ghostly-strike",
         "premeditation",
         "hemorrhage",
@@ -761,12 +767,14 @@ describe("the build's modifiers reach poison damage where the talent says so", (
     assert.equal(modifiers.resolve("damage", 100, deadly), 100);
   });
 
-  it("Venom is not modelled yet and is reported as unmapped (Vile Poisons and Improved Poisons are #266)", () => {
-    const build = swap(BOUNDARY, {});
-    const { unmapped } = createFight(1, { talents: build }).build;
-    for (const id of ["assassination.venom"]) {
-      assert.ok(unmapped.includes(id), id);
-      assert.equal(TALENT_EFFECTS[id], undefined);
+  it("maps every Assassination talent since #268, Venom and Improved Expose Armor last", () => {
+    const { unmapped } = createFight(1, { talents: BOUNDARY }).build;
+    assert.deepEqual(unmapped, []);
+    for (const id of [
+      "assassination.venom",
+      "assassination.improved-expose-armor",
+    ]) {
+      assert.notEqual(TALENT_EFFECTS[id], undefined, id);
     }
   });
 });

@@ -146,6 +146,26 @@ const RAW = {
       },
     ],
   },
+  // #268 (P4.6-04b, A11): -5/-10 energy on Expose Armor, and 1/2 combo points
+  // back from a cast that spent combo.max (improvedExposeArmor.refundAt).
+  "assassination.improved-expose-armor": {
+    textHash:
+      "afb8de558b07711c51a09b57eff17ad7f0d20d007e43097d3b45d4a8a712e0ac",
+    modifiers: [
+      {
+        kind: "energyCost",
+        op: "add",
+        values: [-5, -10],
+        scope: { abilities: ["expose-armor"] },
+      },
+      {
+        kind: "comboRefund",
+        op: "add",
+        values: [1, 2],
+        scope: { abilities: ["expose-armor"] },
+      },
+    ],
+  },
   "assassination.lethality": {
     textHash:
       "0f6498f9390e119a5005c63f535f814544feb5193f3ee58e5e84a39893ecab37",
@@ -237,6 +257,12 @@ const RAW = {
         ],
       },
     ],
+  },
+  // #268 (P4.6-04b, A9-A10): the Venom ability, as Cold Blood grants its own.
+  "assassination.venom": {
+    textHash:
+      "6802955fcb0b377044947cc9dbd4c3431542b2eeabc1092a974dbc16f8bee6c0",
+    ability: "venom",
   },
   "combat.improved-eviscerate": {
     textHash:

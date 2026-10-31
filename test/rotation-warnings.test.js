@@ -256,13 +256,19 @@ describe("rotationWarnings: a finisher with no comboPoints condition", () => {
       "eviscerate",
       "slice-and-dice",
       "rupture",
+      "expose-armor",
+      "venom",
     ]);
     for (const [id, label] of [
       ["eviscerate", "Eviscerate"],
       ["slice-and-dice", "Slice and Dice"],
       ["rupture", "Rupture"],
+      ["expose-armor", "Expose Armor"],
+      ["venom", "Venom"],
     ]) {
-      const trap = rotation(rule(id, energy(FINISHER)));
+      // Venom comes from a talent (#268), so its rule carries the guard.
+      const guard = id === "venom" ? [granted(id)] : [];
+      const trap = rotation(rule(id, energy(FINISHER), ...guard));
       assert.deepEqual(messages(trap), [
         finisherText(
           `${label} (${id})`,

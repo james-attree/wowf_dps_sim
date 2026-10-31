@@ -16,8 +16,9 @@ import { talentCatalogue } from "../js/talents.js";
 // What it reports, and what each does to the exit status:
 //
 //   uncovered   A talent with no entry, or an entry with no effect and no
-//               `noDpsEffect`. In a tree of FULL_COVERAGE_TREES (Combat) it
-//               is a FAILURE. In any other tree (Assassination, Subtlety) it
+//               `noDpsEffect`. In a tree of FULL_COVERAGE_TREES (Combat,
+//               and Assassination since #268) it is a FAILURE. In any other
+//               tree (Subtlety) it
 //               is a WARNING that does not fail: those talents are expected
 //               to be uncovered until Phase 4 (D8).
 //   changed     An entry whose stored `textHash` is not the hash of the
@@ -37,9 +38,10 @@ import { talentCatalogue } from "../js/talents.js";
 // cannot say which rank changed, only that one did. It prints every current
 // rank text next to the hashes for that reason.
 
-// The trees whose talents must all be covered (Phase 2: Combat). Every other
+// The trees whose talents must all be covered (Phase 2: Combat; #268:
+// Assassination). Every other
 // tree is a warning only, until D8 covers it.
-export const FULL_COVERAGE_TREES = Object.freeze(["combat"]);
+export const FULL_COVERAGE_TREES = Object.freeze(["combat", "assassination"]);
 
 const HASH_ALGORITHM = "sha256";
 const RANK_JOINER = "\n";

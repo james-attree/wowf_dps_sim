@@ -295,9 +295,10 @@ export const AURAS = Object.freeze({
       },
     },
   }),
-  // Expose Armor (a finisher; not in the rotation yet). One stack per combo
+  // Expose Armor (a finisher, #268; no preset casts it). One stack per combo
   // point spent, each taking exposeArmor.armorPerComboPoint off the target's
-  // armor. A cast with fewer combo points does not weaken a stronger one.
+  // armor. A cast with fewer combo points does not weaken a stronger one
+  // (A12: the highest reduction wins, as it would against Sunder Armor).
   exposeArmor: defineAura({
     id: "expose-armor",
     name: "Expose Armor",
@@ -306,6 +307,23 @@ export const AURAS = Object.freeze({
     maxStacks: k("combo.max"),
     stackRule: "highest",
     effects: { armorReduction: k("exposeArmor").armorPerComboPoint },
+  }),
+  // Venom (#268, A9-A10): a self aura, its length by combo points spent. While
+  // it is up every poison's chance gets venom.poisonChance more points (read
+  // when a poison rolls, js/procs.js) and poison damage is × venom.poisonDamage,
+  // a mult, so it multiplies Vile Poisons' add (venom.stacking).
+  venom: defineAura({
+    id: "venom",
+    name: "Venom",
+    modifiers: [
+      { kind: "poisonChance", op: "add", value: k("venom").poisonChance },
+      {
+        kind: "damage",
+        op: "mult",
+        value: k("venom").poisonDamage,
+        scope: { tags: ["poison"] },
+      },
+    ],
   }),
   // The Deadly Poison stacks on the target. Each landed proc adds a stack and
   // restarts the duration (the applyDot action, js/procs.js; A5, #105). The

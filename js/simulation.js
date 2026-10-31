@@ -424,6 +424,12 @@ export class Simulation {
       this.emitAura(definition, auras[definition.id], "apply", { source });
       return auras[definition.id];
     }
+    // Under the highest rule a weaker application changes nothing: not the
+    // stacks, not the time left (Expose Armor, #268, B2). An equal or
+    // stronger one goes on to the refresh below.
+    if (definition.stackRule === "highest" && stacks < (current.stacks ?? 1)) {
+      return current;
+    }
     if (definition.refresh === "extend") {
       current.duration += length;
     } else if (definition.refresh === "replace-if-longer") {
@@ -928,6 +934,36 @@ export class Simulation {
       this.core?.dotApplied(source.id, DOT_REFRESH.restart);
     }
     // The application deals no damage; the ticks do.
+    this.recordAbility(source, result.outcome, 0);
+    this.addCombatEvent(
+      source.name,
+      attackType,
+      0,
+      result.status,
+      result.outcome,
+      source.icon ?? null,
+      source.id,
+    );
+    return result;
+  }
+
+  // An attack that only rolls the yellow table (Expose Armor, #268, B1): the
+  // table roll, one draw, and no crit roll, as for a DoT's application. It
+  // deals no damage and uses no charges. A landed one is the caller's to act
+  // on (the aura); one that does not land refunds as any attack does.
+  resolveTableAttack(source, attackType) {
+    const context = this.attackContext(source, attackType);
+    const result = resolveAttack({
+      attackType,
+      baseDamage: 0,
+      bonusHitChance: this.rogue.getBonusHitChance(context),
+      critChance: 0,
+      canCrit: false,
+      dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
+      parryReduction: this.modifiers.resolve("parryReduction", 0, context),
+      behind: this.rogue.config.target.behind,
+      rng: this.rng,
+    });
     this.recordAbility(source, result.outcome, 0);
     this.addCombatEvent(
       source.name,

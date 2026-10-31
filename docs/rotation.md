@@ -895,6 +895,10 @@ protected: it lapses until the points are built (a known gap, not handled here).
   nothing about it. Mutilate needs a dagger in both hands (#267): with any
   other weapon in either hand its rule is passed over in the same way, and
   nothing is said about it.
+- Expose Armor and Venom (#268) are finishers in the palette, so a rule for
+  either takes a combo points condition like any finisher. Expose Armor is
+  baseline and rolls the attack table, so it can miss (#294); Venom comes from its talent and needs an `abilityGranted` or
+  `abilityUnlocked` guard. No preset casts either.
 
 ## Import and export
 

@@ -56,6 +56,12 @@ const DAMAGE = {
     return Math.floor(rogue.random() * (max - min + 1) + min);
   },
 
+  // An attack roll with no damage (Expose Armor, #268, B1). No draw here: the
+  // table roll is the cast's.
+  attackOnly() {
+    return 0;
+  },
+
   // Mutilate's main-hand strike as the target stands with no poison: the
   // cast itself rolls each hand (Ability.handDamage), so this is only what
   // resolve() reports.
@@ -202,12 +208,16 @@ export class Ability {
           });
     this.attackSkill = definition.damage !== undefined;
     this.dot = definition.damage?.kind === "dot";
+    // An attack that only rolls the table (Expose Armor, #268, B1).
+    this.attackOnly = definition.damage?.kind === "attackOnly";
     this.bleed = definition.damage?.bleed === true;
     // The aura (js/auras.js) a cast puts up for `duration` seconds, if any. An
     // aura on the player (haste, energy regen) is a buff, one on the target (a
     // DoT, or bonus damage taken) a debuff: the definition says which.
     this.aura =
       definition.aura === undefined ? null : AURAS[definition.aura.id];
+    // One stack per point spent (Expose Armor, #268), or one.
+    this.stacksBySpent = definition.aura?.stacks === "spent";
     // The aura's length when it does not depend on the combo points spent.
     this.duration = 0;
     const length = definition.aura?.duration;
@@ -468,6 +478,8 @@ export class Ability {
             duration,
             this.bleed,
           );
+        } else if (this.attackOnly) {
+          result = simulation.resolveTableAttack(this, "skill");
         } else {
           result = simulation.resolveAttack(this, "skill", damage);
         }
@@ -509,7 +521,21 @@ export class Ability {
           duration,
           icon: this.icon,
           source: this.id,
+          ...(this.stacksBySpent ? { stacks: spent } : {}),
         });
+      }
+
+      // A full spend gets back the comboRefund modifiers scoped to this
+      // ability (Improved Expose Armor, #268, A11): none without one.
+      if (spends !== null && spent === k("combo.max")) {
+        const refund = this.rogue.modifiers.resolve(
+          "comboRefund",
+          0,
+          this.costContext,
+        );
+        if (refund > 0) {
+          spends.gain(refund, this.id);
+        }
       }
 
       // The procs this cast triggers (js/procs.js) fire last, so they see the

@@ -92,7 +92,7 @@ function counted(seed, config, options) {
 
 // The six Assassination talents of the reference build (D8a, #119) are all
 // mapped, and so are the passives of #266 (P4.6-03) and Mutilate (#267), in
-// catalogue order. Improved Expose Armor and Venom have no entry yet.
+// catalogue order: the whole tree since #268 (Improved Expose Armor and Venom).
 const ASSASSINATION_MAPPED = [
   "assassination.improved-gouge",
   "assassination.remorseless-attacks",
@@ -101,6 +101,7 @@ const ASSASSINATION_MAPPED = [
   "assassination.murder",
   "assassination.improved-slice-and-dice",
   "assassination.relentless-strikes",
+  "assassination.improved-expose-armor",
   "assassination.lethality",
   "assassination.vile-poisons",
   "assassination.cold-blood",
@@ -109,6 +110,7 @@ const ASSASSINATION_MAPPED = [
   "assassination.mutilate",
   "assassination.improved-kidney-shot",
   "assassination.seal-fate",
+  "assassination.venom",
 ];
 // The three Subtlety talents that grant an ability the engine casts (#207).
 // The rest of Subtlety has no entry yet.
@@ -121,9 +123,10 @@ const MAPPED = talentCatalogue.talents.filter(
   (talent) => TALENT_EFFECTS[talent.id] !== undefined,
 );
 
-describe("the talent effects data covers the Combat tree, 15 Assassination talents and three Subtlety ones", () => {
-  it("has an entry for each of the 17 Combat talents, 15 Assassination ones and three Subtlety ones, in catalogue order, and no others", () => {
+describe("the talent effects data covers the Combat and Assassination trees and three Subtlety talents", () => {
+  it("has an entry for each of the 17 Combat talents, all 17 Assassination ones and three Subtlety ones, in catalogue order, and no others", () => {
     assert.equal(COMBAT.length, 17);
+    assert.equal(ASSASSINATION.length, ASSASSINATION_MAPPED.length);
     assert.deepEqual(Object.keys(TALENT_EFFECTS), [
       ...ASSASSINATION_MAPPED,
       ...COMBAT.map((talent) => talent.id),
@@ -149,7 +152,7 @@ describe("the talent effects data covers the Combat tree, 15 Assassination talen
   });
 
   it("says which text each entry was written from, and the snapshot still has that text", () => {
-    assert.equal(MAPPED.length, 35);
+    assert.equal(MAPPED.length, 37);
     for (const talent of MAPPED) {
       const hash = createHash("sha256")
         .update(talent.ranks.join("\n"))
@@ -337,14 +340,15 @@ describe("expandTalents", () => {
       "combat.riposte": 1,
       "combat.blade-flurry": 1,
       "combat.adrenaline-rush": 0,
-      "assassination.improved-expose-armor": 2,
+      "subtlety.camouflage": 2,
       "subtlety.premeditation": 1,
       "combat.precision": 0,
     });
     assert.deepEqual(build.noDps, ["combat.endurance", "combat.riposte"]);
     // Premeditation has its ability entry since #207.
     assert.deepEqual(build.abilities, ["blade-flurry", "premeditation"]);
-    assert.deepEqual(build.unmapped, ["assassination.improved-expose-armor"]);
+    // Improved Expose Armor was the example until #268 mapped it.
+    assert.deepEqual(build.unmapped, ["subtlety.camouflage"]);
     assert.deepEqual(build.modifiers, []);
   });
 

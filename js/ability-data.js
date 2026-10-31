@@ -66,11 +66,21 @@
 //                       power times the constant `ap` for the combo points. This
 //                       is the total, and the tick count divides it. `bleed`
 //                       marks the ticks as bleeds (they skip armor)
+//                   { kind: "attackOnly" }
+//                       a roll on the yellow attack table with no damage and
+//                       no crit roll (Expose Armor, #268, B1), one draw like a
+//                       DoT's application: a miss, dodge or parry refunds and
+//                       keeps the points as any attack does
 //   aura          the aura (js/auras.js, AURAS key) a landed cast puts up and
 //                 `duration` says for how long: { field } is a field of
 //                 the row, { row, field } a field of another constants row, and
 //                 { bySpent } a table in the row, one entry per unit of the
-//                 spend resource spent. No entry for the amount means no aura
+//                 spend resource spent. No entry for the amount means no aura.
+//                 `stacks: "spent"` puts the aura up with one stack per unit
+//                 spent (Expose Armor, #268); absent, one stack
+//
+// A spender that spent combo.max gets back the comboRefund modifiers scoped
+// to it (Improved Expose Armor, #268, A11): no field here, the talent says.
 //
 // Whether an ability starts the global cooldown comes from the catalogue
 // (startsGcd, which is abilities.offGcd). The order here is the order of
@@ -245,5 +255,34 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     row: "coldBlood",
     icon: null,
     aura: { id: "coldBlood", duration: { field: "duration" } },
+  },
+  {
+    // A baseline finisher (#268, A11): one Expose Armor stack per combo point
+    // spent, for the row's 30 s. It rolls the yellow attack table like
+    // Eviscerate and Rupture (B1), with no damage. No preset casts it (A12).
+    // There is no icon in img/ yet.
+    key: "exposeArmor",
+    id: "expose-armor",
+    row: "exposeArmor",
+    icon: null,
+    cost: ENERGY,
+    spend: { resource: "comboPoints" },
+    damage: { kind: "attackOnly" },
+    aura: {
+      id: "exposeArmor",
+      duration: { field: "duration" },
+      stacks: "spent",
+    },
+  },
+  {
+    // Granted by the Venom talent (#268, A9-A10): a self aura for 9-21 s by
+    // combo points spent. A cast that does not attack. No icon in img/ yet.
+    key: "venom",
+    id: "venom",
+    row: "venom",
+    icon: null,
+    cost: ENERGY,
+    spend: { resource: "comboPoints" },
+    aura: { id: "venom", duration: { bySpent: "durationByCp" } },
   },
 ]);
