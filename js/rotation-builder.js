@@ -504,7 +504,9 @@ export function createRotationBuilder(store, formActions) {
       const taken =
         skip === null ? takenOf(rotation.rules[index], talents) : null;
       const grabbed = grab?.uid === rule.uid;
-      const chips = [{ kind: "hint", mark: "", text: hint.chip }];
+      // No hint chip for an ability the builder says nothing about (Ambush).
+      const chips =
+        hint === null ? [] : [{ kind: "hint", mark: "", text: hint.chip }];
       if (alt) {
         chips.push({
           kind: "alt",
@@ -556,7 +558,7 @@ export function createRotationBuilder(store, formActions) {
           actionErrors: keyed
             .filter((m) => m.place.at === "action")
             .map((m) => entryText(m.entry, rotation)),
-          hint: hint.long,
+          hint: hint === null ? null : hint.long,
           conditionsHead:
             conditionCount > 0
               ? "When all of these hold"

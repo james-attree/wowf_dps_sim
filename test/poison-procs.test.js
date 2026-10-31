@@ -7,6 +7,7 @@ import { defineProc } from "../js/procs.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
 import { runOnCore } from "../js/core/fight.js";
+import { grantCutthroat } from "./cutthroat-override.js";
 import { quiet } from "./quiet.js";
 
 // Instant and Deadly Poison through the proc pipeline (A5, #105).
@@ -438,10 +439,17 @@ describe("which attacks roll a poison", () => {
     Object.values(rogue.abilities).find((ability) => ability.id === id);
 
   function cast(id, poisons, seed) {
-    // Backstab needs a dagger in the main hand.
+    // Backstab and Ambush need a dagger in the main hand. Ambush needs the
+    // cutthroat aura too, which nothing in a fight grants (#261): the
+    // test-only override grants it here (test/cutthroat-override.js).
     const weapons =
-      id === "backstab" ? { mainHand: { type: "dagger" } } : undefined;
+      id === "backstab" || id === "ambush"
+        ? { mainHand: { type: "dagger" } }
+        : undefined;
     const { rogue, sim } = harness({ poisons, seed, weapons });
+    if (id === "ambush") {
+      grantCutthroat(rogue, sim);
+    }
     rogue.resources.comboPoints.gain(5);
     const result = skill(rogue, id).cast(rogue, sim);
     return { rogue, sim, result };

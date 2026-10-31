@@ -6,8 +6,8 @@ import { assertValidRotation } from "./rotation-validator.js";
 // one decision point: "the engine is asked what to cast now".
 //
 // It knows nothing of the engine. It does not see a Rogue, a Simulation, a
-// step or a frame. A host gives it five things (the `host` of decide), and an
-// optional sixth, and the Phase 3.5 engine can give the same at its own
+// step or a frame. A host gives it five things (the `host` of decide), and
+// three optional ones, and the Phase 3.5 engine can give the same at its own
 // decision point:
 //
 //   host.state()          the state view of the fight now (js/rotation-state.js)
@@ -18,6 +18,16 @@ import { assertValidRotation } from "./rotation-validator.js";
 //                         the ability castable (Backstab without a dagger main
 //                         hand, #155). Such a rule is passed over, never pooled
 //                         for. A host without it has every ability usable.
+//   host.gated(id)        optional: true when the ability needs something that
+//                         comes and goes in the fight, which host.ready
+//                         answers (Ambush needs its required aura up, #261).
+//                         A host without it has no ability gated.
+//   host.ready(id)        asked only of a gated ability, at each decision
+//                         point: false while that thing is missing. Such a
+//                         rule is passed over then, whatever its conditions
+//                         say, and never pooled for (the coordinator's ruling
+//                         on Kira's QA of #262, B1); once it is ready the rule
+//                         is walked like any other.
 //   host.gcdClear()       true when the GCD is not running
 //   host.cast(id)         cast it
 //
@@ -62,6 +72,7 @@ export function compileRotation(rotation) {
     host: null,
     onGcd: [],
     usable: [],
+    gated: [],
   });
   return compiled;
 }
@@ -90,6 +101,8 @@ const NOTHING = Object.freeze({ casts: NO_CASTS, outcome: "none" });
 //   - a rule whose conditions do not all hold is passed over, and so is a
 //     rule for an ability the host says is not usable in this fight
 //     (host.usable: Backstab on a sword), whatever its conditions say;
+//   - so is a gated rule while the host says it is not ready (host.ready:
+//     Ambush while its required aura is down, #261): not pooled for;
 //   - an off-GCD ability whose conditions hold is cast if it can be, and the
 //     walk goes on; if it cannot be cast it is skipped and the walk goes on,
 //     exactly as if its conditions had failed;
@@ -113,17 +126,21 @@ export function decide(rotation, host) {
     );
   }
   const { rules } = program;
-  // Whether each rule's ability starts the GCD, and whether it is usable at
-  // all, is asked of a host once, not at every decision point: both are fixed
-  // for the fight.
+  // Whether each rule's ability starts the GCD, whether it is usable at all,
+  // and whether it is gated is asked of a host once, not at every decision
+  // point: all three are fixed for the fight. Whether a gated one is ready is
+  // not, so that is asked at each decision point, and only of those.
   if (program.host !== host) {
     program.onGcd = rules.map((rule) => host.onGcd(rule.action));
     program.usable = rules.map((rule) =>
       host.usable === undefined ? true : host.usable(rule.action),
     );
+    program.gated = rules.map((rule) =>
+      host.gated === undefined ? false : host.gated(rule.action),
+    );
     program.host = host;
   }
-  const { onGcd: startsGcd, usable } = program;
+  const { onGcd: startsGcd, usable, gated } = program;
   let casts = NO_CASTS;
   let state = null;
   // Asked once: only an on-GCD cast starts the GCD, and one ends the walk.
@@ -139,6 +156,10 @@ export function decide(rotation, host) {
     // nothing a host can see but the calls it gets.
     const onGcd = startsGcd[index];
     if ((onGcd && !clear) || !usable[index]) {
+      continue;
+    }
+    // A gated rule that is not ready is passed over, not pooled for (#261).
+    if (gated[index] && !host.ready(rule.action)) {
       continue;
     }
     state ??= host.state();

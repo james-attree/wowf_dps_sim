@@ -113,16 +113,24 @@ export function valueUnit(condition) {
 }
 
 // D11: the pooling hint on every card (chip) and in the open editor (long).
+// null for an ability that needs an aura up (Ambush, #261): the builder says
+// nothing special about it, no chip and no hint (James's ruling, relayed by
+// the coordinator: Ambush is not spoonfed). The engine still passes its rule
+// over while the aura is down (js/rotation-interpreter.js).
 export function poolingHint(action) {
   const facts = abilityFacts(action);
   const name = facts.name;
+  if (facts.auras.length > 0) {
+    return null;
+  }
   if (!facts.onGcd) {
     return {
       chip: "Off the GCD: skipped if not ready",
       long: `${name} is off the global cooldown. When its conditions hold but it can't be cast, the walk skips it and goes on to the next rule.`,
     };
   }
-  const dagger = facts.requires.includes("dagger")
+  // The catalogue lists the weapon as "daggers" (js/abilities.js).
+  const dagger = facts.requires.includes("daggers")
     ? " It needs a dagger in the main hand; with any other weapon the rule is passed over."
     : "";
   if (facts.energy > 0) {

@@ -16,10 +16,18 @@
 //                 cooldown and gain are read from it
 //   icon          the page's icon for the ability, the combat log and its aura
 //   requiresMainHand  a weapon type ("dagger"): a cast needs that main hand and
-//                 is rejected, nothing spent, with any other. Only Backstab has
-//                 it. The catalogue's `requires` also lists Ambush and
-//                 Mutilate as dagger-only; they are not enforced (Ambush needs
-//                 stealth too, which the engine does not model)
+//                 is rejected, nothing spent, with any other. Backstab and
+//                 Ambush have it (#261). The catalogue's `requires` also lists
+//                 Mutilate as dagger-only; that is not enforced
+//   requiresAura  a list of self aura ids from AURAS (js/required-auras.js):
+//                 a cast needs one of them up and is rejected, nothing spent,
+//                 with none; a cast that goes ahead uses a charge of the first
+//                 listed that is up (none when that one has no charges), and a
+//                 rotation rule for it is passed over while none is. Only Ambush has it (["cutthroat"], the "Ambush allowed"
+//                 aura, #261), standing in for rogue.json →
+//                 spell_desc[Rogue|Ambush|Rank 6], "Requires Stealth". Nothing
+//                 grants it yet, so Ambush is never cast; Cutthroat
+//                 (Phase 4.6) will
 //   cost          { resource, field, refund? } what a cast pays: the amount is
 //                 the row's `field`, taken from the resource with that id
 //                 (js/resource-data.js), after that resource's cost modifiers.
@@ -156,6 +164,10 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     id: "ambush",
     row: "ambush",
     icon: "./img/ambush.jpg",
+    requiresMainHand: "dagger",
+    // Any one aura of the list up allows the cast; the first listed that is up
+    // pays one charge, or nothing when it has none (js/required-auras.js).
+    requiresAura: ["cutthroat"],
     cost: ENERGY,
     gain: COMBO_POINTS,
     damage: {

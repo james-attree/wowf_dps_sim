@@ -85,6 +85,13 @@ export class Rogue {
       }
     }
     this.granted = new Set(granted);
+    // The self auras something in this fight can put up for an ability that
+    // requires one (js/required-auras.js, #261), by id. Empty: nothing grants
+    // the cutthroat aura yet, so an Ambush rule is passed over. Cutthroat
+    // (Phase 4.6) adds "cutthroat" when the build has it. It is not an
+    // option, so a host, a preset or the page cannot pass one; only the
+    // build, or a test, fills it.
+    this.grantedAuras = new Set();
     const { character, weapons } = this.config;
     // Energy and combo points are resource pools (js/resource.js), described
     // as data in js/resource-data.js. The pools are made before the abilities,
