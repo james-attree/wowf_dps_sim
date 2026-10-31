@@ -96,8 +96,9 @@ whether its ability is on the global cooldown:
   finisher that waits on the GCD would hide Cold Blood, which the code rotation
   cast in that case.
 - **An ability the fight's weapon rules out** (Backstab without a dagger main
-  hand) is passed over whatever its conditions say, on or off the GCD, and
-  never ends the walk (#155): no amount of pooling makes it castable. With a
+  hand), or that requires an aura nothing in the fight grants (Ambush, which
+  needs Stealth, #261), is passed over whatever its conditions say, on or off the
+  GCD, and never ends the walk (#155): no amount of pooling makes it castable. With a
   dagger, a Backstab rule that cannot be afforded still pools as above.
 
 A rule is never reordered by a field of its own: there is no `priority`
@@ -374,7 +375,7 @@ the same view and the vocabulary does not change.
 The `host` is five functions: `state()` (the view above), `canCast(id)`,
 `onGcd(id)`, `gcdClear()` and `cast(id)`, and an optional sixth, `usable(id)`:
 false when nothing in this fight can make the ability castable (Backstab
-without a dagger main hand, #155). `decide` asks `onGcd` and `usable` once per
+without a dagger main hand, #155; Ambush, whose Stealth nothing grants, #261). `decide` asks `onGcd` and `usable` once per
 host and passes over a rule that is not usable, as if its conditions had failed,
 so it never pools for one. A host without `usable` has every ability usable. There is no step, frame or tick in
 them, so the Phase 3.5 engine writes a host of its own and calls `decide`
@@ -439,8 +440,9 @@ to a decision point shows in the bench. Where it went and what was done
   conditions. The conditions and `canCast` are read-only, so the order changes
   nothing a host can see but the calls it gets.
 - `decide` asks a host `onGcd` and `usable` once for each rule and keeps the
-  answers for that host (`rotationHost`'s `usable` is `Ability.mainHandAllowed`,
-  so a Backstab rule on a sword is passed over and falls through, #155), and
+  answers for that host (`rotationHost`'s `usable` is `Ability.mainHandAllowed`
+  and `Ability.auraReachable`, so a Backstab rule on a sword, or an Ambush
+  rule, is passed over and falls through, #155, #261), and
   returns shared, frozen results for a decision point that casts
   nothing (most of them).
 
@@ -870,8 +872,12 @@ protected: it lapses until the points are built (a known gap, not handled here).
   There is no weapon-type condition: the host's `usable` answers it from the
   fight's main hand, so the same list works on daggers and on a sword. The
   validator does not know the weapon.
-- Ambush and Mutilate also list a dagger requirement in the ability catalogue,
-  and are not enforced.
+- An Ambush rule never casts: Ambush needs a dagger and Stealth, and the sim
+  models no stealth (#261, see [mechanics](mechanics.md)). Nothing grants the
+  Stealth aura, so the host's `usable` is false for it on any weapon, so it is passed over in the same way. A
+  rotation may still hold an Ambush rule: the validator and the warnings say
+  nothing about it. Mutilate lists a dagger requirement in the ability
+  catalogue too, and it is not enforced.
 
 ## Import and export
 

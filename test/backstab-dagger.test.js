@@ -6,13 +6,15 @@ import { createFight } from "../js/fight.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { rotationHost } from "../js/rotation-host.js";
 import { compileRotation, decide } from "../js/rotation-interpreter.js";
+import { grantStealth } from "./stealth-override.js";
 import { talentGrantedAbilities } from "../js/talent-build.js";
 
 // Issue #122, with the carry-over from #108: Backstab needs a dagger in the
 // main hand. A cast with any other main hand is refused as a failed cast: no
 // cast is told, nothing is spent, no cooldown or GCD starts, no number is
-// drawn. Only Backstab has the rule (Ambush and Mutilate list a dagger
-// requirement in the catalogue too, and are not enforced).
+// drawn. Backstab and Ambush have the rule (#261: Ambush needs Stealth as well,
+// test/ambush-requirements.test.js). Mutilate lists a dagger requirement in the
+// catalogue too, and it is not enforced.
 
 const config = (type) => ({ weapons: { mainHand: { type } } });
 const OTHERS = ["sword", "mace", "fist", "axe"];
@@ -126,7 +128,7 @@ describe("Backstab needs a dagger", () => {
     );
   });
 
-  it("host.usable is false only for Backstab, and only off a dagger (#155)", () => {
+  it("host.usable is false only for Backstab off a dagger (#155), and for Ambush (#261)", () => {
     for (const type of ["dagger", ...OTHERS]) {
       // Every talent ability granted, so only the weapon is asked: a talent
       // ability the build lacks is not usable either (#199).
@@ -137,7 +139,12 @@ describe("Backstab needs a dagger", () => {
       const unusable = ABILITY_DEFINITIONS.map(({ id }) => id).filter(
         (id) => !host.usable(id),
       );
-      assert.deepEqual(unusable, type === "dagger" ? [] : ["backstab"], type);
+      // Ambush needs Stealth, which nothing in the fight meets (#261).
+      assert.deepEqual(
+        unusable,
+        type === "dagger" ? ["ambush"] : ["backstab", "ambush"],
+        type,
+      );
     }
   });
 
@@ -156,22 +163,44 @@ describe("Backstab needs a dagger", () => {
     );
   });
 
-  it("is data: only Backstab has requiresMainHand", () => {
+  it("is data: only Backstab and Ambush have requiresMainHand (#261)", () => {
     const needing = ABILITY_DEFINITIONS.filter(
       (definition) => definition.requiresMainHand !== undefined,
     );
     assert.deepEqual(
       needing.map((definition) => [definition.id, definition.requiresMainHand]),
-      [["backstab", "dagger"]],
+      [
+        ["backstab", "dagger"],
+        ["ambush", "dagger"],
+      ],
     );
   });
 
-  it("does not enforce the other dagger requirements: Ambush casts with a sword", () => {
+  it("enforces the catalogue's dagger requirement for Ambush, and not Mutilate's (#261)", () => {
     for (const id of ["ambush", "mutilate"]) {
       assert.ok(abilityCatalogue.get(id).requires.includes("daggers"), id);
     }
-    const { rogue, simulation } = ready("sword");
-    assert.ok(rogue.abilities.ambush.cast(rogue, simulation));
+    // Stealth granted by the test-only override, so only the weapon is asked.
+    for (const [type, casts] of [
+      ["sword", false],
+      ["dagger", true],
+    ]) {
+      const fight = createFight(5, config(type));
+      fight.rogue.energy = fight.rogue.maxEnergy;
+      fight.simulation.gcd = 0;
+      const { rogue, simulation } = fight;
+      grantStealth(rogue, simulation);
+      assert.equal(
+        rogue.abilities.ambush.cast(rogue, simulation) !== null,
+        casts,
+        type,
+      );
+    }
+    assert.equal(
+      ABILITY_DEFINITIONS.some(({ id }) => id === "mutilate"),
+      false,
+      "Mutilate is not an engine ability",
+    );
   });
 
   it("a whole fight with a Backstab-only rotation casts it with daggers and never with swords", () => {

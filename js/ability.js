@@ -2,6 +2,7 @@ import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { AURAS } from "./auras.js";
+import { isRequiredAura } from "./required-auras.js";
 import { spellIconUrl } from "./icons.js";
 
 // The generic ability executor (roadmap D2). An Ability is built from one
@@ -109,6 +110,14 @@ export class Ability {
     this.costContext = Object.freeze({ ability: this.id });
     // The main-hand weapon type a cast needs, or null for none (Backstab).
     this.requiresMainHand = definition.requiresMainHand ?? null;
+    // The self aura a cast needs (js/required-auras.js), or null for none
+    // (Ambush: stealth, #261).
+    this.requiresAura = definition.requiresAura ?? null;
+    if (this.requiresAura !== null && !isRequiredAura(this.requiresAura)) {
+      throw new Error(
+        `The ability "${definition.id}" requires the aura "${String(this.requiresAura)}", which js/required-auras.js does not define.`,
+      );
+    }
     this.cooldown = stats.cooldown;
     // A hand-made file in img/ where the entry has one; else the spell's icon
     // from the icon CDN (js/icons.js), the question mark if it has none.
@@ -235,6 +244,27 @@ export class Ability {
     );
   }
 
+  // Whether the aura the ability requires is up now (always, for one that
+  // requires none). Ambush: Stealth, which nothing grants yet (#261).
+  auraMet(simulation) {
+    return this.requiresAura === null || simulation.hasAura(this.requiresAura);
+  }
+
+  // Whether anything in this fight can put up the aura the ability requires
+  // (Rogue.grantedAuras): false for Ambush today, as nothing grants Stealth
+  // (#261). The rotation host's usable asks it.
+  auraReachable(rogue) {
+    return (
+      this.requiresAura === null || rogue.grantedAuras.has(this.requiresAura)
+    );
+  }
+
+  // The checks a cast makes before any other, which spend and draw nothing:
+  // the main hand, then the required aura.
+  requirementsMet(rogue, simulation) {
+    return this.mainHandAllowed(rogue) && this.auraMet(simulation);
+  }
+
   // What a cast would pay now: the cost after the cost modifiers of its
   // resource (Improved Sinister Strike). With none, it is this.cost as it
   // stands. 0 for an ability that pays nothing.
@@ -252,10 +282,11 @@ export class Ability {
         );
   }
 
-  // Whether cast() would go ahead right now. It makes the same five checks
-  // cast() makes, in another order (the answer is a yes only if all five
+  // Whether cast() would go ahead right now. It makes the same six checks
+  // cast() makes, in another order (the answer is a yes only if all six
   // pass), and changes nothing: no draw, no spend.
-  // The main hand is the type the ability needs (Backstab: a dagger); not on
+  // The main hand is the type the ability needs (Backstab: a dagger); the
+  // aura it requires is up (Ambush: Stealth, granted by nothing yet, #261); not on
   // cooldown; a spender holds at least one of what it spends; the pool
   // affords the cost; and, on the GCD, the GCD is clear (a remainder within
   // sim.tickEpsilon counts as clear). An off-GCD ability skips the GCD check.
@@ -264,7 +295,7 @@ export class Ability {
   // talent ability the host does not grant, #199). test/can-cast.test.js holds
   // the two together: cast() acts exactly when this is true.
   canCast(rogue, simulation) {
-    if (!this.mainHandAllowed(rogue)) {
+    if (!this.requirementsMet(rogue, simulation)) {
       return false;
     }
     // The GCD is asked first: on most steps it is running, and that settles
@@ -285,9 +316,10 @@ export class Ability {
   }
 
   cast(rogue, simulation) {
-    // The wrong main hand is refused before anything else: no cast is told,
-    // nothing is spent, no cooldown or GCD starts, and the rng is not drawn.
-    if (!this.mainHandAllowed(rogue)) {
+    // The wrong main hand, or a required aura that is not up (Ambush without
+    // Stealth, #261), is refused before anything else: no cast is told, nothing is spent, no cooldown or GCD starts, and
+    // the rng is not drawn.
+    if (!this.requirementsMet(rogue, simulation)) {
       return null;
     }
     if (this.onCooldown(rogue, simulation)) {
@@ -316,6 +348,11 @@ export class Ability {
       // The cast is told first: what it does follows it.
       simulation.emitCast(this, paid === null ? 0 : cost);
       paid?.spend(cost, this.id);
+      // The cast uses one charge of the aura it required, whatever the
+      // attack's outcome (#261, js/required-auras.js): Ambush takes Stealth.
+      if (this.requiresAura !== null) {
+        simulation.consumeCharge(this.requiresAura);
+      }
       if (this.triggersGcd) {
         simulation.setGcd();
       }

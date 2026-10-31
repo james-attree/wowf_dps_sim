@@ -318,7 +318,15 @@ export const CONSTANTS = {
     "energy, s, ×, damage, CP",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Ambush|Rank 6]",
-    "250% weapon damage plus 290. Stealth, dagger, and behind requirements are not enforced.",
+    "250% weapon damage plus 290. Ambush needs a dagger in the main hand and the Stealth aura (requiresMainHand and requiresAura in js/ability-data.js, #261): a cast without either is rejected, nothing spent, and a cast that goes ahead uses the aura's one charge (stealth.aura, js/required-auras.js). Nothing grants Stealth yet (the sim models no stealth openers), so Ambush is never cast; Cutthroat (Phase 4.6) will grant it. The behind requirement is not enforced.",
+    false,
+  ),
+  "stealth.aura": entry(
+    { charges: 1 },
+    "charges",
+    WOWF_EXPORT,
+    'rogue.json → spell_desc[Rogue|Ambush|Rank 6] ("Requires Stealth"); rogue.json → Subtlety talent Cutthroat ("your next Ambush within 10 sec to not require Stealth")',
+    'The self aura Ambush requires (id "stealth", js/required-auras.js, #261). One charge: the next Ambush that goes ahead uses it, whatever its outcome, and the aura ends. Nothing grants it yet; Cutthroat (Phase 4.6) will, for 10 s, on its proc.',
     false,
   ),
   "poison.instant": entry(

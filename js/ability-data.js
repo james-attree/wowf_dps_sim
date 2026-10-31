@@ -16,10 +16,15 @@
 //                 cooldown and gain are read from it
 //   icon          the page's icon for the ability, the combat log and its aura
 //   requiresMainHand  a weapon type ("dagger"): a cast needs that main hand and
-//                 is rejected, nothing spent, with any other. Only Backstab has
-//                 it. The catalogue's `requires` also lists Ambush and
-//                 Mutilate as dagger-only; they are not enforced (Ambush needs
-//                 stealth too, which the engine does not model)
+//                 is rejected, nothing spent, with any other. Backstab and
+//                 Ambush have it (#261). The catalogue's `requires` also lists
+//                 Mutilate as dagger-only; that is not enforced
+//   requiresAura  a self aura id (js/required-auras.js): a cast needs the aura
+//                 up and is rejected, nothing spent, without it; a cast that
+//                 goes ahead uses its charge. Only Ambush has it ("stealth",
+//                 #261: rogue.json → spell_desc[Rogue|Ambush|Rank 6],
+//                 "Requires Stealth"). Nothing grants Stealth yet, so Ambush
+//                 is never cast; Cutthroat (Phase 4.6) will grant it
 //   cost          { resource, field, refund? } what a cast pays: the amount is
 //                 the row's `field`, taken from the resource with that id
 //                 (js/resource-data.js), after that resource's cost modifiers.
@@ -156,6 +161,8 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     id: "ambush",
     row: "ambush",
     icon: "./img/ambush.jpg",
+    requiresMainHand: "dagger",
+    requiresAura: "stealth",
     cost: ENERGY,
     gain: COMBO_POINTS,
     damage: {

@@ -235,9 +235,10 @@ including the default Vis'kag (a sword), selects `other`. Both constants are
 `k("backstab").weaponMultiplier`, plus `k("backstab").bonusDamage`. Ambush
 is that hit times `k("ambush").weaponMultiplier`, plus
 `k("ambush").bonusDamage`. Sinister Strike, Backstab, and Ambush are
-`wowf-export`. Backstab needs a dagger in the main hand (see below). The note
-on `k("ambush")` says its dagger, behind and stealth requirements are not
-enforced, and the note on `k("backstab")` says its behind requirement is not.
+`wowf-export`. Backstab needs a dagger in the main hand, and Ambush needs a
+dagger and Stealth, so the sim never casts Ambush (see below, #261). The note
+on `k("ambush")` says so and that its behind requirement is not enforced, and
+the note on `k("backstab")` says its behind requirement is not.
 The note on
 `k("sinisterStrike")` is weapon damage plus the bonus. The default rotation
 does not cast Backstab or Ambush.
@@ -3077,9 +3078,57 @@ its conditions had failed. A Backstab rule above Sinister Strike falls through
 to Sinister Strike with a sword. Before #155 the rule held, could not be cast
 and ended the walk every time, so the rotation pooled forever. With a dagger and
 too little energy it still pools as before. The placeholder rotation and the
-presets do not cast Backstab, so no default fight moves. Ambush and Mutilate list a dagger
-requirement in the catalogue and are not enforced, and neither are the
-stealth and behind requirements.
+presets do not cast Backstab, so no default fight moves. Mutilate lists a dagger
+requirement in the catalogue and it is not enforced, and neither are the behind
+requirements.
+
+**Ambush needs a dagger and Stealth** (#261). The Ambush row in
+`js/ability-data.js` has `requiresMainHand: "dagger"`, as Backstab does, and
+`requiresAura: "stealth"` (rogue.json → spell_desc[Rogue|Ambush|Rank 6]:
+"Requires Stealth", "Requires Daggers"). The sim models no stealth (no stealth
+openers: James, issue #261), and nothing in a fight grants the Stealth aura
+yet, so Ambush is never cast, on a dagger or a sword. `Ability.canCast` and
+`Ability.cast` check the main hand and the aura before anything else: a refused
+Ambush tells no cast, spends no energy or combo points, starts no cooldown or
+GCD and draws no number. Nothing grants the aura, so the host's `usable` is
+false (`Ability.auraReachable`), and the interpreter passes over an Ambush rule
+as it does a Backstab rule on a sword ([rotation](rotation.md)). A rotation may
+still hold an Ambush rule, and no warning is given for it (the coordinator's
+call for #261). Premeditation requires no aura and is cast as before. Before
+#261 Ambush was cast with any main hand and no stealth: "Eviscerate at 5 CP,
+otherwise Ambush" on seed 7, 300 s, sword, was 204.7 DPS with 48 Ambush,
+against 152.6 with Sinister Strike as the builder; it is now the same fight as
+"Eviscerate at 5 CP" alone (82.0).
+
+**The stealth hook, a contract for Cutthroat (Phase 4.6).** The interface is
+in `js/required-auras.js`; nothing implements the granting side yet.
+
+- **The aura.** `REQUIRED_AURAS.stealth`: a self aura with id `"stealth"` (the
+  ability catalogue's id for Stealth), one charge (`k("stealth.aura").charges`)
+  and no duration of its own. It is not in the `AURAS` registry, so no rotation
+  condition can name it. Nothing grants it yet.
+- **The check.** A cast of an ability with `requiresAura` needs the aura up
+  (`Simulation.hasAura`), and a dagger for Ambush.
+- **What is consumed.** A cast that goes ahead (its cost is paid) uses one
+  charge of the aura (`Simulation.consumeCharge`), whatever the attack's
+  outcome: a hit, crit, miss or dodge all use it. With one charge the aura ends,
+  with an `aura` event of change `expire` and reason `charges`. A cast refused
+  for any reason (no dagger, no aura, not enough energy, the GCD) leaves it up.
+  No other ability or swing uses it.
+- **Granting.** An effect that can put the aura up adds `"stealth"` to
+  `Rogue.grantedAuras` (fixed for the fight; empty today, and no Rogue or fight
+  option can fill it), which makes an Ambush rule usable for the rotation host.
+  When it procs it calls
+  `simulation.applyAura(REQUIRED_AURAS.stealth, { duration })` with its own
+  duration. For Cutthroat that is 10 s, on a Backstab proc ("your next Ambush
+  within 10 sec to not require Stealth").
+- **In a rotation.** Once the aura is granted, an Ambush rule behaves like any
+  other on-GCD rule: while the aura is down it cannot be cast and the walk
+  pools for it. Whether Cutthroat should pass the rule over while the aura is
+  down is left for that PR.
+- **Tests.** `test/stealth-override.js` (`grantStealth`) is the test-only
+  override. It grants the aura the same way and is not reachable from the
+  engine, a preset or the page.
 
 **Poison damage.** Modifiers apply to Instant Poison and Deadly Poison ticks
 through their ability context, with the scopes the talent data gives. Malice

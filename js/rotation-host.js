@@ -13,14 +13,17 @@ import { rotationStateReader } from "./rotation-state.js";
 //              fight next changes.
 //   canCast    the ability is not held back by the build
 //              (Rogue.lockedByBuild: a talent ability the build lacks) and
-//              would go ahead now (Ability.canCast: cooldown, cost, GCD).
+//              would go ahead now (Ability.canCast: main hand, aura,
+//              cooldown, cost, GCD).
 //   onGcd      the ability starts the global cooldown (Ability.triggersGcd).
 //   usable     the main hand is the weapon type the ability needs
-//              (Ability.mainHandAllowed: Backstab needs a dagger), and the
-//              ability is not a talent ability the build lacks
+//              (Ability.mainHandAllowed: Backstab needs a dagger), something
+//              in the fight can put up the aura it requires
+//              (Ability.auraReachable: nothing grants Ambush's Stealth, #261),
+//              and the ability is not a talent ability the build lacks
 //              (Rogue.lockedByBuild, #199; with no talents picked every talent
-//              ability is lacked). The weapon and the build's grants are fixed
-//              for the fight, so the interpreter asks once and passes over a
+//              ability is lacked). The weapon, the granted auras and the
+//              build's grants are fixed for the fight, so the interpreter asks once and passes over a
 //              rule that can never cast, instead of pooling for it forever
 //              (#155).
 //   gcdClear   the global cooldown is not running (gcdClear in js/ability.js).
@@ -47,7 +50,11 @@ export function rotationHost(rogue, simulation, options = {}) {
     onGcd: (id) => ability(id).triggersGcd,
     usable: (id) => {
       const found = ability(id);
-      return found.mainHandAllowed(rogue) && !rogue.lockedByBuild(found);
+      return (
+        found.mainHandAllowed(rogue) &&
+        found.auraReachable(rogue) &&
+        !rogue.lockedByBuild(found)
+      );
     },
     gcdClear: () => gcdClear(simulation),
     cast: (id) => {
