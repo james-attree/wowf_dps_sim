@@ -39,7 +39,8 @@ const PAIR_MIN = "50";
 const PAIR_MAX = "40";
 // The widest summary the dock has (Fran's #252 note).
 const LONG = { iterations: "100000", duration: "3600", seed: "4294967295" };
-const LONG_SUMMARY = "Average · 100,000 × 3600\u00a0s · seed\u00a04294967295";
+// The accessibility snapshot shows no-break spaces as spaces.
+const LONG_SUMMARY = "Average · 100,000 × 3600 s · seed 4294967295";
 // Half a pixel of rounding either way.
 const SLACK = 1;
 
