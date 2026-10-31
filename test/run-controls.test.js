@@ -13,6 +13,7 @@ import { createRunActions, emptyBatch } from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
 import { NOT_WIDE_QUERY } from "../js/views/breakpoints.js";
 import { editedSinceRun } from "../js/views/config-form.js";
+import { REVEAL_EVENT } from "../js/views/sections.js";
 import {
   NARROW_QUERY,
   RUN_TAP_GUARD_MS,
@@ -24,6 +25,7 @@ import {
   MAX_SEED,
   NO_DPS,
   dockDps,
+  dockFixText,
   dockText,
   MIN_FIGHT_SECONDS,
   blocked,
@@ -876,11 +878,6 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
     assert.equal(event.prevented, 1);
     const invalid = el('config-form [aria-invalid="true"]');
     assert.equal(invalid.focused, 1, "the form's first invalid field");
-    assert.equal(
-      el("run-settings").classes.has("is-open"),
-      false,
-      "no run field to show",
-    );
 
     page.store.set({ form: { errors: {} } });
     assert.equal(el("run-button").disabled, false);
@@ -970,7 +967,114 @@ describe("Run's blocked check is its count (#237)", () => {
       talents: { ...page.store.get().talents, error: TALENTS.overCap },
       form: { ...page.store.get().form, rotationErrors: ROTATION.bad },
     });
-    assert.equal(page.model().reason, "Can't run · 4 settings to fix");
+    // Fran's #245 N1: the talents and the rotation are named, not counted.
+    assert.equal(
+      page.model().reason,
+      "Can't run · fix 2 settings, the talents and the rotation",
+    );
+  });
+});
+
+describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
+  it("only the run and stats fields are counted as settings", () => {
+    const page = setup();
+    const { doc, el } = standIn({
+      absent: ['#config-form [aria-invalid="true"]'],
+    });
+    createControlsView(doc, page.store, page.actions);
+    const link = el("run-errors-link");
+    const set = ({ errors = {}, rotation = [], talents = null }) =>
+      page.store.set({
+        form: { ...page.store.get().form, errors, rotationErrors: rotation },
+        talents: { ...page.store.get().talents, error: talents },
+      });
+    const ROTATION = { bad: [{ path: "name", code: "nameEmpty" }] };
+    const TALENTS = { overCap: "Over the cap." };
+    const two = { "rogue.agility": "Bad.", "rogue.strength": "Bad." };
+    const cases = [
+      [{ errors: two }, "Can't run · 2 settings to fix", "Fix 2 settings"],
+      [
+        { rotation: ROTATION.bad, talents: TALENTS.overCap },
+        "Can't run · fix the talents and the rotation",
+        "Fix the talents and the rotation",
+      ],
+      [
+        { errors: two, rotation: ROTATION.bad, talents: TALENTS.overCap },
+        "Can't run · fix 2 settings, the talents and the rotation",
+        "Fix 2 settings, the talents and the rotation",
+      ],
+    ];
+    for (const [over, reason, fix] of cases) {
+      set(over);
+      assert.equal(page.model().reason, reason);
+      assert.equal(el("run-reason").textContent, reason);
+      assert.equal(link.textContent, fix);
+      assert.doesNotMatch(link.textContent, /[3-9] settings/);
+    }
+    set({});
+    assert.equal(link.hidden, true);
+  });
+
+  // Fran's #260 check, B2 and B2b: below the wide breakpoint the link is
+  // the phone dock's, one line over the nav, so the talents and the
+  // rotation, alone or with other causes, are counted as issues; settings
+  // alone are counted as settings, as on wide screens. The wide panel
+  // keeps the named list, the dock's link is described by the reason, and
+  // the text follows the width as it changes.
+  it("the dock's Fix link counts issues; the wide one names them", () => {
+    const page = setup();
+    const media = fakeMedia(true);
+    const { doc, el } = standIn({
+      media,
+      absent: ['#config-form [aria-invalid="true"]'],
+    });
+    createControlsView(doc, page.store, page.actions);
+    const link = el("run-errors-link");
+    const set = ({ errors = {}, rotation = [], talents = null }) =>
+      page.store.set({
+        form: { ...page.store.get().form, errors, rotationErrors: rotation },
+        talents: { ...page.store.get().talents, error: talents },
+      });
+    const bad = [{ path: "name", code: "nameEmpty" }];
+    const three = {
+      "rogue.agility": "Bad.",
+      "rogue.strength": "Bad.",
+      "rogue.stamina": "Bad.",
+    };
+    set({ errors: three, rotation: bad, talents: "Over the cap." });
+    assert.equal(link.textContent, "Fix 5 issues");
+    assert.equal(dockFixText(page.store.get()), "Fix 5 issues");
+    assert.equal(link.getAttribute("aria-describedby"), "run-reason");
+    media.flip(false);
+    assert.equal(
+      link.textContent,
+      "Fix 3 settings, the talents and the rotation",
+    );
+    assert.equal(link.getAttribute("aria-describedby"), null);
+    media.flip(true);
+    set({ rotation: bad, talents: "Over the cap." });
+    assert.equal(link.textContent, "Fix 2 issues");
+    for (const [over, dock, wide] of [
+      [{ talents: "Over the cap." }, "Fix 1 issue", "Fix the talents"],
+      [{ rotation: bad }, "Fix 1 issue", "Fix the rotation"],
+      [{ errors: three }, "Fix 3 settings", "Fix 3 settings"],
+      [
+        { errors: { "rogue.agility": "Bad." } },
+        "Fix 1 setting",
+        "Fix 1 setting",
+      ],
+    ]) {
+      set(over);
+      assert.equal(link.textContent, dock, "the dock");
+      assert.equal(link.getAttribute("aria-describedby"), "run-reason");
+      media.flip(false);
+      assert.equal(link.textContent, wide, "wide");
+      media.flip(true);
+    }
+    set({});
+    assert.equal(link.hidden, true);
+    assert.equal(link.getAttribute("aria-describedby"), null);
+    assert.equal(dockFixText(page.store.get()), null);
   });
 });
 
@@ -997,13 +1101,16 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     assert.equal(page.model().reason, "Can't run · Rotation has 1 error");
   });
 
-  it("with another blocker too, the rotation is one of the settings", () => {
+  it("with another blocker too, the rotation is named beside the settings (Fran's #245 N1)", () => {
     const page = setup();
     withErrors(page, 3);
     page.store.set({
       form: { ...page.store.get().form, errors: { "rogue.agility": "Bad." } },
     });
-    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    assert.equal(
+      page.model().reason,
+      "Can't run · fix 1 setting and the rotation",
+    );
     assert.equal(page.model().statusShort, null);
   });
 
@@ -1022,7 +1129,7 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     });
     const link = el("run-errors-link");
     assert.equal(link.hidden, false);
-    assert.equal(link.textContent, "Fix 1 setting");
+    assert.equal(link.textContent, "Fix the rotation");
     link.fire("click");
     assert.equal(fixed, 1);
   });
@@ -1044,11 +1151,14 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     assert.equal(page.model().reason, "Can't run · Talents over the level cap");
   });
 
-  it("with another blocker too, the reason counts the settings", () => {
+  it("with another blocker too, the reason names the talents beside the settings (Fran's #245 N1)", () => {
     const page = setup();
     overCap(page);
     page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
-    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    assert.equal(
+      page.model().reason,
+      "Can't run · fix 1 setting and the talents",
+    );
     assert.equal(page.model().statusShort, null, "that one fits the row");
   });
 
@@ -1094,7 +1204,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
   // The tree is Character's Talents screen (#244, UX6): revealing its Level
   // input shows the screen (the router's, browser-tests/character-screens),
   // so the Talents row is never clicked.
-  it("Fix 1 setting focuses the talent tree's Level input", () => {
+  it("Fix the talents focuses the talent tree's Level input", () => {
     const page = setup();
     const { doc, el } = standIn({
       absent: ['#config-form [aria-invalid="true"]'],
@@ -1108,7 +1218,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     overCap(page);
     const link = el("run-errors-link");
     assert.equal(link.hidden, false);
-    assert.equal(link.textContent, "Fix 1 setting");
+    assert.equal(link.textContent, "Fix the talents");
     assert.equal(
       el("run-reason").textContent,
       "Can't run · Talents over the level cap",
@@ -1122,9 +1232,9 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
   });
 });
 
-// The view on a small stand-in document. `order` is the bar's three parts in
-// document order (index.html: settings, row, help); after() and before() move
-// them. `media` is a matchMedia query result, or none.
+// The view on a small stand-in document. `order` is three parts in document
+// order (Fight's settings, the row, the help line); after() and before()
+// would move them, and since #245 nothing does. `media` is a matchMedia query result, or none.
 function standIn({ media = null, absent = [] } = {}) {
   const elements = new Map();
   const order = ["run-settings", "run-bar", "run-help"];
@@ -1483,24 +1593,6 @@ describe("the narrow control bar (#153, Scout)", () => {
     assert.equal(controlsModel(page.store.get()).run.disabled, true);
   });
 
-  it("the settings are closed at first and the toggle opens and closes them", () => {
-    const page = setup();
-    const { doc, el } = standIn();
-    createControlsView(doc, page.store, page.actions);
-    const settings = el("run-settings");
-    const toggle = el("run-settings-toggle");
-    assert.equal(settings.classes.has("is-open"), false);
-    assert.equal(toggle.getAttribute("aria-expanded"), "false");
-    toggle.fire("click");
-    assert.equal(settings.classes.has("is-open"), true);
-    assert.equal(toggle.getAttribute("aria-expanded"), "true");
-    page.actions.run();
-    assert.equal(settings.classes.has("is-open"), true, "a run keeps it open");
-    toggle.fire("click");
-    assert.equal(settings.classes.has("is-open"), false);
-    assert.equal(toggle.getAttribute("aria-expanded"), "false");
-  });
-
   it("the row shows Run or Pause by state and a summary that follows typing", async () => {
     const page = setup();
     const { doc, el } = standIn();
@@ -1533,9 +1625,28 @@ describe("the narrow control bar (#153, Scout)", () => {
     assert.equal(slot(), "run");
   });
 
-  it("an error in a closed field is reached through the row's link", () => {
+  it("an error in a field is reached through the row's link, which shows Fight (#245)", () => {
     const page = setup();
     const { doc, el } = standIn();
+    // reveal() (js/views/sections.js) dispatches its event on the field;
+    // the router shows Fight for it. Each field records it, in order.
+    const steps = [];
+    class CustomEvent {
+      constructor(type, init) {
+        this.type = type;
+        this.bubbles = init?.bubbles;
+      }
+    }
+    for (const id of ["run-duration", "run-seed"]) {
+      const field = el(id);
+      field.ownerDocument = { defaultView: { CustomEvent } };
+      field.dispatchEvent = (event) => steps.push([id, event.type]);
+      const focus = field.focus;
+      field.focus = () => {
+        steps.push([id, "focus"]);
+        focus();
+      };
+    }
     createControlsView(doc, page.store, page.actions);
     const link = el("run-errors-link");
     assert.equal(link.hidden, true);
@@ -1547,64 +1658,47 @@ describe("the narrow control bar (#153, Scout)", () => {
     assert.equal(link.hidden, false);
     assert.equal(link.textContent, "Fix 2 settings");
     assert.equal(el("run-bar").classes.has("has-errors"), true);
-    assert.equal(el("run-settings").classes.has("is-open"), false);
 
     const event = link.fire("click");
     assert.equal(event.prevented, 1, "no jump to the anchor");
-    assert.equal(el("run-settings").classes.has("is-open"), true);
-    assert.equal(
-      el("run-settings-toggle").getAttribute("aria-expanded"),
-      "true",
-    );
     assert.equal(doc.activeElement, el("run-duration"), "the first error");
+    assert.deepEqual(steps, [
+      ["run-duration", REVEAL_EVENT],
+      ["run-duration", "focus"],
+    ]);
 
     el("run-duration").value = "300";
     el("run-duration").fire("input");
     assert.equal(link.textContent, "Fix 1 setting");
-    el("run-settings-toggle").fire("click");
     link.fire("click");
     assert.equal(doc.activeElement, el("run-seed"));
+    assert.deepEqual(steps.slice(2), [
+      ["run-seed", REVEAL_EVENT],
+      ["run-seed", "focus"],
+    ]);
     el("run-seed-new").fire("click");
     assert.equal(link.hidden, true);
     assert.equal(link.textContent, "");
     assert.equal(el("run-bar").classes.has("has-errors"), false);
   });
 
-  it("narrow puts the settings after the row, wide before it, focus kept", () => {
+  it("the view moves nothing: the settings stay in Fight at every width (#245)", () => {
     const page = setup();
-    const media = fakeMedia(true);
     const queries = [];
-    const { doc, el, order } = standIn({ media });
-    const matchMedia = doc.defaultView.matchMedia;
+    const { doc, order } = standIn({ media: fakeMedia(true) });
     doc.defaultView.matchMedia = (query) => {
       queries.push(query);
-      return matchMedia(query);
+      return fakeMedia(true);
     };
     createControlsView(doc, page.store, page.actions);
-    assert.deepEqual(queries, [NARROW_QUERY]);
+    // The one width query is the dock's, for the Fix link's shorter text
+    // (Fran's #260 check, B2); nothing moves at it.
+    assert.deepEqual(queries, [NOT_WIDE_QUERY], "only the dock's query");
+    assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
     assert.equal(NARROW_QUERY, "(width < 32.5em)");
-    assert.deepEqual(order, ["run-bar", "run-settings", "run-help"]);
-
-    el("run-seed").focus();
-    const before = el("run-seed").focused;
-    media.flip(false);
-    assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
-    assert.equal(doc.activeElement, el("run-seed"));
-    assert.equal(el("run-seed").focused, before + 1, "focus put back");
-    media.flip(false);
-    assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
-    media.flip(true);
-    assert.deepEqual(order, ["run-bar", "run-settings", "run-help"]);
   });
 
-  it("wide (no match) keeps index.html's order: settings, then the row", () => {
-    const page = setup();
-    const { doc, order } = standIn({ media: fakeMedia(false) });
-    createControlsView(doc, page.store, page.actions);
-    assert.deepEqual(order, ["run-settings", "run-bar", "run-help"]);
-  });
-
-  it("the page: the settings wrap the fields, and the row is the phone dock (#240)", async () => {
+  it("the page: the fields are Fight's, and the row is the phone dock (#240, #245)", async () => {
     const { readFile } = await import("node:fs/promises");
     const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
     const html = await read("../index.html");
@@ -1612,25 +1706,35 @@ describe("the narrow control bar (#153, Scout)", () => {
     const at = (id) => html.indexOf(`id="${id}"`);
     for (const id of [
       "run-settings",
-      "run-settings-toggle",
-      "run-settings-body",
       "run-bar",
       "run-summary",
       "run-errors-link",
+      "run-fight-link",
+      "area-fight",
     ]) {
       assert.ok(at(id) > 0, id);
     }
-    assert.match(html, /aria-controls="run-settings-body"/);
-    assert.match(html, /id="run-settings-toggle"[^>]*aria-expanded="false"/s);
-    // The fields are inside the settings body, the buttons in the row.
+    assert.doesNotMatch(html, /run-settings-(toggle|body)/);
+    // The fields are in Fight, before the target note; the buttons are in
+    // the row, and the Run panel links to Fight.
+    const fight = html.slice(at("area-fight"), at("area-results"));
     for (const id of [
+      "run-settings",
+      "run-mode-batch",
       "run-mode-live",
       "run-duration",
       "run-iterations",
       "run-seed",
+      "run-seed-new",
     ]) {
-      assert.ok(at(id) > at("run-settings-body") && at(id) < at("run-bar"), id);
+      assert.ok(fight.indexOf(`id="${id}"`) > 0, id);
+      assert.ok(at(id) < at("fight-target"), `${id} before the target`);
     }
+    assert.match(
+      html,
+      /<a id="run-fight-link" class="run-fight-link" href="#fight"\s*>Change fight settings<\/a/,
+    );
+    assert.ok(at("run-fight-link") > at("run-bar"));
     for (const id of [
       "run-button",
       "pause-button",
@@ -1658,20 +1762,19 @@ describe("the narrow control bar (#153, Scout)", () => {
       assert.ok(from >= 0, selector);
       return text.slice(from, text.indexOf("}", from));
     };
-    // Wide: the wrappers add no boxes; the narrow-only parts are not shown.
+    // Wide: the narrow-only parts are not shown.
     assert.match(
       outside,
-      /\.run-settings,\n\.run-settings-body \{\n {2}display: contents;/,
-    );
-    assert.match(
-      outside,
-      /\.run-settings-toggle,\n\.run-summary,\n\.run-dps,\n\.run-errors-link \{\n {2}display: none;/,
+      /\.run-summary,\n\.run-dps,\n\.run-errors-link \{\n {2}display: none;/,
     );
     // Narrow: the bar adds no box; nothing in it sticks.
     assert.match(rule(narrow, "  .run-controls"), /display: contents;/);
     assert.doesNotMatch(narrow, /position: sticky/);
-    assert.doesNotMatch(rule(narrow, "  .run-settings"), /sticky/);
-    assert.match(rule(narrow, "  .run-settings-toggle"), /min-height: 44px;/);
+    // Fight's fields have the bigger touch targets.
+    assert.match(
+      narrow,
+      /\.fight-settings \.run-mode-pill span,\n {2}\.fight-settings \.run-field input,\n {2}\.fight-settings \.pill-button \{\n {4}min-height: 44px;/,
+    );
     // Below the wide breakpoint the row is the dock's strip (#240): fixed
     // above the area nav and its safe-area inset, 48 px (two 18 px lines
     // beside 44 px buttons), in the page's flow on Results.
@@ -1702,15 +1805,6 @@ describe("the narrow control bar (#153, Scout)", () => {
     assert.match(
       rule(dock, "  .run-errors-link:not([hidden])::after"),
       /inset: -20px -8px -6px;/,
-    );
-    assert.match(
-      narrow,
-      /\.run-settings-body \.pill-button \{\n {4}min-height: 44px;/,
-    );
-    assert.match(rule(narrow, "  .run-settings-body"), /display: none;/);
-    assert.match(
-      rule(narrow, "  .run-settings.is-open .run-settings-body"),
-      /display: block;/,
     );
     assert.match(
       dock,

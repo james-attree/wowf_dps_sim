@@ -265,16 +265,19 @@ describe("errors", () => {
     let links = $("cfg-fix-list").children.map((item) => item.children[0]);
     assert.deepEqual(
       links.map((link) => [link.textContent, link.href]),
-      [["Run bar, Fight length", "#run-errors-link"]],
+      [["Fight, Fight length", "#run-duration"]],
       "Fights is batch only, so not counted in live mode",
     );
+    // Fran's #260 check: one step, straight to the field in Fight.
+    links[0].click();
+    assert.equal($("run-duration").focused, 1);
 
     commit("character.attackPower", "");
     assert.equal($("cfg-run-gate").textContent, runGateText(2));
     links = $("cfg-fix-list").children.map((item) => item.children[0]);
     assert.deepEqual(
       links.map((link) => link.textContent),
-      ["Label of cfg-character-attackPower", "Run bar, Fight length"],
+      ["Label of cfg-character-attackPower", "Fight, Fight length"],
     );
 
     $("cfg-reset").click();
@@ -668,14 +671,9 @@ describe("index.html's form", async () => {
   });
 
   it("has a labelled control and an error line for every field", () => {
-    // Fight's "Attacking from behind" box is under Fight's Target heading
-    // (#244, UX6), outside the form.
-    const target = html.match(
-      /<section\s+id="fight-target"[\s\S]*?<\/section>/,
-    )[0];
     for (const { path } of FORM_FIELDS) {
       const id = fieldId(path);
-      const form = path === "target.behind" ? target : formHtml;
+      const form = formHtml;
       assert.match(form, new RegExp(`id="${id}"`), path);
       assert.match(
         form,

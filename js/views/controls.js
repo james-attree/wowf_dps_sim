@@ -1,16 +1,16 @@
-import { NARROW_QUERY } from "./breakpoints.js";
+import { NARROW_QUERY, NOT_WIDE_QUERY } from "./breakpoints.js";
 import { fieldId } from "./config-form.js";
 import {
   announceKey,
   blocked,
   controlsModel,
   dockDps,
+  dockFixText,
   dockText,
-  errorsText,
+  fixLinkText,
   fieldErrors,
   firstFormError,
   focusTarget,
-  formErrorCount,
   rotationErrorCount,
   warningsText,
   talentErrorCount,
@@ -30,9 +30,10 @@ const joinMessages = (first, second) => {
 };
 
 // The run control bar (#153): the one home of Run, Pause, Stop and Reset, the
-// live/batch mode toggle, the fight length, fights and seed fields, the run
-// status, the batch progress and the help line. This view owns those elements
-// and no others. It draws them from the store's run, batch, results and form
+// run status, the batch progress and the help line, and of the fight's
+// settings: the run type (live or batch), the fight length, fights and seed
+// fields, which are Fight's since #245 (index.html, the Fight area). This
+// view owns those elements and no others. It draws them from the store's run, batch, results and form
 // slices through js/views/run-model.js, and calls the run's actions
 // (js/run-actions.js) when a control is used. It never writes the store.
 //
@@ -43,15 +44,11 @@ const joinMessages = (first, second) => {
 // transition. Focus moves to Pause (live) or Stop (batch) after Run, and to
 // Run after Stop, a finish or Reset, when it was in the bar.
 //
-// Below 520 px (Scout, #153) only one compact row is sticky: Run or Pause
-// (whichever applies), Stop, Reset, and a one-line summary of the next run's
-// settings with its mode. The settings (mode, fight length, fights, seed) sit
-// in a section under that row, closed by default and not sticky. The view
-// keeps the DOM in reading order for each width: settings before the buttons
-// when wide (as before), after the sticky row when narrow, so the focus order
-// follows what is seen. An error in a closed section is reached through the
-// row's "Fix 1 setting" link, which opens the section and focuses the field.
-// Wide screens show neither the toggle nor the summary.
+// The settings are in the Fight area at every width (#245; proposal
+// section 3), not in the bar: the wide Run panel links there ("Change fight
+// settings"), and the phone dock keeps Run, its status and a one-line summary
+// of the next run's settings. An error in one is reached through the bar's
+// "Fix 1 setting" link, which shows Fight and focuses the field.
 //
 // While Run is blocked (#155, Fran's Phase 3 QA 1) the status says "Can't run
 // · N settings to fix", never Ready, and the "Fix N settings" link shows at
@@ -94,6 +91,8 @@ export function createControlsView(doc, store, actions = {}) {
     stop: $("stop-button"),
     reset: $("reset-button"),
   };
+  // The phone dock's breakpoint (#240): below it the Fix link is the dock's.
+  const phone = doc.defaultView?.matchMedia?.(NOT_WIDE_QUERY) ?? null;
   const pauseIcon = $("pause-icon");
   const pauseLabel = $("pause-label");
   const statusText = $("run-status-text");
@@ -104,8 +103,6 @@ export function createControlsView(doc, store, actions = {}) {
   const progressText = $("run-progress-text");
   const help = $("run-help");
   const row = $("run-bar");
-  const settings = $("run-settings");
-  const settingsToggle = $("run-settings-toggle");
   const summary = $("run-summary");
   const errorsLink = $("run-errors-link");
   const warningsLink = $("run-warnings-link");
@@ -166,30 +163,6 @@ export function createControlsView(doc, store, actions = {}) {
     });
   };
 
-  // The settings section's open state is the view's own: closed at first.
-  let open = false;
-
-  // Reading order for the width: the settings before the row when wide, after
-  // it when narrow. A focused field keeps its focus through the move.
-  const narrow = (doc.defaultView ?? globalThis).matchMedia?.(NARROW_QUERY);
-  function place() {
-    const after = Boolean(narrow?.matches);
-    const placed = after
-      ? row.nextElementSibling === settings
-      : settings.nextElementSibling === row;
-    if (placed || !row.after) {
-      return;
-    }
-    const active = doc.activeElement ?? null;
-    const keep = settings.contains?.(active) ? active : null;
-    if (after) {
-      row.after(settings);
-    } else {
-      row.before(settings);
-    }
-    keep?.focus?.();
-  }
-
   let lastAnnounce = null;
   let lastStale = null;
   let lastFocus = null;
@@ -198,8 +171,6 @@ export function createControlsView(doc, store, actions = {}) {
     const { run } = state;
     const locked = isLocked(run);
 
-    settings.classList.toggle("is-open", open);
-    settingsToggle.setAttribute("aria-expanded", String(open));
     // The narrow row shows Pause while a fight or batch runs, Run otherwise.
     bar.setAttribute("data-slot", locked ? "pause" : "run");
     write(summary, summaryText(run));
@@ -209,14 +180,19 @@ export function createControlsView(doc, store, actions = {}) {
     const dps = dockDps(state);
     write(dpsValue, dps.value);
     write(dpsLabel, dps.label);
-    const fix = errorsText(
-      run,
-      formErrorCount(state.form) +
-        talentErrorCount(state) +
-        rotationErrorCount(state),
-    );
+    // Below the wide breakpoint the link is in the phone dock, one line
+    // over the nav (Fran's #260 check, B2): its shorter text.
+    const docked = phone?.matches === true;
+    const fix = docked ? dockFixText(state) : fixLinkText(state);
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
+    // The dock's count is described by the reason, which names each cause
+    // (Fran's #260 re-check).
+    if (docked && fix !== null) {
+      errorsLink.setAttribute("aria-describedby", "run-reason");
+    } else {
+      errorsLink.removeAttribute("aria-describedby");
+    }
     row.classList.toggle("has-errors", fix !== null);
     if (warningsLink !== null) {
       const warned = warningsText(state, fix !== null);
@@ -365,10 +341,6 @@ export function createControlsView(doc, store, actions = {}) {
       fixFirst();
     }
   };
-  settingsToggle.addEventListener("click", () => {
-    open = !open;
-    render(store.get());
-  });
   // The form field the footer lists first (#247, Fran's nit 4: for Min
   // above Max the link went to Min while the footer named the Max), else
   // the form's first invalid field.
@@ -410,8 +382,8 @@ export function createControlsView(doc, store, actions = {}) {
       level?.focus?.();
       return;
     }
-    open = true;
-    render(store.get());
+    // The field is in Fight (#245): Fight is shown first.
+    reveal(inputs[first]);
     inputs[first].focus?.();
   }
   errorsLink.addEventListener("click", (event) => {
@@ -540,15 +512,14 @@ export function createControlsView(doc, store, actions = {}) {
     });
   }
 
-  place();
-  narrow?.addEventListener?.("change", place);
-
   // Nothing sticks to the top at any width any more (#241, UX3): on wide
   // screens the bar is the Run panel in the results column, below them the
   // phone dock (#240). So it is not measured for --chrome-top (#200 did,
   // when it stuck to the top on wide screens).
   render(store.get());
-  return store.subscribe(({ state, changed }) => {
+  const rerender = () => render(store.get());
+  phone?.addEventListener?.("change", rerender);
+  const unsubscribe = store.subscribe(({ state, changed }) => {
     if (changed.some((slice) => slice !== "route" && slice !== "moved")) {
       joinable = false;
     }
@@ -565,4 +536,8 @@ export function createControlsView(doc, store, actions = {}) {
       announceAlso(`Showing ${areaLabel(state.moved.area)}.`);
     }
   });
+  return () => {
+    phone?.removeEventListener?.("change", rerender);
+    unsubscribe();
+  };
 }

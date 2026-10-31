@@ -71,11 +71,12 @@ export function fixHeadingText(count) {
   return `Fix ${count} ${plural(count, "field", "fields")} to run:`;
 }
 
-// The run bar's fields, as the footer names them.
+// The run fields, as the footer names them: they are Fight's since #245,
+// so the area's name and the field's label (Fran's #260 check).
 const BAR_FIELD_NAMES = {
-  duration: "Run bar, Fight length",
-  iterations: "Run bar, Fights",
-  seed: "Run bar, Seed",
+  duration: "Fight, Fight length",
+  iterations: "Fight, Fights",
+  seed: "Fight, Seed",
 };
 
 const HANDS = ["mainHand", "offHand"];
@@ -340,15 +341,22 @@ export function createConfigFormView(doc, store, actions) {
     });
   }
 
-  // One link per run bar field to fix. The bar is not this view's (#150), so
-  // the link only goes to the bar's own "Fix" link, which opens the bar's
-  // settings and focuses the field.
+  // One link per run field to fix. The fields are not this view's (#150),
+  // but they are in Fight since #245: the link shows Fight and focuses the
+  // field itself, one step (Fran's #260 check; it went to the run bar's
+  // "Fix" link before).
   function barLinks(names) {
     return names.map((name) => {
       const item = doc.createElement("li");
       const link = doc.createElement("a");
-      link.href = "#run-errors-link";
+      link.href = `#run-${name}`;
       link.textContent = BAR_FIELD_NAMES[name];
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        const field = doc.querySelector(`#run-${name}`);
+        reveal(field);
+        field?.focus?.();
+      });
       item.append(link);
       return item;
     });

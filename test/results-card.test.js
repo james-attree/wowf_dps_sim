@@ -65,7 +65,7 @@ describe("the desktop summary card (#241)", () => {
     const model = cardModel(state({ status: "idle" }), LABELS);
     assert.equal(
       text(model.body),
-      "No average yet. Choose Batch above, then Run batch.",
+      "No average yet. Choose Average in Fight, then Run batch.",
     );
     assert.equal(model.open, false);
     assert.equal(model.busy, false);

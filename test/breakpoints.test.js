@@ -72,7 +72,7 @@ describe("the narrow breakpoint", () => {
     ]) {
       assert.match(
         await read(`../js/${file}`),
-        /import \{ NARROW_QUERY \} from "\.\/breakpoints\.js";/,
+        /import \{ NARROW_QUERY(, NOT_WIDE_QUERY)? \} from "\.\/breakpoints\.js";/,
         file,
       );
     }

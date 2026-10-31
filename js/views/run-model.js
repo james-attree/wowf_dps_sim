@@ -263,15 +263,17 @@ const LAST_ONE = 1;
 const FIRST_PART = 0;
 
 // What blocks Run, each cause by its name (#245, Fran's #259 check, P1):
-// the rotation, the talents, then the run and stats fields, which alone
-// are counted as settings. Never "2 settings" for the rotation and the
-// talents.
+// the run and stats fields, which alone are counted as settings, then the
+// talents, then the rotation. Never "2 settings" for the rotation and the
+// talents. The order is the Fix link's (Fran's #260 check): it goes to the
+// first field to fix, else the talents, else the rotation
+// (js/views/controls.js, fixFirst), so it goes to the first thing named.
 export function fixParts(state) {
   const fields = fieldErrors(state.run).length + formErrorCount(state.form);
   return [
-    ...(rotationErrorCount(state) > NONE_TO_FIX ? ["the rotation"] : []),
-    ...(talentErrorCount(state) > NONE_TO_FIX ? ["the talents"] : []),
     ...(fields > NONE_TO_FIX ? [settings(fields)] : []),
+    ...(talentErrorCount(state) > NONE_TO_FIX ? ["the talents"] : []),
+    ...(rotationErrorCount(state) > NONE_TO_FIX ? ["the rotation"] : []),
   ];
 }
 
@@ -284,11 +286,47 @@ function listed(parts) {
   return `${parts.slice(FIRST_PART, last).join(", ")} and ${parts[last]}`;
 }
 
+// Only the run and stats fields are counted as settings (Fran's #245 N1):
+// with the rotation or the talents among the causes, each is named, as the
+// card and banners name them. "Can't run · fix the rotation and the talents".
+const fieldsOnly = (state) => fixParts(state).length === LAST_ONE;
+
 function blockedReason(state) {
   if (rotationOnly(state)) {
     return blockedText(1, state.form.rotationErrors.length);
   }
-  return blockedText(blockedCount(state), talentsOnly(state));
+  if (talentsOnly(state) || fieldsOnly(state)) {
+    return blockedText(blockedCount(state), talentsOnly(state));
+  }
+  return `Can't run · fix ${listed(fixParts(state))}`;
+}
+
+// The bar's Fix link (#155) while Run is blocked, or null: "Fix 2
+// settings" for the fields alone, and each cause named otherwise (Fran's
+// #245 N1), "Fix the talents", "Fix 1 setting and the rotation".
+export function fixLinkText(state) {
+  return blocked(state) ? `Fix ${listed(fixParts(state))}` : null;
+}
+
+// The phone dock's Fix link (Fran's #260 check, B2 and B2b), one line over
+// the nav at 200% text: the settings alone are counted as on wide screens,
+// "Fix 2 settings"; the talents or the rotation, alone or with other
+// causes, are counted as issues, "Fix 1 issue", "Fix 5 issues" (shorter
+// than "problems" and than a cause's name: it fits beside the DPS at 360
+// wide and 200% text). An issue is what blockedCount counts: each field
+// with an error, the talents over their cap, and the rotation's errors as
+// one. The Run panel, the reason line and wide screens keep the names, and
+// the link is described by the reason (js/views/controls.js). Only the
+// dock says "issue".
+export function dockFixText(state) {
+  if (!blocked(state)) {
+    return null;
+  }
+  if (fieldsOnly(state) && !talentsOnly(state) && !rotationOnly(state)) {
+    return fixLinkText(state);
+  }
+  const count = blockedCount(state);
+  return `Fix ${count} ${count === LAST_ONE ? "issue" : "issues"}`;
 }
 
 // The narrow row's shorter status, or null when the status fits as it is.

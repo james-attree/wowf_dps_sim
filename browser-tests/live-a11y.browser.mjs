@@ -128,11 +128,11 @@ async function clickCentre(locator) {
     .mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
-// The run settings, opened first where they fold away (below 520 px).
+// The run settings are Fight's (#245): shown first where they are not.
 async function settingsField(page, id) {
   const field = page.locator(`#${id}`);
   if (!(await field.isVisible())) {
-    await clickCentre(page.locator("#run-settings-toggle"));
+    await clickCentre(page.locator('[data-nav-area="fight"]'));
   }
   return field;
 }

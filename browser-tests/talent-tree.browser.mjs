@@ -11,6 +11,9 @@ import { startStaticServer } from "../scripts/serve.mjs";
 
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const WIDTHS = [1280, 390];
+// The dock, under 64em, counts the talents alone as one issue (Fran's
+// #260 re-check, B2b); a wide screen names them.
+const DOCK_BELOW = 1024;
 // The wide breakpoint (js/views/breakpoints.js) and the dock's strip (#240).
 const WIDE_PX = 1024;
 const STRIP_PX = 48;
@@ -169,7 +172,7 @@ for (const width of WIDTHS) {
       assert.equal(bar.describedBy, "run-reason");
     });
 
-    test("over the cap, Fix 1 setting opens the tree and focuses Level", async () => {
+    test("over the cap, Fix the talents opens the tree and focuses Level", async () => {
       await clickCentre(page, "assassination.malice");
       await clickCentre(page, "assassination.malice");
       await page.fill("#talents-level", "10");
@@ -182,7 +185,10 @@ for (const width of WIDTHS) {
         "Can't run · Talents over the level cap",
       );
       const link = page.locator("#run-errors-link");
-      assert.equal(await link.textContent(), "Fix 1 setting");
+      assert.equal(
+        await link.textContent(),
+        width < DOCK_BELOW ? "Fix 1 issue" : "Fix the talents",
+      );
       await link.click();
       await page.locator("#talent-tree").waitFor({ state: "visible" });
       assert.equal(

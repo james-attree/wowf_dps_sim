@@ -77,22 +77,18 @@ async function toArea(page, area) {
   );
 }
 
-// The run settings fold away on phones: open them for a field.
+// The run settings are Fight's (#245): shown first for a field.
 async function settingsField(page, id) {
   const field = page.locator(`#${id}`);
   if (!(await field.isVisible())) {
-    await page.locator("#run-settings-toggle").click();
+    await page.locator('[data-nav-area="fight"]').click();
   }
   return field;
 }
 
+// Done with a field: it gives up the focus, so its edit is committed.
 async function closeSettings(page) {
-  if (
-    (await page.getAttribute("#run-settings-toggle", "aria-expanded")) ===
-    "true"
-  ) {
-    await page.locator("#run-settings-toggle").click();
-  }
+  await page.evaluate(() => globalThis.document.activeElement?.blur());
 }
 
 const statusIs = (page, pattern) =>

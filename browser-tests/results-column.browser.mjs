@@ -68,6 +68,15 @@ async function open(width, hash = "") {
   return { context, page, errors };
 }
 
+// The run settings are Fight's (#245): shown first where they are not.
+async function settingsField(page, selector) {
+  const field = page.locator(selector);
+  if (!(await field.isVisible())) {
+    await page.locator('[data-nav-area="fight"]').click();
+  }
+  return field;
+}
+
 async function toArea(page, area) {
   await page.locator(`[data-nav-area="${area}"]`).click();
   await page.waitForFunction(
@@ -185,8 +194,10 @@ describe("the desktop summary card (#241)", () => {
 
       // A short live fight: its DPS is on the card's live line. The page
       // opens in Batch mode (#242).
-      await page.check("#run-mode-live");
-      await page.fill("#run-duration", SHORT_FIGHT_SECONDS);
+      await (await settingsField(page, "#run-mode-live")).check();
+      await (
+        await settingsField(page, "#run-duration")
+      ).fill(SHORT_FIGHT_SECONDS);
       await page.locator("#run-button").click();
       await page.waitForFunction(
         () =>
@@ -199,8 +210,8 @@ describe("the desktop summary card (#241)", () => {
       assert.match(await cardText(page), /Live fight: [\d,]+\.\d DPS · open$/);
 
       // A batch: the average, its fights and the link to Results.
-      await page.check("#run-mode-batch");
-      await page.fill("#run-iterations", BATCH_FIGHTS);
+      await (await settingsField(page, "#run-mode-batch")).check();
+      await (await settingsField(page, "#run-iterations")).fill(BATCH_FIGHTS);
       await page.locator("#run-button").click();
       await page.waitForFunction(
         () =>

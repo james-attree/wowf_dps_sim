@@ -67,8 +67,10 @@ async function open({ width, height }, hash = "#character") {
 
 async function field(page, id) {
   const control = page.locator(`#${id}`);
+  // The fight's settings are in Fight (#245, the fight-fields move).
   if (!(await control.isVisible())) {
-    await page.locator("#run-settings-toggle").click();
+    await page.locator('[data-nav-area="fight"]').click();
+    await control.waitFor({ state: "visible" });
   }
   return control;
 }
