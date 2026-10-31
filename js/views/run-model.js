@@ -248,6 +248,42 @@ const rotationOnly = (state) => {
   return rotation > 0 && blockedCount(state) === rotation;
 };
 
+// The out-of-date banner's and card's title while Run is blocked (#245,
+// Fran's #254 check), or null when it is not: what to fix, not "Run again",
+// which Run cannot do yet. "Out of date — fix 2 settings, then Run again."
+export function staleFixTitle(state) {
+  if (!blocked(state)) {
+    return null;
+  }
+  return `Out of date — fix ${listed(fixParts(state))}, then Run again.`;
+}
+
+const NONE_TO_FIX = 0;
+const LAST_ONE = 1;
+const FIRST_PART = 0;
+
+// What blocks Run, each cause by its name (#245, Fran's #259 check, P1):
+// the rotation, the talents, then the run and stats fields, which alone
+// are counted as settings. Never "2 settings" for the rotation and the
+// talents.
+export function fixParts(state) {
+  const fields = fieldErrors(state.run).length + formErrorCount(state.form);
+  return [
+    ...(rotationErrorCount(state) > NONE_TO_FIX ? ["the rotation"] : []),
+    ...(talentErrorCount(state) > NONE_TO_FIX ? ["the talents"] : []),
+    ...(fields > NONE_TO_FIX ? [settings(fields)] : []),
+  ];
+}
+
+// "a", "a and b", "a, b and c".
+function listed(parts) {
+  if (parts.length <= LAST_ONE) {
+    return parts.join("");
+  }
+  const last = parts.length - LAST_ONE;
+  return `${parts.slice(FIRST_PART, last).join(", ")} and ${parts[last]}`;
+}
+
 function blockedReason(state) {
   if (rotationOnly(state)) {
     return blockedText(1, state.form.rotationErrors.length);
@@ -490,7 +526,9 @@ export function dockDps(state) {
     }
     return {
       value: formatNumber(result.summary.mean, 1),
-      label: isStale(state, "batch") ? "avg, was" : "DPS avg",
+      // Out of date: "was, avg", the proposal's order (#245, Fran's #254
+      // check).
+      label: isStale(state, "batch") ? "was, avg" : "DPS avg",
     };
   }
   const time = results?.time ?? 0;

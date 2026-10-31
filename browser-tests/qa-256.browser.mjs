@@ -120,16 +120,19 @@ for (const width of [WIDE, PHONE]) {
           .locator('#rotation-builder .rule-screen select[id$="-type"]')
           .nth(1);
         const described = (await select.getAttribute("aria-describedby")) ?? "";
-        assert.ok(described.split(" ").includes(id), described);
+        // The message alone (#245, N1): its inner span, not the whole line.
+        assert.ok(described.split(" ").includes(`${id}-text`), described);
+        assert.ok(!described.split(" ").includes(id), described);
         assert.equal(await select.getAttribute("aria-invalid"), null);
         const text = (await warning.innerText()).replace(/\s+/g, " ").trim();
         const { description } = await axOf(
           page,
           `#${await select.getAttribute("id")}`,
         );
-        assert.match(
+        assert.equal(
           description,
-          /Condition 2 is the same as condition 1, so it changes nothing\. Delete it\./,
+          "Condition 2 is the same as condition 1, so it changes nothing. Delete it.",
+          "no ⚠ Check tag, no fix button's name (#245, N1)",
         );
         assert.match(text, /Condition 2 is the same as condition 1/);
         // The first condition, which is not the repeat, says nothing of it.

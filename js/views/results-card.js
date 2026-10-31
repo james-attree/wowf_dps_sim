@@ -1,6 +1,6 @@
 import { el, toDom, toMarkup } from "../svg.js";
 import { breakdownModel, num, pct } from "./results-render.js";
-import { clock } from "./run-model.js";
+import { clock, staleFixTitle } from "./run-model.js";
 import { formatNumber } from "../charts.js";
 import { isStale, staleBanner } from "./stale.js";
 
@@ -20,6 +20,9 @@ const fights = (n) => `${count(n)} ${n === 1 ? "fight" : "fights"}`;
 
 // No fight finished yet.
 const NO_FIGHTS = 0;
+
+// The previous average's heading: one card, so one id.
+const PREVIOUS_TITLE = "results-card-previous-title";
 
 const line = (cls, children) => el("p", { class: cls }, children);
 
@@ -77,18 +80,32 @@ function runningPart(batch, run, buildLabel) {
     completed > NO_FIGHTS &&
       mean !== null &&
       line("results-card-running", [`Running average ${num(mean)} DPS`]),
+    // A group named by its heading, so its figures are not read as the
+    // running batch's (#245, Fran's #254 check).
     kept &&
-      el("div", { class: "results-card-previous" }, [
-        line("results-card-previous-title", ["Previous average"]),
-        ...average(previous, buildLabel),
-      ]),
+      el(
+        "div",
+        {
+          class: "results-card-previous",
+          role: "group",
+          "aria-labelledby": PREVIOUS_TITLE,
+        },
+        [
+          el(
+            "h3",
+            { id: PREVIOUS_TITLE, class: "results-card-previous-title" },
+            ["Previous average"],
+          ),
+          ...average(previous, buildLabel),
+        ],
+      ),
   ];
 }
 
 // The average's out-of-date line (#242): the card's version of the Results
 // banner, over the average it is about.
 function staleLine(state) {
-  const banner = staleBanner(state, "batch");
+  const banner = staleBanner(state, "batch", staleFixTitle(state));
   return (
     banner !== null &&
     el("div", { class: "results-card-stale" }, [
@@ -196,8 +213,8 @@ export function createResultsCardView(doc, store, labels) {
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (
-      ["run", "batch", "results", "config", "ran"].some((s) =>
-        changed.includes(s),
+      ["run", "batch", "results", "config", "ran", "form", "talents"].some(
+        (s) => changed.includes(s),
       )
     ) {
       render(state);
