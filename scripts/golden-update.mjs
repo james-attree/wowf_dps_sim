@@ -5,6 +5,7 @@ import { runFight } from "../js/fight.js";
 import { runScriptedFight } from "./scripted-fight.mjs";
 import { loadPreset } from "../js/rotation-presets.js";
 import { referenceBuild } from "../data/reference-build.js";
+import { defaultDaggerConfig } from "../js/sim-config.js";
 
 // Golden-seed regression fixtures (#77, #85). Each case pins the full result of
 // runFight({ seed, duration }), or of a scripted-cast fight (see
@@ -79,7 +80,7 @@ function deepFreeze(value) {
 // Vigor, Vile Poisons, Improved Poisons, Seal Fate and Murder (inert while
 // target.mobType is "unspecified"), with Malice, Ruthlessness, Relentless
 // Strikes, Lethality and Cold Blood, and the three no-DPS talents. No
-// Mutilate or Venom, which are not mapped yet.
+// Mutilate (the case below, #267) and no Venom, which is not mapped yet.
 export const ASSASSINATION_BUILD = deepFreeze({
   "assassination.improved-gouge": 3,
   "assassination.remorseless-attacks": 2,
@@ -98,6 +99,31 @@ export const ASSASSINATION_BUILD = deepFreeze({
   "combat.improved-sinister-strike": 2,
   "combat.improved-eviscerate": 3,
   "combat.precision": 3,
+});
+
+// Issue #267 (P4.6-04a). The build above with Mutilate, for one of the
+// three points of Improved Gouge, which has no DPS effect: 51 points.
+export const MUTILATE_BUILD = deepFreeze({
+  ...ASSASSINATION_BUILD,
+  "assassination.improved-gouge": 2,
+  "assassination.mutilate": 1,
+});
+
+// Eviscerate at 5 CP, otherwise Mutilate (with the talent check a rule for a
+// talent ability needs).
+const MUTILATE_ROTATION = deepFreeze({
+  schemaVersion: 1,
+  name: "Eviscerate at 5 CP, otherwise Mutilate",
+  rules: [
+    {
+      action: "eviscerate",
+      conditions: [{ type: "comboPoints", op: ">=", value: 5 }],
+    },
+    {
+      action: "mutilate",
+      conditions: [{ type: "abilityGranted", ability: "mutilate" }],
+    },
+  ],
 });
 
 export const GOLDEN_CASES = deepFreeze([
@@ -156,6 +182,21 @@ export const GOLDEN_CASES = deepFreeze([
     config: {
       talents: { ...ASSASSINATION_BUILD },
       poisons: { mainHand: "instant", offHand: "deadly" },
+    },
+  },
+  // Issue #267. Mutilate on the dagger/dagger alternate (#127, its weapons
+  // and character sheet), with Instant Poison on the main hand and Deadly
+  // Poison on the off hand, so the +20% against a poisoned target applies.
+  {
+    name: "mutilate-daggers-seed-267-60s",
+    seed: 267,
+    duration: 60,
+    config: {
+      character: defaultDaggerConfig().character,
+      weapons: defaultDaggerConfig().weapons,
+      talents: { ...MUTILATE_BUILD },
+      poisons: { mainHand: "instant", offHand: "deadly" },
+      rotation: MUTILATE_ROTATION,
     },
   },
 ]);

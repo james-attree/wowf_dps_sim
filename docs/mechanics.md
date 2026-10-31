@@ -2020,8 +2020,8 @@ open for James's review, not defects found by a test:
 - **Backstab's and Ambush's dagger requirements** are enforced (#142, #261):
   see "Backstab needs a dagger" and "Ambush needs a dagger and the Ambush
   allowed aura". Ambush's Stealth requirement is enforced through that aura,
-  which nothing grants yet. Mutilate's dagger requirement, the Stealth
-  requirement of every other ability (Garrote, Cheap Shot and the like, which
+  which nothing grants yet. Mutilate's two daggers are enforced too (#267,
+  "Mutilate"). The Stealth requirement of every other ability (Garrote, Cheap Shot and the like, which
   no rotation can cast), and every behind requirement are parsed from the
   catalogue and not enforced.
 - **Cold Blood** keeps its charge when the attack does not land (a miss, a
@@ -2037,12 +2037,13 @@ open for James's review, not defects found by a test:
 - **Poisons roll on finishers** as in wowsims. That is not verified against Classic.
 - **Unmapped talents.** Eleven Assassination talents (Improved Gouge, Remorseless
   Attacks, Murder, Improved Expose Armor, Vile Poisons, Improved Poisons, Vigor,
-  Mutilate, Improved Kidney Shot, Seal Fate, Venom) and sixteen of the nineteen
+  Mutilate, Improved Kidney Shot, Seal Fate, Venom; since #266 and #267 only
+  Improved Expose Armor and Venom) and sixteen of the nineteen
   Subtlety talents have no entry. Ghostly Strike, Premeditation and Hemorrhage
   have one since #207: the ability they grant, so a selected build without the
   talent does not cast it (`Rogue.lockedByBuild`). A build that spends points in them is legal and lists them in
-  `fight.build.unmapped`. Improved Poisons, Vile Poisons and Venom do nothing, and
-  so does Mutilate. D8 is Phase 4.
+  `fight.build.unmapped`. Venom does nothing; Improved Poisons and Vile Poisons
+  have entries since #266, and Mutilate since #267. D8 is Phase 4.
 - **Partial builds are legal** (#190). A selected build spends at most
   `config.talentLevel - 9` points (51 at the default level 60) and must
   satisfy the gating, so a one-point row-1 map runs and a lone row-2 talent is
@@ -2914,7 +2915,7 @@ Wounds (Backstab, which the placeholder rotation never casts).
 | Ruthlessness            | 3   | proc: `onAbility`, `scope.tags: ["finisher"]`, `flat` chance 20/40/60%, `gainResource` 1 combo point                                                                   |
 | Improved Slice and Dice | 3   | `duration` +15/30/45% of the aura length, Slice and Dice (9 to 21 s becomes 13.05 to 30.45 s at 3/3)                                                                   |
 | Relentless Strikes      | 1   | proc: `onAbility`, finisher tag, `perSpent` chance 20% per point, `gainResource` 25 energy                                                                             |
-| Lethality               | 5   | `critDamage` +4..20%, the six abilities of the text (Gouge and Mutilate have no engine definition: never cast)                                                         |
+| Lethality               | 5   | `critDamage` +4..20%, the six abilities of the text (Gouge has no engine definition: never cast; Mutilate is cast since #267)                                          |
 | Cold Blood              | 1   | grants the ability `cold-blood` (instant, 3 minute cooldown, off the GCD); its aura is one charge of +100% crit                                                        |
 
 `critDamage` stacks as `bonus`, `1 + (base - 1)(1 + A)`, so Lethality 5/5 takes
@@ -2943,8 +2944,8 @@ the GCD (`abilities.offGcd`), so it does not wait for one. Its
 aura (`js/auras.js`, `cold-blood`) has one charge and a `critChance` add of +1.0
 scoped to the abilities its text names: Sinister Strike, Backstab, Ambush,
 Eviscerate and Mutilate, by catalogue id (a test reads them out of the text).
-Mutilate has no engine definition, so its entry is inert until it has one. The
-text says "until used", so the aura's 3600 s duration stands in for no expiry.
+Mutilate is cast since #267: both of its strikes get the +1.0, and the charge
+is used once, after the off hand. The text says "until used", so the aura's 3600 s duration stands in for no expiry.
 
 The charge is spent by a generic step (`Simulation.consumeUseCharges`, called
 from `resolveAttack` for a landed attack): a landed attack uses one charge of
@@ -3045,10 +3046,52 @@ rank by `test/assassination-passives.test.js`.
   damage), Remorseless Attacks (needs a kill, and the one target does not die)
   and Improved Kidney Shot (the stun is not simulated).
 
-Mutilate, Improved Expose Armor and Venom still have no entry. The golden case
+Improved Expose Armor and Venom still have no entry (Mutilate has one since
+#267, below). The golden case
 `assassination-build-seed-266-60s` runs a 51-point Assassination build
 (`ASSASSINATION_BUILD` in `scripts/golden-update.mjs`) with Instant and Deadly
 Poison for 60 s.
+
+### Mutilate (#267, P4.6-04a)
+
+The Assassination talent `assassination.mutilate` grants the ability
+`mutilate` (`data/talent-effects.js`, `ability`), so a build without the
+talent does not cast it and a rule for it needs a talent check, as for Cold
+Blood. The row `mutilate` (`data/constants.js`, from Rank 4 of the spell
+text) holds its numbers: 60 energy, no cooldown, 2 combo points, and per hand
+(weapon damage + 38) × 0.75. The rules are James's answers on #267 (A1-A7,
+TBC rules):
+
+- **A2: two daggers.** The definition in `js/ability-data.js` has
+  `requiresMainHand: "dagger"` and `requiresOffHand: "dagger"`
+  (`Ability.offHandAllowed`). With any other weapon in either hand the host's
+  `usable` is false, so a Mutilate rule is passed over as Backstab's is on a
+  sword: no warning, no chip, and the pooling hint says nothing about weapons.
+- **A3: damage per hand.** Each hand rolls its own weapon damage, with attack
+  power at the normalized dagger speed as for the other strikes, then adds 38
+  and multiplies by 0.75. The off hand takes no off-hand penalty.
+- **A1: poisoned.** Against a target with Deadly Poison up
+  (`mutilate.poisonedAura`) each hand does ×1.2 (`mutilate.poisonedMultiplier`).
+  Instant Poison leaves no debuff, so an Instant/Instant fight is never
+  poisoned.
+- **A4: main hand, then off hand** (`mutilate.strikes`). Each hand is a yellow
+  attack of its own: the attack-table roll, the damage roll and the crit roll,
+  then that hand's procs. A main hand that misses or is dodged ends the cast:
+  no off hand, no combo points, and the normal miss refund. An off hand that
+  misses keeps the 2 points.
+- **A5: poisons.** Each hand procs its own poison (the main hand's on the main
+  hand, the off hand's on the off hand).
+- **A6: combo points.** 2 per cast; Seal Fate adds at most one, on the first
+  hand that crits, and the pool's cap of 5 holds.
+- **A7: Cold Blood.** Both hands get its crit, and the charge is used once.
+
+Both hands are recorded under Mutilate in the breakdown, so its casts count
+each hand that was swung, while the fight's cast event fires once. The
+existing strikes keep their draw order, so the eight older golden fixtures did
+not change. The golden case `mutilate-daggers-seed-267-60s` runs
+`MUTILATE_BUILD` (the 51-point build above, with one point moved from Improved
+Gouge to Mutilate) on the dagger/dagger alternate, Instant Poison on the main
+hand and Deadly on the off hand, for 60 s.
 
 ## Applying a talent build (D7, issue #106)
 
@@ -3162,9 +3205,9 @@ its conditions had failed. A Backstab rule above Sinister Strike falls through
 to Sinister Strike with a sword. Before #155 the rule held, could not be cast
 and ended the walk every time, so the rotation pooled forever. With a dagger and
 too little energy it still pools as before. The placeholder rotation and the
-presets do not cast Backstab, so no default fight moves. Mutilate lists a dagger
-requirement in the catalogue and it is not enforced, and neither are the behind
-requirements.
+presets do not cast Backstab, so no default fight moves. Mutilate needs a
+dagger in both hands (#267, see "Mutilate"). The behind requirements are not
+enforced.
 
 **Ambush needs a dagger and the Ambush allowed aura** (#261). The Ambush row
 in `js/ability-data.js` has `requiresMainHand: "dagger"`, as Backstab does, and

@@ -546,6 +546,27 @@ export class ProcRunner {
     });
   }
 
+  // Mutilate's off-hand strike landed (#267, A4-A6): its onHit procs, the
+  // off hand's poison among them, with hand "offHand". onCrit only when
+  // `canCrit` (the main hand did not crit), so Seal Fate rolls at most once a
+  // cast. No onAbility: the cast fired those with the main hand.
+  onStrike(source, result, canCrit) {
+    if (!this.active || !result.landed) {
+      return;
+    }
+    const kinds = this.hitKinds(result, false).filter(
+      (kind) => canCrit || kind !== ON_CRIT,
+    );
+    this.dispatch({
+      kinds,
+      context: this.simulation.attackContext(source, "skill"),
+      hand: source.hand,
+      spent: 0,
+      attacks: true,
+      extra: false,
+    });
+  }
+
   // One DoT tick (a DoT tick event on the core, js/core/dots.js), with the
   // context of the DoT.
   onDotTick(context) {

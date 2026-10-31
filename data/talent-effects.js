@@ -207,6 +207,12 @@ const RAW = {
       },
     ],
   },
+  // #267 (P4.6-04a): the Mutilate ability, as Cold Blood grants its own.
+  "assassination.mutilate": {
+    textHash:
+      "65f33c2d6574dff85196deaeeaf5805f15af7803e3a8d6fb0bed43c5a40c6b9b",
+    ability: "mutilate",
+  },
   "assassination.improved-kidney-shot": {
     textHash:
       "0277d504a1d78ca13eaec1720c2788ccf6f3c0b89474eb336caf2c0b89761b18",

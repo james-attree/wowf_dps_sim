@@ -17,8 +17,11 @@
 //   icon          the page's icon for the ability, the combat log and its aura
 //   requiresMainHand  a weapon type ("dagger"): a cast needs that main hand and
 //                 is rejected, nothing spent, with any other. Backstab and
-//                 Ambush have it (#261). The catalogue's `requires` also lists
-//                 Mutilate as dagger-only; that is not enforced
+//                 Ambush have it (#261), and so does Mutilate (#267)
+//   requiresOffHand  the same for the off hand: a cast needs that off hand and
+//                 is rejected, nothing spent, with any other, and a rotation
+//                 rule for it is passed over with no warning. Only Mutilate
+//                 has it ("dagger", #267, A2). Absent: any off hand
 //   requiresAura  a list of self aura ids from AURAS (js/required-auras.js):
 //                 a cast needs one of them up and is rejected, nothing spent,
 //                 with none; a cast that goes ahead uses a charge of the first
@@ -52,6 +55,12 @@
 //                       attack power times combo points times the constant
 //                       `apPerCp`, plus a random value inside the row's `bands`
 //                       entry for the combo points (min and max)
+//                   { kind: "bothHands", multiplier, bonus, poisoned }
+//                       a strike with each weapon (Mutilate, #267): per hand
+//                       (weapon roll + `bonus`) times `multiplier`, and times
+//                       the row's `poisoned.multiplier` while the target has
+//                       the aura the constant `poisoned.aura` names. The main hand
+//                       resolves first, then the off hand (js/ability.js)
 //                   { kind: "dot", ap, bleed? }
 //                       a damage over time: the row's `damageByCp` plus attack
 //                       power times the constant `ap` for the combo points. This
@@ -174,6 +183,24 @@ export const ABILITY_DEFINITIONS = deepFreeze([
       kind: "weapon",
       multiplier: "weaponMultiplier",
       bonus: "bonusDamage",
+    },
+  },
+  {
+    key: "mutilate",
+    id: "mutilate",
+    row: "mutilate",
+    requiresMainHand: "dagger",
+    requiresOffHand: "dagger",
+    cost: ENERGY,
+    gain: COMBO_POINTS,
+    damage: {
+      kind: "bothHands",
+      multiplier: "weaponMultiplier",
+      bonus: "bonusDamage",
+      poisoned: {
+        aura: "mutilate.poisonedAura",
+        multiplier: "poisonedMultiplier",
+      },
     },
   },
   {

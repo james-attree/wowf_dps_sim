@@ -308,11 +308,13 @@ describe("applyBuild", () => {
   });
 
   it("names the abilities a talent grants, from the effects data", () => {
-    // The reference build's three, and the three Subtlety ones (#207).
+    // The reference build's three, Mutilate (#267) and the three Subtlety
+    // ones (#207).
     assert.deepEqual(
       [...talentGrantedAbilities].sort(),
       [
         ...ASSASSINATION_ABILITIES,
+        "mutilate",
         "ghostly-strike",
         "premeditation",
         "hemorrhage",

@@ -129,10 +129,13 @@ export function poolingHint(action) {
       long: `${name} is off the global cooldown. When its conditions hold but it can't be cast, the walk skips it and goes on to the next rule.`,
     };
   }
-  // The catalogue lists the weapon as "daggers" (js/abilities.js).
-  const dagger = facts.requires.includes("daggers")
-    ? " It needs a dagger in the main hand; with any other weapon the rule is passed over."
-    : "";
+  // The catalogue lists the weapon as "daggers" (js/abilities.js). Mutilate,
+  // which needs one in each hand, says nothing about weapons: a rule for it
+  // off daggers is passed over without a word (#267, A2).
+  const dagger =
+    facts.requires.includes("daggers") && !facts.offHand
+      ? " It needs a dagger in the main hand; with any other weapon the rule is passed over."
+      : "";
   if (facts.energy > 0) {
     return {
       chip: `Waits for ${facts.energy} energy`,

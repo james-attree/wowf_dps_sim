@@ -128,7 +128,7 @@ describe("Backstab needs a dagger", () => {
     );
   });
 
-  it("host.usable is false only for Backstab off a dagger (#155), and for Ambush (#261)", () => {
+  it("host.usable is false only for Backstab off a dagger (#155), for Ambush (#261), and for Mutilate off two daggers (#267)", () => {
     for (const type of ["dagger", ...OTHERS]) {
       // Every talent ability granted, so only the weapon is asked: a talent
       // ability the build lacks is not usable either (#199).
@@ -140,10 +140,13 @@ describe("Backstab needs a dagger", () => {
         (id) => !host.usable(id),
       );
       // Ambush needs the cutthroat aura, which nothing in the fight grants
-      // (#261).
+      // (#261), and Mutilate a dagger in both hands, which the default off
+      // hand is not (#267).
       assert.deepEqual(
         unusable,
-        type === "dagger" ? ["ambush"] : ["backstab", "ambush"],
+        type === "dagger"
+          ? ["ambush", "mutilate"]
+          : ["backstab", "ambush", "mutilate"],
         type,
       );
     }
@@ -164,7 +167,7 @@ describe("Backstab needs a dagger", () => {
     );
   });
 
-  it("is data: only Backstab and Ambush have requiresMainHand (#261)", () => {
+  it("is data: only Backstab, Ambush and Mutilate have requiresMainHand (#261, #267)", () => {
     const needing = ABILITY_DEFINITIONS.filter(
       (definition) => definition.requiresMainHand !== undefined,
     );
@@ -173,11 +176,19 @@ describe("Backstab needs a dagger", () => {
       [
         ["backstab", "dagger"],
         ["ambush", "dagger"],
+        ["mutilate", "dagger"],
       ],
+    );
+    // And only Mutilate has requiresOffHand (#267).
+    assert.deepEqual(
+      ABILITY_DEFINITIONS.filter(
+        (definition) => definition.requiresOffHand !== undefined,
+      ).map((definition) => [definition.id, definition.requiresOffHand]),
+      [["mutilate", "dagger"]],
     );
   });
 
-  it("enforces the catalogue's dagger requirement for Ambush, and not Mutilate's (#261)", () => {
+  it("enforces the catalogue's dagger requirement for Ambush and Mutilate (#261, #267)", () => {
     for (const id of ["ambush", "mutilate"]) {
       assert.ok(abilityCatalogue.get(id).requires.includes("daggers"), id);
     }
@@ -198,11 +209,22 @@ describe("Backstab needs a dagger", () => {
         type,
       );
     }
-    assert.equal(
-      ABILITY_DEFINITIONS.some(({ id }) => id === "mutilate"),
-      false,
-      "Mutilate is not an engine ability",
-    );
+    // Mutilate needs daggers in both hands (#267, A2).
+    for (const [weapons, casts] of [
+      [{ mainHand: { type: "dagger" }, offHand: { type: "sword" } }, false],
+      [{ mainHand: { type: "sword" }, offHand: { type: "dagger" } }, false],
+      [{ mainHand: { type: "dagger" }, offHand: { type: "dagger" } }, true],
+    ]) {
+      const fight = createFight(5, { weapons }, { abilities: ["mutilate"] });
+      fight.rogue.energy = fight.rogue.maxEnergy;
+      fight.simulation.gcd = 0;
+      const { rogue, simulation } = fight;
+      assert.equal(
+        rogue.abilities.mutilate.cast(rogue, simulation) !== null,
+        casts,
+        JSON.stringify(weapons),
+      );
+    }
   });
 
   it("a whole fight with a Backstab-only rotation casts it with daggers and never with swords", () => {

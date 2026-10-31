@@ -31,7 +31,7 @@ describe("the pooling hint names the requirements the engine has", () => {
     const needsDaggers = castableAbilities().filter((id) =>
       abilityCatalogue.get(id)?.requires?.includes("daggers"),
     );
-    assert.deepEqual(needsDaggers.sort(), ["ambush", "backstab"]);
+    assert.deepEqual(needsDaggers.sort(), ["ambush", "backstab", "mutilate"]);
     for (const id of castableAbilities()) {
       const hint = poolingHint(id);
       if (id === "ambush") {
@@ -39,13 +39,21 @@ describe("the pooling hint names the requirements the engine has", () => {
       }
       assert.equal(hint.long.includes(DAGGER), id === "backstab", id);
     }
-    // The engine agrees: the same two need a main-hand dagger.
+    // The engine agrees: the same three need a main-hand dagger.
     assert.deepEqual(
       ABILITY_DEFINITIONS.filter((d) => d.requiresMainHand === "dagger")
         .map((d) => d.id)
         .sort(),
-      ["ambush", "backstab"],
+      ["ambush", "backstab", "mutilate"],
     );
+  });
+
+  it("Mutilate keeps its energy hint and says nothing about weapons (#267, A2)", () => {
+    const { chip, long } = poolingHint("mutilate");
+    assert.equal(chip, `Waits for ${k("mutilate").energy} energy`);
+    assert.doesNotMatch(long, /dagger|weapon|locked/i);
+    assert.equal(abilityFacts("mutilate").offHand, true);
+    assert.equal(abilityFacts("backstab").offHand, false);
   });
 
   it("Ambush has no hint at all: no chip, no long text, no dagger sentence", () => {

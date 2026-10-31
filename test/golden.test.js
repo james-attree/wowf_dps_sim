@@ -163,6 +163,9 @@ describe("golden fixtures", () => {
           full.config,
           {
             ...defaults,
+            // #267: the Mutilate case runs on the dagger alternate's sheet.
+            character: goldenCase.config.character ?? defaults.character,
+            weapons: goldenCase.config.weapons ?? defaults.weapons,
             talents: goldenCase.config.talents ?? defaults.talents,
             poisons: { ...defaults.poisons, ...goldenCase.config.poisons },
             rotation: goldenCase.config.rotation ?? defaults.rotation,

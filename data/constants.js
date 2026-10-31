@@ -171,7 +171,7 @@ export const CONSTANTS = {
     "energy, s, s, chance, ability ids",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Cold Blood|]; talents[Assassination|Cold Blood] desc. Cross-check: wowsims/classic sim/rogue/talents.go registerColdBloodCD (read 26 Oct 2026)",
-    "3 min cooldown, instant, and +100% crit chance on the next Sinister Strike, Backstab, Ambush, Eviscerate or Mutilate (the talent text; the export's own Classic text, cd, leaves Mutilate out). It does not start the GCD (abilities.offGcd). Cold Blood has no timer in the game: it lasts until it is used (wowsims: NeverExpires, and its aura is dropped in OnSpellHitDealt after the next flagged spell, whatever the outcome; this sim keeps the charge on a miss, dodge, parry or block instead, our design choice and not verified against Classic). The engine needs a length, so duration is an hour, longer than any fight, and the aura's one charge ends it. The +100% is a flat add to the crit chance (modifiers.stacking), taken before the 4.8% crit suppression, so it is a sure crit. Mutilate has no ability definition yet, so its entry is inert until one exists.",
+    "3 min cooldown, instant, and +100% crit chance on the next Sinister Strike, Backstab, Ambush, Eviscerate or Mutilate (the talent text; the export's own Classic text, cd, leaves Mutilate out). It does not start the GCD (abilities.offGcd). Cold Blood has no timer in the game: it lasts until it is used (wowsims: NeverExpires, and its aura is dropped in OnSpellHitDealt after the next flagged spell, whatever the outcome; this sim keeps the charge on a miss, dodge, parry or block instead, our design choice and not verified against Classic). The engine needs a length, so duration is an hour, longer than any fight, and the aura's one charge ends it. The +100% is a flat add to the crit chance (modifiers.stacking), taken before the 4.8% crit suppression, so it is a sure crit. Mutilate (#267) strikes with both hands: both crit, and the charge is used once, by the cast.",
     false,
   ),
   adrenalineRush: entry(
@@ -307,6 +307,37 @@ export const CONSTANTS = {
     "150% weapon damage plus 225. Backstab needs a dagger in the main hand: a cast with any other main hand is rejected, nothing spent (js/ability.js, requiresMainHand in js/ability-data.js). The behind requirement is not enforced.",
     false,
   ),
+  mutilate: entry(
+    {
+      energy: 60,
+      cooldown: 0,
+      weaponMultiplier: 0.75,
+      bonusDamage: 38,
+      comboPoints: 2,
+      poisonedMultiplier: 1.2,
+    },
+    "energy, s, ×, damage, CP, ×",
+    WOWF_EXPORT,
+    "rogue.json → spell_desc[Rogue|Mutilate|Rank 4]: 75% weapon damage plus an additional 38 with each weapon, damage increased by 20% against Poisoned targets, awards 2 Combo Points",
+    "A strike with each weapon (#267). Per hand (weapon roll + 38) × 0.75 (A3: the spell's Rank 4 numbers, not the talent text's +13), with no off-hand penalty on the off-hand strike. ×1.2 (poisonedMultiplier) while the target has Deadly Poison (A1: Instant Poison leaves no aura). Needs a dagger in both hands (requiresMainHand and requiresOffHand in js/ability-data.js, A2): otherwise its rule is passed over, with no warning. The main hand resolves first, attack roll, damage roll, crit roll, then its procs; then the off hand the same way (A4). A main hand that does not land: no off hand, no CP, the miss refund. 2 CP when the main hand lands; Seal Fate rolls on the first hand that crits only, so it adds at most 1 (A6). Each hand procs its own weapon's poison (A5). Cold Blood makes both hands crit and is used once by the cast (A7). The 2 CP, the 60 energy and the per-hand formula are TBC values on the retune list.",
+    true,
+  ),
+  "mutilate.poisonedAura": entry(
+    "deadly-poison",
+    "aura id",
+    ASSUMPTION,
+    "James, 31 Oct 2026, issue #267: A1 (Q1, TBC rules): Poisoned means the target has a Deadly Poison debuff, at least 1 stack; Instant Poison leaves no aura, so Instant/Instant is never poisoned, and Venom's self aura does not count",
+    "The target aura (js/auras.js) that makes Mutilate's poisonedMultiplier apply (js/ability-data.js, the bothHands damage kind).",
+    false,
+  ),
+  "mutilate.strikes": entry(
+    "main hand, then off hand",
+    "–",
+    ASSUMPTION,
+    "James, 31 Oct 2026, issue #267: A3-A7 (Q1, TBC rules): per hand (weapon + 38) × 0.75 with no off-hand penalty; each hand its own yellow roll, the main hand resolved fully first and the off hand not attempted when it does not land; 2 CP when the main hand lands and at most 1 from Seal Fate; each hand procs its own poison; Cold Blood makes both crit and is used once",
+    "Documents the rules: no code reads this row (js/ability.js, castBothHands). The draws per hand are the attack roll, the damage roll, then the crit roll on a hit, then that hand's procs.",
+    false,
+  ),
   ambush: entry(
     {
       energy: 60,
@@ -358,7 +389,7 @@ export const CONSTANTS = {
     "–",
     WOWF_EXPORT,
     "rogue.json → talents.trees[].talents[].desc",
-    "Hand-encoded in data/talent-effects.js (D5, #102), one entry per talent: its modifiers, procs, granted ability or a reason it has no DPS effect, and a SHA-256 of the rank text it was written from. The tests read each number back out of the snapshot text, at every rank, and fail on a changed text. The Combat tree is done, and so are the six Assassination talents the reference build spends points on (D8a, #119: Malice, Improved Slice and Dice and Lethality in PR 1, Ruthlessness, Relentless Strikes and Cold Blood in PR 2); #266 (P4.6-03) adds Vigor, Vile Poisons, Improved Poisons, Seal Fate and Murder, and the no-DPS reasons for Improved Gouge, Remorseless Attacks and Improved Kidney Shot; Mutilate, Improved Expose Armor, Venom and the Subtlety talents are later.",
+    "Hand-encoded in data/talent-effects.js (D5, #102), one entry per talent: its modifiers, procs, granted ability or a reason it has no DPS effect, and a SHA-256 of the rank text it was written from. The tests read each number back out of the snapshot text, at every rank, and fail on a changed text. The Combat tree is done, and so are the six Assassination talents the reference build spends points on (D8a, #119: Malice, Improved Slice and Dice and Lethality in PR 1, Ruthlessness, Relentless Strikes and Cold Blood in PR 2); #266 (P4.6-03) adds Vigor, Vile Poisons, Improved Poisons, Seal Fate and Murder, and the no-DPS reasons for Improved Gouge, Remorseless Attacks and Improved Kidney Shot; #267 (P4.6-04a) adds Mutilate, which grants the Mutilate ability; Improved Expose Armor, Venom and the Subtlety talents are later.",
     false,
   ),
   "character.level": entry(

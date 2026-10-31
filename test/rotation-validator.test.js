@@ -192,11 +192,11 @@ describe("validateRotation: actions", () => {
   });
 
   it("rejects a rogue spell the engine does not cast", () => {
-    const error = only(validateRotation(rotation(rule("mutilate"))));
+    const error = only(validateRotation(rotation(rule("garrote"))));
     assert.equal(error.path, "rules[0].action");
     assert.match(
       error.message,
-      /"mutilate" is a rogue spell the engine does not cast yet/,
+      /"garrote" is a rogue spell the engine does not cast yet/,
     );
   });
 
@@ -354,10 +354,10 @@ describe("validateRotation: conditions", () => {
         unknown.message,
         /"nonsense" is not an ability in the spell data/,
       );
-      const uncast = only(withCondition({ type, ability: "mutilate" }));
+      const uncast = only(withCondition({ type, ability: "garrote" }));
       assert.match(
         uncast.message,
-        /"mutilate" is a rogue spell the engine does not cast yet/,
+        /"garrote" is a rogue spell the engine does not cast yet/,
       );
     }
   });
@@ -505,8 +505,8 @@ describe("validateRotation: conditions", () => {
 describe("validateRotation: the context", () => {
   it("defaults to the engine's ids and any part can be replaced", () => {
     const context = rotationContext();
-    assert.ok(context.abilities.includes("mutilate"));
-    assert.ok(!context.castable.includes("mutilate"));
+    assert.ok(context.abilities.includes("garrote"));
+    assert.ok(!context.castable.includes("garrote"));
     assert.ok(context.auras.includes("slice-and-dice"));
     assert.ok(Object.hasOwn(context.debuffs, "rupture"));
     assert.deepEqual(
