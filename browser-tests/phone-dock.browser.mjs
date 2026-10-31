@@ -281,11 +281,11 @@ for (const width of PHONE_WIDTHS) {
           ["Running · 59:59", WIDEST_DPS],
           ["Paused at 59:59", WIDEST_DPS],
           ["Stopped at 59:59", WIDEST_DPS],
-          ["Finished · 3,600 s", WIDEST_DPS],
+          ["Finished · 3,600\u00a0s", WIDEST_DPS],
           ["Done · 100k fights", WIDEST_DPS],
           ["Stopped · 99.9k", WIDEST_DPS],
           ["Running · 99.9k/100k", "—"],
-          ["Ready · seed 4294967295", "—"],
+          ["Ready · seed\u00a04294967295", "—"],
           ["Talents over cap", "—"],
           ["Rotation errors", "—"],
         ];
@@ -304,7 +304,7 @@ for (const width of PHONE_WIDTHS) {
               ({ status, dps }) => {
                 const doc = globalThis.document;
                 doc.getElementById("run-summary").dataset.dock =
-                  "Batch · 100k × 3,600 s";
+                  "Average · 100k × 3,600\u00a0s";
                 doc.getElementById("run-status-text").dataset.dock = status;
                 doc.getElementById("run-dps-value").textContent = dps;
               },

@@ -1,6 +1,6 @@
 import { k } from "../../data/constants.js";
 import { formatNumber } from "../charts.js";
-import { isStale, staleStatus } from "./stale.js";
+import { isStale, ranOf, staleStatus } from "./stale.js";
 
 // What the run control bar (#153) shows, as plain data: the field rules, the
 // buttons' labels and states, the status line, what a screen reader hears on
@@ -26,7 +26,7 @@ export const MAX_SEED = 4294967295;
 export const LIVE_HELP =
   "Stop ends this fight and discards it. Run replays the same seed from 0:00.";
 export const BATCH_HELP =
-  "Batches can't pause. Stop keeps the fights done so far as a partial result.";
+  "The average can't pause. Stop keeps the fights done so far as a partial result.";
 
 const WHOLE = /^\d+$/;
 const DECIMAL = /^(\d+(\.\d*)?|\.\d+)$/;
@@ -226,16 +226,20 @@ export const rotationErrorsText = (count) =>
   `Rotation has ${count} ${count === 1 ? "error" : "errors"}`;
 export const ROTATION_ERRORS_SHORT = "Rotation errors";
 
+const CANT_RUN = "Can't run · ";
+// The first letter of the reason, capitalised once "Can't run" is dropped.
+const FIRST_LETTER = 1;
+
 // `only` names the one thing to fix when there is just one: true for the
 // talents (#204), or a rotation error count (#217).
 export function blockedText(count, only = false) {
   if (only === true) {
-    return `Can't run · ${TALENTS_OVER_CAP}`;
+    return `${CANT_RUN}${TALENTS_OVER_CAP}`;
   }
   if (typeof only === "number") {
-    return `Can't run · ${rotationErrorsText(only)}`;
+    return `${CANT_RUN}${rotationErrorsText(only)}`;
   }
-  return `Can't run · ${settings(count)} to fix`;
+  return `${CANT_RUN}${settings(count)} to fix`;
 }
 
 const talentsOnly = (state) => {
@@ -288,7 +292,8 @@ function listed(parts) {
 
 // Only the run and stats fields are counted as settings (Fran's #245 N1):
 // with the rotation or the talents among the causes, each is named, as the
-// card and banners name them. "Can't run · fix the rotation and the talents".
+// card and banners name them, and say what is wrong, as the single causes do
+// (Fran's #263 P3): "Can't run · the talents and the rotation need fixing".
 const fieldsOnly = (state) => fixParts(state).length === LAST_ONE;
 
 function blockedReason(state) {
@@ -298,7 +303,16 @@ function blockedReason(state) {
   if (talentsOnly(state) || fieldsOnly(state)) {
     return blockedText(blockedCount(state), talentsOnly(state));
   }
-  return `Can't run · fix ${listed(fixParts(state))}`;
+  return `${CANT_RUN}${listed(fixParts(state))} need fixing`;
+}
+
+// #run-reason, which describes Run and the dock's Fix link (#245, Fran's
+// #263 note): the status's reason less its "Can't run", which Run's state
+// and the dock's status already say. "3 settings, the talents and the
+// rotation need fixing", "2 settings to fix", "Rotation has 4 errors".
+function describedReason(status) {
+  const rest = status.slice(CANT_RUN.length);
+  return `${rest.slice(FIRST_PART, FIRST_LETTER).toUpperCase()}${rest.slice(FIRST_LETTER)}`;
 }
 
 // The bar's Fix link (#155) while Run is blocked, or null: "Fix 2
@@ -308,22 +322,18 @@ export function fixLinkText(state) {
   return blocked(state) ? `Fix ${listed(fixParts(state))}` : null;
 }
 
-// The phone dock's Fix link (Fran's #260 check, B2 and B2b), one line over
-// the nav at 200% text: the settings alone are counted as on wide screens,
-// "Fix 2 settings"; the talents or the rotation, alone or with other
-// causes, are counted as issues, "Fix 1 issue", "Fix 5 issues" (shorter
-// than "problems" and than a cause's name: it fits beside the DPS at 360
-// wide and 200% text). An issue is what blockedCount counts: each field
-// with an error, the talents over their cap, and the rotation's errors as
-// one. The Run panel, the reason line and wide screens keep the names, and
-// the link is described by the reason (js/views/controls.js). Only the
-// dock says "issue".
+// The phone dock's Fix link (Fran's #260 check, B2 and B2b, and her #263
+// note): every cause is counted as an issue, "Fix 1 issue", "Fix 5 issues",
+// the settings alone too, so the word never switches between "setting" and
+// "issue" (and "issues" is shorter than "settings": it fits beside the DPS
+// at 360 wide and 200% text, in DejaVu Sans too). An issue is what
+// blockedCount counts: each field with an error, the talents over their
+// cap, and the rotation's errors as one. The Run panel, the reason line and
+// wide screens keep the names, and the link is described by the reason
+// (js/views/controls.js). Only the dock says "issue".
 export function dockFixText(state) {
   if (!blocked(state)) {
     return null;
-  }
-  if (fieldsOnly(state) && !talentsOnly(state) && !rotationOnly(state)) {
-    return fixLinkText(state);
   }
   const count = blockedCount(state);
   return `Fix ${count} ${count === LAST_ONE ? "issue" : "issues"}`;
@@ -355,6 +365,20 @@ function seedText(seed) {
   return seed === null ? "new at Run" : String(seed);
 }
 
+// A word and the number it goes with never part at a line end: a no-break
+// space joins "seed" and its number, and a number and its unit (#245; Fran's
+// #258 check, P5, and #260 check: "Ready · seed" wrapped from its number in
+// the dock at large text).
+export const NO_BREAK_SPACE = "\u00a0";
+export const seedPart = (seed) => `seed${NO_BREAK_SPACE}${seedText(seed)}`;
+export const unitPart = (value) => `${value}${NO_BREAK_SPACE}s`;
+
+// The two run types' names, the Run type switch's labels in Fight (#245:
+// one name each, everywhere; Fran's #260 check).
+export const AVERAGE_NAME = "Average";
+export const RUN_AVERAGE = "Run average";
+export const LIVE_NAME = "Live fight";
+
 function liveModel(state) {
   const { run, results } = state;
   const status = run.state;
@@ -370,14 +394,14 @@ function liveModel(state) {
     text = `Paused at ${clock(time)}`;
     announce = pausedAnnouncement(state, time, damage);
   } else if (status === "finished") {
-    text = `Finished · ${secondsText(time)} s · ${dpsText(damage, time)} DPS`;
+    text = `Finished · ${unitPart(secondsText(time))} · ${dpsText(damage, time)} DPS`;
     // A natural finish says the set fight length (#45, Scout).
     announce = `Finished at ${spokenTime(run.duration)}. Total damage ${damageText(damage)}. ${dpsNumber(damage, time, 1)} DPS.`;
   } else if (run.stoppedAt !== null) {
-    text = `Stopped at ${clock(run.stoppedAt)} · fight discarded · Run replays seed ${seedText(run.seed)} from 0:00`;
+    text = `Stopped at ${clock(run.stoppedAt)} · fight discarded · Run replays ${seedPart(run.seed)} from 0:00`;
     announce = `Stopped at ${spokenTime(run.stoppedAt)}. Fight discarded.`;
   } else {
-    text = `Ready · seed ${seedText(run.seed)}`;
+    text = `Ready · ${unitPart(secondsText(run.duration))} · ${seedPart(run.seed)}`;
     announce = "Ready";
   }
   const stale = !active && isStale(state, "live");
@@ -385,12 +409,13 @@ function liveModel(state) {
     text = staleStatus(state, "live");
   }
   const reason = !active && blocked(state) ? blockedReason(state) : null;
+  const described = reason === null ? null : describedReason(reason);
   return {
     run: {
       label: status === "finished" || stale ? "Run again" : "Run",
       disabled: active || blocked(state),
     },
-    reason,
+    reason: described,
     pause: {
       label: status === "paused" ? "Resume" : "Pause",
       resume: status === "paused",
@@ -421,7 +446,7 @@ function batchModel(state) {
   // The results panel's live region says each of these (#154 §9), so the bar
   // stays quiet for them and only says Ready (#155: no announcement twice).
   if (running) {
-    text = `${grouped(completed)}/${compact(total)} ${fightsWord(total)} · Running batch`;
+    text = `${grouped(completed)}/${compact(total)} ${fightsWord(total)} · Running`;
     announce = null;
   } else if (status === "done") {
     const mean = formatNumber(result.summary.mean, 1);
@@ -435,10 +460,11 @@ function batchModel(state) {
         : `${kept} · Stopped`;
     announce = null;
   } else if (status === "error") {
-    text = `Batch failed: ${batch.error.message}`;
+    text = `${AVERAGE_NAME} failed: ${batch.error.message}`;
     announce = null;
   } else {
-    text = `Ready · ${fightCount(run.iterations)} · seed ${seedText(run.seed)}`;
+    // The fight length too (#245, Fran's #260 check): what Run will run.
+    text = `Ready · ${grouped(run.iterations)} × ${unitPart(secondsText(run.duration))} ${fightsWord(run.iterations)} · ${seedPart(run.seed)}`;
     announce = "Ready";
   }
   // An average run with other settings than today's (#242).
@@ -447,12 +473,13 @@ function batchModel(state) {
     text = staleStatus(state, "batch");
   }
   const reason = !running && blocked(state) ? blockedReason(state) : null;
+  const described = reason === null ? null : describedReason(reason);
   return {
     run: {
-      label: stale ? "Run again" : "Run batch",
+      label: stale ? "Run again" : RUN_AVERAGE,
       disabled: running || blocked(state),
     },
-    reason,
+    reason: described,
     // Visible, never pressable: aria-disabled with the help line as the
     // reason, so a screen reader finds it and hears why.
     pause: { label: "Pause", resume: false, disabled: false, inert: true },
@@ -476,18 +503,69 @@ function batchModel(state) {
 }
 
 // The narrow bar's one-line summary of the next run's settings (Scout, #153):
-// "Live · 300 s · seed 1234" or "Batch · 1,000 × 300 s · seed 1234". It
-// follows the fields as they are typed; a field with an error shows "?".
+// "Live fight · 300 s · seed 1234" or "Average · 1,000 × 300 s · seed 1234"
+// (#245: the run types' own names). It follows the fields as they are
+// typed; a field with an error shows "?".
 export function summaryText(run) {
   const bad = new Set(fieldErrors(run));
   const part = (name, text) => (bad.has(name) ? "?" : text);
-  const seconds = part("duration", `${secondsText(run.duration)}`);
-  const seed = part("seed", seedText(run.seed));
+  const seconds = unitPart(part("duration", `${secondsText(run.duration)}`));
+  const seed = bad.has("seed") ? `seed${NO_BREAK_SPACE}?` : seedPart(run.seed);
   if (run.mode === "batch") {
     const fights = part("iterations", grouped(run.iterations));
-    return `Batch · ${fights} × ${seconds} s · seed ${seed}`;
+    return `${AVERAGE_NAME} · ${fights} × ${seconds} · ${seed}`;
   }
-  return `Live · ${seconds} s · seed ${seed}`;
+  return `${LIVE_NAME} · ${seconds} · ${seed}`;
+}
+
+// The fight length changed after a kept result ran (#245, Fran's #260
+// check): a light, neutral note beside the result, "Ran with 5 × 10 s ·
+// Fight is now 50 × 120 s". The result is not out of date (the run fields
+// are the next run's, js/views/stale.js), so no amber and no "Run again";
+// a change to the fights or the seed alone says nothing. Null with no kept
+// result of that kind, while a run is going, with the same length, or
+// while the length field has an error (its Fix link says so).
+export function lengthNote(state, kind) {
+  const { run } = state;
+  const record = ranOf(state, kind);
+  const errors = run.errors ?? {};
+  if (
+    record === null ||
+    isLocked(run) ||
+    errors.duration !== undefined ||
+    record.duration === run.duration
+  ) {
+    return null;
+  }
+  const now = unitPart(secondsText(run.duration));
+  const then = unitPart(secondsText(record.duration));
+  if (kind === "batch") {
+    const fights =
+      errors.iterations === undefined ? grouped(run.iterations) : "?";
+    return `Ran with ${grouped(state.batch.result.completed)} × ${then} · Fight is now ${fights} × ${now}`;
+  }
+  return `Ran with ${then} · Fight is now ${now}`;
+}
+
+// The dock's summary beside a result it shows (#245, Fran's #260 check):
+// the settings that result ran with, not the next run's, so the line and
+// the DPS beside it are about the same fights. Null when the dock shows no
+// result: a batch done or stopped with fights, or a finished live fight.
+function shownSummary(state) {
+  const { run, batch } = state;
+  if (run.mode === "batch") {
+    const record = ranOf(state, "batch");
+    const shown =
+      record !== null &&
+      (batch.status === "done" || batch.status === "cancelled");
+    return shown
+      ? `${AVERAGE_NAME} · ${compact(batch.result.completed)} × ${unitPart(secondsText(record.duration))}`
+      : null;
+  }
+  const record = ranOf(state, "live");
+  return record !== null && run.state === "finished"
+    ? `${LIVE_NAME} · ${unitPart(secondsText(record.duration))}`
+    : null;
 }
 
 // An out-of-date result (#242): what the dock's status says.
@@ -495,29 +573,34 @@ export const STALE_SHORT = "⟳ Out of date";
 
 // The phone dock's two lines (#240, UX2; proposal section 4), short enough
 // to fit beside the DPS and two buttons on the narrowest phones: the summary
-// without the seed ("Live · 300 s", "Batch · 1k × 300 s"), and a status
+// without the seed ("Live fight · 300 s", "Average · 1k × 300 s"), and a status
 // that leaves out what the summary, the DPS readout or the results say (a
 // live fight's length, a finished batch's total). The long lines, "Ready ·
 // seed …" and the blocked reason, only come with no DPS beside them.
 // Blocked, it is the narrow row's short reason ("Talents over cap") or
 // "Can't run", over the "Fix N settings" link. A kept result of the mode's
-// that ran with other settings says it is out of date (#242).
+// that ran with other settings says it is out of date (#242). Beside a
+// result it shows, the summary is what that result ran with (shownSummary).
 export function dockText(state) {
   const { run, batch, results } = state;
   const bad = new Set(fieldErrors(run));
   const part = (name, text) => (bad.has(name) ? "?" : text);
-  const seconds = `${part("duration", secondsText(run.duration))} s`;
-  const summary =
+  const seconds = unitPart(part("duration", secondsText(run.duration)));
+  let summary =
     run.mode === "batch"
-      ? `Batch · ${part("iterations", compact(run.iterations))} × ${seconds}`
-      : `Live · ${seconds}`;
+      ? `${AVERAGE_NAME} · ${part("iterations", compact(run.iterations))} × ${seconds}`
+      : `${LIVE_NAME} · ${seconds}`;
   const model = controlsModel(state);
   if (model.reason !== null) {
     return { summary, status: model.statusShort ?? "Can't run" };
   }
-  const ready = `Ready · seed ${seedText(run.seed)}`;
+  const ready = `Ready · ${seedPart(run.seed)}`;
   if (!isLocked(run) && isStale(state, run.mode)) {
     return { summary, status: STALE_SHORT };
+  }
+  const shown = shownSummary(state);
+  if (shown !== null) {
+    summary = shown;
   }
   if (run.mode === "batch") {
     const result = batch.result;
@@ -528,7 +611,7 @@ export function dockText(state) {
       done: () =>
         `Done · ${compact(result.completed)} ${fightsWord(result.completed)}`,
       cancelled: () => `Stopped · ${compact(result.completed)}`,
-      error: () => "Batch failed",
+      error: () => `${AVERAGE_NAME} failed`,
     };
     return { summary, status: statuses[batch.status]?.() ?? ready };
   }
@@ -536,7 +619,7 @@ export function dockText(state) {
   const statuses = {
     running: () => `Running · ${clock(time)}`,
     paused: () => `Paused at ${clock(time)}`,
-    finished: () => `Finished · ${secondsText(time)} s`,
+    finished: () => `Finished · ${unitPart(secondsText(time))}`,
   };
   const stopped =
     run.stoppedAt === null ? ready : `Stopped at ${clock(run.stoppedAt)}`;

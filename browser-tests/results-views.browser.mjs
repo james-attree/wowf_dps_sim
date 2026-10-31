@@ -39,7 +39,8 @@ const PAIR_MIN = "50";
 const PAIR_MAX = "40";
 // The widest summary the dock has (Fran's #252 note).
 const LONG = { iterations: "100000", duration: "3600", seed: "4294967295" };
-const LONG_SUMMARY = "Batch · 100,000 × 3600 s · seed 4294967295";
+// The accessibility snapshot shows no-break spaces as spaces.
+const LONG_SUMMARY = "Average · 100,000 × 3600 s · seed 4294967295";
 // Half a pixel of rounding either way.
 const SLACK = 1;
 
@@ -130,7 +131,7 @@ async function settingsField(page, selector) {
 async function batchDone(page) {
   await page.waitForFunction(
     () =>
-      /^Batch finished/.test(
+      /^Average finished/.test(
         globalThis.document.getElementById("results-announce")?.textContent ??
           "",
       ),
@@ -225,7 +226,7 @@ describe("two kept results (#242)", () => {
       const label = page.locator("#results-average-label");
       assert.match(
         await label.textContent(),
-        /^Average · 5 × 4 s fights · seed\u00a0\d+ · ran at \d\d:\d\d$/,
+        /^Average · 5 × 4\u00a0s fights · seed\u00a0\d+ · ran at \d\d:\d\d$/,
       );
       const average = await page.locator("#results-panel").innerText();
       assert.match(average, /Damage by ability/);
@@ -265,13 +266,13 @@ describe("two kept results (#242)", () => {
       assert.equal(await page.locator("#damage-panel").isVisible(), true);
       assert.match(
         await page.locator("#results-live-label").textContent(),
-        /^Live fight · 4 s · seed\u00a0\d+ · ran at \d\d:\d\d · finished$/,
+        /^Live fight · 4\u00a0s · seed\u00a0\d+ · ran at \d\d:\d\d · finished$/,
       );
       assert.match(await page.locator("#dps-value").textContent(), /^[\d,]+$/);
       // The average is still there.
       await page.locator("#result-view-average").click();
       await page.locator("#results-panel").waitFor({ state: "visible" });
-      assert.match(await label.textContent(), /^Average · 5 × 4 s fights/);
+      assert.match(await label.textContent(), /^Average · 5 × 4\u00a0s fights/);
       assert.equal(await page.locator("#results-panel").innerText(), average);
 
       // Another average keeps the live fight.
@@ -434,7 +435,7 @@ describe("the phone dock's summary under its ellipsis (#252 note)", () => {
       // Seen: the dock's shorter line; heard: the whole one.
       assert.equal(
         await summary.getAttribute("data-dock"),
-        "Batch · 100k × 3600 s",
+        "Average · 100k × 3600\u00a0s",
       );
       const snapshot = await summary.ariaSnapshot();
       assert.ok(snapshot.includes(LONG_SUMMARY), snapshot);

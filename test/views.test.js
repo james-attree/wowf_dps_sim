@@ -295,7 +295,7 @@ describe("page views", () => {
     setState("idle");
     assert.equal(
       doc.el("#run-status-text").textContent,
-      `Ready · seed ${SEED}`,
+      `Ready · 300\u00a0s · seed\u00a0${SEED}`,
     );
     assert.equal(doc.el("#pause-button").disabled, true);
     doc.el("#pause-button").click();

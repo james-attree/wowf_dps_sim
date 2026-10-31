@@ -7,6 +7,7 @@ import {
   timelineTable,
 } from "../charts.js";
 import { el } from "../svg.js";
+import { seedPart, unitPart } from "./run-model.js";
 
 // The batch results panel (#154): pure functions from the store's batch and
 // run slices to js/svg.js nodes. Fran's spec (design/154-results-panel,
@@ -716,7 +717,7 @@ function partialBanner(result) {
   }
   return banner("partial", heading, [
     [
-      `Everything below covers only the ${done} fights that finished. The confidence interval (± ${num(ci.halfWidth)}) is about those fights and is wider than a full run's would be. Don't compare it with a full batch as if it were one.`,
+      `Everything below covers only the ${done} fights that finished. The confidence interval (± ${num(ci.halfWidth)}) is about those fights and is wider than a full run's would be. Don't compare it with a full average as if it were one.`,
     ],
     pressRun(
       `To run all ${all} ${fightsWord}, press `,
@@ -738,7 +739,7 @@ function errorBanner(error) {
   const detail = [error?.name, error?.message].filter(Boolean).join(": ");
   return banner(
     "error",
-    "The batch stopped with an error",
+    "The average stopped with an error",
     [
       pressRun(
         "No results were kept from this run. Check the fight settings, then press ",
@@ -755,7 +756,7 @@ function errorBanner(error) {
 
 function emptyState() {
   return el("div", { class: "results-empty" }, [
-    el("strong", {}, ["No batch results yet"]),
+    el("strong", {}, ["No average yet"]),
     "Pick a build, rotation and poisons, then press ",
     el("strong", {}, ["Run average"]),
     " above. ",
@@ -788,7 +789,7 @@ function progressBlock(batch, id) {
   const percent = total > 0 ? Math.floor((completed / total) * 100) : 0;
   return el("div", { class: "results-progress" }, [
     el("label", { for: `${id}-progress`, class: "visually-hidden" }, [
-      "Batch progress",
+      "Average progress",
     ]),
     el("progress", { id: `${id}-progress`, max: total, value: completed }, [
       `${count(completed)} of ${fightsText(total)}`,
@@ -843,7 +844,7 @@ export function panelModel({ batch, run }, options) {
       body.push(
         el("div", { class: "previous-wrap" }, [
           el("span", { class: "previous-label" }, [
-            `PREVIOUS RESULT · seed ${previous.seed} · replaced when the first fight finishes`,
+            `PREVIOUS RESULT · ${seedPart(previous.seed)} · replaced when the first fight finishes`,
           ]),
           el("div", { class: "previous-result", inert: "" }, [
             ...headline(previous, "results-prev"),
@@ -853,10 +854,10 @@ export function panelModel({ batch, run }, options) {
       );
     }
     return {
-      title: "Running batch…",
+      title: "Running average…",
       meta: [
-        `${count(total)} × ${count(run.duration)} s ${plural(total, "fight")}`,
-        `seed ${run.seed}`,
+        `${count(total)} × ${unitPart(count(run.duration))} ${plural(total, "fight")}`,
+        seedPart(run.seed),
         config ? buildLabel(config) : null,
       ]
         .filter(Boolean)
@@ -870,13 +871,13 @@ export function panelModel({ batch, run }, options) {
     if (result.completed === 0) {
       return {
         title: "Results",
-        meta: `Stopped · 0 of ${fightsText(result.iterations)} · seed ${result.seed} · ${label}`,
+        meta: `Stopped · 0 of ${fightsText(result.iterations)} · ${seedPart(result.seed)} · ${label}`,
         busy: false,
         body: [zeroBanner()],
       };
     }
     const partial = result.cancelled;
-    const meta = `${count(result.completed)} × ${count(result.duration)} s ${plural(result.completed, "fight")} · seed ${result.seed} · ${label}`;
+    const meta = `${count(result.completed)} × ${unitPart(count(result.duration))} ${plural(result.completed, "fight")} · ${seedPart(result.seed)} · ${label}`;
     if (partial && !result.summary.ci95) {
       return {
         title: "Results (partial)",
@@ -904,7 +905,7 @@ export function panelModel({ batch, run }, options) {
     const total = batch.progress?.total ?? run.iterations;
     return {
       title: "Results",
-      meta: `${count(total)} × ${count(run.duration)} s ${plural(total, "fight")} · seed ${run.seed}`,
+      meta: `${count(total)} × ${unitPart(count(run.duration))} ${plural(total, "fight")} · ${seedPart(run.seed)}`,
       busy: false,
       body: [errorBanner(batch.error)],
     };
@@ -928,13 +929,13 @@ export function announcement(before, after) {
   const total = after.progress?.total ?? 0;
   if (after.status === "running") {
     if (before?.status !== "running") {
-      return `Batch started, ${fightsText(total)}.`;
+      return `Average started, ${fightsText(total)}.`;
     }
     const was = announceStep(before.progress?.completed ?? 0, total);
     const now = announceStep(after.progress?.completed ?? 0, total);
     if (now > was) {
       const share = Math.round(now * k("ui.batchAnnounceStep") * 100);
-      return `Batch ${share}% done, ${count(after.progress.completed)} of ${fightsText(total)}.`;
+      return `Average ${share}% done, ${count(after.progress.completed)} of ${fightsText(total)}.`;
     }
     return null;
   }
@@ -945,13 +946,13 @@ export function announcement(before, after) {
   if (after.status === "done") {
     const ci = result.summary.ci95;
     return ci
-      ? `Batch finished: ${num(result.summary.mean)} DPS, plus or minus ${num(ci.halfWidth)}.`
-      : `Batch finished: ${num(result.summary.mean)} DPS.`;
+      ? `Average finished: ${num(result.summary.mean)} DPS, plus or minus ${num(ci.halfWidth)}.`
+      : `Average finished: ${num(result.summary.mean)} DPS.`;
   }
   if (after.status === "cancelled") {
     return result.completed > 0
-      ? `Batch stopped: partial result from ${count(result.completed)} of ${fightsText(result.iterations)}.`
-      : "Batch stopped before any fight finished.";
+      ? `Average stopped: partial result from ${count(result.completed)} of ${fightsText(result.iterations)}.`
+      : "Average stopped before any fight finished.";
   }
   return null;
 }

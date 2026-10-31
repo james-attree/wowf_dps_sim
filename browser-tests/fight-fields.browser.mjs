@@ -203,7 +203,11 @@ for (const size of [WIDE, PHONE]) {
         await toArea(page, "rotation");
         const fix = page.locator("#run-errors-link");
         await fix.waitFor({ state: "visible" });
-        assert.equal(await fix.textContent(), "Fix 1 setting");
+        // The dock counts it as an issue (Fran's #263 note).
+        assert.equal(
+          await fix.textContent(),
+          size.width === WIDE.width ? "Fix 1 setting" : "Fix 1 issue",
+        );
         await fix.click();
         await hashIs(page, "#fight");
         await page.locator("#area-fight").waitFor({ state: "visible" });
@@ -233,7 +237,7 @@ describe("Run uses what Fight's fields show (#245, commitEdits)", () => {
       await page.locator("#run-button").click();
       await page.waitForFunction(
         () =>
-          /^Batch finished/.test(
+          /^Average finished/.test(
             globalThis.document.getElementById("results-announce")
               ?.textContent ?? "",
           ),
@@ -242,7 +246,10 @@ describe("Run uses what Fight's fields show (#245, commitEdits)", () => {
       );
       assert.match(
         await page.locator("#results-average-label").textContent(),
-        new RegExp(`^Average · ${BATCH_FIGHTS} × ${TYPED_LENGTH} s fights`),
+        // The length keeps its unit: a no-break space (#245).
+        new RegExp(
+          `^Average · ${BATCH_FIGHTS} × ${TYPED_LENGTH}\u00a0s fights`,
+        ),
       );
       // The run fields are the next run's (js/views/stale.js): moving them
       // to Fight does not put the kept average out of date.

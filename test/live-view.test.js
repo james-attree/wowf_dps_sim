@@ -189,7 +189,7 @@ describe("a live fight driven by uneven frames", () => {
       assert.deepEqual(
         snapshot(simulation),
         fromRunFight(runFight({ seed, duration: simulation.currentTime })),
-        `seed ${seed}`,
+        `seed\u00a0${seed}`,
       );
     }
   });
@@ -361,7 +361,7 @@ describe("js/main.js on a stand-in page", () => {
     assert.equal(element("#run-seed").value, String(SEED));
     assert.equal(
       element("#run-status-text").textContent,
-      `Ready · seed ${SEED}`,
+      `Ready · 300\u00a0s · seed\u00a0${SEED}`,
     );
     assert.equal(pendingFrame, null, "nothing runs at load");
     assert.equal(element("#pause-button").disabled, true);
@@ -474,7 +474,7 @@ describe("js/main.js on a stand-in page", () => {
     const dps = (live.damageDone / duration).toFixed(1);
     assert.equal(
       element("#run-status-text").textContent,
-      `Finished · 300 s · ${dps} DPS`,
+      `Finished · 300\u00a0s · ${dps} DPS`,
     );
     const total = Math.floor(live.damageDone).toLocaleString("en-US");
     assert.equal(
@@ -521,7 +521,7 @@ describe("js/main.js on a stand-in page", () => {
     assert.match(
       element("#run-status-text").textContent,
       new RegExp(
-        `^Stopped at 00:0[12] · fight discarded · Run replays seed ${SEED} from 0:00$`,
+        `^Stopped at 00:0[12] · fight discarded · Run replays seed\u00a0${SEED} from 0:00$`,
       ),
     );
     assert.match(
@@ -542,7 +542,7 @@ describe("js/main.js on a stand-in page", () => {
     assert.equal(pendingFrame, null);
     assert.equal(
       element("#run-status-text").textContent,
-      `Ready · seed ${SEED}`,
+      `Ready · 300\u00a0s · seed\u00a0${SEED}`,
     );
     assert.equal(element("#reset-button").disabled, true);
     assert.equal(element("#time-value").textContent, "00:00");
@@ -557,7 +557,7 @@ describe("js/main.js on a stand-in page", () => {
     live.checked = false;
     batch.listeners.get("change")();
     assert.equal(element("#run-iterations-field").hidden, false);
-    assert.equal(element("#run-button").textContent, "Run batch");
+    assert.equal(element("#run-button").textContent, "Run average");
     assert.equal(element("#stop-button").textContent, "Stop and keep partial");
     assert.equal(
       element("#pause-button").getAttribute("aria-disabled"),
@@ -573,7 +573,7 @@ describe("js/main.js on a stand-in page", () => {
     element("#run-button").click();
     assert.equal(
       element("#run-status-text").textContent,
-      "0/4 fights · Running batch",
+      "0/4 fights · Running",
     );
     assert.equal(element("#run-progress-row").hidden, false);
     assert.equal(element("#run-button").disabled, true);

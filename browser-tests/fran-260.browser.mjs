@@ -165,7 +165,9 @@ const dockBoxes = (page) =>
         strip.getBoundingClientRect().top +
         Number.parseFloat(style.paddingTop) +
         first,
-      dps: doc.querySelector(".run-dps").getBoundingClientRect().left,
+      status: doc.getElementById("run-status-text").getBoundingClientRect()
+        .bottom,
+      dps: doc.querySelector(".run-dps").getBoundingClientRect().toJSON(),
       nav: doc.getElementById("area-nav").getBoundingClientRect().top,
     };
   });
@@ -217,7 +219,16 @@ describe("B2: the dock's Fix link counts, the wide one names (Fran's #260 check)
           assert.equal(at.lines, 1, `lines: ${where}`);
           assert.ok(at.text.bottom <= at.nav + EDGE, `on the nav: ${where}`);
           assert.ok(at.box >= at.row - EDGE, `on the status: ${where}`);
-          assert.ok(at.text.right <= at.dps + EDGE, `on the DPS: ${where}`);
+          assert.ok(
+            at.text.top >= at.status - EDGE,
+            `touches the status: ${where}`,
+          );
+          // Beside the DPS, or (bigger text, #245) above it on its own line.
+          assert.ok(
+            at.text.right <= at.dps.left + EDGE ||
+              at.text.bottom <= at.dps.top + EDGE,
+            `on the DPS: ${where}`,
+          );
           assert.equal(
             await link.getAttribute("aria-describedby"),
             "run-reason",
@@ -243,7 +254,7 @@ describe("B2: the dock's Fix link counts, the wide one names (Fran's #260 check)
       assert.equal(await link.textContent(), `Fix ${ALL_NAMED}`);
       assert.equal(
         await page.locator("#run-reason").textContent(),
-        `Can't run · fix ${ALL_NAMED}`,
+        `${ALL_NAMED[0].toUpperCase()}${ALL_NAMED.slice(1)} need fixing`,
       );
       await shot(page, "b2-1280");
       await link.click();
@@ -352,7 +363,7 @@ describe("the Fix link goes to the first cause it names (Fran's #260 check)", ()
         );
         assert.equal(
           await page.locator("#run-reason").textContent(),
-          "Can't run · fix the talents and the rotation",
+          "The talents and the rotation need fixing",
         );
         await link.click();
         await focused(page, "talents-level");

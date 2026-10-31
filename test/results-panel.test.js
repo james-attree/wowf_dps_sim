@@ -183,7 +183,7 @@ describe("the results panel states (#154)", () => {
     const empty = model({});
     assert.equal(empty.title, "Results");
     assert.equal(empty.meta, "");
-    assert.match(text(empty.body), /No batch results yet/);
+    assert.match(text(empty.body), /No average yet/);
     assert.equal(/<button/.test(markup(empty.body)), false);
   });
 
@@ -196,11 +196,11 @@ describe("the results panel states (#154)", () => {
       },
       { ...RUN, state: "running", snapshot: config() },
     );
-    assert.equal(running.title, "Running batch…");
+    assert.equal(running.title, "Running average…");
     assert.equal(running.busy, true);
     assert.equal(
       running.meta,
-      "24 × 60 s fights · seed 154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
+      "24 × 60\u00a0s fights · seed\u00a0154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
     );
     const html = markup(running.body);
     assert.match(text(running.body), /0 of 24 fights/);
@@ -251,7 +251,7 @@ describe("the results panel states (#154)", () => {
     assert.equal(shown.busy, false);
     assert.equal(
       shown.meta,
-      "24 × 60 s fights · seed 154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
+      "24 × 60\u00a0s fights · seed\u00a0154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
     );
     const html = markup(shown.body);
     const buttons = html.match(/<button[^>]*>/g) ?? [];
@@ -272,7 +272,10 @@ describe("the results panel states (#154)", () => {
       text(shown.body),
       /Partial result: stopped after 5 of 24 fights/,
     );
-    assert.match(shown.meta, /^5 × 60 s fights · seed 154/);
+    // "average", not "batch", as Run calls it (Fran's #263 re-check).
+    assert.match(text(shown.body), /Don't compare it with a full average/);
+    assert.doesNotMatch(text(shown.body), /full batch/);
+    assert.match(shown.meta, /^5 × 60\u00a0s fights · seed\u00a0154/);
 
     const one = model({ status: "cancelled", result: single });
     assert.equal(one.title, "Results (partial)");
@@ -283,7 +286,7 @@ describe("the results panel states (#154)", () => {
   it("says Stopped, 0 fights when Stop came before any fight finished", () => {
     const shown = model({ status: "cancelled", result: zero });
     assert.equal(shown.title, "Results");
-    assert.match(shown.meta, /^Stopped · 0 of 24 fights · seed 154/);
+    assert.match(shown.meta, /^Stopped · 0 of 24 fights · seed\u00a0154/);
     assert.equal(/Average DPS/.test(text(shown.body)), false);
   });
 
@@ -439,34 +442,37 @@ describe("the results panel live region (#154)", () => {
 
   it("says the start, each quarter once, and the finish", () => {
     const idle = batchState({});
-    assert.equal(announcement(idle, running(0)), "Batch started, 100 fights.");
+    assert.equal(
+      announcement(idle, running(0)),
+      "Average started, 100 fights.",
+    );
     assert.equal(announcement(running(0), running(24)), null);
     assert.equal(
       announcement(running(24), running(25)),
-      "Batch 25% done, 25 of 100 fights.",
+      "Average 25% done, 25 of 100 fights.",
     );
     assert.equal(announcement(running(25), running(49)), null);
     assert.equal(
       announcement(running(49), running(76)),
-      "Batch 75% done, 76 of 100 fights.",
+      "Average 75% done, 76 of 100 fights.",
     );
     assert.match(
       announcement(running(99), batchState({ status: "done", result: done })),
-      /^Batch finished: [\d.,]+ DPS, plus or minus [\d.]+\.$/,
+      /^Average finished: [\d.,]+ DPS, plus or minus [\d.]+\.$/,
     );
     assert.equal(
       announcement(
         running(5),
         batchState({ status: "cancelled", result: partial }),
       ),
-      "Batch stopped: partial result from 5 of 24 fights.",
+      "Average stopped: partial result from 5 of 24 fights.",
     );
     assert.equal(
       announcement(
         running(0),
         batchState({ status: "cancelled", result: zero }),
       ),
-      "Batch stopped before any fight finished.",
+      "Average stopped before any fight finished.",
     );
     // A slice change that is not a batch transition says nothing.
     const shown = batchState({ status: "done", result: done });
@@ -598,15 +604,15 @@ describe("the results panel view (#154)", () => {
       }),
     });
     assert.equal(el("#results-panel").getAttribute("aria-busy"), "true");
-    assert.equal(el("#results-heading").textContent, "Running batch…");
+    assert.equal(el("#results-heading").textContent, "Running average…");
     assert.equal(
       el("#results-announce").textContent,
-      "Batch started, 24 fights.",
+      "Average started, 24 fights.",
     );
     store.set({ batch: batchState({ status: "done", result: done }) });
     assert.equal(el("#results-panel").getAttribute("aria-busy"), null);
     assert.equal(el("#results-meta").hidden, false);
-    assert.match(el("#results-announce").textContent, /^Batch finished/);
+    assert.match(el("#results-announce").textContent, /^Average finished/);
   });
 
   it("Reset empties its live region, so nothing stale is left (#155)", () => {
@@ -618,7 +624,7 @@ describe("the results panel view (#154)", () => {
       }),
     });
     store.set({ batch: batchState({ status: "done", result: done }) });
-    assert.match(el("#results-announce").textContent, /^Batch finished/);
+    assert.match(el("#results-announce").textContent, /^Average finished/);
     store.set({ batch: batchState({}) });
     assert.equal(el("#results-announce").textContent, "");
   });

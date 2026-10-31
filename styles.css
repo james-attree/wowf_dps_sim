@@ -37,14 +37,26 @@
   --accent: #e7bd55;
   --energy: #f0c44e;
   --gcd: #c99b3b;
+  /* The phone nav's height (#240): its least, until js/views/chrome-size.js
+     measures the nav as it grows with the text (#245). */
   --area-nav-height: 52px;
+  --area-nav-least: 52px;
+  /* The least a pointer or a finger aims at (#245, UX7; WCAG 2.5.5): every
+     button, link, field and check row is at least this tall and wide.
+     browser-tests/targets.browser.mjs holds every screen to it. */
+  --target: 44px;
   /* A control's own edge: an input's or a button's border is what shows it
      is there, so it keeps 3:1 against the surfaces it sits on and its own
      fill (WCAG 1.4.11; #240, Fran's #251 check): 3.30:1 on --surface-raised,
      the lightest, up to 3.77:1 on the page. */
   --control-border: #7d6c50;
-  /* The phone run dock's strip (#240), above the nav; none on Results. */
-  --strip-height: 48px;
+  /* The phone run dock's strip (#240), above the nav; none on Results. Its
+     least is in rem so it grows with the text (#245); --strip-height is
+     that least until js/views/chrome-size.js measures the strip. */
+  --strip-least: 3rem;
+  --strip-height: 3rem;
+  /* The strip's lines, a ratio of their own text size. */
+  --strip-line: 1.35;
   --dock-strip: 0px;
   /* Nothing sticks to the top of the page at any width (#241, UX3): on
      wide screens Run is in the results column, below the wide breakpoint
@@ -135,7 +147,9 @@ h3 {
   gap: 7px;
   padding: 6px 10px;
   border: 1px solid #24483d;
-  border-radius: 999px;
+  /* Round ends on one line; soft corners once bigger text wraps it (#245;
+     Fran's #260 check). */
+  border-radius: 1rem;
   background: #11251f;
   color: #9ce2c2;
   font-size: 0.78rem;
@@ -143,6 +157,7 @@ h3 {
 }
 
 .live-dot {
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -166,7 +181,7 @@ h3 {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 31px;
+  min-height: var(--target);
   padding: 5px 10px;
   border: 1px solid var(--control-border);
   border-radius: 999px;
@@ -235,7 +250,7 @@ h3 {
   margin-right: 6px;
   color: var(--text-muted);
   font-size: 0.72rem;
-  line-height: 31px;
+  line-height: var(--target);
 }
 
 .run-mode-pill {
@@ -252,7 +267,7 @@ h3 {
 .run-mode-pill span {
   display: inline-flex;
   align-items: center;
-  min-height: 31px;
+  min-height: var(--target);
   padding: 5px 12px;
   border: 1px solid var(--control-border);
   border-radius: 999px;
@@ -279,15 +294,17 @@ h3 {
   cursor: default;
 }
 
+/* The label's line and its gap to the input grow with the text, so at 200%
+   a label such as "Fight length (s)" clears its input (#245). */
 .run-field {
   display: grid;
-  gap: 3px;
+  gap: 0.25em;
   font-size: 0.72rem;
 }
 
 .run-field label {
   color: var(--text-muted);
-  line-height: 16px;
+  line-height: 1.35;
 }
 
 /* Fight's settings (#245; proposal section 3): the run type on a line of
@@ -369,7 +386,7 @@ h3 {
     display: inline-flex;
     align-items: center;
     justify-self: start;
-    min-height: 31px;
+    min-height: var(--target);
     color: var(--accent);
     font-size: 0.85rem;
     font-weight: 650;
@@ -392,7 +409,7 @@ h3 {
 }
 
 .run-field input {
-  min-height: 31px;
+  min-height: var(--target);
   padding: 4px 8px;
   border: 1px solid var(--control-border);
   border-radius: 8px;
@@ -432,7 +449,7 @@ h3 {
 }
 
 .run-button {
-  min-height: 31px;
+  min-height: var(--target);
   padding: 5px 16px;
   border: 1px solid var(--accent);
   border-radius: 999px;
@@ -461,6 +478,12 @@ h3 {
 
 .run-status {
   font-variant-numeric: tabular-nums;
+}
+
+/* A wrapped status splits into lines of even length (#245; Fran's #260
+   check). */
+#run-status-text {
+  text-wrap: balance;
 }
 
 .run-progress {
@@ -506,7 +529,7 @@ h3 {
   display: inline-flex;
   order: 1;
   align-items: center;
-  min-height: 31px;
+  min-height: var(--target);
   color: #f19389;
   font-size: 0.8rem;
   font-weight: 700;
@@ -527,24 +550,17 @@ h3 {
   display: inline-flex;
   order: 1;
   align-items: center;
-  min-height: 31px;
+  min-height: var(--target);
   color: #f0c46a;
   font-size: 0.8rem;
   font-weight: 700;
 }
 
-/* Below 520 the bar's parts are the dock's (below). Fight's settings get
-   the bigger touch targets, and inputs at the full text size so a phone
-   does not zoom into them. */
+/* Below 520 the bar's parts are the dock's (below). Fight's inputs are at
+   the full text size so a phone does not zoom into them. */
 @media (width < 32.5em) {
   .run-controls {
     display: contents;
-  }
-
-  .fight-settings .run-mode-pill span,
-  .fight-settings .run-field input,
-  .fight-settings .pill-button {
-    min-height: 44px;
   }
 
   .fight-settings .run-field input {
@@ -565,9 +581,11 @@ h3 {
 
 /* The phone run dock (#240, UX2; proposal section 4). Below the wide
    breakpoint nothing sticks to the top: Run, its status and the DPS sit in a
-   strip fixed above the area nav, 100 in all with the nav, plus the
-   safe-area inset under both. The strip's two lines are 13 on 18 and end in
-   an ellipsis; the DPS never shrinks. Two button slots: Run, or Pause while
+   strip fixed above the area nav, 100 in all with the nav at the default
+   text size, plus the safe-area inset under both. The strip's two lines end
+   in an ellipsis and the DPS never shrinks. With bigger text (#245) the
+   strip grows with its lines, and when the DPS no longer fits beside them it
+   takes a third line under them. Two button slots: Run, or Pause while
    a fight or batch runs; Reset, or Stop while it runs. On Results the strip
    leaves the dock and sits in the page above the results, so the dock is the
    nav alone. */
@@ -585,15 +603,23 @@ h3 {
     z-index: 20;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-rows: 18px 18px;
+    grid-template-rows: auto auto;
     align-content: center;
     align-items: center;
     gap: 0 8px;
-    height: var(--strip-height);
+    min-height: var(--strip-least);
+    container: run-strip / inline-size;
     margin: 0;
     padding: 0 8px 0 12px;
     border-top: 1px solid var(--border);
     background: var(--surface);
+  }
+
+  /* Off Results the strip is in the dock, so the help line has no strip to
+     sit under and would land above the area's h1 (#245). It is not shown
+     there; Stop is still described by it. */
+  :root:has(#area-results[hidden]) .run-help {
+    display: none;
   }
 
   :root:has(#area-results:not([hidden])) .run-row-actions {
@@ -610,9 +636,6 @@ h3 {
      page's margins, and Watch lands there (#245): its lines wrap rather
      than cut, the strip growing to hold them. */
   :root:has(#area-results:not([hidden])) .run-row-actions {
-    grid-template-rows: auto auto;
-    height: auto;
-    min-height: var(--strip-height);
     padding-block: 4px;
   }
 
@@ -681,7 +704,7 @@ h3 {
     color: #f3eee2;
     font-size: 0.8125rem;
     font-weight: 600;
-    line-height: 18px;
+    line-height: var(--strip-line);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -697,7 +720,7 @@ h3 {
     border: 0;
     background: none;
     font-size: 0.8125rem;
-    line-height: 18px;
+    line-height: var(--strip-line);
   }
 
   #run-status-text {
@@ -737,13 +760,13 @@ h3 {
     font-size: 1.125rem;
     font-variant-numeric: tabular-nums;
     font-weight: 750;
-    line-height: 24px;
+    line-height: var(--strip-line);
   }
 
   .run-dps-label {
     color: var(--text-muted);
     font-size: 0.75rem;
-    line-height: 14px;
+    line-height: var(--strip-line);
   }
 
   /* Blocked: the status (why) takes the summary's line and the link the
@@ -754,9 +777,10 @@ h3 {
     grid-column: 1;
     grid-row: 2;
     justify-self: start;
-    min-height: 18px;
+    /* Its line's height only: the hit area below makes the touch target. */
+    min-height: 0;
     font-size: 0.8125rem;
-    line-height: 18px;
+    line-height: var(--strip-line);
   }
 
   .run-errors-link:not([hidden])::after {
@@ -776,9 +800,10 @@ h3 {
     grid-column: 1;
     grid-row: 2;
     justify-self: start;
-    min-height: 18px;
+    /* Its line's height only: the hit area below makes the touch target. */
+    min-height: 0;
     font-size: 0.8125rem;
-    line-height: 18px;
+    line-height: var(--strip-line);
     white-space: nowrap;
   }
 
@@ -790,6 +815,41 @@ h3 {
 
   .run-row-actions.has-warnings .run-status {
     display: none;
+  }
+
+  /* Bigger text in a narrow strip (#245; Fran's #258 check, P2): the two
+     lines take the strip's whole width and wrap rather than cut, the strip
+     growing to hold them; a no-break space keeps "seed" with its number.
+     The DPS and the buttons share the row under them, the DPS's value and
+     label on one line. */
+  @container run-strip (width < 20em) {
+    :is(
+      .run-summary,
+      .run-row-actions .run-status,
+      .run-errors-link,
+      .run-warnings-link
+    ) {
+      grid-column: 1 / -1;
+    }
+
+    :is(.run-summary, #run-status-text) {
+      overflow: visible;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .run-dps {
+      grid-column: 1 / 3;
+      grid-row: 3;
+      flex-direction: row;
+      align-items: baseline;
+      justify-self: start;
+      gap: 0.375em;
+    }
+
+    .run-row-actions .run-buttons {
+      grid-row: 3;
+    }
   }
 
   .run-row-actions.has-errors .run-status {
@@ -1108,6 +1168,7 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: var(--target);
   color: var(--text-muted);
   font-size: 0.75rem;
 }
@@ -1442,7 +1503,12 @@ h3 {
   margin-top: 6px;
 }
 
+/* Each link's line box is a whole target tall, the lines around it the
+   text's own. */
 .site-footer a {
+  display: inline-block;
+  min-height: var(--target);
+  line-height: var(--target);
   color: var(--accent);
   text-underline-offset: 2px;
 }
@@ -1593,7 +1659,7 @@ h3 {
 .config-panel textarea {
   width: 100%;
   min-width: 0;
-  min-height: 34px;
+  min-height: var(--target);
   padding: 5px 8px;
   border: 1px solid var(--control-border);
   border-radius: 8px;
@@ -1640,8 +1706,11 @@ h3 {
   line-height: 1.35;
 }
 
-.poison-charges {
-  white-space: nowrap;
+/* "Charges not tracked" moves to the next line as a whole, after the dot,
+   and wraps only when that line is too narrow for it, as at large text on
+   a phone (#245): no-wrap made the field wider than the screen. */
+.poison-charges-text {
+  display: inline-block;
 }
 
 /* A poison the sim does not simulate (#152): Fran's amber, 9.67:1. */
@@ -1658,6 +1727,13 @@ h3 {
 .poison-tooltip {
   color: var(--text-muted);
   font-size: 0.75rem;
+}
+
+.poison-tooltip summary,
+.rotation-summary summary {
+  box-sizing: border-box;
+  min-height: var(--target);
+  padding-block: calc((var(--target) - 1lh) / 2);
 }
 
 .poison-tooltip summary {
@@ -1812,7 +1888,7 @@ a.pill-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 31px;
+  min-height: var(--target);
   padding: 5px 12px;
   border: 1px solid var(--control-border);
   border-radius: 999px;
@@ -2246,6 +2322,9 @@ a.pill-button {
 /* ---- Tables -------------------------------------------------------------- */
 .table-scroll {
   overflow-x: auto;
+  /* A control focused near the right edge scrolls clear of the fade below
+     (js/views/focus-in-view.js). */
+  scroll-padding-inline: 0 2.5rem;
   border: 1px solid #3a3225;
   border-radius: 13px;
   background: var(--surface-raised);
@@ -2284,6 +2363,9 @@ a.pill-button {
   background: var(--surface-raised);
 }
 .results-table thead th {
+  /* The sort buttons carry their own inset, so the head cells take less:
+     ten columns fit a wide screen's box in DejaVu Sans too (#245). */
+  padding-inline: 0.375rem;
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.75rem;
@@ -2312,8 +2394,11 @@ a.pill-button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 4px;
-  margin: -2px -4px;
+  box-sizing: border-box;
+  min-width: var(--target);
+  min-height: var(--target);
+  padding: 0 4px;
+  margin: 0 -4px;
   border-radius: 6px;
   color: inherit;
 }
@@ -2473,6 +2558,13 @@ th[aria-sort="ascending"] {
   float: left;
   margin-right: 6px;
   color: var(--text-muted);
+  line-height: var(--target);
+}
+.chart-mode label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  cursor: pointer;
 }
 /* Chart or table (#242): a pair of pressed buttons above each chart in
    place of the old disclosure, so the table is one press away and never
@@ -2683,13 +2775,23 @@ th[aria-sort="ascending"] {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  /* The links fill the nav's height with its top border. */
+  /* The links fill the nav's least height with its top border, and grow
+     with the text (#245). */
   .area-nav a {
     flex-direction: column;
     gap: 2px;
-    min-height: calc(var(--area-nav-height) - 1px);
+    min-height: calc(var(--area-nav-least) - 1px);
     font-size: 0.75rem;
-    line-height: 16px;
+    line-height: 1.35;
+  }
+
+  .area-nav {
+    container: area-nav / inline-size;
+  }
+
+  .area-nav-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .area-nav a[aria-current="page"] {
@@ -2703,13 +2805,52 @@ th[aria-sort="ascending"] {
     top: 3px;
     left: calc(50% + 6px);
   }
+
+  /* Bigger text (#245; Fran's #253 and #258 checks): when four labels no
+     longer fit across, the nav is two rows of two, each icon beside its
+     label and the badge after it. js/views/chrome-size.js hands the taller
+     nav's height to the strip and the page. */
+  @container area-nav (width < 19em) {
+    .area-nav ul {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .area-nav a {
+      flex-direction: row;
+      gap: 6px;
+      min-height: var(--target);
+      padding: 2px 6px;
+    }
+
+    .area-nav-badge {
+      position: static;
+    }
+  }
+
+  /* Narrower still, the icon goes back above its label, so a long label
+     such as "Character" keeps the cell's whole width and stays one word. */
+  @container area-nav (width < 11em) {
+    .area-nav a {
+      flex-direction: column;
+      gap: 0;
+      padding: 2px;
+    }
+
+    .area-nav-badge {
+      position: absolute;
+    }
+  }
 }
 
 /* From the wide breakpoint: a sticky column left of the page, one link per
    row, the current one raised with a bar down its left edge. */
 @media (width >= 64em) {
   body {
-    grid-template-columns: clamp(160px, 16vw, 208px) minmax(0, 1224px);
+    /* The nav column grows to its links' width when bigger text makes
+       them wider than it (#245; Fran's check at 1024 and 200%). */
+    grid-template-columns:
+      minmax(clamp(160px, 16vw, 208px), max-content)
+      minmax(0, 1224px);
     justify-content: center;
     column-gap: 24px;
   }
@@ -2977,8 +3118,17 @@ th[aria-sort="ascending"] {
   display: inline-flex;
   align-items: center;
   justify-self: start;
-  min-height: 24px;
+  min-height: var(--target);
   font-size: 0.85rem;
+}
+
+/* The live line's "open": a whole target, its line that tall. */
+.results-card-live .results-card-link {
+  display: inline-block;
+  min-width: var(--target);
+  min-height: var(--target);
+  line-height: var(--target);
+  text-align: center;
 }
 
 .results-card-link:focus-visible {
@@ -3086,6 +3236,19 @@ th[aria-sort="ascending"] {
 .results-card-stale {
   padding: 8px 10px;
   font-size: 0.8rem;
+}
+
+/* The fight length changed after a result ran (#245, Fran's #260 check):
+   a light note, not a warning, as the result is not out of date. */
+.ran-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.ran-note[hidden] {
+  display: none;
 }
 
 /* Mid-run, the average from before stays below the progress, muted, so it

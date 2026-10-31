@@ -170,11 +170,11 @@ describe("Results views (#242)", () => {
     const model = resultViewsModel(state());
     assert.equal(
       model.average.label,
-      "Average · 6 × 30 s fights · seed\u00a0242 · ran at 09:12",
+      "Average · 6 × 30\u00a0s fights · seed\u00a0242 · ran at 09:12",
     );
     assert.equal(
       model.live.label,
-      "Live fight · 30 s · seed\u00a0242 · ran at 09:12 · finished",
+      "Live fight · 30\u00a0s · seed\u00a0242 · ran at 09:12 · finished",
     );
     // "seed" and its number are joined by a no-break space (#245, P5).
     assert.doesNotMatch(model.average.label, /seed 242/);
@@ -364,7 +364,7 @@ describe("the card mid-run and out of date (#242, N7)", () => {
       run: { ...RUN, state: "running" },
     });
     const body = text(cardModel(s, { buildLabel }).body);
-    assert.match(body, /^Running batch · 3 of 6 fights/);
+    assert.match(body, /^Running · 3 of 6 fights/);
     assert.match(body, /Running average 1,234\.5 DPS/);
     assert.match(body, /Previous average/);
     assert.doesNotMatch(body, /Out of date/);

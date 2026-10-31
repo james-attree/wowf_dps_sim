@@ -311,7 +311,7 @@ for (const width of WIDTHS) {
       await assertAt(page, "character");
       await page.waitForFunction(
         () =>
-          /^Batch finished/.test(
+          /^Average finished/.test(
             globalThis.document.getElementById("results-announce").textContent,
           ),
         null,
@@ -321,7 +321,7 @@ for (const width of WIDTHS) {
         ({ id }) => id === "results-announce",
       );
       const finished = messages.at(-1);
-      assert.match(finished.text, /^Batch finished/);
+      assert.match(finished.text, /^Average finished/);
       assert.equal(finished.area, "character");
       assert.deepEqual(
         messages.filter(({ inHidden }) => inHidden),
@@ -441,7 +441,7 @@ for (const width of BOTTOM_NAV_WIDTHS) {
       await assertAt(page, "results");
       await page.waitForFunction(
         () =>
-          /^Batch finished/.test(
+          /^Average finished/.test(
             globalThis.document.getElementById("results-announce").textContent,
           ),
         null,

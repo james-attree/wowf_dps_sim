@@ -1,6 +1,14 @@
 import { el, toDom, toMarkup } from "../svg.js";
 import { breakdownModel, num, pct } from "./results-render.js";
-import { clock, staleFixTitle } from "./run-model.js";
+import {
+  AVERAGE_NAME,
+  NO_BREAK_SPACE,
+  RUN_AVERAGE,
+  clock,
+  lengthNote,
+  seedPart,
+  staleFixTitle,
+} from "./run-model.js";
 import { formatNumber } from "../charts.js";
 import { isStale, staleBanner } from "./stale.js";
 
@@ -52,7 +60,7 @@ function average(result, buildLabel) {
         : "One fight: no confidence interval",
     ]),
     line("results-card-meta", [
-      `${ran} × ${count(result.duration)} s · seed ${result.seed}`,
+      `${ran} × ${count(result.duration)}${NO_BREAK_SPACE}s · ${seedPart(result.seed)}`,
     ]),
     line("results-card-meta", [buildLabel(result.config)]),
     el("dl", { class: "results-card-facts" }, [
@@ -75,7 +83,7 @@ function runningPart(batch, run, buildLabel) {
   const kept = previous !== null && previous.completed > NO_FIGHTS;
   return [
     line("results-card-status", [
-      `Running batch · ${count(completed)} of ${fights(total)}`,
+      `Running · ${count(completed)} of ${fights(total)}`,
     ]),
     completed > NO_FIGHTS &&
       mean !== null &&
@@ -116,6 +124,13 @@ function staleLine(state) {
   );
 }
 
+// The fight length changed after the average ran (#245): the Results
+// view's neutral note, over the average it is about.
+function noteLine(state) {
+  const note = lengthNote(state, "batch");
+  return note !== null && line("ran-note", [note]);
+}
+
 function batchPart(batch, run, buildLabel) {
   const result = batch.result;
   if (batch.status === "running") {
@@ -132,13 +147,15 @@ function batchPart(batch, run, buildLabel) {
     return average(result, buildLabel);
   }
   if (batch.status === "error") {
-    return [line("results-card-status", ["The batch failed."])];
+    return [line("results-card-status", [`${AVERAGE_NAME} failed.`])];
   }
-  return [
-    line("results-card-status", [
-      "No average yet. Choose Average in Fight, then Run batch.",
-    ]),
-  ];
+  // What to do next depends on the run type already chosen (#245, Fran's
+  // #260 check): no "Choose Average" when it is.
+  const next =
+    run.mode === "batch"
+      ? `${RUN_AVERAGE} to get one.`
+      : `Choose ${AVERAGE_NAME} in Fight, then ${RUN_AVERAGE}.`;
+  return [line("results-card-status", [`No average yet. ${next}`])];
 }
 
 // The live fight's line: its DPS while it runs, is paused or has finished;
@@ -177,6 +194,7 @@ export function cardModel(state, { buildLabel }) {
     busy: running,
     body: [
       ...(running ? [] : [staleLine(state)]),
+      ...(running ? [] : [noteLine(state)]),
       ...batchPart(batch, run, buildLabel),
     ].filter(Boolean),
     open: ["running", "done", "cancelled", "error"].includes(status),

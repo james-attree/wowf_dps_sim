@@ -287,7 +287,8 @@ for (const width of WIDTHS) {
       );
       assert.match(
         await page.textContent("#run-status-text"),
-        new RegExp(`^Finished · ${FIGHT_SECONDS} s · [\\d,]+\\.\\d DPS$`),
+        // The length keeps its unit: a no-break space (#245).
+        new RegExp(`^Finished · ${FIGHT_SECONDS}\u00a0s · [\\d,]+\\.\\d DPS$`),
       );
       assert.match(
         await page.textContent("#damage-value"),
@@ -354,13 +355,13 @@ for (const width of WIDTHS) {
         said.every(({ id }) => id === "results-announce"),
         JSON.stringify(said),
       );
-      assert.equal(said[0].text, `Batch started, ${BATCH_FIGHTS} fights.`);
+      assert.equal(said[0].text, `Average started, ${BATCH_FIGHTS} fights.`);
       for (const { text } of said.slice(1, -1)) {
-        assert.match(text, /^Batch \d+% done, \d+ of \d+ fights\.$/);
+        assert.match(text, /^Average \d+% done, \d+ of \d+ fights\.$/);
       }
       assert.match(
         said.at(-1).text,
-        /^Batch finished: [\d,.]+ DPS(, plus or minus [\d,.]+)?\.$/,
+        /^Average finished: [\d,.]+ DPS(, plus or minus [\d,.]+)?\.$/,
       );
       assert.match(
         await page.textContent("#run-status-text"),

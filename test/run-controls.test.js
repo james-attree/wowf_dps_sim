@@ -373,7 +373,7 @@ describe("live mode walks every state and transition (#153)", () => {
 
   it("the status line and announcement in each state", () => {
     const page = setup();
-    assert.equal(page.model().status, `Ready · seed ${SEED}`);
+    assert.equal(page.model().status, `Ready · 3\u00a0s · seed\u00a0${SEED}`);
     page.actions.run();
     page.play(2);
     assert.equal(page.model().status, "Running · 00:02 / 00:03");
@@ -389,7 +389,7 @@ describe("live mode walks every state and transition (#153)", () => {
     page.actions.stop();
     assert.equal(
       page.model().status,
-      `Stopped at 00:02 · fight discarded · Run replays seed ${SEED} from 0:00`,
+      `Stopped at 00:02 · fight discarded · Run replays seed\u00a0${SEED} from 0:00`,
     );
     assert.equal(
       page.model().announce,
@@ -400,7 +400,7 @@ describe("live mode walks every state and transition (#153)", () => {
     const result = reference(DURATION);
     assert.equal(
       page.model().status,
-      `Finished · 3 s · ${formatNumber(result.dps, 1)} DPS`,
+      `Finished · 3\u00a0s · ${formatNumber(result.dps, 1)} DPS`,
     );
     const done = page.store.get().results;
     assert.equal(
@@ -416,7 +416,7 @@ describe("live mode walks every state and transition (#153)", () => {
       run: { ...run, state: "finished", duration: 300 },
       results: { time: 300, damage: 762330 },
     });
-    assert.equal(page.model().status, "Finished · 300 s · 2,541.1 DPS");
+    assert.equal(page.model().status, "Finished · 300\u00a0s · 2,541.1 DPS");
     assert.match(page.model().announce, / 2,541\.1 DPS\.$/);
   });
 
@@ -455,7 +455,10 @@ describe("live mode walks every state and transition (#153)", () => {
 
   it("an empty seed is drawn at Run and filled in", () => {
     const page = setup({ seed: null });
-    assert.equal(page.model().status, "Ready · seed new at Run");
+    assert.equal(
+      page.model().status,
+      "Ready · 3\u00a0s · seed\u00a0new at Run",
+    );
     page.actions.run();
     const { run } = page.store.get();
     assert.equal(run.seed, 8);
@@ -546,7 +549,7 @@ describe("batch mode (#153, #154 §10)", () => {
     const page = batchPage();
     const model = page.model();
     assert.equal(page.store.get().run.state, "idle");
-    assert.equal(model.run.label, "Run batch");
+    assert.equal(model.run.label, "Run average");
     assert.equal(model.run.disabled, false);
     assert.equal(model.pause.inert, true, "aria-disabled");
     assert.equal(model.pause.disabled, false, "focusable");
@@ -554,7 +557,10 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(model.stop.disabled, true);
     assert.equal(model.reset.disabled, true);
     assert.equal(model.help, BATCH_HELP);
-    assert.equal(model.status, `Ready · 4 fights · seed ${SEED}`);
+    assert.equal(
+      model.status,
+      `Ready · 4 × 3\u00a0s fights · seed\u00a0${SEED}`,
+    );
     page.actions.pause();
     page.actions.resume();
     assert.equal(page.store.get().run.state, "idle");
@@ -575,7 +581,7 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(batch.previous, before.result, "greyed till the result");
     assert.equal(batch.result, null);
     assert.equal(batch.mode, "main");
-    assert.equal(page.model().status, "0/4 fights · Running batch");
+    assert.equal(page.model().status, "0/4 fights · Running");
     assert.deepEqual(page.model().progress, {
       value: 0,
       max: 4,
@@ -600,7 +606,7 @@ describe("batch mode (#153, #154 §10)", () => {
       total: 4,
       mean: 310,
     });
-    assert.equal(page.model().status, "2/4 fights · Running batch");
+    assert.equal(page.model().status, "2/4 fights · Running");
 
     const result = batchResult({
       completed: 4,
@@ -618,7 +624,7 @@ describe("batch mode (#153, #154 §10)", () => {
     assert.equal(page.model().status, "4 fights · 312.4 DPS mean · Done");
     assert.equal(page.model().announce, null, "the results panel says it");
     assert.equal(page.model().progress, null);
-    assertControls(page.model(), ["Run batch", null, false, true], "done");
+    assertControls(page.model(), ["Run average", null, false, true], "done");
     page.client.job.onProgress({ completed: 3, total: 4, mean: 1 });
     assert.equal(
       page.store.get().batch.progress.completed,
@@ -682,7 +688,11 @@ describe("batch mode (#153, #154 §10)", () => {
       "2/4 fights kept · 300.0 DPS mean (partial) · Stopped",
     );
     assert.equal(page.model().announce, null, "the results panel says it");
-    assertControls(page.model(), ["Run batch", null, false, true], "cancelled");
+    assertControls(
+      page.model(),
+      ["Run average", null, false, true],
+      "cancelled",
+    );
     page.actions.reset();
     assert.deepEqual(page.store.get().batch, emptyBatch("main"));
     assert.equal(page.store.get().run.state, "idle");
@@ -711,8 +721,8 @@ describe("batch mode (#153, #154 §10)", () => {
       name: "RangeError",
       message: "Bad batch.",
     });
-    assert.equal(page.model().status, "Batch failed: Bad batch.");
-    assertControls(page.model(), ["Run batch", null, false, true], "error");
+    assert.equal(page.model().status, "Average failed: Bad batch.");
+    assertControls(page.model(), ["Run average", null, false, true], "error");
   });
 
   it("the mode switches only while nothing runs, and keeps each mode's state", async () => {
@@ -793,9 +803,12 @@ describe("one fight is a fight (#155, Fran's Phase 3 QA 5)", () => {
       },
     });
     page.actions.setMode("batch");
-    assert.equal(page.model().status, `Ready · 1 fight · seed ${SEED}`);
+    assert.equal(
+      page.model().status,
+      `Ready · 1 × 3\u00a0s fight · seed\u00a0${SEED}`,
+    );
     page.actions.run();
-    assert.equal(page.model().status, "0/1 fight · Running batch");
+    assert.equal(page.model().status, "0/1 fight · Running");
     assert.equal(page.model().progress.text, "0 of 1 fight");
     page.client.job.resolve(
       batchResult({ completed: 1, iterations: 1, cancelled: false }),
@@ -822,7 +835,7 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
       ...parseRunField("duration", "0"),
     });
     assert.equal(page.model().status, "Can't run · 1 setting to fix");
-    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    assert.equal(page.model().reason, "1 setting to fix");
     assert.equal(page.model().run.disabled, true);
     page.store.set({ form: { errors: { a: "Bad.", b: null, c: "Bad." } } });
     assert.equal(page.model().status, "Can't run · 3 settings to fix");
@@ -836,7 +849,7 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
       ...parseRunField("duration", "5"),
     });
     assert.equal(page.model().reason, null);
-    assert.match(page.model().status, /^Ready · 4 fights/);
+    assert.match(page.model().status, /^Ready · 4 × 5\u00a0s fights/);
     assert.equal(page.model().run.disabled, false);
   });
 
@@ -865,7 +878,7 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
       el("run-button").getAttribute("aria-describedby"),
       "run-reason",
     );
-    assert.equal(el("run-reason").textContent, "Can't run · 1 setting to fix");
+    assert.equal(el("run-reason").textContent, "1 setting to fix");
     assert.equal(
       el("run-status-text").textContent,
       "Can't run · 1 setting to fix",
@@ -957,20 +970,21 @@ describe("Run's blocked check is its count (#237)", () => {
     assert.equal(blocked(page.store.get()), false, "a Min that marks nothing");
     assert.equal(page.model().run.disabled, false);
     withForm(FORM.pair);
-    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    assert.equal(page.model().reason, "1 setting to fix");
     withForm(FORM.backstop);
-    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    assert.equal(page.model().reason, "1 setting to fix");
     assert.equal(errorsText(page.store.get().run, 1), "Fix 1 setting");
     withForm(FORM.two);
-    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    assert.equal(page.model().reason, "2 settings to fix");
     page.store.set({
       talents: { ...page.store.get().talents, error: TALENTS.overCap },
       form: { ...page.store.get().form, rotationErrors: ROTATION.bad },
     });
-    // Fran's #245 N1: the talents and the rotation are named, not counted.
+    // Fran's #245 N1: the talents and the rotation are named, not counted, and
+    // what is wrong is said (Fran's #263 P3).
     assert.equal(
       page.model().reason,
-      "Can't run · fix 2 settings, the talents and the rotation",
+      "2 settings, the talents and the rotation need fixing",
     );
   });
 });
@@ -992,15 +1006,15 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     const TALENTS = { overCap: "Over the cap." };
     const two = { "rogue.agility": "Bad.", "rogue.strength": "Bad." };
     const cases = [
-      [{ errors: two }, "Can't run · 2 settings to fix", "Fix 2 settings"],
+      [{ errors: two }, "2 settings to fix", "Fix 2 settings"],
       [
         { rotation: ROTATION.bad, talents: TALENTS.overCap },
-        "Can't run · fix the talents and the rotation",
+        "The talents and the rotation need fixing",
         "Fix the talents and the rotation",
       ],
       [
         { errors: two, rotation: ROTATION.bad, talents: TALENTS.overCap },
-        "Can't run · fix 2 settings, the talents and the rotation",
+        "2 settings, the talents and the rotation need fixing",
         "Fix 2 settings, the talents and the rotation",
       ],
     ];
@@ -1015,10 +1029,9 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     assert.equal(link.hidden, true);
   });
 
-  // Fran's #260 check, B2 and B2b: below the wide breakpoint the link is
-  // the phone dock's, one line over the nav, so the talents and the
-  // rotation, alone or with other causes, are counted as issues; settings
-  // alone are counted as settings, as on wide screens. The wide panel
+  // Fran's #260 check, B2 and B2b, and her #263 note: below the wide
+  // breakpoint the link is the phone dock's, one line over the nav, so
+  // every cause is counted as an issue, the settings alone too. The wide panel
   // keeps the named list, the dock's link is described by the reason, and
   // the text follows the width as it changes.
   it("the dock's Fix link counts issues; the wide one names them", () => {
@@ -1057,12 +1070,8 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     for (const [over, dock, wide] of [
       [{ talents: "Over the cap." }, "Fix 1 issue", "Fix the talents"],
       [{ rotation: bad }, "Fix 1 issue", "Fix the rotation"],
-      [{ errors: three }, "Fix 3 settings", "Fix 3 settings"],
-      [
-        { errors: { "rogue.agility": "Bad." } },
-        "Fix 1 setting",
-        "Fix 1 setting",
-      ],
+      [{ errors: three }, "Fix 3 issues", "Fix 3 settings"],
+      [{ errors: { "rogue.agility": "Bad." } }, "Fix 1 issue", "Fix 1 setting"],
     ]) {
       set(over);
       assert.equal(link.textContent, dock, "the dock");
@@ -1095,10 +1104,10 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     const page = setup();
     withErrors(page, 4);
     assert.equal(page.model().run.disabled, true);
-    assert.equal(page.model().reason, "Can't run · Rotation has 4 errors");
+    assert.equal(page.model().reason, "Rotation has 4 errors");
     assert.equal(page.model().statusShort, "Rotation errors");
     withErrors(page, 1);
-    assert.equal(page.model().reason, "Can't run · Rotation has 1 error");
+    assert.equal(page.model().reason, "Rotation has 1 error");
   });
 
   it("with another blocker too, the rotation is named beside the settings (Fran's #245 N1)", () => {
@@ -1107,10 +1116,7 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     page.store.set({
       form: { ...page.store.get().form, errors: { "rogue.agility": "Bad." } },
     });
-    assert.equal(
-      page.model().reason,
-      "Can't run · fix 1 setting and the rotation",
-    );
+    assert.equal(page.model().reason, "1 setting and the rotation need fixing");
     assert.equal(page.model().statusShort, null);
   });
 
@@ -1144,21 +1150,18 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
   it("the reason names the talents when they are the only blocker", () => {
     const page = setup();
     overCap(page);
-    assert.equal(page.model().reason, "Can't run · Talents over the level cap");
+    assert.equal(page.model().reason, "Talents over the level cap");
     assert.equal(page.model().status, "Can't run · Talents over the level cap");
     assert.equal(page.model().run.disabled, true);
     page.actions.setMode("batch");
-    assert.equal(page.model().reason, "Can't run · Talents over the level cap");
+    assert.equal(page.model().reason, "Talents over the level cap");
   });
 
   it("with another blocker too, the reason names the talents beside the settings (Fran's #245 N1)", () => {
     const page = setup();
     overCap(page);
     page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
-    assert.equal(
-      page.model().reason,
-      "Can't run · fix 1 setting and the talents",
-    );
+    assert.equal(page.model().reason, "1 setting and the talents need fixing");
     assert.equal(page.model().statusShort, null, "that one fits the row");
   });
 
@@ -1175,10 +1178,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     const status = el("run-status-text");
     assert.equal(status.textContent, "Can't run · Talents over the level cap");
     assert.equal(status.getAttribute("data-short"), "Talents over cap");
-    assert.equal(
-      el("run-reason").textContent,
-      "Can't run · Talents over the level cap",
-    );
+    assert.equal(el("run-reason").textContent, "Talents over the level cap");
     page.store.set({
       talents: { ...page.store.get().talents, error: null },
     });
@@ -1219,10 +1219,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     const link = el("run-errors-link");
     assert.equal(link.hidden, false);
     assert.equal(link.textContent, "Fix the talents");
-    assert.equal(
-      el("run-reason").textContent,
-      "Can't run · Talents over the level cap",
-    );
+    assert.equal(el("run-reason").textContent, "Talents over the level cap");
     assert.equal(link.fire("click").prevented, 1);
     assert.equal(opened, 0, "the row is not clicked");
     assert.equal(el("talents-level").focused, 1, "Level has the focus");
@@ -1389,7 +1386,10 @@ describe("the control bar view (#153)", () => {
     el("reset-button").fire("click");
     assert.equal(el("reset-button").disabled, true);
     assert.equal(doc.activeElement, el("run-button"), "off a disabled Reset");
-    assert.equal(el("run-status-text").textContent, `Ready · seed ${SEED}`);
+    assert.equal(
+      el("run-status-text").textContent,
+      `Ready · 3\u00a0s · seed\u00a0${SEED}`,
+    );
     assert.equal(el("run-announce").textContent, "Ready");
   });
 
@@ -1530,28 +1530,34 @@ describe("the narrow control bar (#153, Scout)", () => {
   });
 
   it("the summary names the mode and the next run's settings", () => {
-    assert.equal(summaryText(runOf()), "Live · 300 s · seed 1234");
+    assert.equal(
+      summaryText(runOf()),
+      "Live fight · 300\u00a0s · seed\u00a01234",
+    );
     assert.equal(
       summaryText(runOf({ mode: "batch" })),
-      "Batch · 1,000 × 300 s · seed 1234",
+      "Average · 1,000 × 300\u00a0s · seed\u00a01234",
     );
     assert.equal(
       summaryText(runOf({ mode: "batch", iterations: 100000, duration: 2.5 })),
-      "Batch · 100,000 × 2.5 s · seed 1234",
+      "Average · 100,000 × 2.5\u00a0s · seed\u00a01234",
     );
     assert.equal(
       summaryText(runOf({ seed: null })),
-      "Live · 300 s · seed new at Run",
+      "Live fight · 300\u00a0s · seed\u00a0new at Run",
     );
-    assert.equal(summaryText(runOf({ seed: 0 })), "Live · 300 s · seed 0");
+    assert.equal(
+      summaryText(runOf({ seed: 0 })),
+      "Live fight · 300\u00a0s · seed\u00a00",
+    );
     assert.equal(
       summaryText(runOf({ errors: { duration: "x", seed: "y" } })),
-      "Live · ? s · seed ?",
+      "Live fight · ?\u00a0s · seed\u00a0?",
       "a field with an error shows ?",
     );
     assert.equal(
       summaryText(runOf({ mode: "batch", errors: { iterations: "x" } })),
-      "Batch · ? × 300 s · seed 1234",
+      "Average · ? × 300\u00a0s · seed\u00a01234",
     );
   });
 
@@ -1599,10 +1605,16 @@ describe("the narrow control bar (#153, Scout)", () => {
     createControlsView(doc, page.store, page.actions);
     const slot = () => el("run-controls").getAttribute("data-slot");
     assert.equal(slot(), "run");
-    assert.equal(el("run-summary").textContent, `Live · 3 s · seed ${SEED}`);
+    assert.equal(
+      el("run-summary").textContent,
+      `Live fight · 3\u00a0s · seed\u00a0${SEED}`,
+    );
     el("run-duration").value = "120";
     el("run-duration").fire("input");
-    assert.equal(el("run-summary").textContent, `Live · 120 s · seed ${SEED}`);
+    assert.equal(
+      el("run-summary").textContent,
+      `Live fight · 120\u00a0s · seed\u00a0${SEED}`,
+    );
     el("run-button").fire("click");
     assert.equal(slot(), "pause");
     el("pause-button").fire("click");
@@ -1613,7 +1625,7 @@ describe("the narrow control bar (#153, Scout)", () => {
     page.actions.setMode("batch");
     assert.equal(
       el("run-summary").textContent,
-      `Batch · 4 × 120 s · seed ${SEED}`,
+      `Average · 4 × 120\u00a0s · seed\u00a0${SEED}`,
     );
     el("run-button").fire("click");
     assert.equal(slot(), "pause", "Pause, aria-disabled, while a batch runs");
@@ -1770,14 +1782,16 @@ describe("the narrow control bar (#153, Scout)", () => {
     // Narrow: the bar adds no box; nothing in it sticks.
     assert.match(rule(narrow, "  .run-controls"), /display: contents;/);
     assert.doesNotMatch(narrow, /position: sticky/);
-    // Fight's fields have the bigger touch targets.
+    // Fight's fields have the 44 px touch targets at every width (#245).
+    assert.match(css, /--target: 44px;/);
     assert.match(
-      narrow,
-      /\.fight-settings \.run-mode-pill span,\n {2}\.fight-settings \.run-field input,\n {2}\.fight-settings \.pill-button \{\n {4}min-height: 44px;/,
+      rule(outside, ".run-mode-pill span"),
+      /min-height: var\(--target\);/,
     );
     // Below the wide breakpoint the row is the dock's strip (#240): fixed
-    // above the area nav and its safe-area inset, 48 px (two 18 px lines
-    // beside 44 px buttons), in the page's flow on Results.
+    // above the area nav and its safe-area inset, at least 48 px at the
+    // default text size and in rem so it grows with the text (#245), in the
+    // page's flow on Results.
     const from = css.indexOf(`@media ${NOT_WIDE_QUERY} {`, start);
     assert.ok(from > start, "the dock block follows the narrow block");
     const dock = css.slice(from, css.indexOf("\n}\n", from));
@@ -1787,20 +1801,20 @@ describe("the narrow control bar (#153, Scout)", () => {
       strip,
       /bottom: calc\(var\(--area-nav-height\) \+ env\(safe-area-inset-bottom\)\);/,
     );
-    assert.match(strip, /height: var\(--strip-height\);/);
-    assert.match(strip, /grid-template-rows: 18px 18px;/);
-    assert.match(css, /--strip-height: 48px;/);
+    assert.match(strip, /min-height: var\(--strip-least\);/);
+    assert.match(strip, /grid-template-rows: auto auto;/);
+    assert.match(css, /--strip-least: 3rem;/);
     assert.match(
       rule(dock, "  :root:has(#area-results:not([hidden])) .run-row-actions"),
       /position: relative;/,
     );
     assert.match(rule(dock, "  .run-buttons button"), /min-height: 44px;/);
     assert.match(rule(dock, "  .run-buttons button"), /width: 44px;/);
-    // The errors link's box is the 18 px status line; a pseudo-element
-    // reaches over the line above and below, so its touch target is 44 px.
+    // The errors link's box is the status line; a pseudo-element reaches
+    // over the line above and below, so its touch target is 44 px.
     assert.match(
       rule(dock, "  .run-errors-link:not([hidden])"),
-      /min-height: 18px;/,
+      /line-height: var\(--strip-line\);/,
     );
     assert.match(
       rule(dock, "  .run-errors-link:not([hidden])::after"),
@@ -1998,8 +2012,8 @@ describe("the phone dock (#240, UX2)", () => {
     const page = setup();
     let dock = dockText(page.store.get());
     assert.deepEqual(dock, {
-      summary: `Live · ${DURATION} s`,
-      status: `Ready · seed ${SEED}`,
+      summary: `Live fight · ${DURATION}\u00a0s`,
+      status: `Ready · seed\u00a0${SEED}`,
     });
     assert.deepEqual(dockDps(page.store.get()), {
       value: NO_DPS,
@@ -2024,7 +2038,10 @@ describe("the phone dock (#240, UX2)", () => {
     assert.notEqual(dockDps(page.store.get()).value, NO_DPS, "paused keeps it");
     page.actions.resume();
     page.toEnd();
-    assert.equal(dockText(page.store.get()).status, `Finished · ${DURATION} s`);
+    assert.equal(
+      dockText(page.store.get()).status,
+      `Finished · ${DURATION}\u00a0s`,
+    );
     assert.notEqual(dockDps(page.store.get()).value, NO_DPS);
     page.actions.reset();
     assert.equal(dockDps(page.store.get()).value, NO_DPS, "reset clears it");
@@ -2034,8 +2051,8 @@ describe("the phone dock (#240, UX2)", () => {
     const page = setup();
     page.actions.setMode("batch");
     assert.deepEqual(dockText(page.store.get()), {
-      summary: `Batch · 4 × ${DURATION} s`,
-      status: `Ready · seed ${SEED}`,
+      summary: `Average · 4 × ${DURATION}\u00a0s`,
+      status: `Ready · seed\u00a0${SEED}`,
     });
     page.actions.run();
     page.client.job.onProgress({ completed: 2, total: 4, mean: 310 });
@@ -2087,7 +2104,7 @@ describe("the phone dock (#240, UX2)", () => {
       error: "Fight length must be a number of seconds from 1 to 3,600.",
     });
     assert.deepEqual(dockText(page.store.get()), {
-      summary: "Live · ? s",
+      summary: "Live fight · ?\u00a0s",
       status: "Can't run",
     });
   });
@@ -2111,11 +2128,11 @@ describe("the phone dock (#240, UX2)", () => {
     createControlsView(doc, page.store, page.actions);
     assert.equal(
       el("run-summary").getAttribute("data-dock"),
-      `Live · ${DURATION} s`,
+      `Live fight · ${DURATION}\u00a0s`,
     );
     assert.equal(
       el("run-status-text").getAttribute("data-dock"),
-      `Ready · seed ${SEED}`,
+      `Ready · seed\u00a0${SEED}`,
     );
     assert.equal(el("run-dps-value").textContent, NO_DPS);
     assert.equal(el("run-dps-label").textContent, "DPS");

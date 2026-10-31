@@ -39,7 +39,7 @@
 }
 .talents-level input {
   width: 5.5rem;
-  min-height: 36px;
+  min-height: var(--target);
   padding: 4px 8px;
   border: 1px solid var(--control-border);
   border-radius: 8px;
@@ -137,9 +137,13 @@
 }
 
 /* ---- Trees ----------------------------------------------------------------- */
+/* The trees wrap rather than squeeze (#245, Fran's #263 B1): a tree's grid
+   is a fixed gutter and four tiles, about 15rem with its padding, so a
+   narrower column overlapped its tiles. min() keeps one tree within a column
+   narrower than that. */
 .talent-trees {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(15.5rem, 100%), 1fr));
   gap: 12px;
   margin-top: 12px;
 }
@@ -162,6 +166,7 @@
 }
 .talent-tree-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin: 0 0 10px;
@@ -399,6 +404,7 @@
 
 /* ---- Detail pane ------------------------------------------------------------ */
 .talent-detail {
+  container-type: inline-size;
   margin-top: 12px;
   padding: 12px;
   border: 1px solid var(--border);
@@ -430,6 +436,18 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+/* A narrow pane, such as the main column beside the run column at 200% text,
+   puts the stepper on its own row as a phone does, so its buttons stay in the
+   pane (#245, Fran's #263 re-check). */
+@container (width < 20em) {
+  .talent-detail-head {
+    grid-template-columns: 40px 1fr;
+  }
+  .talent-stepper {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
 }
 .talent-stepper-rank {
   min-width: 2.6em;
@@ -607,8 +625,11 @@
 /* The tab strip's line and the chosen tab's edge are a control's, so they
    are --control-border, 3:1 or more on the panel (#244, UX6; was --border,
    about 1.6:1), and so is the tree they open onto. */
+/* The tabs share the row, each at least its label's width, and wrap to a
+   second row when the labels do not fit, as at 200% text on a phone (#245). */
 .talents-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-top: 12px;
   border-bottom: 1px solid var(--control-border);
@@ -618,8 +639,8 @@
 }
 .talents-tab {
   display: flex;
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 1 auto;
+  width: min-content;
   min-height: 44px;
   align-items: center;
   justify-content: center;
@@ -639,8 +660,6 @@
   border-radius: 4px;
 }
 .talents-tab span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .talents-tab-points {

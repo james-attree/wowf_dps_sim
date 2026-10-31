@@ -430,7 +430,7 @@ async function finishBatch(page) {
   await page.locator("#run-button").click();
   await page.waitForFunction(
     () =>
-      /^Batch finished/.test(
+      /^Average finished/.test(
         globalThis.document.getElementById("results-announce")?.textContent ??
           "",
       ),
@@ -548,7 +548,7 @@ describe("a stopped batch on the card (Fran's #253 check, N2)", () => {
       await page.locator("#run-button").click();
       await page.waitForFunction(
         () =>
-          /Running batch · [1-9][\d,]* of/.test(
+          /Running · [1-9][\d,]* of/.test(
             globalThis.document.getElementById("results-card").innerText,
           ),
         null,
@@ -569,7 +569,7 @@ describe("a stopped batch on the card (Fran's #253 check, N2)", () => {
           .getElementById("results-card")
           .innerText.replace(/\s+/g, " "),
       );
-      assert.match(text, /[\d,]+ of 4,000 fights × 300 s · seed \d+/, text);
+      assert.match(text, /[\d,]+ of 4,000 fights × 300\ss · seed\s\d+/, text);
       await shot(page, "1280-card-stopped");
       assert.deepEqual(errors, []);
     } finally {

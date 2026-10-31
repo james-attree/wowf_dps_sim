@@ -197,7 +197,7 @@ describe(`"seed" and its number at ${PHONE.width}px (#258 check, P5)`, () => {
       await page.locator("#run-button").click();
       await page.waitForFunction(
         () =>
-          /^Batch finished/.test(
+          /^Average finished/.test(
             globalThis.document.getElementById("results-announce")
               ?.textContent ?? "",
           ),
