@@ -474,14 +474,16 @@ describe("Expose Armor", () => {
     assert.equal(sim.damageDone, TICK_DAMAGE);
   });
 
-  it("keeps the stronger cast and lasts 30 s from the last one", () => {
+  // #268, B2 (Classic): a weaker cast neither weakens nor refreshes it, so
+  // the stronger cast still ends 30 s after it went up.
+  it("keeps the stronger cast and its time: a weaker one does not refresh", () => {
     const { sim } = fresh();
     sim.applyAura(AURAS.exposeArmor, { stacks: 5 });
     stepFor(sim, 20);
     const weaker = sim.applyAura(AURAS.exposeArmor, { stacks: 2 });
     assert.equal(weaker.stacks, 5);
-    assert.equal(weaker.duration, 30);
-    stepFor(sim, 30 - STEP);
+    assert.equal(weaker.duration, 10);
+    stepFor(sim, 10 - STEP);
     assert.equal(sim.hasAura("expose-armor"), true);
     stepFor(sim, STEP);
     assert.equal(sim.hasAura("expose-armor"), false);

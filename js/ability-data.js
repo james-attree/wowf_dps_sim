@@ -66,6 +66,11 @@
 //                       power times the constant `ap` for the combo points. This
 //                       is the total, and the tick count divides it. `bleed`
 //                       marks the ticks as bleeds (they skip armor)
+//                   { kind: "attackOnly" }
+//                       a roll on the yellow attack table with no damage and
+//                       no crit roll (Expose Armor, #268, B1), one draw like a
+//                       DoT's application: a miss, dodge or parry refunds and
+//                       keeps the points as any attack does
 //   aura          the aura (js/auras.js, AURAS key) a landed cast puts up and
 //                 `duration` says for how long: { field } is a field of
 //                 the row, { row, field } a field of another constants row, and
@@ -253,14 +258,16 @@ export const ABILITY_DEFINITIONS = deepFreeze([
   },
   {
     // A baseline finisher (#268, A11): one Expose Armor stack per combo point
-    // spent, for the row's 30 s. A cast that does not attack. No preset casts
-    // it (A12). There is no icon in img/ yet.
+    // spent, for the row's 30 s. It rolls the yellow attack table like
+    // Eviscerate and Rupture (B1), with no damage. No preset casts it (A12).
+    // There is no icon in img/ yet.
     key: "exposeArmor",
     id: "expose-armor",
     row: "exposeArmor",
     icon: null,
     cost: ENERGY,
     spend: { resource: "comboPoints" },
+    damage: { kind: "attackOnly" },
     aura: {
       id: "exposeArmor",
       duration: { field: "duration" },

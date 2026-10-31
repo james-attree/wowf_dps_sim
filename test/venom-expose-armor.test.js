@@ -4,6 +4,7 @@ import { CONSTANTS, k } from "../data/constants.js";
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
+import { attackChances } from "../js/attack-resolver.js";
 import { AURAS, defineAura } from "../js/auras.js";
 import { Rogue } from "../js/rogue.js";
 import { castableAbilities } from "../js/rotation-edit.js";
@@ -11,6 +12,7 @@ import { validateRotation } from "../js/rotation-validator.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { Simulation } from "../js/simulation.js";
 import { FULL_COVERAGE_TREES } from "../scripts/talent-coverage.mjs";
+import { coreHost } from "./core-host.js";
 import { quiet } from "./quiet.js";
 
 // Issue #268 (P4.6-04b): Venom, Expose Armor and Improved Expose Armor, one
@@ -52,7 +54,16 @@ const SERRATED = 0.09;
 const EA5_ARMOR = 1481 * 0.91;
 const EA5_SERRATED_MULTIPLIER = 1 - EA5_ARMOR / (EA5_ARMOR + 5500);
 
-function harness({ talents = TALENTED, poisons = BOTH, modifiers } = {}) {
+// Expose Armor rolls the yellow table (#268, B1): a draw this high lands it.
+const HIT = 0.99;
+const MISS = 0;
+
+function harness({
+  talents = TALENTED,
+  poisons = BOTH,
+  modifiers,
+  roll = HIT,
+} = {}) {
   const draws = [];
   const rogue = new Rogue(
     { talents, poisons },
@@ -63,7 +74,7 @@ function harness({ talents = TALENTED, poisons = BOTH, modifiers } = {}) {
   const simulation = new Simulation(rogue, {
     rng() {
       draws.push(true);
-      return 0;
+      return roll;
     },
   });
   return { rogue, simulation, draws };
@@ -109,6 +120,10 @@ describe("Venom and Expose Armor as data (#268)", () => {
     assert.equal(row.energy, 25);
     assert.equal(row.armorPerComboPoint, 450);
     assert.equal(row.duration, 30);
+    // B1: an attack on the yellow table with no damage, like a DoT's
+    // application: no crit roll.
+    assert.equal(entry.damage.kind, "attackOnly");
+    assert.equal(entry.cost.refund, "skill.missEnergyRefund");
     assert.equal(
       new Rogue().lockedByBuild(new Rogue().abilities.exposeArmor),
       false,
@@ -209,6 +224,11 @@ describe("A10: Venom's +30% poison damage multiplies with Vile Poisons", () => {
       CONSTANTS["venom.stacking"].ref,
       /^James, 31 Oct 2026, issue #268: /,
     );
+    // N2: the 9-21 s is the export's; only the x1.3 stacking is assumed.
+    assert.doesNotMatch(CONSTANTS["venom.stacking"].ref, /9\/12\/15/);
+    assert.equal(CONSTANTS.venom.source, "wowf-export");
+    // N1: the export's key for Venom's spell has no rank.
+    assert.ok(CONSTANTS.venom.ref.includes("spell_desc[Rogue|Venom|]"));
   });
 });
 
@@ -273,11 +293,13 @@ describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
 });
 
 describe("A12: Expose Armor and Sunder: the highest reduction wins", () => {
-  it("a weaker Expose Armor does not replace a stronger one", () => {
+  it("a weaker Expose Armor neither replaces nor refreshes a stronger one", () => {
     const h = harness({ talents: {} });
     cast(h, "exposeArmor", 5);
+    h.simulation.activeDebuffs["expose-armor"].duration = 12;
     cast(h, "exposeArmor", 2);
     assert.equal(h.simulation.activeDebuffs["expose-armor"].stacks, 5);
+    assert.equal(h.simulation.activeDebuffs["expose-armor"].duration, 12);
     assert.equal(AURAS.exposeArmor.stackRule, "highest");
   });
 
@@ -289,20 +311,130 @@ describe("A12: Expose Armor and Sunder: the highest reduction wins", () => {
   });
 });
 
+describe("B1: Expose Armor rolls the yellow attack table", () => {
+  const PROCS = {
+    ...ROWS_ABOVE,
+    "assassination.ruthlessness": 3,
+    "assassination.relentless-strikes": 1,
+  };
+  function chances(h) {
+    const ability = h.rogue.abilities.exposeArmor;
+    const context = h.simulation.attackContext(ability, "skill");
+    return attackChances({
+      attackType: "skill",
+      bonusHitChance: h.rogue.getBonusHitChance(context),
+      critChance: 0,
+      canCrit: false,
+      behind: h.rogue.config.target.behind,
+    });
+  }
+
+  it("a landed cast takes one draw, the table roll, and logs a hit", () => {
+    const h = harness({ talents: {} });
+    const result = cast(h, "exposeArmor", 5);
+    assert.equal(result.outcome, "hit");
+    assert.equal(result.damage, 0);
+    assert.equal(h.draws.length, 1);
+    assert.equal(h.simulation.activeDebuffs["expose-armor"].stacks, 5);
+  });
+
+  for (const outcome of ["miss", "dodge"]) {
+    it(`a ${outcome} keeps the CP, refunds 80%, and puts up nothing`, () => {
+      const probe = harness({ talents: PROCS });
+      const { miss, dodge } = chances(probe);
+      assert.ok(miss > 0 && dodge > 0);
+      const roll = outcome === "miss" ? MISS : miss + dodge / (1 + 1);
+      const h = harness({ talents: PROCS, roll });
+      const result = cast(h, "exposeArmor", 5);
+      assert.equal(result.outcome, outcome);
+      // Improved Expose Armor 2/2: 15 energy, 80% of it back.
+      const cost = h.rogue.abilities.exposeArmor.costNow(h.simulation);
+      assert.equal(cost, k("exposeArmor").energy - 10);
+      assert.equal(
+        h.rogue.energy,
+        h.rogue.maxEnergy - cost + cost * k("skill.missEnergyRefund"),
+      );
+      // No CP spent, no IEA refund, no Ruthlessness or Relentless Strikes.
+      assert.equal(h.rogue.comboPoints, 5);
+      assert.equal(h.simulation.hasAura("expose-armor"), false);
+      assert.equal(h.simulation.activeDebuffs["expose-armor"], undefined);
+      assert.equal(h.draws.length, 1);
+    });
+  }
+});
+
+describe("B2: a weaker Expose Armor leaves a stronger one alone", () => {
+  // Casts at the given times on the event core; returns when the debuff
+  // expired and the stacks it held.
+  function onEvents(casts) {
+    const rogue = new Rogue({ talents: {} });
+    quiet(rogue);
+    const sim = new Simulation(rogue, { rng: () => HIT });
+    const expiries = [];
+    sim.on("aura", (event) => {
+      if (event.aura === "expose-armor" && event.change === "expire") {
+        expiries.push(sim.currentTime);
+      }
+    });
+    const host = coreHost(sim, { endTime: 60, swings: false });
+    const seen = [];
+    for (const [time, points] of casts) {
+      host.at(time, () => {
+        rogue.comboPoints = points;
+        rogue.energy = rogue.maxEnergy;
+        sim.gcd = 0;
+        rogue.abilities.exposeArmor.cast(rogue, sim);
+        const aura = sim.activeDebuffs["expose-armor"];
+        seen.push([rogue.comboPoints, rogue.energy, aura.stacks]);
+      });
+    }
+    host.run();
+    return { expiries, seen };
+  }
+  const SPENT = k("exposeArmor").energy;
+
+  it("5 CP then 2 CP: the 5 stacks still expire at their own time", () => {
+    const { expiries, seen } = onEvents([
+      [0, 5],
+      [10, 2],
+    ]);
+    assert.deepEqual(expiries, [30]);
+    // The 2 CP cast still costs its energy and spends its points.
+    assert.deepEqual(seen[1], [0, new Rogue().maxEnergy - SPENT, 5]);
+  });
+
+  it("an equal cast refreshes, a stronger one replaces", () => {
+    assert.deepEqual(
+      onEvents([
+        [0, 5],
+        [10, 5],
+      ]).expiries,
+      [40],
+    );
+    const { expiries, seen } = onEvents([
+      [0, 2],
+      [10, 5],
+    ]);
+    assert.deepEqual(expiries, [40]);
+    assert.equal(seen[1][2], 5);
+  });
+});
+
 describe("G2 and G4 (#268)", () => {
-  it("at 0 points: no Venom, no refund, and no draw", () => {
+  it("at 0 points: no Venom, no refund, and only the table roll", () => {
     const h = harness({ talents: {} });
     assert.equal(h.rogue.granted.has("venom"), false);
     cast(h, "exposeArmor", 5);
     assert.equal(h.rogue.comboPoints, 0);
-    assert.equal(h.draws.length, 0);
+    assert.equal(h.draws.length, 1);
   });
 
-  it("Venom and Expose Armor draw nothing from the rng", () => {
+  it("Venom draws nothing; Expose Armor draws only its table roll", () => {
     const h = harness();
     cast(h, "venom", 5);
-    cast(h, "exposeArmor", 5);
     assert.equal(h.draws.length, 0);
+    cast(h, "exposeArmor", 5);
+    assert.equal(h.draws.length, 1);
   });
 
   it("an old config without Venom or Improved Expose Armor reads as 0 points", () => {

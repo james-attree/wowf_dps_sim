@@ -557,7 +557,9 @@ export class ProcRunner {
     if (!this.active) {
       return;
     }
-    const attacks = result !== null && !ability.dot;
+    // A DoT's application and an attack with no damage (Expose Armor, #268)
+    // fire only the cast's procs, no hit procs.
+    const attacks = result !== null && !ability.dot && !ability.attackOnly;
     const kinds = attacks ? this.hitKinds(result, false) : [];
     kinds.push(ON_ABILITY);
     const context = this.simulation.attackContext(

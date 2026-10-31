@@ -439,7 +439,7 @@ coefficients used as reference. Per tick this is 0.015, 0.024, 0.03,
 damage is read from the dot, not from the debuff. The application and the
 ticks are under Bleeds and damage over time.
 
-A missed Eviscerate or Rupture does not spend combo points. The refund rule
+A missed Eviscerate, Rupture or Expose Armor does not spend combo points. The refund rule
 is under Energy.
 
 ## Premeditation
@@ -2361,7 +2361,9 @@ its own.
   each application, so each Deadly Poison proc is one more stack. `highest`
   takes the larger of the current and new count, so a 2-point Expose Armor
   does not weaken a 5-point one. Both stop at `maxStacks`. A new application
-  also refreshes the duration by the `refresh` rule.
+  also refreshes the duration by the `refresh` rule, except that under
+  `highest` an application with fewer stacks than the aura holds changes
+  nothing, not even the time left (#268, B2).
 - Charges: `charges` (a whole number, or `null` for none). A charged aura
   ends when its charges run out as well as when its time does. Each landed
   direct attack on the target (a hit, glancing blow or crit from a skill or a
@@ -3102,12 +3104,23 @@ Two finishers, and the last two Assassination talents. With them
 Assassination: an Assassination talent with no entry fails the coverage check.
 
 - **Expose Armor** (`k("exposeArmor")`, baseline): 25 energy, spends its combo
-  points, no attack roll (it cannot miss) and no random number. It puts the
+  points. The export gives it `25 Energy | Melee Range` and the Physical
+  school, the shape of Eviscerate and Rupture, so it rolls the yellow attack
+  table (#294, B1): the ability data's `damage: { kind: "attackOnly" }`,
+  `Simulation.resolveTableAttack`, one draw, no damage and no crit roll, as
+  for a DoT's application. A miss, dodge or parry follows the finisher rule
+  (under Energy and Combo points): the combo points stay, it refunds
+  `skill.missEnergyRefund` of the cost, and there is no debuff, no Improved
+  Expose Armor refund and no onCast procs (Ruthlessness, Relentless Strikes).
+  A landed cast fires only the onAbility procs, no hit procs (no poison
+  roll), as a Rupture application does. It puts the
   `exposeArmor` target debuff up for 30 s with one stack per point spent
   (the ability data's `aura.stacks: "spent"`), each 450 armor. The aura's
-  `stackRule` is `highest` (A12, `exposeArmor.sunder`): a weaker cast
-  refreshes the 30 s and keeps the stronger stacks. Sunder Armor is not
-  modelled.
+  `stackRule` is `highest` (A12, `exposeArmor.sunder`). A weaker cast (fewer
+  stacks than are up) still costs its energy and spends its points, but
+  leaves the debuff as it is: the stacks and the time left (#294, B2, as in
+  Classic). An equal or stronger cast puts up its stacks for a fresh 30 s.
+  Sunder Armor is not modelled.
 - **Armor order** (`Simulation.armorMultiplier`): the flat reductions
   (`armorReduction × stacks`) come off `target.armor` first, floored at 0;
   then an `armorIgnore` modifier (Serrated Blades) takes its share of what is
@@ -3136,7 +3149,8 @@ Assassination: an Assassination talent with no entry fails the coverage check.
   - Venom is not a Deadly Poison debuff, so Mutilate's poisoned bonus ignores
     it.
 - **Presets and goldens.** No preset casts Expose Armor or Venom, so the
-  existing golden fixtures are byte-identical. `onStrike`'s off-hand on-crit
+  existing golden fixtures are byte-identical. The one fixture that casts
+  them, `venom-expose-armor-seed-268-60s`, was regenerated for B1 and B2. `onStrike`'s off-hand on-crit
   filtering (js/procs.js) is unchanged: neither ability adds a per-hand
   on-crit proc (#275).
 

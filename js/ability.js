@@ -56,6 +56,12 @@ const DAMAGE = {
     return Math.floor(rogue.random() * (max - min + 1) + min);
   },
 
+  // An attack roll with no damage (Expose Armor, #268, B1). No draw here: the
+  // table roll is the cast's.
+  attackOnly() {
+    return 0;
+  },
+
   // Mutilate's main-hand strike as the target stands with no poison: the
   // cast itself rolls each hand (Ability.handDamage), so this is only what
   // resolve() reports.
@@ -202,6 +208,8 @@ export class Ability {
           });
     this.attackSkill = definition.damage !== undefined;
     this.dot = definition.damage?.kind === "dot";
+    // An attack that only rolls the table (Expose Armor, #268, B1).
+    this.attackOnly = definition.damage?.kind === "attackOnly";
     this.bleed = definition.damage?.bleed === true;
     // The aura (js/auras.js) a cast puts up for `duration` seconds, if any. An
     // aura on the player (haste, energy regen) is a buff, one on the target (a
@@ -470,6 +478,8 @@ export class Ability {
             duration,
             this.bleed,
           );
+        } else if (this.attackOnly) {
+          result = simulation.resolveTableAttack(this, "skill");
         } else {
           result = simulation.resolveAttack(this, "skill", damage);
         }
