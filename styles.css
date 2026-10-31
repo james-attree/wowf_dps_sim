@@ -51,6 +51,10 @@
      in the phone dock (#240). */
   --chrome-top: 0px;
   --chrome-bottom: 0px;
+  /* Fight's settings panel on a wide screen: as wide as its fields' row
+     needs, not the whole column (Fran's #260 re-check). In rem, so it grows
+     with the text size. */
+  --run-fields-max: 34rem;
 }
 
 /* A control the keyboard focuses is scrolled clear of the chrome at either
@@ -373,6 +377,12 @@ h3 {
 
   :root:has(#area-fight:not([hidden])) .run-fight-link {
     display: none;
+  }
+}
+
+@media (width >= 64em) {
+  .fight-settings {
+    max-width: var(--run-fields-max);
   }
 }
 

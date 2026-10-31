@@ -185,14 +185,12 @@ async function expect(page, what, step, { card, issues = 1 }) {
     // Fran's #245 N1: the Fix link and, with more than one cause, the
     // reason name the same causes as the banners.
     // On a phone the dock's link counts two or more causes as issues
-    // (Fran's #260 check, B2).
+    // (Fran's #260 check, B2), and the talents or the rotation alone as
+    // one issue (B2b); settings alone are counted as settings.
     const fix = await page.locator("#run-errors-link").textContent();
-    const named = card || !what.includes(" and ");
-    assert.equal(
-      fix,
-      named ? `Fix ${what}` : `Fix ${issues} issues`,
-      `${step}: the Fix link`,
-    );
+    const named = card || /^\d+ settings?$/.test(what);
+    const counted = `Fix ${issues} ${issues === 1 ? "issue" : "issues"}`;
+    assert.equal(fix, named ? `Fix ${what}` : counted, `${step}: the Fix link`);
     if (what.includes(" and ")) {
       assert.equal(
         await page.locator("#run-reason").textContent(),
