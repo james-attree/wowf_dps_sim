@@ -263,15 +263,17 @@ const LAST_ONE = 1;
 const FIRST_PART = 0;
 
 // What blocks Run, each cause by its name (#245, Fran's #259 check, P1):
-// the rotation, the talents, then the run and stats fields, which alone
-// are counted as settings. Never "2 settings" for the rotation and the
-// talents.
+// the run and stats fields, which alone are counted as settings, then the
+// talents, then the rotation. Never "2 settings" for the rotation and the
+// talents. The order is the Fix link's (Fran's #260 check): it goes to the
+// first field to fix, else the talents, else the rotation
+// (js/views/controls.js, fixFirst), so it goes to the first thing named.
 export function fixParts(state) {
   const fields = fieldErrors(state.run).length + formErrorCount(state.form);
   return [
-    ...(rotationErrorCount(state) > NONE_TO_FIX ? ["the rotation"] : []),
-    ...(talentErrorCount(state) > NONE_TO_FIX ? ["the talents"] : []),
     ...(fields > NONE_TO_FIX ? [settings(fields)] : []),
+    ...(talentErrorCount(state) > NONE_TO_FIX ? ["the talents"] : []),
+    ...(rotationErrorCount(state) > NONE_TO_FIX ? ["the rotation"] : []),
   ];
 }
 
@@ -301,9 +303,25 @@ function blockedReason(state) {
 
 // The bar's Fix link (#155) while Run is blocked, or null: "Fix 2
 // settings" for the fields alone, and each cause named otherwise (Fran's
-// #245 N1), "Fix the talents", "Fix the rotation and 1 setting".
+// #245 N1), "Fix the talents", "Fix 1 setting and the rotation".
 export function fixLinkText(state) {
   return blocked(state) ? `Fix ${listed(fixParts(state))}` : null;
+}
+
+// The phone dock's Fix link (Fran's #260 check, B2): one cause is named as
+// on wide screens, "Fix the talents"; with more, a count keeps it to one
+// line, "Fix 5 issues" (shorter than "problems": it fits beside the DPS at
+// 360 wide and 200% text). An issue is what blockedCount counts: each
+// field with an error, the talents over their cap, and the rotation's
+// errors as one. With two or more causes there are always two or more.
+export function dockFixText(state) {
+  if (!blocked(state)) {
+    return null;
+  }
+  if (fixParts(state).length === LAST_ONE) {
+    return fixLinkText(state);
+  }
+  return `Fix ${blockedCount(state)} issues`;
 }
 
 // The narrow row's shorter status, or null when the status fits as it is.

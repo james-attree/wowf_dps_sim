@@ -158,7 +158,7 @@ const title = (what) =>
     ? "Out of date — Run again."
     : `Out of date — fix ${what}, then Run again.`;
 
-async function expect(page, what, step, { card }) {
+async function expect(page, what, step, { card, issues = 1 }) {
   const want = title(what);
   // Wait for the Average banner, then read them all; a banner left behind
   // fails below with what it still says.
@@ -184,8 +184,15 @@ async function expect(page, what, step, { card }) {
     assert.match(now.status, /^Can't run/, `${step}: status`);
     // Fran's #245 N1: the Fix link and, with more than one cause, the
     // reason name the same causes as the banners.
+    // On a phone the dock's link counts two or more causes as issues
+    // (Fran's #260 check, B2).
     const fix = await page.locator("#run-errors-link").textContent();
-    assert.equal(fix, `Fix ${what}`, `${step}: the Fix link`);
+    const named = card || !what.includes(" and ");
+    assert.equal(
+      fix,
+      named ? `Fix ${what}` : `Fix ${issues} issues`,
+      `${step}: the Fix link`,
+    );
     if (what.includes(" and ")) {
       assert.equal(
         await page.locator("#run-reason").textContent(),
@@ -252,20 +259,22 @@ for (const size of [WIDE, PHONE]) {
         const value = await rotation(page, true);
         await expect(page, "the rotation", "rotation", { card });
         await talents(page, true);
-        await expect(page, "the rotation and the talents", "+ talents", {
+        await expect(page, "the talents and the rotation", "+ talents", {
           card,
+          issues: 2,
         });
         await setField(await runField(page, "run-duration"), BAD_LENGTH);
         await setField(await runField(page, "run-seed"), BAD_SEED);
         await expect(
           page,
-          "the rotation, the talents and 2 settings",
+          "2 settings, the talents and the rotation",
           "+ 2 settings",
-          { card },
+          { card, issues: 4 },
         );
         await rotation(page, false, value);
-        await expect(page, "the talents and 2 settings", "rotation fixed", {
+        await expect(page, "2 settings and the talents", "rotation fixed", {
           card,
+          issues: 3,
         });
         await talents(page, false);
         await expect(page, "2 settings", "talents fixed again", { card });

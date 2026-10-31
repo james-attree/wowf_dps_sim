@@ -1,10 +1,11 @@
-import { NARROW_QUERY } from "./breakpoints.js";
+import { NARROW_QUERY, NOT_WIDE_QUERY } from "./breakpoints.js";
 import { fieldId } from "./config-form.js";
 import {
   announceKey,
   blocked,
   controlsModel,
   dockDps,
+  dockFixText,
   dockText,
   fixLinkText,
   fieldErrors,
@@ -90,6 +91,8 @@ export function createControlsView(doc, store, actions = {}) {
     stop: $("stop-button"),
     reset: $("reset-button"),
   };
+  // The phone dock's breakpoint (#240): below it the Fix link is the dock's.
+  const phone = doc.defaultView?.matchMedia?.(NOT_WIDE_QUERY) ?? null;
   const pauseIcon = $("pause-icon");
   const pauseLabel = $("pause-label");
   const statusText = $("run-status-text");
@@ -177,7 +180,9 @@ export function createControlsView(doc, store, actions = {}) {
     const dps = dockDps(state);
     write(dpsValue, dps.value);
     write(dpsLabel, dps.label);
-    const fix = fixLinkText(state);
+    // Below the wide breakpoint the link is in the phone dock, one line
+    // over the nav (Fran's #260 check, B2): its shorter text.
+    const fix = phone?.matches ? dockFixText(state) : fixLinkText(state);
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
     row.classList.toggle("has-errors", fix !== null);
@@ -504,7 +509,9 @@ export function createControlsView(doc, store, actions = {}) {
   // phone dock (#240). So it is not measured for --chrome-top (#200 did,
   // when it stuck to the top on wide screens).
   render(store.get());
-  return store.subscribe(({ state, changed }) => {
+  const rerender = () => render(store.get());
+  phone?.addEventListener?.("change", rerender);
+  const unsubscribe = store.subscribe(({ state, changed }) => {
     if (changed.some((slice) => slice !== "route" && slice !== "moved")) {
       joinable = false;
     }
@@ -521,4 +528,8 @@ export function createControlsView(doc, store, actions = {}) {
       announceAlso(`Showing ${areaLabel(state.moved.area)}.`);
     }
   });
+  return () => {
+    phone?.removeEventListener?.("change", rerender);
+    unsubscribe();
+  };
 }

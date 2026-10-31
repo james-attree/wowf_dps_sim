@@ -259,16 +259,16 @@ describe("Results views (#242)", () => {
       [{ form: { errors: TWO } }, "2 settings"],
       [
         { form: { errors: {}, ...ROTATION }, talents: TALENTS },
-        "the rotation and the talents",
+        "the talents and the rotation",
       ],
-      [{ form: { errors: ONE, ...ROTATION } }, "the rotation and 1 setting"],
+      [{ form: { errors: ONE, ...ROTATION } }, "1 setting and the rotation"],
       [
         { form: { errors: TWO }, talents: TALENTS },
-        "the talents and 2 settings",
+        "2 settings and the talents",
       ],
       [
         { form: { errors: TWO, ...ROTATION }, talents: TALENTS },
-        "the rotation, the talents and 2 settings",
+        "2 settings, the talents and the rotation",
       ],
       [
         {
@@ -281,7 +281,7 @@ describe("Results views (#242)", () => {
             errors: { duration: "Too short" },
           },
         },
-        "the rotation, the talents and 2 settings",
+        "2 settings, the talents and the rotation",
       ],
     ];
     for (const [over, what] of cases) {
