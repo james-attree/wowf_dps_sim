@@ -717,7 +717,7 @@ function partialBanner(result) {
   }
   return banner("partial", heading, [
     [
-      `Everything below covers only the ${done} fights that finished. The confidence interval (± ${num(ci.halfWidth)}) is about those fights and is wider than a full run's would be. Don't compare it with a full batch as if it were one.`,
+      `Everything below covers only the ${done} fights that finished. The confidence interval (± ${num(ci.halfWidth)}) is about those fights and is wider than a full run's would be. Don't compare it with a full average as if it were one.`,
     ],
     pressRun(
       `To run all ${all} ${fightsWord}, press `,

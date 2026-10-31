@@ -1,7 +1,10 @@
 // #245, Fran's #263 check (B1): the three talent trees squeezed into one row
 // overlapped their tiles at 520-740 and 1040-1260 wide, and at 1024 with
 // 200% text, so some talents could not be clicked. Every tile's centre must
-// hit that tile. Inter is not on CI; DejaVu Sans, its fallback, is pinned.
+// hit that tile, and the detail pane's − and + buttons, which sat under the
+// run column's help at 1024 with 200% text (Fran's #263 re-check), must be
+// on screen and hit too. Inter is not on CI; DejaVu Sans, its fallback, is
+// pinned.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
@@ -82,11 +85,65 @@ const coveredTiles = (page) =>
     return covered;
   });
 
+// The detail pane's step buttons, for each talent in turn, that are off
+// screen, not hit at their centre, or under #run-help, by talent.
+const hiddenSteppers = (page) =>
+  page.evaluate(async () => {
+    const HALF = 2;
+    const help = document.getElementById("run-help");
+    const apart = (a, b) =>
+      a.right <= b.left ||
+      b.right <= a.left ||
+      a.bottom <= b.top ||
+      b.bottom <= a.top;
+    const hidden = [];
+    for (const tile of document.querySelectorAll(".talent")) {
+      if (tile.getClientRects().length === 0) continue;
+      tile.focus();
+      await new Promise((done) =>
+        document.defaultView.requestAnimationFrame(done),
+      );
+      for (const button of document.querySelectorAll(
+        ".talent-stepper button",
+      )) {
+        button.focus();
+        button.scrollIntoView({ block: "center", inline: "nearest" });
+        const box = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          box.left + box.width / HALF,
+          box.top + box.height / HALF,
+        );
+        const shown =
+          box.left >= 0 &&
+          box.top >= 0 &&
+          box.right <= document.documentElement.clientWidth &&
+          box.bottom <= document.documentElement.clientHeight;
+        const clear =
+          !help ||
+          help.getClientRects().length === 0 ||
+          apart(box, help.getBoundingClientRect());
+        if (!shown || !clear || !hit || !button.contains(hit)) {
+          hidden.push(button.getAttribute("aria-label"));
+        }
+      }
+    }
+    return hidden;
+  });
+
 describe("every talent tile can be clicked (#245, Fran's #263 B1)", () => {
   test(`at ${LAPTOP.width} with ${LARGE_TEXT} text`, async () => {
     const { context, page } = await open(LAPTOP, LARGE_TEXT);
     try {
       assert.deepEqual(await coveredTiles(page), []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test(`the detail's − and + at ${LAPTOP.width} with ${LARGE_TEXT} text`, async () => {
+    const { context, page } = await open(LAPTOP, LARGE_TEXT);
+    try {
+      assert.deepEqual(await hiddenSteppers(page), []);
     } finally {
       await context.close();
     }

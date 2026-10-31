@@ -272,6 +272,9 @@ describe("the results panel states (#154)", () => {
       text(shown.body),
       /Partial result: stopped after 5 of 24 fights/,
     );
+    // "average", not "batch", as Run calls it (Fran's #263 re-check).
+    assert.match(text(shown.body), /Don't compare it with a full average/);
+    assert.doesNotMatch(text(shown.body), /full batch/);
     assert.match(shown.meta, /^5 × 60\u00a0s fights · seed\u00a0154/);
 
     const one = model({ status: "cancelled", result: single });
