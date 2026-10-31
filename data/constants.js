@@ -1101,6 +1101,14 @@ export const CONSTANTS = {
     "The engine does not delay casts.",
     true,
   ),
+  "poison.chanceCap": entry(
+    1,
+    "chance",
+    ASSUMPTION,
+    "James, 31 Oct 2026, issue #266: A9 of the Phase 4.6 plan v4 (approved with yes to all): poison chance bonuses are additive percentage points, as in Classic, capped at 100%",
+    "The most a poison's chance to apply can reach. A poisonChance modifier (Improved Poisons, Venom) adds percentage points to the export's chance (Instant 20% + 10 + 10 = 40%), and the sum is capped here. With no poisonChance modifier the chance is the export's, untouched (js/poisons.js).",
+    true,
+  ),
   "poison.charges": entry(
     "unlimited",
     "–",
@@ -1391,6 +1399,7 @@ export const CONSTANTS = {
       critDamage: "bonus",
       haste: "haste",
       duration: "percent",
+      poisonChance: "flat",
     },
     "modifier kind → stacking form",
     ASSUMPTION,

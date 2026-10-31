@@ -901,6 +901,21 @@ talent data yet; Malice has one and reaches poison crit, see
 [Applying a talent build](#applying-a-talent-build-d7-issue-106)); a `procChance` modifier kind; poison charges. No
 poison counter is in the `runFight` result.
 
+### Poison chance (A9, #266)
+
+A `poisonChance` modifier (js/modifiers.js) adds to the chance of every poison
+on the weapons, in percentage points, as in Classic: Instant Poison's 20% plus
+10 (Improved Poisons 5/5) plus 10 (Venom) is 40%. It is a `flat` kind with no
+scope. The Rogue resolves it once, as `modifiers.resolve("poisonChance", 0)`,
+and hands it to `poisonProcs`, which adds it to the export's chance and caps
+the sum at `k("poison.chanceCap")`, 100%. Both are `assumption` rows (A9 of
+the Phase 4.6 plan, approved by James on 31 Oct 2026). With no poisonChance
+modifier the chance is the export's own number, with no float op, so every
+fight without one is unchanged and draws the same random numbers. A poison
+that is not on a weapon gets no proc, whatever the bonus. Improved Poisons'
+other half, a chance not to use up a charge, does nothing: charges are never
+used up (`poison.charges`).
+
 ## Simulation clock
 
 The engine has no clock of its own. Fight time moves only when a caller hands
