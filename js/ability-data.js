@@ -19,12 +19,15 @@
 //                 is rejected, nothing spent, with any other. Backstab and
 //                 Ambush have it (#261). The catalogue's `requires` also lists
 //                 Mutilate as dagger-only; that is not enforced
-//   requiresAura  a self aura id (js/required-auras.js): a cast needs the aura
-//                 up and is rejected, nothing spent, without it; a cast that
-//                 goes ahead uses its charge. Only Ambush has it ("stealth",
-//                 #261: rogue.json → spell_desc[Rogue|Ambush|Rank 6],
-//                 "Requires Stealth"). Nothing grants Stealth yet, so Ambush
-//                 is never cast; Cutthroat (Phase 4.6) will grant it
+//   requiresAura  a list of self aura ids from AURAS (js/required-auras.js):
+//                 a cast needs one of them up and is rejected, nothing spent,
+//                 with none; a cast that goes ahead uses a charge of each that
+//                 is up, and a rotation rule for it is passed over while none
+//                 is. Only Ambush has it (["cutthroat"], the "Ambush allowed"
+//                 aura, #261), standing in for rogue.json →
+//                 spell_desc[Rogue|Ambush|Rank 6], "Requires Stealth". Nothing
+//                 grants it yet, so Ambush is never cast; Cutthroat
+//                 (Phase 4.6) will
 //   cost          { resource, field, refund? } what a cast pays: the amount is
 //                 the row's `field`, taken from the resource with that id
 //                 (js/resource-data.js), after that resource's cost modifiers.
@@ -162,7 +165,7 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     row: "ambush",
     icon: "./img/ambush.jpg",
     requiresMainHand: "dagger",
-    requiresAura: "stealth",
+    requiresAura: ["cutthroat"],
     cost: ENERGY,
     gain: COMBO_POINTS,
     damage: {

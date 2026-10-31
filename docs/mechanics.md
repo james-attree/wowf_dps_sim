@@ -236,7 +236,8 @@ including the default Vis'kag (a sword), selects `other`. Both constants are
 is that hit times `k("ambush").weaponMultiplier`, plus
 `k("ambush").bonusDamage`. Sinister Strike, Backstab, and Ambush are
 `wowf-export`. Backstab needs a dagger in the main hand, and Ambush needs a
-dagger and Stealth, so the sim never casts Ambush (see below, #261). The note
+dagger and the "Ambush allowed" aura (it stands in for Stealth), which nothing
+grants, so the sim never casts Ambush (see below, #261). The note
 on `k("ambush")` says so and that its behind requirement is not enforced, and
 the note on `k("backstab")` says its behind requirement is not.
 The note on
@@ -1977,9 +1978,13 @@ at the end of Phase 2.
 What a reader should not assume from the talent and poison sections. These are
 open for James's review, not defects found by a test:
 
-- **Backstab's dagger requirement** is enforced (#142): see "Backstab needs a
-  dagger". Ambush's and Mutilate's dagger requirements, and every stealth and
-  behind requirement, are parsed and not enforced.
+- **Backstab's and Ambush's dagger requirements** are enforced (#142, #261):
+  see "Backstab needs a dagger" and "Ambush needs a dagger and the Ambush
+  allowed aura". Ambush's Stealth requirement is enforced through that aura,
+  which nothing grants yet. Mutilate's dagger requirement, the Stealth
+  requirement of every other ability (Garrote, Cheap Shot and the like, which
+  no rotation can cast), and every behind requirement are parsed from the
+  catalogue and not enforced.
 - **Cold Blood** keeps its charge when the attack does not land (a miss, a
   dodge, and in front a parry or block). That is a design choice, not what
   wowsims does and not verified against Classic, and the front-block case is
@@ -3082,12 +3087,13 @@ presets do not cast Backstab, so no default fight moves. Mutilate lists a dagger
 requirement in the catalogue and it is not enforced, and neither are the behind
 requirements.
 
-**Ambush needs a dagger and Stealth** (#261). The Ambush row in
-`js/ability-data.js` has `requiresMainHand: "dagger"`, as Backstab does, and
-`requiresAura: "stealth"` (rogue.json → spell_desc[Rogue|Ambush|Rank 6]:
+**Ambush needs a dagger and the Ambush allowed aura** (#261). The Ambush row
+in `js/ability-data.js` has `requiresMainHand: "dagger"`, as Backstab does, and
+`requiresAura: ["cutthroat"]`. That aura, labelled "Ambush allowed", stands in
+for "Requires Stealth" (rogue.json → spell_desc[Rogue|Ambush|Rank 6]:
 "Requires Stealth", "Requires Daggers"). The sim models no stealth (no stealth
-openers: James, issue #261), and nothing in a fight grants the Stealth aura
-yet, so Ambush is never cast, on a dagger or a sword. `Ability.canCast` and
+openers: James, issue #261), and nothing in a fight grants the aura yet, so
+Ambush is never cast, on a dagger or a sword. `Ability.canCast` and
 `Ability.cast` check the main hand and the aura before anything else: a refused
 Ambush tells no cast, spends no energy or combo points, starts no cooldown or
 GCD and draws no number. Nothing grants the aura, so the host's `usable` is
@@ -3100,35 +3106,52 @@ otherwise Ambush" on seed 7, 300 s, sword, was 204.7 DPS with 48 Ambush,
 against 152.6 with Sinister Strike as the builder; it is now the same fight as
 "Eviscerate at 5 CP" alone (82.0).
 
-**The stealth hook, a contract for Cutthroat (Phase 4.6).** The interface is
+**The Ambush hook, a contract for Cutthroat (Phase 4.6).** The interface is
 in `js/required-auras.js`; nothing implements the granting side yet.
 
-- **The aura.** `REQUIRED_AURAS.stealth`: a self aura with id `"stealth"` (the
-  ability catalogue's id for Stealth), one charge (`k("stealth.aura").charges`)
-  and no duration of its own. It is not in the `AURAS` registry, so no rotation
-  condition can name it. Nothing grants it yet.
-- **The check.** A cast of an ability with `requiresAura` needs the aura up
-  (`Simulation.hasAura`), and a dagger for Ambush.
+- **The aura.** `AURAS.cutthroat` (also `REQUIRED_AURAS.cutthroat`): a self
+  aura with id `"cutthroat"` and the label "Ambush allowed", one charge
+  (`k("cutthroat.aura").charges`, an assumption read from Cutthroat's "your
+  next Ambush") and no duration of its own. It is in the `AURAS` registry, so
+  an `auraActive` or `auraRemaining` condition can name it and the page labels
+  it "Ambush allowed". It has no effects. **It is not Stealth:** nothing in the
+  sim treats it as being stealthed (no ability, talent, proc or swing reads
+  it), and it does one thing, allow Ambush. Nothing grants it yet.
+- **The list.** `requiresAura` is a list of one or more distinct self aura ids
+  from `AURAS`; a definition with anything else (a bare id, an empty list, an
+  unknown or target aura, a repeat) is refused when the ability is built. A
+  cast needs at least one aura of the list up (`Simulation.hasAura`), and a
+  dagger for Ambush. Ambush's list is `["cutthroat"]`; a later real Stealth
+  would be a second id on it.
 - **What is consumed.** A cast that goes ahead (its cost is paid) uses one
-  charge of the aura (`Simulation.consumeCharge`), whatever the attack's
-  outcome: a hit, crit, miss or dodge all use it. With one charge the aura ends,
-  with an `aura` event of change `expire` and reason `charges`. A cast refused
-  for any reason (no dagger, no aura, not enough energy, the GCD) leaves it up.
-  No other ability or swing uses it.
-- **Granting.** An effect that can put the aura up adds `"stealth"` to
+  charge of each aura of the list that is up (`Simulation.consumeCharge`),
+  whatever the attack's outcome: a hit, crit, miss or dodge all use it. It does
+  so after the cast event, so the log reads the cast, then the aura's end. With
+  one charge the aura ends, with an `aura` event of change `expire` and reason
+  `charges`; an aura with no charges stays up. A cast refused for any reason
+  (no dagger, no aura, not enough energy, the GCD) leaves it up. No other
+  ability or swing uses it.
+- **Granting.** An effect that can put the aura up adds `"cutthroat"` to
   `Rogue.grantedAuras` (fixed for the fight; empty today, and no Rogue or fight
   option can fill it), which makes an Ambush rule usable for the rotation host.
   When it procs it calls
-  `simulation.applyAura(REQUIRED_AURAS.stealth, { duration })` with its own
+  `simulation.applyAura(REQUIRED_AURAS.cutthroat, { duration })` with its own
   duration. For Cutthroat that is 10 s, on a Backstab proc ("your next Ambush
   within 10 sec to not require Stealth").
-- **In a rotation.** Once the aura is granted, an Ambush rule behaves like any
-  other on-GCD rule: while the aura is down it cannot be cast and the walk
-  pools for it. Whether Cutthroat should pass the rule over while the aura is
-  down is left for that PR.
-- **Tests.** `test/stealth-override.js` (`grantStealth`) is the test-only
-  override. It grants the aura the same way and is not reachable from the
-  engine, a preset or the page.
+- **In a rotation.** Once the aura is granted, an Ambush rule is passed over at
+  every decision point where no aura of its list is up, whatever its
+  conditions say, and the walk goes on to the next rule: it is never pooled
+  for (the host's `gated` and `ready`, [rotation](rotation.md); the
+  coordinator's ruling on Kira's QA of #262). While the aura is up the rule is
+  walked like any other on-GCD rule: it casts, or pools for its energy or the
+  GCD. On seed 7, 120 s, dagger, "Eviscerate at 5 CP, otherwise Ambush,
+  otherwise Backstab" with the aura granted and up once was 90.7 DPS before
+  this (one Ambush, then the walk pooled for Ambush for the rest of the fight)
+  and is 173.1 now (one Ambush, 19 Backstab, 3 Eviscerate), against 171.4
+  with the aura not granted.
+- **Tests.** `test/cutthroat-override.js` (`grantCutthroat`, `allowCutthroat`,
+  `procCutthroat`) is the test-only override. It grants the aura the same way
+  and is not reachable from the engine, a preset or the page.
 
 **Poison damage.** Modifiers apply to Instant Poison and Deadly Poison ticks
 through their ability context, with the scopes the talent data gives. Malice

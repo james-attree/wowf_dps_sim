@@ -122,9 +122,23 @@ export function poolingHint(action) {
       long: `${name} is off the global cooldown. When its conditions hold but it can't be cast, the walk skips it and goes on to the next rule.`,
     };
   }
-  const dagger = facts.requires.includes("dagger")
+  // The catalogue lists the weapon as "daggers" (js/abilities.js).
+  const dagger = facts.requires.includes("daggers")
     ? " It needs a dagger in the main hand; with any other weapon the rule is passed over."
     : "";
+  // An ability that needs an aura up (Ambush, #261) never holds the walk
+  // while the aura is down: its rule is passed over (js/rotation-interpreter.js).
+  if (facts.auras.length > 0) {
+    const auras = facts.auras.map(auraName).join(" or ");
+    const waits =
+      facts.energy > 0
+        ? `${facts.energy} energy or the global cooldown`
+        : "the global cooldown";
+    return {
+      chip: `Passed over unless ${auras} is up`,
+      long: `${name} needs ${auras} up. While it is not, the rule is passed over and the walk goes on to the next rule; nothing in the sim puts it up yet. When it is up and the conditions all hold, the walk waits here for ${waits}.${dagger}`,
+    };
+  }
   if (facts.energy > 0) {
     return {
       chip: `Waits for ${facts.energy} energy`,

@@ -1,47 +1,44 @@
-import { k } from "../data/constants.js";
-import { abilityCatalogue } from "./abilities.js";
-import { defineAura } from "./auras.js";
+import { AURAS } from "./auras.js";
 
 // The auras an ability can require (issue #261): an ability-data entry's
-// `requiresAura` names one of these by id. This is the stealth hook, the
-// contract a later effect plugs into (Cutthroat, Phase 4.6):
+// `requiresAura` is a list of self aura ids from AURAS (js/auras.js). This is
+// the hook a later effect plugs into (Cutthroat, Phase 4.6):
 //
-//   check     Ability.auraMet: a cast needs the self aura up
-//             (Simulation.hasAura(id)). Without it the cast is refused before
+//   check     Ability.auraMet: a cast needs at least one aura of the list up
+//             (Simulation.hasAura). With none up the cast is refused before
 //             anything else: nothing is spent, no event is told, no rng draw.
 //   consume   a cast that goes ahead (its cost is paid, whatever the attack's
-//             outcome: hit, crit, miss, dodge) uses one charge of the aura
-//             (Simulation.consumeCharge). The aura has one charge, so the cast
-//             removes it, with an "expire" aura event, reason "charges".
-//   grant     an effect that can put the aura up says so in
+//             outcome: hit, crit, miss, dodge) uses one charge of each aura
+//             of the list that is up (Simulation.consumeCharge), after the
+//             cast event. The cutthroat aura has one charge, so the cast
+//             removes it, with an "expire" aura event, reason "charges". An
+//             aura with no charges is left up.
+//   grant     an effect that can put an aura of the list up says so in
 //             Rogue.grantedAuras (the ids, fixed for the fight). Only then is
 //             a rotation rule for the ability usable (js/rotation-host.js);
-//             otherwise it is passed over. It then applies the definition
-//             below with its own duration (the definition has none):
-//             simulation.applyAura(REQUIRED_AURAS.stealth, { duration }).
+//             otherwise it is passed over for the whole fight. It then applies
+//             the definition with its own duration (the definition has none):
+//             simulation.applyAura(REQUIRED_AURAS.cutthroat, { duration }).
+//   walk      while none of the list is up, the rule is passed over at that
+//             decision point and never pooled for (host.gated and host.ready,
+//             js/rotation-interpreter.js; B1 of Kira's QA on #262).
 //
-// Nothing grants an aura here today: the sim models no stealth (no stealth
-// openers), so Ambush is never cast. Cutthroat ("your next Ambush within
-// 10 sec to not require Stealth") will add "stealth" to Rogue.grantedAuras
-// when the build has it, and on its proc apply the aura for 10 s.
-//
-// These definitions are not in the AURAS registry (js/auras.js), so no
-// rotation condition can name them and the page lists none.
+// Ambush requires ["cutthroat"], the "Ambush allowed" aura. Nothing grants it
+// today: the sim models no Stealth and no stealth openers, so Ambush is never
+// cast. Cutthroat will add "cutthroat" to Rogue.grantedAuras when the build has
+// it, and on its proc apply the aura for 10 s. The aura is not Stealth: nothing
+// reads it as being stealthed.
 
-// Stealth (rogue.json → spell_desc[Rogue|Ambush|Rank 6]: "Requires
-// Stealth"). The id is the ability catalogue's, as for every aura.
-const STEALTH = abilityCatalogue.get("stealth");
+// The auras that exist only to allow an ability, by key.
+export const REQUIRED_AURAS = Object.freeze({ cutthroat: AURAS.cutthroat });
 
-export const REQUIRED_AURAS = Object.freeze({
-  stealth: defineAura({
-    id: STEALTH.id,
-    name: STEALTH.name,
-    target: "self",
-    charges: k("stealth.aura").charges,
-  }),
-});
+const SELF_AURA_IDS = new Set(
+  Object.values(AURAS)
+    .filter((aura) => aura.target === "self")
+    .map((aura) => aura.id),
+);
 
-// Whether `id` is an aura an ability can require.
+// Whether `id` is an aura an ability can require: a self aura of AURAS.
 export function isRequiredAura(id) {
-  return typeof id === "string" && Object.hasOwn(REQUIRED_AURAS, id);
+  return typeof id === "string" && SELF_AURA_IDS.has(id);
 }

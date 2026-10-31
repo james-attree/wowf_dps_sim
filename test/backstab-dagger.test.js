@@ -6,15 +6,15 @@ import { createFight } from "../js/fight.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { rotationHost } from "../js/rotation-host.js";
 import { compileRotation, decide } from "../js/rotation-interpreter.js";
-import { grantStealth } from "./stealth-override.js";
+import { grantCutthroat } from "./cutthroat-override.js";
 import { talentGrantedAbilities } from "../js/talent-build.js";
 
 // Issue #122, with the carry-over from #108: Backstab needs a dagger in the
 // main hand. A cast with any other main hand is refused as a failed cast: no
 // cast is told, nothing is spent, no cooldown or GCD starts, no number is
-// drawn. Backstab and Ambush have the rule (#261: Ambush needs Stealth as well,
-// test/ambush-requirements.test.js). Mutilate lists a dagger requirement in the
-// catalogue too, and it is not enforced.
+// drawn. Backstab and Ambush have the rule (#261: Ambush needs the cutthroat
+// aura as well, test/ambush-requirements.test.js). Mutilate lists a dagger
+// requirement in the catalogue too, and it is not enforced.
 
 const config = (type) => ({ weapons: { mainHand: { type } } });
 const OTHERS = ["sword", "mace", "fist", "axe"];
@@ -139,7 +139,8 @@ describe("Backstab needs a dagger", () => {
       const unusable = ABILITY_DEFINITIONS.map(({ id }) => id).filter(
         (id) => !host.usable(id),
       );
-      // Ambush needs Stealth, which nothing in the fight meets (#261).
+      // Ambush needs the cutthroat aura, which nothing in the fight grants
+      // (#261).
       assert.deepEqual(
         unusable,
         type === "dagger" ? ["ambush"] : ["backstab", "ambush"],
@@ -180,7 +181,8 @@ describe("Backstab needs a dagger", () => {
     for (const id of ["ambush", "mutilate"]) {
       assert.ok(abilityCatalogue.get(id).requires.includes("daggers"), id);
     }
-    // Stealth granted by the test-only override, so only the weapon is asked.
+    // The cutthroat aura granted by the test-only override, so only the
+    // weapon is asked.
     for (const [type, casts] of [
       ["sword", false],
       ["dagger", true],
@@ -189,7 +191,7 @@ describe("Backstab needs a dagger", () => {
       fight.rogue.energy = fight.rogue.maxEnergy;
       fight.simulation.gcd = 0;
       const { rogue, simulation } = fight;
-      grantStealth(rogue, simulation);
+      grantCutthroat(rogue, simulation);
       assert.equal(
         rogue.abilities.ambush.cast(rogue, simulation) !== null,
         casts,

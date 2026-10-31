@@ -340,6 +340,82 @@ describe("decide: the walk", () => {
     assert.deepEqual(decide(compiled, other.host).casts, ["backstab"]);
   });
 
+  it("passes over a gated rule while the host says it is not ready, on or off the GCD, and does not pool for it (#261)", () => {
+    const probe = world({
+      ready: ["sinister-strike"],
+      gcd: ["ambush", "sinister-strike"],
+    });
+    const canCast = [];
+    const { canCast: original } = probe.host;
+    probe.host.canCast = (id) => {
+      canCast.push(id);
+      return original(id);
+    };
+    const up = { ambush: false, "cold-blood": false };
+    probe.host.gated = (id) => Object.hasOwn(up, id);
+    probe.host.ready = (id) => up[id];
+    const compiled = compileRotation(
+      rotation(rule("ambush"), coldBlood(), rule("sinister-strike")),
+    );
+    assert.deepEqual(decide(compiled, probe.host), {
+      casts: ["sinister-strike"],
+      outcome: "cast",
+    });
+    assert.deepEqual(canCast, ["sinister-strike"], "never asked of the others");
+    // Ready: the rule is walked as any other, so an on-GCD one that cannot
+    // be cast pools.
+    up.ambush = true;
+    assert.equal(decide(compiled, probe.host).outcome, "pooling");
+    assert.equal(probe.log.length, 1);
+  });
+
+  it("asks a host which abilities are gated once, and asks ready only of those, at each decision point (#261)", () => {
+    const gatedAsked = [];
+    const readyAsked = [];
+    const probe = world({
+      ready: ["sinister-strike"],
+      gcd: ["ambush", "sinister-strike"],
+    });
+    probe.host.gated = (id) => {
+      gatedAsked.push(id);
+      return id === "ambush";
+    };
+    probe.host.ready = (id) => {
+      readyAsked.push(id);
+      return false;
+    };
+    const compiled = compileRotation(
+      rotation(rule("ambush"), rule("sinister-strike")),
+    );
+    decide(compiled, probe.host);
+    decide(compiled, probe.host);
+    assert.deepEqual(gatedAsked, ["ambush", "sinister-strike"]);
+    assert.deepEqual(readyAsked, ["ambush", "ambush"]);
+    // A rule that is not usable is not asked whether it is ready.
+    readyAsked.length = 0;
+    const other = world({
+      ready: ["sinister-strike"],
+      gcd: ["sinister-strike"],
+    });
+    other.host.usable = (id) => id !== "ambush";
+    other.host.gated = () => true;
+    other.host.ready = (id) => {
+      readyAsked.push(id);
+      return true;
+    };
+    decide(compiled, other.host);
+    assert.deepEqual(readyAsked, ["sinister-strike"]);
+    // Without host.gated nothing is gated: ready is never asked.
+    const plain = world({ gcd: ["ambush"] });
+    plain.host.ready = () => {
+      throw new Error("asked");
+    };
+    assert.equal(
+      decide(compileRotation(rotation(rule("ambush"))), plain.host).outcome,
+      "pooling",
+    );
+  });
+
   it("returns results that are shared when nothing was cast, and frozen", () => {
     const idle = decide(
       compileRotation(rotation(rule("eviscerate", points(5)))),

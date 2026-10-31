@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { CONDITION_PARAMS } from "./rotation-conditions.js";
 import { ROTATION_SCHEMA_VERSION } from "./rotation-schema.js";
@@ -42,6 +43,13 @@ export const isGuard = (condition) => GUARD_TYPES.includes(condition.type);
 // What the builder needs to know about an ability: whether a talent grants it,
 // whether it starts the global cooldown, has a cooldown or is a finisher, and
 // its energy cost (0 when it costs none).
+const REQUIRED_AURA_IDS = new Map(
+  ABILITY_DEFINITIONS.map((definition) => [
+    definition.id,
+    definition.requiresAura ?? [],
+  ]),
+);
+
 export function abilityFacts(id) {
   const ability = abilityCatalogue.get(id);
   const given = warningContext();
@@ -55,6 +63,9 @@ export function abilityFacts(id) {
     finisher: given.finishers.includes(id),
     energy: cost?.resource === "energy" ? cost.amount : 0,
     requires: Object.freeze([...(ability?.requires ?? [])]),
+    // The self auras the engine needs one of up for a cast (requiresAura,
+    // #261): Ambush's "cutthroat". Empty for none.
+    auras: Object.freeze([...(REQUIRED_AURA_IDS.get(id) ?? [])]),
   });
 }
 
