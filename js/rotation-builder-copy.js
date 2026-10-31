@@ -65,7 +65,7 @@ export const booleanText = (param) =>
 // D12: fight time left is a normal condition since #209.
 export const TYPE_NOTES = Object.freeze({
   fightTimeRemaining:
-    "Seconds left in the fight. The length is Fight length (s) on the Run bar.",
+    "Seconds left in the fight. The length is Fight length (s) in Fight.",
 });
 
 export const OP_TEXT = Object.freeze({
