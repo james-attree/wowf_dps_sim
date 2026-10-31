@@ -499,12 +499,19 @@ function poisonProc(poison, hand, read, bonus) {
   // "Poison procs" in docs/mechanics.md.
   const scope = { hands: [hand] };
   const rule = { mode: "flat", value: chance };
+  // Venom (#268, A9): an aura's poisonChance, added when the poison rolls.
+  const chanceBonus = {
+    kind: "poisonChance",
+    cap: read("poison.chanceCap"),
+    points,
+  };
   if (effect.kind === "damage") {
     return defineProc({
       id,
       trigger: "onHit",
       scope,
       chance: rule,
+      chanceBonus,
       actions: [
         {
           type: "dealDamage",
@@ -531,6 +538,7 @@ function poisonProc(poison, hand, read, bonus) {
       trigger: "onHit",
       scope,
       chance: rule,
+      chanceBonus,
       actions: [
         {
           type: "applyDot",

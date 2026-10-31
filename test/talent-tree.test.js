@@ -252,8 +252,9 @@ describe("talent tree model (#204)", () => {
     // ability), so they are simulated: 20 / 6 / 27. #266 simulates Vigor,
     // Vile Poisons, Improved Poisons, Seal Fate and Murder (+5) and marks
     // Improved Gouge, Remorseless Attacks and Improved Kidney Shot as no DPS
-    // (+3): 25 / 9 / 19. #267 simulates Mutilate: 26 / 9 / 18.
-    assert.deepEqual(counts, { simulated: 26, noDps: 9, notSimulated: 18 });
+    // (+3): 25 / 9 / 19. #267 simulates Mutilate: 26 / 9 / 18. #268
+    // simulates Improved Expose Armor and Venom: 28 / 9 / 16.
+    assert.deepEqual(counts, { simulated: 28, noDps: 9, notSimulated: 16 });
   });
 
   it("counts picked talents the sim does not model yet in the summary", () => {

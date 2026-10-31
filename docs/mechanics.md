@@ -897,7 +897,7 @@ is, by ruling on PR #133; recorded here so a comparison with wowsims is
 read with it in mind.
 
 **Not in A5.** Vile Poisons, Improved Poisons and Venom (no entry in the
-talent data yet; Malice has one and reaches poison crit, see
+talent data then; they have one since #266 and #268; Malice has one and reaches poison crit, see
 [Applying a talent build](#applying-a-talent-build-d7-issue-106)); a `procChance` modifier kind; poison charges. No
 poison counter is in the `runFight` result.
 
@@ -2037,13 +2037,14 @@ open for James's review, not defects found by a test:
 - **Poisons roll on finishers** as in wowsims. That is not verified against Classic.
 - **Unmapped talents.** Eleven Assassination talents (Improved Gouge, Remorseless
   Attacks, Murder, Improved Expose Armor, Vile Poisons, Improved Poisons, Vigor,
-  Mutilate, Improved Kidney Shot, Seal Fate, Venom; since #266 and #267 only
-  Improved Expose Armor and Venom) and sixteen of the nineteen
+  Mutilate, Improved Kidney Shot, Seal Fate, Venom; since #266, #267 and
+  #268 none) and sixteen of the nineteen
   Subtlety talents have no entry. Ghostly Strike, Premeditation and Hemorrhage
   have one since #207: the ability they grant, so a selected build without the
   talent does not cast it (`Rogue.lockedByBuild`). A build that spends points in them is legal and lists them in
-  `fight.build.unmapped`. Venom does nothing; Improved Poisons and Vile Poisons
-  have entries since #266, and Mutilate since #267. D8 is Phase 4.
+  `fight.build.unmapped`. Improved Poisons and Vile Poisons
+  have entries since #266, Mutilate since #267, and Improved Expose Armor
+  and Venom since #268. D8 is Phase 4.
 - **Partial builds are legal** (#190). A selected build spends at most
   `config.talentLevel - 9` points (51 at the default level 60) and must
   satisfy the gating, so a one-point row-1 map runs and a lone row-2 talent is
@@ -2381,8 +2382,9 @@ its own.
   `armorReduction` of `armorPerComboPoint` (450) armor. Armor mitigation uses
   `max(0, target.armor − Σ armorReduction × stacks)`, so with no Expose Armor
   up the number is `target.armor − 0` and every result is unchanged. Bleeds and
-  Deadly Poison ticks skip armor, so it does not change them. Nothing in the
-  rotation casts it yet.
+  Deadly Poison ticks skip armor, so it does not change them. Since #268 it is
+  a castable finisher (see [Venom and Expose Armor](#venom-and-expose-armor-268-p46-04b));
+  no preset casts it.
 - `Deadly Poison` (`k("poison.deadly")`): a target debuff with 5 stacks and 12 s,
   where each proc adds a stack and refreshes the time. The proc's `applyDot`
   action applies it and sets the DoT's damage to the number of stacks times one
@@ -3046,8 +3048,8 @@ rank by `test/assassination-passives.test.js`.
   damage), Remorseless Attacks (needs a kill, and the one target does not die)
   and Improved Kidney Shot (the stun is not simulated).
 
-Improved Expose Armor and Venom still have no entry (Mutilate has one since
-#267, below). The golden case
+Improved Expose Armor and Venom have entries since #268 (Mutilate since
+#267, below), so the Assassination tree is covered. The golden case
 `assassination-build-seed-266-60s` runs a 51-point Assassination build
 (`ASSASSINATION_BUILD` in `scripts/golden-update.mjs`) with Instant and Deadly
 Poison for 60 s.
@@ -3092,6 +3094,51 @@ not change. The golden case `mutilate-daggers-seed-267-60s` runs
 `MUTILATE_BUILD` (the 51-point build above, with one point moved from Improved
 Gouge to Mutilate) on the dagger/dagger alternate, Instant Poison on the main
 hand and Deadly on the off hand, for 60 s.
+
+### Venom and Expose Armor (#268, P4.6-04b)
+
+Two finishers, and the last two Assassination talents. With them
+`FULL_COVERAGE_TREES` (scripts/talent-coverage.mjs) is Combat and
+Assassination: an Assassination talent with no entry fails the coverage check.
+
+- **Expose Armor** (`k("exposeArmor")`, baseline): 25 energy, spends its combo
+  points, no attack roll (it cannot miss) and no random number. It puts the
+  `exposeArmor` target debuff up for 30 s with one stack per point spent
+  (the ability data's `aura.stacks: "spent"`), each 450 armor. The aura's
+  `stackRule` is `highest` (A12, `exposeArmor.sunder`): a weaker cast
+  refreshes the 30 s and keeps the stronger stacks. Sunder Armor is not
+  modelled.
+- **Armor order** (`Simulation.armorMultiplier`): the flat reductions
+  (`armorReduction × stacks`) come off `target.armor` first, floored at 0;
+  then an `armorIgnore` modifier (Serrated Blades) takes its share of what is
+  left; then mitigation, `armor / (armor + 400 + 85 × level)`, capped at 75%.
+  A 5-point Expose Armor on 3731 armor with Serrated Blades 3/3 is
+  `(3731 − 2250) × 0.91` = 1347.71 armor.
+- **Improved Expose Armor** (talent): an `energyCost` modifier of −5 / −10 on
+  Expose Armor, and a `comboRefund` modifier of 1 / 2. `comboRefund` is a
+  `flat` kind scoped by ability; `Ability.cast` resolves it only when the
+  cast spent `combo.max` (`improvedExposeArmor.refundAt`) and gains the points
+  after the aura is up and before the onCast procs. At 1 to 4 points there is
+  no refund. It draws nothing.
+- **Venom** (`k("venom")`, granted by its talent, so locked without it): 25
+  energy, spends its combo points, a self aura for 9 / 12 / 15 / 18 / 21 s by
+  points spent. While it is up every poison's chance gets +10 percentage
+  points and poison damage (the `poison` tag) is ×1.3.
+  - The chance (A9): a proc may carry a `chanceBonus`
+    (`{ kind, cap, points }`, flat chances only). `chanceOf` adds the live
+    aura modifiers of that kind to the proc's chance, rounds to whole points
+    and caps it at `poison.chanceCap`. Improved Poisons stays baked into the
+    proc when the Rogue is built, so with Venom down nothing changes. Instant
+    Poison with Improved Poisons 5/5 and Venom up is 20 + 10 + 10 = 40%.
+  - The damage (A10, `venom.stacking`): a `mult` modifier, so the percent form
+    `base × (1 + Σ add) × Π mult` multiplies it with Vile Poisons' +20%:
+    ×1.2 × 1.3 = ×1.56.
+  - Venom is not a Deadly Poison debuff, so Mutilate's poisoned bonus ignores
+    it.
+- **Presets and goldens.** No preset casts Expose Armor or Venom, so the
+  existing golden fixtures are byte-identical. `onStrike`'s off-hand on-crit
+  filtering (js/procs.js) is unchanged: neither ability adds a per-hand
+  on-crit proc (#275).
 
 ## Applying a talent build (D7, issue #106)
 
@@ -3289,9 +3336,9 @@ through their ability context, with the scopes the talent data gives. Malice
 (`critChance`, every attack) reaches Instant Poison's crit and Deadly Poison's
 tick crit. Lethality (`critDamage`, Sinister Strike, Backstab and the like),
 Aggression and Improved Eviscerate (`damage`, scoped to their abilities) do not.
-Vile Poisons, Improved Poisons and Venom have no entry in the talent data, so a
-build with points in them lists them under `fight.build.unmapped` and they change
-nothing. They are out of scope for Phase 2 (tracker #108).
+Vile Poisons, Improved Poisons and Venom had no entry in the talent data in
+Phase 2, so a build with points in them listed them under
+`fight.build.unmapped` (tracker #108). #266 maps the first two and #268 Venom.
 
 **Shape.** `runFight` and its result are unchanged, and `SimConfig` had no new
 field until #190 added `talentLevel`. New exports: `validateBuild`, `applyBuild`, `talentGrantedAbilities`

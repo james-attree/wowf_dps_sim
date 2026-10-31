@@ -22,7 +22,10 @@ import {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const COMBAT_TALENT = "combat.precision";
 const ASSASSINATION_MAPPED = "assassination.malice";
-const ASSASSINATION_UNMAPPED = "assassination.improved-expose-armor";
+// Improved Expose Armor was the unmapped Assassination example until #268
+// covered the whole tree; an unmapped Subtlety talent stands in for it.
+const SUBTLETY_MAPPED = "subtlety.hemorrhage";
+const OTHER_UNMAPPED = "subtlety.camouflage";
 const SUBTLETY_UNMAPPED = "subtlety.opportunity";
 
 // A copy of the effects map that a test may change.
@@ -57,19 +60,21 @@ function run(argv, options) {
 describe("the coverage of the real data", () => {
   const report = checkCoverage();
 
-  it("has no failure: every Combat talent is covered and every hash matches", () => {
-    assert.deepEqual(FULL_COVERAGE_TREES, ["combat"]);
+  it("has no failure: every Combat and Assassination talent is covered and every hash matches", () => {
+    assert.deepEqual(FULL_COVERAGE_TREES, ["combat", "assassination"]);
     assert.equal(report.ok, true);
     assert.equal(report.failures, 0);
     assert.deepEqual(report.changed, []);
     assert.deepEqual(report.orphans, []);
     assert.equal(
-      report.uncovered.some((item) => item.tree === "combat"),
+      report.uncovered.some((item) =>
+        ["combat", "assassination"].includes(item.tree),
+      ),
       false,
     );
   });
 
-  it("warns for every Assassination and Subtlety talent without an effect, by id", () => {
+  it("warns for every Subtlety talent without an effect, by id", () => {
     assert.equal(report.total, talentCatalogue.talents.length);
     assert.equal(report.covered, Object.keys(TALENT_EFFECTS).length);
     assert.equal(report.covered + report.uncovered.length, report.total);
@@ -79,7 +84,7 @@ describe("the coverage of the real data", () => {
       true,
     );
     const ids = report.uncovered.map((item) => item.id);
-    assert.ok(ids.includes(ASSASSINATION_UNMAPPED));
+    assert.ok(ids.includes(OTHER_UNMAPPED));
     assert.ok(ids.includes(SUBTLETY_UNMAPPED));
     assert.equal(
       ids.includes(ASSASSINATION_MAPPED),
@@ -87,7 +92,7 @@ describe("the coverage of the real data", () => {
       "Malice is covered",
     );
     for (const item of report.uncovered) {
-      assert.ok(["assassination", "subtlety"].includes(item.tree), item.id);
+      assert.equal(item.tree, "subtlety", item.id);
       assert.ok(item.id.startsWith(`${item.tree}.`), item.id);
     }
   });
@@ -170,23 +175,45 @@ describe("an entry that does nothing", () => {
   });
 });
 
-describe("an uncovered Assassination or Subtlety talent only warns", () => {
-  it("does not fail when a mapped Assassination talent loses its entry", () => {
+describe("an uncovered Subtlety talent only warns", () => {
+  it("does not fail when a mapped Subtlety talent loses its entry", () => {
     const effects = effectsCopy();
-    delete effects[ASSASSINATION_MAPPED];
+    delete effects[SUBTLETY_MAPPED];
     const report = checkCoverage(effects);
     assert.equal(report.ok, true);
     assert.equal(report.failures, 0);
     assert.ok(
       report.uncovered.some(
-        (item) =>
-          item.id === ASSASSINATION_MAPPED && item.severity === "warning",
+        (item) => item.id === SUBTLETY_MAPPED && item.severity === "warning",
       ),
     );
     const result = run([], { effects });
     assert.equal(result.status, 0);
-    assert.match(result.out, /WARN assassination\.malice: no effect yet/);
+    assert.match(result.out, /WARN subtlety\.hemorrhage: no effect yet/);
     assert.match(result.out, /WARN subtlety\.opportunity: no effect yet/);
+  });
+
+  it("fails when a mapped Assassination talent loses its entry, since #268", () => {
+    const effects = effectsCopy();
+    delete effects[ASSASSINATION_MAPPED];
+    const report = checkCoverage(effects);
+    assert.equal(report.ok, false);
+    assert.deepEqual(
+      report.uncovered.filter((item) => item.severity === "failure"),
+      [
+        {
+          id: ASSASSINATION_MAPPED,
+          tree: "assassination",
+          severity: "failure",
+        },
+      ],
+    );
+    const result = run([], { effects });
+    assert.equal(result.status, 1);
+    assert.match(
+      result.out,
+      /FAIL assassination\.malice: no effect and no noDpsEffect/,
+    );
   });
 });
 
@@ -225,7 +252,7 @@ describe("a changed rank text is found", () => {
     );
     assert.equal(checkCoverage(TALENT_EFFECTS, changedMapped).failures, 1);
     const changedUnmapped = catalogueWithEditedText(
-      ASSASSINATION_UNMAPPED,
+      OTHER_UNMAPPED,
       1,
       "Changed.",
     );
@@ -301,7 +328,7 @@ describe("the command", () => {
         `::warning title=Talent coverage::${real.warnings} talents have no effect yet`,
       ),
     );
-    assert.ok(lines[0].includes(ASSASSINATION_UNMAPPED));
+    assert.ok(lines[0].includes(OTHER_UNMAPPED));
     assert.ok(lines[0].includes(SUBTLETY_UNMAPPED));
     assert.equal(lines[0].includes("\n"), false);
   });

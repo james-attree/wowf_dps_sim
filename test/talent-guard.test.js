@@ -39,6 +39,7 @@ const LABELS = {
   hemorrhage: "Hemorrhage (hemorrhage)",
   premeditation: "Premeditation (premeditation)",
   mutilate: "Mutilate (mutilate)",
+  venom: "Venom (venom)",
 };
 const labelOf = (id) => LABELS[id] ?? id;
 
@@ -71,7 +72,8 @@ describe("talent guard (#188): which abilities it covers", () => {
       FROM_DATA,
     );
     // Today: Cold Blood, Blade Flurry and Adrenaline Rush (#188's list), and
-    // Ghostly Strike, Hemorrhage and Premeditation (#207), and Mutilate (#267).
+    // Ghostly Strike, Hemorrhage and Premeditation (#207), Mutilate (#267),
+    // and Venom (#268).
     assert.deepEqual(FROM_DATA, [
       "adrenaline-rush",
       "blade-flurry",
@@ -80,6 +82,7 @@ describe("talent guard (#188): which abilities it covers", () => {
       "hemorrhage",
       "mutilate",
       "premeditation",
+      "venom",
     ]);
     assert.ok(Object.isFrozen(rotationContext().talentGrantedAbilities));
   });

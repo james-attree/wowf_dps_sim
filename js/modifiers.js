@@ -81,7 +81,11 @@ const NO_SCOPE = Object.freeze([]);
 //   poisonChance    fraction added to every poison's chance to apply, in
 //                   percentage points (A9, #266: Improved Poisons, Venom).
 //                   Resolved once when the Rogue builds its poison procs
-//                   (js/poisons.js), capped at poison.chanceCap
+//                   (js/poisons.js), capped at poison.chanceCap. An aura's
+//                   (Venom, #268) is read again each time a poison rolls
+//   comboRefund     combo points a finisher that spent combo.max gives back
+//                   (Improved Expose Armor, #268, A11). Scoped by ability;
+//                   Ability.cast applies it, with no draw
 export const MODIFIER_KINDS = Object.freeze({
   attackPower: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
   critChance: Object.freeze({ scope: EVERY_SCOPE }),
@@ -97,6 +101,7 @@ export const MODIFIER_KINDS = Object.freeze({
   haste: Object.freeze({ scope: NO_SCOPE }),
   duration: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
   poisonChance: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
+  comboRefund: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
 });
 
 export const STACKING_FORMS = Object.freeze([

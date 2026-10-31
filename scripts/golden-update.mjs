@@ -80,7 +80,7 @@ function deepFreeze(value) {
 // Vigor, Vile Poisons, Improved Poisons, Seal Fate and Murder (inert while
 // target.mobType is "unspecified"), with Malice, Ruthlessness, Relentless
 // Strikes, Lethality and Cold Blood, and the three no-DPS talents. No
-// Mutilate (the case below, #267) and no Venom, which is not mapped yet.
+// Mutilate (the case below, #267) and no Venom (the last case, #268).
 export const ASSASSINATION_BUILD = deepFreeze({
   "assassination.improved-gouge": 3,
   "assassination.remorseless-attacks": 2,
@@ -119,6 +119,52 @@ const MUTILATE_ROTATION = deepFreeze({
       action: "eviscerate",
       conditions: [{ type: "comboPoints", op: ">=", value: 5 }],
     },
+    {
+      action: "mutilate",
+      conditions: [{ type: "abilityGranted", ability: "mutilate" }],
+    },
+  ],
+});
+
+// Issue #268 (P4.6-04b). The Mutilate build with Improved Expose Armor 2/2
+// and Venom, for the two points of Improved Gouge and the one of Improved
+// Kidney Shot, none of which has a DPS effect: 51 points.
+// The ranks it drops are left out, as the config's normal form leaves a 0 out.
+const DROPPED = [
+  "assassination.improved-gouge",
+  "assassination.improved-kidney-shot",
+];
+export const VENOM_BUILD = deepFreeze({
+  ...Object.fromEntries(
+    Object.entries(MUTILATE_BUILD).filter(([id]) => !DROPPED.includes(id)),
+  ),
+  "assassination.improved-expose-armor": 2,
+  "assassination.venom": 1,
+});
+
+// At 5 CP: Expose Armor while it has under 5 stacks on the target, then
+// Venom while it is down, then Eviscerate. Otherwise Mutilate.
+const FIVE_CP = deepFreeze({ type: "comboPoints", op: ">=", value: 5 });
+const VENOM_EXPOSE_ROTATION = deepFreeze({
+  schemaVersion: 1,
+  name: "Expose Armor, Venom, then Eviscerate at 5 CP, otherwise Mutilate",
+  rules: [
+    {
+      action: "expose-armor",
+      conditions: [
+        FIVE_CP,
+        { type: "debuffStacks", debuff: "expose-armor", op: "<", value: 5 },
+      ],
+    },
+    {
+      action: "venom",
+      conditions: [
+        FIVE_CP,
+        { type: "abilityGranted", ability: "venom" },
+        { type: "auraRemaining", aura: "venom", op: "<=", value: 0 },
+      ],
+    },
+    { action: "eviscerate", conditions: [FIVE_CP] },
     {
       action: "mutilate",
       conditions: [{ type: "abilityGranted", ability: "mutilate" }],
@@ -197,6 +243,21 @@ export const GOLDEN_CASES = deepFreeze([
       talents: { ...MUTILATE_BUILD },
       poisons: { mainHand: "instant", offHand: "deadly" },
       rotation: MUTILATE_ROTATION,
+    },
+  },
+  // Issue #268. The dagger/dagger Mutilate fight with Venom and Expose
+  // Armor in the rotation, so poisons roll at Venom's chance and damage, and
+  // white and Mutilate hits meet 5 stacks of Expose Armor.
+  {
+    name: "venom-expose-armor-seed-268-60s",
+    seed: 268,
+    duration: 60,
+    config: {
+      character: defaultDaggerConfig().character,
+      weapons: defaultDaggerConfig().weapons,
+      talents: { ...VENOM_BUILD },
+      poisons: { mainHand: "instant", offHand: "deadly" },
+      rotation: VENOM_EXPOSE_ROTATION,
     },
   },
 ]);

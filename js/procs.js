@@ -1,7 +1,12 @@
 import { k } from "../data/constants.js";
 import { auraRegistry } from "./auras.js";
 import { abilityCatalogue } from "./abilities.js";
-import { defineScope, scopeMatches } from "./modifiers.js";
+import {
+  MODIFIER_KINDS,
+  combine,
+  defineScope,
+  scopeMatches,
+} from "./modifiers.js";
 import { PROC_TABLES } from "./proc-data.js";
 import { talentCatalogue } from "./talents.js";
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
@@ -133,7 +138,32 @@ const SPEC_KEYS = Object.freeze([
   "chance",
   "cooldown",
   "actions",
+  "chanceBonus",
 ]);
+
+// An optional chanceBonus { kind, cap, points } on a flat chance: the
+// modifiers of that kind the auras that are up give (Venom's poisonChance,
+// #268, A9) are added to the chance when it rolls, in whole points (`points`
+// per 1) and capped at `cap`. With no such aura up the chance is the value as
+// it stands, so the proc reads nothing more. Only the poisons have one.
+function defineChanceBonus(label, chance, bonus) {
+  if (bonus === undefined) {
+    return undefined;
+  }
+  if (!plainObject(bonus)) {
+    fail(label, "chanceBonus must be an object { kind, cap, points }.");
+  }
+  checkKeys(label, bonus, ["kind", "cap", "points"]);
+  if (!Object.hasOwn(MODIFIER_KINDS, bonus.kind)) {
+    fail(label, `chanceBonus names unknown modifier kind "${bonus.kind}".`);
+  }
+  if (chance.mode !== FLAT) {
+    fail(label, "chanceBonus needs a flat chance.");
+  }
+  finite(label, "chanceBonus.cap", bonus.cap);
+  finite(label, "chanceBonus.points", bonus.points, { min: 1 });
+  return Object.freeze({ ...bonus });
+}
 
 const defined = new WeakSet();
 
@@ -371,6 +401,11 @@ export function defineProc(spec) {
     // The filter is a modifier scope of damage (every attack key, no resource).
     scope: defineScope(`proc ${label}`, "damage", spec.scope),
     chance: defineChance(label, spec.trigger, spec.chance),
+    ...(spec.chanceBonus === undefined
+      ? {}
+      : {
+          chanceBonus: defineChanceBonus(label, spec.chance, spec.chanceBonus),
+        }),
     cooldown,
     actions: Object.freeze(actions),
     extraAttack: actions.some(({ type }) => type === EXTRA_ATTACK),
@@ -608,7 +643,9 @@ export class ProcRunner {
   chanceOf(proc, event) {
     const { mode, value } = proc.chance;
     if (mode === FLAT) {
-      return value;
+      return proc.chanceBonus === undefined
+        ? value
+        : this.withAuraBonus(value, proc.chanceBonus);
     }
     if (mode === PPM) {
       // Procs per minute is a rate of weapon swings. A cast that does not
@@ -623,6 +660,19 @@ export class ProcRunner {
       return Math.min(1, (value * weapon.speed) / k("proc.secondsPerMinute"));
     }
     return Math.min(1, value * event.spent);
+  }
+
+  // A flat chance plus the auras' modifiers of the bonus kind that are up
+  // (Venom, #268), in whole points and capped. None up: the chance as it is.
+  withAuraBonus(value, { kind, cap, points }) {
+    const timed = this.simulation.auraModifiers(kind);
+    if (timed.length === 0) {
+      return value;
+    }
+    const extra = combine(kind, 0, timed);
+    return extra > 0
+      ? Math.min(cap, Math.round((value + extra) * points) / points)
+      : value;
   }
 
   consider(proc, event) {

@@ -70,7 +70,12 @@
 //                 `duration` says for how long: { field } is a field of
 //                 the row, { row, field } a field of another constants row, and
 //                 { bySpent } a table in the row, one entry per unit of the
-//                 spend resource spent. No entry for the amount means no aura
+//                 spend resource spent. No entry for the amount means no aura.
+//                 `stacks: "spent"` puts the aura up with one stack per unit
+//                 spent (Expose Armor, #268); absent, one stack
+//
+// A spender that spent combo.max gets back the comboRefund modifiers scoped
+// to it (Improved Expose Armor, #268, A11): no field here, the talent says.
 //
 // Whether an ability starts the global cooldown comes from the catalogue
 // (startsGcd, which is abilities.offGcd). The order here is the order of
@@ -245,5 +250,32 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     row: "coldBlood",
     icon: null,
     aura: { id: "coldBlood", duration: { field: "duration" } },
+  },
+  {
+    // A baseline finisher (#268, A11): one Expose Armor stack per combo point
+    // spent, for the row's 30 s. A cast that does not attack. No preset casts
+    // it (A12). There is no icon in img/ yet.
+    key: "exposeArmor",
+    id: "expose-armor",
+    row: "exposeArmor",
+    icon: null,
+    cost: ENERGY,
+    spend: { resource: "comboPoints" },
+    aura: {
+      id: "exposeArmor",
+      duration: { field: "duration" },
+      stacks: "spent",
+    },
+  },
+  {
+    // Granted by the Venom talent (#268, A9-A10): a self aura for 9-21 s by
+    // combo points spent. A cast that does not attack. No icon in img/ yet.
+    key: "venom",
+    id: "venom",
+    row: "venom",
+    icon: null,
+    cost: ENERGY,
+    spend: { resource: "comboPoints" },
+    aura: { id: "venom", duration: { bySpent: "durationByCp" } },
   },
 ]);

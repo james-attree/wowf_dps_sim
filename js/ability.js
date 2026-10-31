@@ -208,6 +208,8 @@ export class Ability {
     // DoT, or bonus damage taken) a debuff: the definition says which.
     this.aura =
       definition.aura === undefined ? null : AURAS[definition.aura.id];
+    // One stack per point spent (Expose Armor, #268), or one.
+    this.stacksBySpent = definition.aura?.stacks === "spent";
     // The aura's length when it does not depend on the combo points spent.
     this.duration = 0;
     const length = definition.aura?.duration;
@@ -509,7 +511,21 @@ export class Ability {
           duration,
           icon: this.icon,
           source: this.id,
+          ...(this.stacksBySpent ? { stacks: spent } : {}),
         });
+      }
+
+      // A full spend gets back the comboRefund modifiers scoped to this
+      // ability (Improved Expose Armor, #268, A11): none without one.
+      if (spends !== null && spent === k("combo.max")) {
+        const refund = this.rogue.modifiers.resolve(
+          "comboRefund",
+          0,
+          this.costContext,
+        );
+        if (refund > 0) {
+          spends.gain(refund, this.id);
+        }
       }
 
       // The procs this cast triggers (js/procs.js) fire last, so they see the
