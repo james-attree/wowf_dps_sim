@@ -2322,6 +2322,9 @@ a.pill-button {
 /* ---- Tables -------------------------------------------------------------- */
 .table-scroll {
   overflow-x: auto;
+  /* A control focused near the right edge scrolls clear of the fade below
+     (js/views/focus-in-view.js). */
+  scroll-padding-inline: 0 2.5rem;
   border: 1px solid #3a3225;
   border-radius: 13px;
   background: var(--surface-raised);
@@ -2360,6 +2363,9 @@ a.pill-button {
   background: var(--surface-raised);
 }
 .results-table thead th {
+  /* The sort buttons carry their own inset, so the head cells take less:
+     ten columns fit a wide screen's box in DejaVu Sans too (#245). */
+  padding-inline: 0.375rem;
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.75rem;

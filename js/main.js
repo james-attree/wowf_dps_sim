@@ -11,6 +11,7 @@ import { trackChromeSize } from "./views/chrome-size.js";
 import { createCharacterScreensView } from "./views/character-screens.js";
 import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
+import { keepFocusInView } from "./views/focus-in-view.js";
 import { createResultsView } from "./views/results.js";
 import { createResultsCardView } from "./views/results-card.js";
 import { createResultsPanelView } from "./views/results-panel.js";
@@ -159,6 +160,7 @@ const router = mountRouter(document, store, sections, {
 });
 router.start();
 trackChromeSize(document);
+keepFocusInView(document);
 // The desktop results column's summary card (#241): outside the areas, like
 // the Run panel above it, so it shows on every area but Results.
 createResultsCardView(document, store, { buildLabel });

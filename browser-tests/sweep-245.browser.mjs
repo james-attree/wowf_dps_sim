@@ -385,3 +385,138 @@ describe("the wide layout at 200% text (#245, items 22 and 23; Fran's #260 check
     }
   });
 });
+
+const BATCH_FIGHTS = "5";
+const FIGHT_SECONDS = "4";
+const RUN_TIMEOUT = 60_000;
+// Time for a focus's scroll to settle (js/views/focus-in-view.js waits a
+// frame).
+const SCROLL_SETTLE_MS = 300;
+// The width, in rem, of the fade over a table's right edge.
+const FADE_REM = 2.5;
+
+async function batch(page) {
+  if (!(await page.locator("#run-duration").isVisible())) {
+    await page.evaluate(() => {
+      globalThis.location.hash = "#fight";
+    });
+  }
+  await page.locator("#run-mode-batch").check({ force: true });
+  await page.fill("#run-duration", FIGHT_SECONDS);
+  await page.fill("#run-iterations", BATCH_FIGHTS);
+  await page.locator("#run-button").click();
+  await page
+    .locator(".results-table[data-sortable]")
+    .waitFor({ state: "attached", timeout: RUN_TIMEOUT });
+  await page.evaluate(() => {
+    globalThis.location.hash = "#results";
+  });
+  await page.locator(".results-table[data-sortable]").waitFor();
+}
+
+describe("a control you tab to shows whole (#245, items 19 and 27)", () => {
+  // A short screen: the textarea starts part way under the dock.
+  for (const viewport of [
+    { width: 360, height: 320 },
+    { width: 360, height: 640 },
+  ]) {
+    test(`the share textarea clears the dock at ${viewport.width}×${viewport.height}`, async () => {
+      const { context, page, errors } = await open(viewport, "#rotation/share");
+      try {
+        await page.locator("#cfg-import-text").waitFor();
+        await page.focus("#cfg-export");
+        // Import's file input, then the textarea.
+        await page.keyboard.press("Tab");
+        await page.keyboard.press("Tab");
+        await page.waitForTimeout(SCROLL_SETTLE_MS);
+        assert.equal(
+          await page.evaluate(() => document.activeElement.id),
+          "cfg-import-text",
+        );
+        const { text, strip } = await page.evaluate(() => ({
+          text: document
+            .querySelector("#cfg-import-text")
+            .getBoundingClientRect().bottom,
+          strip: document.querySelector("#run-bar").getBoundingClientRect().top,
+        }));
+        assert.ok(text <= strip + EDGE, `textarea ends ${text - strip} under`);
+        await shot(page, `share-${viewport.height}`);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  for (const viewport of [PHONES[2], PHONE]) {
+    test(`each sort button scrolls fully into view at ${viewport.width}`, async () => {
+      const { context, page, errors } = await open(viewport, "#fight");
+      try {
+        await batch(page);
+        const buttons = page.locator(
+          ".results-table[data-sortable] .sort-button",
+        );
+        const count = await buttons.count();
+        assert.ok(count > 0);
+        await buttons.first().focus();
+        for (let index = 0; index < count; index += 1) {
+          if (index > 0) {
+            await page.keyboard.press("Tab");
+          }
+          await page.waitForTimeout(SCROLL_SETTLE_MS);
+          const at = await page.evaluate((fadeRem) => {
+            const button = document.activeElement;
+            const box = button.closest(".table-scroll");
+            // The fade over the table's right edge (styles.css, .scroll-hint-wrap).
+            const fade =
+              fadeRem *
+              Number.parseFloat(
+                getComputedStyle(document.documentElement).fontSize,
+              );
+            const more =
+              box.closest(".scroll-hint-wrap")?.dataset.overflow === "more";
+            return {
+              name: button.textContent.trim(),
+              left: button.getBoundingClientRect().left,
+              right: button.getBoundingClientRect().right,
+              boxLeft: box.getBoundingClientRect().left,
+              edge: box.getBoundingClientRect().right - (more ? fade : 0),
+            };
+          }, FADE_REM);
+          assert.ok(at.left >= at.boxLeft - EDGE, `${at.name} cut at the left`);
+          assert.ok(
+            at.right <= at.edge + EDGE,
+            `${at.name} is ${at.right - at.edge} past the edge`,
+          );
+        }
+        await shot(page, `sort-${viewport.width}`);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+});
+
+describe("the damage table fits a wide screen in DejaVu Sans (#245, item 26)", () => {
+  test("at 1024, no sideways scroll in the table", async () => {
+    const { context, page, errors } = await open(
+      { width: 1024, height: 768 },
+      "#fight",
+    );
+    try {
+      await batch(page);
+      const over = await page.$eval(
+        ".results-table[data-sortable]",
+        (table) => {
+          const box = table.closest(".table-scroll");
+          return box.scrollWidth - box.clientWidth;
+        },
+      );
+      assert.ok(over <= EDGE, `the table is ${over} wider than its box`);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
