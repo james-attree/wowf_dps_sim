@@ -7,6 +7,7 @@ import { createRotationBuilder } from "./rotation-builder.js";
 import { createRunActions, emptyBatch, emptyRan } from "./run-actions.js";
 import { createStore } from "./store.js";
 import { createTalentTree } from "./talent-tree.js";
+import { trackChromeSize } from "./views/chrome-size.js";
 import { createCharacterScreensView } from "./views/character-screens.js";
 import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
@@ -157,6 +158,7 @@ const router = mountRouter(document, store, sections, {
   },
 });
 router.start();
+trackChromeSize(document);
 // The desktop results column's summary card (#241): outside the areas, like
 // the Run panel above it, so it shows on every area but Results.
 createResultsCardView(document, store, { buildLabel });

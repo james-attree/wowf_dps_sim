@@ -37,7 +37,10 @@
   --accent: #e7bd55;
   --energy: #f0c44e;
   --gcd: #c99b3b;
+  /* The phone nav's height (#240): its least, until js/views/chrome-size.js
+     measures the nav as it grows with the text (#245). */
   --area-nav-height: 52px;
+  --area-nav-least: 52px;
   /* The least a pointer or a finger aims at (#245, UX7; WCAG 2.5.5): every
      button, link, field and check row is at least this tall and wide.
      browser-tests/targets.browser.mjs holds every screen to it. */
@@ -47,8 +50,13 @@
      fill (WCAG 1.4.11; #240, Fran's #251 check): 3.30:1 on --surface-raised,
      the lightest, up to 3.77:1 on the page. */
   --control-border: #7d6c50;
-  /* The phone run dock's strip (#240), above the nav; none on Results. */
-  --strip-height: 48px;
+  /* The phone run dock's strip (#240), above the nav; none on Results. Its
+     least is in rem so it grows with the text (#245); --strip-height is
+     that least until js/views/chrome-size.js measures the strip. */
+  --strip-least: 3rem;
+  --strip-height: 3rem;
+  /* The strip's lines, a ratio of their own text size. */
+  --strip-line: 1.35;
   --dock-strip: 0px;
   /* Nothing sticks to the top of the page at any width (#241, UX3): on
      wide screens Run is in the results column, below the wide breakpoint
@@ -541,9 +549,11 @@ h3 {
 
 /* The phone run dock (#240, UX2; proposal section 4). Below the wide
    breakpoint nothing sticks to the top: Run, its status and the DPS sit in a
-   strip fixed above the area nav, 100 in all with the nav, plus the
-   safe-area inset under both. The strip's two lines are 13 on 18 and end in
-   an ellipsis; the DPS never shrinks. Two button slots: Run, or Pause while
+   strip fixed above the area nav, 100 in all with the nav at the default
+   text size, plus the safe-area inset under both. The strip's two lines end
+   in an ellipsis and the DPS never shrinks. With bigger text (#245) the
+   strip grows with its lines, and when the DPS no longer fits beside them it
+   takes a third line under them. Two button slots: Run, or Pause while
    a fight or batch runs; Reset, or Stop while it runs. On Results the strip
    leaves the dock and sits in the page above the results, so the dock is the
    nav alone. */
@@ -561,11 +571,12 @@ h3 {
     z-index: 20;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-rows: 18px 18px;
+    grid-template-rows: auto auto;
     align-content: center;
     align-items: center;
     gap: 0 8px;
-    height: var(--strip-height);
+    min-height: var(--strip-least);
+    container: run-strip / inline-size;
     margin: 0;
     padding: 0 8px 0 12px;
     border-top: 1px solid var(--border);
@@ -586,9 +597,6 @@ h3 {
      page's margins, and Watch lands there (#245): its lines wrap rather
      than cut, the strip growing to hold them. */
   :root:has(#area-results:not([hidden])) .run-row-actions {
-    grid-template-rows: auto auto;
-    height: auto;
-    min-height: var(--strip-height);
     padding-block: 4px;
   }
 
@@ -657,7 +665,7 @@ h3 {
     color: #f3eee2;
     font-size: 0.8125rem;
     font-weight: 600;
-    line-height: 18px;
+    line-height: var(--strip-line);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -673,7 +681,7 @@ h3 {
     border: 0;
     background: none;
     font-size: 0.8125rem;
-    line-height: 18px;
+    line-height: var(--strip-line);
   }
 
   #run-status-text {
@@ -713,13 +721,13 @@ h3 {
     font-size: 1.125rem;
     font-variant-numeric: tabular-nums;
     font-weight: 750;
-    line-height: 24px;
+    line-height: var(--strip-line);
   }
 
   .run-dps-label {
     color: var(--text-muted);
     font-size: 0.75rem;
-    line-height: 14px;
+    line-height: var(--strip-line);
   }
 
   /* Blocked: the status (why) takes the summary's line and the link the
@@ -730,9 +738,8 @@ h3 {
     grid-column: 1;
     grid-row: 2;
     justify-self: start;
-    min-height: 18px;
     font-size: 0.8125rem;
-    line-height: 18px;
+    line-height: var(--strip-line);
   }
 
   .run-errors-link:not([hidden])::after {
@@ -752,9 +759,8 @@ h3 {
     grid-column: 1;
     grid-row: 2;
     justify-self: start;
-    min-height: 18px;
     font-size: 0.8125rem;
-    line-height: 18px;
+    line-height: var(--strip-line);
     white-space: nowrap;
   }
 
@@ -766,6 +772,33 @@ h3 {
 
   .run-row-actions.has-warnings .run-status {
     display: none;
+  }
+
+  /* Bigger text in a narrow strip (#245; Fran's #258 check, P2): the DPS
+     drops under the two lines rather than crowding them, its value and
+     label on one line. */
+  @container run-strip (width < 20em) {
+    :is(
+      .run-summary,
+      .run-row-actions .run-status,
+      .run-errors-link,
+      .run-warnings-link
+    ) {
+      grid-column: 1 / 3;
+    }
+
+    .run-dps {
+      grid-column: 1 / 3;
+      grid-row: 3;
+      flex-direction: row;
+      align-items: baseline;
+      justify-self: start;
+      gap: 0.375em;
+    }
+
+    .run-row-actions .run-buttons {
+      grid-row: 1 / 4;
+    }
   }
 
   .run-row-actions.has-errors .run-status {
@@ -2682,13 +2715,23 @@ th[aria-sort="ascending"] {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  /* The links fill the nav's height with its top border. */
+  /* The links fill the nav's least height with its top border, and grow
+     with the text (#245). */
   .area-nav a {
     flex-direction: column;
     gap: 2px;
-    min-height: calc(var(--area-nav-height) - 1px);
+    min-height: calc(var(--area-nav-least) - 1px);
     font-size: 0.75rem;
-    line-height: 16px;
+    line-height: 1.35;
+  }
+
+  .area-nav {
+    container: area-nav / inline-size;
+  }
+
+  .area-nav-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .area-nav a[aria-current="page"] {
@@ -2701,6 +2744,27 @@ th[aria-sort="ascending"] {
     position: absolute;
     top: 3px;
     left: calc(50% + 6px);
+  }
+
+  /* Bigger text (#245; Fran's #253 and #258 checks): when four labels no
+     longer fit across, the nav is two rows of two, each icon beside its
+     label and the badge after it. js/views/chrome-size.js hands the taller
+     nav's height to the strip and the page. */
+  @container area-nav (width < 19em) {
+    .area-nav ul {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .area-nav a {
+      flex-direction: row;
+      gap: 6px;
+      min-height: var(--target);
+      padding: 2px 6px;
+    }
+
+    .area-nav-badge {
+      position: static;
+    }
   }
 }
 
