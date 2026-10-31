@@ -21,9 +21,9 @@
 //                 Mutilate as dagger-only; that is not enforced
 //   requiresAura  a list of self aura ids from AURAS (js/required-auras.js):
 //                 a cast needs one of them up and is rejected, nothing spent,
-//                 with none; a cast that goes ahead uses a charge of each that
-//                 is up, and a rotation rule for it is passed over while none
-//                 is. Only Ambush has it (["cutthroat"], the "Ambush allowed"
+//                 with none; a cast that goes ahead uses a charge of the first
+//                 listed that is up (none when that one has no charges), and a
+//                 rotation rule for it is passed over while none is. Only Ambush has it (["cutthroat"], the "Ambush allowed"
 //                 aura, #261), standing in for rogue.json →
 //                 spell_desc[Rogue|Ambush|Rank 6], "Requires Stealth". Nothing
 //                 grants it yet, so Ambush is never cast; Cutthroat
@@ -165,6 +165,8 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     row: "ambush",
     icon: "./img/ambush.jpg",
     requiresMainHand: "dagger",
+    // Any one aura of the list up allows the cast; the first listed that is up
+    // pays one charge, or nothing when it has none (js/required-auras.js).
     requiresAura: ["cutthroat"],
     cost: ENERGY,
     gain: COMBO_POINTS,

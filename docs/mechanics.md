@@ -3124,11 +3124,16 @@ in `js/required-auras.js`; nothing implements the granting side yet.
   dagger for Ambush. Ambush's list is `["cutthroat"]`; a later real Stealth
   would be a second id on it.
 - **What is consumed.** A cast that goes ahead (its cost is paid) uses one
-  charge of each aura of the list that is up (`Simulation.consumeCharge`),
-  whatever the attack's outcome: a hit, crit, miss or dodge all use it. It does
-  so after the cast event, so the log reads the cast, then the aura's end. With
-  one charge the aura ends, with an `aura` event of change `expire` and reason
-  `charges`; an aura with no charges stays up. A cast refused for any reason
+  charge of the **first** aura of the list that is up, and of no other
+  (`Simulation.consumeCharge`; the coordinator's ruling, QA round 1b of #262).
+  With two listed and both up, only the first loses a charge; with only the
+  second up, the second does. So the list's order matters: the first aura up
+  pays. If that first aura up has no charges (a duration-only aura), the cast
+  uses nothing, the aura stays up, and the cast does not skip ahead to a later
+  charged aura on the list (Kira's QA, round 1b). It does so whatever the attack's outcome: a hit, crit, miss or
+  dodge all use it, and after the cast event, so the log reads the cast, then
+  the aura's end. With one charge the aura ends, with an `aura` event of change
+  `expire` and reason `charges`. A cast refused for any reason
   (no dagger, no aura, not enough energy, the GCD) leaves it up. No other
   ability or swing uses it.
 - **Granting.** An effect that can put the aura up adds `"cutthroat"` to
@@ -3149,6 +3154,10 @@ in `js/required-auras.js`; nothing implements the granting side yet.
   this (one Ambush, then the walk pooled for Ambush for the rest of the fight)
   and is 173.1 now (one Ambush, 19 Backstab, 3 Eviscerate), against 171.4
   with the aura not granted.
+- **The rotation builder** says nothing special about Ambush: no hint chip on
+  its card and no hint in its editor, not even the dagger sentence Backstab
+  gets (James's ruling, relayed by the coordinator: Ambush is not spoonfed).
+  "Ambush allowed" is still among the auras a condition can name.
 - **Tests.** `test/cutthroat-override.js` (`grantCutthroat`, `allowCutthroat`,
   `procCutthroat`) is the test-only override. It grants the aura the same way
   and is not reachable from the engine, a preset or the page.

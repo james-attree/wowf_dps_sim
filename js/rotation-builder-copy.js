@@ -113,9 +113,16 @@ export function valueUnit(condition) {
 }
 
 // D11: the pooling hint on every card (chip) and in the open editor (long).
+// null for an ability that needs an aura up (Ambush, #261): the builder says
+// nothing special about it, no chip and no hint (James's ruling, relayed by
+// the coordinator: Ambush is not spoonfed). The engine still passes its rule
+// over while the aura is down (js/rotation-interpreter.js).
 export function poolingHint(action) {
   const facts = abilityFacts(action);
   const name = facts.name;
+  if (facts.auras.length > 0) {
+    return null;
+  }
   if (!facts.onGcd) {
     return {
       chip: "Off the GCD: skipped if not ready",
@@ -126,19 +133,6 @@ export function poolingHint(action) {
   const dagger = facts.requires.includes("daggers")
     ? " It needs a dagger in the main hand; with any other weapon the rule is passed over."
     : "";
-  // An ability that needs an aura up (Ambush, #261) never holds the walk
-  // while the aura is down: its rule is passed over (js/rotation-interpreter.js).
-  if (facts.auras.length > 0) {
-    const auras = facts.auras.map(auraName).join(" or ");
-    const waits =
-      facts.energy > 0
-        ? `${facts.energy} energy or the global cooldown`
-        : "the global cooldown";
-    return {
-      chip: `Passed over unless ${auras} is up`,
-      long: `${name} needs ${auras} up. While it is not, the rule is passed over and the walk goes on to the next rule; nothing in the sim puts it up yet. When it is up and the conditions all hold, the walk waits here for ${waits}.${dagger}`,
-    };
-  }
   if (facts.energy > 0) {
     return {
       chip: `Waits for ${facts.energy} energy`,

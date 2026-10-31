@@ -8,11 +8,14 @@ import { AURAS } from "./auras.js";
 //             (Simulation.hasAura). With none up the cast is refused before
 //             anything else: nothing is spent, no event is told, no rng draw.
 //   consume   a cast that goes ahead (its cost is paid, whatever the attack's
-//             outcome: hit, crit, miss, dodge) uses one charge of each aura
-//             of the list that is up (Simulation.consumeCharge), after the
-//             cast event. The cutthroat aura has one charge, so the cast
-//             removes it, with an "expire" aura event, reason "charges". An
-//             aura with no charges is left up.
+//             outcome: hit, crit, miss, dodge) uses one charge of the first
+//             aura of the list that is up, and of no other
+//             (Simulation.consumeCharge), after the cast event. The list's
+//             order matters: the first aura up pays. If it has no charges
+//             (a duration-only aura) the cast uses nothing, it stays up, and
+//             the cast does not skip ahead to a later charged aura. The
+//             cutthroat aura has one charge, so the cast removes it, with an
+//             "expire" aura event, reason "charges".
 //   grant     an effect that can put an aura of the list up says so in
 //             Rogue.grantedAuras (the ids, fixed for the fight). Only then is
 //             a rotation rule for the ability usable (js/rotation-host.js);

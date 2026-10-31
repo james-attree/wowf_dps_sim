@@ -377,12 +377,15 @@ export class Ability {
       // The cast is told first: what it does follows it.
       simulation.emitCast(this, paid === null ? 0 : cost);
       paid?.spend(cost, this.id);
-      // The cast uses one charge of each required aura that is up, whatever
-      // the attack's outcome (#261, js/required-auras.js): Ambush takes the
-      // cutthroat aura. After the cast event, so the log reads cast, expire.
-      // consumeCharge leaves an aura that is not up alone.
-      for (const id of this.requiresAura) {
-        simulation.consumeCharge(id);
+      // The cast uses one charge of the first required aura that is up,
+      // whatever the attack's outcome (#261, js/required-auras.js): Ambush
+      // takes the cutthroat aura. Later ones in the list are left alone, and
+      // when that first one has no charges (duration only) nothing is used:
+      // the cast does not skip ahead to a later charged aura. After the cast
+      // event, so the log reads cast, expire.
+      const used = this.requiresAura.find((id) => simulation.hasAura(id));
+      if (used !== undefined) {
+        simulation.consumeCharge(used);
       }
       if (this.triggersGcd) {
         simulation.setGcd();

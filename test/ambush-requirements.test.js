@@ -477,7 +477,7 @@ describe("the requirements are data (#261)", () => {
     );
   });
 
-  it("with more than one id, any one up meets it, and the cast uses a charge of each that is up", () => {
+  it("with more than one id, any one up meets it, and the cast uses a charge of the first that is up", () => {
     const ambush = ABILITY_DEFINITIONS.find(({ id }) => id === "ambush");
     const either = { ...ambush, requiresAura: ["slice-and-dice", "cutthroat"] };
     const sliceAndDice = () => ({ duration: 30 });
@@ -503,10 +503,10 @@ describe("the requirements are data (#261)", () => {
       assert.equal(ability.auraReachable(rogue), true, label);
       assert.equal(ability.canCast(rogue, simulation), castable, label);
       assert.equal(ability.cast(rogue, simulation) !== null, castable, label);
-      // Slice and Dice has no charges, so it stays; cutthroat's one charge
-      // goes whenever it was up for a cast.
+      // Slice and Dice is listed first and has no charges, so it stays; when
+      // it is up it is the aura the cast uses, so cutthroat stays up too.
       assert.equal(simulation.hasAura("slice-and-dice"), snd, label);
-      assert.equal(simulation.hasAura("cutthroat"), false, label);
+      assert.equal(simulation.hasAura("cutthroat"), snd && cut, label);
     }
     // Reachable when any one is granted, and not otherwise.
     const { rogue } = ready("dagger");
@@ -514,6 +514,134 @@ describe("the requirements are data (#261)", () => {
     assert.equal(ability.auraReachable(rogue), false);
     rogue.grantedAuras.add("slice-and-dice");
     assert.equal(ability.auraReachable(rogue), true);
+  });
+
+  it("two charged auras: a cast uses one charge of only the first listed that is up (the coordinator, QA round 1b)", () => {
+    const ambush = ABILITY_DEFINITIONS.find(({ id }) => id === "ambush");
+    const coldBlood = () => ({ duration: k("coldBlood").duration });
+    // [listed, cold blood up, cutthroat up, what is up after the cast]
+    const cases = [
+      [["cold-blood", "cutthroat"], true, true, ["cutthroat"]],
+      [["cold-blood", "cutthroat"], false, true, []],
+      [["cold-blood", "cutthroat"], true, false, []],
+      [["cutthroat", "cold-blood"], true, true, ["cold-blood"]],
+      [["cutthroat", "cold-blood"], true, false, []],
+      [["cutthroat", "cold-blood"], false, true, []],
+    ];
+    for (const [requiresAura, cold, cut, after] of cases) {
+      const { rogue, simulation } = ready("dagger");
+      allowCutthroat(rogue);
+      const ability = new Ability({ ...ambush, requiresAura }, rogue);
+      if (cold) {
+        simulation.applyAura(AURAS.coldBlood, coldBlood());
+      }
+      if (cut) {
+        procCutthroat(simulation);
+      }
+      const used = [];
+      const consume = simulation.consumeCharge.bind(simulation);
+      simulation.consumeCharge = (id, ...rest) => {
+        used.push(id);
+        return consume(id, ...rest);
+      };
+      // A miss: Cold Blood's crit has no say in it, so only the requirement
+      // uses a charge (Simulation.consumeCharge from Ability.cast).
+      simulation.rng = () => 0;
+      const label = JSON.stringify({ requiresAura, cold, cut });
+      assert.ok(ability.cast(rogue, simulation), label);
+      const up = ["cold-blood", "cutthroat"].filter((id) =>
+        simulation.hasAura(id),
+      );
+      assert.deepEqual(up, after, label);
+      // Exactly one charge is asked for: the first listed aura that was up.
+      const first = requiresAura.find((id) =>
+        id === "cold-blood" ? cold : cut,
+      );
+      assert.deepEqual(used, [first], label);
+    }
+  });
+
+  it("two auras of three charges, both up: only the first listed loses a charge, the other keeps all three; the reverse order the opposite (Kira, QA round 1b)", () => {
+    const ambush = ABILITY_DEFINITIONS.find(({ id }) => id === "ambush");
+    const apply = {
+      "cold-blood": (simulation) =>
+        simulation.applyAura(AURAS.coldBlood, {
+          duration: k("coldBlood").duration,
+        }),
+      cutthroat: (simulation) => procCutthroat(simulation),
+    };
+    for (const [first, second] of [
+      ["cold-blood", "cutthroat"],
+      ["cutthroat", "cold-blood"],
+    ]) {
+      const { rogue, simulation } = ready("dagger");
+      allowCutthroat(rogue);
+      const ability = new Ability(
+        { ...ambush, requiresAura: [first, second] },
+        rogue,
+      );
+      // Three charges each, for this test only, so a charge used shows as a
+      // count and not only as the aura ending.
+      for (const id of [first, second]) {
+        apply[id](simulation);
+        simulation.activeBuffs[id].charges = 3;
+      }
+      // A miss: Cold Blood's crit has no say, so only the requirement uses a
+      // charge.
+      simulation.rng = () => 0;
+      const label = JSON.stringify([first, second]);
+      assert.ok(ability.cast(rogue, simulation), label);
+      assert.equal(simulation.activeBuffs[first].charges, 2, label);
+      assert.equal(simulation.activeBuffs[second].charges, 3, label);
+    }
+  });
+
+  it("the first aura up pays: when it has no charges the cast uses nothing and does not skip ahead to a later charged aura (Kira, QA round 1b)", () => {
+    const ambush = ABILITY_DEFINITIONS.find(({ id }) => id === "ambush");
+    const apply = {
+      "cold-blood": (simulation) =>
+        simulation.applyAura(AURAS.coldBlood, {
+          duration: k("coldBlood").duration,
+        }),
+      cutthroat: (simulation) => procCutthroat(simulation),
+    };
+    for (const second of ["cutthroat", "cold-blood"]) {
+      const { rogue, simulation } = ready("dagger");
+      allowCutthroat(rogue);
+      const ability = new Ability(
+        { ...ambush, requiresAura: ["slice-and-dice", second] },
+        rogue,
+      );
+      simulation.applyAura(AURAS.sliceAndDice, { duration: 30 });
+      apply[second](simulation);
+      simulation.activeBuffs[second].charges = 3;
+      const used = [];
+      const consume = simulation.consumeCharge.bind(simulation);
+      simulation.consumeCharge = (id, ...rest) => {
+        used.push(id);
+        return consume(id, ...rest);
+      };
+      simulation.rng = () => 0;
+      assert.ok(ability.cast(rogue, simulation), second);
+      // Slice and Dice (duration only) stays up, untouched; the charged aura
+      // after it keeps every charge.
+      assert.equal(simulation.hasAura("slice-and-dice"), true, second);
+      assert.equal(
+        simulation.activeBuffs["slice-and-dice"].duration,
+        30,
+        second,
+      );
+      assert.equal(
+        simulation.activeBuffs["slice-and-dice"].charges,
+        null,
+        second,
+      );
+      assert.equal(simulation.activeBuffs[second].charges, 3, second);
+      assert.ok(
+        used.every((id) => id === "slice-and-dice"),
+        second,
+      );
+    }
   });
 
   it("Premeditation is unchanged: it requires no aura and casts with no aura up", () => {
