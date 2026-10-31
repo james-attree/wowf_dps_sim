@@ -1,6 +1,6 @@
 import { k } from "../../data/constants.js";
 import { formatNumber } from "../charts.js";
-import { isStale, staleStatus } from "./stale.js";
+import { isStale, ranOf, staleStatus } from "./stale.js";
 
 // What the run control bar (#153) shows, as plain data: the field rules, the
 // buttons' labels and states, the status line, what a screen reader hears on
@@ -506,6 +506,56 @@ export function summaryText(run) {
   return `${LIVE_NAME} · ${seconds} · ${seed}`;
 }
 
+// The fight length changed after a kept result ran (#245, Fran's #260
+// check): a light, neutral note beside the result, "Ran with 5 × 10 s ·
+// Fight is now 50 × 120 s". The result is not out of date (the run fields
+// are the next run's, js/views/stale.js), so no amber and no "Run again";
+// a change to the fights or the seed alone says nothing. Null with no kept
+// result of that kind, while a run is going, with the same length, or
+// while the length field has an error (its Fix link says so).
+export function lengthNote(state, kind) {
+  const { run } = state;
+  const record = ranOf(state, kind);
+  const errors = run.errors ?? {};
+  if (
+    record === null ||
+    isLocked(run) ||
+    errors.duration !== undefined ||
+    record.duration === run.duration
+  ) {
+    return null;
+  }
+  const now = unitPart(secondsText(run.duration));
+  const then = unitPart(secondsText(record.duration));
+  if (kind === "batch") {
+    const fights =
+      errors.iterations === undefined ? grouped(run.iterations) : "?";
+    return `Ran with ${grouped(state.batch.result.completed)} × ${then} · Fight is now ${fights} × ${now}`;
+  }
+  return `Ran with ${then} · Fight is now ${now}`;
+}
+
+// The dock's summary beside a result it shows (#245, Fran's #260 check):
+// the settings that result ran with, not the next run's, so the line and
+// the DPS beside it are about the same fights. Null when the dock shows no
+// result: a batch done or stopped with fights, or a finished live fight.
+function shownSummary(state) {
+  const { run, batch } = state;
+  if (run.mode === "batch") {
+    const record = ranOf(state, "batch");
+    const shown =
+      record !== null &&
+      (batch.status === "done" || batch.status === "cancelled");
+    return shown
+      ? `${AVERAGE_NAME} · ${compact(batch.result.completed)} × ${unitPart(secondsText(record.duration))}`
+      : null;
+  }
+  const record = ranOf(state, "live");
+  return record !== null && run.state === "finished"
+    ? `${LIVE_NAME} · ${unitPart(secondsText(record.duration))}`
+    : null;
+}
+
 // An out-of-date result (#242): what the dock's status says.
 export const STALE_SHORT = "⟳ Out of date";
 
@@ -517,13 +567,14 @@ export const STALE_SHORT = "⟳ Out of date";
 // seed …" and the blocked reason, only come with no DPS beside them.
 // Blocked, it is the narrow row's short reason ("Talents over cap") or
 // "Can't run", over the "Fix N settings" link. A kept result of the mode's
-// that ran with other settings says it is out of date (#242).
+// that ran with other settings says it is out of date (#242). Beside a
+// result it shows, the summary is what that result ran with (shownSummary).
 export function dockText(state) {
   const { run, batch, results } = state;
   const bad = new Set(fieldErrors(run));
   const part = (name, text) => (bad.has(name) ? "?" : text);
   const seconds = unitPart(part("duration", secondsText(run.duration)));
-  const summary =
+  let summary =
     run.mode === "batch"
       ? `${AVERAGE_NAME} · ${part("iterations", compact(run.iterations))} × ${seconds}`
       : `${LIVE_NAME} · ${seconds}`;
@@ -534,6 +585,10 @@ export function dockText(state) {
   const ready = `Ready · ${seedPart(run.seed)}`;
   if (!isLocked(run) && isStale(state, run.mode)) {
     return { summary, status: STALE_SHORT };
+  }
+  const shown = shownSummary(state);
+  if (shown !== null) {
+    summary = shown;
   }
   if (run.mode === "batch") {
     const result = batch.result;

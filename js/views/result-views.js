@@ -2,6 +2,7 @@ import {
   blocked,
   grouped,
   isLocked,
+  lengthNote,
   secondsText,
   seedPart,
   staleFixTitle,
@@ -110,12 +111,14 @@ export function resultViewsModel(state) {
     blocked: blocked(state),
     average: {
       label: averageLabel(state),
+      note: lengthNote(state, "batch"),
       stale: averageStale,
       run: averageStale === null ? "Run average" : "Run average again",
       watch: "Watch fight",
     },
     live: {
       label: liveLabel(state),
+      note: lengthNote(state, "live"),
       stale: liveStale,
       run:
         liveStale !== null ||
@@ -204,6 +207,16 @@ export function createResultViewsView(doc, store, actions) {
     }
     write(doc.querySelector("#results-average-label"), model.average.label);
     write(doc.querySelector("#results-live-label"), model.live.label);
+    for (const [id, note] of [
+      ["results-average-note", model.average.note],
+      ["results-live-note", model.live.note],
+    ]) {
+      const node = doc.querySelector(`#${id}`);
+      if (node !== null) {
+        node.hidden = note === null;
+        write(node, note ?? "");
+      }
+    }
     drawBanner(
       doc.querySelector("#results-average-stale"),
       model.average.stale,

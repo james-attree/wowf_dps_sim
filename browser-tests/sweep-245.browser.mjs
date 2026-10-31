@@ -554,3 +554,62 @@ describe("the damage table fits a wide screen in DejaVu Sans (#245, item 26)", (
     }
   });
 });
+
+const NEXT_SECONDS = "6";
+const NEXT_FIGHTS = "8";
+
+describe("a result beside changed run fields (#245, Fran's #260 check)", () => {
+  test("a new fight length gets a neutral note, and the dock keeps the result's run", async () => {
+    const { context, page, errors } = await open(PHONE, "#fight");
+    try {
+      await batch(page);
+      await page.evaluate(() => {
+        globalThis.location.hash = "#fight";
+      });
+      await page.fill("#run-iterations", NEXT_FIGHTS);
+      await page.locator("#run-iterations").blur();
+      await page.evaluate(() => {
+        globalThis.location.hash = "#results";
+      });
+      const note = page.locator("#results-average-note");
+      // The fights alone say nothing.
+      assert.equal(await note.isVisible(), false);
+      await page.evaluate(() => {
+        globalThis.location.hash = "#fight";
+      });
+      await page.fill("#run-duration", NEXT_SECONDS);
+      await page.locator("#run-duration").blur();
+      await page.evaluate(() => {
+        globalThis.location.hash = "#results";
+      });
+      await note.waitFor();
+      const seen = await page.evaluate(() => {
+        const node = document.querySelector("#results-average-note");
+        const banner = document.querySelector("#results-average-stale");
+        return {
+          text: node.textContent,
+          banner: banner !== null && banner.checkVisibility(),
+          summary: document
+            .querySelector("#run-summary")
+            .getAttribute("data-dock"),
+        };
+      });
+      assert.equal(
+        seen.text,
+        `Ran with ${BATCH_FIGHTS} × ${FIGHT_SECONDS}\u00a0s · Fight is now ${NEXT_FIGHTS} × ${NEXT_SECONDS}\u00a0s`,
+      );
+      assert.equal(seen.banner, false, "no out-of-date banner");
+      assert.doesNotMatch(
+        await page.locator("#results-average").innerText(),
+        /Run again/,
+      );
+      assert.equal(
+        seen.summary,
+        `Average · ${BATCH_FIGHTS} × ${FIGHT_SECONDS}\u00a0s`,
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});

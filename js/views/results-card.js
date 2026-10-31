@@ -5,6 +5,7 @@ import {
   NO_BREAK_SPACE,
   RUN_AVERAGE,
   clock,
+  lengthNote,
   seedPart,
   staleFixTitle,
 } from "./run-model.js";
@@ -123,6 +124,13 @@ function staleLine(state) {
   );
 }
 
+// The fight length changed after the average ran (#245): the Results
+// view's neutral note, over the average it is about.
+function noteLine(state) {
+  const note = lengthNote(state, "batch");
+  return note !== null && line("ran-note", [note]);
+}
+
 function batchPart(batch, run, buildLabel) {
   const result = batch.result;
   if (batch.status === "running") {
@@ -186,6 +194,7 @@ export function cardModel(state, { buildLabel }) {
     busy: running,
     body: [
       ...(running ? [] : [staleLine(state)]),
+      ...(running ? [] : [noteLine(state)]),
       ...batchPart(batch, run, buildLabel),
     ].filter(Boolean),
     open: ["running", "done", "cancelled", "error"].includes(status),
