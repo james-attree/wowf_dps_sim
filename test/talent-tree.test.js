@@ -249,8 +249,11 @@ describe("talent tree model (#204)", () => {
     }
     // §6 counted 17 / 6 / 30 at d84a160. Since #207, Ghostly Strike,
     // Hemorrhage and Premeditation have entries (the talent grants the
-    // ability), so they are simulated: 20 / 6 / 27.
-    assert.deepEqual(counts, { simulated: 20, noDps: 6, notSimulated: 27 });
+    // ability), so they are simulated: 20 / 6 / 27. #266 simulates Vigor,
+    // Vile Poisons, Improved Poisons, Seal Fate and Murder (+5) and marks
+    // Improved Gouge, Remorseless Attacks and Improved Kidney Shot as no DPS
+    // (+3): 25 / 9 / 19.
+    assert.deepEqual(counts, { simulated: 25, noDps: 9, notSimulated: 19 });
   });
 
   it("counts picked talents the sim does not model yet in the summary", () => {

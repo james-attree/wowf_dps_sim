@@ -136,10 +136,14 @@ const AURA_TALENTS = {
 };
 
 // Not DPS: defence, utility, or a strike the simulator does not cast. The
-// reasons are the data's own (`noDpsEffect`).
+// reasons are the data's own (`noDpsEffect`). Combat's only: since #266 other
+// trees have no-DPS entries too.
 const NOT_DPS = Object.fromEntries(
   Object.entries(TALENT_EFFECTS)
-    .filter(([, effect]) => effect.noDpsEffect !== undefined)
+    .filter(
+      ([id, effect]) =>
+        id.startsWith("combat.") && effect.noDpsEffect !== undefined,
+    )
     .map(([id, effect]) => [id, effect.noDpsEffect]),
 );
 

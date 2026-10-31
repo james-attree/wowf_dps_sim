@@ -480,10 +480,16 @@ export const poisonCatalogue = buildPoisonCatalogue(snapshot);
 function poisonProc(poison, hand, read, bonus) {
   const { effect } = poison.top;
   // A9 (#266): a poisonChance bonus adds percentage points, capped at
-  // poison.chanceCap. At 0 the export's chance stands untouched (no float op).
+  // poison.chanceCap. The sum is taken in whole points (poison.chancePoints per
+  // 1) and divided once, so 20% + 10 is exactly 0.3, not 0.30000000000000004.
+  // At 0 the export's chance stands untouched (no float op).
+  const points = read("poison.chancePoints");
   const chance =
     bonus > 0
-      ? Math.min(read("poison.chanceCap"), poison.top.chance + bonus)
+      ? Math.min(
+          read("poison.chanceCap"),
+          Math.round((poison.top.chance + bonus) * points) / points,
+        )
       : poison.top.chance;
   const id = `${poison.id}.${hand}`;
   // A poison rolls on every landed hit of its hand: a white swing, and any

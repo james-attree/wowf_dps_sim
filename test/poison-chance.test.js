@@ -14,6 +14,14 @@ const INSTANT = 0.2;
 const DEADLY = 0.3;
 const TEN = 0.1;
 const NINETY = 0.9;
+// The exact sums A9 names, written as literals so a float drift shows.
+const INSTANT_PLUS_10 = 0.3;
+const INSTANT_PLUS_20 = 0.4;
+const DEADLY_PLUS_10 = 0.4;
+const DEADLY_PLUS_20 = 0.5;
+const IMPROVED_POISONS = [0.02, 0.04, 0.06, 0.08, 0.1];
+const INSTANT_BY_RANK = [0.22, 0.24, 0.26, 0.28, 0.3];
+const DEADLY_BY_RANK = [0.32, 0.34, 0.36, 0.38, 0.4];
 
 function bonus(...values) {
   return values.map((value) => ({ kind: "poisonChance", op: "add", value }));
@@ -45,15 +53,29 @@ describe("poisonChance (#266, A9)", () => {
     const at = (...values) =>
       chances(new Rogue({ poisons: BOTH }, { modifiers: bonus(...values) }));
     // Instant 20% + 10 (Improved Poisons 5/5) = 30%; + 10 (Venom) = 40%.
+    // Exactly: 0.2 + 0.1 in floats is 0.30000000000000004, and A9 says exact.
     assert.deepEqual(at(TEN), [
-      ["instant-poison.mainHand", INSTANT + TEN],
-      ["deadly-poison.offHand", DEADLY + TEN],
+      ["instant-poison.mainHand", INSTANT_PLUS_10],
+      ["deadly-poison.offHand", DEADLY_PLUS_10],
     ]);
     assert.deepEqual(at(TEN, TEN), [
-      ["instant-poison.mainHand", INSTANT + (TEN + TEN)],
-      ["deadly-poison.offHand", DEADLY + (TEN + TEN)],
+      ["instant-poison.mainHand", INSTANT_PLUS_20],
+      ["deadly-poison.offHand", DEADLY_PLUS_20],
     ]);
-    assert.ok(Math.abs(at(TEN, TEN)[0][1] - 0.4) < k("sim.tickEpsilon"));
+    assert.equal(at(TEN)[0][1], INSTANT_PLUS_10);
+  });
+
+  it("is exact at every Improved Poisons rank", () => {
+    IMPROVED_POISONS.forEach((value, index) => {
+      assert.deepEqual(
+        chances(new Rogue({ poisons: BOTH }, { modifiers: bonus(value) })),
+        [
+          ["instant-poison.mainHand", INSTANT_BY_RANK[index]],
+          ["deadly-poison.offHand", DEADLY_BY_RANK[index]],
+        ],
+        `rank ${index + 1}`,
+      );
+    });
   });
 
   it("is capped at 100%", () => {
@@ -62,6 +84,24 @@ describe("poisonChance (#266, A9)", () => {
       ["instant-poison.mainHand", 1],
       ["deadly-poison.offHand", 1],
     ]);
+  });
+
+  it("caps exactly at the cap: 20 + 80 points reaches it, 30 + 180 passes it", () => {
+    const cap = k("poison.chanceCap");
+    const at = (...values) =>
+      chances(new Rogue({ poisons: BOTH }, { modifiers: bonus(...values) }));
+    // Instant 20 + 80 reaches the cap; Deadly 30 + 80 passes it.
+    for (const [, chance] of at(NINETY - TEN)) {
+      assert.ok(chance <= cap, `${chance}`);
+    }
+    assert.deepEqual(
+      at(NINETY - TEN).map(([, chance]) => chance),
+      [cap, cap],
+    );
+    assert.deepEqual(
+      at(NINETY, NINETY).map(([, chance]) => chance),
+      [cap, cap],
+    );
   });
 
   it("registers no proc and draws nothing without a poison, or at 0 (G2)", () => {

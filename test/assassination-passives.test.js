@@ -19,7 +19,7 @@ const POISONS = { mainHand: "instant", offHand: "deadly" };
 const HALF = 0.5;
 const RELATIVE = 1e-12;
 const VILE = 0.2;
-const IMPROVED = 0.1;
+const EPSILON = 1e-9;
 
 function without(ids) {
   return Object.fromEntries(
@@ -29,6 +29,36 @@ function without(ids) {
 
 function sources(modifiers, id) {
   return modifiers.filter((modifier) => modifier.source === id);
+}
+
+// One Sinister Strike crit (critChance 1) from `start` CP with Seal Fate at
+// `rank`. Every rng draw is 0.5 except Seal Fate's, which is `roll`: it is the
+// draw after the ones the strike takes with no Seal Fate.
+function strike(rank, start, roll = HALF) {
+  const run = (talents, rng) => {
+    const { procs } = expandTalents(talents);
+    const rogue = new Rogue({ character: { critChance: 1 } }, { procs });
+    const sim = new Simulation(rogue, { rng });
+    rogue.comboPoints = start;
+    rogue.abilities.sinisterStrike.cast(rogue, sim);
+    return { rogue, sim };
+  };
+  let draws = 0;
+  run({}, () => {
+    draws += 1;
+    return HALF;
+  });
+  let at = 0;
+  const { rogue, sim } = run({ "assassination.seal-fate": rank }, () => {
+    at += 1;
+    return at > draws ? roll : HALF;
+  });
+  assert.equal(at, rank > 0 ? draws + 1 : draws);
+  return {
+    comboPoints: rogue.comboPoints,
+    overflow: rogue.resources.comboPoints.waste().overflow,
+    fires: sim.procs.stats["seal-fate"]?.fires ?? 0,
+  };
 }
 
 describe("Assassination passives (#266)", () => {
@@ -115,8 +145,9 @@ describe("Assassination passives (#266)", () => {
         .filter((proc) => /poison/.test(proc.id))
         .map((proc) => [proc.id, proc.chance.value]),
       [
-        ["instant-poison.mainHand", 0.2 + IMPROVED],
-        ["deadly-poison.offHand", 0.3 + IMPROVED],
+        // Exact (A9): 20 + 10 and 30 + 10 whole points, not a float sum.
+        ["instant-poison.mainHand", 0.3],
+        ["deadly-poison.offHand", 0.4],
       ],
     );
     assert.equal(k("poison.charges"), "unlimited");
@@ -162,6 +193,53 @@ describe("Assassination passives (#266)", () => {
       const index = points.indexOf(event);
       assert.ok(builders.includes(points[index - 1].source), event.time);
       assert.equal(points[index - 1].time, event.time);
+    }
+  });
+
+  it("Seal Fate's point is capped at 5 CP from every starting count, and the lost point is overflow", () => {
+    const max = k("combo.max");
+    const rank = k("sealFate.comboPoint").chance.length;
+    const gain = strike(0, 0).comboPoints;
+    for (let start = 0; start <= max; start += 1) {
+      const { comboPoints, overflow, fires } = strike(rank, start, HALF);
+      assert.equal(fires, 1, `start ${start}`);
+      assert.equal(
+        comboPoints,
+        Math.min(max, start + gain + 1),
+        `start ${start}`,
+      );
+      assert.equal(
+        overflow,
+        Math.max(0, start + gain + 1 - max),
+        `start ${start}`,
+      );
+    }
+  });
+
+  it("Seal Fate fires on a roll under its rank's chance, at every rank", () => {
+    const chances = k("sealFate.comboPoint").chance;
+    assert.deepEqual(chances, [0.2, 0.4, 0.6, 0.8, 1]);
+    for (let rank = 1; rank <= chances.length; rank += 1) {
+      const chance = chances[rank - 1];
+      assert.equal(
+        expandTalents({ "assassination.seal-fate": rank }).procs[0].chance
+          .value,
+        chance,
+      );
+      // An rng draw is under 1, so the top rank has no roll that misses.
+      const rolls = [[chance - EPSILON, true]];
+      if (chance < 1) {
+        rolls.push([chance, false]);
+      }
+      for (const [roll, fires] of rolls) {
+        const result = strike(rank, 0, roll);
+        assert.equal(result.fires, fires ? 1 : 0, `rank ${rank} roll ${roll}`);
+        assert.equal(
+          result.comboPoints,
+          strike(0, 0).comboPoints + (fires ? 1 : 0),
+          `rank ${rank} roll ${roll}`,
+        );
+      }
     }
   });
 

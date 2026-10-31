@@ -1117,6 +1117,14 @@ export const CONSTANTS = {
     "The most a poison's chance to apply can reach. A poisonChance modifier (Improved Poisons, Venom) adds percentage points to the export's chance (Instant 20% + 10 + 10 = 40%), and the sum is capped here. With no poisonChance modifier the chance is the export's, untouched (js/poisons.js).",
     true,
   ),
+  "poison.chancePoints": entry(
+    100,
+    "points per 1",
+    ASSUMPTION,
+    "James, 31 Oct 2026, issue #266: A9 of the Phase 4.6 plan v4 (approved with yes to all): poison chance bonuses are additive percentage points, so the sum is a whole number of points",
+    "A poison's chance with a poisonChance bonus is rounded to whole percentage points (js/poisons.js): the export's chances and every rank of Improved Poisons and Venom are whole points, so the rounding only removes float error (0.2 + 0.1 is 0.3 exactly).",
+    false,
+  ),
   "poison.charges": entry(
     "unlimited",
     "–",
