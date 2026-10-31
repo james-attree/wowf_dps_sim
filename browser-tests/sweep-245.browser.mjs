@@ -613,3 +613,67 @@ describe("a result beside changed run fields (#245, Fran's #260 check)", () => {
     }
   });
 });
+
+// James's ruling (#245, Fran's check): Ambush gets no lock, warning or note.
+// Its rule is passed over (nothing grants "Ambush allowed", #262), so an
+// always-true rule above it is not said to starve it. A genuine trap on
+// another ability still shows.
+async function addRule(page, action) {
+  await page.evaluate(() => {
+    globalThis.location.hash = "#rotation";
+  });
+  await page.selectOption("#rb-add-action", action);
+  await page.getByRole("button", { name: "Add rule" }).click();
+  await page.evaluate(() => {
+    globalThis.location.hash = "#rotation";
+  });
+  await page.locator(".rule-list").waitFor();
+}
+
+const builderNotes = (page) =>
+  page.evaluate(() => ({
+    messages: [...document.querySelectorAll(".rule-msg")]
+      .filter((node) => node.checkVisibility())
+      .map((node) => node.textContent.trim()),
+    last: [
+      ...document.querySelectorAll(".rule-list > li:last-child .chip"),
+    ].map((node) => node.textContent.trim()),
+    dock: document.querySelector(".run-warnings-link")?.checkVisibility(),
+    lastName: document
+      .querySelector(
+        ".rule-list > li:last-child h3, .rule-list > li:last-child .rule-title",
+      )
+      ?.textContent.trim(),
+  }));
+
+describe("an Ambush rule in the builder (#245, James's ruling)", () => {
+  test("on a dagger build it shows no warning or note", async () => {
+    const { context, page, errors } = await open(WIDE, "#character/gear");
+    try {
+      await page.selectOption("#cfg-weapons-mainHand-type", "dagger");
+      await addRule(page, "ambush");
+      const seen = await builderNotes(page);
+      assert.match(seen.lastName, /Rule 8: Ambush/);
+      assert.deepEqual(seen.messages, []);
+      assert.deepEqual(seen.last, []);
+      assert.equal(seen.dock, false);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("a dagger ability under an always-true rule still warns", async () => {
+    const { context, page, errors } = await open(WIDE, "#rotation");
+    try {
+      await addRule(page, "backstab");
+      const seen = await builderNotes(page);
+      assert.equal(seen.messages.length, 1);
+      assert.match(seen.messages[0], /^⚠ Check .*Never cast: rule 8, Backstab/);
+      assert.equal(seen.dock, true);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
