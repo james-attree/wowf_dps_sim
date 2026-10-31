@@ -892,9 +892,7 @@ protected: it lapses until the points are built (a known gap, not handled here).
   Once Cutthroat grants it, the rule is passed over while the aura is down and
   cast while it is up. A
   rotation may still hold an Ambush rule: the validator and the warnings say
-  nothing about it. A rule above it that always holds is not said to starve
-  it, as it never casts anyway (#245, James's ruling). Mutilate lists a dagger
-  requirement in the ability
+  nothing about it. Mutilate lists a dagger requirement in the ability
   catalogue too, and it is not enforced.
 
 ## Import and export
