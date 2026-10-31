@@ -22,7 +22,7 @@ import {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const COMBAT_TALENT = "combat.precision";
 const ASSASSINATION_MAPPED = "assassination.malice";
-const ASSASSINATION_UNMAPPED = "assassination.murder";
+const ASSASSINATION_UNMAPPED = "assassination.improved-expose-armor";
 const SUBTLETY_UNMAPPED = "subtlety.opportunity";
 
 // A copy of the effects map that a test may change.

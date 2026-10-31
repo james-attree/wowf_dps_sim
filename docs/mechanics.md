@@ -3010,6 +3010,46 @@ and the crit suppression order above, and no `runFight` or `SimConfig` change. `
 data (its keys are in the catalogue's order, so `procsFromTalents` lists
 Puncturing Wounds before Hack and Slash).
 
+### Assassination passives (#266, P4.6-03)
+
+Data in `data/talent-effects.js`, numbers read back from the rank text at every
+rank by `test/assassination-passives.test.js`.
+
+- **Vigor** (2 ranks): `resourceMax` +5/+10 scoped to energy, so the energy cap
+  is 110 at 2/2. The value is whole, so the rule that energy rounds down to
+  whole numbers (James, Q4) has nothing to round.
+- **Vile Poisons** (5 ranks): `damage` +4/8/12/16/20% scoped to the `poison`
+  tag, the percent stacking of the other damage modifiers. It applies to Instant
+  Poison's hit and to Deadly Poison's tick (read when the stack is applied), so
+  at 5/5 each is exactly 1.2 times the same hit without the talent. The dispel
+  resistance in the text does nothing in the sim.
+- **Improved Poisons** (5 ranks): `poisonChance` +2/4/6/8/10 points, the A9
+  kind above (Instant 20% + 10 = 30%, Deadly 30% + 10 = 40%). The half that
+  saves charges does nothing, since `poison.charges` is unlimited.
+- **Seal Fate** (5 ranks, A8, `sealFate.comboPoint`, `sealFate.stacking`): an
+  `onCrit` proc, 20/40/60/80/100%, on the combo point builders only (the
+  abilities with `comboPointsAwarded` above 0: Ambush, Cheap Shot, Garrote,
+  Mutilate, Backstab, Gouge, Sinister Strike, Ghostly Strike, Hemorrhage and
+  Premeditation). A finisher's or a white hit's crit does not fire it. The point
+  comes after the builder's own and adds to Ruthlessness and Premeditation; the
+  pool's cap (`combo.max`, 5) holds, and a point over it is lost (counted as the
+  pool's overflow, with no resource event).
+- **Murder** (2 ranks): `damage` +2/4% on all damage, with
+  `mobTypes: ["humanoid", "giant"]` (`murder.mobTypes`). `expandTalents` takes
+  a fourth argument, the target (default `{ mobType: k("target.mobType") }`),
+  and drops an entry's modifiers and procs when its `mobTypes` does not include
+  the target's type. `target.mobType` is "unspecified", and SimConfig has no
+  mob type field yet, so Murder is inert: mapped, so not `unmapped`, and with
+  no modifier.
+- **No DPS effect**: Improved Gouge (Gouge is crowd control, not cast for
+  damage), Remorseless Attacks (needs a kill, and the one target does not die)
+  and Improved Kidney Shot (the stun is not simulated).
+
+Mutilate, Improved Expose Armor and Venom still have no entry. The golden case
+`assassination-build-seed-266-60s` runs a 51-point Assassination build
+(`ASSASSINATION_BUILD` in `scripts/golden-update.mjs`) with Instant and Deadly
+Poison for 60 s.
+
 ## Applying a talent build (D7, issue #106)
 
 `config.talents` is applied by the engine. `new Rogue(config)` (so `runFight` and

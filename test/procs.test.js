@@ -918,6 +918,7 @@ describe("Hack and Slash and Puncturing Wounds", () => {
     assert.deepEqual(Object.keys(PROC_TABLES), [
       "assassination.ruthlessness",
       "assassination.relentless-strikes",
+      "assassination.seal-fate",
       "combat.puncturing-wounds",
       "combat.hack-and-slash",
     ]);

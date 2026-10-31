@@ -38,7 +38,7 @@ import { k } from "./constants.js";
 // amount in the snapshot's own rank text by test/talent-effects.test.js, at
 // every rank. A proc's chance reads the constants row that records it
 // (hackAndSlash.extraAttack, puncturingWounds.comboPoint, ruthlessness.comboPoint,
-// relentlessStrikes.energy), and the same test checks those against the text too. So the numbers live in data/, none in
+// relentlessStrikes.energy, sealFate.comboPoint), and the same test checks those against the text too. So the numbers live in data/, none in
 // js/, and the provenance is the `talents.*` row of data/constants.js.
 //
 // The six Assassination talents the reference build spends points on are D8a
@@ -50,8 +50,29 @@ import { k } from "./constants.js";
 // Cold Blood (PR 2) is the ability it grants, whose aura carries the crit. A
 // talent with no entry and a rank above 0 is reported by expandTalents as
 // `unmapped`.
+//
+// The other Assassination passives are #266 (P4.6-03): Vigor (`resourceMax` on
+// energy), Vile Poisons (`damage` on the poison tag), Improved Poisons (the
+// `poisonChance` kind, A9; its charges half does nothing, since charges are
+// unlimited), Seal Fate (an onCrit proc on the combo point builders, A8) and
+// Murder. Murder's `mobTypes` lists the target types it works on
+// (murder.mobTypes); expandTalents drops its modifiers unless target.mobType is
+// one of them, so it is inert while the type is "unspecified". Improved Gouge,
+// Remorseless Attacks and Improved Kidney Shot have no DPS effect.
 
 const RAW = {
+  "assassination.improved-gouge": {
+    textHash:
+      "cbd0fe5d96d32988f6b33fffa1637bca4337104a2a87c9e9d1cdad3f86818a4d",
+    noDpsEffect:
+      "Gouge duration: Gouge is crowd control, and no rotation casts it for damage.",
+  },
+  "assassination.remorseless-attacks": {
+    textHash:
+      "1a278d147e617da5aa5d9b62766a746475548f05b5320b9284df853a7995496b",
+    noDpsEffect:
+      "Needs a kill first: the sim is one target that does not die before the fight ends.",
+  },
   "assassination.malice": {
     textHash:
       "b6f605a788c6f69c3b1f01d974ebc845b2300d103dccd2d084079950115958b4",
@@ -84,6 +105,12 @@ const RAW = {
         ],
       },
     ],
+  },
+  "assassination.murder": {
+    textHash:
+      "0922403a7f99b2ff844da74f1d405e8cff2c4c6d7ff75f4ac93d498656472dcc",
+    mobTypes: [...k("murder.mobTypes")],
+    modifiers: [{ kind: "damage", op: "add", values: [0.02, 0.04] }],
   },
   "assassination.improved-slice-and-dice": {
     textHash:
@@ -140,10 +167,70 @@ const RAW = {
       },
     ],
   },
+  "assassination.vile-poisons": {
+    textHash:
+      "6884dfa0909d14da09310fb82a6bff2ec66817b3e0dfd9c1a5ad766eba99f75a",
+    modifiers: [
+      {
+        kind: "damage",
+        op: "add",
+        values: [0.04, 0.08, 0.12, 0.16, 0.2],
+        scope: { tags: ["poison"] },
+      },
+    ],
+  },
   "assassination.cold-blood": {
     textHash:
       "b1adbe8487451b905ff2fbdf485f350745f66c3049d08505f00cfada8b163a09",
     ability: "cold-blood",
+  },
+  "assassination.improved-poisons": {
+    textHash:
+      "7a6d241ac7c74aecaf77e6bbd6d6eff17424d6f432cb795761957ee693216b46",
+    modifiers: [
+      {
+        kind: "poisonChance",
+        op: "add",
+        values: [0.02, 0.04, 0.06, 0.08, 0.1],
+      },
+    ],
+  },
+  "assassination.vigor": {
+    textHash:
+      "6cf7f109e3aa1f99662f5119b753d60c667b8674b0eabe1b96bdeed52c00a452",
+    modifiers: [
+      {
+        kind: "resourceMax",
+        op: "add",
+        values: [5, 10],
+        scope: { resources: ["energy"] },
+      },
+    ],
+  },
+  "assassination.improved-kidney-shot": {
+    textHash:
+      "0277d504a1d78ca13eaec1720c2788ccf6f3c0b89474eb336caf2c0b89761b18",
+    noDpsEffect:
+      "Only against a stunned target: Kidney Shot's stun is not simulated, and no rotation casts it.",
+  },
+  "assassination.seal-fate": {
+    textHash:
+      "acd452f2180e3f0b08d4df0421400c746b9382a4aa5b33bc82b3a9c81c2d467e",
+    procs: [
+      {
+        id: "seal-fate",
+        trigger: "onCrit",
+        scope: { abilities: [...k("sealFate.comboPoint").abilities] },
+        chance: { mode: "flat", values: [...k("sealFate.comboPoint").chance] },
+        actions: [
+          {
+            type: "gainResource",
+            resource: "comboPoints",
+            amount: k("sealFate.comboPoint").comboPoints,
+          },
+        ],
+      },
+    ],
   },
   "combat.improved-eviscerate": {
     textHash:
