@@ -1666,8 +1666,11 @@ h3 {
   line-height: 1.35;
 }
 
-.poison-charges {
-  white-space: nowrap;
+/* "Charges not tracked" moves to the next line as a whole, after the dot,
+   and wraps only when that line is too narrow for it, as at large text on
+   a phone (#245): no-wrap made the field wider than the screen. */
+.poison-charges-text {
+  display: inline-block;
 }
 
 /* A poison the sim does not simulate (#152): Fran's amber, 9.67:1. */

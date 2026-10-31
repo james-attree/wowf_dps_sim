@@ -162,6 +162,7 @@
 }
 .talent-tree-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin: 0 0 10px;
@@ -607,8 +608,11 @@
 /* The tab strip's line and the chosen tab's edge are a control's, so they
    are --control-border, 3:1 or more on the panel (#244, UX6; was --border,
    about 1.6:1), and so is the tree they open onto. */
+/* The tabs share the row, each at least its label's width, and wrap to a
+   second row when the labels do not fit, as at 200% text on a phone (#245). */
 .talents-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-top: 12px;
   border-bottom: 1px solid var(--control-border);
@@ -618,8 +622,8 @@
 }
 .talents-tab {
   display: flex;
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 1 auto;
+  width: min-content;
   min-height: 44px;
   align-items: center;
   justify-content: center;
@@ -639,8 +643,6 @@
   border-radius: 4px;
 }
 .talents-tab span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .talents-tab-points {
