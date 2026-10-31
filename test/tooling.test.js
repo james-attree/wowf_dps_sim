@@ -60,8 +60,10 @@ describe("dev package", () => {
       assert.doesNotMatch(pkg.scripts[name], /golden|bench/);
     }
     // @eslint/js ships the recommended config; ESLint 10 does not bundle it.
+    // axe-core is the browser tests' accessibility check (#245).
     assert.deepEqual(Object.keys(pkg.devDependencies).sort(), [
       "@eslint/js",
+      "axe-core",
       "eslint",
       "playwright-core",
       "prettier",

@@ -3,7 +3,9 @@ import {
   grouped,
   isLocked,
   secondsText,
+  seedPart,
   staleFixTitle,
+  unitPart,
 } from "./run-model.js";
 import { ranClock, ranOf, staleBanner } from "./stale.js";
 
@@ -35,11 +37,8 @@ const ONE = 1;
 const MAIN_BUTTON = 0;
 const fightsWord = (count) => (count === ONE ? "fight" : "fights");
 
-// "seed" and its number never part at a line end: a no-break space joins
-// them (#245, Fran's #258 check, P5: the label wrapped between them on a
-// narrow phone).
-const NO_BREAK_SPACE = "\u00a0";
-const seedPart = (seed) => `seed${NO_BREAK_SPACE}${seed}`;
+// "seed" and its number never part at a line end (#245, Fran's #258 check,
+// P5): js/views/run-model.js's seedPart joins them with a no-break space.
 
 // "Average · 1,000 × 300 s fights · seed 42 · ran at 09:12 · partial".
 function averageLabel(state) {
@@ -53,7 +52,7 @@ function averageLabel(state) {
   }
   const parts = [
     "Average",
-    `${grouped(batch.result.completed)} × ${secondsText(record.duration)} s ${fightsWord(batch.result.completed)}`,
+    `${grouped(batch.result.completed)} × ${unitPart(secondsText(record.duration))} ${fightsWord(batch.result.completed)}`,
     seedPart(record.seed),
   ];
   const at = ranClock(record.at);
@@ -83,7 +82,7 @@ function liveLabel(state) {
   }
   const parts = [
     "Live fight",
-    `${secondsText(record.duration)} s`,
+    unitPart(secondsText(record.duration)),
     seedPart(record.seed),
   ];
   const at = ranClock(record.at);

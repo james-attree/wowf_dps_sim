@@ -183,7 +183,7 @@ describe("the results panel states (#154)", () => {
     const empty = model({});
     assert.equal(empty.title, "Results");
     assert.equal(empty.meta, "");
-    assert.match(text(empty.body), /No batch results yet/);
+    assert.match(text(empty.body), /No average yet/);
     assert.equal(/<button/.test(markup(empty.body)), false);
   });
 
@@ -196,11 +196,11 @@ describe("the results panel states (#154)", () => {
       },
       { ...RUN, state: "running", snapshot: config() },
     );
-    assert.equal(running.title, "Running batch…");
+    assert.equal(running.title, "Running average…");
     assert.equal(running.busy, true);
     assert.equal(
       running.meta,
-      "24 × 60 s fights · seed 154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
+      "24 × 60\u00a0s fights · seed\u00a0154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
     );
     const html = markup(running.body);
     assert.match(text(running.body), /0 of 24 fights/);
@@ -251,7 +251,7 @@ describe("the results panel states (#154)", () => {
     assert.equal(shown.busy, false);
     assert.equal(
       shown.meta,
-      "24 × 60 s fights · seed 154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
+      "24 × 60\u00a0s fights · seed\u00a0154 · Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
     );
     const html = markup(shown.body);
     const buttons = html.match(/<button[^>]*>/g) ?? [];
@@ -272,7 +272,7 @@ describe("the results panel states (#154)", () => {
       text(shown.body),
       /Partial result: stopped after 5 of 24 fights/,
     );
-    assert.match(shown.meta, /^5 × 60 s fights · seed 154/);
+    assert.match(shown.meta, /^5 × 60\u00a0s fights · seed\u00a0154/);
 
     const one = model({ status: "cancelled", result: single });
     assert.equal(one.title, "Results (partial)");
@@ -283,7 +283,7 @@ describe("the results panel states (#154)", () => {
   it("says Stopped, 0 fights when Stop came before any fight finished", () => {
     const shown = model({ status: "cancelled", result: zero });
     assert.equal(shown.title, "Results");
-    assert.match(shown.meta, /^Stopped · 0 of 24 fights · seed 154/);
+    assert.match(shown.meta, /^Stopped · 0 of 24 fights · seed\u00a0154/);
     assert.equal(/Average DPS/.test(text(shown.body)), false);
   });
 
@@ -598,7 +598,7 @@ describe("the results panel view (#154)", () => {
       }),
     });
     assert.equal(el("#results-panel").getAttribute("aria-busy"), "true");
-    assert.equal(el("#results-heading").textContent, "Running batch…");
+    assert.equal(el("#results-heading").textContent, "Running average…");
     assert.equal(
       el("#results-announce").textContent,
       "Batch started, 24 fights.",

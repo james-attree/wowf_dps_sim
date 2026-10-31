@@ -1,6 +1,13 @@
 import { el, toDom, toMarkup } from "../svg.js";
 import { breakdownModel, num, pct } from "./results-render.js";
-import { clock, staleFixTitle } from "./run-model.js";
+import {
+  AVERAGE_NAME,
+  NO_BREAK_SPACE,
+  RUN_AVERAGE,
+  clock,
+  seedPart,
+  staleFixTitle,
+} from "./run-model.js";
 import { formatNumber } from "../charts.js";
 import { isStale, staleBanner } from "./stale.js";
 
@@ -52,7 +59,7 @@ function average(result, buildLabel) {
         : "One fight: no confidence interval",
     ]),
     line("results-card-meta", [
-      `${ran} × ${count(result.duration)} s · seed ${result.seed}`,
+      `${ran} × ${count(result.duration)}${NO_BREAK_SPACE}s · ${seedPart(result.seed)}`,
     ]),
     line("results-card-meta", [buildLabel(result.config)]),
     el("dl", { class: "results-card-facts" }, [
@@ -75,7 +82,7 @@ function runningPart(batch, run, buildLabel) {
   const kept = previous !== null && previous.completed > NO_FIGHTS;
   return [
     line("results-card-status", [
-      `Running batch · ${count(completed)} of ${fights(total)}`,
+      `Running · ${count(completed)} of ${fights(total)}`,
     ]),
     completed > NO_FIGHTS &&
       mean !== null &&
@@ -132,13 +139,15 @@ function batchPart(batch, run, buildLabel) {
     return average(result, buildLabel);
   }
   if (batch.status === "error") {
-    return [line("results-card-status", ["The batch failed."])];
+    return [line("results-card-status", [`${AVERAGE_NAME} failed.`])];
   }
-  return [
-    line("results-card-status", [
-      "No average yet. Choose Average in Fight, then Run batch.",
-    ]),
-  ];
+  // What to do next depends on the run type already chosen (#245, Fran's
+  // #260 check): no "Choose Average" when it is.
+  const next =
+    run.mode === "batch"
+      ? `${RUN_AVERAGE} to get one.`
+      : `Choose ${AVERAGE_NAME} in Fight, then ${RUN_AVERAGE}.`;
+  return [line("results-card-status", [`No average yet. ${next}`])];
 }
 
 // The live fight's line: its DPS while it runs, is paused or has finished;

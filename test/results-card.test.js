@@ -63,9 +63,11 @@ before(() => {
 describe("the desktop summary card (#241)", () => {
   it("before any batch: no average yet, says how to get one, no link to open", () => {
     const model = cardModel(state({ status: "idle" }), LABELS);
+    // Average is the run type already (#245, Fran's #260 check).
+    assert.equal(text(model.body), "No average yet. Run average to get one.");
     assert.equal(
-      text(model.body),
-      "No average yet. Choose Average in Fight, then Run batch.",
+      text(cardModel(state({ status: "idle" }, { mode: "live" }), LABELS).body),
+      "No average yet. Choose Average in Fight, then Run average.",
     );
     assert.equal(model.open, false);
     assert.equal(model.busy, false);
@@ -140,7 +142,7 @@ describe("the desktop summary card (#241)", () => {
       state({ status: "running", progress: { completed: 3, total: 12 } }),
       LABELS,
     );
-    assert.equal(text(model.body), "Running batch · 3 of 12 fights");
+    assert.equal(text(model.body), "Running · 3 of 12 fights");
     assert.equal(model.busy, true);
     assert.equal(model.open, true);
   });
@@ -164,7 +166,7 @@ describe("the desktop summary card (#241)", () => {
 
   it("a failed batch says so", () => {
     const model = cardModel(state({ status: "error", error: "boom" }), LABELS);
-    assert.equal(text(model.body), "The batch failed.");
+    assert.equal(text(model.body), "Average failed.");
   });
 });
 

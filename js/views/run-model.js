@@ -350,6 +350,20 @@ function seedText(seed) {
   return seed === null ? "new at Run" : String(seed);
 }
 
+// A word and the number it goes with never part at a line end: a no-break
+// space joins "seed" and its number, and a number and its unit (#245; Fran's
+// #258 check, P5, and #260 check: "Ready · seed" wrapped from its number in
+// the dock at large text).
+export const NO_BREAK_SPACE = "\u00a0";
+export const seedPart = (seed) => `seed${NO_BREAK_SPACE}${seedText(seed)}`;
+export const unitPart = (value) => `${value}${NO_BREAK_SPACE}s`;
+
+// The two run types' names, the Run type switch's labels in Fight (#245:
+// one name each, everywhere; Fran's #260 check).
+export const AVERAGE_NAME = "Average";
+export const RUN_AVERAGE = "Run average";
+export const LIVE_NAME = "Live fight";
+
 function liveModel(state) {
   const { run, results } = state;
   const status = run.state;
@@ -365,14 +379,14 @@ function liveModel(state) {
     text = `Paused at ${clock(time)}`;
     announce = pausedAnnouncement(state, time, damage);
   } else if (status === "finished") {
-    text = `Finished · ${secondsText(time)} s · ${dpsText(damage, time)} DPS`;
+    text = `Finished · ${unitPart(secondsText(time))} · ${dpsText(damage, time)} DPS`;
     // A natural finish says the set fight length (#45, Scout).
     announce = `Finished at ${spokenTime(run.duration)}. Total damage ${damageText(damage)}. ${dpsNumber(damage, time, 1)} DPS.`;
   } else if (run.stoppedAt !== null) {
-    text = `Stopped at ${clock(run.stoppedAt)} · fight discarded · Run replays seed ${seedText(run.seed)} from 0:00`;
+    text = `Stopped at ${clock(run.stoppedAt)} · fight discarded · Run replays ${seedPart(run.seed)} from 0:00`;
     announce = `Stopped at ${spokenTime(run.stoppedAt)}. Fight discarded.`;
   } else {
-    text = `Ready · seed ${seedText(run.seed)}`;
+    text = `Ready · ${unitPart(secondsText(run.duration))} · ${seedPart(run.seed)}`;
     announce = "Ready";
   }
   const stale = !active && isStale(state, "live");
@@ -416,7 +430,7 @@ function batchModel(state) {
   // The results panel's live region says each of these (#154 §9), so the bar
   // stays quiet for them and only says Ready (#155: no announcement twice).
   if (running) {
-    text = `${grouped(completed)}/${compact(total)} ${fightsWord(total)} · Running batch`;
+    text = `${grouped(completed)}/${compact(total)} ${fightsWord(total)} · Running`;
     announce = null;
   } else if (status === "done") {
     const mean = formatNumber(result.summary.mean, 1);
@@ -430,10 +444,11 @@ function batchModel(state) {
         : `${kept} · Stopped`;
     announce = null;
   } else if (status === "error") {
-    text = `Batch failed: ${batch.error.message}`;
+    text = `${AVERAGE_NAME} failed: ${batch.error.message}`;
     announce = null;
   } else {
-    text = `Ready · ${fightCount(run.iterations)} · seed ${seedText(run.seed)}`;
+    // The fight length too (#245, Fran's #260 check): what Run will run.
+    text = `Ready · ${grouped(run.iterations)} × ${unitPart(secondsText(run.duration))} ${fightsWord(run.iterations)} · ${seedPart(run.seed)}`;
     announce = "Ready";
   }
   // An average run with other settings than today's (#242).
@@ -444,7 +459,7 @@ function batchModel(state) {
   const reason = !running && blocked(state) ? blockedReason(state) : null;
   return {
     run: {
-      label: stale ? "Run again" : "Run batch",
+      label: stale ? "Run again" : RUN_AVERAGE,
       disabled: running || blocked(state),
     },
     reason,
@@ -471,18 +486,19 @@ function batchModel(state) {
 }
 
 // The narrow bar's one-line summary of the next run's settings (Scout, #153):
-// "Live · 300 s · seed 1234" or "Batch · 1,000 × 300 s · seed 1234". It
-// follows the fields as they are typed; a field with an error shows "?".
+// "Live fight · 300 s · seed 1234" or "Average · 1,000 × 300 s · seed 1234"
+// (#245: the run types' own names). It follows the fields as they are
+// typed; a field with an error shows "?".
 export function summaryText(run) {
   const bad = new Set(fieldErrors(run));
   const part = (name, text) => (bad.has(name) ? "?" : text);
-  const seconds = part("duration", `${secondsText(run.duration)}`);
-  const seed = part("seed", seedText(run.seed));
+  const seconds = unitPart(part("duration", `${secondsText(run.duration)}`));
+  const seed = bad.has("seed") ? `seed${NO_BREAK_SPACE}?` : seedPart(run.seed);
   if (run.mode === "batch") {
     const fights = part("iterations", grouped(run.iterations));
-    return `Batch · ${fights} × ${seconds} s · seed ${seed}`;
+    return `${AVERAGE_NAME} · ${fights} × ${seconds} · ${seed}`;
   }
-  return `Live · ${seconds} s · seed ${seed}`;
+  return `${LIVE_NAME} · ${seconds} · ${seed}`;
 }
 
 // An out-of-date result (#242): what the dock's status says.
@@ -490,7 +506,7 @@ export const STALE_SHORT = "⟳ Out of date";
 
 // The phone dock's two lines (#240, UX2; proposal section 4), short enough
 // to fit beside the DPS and two buttons on the narrowest phones: the summary
-// without the seed ("Live · 300 s", "Batch · 1k × 300 s"), and a status
+// without the seed ("Live fight · 300 s", "Average · 1k × 300 s"), and a status
 // that leaves out what the summary, the DPS readout or the results say (a
 // live fight's length, a finished batch's total). The long lines, "Ready ·
 // seed …" and the blocked reason, only come with no DPS beside them.
@@ -501,16 +517,16 @@ export function dockText(state) {
   const { run, batch, results } = state;
   const bad = new Set(fieldErrors(run));
   const part = (name, text) => (bad.has(name) ? "?" : text);
-  const seconds = `${part("duration", secondsText(run.duration))} s`;
+  const seconds = unitPart(part("duration", secondsText(run.duration)));
   const summary =
     run.mode === "batch"
-      ? `Batch · ${part("iterations", compact(run.iterations))} × ${seconds}`
-      : `Live · ${seconds}`;
+      ? `${AVERAGE_NAME} · ${part("iterations", compact(run.iterations))} × ${seconds}`
+      : `${LIVE_NAME} · ${seconds}`;
   const model = controlsModel(state);
   if (model.reason !== null) {
     return { summary, status: model.statusShort ?? "Can't run" };
   }
-  const ready = `Ready · seed ${seedText(run.seed)}`;
+  const ready = `Ready · ${seedPart(run.seed)}`;
   if (!isLocked(run) && isStale(state, run.mode)) {
     return { summary, status: STALE_SHORT };
   }
@@ -523,7 +539,7 @@ export function dockText(state) {
       done: () =>
         `Done · ${compact(result.completed)} ${fightsWord(result.completed)}`,
       cancelled: () => `Stopped · ${compact(result.completed)}`,
-      error: () => "Batch failed",
+      error: () => `${AVERAGE_NAME} failed`,
     };
     return { summary, status: statuses[batch.status]?.() ?? ready };
   }
@@ -531,7 +547,7 @@ export function dockText(state) {
   const statuses = {
     running: () => `Running · ${clock(time)}`,
     paused: () => `Paused at ${clock(time)}`,
-    finished: () => `Finished · ${secondsText(time)} s`,
+    finished: () => `Finished · ${unitPart(secondsText(time))}`,
   };
   const stopped =
     run.stoppedAt === null ? ready : `Stopped at ${clock(run.stoppedAt)}`;
