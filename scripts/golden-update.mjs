@@ -74,6 +74,32 @@ function deepFreeze(value) {
   return value;
 }
 
+// Issue #266 (P4.6-03). A 51-point Assassination build (Assassination 43 /
+// Combat 8) that spends points on every Assassination passive #266 maps:
+// Vigor, Vile Poisons, Improved Poisons, Seal Fate and Murder (inert while
+// target.mobType is "unspecified"), with Malice, Ruthlessness, Relentless
+// Strikes, Lethality and Cold Blood, and the three no-DPS talents. No
+// Mutilate or Venom, which are not mapped yet.
+export const ASSASSINATION_BUILD = deepFreeze({
+  "assassination.improved-gouge": 3,
+  "assassination.remorseless-attacks": 2,
+  "assassination.malice": 5,
+  "assassination.ruthlessness": 3,
+  "assassination.murder": 2,
+  "assassination.improved-slice-and-dice": 3,
+  "assassination.relentless-strikes": 1,
+  "assassination.lethality": 5,
+  "assassination.vile-poisons": 5,
+  "assassination.cold-blood": 1,
+  "assassination.improved-poisons": 5,
+  "assassination.vigor": 2,
+  "assassination.improved-kidney-shot": 1,
+  "assassination.seal-fate": 5,
+  "combat.improved-sinister-strike": 2,
+  "combat.improved-eviscerate": 3,
+  "combat.precision": 3,
+});
+
 export const GOLDEN_CASES = deepFreeze([
   { name: "short-seed-1-10s", seed: 1, duration: 10 },
   { name: "five-minute-seed-1-300s", seed: 1, duration: 300 },
@@ -120,6 +146,17 @@ export const GOLDEN_CASES = deepFreeze([
     seed: 142,
     duration: 120,
     config: loadPreset("combat-swords", { talents: referenceBuild() }),
+  },
+  // Issue #266. The Assassination build above, with Instant Poison on the main
+  // hand and Deadly Poison on the off hand, on the default rotation.
+  {
+    name: "assassination-build-seed-266-60s",
+    seed: 266,
+    duration: 60,
+    config: {
+      talents: { ...ASSASSINATION_BUILD },
+      poisons: { mainHand: "instant", offHand: "deadly" },
+    },
   },
 ]);
 

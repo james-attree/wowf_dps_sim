@@ -86,7 +86,13 @@ export class Rogue {
     this.procs = checkProcs([
       ...this.build.procs,
       ...(options.procs ?? []),
-      ...poisonProcs(this.config.poisons),
+      // A poisonChance modifier (A9, #266) raises every poison's chance.
+      ...poisonProcs(
+        this.config.poisons,
+        undefined,
+        undefined,
+        this.modifiers.resolve("poisonChance", 0),
+      ),
     ]);
     // The ids of the abilities the build and the host grant, checked against
     // the catalogue.

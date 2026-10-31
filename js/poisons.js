@@ -477,8 +477,20 @@ export const poisonCatalogue = buildPoisonCatalogue(snapshot);
 //           size. The poison's own target aura (js/auras.js, same id) counts
 //           the stacks, up to the export's most.
 // A charge is never used up (poison.charges is "unlimited").
-function poisonProc(poison, hand, read) {
-  const { chance, effect } = poison.top;
+function poisonProc(poison, hand, read, bonus) {
+  const { effect } = poison.top;
+  // A9 (#266): a poisonChance bonus adds percentage points, capped at
+  // poison.chanceCap. The sum is taken in whole points (poison.chancePoints per
+  // 1) and divided once, so 20% + 10 is exactly 0.3, not 0.30000000000000004.
+  // At 0 the export's chance stands untouched (no float op).
+  const points = read("poison.chancePoints");
+  const chance =
+    bonus > 0
+      ? Math.min(
+          read("poison.chanceCap"),
+          Math.round((poison.top.chance + bonus) * points) / points,
+        )
+      : poison.top.chance;
   const id = `${poison.id}.${hand}`;
   // A poison rolls on every landed hit of its hand: a white swing, and any
   // ability, finishers included (they count as main-hand attacks). That is how
@@ -544,7 +556,13 @@ function poisonProc(poison, hand, read) {
 // with none, and a poison that deals no DPS here (Wound, Crippling and
 // Mind-numbing: poison.noDpsReasons), gives no proc, so a build without a DPS
 // poison has no procs and draws no extra random numbers.
-export function poisonProcs(poisons, catalogue = poisonCatalogue, read = k) {
+// `bonus` is the resolved poisonChance (A9, #266), 0 by default.
+export function poisonProcs(
+  poisons,
+  catalogue = poisonCatalogue,
+  read = k,
+  bonus = 0,
+) {
   const procs = [];
   for (const [hand, key] of Object.entries(poisons ?? {})) {
     if (key === null || key === undefined) {
@@ -557,7 +575,7 @@ export function poisonProcs(poisons, catalogue = poisonCatalogue, read = k) {
       );
     }
     if (poison.dps) {
-      procs.push(poisonProc(poison, hand, read));
+      procs.push(poisonProc(poison, hand, read, bonus));
     }
   }
   return procs;

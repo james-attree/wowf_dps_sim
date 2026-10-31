@@ -44,6 +44,7 @@ const EFFECT_KEYS = [
   "procs",
   "ability",
   "noDpsEffect",
+  "mobTypes",
 ];
 const NO_DPS_KEYS = ["textHash", "noDpsEffect"];
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
@@ -104,6 +105,14 @@ export function checkTalentEffects(
         fail(id, "noDpsEffect stands alone, with textHash.");
       }
       continue;
+    }
+    if (
+      entry.mobTypes !== undefined &&
+      (!Array.isArray(entry.mobTypes) ||
+        entry.mobTypes.length === 0 ||
+        entry.mobTypes.some((type) => typeof type !== "string" || type === ""))
+    ) {
+      fail(id, "mobTypes must be a non-empty list of target types.");
     }
     if (Object.keys(entry).every((key) => key === "textHash")) {
       fail(id, "an entry needs modifiers, procs, an ability or noDpsEffect.");
@@ -168,6 +177,7 @@ export function expandTalents(
   ranks = {},
   effects = TALENT_EFFECTS,
   catalogue = talentCatalogue,
+  target = { mobType: k("target.mobType") },
 ) {
   checkRanks(ranks, catalogue);
   const build = {
@@ -184,6 +194,13 @@ export function expandTalents(
       if (rank > 0) {
         build.unmapped.push(talent.id);
       }
+      continue;
+    }
+    if (
+      entry.mobTypes !== undefined &&
+      !entry.mobTypes.includes(target.mobType)
+    ) {
+      // Murder (#266): mapped, but off against any other target type.
       continue;
     }
     build.modifiers.push(...expandRank(entry.modifiers ?? [], rank, talent.id));

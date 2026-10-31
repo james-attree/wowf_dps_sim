@@ -759,14 +759,10 @@ describe("the build's modifiers reach poison damage where the talent says so", (
     assert.equal(modifiers.resolve("damage", 100, deadly), 100);
   });
 
-  it("Vile Poisons, Improved Poisons and Venom are not modelled yet and are reported as unmapped", () => {
+  it("Venom is not modelled yet and is reported as unmapped (Vile Poisons and Improved Poisons are #266)", () => {
     const build = swap(BOUNDARY, {});
     const { unmapped } = createFight(1, { talents: build }).build;
-    for (const id of [
-      "assassination.vile-poisons",
-      "assassination.improved-poisons",
-      "assassination.venom",
-    ]) {
+    for (const id of ["assassination.venom"]) {
       assert.ok(unmapped.includes(id), id);
       assert.equal(TALENT_EFFECTS[id], undefined);
     }

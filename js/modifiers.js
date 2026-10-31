@@ -78,6 +78,10 @@ const NO_SCOPE = Object.freeze([]);
 //   haste           fraction of attack speed, stacked by haste.stacking
 //   duration        seconds an ability's aura lasts, never below 0 (Improved
 //                   Slice and Dice). Scoped by ability; Ability.resolve applies it
+//   poisonChance    fraction added to every poison's chance to apply, in
+//                   percentage points (A9, #266: Improved Poisons, Venom).
+//                   Resolved once when the Rogue builds its poison procs
+//                   (js/poisons.js), capped at poison.chanceCap
 export const MODIFIER_KINDS = Object.freeze({
   attackPower: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
   critChance: Object.freeze({ scope: EVERY_SCOPE }),
@@ -92,6 +96,7 @@ export const MODIFIER_KINDS = Object.freeze({
   critDamage: Object.freeze({ scope: EVERY_SCOPE, floor: 1 }),
   haste: Object.freeze({ scope: NO_SCOPE }),
   duration: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
+  poisonChance: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
 });
 
 export const STACKING_FORMS = Object.freeze([
