@@ -6,11 +6,10 @@ import {
   controlsModel,
   dockDps,
   dockText,
-  errorsText,
+  fixLinkText,
   fieldErrors,
   firstFormError,
   focusTarget,
-  formErrorCount,
   rotationErrorCount,
   warningsText,
   talentErrorCount,
@@ -178,12 +177,7 @@ export function createControlsView(doc, store, actions = {}) {
     const dps = dockDps(state);
     write(dpsValue, dps.value);
     write(dpsLabel, dps.label);
-    const fix = errorsText(
-      run,
-      formErrorCount(state.form) +
-        talentErrorCount(state) +
-        rotationErrorCount(state),
-    );
+    const fix = fixLinkText(state);
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
     row.classList.toggle("has-errors", fix !== null);

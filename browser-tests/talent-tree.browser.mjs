@@ -169,7 +169,7 @@ for (const width of WIDTHS) {
       assert.equal(bar.describedBy, "run-reason");
     });
 
-    test("over the cap, Fix 1 setting opens the tree and focuses Level", async () => {
+    test("over the cap, Fix the talents opens the tree and focuses Level", async () => {
       await clickCentre(page, "assassination.malice");
       await clickCentre(page, "assassination.malice");
       await page.fill("#talents-level", "10");
@@ -182,7 +182,7 @@ for (const width of WIDTHS) {
         "Can't run · Talents over the level cap",
       );
       const link = page.locator("#run-errors-link");
-      assert.equal(await link.textContent(), "Fix 1 setting");
+      assert.equal(await link.textContent(), "Fix the talents");
       await link.click();
       await page.locator("#talent-tree").waitFor({ state: "visible" });
       assert.equal(

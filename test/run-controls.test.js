@@ -966,7 +966,52 @@ describe("Run's blocked check is its count (#237)", () => {
       talents: { ...page.store.get().talents, error: TALENTS.overCap },
       form: { ...page.store.get().form, rotationErrors: ROTATION.bad },
     });
-    assert.equal(page.model().reason, "Can't run · 4 settings to fix");
+    // Fran's #245 N1: the rotation and the talents are named, not counted.
+    assert.equal(
+      page.model().reason,
+      "Can't run · fix the rotation, the talents and 2 settings",
+    );
+  });
+});
+
+describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
+  it("only the run and stats fields are counted as settings", () => {
+    const page = setup();
+    const { doc, el } = standIn({
+      absent: ['#config-form [aria-invalid="true"]'],
+    });
+    createControlsView(doc, page.store, page.actions);
+    const link = el("run-errors-link");
+    const set = ({ errors = {}, rotation = [], talents = null }) =>
+      page.store.set({
+        form: { ...page.store.get().form, errors, rotationErrors: rotation },
+        talents: { ...page.store.get().talents, error: talents },
+      });
+    const ROTATION = { bad: [{ path: "name", code: "nameEmpty" }] };
+    const TALENTS = { overCap: "Over the cap." };
+    const two = { "rogue.agility": "Bad.", "rogue.strength": "Bad." };
+    const cases = [
+      [{ errors: two }, "Can't run · 2 settings to fix", "Fix 2 settings"],
+      [
+        { rotation: ROTATION.bad, talents: TALENTS.overCap },
+        "Can't run · fix the rotation and the talents",
+        "Fix the rotation and the talents",
+      ],
+      [
+        { errors: two, rotation: ROTATION.bad, talents: TALENTS.overCap },
+        "Can't run · fix the rotation, the talents and 2 settings",
+        "Fix the rotation, the talents and 2 settings",
+      ],
+    ];
+    for (const [over, reason, fix] of cases) {
+      set(over);
+      assert.equal(page.model().reason, reason);
+      assert.equal(el("run-reason").textContent, reason);
+      assert.equal(link.textContent, fix);
+      assert.doesNotMatch(link.textContent, /[3-9] settings/);
+    }
+    set({});
+    assert.equal(link.hidden, true);
   });
 });
 
@@ -993,13 +1038,16 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     assert.equal(page.model().reason, "Can't run · Rotation has 1 error");
   });
 
-  it("with another blocker too, the rotation is one of the settings", () => {
+  it("with another blocker too, the rotation is named beside the settings (Fran's #245 N1)", () => {
     const page = setup();
     withErrors(page, 3);
     page.store.set({
       form: { ...page.store.get().form, errors: { "rogue.agility": "Bad." } },
     });
-    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    assert.equal(
+      page.model().reason,
+      "Can't run · fix the rotation and 1 setting",
+    );
     assert.equal(page.model().statusShort, null);
   });
 
@@ -1018,7 +1066,7 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     });
     const link = el("run-errors-link");
     assert.equal(link.hidden, false);
-    assert.equal(link.textContent, "Fix 1 setting");
+    assert.equal(link.textContent, "Fix the rotation");
     link.fire("click");
     assert.equal(fixed, 1);
   });
@@ -1040,11 +1088,14 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     assert.equal(page.model().reason, "Can't run · Talents over the level cap");
   });
 
-  it("with another blocker too, the reason counts the settings", () => {
+  it("with another blocker too, the reason names the talents beside the settings (Fran's #245 N1)", () => {
     const page = setup();
     overCap(page);
     page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
-    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    assert.equal(
+      page.model().reason,
+      "Can't run · fix the talents and 1 setting",
+    );
     assert.equal(page.model().statusShort, null, "that one fits the row");
   });
 
@@ -1090,7 +1141,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
   // The tree is Character's Talents screen (#244, UX6): revealing its Level
   // input shows the screen (the router's, browser-tests/character-screens),
   // so the Talents row is never clicked.
-  it("Fix 1 setting focuses the talent tree's Level input", () => {
+  it("Fix the talents focuses the talent tree's Level input", () => {
     const page = setup();
     const { doc, el } = standIn({
       absent: ['#config-form [aria-invalid="true"]'],
@@ -1104,7 +1155,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     overCap(page);
     const link = el("run-errors-link");
     assert.equal(link.hidden, false);
-    assert.equal(link.textContent, "Fix 1 setting");
+    assert.equal(link.textContent, "Fix the talents");
     assert.equal(
       el("run-reason").textContent,
       "Can't run · Talents over the level cap",

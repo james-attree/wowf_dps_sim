@@ -284,11 +284,26 @@ function listed(parts) {
   return `${parts.slice(FIRST_PART, last).join(", ")} and ${parts[last]}`;
 }
 
+// Only the run and stats fields are counted as settings (Fran's #245 N1):
+// with the rotation or the talents among the causes, each is named, as the
+// card and banners name them. "Can't run · fix the rotation and the talents".
+const fieldsOnly = (state) => fixParts(state).length === LAST_ONE;
+
 function blockedReason(state) {
   if (rotationOnly(state)) {
     return blockedText(1, state.form.rotationErrors.length);
   }
-  return blockedText(blockedCount(state), talentsOnly(state));
+  if (talentsOnly(state) || fieldsOnly(state)) {
+    return blockedText(blockedCount(state), talentsOnly(state));
+  }
+  return `Can't run · fix ${listed(fixParts(state))}`;
+}
+
+// The bar's Fix link (#155) while Run is blocked, or null: "Fix 2
+// settings" for the fields alone, and each cause named otherwise (Fran's
+// #245 N1), "Fix the talents", "Fix the rotation and 1 setting".
+export function fixLinkText(state) {
+  return blocked(state) ? `Fix ${listed(fixParts(state))}` : null;
 }
 
 // The narrow row's shorter status, or null when the status fits as it is.

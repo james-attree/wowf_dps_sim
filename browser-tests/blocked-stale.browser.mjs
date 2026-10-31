@@ -182,6 +182,17 @@ async function expect(page, what, step, { card }) {
     assert.match(now.status, /Out of date/, `${step}: status`);
   } else {
     assert.match(now.status, /^Can't run/, `${step}: status`);
+    // Fran's #245 N1: the Fix link and, with more than one cause, the
+    // reason name the same causes as the banners.
+    const fix = await page.locator("#run-errors-link").textContent();
+    assert.equal(fix, `Fix ${what}`, `${step}: the Fix link`);
+    if (what.includes(" and ")) {
+      assert.equal(
+        await page.locator("#run-reason").textContent(),
+        `Can't run · fix ${what}`,
+        `${step}: the reason`,
+      );
+    }
     assert.match(await dockSaid(page), /^Can't run|over cap|errors/, step);
   }
 }
