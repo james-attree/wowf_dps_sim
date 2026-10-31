@@ -319,6 +319,19 @@ export const AURAS = Object.freeze({
     duration: k("poison.deadly").duration,
     maxStacks: k("poison.deadly").stacks,
   }),
+  // "Ambush allowed" (#261): the self aura Ambush requires (requiresAura in
+  // js/ability-data.js; the hook in js/required-auras.js). It stands in for
+  // Cutthroat's proc ("your next Ambush within 10 sec to not require
+  // Stealth"): one charge, used by the next Ambush that goes ahead. It is not
+  // Stealth, and nothing in the sim treats it as being stealthed: it allows
+  // Ambush and does nothing else. No duration: whatever applies it gives one.
+  // Nothing applies it yet. Registered here so rotation conditions and the
+  // page's labels can name it; it has no effects, so it changes no damage.
+  cutthroat: defineAura({
+    id: "cutthroat",
+    name: "Ambush allowed",
+    charges: k("cutthroat.aura").charges,
+  }),
 });
 
 // Every definition keyed by id, in the order above.

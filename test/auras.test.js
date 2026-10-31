@@ -11,6 +11,7 @@ import {
 } from "../js/auras.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
+import { talentCatalogue } from "../js/talents.js";
 import { setRoll, testRng } from "./rolls.js";
 import { runOnCore } from "../js/core/fight.js";
 import { quiet } from "./quiet.js";
@@ -120,6 +121,17 @@ describe("aura definitions", () => {
         // Poisons join the catalogue in D9 (#104). Until then the id is the
         // slug of the poison's DoT, which other tests already use.
         assert.equal(abilityCatalogue.get(aura.id), undefined);
+        continue;
+      }
+      if (key === "cutthroat") {
+        // Cutthroat's proc (#261): a talent's aura, not an ability's, and
+        // labelled by what it does (the coordinator's "Ambush allowed").
+        assert.equal(abilityCatalogue.get(aura.id), undefined);
+        assert.equal(
+          talentCatalogue.get("subtlety.cutthroat").name,
+          "Cutthroat",
+        );
+        assert.equal(aura.name, "Ambush allowed");
         continue;
       }
       const ability = abilityCatalogue.get(aura.id);

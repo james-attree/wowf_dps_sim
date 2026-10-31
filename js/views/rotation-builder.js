@@ -498,7 +498,9 @@ export function createRotationBuilderView(doc, store, actions) {
           h("p", { key: `err${k}`, class: "field-error" }, mark("✕ "), text),
         ),
       ),
-      h("p", { key: "hint", class: "rule-hint" }, part.hint),
+      part.hint === null
+        ? null
+        : h("p", { key: "hint", class: "rule-hint" }, part.hint),
       h(
         "div",
         { key: "head", class: "cond-head" },
@@ -596,21 +598,24 @@ export function createRotationBuilderView(doc, store, actions) {
             rule.name,
           ),
           h("p", { class: "rule-line", id: rid(rule.uid, "line") }, rule.line),
-          h(
-            "p",
-            { class: "rule-chips" },
-            rule.chips.map((chip) =>
-              h(
-                "span",
-                {
-                  key: `chip:${chip.kind}`,
-                  class: chip.kind === "hint" ? "chip" : `chip is-${chip.kind}`,
-                },
-                chip.mark === "" ? null : mark(chip.mark),
-                chip.text,
+          rule.chips.length === 0
+            ? null
+            : h(
+                "p",
+                { class: "rule-chips" },
+                rule.chips.map((chip) =>
+                  h(
+                    "span",
+                    {
+                      key: `chip:${chip.kind}`,
+                      class:
+                        chip.kind === "hint" ? "chip" : `chip is-${chip.kind}`,
+                    },
+                    chip.mark === "" ? null : mark(chip.mark),
+                    chip.text,
+                  ),
+                ),
               ),
-            ),
-          ),
         ),
         h(
           "div",

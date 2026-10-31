@@ -8,6 +8,7 @@ import { Ability, createAbilities } from "../js/ability.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { k } from "../data/constants.js";
 import { runOnCore } from "../js/core/fight.js";
+import { grantCutthroat } from "./cutthroat-override.js";
 import { legacyAbilities } from "./legacy-skills.js";
 
 // Issue #98. The generic executor (js/ability.js) must do what the skill
@@ -59,7 +60,7 @@ function castEverything(rogue, simulation, order) {
   return { casts: [], outcome: "none" };
 }
 
-function fight({ seed, config, options, everything }) {
+function fight({ seed, config, options, everything, cutthroat }) {
   const rogue = new Rogue(config, options);
   const draws = [];
   const source = createRng(seed);
@@ -71,7 +72,14 @@ function fight({ seed, config, options, everything }) {
   const simulation = new Simulation(rogue, { rng });
   if (everything) {
     const order = { state: seed, last: null };
-    rogue.castRotation = (sim) => castEverything(rogue, sim, order);
+    rogue.castRotation = (sim) => {
+      // Ambush uses up the cutthroat aura, so the test-only override puts it
+      // back before every decision (#261).
+      if (cutthroat && !sim.hasAura("cutthroat")) {
+        grantCutthroat(rogue, sim);
+      }
+      castEverything(rogue, sim, order);
+    };
     runOnCore(simulation, DURATION, { pollEvery: POLL });
     simulation.end();
   } else {
@@ -159,8 +167,16 @@ describe("generic executor parity with the skill classes", () => {
   }
 
   it("casts every ability in the every-ability fights", () => {
-    // Daggers: Backstab is refused with any other main hand.
-    const { stats } = fight({ seed: 1, config: DAGGERS, everything: true });
+    // Daggers: Backstab and Ambush are refused with any other main hand.
+    // Ambush needs the cutthroat aura too, which nothing in a fight grants
+    // (#261), so the test-only override grants it here
+    // (test/cutthroat-override.js).
+    const { stats } = fight({
+      seed: 1,
+      config: DAGGERS,
+      everything: true,
+      cutthroat: true,
+    });
     for (const definition of ABILITY_DEFINITIONS.filter(
       (definition) => definition.id !== "cold-blood",
     )) {
