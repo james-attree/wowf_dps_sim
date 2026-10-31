@@ -159,7 +159,9 @@ const dockBoxes = (page) =>
         strip.getBoundingClientRect().top +
         Number.parseFloat(style.paddingTop) +
         first,
-      dps: doc.querySelector(".run-dps").getBoundingClientRect().left,
+      status: doc.getElementById("run-status-text").getBoundingClientRect()
+        .bottom,
+      dps: doc.querySelector(".run-dps").getBoundingClientRect().toJSON(),
       nav: doc.getElementById("area-nav").getBoundingClientRect().top,
     };
   });
@@ -211,7 +213,16 @@ describe("B2: the dock's Fix link counts, the wide one names (Fran's #260 check)
           assert.equal(at.lines, 1, `lines: ${where}`);
           assert.ok(at.text.bottom <= at.nav + EDGE, `on the nav: ${where}`);
           assert.ok(at.box >= at.row - EDGE, `on the status: ${where}`);
-          assert.ok(at.text.right <= at.dps + EDGE, `on the DPS: ${where}`);
+          assert.ok(
+            at.text.top >= at.status - EDGE,
+            `touches the status: ${where}`,
+          );
+          // Beside the DPS, or (bigger text, #245) above it on its own line.
+          assert.ok(
+            at.text.right <= at.dps.left + EDGE ||
+              at.text.bottom <= at.dps.top + EDGE,
+            `on the DPS: ${where}`,
+          );
           // The order: it goes to the first run field, a setting.
           await link.click();
           await focused(page, "run-duration");
