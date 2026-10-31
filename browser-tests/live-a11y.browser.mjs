@@ -287,7 +287,8 @@ for (const width of WIDTHS) {
       );
       assert.match(
         await page.textContent("#run-status-text"),
-        new RegExp(`^Finished · ${FIGHT_SECONDS} s · [\\d,]+\\.\\d DPS$`),
+        // The length keeps its unit: a no-break space (#245).
+        new RegExp(`^Finished · ${FIGHT_SECONDS}\u00a0s · [\\d,]+\\.\\d DPS$`),
       );
       assert.match(
         await page.textContent("#damage-value"),

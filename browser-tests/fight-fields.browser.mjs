@@ -242,7 +242,10 @@ describe("Run uses what Fight's fields show (#245, commitEdits)", () => {
       );
       assert.match(
         await page.locator("#results-average-label").textContent(),
-        new RegExp(`^Average · ${BATCH_FIGHTS} × ${TYPED_LENGTH} s fights`),
+        // The length keeps its unit: a no-break space (#245).
+        new RegExp(
+          `^Average · ${BATCH_FIGHTS} × ${TYPED_LENGTH}\u00a0s fights`,
+        ),
       );
       // The run fields are the next run's (js/views/stale.js): moving them
       // to Fight does not put the kept average out of date.

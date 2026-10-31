@@ -165,6 +165,7 @@
   gap: 6px;
 }
 .rule-list {
+  container: rule-list / inline-size;
   position: relative;
   margin: 0;
   padding: 0;
@@ -537,6 +538,20 @@
 }
 .rule-head > .rule-move {
   grid-column: 5;
+}
+/* A list only a few words wide (a wide screen at 200% text, with the
+   nav's column grown to its labels; Fran's #253 check, N6, and #245) takes
+   the phone's head: the ↑ ↓ pair drops under the title, so the title keeps
+   room for its words. */
+@container rule-list (width < 12em) {
+  .rule-head {
+    grid-template-columns: 44px auto 32px minmax(0, 1fr);
+  }
+  .rule-head > .rule-move {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    margin-top: -4px;
+  }
 }
 /* D20: the visible "Edited" marker on a preset with a session draft. */
 .edited-mark {

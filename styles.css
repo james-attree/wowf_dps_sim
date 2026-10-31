@@ -777,6 +777,8 @@ h3 {
     grid-column: 1;
     grid-row: 2;
     justify-self: start;
+    /* Its line's height only: the hit area below makes the touch target. */
+    min-height: 0;
     font-size: 0.8125rem;
     line-height: var(--strip-line);
   }
@@ -798,6 +800,8 @@ h3 {
     grid-column: 1;
     grid-row: 2;
     justify-self: start;
+    /* Its line's height only: the hit area below makes the touch target. */
+    min-height: 0;
     font-size: 0.8125rem;
     line-height: var(--strip-line);
     white-space: nowrap;
