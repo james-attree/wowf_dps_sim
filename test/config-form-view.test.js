@@ -89,6 +89,7 @@ const SELECTS = new Set([
 const PERCENT = new Set([
   "cfg-character-critChance",
   "cfg-character-bonusHitChance",
+  "cfg-character-haste",
 ]);
 
 function page({ narrow = false, run } = {}) {
@@ -722,7 +723,7 @@ describe("index.html's form", async () => {
     }
   });
 
-  it("marks the chances as percentages and only them", () => {
+  it("marks the chances and haste (#274) as percentages and only them", () => {
     const percent = [...form.matchAll(/<input\s[^>]*>/g)]
       .map(([tag]) => tag)
       .filter((tag) => /\bdata-percent\b/.test(tag))
@@ -730,6 +731,7 @@ describe("index.html's form", async () => {
     assert.deepEqual(percent.sort(), [
       "cfg-character-bonusHitChance",
       "cfg-character-critChance",
+      "cfg-character-haste",
     ]);
   });
 });

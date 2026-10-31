@@ -21,6 +21,8 @@ export const SCREENS = Object.freeze({
 });
 
 const ONE = 1;
+// No haste: the Stats summary leaves it out (#274).
+const NO_HASTE = 0;
 const DASH = "—";
 const HANDS = Object.freeze([
   Object.freeze({ key: "mainHand", name: "Main hand" }),
@@ -75,6 +77,10 @@ export function characterRows(form) {
         `${numberText(values["character.attackPower"])} attack power`,
         `${percentText(values["character.critChance"])} crit`,
         `${percentText(values["character.bonusHitChance"])} hit`,
+        // Left out at none (Fran 7), so the 360 summary keeps its one line.
+        ...(values["character.haste"] > NO_HASTE
+          ? [`${percentText(values["character.haste"])} haste`]
+          : []),
       ].join(" · "),
       fix: fix.stats,
     },

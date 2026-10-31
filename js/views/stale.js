@@ -18,6 +18,7 @@ const STAT_NAMES = Object.freeze({
   attackPower: "Attack power",
   critChance: "Crit chance",
   bonusHitChance: "Hit chance",
+  haste: "Haste",
 });
 const WEAPON_NAMES = Object.freeze({
   mainHand: "the main-hand weapon",

@@ -141,6 +141,9 @@ export const FORM_FIELDS = Object.freeze(
     },
     { path: "character.critChance", check: chance },
     { path: "character.bonusHitChance", check: chance },
+    // A fraction of attack speed, entered as a percent like the chances
+    // (#274): Classic haste, attacks only.
+    { path: "character.haste", check: chance },
     ...HANDS.flatMap(weaponFields),
     // The poison selects (#152). A select cannot hold anything else, so this
     // only catches a value set from outside the page.
