@@ -290,6 +290,40 @@ describe("the phone nav's labels stay whole at large text (#245; Fran's #258 che
   }
 });
 
+describe("the phone nav's labels stay on the screen (#245; Fran's #258 check)", () => {
+  for (const viewport of PHONES) {
+    for (const text of [null, ...LARGE_TEXT]) {
+      test(`at ${viewport.width}, ${text ?? "default"} text, with badges`, async () => {
+        const { context, page } = await open(viewport, "#results", text);
+        try {
+          const past = await page.$$eval(".area-nav a", (links) => {
+            const width = document.documentElement.clientWidth;
+            return links.map((link) => {
+              const badge = link.querySelector(".area-nav-badge");
+              badge.hidden = false;
+              badge.textContent = "12";
+              const range = document.createRange();
+              range.selectNodeContents(link);
+              const box = range.getBoundingClientRect();
+              return {
+                text: link.textContent.trim(),
+                left: box.left,
+                right: box.right - width,
+              };
+            });
+          });
+          for (const link of past) {
+            assert.ok(link.left >= -EDGE, `${link.text} past the left`);
+            assert.ok(link.right <= EDGE, `${link.text} ${link.right} past`);
+          }
+        } finally {
+          await context.close();
+        }
+      });
+    }
+  }
+});
+
 describe("the run help on a phone (#245)", () => {
   test("is not above the area's heading off Results, and stays Stop's description", async () => {
     const { context, page } = await open(PHONE, "#fight");
