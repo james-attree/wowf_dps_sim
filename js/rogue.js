@@ -56,7 +56,25 @@ export class Rogue {
     // The selected talent build: validated, then expanded (D7). Frozen.
     this.build = applyBuild(this.config.talents);
     // null means none, as it does for procs and abilities.
-    const hostModifiers = options.modifiers ?? [];
+    // Gear haste (config.character.haste, #265) is a static attack-speed
+    // modifier, added only when above 0 so haste 0 adds no float op. It speeds
+    // up the swing timer only (js/core/swing.js), not energy or the GCD.
+    const { haste } = this.config.character;
+    const extraModifiers = options.modifiers ?? [];
+    // A modifiers option that is not a list goes through as it is, for the
+    // pipeline to refuse with its own message.
+    const hostModifiers =
+      haste > 0 && Array.isArray(extraModifiers)
+        ? [
+            {
+              kind: "haste",
+              op: "add",
+              value: haste,
+              source: "character.haste",
+            },
+            ...extraModifiers,
+          ]
+        : extraModifiers;
     this.modifiers = new ModifierPipeline(
       this.build.modifiers.length === 0
         ? hostModifiers

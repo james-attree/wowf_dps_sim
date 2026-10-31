@@ -552,6 +552,30 @@ its remaining time. The `haste.stacking` note says wowsims rescales that
 swing in `UpdateSwingTimers`. This engine does not. The combination with
 Blade Flurry is the next section.
 
+## Character haste
+
+`config.character.haste` (#265) is gear and other non-talent haste, a
+fraction of attack speed: 0.05 is +5%. It defaults to `k("character.haste")`,
+0, an `assumption` whose ref is James's ruling of 31 Oct 2026: like Classic,
+attack speed only. `normalizeConfig` accepts 0 to 1 and refuses anything else
+with a RangeError; a config written before #265, with no `haste`, reads 0.
+
+The Rogue (`js/rogue.js`) turns it into one static `haste` `add` modifier,
+source `character.haste`, and only when it is above 0, so haste 0 adds no
+modifier and no float op: the swing interval is the weapon speed exactly, and
+every fight, golden and RNG draw is what it was before #265. The modifier
+comes before the auras, so under the multiplicative stacking below the swing
+interval is `speed / ((1 + haste) * SnD * BF)`, where SnD and BF are
+`1 + k("sliceAndDice").haste` and `1 + k("bladeFlurry").haste` while those
+buffs are up (A17).
+
+Haste speeds up auto-attacks (the swing timer) only. It does not touch
+energy regen, ability costs or the GCD: with a fixed roll, the cast and
+energy events of a fight are identical at any haste (test/haste.test.js).
+PPM procs keep the unhasted weapon speed. Like any haste change, it applies
+from the next swing: the swing timer reads its interval when a swing starts,
+and a swing already under way is not rescaled (Q3, `js/core/swing.js`).
+
 ## Haste stacking
 
 `stackHaste` in `js/rogue.js` reads `k("haste.stacking")`. The shipped value

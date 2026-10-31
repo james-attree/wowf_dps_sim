@@ -1195,6 +1195,14 @@ export const CONSTANTS = {
     "Non-talent hit only: Precision (up to +3%, three ranks of 1%) comes from the talent, so it is not here. 0.07 = 7% gear hit (Nightslayer Shoulder Pads 1%, Nightslayer Gloves 1%, Onyxia Tooth Pendant 1%, Band of Accuria 2%, Blackstone Ring 1%, Striker's Mark 1%). With Precision 3/3 the build has 10%. 9% is the yellow-attack cap (8% miss plus the engine's 1% suppression term in attackChances); white attacks keep gaining below the 27% cap. The default for config.character.bonusHitChance (SimConfig, js/sim-config.js).",
     true,
   ),
+  "character.haste": entry(
+    0,
+    "fraction",
+    ASSUMPTION,
+    "James, 31 Oct 2026, issue #265: like Classic, attack speed only (A17 and Q3 of the Phase 4.6 plan)",
+    "Gear and other non-talent haste, as a fraction of attack speed: 0.05 is +5%. Like Classic it speeds up auto-attacks (the swing timer) only, not energy regen or the GCD. Swing interval = speed / ((1 + haste) × Slice and Dice × Blade Flurry), combined under haste.stacking. PPM procs keep the unhasted weapon speed. A change applies from the next swing; a swing already under way is not rescaled. 0 to 1. The default for config.character.haste (SimConfig, js/sim-config.js); at 0 the rogue adds no haste modifier.",
+    true,
+  ),
   "character.dagger.attackPower": entry(
     769,
     "AP",

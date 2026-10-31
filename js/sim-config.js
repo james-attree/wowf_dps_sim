@@ -25,7 +25,7 @@ import { rotationProblems } from "./rotation-validator.js";
 // The shape (every field is optional; a missing one takes its default):
 //
 //   {
-//     character: { attackPower, critChance, bonusHitChance },
+//     character: { attackPower, critChance, bonusHitChance, haste },
 //     weapons: {
 //       mainHand: { min, max, speed, type },
 //       offHand:  { min, max, speed, type },
@@ -50,7 +50,12 @@ import { rotationProblems } from "./rotation-validator.js";
 // again, so a recorded config repeats the fight exactly.
 
 const HANDS = ["mainHand", "offHand"];
-const CHARACTER_FIELDS = ["attackPower", "critChance", "bonusHitChance"];
+const CHARACTER_FIELDS = [
+  "attackPower",
+  "critChance",
+  "bonusHitChance",
+  "haste",
+];
 const WEAPON_FIELDS = ["min", "max", "speed", "type"];
 const TARGET_FIELDS = ["behind"];
 const SECTIONS = [
@@ -75,6 +80,7 @@ export function defaultConfig() {
       attackPower: k("character.attackPower"),
       critChance: k("character.critChance"),
       bonusHitChance: k("character.bonusHitChance"),
+      haste: k("character.haste"),
     },
     weapons: { mainHand: weapon("mainHand"), offHand: weapon("offHand") },
     target: { behind: k("target.behind") },
@@ -195,7 +201,8 @@ function readCharacter(input, defaults) {
   const given = readObject(input, "config.character", CHARACTER_FIELDS);
   const result = {};
   for (const field of CHARACTER_FIELDS) {
-    // Attack power has no upper limit. A chance runs from 0 to 1.
+    // Attack power has no upper limit. A chance, and haste (a fraction of
+    // attack speed, #265), run from 0 to 1.
     const limits = field === "attackPower" ? {} : { max: 1 };
     result[field] = readNumber(
       given[field],
