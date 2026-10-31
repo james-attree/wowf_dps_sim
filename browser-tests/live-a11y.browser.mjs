@@ -357,7 +357,7 @@ for (const width of WIDTHS) {
       );
       assert.equal(said[0].text, `Average started, ${BATCH_FIGHTS} fights.`);
       for (const { text } of said.slice(1, -1)) {
-        assert.match(text, /^Batch \d+% done, \d+ of \d+ fights\.$/);
+        assert.match(text, /^Average \d+% done, \d+ of \d+ fights\.$/);
       }
       assert.match(
         said.at(-1).text,
