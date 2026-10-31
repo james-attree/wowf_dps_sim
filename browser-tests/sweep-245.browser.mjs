@@ -678,6 +678,52 @@ describe("an Ambush rule in the builder (#245, James's ruling)", () => {
   });
 });
 
+// #264 (Kira's #262 P2, Fran 4): the Ambush rule renders no hint chip and no
+// hint paragraph, on its card or in its editor, at each of Fran's widths.
+// Backstab, which has a hint, shows both, so the selectors are live.
+const FRAN_WIDTHS = [
+  { width: 360, height: 800 },
+  { width: 390, height: 844 },
+  { width: 1024, height: 800 },
+  { width: 1280, height: 800 },
+  { width: 1440, height: 900 },
+];
+const HINT_PARTS = ".rule-chips, .rule-hint";
+
+async function hintParts(page, action) {
+  await addRule(page, action);
+  const card = await page
+    .locator(`.rule-list > li:last-child :is(${HINT_PARTS})`)
+    .count();
+  const n = await page.locator(".rule-list > li").count();
+  await page.evaluate((hash) => {
+    globalThis.location.hash = hash;
+  }, `#rotation/rule/${n}`);
+  await page.locator(".rule-list").waitFor({ state: "detached" });
+  const editor = await page.locator(".rule-hint").count();
+  return { card, editor };
+}
+
+describe("an Ambush rule has no hint chip or hint (#264)", () => {
+  for (const size of FRAN_WIDTHS) {
+    test(`at ${size.width}`, async () => {
+      const { context, page, errors } = await open(size, "#character/gear");
+      try {
+        await page.selectOption("#cfg-weapons-mainHand-type", "dagger");
+        assert.deepEqual(await hintParts(page, "ambush"), {
+          card: 0,
+          editor: 0,
+        });
+        const backstab = await hintParts(page, "backstab");
+        assert.ok(backstab.card > 0 && backstab.editor > 0);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+});
+
 // Every number field the app has, broken: 12 settings (Fran's #263 check
 // had "Fix 12 issues" and "Fix 10 settings" over the nav at 360).
 const STATS_FIELDS = [
