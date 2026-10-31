@@ -226,16 +226,20 @@ export const rotationErrorsText = (count) =>
   `Rotation has ${count} ${count === 1 ? "error" : "errors"}`;
 export const ROTATION_ERRORS_SHORT = "Rotation errors";
 
+const CANT_RUN = "Can't run · ";
+// The first letter of the reason, capitalised once "Can't run" is dropped.
+const FIRST_LETTER = 1;
+
 // `only` names the one thing to fix when there is just one: true for the
 // talents (#204), or a rotation error count (#217).
 export function blockedText(count, only = false) {
   if (only === true) {
-    return `Can't run · ${TALENTS_OVER_CAP}`;
+    return `${CANT_RUN}${TALENTS_OVER_CAP}`;
   }
   if (typeof only === "number") {
-    return `Can't run · ${rotationErrorsText(only)}`;
+    return `${CANT_RUN}${rotationErrorsText(only)}`;
   }
-  return `Can't run · ${settings(count)} to fix`;
+  return `${CANT_RUN}${settings(count)} to fix`;
 }
 
 const talentsOnly = (state) => {
@@ -298,7 +302,16 @@ function blockedReason(state) {
   if (talentsOnly(state) || fieldsOnly(state)) {
     return blockedText(blockedCount(state), talentsOnly(state));
   }
-  return `Can't run · fix ${listed(fixParts(state))}`;
+  return `${CANT_RUN}fix ${listed(fixParts(state))}`;
+}
+
+// #run-reason, which describes Run and the dock's Fix link (#245, Fran's
+// #263 note): the status's reason less its "Can't run", which Run's state
+// and the dock's status already say. "Fix 3 settings, the talents and the
+// rotation", "2 settings to fix", "Rotation has 4 errors".
+function describedReason(status) {
+  const rest = status.slice(CANT_RUN.length);
+  return `${rest.slice(FIRST_PART, FIRST_LETTER).toUpperCase()}${rest.slice(FIRST_LETTER)}`;
 }
 
 // The bar's Fix link (#155) while Run is blocked, or null: "Fix 2
@@ -308,22 +321,18 @@ export function fixLinkText(state) {
   return blocked(state) ? `Fix ${listed(fixParts(state))}` : null;
 }
 
-// The phone dock's Fix link (Fran's #260 check, B2 and B2b), one line over
-// the nav at 200% text: the settings alone are counted as on wide screens,
-// "Fix 2 settings"; the talents or the rotation, alone or with other
-// causes, are counted as issues, "Fix 1 issue", "Fix 5 issues" (shorter
-// than "problems" and than a cause's name: it fits beside the DPS at 360
-// wide and 200% text). An issue is what blockedCount counts: each field
-// with an error, the talents over their cap, and the rotation's errors as
-// one. The Run panel, the reason line and wide screens keep the names, and
-// the link is described by the reason (js/views/controls.js). Only the
-// dock says "issue".
+// The phone dock's Fix link (Fran's #260 check, B2 and B2b, and her #263
+// note): every cause is counted as an issue, "Fix 1 issue", "Fix 5 issues",
+// the settings alone too, so the word never switches between "setting" and
+// "issue" (and "issues" is shorter than "settings": it fits beside the DPS
+// at 360 wide and 200% text, in DejaVu Sans too). An issue is what
+// blockedCount counts: each field with an error, the talents over their
+// cap, and the rotation's errors as one. The Run panel, the reason line and
+// wide screens keep the names, and the link is described by the reason
+// (js/views/controls.js). Only the dock says "issue".
 export function dockFixText(state) {
   if (!blocked(state)) {
     return null;
-  }
-  if (fieldsOnly(state) && !talentsOnly(state) && !rotationOnly(state)) {
-    return fixLinkText(state);
   }
   const count = blockedCount(state);
   return `Fix ${count} ${count === LAST_ONE ? "issue" : "issues"}`;
@@ -399,12 +408,13 @@ function liveModel(state) {
     text = staleStatus(state, "live");
   }
   const reason = !active && blocked(state) ? blockedReason(state) : null;
+  const described = reason === null ? null : describedReason(reason);
   return {
     run: {
       label: status === "finished" || stale ? "Run again" : "Run",
       disabled: active || blocked(state),
     },
-    reason,
+    reason: described,
     pause: {
       label: status === "paused" ? "Resume" : "Pause",
       resume: status === "paused",
@@ -462,12 +472,13 @@ function batchModel(state) {
     text = staleStatus(state, "batch");
   }
   const reason = !running && blocked(state) ? blockedReason(state) : null;
+  const described = reason === null ? null : describedReason(reason);
   return {
     run: {
       label: stale ? "Run again" : RUN_AVERAGE,
       disabled: running || blocked(state),
     },
-    reason,
+    reason: described,
     // Visible, never pressable: aria-disabled with the help line as the
     // reason, so a screen reader finds it and hears why.
     pause: { label: "Pause", resume: false, disabled: false, inert: true },

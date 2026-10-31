@@ -677,3 +677,134 @@ describe("an Ambush rule in the builder (#245, James's ruling)", () => {
     }
   });
 });
+
+// Every number field the app has, broken: 12 settings (Fran's #263 check
+// had "Fix 12 issues" and "Fix 10 settings" over the nav at 360).
+const STATS_FIELDS = [
+  "cfg-character-attackPower",
+  "cfg-character-critChance",
+  "cfg-character-bonusHitChance",
+];
+const GEAR_FIELDS = ["min", "max", "speed"].flatMap((part) => [
+  `cfg-weapons-mainHand-${part}`,
+  `cfg-weapons-offHand-${part}`,
+]);
+const RUN_FIELDS = ["run-duration", "run-seed", "run-iterations"];
+const BAD_NUMBER = "-99999";
+const ALL_BROKEN = STATS_FIELDS.length + GEAR_FIELDS.length + RUN_FIELDS.length;
+
+async function breakEveryField(page) {
+  await page.evaluate(() => {
+    document.location.hash = "#character/stats";
+  });
+  for (const id of STATS_FIELDS) {
+    await setField(page, `#${id}`, BAD_NUMBER);
+  }
+  await page.evaluate(() => {
+    document.location.hash = "#character/gear";
+  });
+  for (const id of GEAR_FIELDS) {
+    await setField(page, `#${id}`, BAD_NUMBER);
+  }
+  await page.evaluate(() => {
+    document.location.hash = "#fight";
+  });
+  for (const id of RUN_FIELDS) {
+    await setField(page, `#${id}`, BAD_NUMBER);
+  }
+}
+
+const navTop = (page) =>
+  page.$eval(".area-nav", (nav) => nav.getBoundingClientRect().top);
+
+describe("the dock's longest Fix link and status at 360 (#245; Fran's #263 check)", () => {
+  for (const text of LARGE_TEXT) {
+    test(`${text} text: 'Fix ${ALL_BROKEN} issues' stays over the nav`, async () => {
+      const { context, page, errors } = await open(PHONE, "#fight", text);
+      try {
+        await breakEveryField(page);
+        const link = page.locator("#run-errors-link");
+        await link.waitFor({ state: "visible" });
+        assert.equal(await link.textContent(), `Fix ${ALL_BROKEN} issues`);
+        const parts = await boxes(page, DOCK_PARTS);
+        assertDockFits(parts, PHONE.width, `${ALL_BROKEN} broken ${text}`);
+        const [line] = await lineCount(page, "#run-errors-link");
+        assert.equal(line.lines, 1, "the link is one line");
+        const nav = await navTop(page);
+        for (const [name, part] of Object.entries(parts)) {
+          assert.ok(part.bottom <= nav + EDGE, `${name} is on the nav`);
+        }
+        await shot(page, `dock-fix-all-${text}`);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+
+    test(`${text} text: a rotation error's status is whole`, async () => {
+      const { context, page, errors } = await open(
+        PHONE,
+        "#rotation/rule/6",
+        text,
+      );
+      try {
+        const condition = page.locator("input.cond-value").first();
+        await condition.waitFor({ state: "visible" });
+        await condition.fill("");
+        await condition.press("Tab");
+        const status = page.locator("#run-status-text");
+        await page.waitForFunction(
+          () =>
+            document.getElementById("run-status-text").dataset.dock ===
+            "Rotation errors",
+        );
+        assert.match(await status.textContent(), /^Can't run · Rotation/);
+        const parts = await boxes(page, DOCK_PARTS);
+        assertDockFits(parts, PHONE.width, `rotation ${text}`);
+        const nav = await navTop(page);
+        assert.ok(parts["#run-status-text"].bottom <= nav + EDGE);
+        await shot(page, `dock-rotation-${text}`);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+});
+
+// Fran's #263 note: the dock's link counts the settings alone as issues
+// too, and the reason that describes it and Run drops the "Can't run" the
+// status already says.
+describe("the dock's Fix link and the reason, settings alone (#245; Fran's #263 note)", () => {
+  test(`at ${PHONE.width}: 'Fix 2 issues', described by '2 settings to fix'`, async () => {
+    const { context, page, errors } = await open(PHONE, "#fight");
+    try {
+      await setField(page, "#run-duration", "0");
+      await setField(page, "#run-seed", BAD_NUMBER);
+      const link = page.locator("#run-errors-link");
+      await link.waitFor({ state: "visible" });
+      assert.equal(await link.textContent(), "Fix 2 issues");
+      const said = await page.evaluate(() => {
+        const describe = (id) =>
+          document
+            .getElementById(id)
+            .getAttribute("aria-describedby")
+            .split(" ")
+            .map((one) => document.getElementById(one).textContent)
+            .join(" ");
+        return {
+          link: describe("run-errors-link"),
+          run: describe("run-button"),
+          status: document.getElementById("run-status-text").textContent,
+        };
+      });
+      assert.equal(said.link, "2 settings to fix");
+      assert.match(said.run, /2 settings to fix/);
+      assert.doesNotMatch(said.run, /Can't run/);
+      assert.equal(said.status, "Can't run · 2 settings to fix");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});

@@ -167,8 +167,10 @@ for (const width of WIDTHS) {
         assert.equal(bar.sticky, "fixed");
         assert.equal(bar.height, STRIP_PX, `strip is ${bar.height} px`);
       }
-      // Screen readers get the full text: Run is described by the reason.
-      assert.equal(bar.reason, "Can't run · Talents over the level cap");
+      // Screen readers get the full text: Run is described by the reason,
+      // which leaves out "Can't run" as Run is already disabled (Fran's
+      // #263 note).
+      assert.equal(bar.reason, "Talents over the level cap");
       assert.equal(bar.describedBy, "run-reason");
     });
 
@@ -182,7 +184,7 @@ for (const width of WIDTHS) {
       await page.locator("#talent-tree").waitFor({ state: "hidden" });
       assert.equal(
         await page.locator("#run-reason").textContent(),
-        "Can't run · Talents over the level cap",
+        "Talents over the level cap",
       );
       const link = page.locator("#run-errors-link");
       assert.equal(

@@ -54,7 +54,9 @@ const joinMessages = (first, second) => {
 // · N settings to fix", never Ready, and the "Fix N settings" link shows at
 // every width. Both count the run fields' errors and the stats form's; the
 // link goes to the first run field with an error, else the form's first
-// invalid field. Run's aria-describedby names the reason (#run-reason).
+// invalid field. Run's aria-describedby names the reason (#run-reason),
+// which leaves out the "Can't run" the status says (Fran's #263 note); on
+// a phone the dock's link, "Fix N issues", is described by it too.
 //
 // Below the wide breakpoint (#240, UX2) the row is the phone dock's strip,
 // fixed above the area nav (styles.css): its two lines are the shorter

@@ -184,17 +184,17 @@ async function expect(page, what, step, { card, issues = 1 }) {
     assert.match(now.status, /^Can't run/, `${step}: status`);
     // Fran's #245 N1: the Fix link and, with more than one cause, the
     // reason name the same causes as the banners.
-    // On a phone the dock's link counts two or more causes as issues
-    // (Fran's #260 check, B2), and the talents or the rotation alone as
-    // one issue (B2b); settings alone are counted as settings.
+    // On a phone the dock's link counts every cause as issues (Fran's
+    // #260 check, B2 and B2b, and her #263 note: the settings alone too).
+    // The reason, which describes it, no longer repeats "Can't run".
     const fix = await page.locator("#run-errors-link").textContent();
-    const named = card || /^\d+ settings?$/.test(what);
+    const named = card;
     const counted = `Fix ${issues} ${issues === 1 ? "issue" : "issues"}`;
     assert.equal(fix, named ? `Fix ${what}` : counted, `${step}: the Fix link`);
     if (what.includes(" and ")) {
       assert.equal(
         await page.locator("#run-reason").textContent(),
-        `Can't run · fix ${what}`,
+        `Fix ${what}`,
         `${step}: the reason`,
       );
     }
@@ -275,7 +275,10 @@ for (const size of [WIDE, PHONE]) {
           issues: 3,
         });
         await talents(page, false);
-        await expect(page, "2 settings", "talents fixed again", { card });
+        await expect(page, "2 settings", "talents fixed again", {
+          card,
+          issues: 2,
+        });
         await setField(await runField(page, "run-duration"), BATCH_SECONDS);
         await expect(page, "1 setting", "length fixed", { card });
         await setField(await runField(page, "run-seed"), N_SEED);

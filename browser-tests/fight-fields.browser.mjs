@@ -203,7 +203,11 @@ for (const size of [WIDE, PHONE]) {
         await toArea(page, "rotation");
         const fix = page.locator("#run-errors-link");
         await fix.waitFor({ state: "visible" });
-        assert.equal(await fix.textContent(), "Fix 1 setting");
+        // The dock counts it as an issue (Fran's #263 note).
+        assert.equal(
+          await fix.textContent(),
+          size.width === WIDE.width ? "Fix 1 setting" : "Fix 1 issue",
+        );
         await fix.click();
         await hashIs(page, "#fight");
         await page.locator("#area-fight").waitFor({ state: "visible" });

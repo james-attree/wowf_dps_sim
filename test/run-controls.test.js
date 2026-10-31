@@ -835,7 +835,7 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
       ...parseRunField("duration", "0"),
     });
     assert.equal(page.model().status, "Can't run · 1 setting to fix");
-    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    assert.equal(page.model().reason, "1 setting to fix");
     assert.equal(page.model().run.disabled, true);
     page.store.set({ form: { errors: { a: "Bad.", b: null, c: "Bad." } } });
     assert.equal(page.model().status, "Can't run · 3 settings to fix");
@@ -878,7 +878,7 @@ describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
       el("run-button").getAttribute("aria-describedby"),
       "run-reason",
     );
-    assert.equal(el("run-reason").textContent, "Can't run · 1 setting to fix");
+    assert.equal(el("run-reason").textContent, "1 setting to fix");
     assert.equal(
       el("run-status-text").textContent,
       "Can't run · 1 setting to fix",
@@ -970,12 +970,12 @@ describe("Run's blocked check is its count (#237)", () => {
     assert.equal(blocked(page.store.get()), false, "a Min that marks nothing");
     assert.equal(page.model().run.disabled, false);
     withForm(FORM.pair);
-    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    assert.equal(page.model().reason, "1 setting to fix");
     withForm(FORM.backstop);
-    assert.equal(page.model().reason, "Can't run · 1 setting to fix");
+    assert.equal(page.model().reason, "1 setting to fix");
     assert.equal(errorsText(page.store.get().run, 1), "Fix 1 setting");
     withForm(FORM.two);
-    assert.equal(page.model().reason, "Can't run · 2 settings to fix");
+    assert.equal(page.model().reason, "2 settings to fix");
     page.store.set({
       talents: { ...page.store.get().talents, error: TALENTS.overCap },
       form: { ...page.store.get().form, rotationErrors: ROTATION.bad },
@@ -983,7 +983,7 @@ describe("Run's blocked check is its count (#237)", () => {
     // Fran's #245 N1: the talents and the rotation are named, not counted.
     assert.equal(
       page.model().reason,
-      "Can't run · fix 2 settings, the talents and the rotation",
+      "Fix 2 settings, the talents and the rotation",
     );
   });
 });
@@ -1005,15 +1005,15 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     const TALENTS = { overCap: "Over the cap." };
     const two = { "rogue.agility": "Bad.", "rogue.strength": "Bad." };
     const cases = [
-      [{ errors: two }, "Can't run · 2 settings to fix", "Fix 2 settings"],
+      [{ errors: two }, "2 settings to fix", "Fix 2 settings"],
       [
         { rotation: ROTATION.bad, talents: TALENTS.overCap },
-        "Can't run · fix the talents and the rotation",
+        "Fix the talents and the rotation",
         "Fix the talents and the rotation",
       ],
       [
         { errors: two, rotation: ROTATION.bad, talents: TALENTS.overCap },
-        "Can't run · fix 2 settings, the talents and the rotation",
+        "Fix 2 settings, the talents and the rotation",
         "Fix 2 settings, the talents and the rotation",
       ],
     ];
@@ -1028,10 +1028,9 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     assert.equal(link.hidden, true);
   });
 
-  // Fran's #260 check, B2 and B2b: below the wide breakpoint the link is
-  // the phone dock's, one line over the nav, so the talents and the
-  // rotation, alone or with other causes, are counted as issues; settings
-  // alone are counted as settings, as on wide screens. The wide panel
+  // Fran's #260 check, B2 and B2b, and her #263 note: below the wide
+  // breakpoint the link is the phone dock's, one line over the nav, so
+  // every cause is counted as an issue, the settings alone too. The wide panel
   // keeps the named list, the dock's link is described by the reason, and
   // the text follows the width as it changes.
   it("the dock's Fix link counts issues; the wide one names them", () => {
@@ -1070,12 +1069,8 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     for (const [over, dock, wide] of [
       [{ talents: "Over the cap." }, "Fix 1 issue", "Fix the talents"],
       [{ rotation: bad }, "Fix 1 issue", "Fix the rotation"],
-      [{ errors: three }, "Fix 3 settings", "Fix 3 settings"],
-      [
-        { errors: { "rogue.agility": "Bad." } },
-        "Fix 1 setting",
-        "Fix 1 setting",
-      ],
+      [{ errors: three }, "Fix 3 issues", "Fix 3 settings"],
+      [{ errors: { "rogue.agility": "Bad." } }, "Fix 1 issue", "Fix 1 setting"],
     ]) {
       set(over);
       assert.equal(link.textContent, dock, "the dock");
@@ -1108,10 +1103,10 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     const page = setup();
     withErrors(page, 4);
     assert.equal(page.model().run.disabled, true);
-    assert.equal(page.model().reason, "Can't run · Rotation has 4 errors");
+    assert.equal(page.model().reason, "Rotation has 4 errors");
     assert.equal(page.model().statusShort, "Rotation errors");
     withErrors(page, 1);
-    assert.equal(page.model().reason, "Can't run · Rotation has 1 error");
+    assert.equal(page.model().reason, "Rotation has 1 error");
   });
 
   it("with another blocker too, the rotation is named beside the settings (Fran's #245 N1)", () => {
@@ -1120,10 +1115,7 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     page.store.set({
       form: { ...page.store.get().form, errors: { "rogue.agility": "Bad." } },
     });
-    assert.equal(
-      page.model().reason,
-      "Can't run · fix 1 setting and the rotation",
-    );
+    assert.equal(page.model().reason, "Fix 1 setting and the rotation");
     assert.equal(page.model().statusShort, null);
   });
 
@@ -1157,21 +1149,18 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
   it("the reason names the talents when they are the only blocker", () => {
     const page = setup();
     overCap(page);
-    assert.equal(page.model().reason, "Can't run · Talents over the level cap");
+    assert.equal(page.model().reason, "Talents over the level cap");
     assert.equal(page.model().status, "Can't run · Talents over the level cap");
     assert.equal(page.model().run.disabled, true);
     page.actions.setMode("batch");
-    assert.equal(page.model().reason, "Can't run · Talents over the level cap");
+    assert.equal(page.model().reason, "Talents over the level cap");
   });
 
   it("with another blocker too, the reason names the talents beside the settings (Fran's #245 N1)", () => {
     const page = setup();
     overCap(page);
     page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
-    assert.equal(
-      page.model().reason,
-      "Can't run · fix 1 setting and the talents",
-    );
+    assert.equal(page.model().reason, "Fix 1 setting and the talents");
     assert.equal(page.model().statusShort, null, "that one fits the row");
   });
 
@@ -1188,10 +1177,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     const status = el("run-status-text");
     assert.equal(status.textContent, "Can't run · Talents over the level cap");
     assert.equal(status.getAttribute("data-short"), "Talents over cap");
-    assert.equal(
-      el("run-reason").textContent,
-      "Can't run · Talents over the level cap",
-    );
+    assert.equal(el("run-reason").textContent, "Talents over the level cap");
     page.store.set({
       talents: { ...page.store.get().talents, error: null },
     });
@@ -1232,10 +1218,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     const link = el("run-errors-link");
     assert.equal(link.hidden, false);
     assert.equal(link.textContent, "Fix the talents");
-    assert.equal(
-      el("run-reason").textContent,
-      "Can't run · Talents over the level cap",
-    );
+    assert.equal(el("run-reason").textContent, "Talents over the level cap");
     assert.equal(link.fire("click").prevented, 1);
     assert.equal(opened, 0, "the row is not clicked");
     assert.equal(el("talents-level").focused, 1, "Level has the focus");
