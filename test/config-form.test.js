@@ -86,6 +86,7 @@ describe("the form fills from the store's config", () => {
         "character.attackPower",
         "character.critChance",
         "character.bonusHitChance",
+        "character.haste",
         "weapons.mainHand.type",
         "weapons.mainHand.min",
         "weapons.mainHand.max",

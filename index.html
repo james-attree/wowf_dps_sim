@@ -380,6 +380,38 @@
               <p class="field-help" id="cfg-character-talent-help">
                 Without talents (the talent tree adds its own).
               </p>
+              <div class="field">
+                <label for="cfg-character-haste"
+                  >Haste (attack speed)<span class="visually-hidden">
+                    (percent)</span
+                  ></label
+                >
+                <div class="field-control">
+                  <input
+                    id="cfg-character-haste"
+                    name="character.haste"
+                    data-field="character.haste"
+                    aria-describedby="cfg-character-haste-help"
+                    data-help="cfg-character-haste-help"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.01"
+                    min="0"
+                    data-percent="true"
+                  />
+                  <span class="field-suffix" aria-hidden="true">%</span>
+                </div>
+                <p class="field-help" id="cfg-character-haste-help">
+                  Melee attack speed from gear. Slice and Dice and Blade Flurry
+                  are added in the fight. Haste doesn't change energy or the
+                  global cooldown.
+                </p>
+                <p
+                  class="field-error"
+                  id="cfg-character-haste-error"
+                  hidden
+                ></p>
+              </div>
             </fieldset>
             <div class="hands" data-screen="gear">
               <fieldset class="config-fieldset hand-fieldset">
