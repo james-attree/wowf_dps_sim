@@ -3,7 +3,7 @@ import { rotationStateReader } from "./rotation-state.js";
 
 // The Rogue's side of the rotation interpreter (R3, #140): the `host` that
 // decide (js/rotation-interpreter.js) is given at a decision point. It answers
-// the interpreter's six questions from a Rogue and its Simulation, and that
+// the interpreter's eight questions from a Rogue and its Simulation, and that
 // is all it does. Nothing here is in the interpreter, so the Phase 3.5 engine
 // writes its own host and calls decide unchanged.
 //
@@ -13,16 +13,24 @@ import { rotationStateReader } from "./rotation-state.js";
 //              fight next changes.
 //   canCast    the ability is not held back by the build
 //              (Rogue.lockedByBuild: a talent ability the build lacks) and
-//              would go ahead now (Ability.canCast: cooldown, cost, GCD).
+//              would go ahead now (Ability.canCast: main hand, aura,
+//              cooldown, cost, GCD).
 //   onGcd      the ability starts the global cooldown (Ability.triggersGcd).
 //   usable     the main hand is the weapon type the ability needs
-//              (Ability.mainHandAllowed: Backstab needs a dagger), and the
-//              ability is not a talent ability the build lacks
-//              (Rogue.lockedByBuild, #199; with no talents picked every talent
-//              ability is lacked). The weapon and the build's grants are fixed
-//              for the fight, so the interpreter asks once and passes over a
-//              rule that can never cast, instead of pooling for it forever
-//              (#155).
+//              (Ability.mainHandAllowed: Backstab needs a dagger), something
+//              in the fight can put up an aura it requires
+//              (Ability.auraReachable: nothing grants Ambush's cutthroat
+//              aura yet, #261), and the ability is not a talent ability the
+//              build lacks (Rogue.lockedByBuild, #199; with no talents picked
+//              every talent ability is lacked). The weapon, the granted auras
+//              and the build's grants are fixed for the fight, so the
+//              interpreter asks once and passes over a rule that can never
+//              cast, instead of pooling for it forever (#155).
+//   gated      the ability requires an aura (Ability.requiresAura is not
+//              empty: Ambush, #261). Fixed for the fight, asked once.
+//   ready      a required aura is up now (Ability.auraMet). Asked of a gated
+//              ability at each decision point: while none is up its rule is
+//              passed over, not pooled for (B1 of Kira's QA on #262).
 //   gcdClear   the global cooldown is not running (gcdClear in js/ability.js).
 //   cast       cast it (Ability.cast).
 //
@@ -47,8 +55,14 @@ export function rotationHost(rogue, simulation, options = {}) {
     onGcd: (id) => ability(id).triggersGcd,
     usable: (id) => {
       const found = ability(id);
-      return found.mainHandAllowed(rogue) && !rogue.lockedByBuild(found);
+      return (
+        found.mainHandAllowed(rogue) &&
+        found.auraReachable(rogue) &&
+        !rogue.lockedByBuild(found)
+      );
     },
+    gated: (id) => ability(id).requiresAura.length > 0,
+    ready: (id) => ability(id).auraMet(simulation),
     gcdClear: () => gcdClear(simulation),
     cast: (id) => {
       ability(id).cast(rogue, simulation);

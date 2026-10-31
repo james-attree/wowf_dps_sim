@@ -1028,10 +1028,12 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     assert.equal(link.hidden, true);
   });
 
-  // Fran's #260 check, B2: below the wide breakpoint the link is the phone
-  // dock's, one line over the nav, so several causes are counted as
-  // issues; one cause is named as on wide screens. The wide panel keeps
-  // the named list, and the text follows the width as it changes.
+  // Fran's #260 check, B2 and B2b: below the wide breakpoint the link is
+  // the phone dock's, one line over the nav, so the talents and the
+  // rotation, alone or with other causes, are counted as issues; settings
+  // alone are counted as settings, as on wide screens. The wide panel
+  // keeps the named list, the dock's link is described by the reason, and
+  // the text follows the width as it changes.
   it("the dock's Fix link counts issues; the wide one names them", () => {
     const page = setup();
     const media = fakeMedia(true);
@@ -1055,24 +1057,36 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
     set({ errors: three, rotation: bad, talents: "Over the cap." });
     assert.equal(link.textContent, "Fix 5 issues");
     assert.equal(dockFixText(page.store.get()), "Fix 5 issues");
+    assert.equal(link.getAttribute("aria-describedby"), "run-reason");
     media.flip(false);
     assert.equal(
       link.textContent,
       "Fix 3 settings, the talents and the rotation",
     );
+    assert.equal(link.getAttribute("aria-describedby"), null);
     media.flip(true);
     set({ rotation: bad, talents: "Over the cap." });
     assert.equal(link.textContent, "Fix 2 issues");
-    for (const [over, fix] of [
-      [{ talents: "Over the cap." }, "Fix the talents"],
-      [{ rotation: bad }, "Fix the rotation"],
-      [{ errors: three }, "Fix 3 settings"],
+    for (const [over, dock, wide] of [
+      [{ talents: "Over the cap." }, "Fix 1 issue", "Fix the talents"],
+      [{ rotation: bad }, "Fix 1 issue", "Fix the rotation"],
+      [{ errors: three }, "Fix 3 settings", "Fix 3 settings"],
+      [
+        { errors: { "rogue.agility": "Bad." } },
+        "Fix 1 setting",
+        "Fix 1 setting",
+      ],
     ]) {
       set(over);
-      assert.equal(link.textContent, fix, "one cause is named");
+      assert.equal(link.textContent, dock, "the dock");
+      assert.equal(link.getAttribute("aria-describedby"), "run-reason");
+      media.flip(false);
+      assert.equal(link.textContent, wide, "wide");
+      media.flip(true);
     }
     set({});
     assert.equal(link.hidden, true);
+    assert.equal(link.getAttribute("aria-describedby"), null);
     assert.equal(dockFixText(page.store.get()), null);
   });
 });

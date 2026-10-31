@@ -14,6 +14,9 @@ const SHOTS = process.env.SHOTS_DIR ?? null;
 const PREFIX = process.env.SHOTS_PREFIX ?? "fran-260";
 const PINNED_FONT = "DejaVu Sans";
 const WIDE = { width: 1280, height: 900 };
+const WIDEST = 1600;
+// styles.css's --run-fields-max.
+const FIELDS_MAX_REM = 34;
 const PHONES = [
   { width: 320, height: 640 },
   { width: 360, height: 800 },
@@ -37,6 +40,9 @@ const RULE = "#rotation/rule/6";
 const CONDITION = "input.cond-value";
 const ALL_NAMED = "3 settings, the talents and the rotation";
 const ALL_COUNTED = "Fix 5 issues";
+const ONE_COUNTED = "Fix 1 issue";
+// The design's font, installed here but not on CI, where its case skips.
+const DESIGN_FONT = "Inter";
 
 let server;
 let base;
@@ -57,7 +63,7 @@ after(async () => {
   await new Promise((resolve) => server?.close(resolve));
 });
 
-async function open({ width, height }, hash, text = null) {
+async function open({ width, height }, hash, text = null, font = PINNED_FONT) {
   const context = await browser.newContext({ viewport: { width, height } });
   const page = await context.newPage();
   const errors = [];
@@ -69,7 +75,7 @@ async function open({ width, height }, hash, text = null) {
   await page.goto(`${base}${hash}`);
   const size = text === null ? "" : `html { font-size: ${text} !important; }`;
   await page.addStyleTag({
-    content: `:root { font-family: "${PINNED_FONT}" !important; } ${size}`,
+    content: `:root { font-family: "${font}" !important; } ${size}`,
   });
   await page.locator("#run-button").waitFor({ state: "attached" });
   return { context, page, errors };
@@ -223,6 +229,10 @@ describe("B2: the dock's Fix link counts, the wide one names (Fran's #260 check)
               at.text.bottom <= at.dps.top + EDGE,
             `on the DPS: ${where}`,
           );
+          assert.equal(
+            await link.getAttribute("aria-describedby"),
+            "run-reason",
+          );
           // The order: it goes to the first run field, a setting.
           await link.click();
           await focused(page, "run-duration");
@@ -251,6 +261,85 @@ describe("B2: the dock's Fix link counts, the wide one names (Fran's #260 check)
       await focused(page, "run-duration");
       assert.equal(await focusId(page), "run-duration");
       assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
+// Whether a font is installed: text in it is drawn at another width than
+// in the fallback alone.
+const hasFont = (page, font) =>
+  page.evaluate((name) => {
+    const context = globalThis.document
+      .createElement("canvas")
+      .getContext("2d");
+    const sample = "Fix the rotation";
+    context.font = "16px monospace";
+    const fallback = context.measureText(sample).width;
+    context.font = `16px "${name}", monospace`;
+    return context.measureText(sample).width !== fallback;
+  }, font);
+
+const ONE_CAUSE = [
+  { cause: "the rotation", breakIt: breakRotation },
+  { cause: "the talents", breakIt: overCap },
+];
+
+describe("B2b: one cause in the dock is counted too (Fran's #260 re-check)", () => {
+  const cases = [
+    { size: DOCKED[0], font: DESIGN_FONT, ...ONE_CAUSE[0] },
+    ...DOCKED.flatMap((size) =>
+      ONE_CAUSE.map((cause) => ({ size, font: PINNED_FONT, ...cause })),
+    ),
+  ];
+  for (const { size, font, cause, breakIt } of cases) {
+    test(`${size.width}px, ${font}, 200% text: ${cause} alone is "${ONE_COUNTED}", one line, clear of the nav and status`, async (t) => {
+      const { context, page, errors } = await open(
+        size,
+        "#character",
+        LARGE_TEXT[0],
+        font,
+      );
+      try {
+        if (!(await hasFont(page, font))) {
+          t.skip(`${font} is not installed`);
+          return;
+        }
+        await breakIt(page);
+        await go(page, "#character");
+        const link = page.locator("#run-errors-link");
+        await link.waitFor({ state: "visible" });
+        await shot(
+          page,
+          `b2b-${size.width}-${font.split(" ")[0]}-${cause.split(" ")[1]}`,
+        );
+        assert.equal(await link.textContent(), ONE_COUNTED);
+        assert.equal(await link.getAttribute("aria-describedby"), "run-reason");
+        const reason = await page.locator("#run-reason").textContent();
+        assert.doesNotMatch(reason, /issue/, "the reason keeps its names");
+        const at = await dockBoxes(page);
+        const where = JSON.stringify(at);
+        assert.equal(at.lines, 1, `lines: ${where}`);
+        assert.ok(at.text.bottom <= at.nav + EDGE, `on the nav: ${where}`);
+        assert.ok(at.box >= at.row - EDGE, `on the status: ${where}`);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  test(`${WIDE.width}px: one cause is still named`, async () => {
+    const { context, page } = await open(WIDE, "#character");
+    try {
+      for (const { cause, breakIt } of ONE_CAUSE.slice(0, 1)) {
+        await breakIt(page);
+        const link = page.locator("#run-errors-link");
+        await link.waitFor({ state: "visible" });
+        assert.equal(await link.textContent(), `Fix ${cause}`);
+        assert.equal(await link.getAttribute("aria-describedby"), null);
+      }
     } finally {
       await context.close();
     }
@@ -305,6 +394,47 @@ describe("the stats footer's run field links (Fran's #260 check)", () => {
         assert.equal(await focusId(page), "run-seed");
         assert.equal(await page.locator("#run-seed").isVisible(), true);
         await page.waitForFunction(() => globalThis.location.hash === "#fight");
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+});
+
+describe("Fight's settings on a wide screen (Fran's #260 re-check)", () => {
+  for (const width of [WIDE.width, WIDEST]) {
+    test(`${width}px: the panel is capped near its fields' row, which stays one row`, async () => {
+      const { context, page, errors } = await open(
+        { ...WIDE, width },
+        "#fight",
+      );
+      try {
+        await page.locator("#run-seed").waitFor({ state: "visible" });
+        const at = await page.evaluate(() => {
+          const doc = globalThis.document;
+          const top = (id) =>
+            doc.getElementById(id).getBoundingClientRect().top;
+          const rem = Number.parseFloat(
+            globalThis.getComputedStyle(doc.documentElement).fontSize,
+          );
+          return {
+            panel: doc.getElementById("run-settings").getBoundingClientRect()
+              .width,
+            rem,
+            seed: top("run-seed"),
+            length: top("run-duration"),
+          };
+        });
+        assert.ok(
+          at.panel <= FIELDS_MAX_REM * at.rem + EDGE,
+          JSON.stringify(at),
+        );
+        assert.equal(
+          at.seed,
+          at.length,
+          `the seed wraps: ${JSON.stringify(at)}`,
+        );
         assert.deepEqual(errors, []);
       } finally {
         await context.close();

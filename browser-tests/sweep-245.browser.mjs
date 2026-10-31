@@ -297,7 +297,7 @@ describe("the run help on a phone (#245)", () => {
       await watchThenPause(page);
       assert.ok(await page.locator("#run-help").isVisible(), "on Results");
       await page.evaluate(() => {
-        location.hash = "#fight";
+        globalThis.location.hash = "#fight";
       });
       await page.locator("#area-results").waitFor({ state: "hidden" });
       assert.equal(await page.locator("#run-help").isVisible(), false);

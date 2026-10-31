@@ -2,6 +2,7 @@ import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { AURAS } from "./auras.js";
+import { isRequiredAura } from "./required-auras.js";
 import { spellIconUrl } from "./icons.js";
 
 // The generic ability executor (roadmap D2). An Ability is built from one
@@ -83,6 +84,34 @@ export function gcdClear(simulation) {
   return simulation.gcd <= TICK_EPSILON;
 }
 
+// An ability-data entry's requiresAura, checked: a list of one or more
+// distinct self aura ids from AURAS (js/required-auras.js), or none at all.
+// Returned frozen, empty for an entry without one.
+function requiredAuras(definition) {
+  const list = definition.requiresAura;
+  if (list === undefined) {
+    return Object.freeze([]);
+  }
+  if (!Array.isArray(list) || list.length === 0) {
+    throw new TypeError(
+      `The ability "${definition.id}" needs requiresAura as a list of aura ids, one or more. Got ${JSON.stringify(list)}.`,
+    );
+  }
+  for (const id of list) {
+    if (!isRequiredAura(id)) {
+      throw new Error(
+        `The ability "${definition.id}" requires the aura "${String(id)}", which is not a self aura in AURAS (js/auras.js).`,
+      );
+    }
+  }
+  if (new Set(list).size !== list.length) {
+    throw new Error(
+      `The ability "${definition.id}" names an aura in requiresAura more than once.`,
+    );
+  }
+  return Object.freeze([...list]);
+}
+
 export class Ability {
   constructor(definition, rogue) {
     const stats = k(definition.row);
@@ -109,6 +138,9 @@ export class Ability {
     this.costContext = Object.freeze({ ability: this.id });
     // The main-hand weapon type a cast needs, or null for none (Backstab).
     this.requiresMainHand = definition.requiresMainHand ?? null;
+    // The self auras a cast needs one of (js/required-auras.js), a frozen
+    // list; empty for none (Ambush: ["cutthroat"], #261).
+    this.requiresAura = requiredAuras(definition);
     this.cooldown = stats.cooldown;
     // A hand-made file in img/ where the entry has one; else the spell's icon
     // from the icon CDN (js/icons.js), the question mark if it has none.
@@ -235,6 +267,32 @@ export class Ability {
     );
   }
 
+  // Whether an aura the ability requires is up now (always, for one that
+  // requires none). Ambush: the cutthroat aura, which nothing grants yet
+  // (#261).
+  auraMet(simulation) {
+    return (
+      this.requiresAura.length === 0 ||
+      this.requiresAura.some((id) => simulation.hasAura(id))
+    );
+  }
+
+  // Whether anything in this fight can put up an aura the ability requires
+  // (Rogue.grantedAuras): false for Ambush today, as nothing grants the
+  // cutthroat aura (#261). The rotation host's usable asks it.
+  auraReachable(rogue) {
+    return (
+      this.requiresAura.length === 0 ||
+      this.requiresAura.some((id) => rogue.grantedAuras.has(id))
+    );
+  }
+
+  // The checks a cast makes before any other, which spend and draw nothing:
+  // the main hand, then the required aura.
+  requirementsMet(rogue, simulation) {
+    return this.mainHandAllowed(rogue) && this.auraMet(simulation);
+  }
+
   // What a cast would pay now: the cost after the cost modifiers of its
   // resource (Improved Sinister Strike). With none, it is this.cost as it
   // stands. 0 for an ability that pays nothing.
@@ -252,11 +310,12 @@ export class Ability {
         );
   }
 
-  // Whether cast() would go ahead right now. It makes the same five checks
-  // cast() makes, in another order (the answer is a yes only if all five
+  // Whether cast() would go ahead right now. It makes the same six checks
+  // cast() makes, in another order (the answer is a yes only if all six
   // pass), and changes nothing: no draw, no spend.
-  // The main hand is the type the ability needs (Backstab: a dagger); not on
-  // cooldown; a spender holds at least one of what it spends; the pool
+  // The main hand is the type the ability needs (Backstab: a dagger); an
+  // aura it requires is up (Ambush: the cutthroat aura, granted by nothing
+  // yet, #261); not on cooldown; a spender holds at least one of what it spends; the pool
   // affords the cost; and, on the GCD, the GCD is clear (a remainder within
   // sim.tickEpsilon counts as clear). An off-GCD ability skips the GCD check.
   // The rotation interpreter (js/rotation-interpreter.js) asks this; the build
@@ -264,7 +323,7 @@ export class Ability {
   // talent ability the host does not grant, #199). test/can-cast.test.js holds
   // the two together: cast() acts exactly when this is true.
   canCast(rogue, simulation) {
-    if (!this.mainHandAllowed(rogue)) {
+    if (!this.requirementsMet(rogue, simulation)) {
       return false;
     }
     // The GCD is asked first: on most steps it is running, and that settles
@@ -285,9 +344,11 @@ export class Ability {
   }
 
   cast(rogue, simulation) {
-    // The wrong main hand is refused before anything else: no cast is told,
-    // nothing is spent, no cooldown or GCD starts, and the rng is not drawn.
-    if (!this.mainHandAllowed(rogue)) {
+    // The wrong main hand, or no required aura up (Ambush without the
+    // cutthroat aura, #261), is refused before anything else: no cast is
+    // told, nothing is spent, no cooldown or GCD starts, and the rng is not
+    // drawn.
+    if (!this.requirementsMet(rogue, simulation)) {
       return null;
     }
     if (this.onCooldown(rogue, simulation)) {
@@ -316,6 +377,16 @@ export class Ability {
       // The cast is told first: what it does follows it.
       simulation.emitCast(this, paid === null ? 0 : cost);
       paid?.spend(cost, this.id);
+      // The cast uses one charge of the first required aura that is up,
+      // whatever the attack's outcome (#261, js/required-auras.js): Ambush
+      // takes the cutthroat aura. Later ones in the list are left alone, and
+      // when that first one has no charges (duration only) nothing is used:
+      // the cast does not skip ahead to a later charged aura. After the cast
+      // event, so the log reads cast, expire.
+      const used = this.requiresAura.find((id) => simulation.hasAura(id));
+      if (used !== undefined) {
+        simulation.consumeCharge(used);
+      }
       if (this.triggersGcd) {
         simulation.setGcd();
       }

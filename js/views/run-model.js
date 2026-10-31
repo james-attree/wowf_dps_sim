@@ -308,20 +308,25 @@ export function fixLinkText(state) {
   return blocked(state) ? `Fix ${listed(fixParts(state))}` : null;
 }
 
-// The phone dock's Fix link (Fran's #260 check, B2): one cause is named as
-// on wide screens, "Fix the talents"; with more, a count keeps it to one
-// line, "Fix 5 issues" (shorter than "problems": it fits beside the DPS at
-// 360 wide and 200% text). An issue is what blockedCount counts: each
-// field with an error, the talents over their cap, and the rotation's
-// errors as one. With two or more causes there are always two or more.
+// The phone dock's Fix link (Fran's #260 check, B2 and B2b), one line over
+// the nav at 200% text: the settings alone are counted as on wide screens,
+// "Fix 2 settings"; the talents or the rotation, alone or with other
+// causes, are counted as issues, "Fix 1 issue", "Fix 5 issues" (shorter
+// than "problems" and than a cause's name: it fits beside the DPS at 360
+// wide and 200% text). An issue is what blockedCount counts: each field
+// with an error, the talents over their cap, and the rotation's errors as
+// one. The Run panel, the reason line and wide screens keep the names, and
+// the link is described by the reason (js/views/controls.js). Only the
+// dock says "issue".
 export function dockFixText(state) {
   if (!blocked(state)) {
     return null;
   }
-  if (fixParts(state).length === LAST_ONE) {
+  if (fieldsOnly(state) && !talentsOnly(state) && !rotationOnly(state)) {
     return fixLinkText(state);
   }
-  return `Fix ${blockedCount(state)} issues`;
+  const count = blockedCount(state);
+  return `Fix ${count} ${count === LAST_ONE ? "issue" : "issues"}`;
 }
 
 // The narrow row's shorter status, or null when the status fits as it is.

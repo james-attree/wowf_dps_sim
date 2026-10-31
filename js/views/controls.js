@@ -182,9 +182,17 @@ export function createControlsView(doc, store, actions = {}) {
     write(dpsLabel, dps.label);
     // Below the wide breakpoint the link is in the phone dock, one line
     // over the nav (Fran's #260 check, B2): its shorter text.
-    const fix = phone?.matches ? dockFixText(state) : fixLinkText(state);
+    const docked = phone?.matches === true;
+    const fix = docked ? dockFixText(state) : fixLinkText(state);
     errorsLink.hidden = fix === null;
     write(errorsLink, fix ?? "");
+    // The dock's count is described by the reason, which names each cause
+    // (Fran's #260 re-check).
+    if (docked && fix !== null) {
+      errorsLink.setAttribute("aria-describedby", "run-reason");
+    } else {
+      errorsLink.removeAttribute("aria-describedby");
+    }
     row.classList.toggle("has-errors", fix !== null);
     if (warningsLink !== null) {
       const warned = warningsText(state, fix !== null);
