@@ -143,7 +143,9 @@ h3 {
   gap: 7px;
   padding: 6px 10px;
   border: 1px solid #24483d;
-  border-radius: 999px;
+  /* Round ends on one line; soft corners once bigger text wraps it (#245;
+     Fran's #260 check). */
+  border-radius: 1rem;
   background: #11251f;
   color: #9ce2c2;
   font-size: 0.78rem;
@@ -151,6 +153,7 @@ h3 {
 }
 
 .live-dot {
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -287,15 +290,17 @@ h3 {
   cursor: default;
 }
 
+/* The label's line and its gap to the input grow with the text, so at 200%
+   a label such as "Fight length (s)" clears its input (#245). */
 .run-field {
   display: grid;
-  gap: 3px;
+  gap: 0.25em;
   font-size: 0.72rem;
 }
 
 .run-field label {
   color: var(--text-muted);
-  line-height: 16px;
+  line-height: 1.35;
 }
 
 /* Fight's settings (#245; proposal section 3): the run type on a line of
@@ -465,6 +470,12 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+/* A wrapped status splits into lines of even length (#245; Fran's #260
+   check). */
+#run-status-text {
+  text-wrap: balance;
+}
+
 .run-progress {
   display: inline-flex;
   align-items: center;
@@ -592,6 +603,13 @@ h3 {
     padding: 0 8px 0 12px;
     border-top: 1px solid var(--border);
     background: var(--surface);
+  }
+
+  /* Off Results the strip is in the dock, so the help line has no strip to
+     sit under and would land above the area's h1 (#245). It is not shown
+     there; Stop is still described by it. */
+  :root:has(#area-results[hidden]) .run-help {
+    display: none;
   }
 
   :root:has(#area-results:not([hidden])) .run-row-actions {
@@ -785,8 +803,10 @@ h3 {
     display: none;
   }
 
-  /* Bigger text in a narrow strip (#245; Fran's #258 check, P2): the DPS
-     drops under the two lines rather than crowding them, its value and
+  /* Bigger text in a narrow strip (#245; Fran's #258 check, P2): the two
+     lines take the strip's whole width and wrap rather than cut, the strip
+     growing to hold them; a no-break space keeps "seed" with its number.
+     The DPS and the buttons share the row under them, the DPS's value and
      label on one line. */
   @container run-strip (width < 20em) {
     :is(
@@ -795,7 +815,13 @@ h3 {
       .run-errors-link,
       .run-warnings-link
     ) {
-      grid-column: 1 / 3;
+      grid-column: 1 / -1;
+    }
+
+    :is(.run-summary, #run-status-text) {
+      overflow: visible;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
 
     .run-dps {
@@ -808,7 +834,7 @@ h3 {
     }
 
     .run-row-actions .run-buttons {
-      grid-row: 1 / 4;
+      grid-row: 3;
     }
   }
 
@@ -2780,13 +2806,31 @@ th[aria-sort="ascending"] {
       position: static;
     }
   }
+
+  /* Narrower still, the icon goes back above its label, so a long label
+     such as "Character" keeps the cell's whole width and stays one word. */
+  @container area-nav (width < 11em) {
+    .area-nav a {
+      flex-direction: column;
+      gap: 0;
+      padding: 2px;
+    }
+
+    .area-nav-badge {
+      position: absolute;
+    }
+  }
 }
 
 /* From the wide breakpoint: a sticky column left of the page, one link per
    row, the current one raised with a bar down its left edge. */
 @media (width >= 64em) {
   body {
-    grid-template-columns: clamp(160px, 16vw, 208px) minmax(0, 1224px);
+    /* The nav column grows to its links' width when bigger text makes
+       them wider than it (#245; Fran's check at 1024 and 200%). */
+    grid-template-columns:
+      minmax(clamp(160px, 16vw, 208px), max-content)
+      minmax(0, 1224px);
     justify-content: center;
     column-gap: 24px;
   }

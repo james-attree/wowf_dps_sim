@@ -569,11 +569,7 @@ describe("a stopped batch on the card (Fran's #253 check, N2)", () => {
           .getElementById("results-card")
           .innerText.replace(/\s+/g, " "),
       );
-      assert.match(
-        text,
-        /[\d,]+ of 4,000 fights × 300\ss · seed\s\d+/,
-        text,
-      );
+      assert.match(text, /[\d,]+ of 4,000 fights × 300\ss · seed\s\d+/, text);
       await shot(page, "1280-card-stopped");
       assert.deepEqual(errors, []);
     } finally {
