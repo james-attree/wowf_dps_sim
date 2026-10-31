@@ -26,7 +26,7 @@ export const MAX_SEED = 4294967295;
 export const LIVE_HELP =
   "Stop ends this fight and discards it. Run replays the same seed from 0:00.";
 export const BATCH_HELP =
-  "Batches can't pause. Stop keeps the fights done so far as a partial result.";
+  "The average can't pause. Stop keeps the fights done so far as a partial result.";
 
 const WHOLE = /^\d+$/;
 const DECIMAL = /^(\d+(\.\d*)?|\.\d+)$/;
@@ -292,7 +292,8 @@ function listed(parts) {
 
 // Only the run and stats fields are counted as settings (Fran's #245 N1):
 // with the rotation or the talents among the causes, each is named, as the
-// card and banners name them. "Can't run · fix the rotation and the talents".
+// card and banners name them, and say what is wrong, as the single causes do
+// (Fran's #263 P3): "Can't run · the talents and the rotation need fixing".
 const fieldsOnly = (state) => fixParts(state).length === LAST_ONE;
 
 function blockedReason(state) {
@@ -302,13 +303,13 @@ function blockedReason(state) {
   if (talentsOnly(state) || fieldsOnly(state)) {
     return blockedText(blockedCount(state), talentsOnly(state));
   }
-  return `${CANT_RUN}fix ${listed(fixParts(state))}`;
+  return `${CANT_RUN}${listed(fixParts(state))} need fixing`;
 }
 
 // #run-reason, which describes Run and the dock's Fix link (#245, Fran's
 // #263 note): the status's reason less its "Can't run", which Run's state
-// and the dock's status already say. "Fix 3 settings, the talents and the
-// rotation", "2 settings to fix", "Rotation has 4 errors".
+// and the dock's status already say. "3 settings, the talents and the
+// rotation need fixing", "2 settings to fix", "Rotation has 4 errors".
 function describedReason(status) {
   const rest = status.slice(CANT_RUN.length);
   return `${rest.slice(FIRST_PART, FIRST_LETTER).toUpperCase()}${rest.slice(FIRST_LETTER)}`;

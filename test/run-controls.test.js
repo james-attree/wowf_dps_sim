@@ -980,10 +980,11 @@ describe("Run's blocked check is its count (#237)", () => {
       talents: { ...page.store.get().talents, error: TALENTS.overCap },
       form: { ...page.store.get().form, rotationErrors: ROTATION.bad },
     });
-    // Fran's #245 N1: the talents and the rotation are named, not counted.
+    // Fran's #245 N1: the talents and the rotation are named, not counted, and
+    // what is wrong is said (Fran's #263 P3).
     assert.equal(
       page.model().reason,
-      "Fix 2 settings, the talents and the rotation",
+      "2 settings, the talents and the rotation need fixing",
     );
   });
 });
@@ -1008,12 +1009,12 @@ describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
       [{ errors: two }, "2 settings to fix", "Fix 2 settings"],
       [
         { rotation: ROTATION.bad, talents: TALENTS.overCap },
-        "Fix the talents and the rotation",
+        "The talents and the rotation need fixing",
         "Fix the talents and the rotation",
       ],
       [
         { errors: two, rotation: ROTATION.bad, talents: TALENTS.overCap },
-        "Fix 2 settings, the talents and the rotation",
+        "2 settings, the talents and the rotation need fixing",
         "Fix 2 settings, the talents and the rotation",
       ],
     ];
@@ -1115,7 +1116,7 @@ describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () 
     page.store.set({
       form: { ...page.store.get().form, errors: { "rogue.agility": "Bad." } },
     });
-    assert.equal(page.model().reason, "Fix 1 setting and the rotation");
+    assert.equal(page.model().reason, "1 setting and the rotation need fixing");
     assert.equal(page.model().statusShort, null);
   });
 
@@ -1160,7 +1161,7 @@ describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => 
     const page = setup();
     overCap(page);
     page.store.set({ form: { errors: { "rogue.agility": "Bad." } } });
-    assert.equal(page.model().reason, "Fix 1 setting and the talents");
+    assert.equal(page.model().reason, "1 setting and the talents need fixing");
     assert.equal(page.model().statusShort, null, "that one fits the row");
   });
 

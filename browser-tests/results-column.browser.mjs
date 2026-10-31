@@ -215,7 +215,7 @@ describe("the desktop summary card (#241)", () => {
       await page.locator("#run-button").click();
       await page.waitForFunction(
         () =>
-          /^Batch finished/.test(
+          /^Average finished/.test(
             globalThis.document.getElementById("results-announce")
               ?.textContent ?? "",
           ),

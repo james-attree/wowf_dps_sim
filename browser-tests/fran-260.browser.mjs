@@ -254,7 +254,7 @@ describe("B2: the dock's Fix link counts, the wide one names (Fran's #260 check)
       assert.equal(await link.textContent(), `Fix ${ALL_NAMED}`);
       assert.equal(
         await page.locator("#run-reason").textContent(),
-        `Fix ${ALL_NAMED}`,
+        `${ALL_NAMED[0].toUpperCase()}${ALL_NAMED.slice(1)} need fixing`,
       );
       await shot(page, "b2-1280");
       await link.click();
@@ -363,7 +363,7 @@ describe("the Fix link goes to the first cause it names (Fran's #260 check)", ()
         );
         assert.equal(
           await page.locator("#run-reason").textContent(),
-          "Fix the talents and the rotation",
+          "The talents and the rotation need fixing",
         );
         await link.click();
         await focused(page, "talents-level");

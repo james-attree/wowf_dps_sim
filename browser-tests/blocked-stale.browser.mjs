@@ -123,7 +123,7 @@ async function keepBoth(page) {
   await page.locator("#run-button").click();
   await page.waitForFunction(
     () =>
-      /^Batch finished/.test(
+      /^Average finished/.test(
         globalThis.document.getElementById("results-announce")?.textContent ??
           "",
       ),
@@ -194,7 +194,8 @@ async function expect(page, what, step, { card, issues = 1 }) {
     if (what.includes(" and ")) {
       assert.equal(
         await page.locator("#run-reason").textContent(),
-        `Fix ${what}`,
+        // It says what is wrong, not what to do (Fran's #263 P3).
+        `${what[0].toUpperCase()}${what.slice(1)} need fixing`,
         `${step}: the reason`,
       );
     }

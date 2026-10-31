@@ -430,7 +430,7 @@ async function finishBatch(page) {
   await page.locator("#run-button").click();
   await page.waitForFunction(
     () =>
-      /^Batch finished/.test(
+      /^Average finished/.test(
         globalThis.document.getElementById("results-announce")?.textContent ??
           "",
       ),

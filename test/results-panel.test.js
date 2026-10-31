@@ -439,34 +439,37 @@ describe("the results panel live region (#154)", () => {
 
   it("says the start, each quarter once, and the finish", () => {
     const idle = batchState({});
-    assert.equal(announcement(idle, running(0)), "Batch started, 100 fights.");
+    assert.equal(
+      announcement(idle, running(0)),
+      "Average started, 100 fights.",
+    );
     assert.equal(announcement(running(0), running(24)), null);
     assert.equal(
       announcement(running(24), running(25)),
-      "Batch 25% done, 25 of 100 fights.",
+      "Average 25% done, 25 of 100 fights.",
     );
     assert.equal(announcement(running(25), running(49)), null);
     assert.equal(
       announcement(running(49), running(76)),
-      "Batch 75% done, 76 of 100 fights.",
+      "Average 75% done, 76 of 100 fights.",
     );
     assert.match(
       announcement(running(99), batchState({ status: "done", result: done })),
-      /^Batch finished: [\d.,]+ DPS, plus or minus [\d.]+\.$/,
+      /^Average finished: [\d.,]+ DPS, plus or minus [\d.]+\.$/,
     );
     assert.equal(
       announcement(
         running(5),
         batchState({ status: "cancelled", result: partial }),
       ),
-      "Batch stopped: partial result from 5 of 24 fights.",
+      "Average stopped: partial result from 5 of 24 fights.",
     );
     assert.equal(
       announcement(
         running(0),
         batchState({ status: "cancelled", result: zero }),
       ),
-      "Batch stopped before any fight finished.",
+      "Average stopped before any fight finished.",
     );
     // A slice change that is not a batch transition says nothing.
     const shown = batchState({ status: "done", result: done });
@@ -601,12 +604,12 @@ describe("the results panel view (#154)", () => {
     assert.equal(el("#results-heading").textContent, "Running average…");
     assert.equal(
       el("#results-announce").textContent,
-      "Batch started, 24 fights.",
+      "Average started, 24 fights.",
     );
     store.set({ batch: batchState({ status: "done", result: done }) });
     assert.equal(el("#results-panel").getAttribute("aria-busy"), null);
     assert.equal(el("#results-meta").hidden, false);
-    assert.match(el("#results-announce").textContent, /^Batch finished/);
+    assert.match(el("#results-announce").textContent, /^Average finished/);
   });
 
   it("Reset empties its live region, so nothing stale is left (#155)", () => {
@@ -618,7 +621,7 @@ describe("the results panel view (#154)", () => {
       }),
     });
     store.set({ batch: batchState({ status: "done", result: done }) });
-    assert.match(el("#results-announce").textContent, /^Batch finished/);
+    assert.match(el("#results-announce").textContent, /^Average finished/);
     store.set({ batch: batchState({}) });
     assert.equal(el("#results-announce").textContent, "");
   });

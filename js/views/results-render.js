@@ -789,7 +789,7 @@ function progressBlock(batch, id) {
   const percent = total > 0 ? Math.floor((completed / total) * 100) : 0;
   return el("div", { class: "results-progress" }, [
     el("label", { for: `${id}-progress`, class: "visually-hidden" }, [
-      "Batch progress",
+      "Average progress",
     ]),
     el("progress", { id: `${id}-progress`, max: total, value: completed }, [
       `${count(completed)} of ${fightsText(total)}`,
@@ -929,13 +929,13 @@ export function announcement(before, after) {
   const total = after.progress?.total ?? 0;
   if (after.status === "running") {
     if (before?.status !== "running") {
-      return `Batch started, ${fightsText(total)}.`;
+      return `Average started, ${fightsText(total)}.`;
     }
     const was = announceStep(before.progress?.completed ?? 0, total);
     const now = announceStep(after.progress?.completed ?? 0, total);
     if (now > was) {
       const share = Math.round(now * k("ui.batchAnnounceStep") * 100);
-      return `Batch ${share}% done, ${count(after.progress.completed)} of ${fightsText(total)}.`;
+      return `Average ${share}% done, ${count(after.progress.completed)} of ${fightsText(total)}.`;
     }
     return null;
   }
@@ -946,13 +946,13 @@ export function announcement(before, after) {
   if (after.status === "done") {
     const ci = result.summary.ci95;
     return ci
-      ? `Batch finished: ${num(result.summary.mean)} DPS, plus or minus ${num(ci.halfWidth)}.`
-      : `Batch finished: ${num(result.summary.mean)} DPS.`;
+      ? `Average finished: ${num(result.summary.mean)} DPS, plus or minus ${num(ci.halfWidth)}.`
+      : `Average finished: ${num(result.summary.mean)} DPS.`;
   }
   if (after.status === "cancelled") {
     return result.completed > 0
-      ? `Batch stopped: partial result from ${count(result.completed)} of ${fightsText(result.iterations)}.`
-      : "Batch stopped before any fight finished.";
+      ? `Average stopped: partial result from ${count(result.completed)} of ${fightsText(result.iterations)}.`
+      : "Average stopped before any fight finished.";
   }
   return null;
 }

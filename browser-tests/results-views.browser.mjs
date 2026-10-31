@@ -131,7 +131,7 @@ async function settingsField(page, selector) {
 async function batchDone(page) {
   await page.waitForFunction(
     () =>
-      /^Batch finished/.test(
+      /^Average finished/.test(
         globalThis.document.getElementById("results-announce")?.textContent ??
           "",
       ),

@@ -237,7 +237,7 @@ describe("Run uses what Fight's fields show (#245, commitEdits)", () => {
       await page.locator("#run-button").click();
       await page.waitForFunction(
         () =>
-          /^Batch finished/.test(
+          /^Average finished/.test(
             globalThis.document.getElementById("results-announce")
               ?.textContent ?? "",
           ),

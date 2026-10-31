@@ -137,9 +137,13 @@
 }
 
 /* ---- Trees ----------------------------------------------------------------- */
+/* The trees wrap rather than squeeze (#245, Fran's #263 B1): a tree's grid
+   is a fixed gutter and four tiles, about 15rem with its padding, so a
+   narrower column overlapped its tiles. min() keeps one tree within a column
+   narrower than that. */
 .talent-trees {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(15.5rem, 100%), 1fr));
   gap: 12px;
   margin-top: 12px;
 }
