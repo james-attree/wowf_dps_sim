@@ -2727,7 +2727,9 @@ th[aria-sort="ascending"] {
   color: #100f0c;
   font-size: 0.6875rem;
   font-weight: 750;
-  line-height: 16px;
+  /* A ratio of its own text, so the count stays inside the pill at bigger
+     text (Fran's #299 check, N8). */
+  line-height: 1.45;
   text-align: center;
 }
 
@@ -2827,17 +2829,17 @@ th[aria-sort="ascending"] {
     }
   }
 
-  /* Narrower still, the icon goes back above its label, so a long label
-     such as "Character" keeps the cell's whole width and stays one word. */
+  /* Narrower still, one link per row, each icon beside its label and the
+     badge after it, so a long label such as "Character" keeps one word and
+     no badge sits on a label (Fran's #299 check, N8: half the nav was too
+     narrow for it at 320 and 250% text). */
   @container area-nav (width < 11em) {
-    .area-nav a {
-      flex-direction: column;
-      gap: 0;
-      padding: 2px;
+    .area-nav ul {
+      grid-template-columns: minmax(0, 1fr);
     }
 
-    .area-nav-badge {
-      position: absolute;
+    .area-nav a {
+      padding-block: 0;
     }
   }
 }
@@ -2946,11 +2948,16 @@ th[aria-sort="ascending"] {
   .run-column .run-buttons {
     display: grid;
     flex: 1 1 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* No narrower than a label's longest word, such as "average" (N8). */
+    grid-template-columns: repeat(2, minmax(min-content, 1fr));
   }
 
+  /* A wrapped label keeps inside its button: the corners round to half a
+     one-line button's height, not the whole height, so two lines sit in a
+     rounded box, not a circle that cuts their ends (Fran's #299 check, N8). */
   .run-column .run-buttons button {
     min-width: 0;
+    border-radius: calc(var(--target) / 2);
     text-wrap: balance;
   }
 
