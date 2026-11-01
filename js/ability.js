@@ -343,8 +343,8 @@ export class Ability {
   }
 
   // Whether an aura the ability requires is up now (always, for one that
-  // requires none). Ambush: the cutthroat aura, which nothing grants yet
-  // (#261).
+  // requires none). Ambush: the cutthroat aura (#261), which Cutthroat's
+  // Backstab proc puts up (#271).
   auraMet(simulation) {
     return (
       this.requiresAura.length === 0 ||
@@ -353,8 +353,9 @@ export class Ability {
   }
 
   // Whether anything in this fight can put up an aura the ability requires
-  // (Rogue.grantedAuras): false for Ambush today, as nothing grants the
-  // cutthroat aura (#261). The rotation host's usable asks it.
+  // (Rogue.grantedAuras): for Ambush, true only with Cutthroat in the build,
+  // whose proc puts up the cutthroat aura (#261, #271). The rotation host's
+  // usable asks it.
   auraReachable(rogue) {
     return (
       this.requiresAura.length === 0 ||

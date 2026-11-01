@@ -4,8 +4,9 @@ import { pageDefaultConfig } from "../js/config-form.js";
 import { rotationWarnings } from "../js/rotation-warnings.js";
 
 // #245, Fran's check and James's ruling: Ambush gets no lock, warning or
-// note. Its rule is passed over for the whole fight (nothing grants the
-// "Ambush allowed" aura, #262), so a rule above it that always holds is not
+// note, kept for #271. Its rule is passed over for the whole fight without
+// Cutthroat (the only grant of the "Ambush allowed" aura, #262, #271), and
+// with it casts only while the aura is up, so a rule above it that always holds is not
 // said to starve it, and it is not said to starve the rules below. A
 // genuine trap on another ability still warns.
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { referenceBuild } from "../data/reference-build.js";
+import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import {
   createConfigForm,
   nextRunConfig,
@@ -256,24 +257,33 @@ describe("talent tree model (#204)", () => {
     // simulates Improved Expose Armor and Venom: 28 / 9 / 16. #269
     // simulates Opportunity, Serrated Blades, Quietus and Thousand Cuts (+4)
     // and marks eight Subtlety talents as no DPS (+8): 32 / 17 / 4. #270
-    // simulates Preparation: 33 / 17 / 3.
-    assert.deepEqual(counts, { simulated: 33, noDps: 17, notSimulated: 3 });
+    // simulates Preparation: 33 / 17 / 3. #271 simulates Improved Ambush,
+    // Initiative and Cutthroat: 36 / 17 / 0, every tree covered (D8).
+    assert.deepEqual(counts, { simulated: 36, noDps: 17, notSimulated: 0 });
   });
 
   it("counts picked talents the sim does not model yet in the summary", () => {
-    const { tree, talents } = setup();
-    // Camouflage was the example until #269 marked it no DPS. Improved Ambush
-    // is on row 2, so five points go on row 1 first.
-    for (let point = 0; point < 5; point += 1) {
-      tree.add("subtlety.camouflage");
-    }
-    tree.add("subtlety.improved-ambush");
-    assert.equal(
-      talents().view.summary,
-      "Subtlety 0/0/6 · 6/51 · 1 not simulated yet",
-    );
+    // Camouflage was the example until #269 marked it no DPS, Improved
+    // Ambush until #271 simulated it. Improved Ambush is on row 2, so five
+    // points go on row 1 first.
+    const pick = (tree) => {
+      for (let point = 0; point < 5; point += 1) {
+        tree.add("subtlety.camouflage");
+      }
+      tree.add("subtlety.improved-ambush");
+    };
+    const real = setup();
+    pick(real.tree);
+    assert.equal(real.talents().view.summary, "Subtlety 0/0/6 · 6/51");
+    assert.equal(real.talents().view.effects.coverage.notSimulated, null);
+    // A copy of the effects data without Improved Ambush's entry.
+    const { "subtlety.improved-ambush": dropped, ...effects } = TALENT_EFFECTS;
+    assert.ok(dropped);
+    const store = createStore({ config: pageDefaultConfig(), form: null });
+    const tree = createTalentTree(store, { info: talentInfo({ effects }) });
+    pick(tree);
     assert.match(
-      talents().view.effects.coverage.notSimulated,
+      store.get().talents.view.effects.coverage.notSimulated,
       /^Not simulated yet: Improved Ambush \(1\)\. Their points add no DPS\.$/,
     );
   });

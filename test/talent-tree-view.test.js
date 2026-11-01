@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import { referenceBuild } from "../data/reference-build.js";
+import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { pageDefaultConfig } from "../js/config-form.js";
 import { createStore } from "../js/store.js";
-import { createTalentTree } from "../js/talent-tree.js";
+import { createTalentTree, talentInfo } from "../js/talent-tree.js";
 import { NARROW_QUERY } from "../js/views/breakpoints.js";
 import {
   createTalentTreeView,
@@ -140,7 +141,7 @@ const IDS = [
   "talents-live",
 ];
 
-function page({ config = pageDefaultConfig(), narrow = false } = {}) {
+function page({ config = pageDefaultConfig(), narrow = false, effects } = {}) {
   const doc = {
     activeElement: null,
     createElement: (tag) => new FakeElement(doc, tag),
@@ -164,7 +165,10 @@ function page({ config = pageDefaultConfig(), narrow = false } = {}) {
   };
   const queries = [];
   const store = createStore({ config });
-  const actions = createTalentTree(store);
+  const actions = createTalentTree(
+    store,
+    effects === undefined ? {} : { info: talentInfo({ effects }) },
+  );
   const unsubscribe = createTalentTreeView(doc, store, actions, {
     matchMedia: (query) => {
       queries.push(query);
@@ -414,8 +418,12 @@ describe("talent tree view (#204)", () => {
   });
 
   it("a not-simulated talent gets the poison note, described by the steppers", () => {
-    const { tile, $ } = page();
-    // Camouflage was the example until #269 marked it no DPS.
+    // Camouflage was the example until #269 marked it no DPS, and Improved
+    // Ambush until #271 mapped it; every talent has an entry since #271, so
+    // this uses a copy of the effects data without Improved Ambush's.
+    const { "subtlety.improved-ambush": dropped, ...effects } = TALENT_EFFECTS;
+    assert.ok(dropped);
+    const { tile, $ } = page({ effects });
     tile("subtlety.improved-ambush").focus();
     const note = $("talents-detail").find(
       (node) => node.getAttribute("id") === "talents-detail-note",

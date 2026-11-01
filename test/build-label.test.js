@@ -9,6 +9,8 @@ import {
 import { pageDefaultConfig } from "../js/config-form.js";
 import { loadPreset } from "../js/rotation-presets.js";
 import { referenceBuild } from "../data/reference-build.js";
+import { TALENT_EFFECTS } from "../data/talent-effects.js";
+import { talentCatalogue } from "../js/talents.js";
 
 // Issue #154: the build label of the batch results panel (Fran's spec,
 // section 1a and the section 10 checks).
@@ -90,16 +92,28 @@ describe("the talents part of the label (#204, Fran's U6 spec D17 and section 6)
 
   it("counts the picked talents the sim does not model yet", () => {
     // Opportunity was the example until #269 simulated it, Preparation
-    // until #270.
+    // until #270, Initiative until #271 mapped the last three talents. A
+    // copy of the effects data without Initiative's entry stands in.
+    const { "subtlety.initiative": dropped, ...effects } = TALENT_EFFECTS;
+    assert.ok(dropped);
     const ranks = { ...combat, "subtlety.initiative": 1 };
     assert.equal(
-      talentLabel(ranks, 60),
+      talentLabel(ranks, 60, { effects }),
       "Combat 0/7/1 · 8/51 · 1 not simulated yet",
     );
     assert.equal(
-      buildLabel({ talents: ranks, talentLevel: 30 }),
+      buildLabel({ talents: ranks, talentLevel: 30 }, { effects }),
       "Combat 0/7/1 · level 30 · 8/21 · 1 not simulated yet · Default rotation · No poisons",
     );
+  });
+
+  it("counts none not simulated in any tree on the real data (#271)", () => {
+    for (const tree of talentCatalogue.trees) {
+      const ranks = Object.fromEntries(
+        talentCatalogue.byTree(tree.id).map((talent) => [talent.id, 1]),
+      );
+      assert.doesNotMatch(talentLabel(ranks, 60), /not simulated yet/, tree.id);
+    }
   });
 
   it("never throws on a level outside 10 to 60", () => {
