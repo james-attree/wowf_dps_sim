@@ -10,6 +10,7 @@
 // no hint left).
 
 const HINT_ID = "cfg-preset-build-hint";
+const NONE = 0;
 
 export function createPresetBuildView(doc, store, actions) {
   const $ = (id) => doc.querySelector(`#${id}`);
@@ -33,7 +34,7 @@ export function createPresetBuildView(doc, store, actions) {
       .split(/\s+/)
       .filter((id) => id !== "" && id !== HINT_ID);
     const next = shown ? [HINT_ID, ...ids] : ids;
-    if (next.length === 0) {
+    if (next.length === NONE) {
       select.removeAttribute("aria-describedby");
     } else {
       select.setAttribute("aria-describedby", next.join(" "));
