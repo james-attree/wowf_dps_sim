@@ -5,6 +5,7 @@ import { runFight } from "../js/fight.js";
 import { runScriptedFight } from "./scripted-fight.mjs";
 import { loadPreset } from "../js/rotation-presets.js";
 import { referenceBuild } from "../data/reference-build.js";
+import { referenceBuild as presetReferenceBuild } from "../js/preset-reference-builds.js";
 import { defaultDaggerConfig } from "../js/sim-config.js";
 
 // Golden-seed regression fixtures (#77, #85). Each case pins the full result of
@@ -426,6 +427,23 @@ export const GOLDEN_CASES = deepFreeze([
       rotation: AMBUSH_ROTATION,
     },
   },
+  // Issue #272. Each dagger preset with its reference build
+  // (js/preset-reference-builds.js): the talents, both weapons and both
+  // poisons (Instant main hand, Deadly off hand), put in as #273's button
+  // would, and nothing else (the default character).
+  ...["assassination-daggers", "subtlety-daggers"].map((id) => {
+    const build = presetReferenceBuild(id);
+    return {
+      name: `${id}-preset-seed-272-60s`,
+      seed: 272,
+      duration: 60,
+      config: loadPreset(id, {
+        talents: { ...build.talents },
+        weapons: { ...build.weapons },
+        poisons: { ...build.poisons },
+      }),
+    };
+  }),
 ]);
 
 // Files that can turn up in test/golden/ without being a stray case: macOS

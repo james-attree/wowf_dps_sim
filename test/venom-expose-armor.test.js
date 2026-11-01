@@ -307,7 +307,11 @@ describe("A12: Expose Armor and Sunder: the highest reduction wins", () => {
     const { ROTATION_PRESETS } = await import("../data/rotation-presets.js");
     const actions = JSON.stringify(ROTATION_PRESETS);
     assert.equal(actions.includes('"expose-armor"'), false);
-    assert.equal(actions.includes('"venom"'), false);
+    // Venom is cast only by the Assassination preset (#272).
+    const venom = ROTATION_PRESETS.filter((preset) =>
+      JSON.stringify(preset.rotation).includes('"venom"'),
+    ).map(({ id }) => id);
+    assert.deepEqual(venom, ["assassination-daggers"]);
   });
 });
 

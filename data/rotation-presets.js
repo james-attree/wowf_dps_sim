@@ -17,6 +17,12 @@ import { k } from "./constants.js";
 //
 // A preset is for one weapon setup. combat-swords casts nothing that needs a
 // dagger, so it runs on any main hand, and it is not written for another spec.
+// assassination-daggers and subtlety-daggers (issue #272) are written for the
+// dagger alternate and their reference builds
+// (data/preset-reference-builds.js); loading one sets the rotation only. On
+// other talents or weapons a rule whose ability the character lacks is passed
+// over (abilityGranted, or the interpreter's weapon check), as for any
+// rotation. Neither casts Expose Armor or a stealth opener.
 //
 // id             the preset's key: lower-case words joined by "-"
 // name           the display name, and the rotation's own `name`
@@ -37,6 +43,21 @@ const sliceAndDice = (op, value) => ({
   op,
   value,
 });
+const underFinisher = { type: "comboPoints", op: "<", value: FINISHER };
+const granted = (ability) => ({ type: "abilityGranted", ability });
+const ready = (ability) => ({ type: "cooldownReady", ability });
+const onCooldown = (ability) => ({
+  type: "cooldownReady",
+  ability,
+  ready: false,
+});
+// A debuff is recast when it has under recastSeconds left, as Slice and Dice.
+const debuffEnding = (debuff) => ({
+  type: "debuffRemaining",
+  debuff,
+  op: "<",
+  value: recastSeconds,
+});
 const energy = (value) => ({
   type: "resource",
   resource: "energy",
@@ -53,6 +74,31 @@ function deepFreeze(value) {
   }
   return value;
 }
+
+// Slice and Dice, recast when it is about to end, or at full energy in the
+// pooling window (the combat-swords pair below, shared by the dagger presets).
+const sliceAndDiceRules = () => [
+  {
+    action: SLICE_AND_DICE,
+    conditions: [comboPointsAtFinisher, sliceAndDice("<", recastSeconds)],
+  },
+  {
+    action: SLICE_AND_DICE,
+    conditions: [
+      comboPointsAtFinisher,
+      sliceAndDice("<=", windowSeconds),
+      energy(k("energy.max")),
+    ],
+  },
+];
+const ruptureRule = () => ({
+  action: "rupture",
+  conditions: [comboPointsAtFinisher, debuffEnding("rupture")],
+});
+const eviscerateRule = () => ({
+  action: "eviscerate",
+  conditions: [comboPointsAtFinisher, sliceAndDice(">", windowSeconds)],
+});
 
 export const ROTATION_PRESETS = deepFreeze([
   {
@@ -111,6 +157,110 @@ export const ROTATION_PRESETS = deepFreeze([
           action: "sinister-strike",
           conditions: [{ type: "comboPoints", op: "<", value: FINISHER }],
         },
+      ],
+    },
+  },
+  // Issue #272. Assassination on daggers: the finishers keep Slice and Dice,
+  // Rupture and Venom up. Eviscerate is a fallback for 5 CP none of them
+  // needs, which never happens with the reference build (0 casts on every
+  // seed measured, Kira's #304 N3); Mutilate builds. Cold Blood goes on the next Mutilate (its crits roll
+  // Seal Fate), as Cold Blood does nothing for Rupture or Venom.
+  {
+    id: "assassination-daggers",
+    name: "Assassination",
+    description:
+      "Slice and Dice, Rupture and Venom kept up, Eviscerate only as a fallback (the reference build never reaches it), Cold Blood on cooldown for Mutilate, Mutilate to build.",
+    rotation: {
+      schemaVersion: 1,
+      name: "Assassination",
+      rules: [
+        ...sliceAndDiceRules(),
+        ruptureRule(),
+        {
+          action: "venom",
+          conditions: [
+            granted("venom"),
+            comboPointsAtFinisher,
+            { type: "auraRemaining", aura: "venom", op: "<=", value: 0 },
+          ],
+        },
+        eviscerateRule(),
+        {
+          action: "cold-blood",
+          conditions: [granted("cold-blood"), underFinisher],
+        },
+        {
+          action: "mutilate",
+          conditions: [granted("mutilate"), underFinisher],
+        },
+      ],
+    },
+  },
+  // Issue #272. Subtlety on daggers: Premeditation on cooldown when its 2 CP
+  // fit, Preparation while Ghostly Strike is on cooldown (Premeditation is
+  // too), the Slice and Dice and Rupture finishers and Eviscerate (a fallback
+  // the reference build never reaches, Kira's #304 N3), then
+  // Ambush (only when a Cutthroat proc allows it: there is no stealth
+  // opener, and the rule has no aura condition, so it is passed over
+  // otherwise), Ghostly Strike, Hemorrhage to keep its debuff up, and
+  // Backstab.
+  {
+    id: "subtlety-daggers",
+    name: "Subtlety",
+    description:
+      "Premeditation and Ghostly Strike on cooldown and Preparation to reset them, Slice and Dice kept up, Rupture at 5 CP when Slice and Dice allows it (not in every 60 s fight), Eviscerate only as a fallback (the reference build never reaches it), Ambush when Cutthroat allows it, Hemorrhage kept up, Backstab to build.",
+    rotation: {
+      schemaVersion: 1,
+      name: "Subtlety",
+      rules: [
+        // Off the GCD, so while it is on cooldown the rule is passed over
+        // and needs no cooldownReady.
+        {
+          action: "premeditation",
+          conditions: [
+            granted("premeditation"),
+            {
+              type: "comboPoints",
+              op: "<=",
+              value: FINISHER - k("premeditation").comboPoints,
+            },
+          ],
+        },
+        // On the GCD, so it needs cooldownReady. Premeditation is cast at the
+        // start (rule 1), so it is on cooldown too when Ghostly Strike is.
+        {
+          action: "preparation",
+          conditions: [
+            granted("preparation"),
+            ready("preparation"),
+            onCooldown("ghostly-strike"),
+          ],
+        },
+        // Only the recast rule of the Slice and Dice pair: a share link of
+        // this preset must stay under 2,048 characters (#284), and the
+        // full-energy rule never fired with the reference build (the same
+        // DPS over 120 seeds at 60 s and 300 s without it; PR for #272).
+        sliceAndDiceRules()[0],
+        ruptureRule(),
+        eviscerateRule(),
+        { action: "ambush", conditions: [underFinisher] },
+        {
+          action: "ghostly-strike",
+          conditions: [
+            granted("ghostly-strike"),
+            underFinisher,
+            ready("ghostly-strike"),
+          ],
+        },
+        {
+          action: "hemorrhage",
+          conditions: [
+            granted("hemorrhage"),
+            underFinisher,
+            debuffEnding("hemorrhage"),
+          ],
+        },
+        { action: "backstab", conditions: [underFinisher] },
       ],
     },
   },

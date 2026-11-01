@@ -199,6 +199,25 @@ describe("the readable summary in docs/rotation.md", () => {
     }
   });
 
+  // Kira's #304 N7: the summary is the first text block under the preset's
+  // own heading, not just somewhere in the section.
+  it("puts each summary under its own preset heading", () => {
+    for (const preset of ROTATION_PRESETS) {
+      const start = presets.indexOf(`\n### ${preset.id}\n`);
+      assert.ok(start >= 0, preset.id);
+      const rest = presets.slice(start + 1);
+      const next = rest.indexOf("\n### ");
+      const section = next < 0 ? rest : rest.slice(0, next);
+      const block = /```text\n([\s\S]*?)```/.exec(section);
+      assert.ok(block !== null, `${preset.id} has a summary block`);
+      assert.equal(
+        block[1].trimEnd(),
+        summarizeRotation(preset.rotation),
+        preset.id,
+      );
+    }
+  });
+
   it("states the pooling numbers the preset reads", () => {
     assert.ok(presets.includes(`${WINDOW} seconds or less`));
     assert.ok(presets.includes(`${RECAST} second left`));

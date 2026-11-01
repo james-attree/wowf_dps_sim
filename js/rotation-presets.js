@@ -2,6 +2,18 @@ import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { assertValidRotation } from "./rotation-validator.js";
 import { summarizeRotation } from "./rotation-summary.js";
 
+// Each preset's reference build (issue #272), re-exported here so the page
+// that offers the presets has its builds too, for #273's button. Importing
+// this module checks every build, as it checks every preset.
+export {
+  poisonDifferences,
+  referenceBuild,
+  referencePoison,
+  referenceWeapon,
+  talentDifferences,
+  weaponTypeDifferences,
+} from "./preset-reference-builds.js";
+
 // The preset rotations a page can offer (R5, issue #142). The presets are data
 // (data/rotation-presets.js); this is the small API over them, with no DOM, so
 // a page, a worker or a test calls it the same way.

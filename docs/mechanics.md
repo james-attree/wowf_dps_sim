@@ -3301,8 +3301,9 @@ act only on those Ambushes.
 | Improved Ambush | 3   | `critChance` +15/30/45%, Ambush                                                               |
 | Initiative      | 3   | proc: `onAbility`, Ambush, `flat` 33/67/100%, `drawless: "whenCertain"`, `gainResource` +1 CP |
 
-- **Cutthroat** (`k("cutthroat.proc")`, `wowf-export`; `k("cutthroat.rules")`,
-  `assumption`). A landed Backstab (hit or crit; `onAbility` procs fire only
+- **Cutthroat** (`k("cutthroat.proc")`, `wowf-export`; `k("cutthroat.rules")`
+  and `k("cutthroat.procRules")`, `assumption`: the landed-only and
+  refresh-on-proc rules are the dev's reading, not the issue's). A landed Backstab (hit or crit; `onAbility` procs fire only
   for landed attacks) rolls once at 3/6/9/12/15% by rank, after the cast. On
   a fire it calls `simulation.applyAura(AURAS.cutthroat, { duration: 10 })`
   through the proc's `applyAura` action: the "Ambush allowed" aura, one charge
@@ -3344,6 +3345,73 @@ act only on those Ambushes.
   after an aura apply or refresh and followed by its `expire`.
 - **Old configs.** A config without these talents reads them as 0 points: no
   proc, no modifier, an empty `grantedAuras`, and the same fight.
+
+## Dagger presets and reference builds (P4.6-06, issue #272)
+
+Two preset rotations join combat-swords (`data/rotation-presets.js`; the rule
+lists and summaries are in [docs/rotation.md](rotation.md#assassination-daggers)):
+
+- **assassination-daggers**: Slice and Dice (the #122 pair), Rupture and Venom
+  kept up at 5 CP, Eviscerate only when none of them is due, Cold Blood below
+  5 CP so its charge goes on the next Mutilate, and Mutilate to build.
+- **subtlety-daggers**: Premeditation on cooldown when its 2 CP fit,
+  Preparation while Ghostly Strike (and so Premeditation, cast at the start)
+  is on cooldown, Slice and Dice (only the recast rule of the pair, to keep
+  its share link under 2,048 characters, #284), Rupture and Eviscerate, then Ambush (passed over unless a Cutthroat proc has put up
+  its aura; no lock, no hint), Ghostly Strike, Hemorrhage while its debuff has
+  under 1 s left, and Backstab.
+
+Neither casts Expose Armor or a stealth opener. Their numbers are read from
+`data/constants.js` (`rotation.finisherComboPoints`, `rotation.pooling`, the
+energy cap, `premeditation`), as combat-swords' are.
+
+**Loading a preset sets the rotation only** (`loadPreset`, unchanged). The
+build each one is written for is separate data,
+`data/preset-reference-builds.js`, keyed by preset id:
+
+- `name`; `talentLevel`, 60 for every build (James's decision, relayed by
+  Scout; #273 sets `config.talentLevel` to it when the config is below it, and
+  the page says so); `talents`, `{ talent id: rank }` (the SimConfig form: no 0 ranks);
+  `weapons`, `{ mainHand, offHand }`, each `{ type, min, max, speed }` (the
+  SimConfig weapon shape); `poisons`, `{ mainHand, offHand }`, each a poison
+  id (the SimConfig poisons shape, `config.poisonIds`).
+- assassination-daggers: the #268 Venom build without Improved Expose Armor,
+  whose 2 points go to Puncturing Wounds 2/3 (41 Assassination, 10 Combat).
+  subtlety-daggers: the #271 Cutthroat build (15 Assassination, 36 Subtlety).
+  Both are 51 points, on the dagger alternate (`weapon.dagger.mainHand`,
+  `weapon.dagger.offHand`).
+- combat-swords (James's decision, relayed by Scout): the current defaults,
+  the #151 reference Combat build (`data/reference-build.js`, 18
+  Assassination, 33 Combat) with the default config's swords in both hands.
+- Every build carries Instant Poison on the main hand and Deadly Poison on
+  the off hand, `{ mainHand: "instant", offHand: "deadly" }` (James's ruling,
+  relayed by Scout: `presetReferenceBuild.poisons`). With Deadly on the off
+  hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.
+- A build has no character sheet.
+
+`js/preset-reference-builds.js` checks every entry when it is imported (a
+known preset id, only the fields above, `talentLevel` 60, legal talents there,
+both hands with a type and positive min, max and speed, min not above max, `poisons` Instant main hand and Deadly off hand). For
+#273's button it gives `referenceBuild(id)` (a copy; `null` for a preset
+with no entry, which none is today),
+`talentDifferences(build, talents)` (`[{ id, reference, current }]` for each
+rank that differs, a missing rank being 0), `weaponTypeDifferences(build,
+weapons)` (`{ mainHand, offHand }`, each `{ reference, current, same }`) and
+`referenceWeapon(build, hand)` (a copy of that hand for `config.weapons`),
+`poisonDifferences(build, poisons)` (`{ mainHand, offHand }`, each
+`{ reference, current, same }`, a missing poison being `null` as in the
+default config) and `referencePoison(build, hand)` (that hand's poison id for
+`config.poisons`). Nothing calls them in the app yet, and nothing puts a build into a config.
+
+- **RNG (G2).** No new proc, roll or ability: a preset is a rule list, and
+  the reference builds are data that no fight reads.
+- **Goldens.** The existing fixtures are unchanged (no default changed). The
+  two new ones, `assassination-daggers-preset-seed-272-60s` and
+  `subtlety-daggers-preset-seed-272-60s`, run each preset with its reference
+  build's talents, weapons and poisons (Instant main hand, Deadly off hand)
+  and the default character.
+- **Old configs.** A config with no rotation still gets the default rotation;
+  one with a preset loaded keeps its own talents and weapons.
 
 ## Applying a talent build (D7, issue #106)
 
