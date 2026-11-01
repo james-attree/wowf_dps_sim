@@ -78,6 +78,11 @@
 //                 spend resource spent. No entry for the amount means no aura.
 //                 `stacks: "spent"` puts the aura up with one stack per unit
 //                 spent (Expose Armor, #268); absent, one stack
+//   resets        a constants id: a list of ability ids whose cooldowns a cast
+//                 finishes at once (Preparation, #270, A15: preparation.resets).
+//                 A cooldown that is not running, and any id not in the list
+//                 (the ability's own, a racial's), is left alone. The list may
+//                 not hold the ability's own id. Absent: none
 //
 // A spender that spent combo.max gets back the comboRefund modifiers scoped
 // to it (Improved Expose Armor, #268, A11): no field here, the talent says.
@@ -284,5 +289,15 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     cost: ENERGY,
     spend: { resource: "comboPoints" },
     aura: { id: "venom", duration: { bySpent: "durationByCp" } },
+  },
+  {
+    // Granted by the Preparation talent (#270): no cost, on the GCD, a 10 min
+    // cooldown, and it finishes the cooldowns preparation.resets lists (A15).
+    // A cast that does not attack and draws nothing. No icon in img/ yet.
+    key: "preparation",
+    id: "preparation",
+    row: "preparation",
+    icon: null,
+    resets: "preparation.resets",
   },
 ]);

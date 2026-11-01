@@ -25,7 +25,8 @@ const ASSASSINATION_MAPPED = "assassination.malice";
 // Improved Expose Armor was the unmapped Assassination example until #268
 // covered the whole tree; an unmapped Subtlety talent stands in for it.
 const SUBTLETY_MAPPED = "subtlety.hemorrhage";
-const OTHER_UNMAPPED = "subtlety.preparation";
+// Preparation was the other example until #270 mapped it.
+const OTHER_UNMAPPED = "subtlety.improved-ambush";
 const SUBTLETY_UNMAPPED = "subtlety.initiative";
 
 // A copy of the effects map that a test may change.

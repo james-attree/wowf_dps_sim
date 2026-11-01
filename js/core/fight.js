@@ -317,6 +317,9 @@ class CoreFight {
     // While begin() runs: what the last run on this fight left
     // (sim.coreCarry, see carry()), when it closed at this run's start.
     this.carried = null;
+    // While sync() runs at begin(): the timer ends it sets, in seq order
+    // (restore()).
+    this.restoring = null;
     // The condition wake the last decision asked for (armWakes), also when
     // it is past the end and so not scheduled, for the carry.
     this.conditionWake = null;
@@ -462,13 +465,13 @@ class CoreFight {
         [...written].map(([id, entry]) => [
           id,
           typeof entry === "number"
-            ? { written: entry, endsAt: set.endsAt(id) }
-            : { ...entry, endsAt: set.endsAt(id) },
+            ? { written: entry, endsAt: set.endsAt(id), seq: set.seq(id) }
+            : { ...entry, endsAt: set.endsAt(id), seq: set.seq(id) },
         ]),
       );
     return {
       time: this.now,
-      gcd: { written: seen.gcd, endsAt: this.gcd.endsAt },
+      gcd: { written: seen.gcd, endsAt: this.gcd.endsAt, seq: this.gcd.seq },
       cooldowns: timers(seen.cooldowns, this.cooldowns),
       auras: Object.fromEntries(
         AURA_MAPS.map((map) => [
@@ -531,9 +534,26 @@ class CoreFight {
   // A timer's end: at begin(), the end the last run left while the field
   // still holds what it wrote (carry()); else now + the field.
   endFor(item, value) {
-    return item !== undefined && item.endsAt !== null && item.written === value
-      ? item.endsAt
-      : this.scheduler.now + value;
+    return this.goesOn(item, value) ? item.endsAt : this.scheduler.now + value;
+  }
+
+  // Whether a timer goes on with the end the last run left (endFor).
+  goesOn(item, value) {
+    return item !== undefined && item.endsAt !== null && item.written === value;
+  }
+
+  // Set a timer's end from sync(). At begin() (a carry), the timers that go
+  // on are set in the order the last run had scheduled them (their seq), so
+  // two that end at the same time run in the same order as in one run
+  // (#270: Rupture and Hemorrhage ending together across a cut). The others
+  // follow, in the order sync() reaches them.
+  restore(item, value, set) {
+    if (this.restoring === null) {
+      set();
+      return;
+    }
+    const seq = this.goesOn(item, value) ? item.seq : null;
+    this.restoring.push({ seq: seq ?? Infinity, set });
   }
 
   // Put the fight back in the Simulation's fields: the energy Resource with the
@@ -664,9 +684,12 @@ class CoreFight {
   // advance() wrote it.
   sync() {
     const { sim, rogue, seen } = this;
+    this.restoring = this.carried === null ? null : [];
     if (sim.gcd !== seen.gcd) {
       if (sim.gcd > 0) {
-        this.gcd.setEndsAt(this.endFor(this.carried?.gcd, sim.gcd));
+        const item = this.carried?.gcd;
+        const end = this.endFor(item, sim.gcd);
+        this.restore(item, sim.gcd, () => this.gcd.setEndsAt(end));
       } else {
         this.gcd.clear();
       }
@@ -677,10 +700,9 @@ class CoreFight {
         continue;
       }
       if (value > 0 && Number.isFinite(value)) {
-        this.cooldowns.setEndsAt(
-          id,
-          this.endFor(this.carried?.cooldowns.get(id), value),
-        );
+        const item = this.carried?.cooldowns.get(id);
+        const end = this.endFor(item, value);
+        this.restore(item, value, () => this.cooldowns.setEndsAt(id, end));
         seen.cooldowns.set(id, value);
       } else {
         this.cooldowns.clear(id);
@@ -707,14 +729,22 @@ class CoreFight {
         continue;
       }
       if (remaining > 0 && Number.isFinite(remaining)) {
-        this.points.setEndsAt(
-          id,
-          this.endFor(this.carried?.points.get(id), remaining),
-        );
+        const item = this.carried?.points.get(id);
+        const end = this.endFor(item, remaining);
+        this.restore(item, remaining, () => this.points.setEndsAt(id, end));
         seen.points.set(id, { written: remaining });
       } else {
         this.points.clear(id);
         seen.points.delete(id);
+      }
+    }
+    const queued = this.restoring;
+    this.restoring = null;
+    if (queued !== null) {
+      // Array sort is stable, so the timers with no seq keep their order.
+      queued.sort((a, b) => (a.seq === b.seq ? 0 : a.seq < b.seq ? -1 : 1));
+      for (const { set } of queued) {
+        set();
       }
     }
   }
@@ -737,11 +767,12 @@ class CoreFight {
       }
       if (Number.isFinite(aura.duration)) {
         const item = this.carried?.auras[map].get(id);
-        timers.setEndsAt(
-          id,
-          item?.aura === aura && aura.duration >= 0
-            ? this.endFor(item, aura.duration)
-            : now + Math.max(0, aura.duration),
+        const own = item?.aura === aura && aura.duration >= 0;
+        const end = own
+          ? this.endFor(item, aura.duration)
+          : now + Math.max(0, aura.duration);
+        this.restore(own ? item : undefined, aura.duration, () =>
+          timers.setEndsAt(id, end),
         );
         seen.set(id, { aura, written: aura.duration });
       } else {
