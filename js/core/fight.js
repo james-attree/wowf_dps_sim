@@ -381,6 +381,13 @@ class CoreFight {
     // What is already running when the run starts.
     this.sync();
     const carried = this.carried;
+    // The DoTs that go on with their clocks are resumed in the order the
+    // last run had scheduled their pending ticks (their seq), so two ticks
+    // at the same time run in the same order as in one run (#305: Deadly
+    // Poison and Rupture across a cut). The DoTs started afresh from their
+    // entries follow, in the order of activeDots.
+    const resumes = [];
+    const fresh = [];
     for (const [id, dot] of Object.entries(sim.activeDots)) {
       const item = carried?.dots.get(id);
       if (
@@ -391,15 +398,24 @@ class CoreFight {
         item.duration === dot.duration &&
         item.state !== null
       ) {
-        this.dots.resume(id, item.state);
+        resumes.push({ id, ...item });
       } else {
-        this.dotApplied(id, null, dot);
+        fresh.push([id, dot]);
       }
     }
-    for (const [id, state] of carried?.idleDots ?? []) {
+    for (const [id, item] of carried?.idleDots ?? []) {
       if (!Object.hasOwn(sim.activeDots, id)) {
-        this.dots.resume(id, state);
+        resumes.push({ id, ...item });
       }
+    }
+    // Array sort is stable, so the DoTs with no pending tick keep their order.
+    const order = ({ seq }) => seq ?? Number.POSITIVE_INFINITY;
+    resumes.sort((a, b) => (order(a) === order(b) ? 0 : order(a) - order(b)));
+    for (const { id, state } of resumes) {
+      this.dots.resume(id, state);
+    }
+    for (const [id, dot] of fresh) {
+      this.dotApplied(id, null, dot);
     }
     this.swings = ["mainHand", "offHand"].map((hand) => {
       const weapon = rogue.weapons[hand];
@@ -489,6 +505,7 @@ class CoreFight {
             tickInterval: entry.tickInterval,
             duration: entry.duration,
             state: this.dots.state(id),
+            seq: this.dots.seq(id),
           },
         ]),
       ),
@@ -498,7 +515,10 @@ class CoreFight {
       idleDots: new Map(
         this.dots.runningIds
           .filter((id) => !Object.hasOwn(sim.activeDots, id))
-          .map((id) => [id, this.dots.state(id)]),
+          .map((id) => [
+            id,
+            { state: this.dots.state(id), seq: this.dots.seq(id) },
+          ]),
       ),
       swings: new Map(
         (this.swings ?? []).map((timer) => [

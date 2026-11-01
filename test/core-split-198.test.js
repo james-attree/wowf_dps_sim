@@ -25,6 +25,176 @@ import { POLL_STEP } from "./poll-step.js";
 const HEMO = EXTRA_CASES.find(
   ({ name }) => name === "dot-hemorrhage-rupture-120s",
 );
+// #305, from Kira's N9 on PR #304: the poisoned Assassination preset config
+// of #272 (its reference build: talents, daggers, Instant Poison on the main
+// hand and Deadly Poison on the off hand, and the preset's rotation; the
+// default character). Deadly Poison and Rupture tick at the same time on
+// these seeds, and a cut before that time must not swap the two ticks.
+const POISONED_ASSASSINATION = Object.freeze({
+  talents: {
+    "assassination.remorseless-attacks": 2,
+    "assassination.malice": 5,
+    "assassination.ruthlessness": 3,
+    "assassination.murder": 2,
+    "assassination.improved-slice-and-dice": 3,
+    "assassination.relentless-strikes": 1,
+    "assassination.lethality": 5,
+    "assassination.vile-poisons": 5,
+    "assassination.cold-blood": 1,
+    "assassination.improved-poisons": 5,
+    "assassination.vigor": 2,
+    "assassination.mutilate": 1,
+    "assassination.seal-fate": 5,
+    "assassination.venom": 1,
+    "combat.improved-eviscerate": 3,
+    "combat.improved-sinister-strike": 2,
+    "combat.precision": 3,
+    "combat.puncturing-wounds": 2,
+  },
+  weapons: {
+    mainHand: {
+      min: 73,
+      max: 137,
+      speed: 1.8,
+      type: "dagger",
+    },
+    offHand: {
+      min: 57,
+      max: 107,
+      speed: 1.6,
+      type: "dagger",
+    },
+  },
+  poisons: {
+    mainHand: "instant",
+    offHand: "deadly",
+  },
+  rotation: {
+    schemaVersion: 1,
+    name: "Assassination daggers",
+    rules: [
+      {
+        action: "slice-and-dice",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "auraRemaining",
+            aura: "slice-and-dice",
+            op: "<",
+            value: 1,
+          },
+        ],
+      },
+      {
+        action: "slice-and-dice",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "auraRemaining",
+            aura: "slice-and-dice",
+            op: "<=",
+            value: 5,
+          },
+          {
+            type: "resource",
+            resource: "energy",
+            op: ">=",
+            value: 100,
+          },
+        ],
+      },
+      {
+        action: "rupture",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "debuffRemaining",
+            debuff: "rupture",
+            op: "<",
+            value: 1,
+          },
+        ],
+      },
+      {
+        action: "venom",
+        conditions: [
+          {
+            type: "abilityGranted",
+            ability: "venom",
+          },
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "auraRemaining",
+            aura: "venom",
+            op: "<=",
+            value: 0,
+          },
+        ],
+      },
+      {
+        action: "eviscerate",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "auraRemaining",
+            aura: "slice-and-dice",
+            op: ">",
+            value: 5,
+          },
+        ],
+      },
+      {
+        action: "cold-blood",
+        conditions: [
+          {
+            type: "abilityGranted",
+            ability: "cold-blood",
+          },
+          {
+            type: "comboPoints",
+            op: "<",
+            value: 5,
+          },
+        ],
+      },
+      {
+        action: "mutilate",
+        conditions: [
+          {
+            type: "abilityGranted",
+            ability: "mutilate",
+          },
+          {
+            type: "comboPoints",
+            op: "<",
+            value: 5,
+          },
+        ],
+      },
+    ],
+  },
+});
+
 // The distinct configs of the core's test cases.
 const CONFIGS = [
   ...new Map(FIGHT_CASES.map((c) => [JSON.stringify(c.config), c])).values(),
@@ -91,6 +261,25 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
         assertSame(
           oneAndSplit(seed, config, 60, [43.6], run),
           `subtlety-269 seed ${seed} ${label}`,
+        );
+      }
+    }
+  });
+
+  // #305 (Kira's N9 on PR #304): Deadly Poison's and Rupture's ticks due at
+  // one time run in the order they were scheduled, across a cut too. Seed 34
+  // cut at 29 (ticks at 29.5) and seed 37 cut at 70.5 over 120 s swapped
+  // them on main before #305, through runOnCore and sim.run.
+  it("the poisoned Assassination config, DoT ticks at one time across a cut (#305)", () => {
+    for (const [seed, duration, cut] of [
+      [34, 60, 29],
+      [37, 120, 70.5],
+    ]) {
+      for (const run of [byCore, bySim]) {
+        const label = run === byCore ? "runOnCore" : "sim.run";
+        assertSame(
+          oneAndSplit(seed, POISONED_ASSASSINATION, duration, [cut], run),
+          `poisoned assassination seed ${seed} cut at ${cut} ${label}`,
         );
       }
     }

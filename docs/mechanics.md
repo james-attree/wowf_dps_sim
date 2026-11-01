@@ -1395,7 +1395,14 @@ timers that go on are set again in the order the last run had scheduled them
 (each timer's seq, kept in the carry; `restore()` in js/core/fight.js), and the
 others after them, so two timers that end at the same time run in the same
 order as in one run (#270: Rupture and Hemorrhage ending together on the
-Preparation fixture's fight, cut before they ran out). Only `sim.coreStats` can see the split. When nothing a
+Preparation fixture's fight, cut before they ran out). The DoTs that go on
+are resumed the same way: in the order the last run had scheduled their
+pending ticks (each tick's seq, kept in the carry with the DoT's clock, the
+idle ones too), and the DoTs started afresh from a changed entry after them,
+so two DoTs that tick at the same time tick in the same order as in one run
+(#305, from #304 QA N9: Deadly Poison and Rupture ticking together on the
+poisoned Assassination preset's fight, which a cut before the tick had run
+Rupture first, as the order of `activeDots`). Only `sim.coreStats` can see the split. When nothing a
 decision reads was changed between the runs, the next run does not ask the rotation at its start, since one run
 would not ask at that time: it keeps the last decision's wakes, the energy
 threshold at the very time it had and the condition crossing even when it lay
