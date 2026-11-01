@@ -1402,8 +1402,10 @@ idle ones too), and the DoTs started afresh from a changed entry after them,
 so two DoTs that tick at the same time tick in the same order as in one run
 (#305, from #304 QA N9: Deadly Poison and Rupture ticking together on the
 poisoned Assassination preset's fight, which a cut before the tick had run
-Rupture first, as the order of `activeDots`). Only `sim.coreStats` can see the split. When nothing a
-decision reads was changed between the runs, the next run does not ask the rotation at its start, since one run
+Rupture first, as the order of `activeDots`). An idle DoT, whose last tick has run with time
+left, has no pending tick, so its seq is null and it resumes after the others (#275, from #307
+QA N3). Only `sim.coreStats` can see the split. When nothing a decision reads was changed
+between the runs, the next run does not ask the rotation at its start, since one run
 would not ask at that time: it keeps the last decision's wakes, the energy
 threshold at the very time it had and the condition crossing even when it lay
 past the last run's end. A decision there would see a GCD or cooldown that
