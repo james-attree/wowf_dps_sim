@@ -11,6 +11,7 @@ import {
   DEFAULT_REPORT_PATH,
   SOURCE_TAGS,
   checkProvenance,
+  datedRefProblem,
   formatValue,
   renderProvenance,
   runProvenance,
@@ -760,6 +761,68 @@ describe("provenance report", () => {
         .split("\n")
         .filter((row) => row.startsWith("|"))) {
         assert.equal(unescapedPipes(line), 6, line.slice(0, 120));
+      }
+    }
+  });
+});
+
+// #275 (from #304): an assumption or engineering ref opens with who decided
+// it and a date. The check took only dates in October 2026; it now takes any
+// real calendar date up to today, and refuses one that cannot exist.
+describe("datedRefProblem (#275)", () => {
+  const TODAY = new Date(Date.UTC(2026, 10, 1, 23, 30));
+
+  it("takes any real date up to today, in each prefix", () => {
+    for (const ref of [
+      "James, 22 Oct 2026: a ruling",
+      "James, 1 Nov 2026, issue #272: a ruling",
+      "Developer, 31 Oct 2026, issue #271: a reading",
+      "Developer, 29 Feb 2024: a leap day",
+      "Scout (coordinator), 31 Dec 2025, #12: a relayed ruling",
+      "James, 2 Nov 2026: a day ahead of UTC, in a time zone east of it",
+    ]) {
+      assert.equal(datedRefProblem(ref, TODAY), null, ref);
+    }
+  });
+
+  it("refuses a date that cannot exist", () => {
+    for (const ref of [
+      "James, 31 Feb 2026: x",
+      "James, 29 Feb 2026: x",
+      "James, 30 Feb 2024: x",
+      "James, 31 Nov 2026: x",
+      "James, 31 Apr 2026: x",
+      "James, 0 Nov 2026: x",
+      "James, 32 Oct 2026: x",
+    ]) {
+      assert.match(datedRefProblem(ref, TODAY), /is not a real date/, ref);
+    }
+  });
+
+  it("refuses a date after today", () => {
+    for (const ref of ["James, 3 Nov 2026: x", "Developer, 1 Jan 2027: x"]) {
+      assert.match(datedRefProblem(ref, TODAY), /is after today/, ref);
+    }
+  });
+
+  it("refuses a ref with no dated prefix", () => {
+    for (const ref of [
+      "Bob, 1 Nov 2026: x",
+      "James, 1 November 2026: x",
+      "James, 01 Nov 2026: x",
+      "James, 1 Nov 26: x",
+      "James, 1 Nov 2026 no colon",
+      "Scout (coordinator), 1 Nov 2026: no issue",
+      "James 1 Nov 2026: x",
+    ]) {
+      assert.match(datedRefProblem(ref, TODAY), /does not open with/, ref);
+    }
+  });
+
+  it("every assumption and engineering ref in the table passes", () => {
+    for (const [id, row] of Object.entries(CONSTANTS)) {
+      if (row.source === "assumption" || row.source === "engineering") {
+        assert.equal(datedRefProblem(row.ref), null, id);
       }
     }
   });

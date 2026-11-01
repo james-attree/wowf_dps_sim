@@ -191,11 +191,11 @@ export const CONSTANTS = {
     false,
   ),
   preparation: entry(
-    { energy: 0, cooldown: 600 },
-    "energy, s",
+    { cooldown: 600 },
+    "s",
     WOWF_EXPORT,
     'rogue.json → spell_desc[Rogue|Preparation|]; talents[Subtlety|Preparation] cost "Instant | 10 min cooldown"',
-    "Granted by the Preparation talent (#270). 10 min cooldown, so once in a fight of up to 10 minutes. The export gives it no cost, so energy is 0 (Classic: none either). It starts the GCD (abilities.offGcd does not list it; wowsims/classic sim/rogue/preparation.go gives it GCD: time.Second). What it finishes is preparation.resets.",
+    "Granted by the Preparation talent (#270). 10 min cooldown, so once in a fight of up to 10 minutes. The export gives it no cost (Classic: none either), so the row has no energy field and js/ability-data.js gives it no cost entry: a cast spends nothing. It starts the GCD (abilities.offGcd does not list it; wowsims/classic sim/rogue/preparation.go gives it GCD: time.Second). What it finishes is preparation.resets.",
     false,
   ),
   "preparation.resets": entry(
@@ -1555,13 +1555,13 @@ export const CONSTANTS = {
     false,
   ),
   // PR #304 (issue #272): James's ruling, relayed by Scout on 1 Nov 2026. The
-  // ref is dated 31 Oct, as the provenance check accepts only October 2026
-  // dates (widening it is #275).
+  // ref carries that date now that the provenance check takes any real date
+  // up to today (#275; it once took only October 2026).
   "presetReferenceBuild.poisons": entry(
     { mainHand: "instant", offHand: "deadly" },
     "poison ids",
     ASSUMPTION,
-    "James, 31 Oct 2026, issue #272: reference builds carry Instant MH / Deadly OH (ruled 1 Nov 2026, relayed by Scout on PR #304); tagged assumption",
+    "James, 1 Nov 2026, issue #272: reference builds carry Instant MH / Deadly OH (relayed by Scout on PR #304); tagged assumption",
     "The poison on each hand of every preset reference build (data/preset-reference-builds.js), in the SimConfig poisons shape (config.poisonIds). Nothing in #272 applies a build; #273's button will put these into config.poisons. With Deadly on the off hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.",
     false,
   ),

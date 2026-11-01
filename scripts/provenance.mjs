@@ -95,6 +95,60 @@ function isPlaceholderRef(ref) {
   );
 }
 
+// An assumption or engineering ref opens with who decided it and when:
+// "James, 1 Nov 2026: ", "Developer, 31 Oct 2026, issue #271: " or
+// "Scout (coordinator), 31 Oct 2026, #304: " (test/constants.test.js). Any
+// real calendar date up to today is taken (#275; the check once took only
+// October 2026). "Today" is the UTC date plus one day, so a ref signed in a
+// time zone ahead of UTC is not refused. Returns null for a good ref, else
+// what is wrong with it.
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const DATE = `(0|[1-9]\\d?) (${MONTHS.join("|")}) (\\d{4})`;
+const DATED_REF = new RegExp(
+  `^(?:(?:James|Developer), ${DATE}(?:, issue #\\d+)?|Scout \\(coordinator\\), ${DATE}, #\\d+): `,
+);
+const DAY_MS = 86_400_000;
+
+export function datedRefProblem(ref, today = new Date()) {
+  const match = DATED_REF.exec(ref);
+  if (match === null) {
+    return 'does not open with "James|Developer, D Mon YYYY[, issue #N]: " or "Scout (coordinator), D Mon YYYY, #N: "';
+  }
+  const [day, month, year] = (
+    match[1] === undefined ? match.slice(4, 7) : match.slice(1, 4)
+  ).map((part, index) => (index === 1 ? MONTHS.indexOf(part) : Number(part)));
+  const time = Date.UTC(year, month, day);
+  const date = new Date(time);
+  const text = `${day} ${MONTHS[month]} ${year}`;
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month ||
+    date.getUTCDate() !== day
+  ) {
+    return `${text} is not a real date`;
+  }
+  const latest =
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) +
+    DAY_MS;
+  if (time > latest) {
+    return `${text} is after today`;
+  }
+  return null;
+}
+
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }

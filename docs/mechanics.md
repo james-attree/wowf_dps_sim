@@ -3248,9 +3248,10 @@ The `subtlety.preparation` talent grants the `preparation` ability
 `abilityUnlocked` condition, and without the talent the ability is locked
 and never cast.
 
-- **Cost and cooldown** (`k("preparation")`, `wowf-export`). The export's
-  talent text reads "Instant | 10 min cooldown" and names no cost, so it
-  spends 0 energy and starts a 600 s cooldown. It is not an attack, so it
+- **Cost and cooldown.** The export's talent text reads "Instant | 10 min
+  cooldown" and names no cost, so Preparation's entry in js/ability-data.js
+  has no `cost` and a cast spends nothing. The 600 s cooldown is
+  `k("preparation").cooldown` (`wowf-export`), the row's only field. It is not an attack, so it
   cannot miss, and the log records a cast (`Ability.cast` returns no outcome
   for it). It starts the GCD, like every ability not in `abilities.offGcd`:
   the export does not say, and Classic (wowsims `preparation.go`) puts it on a
@@ -3319,8 +3320,9 @@ act only on those Ambushes.
   in the tests.
 - **Improved Ambush** (`k("improvedAmbush.critChance")`, `wowf-export`). A
   `critChance` add of 15/30/45 points on Ambush, summed with the character's
-  crit and other adds; it changes the crit share of the attack table, so it
-  draws nothing of its own. Every Ambush the sim casts is one Cutthroat
+  crit and other adds. A yellow attack rolls its crit as a second draw after
+  the attack-table roll (js/attack-resolver.js), so the add raises the chance
+  of that crit roll, not a share of the table, and draws nothing of its own. Every Ambush the sim casts is one Cutthroat
   allowed, so the issue's "only Cutthroat-allowed Ambushes" holds without a
   check.
 - **Initiative** (`k("initiative.comboPoint")`, `wowf-export`). The Ambush
@@ -3333,16 +3335,19 @@ act only on those Ambushes.
   only its certain ranks: `defineRankedProc` makes rank 3 of Initiative
   (chance 1, flat, no `chanceBonus`) a `drawless: true` proc that fires with
   no RNG draw, and ranks 1 and 2 ordinary procs that draw one roll. `defineProc`
-  itself still takes only `true` or `false`. Cutthroat never reaches a chance
-  of 1, so it always draws. At 0 points none of the three exists, so a fight
+  itself still takes only `true` or `false`. A `"whenCertain"` that the
+  table can never meet (a chance mode other than `flat`, a `chanceBonus`, or
+  no rank at chance 1) is refused when the data loads (#275). Cutthroat never
+  reaches a chance of 1, so it always draws. At 0 points none of the three exists, so a fight
   draws exactly as before.
 - **Presets and goldens.** No preset or default rotation casts Ambush, and no
   existing fixture has Cutthroat, so the twelve existing fixtures are
   unchanged. The new fixture `cutthroat-subtlety-seed-271-60s`
   (`CUTTHROAT_BUILD` with `AMBUSH_ROTATION` in scripts/golden-update.mjs:
   Rupture and Eviscerate at 5 CP, then Ambush, Hemorrhage and Backstab under
-  5 CP) has 7 Backstab, 2 Cutthroat procs and 2 Ambush, each Ambush right
-  after an aura apply or refresh and followed by its `expire`.
+  5 CP) has 7 Backstab, 2 Cutthroat procs and 2 Ambush. In event order each
+  Ambush comes after a `cutthroat` apply or refresh and is followed by its
+  `expire`; it need not come at the same time as the apply.
 - **Old configs.** A config without these talents reads them as 0 points: no
   proc, no modifier, an empty `grantedAuras`, and the same fight.
 

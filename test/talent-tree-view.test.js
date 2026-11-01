@@ -436,6 +436,37 @@ describe("talent tree view (#204)", () => {
     assert.equal(add.getAttribute("aria-describedby"), "talents-detail-note");
   });
 
+  // #275 (Kira's #302 N4): the legend lists "not simulated yet" only when a
+  // tile can show that badge. Every talent has an entry since #271.
+  it("the legend names only the badges a tile can show", () => {
+    const legendText = ($) =>
+      $("talents-legend").children.map((item) => item.textContent.trim());
+    const shared = [
+      "2/3 points / ranks",
+      "locked (row or prerequisite)",
+      "– no DPS effect",
+      "ability (an active talent)",
+    ];
+    const full = page();
+    assert.equal(
+      full.doc.body.findAll((node) => node.getAttribute("data-id")).length,
+      53,
+    );
+    assert.deepEqual(legendText(full.$), shared);
+    assert.ok(
+      !legendText(full.$).some((text) => /not simulated yet/.test(text)),
+    );
+    const { "subtlety.improved-ambush": dropped, ...effects } = TALENT_EFFECTS;
+    assert.ok(dropped);
+    const partial = page({ effects });
+    assert.deepEqual(legendText(partial.$), [
+      shared[0],
+      shared[1],
+      "ⓘ not simulated yet",
+      ...shared.slice(2),
+    ]);
+  });
+
   it("below NARROW_QUERY the trees are tabs, one shown at a time (§7)", () => {
     const { $, doc, setNarrow, store } = page({ narrow: true });
     assert.equal($("talents-tabs").hidden, false);

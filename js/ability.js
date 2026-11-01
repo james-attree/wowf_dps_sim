@@ -182,6 +182,13 @@ export class Ability {
         `Ability "${this.id}" cannot finish its own cooldown (${definition.resets}).`,
       );
     }
+    // castBothHands returns before the reset loop in cast(), so a two-handed
+    // ability's resets would never run: refused here (#275, Kira's #301 N5).
+    if (this.bothHands && this.resets.length > 0) {
+      throw new RangeError(
+        `Ability "${this.id}" strikes with both hands, so it cannot take resets (${definition.resets}).`,
+      );
+    }
     // A hand-made file in img/ where the entry has one; else the spell's icon
     // from the icon CDN (js/icons.js), the question mark if it has none.
     this.icon = definition.icon ?? spellIconUrl(this.name);

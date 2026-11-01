@@ -7,7 +7,7 @@ import { Rogue } from "../js/rogue.js";
 import { defaultConfig, defaultDaggerConfig } from "../js/sim-config.js";
 import { Simulation } from "../js/simulation.js";
 import { setRoll, testRng } from "./rolls.js";
-import { SOURCE_TAGS } from "../scripts/provenance.mjs";
+import { SOURCE_TAGS, datedRefProblem } from "../scripts/provenance.mjs";
 import { runOnCore } from "../js/core/fight.js";
 import { quiet } from "./quiet.js";
 
@@ -234,11 +234,7 @@ describe("constants", () => {
       assert.doesNotMatch(row.ref, /fill in/i, id);
       assert.doesNotMatch(row.ref, /no recorded owner decision/i, id);
       if (row.source === "assumption" || row.source === "engineering") {
-        assert.match(
-          row.ref,
-          /^(?:(?:James|Developer), \d+ Oct 2026(, issue #\d+)?|Scout \(coordinator\), \d+ Oct 2026, #\d+): /,
-          id,
-        );
+        assert.equal(datedRefProblem(row.ref), null, id);
       } else if (row.source === "wowf-export") {
         assert.match(row.ref, /^rogue\.json → /, id);
       } else if (row.source === "classic-1.12" || row.source === "cataclysm") {
