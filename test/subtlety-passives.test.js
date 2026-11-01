@@ -11,6 +11,7 @@ import {
   runFight,
 } from "../js/fight.js";
 import { combine, defineModifier } from "../js/modifiers.js";
+import { defineProc } from "../js/procs.js";
 import { Rogue } from "../js/rogue.js";
 import { defaultDaggerConfig, normalizeConfig } from "../js/sim-config.js";
 import { SimRunner } from "../js/sim-runner.js";
@@ -185,6 +186,7 @@ describe("Subtlety passives read their rank text (#269)", () => {
     assert.equal(spec.trigger, "onDotTick");
     assert.deepEqual(spec.scope.abilities, ["rupture"]);
     assert.deepEqual(spec.chance.values, row.chance);
+    assert.equal(spec.drawless, true);
     assert.deepEqual(spec.actions, [
       { type: "applyAura", aura: "thousand-cuts" },
     ]);
@@ -560,13 +562,37 @@ describe("no phantom draws, and old configs (#269, G2 and G4)", () => {
     assert.deepEqual(build.procs, []);
   });
 
-  it("a Rupture tick draws nothing without Thousand Cuts, and one draw with it", () => {
+  it("a Rupture tick draws nothing, with Thousand Cuts or without it", () => {
     const none = ready({});
     tick(none.sim);
     assert.equal(none.draws(), 0);
     const one = ready({ [CUTS]: 1 });
     tick(one.sim);
-    assert.equal(one.draws(), 1);
+    assert.equal(one.draws(), 0);
+    assert.equal(cuts(one.sim).stacks, 1);
+    assert.equal(one.sim.procs.stats["thousand-cuts"].fires, 1);
+  });
+
+  it("in a fight, Thousand Cuts puts its stack up with no draw after the tick", () => {
+    const { sim, counted } = fightOn(
+      SUBTLETY_CASE.config.talents,
+      SUBTLETY_ROTATION,
+    );
+    let atTick = null;
+    const after = [];
+    sim.on("hit", (event) => {
+      if (event.ability === "rupture" && event.origin === "dot") {
+        atTick = counted.draws;
+      }
+    });
+    sim.on("aura", (event) => {
+      if (event.aura === "thousand-cuts" && event.change !== "expire") {
+        after.push(counted.draws - atTick);
+      }
+    });
+    sim.run(SUBTLETY_CASE.duration);
+    assert.ok(after.length > 5);
+    assert.deepEqual(new Set(after), new Set([0]));
   });
 
   it("Opportunity, Serrated Blades and Quietus draw nothing: the same draws, the same times", () => {
@@ -612,6 +638,75 @@ describe("no phantom draws, and old configs (#269, G2 and G4)", () => {
       runFight({ seed: 5, duration: 30, config: zero }).dps,
       runFight({ seed: 5, duration: 30, config: old }).dps,
     );
+  });
+});
+
+describe("a drawless proc (#269, G2)", () => {
+  const base = {
+    id: "certain",
+    trigger: "onDotTick",
+    chance: { mode: "flat", value: 1 },
+    actions: [{ type: "applyAura", aura: "thousand-cuts" }],
+  };
+
+  it("needs a flat chance of 1, and only a proc that asks for it has the field", () => {
+    assert.equal(defineProc({ ...base, drawless: true }).drawless, true);
+    assert.equal(Object.hasOwn(defineProc(base), "drawless"), false);
+    assert.throws(
+      () =>
+        defineProc({
+          ...base,
+          drawless: true,
+          chance: { mode: "flat", value: HALF },
+        }),
+      /drawless needs a flat chance of 1/,
+    );
+    assert.throws(
+      () =>
+        defineProc({
+          ...base,
+          trigger: "onAbility",
+          drawless: true,
+          chance: { mode: "perSpent", value: 1 },
+        }),
+      /drawless needs a flat chance of 1/,
+    );
+    assert.throws(
+      () => defineProc({ ...base, drawless: "yes" }),
+      /drawless must be true or false/,
+    );
+    assert.throws(
+      () =>
+        defineProc({
+          ...base,
+          drawless: true,
+          chanceBonus: { kind: "poisonChance", cap: 1, points: 100 },
+        }),
+      /drawless/,
+    );
+  });
+
+  it("a flat chance of 1 without it still draws, as Seal Fate 5/5 does in the goldens", () => {
+    const fires = (spec) => {
+      const rogue = new Rogue(defaultDaggerConfig(), {
+        procs: [defineProc(spec)],
+      });
+      let draws = 0;
+      const sim = new Simulation(rogue, {
+        rng: () => {
+          draws += 1;
+          return HALF;
+        },
+        fightLength: 60,
+      });
+      tick(sim);
+      return { draws, stacks: cuts(sim).stacks };
+    };
+    assert.deepEqual(fires(base), { draws: 1, stacks: 1 });
+    assert.deepEqual(fires({ ...base, drawless: true }), {
+      draws: 0,
+      stacks: 1,
+    });
   });
 });
 

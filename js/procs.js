@@ -25,7 +25,14 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //     chance: { mode: "flat", value: 0.05 },      see CHANCE_MODES
 //     cooldown: 0,                      internal cooldown in seconds, optional
 //     actions: [{ type: "extraAttack" }],         see ACTION_TYPES, in order
+//     drawless: true,                   optional, see below
 //   }
+//
+// `drawless: true` marks a proc that cannot fail: it needs a flat chance of
+// exactly 1 and no chanceBonus, and it fires with no RNG draw (G2: a roll that
+// cannot fail would be a phantom draw). A proc without it rolls whatever its
+// chance, 1 included (Seal Fate 5/5 keeps its draw, so the goldens hold).
+// Only Thousand Cuts has it (#269).
 //
 // Triggers (all fire only for what landed):
 //   onHit       a direct attack hit: a white swing or an ability that attacks,
@@ -139,7 +146,26 @@ const SPEC_KEYS = Object.freeze([
   "cooldown",
   "actions",
   "chanceBonus",
+  "drawless",
 ]);
+
+// `drawless` may only mark a proc whose roll cannot fail: a flat chance of 1
+// with no chanceBonus. It is kept on the proc only when true.
+function defineDrawless(label, chance, spec) {
+  if (spec.drawless === undefined || spec.drawless === false) {
+    return {};
+  }
+  if (spec.drawless !== true) {
+    fail(label, "drawless must be true or false.");
+  }
+  if (chance.mode !== FLAT || chance.value !== 1) {
+    fail(label, "drawless needs a flat chance of 1.");
+  }
+  if (spec.chanceBonus !== undefined) {
+    fail(label, "drawless takes no chanceBonus.");
+  }
+  return { drawless: true };
+}
 
 // An optional chanceBonus { kind, cap, points } on a flat chance: the
 // modifiers of that kind the auras that are up give (Venom's poisonChance,
@@ -395,12 +421,13 @@ export function defineProc(spec) {
   const actions = spec.actions.map((action, index) =>
     defineAction(label, action, index),
   );
+  const chance = defineChance(label, spec.trigger, spec.chance);
   const proc = Object.freeze({
     id: spec.id,
     trigger: spec.trigger,
     // The filter is a modifier scope of damage (every attack key, no resource).
     scope: defineScope(`proc ${label}`, "damage", spec.scope),
-    chance: defineChance(label, spec.trigger, spec.chance),
+    chance,
     ...(spec.chanceBonus === undefined
       ? {}
       : {
@@ -408,6 +435,7 @@ export function defineProc(spec) {
         }),
     cooldown,
     actions: Object.freeze(actions),
+    ...defineDrawless(label, chance, spec),
     extraAttack: actions.some(({ type }) => type === EXTRA_ATTACK),
   });
   defined.add(proc);
@@ -695,7 +723,7 @@ export class ProcRunner {
       return;
     }
     stats.rolls += 1;
-    if (this.simulation.rng() >= chance) {
+    if (proc.drawless !== true && this.simulation.rng() >= chance) {
       return;
     }
     stats.fires += 1;

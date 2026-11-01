@@ -113,8 +113,8 @@ const ASSASSINATION_MAPPED = [
   "assassination.venom",
 ];
 // The three Subtlety talents that grant an ability the engine casts (#207),
-// and since #269 the passives and the no-DPS talents. Improved Ambush,
-// Initiative, Preparation and Cutthroat have no entry yet (#270).
+// and since #269 the passives and the no-DPS talents. Preparation
+// (#270) and Improved Ambush, Initiative and Cutthroat (#271) have no entry yet.
 const SUBTLETY_MAPPED = [
   "subtlety.camouflage",
   "subtlety.master-of-deception",

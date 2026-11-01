@@ -457,14 +457,14 @@ const RAW = {
   // only follows Cutthroat). Serrated Blades is an unscoped `armorIgnore`
   // (A11, flat with Hack and Slash's mace part) and a `damage` table on
   // Rupture, which a Rupture takes when it is applied. Thousand Cuts (A13) is
-  // an onDotTick proc on Rupture with a flat chance of 1 (thousandCuts.chance)
-  // that applies the thousand-cuts aura (js/auras.js). Quietus (A14) is a
+  // an onDotTick proc on Rupture with a flat chance of 1 (thousandCuts.chance),
+  // drawless so it fires with no RNG draw, that applies the thousand-cuts aura (js/auras.js). Quietus (A14) is a
   // `damage` table on Sinister Strike, Ghostly Strike and Hemorrhage with a
   // targetHealthBelow of quietus.targetHealth (js/modifiers.js), so it
   // applies only while the target is below 35% health under the linear
   // health model (target.healthModel). Eight talents have no DPS effect.
-  // Improved Ambush, Initiative, Cutthroat and Preparation are not mapped yet
-  // (#270).
+  // Preparation (#270) and Improved Ambush, Initiative and Cutthroat (#271)
+  // are not mapped yet.
   "subtlety.camouflage": {
     textHash:
       "d05aa50424d62d615dfb30d4b8fd4d66a7e0bbf52d3fd83a8f79f8ebd38237b4",
@@ -576,6 +576,8 @@ const RAW = {
         trigger: "onDotTick",
         scope: { abilities: ["rupture"] },
         chance: { mode: "flat", values: [...k("thousandCuts").chance] },
+        // A chance of 1 cannot fail: it fires with no draw (G2).
+        drawless: true,
         actions: [{ type: "applyAura", aura: "thousand-cuts" }],
       },
     ],
