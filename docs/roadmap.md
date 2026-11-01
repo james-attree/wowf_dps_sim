@@ -1,7 +1,8 @@
 # Roadmap
 
 A WoW Forever rogue DPS simulator covering talents, skills, poisons, and
-weapon and character stats, with no item database. It will have a talent
+weapon and character stats, with stats typed in by hand (an item
+database is planned after launch, in the Character and gear milestone). It will have a talent
 tree UI, a drag-and-drop rotation builder, Run/Pause/Stop controls, and
 history in localStorage. Combat comes first. Assassination, Subtlety, and
 hybrids use the same modifier system.
@@ -17,14 +18,17 @@ issues when that phase starts.
 
 ## Phases
 
-| Phase   | Focus                                                                            | Themes                           | Exit criterion                                                                                                                                                               |
-| ------- | -------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase 0 | Make today correct and testable, vendor the data, one home for every number      | Q, F, D0, D13, D14               | CI green, resolver tested, known bugs fixed, snapshot pinned, every constant has provenance. Tracked by the `phase-0` label (#1 to #26 plus follow-ups such as #49 and #59). |
-| Phase 1 | Deterministic headless engine                                                    | E1 to E11                        | A seeded 5-minute fight runs in Node in under 50 ms, and live mode is a view of it.                                                                                          |
-| Phase 2 | Data-driven abilities, Combat talents defining the modifier system, plus poisons | D1 to D7, D9 to D11, A1 to A7    | Combat talents fully simulated from data, poisons proc, no buff-name checks.                                                                                                 |
-| Phase 3 | Rotation as data, stats, inputs, controls                                        | R1 to R6, S1 to S5, U1 to U5, U8 | The user sets stats and poisons, runs a Combat batch with Run, Pause and Stop, and sees the breakdown.                                                                       |
-| Phase 4 | Talent tree, rotation builder, history, Assassination and Subtlety effects       | U6, U7, H1 to H6, D8             | The full loop works for any build (build, rotate, run, save, compare).                                                                                                       |
-| Phase 5 | Polish and depth                                                                 | S6, H6, U9, D12                  | Stat weights, sharing, racials.                                                                                                                                              |
+| Phase       | Focus                                                                                    | Themes                           | Exit criterion                                                                                                                                                               |
+| ----------- | ---------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 0     | Make today correct and testable, vendor the data, one home for every number              | Q, F, D0, D13, D14               | CI green, resolver tested, known bugs fixed, snapshot pinned, every constant has provenance. Tracked by the `phase-0` label (#1 to #26 plus follow-ups such as #49 and #59). |
+| Phase 1     | Deterministic headless engine                                                            | E1 to E11                        | A seeded 5-minute fight runs in Node in under 50 ms, and live mode is a view of it.                                                                                          |
+| Phase 2     | Data-driven abilities, Combat talents defining the modifier system, plus poisons         | D1 to D7, D9 to D11, A1 to A7    | Combat talents fully simulated from data, poisons proc, no buff-name checks.                                                                                                 |
+| Phase 3     | Rotation as data, stats, inputs, controls                                                | R1 to R6, S1 to S5, U1 to U5, U8 | The user sets stats and poisons, runs a Combat batch with Run, Pause and Stop, and sees the breakdown.                                                                       |
+| Phase 4     | Talent tree, rotation builder, history, Assassination and Subtlety effects               | U6, U7, H1 to H6, D8             | The full loop works for any build (build, rotate, run, save, compare).                                                                                                       |
+| Phase 4.5   | UX: four areas (Character, Rotation, Fight, Results), phone dock, desktop results column | UX1 to UX7                       | Closed: the mobile and desktop UX proposal is built.                                                                                                                         |
+| Phase 4.6   | Assassination and Subtlety simulated                                                     | D8                               | Every Assassination and Subtlety talent is simulated, with presets, and the pre-4.6 goldens are byte-identical (new fixtures added via `--write`).                           |
+| Phase 5     | Polish and depth                                                                         | S6, H6, U9, D12                  | Stat weights, sharing, racials, level-scaled sims, weapon skill and a saved setup.                                                                                           |
+| Post-launch | Character and gear                                                                       | —                                | To be designed: build a character from items, enchants and racials.                                                                                                          |
 
 ## Theme legend
 
@@ -37,6 +41,77 @@ issues when that phase starts.
 - S — results and statistics
 - U — UI
 - H — history and persistence
+
+## Post-launch: Character and gear
+
+A separate milestone after Initial Release, added by James on 2026-10-31:
+build a character from items, enchants, set bonuses and racials (including
+racial and gear weapon skill), with stats generated from them instead of typed
+in. Wowhead is the likely data source. The phase is designed when we get to
+it; the placeholder is [#297](https://github.com/james-attree/wowf_dps_sim/issues/297). Named saved builds and history (#186) also come after launch.
+
+## Phase 5 status
+
+Polish and depth, starting after Phase 4.6 closes. James approved plan v4 on
+2026-10-31 and added level-scaled sims (#290), weapon skill (#295), the
+enemy level field (in #290) and the saved setup (#296). #295 lands before
+#290. #295 uses Classic values tagged `assumption`, with every attack-table
+number in one table; two rulings are open for James (crit suppression model
+and boss dodge), to be made from the PR's DPS comparison. This is a snapshot
+as of 2026-11-01. GitHub is the source of truth, and this list will go stale.
+
+- [#276](https://github.com/james-attree/wowf_dps_sim/issues/276) — [P5-01] Data refresh to the 29 Oct WoW Forever export — open
+- [#277](https://github.com/james-attree/wowf_dps_sim/issues/277) — [P5-02] D12a: Race and passive racials as data — open
+- [#278](https://github.com/james-attree/wowf_dps_sim/issues/278) — [P5-03a] D12b-1: Blood Fury and Elune's Light — open
+- [#279](https://github.com/james-attree/wowf_dps_sim/issues/279) — [P5-03b] D12b-2: Berserking and Eureka! — open
+- [#280](https://github.com/james-attree/wowf_dps_sim/issues/280) — [P5-04] Race picker and race builder copy — open
+- [#281](https://github.com/james-attree/wowf_dps_sim/issues/281) — [P5-05] S6a: Stat weights engine — open
+- [#282](https://github.com/james-attree/wowf_dps_sim/issues/282) — [P5-06a] S6b-1: Stat weights view — open
+- [#283](https://github.com/james-attree/wowf_dps_sim/issues/283) — [P5-06b] S6b-2: Stat weights across screens — open
+- [#284](https://github.com/james-attree/wowf_dps_sim/issues/284) — [P5-07] H6-lite: "Copy link to this build" share link — open
+- [#290](https://github.com/james-attree/wowf_dps_sim/issues/290) — [P5-09] Level-scaled sims: ability ranks, enemy level, attack table and armour below 60 — open
+- [#295](https://github.com/james-attree/wowf_dps_sim/issues/295) — [P5-10] Weapon skill and a configurable attack table — open
+- [#296](https://github.com/james-attree/wowf_dps_sim/issues/296) — [P5-11] Remember my setup: save configurable fields to local storage — open
+- [#285](https://github.com/james-attree/wowf_dps_sim/issues/285) — [P5-08] U9 close-out and Phase 5 wrap-up — open
+
+## Phase 4.6 status
+
+Assassination and Subtlety simulated (milestone 11), approved by James as
+plan v4 on 2026-10-31. Rulings: Mutilate follows TBC rules, Expose Armor
+doesn't stack with Sunder (the higher wins, and a weaker cast doesn't refresh
+a stronger one), haste speeds up attacks only, Cutthroat is simulated, and
+Ambush has no lock, warning or hint. This is a snapshot as of 2026-11-01.
+GitHub is the source of truth, and this list will go stale.
+
+- [#261](https://github.com/james-attree/wowf_dps_sim/issues/261) — Bug: Ambush castable in combat with no stealth or dagger — merged (PR #262)
+- [#264](https://github.com/james-attree/wowf_dps_sim/issues/264) — [P4.6-01b] Ambush builder follow-up — merged (PR #288)
+- [#265](https://github.com/james-attree/wowf_dps_sim/issues/265) — [P4.6-02] Haste stat: engine — merged (PR #289)
+- [#274](https://github.com/james-attree/wowf_dps_sim/issues/274) — [P4.6-07] Haste field on Character › Stats — merged (PR #291)
+- [#266](https://github.com/james-attree/wowf_dps_sim/issues/266) — [P4.6-03] D8b: Assassination passives — merged (PR #292)
+- [#267](https://github.com/james-attree/wowf_dps_sim/issues/267) — [P4.6-04a] D8c-1: Mutilate — merged (PR #293)
+- [#268](https://github.com/james-attree/wowf_dps_sim/issues/268) — [P4.6-04b] D8c-2: Venom, Expose Armor and Improved Expose Armor — merged (PR #294)
+- [#269](https://github.com/james-attree/wowf_dps_sim/issues/269) — [P4.6-05a] D8d-1: Subtlety passives (Opportunity, Serrated Blades, Thousand Cuts, Quietus) — next
+- [#270](https://github.com/james-attree/wowf_dps_sim/issues/270) — [P4.6-05b] D8d-2: Preparation — open
+- [#271](https://github.com/james-attree/wowf_dps_sim/issues/271) — [P4.6-05c] D8d-3: Cutthroat, Improved Ambush and Initiative (closes D8) — open
+- [#272](https://github.com/james-attree/wowf_dps_sim/issues/272) — [P4.6-06] Assassination and Subtlety presets (data) — open
+- [#273](https://github.com/james-attree/wowf_dps_sim/issues/273) — [P4.6-06b] Preset build hint and "Use its talents and weapons too" button — open
+- [#275](https://github.com/james-attree/wowf_dps_sim/issues/275) — [P4.6-08] Spec UI copy and the "Partly simulated" talent state (batched polish) — open
+
+## Phase 4.5 status
+
+UX (milestone 10), closed. James approved Fran and Kira's mobile and desktop
+UX proposal on 2026-10-30: four areas (Character, Rotation, Fight, Results),
+a phone dock, a desktop results column, Run defaulting to Average, and 44 px
+targets. Bonnie built it and Fran checked it. Follow-ups after launch are in
+#286 and #287.
+
+- [#239](https://github.com/james-attree/wowf_dps_sim/issues/239) — [P4.5-UX1] Router, section registry, four area shells and nav — closed
+- [#240](https://github.com/james-attree/wowf_dps_sim/issues/240) — [P4.5-UX2] Phone dock — closed
+- [#241](https://github.com/james-attree/wowf_dps_sim/issues/241) — [P4.5-UX3] Desktop results column — closed
+- [#242](https://github.com/james-attree/wowf_dps_sim/issues/242) — [P4.5-UX4] Results views, stale state and Average as the default — closed
+- [#243](https://github.com/james-attree/wowf_dps_sim/issues/243) — [P4.5-UX5] Rotation rule sub-screen and warnings banner — closed
+- [#244](https://github.com/james-attree/wowf_dps_sim/issues/244) — [P4.5-UX6] Talents sub-screen and Character rows — closed
+- [#245](https://github.com/james-attree/wowf_dps_sim/issues/245) — [P4.5-UX7] 44 px targets and combat log sweep — closed
 
 ## Phase 3.5 status
 
