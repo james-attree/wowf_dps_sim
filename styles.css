@@ -3339,8 +3339,10 @@ th[aria-sort="ascending"] {
 }
 
 .share-button {
-  flex: none;
+  flex: 0 1 auto;
+  max-width: 100%;
   min-height: var(--target);
+  text-align: center;
 }
 
 .share-feedback {
