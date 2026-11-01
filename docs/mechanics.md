@@ -2171,6 +2171,12 @@ needs no engine code. `js/modifiers.js` has the schema and the pipeline.
   an empty list, or a key the kind does not accept is a `RangeError` when the
   modifier is defined.
 - `source` (optional): a label for `explain()` and tests.
+- `targetHealthBelow` (optional, #269): `{ numerator, denominator }`, whole
+  numbers with 0 < numerator < denominator. A static modifier with it counts
+  only while the target is below that share of its health
+  (`Simulation.targetHealthBelow`, see
+  [Subtlety passives](#subtlety-passives-269-p46-05a)). A pipeline with no
+  fight to ask leaves it out. Only Quietus uses it.
 
 `defineModifier` validates and freezes one. `expandRank(table, rank)` turns a
 talent's per-rank modifier list into the modifiers for a rank. Rank 0, or no
@@ -3153,6 +3159,69 @@ Assassination: an Assassination talent with no entry fails the coverage check.
   them, `venom-expose-armor-seed-268-60s`, was regenerated for B1 and B2. `onStrike`'s off-hand on-crit
   filtering (js/procs.js) is unchanged: neither ability adds a per-hand
   on-crit proc (#275).
+
+### Subtlety passives (#269, P4.6-05a)
+
+The Subtlety talents that act in a fight from behind with no stealth, and a
+`noDpsEffect` for the eight that do not. Improved Ambush, Initiative,
+Preparation and Cutthroat still have no entry (#270), so Subtlety stays a
+warning-only tree in `scripts/talent-coverage.mjs`. The sim attacks from
+behind (ruling on #269), and numbers the issue left open take the Classic
+value, tagged `assumption` in `data/constants.js`.
+
+| Talent              | Max | What it is in the data                                                                             |
+| ------------------- | --- | -------------------------------------------------------------------------------------------------- |
+| Opportunity         | 2   | `damage` +5/10%, Backstab, Ambush, Mutilate, Garrote                                               |
+| Serrated Blades     | 3   | `armorIgnore` +3/6/9% (A11); `damage` +10/20/30%, Rupture                                          |
+| Quietus             | 5   | `damage` +2..10%, Sinister Strike, Ghostly Strike, Hemorrhage, with `targetHealthBelow` 7/20 (A14) |
+| Thousand Cuts       | 1   | proc: `onDotTick`, Rupture, `flat` chance 1, `applyAura` thousand-cuts (A13)                       |
+| Camouflage          | 5   | none: Needs Stealth or an opener; the sim models neither                                           |
+| Master of Deception | 3   | none: Needs Stealth or an opener; the sim models neither                                           |
+| Improved Distract   | 2   | none: Needs Stealth or an opener; the sim models neither                                           |
+| Heightened Senses   | 2   | none: Needs Stealth or an opener; the sim models neither                                           |
+| Dirty Deeds         | 2   | none: Needs Stealth or an opener; the sim models neither (Garrote and Cheap Shot, from behind)     |
+| Setup               | 3   | none: needs a dodge of an enemy attack; nothing attacks the rogue                                  |
+| Elusiveness         | 2   | none: Vanish and Blind cooldowns                                                                   |
+| Dirty Tricks        | 2   | none: Sap and Blind range and energy cost                                                          |
+
+- **Opportunity.** An unconditional `damage` add, so it sums with the other
+  adds (Aggression, Murder) in the percent form. Garrote has no engine
+  definition and Ambush is cast only under a Cutthroat aura that nothing
+  grants yet, so in practice it is Backstab and Mutilate.
+- **Serrated Blades.** The armor ignore takes its share of the armor left
+  after the flat reductions (see the armor order under Venom and Expose
+  Armor). The Rupture bonus is a damage modifier, so it is read once, when
+  Rupture is applied, into its tick damage.
+- **Thousand Cuts** (`k("thousandCuts")`, `k("thousandCuts.rules")`). Each
+  Rupture tick fires the proc (one draw per tick, chance 1, only with the
+  talent), which adds a stack of the `thousand-cuts` self aura (js/auras.js):
+  up to 5 stacks, 10 s, each tick refreshes it. Each stack is an
+  `energyCost` modifier of −3 on Hemorrhage and Backstab, so 5 stacks take
+  15 off. The cost is floored at 0 by the `energyCost` kind. The aura has one
+  charge. When an ability pays a cost that a charged self aura's modifier of
+  that kind is scoped to, the cast uses the charge
+  (`Simulation.consumeCostCharges`, called from `Ability.cast` after the
+  cost is paid), whatever the outcome: a missed or dodged Backstab uses the
+  stacks too. Expiry puts nothing back.
+- **Quietus** (`k("quietus.targetHealth")`, `k("target.healthModel")`). The
+  target's health falls linearly from 100% to 0% over the fight (ruling on
+  #269), `h(t) = 1 − t/L`. Below 35% means `20·t > 13·L`, compared in whole
+  numbers (no float): strictly after 65% of the fight, so at exactly 0.65 L it
+  is still off. `fightLength` null (a fight with no set length) means the
+  target is never below it, so Quietus is off. The check is made each time
+  the pipeline resolves a damage modifier for a scoped attack, with the
+  simulation's current time, so a fight cut on a core split resolves it the
+  same as one run straight through, and live and batch runs agree.
+- **No phantom draws.** Opportunity, Serrated Blades and Quietus are static
+  modifiers and draw nothing. Thousand Cuts adds one draw per Rupture tick,
+  and only with the talent.
+- **Goldens.** The ten existing fixtures are unchanged, since none has a
+  Subtlety point. The new fixture `subtlety-build-seed-269-60s` (51 points,
+  Thousand Cuts and Quietus 5/5, `SUBTLETY_ROTATION` in
+  scripts/golden-update.mjs) covers all four. The extra fight case
+  `dot-hemorrhage-rupture-120s` (test/fight-cases.js) has Serrated Blades 3/3
+  and Opportunity 2/2, so its damage changes on purpose. Its event sequence
+  (casts, auras, outcomes) does not change.
 
 ## Applying a talent build (D7, issue #106)
 

@@ -38,7 +38,7 @@ import { k } from "./constants.js";
 // amount in the snapshot's own rank text by test/talent-effects.test.js, at
 // every rank. A proc's chance reads the constants row that records it
 // (hackAndSlash.extraAttack, puncturingWounds.comboPoint, ruthlessness.comboPoint,
-// relentlessStrikes.energy, sealFate.comboPoint), and the same test checks those against the text too. So the numbers live in data/, none in
+// relentlessStrikes.energy, sealFate.comboPoint, thousandCuts), and the same test checks those against the text too. So the numbers live in data/, none in
 // js/, and the provenance is the `talents.*` row of data/constants.js.
 //
 // The six Assassination talents the reference build spends points on are D8a
@@ -445,25 +445,140 @@ const RAW = {
       "a25233e25ca9613deceaaa95c196fe1275178f7bd462389d33cb8b4ab9744ada",
     ability: "adrenaline-rush",
   },
-  // Issue #207. The three Subtlety talents that grant an ability the engine
-  // casts. Each entry is the ability link alone, so the rotation casts the
-  // ability only when the build has the talent, with no build too (#199,
-  // Rogue.lockedByBuild), and a rule that casts it needs a guard
-  // (js/rotation-validator.js). The rest of Subtlety is not mapped yet.
+  // Issue #207 gave the three Subtlety talents that grant an ability the
+  // engine casts (Ghostly Strike, Premeditation, Hemorrhage) their ability
+  // link alone, so the rotation casts the ability only when the build has the
+  // talent, with no build too (#199, Rogue.lockedByBuild), and a rule that
+  // casts it needs a guard (js/rotation-validator.js).
+  //
+  // Issue #269 (P4.6-05a) maps the Subtlety passives. Opportunity is a
+  // `damage` table on Backstab, Garrote, Ambush and Mutilate (the sim attacks
+  // from behind; Garrote is never cast, so that part is inert, and Ambush
+  // only follows Cutthroat). Serrated Blades is an unscoped `armorIgnore`
+  // (A11, flat with Hack and Slash's mace part) and a `damage` table on
+  // Rupture, which a Rupture takes when it is applied. Thousand Cuts (A13) is
+  // an onDotTick proc on Rupture with a flat chance of 1 (thousandCuts.chance)
+  // that applies the thousand-cuts aura (js/auras.js). Quietus (A14) is a
+  // `damage` table on Sinister Strike, Ghostly Strike and Hemorrhage with a
+  // targetHealthBelow of quietus.targetHealth (js/modifiers.js), so it
+  // applies only while the target is below 35% health under the linear
+  // health model (target.healthModel). Eight talents have no DPS effect.
+  // Improved Ambush, Initiative, Cutthroat and Preparation are not mapped yet
+  // (#270).
+  "subtlety.camouflage": {
+    textHash:
+      "d05aa50424d62d615dfb30d4b8fd4d66a7e0bbf52d3fd83a8f79f8ebd38237b4",
+    noDpsEffect:
+      "Needs Stealth or an opener: the sim models neither; Camouflage is speed and stealth detection while stealthed.",
+  },
+  "subtlety.master-of-deception": {
+    textHash:
+      "99b1bdad38ba6ffa2728b4a17fc185c2932fc15a1348f59300ad366ccb5e8ae8",
+    noDpsEffect:
+      "Needs Stealth or an opener: the sim models neither; Master of Deception makes the rogue harder to detect in stealth.",
+  },
+  "subtlety.opportunity": {
+    textHash:
+      "ce994806f63a201506bc8a5152f9af9f0ce02a53134521d5dcc38f5f5af24972",
+    modifiers: [
+      {
+        kind: "damage",
+        op: "add",
+        values: [0.05, 0.1],
+        scope: { abilities: ["backstab", "garrote", "ambush", "mutilate"] },
+      },
+    ],
+  },
+  "subtlety.setup": {
+    textHash:
+      "192453ff342b27a1fa6794fb4d81223002c517a068b50e927eae828e72a61d03",
+    noDpsEffect: "Needs a dodge of an enemy attack: nothing attacks the rogue.",
+  },
+  "subtlety.elusiveness": {
+    textHash:
+      "a0f882c213637be7e9be60e940246cc65e0cde7cb8dbd3dbf99d0c6311dadb41",
+    noDpsEffect:
+      "Vanish and Blind cooldowns: neither is cast in a damage fight.",
+  },
+  "subtlety.dirty-tricks": {
+    textHash:
+      "d6762cc441add5295373d0f6a057f96e2fad3744b774074723437f01032c0a58",
+    noDpsEffect:
+      "Sap and Blind range and energy cost: neither is cast in a damage fight.",
+  },
   "subtlety.ghostly-strike": {
     textHash:
       "cbaf3c73023e1b0f6b47679a27b7131378d0ede7c3d141691a1d117ff78f18cf",
     ability: "ghostly-strike",
+  },
+  "subtlety.improved-distract": {
+    textHash:
+      "ee1b6501414919b076ec604412b365ba0c15578b3bad2341727cbadbcffab579",
+    noDpsEffect:
+      "Needs Stealth or an opener: the sim models neither; Distract is a stealth tool, not cast in a damage fight.",
+  },
+  "subtlety.heightened-senses": {
+    textHash:
+      "2bb4814bbd217e046959304f707fa97549b96fb675d38cf5166fda90bfb717df",
+    noDpsEffect:
+      "Needs Stealth or an opener: the sim models neither; Heightened Senses is stealth detection and spell hit taken.",
   },
   "subtlety.premeditation": {
     textHash:
       "80ab80aeadcc84e51d1957ead8531af1890884dfcfe32f00d55048ea2a7b86c3",
     ability: "premeditation",
   },
+  "subtlety.serrated-blades": {
+    textHash:
+      "4be1765f177fbe1ef94693c84ccc2890a1b9c70e13ee2bc4761024e476c43bd3",
+    modifiers: [
+      { kind: "armorIgnore", op: "add", values: [0.03, 0.06, 0.09] },
+      {
+        kind: "damage",
+        op: "add",
+        values: [0.1, 0.2, 0.3],
+        scope: { abilities: ["rupture"] },
+      },
+    ],
+  },
+  "subtlety.dirty-deeds": {
+    textHash:
+      "3d8fdc2486a32de0fdbfa8f57419a5a2cca47613b30b104ce804df0ead7093ad",
+    noDpsEffect:
+      "Needs Stealth or an opener: the sim models neither; Dirty Deeds cuts the cost of Garrote and Cheap Shot, openers the sim never casts, and its not-behind part is moot when the rogue is always behind.",
+  },
   "subtlety.hemorrhage": {
     textHash:
       "67df2d6b721d2e14f2665901eba0b257522b3dcd5a4892bc3c8d921fb4bf8465",
     ability: "hemorrhage",
+  },
+  "subtlety.quietus": {
+    textHash:
+      "87ccab93b6b59c7e83439e05332f99396e5f33b0b98220b1203137578a96c18a",
+    modifiers: [
+      {
+        kind: "damage",
+        op: "add",
+        values: [0.02, 0.04, 0.06, 0.08, 0.1],
+        scope: {
+          abilities: ["sinister-strike", "ghostly-strike", "hemorrhage"],
+        },
+        targetHealthBelow: { ...k("quietus.targetHealth") },
+      },
+    ],
+  },
+  "subtlety.thousand-cuts": {
+    textHash:
+      "4244de397159247b10086cf0c0cb25c7c7df5ba4747a00fc449e30b38a8a0273",
+    procs: [
+      {
+        id: "thousand-cuts",
+        trigger: "onDotTick",
+        scope: { abilities: ["rupture"] },
+        chance: { mode: "flat", values: [...k("thousandCuts").chance] },
+        actions: [{ type: "applyAura", aura: "thousand-cuts" }],
+      },
+    ],
   },
 };
 

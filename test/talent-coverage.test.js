@@ -25,8 +25,8 @@ const ASSASSINATION_MAPPED = "assassination.malice";
 // Improved Expose Armor was the unmapped Assassination example until #268
 // covered the whole tree; an unmapped Subtlety talent stands in for it.
 const SUBTLETY_MAPPED = "subtlety.hemorrhage";
-const OTHER_UNMAPPED = "subtlety.camouflage";
-const SUBTLETY_UNMAPPED = "subtlety.opportunity";
+const OTHER_UNMAPPED = "subtlety.preparation";
+const SUBTLETY_UNMAPPED = "subtlety.initiative";
 
 // A copy of the effects map that a test may change.
 function effectsCopy() {
@@ -190,7 +190,7 @@ describe("an uncovered Subtlety talent only warns", () => {
     const result = run([], { effects });
     assert.equal(result.status, 0);
     assert.match(result.out, /WARN subtlety\.hemorrhage: no effect yet/);
-    assert.match(result.out, /WARN subtlety\.opportunity: no effect yet/);
+    assert.match(result.out, /WARN subtlety\.initiative: no effect yet/);
   });
 
   it("fails when a mapped Assassination talent loses its entry, since #268", () => {

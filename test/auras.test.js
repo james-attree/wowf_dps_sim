@@ -134,6 +134,15 @@ describe("aura definitions", () => {
         assert.equal(aura.name, "Ambush allowed");
         continue;
       }
+      if (key === "thousandCuts") {
+        // Thousand Cuts (#269): a talent's aura, named after its talent.
+        assert.equal(abilityCatalogue.get(aura.id), undefined);
+        assert.equal(
+          talentCatalogue.get("subtlety.thousand-cuts").name,
+          aura.name,
+        );
+        continue;
+      }
       const ability = abilityCatalogue.get(aura.id);
       assert.ok(ability, `${key} is not in the ability catalogue`);
       assert.equal(ability.name, aura.name, key);

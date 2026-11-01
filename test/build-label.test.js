@@ -89,14 +89,15 @@ describe("the talents part of the label (#204, Fran's U6 spec D17 and section 6)
   });
 
   it("counts the picked talents the sim does not model yet", () => {
-    const ranks = { ...combat, "subtlety.opportunity": 2 };
+    // Opportunity was the example until #269 simulated it.
+    const ranks = { ...combat, "subtlety.preparation": 1 };
     assert.equal(
       talentLabel(ranks, 60),
-      "Combat 0/7/2 · 9/51 · 1 not simulated yet",
+      "Combat 0/7/1 · 8/51 · 1 not simulated yet",
     );
     assert.equal(
       buildLabel({ talents: ranks, talentLevel: 30 }),
-      "Combat 0/7/2 · level 30 · 9/21 · 1 not simulated yet · Default rotation · No poisons",
+      "Combat 0/7/1 · level 30 · 8/21 · 1 not simulated yet · Default rotation · No poisons",
     );
   });
 

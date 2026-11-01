@@ -79,8 +79,9 @@ export class Simulation {
   // rng.defaultSeed. The rogue draws from the same rng.
   //
   // `fightLength` is the fight's length in seconds as the rotation is told it
-  // (fightTimeRemaining, #191), or none (null). It is the rotation's only: it
-  // does not decide how long the fight runs, which is run(duration)'s
+  // (fightTimeRemaining, #191), or none (null). The rotation reads it, and so
+  // does the target's health (targetHealthBelow, Quietus, #269). It does not
+  // decide how long the fight runs, which is run(duration)'s
   // argument, so the host that runs the fight passes the same number to both
   // (createFight's options.duration; runFight and SimRunner do).
   //
@@ -551,6 +552,43 @@ export class Simulation {
         this.consumeCharge(id);
       }
     }
+  }
+
+  // A cast that paid its cost uses one charge of every charged self aura with
+  // a modifier of the resource's cost kind (`kind`, energyCost) scoped to the
+  // cast, whatever the cast's outcome: a miss or dodge pays the cut cost too,
+  // so it uses the cut (Thousand Cuts, #269, A13, tagged assumption). Nothing
+  // here names an aura.
+  consumeCostCharges(kind, context) {
+    for (const id of Object.keys(this.activeBuffs)) {
+      const definition = this.auraDefinitions.get(id);
+      if (
+        definition?.charges !== null &&
+        definition?.charges !== undefined &&
+        definition.modifiers.some(
+          (modifier) =>
+            modifier.kind === kind && scopeMatches(modifier.scope, context),
+        )
+      ) {
+        this.consumeCharge(id);
+      }
+    }
+  }
+
+  // Whether the target's health is below `share` ({ numerator, denominator },
+  // n/d) now. Under target.healthModel "linear" (A14, #269, tagged
+  // assumption) the health falls from 100% to 0% over the fight, h(t) =
+  // 1 - t/L, so it is below n/d strictly after t = (d - n)/d * L. That is
+  // compared in whole-number form, d*t > (d - n)*L, so 0.65 * L never meets a
+  // rounding error at the boundary. With no fight length (null) the health
+  // never falls: the answer is no. The modifier pipeline asks it for a
+  // modifier with a targetHealthBelow (Quietus).
+  targetHealthBelow({ numerator, denominator }) {
+    const length = this.fightLength;
+    if (length === null || k("target.healthModel") !== "linear") {
+      return false;
+    }
+    return denominator * this.currentTime > (denominator - numerator) * length;
   }
 
   // The effects of one kind (haste, energyRegenMultiplier, dotDamageTaken,

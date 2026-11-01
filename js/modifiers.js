@@ -9,7 +9,7 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 // (pipeline.resolve(kind, base, context)) and never names a talent, an aura
 // or a tree, so a new source is new data and no new engine code.
 //
-//   { kind, op, value, scope?, source? }
+//   { kind, op, value, scope?, source?, targetHealthBelow? }
 //
 //   kind    what changes (MODIFIER_KINDS)
 //   op      "add" or "mult", how value joins the others of its kind. How the
@@ -32,6 +32,14 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //                          changes is that resource's, and without it every
 //                          resource's.
 //   source  an optional label for explain() and tests ("combat.precision").
+//   targetHealthBelow
+//           optional { numerator, denominator }, whole numbers with
+//           0 < numerator < denominator: the modifier applies only while the
+//           target's health is below that share (Quietus, #269, A14). The
+//           fight the pipeline is attached to answers it
+//           (Simulation.targetHealthBelow); with none attached it does not
+//           apply. A modifier without it is unchanged: the field is not even
+//           on its frozen record.
 //
 // The context an attack passes is { ability, hand, weaponType, school, tags }.
 // A condition on a part the context does not have does not match. An ability's context is
@@ -243,7 +251,11 @@ export function defineModifier(spec) {
   }
   const { kind, op = "add", value, scope, source = null } = spec;
   for (const key of Object.keys(spec)) {
-    if (!["kind", "op", "value", "scope", "source"].includes(key)) {
+    if (
+      !["kind", "op", "value", "scope", "source", "targetHealthBelow"].includes(
+        key,
+      )
+    ) {
       fail(label, `unknown field "${key}".`);
     }
   }
@@ -268,13 +280,52 @@ export function defineModifier(spec) {
   if (source !== null && (typeof source !== "string" || source === "")) {
     fail(label, "source must be a non-empty string or null.");
   }
+  const health = Object.hasOwn(spec, "targetHealthBelow")
+    ? { targetHealthBelow: defineHealthShare(label, spec.targetHealthBelow) }
+    : {};
   return Object.freeze({
     kind,
     op,
     value,
     scope: defineScope(label, kind, scope),
     source,
+    ...health,
   });
+}
+
+// A modifier's targetHealthBelow: { numerator, denominator }, whole numbers
+// with 0 < numerator < denominator, frozen.
+function defineHealthShare(label, share) {
+  const ok =
+    share !== null &&
+    typeof share === "object" &&
+    !Array.isArray(share) &&
+    Object.keys(share).every(
+      (key) => key === "numerator" || key === "denominator",
+    ) &&
+    Number.isInteger(share.numerator) &&
+    Number.isInteger(share.denominator) &&
+    share.numerator > 0 &&
+    share.numerator < share.denominator;
+  if (!ok) {
+    fail(
+      label,
+      `targetHealthBelow must be { numerator, denominator }, whole numbers with 0 < numerator < denominator. Got ${JSON.stringify(share)}.`,
+    );
+  }
+  return Object.freeze({
+    numerator: share.numerator,
+    denominator: share.denominator,
+  });
+}
+
+// Whether a modifier applies to the fight as it stands: one with a
+// targetHealthBelow only while the provider says the target is below it.
+function healthMatches(modifier, provider) {
+  return (
+    modifier.targetHealthBelow === undefined ||
+    provider?.targetHealthBelow?.(modifier.targetHealthBelow) === true
+  );
 }
 
 // Add 0 and mult 1 change nothing, so they are not worth a step in the maths.
@@ -506,7 +557,10 @@ export class ModifierPipeline {
     }
     const found = [];
     for (const entry of statics ?? NONE) {
-      if (scopeMatches(entry.modifier.scope, context)) {
+      if (
+        scopeMatches(entry.modifier.scope, context) &&
+        healthMatches(entry.modifier, this.#provider)
+      ) {
         found.push(entry);
       }
     }
