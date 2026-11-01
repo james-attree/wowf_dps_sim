@@ -255,8 +255,9 @@ describe("talent tree model (#204)", () => {
     // (+3): 25 / 9 / 19. #267 simulates Mutilate: 26 / 9 / 18. #268
     // simulates Improved Expose Armor and Venom: 28 / 9 / 16. #269
     // simulates Opportunity, Serrated Blades, Quietus and Thousand Cuts (+4)
-    // and marks eight Subtlety talents as no DPS (+8): 32 / 17 / 4.
-    assert.deepEqual(counts, { simulated: 32, noDps: 17, notSimulated: 4 });
+    // and marks eight Subtlety talents as no DPS (+8): 32 / 17 / 4. #270
+    // simulates Preparation: 33 / 17 / 3.
+    assert.deepEqual(counts, { simulated: 33, noDps: 17, notSimulated: 3 });
   });
 
   it("counts picked talents the sim does not model yet in the summary", () => {

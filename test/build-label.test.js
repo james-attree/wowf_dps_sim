@@ -89,8 +89,9 @@ describe("the talents part of the label (#204, Fran's U6 spec D17 and section 6)
   });
 
   it("counts the picked talents the sim does not model yet", () => {
-    // Opportunity was the example until #269 simulated it.
-    const ranks = { ...combat, "subtlety.preparation": 1 };
+    // Opportunity was the example until #269 simulated it, Preparation
+    // until #270.
+    const ranks = { ...combat, "subtlety.initiative": 1 };
     assert.equal(
       talentLabel(ranks, 60),
       "Combat 0/7/1 · 8/51 · 1 not simulated yet",

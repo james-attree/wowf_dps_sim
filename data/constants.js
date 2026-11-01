@@ -190,6 +190,28 @@ export const CONSTANTS = {
     "Cleave is ignored on a single target. Casting it starts the GCD (gcd.flags).",
     false,
   ),
+  preparation: entry(
+    { energy: 0, cooldown: 600 },
+    "energy, s",
+    WOWF_EXPORT,
+    'rogue.json → spell_desc[Rogue|Preparation|]; talents[Subtlety|Preparation] cost "Instant | 10 min cooldown"',
+    "Granted by the Preparation talent (#270). 10 min cooldown, so once in a fight of up to 10 minutes. The export gives it no cost, so energy is 0 (Classic: none either). It starts the GCD (abilities.offGcd does not list it; wowsims/classic sim/rogue/preparation.go gives it GCD: time.Second). What it finishes is preparation.resets.",
+    false,
+  ),
+  "preparation.resets": entry(
+    [
+      "cold-blood",
+      "premeditation",
+      "ghostly-strike",
+      "adrenaline-rush",
+      "blade-flurry",
+    ],
+    "ability ids",
+    ASSUMPTION,
+    "James, 31 Oct 2026, issue #270: A15 of the Phase 4.6 plan v4: Preparation finishes the cooldowns of Cold Blood, Premeditation, Ghostly Strike, Adrenaline Rush and Blade Flurry (Classic: all other rogue abilities; Vanish, Sprint and Evasion are not modelled); it does not reset itself or any racial; tagged assumption",
+    'The abilities whose cooldowns a Preparation cast finishes at once (js/ability.js). The export says only "your other Rogue abilities"; these are the rogue abilities with a cooldown that the engine casts, other than Preparation. Preparation\'s own cooldown and any racial (the engine models none) are left alone, and so is any cooldown not listed. A cooldown that is not running is untouched. wowsims/classic resets Cold Blood, Shadowstep and Vanish only (sim/rogue/preparation.go); this list follows the plan instead.',
+    true,
+  ),
   sliceAndDice: entry(
     {
       energy: 25,
@@ -1569,7 +1591,7 @@ export const CONSTANTS = {
     "ability ids",
     CLASSIC,
     `${WS}rogue/premeditation.go (the same source as gcd.flags); Cold Blood: ${WS}rogue/talents.go (registerColdBloodCD)`,
-    "The abilities that do not start the global cooldown. Premeditation and Cold Blood are the ones the engine models (gcd.flags; Cold Blood: D8a PR 2, #119, its wowsims spell has no GCD config). Every other ability in the catalogue defaults to starting the GCD, which is not yet checked against the game for abilities the engine does not cast (Preparation, Sprint, Stealth, Vanish and others). D2 (#98) reads the flag for the eleven abilities the engine casts and defines no other, so the rest still wait for review.",
+    "The abilities that do not start the global cooldown. Premeditation and Cold Blood are the ones the engine models (gcd.flags; Cold Blood: D8a PR 2, #119, its wowsims spell has no GCD config). Every other ability in the catalogue defaults to starting the GCD, which is not yet checked against the game for abilities the engine does not cast (Sprint, Stealth, Vanish and others). Preparation (#270) is cast and starts the GCD, as wowsims/classic sim/rogue/preparation.go has it (GCD: time.Second). D2 (#98) reads the flag for the eleven abilities the engine casts and defines no other, so the rest still wait for review.",
     true,
   ),
   "log.maxEvents": entry(

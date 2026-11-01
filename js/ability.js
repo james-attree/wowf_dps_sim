@@ -172,6 +172,16 @@ export class Ability {
     // list; empty for none (Ambush: ["cutthroat"], #261).
     this.requiresAura = requiredAuras(definition);
     this.cooldown = stats.cooldown;
+    // The ability ids whose cooldowns a cast finishes (Preparation, #270,
+    // A15), a frozen list; empty for none. Its own id is a data error.
+    this.resets = Object.freeze(
+      definition.resets === undefined ? [] : [...k(definition.resets)],
+    );
+    if (this.resets.includes(this.id)) {
+      throw new RangeError(
+        `Ability "${this.id}" cannot finish its own cooldown (${definition.resets}).`,
+      );
+    }
     // A hand-made file in img/ where the entry has one; else the spell's icon
     // from the icon CDN (js/icons.js), the question mark if it has none.
     this.icon = definition.icon ?? spellIconUrl(this.name);
@@ -522,6 +532,14 @@ export class Ability {
       //  Put this attack on CD
       if (this.cooldown > 0) {
         simulation.cooldowns[this.id] = this.cooldown; // Set the ability's cooldown
+      }
+      // Finish the listed cooldowns that are running (Preparation, #270,
+      // A15). The event core sees the 0 and drops the timer (js/core/fight.js
+      // sync). No draw.
+      for (const id of this.resets) {
+        if (simulation.cooldowns[id] > 0) {
+          simulation.cooldowns[id] = 0;
+        }
       }
 
       if (duration > 0 && this.aura) {

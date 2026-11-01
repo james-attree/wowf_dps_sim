@@ -463,8 +463,7 @@ const RAW = {
   // targetHealthBelow of quietus.targetHealth (js/modifiers.js), so it
   // applies only while the target is below 35% health under the linear
   // health model (target.healthModel). Eight talents have no DPS effect.
-  // Preparation (#270) and Improved Ambush, Initiative and Cutthroat (#271)
-  // are not mapped yet.
+  // Improved Ambush, Initiative and Cutthroat (#271) are not mapped yet.
   "subtlety.camouflage": {
     textHash:
       "d05aa50424d62d615dfb30d4b8fd4d66a7e0bbf52d3fd83a8f79f8ebd38237b4",
@@ -546,6 +545,14 @@ const RAW = {
       "3d8fdc2486a32de0fdbfa8f57419a5a2cca47613b30b104ce804df0ead7093ad",
     noDpsEffect:
       "Needs Stealth or an opener: the sim models neither; Dirty Deeds cuts the cost of Garrote and Cheap Shot, openers the sim never casts, and its not-behind part is moot when the rogue is always behind.",
+  },
+  // Issue #270 (P4.6-05b): Preparation grants the preparation ability, a
+  // 10 min cooldown that finishes the cooldowns preparation.resets lists
+  // (A15), so a rotation casts it only with the talent, behind a guard.
+  "subtlety.preparation": {
+    textHash:
+      "40b086f126c9a5a986b7e9c007982aace22e72f7b36ade6c4a60717bc2e3ce64",
+    ability: "preparation",
   },
   "subtlety.hemorrhage": {
     textHash:

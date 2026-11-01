@@ -175,7 +175,7 @@ const VENOM_EXPOSE_ROTATION = deepFreeze({
 // Issue #269. A Subtlety build of 51 points on the dagger/dagger alternate:
 // the four passives at their top rank (Opportunity, Serrated Blades, Quietus,
 // Thousand Cuts) with Hemorrhage, the eight no-DPS Subtlety talents and
-// Preparation (unmapped, #270) to reach Quietus and Thousand Cuts, and 20
+// Preparation (unmapped until #270) to reach Quietus and Thousand Cuts, and 20
 // Assassination points for crit (Malice, Lethality) and finishers.
 export const SUBTLETY_BUILD = deepFreeze({
   "assassination.improved-gouge": 1,
@@ -228,6 +228,33 @@ export const SUBTLETY_ROTATION = deepFreeze({
       ],
     },
     { action: "backstab", conditions: [UNDER_FIVE_CP] },
+  ],
+});
+
+// Issue #270. The Subtlety rotation above with Ghostly Strike when it is
+// ready and Preparation while Ghostly Strike is on cooldown, so Preparation
+// finishes Ghostly Strike's cooldown once in the fight.
+export const PREPARATION_ROTATION = deepFreeze({
+  schemaVersion: 1,
+  name: "Ghostly Strike, Preparation, then the Subtlety rotation",
+  rules: [
+    {
+      action: "ghostly-strike",
+      conditions: [
+        { type: "abilityGranted", ability: "ghostly-strike" },
+        UNDER_FIVE_CP,
+        { type: "cooldownReady", ability: "ghostly-strike" },
+      ],
+    },
+    {
+      action: "preparation",
+      conditions: [
+        { type: "abilityGranted", ability: "preparation" },
+        { type: "cooldownReady", ability: "ghostly-strike", ready: false },
+        { type: "cooldownReady", ability: "preparation" },
+      ],
+    },
+    ...SUBTLETY_ROTATION.rules,
   ],
 });
 
@@ -331,6 +358,20 @@ export const GOLDEN_CASES = deepFreeze([
       weapons: defaultDaggerConfig().weapons,
       talents: { ...SUBTLETY_BUILD },
       rotation: SUBTLETY_ROTATION,
+    },
+  },
+  // Issue #270. The same build and weapons with Preparation in the rotation
+  // (PREPARATION_ROTATION), so it is cast once and Ghostly Strike's
+  // cooldown is finished.
+  {
+    name: "preparation-subtlety-seed-270-60s",
+    seed: 270,
+    duration: 60,
+    config: {
+      character: defaultDaggerConfig().character,
+      weapons: defaultDaggerConfig().weapons,
+      talents: { ...SUBTLETY_BUILD },
+      rotation: PREPARATION_ROTATION,
     },
   },
 ]);

@@ -300,24 +300,25 @@ describe("applyBuild", () => {
 
   it("an illegal build is an error, and an unmodelled talent is only reported", () => {
     assert.throws(() => applyBuild({ "combat.precision": 3 }), RangeError);
-    // Improved Ambush and Preparation are legal talents with no entry in the
+    // Improved Ambush and Initiative are legal talents with no entry in the
     // effects data. Venom was the example until #268 mapped it, and every
-    // Assassination talent with it; Camouflage until #269 marked it no DPS.
+    // Assassination talent with it; Camouflage until #269 marked it no DPS;
+    // Preparation until #270 mapped it.
     assert.equal(TALENT_EFFECTS["subtlety.improved-ambush"], undefined);
-    assert.equal(TALENT_EFFECTS["subtlety.preparation"], undefined);
+    assert.equal(TALENT_EFFECTS["subtlety.initiative"], undefined);
+    assert.equal(TALENT_EFFECTS["subtlety.preparation"].ability, "preparation");
     const withAmbush = swap(SUBTLETY_BUILD, {
       "subtlety.camouflage": 2,
       "subtlety.improved-ambush": 1,
     });
     assert.deepEqual(applyBuild(withAmbush).unmapped, [
       "subtlety.improved-ambush",
-      "subtlety.preparation",
     ]);
   });
 
   it("names the abilities a talent grants, from the effects data", () => {
-    // The reference build's three, Mutilate (#267), Venom (#268) and the
-    // three Subtlety ones (#207).
+    // The reference build's three, Mutilate (#267), Venom (#268), the
+    // three Subtlety ones (#207) and Preparation (#270).
     assert.deepEqual(
       [...talentGrantedAbilities].sort(),
       [
@@ -327,6 +328,7 @@ describe("applyBuild", () => {
         "ghostly-strike",
         "premeditation",
         "hemorrhage",
+        "preparation",
       ].sort(),
     );
   });
