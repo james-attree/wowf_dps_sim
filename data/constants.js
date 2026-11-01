@@ -409,7 +409,7 @@ export const CONSTANTS = {
     "energy, s, ×, damage, CP",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Ambush|Rank 6]",
-    "250% weapon damage plus 290. Ambush needs a dagger in the main hand and the cutthroat aura, labelled Ambush allowed (requiresMainHand and requiresAura in js/ability-data.js, #261), which stands in for Requires Stealth: a cast without either is rejected, nothing spent, and a cast that goes ahead uses the aura's one charge (cutthroat.aura, js/required-auras.js). Nothing grants the aura yet (the sim models no Stealth and no stealth openers), so Ambush is never cast and its rule is passed over; Cutthroat (Phase 4.6) will grant it. The behind requirement is not enforced.",
+    "250% weapon damage plus 290. Ambush needs a dagger in the main hand and the cutthroat aura, labelled Ambush allowed (requiresMainHand and requiresAura in js/ability-data.js, #261), which stands in for Requires Stealth: a cast without either is rejected, nothing spent, and a cast that goes ahead uses the aura's one charge (cutthroat.aura, js/required-auras.js). The sim models no Stealth and no stealth openers, so the Cutthroat talent's proc (cutthroat.proc, #271) is the only thing that grants the aura: without Cutthroat, Ambush is never cast and its rule is passed over. The behind requirement is not enforced.",
     false,
   ),
   "cutthroat.aura": entry(
@@ -417,7 +417,7 @@ export const CONSTANTS = {
     "charges",
     ASSUMPTION,
     `Developer, 31 Oct 2026, issue #261: ${NOT_JAMES} Inferred from rogue.json → Subtlety talent Cutthroat ("your next Ambush within 10 sec to not require Stealth"): "your next Ambush" read as one charge`,
-    'The self aura Ambush requires (id "cutthroat", label "Ambush allowed", js/auras.js and js/required-auras.js, #261). One charge: the next Ambush that goes ahead uses it, whatever its outcome, and the aura ends. It is not Stealth and nothing treats it as being stealthed. Nothing grants it yet; Cutthroat (Phase 4.6) will, for 10 s, on its proc.',
+    'The self aura Ambush requires (id "cutthroat", label "Ambush allowed", js/auras.js and js/required-auras.js, #261). One charge: the next Ambush that goes ahead uses it, whatever its outcome, and the aura ends. It is not Stealth and nothing treats it as being stealthed. Only the Backstab proc of the Cutthroat talent puts it up, for 10 s (cutthroat.proc, #271).',
     true,
   ),
   "poison.instant": entry(
@@ -1320,6 +1320,39 @@ export const CONSTANTS = {
     ASSUMPTION,
     "James, 31 Oct 2026, issue #269: A13 of the Phase 4.6 plan v4 (approved with yes to all): each Rupture tick adds 1 stack, up to 5; the aura lasts 10 s, refreshed by each tick; −3 energy per stack on Hemorrhage and Backstab only; consumed by that cast; cost floor 0",
     "Documents the rule: no code reads this row. The aura has one charge, which the cast that pays the cut cost uses (Simulation.consumeCostCharges), whatever its outcome: a miss or dodge uses the stacks too. energyCost is floored at 0 by the pipeline (the energyCost kind's floor, js/modifiers.js).",
+    false,
+  ),
+  // #271 (P4.6-05c): Cutthroat, Improved Ambush and Initiative.
+  "cutthroat.proc": entry(
+    { chance: [0.03, 0.06, 0.09, 0.12, 0.15], duration: 10 },
+    "chance per rank, s",
+    WOWF_EXPORT,
+    "rogue.json → talents[Subtlety|Cutthroat] desc: your Backstab has a 3/6/9/12/15% chance to cause your next Ambush within 10 sec to not require Stealth",
+    'An onAbility proc on Backstab, flat chance by rank (never drawless: no rank is certain). It puts up the cutthroat self aura ("Ambush allowed", cutthroat.aura) for 10 s, and the build with it adds "cutthroat" to Rogue.grantedAuras, so an Ambush rule is reachable. The rules it follows are cutthroat.rules.',
+    false,
+  ),
+  "cutthroat.rules": entry(
+    "a landed Backstab rolls; a proc while the aura is up refreshes it to 10 s with its one charge; Improved Ambush and Initiative act on every Ambush",
+    "–",
+    ASSUMPTION,
+    "James, 31 Oct 2026, issue #271: a Backstab proc at 3/6/9/12/15% by rank puts up the cutthroat aura for 10 s; Improved Ambush applies only to Ambushes that Cutthroat allows; no stealth openers, so Cutthroat is the only legal way to cast Ambush; tagged assumption",
+    "Documents the rule: no code reads this row. The three points are the dev's reading, not in the issue or the talent text. A Backstab rolls only when it lands, as every onAbility proc does (js/procs.js): a miss, dodge or parry rolls nothing. A proc while the aura is up applies it again (Simulation.applyAura), so its 10 s start over and it holds one charge, never two. As the sim models no Stealth, every Ambush is one Cutthroat allowed, so Improved Ambush and Initiative apply to every Ambush cast.",
+    false,
+  ),
+  "improvedAmbush.critChance": entry(
+    [0.15, 0.3, 0.45],
+    "crit chance per rank",
+    WOWF_EXPORT,
+    "rogue.json → talents[Subtlety|Improved Ambush] desc: increases the critical strike chance of your Ambush ability by 15/30/45%",
+    "A critChance modifier, op add, scoped to Ambush (data/talent-effects.js). A flat add to the crit chance, as Malice and Puncturing Wounds are, taken before the crit suppression. Classic 1.12 has the same 15% per rank.",
+    false,
+  ),
+  "initiative.comboPoint": entry(
+    { chance: [0.33, 0.67, 1], comboPoints: 1, abilities: ["ambush"] },
+    "chance per rank, combo points, ability ids",
+    WOWF_EXPORT,
+    "rogue.json → talents[Subtlety|Initiative] desc: gives you a 33/67/100% chance to add an additional combo point to your target when using your Ambush, Garrote, or Cheap Shot ability",
+    'An onAbility proc on a landed Ambush that adds one combo point, on top of the point Ambush gives (the pool\'s cap applies). The export says 67% at rank 2 (the issue and plan say 66%; the export is the source). At rank 3 the chance is 1, so the proc is drawless there (drawless: "whenCertain", js/procs.js) and draws nothing (G2); ranks 1 and 2 draw once. Garrote and Cheap Shot are stealth openers the sim does not cast, so that part of the talent is inert (partly simulated, #275). Classic 1.12 gives 25/50/75%.',
     false,
   ),
   "quietus.rules": entry(

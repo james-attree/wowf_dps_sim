@@ -20,8 +20,8 @@ import { rotationStateReader } from "./rotation-state.js";
 //              (Ability.mainHandAllowed: Backstab needs a dagger;
 //              Ability.offHandAllowed: Mutilate needs two, #267), something
 //              in the fight can put up an aura it requires
-//              (Ability.auraReachable: nothing grants Ambush's cutthroat
-//              aura yet, #261), and the ability is not a talent ability the
+//              (Ability.auraReachable: only Cutthroat grants Ambush's
+//              cutthroat aura, #261, #271), and the ability is not a talent ability the
 //              build lacks (Rogue.lockedByBuild, #199; with no talents picked
 //              every talent ability is lacked). The weapon, the granted auras
 //              and the build's grants are fixed for the fight, so the

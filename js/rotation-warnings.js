@@ -103,12 +103,13 @@ const ENGINE_ON_GCD = Object.freeze(
   ).map((definition) => definition.id),
 );
 
-// The abilities a rule for which is passed over for the whole fight, as it
-// needs an aura up that nothing in the fight grants (requiresAura, #261):
-// Ambush today, until Cutthroat grants "Ambush allowed". The host answers
-// usable false for it (js/rotation-host.js), so its rule never casts and
-// holds nothing back. James's ruling (#245, Fran's check): Ambush gets no
-// warning, so it is left out of every starves `below` and gets none itself.
+// The abilities whose rule needs an aura up (requiresAura, #261): Ambush,
+// whose "Ambush allowed" only Cutthroat grants (#271). Without Cutthroat the
+// host answers usable false for it (js/rotation-host.js), so its rule never
+// casts and holds nothing back; with it, the rule casts only while the aura
+// is up, so it never always holds either. James's ruling (#245, Fran's
+// check), kept for #271: Ambush gets no warning, so it is left out of every
+// starves `below` and gets none itself.
 const ENGINE_PASSED_OVER = Object.freeze(
   ABILITY_DEFINITIONS.filter(
     (definition) => (definition.requiresAura ?? []).length > 0,
@@ -389,7 +390,7 @@ export function rotationWarnings(rotation, context) {
   });
   // The rules that never cast: a duplicate is never reached, a rule with a
   // grantedNotTalent condition never holds, and a rule for an ability that
-  // needs an aura nothing grants is passed over (Ambush, ENGINE_PASSED_OVER).
+  // needs an aura is passed over or waits on it (Ambush, ENGINE_PASSED_OVER).
   // None holds anything back, nor is it counted as starved.
   const silent = new Set(same.keys());
   rules.forEach((rule, index) => {

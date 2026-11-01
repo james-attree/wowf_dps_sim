@@ -2025,7 +2025,7 @@ open for James's review, not defects found by a test:
 - **Backstab's and Ambush's dagger requirements** are enforced (#142, #261):
   see "Backstab needs a dagger" and "Ambush needs a dagger and the Ambush
   allowed aura". Ambush's Stealth requirement is enforced through that aura,
-  which nothing grants yet. Mutilate's two daggers are enforced too (#267,
+  which only Cutthroat's Backstab proc grants (#271). Mutilate's two daggers are enforced too (#267,
   "Mutilate"). The Stealth requirement of every other ability (Garrote, Cheap Shot and the like, which
   no rotation can cast), and every behind requirement are parsed from the
   catalogue and not enforced.
@@ -3168,9 +3168,9 @@ Assassination: an Assassination talent with no entry fails the coverage check.
 ### Subtlety passives (#269, P4.6-05a)
 
 The Subtlety talents that act in a fight from behind with no stealth, and a
-`noDpsEffect` for the eight that do not. Preparation has an entry since #270
-(below); Improved Ambush, Initiative and Cutthroat (#271) still have none, so
-Subtlety stays a warning-only tree in `scripts/talent-coverage.mjs`. The sim attacks from
+`noDpsEffect` for the eight that do not. Preparation has an entry since #270,
+and Improved Ambush, Initiative and Cutthroat since #271 (both below), so
+Subtlety is a full-coverage tree in `scripts/talent-coverage.mjs` since #271. The sim attacks from
 behind (ruling on #269), and numbers the issue left open take the Classic
 value, tagged `assumption` in `data/constants.js`.
 
@@ -3191,8 +3191,8 @@ value, tagged `assumption` in `data/constants.js`.
 
 - **Opportunity.** An unconditional `damage` add, so it sums with the other
   adds (Aggression, Murder) in the percent form. Garrote has no engine
-  definition and Ambush is cast only under a Cutthroat aura that nothing
-  grants yet (#271), so in practice it is Backstab and Mutilate.
+  definition and Ambush is cast only under the cutthroat aura, which only
+  Cutthroat grants (#271), so without Cutthroat it is Backstab and Mutilate.
 - **Serrated Blades.** The armor ignore takes its share of the armor left
   after the flat reductions (see the armor order under Venom and Expose
   Armor). The Rupture bonus is a damage modifier, so it is read once, when
@@ -3285,6 +3285,65 @@ and never cast.
   moved.
 - **Old configs.** A config with no Subtlety points has no `preparation`
   ability, and a rotation that does not name it plays as before.
+
+### Cutthroat, Improved Ambush and Initiative (#271, P4.6-05c)
+
+The last three Subtlety talents, which close D8: every talent of all three
+trees now has an entry, and `FULL_COVERAGE_TREES` in
+`scripts/talent-coverage.mjs` is `["combat", "assassination", "subtlety"]`.
+The sim models no Stealth and no stealth openers (James, #261 and #271), so
+Cutthroat is the only way Ambush is cast, and Improved Ambush and Initiative
+act only on those Ambushes.
+
+| Talent          | Max | What it is in the data                                                                        |
+| --------------- | --- | --------------------------------------------------------------------------------------------- |
+| Cutthroat       | 5   | proc: `onAbility`, Backstab, `flat` 3/6/9/12/15%, `applyAura` cutthroat for 10 s              |
+| Improved Ambush | 3   | `critChance` +15/30/45%, Ambush                                                               |
+| Initiative      | 3   | proc: `onAbility`, Ambush, `flat` 33/67/100%, `drawless: "whenCertain"`, `gainResource` +1 CP |
+
+- **Cutthroat** (`k("cutthroat.proc")`, `wowf-export`; `k("cutthroat.rules")`,
+  `assumption`). A landed Backstab (hit or crit; `onAbility` procs fire only
+  for landed attacks) rolls once at 3/6/9/12/15% by rank, after the cast. On
+  a fire it calls `simulation.applyAura(AURAS.cutthroat, { duration: 10 })`
+  through the proc's `applyAura` action: the "Ambush allowed" aura, one charge
+  (`k("cutthroat.aura").charges`), 10 s. A proc while the aura is up refreshes
+  it: the duration is set to 10 s again and the one charge restored, so it
+  never holds two (an aura `refresh` event). The next Ambush that goes ahead
+  uses the charge and the aura ends (`expire`, reason `charges`); with no
+  Ambush in time it expires at 10 s. Because the proc applies a required aura,
+  the Rogue puts `"cutthroat"` in `Rogue.grantedAuras` at rank 1 or more
+  (derived from the fight's procs), so an Ambush rule is usable; at rank 0
+  the set is empty and the rule is passed over for the whole fight, as before.
+  The test-only override in `test/cutthroat-override.js` is unchanged and stays
+  in the tests.
+- **Improved Ambush** (`k("improvedAmbush.critChance")`, `wowf-export`). A
+  `critChance` add of 15/30/45 points on Ambush, summed with the character's
+  crit and other adds; it changes the crit share of the attack table, so it
+  draws nothing of its own. Every Ambush the sim casts is one Cutthroat
+  allowed, so the issue's "only Cutthroat-allowed Ambushes" holds without a
+  check.
+- **Initiative** (`k("initiative.comboPoint")`, `wowf-export`). The Ambush
+  part only: a landed Ambush rolls at 33/67/100% by rank (the export says
+  67% at rank 2; the issue said 66%) and on a fire gains 1 combo point, on top
+  of Ambush's own, capped at 5 like any gain. The Garrote and Cheap Shot parts
+  are inert: neither is ever cast ("partly simulated", #275). Classic 1.12
+  had 25/50/75%; the export's numbers are used.
+- **`drawless: "whenCertain"` (G2).** A ranked proc may ask to be drawless at
+  only its certain ranks: `defineRankedProc` makes rank 3 of Initiative
+  (chance 1, flat, no `chanceBonus`) a `drawless: true` proc that fires with
+  no RNG draw, and ranks 1 and 2 ordinary procs that draw one roll. `defineProc`
+  itself still takes only `true` or `false`. Cutthroat never reaches a chance
+  of 1, so it always draws. At 0 points none of the three exists, so a fight
+  draws exactly as before.
+- **Presets and goldens.** No preset or default rotation casts Ambush, and no
+  existing fixture has Cutthroat, so the twelve existing fixtures are
+  unchanged. The new fixture `cutthroat-subtlety-seed-271-60s`
+  (`CUTTHROAT_BUILD` with `AMBUSH_ROTATION` in scripts/golden-update.mjs:
+  Rupture and Eviscerate at 5 CP, then Ambush, Hemorrhage and Backstab under
+  5 CP) has 7 Backstab, 2 Cutthroat procs and 2 Ambush, each Ambush right
+  after an aura apply or refresh and followed by its `expire`.
+- **Old configs.** A config without these talents reads them as 0 points: no
+  proc, no modifier, an empty `grantedAuras`, and the same fight.
 
 ## Applying a talent build (D7, issue #106)
 
@@ -3407,11 +3466,12 @@ in `js/ability-data.js` has `requiresMainHand: "dagger"`, as Backstab does, and
 `requiresAura: ["cutthroat"]`. That aura, labelled "Ambush allowed", stands in
 for "Requires Stealth" (rogue.json → spell_desc[Rogue|Ambush|Rank 6]:
 "Requires Stealth", "Requires Daggers"). The sim models no stealth (no stealth
-openers: James, issue #261), and nothing in a fight grants the aura yet, so
-Ambush is never cast, on a dagger or a sword. `Ability.canCast` and
+openers: James, issue #261), and only the Cutthroat talent's Backstab proc
+grants the aura (#271, below), so without Cutthroat Ambush is never cast, on
+a dagger or a sword. `Ability.canCast` and
 `Ability.cast` check the main hand and the aura before anything else: a refused
 Ambush tells no cast, spends no energy or combo points, starts no cooldown or
-GCD and draws no number. Nothing grants the aura, so the host's `usable` is
+GCD and draws no number. Without Cutthroat nothing grants the aura, so the host's `usable` is
 false (`Ability.auraReachable`), and the interpreter passes over an Ambush rule
 as it does a Backstab rule on a sword ([rotation](rotation.md)). A rotation may
 still hold an Ambush rule, and no warning is given for it (the coordinator's
@@ -3421,8 +3481,9 @@ otherwise Ambush" on seed 7, 300 s, sword, was 204.7 DPS with 48 Ambush,
 against 152.6 with Sinister Strike as the builder; it is now the same fight as
 "Eviscerate at 5 CP" alone (82.0).
 
-**The Ambush hook, a contract for Cutthroat (Phase 4.6).** The interface is
-in `js/required-auras.js`; nothing implements the granting side yet.
+**The Ambush hook, the contract Cutthroat implements (#271).** The interface
+is in `js/required-auras.js`; the Cutthroat talent's proc is the granting side
+("Cutthroat, Improved Ambush and Initiative" above).
 
 - **The aura.** `AURAS.cutthroat` (also `REQUIRED_AURAS.cutthroat`): a self
   aura with id `"cutthroat"` and the label "Ambush allowed", one charge
@@ -3431,7 +3492,7 @@ in `js/required-auras.js`; nothing implements the granting side yet.
   an `auraActive` or `auraRemaining` condition can name it and the page labels
   it "Ambush allowed". It has no effects. **It is not Stealth:** nothing in the
   sim treats it as being stealthed (no ability, talent, proc or swing reads
-  it), and it does one thing, allow Ambush. Nothing grants it yet.
+  it), and it does one thing, allow Ambush. Only Cutthroat grants it (#271).
 - **The list.** `requiresAura` is a list of one or more distinct self aura ids
   from `AURAS`; a definition with anything else (a bare id, an empty list, an
   unknown or target aura, a repeat) is refused when the ability is built. A
@@ -3452,7 +3513,9 @@ in `js/required-auras.js`; nothing implements the granting side yet.
   (no dagger, no aura, not enough energy, the GCD) leaves it up. No other
   ability or swing uses it.
 - **Granting.** An effect that can put the aura up adds `"cutthroat"` to
-  `Rogue.grantedAuras` (fixed for the fight; empty today, and no Rogue or fight
+  `Rogue.grantedAuras` (fixed for the fight: the Rogue fills it with each
+  required aura that one of the fight's procs applies, so it holds
+  `"cutthroat"` exactly when the build has Cutthroat; no Rogue or fight
   option can fill it), which makes an Ambush rule usable for the rotation host.
   When it procs it calls
   `simulation.applyAura(REQUIRED_AURAS.cutthroat, { duration })` with its own

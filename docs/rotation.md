@@ -96,13 +96,13 @@ whether its ability is on the global cooldown:
   finisher that waits on the GCD would hide Cold Blood, which the code rotation
   cast in that case.
 - **An ability the fight's weapon rules out** (Backstab without a dagger main
-  hand), or that requires an aura nothing in the fight grants (Ambush, which
-  needs the "Ambush allowed" aura, #261), is passed over whatever its
+  hand), or that requires an aura nothing in the fight grants (Ambush without
+  the Cutthroat talent, which needs the "Ambush allowed" aura, #261, #271), is passed over whatever its
   conditions say, on or off the GCD, and never ends the walk (#155): no amount
   of pooling makes it castable. With a dagger, a Backstab rule that cannot be
   afforded still pools as above.
-- **An ability whose required aura is down** (Ambush, once something grants
-  its aura) is passed over at that decision point, whatever its conditions say,
+- **An ability whose required aura is down** (Ambush, with Cutthroat in the
+  build, #271) is passed over at that decision point, whatever its conditions say,
   and never ends the walk: pooling cannot bring the aura up. While the aura is
   up the rule is walked as any other (#261, the coordinator's ruling on Kira's
   QA of #262).
@@ -381,7 +381,8 @@ the same view and the vocabulary does not change.
 The `host` is five functions: `state()` (the view above), `canCast(id)`,
 `onGcd(id)`, `gcdClear()` and `cast(id)`, and three optional ones. `usable(id)`
 is false when nothing in this fight can make the ability castable (Backstab
-without a dagger main hand, #155; Ambush, whose aura nothing grants, #261).
+without a dagger main hand, #155; Ambush without Cutthroat, whose aura nothing
+else grants, #261, #271).
 `gated(id)` is true when the ability needs something that comes and goes in
 the fight (Ambush's required aura), and `ready(id)` says whether it is there
 now. `decide` asks `onGcd`, `usable` and `gated` once per host, and `ready` at
@@ -885,12 +886,13 @@ protected: it lapses until the points are built (a known gap, not handled here).
   There is no weapon-type condition: the host's `usable` answers it from the
   fight's main hand, so the same list works on daggers and on a sword. The
   validator does not know the weapon.
-- An Ambush rule never casts: Ambush needs a dagger and the "Ambush allowed"
-  aura (id `cutthroat`, standing in for Stealth), and the sim models no stealth
-  (#261, see [mechanics](mechanics.md)). Nothing grants the aura, so the host's
-  `usable` is false for it on any weapon, so it is passed over in the same way.
-  Once Cutthroat grants it, the rule is passed over while the aura is down and
-  cast while it is up. A
+- An Ambush rule casts only with Cutthroat: Ambush needs a dagger and the
+  "Ambush allowed" aura (id `cutthroat`, standing in for Stealth), and the sim
+  models no stealth (#261, see [mechanics](mechanics.md)). Only the Cutthroat
+  talent grants the aura, for 10 s after a Backstab proc (#271). Without
+  Cutthroat the host's `usable` is false for it on any weapon, so it is passed
+  over in the same way. With Cutthroat, the rule is passed over while the aura
+  is down and cast while it is up (on a dagger). A
   rotation may still hold an Ambush rule: the validator and the warnings say
   nothing about it. Mutilate needs a dagger in both hands (#267): with any
   other weapon in either hand its rule is passed over in the same way, and

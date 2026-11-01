@@ -300,20 +300,21 @@ describe("applyBuild", () => {
 
   it("an illegal build is an error, and an unmodelled talent is only reported", () => {
     assert.throws(() => applyBuild({ "combat.precision": 3 }), RangeError);
-    // Improved Ambush and Initiative are legal talents with no entry in the
-    // effects data. Venom was the example until #268 mapped it, and every
-    // Assassination talent with it; Camouflage until #269 marked it no DPS;
-    // Preparation until #270 mapped it.
-    assert.equal(TALENT_EFFECTS["subtlety.improved-ambush"], undefined);
-    assert.equal(TALENT_EFFECTS["subtlety.initiative"], undefined);
-    assert.equal(TALENT_EFFECTS["subtlety.preparation"].ability, "preparation");
+    // Every talent has an entry since #271 (Venom was the example until
+    // #268, Camouflage until #269, Preparation until #270, Improved Ambush
+    // until #271), so an unmodelled one is a copy of the effects data with
+    // Improved Ambush's entry taken out.
+    assert.ok(TALENT_EFFECTS["subtlety.improved-ambush"].modifiers);
+    const { "subtlety.improved-ambush": dropped, ...effects } = TALENT_EFFECTS;
+    assert.ok(dropped);
     const withAmbush = swap(SUBTLETY_BUILD, {
       "subtlety.camouflage": 2,
       "subtlety.improved-ambush": 1,
     });
-    assert.deepEqual(applyBuild(withAmbush).unmapped, [
+    assert.deepEqual(applyBuild(withAmbush, effects).unmapped, [
       "subtlety.improved-ambush",
     ]);
+    assert.deepEqual(applyBuild(withAmbush).unmapped, []);
   });
 
   it("names the abilities a talent grants, from the effects data", () => {

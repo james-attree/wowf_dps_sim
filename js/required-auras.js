@@ -2,7 +2,7 @@ import { AURAS } from "./auras.js";
 
 // The auras an ability can require (issue #261): an ability-data entry's
 // `requiresAura` is a list of self aura ids from AURAS (js/auras.js). This is
-// the hook a later effect plugs into (Cutthroat, Phase 4.6):
+// the hook Cutthroat plugs into (#271):
 //
 //   check     Ability.auraMet: a cast needs at least one aura of the list up
 //             (Simulation.hasAura). With none up the cast is refused before
@@ -17,7 +17,8 @@ import { AURAS } from "./auras.js";
 //             cutthroat aura has one charge, so the cast removes it, with an
 //             "expire" aura event, reason "charges".
 //   grant     an effect that can put an aura of the list up says so in
-//             Rogue.grantedAuras (the ids, fixed for the fight). Only then is
+//             Rogue.grantedAuras (the ids, fixed for the fight: each of these
+//             auras that a proc of the fight applies). Only then is
 //             a rotation rule for the ability usable (js/rotation-host.js);
 //             otherwise it is passed over for the whole fight. It then applies
 //             the definition with its own duration (the definition has none):
@@ -26,11 +27,12 @@ import { AURAS } from "./auras.js";
 //             decision point and never pooled for (host.gated and host.ready,
 //             js/rotation-interpreter.js; B1 of Kira's QA on #262).
 //
-// Ambush requires ["cutthroat"], the "Ambush allowed" aura. Nothing grants it
-// today: the sim models no Stealth and no stealth openers, so Ambush is never
-// cast. Cutthroat will add "cutthroat" to Rogue.grantedAuras when the build has
-// it, and on its proc apply the aura for 10 s. The aura is not Stealth: nothing
-// reads it as being stealthed.
+// Ambush requires ["cutthroat"], the "Ambush allowed" aura. The sim models no
+// Stealth and no stealth openers, so only the Cutthroat talent grants it
+// (#271): its Backstab proc (an applyAura action) puts "cutthroat" in
+// Rogue.grantedAuras and applies the aura for 10 s. Without Cutthroat, Ambush
+// is never cast. The aura is not Stealth: nothing reads it as being
+// stealthed.
 
 // The auras that exist only to allow an ability, by key.
 export const REQUIRED_AURAS = Object.freeze({ cutthroat: AURAS.cutthroat });

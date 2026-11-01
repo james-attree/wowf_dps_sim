@@ -22,12 +22,21 @@ import {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const COMBAT_TALENT = "combat.precision";
 const ASSASSINATION_MAPPED = "assassination.malice";
-// Improved Expose Armor was the unmapped Assassination example until #268
-// covered the whole tree; an unmapped Subtlety talent stands in for it.
 const SUBTLETY_MAPPED = "subtlety.hemorrhage";
-// Preparation was the other example until #270 mapped it.
+// Improved Ambush and Initiative were the real unmapped talents until #271
+// covered Subtlety, the last tree (D8). A warning now needs a tree list
+// without Subtlety (the one before #271) and a copy with their entries gone.
 const OTHER_UNMAPPED = "subtlety.improved-ambush";
 const SUBTLETY_UNMAPPED = "subtlety.initiative";
+const BEFORE_271 = ["combat", "assassination"];
+
+// A copy of the effects map without the two talents above.
+function withoutTwo() {
+  const effects = effectsCopy();
+  delete effects[OTHER_UNMAPPED];
+  delete effects[SUBTLETY_UNMAPPED];
+  return effects;
+}
 
 // A copy of the effects map that a test may change.
 function effectsCopy() {
@@ -61,41 +70,35 @@ function run(argv, options) {
 describe("the coverage of the real data", () => {
   const report = checkCoverage();
 
-  it("has no failure: every Combat and Assassination talent is covered and every hash matches", () => {
-    assert.deepEqual(FULL_COVERAGE_TREES, ["combat", "assassination"]);
+  it("has no failure: every talent of all three trees is covered and every hash matches (#271)", () => {
+    assert.deepEqual(FULL_COVERAGE_TREES, [
+      "combat",
+      "assassination",
+      "subtlety",
+    ]);
     assert.equal(report.ok, true);
     assert.equal(report.failures, 0);
     assert.deepEqual(report.changed, []);
     assert.deepEqual(report.orphans, []);
-    assert.equal(
-      report.uncovered.some((item) =>
-        ["combat", "assassination"].includes(item.tree),
-      ),
-      false,
-    );
+    assert.deepEqual(report.uncovered, []);
+    assert.equal(report.warnings, 0);
   });
 
-  it("warns for every Subtlety talent without an effect, by id", () => {
+  it("covers every talent of the catalogue, one entry each", () => {
     assert.equal(report.total, talentCatalogue.talents.length);
     assert.equal(report.covered, Object.keys(TALENT_EFFECTS).length);
-    assert.equal(report.covered + report.uncovered.length, report.total);
-    assert.equal(report.warnings, report.uncovered.length);
-    assert.equal(
-      report.uncovered.every((item) => item.severity === "warning"),
-      true,
-    );
-    const ids = report.uncovered.map((item) => item.id);
-    assert.ok(ids.includes(OTHER_UNMAPPED));
-    assert.ok(ids.includes(SUBTLETY_UNMAPPED));
-    assert.equal(
-      ids.includes(ASSASSINATION_MAPPED),
-      false,
-      "Malice is covered",
-    );
-    for (const item of report.uncovered) {
-      assert.equal(item.tree, "subtlety", item.id);
-      assert.ok(item.id.startsWith(`${item.tree}.`), item.id);
-    }
+    assert.equal(report.covered, report.total);
+  });
+
+  it("warns, by id, for a talent without an effect in a tree that is not required", () => {
+    const partial = checkCoverage(withoutTwo(), talentCatalogue, BEFORE_271);
+    assert.equal(partial.ok, true);
+    assert.deepEqual(partial.uncovered, [
+      { id: OTHER_UNMAPPED, tree: "subtlety", severity: "warning" },
+      { id: SUBTLETY_UNMAPPED, tree: "subtlety", severity: "warning" },
+    ]);
+    assert.equal(partial.warnings, 2);
+    assert.equal(partial.covered + partial.uncovered.length, partial.total);
   });
 });
 
@@ -170,25 +173,33 @@ describe("an entry that does nothing", () => {
     const effects = effectsCopy();
     delete effects[COMBAT_TALENT];
     const report = checkCoverage(effects);
-    assert.equal(report.warnings, checkCoverage().warnings);
+    assert.equal(report.warnings, 0);
     assert.equal(report.failures, 1);
-    assert.equal(report.uncovered.length, report.warnings + 1);
+    assert.equal(report.uncovered.length, 1);
   });
 });
 
-describe("an uncovered Subtlety talent only warns", () => {
-  it("does not fail when a mapped Subtlety talent loses its entry", () => {
+describe("an uncovered Subtlety talent fails, since #271", () => {
+  it("fails when a mapped Subtlety talent loses its entry", () => {
     const effects = effectsCopy();
     delete effects[SUBTLETY_MAPPED];
     const report = checkCoverage(effects);
-    assert.equal(report.ok, true);
-    assert.equal(report.failures, 0);
-    assert.ok(
-      report.uncovered.some(
-        (item) => item.id === SUBTLETY_MAPPED && item.severity === "warning",
-      ),
-    );
+    assert.equal(report.ok, false);
+    assert.deepEqual(report.uncovered, [
+      { id: SUBTLETY_MAPPED, tree: "subtlety", severity: "failure" },
+    ]);
     const result = run([], { effects });
+    assert.equal(result.status, 1);
+    assert.match(
+      result.out,
+      /FAIL subtlety\.hemorrhage: no effect and no noDpsEffect/,
+    );
+  });
+
+  it("only warns with the tree list before #271, which did not require Subtlety", () => {
+    const effects = withoutTwo();
+    delete effects[SUBTLETY_MAPPED];
+    const result = run([], { effects, trees: BEFORE_271 });
     assert.equal(result.status, 0);
     assert.match(result.out, /WARN subtlety\.hemorrhage: no effect yet/);
     assert.match(result.out, /WARN subtlety\.initiative: no effect yet/);
@@ -257,7 +268,7 @@ describe("a changed rank text is found", () => {
       1,
       "Changed.",
     );
-    const report = checkCoverage(TALENT_EFFECTS, changedUnmapped);
+    const report = checkCoverage(withoutTwo(), changedUnmapped, BEFORE_271);
     assert.equal(report.ok, true);
     assert.deepEqual(report.changed, []);
   });
@@ -318,15 +329,25 @@ describe("the command", () => {
     );
   });
 
-  it("writes one warning annotation listing the ids under GitHub Actions", () => {
+  it("writes no annotation under GitHub Actions on the real data", () => {
     const result = run([], { env: { GITHUB_ACTIONS: "true" } });
+    assert.equal(result.status, 0);
+    assert.equal(result.out.includes("::"), false);
+  });
+
+  it("writes one warning annotation listing the ids under GitHub Actions", () => {
+    const result = run([], {
+      effects: withoutTwo(),
+      trees: BEFORE_271,
+      env: { GITHUB_ACTIONS: "true" },
+    });
     const lines = result.out
       .split("\n")
       .filter((line) => line.startsWith("::"));
     assert.equal(lines.length, 1);
     assert.ok(
       lines[0].startsWith(
-        `::warning title=Talent coverage::${real.warnings} talents have no effect yet`,
+        "::warning title=Talent coverage::2 talents have no effect yet",
       ),
     );
     assert.ok(lines[0].includes(OTHER_UNMAPPED));

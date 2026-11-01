@@ -10,6 +10,23 @@ import { compileRotation, decide } from "./rotation-interpreter.js";
 import { rotationHost } from "./rotation-host.js";
 import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { createResources } from "./resource.js";
+import { REQUIRED_AURAS } from "./required-auras.js";
+
+const REQUIRED_IDS = new Set(Object.values(REQUIRED_AURAS).map(({ id }) => id));
+
+// The ids of the required auras (js/required-auras.js) that one of `procs`
+// puts up with an applyAura action (Cutthroat, #271).
+function grantedAurasOf(procs) {
+  const granted = new Set();
+  for (const { actions } of procs) {
+    for (const action of actions) {
+      if (action.type === "applyAura" && REQUIRED_IDS.has(action.aura)) {
+        granted.add(action.aura);
+      }
+    }
+  }
+  return granted;
+}
 
 export class Rogue {
   // `config` is a SimConfig (js/sim-config.js): the character stats, the
@@ -110,12 +127,13 @@ export class Rogue {
     }
     this.granted = new Set(granted);
     // The self auras something in this fight can put up for an ability that
-    // requires one (js/required-auras.js, #261), by id. Empty: nothing grants
-    // the cutthroat aura yet, so an Ambush rule is passed over. Cutthroat
-    // (Phase 4.6) adds "cutthroat" when the build has it. It is not an
-    // option, so a host, a preset or the page cannot pass one; only the
-    // build, or a test, fills it.
-    this.grantedAuras = new Set();
+    // requires one (js/required-auras.js, #261), by id: each required aura a
+    // proc of the fight applies. Cutthroat's Backstab proc (#271) applies the
+    // cutthroat aura, so a build with Cutthroat has "cutthroat" and its
+    // Ambush rule is reachable; without it the set is empty and an Ambush
+    // rule is passed over. It is not an option, so a host, a preset or the
+    // page cannot pass one; only the procs, or a test, fill it.
+    this.grantedAuras = grantedAurasOf(this.procs);
     const { character, weapons } = this.config;
     // Energy and combo points are resource pools (js/resource.js), described
     // as data in js/resource-data.js. The pools are made before the abilities,

@@ -28,9 +28,9 @@
 //                 listed that is up (none when that one has no charges), and a
 //                 rotation rule for it is passed over while none is. Only Ambush has it (["cutthroat"], the "Ambush allowed"
 //                 aura, #261), standing in for rogue.json →
-//                 spell_desc[Rogue|Ambush|Rank 6], "Requires Stealth". Nothing
-//                 grants it yet, so Ambush is never cast; Cutthroat
-//                 (Phase 4.6) will
+//                 spell_desc[Rogue|Ambush|Rank 6], "Requires Stealth". Only
+//                 the Cutthroat talent's Backstab proc grants it (#271), so
+//                 without Cutthroat Ambush is never cast
 //   cost          { resource, field, refund? } what a cast pays: the amount is
 //                 the row's `field`, taken from the resource with that id
 //                 (js/resource-data.js), after that resource's cost modifiers.

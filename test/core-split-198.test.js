@@ -78,6 +78,24 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
     }
   });
 
+  // Kira's N2 on PR #301: the #269 Subtlety config, at the cut where main
+  // before #301 (d4fbccb) split it apart from the fight in one run (seeds
+  // 12, 21 and 24 at 43.6), through runOnCore and sim.run.
+  it("the subtlety-269 config cut at 43.6, seeds 12, 21 and 24, through runOnCore and sim.run", () => {
+    const { config } = FIGHT_CASES.find(
+      ({ name }) => name === "subtlety-build-seed-269-60s",
+    );
+    for (const seed of [12, 21, 24]) {
+      for (const run of [byCore, bySim]) {
+        const label = run === byCore ? "runOnCore" : "sim.run";
+        assertSame(
+          oneAndSplit(seed, config, 60, [43.6], run),
+          `subtlety-269 seed ${seed} ${label}`,
+        );
+      }
+    }
+  });
+
   it("every test config, at random cuts and at cuts on event times", () => {
     const rng = createRng(198);
     for (const { name, config } of CONFIGS) {

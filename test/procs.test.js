@@ -921,6 +921,8 @@ describe("Hack and Slash and Puncturing Wounds", () => {
       "assassination.seal-fate",
       "combat.puncturing-wounds",
       "combat.hack-and-slash",
+      "subtlety.initiative",
+      "subtlety.cutthroat",
       "subtlety.thousand-cuts",
     ]);
     const procs = procsFromTalents({

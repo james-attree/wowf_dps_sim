@@ -113,9 +113,9 @@ const ASSASSINATION_MAPPED = [
   "assassination.venom",
 ];
 // The three Subtlety talents that grant an ability the engine casts (#207),
-// and since #269 the passives and the no-DPS talents, and since #270
-// Preparation. Improved Ambush, Initiative and Cutthroat (#271) have no entry
-// yet.
+// and since #269 the passives and the no-DPS talents, since #270
+// Preparation, and since #271 Improved Ambush, Initiative and Cutthroat: the
+// whole tree (D8).
 const SUBTLETY_MAPPED = [
   "subtlety.camouflage",
   "subtlety.master-of-deception",
@@ -123,6 +123,8 @@ const SUBTLETY_MAPPED = [
   "subtlety.setup",
   "subtlety.elusiveness",
   "subtlety.dirty-tricks",
+  "subtlety.improved-ambush",
+  "subtlety.initiative",
   "subtlety.ghostly-strike",
   "subtlety.improved-distract",
   "subtlety.heightened-senses",
@@ -132,14 +134,15 @@ const SUBTLETY_MAPPED = [
   "subtlety.preparation",
   "subtlety.hemorrhage",
   "subtlety.quietus",
+  "subtlety.cutthroat",
   "subtlety.thousand-cuts",
 ];
 const MAPPED = talentCatalogue.talents.filter(
   (talent) => TALENT_EFFECTS[talent.id] !== undefined,
 );
 
-describe("the talent effects data covers the Combat and Assassination trees and 16 Subtlety talents", () => {
-  it("has an entry for each of the 17 Combat talents, all 17 Assassination ones and 16 Subtlety ones, in catalogue order, and no others", () => {
+describe("the talent effects data covers all three trees (#271)", () => {
+  it("has an entry for each of the 17 Combat talents, all 17 Assassination ones and all 19 Subtlety ones, in catalogue order, and no others", () => {
     assert.equal(COMBAT.length, 17);
     assert.equal(ASSASSINATION.length, ASSASSINATION_MAPPED.length);
     assert.deepEqual(Object.keys(TALENT_EFFECTS), [
@@ -154,6 +157,7 @@ describe("the talent effects data covers the Combat and Assassination trees and 
       );
     }
     const subtlety = talentCatalogue.byTree("subtlety");
+    assert.equal(subtlety.length, SUBTLETY_MAPPED.length);
     for (const id of SUBTLETY_MAPPED) {
       assert.ok(
         subtlety.some((talent) => talent.id === id),
@@ -167,7 +171,8 @@ describe("the talent effects data covers the Combat and Assassination trees and 
   });
 
   it("says which text each entry was written from, and the snapshot still has that text", () => {
-    assert.equal(MAPPED.length, 50);
+    assert.equal(MAPPED.length, 53);
+    assert.equal(MAPPED.length, talentCatalogue.talents.length);
     for (const talent of MAPPED) {
       const hash = createHash("sha256")
         .update(talent.ranks.join("\n"))
@@ -350,17 +355,24 @@ describe("expandTalents", () => {
   });
 
   it("reports what a build spends points on that does nothing in the fight", () => {
-    const build = expandTalents({
-      "combat.endurance": 1,
-      "combat.riposte": 1,
-      "combat.blade-flurry": 1,
-      "combat.adrenaline-rush": 0,
-      "subtlety.camouflage": 2,
-      "subtlety.premeditation": 1,
-      "subtlety.preparation": 1,
-      "subtlety.improved-ambush": 1,
-      "combat.precision": 0,
-    });
+    // Every talent has an entry since #271, so the unmapped one is a copy of
+    // the data with Improved Ambush's entry taken out.
+    const { "subtlety.improved-ambush": dropped, ...effects } = TALENT_EFFECTS;
+    assert.ok(dropped);
+    const build = expandTalents(
+      {
+        "combat.endurance": 1,
+        "combat.riposte": 1,
+        "combat.blade-flurry": 1,
+        "combat.adrenaline-rush": 0,
+        "subtlety.camouflage": 2,
+        "subtlety.premeditation": 1,
+        "subtlety.preparation": 1,
+        "subtlety.improved-ambush": 1,
+        "combat.precision": 0,
+      },
+      effects,
+    );
     // Camouflage has a noDpsEffect since #269.
     assert.deepEqual(build.noDps, [
       "combat.endurance",
@@ -374,8 +386,12 @@ describe("expandTalents", () => {
       "preparation",
     ]);
     // Improved Expose Armor was the example until #268 mapped it, Camouflage
-    // until #269 and Preparation until #270.
+    // until #269 and Preparation until #270; with the real data, nothing.
     assert.deepEqual(build.unmapped, ["subtlety.improved-ambush"]);
+    assert.deepEqual(
+      expandTalents({ "subtlety.improved-ambush": 1 }).unmapped,
+      [],
+    );
     assert.deepEqual(build.modifiers, []);
   });
 

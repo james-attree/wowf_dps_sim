@@ -17,10 +17,11 @@ import { talentCatalogue } from "../js/talents.js";
 //
 //   uncovered   A talent with no entry, or an entry with no effect and no
 //               `noDpsEffect`. In a tree of FULL_COVERAGE_TREES (Combat,
-//               and Assassination since #268) it is a FAILURE. In any other
-//               tree (Subtlety) it
-//               is a WARNING that does not fail: those talents are expected
-//               to be uncovered until Phase 4 (D8).
+//               Assassination since #268, Subtlety since #271: every tree)
+//               it is a FAILURE. In any other tree it is a WARNING that does
+//               not fail; since D8 closed (#271) no tree of the snapshot is
+//               one, so a warning comes only from a tree list passed in (the
+//               tests) or a tree a refresh adds.
 //   changed     An entry whose stored `textHash` is not the hash of the
 //               catalogue's rank texts any more. It is a FAILURE in every
 //               tree, because the entry exists and its numbers were read from
@@ -39,9 +40,13 @@ import { talentCatalogue } from "../js/talents.js";
 // rank text next to the hashes for that reason.
 
 // The trees whose talents must all be covered (Phase 2: Combat; #268:
-// Assassination). Every other
-// tree is a warning only, until D8 covers it.
-export const FULL_COVERAGE_TREES = Object.freeze(["combat", "assassination"]);
+// Assassination; #271: Subtlety, which closes D8). Any other tree is a
+// warning only.
+export const FULL_COVERAGE_TREES = Object.freeze([
+  "combat",
+  "assassination",
+  "subtlety",
+]);
 
 const HASH_ALGORITHM = "sha256";
 const RANK_JOINER = "\n";
@@ -68,8 +73,9 @@ function hasEffect(entry) {
   );
 }
 
-// The coverage of `effects` over `catalogue`. Both default to the real ones;
-// tests pass broken copies. Returns
+// The coverage of `effects` over `catalogue`, with the talents of `trees`
+// required. All three default to the real ones; tests pass broken copies, or
+// a shorter tree list to see a warning. Returns
 //   {
 //     total, covered,
 //     uncovered: [{ id, tree, severity }]   severity "failure" | "warning"
@@ -82,6 +88,7 @@ function hasEffect(entry) {
 export function checkCoverage(
   effects = TALENT_EFFECTS,
   catalogue = talentCatalogue,
+  trees = FULL_COVERAGE_TREES,
 ) {
   const uncovered = [];
   const changed = [];
@@ -92,9 +99,7 @@ export function checkCoverage(
       uncovered.push({
         id: talent.id,
         tree: talent.tree,
-        severity: FULL_COVERAGE_TREES.includes(talent.tree)
-          ? "failure"
-          : "warning",
+        severity: trees.includes(talent.tree) ? "failure" : "warning",
       });
     } else {
       covered += 1;
@@ -145,7 +150,7 @@ export function formatReport(report) {
     lines.push(
       item.severity === "failure"
         ? `FAIL ${item.id}: no effect and no noDpsEffect (${item.tree} talents must be covered)`
-        : `WARN ${item.id}: no effect yet (${item.tree}: expected until Phase 4, D8)`,
+        : `WARN ${item.id}: no effect yet (${item.tree} talents are not required)`,
     );
   }
   for (const item of report.changed) {
@@ -165,8 +170,9 @@ export function formatReport(report) {
   return lines.join("\n");
 }
 
-// GitHub workflow commands. One warning lists every uncovered non-Combat
-// talent, because Actions shows only a few annotations per step.
+// GitHub workflow commands. One warning lists every uncovered talent of a
+// tree that is not required, because Actions shows only a few annotations per
+// step.
 function escapeData(text) {
   return text
     .replaceAll("%", "%25")
@@ -182,7 +188,7 @@ export function annotations(report) {
   if (warned.length > 0) {
     lines.push(
       `::warning title=Talent coverage::${escapeData(
-        `${warned.length} talents have no effect yet (expected until Phase 4, D8): ${warned.join(", ")}`,
+        `${warned.length} talents have no effect yet (their trees are not required): ${warned.join(", ")}`,
       )}`,
     );
   }
@@ -212,8 +218,9 @@ const HELP_TEXT = `Usage: npm run talents:coverage
 
 Lists the talents with no effect and no noDpsEffect, the effects whose stored
 rank-text hash no longer matches the snapshot, and effects for talents that are
-gone. Combat talents must be covered and an encoded effect must match its text
-(failures, exit 1). Other trees are warnings until Phase 4 (exit 0).`;
+gone. Combat, Assassination and Subtlety talents must be covered and an encoded
+effect must match its text (failures, exit 1). A talent of any other tree is a
+warning (exit 0).`;
 
 function isDirectRun() {
   const entry = process.argv[1];
@@ -230,6 +237,7 @@ export function cli(
   {
     effects = TALENT_EFFECTS,
     catalogue = talentCatalogue,
+    trees = FULL_COVERAGE_TREES,
     env = process.env,
     log = (text) => console.log(text),
     logError = (text) => console.error(text),
@@ -243,7 +251,7 @@ export function cli(
     logError(`Unknown argument: ${argv[0]}\n\n${HELP_TEXT}`);
     return EXIT_USAGE;
   }
-  const report = checkCoverage(effects, catalogue);
+  const report = checkCoverage(effects, catalogue, trees);
   log(formatReport(report));
   if (env.GITHUB_ACTIONS === "true") {
     for (const line of annotations(report)) {

@@ -32,7 +32,9 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 // exactly 1 and no chanceBonus, and it fires with no RNG draw (G2: a roll that
 // cannot fail would be a phantom draw). A proc without it rolls whatever its
 // chance, 1 included (Seal Fate 5/5 keeps its draw, so the goldens hold).
-// Only Thousand Cuts has it (#269).
+// Thousand Cuts has it (#269); a ranked talent proc can ask for it at its
+// certain ranks only (drawless: "whenCertain", defineRankedProc; Initiative
+// 3/3, #271).
 //
 // Triggers (all fire only for what landed):
 //   onHit       a direct attack hit: a white swing or an ability that attacks,
@@ -114,6 +116,8 @@ const ON_HIT = "onHit";
 const ON_CRIT = "onCrit";
 const ON_WHITE_HIT = "onWhiteHit";
 const ON_ABILITY = "onAbility";
+// A ranked proc's drawless: "whenCertain" (defineRankedProc).
+const WHEN_CERTAIN = "whenCertain";
 const ON_DOT_TICK = "onDotTick";
 export const PROC_TRIGGERS = Object.freeze([
   ON_HIT,
@@ -443,7 +447,10 @@ export function defineProc(spec) {
 }
 
 // A talent's proc by rank. The spec is the same, with chance.values in place
-// of chance.value: { mode, values: [rank 1, rank 2, ...] }. Rank 0 is no proc
+// of chance.value: { mode, values: [rank 1, rank 2, ...] }. A ranked spec may
+// also take drawless: "whenCertain" (Initiative, #271): drawless at a rank
+// whose flat chance is 1 with no chanceBonus, and an ordinary rolled proc at
+// every other rank, so no rank draws a roll that cannot fail (G2). Rank 0 is no proc
 // at all (null), so a talent the build skips adds nothing and draws nothing.
 // Every rank is defined whatever the rank, so a typo in a rank the build
 // leaves unspent fails when the data loads.
@@ -457,15 +464,27 @@ export function defineRankedProc(spec, rank) {
     );
   }
   const { values, ...chance } = spec.chance;
+  const certainOnly = spec.drawless === WHEN_CERTAIN;
   if (!Array.isArray(values) || values.length === 0) {
     fail(spec.id, "a ranked chance needs a values array.");
   }
   if (rank > values.length) {
     fail(spec.id, `rank ${rank} is above the table's ${values.length} ranks.`);
   }
-  const perRank = values.map((value) =>
-    defineProc({ ...spec, chance: { ...chance, value } }),
-  );
+  const perRank = values.map((value) => {
+    const ranked = { ...spec, chance: { ...chance, value } };
+    if (certainOnly) {
+      delete ranked.drawless;
+      if (
+        chance.mode === FLAT &&
+        value === 1 &&
+        spec.chanceBonus === undefined
+      ) {
+        ranked.drawless = true;
+      }
+    }
+    return defineProc(ranked);
+  });
   return rank === 0 ? null : perRank[rank - 1];
 }
 

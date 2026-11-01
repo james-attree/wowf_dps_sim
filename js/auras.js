@@ -343,7 +343,7 @@ export const AURAS = Object.freeze({
   // Stealth"): one charge, used by the next Ambush that goes ahead. It is not
   // Stealth, and nothing in the sim treats it as being stealthed: it allows
   // Ambush and does nothing else. No duration: whatever applies it gives one.
-  // Nothing applies it yet. Registered here so rotation conditions and the
+  // Cutthroat's Backstab proc applies it for 10 s (#271). Registered here so rotation conditions and the
   // page's labels can name it; it has no effects, so it changes no damage.
   cutthroat: defineAura({
     id: "cutthroat",

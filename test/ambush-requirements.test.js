@@ -21,10 +21,11 @@ import {
 
 // Issue #261: Ambush needs a dagger in the main hand and the cutthroat aura
 // ("Ambush allowed", js/required-auras.js), the only way the sim lets Ambush
-// be cast, as it models no Stealth. Nothing in a fight grants the aura yet, so
-// Ambush is never cast. A rotation may still hold an Ambush rule, with no
-// warning: it is passed over. The test-only override
-// (test/cutthroat-override.js) grants the aura as Cutthroat will in Phase 4.6,
+// be cast, as it models no Stealth. Without the Cutthroat talent nothing in a
+// fight grants the aura, so Ambush is never cast. A rotation may still hold an
+// Ambush rule, with no warning: it is passed over. The test-only override
+// (test/cutthroat-override.js) grants the aura as Cutthroat does (#271, tested
+// in test/cutthroat.test.js),
 // which proves the hook: Ambush casts, uses the aura up, and is refused again,
 // and while the aura is down the rule is passed over, never pooled for.
 

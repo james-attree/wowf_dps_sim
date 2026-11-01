@@ -463,7 +463,11 @@ const RAW = {
   // targetHealthBelow of quietus.targetHealth (js/modifiers.js), so it
   // applies only while the target is below 35% health under the linear
   // health model (target.healthModel). Eight talents have no DPS effect.
-  // Improved Ambush, Initiative and Cutthroat (#271) are not mapped yet.
+  // #271 (D8d-3) maps the last three: Improved Ambush is a `critChance` table
+  // on Ambush; Initiative an onAbility proc on Ambush that adds a combo point
+  // (drawless "whenCertain": no draw at 3/3, whose chance is 1); Cutthroat an
+  // onAbility proc on Backstab that puts up the cutthroat aura ("Ambush
+  // allowed", js/auras.js) for 10 s, the only way Ambush is cast.
   "subtlety.camouflage": {
     textHash:
       "d05aa50424d62d615dfb30d4b8fd4d66a7e0bbf52d3fd83a8f79f8ebd38237b4",
@@ -504,6 +508,44 @@ const RAW = {
       "d6762cc441add5295373d0f6a057f96e2fad3744b774074723437f01032c0a58",
     noDpsEffect:
       "Sap and Blind range and energy cost: neither is cast in a damage fight.",
+  },
+  "subtlety.improved-ambush": {
+    textHash:
+      "bde5d5e3ab8ddba89321814f205d38888eac4ae8918b5fac9be18d71c2fba0f9",
+    modifiers: [
+      {
+        kind: "critChance",
+        op: "add",
+        values: [...k("improvedAmbush.critChance")],
+        scope: { abilities: ["ambush"] },
+      },
+    ],
+  },
+  // The Ambush part of Initiative; Garrote and Cheap Shot are never cast.
+  "subtlety.initiative": {
+    textHash:
+      "4266f766714189cc0cc0ae8dd2ba8bdbe779e05b8a901398939f97dbf5f5f0f4",
+    procs: [
+      {
+        id: "initiative",
+        trigger: "onAbility",
+        scope: { abilities: [...k("initiative.comboPoint").abilities] },
+        chance: {
+          mode: "flat",
+          values: [...k("initiative.comboPoint").chance],
+        },
+        // Drawless at a rank whose chance is 1 (3/3), so no roll that cannot
+        // fail is drawn (G2); 1/3 and 2/3 roll.
+        drawless: "whenCertain",
+        actions: [
+          {
+            type: "gainResource",
+            resource: "comboPoints",
+            amount: k("initiative.comboPoint").comboPoints,
+          },
+        ],
+      },
+    ],
   },
   "subtlety.ghostly-strike": {
     textHash:
@@ -571,6 +613,25 @@ const RAW = {
           abilities: ["sinister-strike", "ghostly-strike", "hemorrhage"],
         },
         targetHealthBelow: { ...k("quietus.targetHealth") },
+      },
+    ],
+  },
+  "subtlety.cutthroat": {
+    textHash:
+      "e12999bcae05e62b8bfe509690a337a6a64d39cb6275e52620b5fd54bca2798f",
+    procs: [
+      {
+        id: "cutthroat",
+        trigger: "onAbility",
+        scope: { abilities: ["backstab"] },
+        chance: { mode: "flat", values: [...k("cutthroat.proc").chance] },
+        actions: [
+          {
+            type: "applyAura",
+            aura: "cutthroat",
+            duration: k("cutthroat.proc").duration,
+          },
+        ],
       },
     ],
   },

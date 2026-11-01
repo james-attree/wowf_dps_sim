@@ -258,6 +258,45 @@ export const PREPARATION_ROTATION = deepFreeze({
   ],
 });
 
+// Issue #271. A legal 51-point Subtlety build with Cutthroat 5/5, Improved
+// Ambush 3/3 and Initiative 3/3 (and Hemorrhage, Quietus and Thousand Cuts,
+// as SUBTLETY_BUILD has), 15 points in Assassination.
+export const CUTTHROAT_BUILD = deepFreeze({
+  "assassination.malice": 5,
+  "assassination.ruthlessness": 3,
+  "assassination.murder": 2,
+  "assassination.lethality": 5,
+  "subtlety.master-of-deception": 3,
+  "subtlety.opportunity": 2,
+  "subtlety.setup": 3,
+  "subtlety.dirty-tricks": 2,
+  "subtlety.improved-ambush": 3,
+  "subtlety.initiative": 3,
+  "subtlety.ghostly-strike": 1,
+  "subtlety.premeditation": 1,
+  "subtlety.serrated-blades": 3,
+  "subtlety.dirty-deeds": 2,
+  "subtlety.preparation": 1,
+  "subtlety.hemorrhage": 1,
+  "subtlety.quietus": 5,
+  "subtlety.cutthroat": 5,
+  "subtlety.thousand-cuts": 1,
+});
+
+// Issue #271. The Subtlety rotation with Ambush under 5 CP before Hemorrhage
+// and Backstab. The rule has no condition on the aura: while the cutthroat
+// aura is down it is passed over (no pooling), and a Backstab proc of
+// Cutthroat puts it up for the next Ambush.
+export const AMBUSH_ROTATION = deepFreeze({
+  schemaVersion: 1,
+  name: "Rupture, Eviscerate, Ambush, Hemorrhage, then Backstab",
+  rules: [
+    ...SUBTLETY_ROTATION.rules.slice(0, 2),
+    { action: "ambush", conditions: [UNDER_FIVE_CP] },
+    ...SUBTLETY_ROTATION.rules.slice(2),
+  ],
+});
+
 export const GOLDEN_CASES = deepFreeze([
   { name: "short-seed-1-10s", seed: 1, duration: 10 },
   { name: "five-minute-seed-1-300s", seed: 1, duration: 300 },
@@ -372,6 +411,19 @@ export const GOLDEN_CASES = deepFreeze([
       weapons: defaultDaggerConfig().weapons,
       talents: { ...SUBTLETY_BUILD },
       rotation: PREPARATION_ROTATION,
+    },
+  },
+  // Issue #271. CUTTHROAT_BUILD with AMBUSH_ROTATION: Cutthroat's Backstab
+  // procs allow Ambush, which Improved Ambush and Initiative act on.
+  {
+    name: "cutthroat-subtlety-seed-271-60s",
+    seed: 271,
+    duration: 60,
+    config: {
+      character: defaultDaggerConfig().character,
+      weapons: defaultDaggerConfig().weapons,
+      talents: { ...CUTTHROAT_BUILD },
+      rotation: AMBUSH_ROTATION,
     },
   },
 ]);
