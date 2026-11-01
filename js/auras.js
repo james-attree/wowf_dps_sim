@@ -350,6 +350,27 @@ export const AURAS = Object.freeze({
     name: "Ambush allowed",
     charges: k("cutthroat.aura").charges,
   }),
+  // Thousand Cuts (#269, A13): each Rupture tick adds a stack (up to 5) and
+  // refreshes the 10 s; each stack takes 3 energy off the next Hemorrhage or
+  // Backstab, which uses them all (its one charge, hit or miss:
+  // Simulation.consumeCostCharges). energyCost never goes below 0.
+  thousandCuts: defineAura({
+    id: "thousand-cuts",
+    name: "Thousand Cuts",
+    duration: k("thousandCuts").duration,
+    maxStacks: k("thousandCuts").maxStacks,
+    stackRule: "add",
+    refresh: "refresh",
+    charges: 1,
+    modifiers: [
+      {
+        kind: "energyCost",
+        op: "add",
+        value: -k("thousandCuts").energyPerStack,
+        scope: { abilities: ["hemorrhage", "backstab"] },
+      },
+    ],
+  }),
 });
 
 // Every definition keyed by id, in the order above.

@@ -112,19 +112,32 @@ const ASSASSINATION_MAPPED = [
   "assassination.seal-fate",
   "assassination.venom",
 ];
-// The three Subtlety talents that grant an ability the engine casts (#207).
-// The rest of Subtlety has no entry yet.
+// The three Subtlety talents that grant an ability the engine casts (#207),
+// and since #269 the passives and the no-DPS talents. Preparation
+// (#270) and Improved Ambush, Initiative and Cutthroat (#271) have no entry yet.
 const SUBTLETY_MAPPED = [
+  "subtlety.camouflage",
+  "subtlety.master-of-deception",
+  "subtlety.opportunity",
+  "subtlety.setup",
+  "subtlety.elusiveness",
+  "subtlety.dirty-tricks",
   "subtlety.ghostly-strike",
+  "subtlety.improved-distract",
+  "subtlety.heightened-senses",
   "subtlety.premeditation",
+  "subtlety.serrated-blades",
+  "subtlety.dirty-deeds",
   "subtlety.hemorrhage",
+  "subtlety.quietus",
+  "subtlety.thousand-cuts",
 ];
 const MAPPED = talentCatalogue.talents.filter(
   (talent) => TALENT_EFFECTS[talent.id] !== undefined,
 );
 
-describe("the talent effects data covers the Combat and Assassination trees and three Subtlety talents", () => {
-  it("has an entry for each of the 17 Combat talents, all 17 Assassination ones and three Subtlety ones, in catalogue order, and no others", () => {
+describe("the talent effects data covers the Combat and Assassination trees and 15 Subtlety talents", () => {
+  it("has an entry for each of the 17 Combat talents, all 17 Assassination ones and 15 Subtlety ones, in catalogue order, and no others", () => {
     assert.equal(COMBAT.length, 17);
     assert.equal(ASSASSINATION.length, ASSASSINATION_MAPPED.length);
     assert.deepEqual(Object.keys(TALENT_EFFECTS), [
@@ -152,7 +165,7 @@ describe("the talent effects data covers the Combat and Assassination trees and 
   });
 
   it("says which text each entry was written from, and the snapshot still has that text", () => {
-    assert.equal(MAPPED.length, 37);
+    assert.equal(MAPPED.length, 49);
     for (const talent of MAPPED) {
       const hash = createHash("sha256")
         .update(talent.ranks.join("\n"))
@@ -342,13 +355,20 @@ describe("expandTalents", () => {
       "combat.adrenaline-rush": 0,
       "subtlety.camouflage": 2,
       "subtlety.premeditation": 1,
+      "subtlety.preparation": 1,
       "combat.precision": 0,
     });
-    assert.deepEqual(build.noDps, ["combat.endurance", "combat.riposte"]);
+    // Camouflage has a noDpsEffect since #269.
+    assert.deepEqual(build.noDps, [
+      "combat.endurance",
+      "combat.riposte",
+      "subtlety.camouflage",
+    ]);
     // Premeditation has its ability entry since #207.
     assert.deepEqual(build.abilities, ["blade-flurry", "premeditation"]);
-    // Improved Expose Armor was the example until #268 mapped it.
-    assert.deepEqual(build.unmapped, ["subtlety.camouflage"]);
+    // Improved Expose Armor was the example until #268 mapped it, and
+    // Camouflage until #269.
+    assert.deepEqual(build.unmapped, ["subtlety.preparation"]);
     assert.deepEqual(build.modifiers, []);
   });
 

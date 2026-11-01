@@ -456,6 +456,14 @@ export class Ability {
       if (used !== undefined) {
         simulation.consumeCharge(used);
       }
+      // A charged aura that cut this cast's cost is used by it, hit or miss
+      // (Thousand Cuts, #269, A13: Simulation.consumeCostCharges).
+      if (paid !== null && paid.definition.costModifier !== undefined) {
+        simulation.consumeCostCharges(
+          paid.definition.costModifier,
+          this.costContext,
+        );
+      }
       if (this.triggersGcd) {
         simulation.setGcd();
       }
