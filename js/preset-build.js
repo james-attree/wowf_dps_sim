@@ -1,5 +1,6 @@
 import { poisonName } from "./build-label.js";
 import { originRotation } from "./config-form.js";
+import { exportRotation } from "./rotation-io.js";
 import {
   listPresets,
   poisonDifferences,
@@ -75,7 +76,7 @@ export function listText(items) {
 const capital = (text) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 
 // The preset a rotation choice stands for, or null: a preset (edited or
-// not), or an import identical to one (as js/config-form.js's
+// not), or an import identical to one, name and all (as js/config-form.js's
 // rotationChoiceOf calls a loaded one). The default rotation and other
 // imports have no reference build.
 export function presetOfChoice(form) {
@@ -90,9 +91,10 @@ export function presetOfChoice(form) {
   if (choice !== "imported" || (form.imported ?? null) === null) {
     return null;
   }
-  const rotation = JSON.stringify(originRotation(choice, form.imported));
+  // Compared as files: an import's keys come back in the file's order.
+  const rotation = exportRotation(originRotation(choice, form.imported));
   return (
-    presets.find((id) => JSON.stringify(presetRotation(id)) === rotation) ??
+    presets.find((id) => exportRotation(presetRotation(id)) === rotation) ??
     null
   );
 }

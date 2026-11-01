@@ -12,7 +12,7 @@
 const HINT_ID = "cfg-preset-build-hint";
 
 export function createPresetBuildView(doc, store, actions) {
-  const $ = (id) => doc.getElementById(id);
+  const $ = (id) => doc.querySelector(`#${id}`);
   const box = $("cfg-preset-build");
   const offer = $("cfg-preset-build-offer");
   const hintText = $(HINT_ID);
