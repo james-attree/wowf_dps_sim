@@ -34,6 +34,14 @@ const SIGNATURES = {
 };
 const SEEDS = [1, 2, 3];
 const LONG_FIGHT = 300;
+const SHORT_FIGHT = 60;
+// Scout's #304 ruling on N1: a proc-reliant signature (Venom, which needs a
+// free 5 CP finisher; Ambush, which needs a Cutthroat proc) may go uncast on some 60 s seeds. It must have a mean above 0 at
+// 60 s and be cast on at least 95% of seeds at 300 s (measured on 200 seeds;
+// a cheap 40-seed sample here). The other signatures are cast on every seed.
+const PROC_RELIANT = new Set(["venom", "ambush"]);
+const SAMPLE_SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
+const LONG_FIGHT_SHARE = 0.95;
 
 const presetById = (id) => ROTATION_PRESETS.find((preset) => preset.id === id);
 
@@ -189,6 +197,37 @@ describe("the Assassination and Subtlety presets (#272)", () => {
     });
   }
 
+  for (const [id, signatures] of Object.entries(SIGNATURES)) {
+    it(`${id}: each signature over ${SAMPLE_SEEDS.length} seeds, and no Eviscerate (Scout's N1 rule, Kira's N3)`, () => {
+      for (const duration of [SHORT_FIGHT, LONG_FIGHT]) {
+        const casts = SAMPLE_SEEDS.map((seed) => {
+          const fight = createFight(seed, withReferenceBuild(id));
+          fight.simulation.run(duration);
+          const stats = fight.simulation.abilityStats;
+          return (ability) => stats[ability]?.casts ?? 0;
+        });
+        for (const ability of signatures) {
+          const counts = casts.map((of) => of(ability));
+          const cast = counts.filter((n) => n > 0).length / counts.length;
+          const label = `${id} ${duration}s ${ability}`;
+          if (!PROC_RELIANT.has(ability)) {
+            assert.equal(cast, 1, `${label}: cast on every seed`);
+          } else if (duration === SHORT_FIGHT) {
+            assert.ok(
+              counts.some((n) => n > 0),
+              `${label}: mean above 0`,
+            );
+          } else {
+            assert.ok(cast >= LONG_FIGHT_SHARE, `${label}: ${cast}`);
+          }
+        }
+        for (const of of casts) {
+          assert.equal(of("eviscerate"), 0, `${id} ${duration}s Eviscerate`);
+        }
+      }
+    });
+  }
+
   it("a fight with a preset and its reference build repeats from its recorded config", () => {
     for (const id of [ASSASSINATION, SUBTLETY]) {
       const first = runFight({
@@ -315,7 +354,13 @@ describe("the preset reference builds (#272, for #273)", () => {
     const build = referenceBuild(SUBTLETY);
     build.talents["subtlety.cutthroat"] = 0;
     build.weapons.mainHand.min = 1;
+    build.poisons.mainHand = "wound";
     assert.equal(referenceBuild(SUBTLETY).talents["subtlety.cutthroat"], 5);
+    assert.equal(referenceBuild(SUBTLETY).poisons.mainHand, "instant");
+    assert.notEqual(
+      referenceBuild(SUBTLETY).poisons,
+      referenceBuild(SUBTLETY).poisons,
+    );
     assert.deepEqual(
       referenceBuild(SUBTLETY).weapons.mainHand,
       k("weapon.dagger.mainHand"),
@@ -339,6 +384,15 @@ describe("the preset reference builds (#272, for #273)", () => {
     assert.equal(
       talentDifferences(build, undefined).length,
       Object.keys(build.talents).length,
+    );
+    // Only the map's own ranks count (Kira's #304 N6): an inherited one is
+    // not a rank, and the prototype's keys are not talents.
+    const inherited = Object.create({ "combat.precision": 1 });
+    Object.assign(inherited, build.talents);
+    assert.deepEqual(talentDifferences(build, inherited), []);
+    assert.deepEqual(
+      talentDifferences(build, { ...build.talents, constructor: 0 }),
+      [],
     );
   });
 
@@ -402,10 +456,20 @@ describe("the preset reference builds (#272, for #273)", () => {
       mainHand: { reference: "instant", current: null, same: false },
       offHand: { reference: "deadly", current: null, same: false },
     });
-    assert.deepEqual(poisonDifferences(build, undefined), {
-      mainHand: { reference: "instant", current: null, same: false },
-      offHand: { reference: "deadly", current: null, same: false },
-    });
+    for (const none of [undefined, null, "instant", ["instant"]]) {
+      assert.deepEqual(poisonDifferences(build, none), {
+        mainHand: { reference: "instant", current: null, same: false },
+        offHand: { reference: "deadly", current: null, same: false },
+      });
+    }
+    // An inherited hand is not the config's poison (Kira's #304 N5).
+    assert.deepEqual(
+      poisonDifferences(build, Object.create({ mainHand: "instant" })),
+      {
+        mainHand: { reference: "instant", current: null, same: false },
+        offHand: { reference: "deadly", current: null, same: false },
+      },
+    );
     assert.deepEqual(
       poisonDifferences(build, { mainHand: "instant", offHand: "instant" }),
       {
@@ -455,8 +519,35 @@ describe("the preset reference builds (#272, for #273)", () => {
     const { poisons, ...noPoisons } = good;
     assert.deepEqual(poisons, { mainHand: "instant", offHand: "deadly" });
     assert.equal(talentLevel, LEVEL_60);
+    // Kira's #304 N5: the level is named as given, so the string "60" is
+    // not reported as 60.
+    assert.ok(
+      checkReferenceBuild(SUBTLETY, { ...good, talentLevel: "60" }).includes(
+        'talentLevel is "60", not 60.',
+      ),
+    );
+    const fewer = { ...good.talents };
+    delete fewer["subtlety.cutthroat"];
     const bad = [
       ["nope", good],
+      [SUBTLETY, { ...good, talentLevel: "60" }],
+      // The 51-point contract: no points and fewer than 51 are refused.
+      [SUBTLETY, { ...good, talents: {} }],
+      [SUBTLETY, { ...good, talents: fewer }],
+      // A weapon type the SimConfig does not know.
+      [
+        SUBTLETY,
+        {
+          ...good,
+          weapons: {
+            ...good.weapons,
+            mainHand: { ...good.weapons.mainHand, type: "spoon" },
+          },
+        },
+      ],
+      // An inherited hand is not a hand, and a third hand is refused.
+      [SUBTLETY, { ...good, poisons: Object.create(good.poisons) }],
+      [SUBTLETY, { ...good, poisons: { ...good.poisons, ranged: "instant" } }],
       [SUBTLETY, noLevel],
       [SUBTLETY, { ...good, talentLevel: 5 }],
       [SUBTLETY, { ...good, talentLevel: 40 }],

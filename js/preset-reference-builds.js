@@ -1,7 +1,12 @@
 import { PRESET_REFERENCE_BUILDS } from "../data/preset-reference-builds.js";
 import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { k } from "../data/constants.js";
-import { buildProblems, talentLevelRange } from "./talent-build.js";
+import {
+  buildProblems,
+  pointsByTree,
+  talentLevelRange,
+  talentPointCap,
+} from "./talent-build.js";
 
 // The small API over the preset reference builds (issue #272,
 // data/preset-reference-builds.js), for #273's "use this preset's build"
@@ -46,8 +51,10 @@ function weaponProblems(hand, weapon) {
     return [`weapons.${hand} is missing.`];
   }
   const problems = [];
-  if (typeof weapon.type !== "string" || weapon.type === "") {
-    problems.push(`weapons.${hand}.type is not a weapon type.`);
+  if (!k("config.weaponTypes").includes(weapon.type)) {
+    problems.push(
+      `weapons.${hand}.type ${JSON.stringify(weapon.type)} is not a weapon type.`,
+    );
   }
   for (const field of WEAPON_NUMBERS) {
     if (!Number.isFinite(weapon[field]) || weapon[field] <= 0) {
@@ -66,7 +73,14 @@ function levelProblems(build) {
   const { max } = talentLevelRange();
   return build.talentLevel === max
     ? []
-    : [`talentLevel is ${build.talentLevel}, not ${max}.`];
+    : [`talentLevel is ${JSON.stringify(build.talentLevel)}, not ${max}.`];
+}
+
+// A build spends every point of its level: 51 at 60 (Kira's #304 N5).
+function pointProblems(build) {
+  const cap = talentPointCap(build.talentLevel);
+  const { total } = pointsByTree(build.talents);
+  return total === cap ? [] : [`talents spend ${total} points, not ${cap}.`];
 }
 
 // Every build carries Instant Poison on the main hand and Deadly on the off
@@ -85,7 +99,7 @@ function poisonProblems(poisons) {
     }
   }
   for (const hand of HANDS) {
-    const id = poisons[hand];
+    const id = Object.hasOwn(poisons, hand) ? poisons[hand] : undefined;
     if (!ids.includes(id)) {
       problems.push(`poisons.${hand} ${JSON.stringify(id)} is not a poison.`);
     } else if (id !== ruling[hand]) {
@@ -117,8 +131,12 @@ export function checkReferenceBuild(presetId, build) {
     problems.push("talents is not an object.");
   } else if (levels.length === 0) {
     const options = { level: build.talentLevel };
-    for (const problem of buildProblems(build.talents, options)) {
+    const found = buildProblems(build.talents, options);
+    for (const problem of found) {
       problems.push(problem.message);
+    }
+    if (found.length === 0) {
+      problems.push(...pointProblems(build));
     }
   }
   problems.push(...poisonProblems(build.poisons));
@@ -163,6 +181,10 @@ export function referenceBuild(presetId) {
   return copy;
 }
 
+// A rank the map holds itself: an inherited key (or one of Object's own,
+// like "constructor") is not a rank (Kira's #304 N6).
+const ownRank = (ranks, id) => (Object.hasOwn(ranks, id) ? ranks[id] : 0);
+
 export function talentDifferences(build, talents = {}) {
   const current = isObject(talents) ? talents : {};
   const ids = new Set([...Object.keys(build.talents), ...Object.keys(current)]);
@@ -170,8 +192,8 @@ export function talentDifferences(build, talents = {}) {
     .sort()
     .map((id) => ({
       id,
-      reference: build.talents[id] ?? 0,
-      current: current[id] ?? 0,
+      reference: ownRank(build.talents, id),
+      current: ownRank(current, id),
     }))
     .filter((entry) => entry.reference !== entry.current);
 }
@@ -199,7 +221,7 @@ export function poisonDifferences(build, poisons = {}) {
   return Object.fromEntries(
     HANDS.map((hand) => {
       const reference = build.poisons[hand];
-      const id = current[hand] ?? null;
+      const id = Object.hasOwn(current, hand) ? (current[hand] ?? null) : null;
       return [hand, { reference, current: id, same: reference === id }];
     }),
   );

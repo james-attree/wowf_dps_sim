@@ -69,10 +69,6 @@ function deepFreeze(value) {
 }
 
 export const PRESET_REFERENCE_BUILDS = deepFreeze({
-  // The #268 Venom build without Improved Expose Armor (the preset casts no
-  // Expose Armor): its two points go to Puncturing Wounds 2/3, Mutilate's
-  // crit. 41 Assassination (Cold Blood, Seal Fate, Mutilate, Venom) and 10
-  // Combat: 51 points.
   // The current defaults: the #151 reference Combat build (data/reference-
   // build.js, the build the combat-swords preset and its #164 golden use)
   // with the default config's swords in both hands.
@@ -83,6 +79,10 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     weapons: SWORDS,
     poisons: poisons(),
   },
+  // The #268 Venom build without Improved Expose Armor (the preset casts no
+  // Expose Armor): its two points go to Puncturing Wounds 2/3, Mutilate's
+  // crit. 41 Assassination (Cold Blood, Seal Fate, Mutilate, Venom) and 10
+  // Combat: 51 points.
   "assassination-daggers": {
     name: "Assassination daggers (Mutilate, Venom)",
     talentLevel: LEVEL_60,
