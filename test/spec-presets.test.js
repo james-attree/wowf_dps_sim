@@ -6,11 +6,14 @@ import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { createFight, runFight } from "../js/fight.js";
 import {
   checkReferenceBuild,
+  poisonDifferences,
   referenceBuild,
+  referencePoison,
   referenceWeapon,
   talentDifferences,
   weaponTypeDifferences,
 } from "../js/preset-reference-builds.js";
+import * as presetApi from "../js/rotation-presets.js";
 import { listPresets, loadPreset } from "../js/rotation-presets.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 import { buildProblems, talentLevelRange } from "../js/talent-build.js";
@@ -43,6 +46,10 @@ function withReferenceBuild(id) {
     weapons: {
       mainHand: referenceWeapon(build, "mainHand"),
       offHand: referenceWeapon(build, "offHand"),
+    },
+    poisons: {
+      mainHand: referencePoison(build, "mainHand"),
+      offHand: referencePoison(build, "offHand"),
     },
   });
 }
@@ -370,16 +377,97 @@ describe("the preset reference builds (#272, for #273)", () => {
     assert.deepEqual(config.weapons.mainHand, k("weapon.dagger.mainHand"));
   });
 
+  it("every build carries Instant Poison on the main hand and Deadly on the off hand (James's ruling, relayed by Scout)", () => {
+    const ruling = k("presetReferenceBuild.poisons");
+    assert.deepEqual(ruling, { mainHand: "instant", offHand: "deadly" });
+    for (const id of [ASSASSINATION, COMBAT, SUBTLETY]) {
+      const build = referenceBuild(id);
+      assert.deepEqual(build.poisons, ruling, id);
+      // The SimConfig shape: a config reads it back as it is.
+      assert.deepEqual(
+        normalizeConfig({ poisons: build.poisons }).poisons,
+        build.poisons,
+        id,
+      );
+    }
+  });
+
+  it("referencePoison gives a hand's poison id; poisonDifferences compares each hand", () => {
+    const build = referenceBuild(ASSASSINATION);
+    assert.equal(referencePoison(build, "mainHand"), "instant");
+    assert.equal(referencePoison(build, "offHand"), "deadly");
+    assert.throws(() => referencePoison(build, "ranged"), RangeError);
+    // The default config has no poisons.
+    assert.deepEqual(poisonDifferences(build, defaultConfig().poisons), {
+      mainHand: { reference: "instant", current: null, same: false },
+      offHand: { reference: "deadly", current: null, same: false },
+    });
+    assert.deepEqual(poisonDifferences(build, undefined), {
+      mainHand: { reference: "instant", current: null, same: false },
+      offHand: { reference: "deadly", current: null, same: false },
+    });
+    assert.deepEqual(
+      poisonDifferences(build, { mainHand: "instant", offHand: "instant" }),
+      {
+        mainHand: { reference: "instant", current: "instant", same: true },
+        offHand: { reference: "deadly", current: "instant", same: false },
+      },
+    );
+    const same = poisonDifferences(build, { ...build.poisons });
+    assert.equal(same.mainHand.same && same.offHand.same, true);
+  });
+
+  it("js/rotation-presets.js re-exports every helper #273 needs", () => {
+    for (const name of [
+      "referenceBuild",
+      "referenceWeapon",
+      "referencePoison",
+      "talentDifferences",
+      "weaponTypeDifferences",
+      "poisonDifferences",
+    ]) {
+      assert.equal(typeof presetApi[name], "function", name);
+    }
+  });
+
+  it("the reference poisons change the fight: Venom and Mutilate's poisoned bonus have Deadly to read", () => {
+    const build = referenceBuild(ASSASSINATION);
+    const poisoned = runFight({
+      seed: 1,
+      duration: 60,
+      config: withReferenceBuild(ASSASSINATION),
+    });
+    const bare = runFight({
+      seed: 1,
+      duration: 60,
+      config: loadPreset(ASSASSINATION, {
+        talents: { ...build.talents },
+        weapons: build.weapons,
+      }),
+    });
+    assert.ok(poisoned.dps > bare.dps);
+  });
+
   it("checkReferenceBuild accepts the documented fields and refuses bad ones", () => {
     const good = referenceBuild(SUBTLETY);
     assert.deepEqual(checkReferenceBuild(SUBTLETY, good), []);
     const { talentLevel, ...noLevel } = good;
+    const { poisons, ...noPoisons } = good;
+    assert.deepEqual(poisons, { mainHand: "instant", offHand: "deadly" });
     assert.equal(talentLevel, LEVEL_60);
     const bad = [
       ["nope", good],
       [SUBTLETY, noLevel],
       [SUBTLETY, { ...good, talentLevel: 5 }],
       [SUBTLETY, { ...good, talentLevel: 40 }],
+      [SUBTLETY, noPoisons],
+      [SUBTLETY, { ...good, poisons: { mainHand: "instant" } }],
+      [SUBTLETY, { ...good, poisons: { mainHand: "nope", offHand: "deadly" } }],
+      [
+        SUBTLETY,
+        { ...good, poisons: { mainHand: "deadly", offHand: "instant" } },
+      ],
+      [SUBTLETY, { ...good, poisons: { mainHand: null, offHand: null } }],
       [SUBTLETY, { ...good, colour: "red" }],
       [SUBTLETY, { ...good, talents: { "subtlety.cutthroat": 9 } }],
       [SUBTLETY, { ...good, weapons: { mainHand: good.weapons.mainHand } }],

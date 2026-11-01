@@ -3373,7 +3373,8 @@ build each one is written for is separate data,
   Scout; #273 sets `config.talentLevel` to it when the config is below it, and
   the page says so); `talents`, `{ talent id: rank }` (the SimConfig form: no 0 ranks);
   `weapons`, `{ mainHand, offHand }`, each `{ type, min, max, speed }` (the
-  SimConfig weapon shape).
+  SimConfig weapon shape); `poisons`, `{ mainHand, offHand }`, each a poison
+  id (the SimConfig poisons shape, `config.poisonIds`).
 - assassination-daggers: the #268 Venom build without Improved Expose Armor,
   whose 2 points go to Puncturing Wounds 2/3 (41 Assassination, 10 Combat).
   subtlety-daggers: the #271 Cutthroat build (15 Assassination, 36 Subtlety).
@@ -3382,25 +3383,33 @@ build each one is written for is separate data,
 - combat-swords (James's decision, relayed by Scout): the current defaults,
   the #151 reference Combat build (`data/reference-build.js`, 18
   Assassination, 33 Combat) with the default config's swords in both hands.
-- A build has no character sheet and no poisons.
+- Every build carries Instant Poison on the main hand and Deadly Poison on
+  the off hand, `{ mainHand: "instant", offHand: "deadly" }` (James's ruling,
+  relayed by Scout: `presetReferenceBuild.poisons`). With Deadly on the off
+  hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.
+- A build has no character sheet.
 
 `js/preset-reference-builds.js` checks every entry when it is imported (a
 known preset id, only the fields above, `talentLevel` 60, legal talents there,
-both hands with a type and positive min, max and speed, min not above max). For
+both hands with a type and positive min, max and speed, min not above max, `poisons` Instant main hand and Deadly off hand). For
 #273's button it gives `referenceBuild(id)` (a copy; `null` for a preset
 with no entry, which none is today),
 `talentDifferences(build, talents)` (`[{ id, reference, current }]` for each
 rank that differs, a missing rank being 0), `weaponTypeDifferences(build,
 weapons)` (`{ mainHand, offHand }`, each `{ reference, current, same }`) and
-`referenceWeapon(build, hand)` (a copy of that hand for `config.weapons`).
-Nothing calls them in the app yet, and nothing puts a build into a config.
+`referenceWeapon(build, hand)` (a copy of that hand for `config.weapons`),
+`poisonDifferences(build, poisons)` (`{ mainHand, offHand }`, each
+`{ reference, current, same }`, a missing poison being `null` as in the
+default config) and `referencePoison(build, hand)` (that hand's poison id for
+`config.poisons`). Nothing calls them in the app yet, and nothing puts a build into a config.
 
 - **RNG (G2).** No new proc, roll or ability: a preset is a rule list, and
   the reference builds are data that no fight reads.
 - **Goldens.** The existing fixtures are unchanged (no default changed). The
   two new ones, `assassination-daggers-preset-seed-272-60s` and
   `subtlety-daggers-preset-seed-272-60s`, run each preset with its reference
-  build's talents and weapons, the default character and no poisons.
+  build's talents, weapons and poisons (Instant main hand, Deadly off hand)
+  and the default character.
 - **Old configs.** A config with no rotation still gets the default rotation;
   one with a preset loaded keeps its own talents and weapons.
 

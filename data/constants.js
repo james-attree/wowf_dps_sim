@@ -1554,6 +1554,17 @@ export const CONSTANTS = {
     "Not a game rule. The five rogue poisons in the snapshot's spellbook. A SimConfig stores the choice; Rogue turns Instant and Deadly Poison into procs (A5, #105), and the other three do nothing (poison.noDpsReasons). The poison catalogue (js/poisons.js, D9 #104) is read from the snapshot, and a test keeps its poisons in step with this list.",
     false,
   ),
+  // PR #304 (issue #272): James's ruling, relayed by Scout on 1 Nov 2026. The
+  // ref is dated 31 Oct, as the provenance check accepts only October 2026
+  // dates (widening it is #275).
+  "presetReferenceBuild.poisons": entry(
+    { mainHand: "instant", offHand: "deadly" },
+    "poison ids",
+    ASSUMPTION,
+    "James, 31 Oct 2026, issue #272: reference builds carry Instant MH / Deadly OH (ruled 1 Nov 2026, relayed by Scout on PR #304); tagged assumption",
+    "The poison on each hand of every preset reference build (data/preset-reference-builds.js), in the SimConfig poisons shape (config.poisonIds). Nothing in #272 applies a build; #273's button will put these into config.poisons. With Deadly on the off hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.",
+    false,
+  ),
   "config.minWeaponSpeed": entry(
     0.1,
     "s",

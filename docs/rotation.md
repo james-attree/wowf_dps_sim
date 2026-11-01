@@ -987,11 +987,14 @@ Subtlety daggers
 #### Reference builds (#272)
 
 `data/preset-reference-builds.js` holds the build each preset is written for,
-keyed by preset id: `{ name, talentLevel, talents, weapons }`. `talentLevel` is
+keyed by preset id: `{ name, talentLevel, talents, weapons, poisons }`. `talentLevel` is
 60 for every build (James's decision, relayed by Scout); `talents` is
 `{ talent id: rank }` (a legal 51-point build) and `weapons` is
 `{ mainHand, offHand }`, each `{ type, min, max, speed }` (the SimConfig
-weapon shape). combat-swords' build is the current defaults: the #151
+weapon shape); `poisons` is `{ mainHand, offHand }`, each a poison id (the
+SimConfig poisons shape), Instant Poison on the main hand and Deadly Poison on
+the off hand for every build (James's ruling, relayed by Scout:
+`presetReferenceBuild.poisons`). combat-swords' build is the current defaults: the #151
 reference Combat talents (`data/reference-build.js`) with the default config's
 swords in both hands. The two dagger presets' builds use
 `weapon.dagger.mainHand` and `weapon.dagger.offHand`.
@@ -1002,8 +1005,10 @@ will, and will set `config.talentLevel` to 60 when the config is below it
 `js/rotation-presets.js`) is the API for that: `referenceBuild(id)` (a copy),
 `talentDifferences(build, talents)` (each talent whose rank differs),
 `weaponTypeDifferences(build, weapons)` (the type in each hand) and
-`referenceWeapon(build, hand)` (a hand to put into `config.weapons`). A build
-carries no character sheet and no poisons.
+`referenceWeapon(build, hand)` (a hand to put into `config.weapons`),
+`poisonDifferences(build, poisons)` (the poison id in each hand) and
+`referencePoison(build, hand)` (a hand's poison id for `config.poisons`). A
+build carries no character sheet.
 
 ## Import and export
 

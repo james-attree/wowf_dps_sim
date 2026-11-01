@@ -26,6 +26,11 @@ import { talentLevelRange } from "../js/talent-build.js";
 //   weapons       { mainHand, offHand }, each { type, min, max, speed }: the
 //                 SimConfig weapon shape (js/sim-config.js), so a hand can be
 //                 put into config.weapons as it is.
+//   poisons       { mainHand, offHand }, each a poison id (config.poisonIds):
+//                 the SimConfig poisons shape, so it can be put into
+//                 config.poisons as it is. Instant Poison on the main hand and
+//                 Deadly Poison on the off hand for every build (James's
+//                 ruling, relayed by Scout: presetReferenceBuild.poisons).
 //
 // js/preset-reference-builds.js checks every entry when it is imported.
 
@@ -47,6 +52,10 @@ const SWORDS = {
   mainHand: swordHand("mainHand"),
   offHand: swordHand("offHand"),
 };
+
+// Every build's poisons (James's ruling, relayed by Scout), a copy for each
+// build so freezing a build leaves the constant as it is.
+const poisons = () => ({ ...k("presetReferenceBuild.poisons") });
 
 // Every build is for level 60, the top talent level (51 points).
 const LEVEL_60 = talentLevelRange().max;
@@ -72,6 +81,7 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talentLevel: LEVEL_60,
     talents: combatReferenceTalents(),
     weapons: SWORDS,
+    poisons: poisons(),
   },
   "assassination-daggers": {
     name: "Assassination daggers (Mutilate, Venom)",
@@ -97,6 +107,7 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
       "combat.puncturing-wounds": 2,
     },
     weapons: DAGGERS,
+    poisons: poisons(),
   },
   // The #271 Cutthroat build: 15 Assassination, 36 Subtlety with Ghostly
   // Strike, Premeditation, Preparation, Hemorrhage, Quietus, Cutthroat,
@@ -126,5 +137,6 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
       "subtlety.thousand-cuts": 1,
     },
     weapons: DAGGERS,
+    poisons: poisons(),
   },
 });

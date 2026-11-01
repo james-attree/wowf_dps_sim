@@ -428,9 +428,9 @@ export const GOLDEN_CASES = deepFreeze([
     },
   },
   // Issue #272. Each dagger preset with its reference build
-  // (js/preset-reference-builds.js): the talents and both weapons, put in as
-  // #273's button would, and nothing else (the default character, no
-  // poisons).
+  // (js/preset-reference-builds.js): the talents, both weapons and both
+  // poisons (Instant main hand, Deadly off hand), put in as #273's button
+  // would, and nothing else (the default character).
   ...["assassination-daggers", "subtlety-daggers"].map((id) => {
     const build = presetReferenceBuild(id);
     return {
@@ -440,6 +440,7 @@ export const GOLDEN_CASES = deepFreeze([
       config: loadPreset(id, {
         talents: { ...build.talents },
         weapons: { ...build.weapons },
+        poisons: { ...build.poisons },
       }),
     };
   }),

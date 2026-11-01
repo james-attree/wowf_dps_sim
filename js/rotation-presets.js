@@ -6,7 +6,9 @@ import { summarizeRotation } from "./rotation-summary.js";
 // that offers the presets has its builds too, for #273's button. Importing
 // this module checks every build, as it checks every preset.
 export {
+  poisonDifferences,
   referenceBuild,
+  referencePoison,
   referenceWeapon,
   talentDifferences,
   weaponTypeDifferences,

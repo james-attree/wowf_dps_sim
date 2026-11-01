@@ -1,5 +1,6 @@
 import { PRESET_REFERENCE_BUILDS } from "../data/preset-reference-builds.js";
 import { ROTATION_PRESETS } from "../data/rotation-presets.js";
+import { k } from "../data/constants.js";
 import { buildProblems, talentLevelRange } from "./talent-build.js";
 
 // The small API over the preset reference builds (issue #272,
@@ -20,6 +21,13 @@ import { buildProblems, talentLevelRange } from "./talent-build.js";
 //                                   type in that hand.
 //   referenceWeapon(build, hand)    a copy of that hand: { type, min, max,
 //                                   speed }, the SimConfig weapon shape.
+//   poisonDifferences(build, poisons)
+//                                   { mainHand, offHand }, each
+//                                   { reference, current, same }: the poison
+//                                   id in that hand (a missing one is null,
+//                                   as in the default config).
+//   referencePoison(build, hand)    that hand's poison id, for
+//                                   config.poisons.
 //   checkReferenceBuild(presetId, build)
 //                                   the problems with one entry, as strings;
 //                                   [] for a good one. Every entry is checked
@@ -27,7 +35,7 @@ import { buildProblems, talentLevelRange } from "./talent-build.js";
 
 const HANDS = ["mainHand", "offHand"];
 const WEAPON_NUMBERS = ["min", "max", "speed"];
-const FIELDS = ["name", "talentLevel", "talents", "weapons"];
+const FIELDS = ["name", "talentLevel", "talents", "weapons", "poisons"];
 const PRESET_IDS = new Set(ROTATION_PRESETS.map((preset) => preset.id));
 
 const isObject = (value) =>
@@ -61,6 +69,32 @@ function levelProblems(build) {
     : [`talentLevel is ${build.talentLevel}, not ${max}.`];
 }
 
+// Every build carries Instant Poison on the main hand and Deadly on the off
+// hand (James's ruling, relayed by Scout: presetReferenceBuild.poisons), in
+// the SimConfig poisons shape.
+function poisonProblems(poisons) {
+  if (!isObject(poisons)) {
+    return ["poisons is not an object."];
+  }
+  const ids = k("config.poisonIds");
+  const ruling = k("presetReferenceBuild.poisons");
+  const problems = [];
+  for (const field of Object.keys(poisons)) {
+    if (!HANDS.includes(field)) {
+      problems.push(`"poisons.${field}" is not a hand.`);
+    }
+  }
+  for (const hand of HANDS) {
+    const id = poisons[hand];
+    if (!ids.includes(id)) {
+      problems.push(`poisons.${hand} ${JSON.stringify(id)} is not a poison.`);
+    } else if (id !== ruling[hand]) {
+      problems.push(`poisons.${hand} is ${id}, not ${ruling[hand]}.`);
+    }
+  }
+  return problems;
+}
+
 export function checkReferenceBuild(presetId, build) {
   if (!PRESET_IDS.has(presetId)) {
     return [`"${presetId}" is not a preset.`];
@@ -87,6 +121,7 @@ export function checkReferenceBuild(presetId, build) {
       problems.push(problem.message);
     }
   }
+  problems.push(...poisonProblems(build.poisons));
   if (!isObject(build.weapons)) {
     problems.push("weapons is not an object.");
   } else {
@@ -123,6 +158,7 @@ export function referenceBuild(presetId) {
       mainHand: { ...build.weapons.mainHand },
       offHand: { ...build.weapons.offHand },
     },
+    poisons: { ...build.poisons },
   };
   return copy;
 }
@@ -156,4 +192,22 @@ export function referenceWeapon(build, hand) {
     throw new RangeError(`"${hand}" is not a hand: ${HANDS.join(" or ")}.`);
   }
   return { ...build.weapons[hand] };
+}
+
+export function poisonDifferences(build, poisons = {}) {
+  const current = isObject(poisons) ? poisons : {};
+  return Object.fromEntries(
+    HANDS.map((hand) => {
+      const reference = build.poisons[hand];
+      const id = current[hand] ?? null;
+      return [hand, { reference, current: id, same: reference === id }];
+    }),
+  );
+}
+
+export function referencePoison(build, hand) {
+  if (!HANDS.includes(hand)) {
+    throw new RangeError(`"${hand}" is not a hand: ${HANDS.join(" or ")}.`);
+  }
+  return build.poisons[hand];
 }
