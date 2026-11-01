@@ -127,8 +127,8 @@ export function createControlsView(doc, store, actions = {}) {
   let pendingAnnounce = null;
   let pendingText = "";
   // With no frames, a follow-up joins the message of the run it follows
-  // when only the route has changed between them (the router's `route`
-  // and `moved` come right after the run's change).
+  // when only the route has changed between them (the router's `route`,
+  // `routeBy` and `moved` come right after the run's change).
   let joinable = false;
   const announceAlso = (text) => {
     if (typeof view?.requestAnimationFrame !== "function" && joinable) {
@@ -569,7 +569,12 @@ export function createControlsView(doc, store, actions = {}) {
   const rerender = () => render(store.get());
   phone?.addEventListener?.("change", rerender);
   const unsubscribe = store.subscribe(({ state, changed }) => {
-    if (changed.some((slice) => slice !== "route" && slice !== "moved")) {
+    if (
+      changed.some(
+        (slice) =>
+          slice !== "route" && slice !== "moved" && slice !== "routeBy",
+      )
+    ) {
       joinable = false;
     }
     if (

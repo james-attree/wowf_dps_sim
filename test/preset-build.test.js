@@ -31,12 +31,18 @@ import {
 } from "../js/rotation-presets.js";
 import { createStore } from "../js/store.js";
 import { createTalentTree } from "../js/talent-tree.js";
+import { MOVED_BY_RUN, MOVED_BY_USER } from "../js/views/router.js";
 
 // #273: the preset's reference build under the Rotation select.
 
 const NBSP = "\u00a0";
 const PRESETS = listPresets().map(({ id }) => id);
 const LOW_LEVEL = "40";
+const route = (area, sub = null) => Object.freeze({ area, sub, param: null });
+const ROTATION = route("rotation");
+const CHARACTER = route("character");
+const RESULTS = route("results");
+const LIVE = route("results", "live");
 
 function page() {
   const store = createStore({ config: pageDefaultConfig() });
@@ -348,16 +354,82 @@ describe("apply and Undo (#273)", () => {
     assert.equal(env.said().applied, null);
     assert.equal(env.said().hint.label, "Use its talents too");
 
-    env.store.set({ route: { area: "rotation", sub: null, param: null } });
+    env.store.set({ route: ROTATION, routeBy: MOVED_BY_USER });
     env.build.apply();
     assert.notEqual(env.said().applied, null);
-    env.store.set({ route: { area: "character", sub: null, param: null } });
+    env.store.set({ route: CHARACTER, routeBy: MOVED_BY_USER });
+    assert.equal(env.said().applied, null);
+    // A move by hand to Results is leaving the page too.
+    env.store.set({ route: ROTATION });
+    env.build.apply();
+    env.store.set({ route: RESULTS, routeBy: MOVED_BY_USER });
     assert.equal(env.said().applied, null);
   });
 
-  // The run's own state does not close Undo: a fight started before the
-  // button and finished after it leaves Undo there. (Run's move to its
-  // Results page is a route change, which does close it, like any move.)
+  // Run's own move to Results (#242) is not leaving the page: Undo stays
+  // there and on the way back, so the build can be run and then put back.
+  it("Undo stays through Run's move to Results and the way back", () => {
+    const env = page();
+    env.store.set({ route: ROTATION, routeBy: MOVED_BY_USER });
+    env.form.chooseRotation("assassination-daggers");
+    env.tree.setLevel(LOW_LEVEL);
+    env.form.change("poisons.offHand", "instant");
+    const before = env.store.get().config;
+    env.build.apply();
+    env.store.set({ run: { state: "running" } });
+    env.store.set({ route: RESULTS, routeBy: MOVED_BY_RUN });
+    assert.notEqual(env.said().applied, null);
+    const ran = env.store.get().config;
+    env.store.set({
+      run: { state: "finished" },
+      ran: { average: { config: ran } },
+    });
+    assert.notEqual(env.said().applied, null);
+    // Back to the page by the nav (or Back).
+    env.store.set({ route: ROTATION, routeBy: MOVED_BY_USER });
+    assert.notEqual(env.said().applied, null);
+    env.build.undo();
+    const { config } = env.store.get();
+    assert.deepEqual(config.talents, before.talents);
+    assert.deepEqual(config.weapons, before.weapons);
+    assert.deepEqual(config.poisons, before.poisons);
+    assert.equal(config.talentLevel, Number(LOW_LEVEL));
+    assert.equal(
+      env.said().announce.text,
+      "Talents, weapons, poisons and level put back.",
+    );
+  });
+
+  it("Undo closes on a move by hand away from Run's Results", () => {
+    for (const [route, by] of [
+      [CHARACTER, MOVED_BY_USER],
+      [LIVE, MOVED_BY_USER],
+    ]) {
+      const env = page();
+      env.store.set({ route: ROTATION, routeBy: MOVED_BY_USER });
+      env.form.chooseRotation("combat-swords");
+      env.build.apply();
+      env.store.set({ route: RESULTS, routeBy: MOVED_BY_RUN });
+      assert.notEqual(env.said().applied, null);
+      env.store.set({ route, routeBy: by });
+      assert.equal(env.said().applied, null);
+    }
+  });
+
+  it("Undo stays through another Run's move, from Results to its Live view", () => {
+    const env = page();
+    env.store.set({ route: ROTATION, routeBy: MOVED_BY_USER });
+    env.form.chooseRotation("combat-swords");
+    env.build.apply();
+    env.store.set({ route: RESULTS, routeBy: MOVED_BY_RUN });
+    env.store.set({ route: LIVE, routeBy: MOVED_BY_RUN });
+    assert.notEqual(env.said().applied, null);
+    env.store.set({ route: ROTATION, routeBy: MOVED_BY_USER });
+    assert.notEqual(env.said().applied, null);
+  });
+
+  // The run's own state does not close Undo either: a fight started
+  // before the button and finished after it leaves Undo there.
   it("Undo stays through a run and puts the build back after it", () => {
     const env = page();
     env.form.chooseRotation("combat-swords");

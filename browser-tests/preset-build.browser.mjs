@@ -147,6 +147,28 @@ const announced = (page, said) =>
     { timeout: SETTLE },
   );
 
+const saidLike = (page, pattern) =>
+  page
+    .waitForFunction(
+      ([source, flags]) =>
+        new RegExp(source, flags).test(
+          document.getElementById("run-announce").textContent,
+        ),
+      [pattern.source, pattern.flags],
+      { timeout: SETTLE },
+    )
+    .catch(async () =>
+      assert.fail(
+        `run-announce: ${await page.locator("#run-announce").textContent()}`,
+      ),
+    );
+
+// A click on the nav, as a person leaves (or comes back to) a page.
+const navTo = async (page, area) => {
+  await page.locator(`[data-nav-area="${area}"]`).first().click();
+  await page.locator(`#area-${area}-title`).waitFor({ state: "visible" });
+};
+
 const talentsLiveChanges = (page) =>
   page.evaluate(() => globalThis.talentsLiveChanges);
 
@@ -642,24 +664,61 @@ describe("The reference build's states (#273)", () => {
   test("a run in progress, the stale results, and Undo after a run", async () => {
     const { context, page, errors } = await open(1024);
     try {
+      // Everything differs from Assassination's build: the talents, the
+      // weapons, the off hand's poison and the level.
       await shortBatch(page);
+      await setLevel(page, LOW_LEVEL);
+      await setSelect(
+        page,
+        "#character/gear",
+        "#cfg-poisons-offHand",
+        "instant",
+      );
+      const before = await gear(page);
       await choose(page, ASSASSINATION);
       await runHere(page);
       await toRotation(page);
       assert.equal(await staleSaid(page), null, "fresh");
 
       // Applying after a run: one line, with the results out of date.
-      await applyNow(page, `Talents and weapons replaced. ${STALE}`);
+      await applyNow(page);
+      await saidLike(
+        page,
+        /^Talents, weapons and poisons replaced\. Level set to.60\. Results out of date\.$/,
+      );
       assert.ok(await isStaleNow(page), "amber Out of date");
       assert.equal(await focused(page), "cfg-preset-build-undo");
 
-      // Run moves the page to Results (#242): that is leaving the page,
-      // so Undo is gone when Rotation is back, and the build matches.
+      // Run moves the page to Results (#242). That is not leaving the
+      // page: Undo is still there back on Rotation, and the results are
+      // the applied build's.
       await runHere(page);
+      assert.equal(
+        await page.evaluate(() => document.location.hash),
+        "#results",
+      );
       assert.equal(await staleSaid(page), null, "fresh with the build");
-      await toRotation(page);
-      await closedUndo(page, "Run's move to Results");
-      assert.equal(await page.locator(BOX).isHidden(), true, "it matches");
+      await navTo(page, "rotation");
+      assert.equal(await page.locator(APPLIED).isVisible(), true, "Undo stays");
+      assert.equal(await focused(page), "area-rotation-title");
+      // Reachable from the select by Tab, and pressed from the keyboard.
+      await page.locator(SELECT).focus();
+      await page.keyboard.press("Tab");
+      assert.equal(await focused(page), "cfg-preset-build-undo");
+      await page.keyboard.press("Enter");
+      await announced(
+        page,
+        `Talents, weapons, poisons and level put back. ${STALE}`,
+      );
+      assert.ok(await isStaleNow(page), "amber again: it ran with the build");
+      assert.equal(await focused(page), "cfg-preset-build-apply");
+      await expectHint(
+        page,
+        ASSASSINATION,
+        "Use its talents, weapons and poisons too",
+      );
+      assert.equal(await level(page), LOW_LEVEL);
+      assert.deepEqual(await gear(page), before);
 
       // During a live fight: the button works and the fight goes on; Undo
       // is still there when it has finished, and puts the build back.
@@ -676,12 +735,16 @@ describe("The reference build's states (#273)", () => {
         { timeout: SETTLE },
       );
       await toRotation(page);
-      await expectHint(page, SUBTLETY, "Use its talents too");
+      await expectHint(
+        page,
+        SUBTLETY,
+        "Use its talents, weapons and poisons too",
+      );
       await page.locator(APPLY).click();
       await page.locator(APPLIED).waitFor({ state: "visible" });
       await page.waitForFunction(
         () =>
-          /^Talents replaced\./.test(
+          /^Talents, weapons and poisons replaced\./.test(
             document.getElementById("run-announce").textContent,
           ),
         null,
@@ -707,13 +770,46 @@ describe("The reference build's states (#273)", () => {
       await page.locator(UNDO).click();
       await page.waitForFunction(
         () =>
-          /^Talents put back\./.test(
+          /^Talents, weapons, poisons and level put back\./.test(
             document.getElementById("run-announce").textContent,
           ),
         null,
         { timeout: SETTLE },
       );
       assert.equal(await focused(page), "cfg-preset-build-apply");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("Undo closes on leaving Run's Results by the nav, and on a reload", async () => {
+    const { context, page, errors } = await open(1024);
+    try {
+      await shortBatch(page);
+      await choose(page, ASSASSINATION);
+      await applyNow(page, "Talents and weapons replaced.");
+      await runHere(page);
+      // From Results to Character by the nav: leaving.
+      await navTo(page, "character");
+      await navTo(page, "rotation");
+      await closedUndo(page, "the nav after Run's move");
+      assert.equal(await page.locator(BOX).isHidden(), true, "it matches");
+
+      // Straight from Rotation by the nav: leaving.
+      await page.selectOption(SELECT, SUBTLETY);
+      await applyNow(page, "Talents replaced.");
+      await navTo(page, "results");
+      await navTo(page, "rotation");
+      await closedUndo(page, "the nav to Results");
+
+      // A reload starts again, with no Undo (nothing persists, #186).
+      await page.selectOption(SELECT, ASSASSINATION);
+      await applyNow(page, "Talents replaced.");
+      await page.reload();
+      await page.locator(SELECT).waitFor({ state: "visible" });
+      assert.equal(await page.locator(APPLIED).isHidden(), true, "reload");
+      assert.equal(await page.locator(SELECT).inputValue(), "default");
       assert.deepEqual(errors, []);
     } finally {
       await context.close();

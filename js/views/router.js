@@ -26,6 +26,13 @@ import {
 //
 // An area's name in the hash is matched in any case: #Fight is #fight.
 
+// Who moved the page, beside each `route` in the same change: Run's own
+// move to Results (#242) or anything else (a link, a typed hash, Back, the
+// rotation builder). The reference build's Undo (#273) stays through Run's
+// move and closes on the others.
+export const MOVED_BY_RUN = "run";
+export const MOVED_BY_USER = "user";
+
 export const APP_TITLE = "WoW Forever Rogue Simulator";
 
 // The areas' sub-screens. Results has two views (#242, UX4): the average,
@@ -231,7 +238,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     return typeof state?.routerIndex === "number" ? state.routerIndex : null;
   };
 
-  function show(next, focus) {
+  function show(next, focus, by = MOVED_BY_USER) {
     const from = route?.area ?? null;
     const had = doc.activeElement;
     route = next;
@@ -247,7 +254,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     }
     doc.title = titleFor(next);
     placeRunColumn(doc, next.area);
-    store.set({ route: Object.freeze({ ...next }) });
+    store.set({ route: Object.freeze({ ...next }), routeBy: by });
     if (from !== next.area && from !== null) {
       win.scrollTo?.(PAGE_TOP, PAGE_TOP);
     }
@@ -293,7 +300,10 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
   }
 
   // A move the page makes: a new history entry, and the focus left as it is.
-  function go(area, { focus = "none", sub = null, param = null } = {}) {
+  function go(
+    area,
+    { focus = "none", sub = null, param = null, by = MOVED_BY_USER } = {},
+  ) {
     if (route?.area === area && route?.sub === sub && route?.param === param) {
       return;
     }
@@ -301,7 +311,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     index += 1;
     const next = { area, sub, param };
     win.history.pushState({ routerIndex: index }, "", formatRoute(next));
-    show(next, focus);
+    show(next, focus, by);
   }
 
   function onHashChange() {
@@ -390,7 +400,11 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
     const next = followRoute(before, state, route);
     if (next !== null) {
       const had = doc.activeElement;
-      go(next.area, { sub: next.sub, param: next.param ?? null });
+      go(next.area, {
+        sub: next.sub,
+        param: next.param ?? null,
+        by: next.run ? MOVED_BY_RUN : MOVED_BY_USER,
+      });
       // Run's move is said (#242), unless the focus moved with it to the
       // new area's heading, which says it.
       if (next.run && doc.activeElement === had) {

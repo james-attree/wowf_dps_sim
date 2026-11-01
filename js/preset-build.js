@@ -13,6 +13,7 @@ import {
 } from "./rotation-presets.js";
 import { pointsByTree } from "./talent-build.js";
 import { talentCatalogue } from "./talents.js";
+import { MOVED_BY_RUN } from "./views/router.js";
 
 // The preset's reference build (#273, Fran's design/pre-273.md): under the
 // Rotation select, a preset with a reference build (#272,
@@ -203,11 +204,12 @@ export function appliedText(build, parts, level) {
 }
 
 // #run-announce after the button: "Talents and weapons replaced." (and the
-// level); after Undo: "Talents and weapons put back."
+// level); after Undo: "Talents and weapons put back." or "Talents,
+// weapons, poisons and level put back."
 export function announceText(build, parts, level, undone = false) {
   const what = capital(listText(parts));
   if (undone) {
-    return `${what}${level ? " and level" : ""} put back.`;
+    return `${capital(listText(level ? [...parts, "level"] : parts))} put back.`;
   }
   return `${what} replaced.${level ? levelSentence(build) : ""}`;
 }
@@ -292,18 +294,29 @@ export function createPresetBuild(store, formActions) {
 
   // Still the state the press left? A build edit (any config change, or
   // a talent rank the tree holds back from the config), another rotation
-  // or another screen closes Undo.
+  // or leaving the page closes Undo.
   // The tree's ranks are checked on its own changes only: it catches up
   // with the config one change after the press.
+  // Leaving the page is a move by the nav, a link, a hash or Back
+  // (a reload starts with no Undo at all). Run's own move to Results
+  // (#242) is not: Undo stays there and on the way back to the page, so
+  // the build can be run and then put back. Any other move from Results
+  // closes it.
   function closes(state, changed) {
     if (saved === null) {
       return false;
+    }
+    if (changed.includes("route")) {
+      const key = routeKey(state.route);
+      if (key === saved.after.route || state.routeBy === MOVED_BY_RUN) {
+        saved.route = key;
+      }
     }
     const ranks = changed.includes("talents") ? state.talents?.ranks : null;
     return (
       state.config !== saved.after.config ||
       state.form?.rotationChoice !== saved.after.choice ||
-      routeKey(state.route) !== saved.after.route ||
+      routeKey(state.route) !== saved.route ||
       (ranks !== undefined &&
         ranks !== null &&
         talentDifferences({ talents: saved.after.talents }, ranks).length > 0)
@@ -352,6 +365,8 @@ export function createPresetBuild(store, formActions) {
         build,
         text: appliedText(build, parts, level),
         undoName: undoName(parts),
+        // Where Undo may be now: the page, or where Run moved it.
+        route: routeKey(now.route),
         after: {
           config: now.config,
           choice: now.form.rotationChoice,
