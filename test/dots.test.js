@@ -296,6 +296,28 @@ describe("DoT ticks on events (DotTicks)", () => {
     scheduler.runToEnd();
   });
 
+  // #305: the carry keeps each pending tick's seq, so a run that goes on
+  // resumes two ticks at one time in the order they were scheduled.
+  it("gives the pending tick's seq, the order it runs in at its time, or null", () => {
+    const { scheduler, dots, at } = setup();
+    assert.equal(dots.seq("never"), null);
+    at(0, (d) => {
+      d.apply("b", { interval: 2, duration: 4 });
+      d.apply("a", { interval: 2, duration: 4 });
+      assert.ok(d.seq("b") < d.seq("a"));
+      assert.equal(d.nextTickAt("a"), d.nextTickAt("b"));
+    });
+    at(1, (d) => {
+      // A restart schedules a new tick, after the other's.
+      d.apply("b", { interval: 1, duration: 2 });
+      assert.ok(d.seq("a") < d.seq("b"));
+      assert.equal(d.nextTickAt("b"), d.nextTickAt("a"));
+    });
+    scheduler.runToEnd();
+    assert.equal(dots.seq("a"), null);
+    assert.equal(dots.seq("b"), null);
+  });
+
   it("runs a dot-tick after an expiry and before a swing and a decision at the same time", () => {
     const order = [];
     const scheduler = new Scheduler({
@@ -366,6 +388,7 @@ describe("DoT ticks on events (DotTicks)", () => {
         () => dots.endsAt(id),
         () => dots.remaining(id),
         () => dots.nextTickAt(id),
+        () => dots.seq(id),
         () => dots.ticks(id),
       ]) {
         assert.throws(call, {
