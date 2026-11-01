@@ -17,6 +17,7 @@ import {
 import { defaultRotation } from "../js/rotation-default.js";
 import { k } from "../data/constants.js";
 import {
+  BUTTON_NAMES,
   BUTTON_TEXT,
   COPIED_MS,
   COPIED_TEXT,
@@ -37,7 +38,7 @@ const POWER_VALUE = "900";
 const TOO_LONG =
   "This rotation is too long to share as a link. Export it as a file instead (Rotation › Export or import).";
 const SHARE_HINT =
-  "To share talents, gear and the rotation together, use Copy link.";
+  "To share talents, gear and the rotation together, use Copy link to this build, at the top of the page and on Results.";
 
 let server;
 let base;
@@ -139,6 +140,25 @@ describe("Copy link to this build (#284)", () => {
       try {
         const header = page.locator("#share-link-header");
         assert.equal(await text(page, "#share-link-header"), BUTTON_TEXT);
+        // Fran's #299 P2: each button's name says its row, visible text first.
+        for (const [name, label] of Object.entries(BUTTON_NAMES)) {
+          assert.ok(label.startsWith(BUTTON_TEXT), label);
+          assert.equal(
+            await page.getAttribute(`#share-link-${name}`, "aria-label"),
+            label,
+          );
+          assert.equal(
+            await page.getAttribute(`#share-link-${name}`, "aria-describedby"),
+            `share-too-long-${name}`,
+          );
+        }
+        assert.equal(new Set(Object.values(BUTTON_NAMES)).size, 3);
+        assert.equal(
+          await page
+            .getByRole("button", { name: BUTTON_NAMES.header, exact: true })
+            .count(),
+          1,
+        );
         assert.ok((await height(page, "#share-link-header")) >= TARGET_LEAST);
         assert.ok(await fitsPage(page), `${width}: the header fits`);
 
@@ -320,12 +340,26 @@ describe("Copy link to this build (#284)", () => {
       const { context, page, errors } = await open(width, link);
       try {
         assert.equal(await text(page, "#share-banner-text"), NOTICES.loaded);
+        assert.equal(
+          await page.evaluate(
+            () =>
+              getComputedStyle(document.getElementById("share-banner"))
+                .borderTopColor,
+          ),
+          "rgb(231, 189, 85)",
+        );
         await go(page, "#results/average", "#share-link-average");
         await page.locator("#share-link-average").click();
         await page
           .locator("#share-too-long-average")
           .waitFor({ state: "visible" });
         assert.equal(await text(page, "#share-too-long-average"), TOO_LONG);
+        // Fran's #299 P1: said aloud, not only shown.
+        await page.waitForFunction(
+          (said) =>
+            document.getElementById("run-announce").textContent === said,
+          TOO_LONG,
+        );
         assert.equal(
           await page.locator("#share-link-average").isDisabled(),
           false,
@@ -352,6 +386,14 @@ describe("Copy link to this build (#284)", () => {
       const { context, page, errors } = await open(WIDTHS[0], address);
       try {
         assert.equal(await text(page, "#share-banner-text"), notice);
+        assert.match(notice, /Nothing was loaded/);
+        // Fran's #299 P4: a warning does not look like the success banner.
+        const border = await page.evaluate(
+          () =>
+            getComputedStyle(document.getElementById("share-banner"))
+              .borderTopColor,
+        );
+        assert.equal(border, "rgb(241, 147, 137)");
         await page.locator(HASTE).waitFor({ state: "visible" });
         assert.equal(await page.locator(HASTE).inputValue(), "0");
         assert.equal(
@@ -365,7 +407,7 @@ describe("Copy link to this build (#284)", () => {
     }
   });
 
-  test("Rotation › Export or import points to Copy link", async () => {
+  test("Rotation › Export or import points to Copy link to this build", async () => {
     const { context, page } = await open(WIDTHS[0], "#rotation/share");
     try {
       await page.locator(".share-hint").waitFor({ state: "visible" });

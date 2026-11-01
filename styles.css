@@ -3398,6 +3398,14 @@ th[aria-sort="ascending"] {
   background: var(--surface-raised);
 }
 
+/* A link that loaded nothing is a warning, not a success (Fran's #299 P4):
+   the error colour of .field-error, and the text says nothing was loaded. */
+.share-banner[data-notice="newer"],
+.share-banner[data-notice="corrupt"] {
+  border-color: #f19389;
+  border-left-width: 0.25rem;
+}
+
 .share-banner[hidden] {
   display: none;
 }

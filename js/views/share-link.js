@@ -10,18 +10,27 @@
 //
 // The banner says what a link opened on load did ("loaded", "newer" or
 // "corrupt"); it sits under the shown area's h1, following the route, until
-// dismissed.
+// dismissed. "newer" and "corrupt" are warnings, styled apart from
+// "loaded" by data-notice (styles.css), and say that nothing was loaded.
 
 // The longest share link the button makes (#284): 8 KB.
 export const LINK_CAP = 8192;
 export const COPIED_MS = 2000;
 export const BUTTON_TEXT = "Copy link to this build";
 export const COPIED_TEXT = "Link copied";
+// Each button's accessible name (Fran's #299 P2): the visible label first
+// (label in name), then which row it is on.
+export const BUTTON_NAMES = Object.freeze({
+  header: `${BUTTON_TEXT} (header)`,
+  average: `${BUTTON_TEXT} (average result)`,
+  live: `${BUTTON_TEXT} (live fight)`,
+});
 export const NOTICES = Object.freeze({
   loaded: "Loaded a shared build. Press Run to see its DPS.",
-  newer: "This link was made with a newer version of the sim.",
+  newer:
+    "This link is from a newer version. Nothing was loaded; update the page and try again.",
   corrupt:
-    "This link is damaged, so nothing was loaded. The build on the page is unchanged.",
+    "This link is damaged. Nothing was loaded; the build on the page is unchanged.",
 });
 
 export function createShareLinkView(doc, store, { linkOf, notice = null }) {
@@ -59,12 +68,14 @@ export function createShareLinkView(doc, store, { linkOf, notice = null }) {
   const copied = (name, part) => {
     show(part, null);
     part.button.textContent = COPIED_TEXT;
+    part.button.setAttribute("aria-label", COPIED_TEXT);
     announce(COPIED_TEXT);
     view?.clearTimeout?.(timers.get(name));
     timers.set(
       name,
       view?.setTimeout?.(() => {
         part.button.textContent = BUTTON_TEXT;
+        part.button.setAttribute("aria-label", BUTTON_NAMES[name]);
       }, COPIED_MS),
     );
   };
@@ -81,6 +92,8 @@ export function createShareLinkView(doc, store, { linkOf, notice = null }) {
     const url = linkOf();
     if (url.length > LINK_CAP) {
       show(part, "too-long");
+      // Said aloud too (Fran's #299 P1), not only shown.
+      announce(part.tooLong.textContent.replace(/\s+/g, " ").trim());
       return;
     }
     const clipboard = view?.navigator?.clipboard;
