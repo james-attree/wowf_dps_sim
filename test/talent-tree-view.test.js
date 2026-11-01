@@ -415,7 +415,8 @@ describe("talent tree view (#204)", () => {
 
   it("a not-simulated talent gets the poison note, described by the steppers", () => {
     const { tile, $ } = page();
-    tile("subtlety.camouflage").focus();
+    // Camouflage was the example until #269 marked it no DPS.
+    tile("subtlety.improved-ambush").focus();
     const note = $("talents-detail").find(
       (node) => node.getAttribute("id") === "talents-detail-note",
     );

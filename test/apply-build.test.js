@@ -12,6 +12,7 @@ import {
   validateBuild,
 } from "../js/talent-build.js";
 import { talentCatalogue } from "../js/talents.js";
+import { SUBTLETY_BUILD } from "../scripts/golden-update.mjs";
 import { referenceBuild } from "./talentsforever.js";
 
 // D7 (#106): a selected talent build in config.talents is validated and applied
@@ -299,16 +300,18 @@ describe("applyBuild", () => {
 
   it("an illegal build is an error, and an unmodelled talent is only reported", () => {
     assert.throws(() => applyBuild({ "combat.precision": 3 }), RangeError);
-    // Camouflage is a legal talent with no entry in the effects data. Venom
-    // was the example until #268 mapped it, and every Assassination talent
-    // with it.
-    assert.equal(TALENT_EFFECTS["subtlety.camouflage"], undefined);
-    const withCamouflage = swap(BOUNDARY, {
-      "assassination.venom": 0,
-      "subtlety.camouflage": 1,
+    // Improved Ambush and Preparation are legal talents with no entry in the
+    // effects data. Venom was the example until #268 mapped it, and every
+    // Assassination talent with it; Camouflage until #269 marked it no DPS.
+    assert.equal(TALENT_EFFECTS["subtlety.improved-ambush"], undefined);
+    assert.equal(TALENT_EFFECTS["subtlety.preparation"], undefined);
+    const withAmbush = swap(SUBTLETY_BUILD, {
+      "subtlety.camouflage": 2,
+      "subtlety.improved-ambush": 1,
     });
-    assert.deepEqual(applyBuild(withCamouflage).unmapped, [
-      "subtlety.camouflage",
+    assert.deepEqual(applyBuild(withAmbush).unmapped, [
+      "subtlety.improved-ambush",
+      "subtlety.preparation",
     ]);
   });
 

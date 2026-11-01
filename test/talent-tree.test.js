@@ -253,20 +253,27 @@ describe("talent tree model (#204)", () => {
     // Vile Poisons, Improved Poisons, Seal Fate and Murder (+5) and marks
     // Improved Gouge, Remorseless Attacks and Improved Kidney Shot as no DPS
     // (+3): 25 / 9 / 19. #267 simulates Mutilate: 26 / 9 / 18. #268
-    // simulates Improved Expose Armor and Venom: 28 / 9 / 16.
-    assert.deepEqual(counts, { simulated: 28, noDps: 9, notSimulated: 16 });
+    // simulates Improved Expose Armor and Venom: 28 / 9 / 16. #269
+    // simulates Opportunity, Serrated Blades, Quietus and Thousand Cuts (+4)
+    // and marks eight Subtlety talents as no DPS (+8): 32 / 17 / 4.
+    assert.deepEqual(counts, { simulated: 32, noDps: 17, notSimulated: 4 });
   });
 
   it("counts picked talents the sim does not model yet in the summary", () => {
     const { tree, talents } = setup();
-    tree.add("subtlety.camouflage");
+    // Camouflage was the example until #269 marked it no DPS. Improved Ambush
+    // is on row 2, so five points go on row 1 first.
+    for (let point = 0; point < 5; point += 1) {
+      tree.add("subtlety.camouflage");
+    }
+    tree.add("subtlety.improved-ambush");
     assert.equal(
       talents().view.summary,
-      "Subtlety 0/0/1 · 1/51 · 1 not simulated yet",
+      "Subtlety 0/0/6 · 6/51 · 1 not simulated yet",
     );
     assert.match(
       talents().view.effects.coverage.notSimulated,
-      /^Not simulated yet: Camouflage \(1\)\. Their points add no DPS\.$/,
+      /^Not simulated yet: Improved Ambush \(1\)\. Their points add no DPS\.$/,
     );
   });
 

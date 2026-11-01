@@ -172,6 +172,65 @@ const VENOM_EXPOSE_ROTATION = deepFreeze({
   ],
 });
 
+// Issue #269. A Subtlety build of 51 points on the dagger/dagger alternate:
+// the four passives at their top rank (Opportunity, Serrated Blades, Quietus,
+// Thousand Cuts) with Hemorrhage, the eight no-DPS Subtlety talents and
+// Preparation (unmapped, #270) to reach Quietus and Thousand Cuts, and 20
+// Assassination points for crit (Malice, Lethality) and finishers.
+export const SUBTLETY_BUILD = deepFreeze({
+  "assassination.improved-gouge": 1,
+  "assassination.malice": 5,
+  "assassination.ruthlessness": 3,
+  "assassination.murder": 2,
+  "assassination.improved-slice-and-dice": 3,
+  "assassination.relentless-strikes": 1,
+  "assassination.lethality": 5,
+  "subtlety.camouflage": 3,
+  "subtlety.opportunity": 2,
+  "subtlety.setup": 3,
+  "subtlety.dirty-tricks": 2,
+  "subtlety.master-of-deception": 2,
+  "subtlety.ghostly-strike": 1,
+  "subtlety.improved-distract": 2,
+  "subtlety.serrated-blades": 3,
+  "subtlety.heightened-senses": 2,
+  "subtlety.elusiveness": 1,
+  "subtlety.dirty-deeds": 2,
+  "subtlety.preparation": 1,
+  "subtlety.hemorrhage": 1,
+  "subtlety.quietus": 5,
+  "subtlety.thousand-cuts": 1,
+});
+
+// At 5 CP: Rupture when it is (nearly) down, else Eviscerate. Otherwise
+// Hemorrhage when its debuff is (nearly) down, else Backstab. Rupture's ticks
+// stack Thousand Cuts, which Hemorrhage and Backstab use; Hemorrhage takes
+// Quietus after 0.65 of the fight.
+const UNDER_FIVE_CP = deepFreeze({ type: "comboPoints", op: "<", value: 5 });
+export const SUBTLETY_ROTATION = deepFreeze({
+  schemaVersion: 1,
+  name: "Rupture, Eviscerate, Hemorrhage, then Backstab",
+  rules: [
+    {
+      action: "rupture",
+      conditions: [
+        FIVE_CP,
+        { type: "debuffRemaining", debuff: "rupture", op: "<", value: 1 },
+      ],
+    },
+    { action: "eviscerate", conditions: [FIVE_CP] },
+    {
+      action: "hemorrhage",
+      conditions: [
+        { type: "abilityGranted", ability: "hemorrhage" },
+        UNDER_FIVE_CP,
+        { type: "debuffRemaining", debuff: "hemorrhage", op: "<", value: 1 },
+      ],
+    },
+    { action: "backstab", conditions: [UNDER_FIVE_CP] },
+  ],
+});
+
 export const GOLDEN_CASES = deepFreeze([
   { name: "short-seed-1-10s", seed: 1, duration: 10 },
   { name: "five-minute-seed-1-300s", seed: 1, duration: 300 },
@@ -258,6 +317,20 @@ export const GOLDEN_CASES = deepFreeze([
       talents: { ...VENOM_BUILD },
       poisons: { mainHand: "instant", offHand: "deadly" },
       rotation: VENOM_EXPOSE_ROTATION,
+    },
+  },
+  // Issue #269. The Subtlety build above on the dagger/dagger alternate with
+  // no poisons, so Opportunity, Serrated Blades, Thousand Cuts and Quietus
+  // all act; the fight is told its 60 s, so Quietus is on after 39 s.
+  {
+    name: "subtlety-build-seed-269-60s",
+    seed: 269,
+    duration: 60,
+    config: {
+      character: defaultDaggerConfig().character,
+      weapons: defaultDaggerConfig().weapons,
+      talents: { ...SUBTLETY_BUILD },
+      rotation: SUBTLETY_ROTATION,
     },
   },
 ]);
