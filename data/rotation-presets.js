@@ -161,17 +161,18 @@ export const ROTATION_PRESETS = deepFreeze([
     },
   },
   // Issue #272. Assassination on daggers: the finishers keep Slice and Dice,
-  // Rupture and Venom up, and Eviscerate takes the 5 CP none of them needs;
-  // Mutilate builds. Cold Blood goes on the next Mutilate (its crits roll
+  // Rupture and Venom up. Eviscerate is a fallback for 5 CP none of them
+  // needs, which never happens with the reference build (0 casts on every
+  // seed measured, Kira's #304 N3); Mutilate builds. Cold Blood goes on the next Mutilate (its crits roll
   // Seal Fate), as Cold Blood does nothing for Rupture or Venom.
   {
     id: "assassination-daggers",
-    name: "Assassination daggers",
+    name: "Assassination",
     description:
-      "Slice and Dice, Rupture and Venom kept up, Eviscerate with the spare 5 CP, Cold Blood on cooldown for Mutilate, Mutilate to build.",
+      "Slice and Dice, Rupture and Venom kept up, Eviscerate only as a fallback (the reference build never reaches it), Cold Blood on cooldown for Mutilate, Mutilate to build.",
     rotation: {
       schemaVersion: 1,
-      name: "Assassination daggers",
+      name: "Assassination",
       rules: [
         ...sliceAndDiceRules(),
         ruptureRule(),
@@ -197,19 +198,20 @@ export const ROTATION_PRESETS = deepFreeze([
   },
   // Issue #272. Subtlety on daggers: Premeditation on cooldown when its 2 CP
   // fit, Preparation while Ghostly Strike is on cooldown (Premeditation is
-  // too), the Slice and Dice and Rupture finishers and Eviscerate, then
+  // too), the Slice and Dice and Rupture finishers and Eviscerate (a fallback
+  // the reference build never reaches, Kira's #304 N3), then
   // Ambush (only when a Cutthroat proc allows it: there is no stealth
   // opener, and the rule has no aura condition, so it is passed over
   // otherwise), Ghostly Strike, Hemorrhage to keep its debuff up, and
   // Backstab.
   {
     id: "subtlety-daggers",
-    name: "Subtlety daggers",
+    name: "Subtlety",
     description:
-      "Premeditation and Ghostly Strike on cooldown and Preparation to reset them, Slice and Dice and Rupture kept up, Eviscerate, Ambush when Cutthroat allows it, Hemorrhage kept up, Backstab to build.",
+      "Premeditation and Ghostly Strike on cooldown and Preparation to reset them, Slice and Dice kept up, Rupture at 5 CP when Slice and Dice allows it (not in every 60 s fight), Eviscerate only as a fallback (the reference build never reaches it), Ambush when Cutthroat allows it, Hemorrhage kept up, Backstab to build.",
     rotation: {
       schemaVersion: 1,
-      name: "Subtlety daggers",
+      name: "Subtlety",
       rules: [
         // Off the GCD, so while it is on cooldown the rule is passed over
         // and needs no cooldownReady.

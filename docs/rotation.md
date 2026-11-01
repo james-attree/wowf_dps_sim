@@ -913,14 +913,15 @@ protected: it lapses until the points are built (a known gap, not handled here).
 ### assassination-daggers
 
 Issue [#272](https://github.com/james-attree/wowf_dps_sim/issues/272).
-Slice and Dice, Rupture and Venom kept up, Eviscerate with the spare 5 CP,
-Cold Blood on cooldown for Mutilate, Mutilate to build. It is written for the
-dagger alternate (Perdition's Blade and Core Hound Tooth) and its reference
-build (`data/preset-reference-builds.js`, below): Mutilate needs a dagger in
-both hands, so on other weapons its rule is passed over. Its summary:
+Slice and Dice, Rupture and Venom kept up, Eviscerate only as a fallback (the
+reference build never reaches it), Cold Blood on cooldown for Mutilate,
+Mutilate to build. It is written for the dagger alternate (Perdition's Blade
+and Core Hound Tooth) and its reference build
+(`data/preset-reference-builds.js`, below): Mutilate needs a dagger in both
+hands, so on other weapons its rule is passed over. Its summary:
 
 ```text
-Assassination daggers
+Assassination
 1. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
 2. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 5s left and Energy >= 100
 3. Rupture if CP >= 5 and Rupture on the target missing or < 1s left
@@ -933,13 +934,16 @@ Assassination daggers
 - 1 and 2: the Slice and Dice pair of combat-swords (#122).
 - 3: Rupture at 5 combo points with less than 1 second left on the target
   (`rotation.pooling.recastSeconds`).
-- 4: Venom at 5 combo points while its aura is down.
+- 4: Venom at 5 combo points while its aura is down. It may go uncast in a
+  short fight (0 casts on 12 of 200 seeds at 60 s, mean 0.94; cast on all 200
+  at 300 s), within Scout's #304 rule for a proc-reliant ability (below).
 - 5: Eviscerate only when none of those three is due, the fallback finisher
-  (the issue lists none). With the reference build, 5 combo points almost
-  always go to one of the three, so it is rarely cast.
+  (the issue lists none). With the reference build, 5 combo points always
+  go to one of the three: Eviscerate was cast 0 times on all 200 seeds
+  measured, at 60 s and at 300 s, with its poisons.
 - 6: Cold Blood below 5 combo points, so its charge goes on the next Mutilate
   (both hands crit, and Seal Fate rolls on each). Cold Blood does nothing for
-  Rupture or Venom, and Eviscerate is rare here.
+  Rupture or Venom, and Eviscerate is not cast here.
 - 7: Mutilate below 5 combo points.
 
 No Expose Armor and no stealth opener.
@@ -948,12 +952,14 @@ No Expose Armor and no stealth opener.
 
 Issue [#272](https://github.com/james-attree/wowf_dps_sim/issues/272).
 Premeditation and Ghostly Strike on cooldown and Preparation to reset them,
-Slice and Dice and Rupture kept up, Eviscerate, Ambush when Cutthroat allows
-it, Hemorrhage kept up, Backstab to build. Written for the dagger alternate and
+Slice and Dice kept up, Rupture at 5 CP when Slice and Dice allows it (not in
+every 60 s fight), Eviscerate only as a fallback (the reference build never
+reaches it), Ambush when Cutthroat allows it,
+Hemorrhage kept up, Backstab to build. Written for the dagger alternate and
 its reference build (the #271 Cutthroat build). Its summary:
 
 ```text
-Subtlety daggers
+Subtlety
 1. Premeditation if Premeditation is granted and CP <= 3
 2. Preparation if Preparation is granted and Preparation is ready and Ghostly Strike is on cooldown
 3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
@@ -976,10 +982,16 @@ Subtlety daggers
   recast rule of the Slice and Dice pair: a share link of this preset must
   stay under 2,048 characters (#284), and the full-energy rule never fired
   with the reference build (the same DPS over 120 seeds at 60 s and 300 s
-  without it).
+  without it). Eviscerate, as in assassination-daggers, was cast 0 times on
+  all 200 seeds measured with the reference build and its poisons. Rupture
+  is not guaranteed in a short fight: at 60 s it was cast 0 times on 26 of
+  the 200 seeds (mean 1.11); at 300 s it was cast on all 200 (mean 4.11).
 - 6: Ambush below 5 combo points, with no condition on the cutthroat aura and
   no lock or hint: it is passed over while the aura is down (no stealth, so a
-  Cutthroat proc from Backstab is the only way it is cast).
+  Cutthroat proc from Backstab is the only way it is cast). It may go uncast
+  in a short fight (0 casts on 90 of 200 seeds at 60 s, mean 0.70; 2 of 200
+  at 300 s), within Scout's #304 rule for a proc-reliant ability: a mean above
+  0 at 60 s and cast on at least 95% of seeds at 300 s.
 - 7: Ghostly Strike when it is ready.
 - 8: Hemorrhage when its debuff on the target has less than 1 second left.
 - 9: Backstab below 5 combo points.
