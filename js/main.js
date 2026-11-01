@@ -8,6 +8,7 @@ import {
 import { buildLabel, poisonName } from "./build-label.js";
 import { createConfigForm } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
+import { createPresetBuild } from "./preset-build.js";
 import { createRotationBuilder } from "./rotation-builder.js";
 import { createRunActions, emptyBatch, emptyRan } from "./run-actions.js";
 import { createStore } from "./store.js";
@@ -17,6 +18,7 @@ import { createCharacterScreensView } from "./views/character-screens.js";
 import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { keepFocusInView } from "./views/focus-in-view.js";
+import { createPresetBuildView } from "./views/preset-build.js";
 import { createResultsView } from "./views/results.js";
 import { createResultsCardView } from "./views/results-card.js";
 import { createResultsPanelView } from "./views/results-panel.js";
@@ -123,6 +125,8 @@ const formActions = createConfigForm(store);
 // The rotation builder (U7, #217) edits a draft through the form's actions;
 // the Run bar's "Fix" link opens it at the first rotation error.
 const builder = createRotationBuilder(store, formActions);
+// The preset's reference build under the Rotation select (#273).
+const presetBuild = createPresetBuild(store, formActions);
 // The page's four areas (#239): each section is one of today's views, drawn
 // into its area's shell in index.html. js/views/sections.js holds their
 // status (what each adds to Run's blocked count); js/views/router.js shows
@@ -137,6 +141,7 @@ const renders = {
   },
   rotation: () => {
     createRotationBuilderView(document, store, builder);
+    createPresetBuildView(document, store, presetBuild);
     // The Run bar is outside the areas: it stays on every screen. It is
     // mounted here to keep the views' order (their store subscriptions) as
     // it was before #239. Run checks the form's typed-in fields first (#247).

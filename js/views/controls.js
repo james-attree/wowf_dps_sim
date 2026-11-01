@@ -167,6 +167,7 @@ export function createControlsView(doc, store, actions = {}) {
 
   let lastAnnounce = null;
   let lastStale = null;
+  let lastBuildSaid = null;
   let lastFocus = null;
   function render(state) {
     const model = controlsModel(state);
@@ -289,9 +290,22 @@ export function createControlsView(doc, store, actions = {}) {
     // A kept result going out of date is said once per change (#242): when
     // an edit makes one stale, not on each edit after it.
     const stale = staleKinds(state);
-    if (lastStale !== null && stale.some((kind) => !lastStale.includes(kind))) {
+    const newlyStale =
+      lastStale !== null && stale.some((kind) => !lastStale.includes(kind));
+    // A preset's reference build applied or undone (#273) is one message
+    // with the results going out of date: "Talents and weapons replaced.
+    // Results out of date."
+    const buildSaid = state.presetBuild?.announce ?? null;
+    if (buildSaid !== null && buildSaid.seq !== lastBuildSaid) {
+      announce(
+        newlyStale
+          ? `${buildSaid.text} ${STALE_ANNOUNCEMENT}.`
+          : buildSaid.text,
+      );
+    } else if (newlyStale) {
       announce(STALE_ANNOUNCEMENT);
     }
+    lastBuildSaid = buildSaid?.seq ?? lastBuildSaid;
     lastStale = stale;
 
     // Focus follows the state's main control, and leaves a control that was
@@ -559,9 +573,16 @@ export function createControlsView(doc, store, actions = {}) {
       joinable = false;
     }
     if (
-      ["run", "batch", "results", "form", "talents", "config", "ran"].some(
-        (s) => changed.includes(s),
-      )
+      [
+        "run",
+        "batch",
+        "results",
+        "form",
+        "talents",
+        "config",
+        "ran",
+        "presetBuild",
+      ].some((s) => changed.includes(s))
     ) {
       render(state);
     }

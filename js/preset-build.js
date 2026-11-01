@@ -1,0 +1,406 @@
+import { poisonName } from "./build-label.js";
+import { originRotation } from "./config-form.js";
+import {
+  listPresets,
+  poisonDifferences,
+  presetRotation,
+  referenceBuild,
+  referencePoison,
+  referenceWeapon,
+  talentDifferences,
+  weaponTypeDifferences,
+} from "./rotation-presets.js";
+import { pointsByTree } from "./talent-build.js";
+import { talentCatalogue } from "./talents.js";
+
+// The preset's reference build (#273, Fran's design/pre-273.md): under the
+// Rotation select, a preset with a reference build (#272,
+// data/preset-reference-builds.js) says what it was built for, and while
+// the build differs from it, a button applies it: "Use its talents,
+// weapons and poisons too". The button replaces the talents, the weapon in
+// each hand (type, damage and speed) and the poisons, and sets level 60
+// below it; the stats are left as they are. After it a line says what was
+// set, with a one-step Undo that puts all of it back. Undo closes on the
+// next build edit, a rotation change or leaving the page.
+//
+// Matching (James's ruling): the talent ranks, the weapon type in each hand
+// and the poisons, from the current build. Weapon damage and speed, the
+// level and the stats are not compared.
+//
+// No DOM: js/views/preset-build.js draws the store's `presetBuild` slice,
+//
+//   { hint, applied, announce, focus }
+//     hint      null, or { presetId, text, label, undoName }: the line under
+//               the select and the button's label, while the build differs.
+//     applied   null, or { text, undoName }: the line after the button was
+//               pressed, and Undo's accessible name.
+//     announce  null, or { text, seq }: the one message for #run-announce
+//               (js/views/controls.js adds "Results out of date." to it when
+//               a kept result goes out of date with it).
+//     focus     null, or { target, seq }: "undo", "button" or "select",
+//               where the focus goes after a press.
+//
+// and main.js hands its actions, { apply, undo }, to that view.
+
+const HANDS = ["mainHand", "offHand"];
+const NBSP = "\u00a0";
+const WEAPON_FIELDS = ["type", "min", "max", "speed"];
+
+// The parts of a build the button replaces, in the order they are named.
+export const BUILD_PARTS = ["talents", "weapons", "poisons"];
+
+// A weapon type as the hint names it: "dagger", "two daggers".
+const WEAPON_NOUNS = {
+  dagger: ["dagger", "daggers"],
+  sword: ["sword", "swords"],
+  mace: ["mace", "maces"],
+  axe: ["axe", "axes"],
+  fist: ["fist weapon", "fist weapons"],
+  other: ["weapon", "weapons"],
+};
+const nounOf = (type, many) => {
+  const nouns = WEAPON_NOUNS[type] ?? [`${type} weapon`, `${type} weapons`];
+  return many ? nouns[1] : nouns[0];
+};
+const article = (word) => (/^[aeiou]/i.test(word) ? "an" : "a");
+
+// "a", "a and b", "a, b and c".
+export function listText(items) {
+  if (items.length <= 1) {
+    return items.join("");
+  }
+  return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
+
+const capital = (text) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+
+// The preset a rotation choice stands for, or null: a preset (edited or
+// not), or an import identical to one (as js/config-form.js's
+// rotationChoiceOf calls a loaded one). The default rotation and other
+// imports have no reference build.
+export function presetOfChoice(form) {
+  const choice = form?.rotationChoice ?? null;
+  if (choice === null) {
+    return null;
+  }
+  const presets = listPresets().map(({ id }) => id);
+  if (presets.includes(choice)) {
+    return choice;
+  }
+  if (choice !== "imported" || (form.imported ?? null) === null) {
+    return null;
+  }
+  const rotation = JSON.stringify(originRotation(choice, form.imported));
+  return (
+    presets.find((id) => JSON.stringify(presetRotation(id)) === rotation) ??
+    null
+  );
+}
+
+// The build the page has now: the talents and level from the config (the
+// talent tree's last valid build), the weapons and poisons from the
+// form's fields (the config's, without a form).
+export function currentBuild(state) {
+  const { config, form } = state;
+  const value = (path, fallback) =>
+    form?.values !== undefined && path in form.values
+      ? form.values[path]
+      : fallback;
+  return {
+    talents: config.talents ?? {},
+    talentLevel: config.talentLevel,
+    weapons: Object.fromEntries(
+      HANDS.map((hand) => [
+        hand,
+        Object.fromEntries(
+          WEAPON_FIELDS.map((field) => [
+            field,
+            value(`weapons.${hand}.${field}`, config.weapons?.[hand]?.[field]),
+          ]),
+        ),
+      ]),
+    ),
+    poisons: Object.fromEntries(
+      HANDS.map((hand) => [
+        hand,
+        value(`poisons.${hand}`, config.poisons?.[hand] ?? null),
+      ]),
+    ),
+  };
+}
+
+// Which parts differ: { talents, weapons, poisons, level }. `level` is
+// whether applying raises the level, not a part that is compared.
+export function buildDifferences(build, current) {
+  const types = weaponTypeDifferences(build, current.weapons);
+  const poisons = poisonDifferences(build, current.poisons);
+  return {
+    talents: talentDifferences(build, current.talents).length > 0,
+    weapons: HANDS.some((hand) => !types[hand].same),
+    poisons: HANDS.some((hand) => !poisons[hand].same),
+    level:
+      !Number.isInteger(current.talentLevel) ||
+      current.talentLevel < build.talentLevel,
+  };
+}
+
+export const differingParts = (differences) =>
+  BUILD_PARTS.filter((part) => differences[part]);
+
+// "Use its talents too", "Use its talents, weapons and poisons too".
+export const buttonLabel = (parts) => `Use its ${listText(parts)} too`;
+
+// "Assassination 41/10/0": the tree with the most points (the first on a
+// tie), then the points in each tree, kept on one line.
+export function treeText(talents, catalogue = talentCatalogue) {
+  const points = pointsByTree(talents, catalogue);
+  const trees = catalogue.trees;
+  const counts = trees.map((tree) => points[tree.id] ?? 0);
+  let top = 0;
+  counts.forEach((count, index) => {
+    if (count > counts[top]) {
+      top = index;
+    }
+  });
+  return `${trees[top].name}${NBSP}${counts.join("/")}`;
+}
+
+// "two daggers", "a sword and a dagger".
+export function weaponsText(weapons) {
+  const [main, off] = HANDS.map((hand) => weapons[hand].type);
+  if (main === off) {
+    return `two ${nounOf(main, true)}`;
+  }
+  return [main, off]
+    .map((type) => `${article(nounOf(type, false))} ${nounOf(type, false)}`)
+    .join(" and ");
+}
+
+// The build's name without its note: "Assassination daggers" for
+// "Assassination daggers (Mutilate, Venom)". The full names run long
+// (#273 watch out) and the note is for the data's readers.
+export const shortName = (build) => build.name.replace(/\s*\(.*\)\s*$/, "");
+
+// The hint under the select: "Built for Assassination 41/10/0 with two
+// daggers." Below the build's level it says the level ("at level 60"); while
+// the poisons differ it names them.
+export function hintText(build, differences, names = poisonName) {
+  const level = differences.level ? ` at level${NBSP}${build.talentLevel}` : "";
+  const poisons = differences.poisons
+    ? `, ${names(referencePoison(build, "mainHand"))} on the main hand and ${names(referencePoison(build, "offHand"))} on the off hand`
+    : "";
+  return `Built for ${treeText(build.talents)}${level} with ${weaponsText(build.weapons)}${poisons}.`;
+}
+
+const levelSentence = (build) => ` Level set to${NBSP}${build.talentLevel}.`;
+
+// The line after the button: "Talents and weapons set to the
+// Assassination daggers build." and "Level set to 60." when it was below.
+export function appliedText(build, parts, level) {
+  return `${capital(listText(parts))} set to the ${shortName(build)} build.${level ? levelSentence(build) : ""}`;
+}
+
+// #run-announce after the button: "Talents and weapons replaced." (and the
+// level); after Undo: "Talents and weapons put back."
+export function announceText(build, parts, level, undone = false) {
+  const what = capital(listText(parts));
+  if (undone) {
+    return `${what}${level ? " and level" : ""} put back.`;
+  }
+  return `${what} replaced.${level ? levelSentence(build) : ""}`;
+}
+
+// Undo's accessible name, which starts with its visible label.
+export const undoName = (parts) => `Undo: put back your ${listText(parts)}`;
+
+// The hint for a state, or null.
+export function hintOf(state) {
+  const presetId = presetOfChoice(state.form);
+  const build = presetId === null ? null : referenceBuild(presetId);
+  if (build === null) {
+    return null;
+  }
+  const differences = buildDifferences(build, currentBuild(state));
+  const parts = differingParts(differences);
+  if (parts.length === 0) {
+    return null;
+  }
+  return {
+    presetId,
+    text: hintText(build, differences),
+    label: buttonLabel(parts),
+  };
+}
+
+// The form fields the button writes: { "weapons.mainHand.type": ..., ... }.
+export function buildValues(build) {
+  const values = {};
+  for (const hand of HANDS) {
+    const weapon = referenceWeapon(build, hand);
+    for (const field of WEAPON_FIELDS) {
+      values[`weapons.${hand}.${field}`] = weapon[field];
+    }
+    values[`poisons.${hand}`] = referencePoison(build, hand);
+  }
+  return values;
+}
+
+// The same fields as they are now, for Undo.
+export function savedValues(current) {
+  const values = {};
+  for (const hand of HANDS) {
+    for (const field of WEAPON_FIELDS) {
+      values[`weapons.${hand}.${field}`] = current.weapons[hand][field];
+    }
+    values[`poisons.${hand}`] = current.poisons[hand];
+  }
+  return values;
+}
+
+const routeKey = (route) =>
+  route === undefined || route === null
+    ? ""
+    : JSON.stringify([route.area, route.sub ?? null, route.param ?? null]);
+
+// The model. `formActions` is js/config-form.js's: applyBuild writes the
+// fields and the config in one change. Returns { apply, undo }.
+export function createPresetBuild(store, formActions) {
+  // What Undo puts back, and the state just after the press it undoes.
+  let saved = null;
+  let seq = 0;
+  let focusSeq = 0;
+
+  const slice = () =>
+    store.get().presetBuild ?? {
+      hint: null,
+      applied: null,
+      announce: null,
+      focus: null,
+    };
+
+  function refresh(extra = {}) {
+    const state = store.get();
+    const hint = hintOf(state);
+    const applied =
+      saved === null ? null : { text: saved.text, undoName: saved.undoName };
+    store.set({
+      presetBuild: { ...slice(), hint, applied, ...extra },
+    });
+  }
+
+  // Still the state the press left? A build edit (any config change, or
+  // a talent rank the tree holds back from the config), another rotation
+  // or another screen closes Undo.
+  // The tree's ranks are checked on its own changes only: it catches up
+  // with the config one change after the press.
+  function closes(state, changed) {
+    if (saved === null) {
+      return false;
+    }
+    const ranks = changed.includes("talents") ? state.talents?.ranks : null;
+    return (
+      state.config !== saved.after.config ||
+      state.form?.rotationChoice !== saved.after.choice ||
+      routeKey(state.route) !== saved.after.route ||
+      (ranks !== undefined &&
+        ranks !== null &&
+        talentDifferences({ talents: saved.after.talents }, ranks).length > 0)
+    );
+  }
+
+  const nextFocus = (target) => {
+    focusSeq += 1;
+    return { target, seq: focusSeq };
+  };
+  const nextAnnounce = (text) => {
+    seq += 1;
+    return { text, seq };
+  };
+
+  function apply() {
+    const state = store.get();
+    const presetId = presetOfChoice(state.form);
+    const build = presetId === null ? null : referenceBuild(presetId);
+    if (build === null) {
+      return false;
+    }
+    const current = currentBuild(state);
+    const differences = buildDifferences(build, current);
+    const parts = differingParts(differences);
+    if (parts.length === 0) {
+      return false;
+    }
+    const level = differences.level;
+    const before = {
+      values: savedValues(current),
+      talents: { ...current.talents },
+      talentLevel: current.talentLevel,
+    };
+    store.batch(() => {
+      formActions.applyBuild({
+        values: buildValues(build),
+        talents: build.talents,
+        talentLevel: level ? build.talentLevel : current.talentLevel,
+      });
+      const now = store.get();
+      saved = {
+        before,
+        parts,
+        level,
+        build,
+        text: appliedText(build, parts, level),
+        undoName: undoName(parts),
+        after: {
+          config: now.config,
+          choice: now.form.rotationChoice,
+          route: routeKey(now.route),
+          talents: { ...build.talents },
+        },
+      };
+      refresh({
+        announce: nextAnnounce(announceText(build, parts, level)),
+        focus: nextFocus("undo"),
+      });
+    });
+    return true;
+  }
+
+  function undo() {
+    if (saved === null) {
+      return false;
+    }
+    const { before, parts, level, build } = saved;
+    saved = null;
+    store.batch(() => {
+      formActions.applyBuild(before);
+      const hint = hintOf(store.get());
+      refresh({
+        announce: nextAnnounce(announceText(build, parts, level, true)),
+        focus: nextFocus(hint === null ? "select" : "button"),
+      });
+    });
+    return true;
+  }
+
+  refresh();
+  store.subscribe(({ state, changed }) => {
+    if (changed.length === 1 && changed[0] === "presetBuild") {
+      return;
+    }
+    if (closes(state, changed)) {
+      saved = null;
+    }
+    const hint = hintOf(state);
+    const current = slice();
+    const applied =
+      saved === null ? null : { text: saved.text, undoName: saved.undoName };
+    if (
+      JSON.stringify(hint) !== JSON.stringify(current.hint) ||
+      JSON.stringify(applied) !== JSON.stringify(current.applied)
+    ) {
+      store.set({ presetBuild: { ...current, hint, applied } });
+    }
+  });
+
+  return { apply, undo };
+}
