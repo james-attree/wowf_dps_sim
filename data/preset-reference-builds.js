@@ -1,4 +1,6 @@
 import { k } from "./constants.js";
+import { referenceBuild as combatReferenceTalents } from "./reference-build.js";
+import { talentLevelRange } from "../js/talent-build.js";
 
 // The reference build each preset rotation is written for (issue #272), as
 // data: the talent ranks and the two weapons. Nothing here, and nothing in
@@ -8,26 +10,22 @@ import { k } from "./constants.js";
 // what to change.
 //
 // PRESET_REFERENCE_BUILDS is keyed by the preset id (data/rotation-presets.js).
-// A preset with no entry has no reference build: js/preset-reference-builds.js
-// referenceBuild gives null for it. Each entry:
+// Every preset has one (James's decision, relayed by Scout on 1 Nov 2026: the
+// Combat swords preset gets one too). A preset with no entry would have no
+// reference build, and js/preset-reference-builds.js referenceBuild would give
+// null for it. Each entry:
 //
 //   name          the build's display name
+//   talentLevel   the talent level the build is for: 60 for every build
+//                 (James's decision, relayed by Scout). It is the
+//                 SimConfig.talentLevel field, so #273's button can set
+//                 config.talentLevel to it when the config is below it (and
+//                 the page says so). Nothing in #272 applies it.
 //   talents       { talent id: rank }, as SimConfig.talents: a rank of 0 is
-//                 left out. A legal build for its level (all 51 points at 60).
+//                 left out. A legal build at its talentLevel (51 points at 60).
 //   weapons       { mainHand, offHand }, each { type, min, max, speed }: the
 //                 SimConfig weapon shape (js/sim-config.js), so a hand can be
 //                 put into config.weapons as it is.
-//
-// Optional fields the shape allows, so #273 can add them without a change
-// here. Neither is set today; James has not decided either:
-//
-//   talentLevel   the level the build is for (10 to 60). When it is set, the
-//                 talents must be legal at that level, and a button may set
-//                 config.talentLevel to it. Absent: the talents are checked
-//                 at level 60, and nothing says the config's level changes.
-//   (an entry for "combat-swords")  the Combat preset may get a reference
-//                 build of its own, e.g. the #151 build on the sword alternate.
-//                 Absent: referenceBuild("combat-swords") is null.
 //
 // js/preset-reference-builds.js checks every entry when it is imported.
 
@@ -37,6 +35,21 @@ const DAGGERS = {
   mainHand: k("weapon.dagger.mainHand"),
   offHand: k("weapon.dagger.offHand"),
 };
+
+// The default config's swords (js/sim-config.js defaultConfig reads the same
+// weapon.mainHand and weapon.offHand rows), in the SimConfig shape: the
+// offhand's initial swing is not a config field.
+const swordHand = (hand) => {
+  const { type, min, max, speed } = k(`weapon.${hand}`);
+  return { min, max, speed, type };
+};
+const SWORDS = {
+  mainHand: swordHand("mainHand"),
+  offHand: swordHand("offHand"),
+};
+
+// Every build is for level 60, the top talent level (51 points).
+const LEVEL_60 = talentLevelRange().max;
 
 function deepFreeze(value) {
   if (value !== null && typeof value === "object") {
@@ -51,8 +64,18 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
   // Expose Armor): its two points go to Puncturing Wounds 2/3, Mutilate's
   // crit. 41 Assassination (Cold Blood, Seal Fate, Mutilate, Venom) and 10
   // Combat: 51 points.
+  // The current defaults: the #151 reference Combat build (data/reference-
+  // build.js, the build the combat-swords preset and its #164 golden use)
+  // with the default config's swords in both hands.
+  "combat-swords": {
+    name: "Combat swords (the #151 reference build)",
+    talentLevel: LEVEL_60,
+    talents: combatReferenceTalents(),
+    weapons: SWORDS,
+  },
   "assassination-daggers": {
     name: "Assassination daggers (Mutilate, Venom)",
+    talentLevel: LEVEL_60,
     talents: {
       "assassination.remorseless-attacks": 2,
       "assassination.malice": 5,
@@ -80,6 +103,7 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
   // Improved Ambush, Initiative and Thousand Cuts: 51 points.
   "subtlety-daggers": {
     name: "Subtlety daggers (Hemorrhage, Cutthroat)",
+    talentLevel: LEVEL_60,
     talents: {
       "assassination.malice": 5,
       "assassination.ruthlessness": 3,

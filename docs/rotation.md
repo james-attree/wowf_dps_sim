@@ -986,22 +986,24 @@ Subtlety daggers
 
 #### Reference builds (#272)
 
-`data/preset-reference-builds.js` holds the build each dagger preset is
-written for, keyed by preset id: `{ name, talents, weapons }`, where `talents`
-is `{ talent id: rank }` (a legal 51-point build) and `weapons` is
+`data/preset-reference-builds.js` holds the build each preset is written for,
+keyed by preset id: `{ name, talentLevel, talents, weapons }`. `talentLevel` is
+60 for every build (James's decision, relayed by Scout); `talents` is
+`{ talent id: rank }` (a legal 51-point build) and `weapons` is
 `{ mainHand, offHand }`, each `{ type, min, max, speed }` (the SimConfig
-weapon shape, here `weapon.dagger.mainHand` and `weapon.dagger.offHand`).
+weapon shape). combat-swords' build is the current defaults: the #151
+reference Combat talents (`data/reference-build.js`) with the default config's
+swords in both hands. The two dagger presets' builds use
+`weapon.dagger.mainHand` and `weapon.dagger.offHand`.
 **Loading a preset does not load its build**: `loadPreset` sets the rotation
-only, and nothing in the app puts a reference build into a config yet (#273).
-`js/preset-reference-builds.js` (re-exported by `js/rotation-presets.js`) is
-the API for that: `referenceBuild(id)` (a
-copy, or `null` for a preset with none, such as combat-swords today),
+only, and nothing in the app puts a reference build into a config yet. #273
+will, and will set `config.talentLevel` to 60 when the config is below it
+(the page says so). `js/preset-reference-builds.js` (re-exported by
+`js/rotation-presets.js`) is the API for that: `referenceBuild(id)` (a copy),
 `talentDifferences(build, talents)` (each talent whose rank differs),
 `weaponTypeDifferences(build, weapons)` (the type in each hand) and
-`referenceWeapon(build, hand)` (a hand to put into `config.weapons`). Two
-optional fields are allowed and checked but not set, as James has not decided
-them: `talentLevel` (the level the build is for), and an entry for
-combat-swords. A build carries no character sheet and no poisons.
+`referenceWeapon(build, hand)` (a hand to put into `config.weapons`). A build
+carries no character sheet and no poisons.
 
 ## Import and export
 

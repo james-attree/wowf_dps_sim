@@ -13,7 +13,8 @@ import {
 } from "../js/preset-reference-builds.js";
 import { listPresets, loadPreset } from "../js/rotation-presets.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
-import { buildProblems } from "../js/talent-build.js";
+import { buildProblems, talentLevelRange } from "../js/talent-build.js";
+import { referenceBuild as combatReferenceTalents } from "../data/reference-build.js";
 
 // Issue #272 (P4.6-06): the Assassination and Subtlety presets, and the
 // reference build (talents and daggers) each is written for. Loading a preset
@@ -22,6 +23,8 @@ import { buildProblems } from "../js/talent-build.js";
 
 const ASSASSINATION = "assassination-daggers";
 const SUBTLETY = "subtlety-daggers";
+const COMBAT = "combat-swords";
+const LEVEL_60 = talentLevelRange().max;
 const SIGNATURES = {
   [ASSASSINATION]: ["mutilate", "venom"],
   [SUBTLETY]: ["hemorrhage", "ambush", "preparation"],
@@ -193,28 +196,86 @@ describe("the Assassination and Subtlety presets (#272)", () => {
 });
 
 describe("the preset reference builds (#272, for #273)", () => {
-  it("has one for each dagger preset, and none (yet) for Combat swords", () => {
+  it("has one for each of the three presets (James's decision, relayed by Scout)", () => {
     assert.deepEqual(Object.keys(PRESET_REFERENCE_BUILDS).sort(), [
       ASSASSINATION,
+      COMBAT,
       SUBTLETY,
     ]);
-    assert.equal(referenceBuild("combat-swords"), null);
+    for (const { id } of listPresets()) {
+      assert.notEqual(referenceBuild(id), null, id);
+    }
     assert.throws(() => referenceBuild("nope"), RangeError);
   });
 
-  it("each is a legal level 60 build of 51 points, with the dagger alternate in both hands", () => {
-    for (const id of [ASSASSINATION, SUBTLETY]) {
+  it("every build carries talent level 60, which #273 sets on a config below it", () => {
+    assert.equal(LEVEL_60, 60);
+    for (const id of [ASSASSINATION, COMBAT, SUBTLETY]) {
+      assert.equal(referenceBuild(id).talentLevel, LEVEL_60, id);
+    }
+  });
+
+  it("each is a legal level 60 build of 51 points", () => {
+    for (const id of [ASSASSINATION, COMBAT, SUBTLETY]) {
       const build = referenceBuild(id);
-      assert.deepEqual(buildProblems(build.talents), [], id);
+      assert.deepEqual(
+        buildProblems(build.talents, { level: LEVEL_60 }),
+        [],
+        id,
+      );
       const points = Object.values(build.talents).reduce((a, b) => a + b, 0);
       assert.equal(points, 51, id);
+    }
+  });
+
+  it("the dagger presets' builds have the dagger alternate in both hands", () => {
+    for (const id of [ASSASSINATION, SUBTLETY]) {
+      const build = referenceBuild(id);
       assert.deepEqual(build.weapons.mainHand, k("weapon.dagger.mainHand"));
       assert.deepEqual(build.weapons.offHand, k("weapon.dagger.offHand"));
-      assert.equal(
-        build.talentLevel,
-        undefined,
-        "the level flag is James's call",
-      );
+    }
+  });
+
+  it("Combat swords' build is the current defaults: the #151 Combat talents and the default config's swords", () => {
+    const build = referenceBuild(COMBAT);
+    assert.deepEqual(build.talents, combatReferenceTalents());
+    const defaults = defaultConfig();
+    assert.deepEqual(build.weapons, defaults.weapons);
+    assert.equal(build.weapons.mainHand.type, "sword");
+    assert.equal(build.weapons.offHand.type, "sword");
+    assert.equal(build.talentLevel, defaults.talentLevel);
+    // Applying it to the default config changes no talent and no weapon type.
+    assert.deepEqual(talentDifferences(build, combatReferenceTalents()), []);
+    const types = weaponTypeDifferences(build, defaults.weapons);
+    assert.equal(types.mainHand.same && types.offHand.same, true);
+    // Each hand put into a config reads back as the default hand.
+    const config = normalizeConfig({
+      weapons: {
+        mainHand: referenceWeapon(build, "mainHand"),
+        offHand: referenceWeapon(build, "offHand"),
+      },
+    });
+    assert.deepEqual(config.weapons, normalizeConfig(defaultConfig()).weapons);
+  });
+
+  it("Combat swords with its build casts its cooldowns and finishers", () => {
+    const build = referenceBuild(COMBAT);
+    const config = loadPreset(COMBAT, {
+      talents: { ...build.talents },
+      weapons: build.weapons,
+    });
+    for (const seed of SEEDS) {
+      const fight = createFight(seed, config);
+      fight.simulation.run(LONG_FIGHT);
+      const stats = fight.simulation.abilityStats;
+      for (const id of [
+        "blade-flurry",
+        "adrenaline-rush",
+        "slice-and-dice",
+        "sinister-strike",
+      ]) {
+        assert.ok(stats[id]?.casts > 0, `${id} seed ${seed}`);
+      }
     }
   });
 
@@ -309,20 +370,16 @@ describe("the preset reference builds (#272, for #273)", () => {
     assert.deepEqual(config.weapons.mainHand, k("weapon.dagger.mainHand"));
   });
 
-  it("checkReferenceBuild accepts the documented optional fields and refuses bad ones", () => {
+  it("checkReferenceBuild accepts the documented fields and refuses bad ones", () => {
     const good = referenceBuild(SUBTLETY);
     assert.deepEqual(checkReferenceBuild(SUBTLETY, good), []);
-    assert.deepEqual(
-      checkReferenceBuild(SUBTLETY, { ...good, talentLevel: 60 }),
-      [],
-    );
-    assert.deepEqual(
-      checkReferenceBuild("combat-swords", { ...good, talents: {} }),
-      [],
-    );
+    const { talentLevel, ...noLevel } = good;
+    assert.equal(talentLevel, LEVEL_60);
     const bad = [
       ["nope", good],
+      [SUBTLETY, noLevel],
       [SUBTLETY, { ...good, talentLevel: 5 }],
+      [SUBTLETY, { ...good, talentLevel: 40 }],
       [SUBTLETY, { ...good, colour: "red" }],
       [SUBTLETY, { ...good, talents: { "subtlety.cutthroat": 9 } }],
       [SUBTLETY, { ...good, weapons: { mainHand: good.weapons.mainHand } }],

@@ -3369,7 +3369,9 @@ energy cap, `premeditation`), as combat-swords' are.
 build each one is written for is separate data,
 `data/preset-reference-builds.js`, keyed by preset id:
 
-- `name`; `talents`, `{ talent id: rank }` (the SimConfig form: no 0 ranks);
+- `name`; `talentLevel`, 60 for every build (James's decision, relayed by
+  Scout; #273 sets `config.talentLevel` to it when the config is below it, and
+  the page says so); `talents`, `{ talent id: rank }` (the SimConfig form: no 0 ranks);
   `weapons`, `{ mainHand, offHand }`, each `{ type, min, max, speed }` (the
   SimConfig weapon shape).
 - assassination-daggers: the #268 Venom build without Improved Expose Armor,
@@ -3377,16 +3379,16 @@ build each one is written for is separate data,
   subtlety-daggers: the #271 Cutthroat build (15 Assassination, 36 Subtlety).
   Both are 51 points, on the dagger alternate (`weapon.dagger.mainHand`,
   `weapon.dagger.offHand`).
-- Optional, allowed and checked but not set (James has not decided either):
-  `talentLevel`, the level the build is for (its talents must be legal there);
-  and an entry for combat-swords (absent today, so its reference build is
-  `null`).
+- combat-swords (James's decision, relayed by Scout): the current defaults,
+  the #151 reference Combat build (`data/reference-build.js`, 18
+  Assassination, 33 Combat) with the default config's swords in both hands.
 - A build has no character sheet and no poisons.
 
 `js/preset-reference-builds.js` checks every entry when it is imported (a
-known preset id, only the fields above, legal talents at `talentLevel` or 60,
+known preset id, only the fields above, `talentLevel` 60, legal talents there,
 both hands with a type and positive min, max and speed, min not above max). For
-#273's button it gives `referenceBuild(id)` (a copy, or `null`),
+#273's button it gives `referenceBuild(id)` (a copy; `null` for a preset
+with no entry, which none is today),
 `talentDifferences(build, talents)` (`[{ id, reference, current }]` for each
 rank that differs, a missing rank being 0), `weaponTypeDifferences(build,
 weapons)` (`{ mainHand, offHand }`, each `{ reference, current, same }`) and

@@ -27,8 +27,7 @@ import { buildProblems, talentLevelRange } from "./talent-build.js";
 
 const HANDS = ["mainHand", "offHand"];
 const WEAPON_NUMBERS = ["min", "max", "speed"];
-const REQUIRED = ["name", "talents", "weapons"];
-const OPTIONAL = ["talentLevel"];
+const FIELDS = ["name", "talentLevel", "talents", "weapons"];
 const PRESET_IDS = new Set(ROTATION_PRESETS.map((preset) => preset.id));
 
 const isObject = (value) =>
@@ -53,15 +52,13 @@ function weaponProblems(hand, weapon) {
   return problems;
 }
 
+// Every reference build is for the top talent level, 60 (James's decision,
+// relayed by Scout, #272).
 function levelProblems(build) {
-  if (build.talentLevel === undefined) {
-    return [];
-  }
-  const { min, max } = talentLevelRange();
-  const level = build.talentLevel;
-  return Number.isInteger(level) && level >= min && level <= max
+  const { max } = talentLevelRange();
+  return build.talentLevel === max
     ? []
-    : [`talentLevel ${level} is not a level from ${min} to ${max}.`];
+    : [`talentLevel is ${build.talentLevel}, not ${max}.`];
 }
 
 export function checkReferenceBuild(presetId, build) {
@@ -73,7 +70,7 @@ export function checkReferenceBuild(presetId, build) {
   }
   const problems = [];
   for (const field of Object.keys(build)) {
-    if (!REQUIRED.includes(field) && !OPTIONAL.includes(field)) {
+    if (!FIELDS.includes(field)) {
       problems.push(`"${field}" is not a reference build field.`);
     }
   }
@@ -85,8 +82,7 @@ export function checkReferenceBuild(presetId, build) {
   if (!isObject(build.talents)) {
     problems.push("talents is not an object.");
   } else if (levels.length === 0) {
-    const options =
-      build.talentLevel === undefined ? {} : { level: build.talentLevel };
+    const options = { level: build.talentLevel };
     for (const problem of buildProblems(build.talents, options)) {
       problems.push(problem.message);
     }
