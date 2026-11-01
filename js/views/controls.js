@@ -471,6 +471,7 @@ export function createControlsView(doc, store, actions = {}) {
     }
   });
   let runPressedAt = null;
+  let runTap = { at: null, rect: null };
   buttons.run.addEventListener("click", (event) => {
     call("commitEdits");
     if (blocked(store.get())) {
@@ -478,8 +479,40 @@ export function createControlsView(doc, store, actions = {}) {
       return;
     }
     runPressedAt = event?.timeStamp ?? null;
+    runTap = {
+      at: event?.timeStamp ?? null,
+      rect: buttons.run.getBoundingClientRect?.() ?? null,
+    };
     call("run");
   });
+  // On a phone, Run moves to Results and the Run button goes away, so the
+  // second tap of a double tap lands on whatever is now under the finger,
+  // such as a footer link that leaves the page. A click inside the old Run
+  // button's box this soon after Run is that same tap twice, so it is dropped.
+  doc.addEventListener?.(
+    "click",
+    (event) => {
+      const { at, rect } = runTap;
+      runTap = { at: null, rect: null };
+      if (
+        rect === null ||
+        event.target === buttons.run ||
+        !(event.timeStamp - at < RUN_TAP_GUARD_MS)
+      ) {
+        return;
+      }
+      const inside =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+      if (inside) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    },
+    true,
+  );
   buttons.pause.addEventListener("click", (event) => {
     const { run } = store.get();
     if (run.mode !== "live") {

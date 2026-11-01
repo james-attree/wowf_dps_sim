@@ -3329,3 +3329,84 @@ th[aria-sort="ascending"] {
 .scroll-hint-wrap[data-overflow="more"] .table-scroll {
   mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), #0006);
 }
+
+/* The share link (#284, H6-lite): "Copy link to this build" by "Rogue" and on
+   each Results run label, the field to copy by hand when the clipboard
+   refuses, and the opened link's banner under the area's h1. */
+.simulator-header {
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.share-button {
+  flex: none;
+  min-height: var(--target);
+}
+
+.share-feedback {
+  display: grid;
+  gap: 0.5rem;
+  flex-basis: 100%;
+}
+
+.share-too-long {
+  margin: 0;
+}
+
+.share-fallback {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.share-url {
+  min-height: var(--target);
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--control-border);
+  border-radius: 0.5rem;
+  background: #100f0c;
+  color: #f3eee2;
+  font: inherit;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.result-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.result-label-row .result-label {
+  flex: 1 1 12rem;
+}
+
+.share-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.5rem;
+  background: var(--surface-raised);
+}
+
+.share-banner[hidden] {
+  display: none;
+}
+
+.share-banner-text {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.share-hint {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}

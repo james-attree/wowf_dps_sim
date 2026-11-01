@@ -1,7 +1,12 @@
-import { k } from "../data/constants.js";
 import { BatchClient } from "./batch-client.js";
+import {
+  resolveInitialSetup,
+  setupFromState,
+  shareUrl,
+  withoutLinkParam,
+} from "./build-codec.js";
 import { buildLabel, poisonName } from "./build-label.js";
-import { createConfigForm, pageDefaultConfig } from "./config-form.js";
+import { createConfigForm } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
 import { createRotationBuilder } from "./rotation-builder.js";
 import { createRunActions, emptyBatch, emptyRan } from "./run-actions.js";
@@ -16,6 +21,7 @@ import { createResultsView } from "./views/results.js";
 import { createResultsCardView } from "./views/results-card.js";
 import { createResultsPanelView } from "./views/results-panel.js";
 import { createResultViewsView } from "./views/result-views.js";
+import { createShareLinkView } from "./views/share-link.js";
 import { createRotationBuilderView } from "./views/rotation-builder.js";
 import { mountRouter } from "./views/router.js";
 import { PAGE_SECTIONS, createSections } from "./views/sections.js";
@@ -42,17 +48,30 @@ import { createVisualiserView } from "./views/visualiser.js";
 // answer is Run's first job; "Watch fight" is the second), so a fight can be repeated with
 // runFight({ seed, duration, config }). Fights are k("batch.duration") long
 // (300 s) in both modes; a batch is k("fight.iterations") fights (1,000).
-const config = pageDefaultConfig();
+//
+// The first build (#284) is js/build-codec.js's resolveInitialSetup: a share
+// link (?s=) in the address, else the saved setup (#296, not built yet:
+// null), else the page defaults. A link is read before the first render and
+// then taken out of the address, so a reload does not load it again.
+// (A stand-in page in the tests may have no window, address or history.)
+const { history, location } = typeof window === "undefined" ? {} : window;
+const initial = resolveInitialSetup({
+  search: location?.search ?? "",
+  saved: null,
+});
+if (initial.hadLink) {
+  history?.replaceState(history.state, "", withoutLinkParam(location.href));
+}
+const { config } = initial.setup;
 const drawSeed = () => crypto.getRandomValues(new Uint32Array(1))[0];
-const seed = drawSeed();
-const duration = k("batch.duration");
-const iterations = k("fight.iterations");
+const seed = initial.setup.run.seed ?? drawSeed();
+const { mode, duration, iterations } = initial.setup.run;
 const client = new BatchClient();
 
 const store = createStore({
   config,
   run: {
-    mode: "batch",
+    mode,
     state: "idle",
     seed,
     duration,
@@ -159,6 +178,11 @@ const router = mountRouter(document, store, sections, {
   },
 });
 router.start();
+// "Copy link to this build" and the opened link's banner (#284).
+createShareLinkView(document, store, {
+  linkOf: () => shareUrl(location.href, setupFromState(store.get())),
+  notice: initial.notice,
+});
 trackChromeSize(document);
 keepFocusInView(document);
 // The desktop results column's summary card (#241): outside the areas, like
