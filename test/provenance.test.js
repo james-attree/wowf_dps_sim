@@ -779,7 +779,17 @@ describe("datedRefProblem (#275)", () => {
       "Developer, 31 Oct 2026, issue #271: a reading",
       "Developer, 29 Feb 2024: a leap day",
       "Scout (coordinator), 31 Dec 2025, #12: a relayed ruling",
-      "James, 2 Nov 2026: a day ahead of UTC, in a time zone east of it",
+    ]) {
+      assert.equal(datedRefProblem(ref, TODAY), null, ref);
+    }
+  });
+
+  // Kept on purpose (Scout on #309): a ref is dated in local time while CI
+  // runs in UTC, so one day after the UTC date is a timezone buffer, not a gap.
+  it("takes a date one day after the UTC date: the timezone buffer", () => {
+    for (const ref of [
+      "James, 2 Nov 2026: dated where it is already 2 Nov",
+      "Developer, 2 Nov 2026, issue #1: a reading",
     ]) {
       assert.equal(datedRefProblem(ref, TODAY), null, ref);
     }
@@ -799,8 +809,12 @@ describe("datedRefProblem (#275)", () => {
     }
   });
 
-  it("refuses a date after today", () => {
-    for (const ref of ["James, 3 Nov 2026: x", "Developer, 1 Jan 2027: x"]) {
+  it("refuses a date two or more days after the UTC date, past the timezone buffer", () => {
+    for (const ref of [
+      "James, 3 Nov 2026: x",
+      "James, 4 Nov 2026: x",
+      "Developer, 1 Jan 2027: x",
+    ]) {
       assert.match(datedRefProblem(ref, TODAY), /is after today/, ref);
     }
   });

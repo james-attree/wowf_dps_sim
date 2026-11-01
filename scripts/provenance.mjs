@@ -140,6 +140,10 @@ export function datedRefProblem(ref, today = new Date()) {
   ) {
     return `${text} is not a real date`;
   }
+  // A timezone buffer, kept on purpose (Scout on #309, 1 Nov 2026): a ref is
+  // dated in the decider's local time (UK or elsewhere) while CI runs in UTC,
+  // so a date up to one day after the UTC date passes. Two or more days ahead
+  // is refused.
   const latest =
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) +
     DAY_MS;
