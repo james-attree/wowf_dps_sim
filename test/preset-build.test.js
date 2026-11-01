@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createConfigForm, pageDefaultConfig } from "../js/config-form.js";
+import {
+  createConfigForm,
+  nextRunConfig,
+  pageDefaultConfig,
+} from "../js/config-form.js";
+import { createFight } from "../js/fight.js";
 import {
   BUILD_PARTS,
   appliedText,
@@ -350,6 +355,9 @@ describe("apply and Undo (#273)", () => {
     assert.equal(env.said().applied, null);
   });
 
+  // The run's own state does not close Undo: a fight started before the
+  // button and finished after it leaves Undo there. (Run's move to its
+  // Results page is a route change, which does close it, like any move.)
   it("Undo stays through a run and puts the build back after it", () => {
     const env = page();
     env.form.chooseRotation("combat-swords");
@@ -395,4 +403,32 @@ describe("apply and Undo (#273)", () => {
     env.build.undo();
     assert.equal(env.said().focus.target, "button");
   });
+});
+
+// Fran's test 13 (closes R5): after the button, each preset's own abilities
+// are cast in the config the next run uses, from the page's defaults.
+const SIGNATURES = {
+  "combat-swords": ["sinister-strike", "slice-and-dice", "blade-flurry"],
+  "assassination-daggers": ["mutilate"],
+  "subtlety-daggers": ["hemorrhage"],
+};
+const SEED = 1;
+const FIGHT_SECONDS = 120;
+
+describe("the applied build fights (#273)", () => {
+  for (const id of PRESETS) {
+    it(`${id}: its abilities are cast after the button`, () => {
+      const env = page();
+      env.form.chooseRotation(id);
+      env.build.apply();
+      const fight = createFight(SEED, nextRunConfig(env.store.get()));
+      fight.simulation.run(FIGHT_SECONDS);
+      for (const ability of SIGNATURES[id]) {
+        assert.ok(
+          (fight.simulation.abilityStats[ability]?.casts ?? 0) > 0,
+          `${id}: ${ability}`,
+        );
+      }
+    });
+  }
 });
