@@ -86,6 +86,46 @@
           <p class="eyebrow">COMBAT SIMULATOR</p>
           <p class="app-title">Rogue</p>
         </div>
+        <!-- The share link (#284, H6-lite; js/views/share-link.js): the
+             whole build (character, talents, rotation, fight settings) as
+             one link. -->
+        <button
+          id="share-link-header"
+          class="pill-button share-button"
+          type="button"
+          data-share="header"
+          aria-label="Copy link to this build (header)"
+          aria-describedby="share-too-long-header"
+        >
+          Copy link to this build
+        </button>
+        <div id="share-feedback-header" class="share-feedback" hidden>
+          <p
+            id="share-too-long-header"
+            class="field-error share-too-long"
+            hidden
+          >
+            This rotation is too long to share as a link. Export it as a file
+            instead (Rotation › Export or import).
+          </p>
+          <div id="share-fallback-header" class="share-fallback" hidden>
+            <label for="share-url-header">Copy this link</label>
+            <input
+              id="share-url-header"
+              class="share-url"
+              type="text"
+              readonly
+              spellcheck="false"
+            />
+          </div>
+        </div>
+        <!-- Moved under the shown area's h1 once a link is opened (#284). -->
+        <div id="share-banner" class="share-banner" role="status" hidden>
+          <p id="share-banner-text" class="share-banner-text"></p>
+          <button id="share-banner-close" class="pill-button" type="button">
+            Dismiss
+          </button>
+        </div>
       </header>
 
       <!-- On wide screens, the results column beside the areas (#241, UX3):
@@ -815,6 +855,10 @@
         ></section>
         <div id="rotation-share" class="panel rotation-share" hidden>
           <h2>File</h2>
+          <p class="share-hint">
+            To share talents, gear and the rotation together, use Copy link to
+            this build, at the top of the page and on Results.
+          </p>
           <div class="rotation-io">
             <button id="cfg-export" class="pill-button" type="button">
               Export…
@@ -960,7 +1004,39 @@
           >
         </nav>
         <div id="results-average" class="result-view" data-result="average">
-          <p id="results-average-label" class="result-label"></p>
+          <div class="result-label-row">
+            <p id="results-average-label" class="result-label"></p>
+            <button
+              id="share-link-average"
+              class="pill-button share-button"
+              type="button"
+              data-share="average"
+              aria-label="Copy link to this build (average result)"
+              aria-describedby="share-too-long-average"
+            >
+              Copy link to this build
+            </button>
+          </div>
+          <div id="share-feedback-average" class="share-feedback" hidden>
+            <p
+              id="share-too-long-average"
+              class="field-error share-too-long"
+              hidden
+            >
+              This rotation is too long to share as a link. Export it as a file
+              instead (Rotation › Export or import).
+            </p>
+            <div id="share-fallback-average" class="share-fallback" hidden>
+              <label for="share-url-average">Copy this link</label>
+              <input
+                id="share-url-average"
+                class="share-url"
+                type="text"
+                readonly
+                spellcheck="false"
+              />
+            </div>
+          </div>
           <p id="results-average-note" class="ran-note" hidden></p>
           <div
             id="results-average-stale"
@@ -995,7 +1071,39 @@
           hidden
         >
           <h2 id="results-live-heading" class="visually-hidden">Live fight</h2>
-          <p id="results-live-label" class="result-label"></p>
+          <div class="result-label-row">
+            <p id="results-live-label" class="result-label"></p>
+            <button
+              id="share-link-live"
+              class="pill-button share-button"
+              type="button"
+              data-share="live"
+              aria-label="Copy link to this build (live fight)"
+              aria-describedby="share-too-long-live"
+            >
+              Copy link to this build
+            </button>
+          </div>
+          <div id="share-feedback-live" class="share-feedback" hidden>
+            <p
+              id="share-too-long-live"
+              class="field-error share-too-long"
+              hidden
+            >
+              This rotation is too long to share as a link. Export it as a file
+              instead (Rotation › Export or import).
+            </p>
+            <div id="share-fallback-live" class="share-fallback" hidden>
+              <label for="share-url-live">Copy this link</label>
+              <input
+                id="share-url-live"
+                class="share-url"
+                type="text"
+                readonly
+                spellcheck="false"
+              />
+            </div>
+          </div>
           <p id="results-live-note" class="ran-note" hidden></p>
           <div
             id="results-live-stale"
