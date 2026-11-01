@@ -1390,7 +1390,12 @@ exact end of each GCD, cooldown, aura and points timer, each DoT's tick clock
 refresh on its clock), each swing's grid (its anchor, interval and count),
 the check poll's next time and the energy pool's line. The next run takes each one while its field still
 holds what was written; a field changed between the runs, or a run that does
-not start where the last one closed, starts from the field as before. Only `sim.coreStats` can see the split. When nothing a
+not start where the last one closed, starts from the field as before. The
+timers that go on are set again in the order the last run had scheduled them
+(each timer's seq, kept in the carry; `restore()` in js/core/fight.js), and the
+others after them, so two timers that end at the same time run in the same
+order as in one run (#270: Rupture and Hemorrhage ending together on the
+Preparation fixture's fight, cut before they ran out). Only `sim.coreStats` can see the split. When nothing a
 decision reads was changed between the runs, the next run does not ask the rotation at its start, since one run
 would not ask at that time: it keeps the last decision's wakes, the energy
 threshold at the very time it had and the condition crossing even when it lay
@@ -3163,9 +3168,9 @@ Assassination: an Assassination talent with no entry fails the coverage check.
 ### Subtlety passives (#269, P4.6-05a)
 
 The Subtlety talents that act in a fight from behind with no stealth, and a
-`noDpsEffect` for the eight that do not. Preparation (#270) and Improved
-Ambush, Initiative and Cutthroat (#271) still have no entry, so Subtlety stays a
-warning-only tree in `scripts/talent-coverage.mjs`. The sim attacks from
+`noDpsEffect` for the eight that do not. Preparation has an entry since #270
+(below); Improved Ambush, Initiative and Cutthroat (#271) still have none, so
+Subtlety stays a warning-only tree in `scripts/talent-coverage.mjs`. The sim attacks from
 behind (ruling on #269), and numbers the issue left open take the Classic
 value, tagged `assumption` in `data/constants.js`.
 
@@ -3234,6 +3239,52 @@ value, tagged `assumption` in `data/constants.js`.
   and Opportunity 2/2, so its damage changes on purpose, from those two
   talents acting alone (it has no Thousand Cuts, so no proc and no draw).
   Its event sequence (casts, auras, outcomes) does not change.
+
+### Preparation (#270, P4.6-05b)
+
+The `subtlety.preparation` talent grants the `preparation` ability
+(`ability: "preparation"` in data/talent-effects.js), so the talent guard
+(#188) applies: a rotation rule that casts it needs an `abilityGranted` or
+`abilityUnlocked` condition, and without the talent the ability is locked
+and never cast.
+
+- **Cost and cooldown** (`k("preparation")`, `wowf-export`). The export's
+  talent text reads "Instant | 10 min cooldown" and names no cost, so it
+  spends 0 energy and starts a 600 s cooldown. It is not an attack, so it
+  cannot miss, and the log records a cast (`Ability.cast` returns no outcome
+  for it). It starts the GCD, like every ability not in `abilities.offGcd`:
+  the export does not say, and Classic (wowsims `preparation.go`) puts it on a
+  1 s GCD.
+- **What it resets** (`k("preparation.resets")`, `assumption`, A15 of the
+  Phase 4.6 plan v4). On a cast, after starting its own cooldown, it finishes
+  the running cooldowns of Cold Blood, Premeditation, Ghostly Strike,
+  Adrenaline Rush and Blade Flurry: each listed id in `simulation.cooldowns`
+  that is above 0 is set to 0, and the event core clears its timer
+  (`js/core/fight.js`). A cooldown that is not running is left alone, and an
+  ability the build does not have is never on cooldown, so the list needs no
+  talent check. Preparation does not reset itself: an ability whose reset list
+  holds its own id is refused when it is built (RangeError). It resets no
+  racial; the sim models none. Classic's Preparation reset Cold Blood,
+  Shadowstep and Vanish instead, which the export's text does not list; the
+  list is the plan's, so it is tagged `assumption`.
+- **The `resets` field.** An ability definition in js/ability-data.js may
+  name a constant key under `resets`; `Ability` reads it into a frozen list
+  of ids. Only Preparation has one.
+- **No phantom draws.** Preparation draws nothing: it has no roll, and the
+  reset is a plain write.
+- **Presets and goldens.** No default rotation or preset casts it, so the
+  eleven existing fixtures are unchanged. The new fixture
+  `preparation-subtlety-seed-270-60s` (the Subtlety build of #269,
+  `PREPARATION_ROTATION` in scripts/golden-update.mjs) casts Ghostly Strike,
+  then Preparation while Ghostly Strike is on cooldown, then Ghostly Strike
+  again at once.
+- **Cut fights.** The new fixture's fight has Rupture and Hemorrhage end at
+  the same time, and a run cut before then ran them in the other order. The
+  event core now keeps the timers' order across a cut (see the Event-queue
+  engine's carry above); a fight run in one piece is unchanged, so no fixture
+  moved.
+- **Old configs.** A config with no Subtlety points has no `preparation`
+  ability, and a rotation that does not name it plays as before.
 
 ## Applying a talent build (D7, issue #106)
 

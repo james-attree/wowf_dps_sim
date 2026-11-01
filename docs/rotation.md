@@ -55,7 +55,7 @@ on `Rogue.abilities` (`sinisterStrike`), which `data/constants.js` rows such as
 `rotation.priority` use. The ids of the rogue abilities are `premeditation`,
 `sinister-strike`, `eviscerate`, `adrenaline-rush`, `slice-and-dice`,
 `ghostly-strike`, `backstab`, `ambush`, `blade-flurry`, `rupture`,
-`hemorrhage` and `cold-blood`.
+`hemorrhage`, `cold-blood` and `preparation` (#270).
 
 ## The four decisions
 
@@ -899,6 +899,13 @@ protected: it lapses until the points are built (a known gap, not handled here).
   either takes a combo points condition like any finisher. Expose Armor is
   baseline and rolls the attack table, so it can miss (#294); Venom comes from its talent and needs an `abilityGranted` or
   `abilityUnlocked` guard. No preset casts either.
+- Preparation (#270) is a talent cooldown in the palette's Cooldowns group
+  ("Preparation (talent)"). Its rule needs an `abilityGranted` or
+  `abilityUnlocked` guard. It finishes the cooldowns of Cold Blood,
+  Premeditation, Ghostly Strike, Adrenaline Rush and Blade Flurry, so a rule
+  usually casts it while one of those is on cooldown, for example with
+  `{ "type": "cooldownReady", "ability": "ghostly-strike", "ready": false }`.
+  No preset casts it.
 
 ## Import and export
 

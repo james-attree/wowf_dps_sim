@@ -692,8 +692,11 @@ describe("rotationWarnings: data, not names", () => {
       "ghostly-strike",
       "blade-flurry",
       "cold-blood",
+      "preparation",
     ]);
     assert.ok(!context.onGcd.includes("premeditation"));
+    // Preparation starts the GCD (#270).
+    assert.ok(context.onGcd.includes("preparation"));
     assert.ok(!context.onGcd.includes("cold-blood"));
     assert.ok(context.onGcd.includes("blade-flurry"));
   });

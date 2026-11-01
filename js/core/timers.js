@@ -151,6 +151,12 @@ export class Timer {
     return this.#event?.state === "pending" ? this.#event.time : null;
   }
 
+  // The pending end event's seq, or null: the order it runs in among the
+  // events at its time, which a run that goes on from this one keeps (#270).
+  get seq() {
+    return this.#event?.state === "pending" ? this.#event.seq : null;
+  }
+
   get running() {
     const endsAt = this.endsAt;
     return (
@@ -218,6 +224,10 @@ export class TimerSet {
 
   endsAt(id) {
     return this.#timers.get(this.#checkId(id))?.endsAt ?? null;
+  }
+
+  seq(id) {
+    return this.#timers.get(this.#checkId(id))?.seq ?? null;
   }
 
   running(id) {
