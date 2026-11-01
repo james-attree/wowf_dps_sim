@@ -254,6 +254,15 @@ export class DotTicks {
     return event?.state === "pending" ? event.time : null;
   }
 
+  // The pending tick's seq, or null when there is none: the order it runs
+  // in among the ticks at its time, which a run that goes on from this one
+  // keeps (#305).
+  seq(id) {
+    checkId(id);
+    const event = this.#dots.get(id)?.event;
+    return event?.state === "pending" ? event.seq : null;
+  }
+
   // Ticks since the DoT was last applied fresh (0 for one never applied).
   ticks(id) {
     checkId(id);
