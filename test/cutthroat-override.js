@@ -1,10 +1,10 @@
 // The test-only override for the Ambush hook (#261, js/required-auras.js).
-// Nothing in the engine grants the cutthroat aura ("Ambush allowed"), and no
-// Rogue or fight option can: the override sits here, in the tests, and plays
-// the part the Cutthroat talent will play in Phase 4.6. It says the fight can
-// grant the aura (Rogue.grantedAuras, so a rotation rule for Ambush is
-// usable) and puts the aura up through the same Simulation.applyAura call
-// Cutthroat's proc makes.
+// Since #271 the Cutthroat talent grants the cutthroat aura ("Ambush
+// allowed"): a build with it puts "cutthroat" in Rogue.grantedAuras, and its
+// Backstab proc puts the aura up. This override lets a test do the same
+// without the talent or a proc roll: it says the fight can grant the aura
+// (Rogue.grantedAuras, so a rotation rule for Ambush is usable) and puts the
+// aura up through the same Simulation.applyAura call Cutthroat's proc makes.
 import { REQUIRED_AURAS } from "../js/required-auras.js";
 
 // Long enough to outlast any test fight.

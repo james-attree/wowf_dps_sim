@@ -900,14 +900,108 @@ protected: it lapses until the points are built (a known gap, not handled here).
 - Expose Armor and Venom (#268) are finishers in the palette, so a rule for
   either takes a combo points condition like any finisher. Expose Armor is
   baseline and rolls the attack table, so it can miss (#294); Venom comes from its talent and needs an `abilityGranted` or
-  `abilityUnlocked` guard. No preset casts either.
+  `abilityUnlocked` guard. No preset casts Expose Armor; assassination-daggers
+  casts Venom (#272).
 - Preparation (#270) is a talent cooldown in the palette's Cooldowns group
   ("Preparation (talent)"). Its rule needs an `abilityGranted` or
   `abilityUnlocked` guard. It finishes the cooldowns of Cold Blood,
   Premeditation, Ghostly Strike, Adrenaline Rush and Blade Flurry, so a rule
   usually casts it while one of those is on cooldown, for example with
   `{ "type": "cooldownReady", "ability": "ghostly-strike", "ready": false }`.
-  No preset casts it.
+  subtlety-daggers casts it (#272).
+
+### assassination-daggers
+
+Issue [#272](https://github.com/james-attree/wowf_dps_sim/issues/272).
+Slice and Dice, Rupture and Venom kept up, Eviscerate with the spare 5 CP,
+Cold Blood on cooldown for Mutilate, Mutilate to build. It is written for the
+dagger alternate (Perdition's Blade and Core Hound Tooth) and its reference
+build (`data/preset-reference-builds.js`, below): Mutilate needs a dagger in
+both hands, so on other weapons its rule is passed over. Its summary:
+
+```text
+Assassination daggers
+1. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
+2. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 5s left and Energy >= 100
+3. Rupture if CP >= 5 and Rupture on the target missing or < 1s left
+4. Venom if Venom is granted and CP >= 5 and Venom missing or <= 0s left
+5. Eviscerate if CP >= 5 and Slice and Dice has > 5s left
+6. Cold Blood if Cold Blood is granted and CP < 5
+7. Mutilate if Mutilate is granted and CP < 5
+```
+
+- 1 and 2: the Slice and Dice pair of combat-swords (#122).
+- 3: Rupture at 5 combo points with less than 1 second left on the target
+  (`rotation.pooling.recastSeconds`).
+- 4: Venom at 5 combo points while its aura is down.
+- 5: Eviscerate only when none of those three is due, the fallback finisher
+  (the issue lists none). With the reference build, 5 combo points almost
+  always go to one of the three, so it is rarely cast.
+- 6: Cold Blood below 5 combo points, so its charge goes on the next Mutilate
+  (both hands crit, and Seal Fate rolls on each). Cold Blood does nothing for
+  Rupture or Venom, and Eviscerate is rare here.
+- 7: Mutilate below 5 combo points.
+
+No Expose Armor and no stealth opener.
+
+### subtlety-daggers
+
+Issue [#272](https://github.com/james-attree/wowf_dps_sim/issues/272).
+Premeditation and Ghostly Strike on cooldown and Preparation to reset them,
+Slice and Dice and Rupture kept up, Eviscerate, Ambush when Cutthroat allows
+it, Hemorrhage kept up, Backstab to build. Written for the dagger alternate and
+its reference build (the #271 Cutthroat build). Its summary:
+
+```text
+Subtlety daggers
+1. Premeditation if Premeditation is granted and CP <= 3
+2. Preparation if Preparation is granted and Preparation is ready and Ghostly Strike is on cooldown
+3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
+4. Rupture if CP >= 5 and Rupture on the target missing or < 1s left
+5. Eviscerate if CP >= 5 and Slice and Dice has > 5s left
+6. Ambush if CP < 5
+7. Ghostly Strike if Ghostly Strike is granted and CP < 5 and Ghostly Strike is ready
+8. Hemorrhage if Hemorrhage is granted and CP < 5 and Hemorrhage on the target missing or < 1s left
+9. Backstab if CP < 5
+```
+
+- 1: Premeditation (off the GCD) when its 2 combo points fit under 5. An
+  off-GCD rule that cannot be cast is passed over, so it needs no "is ready".
+- 2: Preparation while Ghostly Strike is on cooldown. Premeditation is cast at
+  the start (rule 1), so it is on cooldown then too, and Preparation finishes
+  both (`preparation.resets`). Its cooldown is 600 s, so it is cast once in a
+  fight of 10 minutes or less. The measured effect is in the pull request for
+  #272.
+- 3 to 5: Slice and Dice, Rupture and Eviscerate, as above, with only the
+  recast rule of the Slice and Dice pair: a share link of this preset must
+  stay under 2,048 characters (#284), and the full-energy rule never fired
+  with the reference build (the same DPS over 120 seeds at 60 s and 300 s
+  without it).
+- 6: Ambush below 5 combo points, with no condition on the cutthroat aura and
+  no lock or hint: it is passed over while the aura is down (no stealth, so a
+  Cutthroat proc from Backstab is the only way it is cast).
+- 7: Ghostly Strike when it is ready.
+- 8: Hemorrhage when its debuff on the target has less than 1 second left.
+- 9: Backstab below 5 combo points.
+
+#### Reference builds (#272)
+
+`data/preset-reference-builds.js` holds the build each dagger preset is
+written for, keyed by preset id: `{ name, talents, weapons }`, where `talents`
+is `{ talent id: rank }` (a legal 51-point build) and `weapons` is
+`{ mainHand, offHand }`, each `{ type, min, max, speed }` (the SimConfig
+weapon shape, here `weapon.dagger.mainHand` and `weapon.dagger.offHand`).
+**Loading a preset does not load its build**: `loadPreset` sets the rotation
+only, and nothing in the app puts a reference build into a config yet (#273).
+`js/preset-reference-builds.js` (re-exported by `js/rotation-presets.js`) is
+the API for that: `referenceBuild(id)` (a
+copy, or `null` for a preset with none, such as combat-swords today),
+`talentDifferences(build, talents)` (each talent whose rank differs),
+`weaponTypeDifferences(build, weapons)` (the type in each hand) and
+`referenceWeapon(build, hand)` (a hand to put into `config.weapons`). Two
+optional fields are allowed and checked but not set, as James has not decided
+them: `talentLevel` (the level the build is for), and an entry for
+combat-swords. A build carries no character sheet and no poisons.
 
 ## Import and export
 

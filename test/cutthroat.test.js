@@ -160,6 +160,13 @@ describe("Cutthroat, Improved Ambush and Initiative read their rank text (#271)"
     }
     assert.equal(CONSTANTS["cutthroat.rules"].source, "assumption");
     assert.match(CONSTANTS["cutthroat.rules"].ref, /issue #271/);
+    // Kira's #302 N2: the dev's reading is its own assumption row, with the
+    // dev's name on it, not credited to the issue's ruling.
+    const reading = CONSTANTS["cutthroat.procRules"];
+    assert.equal(reading.source, "assumption");
+    assert.match(reading.ref, /^Developer, \d+ Oct 2026, issue #271: /);
+    assert.match(reading.value, /landed Backstab/);
+    assert.match(reading.value, /refreshes/);
   });
 });
 

@@ -1328,16 +1328,26 @@ export const CONSTANTS = {
     "chance per rank, s",
     WOWF_EXPORT,
     "rogue.json → talents[Subtlety|Cutthroat] desc: your Backstab has a 3/6/9/12/15% chance to cause your next Ambush within 10 sec to not require Stealth",
-    'An onAbility proc on Backstab, flat chance by rank (never drawless: no rank is certain). It puts up the cutthroat self aura ("Ambush allowed", cutthroat.aura) for 10 s, and the build with it adds "cutthroat" to Rogue.grantedAuras, so an Ambush rule is reachable. The rules it follows are cutthroat.rules.',
+    'An onAbility proc on Backstab, flat chance by rank (never drawless: no rank is certain). It puts up the cutthroat self aura ("Ambush allowed", cutthroat.aura) for 10 s, and the build with it adds "cutthroat" to Rogue.grantedAuras, so an Ambush rule is reachable. The rules it follows are cutthroat.rules and cutthroat.procRules.',
     false,
   ),
   "cutthroat.rules": entry(
-    "a landed Backstab rolls; a proc while the aura is up refreshes it to 10 s with its one charge; Improved Ambush and Initiative act on every Ambush",
+    "Improved Ambush and Initiative act on every Ambush; Cutthroat is the only way Ambush is cast",
     "–",
     ASSUMPTION,
     "James, 31 Oct 2026, issue #271: a Backstab proc at 3/6/9/12/15% by rank puts up the cutthroat aura for 10 s; Improved Ambush applies only to Ambushes that Cutthroat allows; no stealth openers, so Cutthroat is the only legal way to cast Ambush; tagged assumption",
-    "Documents the rule: no code reads this row. The three points are the dev's reading, not in the issue or the talent text. A Backstab rolls only when it lands, as every onAbility proc does (js/procs.js): a miss, dodge or parry rolls nothing. A proc while the aura is up applies it again (Simulation.applyAura), so its 10 s start over and it holds one charge, never two. As the sim models no Stealth, every Ambush is one Cutthroat allowed, so Improved Ambush and Initiative apply to every Ambush cast.",
+    "Documents the rule: no code reads this row. As the sim models no Stealth, every Ambush is one Cutthroat allowed, so Improved Ambush and Initiative apply to every Ambush cast. The two rules the issue does not state are cutthroat.procRules.",
     false,
+  ),
+  // Kira's #302 N2: the dev's reading, split out of cutthroat.rules so the
+  // ruling above is not credited with it.
+  "cutthroat.procRules": entry(
+    "only a landed Backstab rolls; a proc while the aura is up refreshes it to 10 s with its one charge",
+    "–",
+    ASSUMPTION,
+    "Developer, 31 Oct 2026, issue #271: the dev's reading, stated neither in the issue (opened 31 Oct) nor in the talent text (rogue.json → talents[Subtlety|Cutthroat] desc); accepted as assumptions in the #302 QA ruling; tagged assumption",
+    "Documents the rules: no code reads this row. A Backstab rolls only when it lands, as every onAbility proc does (js/procs.js): a miss, dodge or parry rolls nothing. A proc while the aura is up applies it again (Simulation.applyAura), so its 10 s start over and it holds one charge, never two.",
+    true,
   ),
   "improvedAmbush.critChance": entry(
     [0.15, 0.3, 0.45],
