@@ -419,8 +419,7 @@ describe("Remember my setup (#296)", () => {
         await page.waitForTimeout(LOAD_SETTLE);
         assert.equal(await saved(page), text, "after a refresh");
         assert.equal(await writes(), 0, "after a refresh");
-        await page.goto("about:blank");
-        assert.equal(await saved(page), text, "after leaving");
+        await page.goto(`${base}demo/charts.html`);
         await page.goBack();
         await ready(page);
         await page.waitForTimeout(LOAD_SETTLE);

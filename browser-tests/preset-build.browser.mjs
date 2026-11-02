@@ -806,8 +806,8 @@ describe("The reference build's states (#273)", () => {
       await closedUndo(page, "the nav to Results");
 
       // A reload starts again with no Undo: the Undo is not saved. Since
-      // #296 the setup is (Rotation, talents and weapons), so the reload
-      // shows what was applied rather than the default.
+      // #296 the setup (the rotation, talents and weapons applied) is saved,
+      // so the reload shows what was applied rather than the default.
       await page.selectOption(SELECT, ASSASSINATION);
       await applyNow(page, "Talents replaced.");
       await page.reload();

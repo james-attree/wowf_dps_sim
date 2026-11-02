@@ -19,7 +19,11 @@
 //            (ui.saveSetupMs); at once on pagehide or when the tab goes
 //            hidden, and at once when a share link was opened on load (the
 //            link wins for the visit and becomes the save). It is read once,
-//            before the first render (js/main.js).
+//            before the first render (js/main.js). Opening the page with no
+//            share link writes nothing until the user changes something: not
+//            the first visit's random seed, and not over a save the page could
+//            not read (newer, broken), which keeps its bytes (#320 B1). A
+//            redraw (pageshow) is not a change.
 //   Resets   The stats form's Reset to defaults removes the save as well; each
 //            area's own reset (talents' Reset all, say) is an ordinary change
 //            and is saved.
@@ -31,11 +35,16 @@
 //            load and pageshow), so the inputs would no longer show the build
 //            the store holds (Fran's N4 on #299). On every pageshow the inputs
 //            are redrawn from the store (redrawInputs), so they and the build
-//            come from one source.
+//            come from one source. A field left in error (a bfcache restore
+//            keeps it) shows the build's value again (#320 N4).
+//   Undo     After Reset to defaults while idle, an Undo during a run puts the
+//            config back at once and the run settings when the run ends, if
+//            they are still what Reset set (#320 N8, assumption A8).
 //
 // No DOM here beyond the window's events, so it runs under node --test.
 import { k } from "../data/constants.js";
 import { encodeSetup, setupFromState } from "./build-codec.js";
+import { formValues } from "./config-form.js";
 
 export const SAVED_SETUP_KEY = "wowf_dps_sim.setup";
 
@@ -63,10 +72,12 @@ export function readSavedSetup(storage) {
   }
 }
 
-// Save the store's setup on change. Returns { save, flush, clear, stop }:
-// save() writes now; flush() writes a pending change now; clear() removes the
-// save, and the next change saves again; stop() ends saving. With no storage
-// every call does nothing.
+// Save the store's setup on change. Returns { save, flush, clear, settle,
+// stop }: save() writes now; flush() writes a pending change now; clear()
+// removes the save, and the next change saves again; settle() takes the setup
+// on screen as saved, so nothing is written until it changes (a load that is
+// not a share link: storage keeps what it holds, #320 B1); stop() ends
+// saving. With no storage every call does nothing.
 export function createSavedSetup({
   store,
   storage,
@@ -123,6 +134,10 @@ export function createSavedSetup({
       // The setup on screen is not saved until it changes again.
       written = textOf();
     },
+    settle() {
+      cancel();
+      if (storage !== null) written = textOf();
+    },
     stop() {
       cancel();
       unsubscribe();
@@ -130,22 +145,43 @@ export function createSavedSetup({
   };
 }
 
-// Draw every input again from the store, values unchanged: the stats form
-// (a new revision refills its fields and the rotation select), the talent
-// level, and the run settings. The config is not touched.
+// Draw every input again from the store: the stats form (a new revision
+// refills its fields and the rotation select), the talent level, and the run
+// settings. The config and the run settings are not touched. A field in error
+// (left so before a bfcache restore) shows the build's value again, with no
+// error: the stats form's values become the config's when it has errors, and
+// a run field in error shows its setting (#320 N4).
 export function redrawInputs(store) {
   const state = store.get();
   store.batch(() => {
     if (state.form !== undefined) {
+      const inError = Object.keys(state.form.errors ?? {}).length > 0;
       store.set({
-        form: { ...state.form, revision: (state.form.revision ?? 0) + 1 },
+        form: {
+          ...state.form,
+          ...(inError && state.config !== undefined
+            ? { values: formValues(state.config), errors: {}, edited: [] }
+            : {}),
+          revision: (state.form.revision ?? 0) + 1,
+        },
       });
     }
     if (state.talents !== undefined) {
       store.set({ talents: { ...state.talents } });
     }
     if (state.run !== undefined) {
-      store.set({ run: { ...state.run } });
+      const { run } = state;
+      const fields = { ...run.fields };
+      for (const name of Object.keys(run.errors ?? {})) {
+        if (name in fields)
+          fields[name] = run[name] === null ? "" : String(run[name]);
+      }
+      store.set({
+        run:
+          Object.keys(run.errors ?? {}).length > 0
+            ? { ...run, fields, errors: {} }
+            : { ...run },
+      });
     }
   });
 }
@@ -177,12 +213,38 @@ export function mountSavedSetup(
   const saved = createSavedSetup({ store, storage, delay, timers });
   if (initial?.source === "link") {
     saved.save();
+  } else {
+    // A save, the defaults, or a save the page cannot read (newer, broken):
+    // storage keeps its bytes until the user changes something (#320 B1).
+    saved.settle();
   }
+  // An Undo while a run is on: the run settings to put back once it ends
+  // (#320 N8, assumption A8), or null.
+  let deferred = null;
+  let unwatch = () => {};
+  const dropDeferred = () => {
+    deferred = null;
+    unwatch();
+    unwatch = () => {};
+  };
+  const restoreWhenIdle = (pending) => {
+    deferred = pending;
+    unwatch = store.subscribe(({ changed }) => {
+      if (deferred === null || !changed.includes("run")) return;
+      const { before, after } = deferred;
+      if (runSettingsOf(store.get().run) !== after) {
+        dropDeferred();
+      } else if (runSettings.restoreSettings(before)) {
+        dropDeferred();
+      }
+    });
+  };
   if (form !== null) {
     const { reset, undo } = form;
     // The run settings Reset replaced, and what it set them to, for Undo.
     let undoRun = null;
     form.reset = (...args) => {
+      dropDeferred();
       const before = runSettings?.resetSettings() ?? null;
       undoRun =
         before === null
@@ -201,9 +263,11 @@ export function mountSavedSetup(
       if (
         result &&
         pending !== null &&
-        runSettingsOf(store.get().run) === pending.after
+        runSettingsOf(store.get().run) === pending.after &&
+        !runSettings.restoreSettings(pending.before)
       ) {
-        runSettings.restoreSettings(pending.before);
+        // A run is on: put them back when it ends (A8).
+        restoreWhenIdle(pending);
       }
       return result;
     };
@@ -220,6 +284,7 @@ export function mountSavedSetup(
     ...saved,
     stop() {
       saved.stop();
+      dropDeferred();
       win?.removeEventListener?.("pagehide", onHide);
       win?.document?.removeEventListener?.("visibilitychange", onVisibility);
       win?.removeEventListener?.("pageshow", onShow);
