@@ -518,8 +518,8 @@ export const GOLDEN_CASES = deepFreeze([
   // Issue #279. The same for Berserking (Troll, +10% attack speed for 15 s,
   // A20) and Eureka! (Gnome, non-periodic abilities x0.9 cost rounded down,
   // A19, and x1.1 damage, A22, for 8 s): each is cast at the pull. On the
-  // assassination-daggers preset: combat-swords leaves both out to keep its
-  // share link under 2,048 characters (#284). No other case moved: with no
+  // assassination-daggers preset (combat-swords has them too since Scout's
+  // call of 2 Nov 2026 on #315; no golden covers it). No other case moved: with no
   // race, or another race, the racial rules are passed over.
   ...["troll", "gnome"].map((race) => {
     const build = presetReferenceBuild("assassination-daggers");

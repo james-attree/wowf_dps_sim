@@ -840,11 +840,13 @@ unlocks a racial. The builder's palette does not offer them yet (P5-04, #280).
 
 [#279](https://github.com/james-attree/wowf_dps_sim/issues/279) (P5-03b) adds
 Berserking (Troll) and Eureka! (Gnome) the same way, as rules 3 and 4 of
-assassination-daggers and subtlety-daggers. combat-swords does not have them:
-its share link is 1,975 characters with Blood Fury and Elune's Light, each
-racial rule adds about 112, and #284 keeps every preset's link under 2,048
-characters (an assumption, flagged for James in #279; see
+every preset (Scout, 2 Nov 2026, on #315; see
 [Berserking and Eureka!](mechanics.md#berserking-and-eureka-p5-03b-issue-279)).
+Each racial rule adds about 112 characters to a share link: combat-swords'
+is 2,199 with all four, well under the app's cap (`LINK_CAP`, 8,192, in
+`js/views/share-link.js`). The 2,048 that #284 measured the presets against
+is a test budget (`PRESET_LINK_MAX` in `test/build-codec.test.js`), now
+4,096.
 
 ### combat-swords
 
@@ -860,43 +862,47 @@ any main hand. Its summary (`summarizeRotation`, checked against this block by
 Combat swords
 1. Blood Fury if Blood Fury is granted
 2. Elune's Light if Elune's Light is granted
-3. Slice and Dice if CP >= 3 and Slice and Dice missing or < 1s left
-4. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready and Energy < 25 and Slice and Dice is up
-5. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Slice and Dice is up
-6. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 5s left
-7. Eviscerate if CP >= 5 and Slice and Dice has >= 12s left
-8. Sinister Strike if CP < 5
-9. Eviscerate if CP >= 3 and time to energy cap < 1s
+3. Berserking if Berserking is granted
+4. Eureka! if Eureka! is granted
+5. Slice and Dice if CP >= 3 and Slice and Dice missing or < 1s left
+6. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready and Energy < 25 and Slice and Dice is up
+7. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Slice and Dice is up
+8. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 5s left
+9. Eviscerate if CP >= 5 and Slice and Dice has >= 12s left
+10. Sinister Strike if CP < 5
+11. Eviscerate if CP >= 3 and time to energy cap < 1s
 ```
 
 The numbers are `presetRotation.combat`:
 
 - 1 and 2: Blood Fury and Elune's Light, cast only when the race grants them
   ([#278](https://github.com/james-attree/wowf_dps_sim/issues/278), above).
-- 3: Slice and Dice at `sliceAndDiceComboPoints` (3) or more with less than
+- 3 and 4: Berserking and Eureka!, cast only when the race grants them
+  ([#279](https://github.com/james-attree/wowf_dps_sim/issues/279), above).
+- 5: Slice and Dice at `sliceAndDiceComboPoints` (3) or more with less than
   `sliceAndDiceRecastSeconds` (1 s) left. If it holds and the energy is short,
   the walk stops: the rotation pools energy for it. James's link opens with a
   second Slice and Dice rule at 5 combo points with the same time; it is the
   same rule with more points, so it never decides, and it is folded into this
   one (the same damage and casts in all 1,500 fights checked: 500 seeds at
   60 s, 120 s and 300 s; `test/presets-310.test.js` repeats it on 40 seeds).
-- 4: Adrenaline Rush under `adrenalineRushEnergyBelow` (25) energy, with Slice
+- 6: Adrenaline Rush under `adrenalineRushEnergyBelow` (25) energy, with Slice
   and Dice up.
-- 5: Blade Flurry with Slice and Dice up. The link gives it no energy
+- 7: Blade Flurry with Slice and Dice up. The link gives it no energy
   condition, so when it holds and its energy is short the walk pools for it.
-- 4 and 5 carry `abilityUnlocked` because a rule for an on-GCD ability that
+- 6 and 7 carry `abilityUnlocked` because a rule for an on-GCD ability that
   holds and cannot be cast ends the walk
   ([The interpreter](#the-interpreter)): without it, a build with Blade Flurry
   or Adrenaline Rush locked would stop at that rule and cast nothing else.
-- 6: Cold Blood (off the GCD) with `abilityGranted` at
+- 8: Cold Blood (off the GCD) with `abilityGranted` at
   `finisherComboPoints` (5) while Slice and Dice has more than
   `coldBloodSliceAndDiceSeconds` (5 s), so its charge goes on the Eviscerate
   that follows.
-- 7: Eviscerate at 5 combo points while Slice and Dice has
+- 9: Eviscerate at 5 combo points while Slice and Dice has
   `eviscerateSliceAndDiceSeconds` (12 s) or more. Below that, with 5 combo
-  points, no rule but 9 holds, so the rotation waits.
-- 8: Sinister Strike below 5 combo points.
-- 9: Eviscerate at 3 combo points or more when energy is less than
+  points, no rule but 11 holds, so the rotation waits.
+- 10: Sinister Strike below 5 combo points.
+- 11: Eviscerate at 3 combo points or more when energy is less than
   `energyToCapSeconds` (1 s) from the cap, so the energy is not wasted.
 
 #### Slice and Dice and energy (#122)
