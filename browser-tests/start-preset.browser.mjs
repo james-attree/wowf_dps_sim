@@ -26,9 +26,7 @@ const WIDE_HEIGHT = 900;
 const WIDE = 1024;
 const TARGET_LEAST = 44;
 // Where the cards cannot fit over the dock at 150% text (they scroll to).
-// Five cards (#328) also scroll to at 150% on the 360 and 390 phones; the
-// test then checks the last one scrolls clear of the dock.
-const SCROLLS = new Set(["320-150%", "360-150%", "390-150%"]);
+const SCROLLS = new Set(["320-150%"]);
 const SHOTS = process.env.START_PRESET_SHOTS ?? null;
 const SETTLE = 5_000;
 const RUN_TIMEOUT = 60_000;
@@ -297,7 +295,10 @@ describe("Start from a preset (#323)", () => {
           assert.ok(panel.bottom <= rows.top + 1, `${name}: above the rows`);
           for (const id of ORDER) {
             const target = await box(page, card(id));
-            assert.ok(target.height >= TARGET_LEAST, `${id}: tall enough`);
+            assert.ok(
+              target.height >= TARGET_LEAST,
+              `${id}: tall enough (${target.height} of ${TARGET_LEAST})`,
+            );
             assert.ok(target.width >= TARGET_LEAST, `${id}: wide enough`);
             assert.ok(target.right <= panel.right + 1, `${id}: in the panel`);
           }

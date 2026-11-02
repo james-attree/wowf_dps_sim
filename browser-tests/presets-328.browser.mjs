@@ -96,7 +96,10 @@ describe("The Combat daggers card (#328)", () => {
           const list = await box(page, "#start-cards");
           for (const id of ids) {
             const target = await box(page, `#start-card-${id}`);
-            assert.ok(target.height >= TARGET_LEAST, `${id}: tall enough`);
+            assert.ok(
+              target.height >= TARGET_LEAST,
+              `${id}: tall enough (${target.height} of ${TARGET_LEAST})`,
+            );
             assert.ok(target.width >= TARGET_LEAST, `${id}: wide enough`);
             assert.ok(target.right <= panel.right + 1, `${id}: in the panel`);
           }

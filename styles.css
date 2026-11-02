@@ -2310,7 +2310,7 @@ a.pill-button {
    top of the Character list on a first visit, and on #character/start.
    One card across, two from 28rem; in rem, so bigger text gets fewer
    across. In a narrow panel (a phone, or larger text) the compact grid
-   keeps all four above the dock: two across, each card's name and builder
+   keeps all five above the dock: two across, each card's name and builder
    only, and the lead's second sentence left out. */
 .start-panel {
   container: start / inline-size;
@@ -2490,16 +2490,22 @@ a.pill-button {
    a line each: its name, then its points, and the lead's second sentence
    left out. */
 @container start (width < 16rem) {
+  /* Tighter rows so five cards fit above the dock (#329, Fran's P1). */
+  .start-cards {
+    gap: 0.25rem;
+  }
+
   .start-card {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0 0.5rem;
     padding: 0.375rem 0.625rem;
+    padding-block: 0.25rem;
   }
 
   .start-lead {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
   }
 
   .start-card-detail,
