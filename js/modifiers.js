@@ -19,7 +19,8 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //   scope   optional conditions. Every key that is present must match the
 //           attack (AND). A key holding several values matches any of them
 //           (OR). A missing key is unrestricted.
-//             abilities    ability ids (the catalogue slug, e.g. "backstab")
+//             abilities    ability ids (the catalogue slug, e.g. "backstab"),
+//                          or a damaging poison's id (poison.spells)
 //             hands        "mainHand" and/or "offHand"
 //             weaponTypes  weapon types from config.weaponTypes, the type of
 //                          the weapon making the attack
@@ -194,7 +195,11 @@ export function defineScope(label, kind, scope) {
       label,
       "abilities",
       scope.abilities,
-      (id) => abilityCatalogue.get(id) !== undefined,
+      // A catalogue ability, or a poison that deals damage (poison.spells):
+      // Eureka! scopes Instant Poison by id (#279, A22).
+      (id) =>
+        abilityCatalogue.get(id) !== undefined ||
+        k("poison.spells").includes(id),
       (id) => `an unknown ability id ${JSON.stringify(id)}`,
     );
   }

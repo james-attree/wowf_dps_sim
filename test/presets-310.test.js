@@ -18,17 +18,29 @@ import { raceGrantedAbilities } from "../js/racials.js";
 
 const ASSASSINATION = "assassination-daggers";
 
-// Each preset opens with the on-use racial rules (#278, Decision 6), which the
-// links predate; the rest is the link's. test/on-use-racials.test.js checks
-// the racial rules and that, with no race, they change no fight.
-const RACIAL_RULES = [...raceGrantedAbilities].map((ability) => ({
+// Each preset opens with the on-use racial rules (#278, #279, Decision 6),
+// which the links predate; the rest is the link's. Each is guarded by
+// abilityGranted only. Every preset has all four (Combat too, Scout,
+// 2 Nov 2026, #315).
+// test/on-use-racials.test.js and test/berserking-eureka.test.js check the
+// racial rules and that, with no race, they change no fight.
+const racialRule = (ability) => ({
   action: ability,
   conditions: [{ type: "abilityGranted", ability }],
-}));
+});
 const presetRules = (id) => {
   const rules = presetSetup(id).rotation.rules;
-  assert.deepEqual(rules.slice(0, RACIAL_RULES.length), RACIAL_RULES, id);
-  return rules.slice(RACIAL_RULES.length);
+  const count = rules.findIndex(
+    (rule) => !raceGrantedAbilities.has(rule.action),
+  );
+  assert.ok(count > 0, id);
+  const racial = rules.slice(0, count);
+  assert.deepEqual(
+    racial,
+    racial.map((rule) => racialRule(rule.action)),
+    id,
+  );
+  return rules.slice(count);
 };
 const COMBAT = "combat-swords";
 const SUBTLETY = "subtlety-daggers";

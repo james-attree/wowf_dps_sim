@@ -108,14 +108,16 @@ describe("on-use racials in the ability catalogue (#278)", () => {
     const racials = abilityCatalogue.abilities.filter(
       (entry) => entry.racial !== undefined && entry.racial !== null,
     );
+    // Berserking and Eureka! (#279) come after them.
     assert.deepEqual(
       racials.map((entry) => entry.id),
-      [BLOOD_FURY, ELUNES_LIGHT],
+      [BLOOD_FURY, ELUNES_LIGHT, "berserking", "eureka"],
     );
-    assert.deepEqual(
-      k("abilities.racials"),
-      ON_USE.map((on) => on.racial),
-    );
+    assert.deepEqual(k("abilities.racials"), [
+      ...ON_USE.map((on) => on.racial),
+      "troll.berserking",
+      "gnome.eureka",
+    ]);
   });
 });
 
@@ -179,7 +181,9 @@ describe("racial effects grant the on-use abilities (#278)", () => {
       assert.equal(RACIAL_EFFECTS[racial].ability, ability);
       assert.equal(racialStatus(racial), "simulated");
     }
-    assert.deepEqual([...raceGrantedAbilities], [BLOOD_FURY, ELUNES_LIGHT]);
+    // Berserking and Eureka! (#279) are granted too.
+    assert.ok(raceGrantedAbilities.has(BLOOD_FURY));
+    assert.ok(raceGrantedAbilities.has(ELUNES_LIGHT));
   });
 
   it("expandRace lists the race's granted abilities, none for no race", () => {
@@ -253,8 +257,9 @@ describe("the presets cast the on-use racials on cooldown when granted (decision
           conditions: [{ type: "abilityGranted", ability: ELUNES_LIGHT }],
         },
       ]);
+      // Berserking and Eureka! (#279) follow; test/berserking-eureka.test.js.
       assert.ok(
-        rules.slice(2).every((rule) => !raceGrantedAbilities.has(rule.action)),
+        rules.slice(4).every((rule) => !raceGrantedAbilities.has(rule.action)),
       );
     });
 

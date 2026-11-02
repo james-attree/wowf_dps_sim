@@ -24,6 +24,10 @@
 //   roundMax  optional. Constants id of how the cap is rounded after its
 //             resourceMax modifiers (A19, #277): "floor", down to a whole
 //             number. A cap that is already whole is left as it is
+//   roundCost optional. Constants id of how a cost in this resource is
+//             rounded after its cost modifiers (A19, #279): "floor", down to
+//             a whole number (Eureka! x 0.9 on 45 is 40.5 -> 40). A cost that
+//             is already whole is left as it is
 //   whole     optional, true: the pool holds whole units only (combo points).
 //             A gain or a spend of a fraction is a RangeError, where a proc
 //             or an ability would otherwise leave 0.5 of a point behind
@@ -42,6 +46,7 @@ export const RESOURCE_DEFINITIONS = Object.freeze([
     id: "energy",
     max: "energy.max",
     roundMax: "energy.maxRounding",
+    roundCost: "energy.costRounding",
     start: Object.freeze({ id: "start.state", field: "energy" }),
     regen: Object.freeze({
       perSecond: "energy.regenPerSecond",

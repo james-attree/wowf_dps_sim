@@ -3416,8 +3416,9 @@ lists and summaries are in [docs/rotation.md](rotation.md#assassination-daggers)
   5 CP so its charge goes on the next Mutilate, and Mutilate to build.
 - **subtlety-daggers**: Premeditation on cooldown when its 2 CP fit,
   Preparation while Ghostly Strike (and so Premeditation, cast at the start)
-  is on cooldown, Slice and Dice (only the recast rule of the pair, to keep
-  its share link under 2,048 characters, #284), Rupture and Eviscerate, then Ambush (passed over unless a Cutthroat proc has put up
+  is on cooldown, Slice and Dice (only the recast rule of the pair, a trim
+  made for #284's old 2,048-character test budget; that budget, `PRESET_LINK_MAX`,
+  is now 4,096, a margin under the app's 8,192 `LINK_CAP`), Rupture and Eviscerate, then Ambush (passed over unless a Cutthroat proc has put up
   its aura; no lock, no hint), Ghostly Strike, Hemorrhage while its debuff has
   under 1 s left, and Backstab.
 
@@ -3799,8 +3800,9 @@ definition says how its cap rounds (`roundMax: "energy.maxRounding"`,
 `resourceMax` modifiers. A whole cap is left as it is, so a fight with no
 multiplier reads exactly the number it did. Before flooring it adds
 `k("resource.maxRoundingTolerance")` (1e-9), so a product floating point
-holds a hair under a whole number is not dropped a point. Rounding ability
-costs (Eureka!'s −10%) is P5-03b (#279).
+holds a hair under a whole number is not dropped a point. Ability costs are
+rounded the same way since P5-03b (#279): see
+[Berserking and Eureka!](#berserking-and-eureka-p5-03b-issue-279).
 
 The mob-type racials (Beast Slaying, Big Game Hunter, Elemental Insight) are
 inert while `target.mobType` is `"unspecified"`, the default and so far the
@@ -3860,16 +3862,81 @@ condition (`talentGuard`, whose message says the ability comes from a race);
 them in its palette yet, and its copy for a race that lacks one is P5-04
 (#280).
 
-These have a `notSimulated` reason and add nothing yet:
+### Berserking and Eureka! (P5-03b, issue #279)
 
-- Berserking (Troll) and Eureka! (Gnome), on-use: P5-03b (#279).
-- Touch of the Grave (Undead): its damage is a share of the rogue's maximum
-  health, which is not modelled (Phase 5 decision 2, a post-launch issue).
+Berserking (Troll) and Eureka! (Gnome) take the same route as Blood Fury:
+`{ ability }` entries, abilities in `abilities.racials` read from the export
+text (cast time and cooldown), off the GCD and free (A21 of the Phase 5 plan
+v4, an assumption accepted under its "yes to all" approval), an aura each, a
+`cast` row, and no random draw (G2).
+
+| Racial            | Export text (first sentence)                                                                                                  | Effect                                                                                                                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Troll, Berserking | "Instant, 3 min cooldown. Increases your spellcasting and attack speed by 10% for 15 sec."                                    | aura `berserking`: `haste` add `k("racial.berserking").haste` = 0.1 for 15 s, cooldown 180 s                                                                                                                 |
+| Gnome, Eureka!    | "Instant, 2 min cooldown. For 8 sec, your non-periodic damaging abilities cost 10% less (…) and deal 10% more damage." (more) | aura `eureka`: `energyCost` mult `k("racial.eureka").energyCost` = 0.9 on `racial.eurekaAbilities`, and `damage` mult `k("racial.eureka").damage` = 1.1 on those and Instant Poison, for 8 s, cooldown 120 s |
+
+**Berserking (A20, James, Q3, 31 Oct).** A flat +10% (the Forever export,
+not Classic's health-scaled version). It is a `haste` add like Wind Blessed,
+so it multiplies with Slice and Dice, Blade Flurry and gear haste
+([Haste stacking](#haste-stacking)), and changes attack speed only, not
+energy or the GCD. A swing already under way is not rescaled when the aura
+starts or ends; the new speed applies from the next swing (`js/core/swing.js`, as
+Slice and Dice already behaves). A pinned test casts it at 1 s of a 30 s
+fight and checks every main-hand interval: a swing begun before the aura (or
+after it ends) keeps the weapon's speed, and one begun under it is speed ÷
+1.1, including the swings that straddle the start and the end. Rescaling a
+swing under way is a possible post-launch accuracy item.
+
+**Eureka!'s scope (A22, an assumption).** "Non-periodic" is read as the
+direct abilities and Instant Poison; bleeds (Rupture, Garrote), Deadly
+Poison's ticks and white swings get nothing.
+
+**Eureka!'s damage is a multiplier (an assumption).** The export says only
+"deal 10% more damage". The sim applies `racial.eureka.damage` (1.1) as a
+`mult`, so under `modifiers.stacking` `"percent"` it multiplies with the
+talent percentages rather than adding 10% to them. That is the developer's
+reading, tagged `assumption` in `racial.eurekaDamageOp` (`"mult"`; `"add"`
+with 0.1 is the other reading) and flagged on #279. `racial.eurekaAbilities` lists
+the direct damaging abilities (Sinister Strike, Eviscerate, Ghostly Strike,
+Backstab, Ambush, Mutilate, Hemorrhage); a test checks it is every catalogue
+ability whose damage is not a DoT or an attack with no damage. Leaving the
+white swings (and Sword Specialization's extra swing) out is my reading:
+they are not "abilities", so this is flagged for James. The cost cut applies
+to the listed abilities only (Instant Poison costs nothing). The `abilities`
+scope of a modifier now also accepts a `poison.spells` id, so the damage
+mult can name `instant-poison`.
+
+**Cost rounding (A19, James, Q4, 31 Oct).** A cost is rounded down after its
+`energyCost` modifiers: 45 × 0.9 = 40.5 → **40**, 35 → 31, 60 → 54. The
+energy definition says how (`roundCost: "energy.costRounding"`, `"floor"`),
+and `resolveCost` in `js/resource.js` (which `Ability.costNow` uses) applies
+it with the cap's tolerance (`resource.maxRoundingTolerance`). A cost that is
+already whole is left as it is, so every cost with no multiplier is the one
+it was (an assumption: rounding only a non-whole cost). Damage is not
+rounded.
+
+**Presets.** Decision 6 puts every on-use racial at the top of every preset,
+and Berserking and Eureka! are rules 3 and 4 of all three, combat-swords
+included (Scout, 2 Nov 2026, on #315). Each racial rule adds about 112
+characters to a share link; combat-swords' is 2,199 with all four. That is
+well under the app's only cap, `LINK_CAP` (8,192) in
+`js/views/share-link.js`; the 2,048 the presets were held to (#284) is a
+test budget, `PRESET_LINK_MAX` in `test/build-codec.test.js`, now 4,096. A
+Troll or a Gnome on any preset casts its racial at the pull.
+
+Golden fixtures: every existing fixture is unchanged. Two new ones pin a racial each:
+`race-troll-assassination-daggers-seed-279-60s` and
+`race-gnome-assassination-daggers-seed-279-60s` (the assassination-daggers
+preset with its reference build and the race).
+
+Touch of the Grave (Undead) has a `notSimulated` reason and adds nothing
+yet: its damage is a share of the rogue's maximum health, which is not
+modelled (Phase 5 decision 2, a post-launch issue).
 
 Every other racial (stun, fear and curse removal, breathing, regeneration,
 stealth, movement, treasure, engineering, pets) has a `noDpsEffect` reason.
-Of the 36 racials, 7 are simulated (5 static, 2 on use), 4 wait for a target
-type, 3 are not simulated yet and 22 have no DPS effect.
+Of the 36 racials, 9 are simulated (5 static, 4 on use), 4 wait for a target
+type, 1 is not simulated yet and 22 have no DPS effect.
 
 ### Coverage
 

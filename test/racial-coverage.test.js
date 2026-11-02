@@ -44,10 +44,11 @@ describe("racials:coverage (#277)", () => {
     assert.equal(report.total, 36);
     assert.equal(report.covered, 36);
     assert.deepEqual(report.statuses, {
-      // Blood Fury and Elune's Light are simulated since #278.
-      simulated: 7,
+      // Blood Fury and Elune's Light are simulated since #278, Berserking and
+      // Eureka! since #279.
+      simulated: 9,
       inert: 4,
-      notSimulated: 3,
+      notSimulated: 1,
       noDpsEffect: 22,
     });
     assert.equal(quiet([]).status, 0);

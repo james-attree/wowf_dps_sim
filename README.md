@@ -719,7 +719,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   the nine rogue races, four racials each, with `race` and `race.racial` ids.
   `data/racial-effects.js` says what each racial does (static modifiers,
   optionally for some target types only, or the on-use ability it grants:
-  Blood Fury and Elune's Light, #278) or why it does nothing yet, with a
+  Blood Fury and Elune's Light, #278; Berserking and Eureka!, #279) or why it does nothing yet, with a
   hash of the text it was written from. `expandRace(id)` gives the modifiers
   and abilities the Rogue adds for `config.race`; `null`, the default, adds none. See
   [Races and racials](docs/mechanics.md#races-and-racials-d12a-issue-277).
