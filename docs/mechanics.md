@@ -3416,8 +3416,9 @@ lists and summaries are in [docs/rotation.md](rotation.md#assassination-daggers)
   5 CP so its charge goes on the next Mutilate, and Mutilate to build.
 - **subtlety-daggers**: Premeditation on cooldown when its 2 CP fit,
   Preparation while Ghostly Strike (and so Premeditation, cast at the start)
-  is on cooldown, Slice and Dice (only the recast rule of the pair, to keep
-  its share link under 2,048 characters, #284), Rupture and Eviscerate, then Ambush (passed over unless a Cutthroat proc has put up
+  is on cooldown, Slice and Dice (only the recast rule of the pair, a trim
+  made for #284's old 2,048-character test budget; that budget, `PRESET_LINK_MAX`,
+  is now 4,096, a margin under the app's 8,192 `LINK_CAP`), Rupture and Eviscerate, then Ambush (passed over unless a Cutthroat proc has put up
   its aura; no lock, no hint), Ghostly Strike, Hemorrhage while its debuff has
   under 1 s left, and Backstab.
 
