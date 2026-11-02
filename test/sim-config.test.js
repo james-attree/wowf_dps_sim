@@ -78,6 +78,7 @@ describe("defaultConfig", () => {
         critChance: k("character.critChance"),
         bonusHitChance: k("character.bonusHitChance"),
         haste: k("character.haste"),
+        weaponSkill: k("character.level") * 5,
       },
       weapons: {
         mainHand: {
@@ -244,7 +245,7 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { character: { ap: 5 } },
       RangeError,
-      /config\.character has an unknown field "ap"\. Allowed fields: attackPower, critChance, bonusHitChance, haste\./,
+      /config\.character has an unknown field "ap"\. Allowed fields: attackPower, critChance, bonusHitChance, haste, weaponSkill\./,
     );
     rejects(
       { weapons: { mainhand: {} } },

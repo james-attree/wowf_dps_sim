@@ -42,6 +42,7 @@ function busySetup() {
         critChance: 0.3,
         bonusHitChance: 0.05,
         haste: 0.05,
+        weaponSkill: 305,
       },
       weapons: {
         mainHand: { min: 60, max: 110, speed: 1.8, type: "dagger" },

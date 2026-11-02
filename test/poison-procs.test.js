@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { createFight, runFight } from "../js/fight.js";
+import { deriveAttackTable } from "../js/attack-resolver.js";
 import { poisonCatalogue, poisonProcs } from "../js/poisons.js";
 import { defineProc } from "../js/procs.js";
 import { Rogue } from "../js/rogue.js";
@@ -815,7 +816,7 @@ describe("over many runs", () => {
       DEADLY_MAIN,
       (sim) => sim.abilityStats["deadly-poison"].misses,
     );
-    const rate = k("spell.missTarget").chance;
+    const rate = deriveAttackTable().spellMiss.chance;
     assert.ok(applications > 1000);
     assert.ok(
       Math.abs(misses / applications - rate) < tolerance(rate, applications),

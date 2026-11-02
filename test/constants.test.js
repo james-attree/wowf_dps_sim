@@ -35,21 +35,22 @@ const ROADMAP = [
   ["normalizedSpeed.oneHand", "classic-1.12"],
   ["offHand.damageMult", "classic-1.12"],
   ["crit.meleeMultiplier", "classic-1.12"],
-  ["weaponSkill.base", "classic-1.12"],
-  ["target.defense", "classic-1.12"],
-  ["miss.yellow", "classic-1.12"],
-  ["hit.suppression", "classic-1.12"],
-  ["miss.dualWieldPenalty", "classic-1.12"],
-  ["dodge.target", "classic-1.12"],
-  ["parry.target", "classic-1.12"],
-  ["block.target", "classic-1.12"],
-  ["glancing.chance", "classic-1.12"],
-  ["glancing.damage", "classic-1.12"],
+  // The attack table, one table since #295: every row an assumption.
+  ["attackTable.weaponSkill", "assumption"],
+  ["attackTable.defense", "assumption"],
+  ["attackTable.miss", "assumption"],
+  ["attackTable.hitSuppression", "assumption"],
+  ["attackTable.dualWieldPenalty", "assumption"],
+  ["attackTable.dodge", "assumption"],
+  ["attackTable.parry", "assumption"],
+  ["attackTable.block", "assumption"],
+  ["attackTable.glancing", "assumption"],
+  ["attackTable.glancingDamage", "assumption"],
+  ["attackTable.critModel", "assumption"],
+  ["attackTable.critModels", "assumption"],
+  ["attackTable.spellMiss", "assumption"],
   ["table.white", "classic-1.12"],
   ["table.yellow", "classic-1.12"],
-  ["crit.suppressionSkill", "classic-1.12"],
-  ["crit.suppressionAura", "classic-1.12"],
-  ["spell.missTarget", "classic-1.12"],
   ["poison.hitModel", "classic-1.12"],
   ["poison.procSource", "classic-1.12"],
   ["poison.deadlyTick", "classic-1.12"],
@@ -109,9 +110,10 @@ describe("constants", () => {
     assert.deepEqual(counts, {
       "wowf-export": 12,
       "wowf-designer": 2,
-      "classic-1.12": 34,
+      // The 13 attack table rows are assumptions since #295.
+      "classic-1.12": 21,
       cataclysm: 1,
-      assumption: 13,
+      assumption: 26,
     });
   });
 
@@ -140,7 +142,12 @@ describe("constants", () => {
     assert.equal(k("dot.critMultiplier"), 2);
     assert.equal(k("bleed.ignoresArmor"), true);
     assert.deepEqual(k("rupture.apByCP"), [0.06, 0.12, 0.18, 0.24, 0.3]);
-    assert.equal(k("miss.yellow") + k("miss.dualWieldPenalty"), 0.27);
+    assert.equal(
+      k("attackTable.miss").base +
+        15 * k("attackTable.miss").perPointAboveGap +
+        k("attackTable.dualWieldPenalty"),
+      0.27,
+    );
     assert.equal(CONSTANTS["rupture.apAtZeroCp"], undefined);
     assert.equal(
       CONSTANTS["character.startingComboPoints"].ref,
