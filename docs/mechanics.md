@@ -168,7 +168,8 @@ DoT's application never crits.
 
 **Spell hit table.** `spellMissChance` and `resolveSpellHit` give the 17%
 miss, floored at 1%, that a poison proc uses (A5, `k("spell.missTarget")`),
-with status "Resist". A `dealDamage` or `applyDot` proc action with `spellHit`
+less the rogue's bonus spell hit (the `spellHitChance` modifiers: only Dwarf
+Artisan's Precision so far, an assumption, #277), with status "Resist". A `dealDamage` or `applyDot` proc action with `spellHit`
 draws one roll from it (see [Poison procs](#poison-procs-a5-issue-105)).
 
 Damage is the base times a multiplier, then `Math.floor`. A miss, dodge or
@@ -381,10 +382,13 @@ are not attacks, so they have no miss refund.
 ## Combo points
 
 The fight starts at `k("character.startingComboPoints")`. `k("start.state")`
-records the same combo-point count and full energy. Both are assumptions on
+records the same combo-point count and 100 energy. Both are assumptions on
 the retune list. The ref on `k("character.startingComboPoints")` says there is no pre-pull
 Premeditation. The note says the sample fight reads this value, and that
-`k("start.state")` records the same combo points and full energy. The cap is `k("combo.max")` (`wowf-export`, not on the retune
+`k("start.state")` records the same combo points and 100 energy. That is a
+full bar only at the base cap: a raised cap (Vigor's 110, Gnome Expansive
+Mind's 105 or 115) does not raise the start, so those fights start below their
+cap (#277, QA note N2). The combo-point cap is `k("combo.max")` (`wowf-export`, not on the retune
 list).
 
 Combo points are a resource too (see [Resources](#resources)). A builder
@@ -833,6 +837,9 @@ pins the current rule, Eviscerate included.
 **Spell hit.** The proc draws the 17% `k("spell.missTarget")` once. On a
 resist nothing is dealt or applied, and the resist shows in the breakdown and
 the log under the poison's name. A hit on the weapon table does not change it.
+Only a `spellHitChance` modifier lowers it: Dwarf Artisan's Precision takes
+`k("racial.artisansPrecision.spellHitChance")` (1%) off, so 16%. That the
+text's "spells" are a rogue's poisons is an assumption (#277, QA note N1).
 
 **Instant Poison** is a direct hit under the id `instant-poison`, display name
 "Instant Poison": the damage is rolled between 76 and 100 (one draw), skips
@@ -2799,7 +2806,8 @@ The filter is a modifier scope (`abilities`, `hands`, `weaponTypes`, `schools`,
 - `dealDamage { id, name?, min, max?, spellHit?, canCrit? }`: damage from a source of its
   own, in the ability record and the combat log. The damage modifiers, armor and
   the damage tags of the `id` apply (a poison id is a nature spell). With
-  `spellHit` it first rolls a spell hit (no bonus hit), and a resist deals
+  `spellHit` it first rolls a spell hit (the bonus is the `spellHitChance`
+  modifiers only, not melee hit), and a resist deals
   nothing. With `canCrit: true` a landed hit then rolls one crit at the melee
   crit chance (suppression per its constant, see Poison procs) for the crit
   multiplier given by `poison.instantCrit`; without it, the damage never crits.
@@ -3762,17 +3770,22 @@ static: none is a proc, so a race draws no random number of its own (G2).
 The values are the export's (A18), each a `wowf-export` constants row whose ref
 quotes the text:
 
-| Racial                                       | Export text                                                                | Effect                                                                                                |
-| -------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Human, Ruthless                              | "Increases your critical strike chance with all spells and attacks by 1%." | `critChance` add `k("racial.ruthless.critChance")` = 0.01                                             |
-| Dwarf, Artisan's Precision                   | "Increases hit chance with spells and attacks by 1%."                      | `hitChance` add `k("racial.artisansPrecision.hitChance")` = 0.01                                      |
-| Gnome, Expansive Mind                        | "Maximum Mana, Rage or Energy increased by 5%, whichever your class uses." | `resourceMax` mult `k("racial.expansiveMind.energyMax")` = 1.05 on energy                             |
-| Skyborne (both), Wind Blessed                | "Increases your spellcasting, melee, and ranged Haste by 2%."              | `haste` add `k("racial.windBlessed.haste")` = 0.02                                                    |
-| Troll, Beast Slaying; Dwarf, Big Game Hunter | "Damage dealt versus Beasts increased by 5%."                              | `damage` add `k("racial.beastSlaying")` and `k("racial.bigGameHunter")` = 0.05, `mobTypes: ["beast"]` |
-| Skyborne (both), Elemental Insight           | "Damage dealt versus Elementals increased by 5%."                          | `damage` add `k("racial.elementalInsight")` = 0.05, `mobTypes: ["elemental"]`                         |
+| Racial                                       | Export text                                                                | Effect                                                                                                                                                               |
+| -------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Human, Ruthless                              | "Increases your critical strike chance with all spells and attacks by 1%." | `critChance` add `k("racial.ruthless.critChance")` = 0.01                                                                                                            |
+| Dwarf, Artisan's Precision                   | "Increases hit chance with spells and attacks by 1%."                      | `hitChance` add `k("racial.artisansPrecision.hitChance")` = 0.01; `spellHitChance` add `k("racial.artisansPrecision.spellHitChance")` = 0.01 on poisons (assumption) |
+| Gnome, Expansive Mind                        | "Maximum Mana, Rage or Energy increased by 5%, whichever your class uses." | `resourceMax` mult `k("racial.expansiveMind.energyMax")` = 1.05 on energy                                                                                            |
+| Skyborne (both), Wind Blessed                | "Increases your spellcasting, melee, and ranged Haste by 2%."              | `haste` add `k("racial.windBlessed.haste")` = 0.02                                                                                                                   |
+| Troll, Beast Slaying; Dwarf, Big Game Hunter | "Damage dealt versus Beasts increased by 5%."                              | `damage` add `k("racial.beastSlaying")` and `k("racial.bigGameHunter")` = 0.05, `mobTypes: ["beast"]`                                                                |
+| Skyborne (both), Elemental Insight           | "Damage dealt versus Elementals increased by 5%."                          | `damage` add `k("racial.elementalInsight")` = 0.05, `mobTypes: ["elemental"]`                                                                                        |
 
 The crit and hit a player types are without racials (Q7): Ruthless and
 Artisan's Precision are added on top, as the build's Malice and Precision are.
+Artisan's Precision also lowers the poison (spell) miss chance by 1%, the
+"spells" part of its text: an assumption (QA note N1), on the retune list as
+`k("racial.artisansPrecision.spellHitChance")`. Melee hit from talents or the
+entered hit still does not reduce poison misses. With Combat Precision the
+yellow hit is already capped, so the melee part helps only white swings.
 Wind Blessed is attack speed only (A20): it is one more `haste` contribution,
 multiplied with gear haste, Slice and Dice and Blade Flurry, and a swing
 already running is not rescaled (see [Haste stacking](#haste-stacking)). It

@@ -294,6 +294,12 @@ export class Rogue {
     return this.modifiers.resolve("hitChance", this.bonusHitChance, context);
   }
 
+  // The bonus spell hit a poison proc rolls with (#277, N1): only the
+  // spellHitChance modifiers; the entered and talent melee hit do not count.
+  getBonusSpellHitChance() {
+    return this.modifiers.resolve("spellHitChance", 0);
+  }
+
   rollWeaponDamageForSkill(hand = "mainHand") {
     // Weapon die plus attack power / ap.perDps, times the normalized speed of
     // the hand's type (the dagger or the one-hand constant, set above). The
