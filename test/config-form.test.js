@@ -87,6 +87,8 @@ describe("the form fills from the store's config", () => {
         "character.critChance",
         "character.bonusHitChance",
         "character.haste",
+        "character.weaponSkill",
+        "target.level",
         "weapons.mainHand.type",
         "weapons.mainHand.min",
         "weapons.mainHand.max",
@@ -231,8 +233,14 @@ describe("an invalid value never reaches the config", () => {
   it("the normalizeConfig backstop refuses what the checks miss, as a form error", () => {
     const store = createStore({ config: normalizeConfig(pageDefaultConfig()) });
     const actions = createConfigForm(store);
-    // A target the form does not edit, made invalid behind its back.
-    store.set({ config: { ...store.get().config, target: { level: "high" } } });
+    // The target armour, which the form does not edit, made invalid behind
+    // its back.
+    store.set({
+      config: {
+        ...store.get().config,
+        target: { ...store.get().config.target, armor: "high" },
+      },
+    });
     const before = store.get().config;
     actions.change("character.attackPower", 900);
     assert.match(
@@ -306,7 +314,12 @@ describe("a null Min never stands alone (#237)", () => {
 
   it("the backstop's FORM_ERROR is one setting to fix, and stands alone", () => {
     const { store, actions, form } = setup();
-    store.set({ config: { ...store.get().config, target: { level: "high" } } });
+    store.set({
+      config: {
+        ...store.get().config,
+        target: { ...store.get().config.target, armor: "high" },
+      },
+    });
     actions.change("character.attackPower", 900);
     assert.deepEqual(Object.keys(form().errors), [FORM_ERROR]);
     check(store, 1, "the backstop");

@@ -30,7 +30,7 @@ const HANDS = Object.freeze([
 ]);
 
 const screenOfPath = (path) =>
-  path.startsWith("character.")
+  path.startsWith("character.") || path.startsWith("target.")
     ? "stats"
     : path.startsWith("weapons.") || path.startsWith("poisons.")
       ? "gear"

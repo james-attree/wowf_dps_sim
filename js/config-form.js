@@ -1,4 +1,6 @@
 import { k } from "../data/constants.js";
+import { defaultWeaponSkill, maxWeaponSkill } from "./attack-resolver.js";
+import { characterLevel } from "./levels.js";
 import { defaultRotation } from "./rotation-default.js";
 import { exportRotation, importRotation } from "./rotation-io.js";
 import { poisonCatalogue } from "./poisons.js";
@@ -29,7 +31,12 @@ import { formErrorCount } from "./views/run-model.js";
 //                   percent (the view converts at its edge), damage, speed and
 //                   attack power as numbers, weapon types and poisons as ids
 //                   (a poison is null for None). A value the player typed
-//                   that is not a number is NaN.
+//                   that is not a number is NaN. Weapon skill and the enemy
+//                   level (#318) are null while blank: they follow the
+//                   level (OPTIONAL_FIELDS).
+//   levels          levelsInfo() of the config's level: what a blank weapon
+//                   skill or enemy level is, and their bounds, for the view
+//                   to show (#318).
 //   errors          { field path: message } for each field that is invalid
 //                   now. A message of null marks a field invalid with its
 //                   message on another field (the Min of a Min/Max pair).
@@ -77,12 +84,61 @@ import { formErrorCount } from "./views/run-model.js";
 export const FORM_ERROR = "form";
 
 const HANDS = ["mainHand", "offHand"];
+// The fields a blank leaves to follow the level (#318): null in the config
+// and the form while blank.
+export const OPTIONAL_FIELDS = Object.freeze([
+  "character.weaponSkill",
+  "target.level",
+]);
+// The lowest weapon skill the engine takes (js/sim-config.js
+// CHARACTER_LIMITS.weaponSkill; test/config-form.test.js holds them to it).
+export const MIN_WEAPON_SKILL = 1;
 const PERCENT_MESSAGE = "Enter a percentage from 0 to 100.";
 const NUMBER_MESSAGE = "Enter a number.";
 const WHOLE_MESSAGE = "Use a whole number, 0 or more.";
 
+// What a blank weapon skill and enemy level are at a config's level, and
+// their bounds (#318; the engine's: js/attack-resolver.js defaultWeaponSkill
+// and maxWeaponSkill, js/levels.js targetLevel, target.levelRange).
+export function levelsInfo(level = k("character.level")) {
+  const { min, max } = k("target.levelRange");
+  return {
+    level,
+    weaponSkill: {
+      blank: defaultWeaponSkill(level),
+      perLevel: k("attackTable.weaponSkill").perLevel,
+      min: MIN_WEAPON_SKILL,
+      max: maxWeaponSkill(level),
+    },
+    targetLevel: {
+      blank: Math.min(max, level + k("target.levelAboveCharacter")),
+      above: k("target.levelAboveCharacter"),
+      min,
+      max,
+    },
+  };
+}
+
+const isWholeIn = (value, min, max) =>
+  Number.isInteger(value) && value >= min && value <= max;
+
+// A field blank is null: fine, it follows the level. Text that is not a
+// number is NaN.
+function optionalCheck(rangeMessage, inRange) {
+  return (value, values, levels) => {
+    if (value === null) {
+      return "";
+    }
+    if (typeof value !== "number" || Number.isNaN(value)) {
+      return `Enter a number, or leave it blank.`;
+    }
+    return inRange(value, levels) ? "" : rangeMessage(levels);
+  };
+}
+
 // Every field the form edits, in page order, with its check. A check gets the
-// value and all values, and returns a message, or "" when the value is fine.
+// value, all values and levelsInfo() of the config's level, and returns a
+// message, or "" when the value is fine.
 function numberCheck(rangeMessage, inRange) {
   return (value) => {
     if (typeof value !== "number" || Number.isNaN(value)) {
@@ -144,6 +200,24 @@ export const FORM_FIELDS = Object.freeze(
     // A fraction of attack speed, entered as a percent like the chances
     // (#274): Classic haste, attacks only.
     { path: "character.haste", check: chance },
+    // Blank is level x 5; at most level x 5 + 50, the engine's cap (#318).
+    {
+      path: "character.weaponSkill",
+      check: optionalCheck(
+        ({ level, weaponSkill: { min, max } }) =>
+          `Weapon skill must be a whole number from ${min} to ${max} at level ${level}.`,
+        (value, { weaponSkill: { min, max } }) => isWholeIn(value, min, max),
+      ),
+    },
+    // Blank is your level + 3 (#318).
+    {
+      path: "target.level",
+      check: optionalCheck(
+        ({ targetLevel: { min, max } }) =>
+          `Enemy level must be a whole number from ${min} to ${max}.`,
+        (value, { targetLevel: { min, max } }) => isWholeIn(value, min, max),
+      ),
+    },
     ...HANDS.flatMap(weaponFields),
     // The poison selects (#152). A select cannot hold anything else, so this
     // only catches a value set from outside the page.
@@ -189,7 +263,10 @@ export function fromBehind(config) {
 // A poison select's value: its config id, "" for None. The config id is the
 // catalogue's `key` ("instant"), not its `id` ("instant-poison").
 function controlValue(path, value) {
-  return path.startsWith("poisons.") && value === "" ? null : value;
+  return (path.startsWith("poisons.") && value === "") ||
+    (OPTIONAL_FIELDS.includes(path) && (value === "" || value === undefined))
+    ? null
+    : value;
 }
 
 const optionOf = ({ key, name }) => ({ id: key, label: name });
@@ -249,15 +326,21 @@ const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // { field path: value } of a config.
 export function formValues(config) {
   return Object.fromEntries(
-    FIELD_PATHS.map((path) => [path, read(config, path)]),
+    FIELD_PATHS.map((path) => [
+      path,
+      OPTIONAL_FIELDS.includes(path)
+        ? (read(config, path) ?? null)
+        : read(config, path),
+    ]),
   );
 }
 
-// Each field's message, or no entry when it is fine.
-export function validateValues(values) {
+// Each field's message, or no entry when it is fine, at `levels`
+// (levelsInfo of the config's level).
+export function validateValues(values, levels = levelsInfo()) {
   const errors = {};
   for (const { path, check } of FORM_FIELDS) {
-    const message = check(values[path], values);
+    const message = check(values[path], values, levels);
     if (message !== "") {
       errors[path] = message;
       // Only "at least the min damage" is the pair's error; a Max that is
@@ -428,6 +511,7 @@ export function formFromConfig(config, revision = 0) {
     summary: summaryOf(config.rotation, { talents: talentState(config) }),
     poisonOptions: poisonOptions(),
     poisons: poisonsInfo(formValues(config)),
+    levels: levelsInfo(characterLevel(config)),
     revision,
     canUndo: false,
   };
@@ -542,6 +626,8 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
   store.set({ form: formFromConfig(store.get().config) });
 
   const form = () => store.get().form;
+  // The bounds at the config's level (#318): a weapon skill's cap is.
+  const levelsNow = () => levelsInfo(characterLevel(store.get().config));
 
   // Write `next` as the form; when it has no errors, write the config it
   // describes too. A config normalizeConfig refuses is a FORM_ERROR instead.
@@ -551,7 +637,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
   function commit(next) {
     const errors =
       (next.edited?.length ?? 0) > 0
-        ? validateValues(next.values)
+        ? validateValues(next.values, levelsNow())
         : { ...next.errors };
     delete errors[FORM_ERROR];
     let config = null;
@@ -585,6 +671,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
             errors: check.errors.length,
           }),
           poisons: poisonsInfo(next.values),
+          levels: levelsInfo(characterLevel(config ?? store.get().config)),
           canUndo: false,
         },
       });
@@ -641,12 +728,31 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
     if (config.talents === talents && config.talentLevel === talentLevel) {
       return;
     }
+    const levelChanged = config.talentLevel !== talentLevel;
     talents = config.talents;
     talentLevel = config.talentLevel;
     const now = state.form;
+    // Another level moves the weapon skill's cap (#318): a typed skill over
+    // the new one is an error (the talent tree leaves the config's blank),
+    // and one back under it is fine again, so the config takes it.
+    if (levelChanged) {
+      const path = "character.weaponSkill";
+      const message = validateValues(now.values, levelsNow())[path];
+      if (message !== now.errors[path]) {
+        const errors = { ...now.errors };
+        if (message === undefined) {
+          delete errors[path];
+        } else {
+          errors[path] = message;
+        }
+        commit({ ...now, errors });
+        return;
+      }
+    }
     store.set({
       form: {
         ...now,
+        levels: levelsInfo(characterLevel(config)),
         summary: summaryOf(
           rotationOf(now.rotationChoice, now.imported, now.drafts),
           {
@@ -670,7 +776,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       const value = controlValue(path, raw);
       const values = { ...form().values, [path]: value };
       const errors = { ...form().errors };
-      const now = validateValues(values);
+      const now = validateValues(values, levelsNow());
       if ((form().edited?.length ?? 0) === 0) {
         checkedLive = new Set(Object.keys(errors));
       }
@@ -714,7 +820,11 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       forget();
       const value = controlValue(path, raw);
       const values = { ...form().values, [path]: value };
-      commit({ ...form(), values, errors: validateValues(values) });
+      commit({
+        ...form(),
+        values,
+        errors: validateValues(values, levelsNow()),
+      });
     },
     chooseRotation(choice) {
       forget();
@@ -828,7 +938,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
         commit({
           ...form(),
           values,
-          errors: validateValues(values),
+          errors: validateValues(values, levelsNow()),
           revision: form().revision + 1,
         });
       });

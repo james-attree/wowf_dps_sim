@@ -60,6 +60,15 @@ export function formatField(value, percent) {
   return percent ? formatPercent(value) : String(value);
 }
 
+// The help under Weapon skill and Enemy level (#318), from the form's
+// levels (js/config-form.js levelsInfo).
+export function weaponSkillHelpText({ level, weaponSkill }) {
+  return `Leave blank for ${weaponSkill.blank} (your level × ${weaponSkill.perLevel}). At most ${weaponSkill.max} at level ${level}.`;
+}
+export function enemyLevelHelpText({ targetLevel }) {
+  return `Leave blank for ${targetLevel.blank} (your level + ${targetLevel.above}). From ${targetLevel.min} to ${targetLevel.max}.`;
+}
+
 const plural = (count, one, many) => (count === 1 ? one : many);
 
 // What the footer says while `count` fields need fixing.
@@ -159,10 +168,19 @@ export function createConfigFormView(doc, store, actions) {
   const paths = Object.keys(store.get().form.values);
   const controls = new Map(paths.map((path) => [path, $(fieldId(path))]));
   const isPercent = (control) => control.getAttribute("data-percent") !== null;
+  // A data-optional field left blank is null: it follows the level (#318).
+  // Text a number input can't read is not blank (its value is "" too).
+  const isBlank = (control) =>
+    control.getAttribute("data-optional") !== null &&
+    String(control.value).trim() === "" &&
+    control.validity?.badInput !== true;
   const readControl = (path) => {
     const control = controls.get(path);
-    return control.tagName === "SELECT"
-      ? control.value
+    if (control.tagName === "SELECT") {
+      return control.value;
+    }
+    return isBlank(control)
+      ? null
       : parseField(control.value, isPercent(control));
   };
 
@@ -246,6 +264,39 @@ export function createConfigFormView(doc, store, actions) {
       $(`${id}-note`).hidden = note === "";
       $(`${id}-tooltip-text`).textContent = on ? info.text : "";
       $(`${id}-tooltip`).hidden = !on;
+    }
+  }
+
+  // What a blank weapon skill and enemy level are, and their bounds (#318):
+  // the placeholder shows the value a blank gives, the help says so.
+  const LEVEL_FIELDS = Object.freeze({
+    "character.weaponSkill": (levels) => ({
+      ...levels.weaponSkill,
+      help: weaponSkillHelpText(levels),
+    }),
+    "target.level": (levels) => ({
+      ...levels.targetLevel,
+      help: enemyLevelHelpText(levels),
+    }),
+  });
+  function drawLevels(levels) {
+    if (levels === undefined) {
+      return;
+    }
+    for (const [path, of] of Object.entries(LEVEL_FIELDS)) {
+      const control = controls.get(path);
+      if (control === undefined || control === null) {
+        continue;
+      }
+      const { blank, min, max, help } = of(levels);
+      control.placeholder = String(blank);
+      control.min = String(min);
+      control.max = String(max);
+      const helpId = control.getAttribute("data-help");
+      const node = typeof helpId === "string" ? $(helpId) : null;
+      if (node !== null && node !== undefined && node.textContent !== help) {
+        node.textContent = help;
+      }
     }
   }
 
@@ -469,6 +520,9 @@ export function createConfigFormView(doc, store, actions) {
     }
     if (previous === null || state.poisons !== previous.poisons) {
       drawPoisons(state.poisons);
+    }
+    if (previous === null || state.levels !== previous.levels) {
+      drawLevels(state.levels);
     }
     if (
       previous === null ||

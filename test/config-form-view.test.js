@@ -319,7 +319,12 @@ describe("errors", () => {
     commit("weapons.mainHand.min", "30");
     same(1, "fixed");
     // The normalizeConfig backstop: one setting, with no field to link.
-    store.set({ config: { ...store.get().config, target: { level: "high" } } });
+    store.set({
+      config: {
+        ...store.get().config,
+        target: { ...store.get().config.target, armor: "high" },
+      },
+    });
     actions.change("character.attackPower", 900);
     assert.equal(typeof store.get().form.errors[FORM_ERROR], "string");
     same(2, "the backstop");

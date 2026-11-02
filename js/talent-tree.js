@@ -1,6 +1,7 @@
 import { k } from "../data/constants.js";
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { abilityCatalogue } from "./abilities.js";
+import { maxWeaponSkill } from "./attack-resolver.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { talentLabel } from "./build-label.js";
 import { iconUrl, talentIconUrl } from "./icons.js";
@@ -717,8 +718,18 @@ export function createTalentTree(
     if (legal) {
       const key = buildKey(next.ranks, next.level);
       if (key !== buildKey(config.talents, config.talentLevel)) {
+        // A typed weapon skill over the new level's cap (#318) is left
+        // blank in the config, so the fight stays one the engine runs; the
+        // form keeps it as typed, in error, and the config takes it again
+        // once the level allows it (js/config-form.js).
+        const skill = config.character?.weaponSkill ?? null;
+        const character =
+          skill !== null && skill > maxWeaponSkill(next.level)
+            ? { ...config.character, weaponSkill: null }
+            : config.character;
         config = normalizeConfig({
           ...config,
+          character,
           talents: { ...next.ranks },
           talentLevel: next.level,
         });

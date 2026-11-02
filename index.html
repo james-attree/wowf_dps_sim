@@ -452,6 +452,55 @@
                   hidden
                 ></p>
               </div>
+              <!-- #318: blank follows the level; the view writes the
+                   placeholder, the bounds and the help from the form's
+                   levels (js/config-form.js levelsInfo). -->
+              <div class="field">
+                <label for="cfg-character-weaponSkill">Weapon skill</label>
+                <div class="field-control">
+                  <input
+                    id="cfg-character-weaponSkill"
+                    name="character.weaponSkill"
+                    data-field="character.weaponSkill"
+                    data-optional="true"
+                    aria-describedby="cfg-character-weaponSkill-help"
+                    data-help="cfg-character-weaponSkill-help"
+                    type="number"
+                    inputmode="numeric"
+                    step="1"
+                  />
+                </div>
+                <p class="field-help" id="cfg-character-weaponSkill-help"></p>
+                <p
+                  class="field-error"
+                  id="cfg-character-weaponSkill-error"
+                  hidden
+                ></p>
+              </div>
+            </fieldset>
+            <fieldset
+              class="config-fieldset character-fieldset"
+              data-screen="stats"
+            >
+              <legend>Enemy</legend>
+              <div class="field">
+                <label for="cfg-target-level">Enemy level</label>
+                <div class="field-control">
+                  <input
+                    id="cfg-target-level"
+                    name="target.level"
+                    data-field="target.level"
+                    data-optional="true"
+                    aria-describedby="cfg-target-level-help"
+                    data-help="cfg-target-level-help"
+                    type="number"
+                    inputmode="numeric"
+                    step="1"
+                  />
+                </div>
+                <p class="field-help" id="cfg-target-level-help"></p>
+                <p class="field-error" id="cfg-target-level-error" hidden></p>
+              </div>
             </fieldset>
             <div class="hands" data-screen="gear">
               <fieldset class="config-fieldset hand-fieldset">
