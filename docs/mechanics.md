@@ -3616,7 +3616,8 @@ lists and summaries are in [docs/rotation.md](rotation.md#assassination-daggers)
   Preparation while Ghostly Strike (and so Premeditation, cast at the start)
   is on cooldown, Slice and Dice (only the recast rule of the pair, a trim
   made for #284's old 2,048-character test budget; that budget, `PRESET_LINK_MAX`,
-  is now 4,096, a margin under the app's 8,192 `LINK_CAP`), Rupture and Eviscerate, then Ambush (passed over unless a Cutthroat proc has put up
+  is now 64 characters after the address, since #306's version-2 links name
+  the preset, under the app's 8,192 `LINK_CAP`), Rupture and Eviscerate, then Ambush (passed over unless a Cutthroat proc has put up
   its aura; no lock, no hint), Ghostly Strike, Hemorrhage while its debuff has
   under 1 s left, and Backstab.
 
@@ -4115,11 +4116,13 @@ rounded.
 
 **Presets.** Decision 6 puts every on-use racial at the top of every preset,
 and Berserking and Eureka! are rules 3 and 4 of all three, combat-swords
-included (Scout, 2 Nov 2026, on #315). Each racial rule adds about 112
-characters to a share link; combat-swords' is 2,199 with all four. That is
-well under the app's only cap, `LINK_CAP` (8,192) in
-`js/views/share-link.js`; the 2,048 the presets were held to (#284) is a
-test budget, `PRESET_LINK_MAX` in `test/build-codec.test.js`, now 4,096. A
+included (Scout, 2 Nov 2026, on #315). Each racial rule added about 112
+characters to a version-1 share link; combat-swords' was 2,199 with all four,
+under the app's only cap, `LINK_CAP` (8,192) in `js/views/share-link.js`.
+Since #306 the share link is version 2 (`js/link-codec.js`): it names the
+preset and sends only the edits, so a preset's link is 17 characters after
+the address. The test budget, `PRESET_LINK_MAX` in `test/build-codec.test.js`,
+is now 64 characters after the address (2,048 for #284, 4,096 for #315). A
 Troll or a Gnome on any preset casts its racial at the pull.
 
 Golden fixtures: every existing fixture is unchanged. Two new ones pin a racial each:

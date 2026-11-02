@@ -1,6 +1,7 @@
 import { k } from "../data/constants.js";
 import { pageDefaultConfig } from "./config-form.js";
 import { normalizeConfig } from "./sim-config.js";
+import { LINK_VERSION, decodeLinkBody, encodeLinkBody } from "./link-codec.js";
 import { parseRunField } from "./views/run-model.js";
 
 // A build as text (#284, H6-lite), the one encode/decode of the page's setup:
@@ -13,7 +14,11 @@ import { parseRunField } from "./views/run-model.js";
 // settings { mode, duration, iterations, seed }. seed may be null: the page
 // draws one.
 //
-// The text is "<version>.<base64url JSON>", version SETUP_VERSION (1). The
+// The share link is version 2 (#306), a short binary body against a base
+// (the defaults or a preset): js/link-codec.js. The saved setup stays
+// version 1, below, and decodeSetup reads both (old ?s=1. links too).
+//
+// Version 1's text is "<version>.<base64url JSON>", SETUP_VERSION (1). The
 // JSON is { config, run } with every field that equals the page default
 // dropped (talents and the rotation are kept or dropped whole), so a default
 // build is "1.e30". Reading fills what is missing from the defaults (G4) and
@@ -36,6 +41,9 @@ import { parseRunField } from "./views/run-model.js";
 // js/saved-setup.js then saves what loaded as the new setup.
 
 export const SETUP_VERSION = 1;
+// The share link's version (#306): a short binary body, js/link-codec.js.
+// Readers take both; the saved setup is still written as SETUP_VERSION.
+export { LINK_VERSION };
 export const LINK_PARAM = "s";
 
 const RUN_MODES = Object.freeze(["batch", "live"]);
@@ -157,6 +165,18 @@ export function encodeSetup(setup, defaults = setupDefaults()) {
   return `${SETUP_VERSION}.${toBase64Url(JSON.stringify(payload))}`;
 }
 
+// The setup as a share link's text, "2.<base64url bytes>" (#306,
+// js/link-codec.js). A value the link's lists cannot name (none today: the
+// tests hold the lists to the catalogues) falls back to version 1's text.
+export function encodeLink(setup, defaults = setupDefaults()) {
+  try {
+    return `${LINK_VERSION}.${encodeLinkBody(setup, defaults)}`;
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+    return encodeSetup(setup, defaults);
+  }
+}
+
 // { status: "ok", setup } | { status: "newer" } | { status: "corrupt" }.
 // Lenient reading always says "ok": what did not read is the defaults.
 export function decodeSetup(
@@ -168,7 +188,20 @@ export function decodeSetup(
   const match = typeof text === "string" ? FORMAT.exec(text.trim()) : null;
   if (match === null) return fallback("corrupt");
   const [, version, body] = match;
-  if (Number(version) > SETUP_VERSION) return fallback("newer");
+  if (Number(version) > LINK_VERSION) return fallback("newer");
+  if (Number(version) === LINK_VERSION) {
+    const read = decodeLinkBody(body, defaults);
+    if (read.status !== "ok") return fallback(read.status);
+    try {
+      const config = checkConfig(read.setup.config);
+      const run = checkRun(read.setup.run);
+      return run === null
+        ? fallback("corrupt")
+        : { status: "ok", setup: { config, run } };
+    } catch {
+      return fallback("corrupt");
+    }
+  }
   if (Number(version) !== SETUP_VERSION) return fallback("corrupt");
   let payload;
   try {
@@ -279,7 +312,7 @@ export function shareUrl(href, setup, defaults = setupDefaults()) {
   const url = new URL(href);
   url.search = "";
   url.hash = "";
-  url.searchParams.set(LINK_PARAM, encodeSetup(setup, defaults));
+  url.searchParams.set(LINK_PARAM, encodeLink(setup, defaults));
   return url.href;
 }
 
