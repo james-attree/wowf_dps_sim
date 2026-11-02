@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import { deriveAttackTable, suppressCrit } from "../js/attack-resolver.js";
+import { Rogue } from "../js/rogue.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
+import { Simulation } from "../js/simulation.js";
+import { coreHost } from "./core-host.js";
+import { quiet } from "./quiet.js";
+import { setRoll, testRng } from "./rolls.js";
 
 // The #316 rulings of 2 Nov 2026 (relayed by Scout): James on the 1.8% and on
 // spell and poison crit, Scout on DoT ticks by school, and Kira's N2 (an upper
@@ -115,5 +120,63 @@ describe("Kira's N2: weapon skill has an upper bound of level x 5 + 50", () => {
       message: /weaponSkill must be a whole number between 1 and 350, not 351/,
     });
     assert.throws(() => at(1e6), { name: "RangeError" });
+  });
+});
+
+// #316 QA N2 (Kira's mutant M29): a bleed tick's crit is suppressed with the
+// fight's own attack table (js/simulation.js, resolveDotTick), not the default
+// one. With a 20% crit chance, the 3% at 305 skill leaves 17% and the 4.8% at
+// 300 leaves 15.2%, so a fixed roll between them tells the tables apart.
+describe("#316 QA N2: a Rupture tick reads the fight's attack table", () => {
+  const RUPTURE = { id: "rupture", name: "Rupture", icon: null };
+  const CRIT = 0.2;
+  const LANDS = 0.99;
+
+  afterEach(() => setRoll(LANDS));
+
+  // Rupture's ticks at this weapon skill, every tick's crit roll `roll`. The
+  // cast itself rolls LANDS (a plain landed hit at full bonus hit).
+  function ruptureTicks(weaponSkill, roll) {
+    const base = defaultConfig();
+    const rogue = new Rogue(
+      normalizeConfig({
+        ...base,
+        character: { ...base.character, weaponSkill },
+      }),
+    );
+    rogue.bonusHitChance = 1;
+    rogue.critChance = CRIT;
+    quiet(rogue);
+    setRoll(LANDS);
+    const sim = new Simulation(rogue, { rng: testRng });
+    const ticks = [];
+    sim.on("hit", (event) => {
+      if (event.origin === "dot" && event.name === "Rupture") {
+        ticks.push(event.outcome);
+      }
+    });
+    const host = coreHost(sim, { endTime: 20, swings: false });
+    host.at(1, () => sim.resolveDotAttack(RUPTURE, "skill", 800, 8, true));
+    host.at(1.5, () => setRoll(roll));
+    host.run();
+    assert.equal(rogue.getCritChance({}), CRIT, "no crit modifier in play");
+    assert.equal(ticks.length, 4);
+    return ticks;
+  }
+
+  it("suppresses by 3% at 305 skill: 16% crits and 17.5% does not", () => {
+    near(
+      suppressCrit(CRIT, deriveAttackTable({ weaponSkill: 305 })),
+      0.17,
+      "305",
+    );
+    assert.deepEqual(ruptureTicks(305, 0.16), Array(4).fill("crit"));
+    assert.deepEqual(ruptureTicks(305, 0.175), Array(4).fill("hit"));
+  });
+
+  it("suppresses by 4.8% at 300 skill: 16% does not crit and 15% does", () => {
+    near(suppressCrit(CRIT, deriveAttackTable()), 0.152, "300");
+    assert.deepEqual(ruptureTicks(300, 0.16), Array(4).fill("hit"));
+    assert.deepEqual(ruptureTicks(300, 0.15), Array(4).fill("crit"));
   });
 });
