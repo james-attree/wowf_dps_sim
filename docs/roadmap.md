@@ -56,8 +56,9 @@ Polish and depth, starting after Phase 4.6 closes. James approved plan v4 on
 2026-10-31 and added level-scaled sims (#290), weapon skill (#295), the
 enemy level field (in #290) and the saved setup (#296). #295 lands before
 #290. #295 uses Classic values tagged `assumption`, with every attack-table
-number in one table; two rulings are open for James (crit suppression model
-and boss dodge), to be made from the PR's DPS comparison. This is a snapshot
+number in one table. On 2 Nov 2026 James ruled that within 10 points of the
+defense the 1.8% comes off and that spell and poison crits take no
+suppression; the crit model and boss dodge stay open for him. This is a snapshot
 as of 2026-11-01. GitHub is the source of truth, and this list will go stale.
 
 - [#276](https://github.com/james-attree/wowf_dps_sim/issues/276) — [P5-01] Data refresh to the 29 Oct WoW Forever export — open
@@ -222,7 +223,7 @@ of truth, and this list will go stale.
 
 Since then, in Phase 3: Backstab is dagger-only (#142, PR #164), and Cold Blood is a rotation rule that must hold only when the build grants it (#155, PR #173).
 
-**Scope (project owner ruling 2026-10-26).** Block and parry are out of scope: the sim is for attacking from behind, where neither applies. The front attack table (`config.target.behind = false`, with its parry and block bands) is retained in the engine and tests but is unsupported for tuning, and `block.value` stays 0. See [Position](mechanics.md#attack-table).
+**Scope (project owner ruling 2026-10-26).** Block and parry are out of scope: the sim is for attacking from behind, where neither applies. The front attack table (`config.target.behind = false`, with its parry and block bands) is retained in the engine and tests but is unsupported for tuning, and the block value (`attackTable.block.value`) stays 0. See [Position](mechanics.md#attack-table).
 
 ## Phase 1 status
 

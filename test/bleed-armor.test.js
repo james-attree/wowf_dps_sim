@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
+import { deriveAttackTable } from "../js/attack-resolver.js";
 import { AURAS } from "../js/auras.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
@@ -123,7 +124,7 @@ describe("DoT crit multiplier", () => {
     assert.equal(poison.combatLog[0].damage, poison.damageDone);
     assert.ok(poison.damageDone > TICK_DAMAGE * multiplier * factor);
 
-    const other = k("glancing.damage").high;
+    const other = deriveAttackTable().glancingDamage.high;
     assert.notEqual(other, multiplier);
     const changed = withConstant("dot.critMultiplier", other, () => ({
       rupture: tickDot("rupture").damageDone,

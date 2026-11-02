@@ -1,9 +1,11 @@
 import { k } from "../data/constants.js";
 import {
+  deriveAttackTable,
   resolveAttack,
   resolveSpellHit,
   rollCrit,
   suppressCrit,
+  weaponSkillFor,
 } from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
@@ -118,6 +120,11 @@ export class Simulation {
     const rng = own("rng");
     const fightLength = own("fightLength");
     this.rogue = rogue;
+    // The attack table of this fight (#295): every band worked out once from
+    // the config's weapon skill against the target's defense.
+    this.attackTable = deriveAttackTable({
+      weaponSkill: weaponSkillFor(rogue?.config),
+    });
     // The event core while it runs this fight (js/core/fight.js), told where
     // a DoT starts; null between runs.
     this.core = null;
@@ -313,13 +320,20 @@ export class Simulation {
     }
 
     let dotHitCrit = "Hit";
-    // roll crit for each tick
+    // roll crit for each tick. The suppression follows the school (Scout,
+    // 2 Nov 2026, on James's ruling that spell crit takes none): a physical
+    // bleed tick reads dot.critSuppression, a poison or other spell tick
+    // dot.spellCritSuppression.
     const tickCritChance = this.rogue.getCritChance(dotContext);
+    const tickSuppressed =
+      dotContext.school === "physical"
+        ? k("dot.critSuppression")
+        : k("dot.spellCritSuppression");
     if (
       k("dot.canCrit") &&
       rollCrit(
-        k("dot.critSuppression")
-          ? suppressCrit(tickCritChance)
+        tickSuppressed
+          ? suppressCrit(tickCritChance, this.attackTable)
           : tickCritChance,
         this.rng,
       )
@@ -768,6 +782,7 @@ export class Simulation {
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
+      table: this.attackTable,
       rng: this.rng,
       roll,
     });
@@ -813,11 +828,11 @@ export class Simulation {
   }
 
   // Damage a proc deals from a source of its own (js/procs.js, dealDamage).
-  // `spell.missTarget` applies when it is a spell hit, less the rogue's bonus
+  // `attackTable.spellMiss` applies when it is a spell hit, less the rogue's bonus
   // spell hit (Artisan's Precision, #277), with one draw, before the damage. Then the damage roll, one draw, when min and max differ. Then,
   // when the action `canCrit` and the hit landed, one crit draw (Instant
-  // Poison): the melee crit chance, less the crit suppression when
-  // poison.instantCritSuppression says so, and the damage times
+  // Poison): the melee crit chance, less the crit suppression only when
+  // poison.instantCritSuppression says so (false: James, 2 Nov 2026), and the damage times
   // poison.instantCrit through the critDamage modifiers. A resist draws no
   // crit. The damage modifiers, armor, the fight totals and the log work as for
   // an attack. It fires no procs.
@@ -828,6 +843,7 @@ export class Simulation {
     if (spellHit) {
       hit = resolveSpellHit({
         bonusSpellHit: this.rogue.getBonusSpellHitChance(),
+        table: this.attackTable,
         rng: this.rng,
       });
     }
@@ -843,7 +859,7 @@ export class Simulation {
         if (
           rollCrit(
             k("poison.instantCritSuppression")
-              ? suppressCrit(critChance)
+              ? suppressCrit(critChance, this.attackTable)
               : critChance,
             this.rng,
           )
@@ -899,6 +915,7 @@ export class Simulation {
     if (spellHit) {
       hit = resolveSpellHit({
         bonusSpellHit: this.rogue.getBonusSpellHitChance(),
+        table: this.attackTable,
         rng: this.rng,
       });
     }
@@ -959,6 +976,7 @@ export class Simulation {
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
+      table: this.attackTable,
       rng: this.rng,
     });
     const tickInterval = k("rupture.tickInterval");
@@ -1006,6 +1024,7 @@ export class Simulation {
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
+      table: this.attackTable,
       rng: this.rng,
     });
     this.recordAbility(source, result.outcome, 0);

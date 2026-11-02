@@ -132,6 +132,42 @@ describe("the draws of a swing and a skill through the engine", () => {
     }
     assert.equal(k("dot.critSuppression"), true);
   });
+
+  // James, 2 Nov 2026 (#295, relayed by Scout on #316): a poison's crit takes
+  // no suppression. A Deadly Poison tick reads dot.spellCritSuppression
+  // (false), not dot.critSuppression, which now covers the bleeds only.
+  it("gives a Deadly Poison tick the full crit chance, with no suppression (James, 2 Nov 2026)", () => {
+    const tick = (critChance, draw) => {
+      const { sim, rogue } = scripted([draw]);
+      rogue.critChance = critChance;
+      const interval = k("poison.deadlyTick").interval ?? 3;
+      sim.activeDots["deadly-poison"] = {
+        name: "Deadly Poison",
+        duration: interval,
+        tickInterval: interval,
+        timeUntilNextTick: interval,
+        tickDamage: 100,
+        icon: null,
+        attackType: "skill",
+        bleed: false,
+      };
+      runOnCore(sim, interval);
+      return sim.combatLog[0].status;
+    };
+    assert.equal(k("dot.spellCritSuppression"), false);
+    assert.equal(tick(0.148, 0.147), "Crit");
+    assert.equal(tick(0.148, 0.149), "Hit");
+    assert.equal(tick(0.04, 0.039), "Crit");
+    // Turning the row on puts the tick back on the swing's footing.
+    const original = CONSTANTS["dot.spellCritSuppression"].value;
+    CONSTANTS["dot.spellCritSuppression"].value = true;
+    try {
+      assert.equal(tick(0.148, 0.101), "Hit");
+      assert.equal(tick(0.04, 0), "Hit");
+    } finally {
+      CONSTANTS["dot.spellCritSuppression"].value = original;
+    }
+  });
 });
 
 describe("the position of the rogue", () => {

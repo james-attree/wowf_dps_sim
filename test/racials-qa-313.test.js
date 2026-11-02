@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { snapshot } from "../js/snapshot.js";
-import { spellMissChance } from "../js/attack-resolver.js";
+import { deriveAttackTable, spellMissChance } from "../js/attack-resolver.js";
 import { createFight } from "../js/fight.js";
 import { ModifierPipeline } from "../js/modifiers.js";
 import { raceCatalogue } from "../js/racials.js";
@@ -17,7 +17,7 @@ import { normalizeConfig } from "../js/sim-config.js";
 
 const ENERGY = RESOURCE_DEFINITIONS.find(({ id }) => id === "energy");
 const SPELL_HIT = k("racial.artisansPrecision.spellHitChance");
-const { chance: SPELL_MISS } = k("spell.missTarget");
+const { chance: SPELL_MISS } = deriveAttackTable().spellMiss;
 // A roll between the Dwarf's spell miss chance and everyone else's: a resist
 // without the racial, a hit with it.
 const BETWEEN = SPELL_MISS - SPELL_HIT / 2;

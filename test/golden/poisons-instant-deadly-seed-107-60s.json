@@ -1,8 +1,8 @@
 {
   "seed": 107,
   "duration": 60,
-  "totalDamage": 18972.48613367999,
-  "dps": 316.20810222799986,
+  "totalDamage": 18995.48613367999,
+  "dps": 316.5914355613332,
   "abilities": {
     "Main-hand": {"damage":5413.606326508504,"casts":32,"hits":10,"crits":8,"glances":7,"misses":7,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Blade Flurry": {"damage":0,"casts":1,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
@@ -10,7 +10,7 @@
     "Adrenaline Rush": {"damage":0,"casts":1,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Sinister Strike": {"damage":5637.038240710648,"casts":21,"hits":15,"crits":5,"glances":0,"misses":0,"dodges":1,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Instant Poison": {"damage":583.5,"casts":7,"hits":2,"crits":3,"glances":0,"misses":2,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
-    "Deadly Poison": {"damage":2001,"casts":9,"hits":9,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":15,"tickCrits":6},
+    "Deadly Poison": {"damage":2024,"casts":9,"hits":9,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":15,"tickCrits":7},
     "Slice and Dice": {"damage":0,"casts":2,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Cold Blood": {"damage":0,"casts":1,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Eviscerate": {"damage":2449.409598093381,"casts":2,"hits":1,"crits":1,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0}

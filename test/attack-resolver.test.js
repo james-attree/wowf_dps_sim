@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
 import {
   attackChances,
+  deriveAttackTable,
   hitSuppression,
   resolveAttack,
   resolveSpellHit,
@@ -24,8 +25,8 @@ const STATUS = {
 const LANDED = ["glancing", "block", "crit", "hit"];
 
 // Magey's Attack-table page (data/constants.js MAGEY), as formulas. The
-// constants are the answers at 300 skill against a level 63 target (defense
-// 315), so these functions are what the rows are checked against.
+// attack table derived from the attackTable rows (#295) at 300 skill against
+// a level 63 target (defense 315) is checked against them.
 const MAGEY = {
   gap: (skill, defense) => defense - skill,
   yellowMiss: (skill, defense) =>
@@ -135,8 +136,9 @@ function scriptedRng(...values) {
 }
 
 describe("the attack table matches Magey's Classic table at 300 skill against level 63 (A7)", () => {
-  const skill = k("weaponSkill.base");
-  const defense = k("target.defense");
+  const table = deriveAttackTable();
+  const skill = table.weaponSkill;
+  const defense = table.defense;
   const base = { bonusHitChance: 0, critChance: 0.5 };
 
   it("reads a level 63 target's defense and a level 60 rogue's skill", () => {
@@ -146,7 +148,7 @@ describe("the attack table matches Magey's Classic table at 300 skill against le
   });
 
   it("gives an 8% yellow miss", () => {
-    near(k("miss.yellow"), MAGEY.yellowMiss(skill, defense), "formula");
+    near(table.miss, MAGEY.yellowMiss(skill, defense), "formula");
     near(attackChances({ ...base, attackType: "skill" }).miss, 0.08, "table");
   });
 
@@ -180,11 +182,9 @@ describe("the attack table matches Magey's Classic table at 300 skill against le
   });
 
   it("does not suppress hit within 10 points of defense", () => {
-    // 305 skill (a racial) is a gap of 10, so the whole bonus counts.
-    withConstant("weaponSkill.base", 305, () => {
-      assert.equal(hitSuppression(), 0);
-      near(MAGEY.hitSuppression(305, defense), 0, "formula");
-    });
+    // 305 skill is a gap of 10, so the whole bonus counts.
+    assert.equal(hitSuppression(deriveAttackTable({ weaponSkill: 305 })), 0);
+    near(MAGEY.hitSuppression(305, defense), 0, "formula");
   });
 
   it("gives a 27% white miss: 8% plus the 19% dual-wield penalty", () => {
@@ -198,16 +198,16 @@ describe("the attack table matches Magey's Classic table at 300 skill against le
   });
 
   it("gives a 6.5% dodge", () => {
-    near(k("dodge.target"), MAGEY.dodge(skill, defense), "formula");
+    near(table.dodge, MAGEY.dodge(skill, defense), "formula");
     for (const attackType of ["weapon", "skill"]) {
       near(attackChances({ ...base, attackType }).dodge, 0.065, attackType);
     }
   });
 
   it("gives 40% glancing on white swings only, at 0.55 to 0.75 of the damage", () => {
-    near(k("glancing.chance"), MAGEY.glancing(skill, defense), "chance");
-    near(k("glancing.damage").low, MAGEY.glanceLow(skill, defense), "low");
-    near(k("glancing.damage").high, MAGEY.glanceHigh(skill, defense), "high");
+    near(table.glancing, MAGEY.glancing(skill, defense), "chance");
+    near(table.glancingDamage.low, MAGEY.glanceLow(skill, defense), "low");
+    near(table.glancingDamage.high, MAGEY.glanceHigh(skill, defense), "high");
     assert.equal(
       attackChances({ ...base, attackType: "weapon" }).glancing,
       0.4,
@@ -228,11 +228,13 @@ describe("the attack table matches Magey's Classic table at 300 skill against le
 
   it("takes 4.8% off the crit chance: 3% for skill and 1.8% for auras", () => {
     near(
-      k("crit.suppressionSkill"),
+      table.crit.skill,
       MAGEY.skillCritSuppression(skill, defense),
       "formula",
     );
-    near(k("crit.suppressionSkill") + k("crit.suppressionAura"), 0.048, "sum");
+    assert.equal(table.crit.flat, 0.018);
+    assert.equal(table.crit.levelAura, 0);
+    near(table.crit.skill + table.crit.flat, 0.048, "sum");
     near(suppressCrit(0.148), 0.1, "148 to 10");
     assert.equal(suppressCrit(0.04), 0);
     assert.equal(suppressCrit(0), 0);
@@ -326,18 +328,22 @@ describe("resolveAttack outcome bands", () => {
     expectBand({ ...yellow, roll: 33.5, critRoll: 100 }, "hit", 100);
   });
 
-  it("makes a blocked swing a landed outcome that loses block.value damage and cannot crit", () => {
+  it("makes a blocked swing a landed outcome that loses the block value and cannot crit", () => {
     const front = { behind: false, roll: 90 };
     expectBand({ ...front }, "block", 100);
-    withConstant("block.value", 30, () => {
-      expectBand({ ...front }, "block", 70);
-      expectBand({ ...front, baseDamage: 20 }, "block", 0);
-      expectBand(
-        { ...front, attackType: "skill", roll: 30, critRoll: 0 },
-        "block",
-        70,
-      );
-    });
+    withConstant(
+      "attackTable.block",
+      { front: 0.05, behind: 0, value: 30 },
+      () => {
+        expectBand({ ...front }, "block", 70);
+        expectBand({ ...front, baseDamage: 20 }, "block", 0);
+        expectBand(
+          { ...front, attackType: "skill", roll: 30, critRoll: 0 },
+          "block",
+          70,
+        );
+      },
+    );
   });
 
   it("takes dodge and parry reductions off their own bands only", () => {

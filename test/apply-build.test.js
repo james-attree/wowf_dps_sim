@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
-import { suppressCrit } from "../js/attack-resolver.js";
 import { createFight, expandTalents, runFight } from "../js/fight.js";
 import { Rogue } from "../js/rogue.js";
 import { defaultDaggerConfig } from "../js/sim-config.js";
@@ -740,7 +739,8 @@ describe("the build's modifiers reach poison damage where the talent says so", (
       const chance = fight.rogue.getCritChance(
         fight.simulation.attackContext(instant, "skill"),
       );
-      rolls[label] = { fight, chance: suppressCrit(chance) };
+      // No suppression on a poison crit (James, 2 Nov 2026, #316).
+      rolls[label] = { fight, chance };
     }
     // One draw is the crit roll (the damage is fixed and the poison is no spell hit).
     const draw = (rolls.with.chance + rolls.without.chance) / 2;

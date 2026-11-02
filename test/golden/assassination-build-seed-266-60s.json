@@ -1,21 +1,21 @@
 {
   "seed": 266,
   "duration": 60,
-  "totalDamage": 13094.202643267252,
-  "dps": 218.23671072112086,
+  "totalDamage": 13204.602643267252,
+  "dps": 220.07671072112086,
   "abilities": {
     "Main-hand": {"damage":2999.9458346874662,"casts":28,"hits":4,"crits":4,"glances":9,"misses":7,"dodges":4,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Instant Poison": {"damage":1066.2,"casts":14,"hits":7,"crits":2,"glances":0,"misses":5,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Sinister Strike": {"damage":4376.286426172679,"casts":17,"hits":12,"crits":4,"glances":0,"misses":0,"dodges":1,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Off-hand": {"damage":1608.7097822554433,"casts":28,"hits":3,"crits":5,"glances":12,"misses":7,"dodges":1,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
-    "Deadly Poison": {"damage":800.4,"casts":10,"hits":7,"crits":0,"glances":0,"misses":3,"dodges":0,"parries":0,"blocks":0,"ticks":14,"tickCrits":2},
+    "Deadly Poison": {"damage":910.8,"casts":10,"hits":7,"crits":0,"glances":0,"misses":3,"dodges":0,"parries":0,"blocks":0,"ticks":14,"tickCrits":3},
     "Slice and Dice": {"damage":0,"casts":2,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Cold Blood": {"damage":0,"casts":1,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Eviscerate": {"damage":2242.660600151663,"casts":2,"hits":1,"crits":1,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0}
   },
   "log": [
     {"id":115,"time":60,"name":"Main-hand","type":"weapon","damage":109.63059256851912,"status":"Glance","outcome":"glancing","icon":null},
-    {"id":114,"time":58.26923076923077,"name":"Deadly Poison","type":"skill","damage":110.39999999999999,"status":"Hit","outcome":"Hit","icon":"https://wow.zamimg.com/images/wow/icons/large/ability_rogue_dualweild.jpg"},
+    {"id":114,"time":58.26923076923077,"name":"Deadly Poison","type":"skill","damage":220.79999999999998,"status":"Crit","outcome":"Crit","icon":"https://wow.zamimg.com/images/wow/icons/large/ability_rogue_dualweild.jpg"},
     {"id":113,"time":58.192307692307686,"name":"Deadly Poison","type":"skill","damage":0,"status":"Hit","outcome":"hit","icon":"https://wow.zamimg.com/images/wow/icons/large/ability_rogue_dualweild.jpg"},
     {"id":112,"time":58.192307692307686,"name":"Off-hand","type":"weapon","damage":42.30310908893944,"status":"Glance","outcome":"glancing","icon":null},
     {"id":111,"time":58,"name":"Main-hand","type":"weapon","damage":0,"status":"Miss","outcome":"miss","icon":null},

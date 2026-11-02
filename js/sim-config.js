@@ -8,6 +8,7 @@ import {
 import { talentCatalogue } from "./talents.js";
 import { raceCatalogue } from "./racials.js";
 import { defaultRotation } from "./rotation-default.js";
+import { defaultWeaponSkill, maxWeaponSkill } from "./attack-resolver.js";
 import { rotationProblems } from "./rotation-validator.js";
 
 // SimConfig (roadmap E2-lite, issue #92): the inputs of one fight. It names the
@@ -27,7 +28,8 @@ import { rotationProblems } from "./rotation-validator.js";
 //
 //   {
 //     race: "human",                             // a race id, or null (#277)
-//     character: { attackPower, critChance, bonusHitChance, haste },
+//     character: { attackPower, critChance, bonusHitChance, haste,
+//                  weaponSkill },                // weaponSkill: 300 (#295)
 //     weapons: {
 //       mainHand: { min, max, speed, type },
 //       offHand:  { min, max, speed, type },
@@ -64,7 +66,12 @@ const CHARACTER_FIELDS = [
   "critChance",
   "bonusHitChance",
   "haste",
+  "weaponSkill",
 ];
+const CHARACTER_LIMITS = {
+  attackPower: {},
+  weaponSkill: { min: 1, whole: true },
+};
 const WEAPON_FIELDS = ["min", "max", "speed", "type"];
 const TARGET_FIELDS = ["behind"];
 const SECTIONS = [
@@ -92,6 +99,8 @@ export function defaultConfig() {
       critChance: k("character.critChance"),
       bonusHitChance: k("character.bonusHitChance"),
       haste: k("character.haste"),
+      // character.level x 5 (attackTable.weaponSkill, #295): 300 at 60.
+      weaponSkill: defaultWeaponSkill(),
     },
     weapons: { mainHand: weapon("mainHand"), offHand: weapon("offHand") },
     target: { behind: k("target.behind") },
@@ -213,8 +222,12 @@ function readCharacter(input, defaults) {
   const result = {};
   for (const field of CHARACTER_FIELDS) {
     // Attack power has no upper limit. A chance, and haste (a fraction of
-    // attack speed, #265), run from 0 to 1.
-    const limits = field === "attackPower" ? {} : { max: 1 };
+    // attack speed, #265), run from 0 to 1. Weapon skill (#295) is a whole
+    // number of points, from 1 to level x 5 + 50 (maxWeaponSkill, #316 N2).
+    const limits =
+      field === "weaponSkill"
+        ? { ...CHARACTER_LIMITS.weaponSkill, max: maxWeaponSkill() }
+        : (CHARACTER_LIMITS[field] ?? { max: 1 });
     result[field] = readNumber(
       given[field],
       `config.character.${field}`,

@@ -468,7 +468,7 @@ export const poisonCatalogue = buildPoisonCatalogue(snapshot);
 // The proc of one DPS poison on one hand, from its top rank (the export's
 // highest: Instant Poison VI, Deadly Poison V). A strike of the hand that lands
 // rolls the poison's chance (flat, one draw: js/procs.js), then the poison's
-// action rolls the spell hit (spell.missTarget, one draw).
+// action rolls the spell hit (attackTable.spellMiss, one draw).
 //   damage  a direct hit: the damage range, from its own source (the id of the
 //           poison, a nature spell that skips armor).
 //   dot     a stacking damage over time: the export gives its total for one
