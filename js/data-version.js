@@ -6,7 +6,7 @@ import manifest from "../data/talentsforever/manifest.json" with { type: "json" 
 // next to rogue.json. Nothing here is typed by hand, so a refresh changes the
 // version with no code change.
 //
-// The id is `<generated>+<build>`, for example "2026-10-20+1.60.1.70425". Both
+// The id is `<generated>+<build>`, for example "2026-10-30+1.60.1.70630". Both
 // parts must be non-empty text without a "+", so the id splits back into the
 // two parts. A manifest that lacks either part fails when this module loads.
 //

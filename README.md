@@ -583,7 +583,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   and Deadly Poison in `poisons` add procs (A5, #105); a selected talent build is validated and applied (D7, #106). See
   [SimConfig](docs/mechanics.md#simconfig).
 - `js/data-version.js` — The data version (D11): `dataVersion`, a string
-  `<generated>+<build>` such as `2026-10-20+1.60.1.70425`, read from
+  `<generated>+<build>` such as `2026-10-30+1.60.1.70630`, read from
   `data/talentsforever/manifest.json`. `buildDataVersion(manifest)` validates a
   manifest. Every `runFight` result carries it.
 - `js/rogue.js` — Energy, combo points, crit, hit, weapons, abilities, the

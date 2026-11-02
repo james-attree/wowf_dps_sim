@@ -1701,7 +1701,7 @@ Precision 3/3 is 10%: yellow is capped at 9% (1% spare), and white misses
 Every result says which data it came from. `js/data-version.js` builds
 `dataVersion` from `data/talentsforever/manifest.json`, the file
 `npm run data:refresh` writes: the snapshot's `generated` date and the client
-`build`, joined as `<generated>+<build>`, for example `2026-10-20+1.60.1.70425`.
+`build`, joined as `<generated>+<build>`, for example `2026-10-30+1.60.1.70630`.
 Neither part may be empty or contain a `+`, and a manifest that fails this stops
 the module loading. A refresh changes the version with no code change.
 
@@ -1715,6 +1715,40 @@ for it.
 
 Adding the field did not change any number. The golden fixtures do not hold it
 (see Golden-seed tests), so they stayed byte-identical.
+
+### The 30 Oct 2026 refresh (#276, P5-01)
+
+`npm run data:refresh` on 2 Nov 2026 moved the snapshot from
+`2026-10-20+1.60.1.70425` to `2026-10-30+1.60.1.70630`. The issue named the
+29 Oct export, but the live export had already been regenerated on 30 Oct (same
+client build), and no copy of the 29 Oct file was kept, so the 30 Oct file is
+vendored as fetched. Writing `2026-10-29` by hand would break "values
+unchanged" in the manifest note. Which date to use is a ruling for James.
+
+What changed:
+
+- Talents: nothing. Every talent's text is the same, so the text hashes in
+  `test/talent-effects.test.js` still match and `npm run talents:coverage` is
+  clean.
+- Spells: 100 spell and 21 poison entries changed only their `src` label, from
+  `beta client 1.60.1.70425` to `beta client 1.60.1.70630`. No tooltip text
+  changed. `test/refresh-data.test.js` checks that every bare `beta client`
+  label names the manifest's build. A few labels name 1.60.1.70170 on purpose,
+  with more words after it, and the test leaves those alone.
+- `spellbook.build`, the build in `talents.source`, and the `generated` date.
+- Racials: Blood Fury's cooldown is 2 min (was 3 min). Orc Savage (+1% crit) is
+  now Command (pet damage). Touch of the Grave's internal cooldown is 15 s (was
+  25 s). Berserking lasts 15 s (was 10 s). Wind Blessed haste is 2% (was 3%) in
+  both factions' entries. Human crit is 1% (was 2%) and Spirit 10% (was 5%).
+  Dwarf Earth Fury is now Artisan's Precision (+1% hit). The Horde movement and
+  Alliance leyline racials were reworded. The engine does not read racials yet.
+  P5-02 (#277) and P5-03 (#278, #279) will read them from this snapshot.
+- Legacy: the Scarce materials perk was reworded. The engine does not read it.
+
+No number moved. Every golden fixture is byte-identical. The seed-averaged DPS
+for the default fight and the presets (120 seeds, 60 s and 300 s) and the rng
+draws are the same as before to the last bit. The icon set is the same 67
+names.
 
 ## Golden-seed tests
 
