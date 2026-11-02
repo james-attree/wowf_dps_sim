@@ -220,7 +220,13 @@ describe("a pick and its Undo (#323)", () => {
     const said = env.store.get().presetBuild;
     assert.equal(said.applied.pick, ASSASSINATION);
     assert.equal(said.focus.target, "undo");
-    assert.match(said.announce.text, /replaced\.$/);
+    // A first pick: the line names the whole build, and the announcement
+    // is the line (#326, item 7).
+    assert.equal(
+      said.applied.text,
+      "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
+    );
+    assert.equal(said.announce.text, said.applied.text);
   });
 
   it("Undo puts back the build, the rotation and its draft, and the panel", () => {
@@ -463,7 +469,12 @@ describe("the words for every change (#325 P1)", () => {
     assert.equal(env.start.pick(CUSTOM), true);
     const said = env.store.get().presetBuild;
     assert.equal(said.applied.undoName, "Undo: put back your level");
-    assert.equal(said.announce.text, LEVEL);
+    // The line, and so the announcement (#326, item 7).
+    assert.equal(
+      said.applied.text,
+      `Custom set: level${NBSP}60. Your stats and race are unchanged.`,
+    );
+    assert.equal(said.announce.text, said.applied.text);
     env.start.undo();
     assert.equal(env.store.get().config.talentLevel, 30);
     assert.equal(env.store.get().presetBuild.announce.text, "Level put back.");

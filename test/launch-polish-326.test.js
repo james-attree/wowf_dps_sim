@@ -118,43 +118,75 @@ function presetPage() {
   return { store, form, build };
 }
 
-describe("#326 items 6 and 7: a re-pick, and the line it leaves", () => {
-  it("re-picking after a speed or damage edit puts the weapons back", () => {
-    const { store, form, build } = presetPage();
+const WHOLE =
+  "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.";
+const said = (store) => {
+  const { applied, announce } = store.get().presetBuild;
+  return {
+    line: applied.text,
+    announce: announce.text,
+    undo: applied.undoName,
+  };
+};
+
+describe("#326 items 6 and 7: a pick and a re-pick, and what they say", () => {
+  it("item 7: a first pick names the whole build, the same poisons too", () => {
+    const { store, build } = presetPage();
     assert.equal(build.pick(ASSASSINATION, "Assassination"), true);
+    // The defaults have Assassination's poisons already: Undo has none to
+    // put back, but the line and the announcement name them.
+    assert.deepEqual(said(store), {
+      line: WHOLE,
+      announce: WHOLE,
+      undo: "Undo: put back your talents, weapons and rotation",
+    });
+  });
+
+  it("item 7: a first pick of another card names the whole build", () => {
+    const { store, build } = presetPage();
+    build.pick(ASSASSINATION, "Assassination");
+    build.pick(COMBAT, "Combat");
+    const { line, announce } = said(store);
+    assert.equal(
+      line,
+      "Combat set: talents 18/33/0, two swords, Deadly and Instant poisons and its rotation. Your stats and race are unchanged.",
+    );
+    assert.equal(announce, line);
+  });
+
+  it("items 6 and 7: a re-pick after a speed edit puts the weapons back, and says only that", () => {
+    const { store, form, build } = presetPage();
+    build.pick(ASSASSINATION, "Assassination");
     const speed = store.get().config.weapons.mainHand.speed;
     form.change("weapons.mainHand.speed", speed + 0.5);
     assert.equal(build.pick(ASSASSINATION, "Assassination"), true);
     assert.equal(store.get().config.weapons.mainHand.speed, speed);
-    const { applied, announce } = store.get().presetBuild;
-    assert.equal(
-      applied.text,
-      "Assassination set: two daggers. Your stats and race are unchanged.",
-    );
-    assert.match(announce.text, /^Weapons replaced\.$/);
+    const line =
+      "Assassination set: two daggers. Your stats and race are unchanged.";
+    assert.deepEqual(said(store), {
+      line,
+      announce: line,
+      undo: "Undo: put back your weapons",
+    });
     form.change("weapons.offHand.max", 99);
     assert.equal(build.pick(ASSASSINATION, "Assassination"), true);
+    assert.equal(said(store).line, line);
     // The same values again change nothing.
     assert.equal(build.pick(ASSASSINATION, "Assassination"), false);
   });
 
-  it("a first pick's line names only what it put in, as it says", () => {
-    const { store, build } = presetPage();
+  it("item 7: a re-pick after a poison edit names the poisons alone", () => {
+    const { store, form, build } = presetPage();
     build.pick(ASSASSINATION, "Assassination");
-    const { applied, announce } = store.get().presetBuild;
-    const parts = announce.text.replace(/ replaced\.$/, "");
-    for (const [part, words] of [
-      ["Talents", /talents \d+\/\d+\/\d+/],
-      ["weapons", /two daggers/],
-      ["poisons", /poison/],
-      ["rotation", /its rotation/],
-    ]) {
-      assert.equal(
-        words.test(applied.text),
-        parts.includes(part),
-        `${part}: "${applied.text}" / "${announce.text}"`,
-      );
-    }
+    form.change("poisons.mainHand", "crippling");
+    build.pick(ASSASSINATION, "Assassination");
+    const line =
+      "Assassination set: Instant and Deadly poisons. Your stats and race are unchanged.";
+    assert.deepEqual(said(store), {
+      line,
+      announce: line,
+      undo: "Undo: put back your poisons",
+    });
   });
 });
 

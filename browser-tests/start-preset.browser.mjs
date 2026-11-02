@@ -178,6 +178,13 @@ const announced = (page, pattern) =>
       ),
     );
 
+// #326, item 7: a card's announcement is its line, word for word.
+const announcedAs = (page, line) =>
+  announced(
+    page,
+    new RegExp(`^${line.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}$`),
+  );
+
 const waitHidden = (page, selector, why) =>
   page
     .waitForFunction(
@@ -313,14 +320,13 @@ describe("Start from a preset (#323)", () => {
           assert.equal(await shown(page, PANEL), false, "folded");
           assert.equal(await shown(page, ROW_ITEM), true, "the row");
           assert.equal(await text(page, "#start-summary"), "Assassination");
-          // The defaults' poisons are Assassination's, so the line, as the
-          // announcement, names only what it put in (#326, item 7).
-          assert.match(
-            await text(page, "#start-done"),
-            /^Assassination set: talents 38\/11\/2, two daggers and its rotation\. Your stats and race are unchanged\.$/,
-          );
+          // A first pick names the whole build, the poisons too, and the
+          // announcement is the line (#326, item 7).
+          const whole =
+            "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.";
+          assert.equal(await text(page, "#start-done"), whole);
           assert.equal(await focused(page), "start-undo");
-          await announced(page, /replaced\.$/);
+          await announcedAs(page, whole);
           assert.ok((await box(page, UNDO)).height >= TARGET_LEAST);
           assert.ok(await fitsPage(page), `${name}: the line fits`);
           await shot(page, `after-picked-${name}`);
@@ -597,7 +603,7 @@ describe("Start from a preset (#323)", () => {
       await page.locator(APPLIED).waitFor({ state: "visible" });
       await announced(
         page,
-        /^Talents, weapons and rotation replaced\. Results out of date\.$/,
+        /^Assassination set: talents 38\/11\/2, two daggers, Instant and Deadly poisons and its rotation\. Your stats and race are unchanged\. Results out of date\.$/,
       );
       assert.match((await staleSaid(page)) ?? "", /^Out of date/, "amber");
       assert.equal(await focused(page), "start-undo");
@@ -621,7 +627,7 @@ describe("Start from a preset (#323)", () => {
       await page.locator(APPLIED).waitFor({ state: "visible" });
       await announced(
         page,
-        /^Talents, weapons, poisons and rotation replaced\./,
+        /^Combat swords set: talents 18\/33\/0, two swords, Deadly and Instant poisons and its rotation\. Your stats and race are unchanged\./,
       );
       assert.match(await dockSaid(page), /^Running/, "still running");
       assert.equal(await text(page, "#start-summary"), "Combat swords");
@@ -659,6 +665,48 @@ describe("Start from a preset (#323)", () => {
     }
   });
 
+  test("a re-pick of the same card names only what changed (#326, item 7)", async () => {
+    const { context, page, errors } = await open(PHONE);
+    try {
+      await page.locator(card(ASSASSINATION)).click();
+      await page.locator(APPLIED).waitFor({ state: "visible" });
+      const whole =
+        "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.";
+      assert.equal(await text(page, "#start-done"), whole);
+      await announcedAs(page, whole);
+
+      // The weapon speed edited, the same card again: the weapons alone.
+      await go(page, "#character/gear", "#cfg-weapons-mainHand-speed");
+      await page.fill("#cfg-weapons-mainHand-speed", "2.9");
+      await page.locator("#cfg-weapons-mainHand-speed").press("Tab");
+      await go(page, "#character/start", card(ASSASSINATION));
+      await page.locator(card(ASSASSINATION)).click();
+      await page.locator(APPLIED).waitFor({ state: "visible" });
+      const weapons =
+        "Assassination set: two daggers. Your stats and race are unchanged.";
+      assert.equal(await text(page, "#start-done"), weapons);
+      await announcedAs(page, weapons);
+      assert.equal(
+        await page.getAttribute(UNDO, "aria-label"),
+        "Undo: put back your weapons",
+      );
+
+      // A poison edited: the poisons alone.
+      await go(page, "#character/gear", "#cfg-poisons-mainHand");
+      await page.selectOption("#cfg-poisons-mainHand", "crippling");
+      await go(page, "#character/start", card(ASSASSINATION));
+      await page.locator(card(ASSASSINATION)).click();
+      await page.locator(APPLIED).waitFor({ state: "visible" });
+      const poisons =
+        "Assassination set: Instant and Deadly poisons. Your stats and race are unchanged.";
+      assert.equal(await text(page, "#start-done"), poisons);
+      await announcedAs(page, poisons);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
   test("a pick that changes only the level reads whole (#325 P1)", async () => {
     const { context, page, errors } = await open(PHONE);
     try {
@@ -672,7 +720,11 @@ describe("Start from a preset (#323)", () => {
         await page.getAttribute(UNDO, "aria-label"),
         "Undo: put back your level",
       );
-      await announced(page, /^Level set to.60\.$/);
+      // The line, and so the announcement (#326, item 7).
+      await announced(
+        page,
+        /^Custom set: level.60\. Your stats and race are unchanged\.$/,
+      );
       await page.locator(UNDO).click();
       await announced(page, /^Level put back\.$/);
       await go(page, "#character/talents", "#talents-level");

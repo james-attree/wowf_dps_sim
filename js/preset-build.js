@@ -370,9 +370,8 @@ export function poisonsText(poisons, names = poisonName) {
 
 // The line after a pick: "Assassination set: talents 38/11/2, two daggers,
 // Instant and Deadly poisons and its rotation. Your stats and race are
-// unchanged." It names the parts put in, `parts` (all of them by default),
-// as the announcement does (#326, item 7: a re-pick named the whole build
-// while it said only what changed); `level` adds "level 60" when it was
+// unchanged." It names `parts` (all of them by default), as the
+// announcement does (#326, item 7); `level` adds "level 60" when it was
 // below.
 export function pickedText(
   name,
@@ -482,7 +481,9 @@ export function createPresetBuild(
 
   // Put `build` in, with the rotation `rotation` (a pick's) or the
   // rotation as it is (#273's button). `parts` are what differs.
-  function replace({ build, parts, level, rotation, text, pick }) {
+  // `said`: what #run-announce says, the line itself for a card's pick
+  // (#326, item 7); "Talents and weapons replaced." for #273's button.
+  function replace({ build, parts, level, rotation, text, pick, said }) {
     const state = store.get();
     const current = currentBuild(state);
     const { form } = state;
@@ -526,7 +527,7 @@ export function createPresetBuild(
         },
       };
       refresh({
-        announce: nextAnnounce(announceText(build, parts, level)),
+        announce: nextAnnounce(said ?? announceText(build, parts, level)),
         focus: nextFocus("undo"),
       });
     });
@@ -578,8 +579,16 @@ export function createPresetBuild(
     if (parts.length === 0 && !level) {
       return false;
     }
+    // A first pick names the whole build, the parts that were the same
+    // too: it is everything the card gives. A re-pick of the card already
+    // started from names what changed (#326, item 7, Scout's ruling). The
+    // announcement is the line. Undo puts back what changed either way.
+    const from = presetOfChoice(state.form);
+    const again = choice === CUSTOM ? from === null : from === choice;
+    const named = again ? parts : [...BUILD_PARTS, ROTATION_PART];
     const drafts = { ...(state.form.drafts ?? {}) };
     delete drafts[pickRotation(choice)];
+    const text = pickedText(name, build, choice, level, named);
     return replace({
       build,
       parts,
@@ -590,7 +599,8 @@ export function createPresetBuild(
         drafts,
         importStatus: null,
       },
-      text: pickedText(name, build, choice, level, parts),
+      text,
+      said: text,
       pick: choice,
     });
   }

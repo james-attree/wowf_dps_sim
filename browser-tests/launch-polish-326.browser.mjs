@@ -253,6 +253,36 @@ describe("#326 items 5 and 8: Reset and Undo, both values, and focus", () => {
   }
 });
 
+describe("#326 item 7: a first pick names the whole build, a re-pick what changed", () => {
+  test("the line, and the announcement the same", async () => {
+    const session = await open(1024, "100%", "#character/start");
+    const { page } = session;
+    await listen(page);
+    const pick = async () => {
+      await page.locator("#start-card-assassination-daggers").click();
+      await page.locator("#start-applied").waitFor({ state: "visible" });
+      const line = await textOf(page, "#start-done");
+      await page.waitForFunction(
+        (want) => globalThis.said.at(-1) === want,
+        line,
+      );
+      return line;
+    };
+    assert.equal(
+      await pick(),
+      "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
+    );
+    await go(page, "#character/gear");
+    await enter(page, SPEED, "2.9");
+    await go(page, "#character/start");
+    assert.equal(
+      await pick(),
+      "Assassination set: two daggers. Your stats and race are unchanged.",
+    );
+    await done(session);
+  });
+});
+
 describe("#326 items 9 to 12: Copy link", () => {
   test("item 9: over the level's cap says why, by the button", async () => {
     const session = await open(1024, "100%", "#character/talents");
