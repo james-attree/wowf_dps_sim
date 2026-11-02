@@ -67,6 +67,12 @@ export function defaultWeaponSkill(level = k("character.level")) {
   return level * k("attackTable.weaponSkill").perLevel;
 }
 
+// The highest config.character.weaponSkill a config may give: the default
+// plus attackTable.weaponSkill.maxAboveBase (350 at 60; Kira's QA N2 on #316).
+export function maxWeaponSkill(level = k("character.level")) {
+  return defaultWeaponSkill(level) + k("attackTable.weaponSkill").maxAboveBase;
+}
+
 // The weapon skill a config fights with: config.character.weaponSkill (the
 // default when there is none) plus the race's attackTable.weaponSkill
 // racialBonus, which is empty: no WoW Forever race has one.
@@ -112,9 +118,16 @@ function critTerms({ weaponSkill, baseSkill, defense, levelGap }) {
   const gap =
     defense - skillFor(model.skill, weaponSkill, baseSkill, "A crit model's");
   const skillGap = defense - weaponSkill;
+  // James, 2 Nov 2026 (#295): within 10 points of the defense the 1.8% goes.
+  const flatAboveSkillGap = k("attackTable.flatAboveSkillGap");
+  if (flatAboveSkillGap !== null && !Number.isFinite(flatAboveSkillGap)) {
+    throw new RangeError(
+      `attackTable.flatAboveSkillGap must be null or a number, not ${JSON.stringify(flatAboveSkillGap)}.`,
+    );
+  }
   const flatOn =
     levelGap >= model.flatMinLevelGap &&
-    (model.flatAboveSkillGap === null || skillGap > model.flatAboveSkillGap);
+    (flatAboveSkillGap === null || skillGap > flatAboveSkillGap);
   return {
     skill: tidy(gap * (gap > 0 ? model.perPoint : model.perPointAhead)),
     flat: flatOn ? model.flat : 0,

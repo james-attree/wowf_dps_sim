@@ -109,11 +109,12 @@ describe("constants", () => {
     }
     assert.deepEqual(counts, {
       "wowf-export": 12,
-      "wowf-designer": 2,
+      // poison.instantCritSuppression is James's ruling of 2 Nov 2026 (#316).
+      "wowf-designer": 3,
       // The 13 attack table rows are assumptions since #295.
       "classic-1.12": 21,
       cataclysm: 1,
-      assumption: 26,
+      assumption: 25,
     });
   });
 

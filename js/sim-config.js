@@ -8,7 +8,7 @@ import {
 import { talentCatalogue } from "./talents.js";
 import { raceCatalogue } from "./racials.js";
 import { defaultRotation } from "./rotation-default.js";
-import { defaultWeaponSkill } from "./attack-resolver.js";
+import { defaultWeaponSkill, maxWeaponSkill } from "./attack-resolver.js";
 import { rotationProblems } from "./rotation-validator.js";
 
 // SimConfig (roadmap E2-lite, issue #92): the inputs of one fight. It names the
@@ -223,8 +223,11 @@ function readCharacter(input, defaults) {
   for (const field of CHARACTER_FIELDS) {
     // Attack power has no upper limit. A chance, and haste (a fraction of
     // attack speed, #265), run from 0 to 1. Weapon skill (#295) is a whole
-    // number of points, at least 1, with no upper limit.
-    const limits = CHARACTER_LIMITS[field] ?? { max: 1 };
+    // number of points, from 1 to level x 5 + 50 (maxWeaponSkill, #316 N2).
+    const limits =
+      field === "weaponSkill"
+        ? { ...CHARACTER_LIMITS.weaponSkill, max: maxWeaponSkill() }
+        : (CHARACTER_LIMITS[field] ?? { max: 1 });
     result[field] = readNumber(
       given[field],
       `config.character.${field}`,

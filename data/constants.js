@@ -61,6 +61,8 @@ const ATTACK_TABLE_295 = "Developer, 2 Nov 2026, issue #295";
 // The retuned presets (#310): James's builds, from his share links (relayed
 // by Scout, approved by James).
 const PRESETS_310 = "James, 2 Nov 2026, issue #310";
+// James's #295 rulings of 2 Nov 2026, relayed by Scout on PR #316.
+const JAMES_295 = "James, 2 Nov 2026, issue #295";
 
 // The attack table rows (A7, #100; one table since #295, the attackTable.*
 // rows) cite the Magey classic-warrior wiki page (MAGEY) as the Classic
@@ -540,11 +542,11 @@ export const CONSTANTS = {
   // else in the engine holds an attack-table number. Every row is an
   // assumption: Classic 1.12 values, kept until WoW Forever's are known.
   "attackTable.weaponSkill": entry(
-    { perLevel: 5, racialBonus: {} },
+    { perLevel: 5, racialBonus: {}, maxAboveBase: 50 },
     "skill",
     ASSUMPTION,
-    `${ATTACK_TABLE_295}: the default weapon skill is level \u00d7 5 (${MAGEY}; wowsims ${WS}core/target.go NewAttackTable, baseWeaponSkill = level \u00d7 5). WoW Forever has no weapon-skill racial: rogue.json lists none (data/racial-effects.js), and the Phase 5 plan notes that Forever removed them`,
-    "perLevel: the default of config.character.weaponSkill is character.level \u00d7 perLevel (300 at 60), and the capped skill of the glancing chance and the classic crit model is the same level \u00d7 perLevel. racialBonus: race id \u2192 skill points added to the config's weapon skill for that race, on every weapon. It is empty: no WoW Forever race has a weapon-skill racial (Classic's Human swords and maces, Orc axes are not in the export). Racial and gear weapon skill by weapon type belongs to the post-launch Character and gear milestone (#297).",
+    `${ATTACK_TABLE_295}: the default weapon skill is level \u00d7 5 (${MAGEY}; wowsims ${WS}core/target.go NewAttackTable, baseWeaponSkill = level \u00d7 5). WoW Forever has no weapon-skill racial: rogue.json lists none (data/racial-effects.js), and the Phase 5 plan notes that Forever removed them. maxAboveBase: Scout (coordinator), 2 Nov 2026, #316, on Kira's QA note N2 (no upper bound): the UI has no bound of its own, so level \u00d7 5 + 50`,
+    "perLevel: the default of config.character.weaponSkill is character.level \u00d7 perLevel (300 at 60), and the capped skill of the glancing chance and the classic crit model is the same level \u00d7 perLevel. racialBonus: race id \u2192 skill points added to the config's weapon skill for that race, on every weapon. It is empty: no WoW Forever race has a weapon-skill racial (Classic's Human swords and maces, Orc axes are not in the export). Racial and gear weapon skill by weapon type belongs to the post-launch Character and gear milestone (#297). maxAboveBase: config.character.weaponSkill may be at most character.level \u00d7 perLevel + maxAboveBase (350 at 60); a larger value is a RangeError.",
     true,
   ),
   "attackTable.defense": entry(
@@ -627,7 +629,7 @@ export const CONSTANTS = {
     "model",
     ASSUMPTION,
     `${ATTACK_TABLE_295}: the issue's default, the common Classic reading (${MAGEY}; wowsims ${WS}core/target.go NewAttackTable). The other model, gapAura, is James's AI answer of 31 Oct 2026 (issue #295), open for his ruling`,
-    'Which set of attackTable.critModels takes crit off: "classic" (the default, 4.8% at 300, 305 and 308 skill) or "gapAura" (4.8% at 300, 2.8% at 305, 2.68% at 308). A one-line change, no code.',
+    'Which set of attackTable.critModels takes crit off: "classic" (the default, 4.8% at 300, 3% at 305 and 308 skill) or "gapAura" (4.8% at 300, 2.8% at 305, 2.68% at 308), both with attackTable.flatAboveSkillGap at 10. A one-line change, no code.',
     true,
   ),
   "attackTable.critModels": entry(
@@ -638,7 +640,6 @@ export const CONSTANTS = {
         perPointAhead: 0.0004,
         flat: 0.018,
         flatMinLevelGap: 3,
-        flatAboveSkillGap: null,
         levelAuraPerLevel: 0,
       },
       gapAura: {
@@ -647,14 +648,13 @@ export const CONSTANTS = {
         perPointAhead: 0.0004,
         flat: 0.018,
         flatMinLevelGap: 0,
-        flatAboveSkillGap: 10,
         levelAuraPerLevel: 0.008,
       },
     },
     "chance",
     ASSUMPTION,
     `${ATTACK_TABLE_295}: classic from ${MAGEY} (crit suppression uses MIN(level \u00d7 5, skill); the 1.8% is an aura-crit estimate at +3) and wowsims ${WS}core/target.go NewAttackTable (MeleeCritSuppression); gapAura from James's AI answer, 31 Oct 2026, on issue #295, whose sources (the Marrow compendium ${MARROW}, the WoWWiki weapon skill page, Wowhead) were read on 2 Nov 2026: only WoWWiki gives the 0.04% per point, and none of them gives the 1.8% only above a gap of 10`,
-    'Per model: skill "capped" (min(weapon skill, level \u00d7 5)) or "total" picks the skill for the gap; the skill term is gap \u00d7 perPoint (perPointAhead when the skill is above the defense). flat (the 1.8% aura term) applies when target.level \u2212 character.level is at least flatMinLevelGap and, when flatAboveSkillGap is a number, only while defense \u2212 weapon skill (the whole skill) is more than it: that number is the "+5 skill removes the 1.8%" switch, null keeps the 1.8% at any skill. levelAuraPerLevel \u00d7 the level gap is added (2.4% at +3 for gapAura). The 1.8% comes off every crit chance, as before (the config does not say how much crit is from auras).',
+    'Per model: skill "capped" (min(weapon skill, level \u00d7 5)) or "total" picks the skill for the gap; the skill term is gap \u00d7 perPoint (perPointAhead when the skill is above the defense). flat (the 1.8% aura term) applies when target.level \u2212 character.level is at least flatMinLevelGap and while attackTable.flatAboveSkillGap allows it (one row for both models since James\u2019s ruling of 2 Nov 2026). levelAuraPerLevel \u00d7 the level gap is added (2.4% at +3 for gapAura). The 1.8% comes off every crit chance, as before (the config does not say how much crit is from auras).',
     true,
   ),
   "attackTable.spellMiss": entry(
@@ -663,6 +663,14 @@ export const CONSTANTS = {
     ASSUMPTION,
     `${ATTACK_TABLE_295}: wowsims ${WS}core/target.go NewAttackTable (BaseSpellMissChance by level gap 0, 1, 2, 3+)`,
     "The spell miss a poison proc rolls (A5, #105), by target.level \u2212 character.level (0, 1, 2, then 3 or more: 17% at +3), less the bonus spell hit, never below floor. Melee hit and weapon skill do not reduce it (poison.hitModel). The bonus spell hit is the spellHitChance modifiers only: 0, or 0.01 for a Dwarf (racial.artisansPrecision.spellHitChance, #277).",
+    true,
+  ),
+  "attackTable.flatAboveSkillGap": entry(
+    10,
+    "skill points",
+    WOWF_DESIGNER,
+    `${JAMES_295}: James's ruling, relayed by Scout on PR #316: "Weapon skill being within 10 points compared to the enemies defense skill (e.g. defense skill - weapon skill) should remove the 1.8%". It replaces the developer default of null (the 1.8% at any skill) on the classic model; gapAura already used 10`,
+    "The 1.8% aura term of the crit suppression (the flat of attackTable.critModels) comes off only while the target's defense \u2212 the whole weapon skill is more than this: at 10, a gap of 15 (300 skill against 315 defense) keeps it (4.8% on classic), and a gap of 10 (305) or 7 (308) removes it (3% on classic, whose skill term stays on the capped skill). null keeps the 1.8% at any skill. One row for both crit models.",
     true,
   ),
   "table.white": entry(
@@ -745,11 +753,11 @@ export const CONSTANTS = {
     true,
   ),
   "poison.instantCritSuppression": entry(
-    true,
+    false,
     "–",
-    ASSUMPTION,
-    `${DEV_JUDGEMENT_105}: the sources give crit suppression for swings; none says whether a poison's direct hit takes it, and issue #105 does not say, so this is a developer judgement. dot.critSuppression is itself a developer judgement (issue #100); the project owner only said he is happy with the current DoT crit and suppression handling, not a ruling on poison hits`,
-    "Instant Poison's crit chance loses the same crit suppression as a swing and a DoT tick (attackTable.critModel; 4.8% at the default), like dot.critSuppression, so the three crit rolls of a poisoned build are on one footing. wowsims takes spell crit suppression from a different (smaller) table; that is not modelled. false would leave the hit at the full crit chance.",
+    WOWF_DESIGNER,
+    `${JAMES_295}: James's ruling, relayed by Scout on PR #316: "Do not supress spell hit", which in context means spell crit: spell and poison crits take no crit suppression. It replaces the developer judgement of 26 Oct 2026 (issue #105), which took the melee suppression off`,
+    "Instant Poison's crit chance is the full melee crit chance: no crit suppression (attackTable.critModel) comes off it, as for a Deadly Poison tick (dot.spellCritSuppression). true would take the swing's suppression off (4.8% at the default). The spell miss (attackTable.spellMiss) is not affected.",
     true,
   ),
   "bleed.ignoresArmor": entry(
@@ -905,7 +913,15 @@ export const CONSTANTS = {
     "–",
     ASSUMPTION,
     `${DEV_JUDGEMENT_100}: the sources give crit suppression for swings; none says whether a DoT tick takes it`,
-    "A DoT tick's crit chance loses the same crit suppression as a swing (attackTable.critModel; 4.8% at the default). Classic ticks do not crit, and WoW Forever's DoT crits (dot.canCrit) are outside the Classic table, so this is an assumption. The 2x multiplier is dot.critMultiplier. false would leave a tick at the full crit chance.",
+    "A physical DoT tick's crit chance (Rupture, Garrote) loses the same crit suppression as a swing (attackTable.critModel; 4.8% at the default). Classic ticks do not crit, and WoW Forever's DoT crits (dot.canCrit) are outside the Classic table, so this is an assumption. A tick of any other school (Deadly Poison) reads dot.spellCritSuppression instead. The 2x multiplier is dot.critMultiplier. false would leave a physical tick at the full crit chance.",
+    true,
+  ),
+  "dot.spellCritSuppression": entry(
+    false,
+    "–",
+    ASSUMPTION,
+    `Scout (coordinator), 2 Nov 2026, #295: ruling on PR #316 that a DoT tick's crit suppression follows its damage school: physical bleed ticks keep the melee suppression (dot.critSuppression) and poison and other spell ticks take none, following James, 2 Nov 2026 (issue #295): "Do not supress spell hit", meaning spell crit. James ruled on spell and poison crits; which ticks count as spell is Scout's reading, so this is an assumption`,
+    "A DoT tick whose school is not physical (Deadly Poison, nature) rolls its crit at the full crit chance: no crit suppression comes off. true would take the swing's suppression off, as dot.critSuppression does for Rupture and Garrote. The 2x multiplier is dot.critMultiplier.",
     true,
   ),
   "rotation.priority": entry(

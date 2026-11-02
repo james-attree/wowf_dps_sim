@@ -477,14 +477,14 @@ describe("config.character.weaponSkill (#295)", () => {
     );
   });
 
-  it("takes a whole number of 1 or more", () => {
+  it("takes a whole number from 1 to 350 (level x 5 + 50, #316 N2)", () => {
     for (const bad of [0, -5, 300.5, Number.NaN, Infinity]) {
       assert.throws(
         () => normalizeConfig({ character: { weaponSkill: bad } }),
         {
           name: "RangeError",
           message:
-            /config\.character\.weaponSkill must be a whole number 1 or more/,
+            /config\.character\.weaponSkill must be a whole number between 1 and 350/,
         },
       );
     }

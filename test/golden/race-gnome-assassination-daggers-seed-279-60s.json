@@ -1,8 +1,8 @@
 {
   "seed": 279,
   "duration": 60,
-  "totalDamage": 17965.292980175494,
-  "dps": 299.42154966959157,
+  "totalDamage": 18023.4929801755,
+  "dps": 300.39154966959165,
   "abilities": {
     "Main-hand": {"damage":4948.272126530171,"casts":42,"hits":8,"crits":11,"glances":16,"misses":4,"dodges":3,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Eureka!": {"damage":0,"casts":1,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
@@ -11,7 +11,7 @@
     "Off-hand": {"damage":2459.538511537212,"casts":47,"hits":3,"crits":16,"glances":18,"misses":7,"dodges":3,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Deadly Poison": {"damage":2939.4,"casts":19,"hits":16,"crits":0,"glances":0,"misses":3,"dodges":0,"parries":0,"blocks":0,"ticks":19,"tickCrits":3},
     "Slice and Dice": {"damage":0,"casts":2,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
-    "Instant Poison": {"damage":1745.1,"casts":14,"hits":7,"crits":5,"glances":0,"misses":2,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
+    "Instant Poison": {"damage":1803.2999999999997,"casts":14,"hits":6,"crits":6,"glances":0,"misses":2,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Venom": {"damage":0,"casts":2,"hits":0,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
     "Eviscerate": {"damage":1484.183728740115,"casts":1,"hits":0,"crits":1,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0}
   },
