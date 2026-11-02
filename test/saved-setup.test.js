@@ -752,3 +752,286 @@ describe("#296: on load, on leaving and on pageshow", () => {
     saved.stop();
   });
 });
+
+describe("#320 B1: opening the page with no change writes nothing (Kira's QA)", () => {
+  function fakeWindow() {
+    const target = new globalThis.EventTarget();
+    target.document = new globalThis.EventTarget();
+    target.document.visibilityState = "visible";
+    return target;
+  }
+  const show = (win, persisted = false) => {
+    const event = new globalThis.Event("pageshow");
+    event.persisted = persisted;
+    win.dispatchEvent(event);
+  };
+  // A page load over `text` as js/main.js does it: the store from the save
+  // (or the defaults), the stats form, the save mounted, then the browser's
+  // pageshow (it fires on every load, persisted false).
+  function load(storage, { seed = 7, timers = fakeTimers() } = {}) {
+    const { setup, source } = resolveInitialSetup({
+      search: "",
+      saved: readSavedSetup(storage),
+    });
+    const store = pageStore({ ...setup, run: { ...setup.run, seed } });
+    const form = createConfigForm(store);
+    const win = fakeWindow();
+    const saved = mountSavedSetup(win, store, {
+      initial: { source },
+      storage,
+      timers,
+      form,
+    });
+    show(win);
+    return { store, form, win, saved, timers };
+  }
+  const body = encodeSetup(setupDefaults()).split(".")[1];
+  const SAVES = {
+    "a save": encodeSetup({
+      ...setupDefaults(),
+      config: {
+        ...setupDefaults().config,
+        character: { ...setupDefaults().config.character, haste: 0.04 },
+      },
+    }),
+    "an unreadable save": "1.!!!not-base64",
+    "a newer-version save": `${SETUP_VERSION + 1}.${body}`,
+    "an older-version save": `0.${body}`,
+    "a value that is not the codec's": '{"haste":5}',
+  };
+
+  it("no save: a first visit's random seed is not saved without an edit", () => {
+    const storage = memoryStorage();
+    const page = load(storage, { seed: 98765 });
+    page.timers.advance(DELAY * 4);
+    show(page.win, true);
+    page.timers.advance(DELAY * 4);
+    page.win.dispatchEvent(new globalThis.Event("pagehide"));
+    assert.equal(storage.writes, 0);
+    assert.equal(savedOf(storage), null);
+    page.saved.stop();
+  });
+
+  for (const [name, text] of Object.entries(SAVES)) {
+    it(`${name} is left byte-unchanged by a visit, a back/forward visit and leaving`, () => {
+      const storage = memoryStorage({ [SAVED_SETUP_KEY]: text });
+      const page = load(storage);
+      page.timers.advance(DELAY * 4);
+      // Back/forward: a bfcache restore (persisted) and a reload.
+      show(page.win, true);
+      page.timers.advance(DELAY * 4);
+      page.win.dispatchEvent(new globalThis.Event("pagehide"));
+      page.win.document.visibilityState = "hidden";
+      page.win.document.dispatchEvent(new globalThis.Event("visibilitychange"));
+      page.saved.stop();
+      const again = load(storage);
+      again.timers.advance(DELAY * 4);
+      again.saved.stop();
+      assert.equal(storage.writes, 0, name);
+      assert.equal(savedOf(storage), text, name);
+    });
+  }
+
+  it("an edit after such a visit still saves", () => {
+    for (const text of Object.values(SAVES)) {
+      const storage = memoryStorage({ [SAVED_SETUP_KEY]: text });
+      const page = load(storage);
+      page.timers.advance(DELAY * 4);
+      page.form.change("character.haste", 0.06);
+      page.timers.advance(DELAY);
+      assert.equal(storage.writes, 1, text);
+      assert.equal(readBack(savedOf(storage)).config.character.haste, 0.06);
+      page.saved.stop();
+    }
+  });
+
+  it("a share link opened on load is still saved at once, and the pageshow after it writes nothing more", () => {
+    const storage = memoryStorage({ [SAVED_SETUP_KEY]: SAVES["a save"] });
+    const store = pageStore();
+    withHaste(store, 0.07);
+    const timers = fakeTimers();
+    const win = fakeWindow();
+    const saved = mountSavedSetup(win, store, {
+      initial: { source: "link" },
+      storage,
+      timers,
+      form: createConfigForm(store),
+    });
+    assert.equal(storage.writes, 1);
+    assert.equal(readBack(savedOf(storage)).config.character.haste, 0.07);
+    show(win);
+    timers.advance(DELAY * 4);
+    assert.equal(storage.writes, 1);
+    saved.stop();
+  });
+
+  it("after Reset to defaults, a pageshow and then a refresh (a new seed) save nothing", () => {
+    const storage = memoryStorage();
+    const page = load(storage);
+    page.form.change("character.haste", 0.05);
+    page.timers.advance(DELAY);
+    assert.notEqual(savedOf(storage), null);
+    page.form.reset();
+    page.timers.advance(DELAY);
+    assert.equal(savedOf(storage), null);
+    // The same page shown again (back/forward): the cleared setup stays unsaved.
+    show(page.win, true);
+    page.timers.advance(DELAY * 4);
+    page.win.dispatchEvent(new globalThis.Event("pagehide"));
+    assert.equal(savedOf(storage), null, "a pageshow after Reset");
+    page.saved.stop();
+    // A refresh: no save, so the defaults with another random seed.
+    const writes = storage.writes;
+    const again = load(storage, { seed: 4242 });
+    again.timers.advance(DELAY * 4);
+    again.win.dispatchEvent(new globalThis.Event("pagehide"));
+    assert.equal(storage.writes, writes);
+    assert.equal(savedOf(storage), null, "a refresh after Reset");
+    again.saved.stop();
+  });
+
+  it("after clear(), the setup on screen counts as saved: a change and back again writes nothing", () => {
+    const storage = memoryStorage();
+    const store = pageStore();
+    const timers = fakeTimers();
+    const saved = createSavedSetup({ store, storage, timers });
+    withHaste(store, 0.02);
+    timers.advance(DELAY);
+    saved.clear();
+    const writes = storage.writes;
+    withHaste(store, 0.03);
+    withHaste(store, 0.02);
+    timers.advance(DELAY);
+    assert.equal(storage.writes, writes);
+    assert.equal(savedOf(storage), null);
+    saved.stop();
+  });
+});
+
+describe("#320 N4: pageshow puts a field in error back to the build's value", () => {
+  it("the stats form: a field in error shows the build again, with no error; the build is not touched", () => {
+    const store = pageStore();
+    const form = createConfigForm(store);
+    form.change("character.haste", 0.05);
+    form.change("character.haste", -0.05);
+    assert.notDeepEqual(store.get().form.errors, {});
+    const config = store.get().config;
+    redrawInputs(store);
+    const after = store.get();
+    assert.deepEqual(after.form.errors, {});
+    assert.equal(after.form.values["character.haste"], 0.05);
+    assert.equal(after.config, config);
+  });
+
+  it("the run settings: a field in error shows the setting again, with no error", () => {
+    const store = pageStore();
+    const { run } = store.get();
+    store.set({
+      run: {
+        ...run,
+        fields: { ...run.fields, duration: "-5" },
+        errors: { duration: "Enter a length of at least 1 second." },
+      },
+    });
+    redrawInputs(store);
+    const after = store.get().run;
+    assert.deepEqual(after.errors, {});
+    assert.equal(after.fields.duration, String(run.duration));
+    assert.equal(after.duration, run.duration);
+  });
+
+  it("a form with no errors keeps its values as they are", () => {
+    const store = pageStore();
+    createConfigForm(store);
+    const before = store.get().form.values;
+    redrawInputs(store);
+    assert.equal(store.get().form.values, before);
+  });
+});
+
+describe("#320 N8 (assumption A8): an Undo during a run puts the run settings back when the run ends", () => {
+  // run-actions' resetSettings and restoreSettings: neither does anything
+  // while a run is on (state "running" or "paused").
+  const runSettings = (store) => {
+    const locked = () => ["running", "paused"].includes(store.get().run.state);
+    return {
+      resetSettings() {
+        if (locked()) return null;
+        const { run } = store.get();
+        const before = { mode: run.mode, duration: run.duration };
+        store.set({ run: { ...run, mode: "batch", duration: 300 } });
+        return before;
+      },
+      restoreSettings(before) {
+        if (locked()) return false;
+        store.set({ run: { ...store.get().run, ...before } });
+        return true;
+      },
+    };
+  };
+  const setState = (store, state) =>
+    store.set({ run: { ...store.get().run, state } });
+  function mounted() {
+    const storage = memoryStorage();
+    const store = pageStore();
+    const timers = fakeTimers();
+    const form = createConfigForm(store);
+    const saved = mountSavedSetup(null, store, {
+      initial: { source: "defaults" },
+      storage,
+      timers,
+      form,
+      runSettings: runSettings(store),
+    });
+    store.set({ run: { ...store.get().run, mode: "live", duration: 60 } });
+    form.change("character.haste", 0.05);
+    timers.advance(DELAY);
+    return { storage, store, timers, form, saved };
+  }
+
+  it("Reset while idle, Undo mid-run: the config now, the run settings when the run ends, and both saved", () => {
+    const { storage, store, timers, form, saved } = mounted();
+    form.reset();
+    setState(store, "running");
+    assert.equal(form.undo(), true);
+    assert.equal(store.get().config.character.haste, 0.05);
+    assert.equal(store.get().run.duration, 300, "not while the run is on");
+    setState(store, "paused");
+    assert.equal(store.get().run.duration, 300);
+    setState(store, "done");
+    assert.equal(store.get().run.mode, "live");
+    assert.equal(store.get().run.duration, 60);
+    timers.advance(DELAY);
+    const back = readBack(savedOf(storage));
+    assert.equal(back.config.character.haste, 0.05);
+    assert.equal(back.run.duration, 60);
+    // Once: a later run leaves the settings alone.
+    store.set({ run: { ...store.get().run, duration: 90 } });
+    setState(store, "running");
+    setState(store, "idle");
+    assert.equal(store.get().run.duration, 90);
+    saved.stop();
+  });
+
+  it("a Reset to defaults before the run ends drops the pending restore", () => {
+    const { store, form, saved } = mounted();
+    form.reset();
+    setState(store, "running");
+    form.undo();
+    form.reset();
+    setState(store, "idle");
+    assert.equal(store.get().run.duration, 300);
+    assert.equal(store.get().run.mode, "batch");
+    saved.stop();
+  });
+
+  it("stop() drops the pending restore too", () => {
+    const { store, form, saved } = mounted();
+    form.reset();
+    setState(store, "running");
+    form.undo();
+    saved.stop();
+    setState(store, "idle");
+    assert.equal(store.get().run.duration, 300);
+  });
+});

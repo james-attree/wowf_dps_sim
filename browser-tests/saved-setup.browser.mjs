@@ -24,10 +24,17 @@ const LENGTH = "#run-duration";
 const LEVEL = "#talents-level";
 // Long enough for the debounced write, with room for a slow CI machine.
 const SETTLE = k("ui.saveSetupMs") + 400;
+// Past the load, its pageshow and several debounces: a visit with no change
+// must have written nothing by then (#320 B1 wrote at about 540 ms).
+const LOAD_SETTLE = 4 * k("ui.saveSetupMs") + 600;
+const ROTATION = "#cfg-rotation";
 
 let server;
 let base;
 let browser;
+// Chrome with the back/forward cache on (Playwright turns it off by default),
+// for a real bfcache restore (pageshow persisted) (Kira's N4 on #320).
+let bfcacheBrowser;
 
 before(async () => {
   server = await startStaticServer({ port: 0 });
@@ -41,13 +48,18 @@ before(async () => {
 
 after(async () => {
   await browser?.close();
+  await bfcacheBrowser?.close();
   await new Promise((resolve) => server?.close(resolve));
 });
 
 // storage: "on", "throws" (the localStorage getter throws, as with storage
 // turned off), or a text to put in the save before the page loads.
-async function open(width, address = "", { storage = "on" } = {}) {
-  const context = await browser.newContext({
+async function open(
+  width,
+  address = "",
+  { storage = "on", from = browser } = {},
+) {
+  const context = await from.newContext({
     viewport: { width, height: SCREEN_HEIGHT },
   });
   await context.grantPermissions(["clipboard-read", "clipboard-write"], {
@@ -75,6 +87,21 @@ async function open(width, address = "", { storage = "on" } = {}) {
       [SAVED_SETUP_KEY, storage],
     );
   }
+  // Every write to the save, counted per document (window.__setupWrites), and
+  // every pageshow's persisted flag (window.__shows).
+  await context.addInitScript((key) => {
+    const win = document.defaultView;
+    win.__setupWrites = 0;
+    win.__shows = [];
+    win.addEventListener("pageshow", (event) =>
+      win.__shows.push(event.persisted),
+    );
+    const setItem = win.Storage.prototype.setItem;
+    win.Storage.prototype.setItem = function (name, text) {
+      if (name === key) win.__setupWrites += 1;
+      return setItem.call(this, name, text);
+    };
+  }, SAVED_SETUP_KEY);
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -208,6 +235,9 @@ describe("Remember my setup (#296)", () => {
         const reset = await build(page);
         assert.deepEqual(reset.config, D.config);
         assert.equal(reset.run.duration, D.run.duration);
+        // #320 B1: the refresh after Reset saves nothing (no new seed).
+        await page.waitForTimeout(LOAD_SETTLE);
+        assert.equal(await saved(page), null, "a refresh after Reset");
         assert.deepEqual(errors, []);
       } finally {
         await context.close();
@@ -349,6 +379,168 @@ describe("Remember my setup (#296)", () => {
       await page.goto(`${base}#character/stats`);
       await ready(page);
       assert.equal(await value(page, "#character/stats", HASTE), "7");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  // #320 B1 (Kira's QA): opening the page, refreshing it or coming back to it
+  // with no change writes nothing, so a save the page cannot read (newer,
+  // broken) is kept as it was until the user changes something.
+  const body = encodeSetup(setupDefaults()).split(".")[1];
+  for (const [name, text] of [
+    ["no", null],
+    [
+      "a",
+      encodeSetup({
+        ...D,
+        config: {
+          ...D.config,
+          character: { ...D.config.character, haste: 0.04 },
+        },
+      }),
+    ],
+    ["an unreadable", "1.!!!not-base64"],
+    ["a newer-version", `${SETUP_VERSION + 1}.${body}`],
+  ]) {
+    test(`a visit with no change writes nothing and leaves ${name} save byte-unchanged; an edit still saves`, async () => {
+      const { context, page, errors } = await open(1440, "#character/stats", {
+        storage: text ?? "on",
+      });
+      const writes = () =>
+        page.evaluate(() => document.defaultView.__setupWrites);
+      try {
+        await page.waitForTimeout(LOAD_SETTLE);
+        assert.equal(await saved(page), text, "after the load");
+        assert.equal(await writes(), 0, "after the load");
+        await page.reload();
+        await ready(page);
+        await page.waitForTimeout(LOAD_SETTLE);
+        assert.equal(await saved(page), text, "after a refresh");
+        assert.equal(await writes(), 0, "after a refresh");
+        await page.goto("about:blank");
+        assert.equal(await saved(page), text, "after leaving");
+        await page.goBack();
+        await ready(page);
+        await page.waitForTimeout(LOAD_SETTLE);
+        assert.equal(await saved(page), text, "after back");
+        assert.equal(await writes(), 0, "after back");
+
+        await set(page, "#character/stats", HASTE, "6");
+        await page.waitForTimeout(SETTLE);
+        const kept = decodeSetup(await saved(page));
+        assert.equal(kept.status, "ok");
+        assert.equal(kept.setup.config.character.haste, 0.06);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  test("a real bfcache restore: a field in error shows the build's value, and nothing is written (N4)", async () => {
+    bfcacheBrowser ??= await chromium.launch({
+      ...(process.env.CHROME_PATH
+        ? { executablePath: process.env.CHROME_PATH }
+        : { channel: "chrome" }),
+      ignoreDefaultArgs: ["--disable-back-forward-cache"],
+      args: ["--enable-features=BackForwardCache"],
+    });
+    const { context, page, errors } = await open(1440, "#character/stats", {
+      from: bfcacheBrowser,
+    });
+    try {
+      await set(page, "#character/stats", HASTE, "5");
+      await page.waitForTimeout(SETTLE);
+      const text = await saved(page);
+      await set(page, "#character/stats", HASTE, "-5");
+      await page.waitForTimeout(SETTLE);
+      await page.evaluate(() => {
+        document.defaultView.__kept = true;
+      });
+      await page.goto(`${base}demo/charts.html`);
+      await page.goBack({ waitUntil: "commit" });
+      await page.waitForFunction(
+        () => document.defaultView.__shows?.at(-1) === true,
+      );
+      assert.equal(
+        await page.evaluate(() => document.defaultView.__kept),
+        true,
+        "restored from the bfcache, not loaded again",
+      );
+      await page.waitForTimeout(LOAD_SETTLE);
+      assert.equal(await value(page, "#character/stats", HASTE), "5");
+      assert.equal(
+        await page.locator(`${HASTE}-error`).textContent(),
+        "",
+        "no error shown",
+      );
+      assert.equal((await build(page)).config.character.haste, 0.05);
+      assert.equal(await saved(page), text, "nothing written");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("back after another tab changed the rotation: the rotation shown is the build's (the form revision redraw, N9)", async () => {
+    const { context, page, errors } = await open(1440, "#rotation");
+    try {
+      await go(page, "#rotation", ROTATION);
+      const choices = await page.$$eval(`${ROTATION} option`, (options) =>
+        options.map((option) => option.value),
+      );
+      assert.ok(choices.length >= 3, choices.join());
+      await page.locator(ROTATION).selectOption(choices[1]);
+      await page.waitForTimeout(SETTLE);
+      await page.goto(`${base}demo/charts.html`);
+      const other = await context.newPage();
+      await other.goto(`${base}#rotation`);
+      await ready(other);
+      await go(other, "#rotation", ROTATION);
+      await other.locator(ROTATION).selectOption(choices[2]);
+      await other.waitForTimeout(SETTLE);
+      await other.close();
+      await page.goBack();
+      await ready(page);
+      await page.waitForTimeout(100);
+      assert.equal(await value(page, "#rotation", ROTATION), choices[2]);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("Reset while idle, then Undo during a run: the config at once, the run settings when the run stops (N8, A8)", async () => {
+    const { context, page, errors } = await open(1440, "#character/stats");
+    try {
+      await set(page, "#character/stats", HASTE, "5");
+      await set(page, "#fight", LENGTH, "120");
+      await set(page, "#fight", "#run-seed", "4242");
+      await page.waitForTimeout(SETTLE);
+      await go(page, "#character/stats", "#cfg-reset");
+      await page.locator("#cfg-reset").click();
+      // The defaults' 1,000 fights of 300 s: long enough to Undo while it
+      // runs. (Editing a run setting here would keep Reset's settings.)
+      await page.locator("#run-button").click();
+      await page.locator("#stop-button").waitFor({ state: "visible" });
+      await go(page, "#character/stats", "#cfg-undo");
+      await page.locator("#cfg-undo").click();
+      assert.equal(await value(page, "#character/stats", HASTE), "5");
+      assert.equal(
+        await value(page, "#fight", LENGTH),
+        String(D.run.duration),
+        "not while the run is on",
+      );
+      await page.locator("#stop-button").click();
+      await page.waitForTimeout(SETTLE);
+      assert.equal(await value(page, "#fight", LENGTH), "120");
+      assert.equal(await value(page, "#fight", "#run-seed"), "4242");
+      const kept = decodeSetup(await saved(page), { strict: false }).setup;
+      assert.equal(kept.config.character.haste, 0.05);
+      assert.equal(kept.run.duration, 120);
+      assert.equal(kept.run.seed, 4242);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
