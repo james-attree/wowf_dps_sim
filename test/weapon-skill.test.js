@@ -221,8 +221,13 @@ describe("weapon skill moves the table (#295)", () => {
       low: 0.91,
       high: 0.99,
     });
-    // Below 300 the capped skill is the skill: 295 glances 50% of the time.
-    near(deriveAttackTable({ weaponSkill: 295 }).glancing, 0.5, "295");
+    // Below 300 the capped skill is the skill: 295 would glance 50% of the
+    // time, but glancing is held to attackTable.glancing max, 40% (#317 A10).
+    assert.equal(deriveAttackTable({ weaponSkill: 295 }).glancing, 0.4);
+    withRows(
+      { "attackTable.glancing": { ...k("attackTable.glancing"), max: 1 } },
+      () => near(deriveAttackTable({ weaponSkill: 295 }).glancing, 0.5, "295"),
+    );
   });
 
   it("draws a glancing blow between the table's factors", () => {
@@ -412,7 +417,7 @@ describe("every value is a table entry that changes the result (#295)", () => {
       ],
       [
         "attackTable.glancing",
-        { ...k("attackTable.glancing"), base: 0.2 },
+        { ...k("attackTable.glancing"), base: 0.05 },
         () => deriveAttackTable().glancing,
       ],
       [

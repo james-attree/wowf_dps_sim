@@ -215,11 +215,14 @@ An old config or link without it reads as 300 (G4), and a share link drops it
 at the default, so old links are unchanged. `weaponSkillFor` adds the race's
 `attackTable.weaponSkill.racialBonus`, which is empty: WoW Forever has no
 weapon-skill racial. Racial and gear skill by weapon type is post-launch
-(#297); the Character field in the UI is a separate task. The default is tied
-to the level 60 character (`character.level`), not to `talentLevel`; #290 may
-tie them. A config's weapon skill is a whole number from 1 to level x 5 +
-50 (`attackTable.weaponSkill.maxAboveBase`; 350 at 60), from Kira's QA note N2
-on #316.
+(#297); the Character field in the UI is a separate task. Since #290 the
+default follows the character level (`characterLevel`, `js/levels.js`, the
+one helper every level read goes through). A config's weapon skill is a whole
+number from 1 to level x 5 + 50 (`attackTable.weaponSkill.maxAboveBase`; 350 at
+60), from Kira's QA note N2 on #316. That cap is on the typed base skill; a
+racial bonus is added on top of it, so a race with +5 could fight at level x 5
+\+ 55. _Assumption A11_ (Scout's ruling on #317); no WoW Forever race has one
+yet.
 
 The skill gap is the target's defense (`target.level x
 attackTable.defense.perLevel`, 315) less the weapon skill.
@@ -257,6 +260,22 @@ spell hit (`attackTable.spellMiss`).
   whole skill gap, the 1.8% only while the gap is over 10
   (`attackTable.flatAboveSkillGap`), and a 0.8%-per-level aura (2.4% at +3). 4.8% at
   300, 2.8% at 305, 2.68% at 308.
+
+**Edge cases** (Kira's QA on #317, Scout's rulings, 2 Nov 2026):
+
+- _Assumption A9:_ the crit suppression's skill term is never below 0, so a
+  skill above the defense or a lower-level target takes no crit off and adds
+  none (`perPointAhead` gives 0). Miss and dodge were already held at 0.
+- _Assumption A10:_ glancing is held between 0 and `attackTable.glancing.max`
+  (40%, the level 60 against 63 value). 10 against 63 works out to 540%,
+  which was held at 100% before. One roll never totals more than 100%:
+  `attackChances` cuts the bands in roll order (miss, dodge, parry, glancing,
+  block, then crit for a white swing) to what is left. At 10 against 63 a
+  white swing's miss (77%) and dodge (31.5%, cut to 23%) fill the roll. A yellow attack's crit is its own roll and is not cut. Every roll at
+  level 60 fits, so nothing at 60 moves, except a typed skill below 300, which
+  glanced more than 40% before (295: 50%) and now glances 40%.
+- Ranks that share a level: Backstab ranks 8 and 9 are both learned at 60;
+  the highest rank wins (`rankAt`), so 60 is rank 9.
 
 `attackTable.flatAboveSkillGap` is the "+5 skill removes the 1.8%" switch,
 one row for both models. It is 10 by James's ruling of 2 Nov 2026 (relayed by
@@ -309,7 +328,8 @@ A fight has two levels (`js/levels.js`):
 
 **Ranks** (`js/ranks.js`). The export lists every rank of a rogue spell with
 the level it is learned at (`"lv": "Learned at level N"`). A level N character
-uses the highest rank learned at or below N. The constants rows hold the top
+uses the highest rank learned at or below N (the highest rank wins when two
+share a level, as Backstab 8 and 9 do at 60). The constants rows hold the top
 rank; `rankedStats(row, level)` overlays a lower rank's numbers from the
 export (energy, flat bonus, Eviscerate's and Rupture's per-combo-point
 damage, Rupture's and Slice and Dice's durations, Slice and Dice's haste,
