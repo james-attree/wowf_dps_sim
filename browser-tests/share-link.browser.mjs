@@ -149,7 +149,7 @@ describe("Copy link to this build (#284)", () => {
           );
           assert.equal(
             await page.getAttribute(`#share-link-${name}`, "aria-describedby"),
-            `share-too-long-${name}`,
+            `share-too-long-${name} share-over-cap-${name}`,
           );
         }
         assert.equal(new Set(Object.values(BUTTON_NAMES)).size, 3);
@@ -302,7 +302,7 @@ describe("Copy link to this build (#284)", () => {
           await field.waitFor({ state: "visible" });
           assert.equal(
             await text(page, "label[for=share-url-header]"),
-            "Copy this link",
+            "Couldn't copy automatically. Copy this link:",
           );
           assert.equal(await field.getAttribute("readonly"), "");
           const value = await field.inputValue();

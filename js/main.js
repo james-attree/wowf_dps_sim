@@ -243,6 +243,7 @@ router.start();
 createShareLinkView(document, store, {
   linkOf: () => shareUrl(location.href, setupFromState(store.get())),
   notice: initial.notice,
+  reset: initial.reset ?? [],
 });
 trackChromeSize(document);
 keepFocusInView(document);

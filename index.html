@@ -95,7 +95,7 @@
           type="button"
           data-share="header"
           aria-label="Copy link to this build (header)"
-          aria-describedby="share-too-long-header"
+          aria-describedby="share-too-long-header share-over-cap-header"
         >
           Copy link to this build
         </button>
@@ -108,8 +108,18 @@
             This rotation is too long to share as a link. Export it as a file
             instead (Rotation › Export or import).
           </p>
+          <p
+            id="share-over-cap-header"
+            class="field-error share-over-cap"
+            hidden
+          >
+            Your talents are over the level's cap, so the link would share an
+            older build. Fix them in Talents first.
+          </p>
           <div id="share-fallback-header" class="share-fallback" hidden>
-            <label for="share-url-header">Copy this link</label>
+            <label for="share-url-header"
+              >Couldn't copy automatically. Copy this link:</label
+            >
             <input
               id="share-url-header"
               class="share-url"
@@ -1181,7 +1191,7 @@
               type="button"
               data-share="average"
               aria-label="Copy link to this build (average result)"
-              aria-describedby="share-too-long-average"
+              aria-describedby="share-too-long-average share-over-cap-average"
             >
               Copy link to this build
             </button>
@@ -1195,8 +1205,18 @@
               This rotation is too long to share as a link. Export it as a file
               instead (Rotation › Export or import).
             </p>
+            <p
+              id="share-over-cap-average"
+              class="field-error share-over-cap"
+              hidden
+            >
+              Your talents are over the level's cap, so the link would share an
+              older build. Fix them in Talents first.
+            </p>
             <div id="share-fallback-average" class="share-fallback" hidden>
-              <label for="share-url-average">Copy this link</label>
+              <label for="share-url-average"
+                >Couldn't copy automatically. Copy this link:</label
+              >
               <input
                 id="share-url-average"
                 class="share-url"
@@ -1248,7 +1268,7 @@
               type="button"
               data-share="live"
               aria-label="Copy link to this build (live fight)"
-              aria-describedby="share-too-long-live"
+              aria-describedby="share-too-long-live share-over-cap-live"
             >
               Copy link to this build
             </button>
@@ -1262,8 +1282,18 @@
               This rotation is too long to share as a link. Export it as a file
               instead (Rotation › Export or import).
             </p>
+            <p
+              id="share-over-cap-live"
+              class="field-error share-over-cap"
+              hidden
+            >
+              Your talents are over the level's cap, so the link would share an
+              older build. Fix them in Talents first.
+            </p>
             <div id="share-fallback-live" class="share-fallback" hidden>
-              <label for="share-url-live">Copy this link</label>
+              <label for="share-url-live"
+                >Couldn't copy automatically. Copy this link:</label
+              >
               <input
                 id="share-url-live"
                 class="share-url"

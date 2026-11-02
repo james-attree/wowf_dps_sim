@@ -313,9 +313,11 @@ describe("Start from a preset (#323)", () => {
           assert.equal(await shown(page, PANEL), false, "folded");
           assert.equal(await shown(page, ROW_ITEM), true, "the row");
           assert.equal(await text(page, "#start-summary"), "Assassination");
+          // The defaults' poisons are Assassination's, so the line, as the
+          // announcement, names only what it put in (#326, item 7).
           assert.match(
             await text(page, "#start-done"),
-            /^Assassination set: talents 38\/11\/2, two daggers, Instant and Deadly poisons and its rotation\. Your stats and race are unchanged\.$/,
+            /^Assassination set: talents 38\/11\/2, two daggers and its rotation\. Your stats and race are unchanged\.$/,
           );
           assert.equal(await focused(page), "start-undo");
           await announced(page, /replaced\.$/);

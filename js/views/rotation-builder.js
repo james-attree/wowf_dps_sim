@@ -143,7 +143,11 @@ const optionsOf = (groups) =>
       group.options.map((option) =>
         h(
           "option",
-          { key: `o:${option.value}`, value: option.value },
+          {
+            key: `o:${option.value}`,
+            value: option.value,
+            disabled: option.disabled === true ? true : null,
+          },
           option.text,
         ),
       ),

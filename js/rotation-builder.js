@@ -48,7 +48,12 @@ import {
   poolingHint,
   valueUnit,
 } from "./rotation-builder-copy.js";
-import { skipOf, takenOf, talentState } from "./rotation-skips.js";
+import {
+  grantingRaceNames,
+  skipOf,
+  takenOf,
+  talentState,
+} from "./rotation-skips.js";
 import { rotationContext } from "./rotation-validator.js";
 import { summarizeCondition, summarizeRule } from "./rotation-summary.js";
 
@@ -106,6 +111,34 @@ const conditionLine = (condition) =>
   summarizeCondition(printable(bare(condition)));
 
 // The quick fix of an entry on rule `at` (section 6), or null.
+
+// A rule's "casts" choices: the race's abilities, and a rule's own ability
+// that the race can't cast (a racial, skipped) as a disabled choice of its
+// own, so the select names it and isn't blank (#326, item 14).
+function actionGroups(race, action) {
+  const castable = castableAbilities(race);
+  const groups = abilityGroups(castable);
+  if (castable.includes(action)) {
+    return groups;
+  }
+  const names = grantingRaceNames(action);
+  if (names.length === 0) {
+    return groups;
+  }
+  const races =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
+  const text = `${abilityFacts(action).name} (${races} racial)`;
+  return [
+    ...groups,
+    {
+      label:
+        race === null || race === undefined ? "Needs a race" : "Not your race",
+      options: [{ value: action, text, disabled: true }],
+    },
+  ];
+}
 export function fixFor(entry, at, rotation) {
   const rule = rotation.rules[at];
   if (rule === undefined) {
@@ -567,7 +600,7 @@ export function createRotationBuilder(store, formActions) {
         body = {
           actionLabel: `Rule ${n} casts`,
           action: rule.action,
-          actionGroups: abilityGroups(castableAbilities(race)),
+          actionGroups: actionGroups(race, rule.action),
           actionErrors: keyed
             .filter((m) => m.place.at === "action")
             .map((m) => entryText(m.entry, rotation)),

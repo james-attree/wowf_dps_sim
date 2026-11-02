@@ -195,25 +195,52 @@ function readStrict(payload, defaults) {
   }
 }
 
+// The config with `section` set to `value`, checked; null when it does not
+// check out.
+function tryConfig(config, section, value) {
+  try {
+    return checkConfig({ ...config, [section]: value });
+  } catch {
+    return null;
+  }
+}
+
 // Section by section: each one that checks out (with those before it) is
-// kept; the rest are the defaults.
+// kept. One that does not is read field by field (its top-level fields, over
+// its defaults), so one bad field does not take the rest of it with it
+// (#326, item 13: an armour of -1 reset the target's level too). `reset`
+// lists what reads as its default: "target.armor", or a whole section that
+// can't be read by field ("talents"). The format is unchanged: a save that
+// checks out reads exactly as before, with nothing reset.
 function readLenient(payload, defaults) {
   let config = defaults.config;
+  const reset = [];
   const given = isPlain(payload.config) ? payload.config : {};
   for (const section of Object.keys(defaults.config)) {
     if (given[section] === undefined) continue;
-    const next = {
-      ...config,
-      [section]: merge(
-        defaults.config[section],
-        given[section],
-        WHOLE.has(section),
-      ),
-    };
-    try {
-      config = checkConfig(next);
-    } catch {
-      // This section reads as its default.
+    const base = defaults.config[section];
+    const whole = WHOLE.has(section);
+    const next = tryConfig(config, section, merge(base, given[section], whole));
+    if (next !== null) {
+      config = next;
+      continue;
+    }
+    if (whole || !isPlain(base) || !isPlain(given[section])) {
+      reset.push(section);
+      continue;
+    }
+    for (const field of Object.keys(base)) {
+      const value = given[section][field];
+      if (value === undefined) continue;
+      const fieldNext = tryConfig(config, section, {
+        ...config[section],
+        [field]: merge(base[field], value, WHOLE.has(field)),
+      });
+      if (fieldNext === null) {
+        reset.push(`${section}.${field}`);
+      } else {
+        config = fieldNext;
+      }
     }
   }
   const run = { ...defaults.run };
@@ -221,9 +248,16 @@ function readLenient(payload, defaults) {
   for (const name of Object.keys(defaults.run)) {
     if (givenRun[name] === undefined) continue;
     const checked = checkRun({ ...run, [name]: givenRun[name] });
-    if (checked !== null) Object.assign(run, checked);
+    if (checked === null) {
+      reset.push(`run.${name}`);
+    } else {
+      Object.assign(run, checked);
+    }
   }
-  return { status: "ok", setup: { config: checkConfig(config), run } };
+  const setup = { config: checkConfig(config), run };
+  return reset.length === 0
+    ? { status: "ok", setup }
+    : { status: "ok", setup, reset };
 }
 
 // The setup the page holds: the store's config and its run settings.
@@ -261,7 +295,8 @@ export function withoutLinkParam(href) {
 // The page's first setup, in the order above. `search` is location.search;
 // `saved` is the saved setup's text (#296) or null. notice is null, "loaded",
 // "newer" or "corrupt" (the link's banner); hadLink says ?s= is to be taken
-// out of the address.
+// out of the address. reset, only when there are any, lists the saved
+// setup's fields read as their defaults (#326, item 13), for the banner.
 export function resolveInitialSetup({
   search = "",
   saved = null,
@@ -284,7 +319,8 @@ export function resolveInitialSetup({
   const hadLink = link !== null;
   if (saved !== null && saved !== undefined) {
     const read = decodeSetup(saved, { strict: false, defaults });
-    return { setup: read.setup, source: "saved", notice, hadLink };
+    const found = { setup: read.setup, source: "saved", notice, hadLink };
+    return read.reset === undefined ? found : { ...found, reset: read.reset };
   }
   return { setup: defaults, source: "defaults", notice, hadLink };
 }

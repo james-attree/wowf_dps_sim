@@ -138,7 +138,7 @@ describe("stale state (#242)", () => {
       staleStatus(s, "batch"),
       "Out of date · edited after the 09:12 run",
     );
-    assert.equal(STALE_ANNOUNCEMENT, "Results out of date");
+    assert.equal(STALE_ANNOUNCEMENT, "Results out of date.");
   });
 
   it("the Results badge says edited while a result is out of date", () => {

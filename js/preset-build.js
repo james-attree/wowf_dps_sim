@@ -286,6 +286,20 @@ export function buildValues(build) {
   return values;
 }
 
+// Whether the weapons' fields differ from the build's: a type, or a damage
+// or speed as a number (a field's value is its text).
+export function weaponValuesDiffer(build, current) {
+  const wanted = buildValues(build);
+  const now = savedValues(current);
+  return Object.keys(wanted)
+    .filter((path) => path.startsWith("weapons."))
+    .some((path) =>
+      path.endsWith(".type")
+        ? wanted[path] !== now[path]
+        : Number(wanted[path]) !== Number(now[path]),
+    );
+}
+
 // The same fields as they are now, for Undo.
 export function savedValues(current) {
   const values = {};
@@ -356,10 +370,17 @@ export function poisonsText(poisons, names = poisonName) {
 
 // The line after a pick: "Assassination set: talents 38/11/2, two daggers,
 // Instant and Deadly poisons and its rotation. Your stats and race are
-// unchanged." It names the whole build put in (Fran's mock), the parts
-// that were the same too; `level` adds "level 60" when it was below.
-export function pickedText(name, build, choice, level) {
-  const parts = [...BUILD_PARTS, ROTATION_PART];
+// unchanged." It names the parts put in, `parts` (all of them by default),
+// as the announcement does (#326, item 7: a re-pick named the whole build
+// while it said only what changed); `level` adds "level 60" when it was
+// below.
+export function pickedText(
+  name,
+  build,
+  choice,
+  level,
+  parts = [...BUILD_PARTS, ROTATION_PART],
+) {
   const points = pointsText(build.talents);
   const says = {
     talents: points === "" ? "no talents" : `talents ${points}`,
@@ -368,7 +389,9 @@ export function pickedText(name, build, choice, level) {
     [ROTATION_PART]:
       choice === CUSTOM ? "the default rotation" : "its rotation",
   };
-  const items = parts.map((part) => says[part]);
+  const items = [...BUILD_PARTS, ROTATION_PART]
+    .filter((part) => parts.includes(part))
+    .map((part) => says[part]);
   if (level) {
     items.push(`level${NBSP}${build.talentLevel}`);
   }
@@ -542,7 +565,11 @@ export function createPresetBuild(
     if (build === null) {
       return false;
     }
-    const differences = buildDifferences(build, currentBuild(state));
+    const current = currentBuild(state);
+    const differences = buildDifferences(build, current);
+    // A re-pick puts back weapon damage and speed edited since (#326, item
+    // 6): the card is the whole build, where #273's button compares types.
+    differences.weapons ||= weaponValuesDiffer(build, current);
     const parts = [
       ...differingParts(differences),
       ...(rotationDiffers(state.form, choice) ? [ROTATION_PART] : []),
@@ -563,7 +590,7 @@ export function createPresetBuild(
         drafts,
         importStatus: null,
       },
-      text: pickedText(name, build, choice, level),
+      text: pickedText(name, build, choice, level, parts),
       pick: choice,
     });
   }

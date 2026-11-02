@@ -176,11 +176,15 @@ export function targetErrorCount(form) {
 
 // The form error to fix first (#247): the first with a message, the one the
 // form's footer lists first. For Min above Max that is the Max, which holds
-// the pair's message; the Min is only marked. Null when there is none.
+// the pair's message; the Min is only marked. The target's fields are
+// Fight's and listed last (#326, item 3). Null when there is none.
 export function firstFormError(form) {
-  const found = Object.entries(form?.errors ?? {}).find(
+  const named = Object.entries(form?.errors ?? {}).filter(
     ([, message]) => message !== null,
   );
+  const found =
+    named.find(([path]) => !isTargetPath(path)) ??
+    named.find(([path]) => isTargetPath(path));
   return found === undefined ? null : found[0];
 }
 
