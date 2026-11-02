@@ -1,0 +1,322 @@
+// #296 (P5-11): "Remember my setup". A changed field survives a refresh at
+// phone and desktop widths; Reset to defaults then a refresh shows the
+// defaults; back/forward shows the inputs and the build from the same source
+// (Fran's N4 from #299); a share link opened on load becomes the save; and a
+// broken save, or storage that throws, loads the defaults with no page error.
+import { after, before, describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { chromium } from "playwright-core";
+import { startStaticServer } from "../scripts/serve.mjs";
+import {
+  SETUP_VERSION,
+  decodeSetup,
+  encodeSetup,
+  setupDefaults,
+} from "../js/build-codec.js";
+import { SAVED_SETUP_KEY } from "../js/saved-setup.js";
+import { k } from "../data/constants.js";
+
+const WIDTHS = [320, 1440];
+const SCREEN_HEIGHT = 900;
+const HASTE = "#cfg-character-haste";
+const POWER = "#cfg-character-attackPower";
+const LENGTH = "#run-duration";
+const LEVEL = "#talents-level";
+// Long enough for the debounced write, with room for a slow CI machine.
+const SETTLE = k("ui.saveSetupMs") + 400;
+
+let server;
+let base;
+let browser;
+
+before(async () => {
+  server = await startStaticServer({ port: 0 });
+  base = `http://127.0.0.1:${server.address().port}/`;
+  browser = await chromium.launch(
+    process.env.CHROME_PATH
+      ? { executablePath: process.env.CHROME_PATH }
+      : { channel: "chrome" },
+  );
+});
+
+after(async () => {
+  await browser?.close();
+  await new Promise((resolve) => server?.close(resolve));
+});
+
+// storage: "on", "throws" (every localStorage call and the getter throw), or
+// a text to put in the save before the page loads.
+async function open(width, address = "", { storage = "on" } = {}) {
+  const context = await browser.newContext({
+    viewport: { width, height: SCREEN_HEIGHT },
+  });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: base,
+  });
+  if (storage === "throws") {
+    await context.addInitScript(() => {
+      Object.defineProperty(window, "localStorage", {
+        get() {
+          throw new DOMException("The operation is insecure.", "SecurityError");
+        },
+      });
+    });
+  } else if (storage !== "on") {
+    await context.addInitScript(
+      ([key, text]) => {
+        if (sessionStorage.getItem("seeded") === null) {
+          sessionStorage.setItem("seeded", "1");
+          localStorage.setItem(key, text);
+        }
+      },
+      [SAVED_SETUP_KEY, storage],
+    );
+  }
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error" || message.type() === "warning") {
+      errors.push(`console: ${message.text()}`);
+    }
+  });
+  await page.route(
+    (url) => !url.href.startsWith(base),
+    (route) => route.abort(),
+  );
+  await page.goto(`${base}${address}`);
+  await ready(page);
+  return { context, page, errors };
+}
+
+const ready = (page) =>
+  page.locator("#run-button").waitFor({ state: "attached" });
+
+const go = async (page, hash, selector) => {
+  await page.evaluate((to) => {
+    document.location.hash = to;
+  }, hash);
+  await page.locator(selector).waitFor({ state: "visible" });
+};
+
+const set = async (page, hash, selector, value) => {
+  await go(page, hash, selector);
+  await page.locator(selector).fill(value);
+  await page.locator(selector).blur();
+};
+
+const value = async (page, hash, selector) => {
+  await go(page, hash, selector);
+  return page.locator(selector).inputValue();
+};
+
+const saved = (page) =>
+  page.evaluate((key) => localStorage.getItem(key), SAVED_SETUP_KEY);
+
+// The build the page holds (its store), read through its own share link.
+async function build(page) {
+  await go(page, "#results/average", "#share-link-average");
+  await page.evaluate(() => navigator.clipboard.writeText(""));
+  await page.locator("#share-link-average").click();
+  let link = "";
+  for (let i = 0; i < 50 && link === ""; i += 1) {
+    link = await page.evaluate(() => navigator.clipboard.readText());
+    if (link === "") await page.waitForTimeout(20);
+  }
+  const read = decodeSetup(new URL(link).searchParams.get("s"));
+  assert.equal(read.status, "ok", link);
+  return read.setup;
+}
+
+const D = setupDefaults();
+
+describe("Remember my setup (#296)", () => {
+  for (const width of WIDTHS) {
+    test(`a change survives a refresh, and Reset to defaults then a refresh shows the defaults, at ${width}`, async () => {
+      const { context, page, errors } = await open(width, "#character/stats");
+      try {
+        assert.equal(await saved(page), null, "nothing saved before a change");
+        await set(page, "#character/stats", HASTE, "5");
+        await set(page, "#character/stats", POWER, "900");
+        await set(page, "#fight", LENGTH, "120");
+        await set(page, "#talents", LEVEL, "40");
+        await page.waitForTimeout(SETTLE);
+        const text = await saved(page);
+        assert.match(text, new RegExp(`^${SETUP_VERSION}\\.`));
+
+        await page.reload();
+        await ready(page);
+        assert.equal(await value(page, "#character/stats", HASTE), "5");
+        assert.equal(await value(page, "#character/stats", POWER), "900");
+        assert.equal(await value(page, "#fight", LENGTH), "120");
+        assert.equal(await value(page, "#talents", LEVEL), "40");
+        const kept = await build(page);
+        assert.equal(kept.config.character.haste, 0.05);
+        assert.equal(kept.config.character.attackPower, 900);
+        assert.equal(kept.config.talentLevel, 40);
+        assert.equal(kept.run.duration, 120);
+
+        await go(page, "#character/stats", "#cfg-reset");
+        await page.locator("#cfg-reset").click();
+        await page.waitForTimeout(SETTLE);
+        assert.equal(await saved(page), null, "Reset to defaults clears it");
+        await page.reload();
+        await ready(page);
+        assert.equal(
+          await value(page, "#character/stats", HASTE),
+          String(D.config.character.haste * 100),
+        );
+        assert.equal(
+          await value(page, "#fight", LENGTH),
+          String(D.run.duration),
+        );
+        assert.equal(
+          await value(page, "#talents", LEVEL),
+          String(D.config.talentLevel),
+        );
+        const reset = await build(page);
+        assert.deepEqual(reset.config, D.config);
+        assert.equal(reset.run.duration, D.run.duration);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  for (const storage of ["on", "throws"]) {
+    test(`back/forward: the inputs and the build come from the same source (storage ${storage})`, async () => {
+      const { context, page, errors } = await open(1440, "#character/stats", {
+        storage,
+      });
+      try {
+        await set(page, "#character/stats", HASTE, "5");
+        await set(page, "#fight", LENGTH, "120");
+        await page.waitForTimeout(SETTLE);
+        await page.goto("about:blank");
+        await page.goBack();
+        await ready(page);
+        // The page has redrawn on pageshow, after the browser put its form
+        // values back.
+        await page.waitForTimeout(100);
+        const shown = {
+          haste: await value(page, "#character/stats", HASTE),
+          length: await value(page, "#fight", LENGTH),
+        };
+        const held = await build(page);
+        assert.equal(shown.haste, String(held.config.character.haste * 100));
+        assert.equal(shown.length, String(held.run.duration));
+        if (storage === "on") {
+          assert.equal(held.config.character.haste, 0.05);
+          assert.equal(held.run.duration, 120);
+        } else {
+          assert.deepEqual(held.config, D.config);
+          assert.equal(held.run.duration, D.run.duration);
+        }
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  test("back/forward with a field in error: the input shows the build, not the bad text", async () => {
+    const { context, page, errors } = await open(1440, "#character/stats");
+    try {
+      await set(page, "#character/stats", HASTE, "5");
+      await page.waitForTimeout(SETTLE);
+      await set(page, "#character/stats", HASTE, "abc");
+      await page.waitForTimeout(SETTLE);
+      await page.goto("about:blank");
+      await page.goBack();
+      await ready(page);
+      await page.waitForTimeout(100);
+      assert.equal(await value(page, "#character/stats", HASTE), "5");
+      assert.equal((await build(page)).config.character.haste, 0.05);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("storage that throws: the page works as it did, with no error or warning", async () => {
+    const { context, page, errors } = await open(320, "#character/stats", {
+      storage: "throws",
+    });
+    try {
+      await set(page, "#character/stats", HASTE, "5");
+      await page.waitForTimeout(SETTLE);
+      assert.equal((await build(page)).config.character.haste, 0.05);
+      await page.reload();
+      await ready(page);
+      assert.equal(
+        await value(page, "#character/stats", HASTE),
+        String(D.config.character.haste * 100),
+      );
+      await page.locator("#run-button").click();
+      await page.locator("#results").waitFor({ state: "attached" });
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  for (const [name, text] of [
+    ["broken", "1.!!!not-base64"],
+    [
+      "newer",
+      `${SETUP_VERSION + 1}.${encodeSetup(setupDefaults()).split(".")[1]}`,
+    ],
+    ["not the codec's", '{"haste":5}'],
+  ]) {
+    test(`a ${name} save loads the defaults with no error`, async () => {
+      const { context, page, errors } = await open(1024, "#character/stats", {
+        storage: text,
+      });
+      try {
+        assert.equal(
+          await value(page, "#character/stats", HASTE),
+          String(D.config.character.haste * 100),
+        );
+        assert.deepEqual((await build(page)).config, D.config);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  test("a share link opened on load wins over the save and becomes the save", async () => {
+    const old = encodeSetup({
+      ...D,
+      config: {
+        ...D.config,
+        character: { ...D.config.character, haste: 0.02 },
+      },
+    });
+    const linked = encodeSetup({
+      ...D,
+      config: {
+        ...D.config,
+        character: { ...D.config.character, haste: 0.07 },
+      },
+    });
+    const { context, page, errors } = await open(
+      1440,
+      `?s=${linked}#character/stats`,
+      {
+        storage: old,
+      },
+    );
+    try {
+      assert.equal(await value(page, "#character/stats", HASTE), "7");
+      assert.equal(await saved(page), linked);
+      await page.goto(`${base}#character/stats`);
+      await ready(page);
+      assert.equal(await value(page, "#character/stats", HASTE), "7");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
