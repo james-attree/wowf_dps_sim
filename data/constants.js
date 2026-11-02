@@ -2017,6 +2017,7 @@ export const CONSTANTS = {
       floatBytes: 8,
       rulesTag: 1,
       wholeTag: 3,
+      namedTag: 5,
       rankSpan: 8,
       handBits: 4,
       typeBit: 3,
@@ -2027,7 +2028,7 @@ export const CONSTANTS = {
     "link format terms",
     ENGINEERING,
     `Developer, 2 Nov 2026, issue #306: ${NOT_JAMES} The short share link's binary format (js/link-codec.js), planned in #306 and approved by Scout; the issue asks for links of about 64 characters and names no format`,
-    "Not a game rule. version is the link's text version (\"2.\"; the saved setup stays 1). radix is the base of the part bitmasks and of the low tag bit (a varint 2n is a value, 1 an escape); byteBase is the varint's 7-bit digit; floatBytes the float64 escape; rulesTag and wholeTag the rotation's tags (an even tag is a base's rotation); rankSpan packs a talent as index x 8 + rank; handBits and typeBit lay out the weapons mask (min, max, speed, type a hand); chanceScale, speedScale and durationScale are the steps a value is sent in whole (0.01% chance, 0.01 s speed, 0.1 s fight), anything finer goes as a float64. Changing any of them changes every link made since #306: a change needs a new version.",
+    "Not a game rule. version is the link's text version (\"2.\"; the saved setup stays 1). radix is the base of the part bitmasks and of the low tag bit (a varint 2n is a value, 1 an escape); byteBase is the varint's 7-bit digit; floatBytes the float64 escape; rulesTag, wholeTag and namedTag the rotation's tags (an even tag is a base's rotation; namedTag, added by the #330 review before any link was issued, is the rules form with a name: 0 for the base's name + \" (edited)\", else 1 + the name's length in bytes); rankSpan packs a talent as index x 8 + rank; handBits and typeBit lay out the weapons mask (min, max, speed, type a hand); chanceScale, speedScale and durationScale are the steps a value is sent in whole (0.01% chance, 0.01 s speed, 0.1 s fight), anything finer goes as a float64. Changing any of them changes every link made since #306: a change needs a new version.",
     false,
   ),
   "ui.pageDefaultPoisons": entry(

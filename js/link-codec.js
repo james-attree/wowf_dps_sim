@@ -23,7 +23,10 @@ import { referenceBuild } from "./preset-reference-builds.js";
 //   poisons    two varints, LINK_POISONS indexes (0 is None)
 //   rotation   varint tag: 2e, LINK_BASES[e]'s rotation; 1, the base's
 //              rotation with its rules listed (varint count, then 2i for the
-//              base's rule i, or 2n+1 and n bytes of one rule's JSON); 3, the
+//              base's rule i, or 2n+1 and n bytes of one rule's JSON); 5,
+//              the same with the rotation's name first (varint 0 for the
+//              base's name + LINK_EDITED_SUFFIX, the app's name after a first
+//              edit, or n+1 and n bytes of the name; #330 review); 3, the
 //              whole rotation as n bytes of JSON (varint n first)
 //   run        mode (varint, LINK_RUN_MODES), duration (number), iterations
 //              (varint), seed (0 for none, else 1 and the number)
@@ -47,6 +50,11 @@ import { referenceBuild } from "./preset-reference-builds.js";
 export const LINK_VERSION = k("link.codec").version;
 // The format's numbers (data/constants.js, "link.codec").
 const C = k("link.codec");
+
+// The rotation name the app gives a base's rotation on its first edit
+// (editedName in js/config-form.js; a test keeps the two the same), sent as
+// one byte. It is part of the format: links already shared read it so.
+export const LINK_EDITED_SUFFIX = " (edited)";
 
 // The bases a link can start from. "defaults" is the page defaults; the
 // others are live presets (preset: its id) until they change.
@@ -345,6 +353,20 @@ export function baseContent(entry, defaultsConfig) {
   return clone({ ...own, ...picked, rotation: presetRotation(entry.preset) });
 }
 
+function writeRules(out, rules, baseRules) {
+  out.uint(rules.length);
+  for (const rule of rules) {
+    const i = baseRules.findIndex((r) => same(r, rule));
+    if (i >= 0) {
+      out.uint(C.radix * i);
+    } else {
+      const bytes = new TextEncoder().encode(JSON.stringify(rule));
+      out.uint(C.radix * bytes.length + 1);
+      out.bytes.push(...bytes);
+    }
+  }
+}
+
 function writeRotation(w, rotation, base, bases) {
   const options = [];
   bases.forEach((content, e) => {
@@ -355,17 +377,25 @@ function writeRotation(w, rotation, base, bases) {
   if (Array.isArray(rules) && same(rest, baseRest)) {
     const out = new Writer();
     out.uint(C.rulesTag);
-    out.uint(rules.length);
-    for (const rule of rules) {
-      const i = baseRules.findIndex((r) => same(r, rule));
-      if (i >= 0) {
-        out.uint(C.radix * i);
-      } else {
-        const bytes = new TextEncoder().encode(JSON.stringify(rule));
-        out.uint(C.radix * bytes.length + 1);
-        out.bytes.push(...bytes);
-      }
+    writeRules(out, rules, baseRules);
+    options.push(out.bytes);
+  }
+  const named = { ...rest, name: baseRest.name };
+  if (
+    Array.isArray(rules) &&
+    typeof rest.name === "string" &&
+    same(named, baseRest)
+  ) {
+    const out = new Writer();
+    out.uint(C.namedTag);
+    if (rest.name === `${baseRest.name}${LINK_EDITED_SUFFIX}`) {
+      out.uint(0);
+    } else {
+      const bytes = new TextEncoder().encode(rest.name);
+      out.uint(bytes.length + 1);
+      out.bytes.push(...bytes);
     }
+    writeRules(out, rules, baseRules);
     options.push(out.bytes);
   }
   const whole = new Writer();
@@ -376,15 +406,7 @@ function writeRotation(w, rotation, base, bases) {
   w.bytes.push(...shortest);
 }
 
-function readRotation(r, base, bases) {
-  const tag = r.uint();
-  if (tag % C.radix === 0) {
-    const e = tag / C.radix;
-    if (e >= bases.length) throw new LinkError("newer");
-    return bases[e].rotation;
-  }
-  if (tag === C.wholeTag) return r.json();
-  if (tag !== C.rulesTag) throw new LinkError("newer");
+function readRules(r, base) {
   const count = r.uint();
   if (count > r.bytes.length) throw new LinkError("corrupt");
   const rules = [];
@@ -408,7 +430,36 @@ function readRotation(r, base, bases) {
       }
     }
   }
-  return { ...base.rotation, rules };
+  return rules;
+}
+
+function readName(r, base) {
+  const code = r.uint();
+  if (code === 0) return `${base.rotation.name}${LINK_EDITED_SUFFIX}`;
+  const length = code - 1;
+  if (length > r.bytes.length - r.at) throw new LinkError("corrupt");
+  const bytes = r.bytes.slice(r.at, r.at + length);
+  r.at += length;
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new LinkError("corrupt");
+  }
+}
+
+function readRotation(r, base, bases) {
+  const tag = r.uint();
+  if (tag % C.radix === 0) {
+    const e = tag / C.radix;
+    if (e >= bases.length) throw new LinkError("newer");
+    return bases[e].rotation;
+  }
+  if (tag === C.wholeTag) return r.json();
+  if (tag === C.rulesTag)
+    return { ...base.rotation, rules: readRules(r, base) };
+  if (tag !== C.namedTag) throw new LinkError("newer");
+  const name = readName(r, base);
+  return { ...base.rotation, name, rules: readRules(r, base) };
 }
 
 function writeBody(setup, defaults, index, bases) {
