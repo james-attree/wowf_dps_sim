@@ -21,6 +21,9 @@ import { loadPreset, referenceBuild } from "../js/rotation-presets.js";
 import { talentState, skipOf } from "../js/rotation-skips.js";
 import { validateRotation } from "../js/rotation-validator.js";
 import { Rogue } from "../js/rogue.js";
+import { evaluate } from "../js/rotation-conditions.js";
+import { rotationState } from "../js/rotation-state.js";
+import { defaultConfig } from "../js/sim-config.js";
 
 // P5-03b (#279, D12b-2): the on-use racials Berserking (Troll, +10% attack
 // speed for 15 s, 3 min) and Eureka! (Gnome, non-periodic damaging abilities
@@ -573,6 +576,48 @@ describe("the validator and the builder state (#279)", () => {
       assert.equal(skipOf(rule, talentState({ race })), null);
       assert.notEqual(skipOf(rule, talentState({ race: null })), null);
       assert.ok(!castableAbilities().includes(ability), ability);
+    });
+  }
+});
+
+// QA N3 (#315; #314 N5): the rotation state lists the race-granted abilities
+// as ones that need a grant, so with a build selected a race that lacks one
+// has it locked. Without the race grants in that list (mutant K26) every
+// on-use racial would read as unlocked for every race.
+describe("the rotation state's grants with and without a race (#279 QA N3)", () => {
+  const stateFor = (race) => {
+    const config = defaultConfig();
+    config.race = race;
+    config.talents = { ...referenceBuild("assassination-daggers").talents };
+    const { rogue, simulation } = createFight(1, config);
+    return rotationState(rogue, simulation);
+  };
+  const unlocked = (ability, state) =>
+    evaluate({ type: "abilityUnlocked", ability }, state);
+
+  it("with no race: both need a grant, neither is granted, both are locked", () => {
+    const state = stateFor(null);
+    assert.equal(state.build.selected, true);
+    for (const { ability } of ON_USE) {
+      assert.ok(state.talentAbilities.includes(ability), ability);
+      assert.ok(!state.granted.includes(ability), ability);
+      assert.equal(unlocked(ability, state), false, ability);
+    }
+  });
+
+  for (const { ability, race } of ON_USE) {
+    it(`with the ${race}: ${ability} is granted and unlocked, the other is not`, () => {
+      const state = stateFor(race);
+      for (const other of ON_USE) {
+        const mine = other.ability === ability;
+        assert.ok(state.talentAbilities.includes(other.ability), other.ability);
+        assert.equal(
+          state.granted.includes(other.ability),
+          mine,
+          other.ability,
+        );
+        assert.equal(unlocked(other.ability, state), mine, other.ability);
+      }
     });
   }
 });
