@@ -84,9 +84,9 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     weapons: SWORDS,
     poisons: poisonsOf("combat-swords"),
   },
-  // James's Assassination build (issue #310, his share link): 41
-  // Assassination (Cold Blood, Seal Fate, Mutilate, Venom), 8 Combat and
-  // Opportunity 2/5 in Subtlety: 51 points. Daggers, with the off hand at
+  // James's Assassination build (issue #310, his share link): 38
+  // Assassination (Cold Blood, Seal Fate, Mutilate, Venom), 11 Combat and
+  // Opportunity 2 in Subtlety: 51 points. Daggers, with the off hand at
   // James's ruling (presetReferenceBuild.daggerOffHand).
   "assassination-daggers": {
     name: "Assassination daggers (Mutilate, Venom)",
@@ -114,8 +114,8 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     weapons: DAGGERS,
     poisons: poisonsOf("assassination-daggers"),
   },
-  // James's Subtlety build (issue #310, his share link): 15 Assassination,
-  // 8 Combat and 28 Subtlety with Ghostly Strike, Premeditation, Preparation,
+  // James's Subtlety build (issue #310, his share link): 12 Assassination,
+  // 8 Combat and 31 Subtlety with Ghostly Strike, Premeditation, Preparation,
   // Hemorrhage, Quietus and Thousand Cuts: 51 points. Daggers, with the off
   // hand at James's later ruling (the link has 57-107).
   "subtlety-daggers": {
