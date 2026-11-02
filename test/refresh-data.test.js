@@ -746,8 +746,9 @@ describe("vendored snapshot", () => {
     assert.equal(snapshotText, await formatSnapshot(data));
     assert.equal(manifestText, await formatSnapshot(manifest));
     assertSnapshot(data);
-    assert.equal(data.generated, "2026-10-20");
-    assert.equal(data.spellbook.build, "1.60.1.70425");
+    // #276 (P5-01): the export as fetched on 2 Nov 2026, client 1.60.1.70630.
+    assert.equal(data.generated, "2026-10-30");
+    assert.equal(data.spellbook.build, "1.60.1.70630");
     assert.match(data._readme, /talentsforever\.com/);
     assert.match(data._readme, /CC BY 4\.0/);
     assert.equal(manifest.source, EXPORT_URL);
@@ -759,7 +760,7 @@ describe("vendored snapshot", () => {
     assert.equal(findDuplicateKey(snapshotText), null);
     assert.equal(manifest.generated, data.generated);
     assert.equal(manifest.build, data.spellbook.build);
-    assert.equal(manifest.fetched, "2026-10-22");
+    assert.equal(manifest.fetched, "2026-11-02");
 
     const trees = data.talents.trees.map((tree) => tree.name);
     assert.deepEqual(trees, ["Assassination", "Combat", "Subtlety"]);
@@ -787,6 +788,26 @@ describe("vendored snapshot", () => {
     assert.deepEqual(diff.poisons.removed, []);
     assert.deepEqual(diff.poisons.changed, []);
     assert.deepEqual(diff.sections, []);
+  });
+
+  // #276: a refresh moves the talents' source line and every spell whose src
+  // is the bare client label ("beta client <build>") to the new build
+  // together. A few srcs name an older build on purpose (Shoot Bow, Dual
+  // Wield and others read once from 1.60.1.70170, with more words after the
+  // label); they are not the bare label and are left alone.
+  it("names the manifest's client build in the talent source and every bare beta-client src", async () => {
+    const data = JSON.parse(await readFile(DEFAULT_SNAPSHOT_PATH, "utf8"));
+    const manifest = JSON.parse(await readFile(DEFAULT_MANIFEST_PATH, "utf8"));
+    assert.equal(readBuild(data), manifest.build);
+    assert.ok(data.talents.source.endsWith(`build ${manifest.build}.`));
+    const builds = new Set();
+    for (const entry of Object.values(data.spell_desc)) {
+      const match = /^beta client (\d+(?:\.\d+)+)$/.exec(entry?.src ?? "");
+      if (match) {
+        builds.add(match[1]);
+      }
+    }
+    assert.deepEqual([...builds], [manifest.build]);
   });
 
   it("does not fetch the export from the page or engine", async () => {
