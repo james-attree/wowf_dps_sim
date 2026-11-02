@@ -10,6 +10,12 @@ import { buildLabel, poisonName } from "./build-label.js";
 import { createConfigForm } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
 import { createPresetBuild } from "./preset-build.js";
+import {
+  createStartPreset,
+  opensFirst,
+  readStartChoice,
+  writeStartChoice,
+} from "./start-preset.js";
 import { createRotationBuilder } from "./rotation-builder.js";
 import { createRunActions, emptyBatch, emptyRan } from "./run-actions.js";
 import { createStore } from "./store.js";
@@ -20,6 +26,7 @@ import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { keepFocusInView } from "./views/focus-in-view.js";
 import { createPresetBuildView } from "./views/preset-build.js";
+import { createStartPresetView } from "./views/start-preset.js";
 import { createResultsView } from "./views/results.js";
 import { createResultsCardView } from "./views/results-card.js";
 import { createResultsPanelView } from "./views/results-panel.js";
@@ -142,6 +149,35 @@ mountSavedSetup(win, store, {
 const builder = createRotationBuilder(store, formActions);
 // The preset's reference build under the Rotation select (#273).
 const presetBuild = createPresetBuild(store, formActions);
+// Start from a preset (#323): open on a first visit (the page started from
+// the defaults, Custom not chosen before; its own small key, not the save),
+// folded into the Starting point row after a pick. A press on
+// #character/start moves to the list first (the router is mounted below).
+// Reset to defaults opens it again, and Reset's Undo folds it back.
+const remembered = readStartChoice(storage);
+const start = createStartPreset(store, presetBuild, {
+  open: opensFirst({ source: initial.source, remembered }),
+  remembered,
+  remember: (value) => writeStartChoice(storage, value),
+  toList: () => router.go("character", { focus: "none" }),
+});
+{
+  const { reset, undo } = formActions;
+  let panelBefore = null;
+  formActions.reset = (...args) => {
+    const result = reset(...args);
+    panelBefore = start.reset();
+    return result;
+  };
+  formActions.undo = (...args) => {
+    const result = undo(...args);
+    if (result && panelBefore !== null) {
+      start.restore(panelBefore);
+    }
+    panelBefore = null;
+    return result;
+  };
+}
 // The page's four areas (#239): each section is one of today's views, drawn
 // into its area's shell in index.html. js/views/sections.js holds their
 // status (what each adds to Run's blocked count); js/views/router.js shows
@@ -153,10 +189,15 @@ const renders = {
     const tree = createTalentTree(store);
     createTalentTreeView(document, store, tree);
     createCharacterScreensView(document, store, { setOpen: tree.setOpen });
+    createStartPresetView(document, store, {
+      pick: start.pick,
+      undo: start.undo,
+      change: formActions.setField,
+    });
   },
   rotation: () => {
     createRotationBuilderView(document, store, builder);
-    createPresetBuildView(document, store, presetBuild);
+    createPresetBuildView(document, store);
     // The Run bar is outside the areas: it stays on every screen. It is
     // mounted here to keep the views' order (their store subscriptions) as
     // it was before #239. Run checks the form's typed-in fields first (#247).

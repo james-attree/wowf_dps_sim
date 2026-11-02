@@ -149,6 +149,29 @@ export function poisonNoteText({ noDpsReason }) {
 
 // The Race select's first choice (#321): config.race null.
 export const NO_RACE_LABEL = "None (no racials)";
+
+// A Race select's options (#321): None, then a group per faction. The
+// Start from a preset panel's select (#323) is filled the same way.
+export function fillRaceSelect(doc, select, groups) {
+  if (select === undefined || select === null) {
+    return;
+  }
+  const option = (id, label) => {
+    const element = doc.createElement("option");
+    element.value = id;
+    element.textContent = label;
+    return element;
+  };
+  select.replaceChildren(
+    option("", NO_RACE_LABEL),
+    ...(groups ?? []).map(({ faction, races }) => {
+      const group = doc.createElement("optgroup");
+      group.setAttribute("label", faction);
+      group.replaceChildren(...races.map(({ id, label }) => option(id, label)));
+      return group;
+    }),
+  );
+}
 // A racial's chip (#321), in the poisons' and #280's words.
 export const RACIAL_CHIPS = Object.freeze({
   simulated: "Simulated",
@@ -368,27 +391,7 @@ export function createConfigFormView(doc, store, actions) {
   // The Race select's options, once (#321): None, then an optgroup per
   // faction. A value is the race id ("night-elf").
   function raceSelect(groups) {
-    const select = controls.get("race");
-    if (select === undefined || select === null) {
-      return;
-    }
-    const option = (id, label) => {
-      const element = doc.createElement("option");
-      element.value = id;
-      element.textContent = label;
-      return element;
-    };
-    select.replaceChildren(
-      option("", NO_RACE_LABEL),
-      ...(groups ?? []).map(({ faction, races }) => {
-        const group = doc.createElement("optgroup");
-        group.setAttribute("label", faction);
-        group.replaceChildren(
-          ...races.map(({ id, label }) => option(id, label)),
-        );
-        return group;
-      }),
-    );
+    fillRaceSelect(doc, controls.get("race"), groups);
   }
 
   // The race's racials under the select (#321): each one's name, its chip

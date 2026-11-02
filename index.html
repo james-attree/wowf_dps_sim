@@ -259,12 +259,69 @@
         <h1 id="area-character-title" class="area-title" tabindex="-1">
           Character
         </h1>
+        <!-- Start from a preset (#323): the cards, at the top of the list
+             on a first visit and on #character/start. js/views/start-preset.js
+             shows it, and the line after a pick, with Undo. -->
+        <section
+          id="start-panel"
+          class="panel start-panel"
+          aria-labelledby="start-title"
+          hidden
+        >
+          <h2 id="start-title" class="start-title">Start from a preset</h2>
+          <p class="start-lead">
+            <span id="start-lead"></span
+            ><span class="start-lead-more">
+              Your stats and race stay yours; change anything after.</span
+            >
+          </p>
+          <ul
+            id="start-cards"
+            class="start-cards"
+            aria-labelledby="start-title"
+          ></ul>
+          <div class="start-race">
+            <label for="start-race">Race</label>
+            <select id="start-race" aria-describedby="start-race-note"></select>
+            <a id="start-race-note" class="text-link" href="#character/stats"
+              >Its racials are on Stats</a
+            >
+          </div>
+        </section>
+        <div id="start-applied" class="start-done" hidden>
+          <p class="start-done-text">
+            <span id="start-done"></span
+            ><span id="start-race-ask" hidden>
+              Its racial rules need a race:
+              <a class="text-link" href="#character/stats">set your race</a
+              >.</span
+            >
+          </p>
+          <button id="start-undo" class="pill-button" type="button">
+            Undo
+          </button>
+        </div>
         <ul
           id="character-rows"
           class="character-rows"
           data-screen="list"
           aria-labelledby="area-character-title"
         >
+          <li id="start-row-item" hidden>
+            <a
+              id="start-row"
+              class="character-row"
+              href="#character/start"
+              aria-describedby="start-summary"
+              ><span class="character-row-name">Starting point</span
+              ><span
+                id="start-summary"
+                class="character-row-summary"
+                aria-hidden="true"
+              ></span
+              ><span class="character-row-go" aria-hidden="true">›</span></a
+            >
+          </li>
           <li>
             <a
               id="character-row-gear"
@@ -912,25 +969,19 @@
                for and a button that applies it, then what was set, with
                Undo. js/views/preset-build.js draws it. Not live regions:
                the Run bar says what happened. -->
+          <!-- The preset's reference build (#273): what it was built for,
+               while the build differs. Its button is the Starting point
+               link (#323): the cards on Character put the build in. -->
           <div id="cfg-preset-build" class="preset-build" hidden>
-            <div id="cfg-preset-build-offer" class="preset-build-row" hidden>
+            <div id="cfg-preset-build-offer" class="preset-build-row">
               <p id="cfg-preset-build-hint" class="preset-build-text"></p>
-              <button
-                id="cfg-preset-build-apply"
-                class="pill-button preset-build-button"
-                type="button"
+              <a
+                id="cfg-preset-build-start"
+                class="text-link preset-build-link"
+                href="#character/start"
                 aria-describedby="cfg-preset-build-hint"
-              ></button>
-            </div>
-            <div id="cfg-preset-build-applied" class="preset-build-row" hidden>
-              <p id="cfg-preset-build-done" class="preset-build-text"></p>
-              <button
-                id="cfg-preset-build-undo"
-                class="pill-button preset-build-button"
-                type="button"
+                >Starting point</a
               >
-                Undo
-              </button>
             </div>
           </div>
           <details id="cfg-summary" class="rotation-summary" open>

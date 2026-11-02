@@ -1,8 +1,9 @@
 // #273: the preset's reference build under the Rotation select. The hint
-// says what the preset is built for; its button ("Use its … too") puts in
-// the talents, weapons and poisons that differ, and level 60 below 60; the
-// line after says what was set, with Undo. At 320, 360, 1024 and 1440, at
-// 100% and 150% text, with DejaVu pinned as CI has it.
+// says what the preset is built for while the page's build differs; since
+// #323 its "Starting point" link opens Start from a preset on Character,
+// where a card puts the build in (browser-tests/start-preset.browser.mjs
+// has the pick, its line and Undo). At 320, 360, 1024 and 1440, at 100%
+// and 150% text, with DejaVu pinned as CI has it.
 // PRESET_BUILD_SHOTS=<dir> saves screenshots there.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,10 +23,6 @@ const TARGET_LEAST = 44;
 const SHOTS = process.env.PRESET_BUILD_SHOTS ?? null;
 const NBSP = "\u00a0";
 const SETTLE = 5_000;
-const RUN_TIMEOUT = 60_000;
-const LIVE_SECONDS = "10";
-const BATCH_FIGHTS = "5";
-const BATCH_SECONDS = "30";
 const LOW_LEVEL = "40";
 const POWER = "#cfg-character-attackPower";
 const POWER_STEP = 10;
@@ -34,11 +31,7 @@ const ASSASSINATION = "assassination-daggers";
 const SUBTLETY = "subtlety-daggers";
 const COMBAT = "combat-swords";
 const HINT = "#cfg-preset-build-hint";
-const APPLY = "#cfg-preset-build-apply";
-const UNDO = "#cfg-preset-build-undo";
-const DONE = "#cfg-preset-build-done";
-const OFFER = "#cfg-preset-build-offer";
-const APPLIED = "#cfg-preset-build-applied";
+const LINK = "#cfg-preset-build-start";
 const BOX = "#cfg-preset-build";
 const SELECT = "#cfg-rotation";
 const HINT_ID = "cfg-preset-build-hint";
@@ -138,40 +131,6 @@ const describedBy = async (page) =>
     .split(/\s+/)
     .filter((id) => id !== "");
 
-const focused = (page) => page.evaluate(() => document.activeElement?.id);
-
-const announced = (page, said) =>
-  page.waitForFunction(
-    (want) => document.getElementById("run-announce").textContent === want,
-    said,
-    { timeout: SETTLE },
-  );
-
-const saidLike = (page, pattern) =>
-  page
-    .waitForFunction(
-      ([source, flags]) =>
-        new RegExp(source, flags).test(
-          document.getElementById("run-announce").textContent,
-        ),
-      [pattern.source, pattern.flags],
-      { timeout: SETTLE },
-    )
-    .catch(async () =>
-      assert.fail(
-        `run-announce: ${await page.locator("#run-announce").textContent()}`,
-      ),
-    );
-
-// A click on the nav, as a person leaves (or comes back to) a page.
-const navTo = async (page, area) => {
-  await page.locator(`[data-nav-area="${area}"]`).first().click();
-  await page.locator(`#area-${area}-title`).waitFor({ state: "visible" });
-};
-
-const talentsLiveChanges = (page) =>
-  page.evaluate(() => globalThis.talentsLiveChanges);
-
 async function choose(page, id) {
   await toRotation(page);
   await page.selectOption(SELECT, id);
@@ -185,11 +144,6 @@ async function setField(page, hash, selector, value) {
 
 const setLevel = (page, level) =>
   setField(page, "#character/talents", "#talents-level", level);
-
-const level = async (page) => {
-  await go(page, "#character/talents", "#talents-level");
-  return page.locator("#talents-level").inputValue();
-};
 
 async function setSelect(page, hash, selector, value) {
   await go(page, hash, selector);
@@ -209,104 +163,30 @@ const gear = async (page) => {
   });
 };
 
-async function runField(page, id) {
-  const field = page.locator(`#${id}`);
-  if (!(await field.isVisible())) {
-    const toggle = page.locator("#run-settings-toggle");
-    if ((await toggle.count()) > 0 && (await toggle.isVisible())) {
-      await toggle.click();
-    } else {
-      await page.locator('[data-nav-area="fight"]').click();
-    }
-    await field.waitFor({ state: "visible" });
-  }
-  return field;
-}
-
-async function setRunField(page, id, value) {
-  const field = await runField(page, id);
-  await field.fill(value);
-  await field.press("Tab");
-}
-
-// Fight settings for a short batch. At 1024 they are on Fight: going
-// there closes Undo, so this comes before any apply.
-async function shortBatch(page) {
-  await (await runField(page, "run-mode-batch")).check();
-  await setRunField(page, "run-iterations", BATCH_FIGHTS);
-  await setRunField(page, "run-duration", BATCH_SECONDS);
-}
-
-// Run from where the page is (the Run bar is on every page).
-async function runHere(page) {
-  await page.evaluate(() => {
-    document.getElementById("results-announce").textContent = "";
-  });
-  await page.locator("#run-button").click();
-  await page.waitForFunction(
-    () =>
-      /^Average finished/.test(
-        document.getElementById("results-announce")?.textContent ?? "",
-      ),
-    null,
-    { timeout: RUN_TIMEOUT },
-  );
-}
-
-// The amber "Out of date" on the Average card beside the page (1024 up).
-const staleSaid = (page) =>
-  page.evaluate(() => {
-    const node = document.querySelector(".results-card-stale");
-    return node === null ? null : node.textContent.replace(/\s+/g, " ").trim();
-  });
-
-const isStaleNow = (page) =>
-  page
-    .waitForFunction(
-      () =>
-        /^Out of date/.test(
-          document.querySelector(".results-card-stale")?.textContent.trim() ??
-            "",
-        ),
-      null,
-      { timeout: SETTLE },
-    )
-    .then(() => true)
-    .catch(() => false);
-
-async function expectHint(page, id, label) {
-  await page.locator(OFFER).waitFor({ state: "visible" });
-  assert.equal(await text(page, APPLY), label, `${id}: label`);
-  assert.equal((await describedBy(page))[0], HINT_ID, `${id}: described`);
+async function expectHint(page, id) {
+  await page.locator(BOX).waitFor({ state: "visible" });
+  assert.equal(await text(page, LINK), "Starting point", `${id}: link`);
   assert.equal(
-    await page.getByRole("button", { name: label }).count(),
-    1,
-    `${id}: the button's name starts with its label`,
+    await page.getAttribute(LINK, "href"),
+    "#character/start",
+    `${id}: href`,
   );
+  assert.equal((await describedBy(page))[0], HINT_ID, `${id}: described`);
 }
 
 async function expectNoHint(page, why) {
   await page.waitForFunction(
     (selector) => document.querySelector(selector).hidden,
-    OFFER,
+    BOX,
     { timeout: SETTLE },
   );
   assert.ok(!(await describedBy(page)).includes(HINT_ID), `${why}: described`);
 }
 
-const closedUndo = (page, why) =>
-  page
-    .waitForFunction(
-      (selector) => document.querySelector(selector).hidden,
-      APPLIED,
-      { timeout: SETTLE },
-    )
-    .catch(() => assert.fail(`${why}: Undo still showing`));
-
 describe("A preset's reference build (#273)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {
-      test(`hint, apply and Undo at ${width}, ${textSize} text`, async () => {
+      test(`the hint and its Starting point link at ${width}, ${textSize} text`, async () => {
         const { context, page, errors } = await open(width, { textSize });
         const name = `${width}-${textSize.replace("%", "")}`;
         const shoot = SHOT_WIDTHS.includes(width)
@@ -318,18 +198,9 @@ describe("A preset's reference build (#273)", () => {
           assert.equal(await page.locator(BOX).isHidden(), true, "default");
           assert.ok(!(await describedBy(page)).includes(HINT_ID));
 
-          // Assassination: talents and weapons differ from the page's.
           await page.selectOption(SELECT, ASSASSINATION);
-          await expectHint(
-            page,
-            ASSASSINATION,
-            "Use its talents and weapons too",
-          );
-          const hint = await page.locator(HINT).textContent();
-          assert.equal(
-            hint.replace(/[ \t\n\r]+/g, " ").trim(),
-            HINTS[ASSASSINATION],
-          );
+          await expectHint(page, ASSASSINATION);
+          assert.equal(await text(page, HINT), HINTS[ASSASSINATION]);
 
           // Placement: under the select, above "What this rotation does".
           const select = await box(page, SELECT);
@@ -337,60 +208,15 @@ describe("A preset's reference build (#273)", () => {
           const summary = await box(page, "#cfg-summary");
           assert.ok(here.top >= select.bottom, `${name}: under the select`);
           assert.ok(here.bottom <= summary.top, `${name}: above the summary`);
-          assert.equal(
-            await page.evaluate(() => {
-              const pick = document.getElementById("rotation-pick");
-              const order = [
-                ...pick.querySelectorAll(
-                  "#cfg-rotation, #cfg-preset-build, #cfg-summary",
-                ),
-              ];
-              return order.map((node) => node.id).join(" ");
-            }),
-            "cfg-rotation cfg-preset-build cfg-summary",
-          );
-          // It wraps in its panel: nothing wider than the page or the panel.
           const panel = await box(page, "#rotation-pick");
           assert.ok(here.right <= panel.right + 1, `${name}: in the panel`);
           assert.ok(await fitsPage(page), `${name}: the page fits`);
-          assert.ok((await box(page, APPLY)).height >= TARGET_LEAST);
-          assert.ok((await box(page, APPLY)).right <= panel.right + 1);
+          const link = await box(page, LINK);
+          assert.ok(link.height >= TARGET_LEAST, `${name}: link tall enough`);
+          assert.ok(link.right <= panel.right + 1, `${name}: link in panel`);
           await shoot("hint");
 
-          // Apply: Undo has focus, one announcement, the tree silent.
-          const before = await talentsLiveChanges(page);
-          await page.locator(APPLY).click();
-          await page.locator(APPLIED).waitFor({ state: "visible" });
-          assert.equal(await page.locator(OFFER).isHidden(), true);
-          assert.equal(
-            await text(page, DONE),
-            "Talents and weapons set to the Assassination daggers build.",
-          );
-          assert.equal(await focused(page), "cfg-preset-build-undo");
-          assert.ok(
-            (await page.getAttribute(UNDO, "aria-label")).startsWith("Undo"),
-          );
-          assert.equal(
-            await page.getAttribute(UNDO, "aria-label"),
-            "Undo: put back your talents and weapons",
-          );
-          await announced(page, "Talents and weapons replaced.");
-          assert.ok(!(await describedBy(page)).includes(HINT_ID));
-          assert.ok((await box(page, UNDO)).height >= TARGET_LEAST);
-          assert.ok(await fitsPage(page), `${name}: applied fits`);
-          await shoot("applied");
-          assert.equal(await talentsLiveChanges(page), before, "tree silent");
-
-          // Undo: everything back, focus on the button.
-          await page.locator(UNDO).click();
-          await page.locator(OFFER).waitFor({ state: "visible" });
-          assert.equal(await page.locator(APPLIED).isHidden(), true);
-          assert.equal(await focused(page), "cfg-preset-build-apply");
-          await announced(page, "Talents and weapons put back.");
-          assert.equal((await describedBy(page))[0], HINT_ID);
-          assert.equal(await talentsLiveChanges(page), before, "tree silent");
-
-          // The longest copy: every part differs and the level is below 60.
+          // The longest hint: every part differs and the level is below 60.
           await setLevel(page, LOW_LEVEL);
           await setSelect(
             page,
@@ -399,38 +225,28 @@ describe("A preset's reference build (#273)", () => {
             "instant",
           );
           await choose(page, ASSASSINATION);
-          await expectHint(
-            page,
-            ASSASSINATION,
-            "Use its talents, weapons and poisons too",
-          );
+          await expectHint(page, ASSASSINATION);
           assert.equal(
             await text(page, HINT),
             `Built for Assassination${NBSP}38/11/2 at level${NBSP}60 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
           );
-          assert.ok(
-            (await page.locator(HINT).textContent()).includes(`level${NBSP}60`),
-          );
           assert.ok(await fitsPage(page), `${name}: long hint fits`);
-          assert.ok((await box(page, APPLY)).right <= panel.right + 1);
           await shoot("hint-all-level-40");
-          await page.locator(APPLY).click();
-          await page.locator(APPLIED).waitFor({ state: "visible" });
+
+          // The link opens the cards, the preset current and Edited.
+          await page.locator(LINK).click();
+          await page.locator("#start-panel").waitFor({ state: "visible" });
           assert.equal(
-            await text(page, DONE),
-            `Talents, weapons and poisons set to the Assassination daggers build. Level set to${NBSP}60.`,
+            await page.evaluate(() => document.location.hash),
+            "#character/start",
           );
-          await announced(
-            page,
-            `Talents, weapons and poisons replaced. Level set to${NBSP}60.`,
+          assert.equal(
+            await page.getAttribute(
+              `#start-card-${ASSASSINATION}`,
+              "aria-current",
+            ),
+            "true",
           );
-          assert.ok(await fitsPage(page), `${name}: long line fits`);
-          assert.ok((await box(page, UNDO)).right <= panel.right + 1);
-          await shoot("applied-level-60");
-          await page.locator(UNDO).click();
-          await page.locator(OFFER).waitFor({ state: "visible" });
-          assert.equal(await level(page), LOW_LEVEL);
-          assert.equal((await gear(page)).offPoison, "instant");
           assert.deepEqual(errors, []);
         } finally {
           await context.close();
@@ -440,128 +256,64 @@ describe("A preset's reference build (#273)", () => {
   }
 });
 
-const STATE_WIDTHS = [320, 1024];
-const STALE = "Results out of date.";
+describe("The reference build's hint (#273)", () => {
+  test("what differs, after edits", async () => {
+    const { context, page, errors } = await open(1024);
+    try {
+      // Combat swords on the page's swords: the talents and poisons differ.
+      await choose(page, COMBAT);
+      await expectHint(page, COMBAT);
+      assert.equal(await text(page, HINT), HINTS[COMBAT]);
+      await choose(page, SUBTLETY);
+      await expectHint(page, SUBTLETY);
+      assert.equal(await text(page, HINT), HINTS[SUBTLETY]);
 
-async function applyNow(page, said) {
-  await page.locator(APPLY).click();
-  await page.locator(APPLIED).waitFor({ state: "visible" });
-  if (said !== undefined) {
-    await announced(page, said);
-  }
-}
+      // Its build put in from the cards: no hint, nothing to offer.
+      await go(page, "#character/start", `#start-card-${SUBTLETY}`);
+      await page.locator(`#start-card-${SUBTLETY}`).click();
+      await page.locator("#start-applied").waitFor({ state: "visible" });
+      await toRotation(page);
+      await expectNoHint(page, "the build matches");
+      assert.equal(await page.locator(SELECT).inputValue(), SUBTLETY);
 
-describe("The reference build's states (#273)", () => {
-  for (const width of STATE_WIDTHS) {
-    test(`labels for what differs, and edits after applying, at ${width}`, async () => {
-      const { context, page, errors } = await open(width);
-      try {
-        // Combat swords on the page's swords: the talents differ, and the
-        // poisons (#310: Deadly main hand, Instant off hand).
-        await choose(page, COMBAT);
-        await expectHint(page, COMBAT, "Use its talents and poisons too");
-        assert.equal(await text(page, HINT), HINTS[COMBAT]);
-        await applyNow(page, "Talents and poisons replaced.");
-        assert.equal(
-          await text(page, DONE),
-          "Talents and poisons set to the Combat swords build.",
-        );
-        assert.equal(await page.locator(OFFER).isHidden(), true, "matches");
+      // A weapon edit brings the hint back; a stat edit does not.
+      await setSelect(
+        page,
+        "#character/gear",
+        "#cfg-weapons-mainHand-type",
+        "sword",
+      );
+      await toRotation(page);
+      await expectHint(page, SUBTLETY);
+      await setSelect(
+        page,
+        "#character/gear",
+        "#cfg-weapons-mainHand-type",
+        "dagger",
+      );
+      const power = Number(
+        await (async () => {
+          await go(page, "#character/stats", POWER);
+          return page.locator(POWER).inputValue();
+        })(),
+      );
+      await setField(
+        page,
+        "#character/stats",
+        POWER,
+        String(power + POWER_STEP),
+      );
+      await toRotation(page);
+      await expectNoHint(page, "a stat edit");
 
-        // Assassination (its poisons are Combat's the other way round,
-        // #310), applied, then a sword in the main hand: Undo closes, and
-        // the hint offers the weapons only.
-        await choose(page, ASSASSINATION);
-        await expectHint(
-          page,
-          ASSASSINATION,
-          "Use its talents, weapons and poisons too",
-        );
-        await applyNow(page);
-        await setSelect(
-          page,
-          "#character/gear",
-          "#cfg-weapons-mainHand-type",
-          "sword",
-        );
-        await toRotation(page);
-        await closedUndo(page, "a weapon edit");
-        await expectHint(page, ASSASSINATION, "Use its weapons too");
-        assert.equal((await gear(page)).offHand, "dagger");
-
-        // The weapons back, then Instant on the off hand: the poisons only.
-        await toRotation(page);
-        await applyNow(page, "Weapons replaced.");
-        await setSelect(
-          page,
-          "#character/gear",
-          "#cfg-poisons-offHand",
-          "instant",
-        );
-        await toRotation(page);
-        await closedUndo(page, "a poison edit");
-        await expectHint(page, ASSASSINATION, "Use its poisons too");
-        assert.equal(
-          await text(page, HINT),
-          `Built for Assassination${NBSP}38/11/2 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
-        );
-        await applyNow(page, "Poisons replaced.");
-
-        // A stat edit is a build edit too: Undo closes, no hint (stats are
-        // not compared, nor are weapon numbers).
-        const power = Number(
-          await (async () => {
-            await go(page, "#character/stats", POWER);
-            return page.locator(POWER).inputValue();
-          })(),
-        );
-        await setField(
-          page,
-          "#character/stats",
-          POWER,
-          String(power + POWER_STEP),
-        );
-        await setField(
-          page,
-          "#character/gear",
-          "#cfg-weapons-mainHand-speed",
-          "1.5",
-        );
-        await toRotation(page);
-        await closedUndo(page, "a stat edit");
-        assert.equal(await page.locator(BOX).isHidden(), true, "no hint");
-        assert.deepEqual(errors, []);
-      } finally {
-        await context.close();
-      }
-    });
-
-    test(`Undo closes on a rotation change and on leaving the page, at ${width}`, async () => {
-      const { context, page, errors } = await open(width);
-      try {
-        await choose(page, ASSASSINATION);
-        await applyNow(page);
-        await page.selectOption(SELECT, SUBTLETY);
-        await closedUndo(page, "a rotation change");
-        await expectHint(page, SUBTLETY, "Use its talents too");
-        assert.equal(await text(page, HINT), HINTS[SUBTLETY]);
-
-        await applyNow(page, "Talents replaced.");
-        await go(page, "#character", "#area-character-title");
-        await toRotation(page);
-        await closedUndo(page, "leaving the page");
-        assert.equal(await page.locator(BOX).isHidden(), true);
-
-        // Default: no hint; the select's description is its own again.
-        await page.selectOption(SELECT, "default");
-        await expectNoHint(page, "Default");
-        assert.equal(await page.locator(BOX).isHidden(), true);
-        assert.deepEqual(errors, []);
-      } finally {
-        await context.close();
-      }
-    });
-  }
+      // Default: no hint; the select's description is its own again.
+      await page.selectOption(SELECT, "default");
+      await expectNoHint(page, "Default");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
 
   test("imported rotations, and an edited preset", async () => {
     const { context, page, errors } = await open(1024);
@@ -588,15 +340,12 @@ describe("The reference build's states (#273)", () => {
       await expectNoHint(page, "an import");
       // An import identical to Subtlety is Subtlety.
       await paste(exportRotation(presetRotation(SUBTLETY)));
-      await expectHint(page, SUBTLETY, "Use its talents and weapons too");
+      await expectHint(page, SUBTLETY);
       assert.equal(await text(page, HINT), HINTS[SUBTLETY]);
-      await applyNow(page, "Talents and weapons replaced.");
-      await page.locator(UNDO).click();
-      await page.locator(OFFER).waitFor({ state: "visible" });
 
       // An edited preset keeps its hint.
       await choose(page, ASSASSINATION);
-      await expectHint(page, ASSASSINATION, "Use its talents and weapons too");
+      await expectHint(page, ASSASSINATION);
       await page.fill("#rb-name", "Assassination, mine");
       await page.locator("#rb-name").press("Tab");
       await page.waitForFunction(
@@ -608,19 +357,20 @@ describe("The reference build's states (#273)", () => {
         null,
         { timeout: SETTLE },
       );
-      await expectHint(page, ASSASSINATION, "Use its talents and weapons too");
-      await applyNow(page, "Talents and weapons replaced.");
+      await expectHint(page, ASSASSINATION);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
     }
   });
 
-  test("the share link carries the applied build, under the link cap", async () => {
-    const { context, page, errors } = await open(1024);
+  test("the share link carries a picked build, under the link cap", async () => {
+    const { context, page, errors } = await open(1024, {
+      address: "#character",
+    });
     try {
-      await choose(page, ASSASSINATION);
-      await applyNow(page);
+      await page.locator(`#start-card-${ASSASSINATION}`).click();
+      await page.locator("#start-applied").waitFor({ state: "visible" });
       await page.locator("#share-link-header").click();
       await page.waitForFunction(
         () =>
@@ -635,8 +385,6 @@ describe("The reference build's states (#273)", () => {
       const link = await page.evaluate(() =>
         document.defaultView.navigator.clipboard.readText(),
       );
-      // About 2.5K with the whole build: over 2048 (N10, #306), under the
-      // 8 KB cap, so it copies without the too-long line.
       process.stdout.write(`# full-build link length: ${link.length}\n`);
       assert.ok(link.length <= LINK_CAP, `${link.length}`);
       const opened = await open(1024, { address: link });
@@ -646,7 +394,7 @@ describe("The reference build's states (#273)", () => {
           await opened.page.locator(SELECT).inputValue(),
           ASSASSINATION,
         );
-        // The link's build is the reference build: nothing to offer.
+        // The link's build is the reference build: no hint.
         assert.equal(await opened.page.locator(BOX).isHidden(), true);
         assert.equal(
           (await gear(opened.page)).mainHand,
@@ -657,163 +405,6 @@ describe("The reference build's states (#273)", () => {
       } finally {
         await opened.context.close();
       }
-      assert.deepEqual(errors, []);
-    } finally {
-      await context.close();
-    }
-  });
-
-  test("a run in progress, the stale results, and Undo after a run", async () => {
-    const { context, page, errors } = await open(1024);
-    try {
-      // Everything differs from Assassination's build: the talents, the
-      // weapons, the off hand's poison and the level.
-      await shortBatch(page);
-      await setLevel(page, LOW_LEVEL);
-      await setSelect(
-        page,
-        "#character/gear",
-        "#cfg-poisons-offHand",
-        "instant",
-      );
-      const before = await gear(page);
-      await choose(page, ASSASSINATION);
-      await runHere(page);
-      await toRotation(page);
-      assert.equal(await staleSaid(page), null, "fresh");
-
-      // Applying after a run: one line, with the results out of date.
-      await applyNow(page);
-      await saidLike(
-        page,
-        /^Talents, weapons and poisons replaced\. Level set to.60\. Results out of date\.$/,
-      );
-      assert.ok(await isStaleNow(page), "amber Out of date");
-      assert.equal(await focused(page), "cfg-preset-build-undo");
-
-      // Run moves the page to Results (#242). That is not leaving the
-      // page: Undo is still there back on Rotation, and the results are
-      // the applied build's.
-      await runHere(page);
-      assert.equal(
-        await page.evaluate(() => document.location.hash),
-        "#results",
-      );
-      assert.equal(await staleSaid(page), null, "fresh with the build");
-      await navTo(page, "rotation");
-      assert.equal(await page.locator(APPLIED).isVisible(), true, "Undo stays");
-      assert.equal(await focused(page), "area-rotation-title");
-      // Reachable from the select by Tab, and pressed from the keyboard.
-      await page.locator(SELECT).focus();
-      await page.keyboard.press("Tab");
-      assert.equal(await focused(page), "cfg-preset-build-undo");
-      await page.keyboard.press("Enter");
-      await announced(
-        page,
-        `Talents, weapons, poisons and level put back. ${STALE}`,
-      );
-      assert.ok(await isStaleNow(page), "amber again: it ran with the build");
-      assert.equal(await focused(page), "cfg-preset-build-apply");
-      await expectHint(
-        page,
-        ASSASSINATION,
-        "Use its talents, weapons and poisons too",
-      );
-      assert.equal(await level(page), LOW_LEVEL);
-      assert.deepEqual(await gear(page), before);
-
-      // During a live fight: the button works and the fight goes on; Undo
-      // is still there when it has finished, and puts the build back.
-      await (await runField(page, "run-mode-live")).check();
-      await setRunField(page, "run-duration", LIVE_SECONDS);
-      await choose(page, SUBTLETY);
-      await page.locator("#run-button").click();
-      await page.waitForFunction(
-        () =>
-          /^Running/.test(
-            document.getElementById("run-status-text")?.dataset.dock ?? "",
-          ),
-        null,
-        { timeout: SETTLE },
-      );
-      await toRotation(page);
-      await expectHint(
-        page,
-        SUBTLETY,
-        "Use its talents, weapons and poisons too",
-      );
-      await page.locator(APPLY).click();
-      await page.locator(APPLIED).waitFor({ state: "visible" });
-      await page.waitForFunction(
-        () =>
-          /^Talents, weapons and poisons replaced\./.test(
-            document.getElementById("run-announce").textContent,
-          ),
-        null,
-        { timeout: SETTLE },
-      );
-      assert.match(
-        await page.evaluate(
-          () => document.getElementById("run-status-text").dataset.dock,
-        ),
-        /^Running/,
-        "still running",
-      );
-      // Finished, and out of date: it ran without the build.
-      await page.waitForFunction(
-        () =>
-          /Out of date/.test(
-            document.getElementById("run-status-text")?.dataset.dock ?? "",
-          ),
-        null,
-        { timeout: RUN_TIMEOUT },
-      );
-      assert.equal(await page.locator(APPLIED).isVisible(), true, "Undo stays");
-      await page.locator(UNDO).click();
-      await page.waitForFunction(
-        () =>
-          /^Talents, weapons, poisons and level put back\./.test(
-            document.getElementById("run-announce").textContent,
-          ),
-        null,
-        { timeout: SETTLE },
-      );
-      assert.equal(await focused(page), "cfg-preset-build-apply");
-      assert.deepEqual(errors, []);
-    } finally {
-      await context.close();
-    }
-  });
-
-  test("Undo closes on leaving Run's Results by the nav, and on a reload", async () => {
-    const { context, page, errors } = await open(1024);
-    try {
-      await shortBatch(page);
-      await choose(page, ASSASSINATION);
-      await applyNow(page, "Talents and weapons replaced.");
-      await runHere(page);
-      // From Results to Character by the nav: leaving.
-      await navTo(page, "character");
-      await navTo(page, "rotation");
-      await closedUndo(page, "the nav after Run's move");
-      assert.equal(await page.locator(BOX).isHidden(), true, "it matches");
-
-      // Straight from Rotation by the nav: leaving.
-      await page.selectOption(SELECT, SUBTLETY);
-      await applyNow(page, "Talents replaced.");
-      await navTo(page, "results");
-      await navTo(page, "rotation");
-      await closedUndo(page, "the nav to Results");
-
-      // A reload starts again with no Undo: the Undo is not saved. Since
-      // #296 the setup (the rotation, talents and weapons applied) is saved,
-      // so the reload shows what was applied rather than the default.
-      await page.selectOption(SELECT, ASSASSINATION);
-      await applyNow(page, "Talents replaced.");
-      await page.reload();
-      await page.locator(SELECT).waitFor({ state: "visible" });
-      assert.equal(await page.locator(APPLIED).isHidden(), true, "reload");
-      assert.equal(await page.locator(SELECT).inputValue(), ASSASSINATION);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
