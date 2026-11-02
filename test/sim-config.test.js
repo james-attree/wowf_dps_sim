@@ -95,7 +95,7 @@ describe("defaultConfig", () => {
           type: k("weapon.offHand").type,
         },
       },
-      target: { behind: k("target.behind"), level: null },
+      target: { behind: k("target.behind"), level: null, armor: null },
       talents: {},
       talentLevel: 60,
       poisons: { mainHand: null, offHand: null },
