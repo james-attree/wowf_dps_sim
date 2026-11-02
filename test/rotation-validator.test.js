@@ -1,4 +1,5 @@
 import { describe, it } from "node:test";
+import { raceGrantedAbilities } from "../js/racials.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { k } from "../data/constants.js";
@@ -33,6 +34,10 @@ const GRANTED_COLD_BLOOD = { type: "abilityGranted", ability: "cold-blood" };
 const onlyRule = (id) => {
   if (id === "cold-blood") {
     return rule(id, GRANTED_COLD_BLOOD);
+  }
+  // An on-use racial (#278) needs abilityGranted, as Cold Blood does.
+  if (raceGrantedAbilities.has(id)) {
+    return rule(id, { type: "abilityGranted", ability: id });
   }
   return talentGrantedAbilities.has(id)
     ? rule(id, { type: "abilityUnlocked", ability: id })

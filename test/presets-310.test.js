@@ -14,8 +14,22 @@ import { checkReferenceBuild } from "../js/preset-reference-builds.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { runFight } from "../js/fight.js";
 import { k } from "../data/constants.js";
+import { raceGrantedAbilities } from "../js/racials.js";
 
 const ASSASSINATION = "assassination-daggers";
+
+// Each preset opens with the on-use racial rules (#278, Decision 6), which the
+// links predate; the rest is the link's. test/on-use-racials.test.js checks
+// the racial rules and that, with no race, they change no fight.
+const RACIAL_RULES = [...raceGrantedAbilities].map((ability) => ({
+  action: ability,
+  conditions: [{ type: "abilityGranted", ability }],
+}));
+const presetRules = (id) => {
+  const rules = presetSetup(id).rotation.rules;
+  assert.deepEqual(rules.slice(0, RACIAL_RULES.length), RACIAL_RULES, id);
+  return rules.slice(RACIAL_RULES.length);
+};
 const COMBAT = "combat-swords";
 const SUBTLETY = "subtlety-daggers";
 const PRESETS = [ASSASSINATION, COMBAT, SUBTLETY];
@@ -95,10 +109,7 @@ describe("#310: each preset is its share link's setup", () => {
 
   for (const id of [ASSASSINATION, SUBTLETY]) {
     it(`${id}: the rotation's rules are the link's, in order`, () => {
-      assert.deepEqual(
-        presetSetup(id).rotation.rules,
-        linkSetup(id).rotation.rules,
-      );
+      assert.deepEqual(presetRules(id), linkSetup(id).rotation.rules);
     });
   }
 
@@ -119,7 +130,7 @@ describe("#310: each preset is its share link's setup", () => {
     assert.equal(points(first).op, ">=");
     assert.equal(points(second).op, ">=");
     assert.ok(points(first).value >= points(second).value);
-    assert.deepEqual(presetSetup(COMBAT).rotation.rules, link.slice(1));
+    assert.deepEqual(presetRules(COMBAT), link.slice(1));
   });
 
   it("combat-swords: the folded rule changes no fight (identical results over many seeds)", () => {

@@ -496,6 +496,25 @@ export const GOLDEN_CASES = deepFreeze([
       }),
     };
   }),
+  // Issue #278. One case per on-use racial: combat-swords (its racial rules
+  // first, Decision 6) with its reference build and the race that grants the
+  // racial. Blood Fury (Orc, AP x1.1) and Elune's Light (Night Elf, +10% crit)
+  // are each cast at the pull, so the first 15 s carry the aura. No other case
+  // moved: with no race the racial rules are passed over.
+  ...["orc", "night-elf"].map((race) => {
+    const build = presetReferenceBuild("combat-swords");
+    return {
+      name: `race-${race}-combat-swords-seed-278-60s`,
+      seed: 278,
+      duration: 60,
+      config: loadPreset("combat-swords", {
+        race,
+        talents: { ...build.talents },
+        weapons: { ...build.weapons },
+        poisons: { ...build.poisons },
+      }),
+    };
+  }),
 ]);
 
 // Files that can turn up in test/golden/ without being a stray case: macOS

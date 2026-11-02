@@ -472,6 +472,80 @@ export function parseSpell({ name, rank, label, tab, key, entry }, read = k) {
   };
 }
 
+// ---- on-use racials (P5-03a, #278) ----------------------------------------
+
+// The racial tab's name in the catalogue: not a spellbook tab.
+const RACIAL_TAB = "Racials";
+
+// An on-use racial as an ability, from the export's racials list: `racialId`
+// is "<race slug>.<racial slug>" (js/racials.js). Its text opens with the cells
+// spell_desc gives a spell ("Instant, 2 min cooldown."), which parseCells
+// reads; the rest is the description. Blood Fury and Elune's Light have no
+// cost (A21), no combo points and no damage of their own, and start no GCD
+// when racial.onUse.offGcd lists them (A21). The racial's name is the ability
+// name and its slug the id, as the spellbook's. `racial` holds the racial id.
+// Read directly from the export so this module does not import js/racials.js.
+export function parseRacialAbility(source, racialId, read = k) {
+  const [raceSlug, slug] = String(racialId).split(".");
+  const factions = isObject(source?.racials)
+    ? Object.values(source.racials)
+    : [];
+  const race = factions
+    .flat()
+    .find((candidate) => slugify(candidate?.race ?? "") === raceSlug);
+  const pair = race?.abilities?.find(
+    (candidate) => Array.isArray(candidate) && slugify(candidate[0]) === slug,
+  );
+  if (pair === undefined) {
+    throw new AbilityParseError(
+      racialId,
+      null,
+      `the snapshot has no racial ${JSON.stringify(racialId)}`,
+    );
+  }
+  const [name, text] = pair;
+  const fail = (problem) => {
+    throw new AbilityParseError(name, 1, problem, text);
+  };
+  const stop = text.indexOf(". ");
+  if (stop < 0) {
+    fail("the racial text has no cells before its description");
+  }
+  const found = parseCells(text.slice(0, stop).split(", "), fail);
+  if (found.passive || found.castTime === null || found.cost !== null) {
+    fail("an on-use racial needs a cast time and no cost or Passive cell");
+  }
+  const id = slugify(name);
+  return {
+    id,
+    name,
+    rank: 1,
+    spellId: null,
+    tab: RACIAL_TAB,
+    racial: racialId,
+    // The export gives a racial no school. It deals no damage, so the school
+    // tags nothing; physical is js/damage-tags.js's default for an id it
+    // does not know.
+    school: "physical",
+    passive: false,
+    cost: null,
+    cooldown: found.cooldown,
+    castTime: found.castTime,
+    comboPointsAwarded: 0,
+    finisher: null,
+    weaponPercent: null,
+    flatDamage: null,
+    dot: null,
+    perComboPoint: null,
+    scalesWithAttackPower: false,
+    ap: null,
+    bleed: false,
+    startsGcd: !read("racial.onUse.offGcd").includes(id),
+    requires: found.requires,
+    text,
+  };
+}
+
 // ---- the catalogue ------------------------------------------------------
 
 // "Rank 9" is rank 9. "" and "Passive" are the one and only rank, 1.
@@ -499,9 +573,12 @@ export function rankOf(label, name, fail) {
 //   - a spell with no spell_desc entry for its highest rank;
 //   - a duplicate ability id, or the same spell listed in two tabs;
 //   - everything parseSpell checks.
-// The result is deeply frozen:
+// Then it adds the on-use racials named by `abilities.racials`
+// (parseRacialAbility, tab "Racials", with a `racial` field). The result is
+// deeply frozen:
 //
-//   catalogue.abilities     every ability, tab by tab, in spellbook order
+//   catalogue.abilities     every ability, tab by tab, in spellbook order, then
+//                           the on-use racials
 //   catalogue.get(id)       an ability by id (the slug of its name), or undefined
 //   catalogue.byName(name)  an ability by name, ignoring case; undefined if none
 //
@@ -585,6 +662,20 @@ export function buildAbilityCatalogue(source, read = k) {
       byId.set(ability.id, ability);
       abilities.push(ability);
     }
+  }
+
+  // The on-use racials the engine casts (P5-03a, #278), after the tabs.
+  for (const racialId of read("abilities.racials")) {
+    const ability = deepFreeze(parseRacialAbility(source, racialId, read));
+    if (byId.has(ability.id)) {
+      throw new AbilityParseError(
+        ability.name,
+        ability.rank,
+        `two abilities have the id ${JSON.stringify(ability.id)}`,
+      );
+    }
+    byId.set(ability.id, ability);
+    abilities.push(ability);
   }
 
   const catalogue = {

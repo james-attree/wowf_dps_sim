@@ -1,5 +1,13 @@
 import { k } from "../data/constants.js";
+import { raceGrantedAbilities } from "./racials.js";
 import { talentGrantedAbilities } from "./talent-build.js";
+
+// The abilities a fight has only when granted: a talent's, and an on-use
+// racial a race grants (#278). The state's talentAbilities.
+const GRANT_NEEDED = Object.freeze([
+  ...talentGrantedAbilities,
+  ...raceGrantedAbilities,
+]);
 
 // The state view a rotation condition reads (roadmap R2, issue #139): a
 // read-only snapshot of a fight, built here so that js/rotation-conditions.js
@@ -20,7 +28,7 @@ import { talentGrantedAbilities } from "./talent-build.js";
 //     cooldowns: { [abilityId]: seconds left },     only those above 0
 //     build:     { selected },                      a talent build is selected
 //     granted:   [abilityId],                       granted by build or host
-//     talentAbilities: [abilityId],                 abilities some talent grants
+//     talentAbilities: [abilityId],                 abilities some talent (or race, #278) grants
 //   }
 //
 // regenPerSecond is the rate now: the base rate through the energyRegen
@@ -119,7 +127,7 @@ export function rotationState(rogue, simulation, options = {}) {
     cooldowns: cooldownsView(simulation),
     build: { selected: rogue.build.selected },
     granted: [...rogue.granted],
-    talentAbilities: [...talentGrantedAbilities],
+    talentAbilities: [...GRANT_NEEDED],
   };
   return options.freeze === false ? view : freezeAll(view);
 }
@@ -178,7 +186,7 @@ export function rotationStateReader(rogue, simulation, options = {}) {
   }
   const build = Object.freeze({ selected: rogue.build.selected });
   const granted = Object.freeze([...rogue.granted]);
-  const talentAbilities = Object.freeze([...talentGrantedAbilities]);
+  const talentAbilities = Object.freeze([...GRANT_NEEDED]);
 
   const shared = {
     simulation,

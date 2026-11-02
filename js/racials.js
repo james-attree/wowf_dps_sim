@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { RACIAL_EFFECTS } from "../data/racial-effects.js";
+import { abilityCatalogue } from "./abilities.js";
 import { defineModifier } from "./modifiers.js";
 import { snapshot } from "./snapshot.js";
 import { slugify } from "./talents.js";
@@ -201,11 +202,14 @@ export function buildRaceCatalogue(source, className = RACE_CLASS) {
 export const raceCatalogue = buildRaceCatalogue(snapshot);
 
 // What an entry of data/racial-effects.js may hold. `modifiers` (with
-// optional `mobTypes`) is a racial the fight simulates; `noDpsEffect` and
-// `notSimulated` are reasons and stand alone with textHash.
+// optional `mobTypes`) is a racial the fight simulates; `ability` is an on-use
+// racial the race grants as a castable ability (P5-03a, #278), and stands
+// alone with textHash; `noDpsEffect` and `notSimulated` are reasons and stand
+// alone with textHash.
 const EFFECT_KEYS = [
   "textHash",
   "modifiers",
+  "ability",
   "mobTypes",
   "noDpsEffect",
   "notSimulated",
@@ -215,6 +219,26 @@ const HASH_PATTERN = /^[0-9a-f]{64}$/;
 
 function fail(id, message) {
   throw new RangeError(`Racial effects for "${id}": ${message}`);
+}
+
+// An on-use racial's grant: the id of the catalogue ability parsed from this
+// racial's own text (js/abilities.js, abilities.racials), alone with textHash.
+function checkAbilityGrant(id, entry) {
+  if (
+    Object.keys(entry).some((key) => key !== "textHash" && key !== "ability")
+  ) {
+    fail(id, "ability stands alone, with textHash.");
+  }
+  const ability = abilityCatalogue.get(entry.ability);
+  if (ability === undefined) {
+    fail(id, `ability ${show(entry.ability)} is not in the ability catalogue.`);
+  }
+  if (ability.racial !== id) {
+    fail(
+      id,
+      `ability ${show(entry.ability)} is another racial's (${show(ability.racial ?? null)}).`,
+    );
+  }
 }
 
 // Check the effects data against the catalogue, so a typo fails when the
@@ -251,6 +275,10 @@ export function checkRacialEffects(
         "textHash must be 64 hex digits (SHA-256 of the racial's text).",
       );
     }
+    if (entry.ability !== undefined) {
+      checkAbilityGrant(id, entry);
+      continue;
+    }
     const reasons = REASON_KEYS.filter((key) => entry[key] !== undefined);
     if (reasons.length > 0) {
       const reason = entry[reasons[0]];
@@ -285,8 +313,24 @@ export function checkRacialEffects(
 
 checkRacialEffects();
 
+// Every ability a race can grant (P5-03a, #278), in catalogue order: the
+// ability ids of the effects' `ability` entries. A rogue whose race does not
+// grant one is locked out of it (Rogue.lockedByBuild), and a rotation rule
+// that casts one needs an abilityGranted check (js/rotation-validator.js).
+const RACE_GRANTED = Object.freeze(
+  Object.values(RACIAL_EFFECTS)
+    .map((entry) => entry.ability)
+    .filter((ability) => ability !== undefined),
+);
+export const raceGrantedAbilities = Object.freeze({
+  ids: RACE_GRANTED,
+  has: (id) => RACE_GRANTED.includes(id),
+  [Symbol.iterator]: () => RACE_GRANTED[Symbol.iterator](),
+});
+
 // How a racial stands in a fight against `target`:
-//   "simulated"     its modifiers are in the fight
+//   "simulated"     its modifiers are in the fight, or its ability is granted
+//                   (an on-use racial, cast by a rotation rule)
 //   "inert"         its modifiers are for other target types (mobTypes), so
 //                   against this target it does nothing
 //   "noDpsEffect"   it does nothing in a damage fight; the entry says why
@@ -321,6 +365,7 @@ const NO_RACE = Object.freeze({
   race: null,
   modifiers: Object.freeze([]),
   racials: Object.freeze([]),
+  abilities: Object.freeze([]),
 });
 
 // What a race gives a fight: its racials' static modifiers, each with the
@@ -331,6 +376,8 @@ const NO_RACE = Object.freeze({
 //   race        the race id, or null
 //   modifiers   for the rogue's pipeline
 //   racials     [{ id, name, status }] every racial of the race (racialStatus)
+//   abilities   the ability ids its on-use racials grant (#278), for
+//               Rogue.granted
 //
 // An unknown race id is a RangeError (normalizeConfig refuses it first).
 export function expandRace(
@@ -350,10 +397,13 @@ export function expandRace(
   }
   const modifiers = [];
   const racials = [];
+  const abilities = [];
   for (const racial of race.racials) {
     const status = racialStatus(racial.id, effects, target);
     racials.push(Object.freeze({ id: racial.id, name: racial.name, status }));
-    if (status === "simulated") {
+    if (status === "simulated" && effects[racial.id].ability !== undefined) {
+      abilities.push(effects[racial.id].ability);
+    } else if (status === "simulated") {
       for (const spec of effects[racial.id].modifiers) {
         modifiers.push(defineModifier({ ...spec, source: racial.id }));
       }
@@ -363,5 +413,6 @@ export function expandRace(
     race: race.id,
     modifiers: Object.freeze(modifiers),
     racials: Object.freeze(racials),
+    abilities: Object.freeze(abilities),
   });
 }

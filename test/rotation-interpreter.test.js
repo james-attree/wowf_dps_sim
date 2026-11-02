@@ -1,4 +1,5 @@
 import { describe, it } from "node:test";
+import { raceGrantedAbilities } from "../js/racials.js";
 import assert from "node:assert/strict";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { abilityCatalogue } from "../js/abilities.js";
@@ -516,12 +517,17 @@ describe("compileRotation", () => {
           rotation(
             definition.id === "cold-blood"
               ? coldBlood()
-              : talentGrantedAbilities.has(definition.id)
+              : raceGrantedAbilities.has(definition.id)
                 ? rule(definition.id, {
-                    type: "abilityUnlocked",
+                    type: "abilityGranted",
                     ability: definition.id,
                   })
-                : rule(definition.id),
+                : talentGrantedAbilities.has(definition.id)
+                  ? rule(definition.id, {
+                      type: "abilityUnlocked",
+                      ability: definition.id,
+                    })
+                  : rule(definition.id),
           ),
         ),
         [],

@@ -718,9 +718,10 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   #277). `raceCatalogue` is built from the snapshot's `races` and `racials`:
   the nine rogue races, four racials each, with `race` and `race.racial` ids.
   `data/racial-effects.js` says what each racial does (static modifiers,
-  optionally for some target types only) or why it does nothing yet, with a
+  optionally for some target types only, or the on-use ability it grants:
+  Blood Fury and Elune's Light, #278) or why it does nothing yet, with a
   hash of the text it was written from. `expandRace(id)` gives the modifiers
-  the Rogue adds for `config.race`; `null`, the default, adds none. See
+  and abilities the Rogue adds for `config.race`; `null`, the default, adds none. See
   [Races and racials](docs/mechanics.md#races-and-racials-d12a-issue-277).
 - `js/snapshot.js` — The one place the page and the engine import
   `data/talentsforever/rogue.json` (an import attribute). `js/talents.js` and

@@ -1,4 +1,5 @@
 import { describe, it } from "node:test";
+import { RACIAL_EFFECTS } from "../data/racial-effects.js";
 import assert from "node:assert/strict";
 import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
@@ -64,14 +65,22 @@ const FROM_DATA = Object.values(TALENT_EFFECTS)
   .map((entry) => entry.ability)
   .filter((id) => id !== undefined)
   .sort();
+// And the on-use racials a race grants (#278), from the racial effects data:
+// the validator's default list holds both.
+const RACE_GRANTED = Object.values(RACIAL_EFFECTS)
+  .map((entry) => entry.ability)
+  .filter((id) => id !== undefined)
+  .sort();
+const ENGINE_GRANTED = [...FROM_DATA, ...RACE_GRANTED].sort();
 
 describe("talent guard (#188): which abilities it covers", () => {
   it("is every ability the talent effects data grants, by default", () => {
     assert.deepEqual([...talentGrantedAbilities].sort(), FROM_DATA);
     assert.deepEqual(
       [...rotationContext().talentGrantedAbilities].sort(),
-      FROM_DATA,
+      ENGINE_GRANTED,
     );
+    assert.deepEqual(RACE_GRANTED, ["blood-fury", "elunes-light"]);
     // Today: Cold Blood, Blade Flurry and Adrenaline Rush (#188's list), and
     // Ghostly Strike, Hemorrhage and Premeditation (#207), Mutilate (#267),
     // Venom (#268) and Preparation (#270).
@@ -101,7 +110,7 @@ describe("talent guard (#188): which abilities it covers", () => {
 
   it("leaves every other castable ability alone", () => {
     for (const { id } of ABILITY_DEFINITIONS) {
-      if (FROM_DATA.includes(id)) {
+      if (ENGINE_GRANTED.includes(id)) {
         continue;
       }
       assert.deepEqual(validateRotation(rotation(rule(id))), [], id);
@@ -334,7 +343,7 @@ describe("talent guard (#188): read from the data, not a list in the validator",
     // Left out, it is the engine's own.
     assert.deepEqual(
       [...rotationContext({}).talentGrantedAbilities].sort(),
-      FROM_DATA,
+      ENGINE_GRANTED,
     );
   });
 

@@ -52,7 +52,8 @@ describe("the catalogue for the vendored snapshot", () => {
 
   it("holds the Assassination, Combat and Subtlety abilities, highest rank each", () => {
     const tabs = [...new Set(abilities.map((ability) => ability.tab))];
-    assert.deepEqual(tabs, k("abilities.tabs"));
+    // The spellbook tabs, then the on-use racials (#278, abilities.racials).
+    assert.deepEqual(tabs, [...k("abilities.tabs"), "Racials"]);
     for (const tab of snapshot.spellbook.tabs) {
       if (!k("abilities.tabs").includes(tab.name)) {
         continue;
@@ -83,7 +84,9 @@ describe("the catalogue for the vendored snapshot", () => {
   });
 
   it("carries the snapshot's spell id, school and text for every ability", () => {
-    for (const ability of abilities) {
+    // The on-use racials (#278) come from the racials list, not spell_desc:
+    // test/on-use-racials.test.js checks them.
+    for (const ability of abilities.filter((a) => a.tab !== "Racials")) {
       const label = ability.passive
         ? "Passive"
         : snapshot.spellbook.tabs

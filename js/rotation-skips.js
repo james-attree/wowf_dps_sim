@@ -1,5 +1,6 @@
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { abilityCatalogue } from "./abilities.js";
+import { expandRace, raceGrantedAbilities } from "./racials.js";
 import { evaluateTrusted } from "./rotation-conditions.js";
 import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { talentCatalogue } from "./talents.js";
@@ -20,7 +21,7 @@ const GUARDS = Object.freeze(["abilityGranted", "abilityUnlocked"]);
 // build the config can't hold (over its level's cap) never gets here: the
 // config keeps the last legal one (#204), so this reads that.
 // The config has no host grants (Rogue's `abilities` option), so `granted` is
-// the build's alone: an ability a host grants with no build (Blade Flurry,
+// the build's and the race's (#278) alone: an ability a host grants with no build (Blade Flurry,
 // say) is usable in the engine but shown here as skipped. The app passes no
 // host grants (docs/rotation.md, "Granted and unlocked").
 export function talentState(config) {
@@ -31,10 +32,21 @@ export function talentState(config) {
   } catch {
     build = { selected: false, abilities: [] };
   }
+  // The race's on-use racials (#278), as js/rogue.js grants them. A race the
+  // config can't hold grants nothing here (normalizeConfig refuses it first).
+  let race;
+  try {
+    race = expandRace(config?.race ?? null);
+  } catch {
+    race = expandRace(null);
+  }
   return Object.freeze({
     build: Object.freeze({ selected: build.selected }),
-    granted: Object.freeze([...build.abilities]),
-    talentAbilities: Object.freeze([...talentGrantedAbilities]),
+    granted: Object.freeze([...build.abilities, ...race.abilities]),
+    talentAbilities: Object.freeze([
+      ...talentGrantedAbilities,
+      ...raceGrantedAbilities,
+    ]),
   });
 }
 

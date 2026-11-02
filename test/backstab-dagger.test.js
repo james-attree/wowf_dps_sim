@@ -1,3 +1,4 @@
+import { raceGrantedAbilities } from "../js/racials.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { k } from "../data/constants.js";
@@ -133,7 +134,8 @@ describe("Backstab needs a dagger", () => {
       // Every talent ability granted, so only the weapon is asked: a talent
       // ability the build lacks is not usable either (#199).
       const { rogue, simulation } = createFight(5, config(type), {
-        abilities: [...talentGrantedAbilities],
+        // The talent grants and the on-use racials a race grants (#278).
+        abilities: [...talentGrantedAbilities, ...raceGrantedAbilities],
       });
       const host = rotationHost(rogue, simulation);
       const unusable = ABILITY_DEFINITIONS.map(({ id }) => id).filter(

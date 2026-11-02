@@ -275,6 +275,34 @@ export const AURAS = Object.freeze({
       },
     ],
   }),
+  // Blood Fury (Orc, P5-03a, #278): attack power x1.10 for 15 s. A mult, so it
+  // multiplies the base and every flat add (modifiers.stacking attackPower).
+  bloodFury: defineAura({
+    id: "blood-fury",
+    name: "Blood Fury",
+    duration: k("racial.bloodFury").duration,
+    modifiers: [
+      {
+        kind: "attackPower",
+        op: "mult",
+        value: k("racial.bloodFury").attackPower,
+      },
+    ],
+  }),
+  // Elune's Light (Night Elf, P5-03a, #278): +10% crit on every attack for
+  // 15 s, unscoped as Ruthless's is (A18).
+  elunesLight: defineAura({
+    id: "elunes-light",
+    name: "Elune's Light",
+    duration: k("racial.elunesLight").duration,
+    modifiers: [
+      {
+        kind: "critChance",
+        op: "add",
+        value: k("racial.elunesLight").critChance,
+      },
+    ],
+  }),
   // The marker for the Rupture DoT on the target. Its duration is the DoT's,
   // which depends on the combo points spent, so each cast gives it.
   rupture: defineAura({
