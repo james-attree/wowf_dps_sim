@@ -3879,7 +3879,7 @@ not Classic's health-scaled version). It is a `haste` add like Wind Blessed,
 so it multiplies with Slice and Dice, Blade Flurry and gear haste
 ([Haste stacking](#haste-stacking)), and changes attack speed only, not
 energy or the GCD. A swing already under way is not rescaled when the aura
-starts or ends; the new speed applies from the next swing (`js/swing.js`, as
+starts or ends; the new speed applies from the next swing (`js/core/swing.js`, as
 Slice and Dice already behaves). A pinned test casts it at 1 s of a 30 s
 fight and checks every main-hand interval: a swing begun before the aura (or
 after it ends) keeps the weapon's speed, and one begun under it is speed ÷
@@ -3888,7 +3888,14 @@ swing under way is a possible post-launch accuracy item.
 
 **Eureka!'s scope (A22, an assumption).** "Non-periodic" is read as the
 direct abilities and Instant Poison; bleeds (Rupture, Garrote), Deadly
-Poison's ticks and white swings get nothing. `racial.eurekaAbilities` lists
+Poison's ticks and white swings get nothing.
+
+**Eureka!'s damage is a multiplier (an assumption).** The export says only
+"deal 10% more damage". The sim applies `racial.eureka.damage` (1.1) as a
+`mult`, so under `modifiers.stacking` `"percent"` it multiplies with the
+talent percentages rather than adding 10% to them. That is the developer's
+reading, tagged `assumption` in `racial.eurekaDamageOp` (`"mult"`; `"add"`
+with 0.1 is the other reading) and flagged on #279. `racial.eurekaAbilities` lists
 the direct damaging abilities (Sinister Strike, Eviscerate, Ghostly Strike,
 Backstab, Ambush, Mutilate, Hemorrhage); a test checks it is every catalogue
 ability whose damage is not a DoT or an attack with no damage. Leaving the
@@ -3916,8 +3923,7 @@ and 4) and not in combat-swords (an assumption, flagged for James: the
 options are this, a larger cap, or a shorter link encoding). A Troll or a
 Gnome on combat-swords never casts them; their other racials still apply.
 
-Golden fixtures: every existing fixture is unchanged (no case names Troll or
-Gnome). Two new ones pin a racial each:
+Golden fixtures: every existing fixture is unchanged. Two new ones pin a racial each:
 `race-troll-assassination-daggers-seed-279-60s` and
 `race-gnome-assassination-daggers-seed-279-60s` (the assassination-daggers
 preset with its reference build and the race).

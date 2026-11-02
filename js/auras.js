@@ -328,7 +328,8 @@ export const AURAS = Object.freeze({
       },
       {
         kind: "damage",
-        op: "mult",
+        // A tagged assumption (#279 QA N5): a mult, not an add.
+        op: k("racial.eurekaDamageOp"),
         value: k("racial.eureka").damage,
         scope: {
           abilities: [...k("racial.eurekaAbilities"), "instant-poison"],
