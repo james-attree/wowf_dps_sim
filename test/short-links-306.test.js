@@ -404,6 +404,7 @@ const LOCKED_LISTS = {
     "combat-swords",
     "assassination-daggers",
     "subtlety-daggers",
+    "combat-daggers",
   ],
 };
 
@@ -420,6 +421,8 @@ const LOCKED_CONTENT = {
     "cf3c105b4cce841554322ec38f29050ca90568eb5fe374e49945208394b0de3f",
   "subtlety-daggers":
     "1ac01ca6f8163a120178cd28a291d6069d76dfbcbe3be4df62024d5637304de1",
+  "combat-daggers":
+    "49ebf8a7b8e656c56b4fda8a3ce5b414e10b314ca40b289faf8c6ea3ea52deda",
 };
 
 const canonical = (value) =>
@@ -694,11 +697,13 @@ describe("short links: pinned version 2 texts (#330 N2)", () => {
   const cs = presetConfig("combat-swords");
   const ad = presetConfig("assassination-daggers");
   const sd = presetConfig("subtlety-daggers");
+  const cd = presetConfig("combat-daggers");
   const PINNED = [
     ["defaults", at(d.config), "2.AIAQAcjBraAU"],
     ["combat-swords", at(cs), "2.AYAQAcjBraAU"],
     ["assassination-daggers", at(ad), "2.AoAQAcjBraAU"],
     ["subtlety-daggers", at(sd), "2.A4AQAcjBraAU"],
+    ["combat-daggers", at(cd), "2.BIAQAcjBraAU"],
     [
       "combat-swords, rule 1 deleted in the app",
       at({
