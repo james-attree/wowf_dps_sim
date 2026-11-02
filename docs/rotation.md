@@ -845,11 +845,14 @@ talent granted" guard; a rule for another race's racial reads "Not your race
 Berserking (Troll) and Eureka! (Gnome) the same way, as rules 3 and 4 of
 every preset (Scout, 2 Nov 2026, on #315; see
 [Berserking and Eureka!](mechanics.md#berserking-and-eureka-p5-03b-issue-279)).
-Each racial rule adds about 112 characters to a share link: combat-swords'
-is 2,199 with all four, well under the app's cap (`LINK_CAP`, 8,192, in
-`js/views/share-link.js`). The 2,048 that #284 measured the presets against
-is a test budget (`PRESET_LINK_MAX` in `test/build-codec.test.js`), now
-4,096.
+Each racial rule added about 112 characters to a version-1 share link:
+combat-swords' was 2,199 with all four, under the app's cap (`LINK_CAP`,
+8,192, in `js/views/share-link.js`). Since #306 a share link is version 2
+(`js/link-codec.js`), which names a preset and sends only what differs from
+it, so a preset's link is 17 characters after the page's address and one
+with a typical edit is under 40. The test budget (`PRESET_LINK_MAX` in
+`test/build-codec.test.js`), 2,048 for #284 and 4,096 for #315, is now 64
+characters after the address.
 
 ### combat-swords
 

@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
 import { startStaticServer } from "../scripts/serve.mjs";
 import {
+  LINK_VERSION,
   SETUP_VERSION,
   decodeSetup,
   encodeSetup,
@@ -331,7 +332,7 @@ describe("Remember my setup (#296)", () => {
     ["broken", "1.!!!not-base64"],
     [
       "newer",
-      `${SETUP_VERSION + 1}.${encodeSetup(setupDefaults()).split(".")[1]}`,
+      `${LINK_VERSION + 1}.${encodeSetup(setupDefaults()).split(".")[1]}`,
     ],
     ["not the codec's", '{"haste":5}'],
   ]) {
@@ -405,7 +406,7 @@ describe("Remember my setup (#296)", () => {
       }),
     ],
     ["an unreadable", "1.!!!not-base64"],
-    ["a newer-version", `${SETUP_VERSION + 1}.${body}`],
+    ["a newer-version", `${LINK_VERSION + 1}.${body}`],
   ]) {
     test(`a visit with no change writes nothing and leaves ${name} save byte-unchanged; an edit still saves`, async () => {
       const { context, page, errors } = await open(1440, "#character/stats", {

@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import {
+  LINK_VERSION,
   SETUP_VERSION,
   decodeSetup,
   encodeSetup,
@@ -314,7 +315,7 @@ describe("#296 (G4): what a saved setup reads as", () => {
   it("a newer version, an older one, or a value that is not the codec's, is the defaults", () => {
     const body = encodeSetup(busy()).split(".")[1];
     for (const text of [
-      `${SETUP_VERSION + 1}.${body}`,
+      `${LINK_VERSION + 1}.${body}`,
       `0.${body}`,
       "",
       "{}",
@@ -808,7 +809,7 @@ describe("#320 B1: opening the page with no change writes nothing (Kira's QA)", 
       },
     }),
     "an unreadable save": "1.!!!not-base64",
-    "a newer-version save": `${SETUP_VERSION + 1}.${body}`,
+    "a newer-version save": `${LINK_VERSION + 1}.${body}`,
     "an older-version save": `0.${body}`,
     "a value that is not the codec's": '{"haste":5}',
   };

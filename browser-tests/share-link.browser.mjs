@@ -10,11 +10,16 @@ import { chromium } from "playwright-core";
 import { startStaticServer } from "../scripts/serve.mjs";
 import {
   LINK_PARAM,
-  SETUP_VERSION,
+  LINK_VERSION,
+  decodeSetup,
   setupDefaults,
   shareUrl,
 } from "../js/build-codec.js";
 import { defaultRotation } from "../js/rotation-default.js";
+import { referenceBuild } from "../js/preset-reference-builds.js";
+import { presetRotation } from "../js/rotation-presets.js";
+import { editedName } from "../js/config-form.js";
+import { SAVED_SETUP_KEY } from "../js/saved-setup.js";
 import { k } from "../data/constants.js";
 import {
   BUTTON_NAMES,
@@ -191,7 +196,8 @@ describe("Copy link to this build (#284)", () => {
         const url = new URL(link);
         assert.equal(url.origin + url.pathname, base);
         assert.equal(url.hash, "");
-        assert.match(url.searchParams.get(LINK_PARAM), /^1\.[\w-]+$/);
+        // #306: a short version 2 link.
+        assert.match(url.searchParams.get(LINK_PARAM), /^2\.[\w-]+$/);
         // "Link copied" for 2 s, then the label again.
         await page.waitForFunction(
           (label) =>
@@ -306,7 +312,7 @@ describe("Copy link to this build (#284)", () => {
           );
           assert.equal(await field.getAttribute("readonly"), "");
           const value = await field.inputValue();
-          assert.match(value, /\?s=1\./);
+          assert.match(value, /\?s=2\./);
           const selected = await field.evaluate(
             (node) =>
               document.activeElement === node &&
@@ -326,7 +332,15 @@ describe("Copy link to this build (#284)", () => {
   }
 
   test("a link over 8 KB says to export the rotation, and the button stays", async () => {
-    const rule = defaultRotation().rules[0];
+    // Not the base's own rule: a version-2 link sends that as a reference
+    // (#306), so a rule of its own (25 energy made 26) fills the link.
+    const first = defaultRotation().rules[0];
+    const rule = {
+      ...first,
+      conditions: first.conditions.map((c) =>
+        c.type === "resource" ? { ...c, value: c.value + 1 } : c,
+      ),
+    };
     const d = setupDefaults();
     const rotation = {
       ...defaultRotation(),
@@ -377,11 +391,14 @@ describe("Copy link to this build (#284)", () => {
   });
 
   test("a newer or damaged link loads nothing and says so", async () => {
-    const newer = `${base}?${LINK_PARAM}=${SETUP_VERSION + 1}.e30#character/stats`;
+    const newer = `${base}?${LINK_PARAM}=${LINK_VERSION + 1}.e30#character/stats`;
     const damaged = `${base}?${LINK_PARAM}=1.not-json#character/stats`;
+    // #306: a version 2 link with a byte too many.
+    const damagedV2 = `${base}?${LINK_PARAM}=2.AAAA#character/stats`;
     for (const [address, notice] of [
       [newer, NOTICES.newer],
       [damaged, NOTICES.corrupt],
+      [damagedV2, NOTICES.corrupt],
     ]) {
       const { context, page, errors } = await open(WIDTHS[0], address);
       try {
@@ -412,6 +429,107 @@ describe("Copy link to this build (#284)", () => {
     try {
       await page.locator(".share-hint").waitFor({ state: "visible" });
       assert.equal(await text(page, ".share-hint"), SHARE_HINT);
+    } finally {
+      await context.close();
+    }
+  });
+
+  // #306: a preset with a typical edit copies as a short link, and the link
+  // opens that build in a fresh browser (the saved setup it leaves is still
+  // version 1).
+  test("a preset's link is short, and it opens the build elsewhere (#306)", async () => {
+    const PRESET_LINK_MAX = 64;
+    const SPEED = "#cfg-weapons-mainHand-speed";
+    const { context, page, errors } = await open(WIDTHS[1], "#character");
+    try {
+      await page.locator("#start-card-combat-swords").click();
+      await page.locator("#start-applied").waitFor({ state: "visible" });
+      await set(page, "#character/gear", SPEED, "1.9");
+      await page.evaluate(() => document.defaultView.scrollTo(0, 0));
+      await page.locator("#share-link-header").click();
+      await page.waitForFunction(
+        (copied) =>
+          document.getElementById("run-announce").textContent === copied,
+        COPIED_TEXT,
+      );
+      const link = await page.evaluate(() =>
+        document.defaultView.navigator.clipboard.readText(),
+      );
+      assert.ok(link.startsWith(`${base}?${LINK_PARAM}=2.`), link);
+      assert.ok(
+        link.length - base.length <= PRESET_LINK_MAX,
+        `${link.length - base.length}: ${link}`,
+      );
+      const read = decodeSetup(new URL(link).searchParams.get(LINK_PARAM));
+      assert.equal(read.status, "ok");
+      const build = referenceBuild("combat-swords");
+      assert.deepEqual(read.setup.config.talents, build.talents);
+      assert.equal(read.setup.config.weapons.mainHand.speed, 1.9);
+      assert.deepEqual(errors, []);
+
+      const other = await open(WIDTHS[1], link);
+      try {
+        const { page: opened, errors: openedErrors } = other;
+        await opened.locator("#share-banner").waitFor({ state: "visible" });
+        assert.equal(await text(opened, "#share-banner-text"), NOTICES.loaded);
+        await go(opened, "#character/gear", SPEED);
+        assert.equal(await opened.locator(SPEED).inputValue(), "1.9");
+        await opened.waitForFunction(
+          (key) => document.defaultView.localStorage.getItem(key) !== null,
+          SAVED_SETUP_KEY,
+        );
+        const saved = await opened.evaluate(
+          (key) => document.defaultView.localStorage.getItem(key),
+          SAVED_SETUP_KEY,
+        );
+        assert.match(saved, /^1\./);
+        assert.deepEqual(decodeSetup(saved).setup.config, read.setup.config);
+        assert.deepEqual(openedErrors, []);
+      } finally {
+        await other.context.close();
+      }
+    } finally {
+      await context.close();
+    }
+  });
+  test("a rule deleted in the builder still gives a short link (#330 B1)", async () => {
+    const PRESET_LINK_MAX = 64;
+    const { context, page, errors } = await open(WIDTHS[1], "#character");
+    try {
+      await page.locator("#start-card-combat-swords").click();
+      await page.locator("#start-applied").waitFor({ state: "visible" });
+      await go(page, "#rotation", "#rotation-builder");
+      const rules = page.locator("#rotation-builder li.rule");
+      const before = await rules.count();
+      await rules.first().locator("[data-key$='.del']").click();
+      await page.waitForFunction(
+        (n) =>
+          document.querySelectorAll("#rotation-builder li.rule").length === n,
+        before - 1,
+      );
+      await go(page, "#character", "#share-link-header");
+      await page.evaluate(() => document.defaultView.scrollTo(0, 0));
+      await page.locator("#share-link-header").click();
+      await page.waitForFunction(
+        (copied) =>
+          document.getElementById("run-announce").textContent === copied,
+        COPIED_TEXT,
+      );
+      const link = await page.evaluate(() =>
+        document.defaultView.navigator.clipboard.readText(),
+      );
+      assert.ok(link.startsWith(`${base}?${LINK_PARAM}=2.`), link);
+      assert.ok(
+        link.length - base.length <= PRESET_LINK_MAX,
+        `${link.length - base.length}: ${link}`,
+      );
+      const { rotation } = decodeSetup(
+        new URL(link).searchParams.get(LINK_PARAM),
+      ).setup.config;
+      const preset = presetRotation("combat-swords");
+      assert.equal(rotation.name, editedName(preset.name));
+      assert.deepEqual(rotation.rules, preset.rules.slice(1));
+      assert.deepEqual(errors, []);
     } finally {
       await context.close();
     }
