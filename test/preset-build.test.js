@@ -492,6 +492,7 @@ const SIGNATURES = {
   "combat-swords": ["sinister-strike", "slice-and-dice", "blade-flurry"],
   "assassination-daggers": ["mutilate"],
   "subtlety-daggers": ["hemorrhage"],
+  "combat-daggers": ["backstab", "eviscerate", "slice-and-dice"],
 };
 const SEED = 1;
 const FIGHT_SECONDS = 120;
