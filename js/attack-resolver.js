@@ -73,9 +73,11 @@ export function maxWeaponSkill(level = k("character.level")) {
   return defaultWeaponSkill(level) + k("attackTable.weaponSkill").maxAboveBase;
 }
 
-// The weapon skill a config fights with: config.character.weaponSkill (the
-// default when there is none) plus the race's attackTable.weaponSkill
-// racialBonus, which is empty: no WoW Forever race has one.
+// The weapon skill a config fights with: config.character.weaponSkill, or
+// while that is null (the default, #290) the config's level x 5
+// (defaultWeaponSkill of config.talentLevel, 300 at 60), plus the race's
+// attackTable.weaponSkill racialBonus, which is empty: no WoW Forever race
+// has one.
 export function weaponSkillFor(config) {
   const { racialBonus } = k("attackTable.weaponSkill");
   const race = config?.race;
@@ -83,7 +85,8 @@ export function weaponSkillFor(config) {
     typeof race === "string" && Object.hasOwn(racialBonus, race)
       ? racialBonus[race]
       : 0;
-  return (config?.character?.weaponSkill ?? defaultWeaponSkill()) + bonus;
+  const level = config?.talentLevel ?? k("character.level");
+  return (config?.character?.weaponSkill ?? defaultWeaponSkill(level)) + bonus;
 }
 
 function critModel() {

@@ -8,7 +8,7 @@ import {
 import { talentCatalogue } from "./talents.js";
 import { raceCatalogue } from "./racials.js";
 import { defaultRotation } from "./rotation-default.js";
-import { defaultWeaponSkill, maxWeaponSkill } from "./attack-resolver.js";
+import { maxWeaponSkill } from "./attack-resolver.js";
 import { rotationProblems } from "./rotation-validator.js";
 
 // SimConfig (roadmap E2-lite, issue #92): the inputs of one fight. It names the
@@ -29,14 +29,18 @@ import { rotationProblems } from "./rotation-validator.js";
 //   {
 //     race: "human",                             // a race id, or null (#277)
 //     character: { attackPower, critChance, bonusHitChance, haste,
-//                  weaponSkill },                // weaponSkill: 300 (#295)
+//                  weaponSkill },                // weaponSkill: null follows
+//                                                // level x 5 (#295, #290)
 //     weapons: {
 //       mainHand: { min, max, speed, type },
 //       offHand:  { min, max, speed, type },
 //     },
-//     target: { behind },                        // true: no parry, no block
+//     target: { behind, level },                 // behind true: no parry, no
+//                                                // block; level null follows
+//                                                // talentLevel + 3 (#290)
 //     talents: { "combat.precision": 3, ... },   // talent id -> rank
-//     talentLevel: 60,                           // caps talents at level - 9
+//     talentLevel: 60,                           // the character level (#290):
+//                                                // caps talents at level - 9
 //     poisons: { mainHand: "instant", offHand: "deadly" },   // an id, or null
 //     rotation: { schemaVersion: 1, name, rules: [...] },    // R3, #140
 //   }
@@ -73,7 +77,7 @@ const CHARACTER_LIMITS = {
   weaponSkill: { min: 1, whole: true },
 };
 const WEAPON_FIELDS = ["min", "max", "speed", "type"];
-const TARGET_FIELDS = ["behind"];
+const TARGET_FIELDS = ["behind", "level"];
 const SECTIONS = [
   "race",
   "character",
@@ -99,11 +103,13 @@ export function defaultConfig() {
       critChance: k("character.critChance"),
       bonusHitChance: k("character.bonusHitChance"),
       haste: k("character.haste"),
-      // character.level x 5 (attackTable.weaponSkill, #295): 300 at 60.
-      weaponSkill: defaultWeaponSkill(),
+      // null follows the level: level x 5 (attackTable.weaponSkill, #295;
+      // weaponSkillFor), 300 at 60 (#290).
+      weaponSkill: null,
     },
     weapons: { mainHand: weapon("mainHand"), offHand: weapon("offHand") },
-    target: { behind: k("target.behind") },
+    // level null follows the character level + 3 (#290; js/levels.js).
+    target: { behind: k("target.behind"), level: null },
     talents: {},
     talentLevel: DEFAULT_TALENT_LEVEL,
     poisons: { mainHand: null, offHand: null },
@@ -217,16 +223,21 @@ function readChoice(value, path, fallback, ids, noun) {
   return value;
 }
 
-function readCharacter(input, defaults) {
+function readCharacter(input, defaults, level) {
   const given = readObject(input, "config.character", CHARACTER_FIELDS);
   const result = {};
   for (const field of CHARACTER_FIELDS) {
     // Attack power has no upper limit. A chance, and haste (a fraction of
     // attack speed, #265), run from 0 to 1. Weapon skill (#295) is a whole
-    // number of points, from 1 to level x 5 + 50 (maxWeaponSkill, #316 N2).
+    // number of points, from 1 to level x 5 + 50 (maxWeaponSkill, #316 N2) at
+    // the config's level (#290), or null: level x 5, which follows the level.
+    if (field === "weaponSkill" && given[field] === null) {
+      result[field] = null;
+      continue;
+    }
     const limits =
       field === "weaponSkill"
-        ? { ...CHARACTER_LIMITS.weaponSkill, max: maxWeaponSkill() }
+        ? { ...CHARACTER_LIMITS.weaponSkill, max: maxWeaponSkill(level) }
         : (CHARACTER_LIMITS[field] ?? { max: 1 });
     result[field] = readNumber(
       given[field],
@@ -283,7 +294,26 @@ function readTarget(input, defaults) {
       `config.target.behind must be true or false, not ${show(given.behind)}.`,
     );
   }
-  return { behind: given.behind ?? defaults.behind };
+  // The enemy level (#290): null (the default, and an old config's missing
+  // field) follows the character level + target.levelAboveCharacter; a
+  // number is a whole level in target.levelRange, kept whatever the
+  // character level.
+  let level = defaults.level;
+  if (given.level !== undefined && given.level !== null) {
+    const { min, max } = k("target.levelRange");
+    if (
+      typeof given.level !== "number" ||
+      !Number.isInteger(given.level) ||
+      given.level < min ||
+      given.level > max
+    ) {
+      throw new RangeError(
+        `config.target.level must be a whole number between ${min} and ${max}, or null to follow the level + ${k("target.levelAboveCharacter")}, not ${show(given.level)}.`,
+      );
+    }
+    level = given.level;
+  }
+  return { behind: given.behind ?? defaults.behind, level };
 }
 
 // Talent ranks by catalogue id. Only the rank is checked here (a whole number
@@ -396,6 +426,12 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
   const given = readObject(config, "config", SECTIONS);
   const defaults = defaultConfig();
   const talents = readTalents(given.talents, catalogue);
+  // The character level (#290) first: the weapon skill's cap depends on it.
+  const level = readTalentLevel(
+    given.talentLevel,
+    talents,
+    defaults.talentLevel,
+  );
   return {
     race: readChoice(
       given.race,
@@ -404,15 +440,11 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
       raceCatalogue.ids,
       "race",
     ),
-    character: readCharacter(given.character, defaults.character),
+    character: readCharacter(given.character, defaults.character, level),
     weapons: readWeapons(given.weapons, defaults.weapons),
     target: readTarget(given.target, defaults.target),
     talents,
-    talentLevel: readTalentLevel(
-      given.talentLevel,
-      talents,
-      defaults.talentLevel,
-    ),
+    talentLevel: level,
     poisons: readPoisons(given.poisons, defaults.poisons),
     rotation: readRotation(given.rotation, defaults.rotation),
   };

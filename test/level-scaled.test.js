@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
-import { decodeSetup, encodeSetup } from "../js/build-codec.js";
+import { decodeSetup, encodeSetup, runDefaults } from "../js/build-codec.js";
 import { createFight, runFight } from "../js/fight.js";
 import { characterLevel, targetArmor, targetLevel } from "../js/levels.js";
 import { poisonCatalogue, poisonProcs } from "../js/poisons.js";
@@ -14,9 +14,13 @@ import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 // against 63 is the fight the engine had before, number for number.
 
 const rotationOf = (ids) => ({
-  version: 1,
+  schemaVersion: 1,
   name: "Level test",
-  rules: ids.map((id) => ({ cast: id, when: [] })),
+  rules: ids.map((action) => ({
+    action,
+    conditions:
+      action === "rupture" ? [{ type: "comboPoints", op: ">=", value: 5 }] : [],
+  })),
 });
 
 describe("ranks by level (#290)", () => {
@@ -62,7 +66,7 @@ describe("ranks by level (#290)", () => {
       [53, 79, 109, 143, 183],
     );
     assert.equal(rankedStats("mutilate", 40).bonusDamage, 19);
-    assert.equal(rankedStats("ambush", 40).bonusDamage, 185);
+    assert.equal(rankedStats("ambush", 40).bonusDamage, 125);
     assert.equal(rankedStats("exposeArmor", 40).armorPerComboPoint, 270);
     assert.equal(rankedStats("sliceAndDice", 41).haste, 0.2);
     assert.equal(rankedStats("sliceAndDice", 42).haste, 0.3);
@@ -100,9 +104,9 @@ describe("ranks by level (#290)", () => {
   it("gives Slice and Dice rank 1 haste below level 42", () => {
     const low = createFight(1, { talentLevel: 40 });
     const aura = low.rogue.abilitiesById.get("slice-and-dice").aura;
-    assert.equal(aura.id, "sliceAndDice");
+    assert.equal(aura.id, "slice-and-dice");
     assert.equal(aura.effects.haste, 0.2);
-    assert.equal(low.simulation.auraDefinitions.get("sliceAndDice"), aura);
+    assert.equal(low.simulation.auraDefinitions.get("slice-and-dice"), aura);
     const top = createFight(1, { talentLevel: 60 });
     assert.equal(
       top.rogue.abilitiesById.get("slice-and-dice").aura.effects.haste,
@@ -146,6 +150,16 @@ describe("abilities not learned yet (#290)", () => {
     });
     assert.equal(result.abilities.Rupture, undefined);
     assert.ok(result.abilities["Sinister Strike"].casts > 0);
+    // At 20 it is learned (rank 1) and cast.
+    const learned = runFight({
+      seed: 7,
+      duration: 60,
+      config: {
+        talentLevel: 20,
+        rotation: rotationOf(["rupture", "sinister-strike"]),
+      },
+    });
+    assert.ok(learned.abilities.Rupture.casts > 0);
   });
 });
 
@@ -212,13 +226,17 @@ describe("the enemy level (#290)", () => {
     const old = normalizeConfig({ target: { behind: true } });
     assert.equal(old.target.level, null);
     assert.equal(targetLevel(old), 63);
-    const link = encodeSetup({ config: normalizeConfig({}), run: {} });
-    assert.equal(decodeSetup(link).config.target.level, null);
+    const link = encodeSetup({
+      config: normalizeConfig({}),
+      run: runDefaults(),
+    });
+    assert.equal(decodeSetup(link).setup.config.target.level, null);
   });
 
   it("carries an edited level through a share link", () => {
     const config = normalizeConfig({ target: { level: 61 } });
-    const decoded = decodeSetup(encodeSetup({ config, run: {} })).config;
+    const decoded = decodeSetup(encodeSetup({ config, run: runDefaults() }))
+      .setup.config;
     assert.equal(decoded.target.level, 61);
   });
 });

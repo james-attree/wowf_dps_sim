@@ -45,7 +45,8 @@ function busySetup() {
         critChance: 0.3,
         bonusHitChance: 0.05,
         haste: 0.05,
-        weaponSkill: 305,
+        // At or under talentLevel 40's cap, 40 x 5 + 50 (#290).
+        weaponSkill: 245,
       },
       weapons: {
         mainHand: { min: 60, max: 110, speed: 1.8, type: "dagger" },

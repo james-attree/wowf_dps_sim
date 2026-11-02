@@ -58,6 +58,11 @@ const DEV_JUDGEMENT_99 = "Developer, 26 Oct 2026, issue #99";
 const DEV_JUDGEMENT_100 = "Developer, 26 Oct 2026, issue #100";
 const DEV_JUDGEMENT_101 = "Developer, 26 Oct 2026, issue #101";
 const ATTACK_TABLE_295 = "Developer, 2 Nov 2026, issue #295";
+// Level-scaled sims (#290): the developer's reading of the issue, open for
+// James's ruling where the row says so.
+const LEVELS_290 = "Developer, 2 Nov 2026, issue #290";
+const WS_SOD_PRESETS =
+  "https://github.com/wowsims/sod/blob/master/sim/encounters/default_presets.go";
 // The retuned presets (#310): James's builds, from his share links (relayed
 // by Scout, approved by James).
 const PRESETS_310 = "James, 2 Nov 2026, issue #310";
@@ -1073,6 +1078,35 @@ export const CONSTANTS = {
     ASSUMPTION,
     `${JAMES}: behind the target removes parry and block (OQ4)`,
     "Editable input. The default of config.target.behind (SimConfig). Behind removes parry and block on the attack table (A7).",
+    true,
+  ),
+  "target.levelAboveCharacter": entry(
+    3,
+    "levels",
+    ASSUMPTION,
+    `${LEVELS_290}: the issue's default enemy level, the character level + 3 (63 at 60, as target.level and OQ4)`,
+    "The enemy level while config.target.level is null (the default): characterLevel + this, so it follows the level until the field is edited. Old configs have no level and read as null.",
+    true,
+  ),
+  "target.levelRange": entry(
+    { min: 1, max: 63 },
+    "level",
+    ASSUMPTION,
+    `${LEVELS_290}: a typed enemy level is a whole number from 1 to 63 (the highest a boss reads in Classic, ${MAGEY}); the cap is open for James's ruling`,
+    "config.target.level, when not null, must be a whole number in this range; anything else is a RangeError naming the field.",
+    true,
+  ),
+  "target.armorByLevel": entry(
+    [
+      [0, 0],
+      [27, 1104],
+      [42, 2053],
+      [52, 3137],
+    ],
+    "[level, armor]",
+    ASSUMPTION,
+    `${LEVELS_290}: wowsims SoD encounter presets (${WS_SOD_PRESETS}): level 27 1104 ("presumed"), 42 2053 ("approx average armor of Gnomeregan bosses"), 52 3137 ("TODO: Verify"); 63 3731 is target.armor at target.level, added by js/levels.js so it has one source; [0, 0] is the developer's anchor, so a target below 27 has armour in proportion to its level`,
+    'The target\'s armour by enemy level: the points are [level, armor], read by straight-line interpolation between the two around the level and rounded to a whole number (13: 532, 23: 940, 33: 1484, 43: 2161, 53: 3191). The last point is [target.level, target.armor] (63, 3731), added by targetArmor (js/levels.js); a level above it takes target.armor. docs/mechanics.md, "Target armour by level".',
     true,
   ),
   "target.mobType": entry(

@@ -23,7 +23,8 @@ import { rotationStateReader } from "./rotation-state.js";
 //              (Ability.auraReachable: only Cutthroat grants Ambush's
 //              cutthroat aura, #261, #271), and the ability is not a talent ability the
 //              build lacks (Rogue.lockedByBuild, #199; with no talents picked
-//              every talent ability is lacked). The weapon, the granted auras
+//              every talent ability is lacked), and the character level has
+//              learned it (Rogue.lockedByLevel, #290). The weapon, the granted auras
 //              and the build's grants are fixed for the fight, so the
 //              interpreter asks once and passes over a rule that can never
 //              cast, instead of pooling for it forever (#155).
@@ -51,7 +52,11 @@ export function rotationHost(rogue, simulation, options = {}) {
     state: rotationStateReader(rogue, simulation, options),
     canCast: (id) => {
       const found = ability(id);
-      return !rogue.lockedByBuild(found) && found.canCast(rogue, simulation);
+      return (
+        !rogue.lockedByBuild(found) &&
+        !rogue.lockedByLevel(found) &&
+        found.canCast(rogue, simulation)
+      );
     },
     onGcd: (id) => ability(id).triggersGcd,
     usable: (id) => {
@@ -60,7 +65,8 @@ export function rotationHost(rogue, simulation, options = {}) {
         found.mainHandAllowed(rogue) &&
         found.offHandAllowed(rogue) &&
         found.auraReachable(rogue) &&
-        !rogue.lockedByBuild(found)
+        !rogue.lockedByBuild(found) &&
+        !rogue.lockedByLevel(found)
       );
     },
     gated: (id) => ability(id).requiresAura.length > 0,

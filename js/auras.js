@@ -213,7 +213,7 @@ export function defineAura(spec) {
       throw new TypeError(`Aura "${id}": ${error.message}`, { cause: error });
     }
   });
-  return Object.freeze({
+  const aura = Object.freeze({
     id,
     name,
     icon,
@@ -228,6 +228,26 @@ export function defineAura(spec) {
     onApply,
     onExpire,
   });
+  SPECS.set(aura, { ...spec, effects: { ...effects } });
+  return aura;
+}
+
+// The spec each definition was built from, so auraWithEffects can build it
+// again with other effects.
+const SPECS = new WeakMap();
+
+// An aura defined again with some effects changed (#290): a lower rank's
+// Slice and Dice haste or Expose Armor armour. Same id, name and rules; the
+// effects' modifiers are derived again from the new values. The fight
+// registers it under its id in place of the AURAS one (Simulation).
+export function auraWithEffects(aura, effects) {
+  const spec = SPECS.get(aura);
+  if (spec === undefined) {
+    throw new TypeError(
+      "auraWithEffects needs an aura made by defineAura (js/auras.js).",
+    );
+  }
+  return defineAura({ ...spec, effects: { ...spec.effects, ...effects } });
 }
 
 // The auras the Combat rogue applies. The order is the order effects are

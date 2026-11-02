@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, mock } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
+import { targetArmor } from "../js/levels.js";
 import { deriveAttackTable } from "../js/attack-resolver.js";
 import { AURAS } from "../js/auras.js";
 import { Rogue } from "../js/rogue.js";
@@ -86,9 +87,9 @@ function tickDot(id, { hemorrhage = false, bleed = false, critChance } = {}) {
   return sim;
 }
 
-function directHit(id, attackType) {
+function directHit(id, attackType, config = undefined) {
   setRoll(HIT_ROLL);
-  const rogue = new Rogue();
+  const rogue = new Rogue(config);
   quiet(rogue);
   rogue.critChance = 0;
   const sim = new Simulation(rogue, { rng: testRng });
@@ -239,15 +240,18 @@ describe("bleed ticks and armor", () => {
     );
     assert.equal(notNature.damageDone, TICK_DAMAGE * factor);
 
-    const level = k("target.level");
+    // The attacker level is the character level, config.talentLevel (#290),
+    // here against a target of the same level and that level's armour.
+    const level = 50;
     assert.notEqual(level, k("character.level"));
-    const shifted = withConstant("character.level", level, () =>
-      directHit("main-hand", "weapon"),
-    );
+    const shifted = directHit("main-hand", "weapon", {
+      talentLevel: level,
+      target: { level },
+    });
     assert.equal(shifted.result.outcome, "hit");
     assert.equal(
       shifted.result.damage,
-      TICK_DAMAGE * expectedMultiplier(k("target.armor"), level),
+      TICK_DAMAGE * expectedMultiplier(targetArmor(level), level),
     );
     assert.notEqual(shifted.result.damage, TICK_DAMAGE * factor);
 

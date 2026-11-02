@@ -12,6 +12,8 @@ import { expandRace, raceGrantedAbilities } from "./racials.js";
 import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { createResources } from "./resource.js";
 import { REQUIRED_AURAS } from "./required-auras.js";
+import { characterLevel } from "./levels.js";
+import { learnedAt } from "./ranks.js";
 
 const REQUIRED_IDS = new Set(Object.values(REQUIRED_AURAS).map(({ id }) => id));
 
@@ -71,6 +73,10 @@ export class Rogue {
       }
     }
     this.config = normalizeConfig(config);
+    // The character level (#290): config.talentLevel. It picks each
+    // ability's and poison's rank (js/ranks.js) and locks what is not learned
+    // yet (lockedByLevel).
+    this.level = characterLevel(this.config);
     // The selected talent build: validated, then expanded (D7). Frozen.
     this.build = applyBuild(this.config.talents);
     // null means none, as it does for procs and abilities.
@@ -116,6 +122,7 @@ export class Rogue {
         undefined,
         undefined,
         this.modifiers.resolve("poisonChance", 0),
+        this.level,
       ),
     ]);
     // The ids of the abilities the build, the race (its on-use racials, P5-03a,
@@ -320,6 +327,14 @@ export class Rogue {
   // talent ability is locked too, as with a build that lacks its talent. The
   // grants are fixed for the fight (this.granted), so the rotation host asks
   // once (js/rotation-host.js, usable).
+  // True when the character level is below the level the ability is first
+  // learned at (#290; the export's "Learned at level N", js/ranks.js). Like a
+  // talent the build lacks, the rotation passes over it, and silently: the
+  // level is the player's choice, not a mistake in the rotation.
+  lockedByLevel(ability) {
+    return learnedAt(ability.name) > this.level;
+  }
+
   lockedByBuild(ability) {
     return (
       (talentGrantedAbilities.has(ability.id) ||

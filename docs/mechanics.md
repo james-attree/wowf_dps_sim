@@ -290,6 +290,59 @@ config does not say which part of the crit chance is from auras.
 | WoWWiki, Weapon skill                       | `gapAura`'s 0.04% per point; no 1.8% gap rule                                                                                                                                                                                                              |
 | James, 31 Oct 2026 (issue #295)             | the flat 1% default, the 0.04%/point dodge alternative, 27% = 19% + 8%, no parry or block from behind, no spell crit suppression, poisons on spell hit only                                                                                                |
 
+## Levels: ranks, the attack table and target armour (issue #290)
+
+A fight has two levels (`js/levels.js`):
+
+- **Character level:** `config.talentLevel` (10 to 60, default 60). It still
+  caps the talent points (level − 9), and since #290 it is also the level of
+  everything below. _Assumption A1:_ the one Level field is the character
+  level; renaming it is open for James's ruling.
+- **Enemy level:** `config.target.level`, or while that is `null` (the default,
+  and every older config or link) the character level +
+  `target.levelAboveCharacter` (3), so 60 fights 63 as before. A typed level
+  is a whole number in `target.levelRange` (1 to 63). _Assumption A2._
+
+**Ranks** (`js/ranks.js`). The export lists every rank of a rogue spell with
+the level it is learned at (`"lv": "Learned at level N"`). A level N character
+uses the highest rank learned at or below N. The constants rows hold the top
+rank; `rankedStats(row, level)` overlays a lower rank's numbers from the
+export (energy, flat bonus, Eviscerate's and Rupture's per-combo-point
+damage, Rupture's and Slice and Dice's durations, Slice and Dice's haste,
+Expose Armor's armour) and is `k(row)` itself at a level with the top rank, so
+level 60 reads exactly what it did. Slice and Dice and Expose Armor below
+their top rank are the same auras with the rank's effect
+(`auraWithEffects`, `js/auras.js`); the fight registers them under the usual
+ids. _Assumption A5._
+
+**Locks.** An ability whose first rank is above the character level is
+locked (`Rogue.lockedByLevel`): the rotation passes over it silently, as it
+does a talent the build lacks. Racials, which the export does not rank, are
+learned at level 1. _Assumption A6._ A poison uses its highest learned rank;
+one with no rank learned gives no proc, and is not reported. _Assumption A7._
+
+**Weapon skill.** `config.character.weaponSkill` is `null` by default: the
+character level × 5 (300 at 60). A typed skill is capped at that level's
+maximum, level × 5 + 50. _Assumption A3._
+
+**Attack table.** `deriveAttackTable` gets both levels, so the defense,
+glancing and crit-suppression bands follow the level gap (Magey's formulas,
+as ported in wowsims' `NewAttackTable`); 60 against 63 is the table it was.
+
+**Target armour.** The target's armour before debuffs is read from
+`target.armorByLevel` at the enemy level by straight-line interpolation,
+rounded, with `[target.level, target.armor]` (63, 3731) as the last point.
+The points come from the wowsims Season of Discovery encounter presets
+([default_presets.go](https://github.com/wowsims/sod/blob/master/sim/encounters/default_presets.go)):
+27 → 1104 ("presumed"), 42 → 2053 (Gnomeregan bosses' average), 52 → 3137
+("TODO: Verify"); `[0, 0]` is the developer's anchor below 27. No Forever
+source gives armour by level, so the table is _assumption A4_. The armour
+divisor uses the character level (`armor.mitigation.perLevel × level`).
+
+| Enemy level | 13  | 23  | 33   | 43   | 53   | 63   |
+| ----------- | --- | --- | ---- | ---- | ---- | ---- |
+| Armour      | 532 | 940 | 1484 | 2161 | 3191 | 3731 |
+
 ## Weapon swings and normalised speed
 
 `Weapon` in `js/weapon.js` holds a min, a max, a speed, a hand
