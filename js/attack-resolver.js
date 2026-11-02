@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { characterLevel } from "./levels.js";
 
 // The Classic 1.12 melee attack table (roadmap A7). Chances are fractions.
 // Rolls are compared on attack.rollScale so callers can inject a roll.
@@ -73,9 +74,13 @@ export function maxWeaponSkill(level = k("character.level")) {
   return defaultWeaponSkill(level) + k("attackTable.weaponSkill").maxAboveBase;
 }
 
-// The weapon skill a config fights with: config.character.weaponSkill (the
-// default when there is none) plus the race's attackTable.weaponSkill
-// racialBonus, which is empty: no WoW Forever race has one.
+// The weapon skill a config fights with: config.character.weaponSkill, or
+// while that is null (the default, #290) the config's level x 5
+// (defaultWeaponSkill of the character level, 300 at 60), plus the race's
+// attackTable.weaponSkill racialBonus, which is empty: no WoW Forever race
+// has one. The level x 5 + 50 cap (maxWeaponSkill) is on the typed base skill
+// only; a racial bonus goes on top of it (assumption A11, #317). The level is
+// read through the shared helper (characterLevel, js/levels.js).
 export function weaponSkillFor(config) {
   const { racialBonus } = k("attackTable.weaponSkill");
   const race = config?.race;
@@ -83,7 +88,10 @@ export function weaponSkillFor(config) {
     typeof race === "string" && Object.hasOwn(racialBonus, race)
       ? racialBonus[race]
       : 0;
-  return (config?.character?.weaponSkill ?? defaultWeaponSkill()) + bonus;
+  const base =
+    config?.character?.weaponSkill ??
+    defaultWeaponSkill(characterLevel(config));
+  return base + bonus;
 }
 
 function critModel() {
@@ -128,8 +136,14 @@ function critTerms({ weaponSkill, baseSkill, defense, levelGap }) {
   const flatOn =
     levelGap >= model.flatMinLevelGap &&
     (flatAboveSkillGap === null || skillGap > flatAboveSkillGap);
+  // The skill term is never below 0 (assumption A9, Scout's ruling on #317):
+  // a skill above the defense, or a lower-level target, takes no crit off and
+  // adds none. perPointAhead is kept in the row but gives 0 here.
   return {
-    skill: tidy(gap * (gap > 0 ? model.perPoint : model.perPointAhead)),
+    skill: Math.max(
+      0,
+      tidy(gap * (gap > 0 ? model.perPoint : model.perPointAhead)),
+    ),
     flat: flatOn ? model.flat : 0,
     levelAura: tidy(Math.max(0, levelGap) * model.levelAuraPerLevel),
   };
@@ -186,8 +200,9 @@ export function deriveAttackTable({
     parry: { ...k("attackTable.parry") },
     block: { front: block.front, behind: block.behind },
     blockValue: block.value,
+    // Held between 0 and attackTable.glancing max (40%; assumption A10, #317).
     glancing: tidy(
-      between(glancing.base + glancing.perPoint * glanceGap, 0, 1),
+      between(glancing.base + glancing.perPoint * glanceGap, 0, glancing.max),
     ),
     glancingDamage: {
       low: factor(glancingDamage.low),
@@ -242,22 +257,46 @@ export function attackChances({
   );
   const baseMiss = table.miss + (white ? table.dualWieldPenalty : 0);
   const position = behind ? "behind" : "front";
-  return {
-    miss: Math.max(0, baseMiss - bonusHit),
-    // Expertise-style reductions come from the modifier pipeline (A2). Zero,
-    // the default, leaves the chance exactly as it was.
-    dodge: Math.max(
-      0,
-      table.dodge - clampChance(dodgeReduction, "Dodge reduction"),
-    ),
-    parry: Math.max(
-      0,
-      table.parry[position] - clampChance(parryReduction, "Parry reduction"),
-    ),
-    glancing: white ? table.glancing : 0,
-    block: table.block[position],
-    crit: canCrit ? suppressCrit(critChance, table) : 0,
-  };
+  return fitRoll(
+    {
+      miss: Math.max(0, baseMiss - bonusHit),
+      // Expertise-style reductions come from the modifier pipeline (A2). Zero,
+      // the default, leaves the chance exactly as it was.
+      dodge: Math.max(
+        0,
+        table.dodge - clampChance(dodgeReduction, "Dodge reduction"),
+      ),
+      parry: Math.max(
+        0,
+        table.parry[position] - clampChance(parryReduction, "Parry reduction"),
+      ),
+      glancing: white ? table.glancing : 0,
+      block: table.block[position],
+      crit: canCrit ? suppressCrit(critChance, table) : 0,
+    },
+    white,
+  );
+}
+
+// The bands of one roll in roll order (miss, dodge, parry, glancing, block,
+// then crit for a white swing), each cut to what is left of 100% (assumption
+// A10, #317): a far lower-level character (10 against 63) has miss and dodge
+// that fill the roll, and the later bands get the rest, or 0. A roll that
+// fits, every roll at level 60, is returned as it was. A yellow attack's crit
+// is its own second roll and is not cut.
+function fitRoll(chances, white) {
+  const order = ["miss", "dodge", "parry", "glancing", "block"];
+  if (white) {
+    order.push("crit");
+  }
+  let used = 0;
+  for (const band of order) {
+    if (used + chances[band] > 1) {
+      chances[band] = Math.max(0, 1 - used);
+    }
+    used += chances[band];
+  }
+  return chances;
 }
 
 // `canCrit: false` is an attack with no crit roll at all, such as a DoT's

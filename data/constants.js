@@ -58,6 +58,11 @@ const DEV_JUDGEMENT_99 = "Developer, 26 Oct 2026, issue #99";
 const DEV_JUDGEMENT_100 = "Developer, 26 Oct 2026, issue #100";
 const DEV_JUDGEMENT_101 = "Developer, 26 Oct 2026, issue #101";
 const ATTACK_TABLE_295 = "Developer, 2 Nov 2026, issue #295";
+// Level-scaled sims (#290): the developer's reading of the issue, open for
+// James's ruling where the row says so.
+const LEVELS_290 = "Developer, 2 Nov 2026, issue #290";
+const WS_SOD_PRESETS =
+  "https://github.com/wowsims/sod/blob/master/sim/encounters/default_presets.go";
 // The retuned presets (#310): James's builds, from his share links (relayed
 // by Scout, approved by James).
 const PRESETS_310 = "James, 2 Nov 2026, issue #310";
@@ -546,7 +551,7 @@ export const CONSTANTS = {
     "skill",
     ASSUMPTION,
     `${ATTACK_TABLE_295}: the default weapon skill is level \u00d7 5 (${MAGEY}; wowsims ${WS}core/target.go NewAttackTable, baseWeaponSkill = level \u00d7 5). WoW Forever has no weapon-skill racial: rogue.json lists none (data/racial-effects.js), and the Phase 5 plan notes that Forever removed them. maxAboveBase: Scout (coordinator), 2 Nov 2026, #316, on Kira's QA note N2 (no upper bound): the UI has no bound of its own, so level \u00d7 5 + 50`,
-    "perLevel: the default of config.character.weaponSkill is character.level \u00d7 perLevel (300 at 60), and the capped skill of the glancing chance and the classic crit model is the same level \u00d7 perLevel. racialBonus: race id \u2192 skill points added to the config's weapon skill for that race, on every weapon. It is empty: no WoW Forever race has a weapon-skill racial (Classic's Human swords and maces, Orc axes are not in the export). Racial and gear weapon skill by weapon type belongs to the post-launch Character and gear milestone (#297). maxAboveBase: config.character.weaponSkill may be at most character.level \u00d7 perLevel + maxAboveBase (350 at 60); a larger value is a RangeError.",
+    "perLevel: the default of config.character.weaponSkill is character.level \u00d7 perLevel (300 at 60), and the capped skill of the glancing chance and the classic crit model is the same level \u00d7 perLevel. racialBonus: race id \u2192 skill points added to the config's weapon skill for that race, on every weapon. It is empty: no WoW Forever race has a weapon-skill racial (Classic's Human swords and maces, Orc axes are not in the export). Racial and gear weapon skill by weapon type belongs to the post-launch Character and gear milestone (#297). maxAboveBase: config.character.weaponSkill may be at most character.level \u00d7 perLevel + maxAboveBase (350 at 60); a larger value is a RangeError. The cap is on the typed base skill; racialBonus is added on top of it (A11, Scout's ruling on PR #317, 2 Nov 2026).",
     true,
   ),
   "attackTable.defense": entry(
@@ -606,11 +611,11 @@ export const CONSTANTS = {
     true,
   ),
   "attackTable.glancing": entry(
-    { base: 0.1, perPoint: 0.02, skill: "capped" },
+    { base: 0.1, perPoint: 0.02, skill: "capped", max: 0.4 },
     "chance",
     ASSUMPTION,
-    `${ATTACK_TABLE_295}: ${MAGEY} and ${MARROW} (10% + 2% per point of defense over the capped skill); wowsims ${WS}core/target.go NewAttackTable (BaseGlanceChance, from the base skill)`,
-    'White swings only: base + perPoint \u00d7 (defense \u2212 skill), held between 0 and 1. skill "capped" uses min(weapon skill, level \u00d7 5), so skill above 300 does not lower it (40% at 300, 305 and 308); "total" would use the whole weapon skill.',
+    `${ATTACK_TABLE_295}: ${MAGEY} and ${MARROW} (10% + 2% per point of defense over the capped skill); wowsims ${WS}core/target.go NewAttackTable (BaseGlanceChance, from the base skill). max: Scout's ruling on PR #317, 2 Nov 2026, on Kira's QA (10 against 63 works out to 540%, held at 100% before); 40% is the level-60-against-63 value, the most a Classic boss gives (assumption A10)`,
+    'White swings only: base + perPoint \u00d7 (defense \u2212 skill), held between 0 and max (40%). One roll never totals more than 100%: the bands are cut in roll order (miss, dodge, parry, glancing, block, crit) to what is left (A10, #317). skill "capped" uses min(weapon skill, level \u00d7 5), so skill above 300 does not lower it (40% at 300, 305 and 308); "total" would use the whole weapon skill.',
     true,
   ),
   "attackTable.glancingDamage": entry(
@@ -654,7 +659,7 @@ export const CONSTANTS = {
     "chance",
     ASSUMPTION,
     `${ATTACK_TABLE_295}: classic from ${MAGEY} (crit suppression uses MIN(level \u00d7 5, skill); the 1.8% is an aura-crit estimate at +3) and wowsims ${WS}core/target.go NewAttackTable (MeleeCritSuppression); gapAura from James's AI answer, 31 Oct 2026, on issue #295, whose sources (the Marrow compendium ${MARROW}, the WoWWiki weapon skill page, Wowhead) were read on 2 Nov 2026: only WoWWiki gives the 0.04% per point, and none of them gives the 1.8% only above a gap of 10`,
-    'Per model: skill "capped" (min(weapon skill, level \u00d7 5)) or "total" picks the skill for the gap; the skill term is gap \u00d7 perPoint (perPointAhead when the skill is above the defense). flat (the 1.8% aura term) applies when target.level \u2212 character.level is at least flatMinLevelGap and while attackTable.flatAboveSkillGap allows it (one row for both models since James\u2019s ruling of 2 Nov 2026). levelAuraPerLevel \u00d7 the level gap is added (2.4% at +3 for gapAura). The 1.8% comes off every crit chance, as before (the config does not say how much crit is from auras).',
+    'Per model: skill "capped" (min(weapon skill, level \u00d7 5)) or "total" picks the skill for the gap; the skill term is gap \u00d7 perPoint, never below 0 (A9, Scout\u2019s ruling on PR #317, 2 Nov 2026: a lower-level target or a skill above the defense gives no crit bonus, so perPointAhead, which applied when the skill is above the defense, now gives 0). flat (the 1.8% aura term) applies when target.level \u2212 character.level is at least flatMinLevelGap and while attackTable.flatAboveSkillGap allows it (one row for both models since James\u2019s ruling of 2 Nov 2026). levelAuraPerLevel \u00d7 the level gap is added (2.4% at +3 for gapAura). The 1.8% comes off every crit chance, as before (the config does not say how much crit is from auras).',
     true,
   ),
   "attackTable.spellMiss": entry(
@@ -1075,6 +1080,35 @@ export const CONSTANTS = {
     "Editable input. The default of config.target.behind (SimConfig). Behind removes parry and block on the attack table (A7).",
     true,
   ),
+  "target.levelAboveCharacter": entry(
+    3,
+    "levels",
+    ASSUMPTION,
+    `${LEVELS_290}: the issue's default enemy level, the character level + 3 (63 at 60, as target.level and OQ4)`,
+    "The enemy level while config.target.level is null (the default): characterLevel + this, so it follows the level until the field is edited. Old configs have no level and read as null.",
+    true,
+  ),
+  "target.levelRange": entry(
+    { min: 1, max: 63 },
+    "level",
+    ASSUMPTION,
+    `${LEVELS_290}: a typed enemy level is a whole number from 1 to 63 (the highest a boss reads in Classic, ${MAGEY}); the cap is open for James's ruling`,
+    "config.target.level, when not null, must be a whole number in this range; anything else is a RangeError naming the field.",
+    true,
+  ),
+  "target.armorByLevel": entry(
+    [
+      [0, 0],
+      [27, 1104],
+      [42, 2053],
+      [52, 3137],
+    ],
+    "[level, armor]",
+    ASSUMPTION,
+    `${LEVELS_290}: wowsims SoD encounter presets (${WS_SOD_PRESETS}): level 27 1104 ("presumed"), 42 2053 ("approx average armor of Gnomeregan bosses"), 52 3137 ("TODO: Verify"); 63 3731 is target.armor at target.level, added by js/levels.js so it has one source; [0, 0] is the developer's anchor, so a target below 27 has armour in proportion to its level`,
+    'The target\'s armour by enemy level: the points are [level, armor], read by straight-line interpolation between the two around the level and rounded to a whole number (13: 532, 23: 940, 33: 1484, 43: 2161, 53: 3191). The last point is [target.level, target.armor] (63, 3731), added by targetArmor (js/levels.js); a level above it takes target.armor. docs/mechanics.md, "Target armour by level".',
+    true,
+  ),
   "target.mobType": entry(
     "unspecified",
     "–",
@@ -1394,7 +1428,7 @@ export const CONSTANTS = {
     "level",
     ASSUMPTION,
     "Scout (coordinator), 29 Oct 2026, #190: the Classic rule, one talent point a level from level 10, so a level L character has L - 9 points; the export does not state it",
-    "Caps a talent build at level - (firstPointLevel - 1) points (validateBuild and talentPointCap in js/talent-build.js, #190). The talent level is config.talentLevel, from firstPointLevel (10, 1 point) to talents.maxPoints + firstPointLevel - 1 (60, 51 points, the default). It caps points and nothing else: character.level and the armor divisor do not read it.",
+    "Caps a talent build at level - (firstPointLevel - 1) points (validateBuild and talentPointCap in js/talent-build.js, #190). The level is config.talentLevel, from firstPointLevel (10, 1 point) to talents.maxPoints + firstPointLevel - 1 (60, 51 points, the default). Since #290 it is the character level too (js/levels.js characterLevel): ranks, weapon skill, enemy level, armour and the armor divisor follow it.",
     true,
   ),
   latency: entry(

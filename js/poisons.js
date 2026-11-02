@@ -8,6 +8,7 @@ import {
   toNumber,
 } from "./abilities.js";
 import { spellIconUrl } from "./icons.js";
+import { rankAt } from "./ranks.js";
 import { snapshot } from "./snapshot.js";
 import { defineProc } from "./procs.js";
 import { slugify } from "./talents.js";
@@ -564,12 +565,16 @@ function poisonProc(poison, hand, read, bonus) {
 // with none, and a poison that deals no DPS here (Wound, Crippling and
 // Mind-numbing: poison.noDpsReasons), gives no proc, so a build without a DPS
 // poison has no procs and draws no extra random numbers.
-// `bonus` is the resolved poisonChance (A9, #266), 0 by default.
+// `bonus` is the resolved poisonChance (A9, #266), 0 by default. `level` is
+// the character level (#290): each poison is its highest rank learned at or
+// below it (js/ranks.js), and a poison with no rank learned gives no proc.
+// Without a level it is the top rank.
 export function poisonProcs(
   poisons,
   catalogue = poisonCatalogue,
   read = k,
   bonus = 0,
+  level = undefined,
 ) {
   const procs = [];
   for (const [hand, key] of Object.entries(poisons ?? {})) {
@@ -582,9 +587,19 @@ export function poisonProcs(
         `poisons.${hand} names "${String(key)}", which is not a poison in the catalogue.`,
       );
     }
-    if (poison.dps) {
-      procs.push(poisonProc(poison, hand, read, bonus));
+    if (!poison.dps) {
+      continue;
     }
+    const rank =
+      level === undefined ? poison.top.rank : rankAt(poison.name, level);
+    if (rank === null) {
+      continue;
+    }
+    const ranked =
+      rank === poison.top.rank
+        ? poison
+        : { ...poison, top: poison.ranks.find((r) => r.rank === rank) };
+    procs.push(poisonProc(ranked, hand, read, bonus));
   }
   return procs;
 }

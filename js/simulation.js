@@ -8,6 +8,7 @@ import {
   weaponSkillFor,
 } from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
+import { characterLevel, fightArmor, targetLevel } from "./levels.js";
 import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
 import { damageTags } from "./damage-tags.js";
 import { EventStream, RingLog, SIM_EVENT_TYPES } from "./event-stream.js";
@@ -120,10 +121,18 @@ export class Simulation {
     const rng = own("rng");
     const fightLength = own("fightLength");
     this.rogue = rogue;
+    // The fight's two levels (#290, js/levels.js): the character's
+    // (config.talentLevel) and the target's (config.target.level, or the
+    // character's + 3 while it is null). 60 and 63 by default.
+    this.characterLevel = characterLevel(rogue?.config);
+    this.targetLevel = targetLevel(rogue?.config);
     // The attack table of this fight (#295): every band worked out once from
-    // the config's weapon skill against the target's defense.
+    // the config's weapon skill against the target's defense, and from the
+    // level gap (#290).
     this.attackTable = deriveAttackTable({
       weaponSkill: weaponSkillFor(rogue?.config),
+      characterLevel: this.characterLevel,
+      targetLevel: this.targetLevel,
     });
     // The event core while it runs this fight (js/core/fight.js), told where
     // a DoT starts; null between runs.
@@ -180,6 +189,18 @@ export class Simulation {
     this.activeDots = {}; // Track active damage over time effects
     // The definition of every aura this fight knows (js/auras.js), by id.
     this.auraDefinitions = auraRegistry();
+    // A lower rank's aura (#290: Slice and Dice's haste, Expose Armor's
+    // armour) takes the place of the AURAS one under its id, so the fight
+    // has one definition per id.
+    for (const ability of Object.values(rogue?.abilities ?? {})) {
+      if (
+        ability?.aura &&
+        this.auraDefinitions.get(ability.aura.id) !== ability.aura &&
+        this.auraDefinitions.has(ability.aura.id)
+      ) {
+        this.auraDefinitions.set(ability.aura.id, ability.aura);
+      }
+    }
     // The auras that carry modifiers, by kind. Built on first use and again
     // when a new aura definition is registered.
     this.auraModifierIndex = null;
@@ -469,7 +490,9 @@ export class Simulation {
   }
 
   // The share of a physical hit that armor lets through. The target's armor
-  // is target.armor less any armorReduction aura on it (Expose Armor), and
+  // is config.target.armor when pinned, or else its armour at its level
+  // (fightArmor and targetArmor, target.armorByLevel; #290)
+  // less any armorReduction aura on it (Expose Armor), and
   // never below 0. Then any armorIgnore modifier for this attack's context
   // takes that fraction of what is left (Serrated Blades, Hack and Slash with a
   // mace). Spell resistance is not applied.
@@ -478,14 +501,22 @@ export class Simulation {
     for (const { value, stacks } of this.auraEffects("armorReduction")) {
       reduction += value * stacks;
     }
-    let armor = Math.max(0, k("target.armor") - reduction);
+    // Read at each hit, as target.armor was: config.target.armor when it is
+    // pinned, and otherwise the target's armour at its level (js/levels.js
+    // fightArmor and targetArmor; target.armor at 63).
+    let armor = Math.max(
+      0,
+      fightArmor(this.rogue?.config, this.targetLevel) - reduction,
+    );
     const ignored = this.modifiers.resolve("armorIgnore", 0, context);
     if (ignored > 0) {
       armor *= 1 - Math.min(ignored, 1);
     }
     const mitigation = k("armor.mitigation");
     const denominator =
-      armor + mitigation.constant + mitigation.perLevel * k("character.level");
+      armor +
+      mitigation.constant +
+      mitigation.perLevel * characterLevel(this.rogue?.config);
     if (denominator <= 0) {
       return 1;
     }

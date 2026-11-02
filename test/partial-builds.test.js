@@ -164,7 +164,7 @@ describe("the talent level and its cap (#190)", () => {
     );
   });
 
-  it("caps the points and nothing else: not character.level, not armor", () => {
+  it("caps the points, and (since #290) is the character level of the fight", () => {
     // The result echoes its config, so compare all but that, and the config
     // but its talentLevel.
     const fight = (config) => {
@@ -181,16 +181,19 @@ describe("the talent level and its cap (#190)", () => {
     const at60 = fight({
       config: { talents: ranks },
     });
+    // #190 had the level cap the points and nothing else; #290 makes it the
+    // character level too (ranks, attack table, enemy level and armour,
+    // test/level-scaled.test.js), so a lower level is a different fight.
     for (const talentLevel of [40, 45, 59]) {
-      assert.deepEqual(
+      assert.notDeepEqual(
         fight({ config: { talents: ranks, talentLevel } }),
         at60,
         `talentLevel ${talentLevel}`,
       );
     }
     assert.deepEqual(
-      fight({ duration: 30, config: { talentLevel: 10 } }),
-      fight({ duration: 30 }),
+      fight({ config: { talents: ranks, talentLevel: 60 } }),
+      at60,
     );
     assert.equal(k("character.level"), 60);
     const { rogue } = createFight(1, { talentLevel: 10 });

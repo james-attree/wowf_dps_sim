@@ -1,7 +1,8 @@
 import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
-import { AURAS } from "./auras.js";
+import { AURAS, auraWithEffects } from "./auras.js";
+import { rankedStats } from "./ranks.js";
 import { isRequiredAura } from "./required-auras.js";
 import { resolveCost } from "./resource.js";
 import { spellIconUrl } from "./icons.js";
@@ -129,9 +130,19 @@ function requiredAuras(definition) {
   return Object.freeze([...list]);
 }
 
+// The aura effects a rank changes (#290): the effect kind, and the ranked
+// row field that gives it.
+const RANKED_AURA_EFFECTS = {
+  sliceAndDice: { haste: "haste" },
+  exposeArmor: { armorReduction: "armorPerComboPoint" },
+};
+
 export class Ability {
   constructor(definition, rogue) {
-    const stats = k(definition.row);
+    // The row at the rogue's level (#290, js/ranks.js): k(definition.row)
+    // itself at a level with the top rank, a rank's numbers below it.
+    const stats = rankedStats(definition.row, rogue?.level);
+    this.stats = stats;
     this.definition = definition;
     this.rogue = rogue;
     this.id = definition.id;
@@ -234,13 +245,29 @@ export class Ability {
     // DoT, or bonus damage taken) a debuff: the definition says which.
     this.aura =
       definition.aura === undefined ? null : AURAS[definition.aura.id];
+    // A lower rank's aura (#290): the same aura with the rank's effect.
+    const rankedEffects = RANKED_AURA_EFFECTS[definition.aura?.id];
+    if (rankedEffects !== undefined && stats !== k(definition.row)) {
+      this.aura = auraWithEffects(
+        this.aura,
+        Object.fromEntries(
+          Object.entries(rankedEffects).map(([kind, field]) => [
+            kind,
+            stats[field],
+          ]),
+        ),
+      );
+    }
     // One stack per point spent (Expose Armor, #268), or one.
     this.stacksBySpent = definition.aura?.stacks === "spent";
     // The aura's length when it does not depend on the combo points spent.
     this.duration = 0;
     const length = definition.aura?.duration;
     if (length?.field !== undefined) {
-      this.duration = k(length.row ?? definition.row)[length.field];
+      this.duration =
+        length.row === undefined
+          ? stats[length.field]
+          : k(length.row)[length.field];
     }
   }
 
@@ -270,8 +297,7 @@ export class Ability {
   // Dice), so the refresh and the time left follow it with no other change; a
   // length of 0 stays 0, and with no such modifier the length is untouched.
   resolve(spent = this.spendable()) {
-    const { definition, rogue } = this;
-    const stats = k(definition.row);
+    const { definition, rogue, stats } = this;
     let duration = this.duration;
     const table = definition.aura?.duration.bySpent;
     if (table !== undefined) {
@@ -341,7 +367,7 @@ export class Ability {
   // One draw, the weapon roll.
   handDamage(hand, simulation) {
     const spec = this.definition.damage;
-    const stats = k(this.definition.row);
+    const { stats } = this;
     const damage =
       (this.rogue.rollWeaponDamageForSkill(hand) + stats[spec.bonus]) *
       stats[spec.multiplier];

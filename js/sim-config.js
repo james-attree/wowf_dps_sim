@@ -8,7 +8,7 @@ import {
 import { talentCatalogue } from "./talents.js";
 import { raceCatalogue } from "./racials.js";
 import { defaultRotation } from "./rotation-default.js";
-import { defaultWeaponSkill, maxWeaponSkill } from "./attack-resolver.js";
+import { maxWeaponSkill } from "./attack-resolver.js";
 import { rotationProblems } from "./rotation-validator.js";
 
 // SimConfig (roadmap E2-lite, issue #92): the inputs of one fight. It names the
@@ -29,14 +29,19 @@ import { rotationProblems } from "./rotation-validator.js";
 //   {
 //     race: "human",                             // a race id, or null (#277)
 //     character: { attackPower, critChance, bonusHitChance, haste,
-//                  weaponSkill },                // weaponSkill: 300 (#295)
+//                  weaponSkill },                // weaponSkill: null follows
+//                                                // level x 5 (#295, #290)
 //     weapons: {
 //       mainHand: { min, max, speed, type },
 //       offHand:  { min, max, speed, type },
 //     },
-//     target: { behind },                        // true: no parry, no block
+//     target: { behind, level, armor },          // behind true: no parry, no
+//                                                // block; level null follows
+//                                                // talentLevel + 3, armor null
+//                                                // that level's armour (#290)
 //     talents: { "combat.precision": 3, ... },   // talent id -> rank
-//     talentLevel: 60,                           // caps talents at level - 9
+//     talentLevel: 60,                           // the character level (#290):
+//                                                // caps talents at level - 9
 //     poisons: { mainHand: "instant", offHand: "deadly" },   // an id, or null
 //     rotation: { schemaVersion: 1, name, rules: [...] },    // R3, #140
 //   }
@@ -73,7 +78,7 @@ const CHARACTER_LIMITS = {
   weaponSkill: { min: 1, whole: true },
 };
 const WEAPON_FIELDS = ["min", "max", "speed", "type"];
-const TARGET_FIELDS = ["behind"];
+const TARGET_FIELDS = ["behind", "level", "armor"];
 const SECTIONS = [
   "race",
   "character",
@@ -99,11 +104,13 @@ export function defaultConfig() {
       critChance: k("character.critChance"),
       bonusHitChance: k("character.bonusHitChance"),
       haste: k("character.haste"),
-      // character.level x 5 (attackTable.weaponSkill, #295): 300 at 60.
-      weaponSkill: defaultWeaponSkill(),
+      // null follows the level: level x 5 (attackTable.weaponSkill, #295;
+      // weaponSkillFor), 300 at 60 (#290).
+      weaponSkill: null,
     },
     weapons: { mainHand: weapon("mainHand"), offHand: weapon("offHand") },
-    target: { behind: k("target.behind") },
+    // level null follows the character level + 3 (#290; js/levels.js).
+    target: { behind: k("target.behind"), level: null, armor: null },
     talents: {},
     talentLevel: DEFAULT_TALENT_LEVEL,
     poisons: { mainHand: null, offHand: null },
@@ -217,16 +224,21 @@ function readChoice(value, path, fallback, ids, noun) {
   return value;
 }
 
-function readCharacter(input, defaults) {
+function readCharacter(input, defaults, level) {
   const given = readObject(input, "config.character", CHARACTER_FIELDS);
   const result = {};
   for (const field of CHARACTER_FIELDS) {
     // Attack power has no upper limit. A chance, and haste (a fraction of
     // attack speed, #265), run from 0 to 1. Weapon skill (#295) is a whole
-    // number of points, from 1 to level x 5 + 50 (maxWeaponSkill, #316 N2).
+    // number of points, from 1 to level x 5 + 50 (maxWeaponSkill, #316 N2) at
+    // the config's level (#290), or null: level x 5, which follows the level.
+    if (field === "weaponSkill" && given[field] === null) {
+      result[field] = null;
+      continue;
+    }
     const limits =
       field === "weaponSkill"
-        ? { ...CHARACTER_LIMITS.weaponSkill, max: maxWeaponSkill() }
+        ? { ...CHARACTER_LIMITS.weaponSkill, max: maxWeaponSkill(level) }
         : (CHARACTER_LIMITS[field] ?? { max: 1 });
     result[field] = readNumber(
       given[field],
@@ -283,7 +295,43 @@ function readTarget(input, defaults) {
       `config.target.behind must be true or false, not ${show(given.behind)}.`,
     );
   }
-  return { behind: given.behind ?? defaults.behind };
+  // The enemy level (#290): null (the default, and an old config's missing
+  // field) follows the character level + target.levelAboveCharacter; a
+  // number is a whole level in target.levelRange, kept whatever the
+  // character level.
+  let level = defaults.level;
+  if (given.level !== undefined && given.level !== null) {
+    const { min, max } = k("target.levelRange");
+    if (
+      typeof given.level !== "number" ||
+      !Number.isInteger(given.level) ||
+      given.level < min ||
+      given.level > max
+    ) {
+      throw new RangeError(
+        `config.target.level must be a whole number between ${min} and ${max}, or null to follow the level + ${k("target.levelAboveCharacter")}, not ${show(given.level)}.`,
+      );
+    }
+    level = given.level;
+  }
+  // The target's armour (#290): null (the default, and an old config's
+  // missing field) is the armour at the enemy level (js/levels.js
+  // targetArmor); a whole number from 0 pins it whatever the levels, so a
+  // fight can hold the armour fixed while the level moves.
+  let armor = defaults.armor;
+  if (given.armor !== undefined && given.armor !== null) {
+    if (
+      typeof given.armor !== "number" ||
+      !Number.isInteger(given.armor) ||
+      given.armor < 0
+    ) {
+      throw new RangeError(
+        `config.target.armor must be a whole number from 0, or null to follow the enemy level, not ${show(given.armor)}.`,
+      );
+    }
+    armor = given.armor;
+  }
+  return { behind: given.behind ?? defaults.behind, level, armor };
 }
 
 // Talent ranks by catalogue id. Only the rank is checked here (a whole number
@@ -330,10 +378,11 @@ function readTalents(input, catalogue) {
   return ranks;
 }
 
-// The talent level (#190): a whole number from 10 to 60, 60 by default. It
-// caps the talent points at level - 9 (talentPointCap in js/talent-build.js)
-// and does nothing else: it is not character.level and the armor divisor never
-// reads it. The cap is checked here, where both are known, so the Rogue's
+// The level (#190, #290): a whole number from 10 to 60, 60 by default. It
+// caps the talent points at level - 9 (talentPointCap in js/talent-build.js),
+// and since #290 it is the character level of the fight (js/levels.js
+// characterLevel; the field keeps the name talentLevel, #317). The cap is
+// checked here, where both are known, so the Rogue's
 // applyBuild (which sees only the ranks, and caps them at 51) needs no level.
 // At 60 the cap is the 51 the build check already enforces, so the check here
 // is only for a level below 60, and a 52-point build at 60 still fails in
@@ -396,6 +445,12 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
   const given = readObject(config, "config", SECTIONS);
   const defaults = defaultConfig();
   const talents = readTalents(given.talents, catalogue);
+  // The character level (#290) first: the weapon skill's cap depends on it.
+  const level = readTalentLevel(
+    given.talentLevel,
+    talents,
+    defaults.talentLevel,
+  );
   return {
     race: readChoice(
       given.race,
@@ -404,15 +459,11 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
       raceCatalogue.ids,
       "race",
     ),
-    character: readCharacter(given.character, defaults.character),
+    character: readCharacter(given.character, defaults.character, level),
     weapons: readWeapons(given.weapons, defaults.weapons),
     target: readTarget(given.target, defaults.target),
     talents,
-    talentLevel: readTalentLevel(
-      given.talentLevel,
-      talents,
-      defaults.talentLevel,
-    ),
+    talentLevel: level,
     poisons: readPoisons(given.poisons, defaults.poisons),
     rotation: readRotation(given.rotation, defaults.rotation),
   };

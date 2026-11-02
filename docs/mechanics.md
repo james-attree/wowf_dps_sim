@@ -215,11 +215,14 @@ An old config or link without it reads as 300 (G4), and a share link drops it
 at the default, so old links are unchanged. `weaponSkillFor` adds the race's
 `attackTable.weaponSkill.racialBonus`, which is empty: WoW Forever has no
 weapon-skill racial. Racial and gear skill by weapon type is post-launch
-(#297); the Character field in the UI is a separate task. The default is tied
-to the level 60 character (`character.level`), not to `talentLevel`; #290 may
-tie them. A config's weapon skill is a whole number from 1 to level x 5 +
-50 (`attackTable.weaponSkill.maxAboveBase`; 350 at 60), from Kira's QA note N2
-on #316.
+(#297); the Character field in the UI is a separate task. Since #290 the
+default follows the character level (`characterLevel`, `js/levels.js`, the
+one helper every level read goes through). A config's weapon skill is a whole
+number from 1 to level x 5 + 50 (`attackTable.weaponSkill.maxAboveBase`; 350 at
+60), from Kira's QA note N2 on #316. That cap is on the typed base skill; a
+racial bonus is added on top of it, so a race with +5 could fight at level x 5
+\+ 55. _Assumption A11_ (Scout's ruling on #317); no WoW Forever race has one
+yet.
 
 The skill gap is the target's defense (`target.level x
 attackTable.defense.perLevel`, 315) less the weapon skill.
@@ -258,6 +261,22 @@ spell hit (`attackTable.spellMiss`).
   (`attackTable.flatAboveSkillGap`), and a 0.8%-per-level aura (2.4% at +3). 4.8% at
   300, 2.8% at 305, 2.68% at 308.
 
+**Edge cases** (Kira's QA on #317, Scout's rulings, 2 Nov 2026):
+
+- _Assumption A9:_ the crit suppression's skill term is never below 0, so a
+  skill above the defense or a lower-level target takes no crit off and adds
+  none (`perPointAhead` gives 0). Miss and dodge were already held at 0.
+- _Assumption A10:_ glancing is held between 0 and `attackTable.glancing.max`
+  (40%, the level 60 against 63 value). 10 against 63 works out to 540%,
+  which was held at 100% before. One roll never totals more than 100%:
+  `attackChances` cuts the bands in roll order (miss, dodge, parry, glancing,
+  block, then crit for a white swing) to what is left. At 10 against 63 a
+  white swing's miss (77%) and dodge (31.5%, cut to 23%) fill the roll. A yellow attack's crit is its own roll and is not cut. Every roll at
+  level 60 fits, so nothing at 60 moves, except a typed skill below 300, which
+  glanced more than 40% before (295: 50%) and now glances 40%.
+- Ranks that share a level: Backstab ranks 8 and 9 are both learned at 60;
+  the highest rank wins (`rankAt`), so 60 is rank 9.
+
 `attackTable.flatAboveSkillGap` is the "+5 skill removes the 1.8%" switch,
 one row for both models. It is 10 by James's ruling of 2 Nov 2026 (relayed by
 Scout on PR #316): "Weapon skill being within 10 points compared to the
@@ -289,6 +308,75 @@ config does not say which part of the crit chance is from auras.
 | Marrow, the Marrow compendium (mechanics)   | the miss gap rule, the flat 1% suppression (the cap is the miss + 1% at 300 to 304), glancing 40% and its damage (0.85 at 305, 0.95 at 308+); no crit formula, so neither model's 1.8% rule. Its dual-wield miss is miss x 0.8 + 20% (26.4%), not modelled                                                                                                     |
 | WoWWiki, Weapon skill                       | `gapAura`'s 0.04% per point; no 1.8% gap rule                                                                                                                                                                                                                                                                                                                  |
 | James, 31 Oct 2026 (issue #295)             | the flat 1% default, the 0.04%/point dodge alternative, 27% = 19% + 8%, no parry or block from behind, no spell crit suppression, poisons on spell hit only                                                                                                                                                                                                    |
+
+## Levels: ranks, the attack table and target armour (issue #290)
+
+A fight has two levels (`js/levels.js`):
+
+- **Character level:** `config.talentLevel` (10 to 60, default 60). It still
+  caps the talent points (level − 9), and since #290 it is also the level of
+  everything below. _Assumption A1:_ the one Level field is the character
+  level. Scout's ruling on #317 (2 Nov 2026) left the rename to the developer:
+  the field keeps its name, `talentLevel`, because it is in every saved setup,
+  share link, preset reference build and test, and a rename buys no
+  behaviour. The page's label has always been "Level", and the docs and
+  comments now call it the character level.
+- **Enemy level:** `config.target.level`, or while that is `null` (the default,
+  and every older config or link) the character level +
+  `target.levelAboveCharacter` (3), so 60 fights 63 as before. A typed level
+  is a whole number in `target.levelRange` (1 to 63). _Assumption A2._
+
+**Ranks** (`js/ranks.js`). The export lists every rank of a rogue spell with
+the level it is learned at (`"lv": "Learned at level N"`). A level N character
+uses the highest rank learned at or below N (the highest rank wins when two
+share a level, as Backstab 8 and 9 do at 60). The constants rows hold the top
+rank; `rankedStats(row, level)` overlays a lower rank's numbers from the
+export (energy, flat bonus, Eviscerate's and Rupture's per-combo-point
+damage, Rupture's and Slice and Dice's durations, Slice and Dice's haste,
+Expose Armor's armour) and is `k(row)` itself at a level with the top rank, so
+level 60 reads exactly what it did. Slice and Dice and Expose Armor below
+their top rank are the same auras with the rank's effect
+(`auraWithEffects`, `js/auras.js`); the fight registers them under the usual
+ids. _Assumption A5._
+
+**Locks.** An ability whose first rank is above the character level is
+locked (`Rogue.lockedByLevel`): the rotation passes over it silently, as it
+does a talent the build lacks. Racials, which the export does not rank, are
+learned at level 1. _Assumption A6._ A poison uses its highest learned rank;
+one with no rank learned gives no proc, and is not reported. _Assumption A7._
+
+**Weapon skill.** `config.character.weaponSkill` is `null` by default: the
+character level × 5 (300 at 60). A typed skill is capped at that level's
+maximum, level × 5 + 50. _Assumption A3._
+
+**Attack table.** `deriveAttackTable` gets both levels, so the defense,
+glancing and crit-suppression bands follow the level gap (Magey's formulas,
+as ported in wowsims' `NewAttackTable`); 60 against 63 is the table it was.
+
+**Target armour.** The target's armour before debuffs is read from
+`target.armorByLevel` at the enemy level by straight-line interpolation,
+rounded, with `[target.level, target.armor]` (63, 3731) as the last point.
+The points come from the wowsims Season of Discovery encounter presets
+([default_presets.go](https://github.com/wowsims/sod/blob/master/sim/encounters/default_presets.go)):
+27 → 1104 ("presumed"), 42 → 2053 (Gnomeregan bosses' average), 52 → 3137
+("TODO: Verify"); `[0, 0]` is the developer's anchor below 27. No Forever
+source gives armour by level, so the table is _assumption A4_. The armour
+divisor uses the character level (`armor.mitigation.perLevel × level`).
+
+**Pinned armour** (`config.target.armor`, Scout's ruling on #317). `null`, the
+default and every older config's and link's reading, is the armour at the
+enemy level above. A whole number from 0 pins the target's armour whatever the
+levels (`fightArmor`, `js/levels.js`); the page has no field for it yet. It is
+how #290's DPS check holds the armour fixed: with the gear, the talents (none)
+and the armour pinned, DPS does not rise as the level drops from 60 to 10
+(`test/level-criterion.test.js`). At a pinned 3731 most of that fall is the
+armour divisor (85 a level less in the denominator); pinned at 0 the fall is
+the ranks, the abilities and poisons learned, and the rest of the level.
+Level-appropriate gear is #297.
+
+| Enemy level | 13  | 23  | 33   | 43   | 53   | 63   |
+| ----------- | --- | --- | ---- | ---- | ---- | ---- |
+| Armour      | 532 | 940 | 1484 | 2161 | 3191 | 3731 |
 
 ## Weapon swings and normalised speed
 
@@ -1680,9 +1768,12 @@ was a config: the defaults are the default character and weapons in `data/consta
     mainHand: { min, max, speed, type },
     offHand: { min, max, speed, type },
   },
-  target: { behind },                        // true (default): no parry, no block
+  target: { behind, level, armor },          // behind true (default): no parry,
+                                             // no block; level and armor null
+                                             // follow the level (#290)
   talents: { "combat.precision": 3 },        // talent id -> rank
-  talentLevel: 60,                           // caps the talent points (#190)
+  talentLevel: 60,                           // the character level (#290); caps
+                                             // the talent points (#190)
   poisons: { mainHand: "instant", offHand: "deadly" },   // a poison id, or null
 }
 ```
@@ -1709,12 +1800,12 @@ default. A section is merged field by field, so `{ character: { attackPower:
   A config with any point is a selected build, and it must be a legal build of
   at most 51 points (D7, #106; partial builds since #190, see
   [Applying a talent build](#applying-a-talent-build-d7-issue-106)).
-- **The talent level caps the points and nothing else** (#190).
-  `config.talentLevel` (default 60) allows `level - 9` points
-  (`k("talents.firstPointLevel")`, 10, the Classic rule, tagged `ASSUMPTION`).
-  It does not set the character's level, the armor divisor or anything else in
-  the fight; a legal build gives the same fight at any talent level that allows
-  it.
+- **The level caps the talent points** (#190). `config.talentLevel` (default 60) allows `level - 9` points (`k("talents.firstPointLevel")`, 10, the
+  Classic rule, tagged `ASSUMPTION`). Since #290 it is also the character
+  level: the ranks, the abilities learned, the weapon skill, the enemy level
+  and its armour and the armour divisor follow it (see "Levels: ranks, the
+  attack table and target armour"), so one build gives a different fight at
+  each level.
   A rank of 0, or a talent that is not named, adds nothing. `poisons` is read by
   `js/rogue.js` (A5, #105): `instant` and `deadly` add a proc to that hand,
   and `null`, `wound`, `crippling` and `mind-numbing` add none, so they change
@@ -3647,11 +3738,11 @@ problem and naming talents by id:
 - at most `k("talents.maxPoints")` (51) points. Fewer is legal (a partial
   build, #190): 0, 1, 31 or 50 points run as long as the rules below hold;
 - at most `level - (k("talents.firstPointLevel") - 1)` points, where the level
-  is the talent level (`config.talentLevel`, 10 to 60, default 60, so 51
+  is the character level (`config.talentLevel`, 10 to 60, default 60, so 51
   points). A level `L` character has one point a level from level 10, `L - 9`
   in all (the Classic rule; the export does not state it, so the constant is
-  tagged `ASSUMPTION`). At level 40, 31 points pass and 32 fail. The level
-  caps the points and nothing else;
+  tagged `ASSUMPTION`). At level 40, 31 points pass and 32 fail. Since #290
+  the level also sets the ranks and the rest of the fight;
 - a talent with a `req` needs that talent at its full rank (the Classic rule; it
   needs no constant);
 - a talent on row `r` of a tree needs `k("talents.rowGating")` times `r - 1`
