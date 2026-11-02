@@ -295,22 +295,34 @@ export function createTalentTreeView(
     tabButtons.get(next).tab.focus?.();
   }
 
-  function buildLegend() {
+  // The legend names only the badges a tile can show: "not simulated yet"
+  // only while some talent has no effect entry (#275, Kira's #302 N4; every
+  // talent has one since #271). Coverage is fixed data, so once is enough.
+  function buildLegend(view) {
     const lock = make("span", { class: "lg lg-lock", "aria-hidden": "true" });
     lock.append(toDom(LOCK, doc));
     const item = (mark, text) => make("li", {}, [mark, ` ${text}`]);
+    const anyNotSimulated = view.trees.some((tree) =>
+      tree.cells.some((cell) => cell.coverage === "notSimulated"),
+    );
     legend.replaceChildren(
       item(
         make("span", { class: "lg lg-rank", "aria-hidden": "true" }, ["2/3"]),
         "points / ranks",
       ),
       item(lock, "locked (row or prerequisite)"),
-      item(
-        make("span", { class: "lg lg-cov is-notsim", "aria-hidden": "true" }, [
-          "ⓘ",
-        ]),
-        "not simulated yet",
-      ),
+      ...(anyNotSimulated
+        ? [
+            item(
+              make(
+                "span",
+                { class: "lg lg-cov is-notsim", "aria-hidden": "true" },
+                ["ⓘ"],
+              ),
+              "not simulated yet",
+            ),
+          ]
+        : []),
       item(
         make("span", { class: "lg lg-cov", "aria-hidden": "true" }, ["–"]),
         "no DPS effect",
@@ -696,7 +708,7 @@ export function createTalentTreeView(
     const view = state.view;
     if (tiles.size === 0) {
       buildTrees(view);
-      buildLegend();
+      buildLegend(view);
     }
     write(summary, view.summary);
     panel.hidden = !state.open;

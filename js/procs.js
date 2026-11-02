@@ -450,8 +450,10 @@ export function defineProc(spec) {
 // of chance.value: { mode, values: [rank 1, rank 2, ...] }. A ranked spec may
 // also take drawless: "whenCertain" (Initiative, #271): drawless at a rank
 // whose flat chance is 1 with no chanceBonus, and an ordinary rolled proc at
-// every other rank, so no rank draws a roll that cannot fail (G2). Rank 0 is no proc
-// at all (null), so a talent the build skips adds nothing and draws nothing.
+// every other rank, so no rank draws a roll that cannot fail (G2). A
+// "whenCertain" on a non-flat chance, with a chanceBonus, or on a table with
+// no rank at 1 is refused (#275). Rank 0 is no proc at all (null), so a
+// talent the build skips adds nothing and draws nothing.
 // Every rank is defined whatever the rank, so a typo in a rank the build
 // leaves unspent fails when the data loads.
 export function defineRankedProc(spec, rank) {
@@ -471,15 +473,24 @@ export function defineRankedProc(spec, rank) {
   if (rank > values.length) {
     fail(spec.id, `rank ${rank} is above the table's ${values.length} ranks.`);
   }
+  // A "whenCertain" the table can never meet is a data error, not a silent
+  // no-op (#275, Kira's #302 N5).
+  if (certainOnly) {
+    if (chance.mode !== FLAT) {
+      fail(spec.id, 'drawless "whenCertain" needs a flat chance.');
+    }
+    if (spec.chanceBonus !== undefined) {
+      fail(spec.id, 'drawless "whenCertain" takes no chanceBonus.');
+    }
+    if (!values.includes(1)) {
+      fail(spec.id, 'drawless "whenCertain" needs a rank whose chance is 1.');
+    }
+  }
   const perRank = values.map((value) => {
     const ranked = { ...spec, chance: { ...chance, value } };
     if (certainOnly) {
       delete ranked.drawless;
-      if (
-        chance.mode === FLAT &&
-        value === 1 &&
-        spec.chanceBonus === undefined
-      ) {
+      if (value === 1) {
         ranked.drawless = true;
       }
     }

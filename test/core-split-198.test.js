@@ -8,6 +8,8 @@ import { Scheduler } from "../js/core/scheduler.js";
 import { SWING_KIND, SwingTimer } from "../js/core/swing.js";
 import { createFight, fightResult, runFight } from "../js/fight.js";
 import { RESOURCE_DEFINITIONS } from "../js/resource-data.js";
+import { ROTATION_PRESETS } from "../data/rotation-presets.js";
+import { referenceBuild } from "../js/preset-reference-builds.js";
 import { createRng } from "../js/rng.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { EXTRA_CASES, FIGHT_CASES } from "./fight-cases.js";
@@ -30,170 +32,35 @@ const HEMO = EXTRA_CASES.find(
 // hand and Deadly Poison on the off hand, and the preset's rotation; the
 // default character). Deadly Poison and Rupture tick at the same time on
 // these seeds, and a cut before that time must not swap the two ticks.
+// Built from the preset and its reference build (Kira's #307 N4), as the
+// #272 golden is (scripts/golden-update.mjs), not copied by hand.
+const ASSASSINATION_BUILD = referenceBuild("assassination-daggers");
 const POISONED_ASSASSINATION = Object.freeze({
-  talents: {
-    "assassination.remorseless-attacks": 2,
-    "assassination.malice": 5,
-    "assassination.ruthlessness": 3,
-    "assassination.murder": 2,
-    "assassination.improved-slice-and-dice": 3,
-    "assassination.relentless-strikes": 1,
-    "assassination.lethality": 5,
-    "assassination.vile-poisons": 5,
-    "assassination.cold-blood": 1,
-    "assassination.improved-poisons": 5,
-    "assassination.vigor": 2,
-    "assassination.mutilate": 1,
-    "assassination.seal-fate": 5,
-    "assassination.venom": 1,
-    "combat.improved-eviscerate": 3,
-    "combat.improved-sinister-strike": 2,
-    "combat.precision": 3,
-    "combat.puncturing-wounds": 2,
-  },
-  weapons: {
-    mainHand: {
-      min: 73,
-      max: 137,
-      speed: 1.8,
-      type: "dagger",
-    },
-    offHand: {
-      min: 57,
-      max: 107,
-      speed: 1.6,
-      type: "dagger",
-    },
-  },
-  poisons: {
-    mainHand: "instant",
-    offHand: "deadly",
-  },
-  rotation: {
-    schemaVersion: 1,
-    name: "Assassination daggers",
-    rules: [
-      {
-        action: "slice-and-dice",
-        conditions: [
-          {
-            type: "comboPoints",
-            op: ">=",
-            value: 5,
-          },
-          {
-            type: "auraRemaining",
-            aura: "slice-and-dice",
-            op: "<",
-            value: 1,
-          },
-        ],
-      },
-      {
-        action: "slice-and-dice",
-        conditions: [
-          {
-            type: "comboPoints",
-            op: ">=",
-            value: 5,
-          },
-          {
-            type: "auraRemaining",
-            aura: "slice-and-dice",
-            op: "<=",
-            value: 5,
-          },
-          {
-            type: "resource",
-            resource: "energy",
-            op: ">=",
-            value: 100,
-          },
-        ],
-      },
-      {
-        action: "rupture",
-        conditions: [
-          {
-            type: "comboPoints",
-            op: ">=",
-            value: 5,
-          },
-          {
-            type: "debuffRemaining",
-            debuff: "rupture",
-            op: "<",
-            value: 1,
-          },
-        ],
-      },
-      {
-        action: "venom",
-        conditions: [
-          {
-            type: "abilityGranted",
-            ability: "venom",
-          },
-          {
-            type: "comboPoints",
-            op: ">=",
-            value: 5,
-          },
-          {
-            type: "auraRemaining",
-            aura: "venom",
-            op: "<=",
-            value: 0,
-          },
-        ],
-      },
-      {
-        action: "eviscerate",
-        conditions: [
-          {
-            type: "comboPoints",
-            op: ">=",
-            value: 5,
-          },
-          {
-            type: "auraRemaining",
-            aura: "slice-and-dice",
-            op: ">",
-            value: 5,
-          },
-        ],
-      },
-      {
-        action: "cold-blood",
-        conditions: [
-          {
-            type: "abilityGranted",
-            ability: "cold-blood",
-          },
-          {
-            type: "comboPoints",
-            op: "<",
-            value: 5,
-          },
-        ],
-      },
-      {
-        action: "mutilate",
-        conditions: [
-          {
-            type: "abilityGranted",
-            ability: "mutilate",
-          },
-          {
-            type: "comboPoints",
-            op: "<",
-            value: 5,
-          },
-        ],
-      },
-    ],
-  },
+  talents: ASSASSINATION_BUILD.talents,
+  weapons: ASSASSINATION_BUILD.weapons,
+  poisons: ASSASSINATION_BUILD.poisons,
+  rotation: ROTATION_PRESETS.find(({ id }) => id === "assassination-daggers")
+    .rotation,
 });
+// Kira's variant R on PR #307: the same config with Rupture cast at any
+// combo point and refreshed with under 3 s left, so its ticks meet Deadly
+// Poison's more often. The preset's rules share their condition objects, so
+// Rupture's are replaced, not edited. On seed 68 over 120 s, Rupture's tick
+// at 78.5 comes before Deadly Poison's (the order they were scheduled in):
+// the one tie that tells that order from an order by id (#275).
+const EARLY_RUPTURE = (() => {
+  const config = structuredClone(POISONED_ASSASSINATION);
+  const rupture = config.rotation.rules.find(
+    ({ action }) => action === "rupture",
+  );
+  const [points, remaining] = rupture.conditions;
+  rupture.conditions = [
+    { ...points, value: 1 },
+    { ...remaining, value: 3 },
+  ];
+  return Object.freeze(config);
+})();
+const RUPTURE_FIRST = { seed: 68, duration: 120, tie: 78.5, cut: 78.4999 };
 
 // The distinct configs of the core's test cases.
 const CONFIGS = [
@@ -236,6 +103,16 @@ function assertSame({ one, split }, label) {
   assert.deepEqual(split.log, one.log, label);
   assert.deepEqual(fightResult(split.fight), fightResult(one.fight), label);
 }
+
+// The DoTs whose ticks land at `time` in a logged fight, in log order.
+const dotTicksAt = (log, time) =>
+  log
+    .map((line) => JSON.parse(line))
+    .filter(
+      (event) =>
+        event.type === "hit" && event.origin === "dot" && event.time === time,
+    )
+    .map((event) => event.ability);
 
 const byCore = (simulation, duration) => runOnCore(simulation, duration);
 const bySim = (simulation, duration) => simulation.run(duration);
@@ -283,6 +160,75 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
         );
       }
     }
+  });
+
+  // Kira's #307 N1 (#275): the ticks above go Deadly Poison then Rupture,
+  // which is also the order of their ids, so resuming the DoTs sorted by id
+  // passed too. Here Rupture's tick comes first.
+  it("a Rupture tick before Deadly Poison's at one time keeps its place across a cut (#307 N1)", () => {
+    const { seed, duration, tie, cut } = RUPTURE_FIRST;
+    for (const run of [byCore, bySim]) {
+      const label = run === byCore ? "runOnCore" : "sim.run";
+      const pair = oneAndSplit(seed, EARLY_RUPTURE, duration, [cut], run);
+      assert.deepEqual(
+        dotTicksAt(pair.one.log, tie),
+        ["rupture", "deadly-poison"],
+        label,
+      );
+      assertSame(pair, `early Rupture seed ${seed} cut at ${cut} ${label}`);
+    }
+  });
+
+  // Kira's #307 N2 (#275): a DoT whose entry the host replaced between the
+  // runs starts afresh, after the DoTs that go on with their clocks. Rupture
+  // replaced by a copy (the same time left) ticks after Deadly Poison at the
+  // tie, where it ticked first in one run.
+  it("a DoT started afresh at a cut ticks after the resumed ones at one time (#307 N2)", () => {
+    const { seed, duration, tie, cut } = RUPTURE_FIRST;
+    for (const run of [byCore, bySim]) {
+      const fight = createFight(seed, structuredClone(EARLY_RUPTURE), {
+        duration,
+      });
+      const { simulation } = fight;
+      const log = [];
+      simulation.on("*", (event) => log.push(JSON.stringify(event)));
+      run(simulation, cut);
+      const { rupture } = simulation.activeDots;
+      assert.ok(
+        rupture !== undefined && "deadly-poison" in simulation.activeDots,
+      );
+      simulation.activeDots.rupture = { ...rupture };
+      run(simulation, duration - simulation.currentTime);
+      assert.deepEqual(
+        dotTicksAt(log, tie),
+        ["deadly-poison", "rupture"],
+        run === byCore ? "runOnCore" : "sim.run",
+      );
+    }
+  });
+
+  // Kira's #307 N3 (#275): a DoT whose last tick has run while it has time
+  // left is carried idle (carry() in js/core/fight.js) with the seq of its
+  // pending tick, and it has none, so that seq is always null and the sort
+  // puts it after every DoT with a pending tick. Cut every 0.25 s.
+  it("an idle DoT is carried with no pending tick: its seq is null (#307 N3)", () => {
+    const step = 0.25;
+    let idle = 0;
+    for (const seed of [1, 2, 3]) {
+      const { simulation } = createFight(
+        seed,
+        structuredClone(POISONED_ASSASSINATION),
+        { duration: 60 },
+      );
+      while (simulation.currentTime < 60) {
+        runOnCore(simulation, step);
+        for (const [id, item] of simulation.coreCarry.idleDots) {
+          idle += 1;
+          assert.equal(item.seq, null, `seed ${seed} ${id}`);
+        }
+      }
+    }
+    assert.ok(idle > 0, "some cut carried an idle DoT");
   });
 
   it("every test config, at random cuts and at cuts on event times", () => {

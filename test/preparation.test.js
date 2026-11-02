@@ -76,6 +76,10 @@ describe("Preparation as data (#270)", () => {
     assert.equal(spell.cost, null);
     assert.equal(spell.cooldown, k("preparation").cooldown);
     assert.equal(k("preparation").cooldown, 600);
+    // No energy field: Preparation has no cost entry, so one would never be
+    // read (#275, Kira's #301 N3).
+    assert.deepEqual(Object.keys(k("preparation")), ["cooldown"]);
+    assert.equal(CONSTANTS.preparation.unit, "s");
     const { rogue } = harness();
     assert.equal(rogue.abilities.preparation.cost, 0);
     assert.equal(rogue.abilities.preparation.triggersGcd, true);
@@ -165,6 +169,18 @@ describe("A15: what Preparation does not reset", () => {
       () =>
         new Ability({ ...coldBlood, resets: "abilities.offGcd" }, new Rogue()),
       /cold-blood.*own cooldown/,
+    );
+  });
+
+  it("a two-handed ability with a reset list is refused (#275, #301 N5)", () => {
+    // castBothHands returns before the reset loop, so its resets would
+    // never run: the data is refused when the ability is made.
+    const mutilate = ABILITY_DEFINITIONS.find(({ id }) => id === "mutilate");
+    assert.equal(mutilate.damage.kind, "bothHands");
+    assert.throws(
+      () =>
+        new Ability({ ...mutilate, resets: "preparation.resets" }, new Rogue()),
+      /mutilate.*strikes with both hands.*resets/,
     );
   });
 

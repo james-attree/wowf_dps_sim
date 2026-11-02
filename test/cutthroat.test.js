@@ -199,20 +199,36 @@ describe('a ranked proc with drawless "whenCertain" (#271, G2)', () => {
     );
   });
 
-  it("is never drawless with a chanceBonus or another mode", () => {
+  // #275 (Kira's #302 N5): a "whenCertain" the table can never meet is a
+  // data error, not a silent no-op.
+  it("is refused with a chanceBonus or another mode", () => {
     const withBonus = {
       ...spec,
       chanceBonus: { kind: "poisonChance", cap: 1, points: 100 },
     };
-    assert.equal(
-      Object.hasOwn(defineRankedProc(withBonus, 3), "drawless"),
-      false,
+    assert.throws(
+      () => defineRankedProc(withBonus, 3),
+      /Proc certain-at-max: drawless "whenCertain" takes no chanceBonus/,
     );
     const perSpent = { ...spec, chance: { mode: "perSpent", values: [1] } };
-    assert.equal(
-      Object.hasOwn(defineRankedProc(perSpent, 1), "drawless"),
-      false,
+    assert.throws(
+      () => defineRankedProc(perSpent, 1),
+      /Proc certain-at-max: drawless "whenCertain" needs a flat chance/,
     );
+  });
+
+  it("is refused on a table with no rank at chance 1", () => {
+    const uncertain = {
+      ...spec,
+      chance: { mode: "flat", values: [0.33, 0.67, 0.99] },
+    };
+    for (const rank of [0, 1, 3]) {
+      assert.throws(
+        () => defineRankedProc(uncertain, rank),
+        /Proc certain-at-max: drawless "whenCertain" needs a rank whose chance is 1/,
+        `rank ${rank}`,
+      );
+    }
   });
 });
 

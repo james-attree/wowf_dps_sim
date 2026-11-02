@@ -163,8 +163,9 @@ export const ROTATION_PRESETS = deepFreeze([
   // Issue #272. Assassination on daggers: the finishers keep Slice and Dice,
   // Rupture and Venom up. Eviscerate is a fallback for 5 CP none of them
   // needs, which never happens with the reference build (0 casts on every
-  // seed measured, Kira's #304 N3); Mutilate builds. Cold Blood goes on the next Mutilate (its crits roll
-  // Seal Fate), as Cold Blood does nothing for Rupture or Venom.
+  // seed measured, Kira's #304 N3); Mutilate builds. Cold Blood goes on the
+  // next Mutilate (its crits roll Seal Fate), as Cold Blood does nothing for
+  // Rupture or Venom.
   {
     id: "assassination-daggers",
     name: "Assassination",

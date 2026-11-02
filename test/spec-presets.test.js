@@ -36,9 +36,10 @@ const SEEDS = [1, 2, 3];
 const LONG_FIGHT = 300;
 const SHORT_FIGHT = 60;
 // Scout's #304 ruling on N1: a proc-reliant signature (Venom, which needs a
-// free 5 CP finisher; Ambush, which needs a Cutthroat proc) may go uncast on some 60 s seeds. It must have a mean above 0 at
-// 60 s and be cast on at least 95% of seeds at 300 s (measured on 200 seeds;
-// a cheap 40-seed sample here). The other signatures are cast on every seed.
+// free 5 CP finisher; Ambush, which needs a Cutthroat proc) may go uncast on
+// some 60 s seeds. It must have a mean above 0 at 60 s and be cast on at
+// least 95% of seeds at 300 s (measured on 200 seeds; a cheap 40-seed sample
+// here). The other signatures are cast on every seed.
 const PROC_RELIANT = new Set(["venom", "ambush"]);
 const SAMPLE_SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
 const LONG_FIGHT_SHARE = 0.95;
