@@ -1428,7 +1428,7 @@ export const CONSTANTS = {
     "level",
     ASSUMPTION,
     "Scout (coordinator), 29 Oct 2026, #190: the Classic rule, one talent point a level from level 10, so a level L character has L - 9 points; the export does not state it",
-    "Caps a talent build at level - (firstPointLevel - 1) points (validateBuild and talentPointCap in js/talent-build.js, #190). The talent level is config.talentLevel, from firstPointLevel (10, 1 point) to talents.maxPoints + firstPointLevel - 1 (60, 51 points, the default). It caps points and nothing else: character.level and the armor divisor do not read it.",
+    "Caps a talent build at level - (firstPointLevel - 1) points (validateBuild and talentPointCap in js/talent-build.js, #190). The level is config.talentLevel, from firstPointLevel (10, 1 point) to talents.maxPoints + firstPointLevel - 1 (60, 51 points, the default). Since #290 it is the character level too (js/levels.js characterLevel): ranks, weapon skill, enemy level, armour and the armor divisor follow it.",
     true,
   ),
   latency: entry(

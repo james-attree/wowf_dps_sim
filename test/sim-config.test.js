@@ -282,7 +282,7 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { target: { front: true } },
       RangeError,
-      /config\.target has an unknown field "front"\. Allowed fields: behind, level\./,
+      /config\.target has an unknown field "front"\. Allowed fields: behind, level, armor\./,
     );
     assert.equal(
       normalizeConfig({ target: { behind: false } }).target.behind,

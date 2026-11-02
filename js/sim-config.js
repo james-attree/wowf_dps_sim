@@ -35,9 +35,10 @@ import { rotationProblems } from "./rotation-validator.js";
 //       mainHand: { min, max, speed, type },
 //       offHand:  { min, max, speed, type },
 //     },
-//     target: { behind, level },                 // behind true: no parry, no
+//     target: { behind, level, armor },          // behind true: no parry, no
 //                                                // block; level null follows
-//                                                // talentLevel + 3 (#290)
+//                                                // talentLevel + 3, armor null
+//                                                // that level's armour (#290)
 //     talents: { "combat.precision": 3, ... },   // talent id -> rank
 //     talentLevel: 60,                           // the character level (#290):
 //                                                // caps talents at level - 9
@@ -77,7 +78,7 @@ const CHARACTER_LIMITS = {
   weaponSkill: { min: 1, whole: true },
 };
 const WEAPON_FIELDS = ["min", "max", "speed", "type"];
-const TARGET_FIELDS = ["behind", "level"];
+const TARGET_FIELDS = ["behind", "level", "armor"];
 const SECTIONS = [
   "race",
   "character",
@@ -109,7 +110,7 @@ export function defaultConfig() {
     },
     weapons: { mainHand: weapon("mainHand"), offHand: weapon("offHand") },
     // level null follows the character level + 3 (#290; js/levels.js).
-    target: { behind: k("target.behind"), level: null },
+    target: { behind: k("target.behind"), level: null, armor: null },
     talents: {},
     talentLevel: DEFAULT_TALENT_LEVEL,
     poisons: { mainHand: null, offHand: null },
@@ -313,7 +314,24 @@ function readTarget(input, defaults) {
     }
     level = given.level;
   }
-  return { behind: given.behind ?? defaults.behind, level };
+  // The target's armour (#290): null (the default, and an old config's
+  // missing field) is the armour at the enemy level (js/levels.js
+  // targetArmor); a whole number from 0 pins it whatever the levels, so a
+  // fight can hold the armour fixed while the level moves.
+  let armor = defaults.armor;
+  if (given.armor !== undefined && given.armor !== null) {
+    if (
+      typeof given.armor !== "number" ||
+      !Number.isInteger(given.armor) ||
+      given.armor < 0
+    ) {
+      throw new RangeError(
+        `config.target.armor must be a whole number from 0, or null to follow the enemy level, not ${show(given.armor)}.`,
+      );
+    }
+    armor = given.armor;
+  }
+  return { behind: given.behind ?? defaults.behind, level, armor };
 }
 
 // Talent ranks by catalogue id. Only the rank is checked here (a whole number
@@ -360,10 +378,11 @@ function readTalents(input, catalogue) {
   return ranks;
 }
 
-// The talent level (#190): a whole number from 10 to 60, 60 by default. It
-// caps the talent points at level - 9 (talentPointCap in js/talent-build.js)
-// and does nothing else: it is not character.level and the armor divisor never
-// reads it. The cap is checked here, where both are known, so the Rogue's
+// The level (#190, #290): a whole number from 10 to 60, 60 by default. It
+// caps the talent points at level - 9 (talentPointCap in js/talent-build.js),
+// and since #290 it is the character level of the fight (js/levels.js
+// characterLevel; the field keeps the name talentLevel, #317). The cap is
+// checked here, where both are known, so the Rogue's
 // applyBuild (which sees only the ranks, and caps them at 51) needs no level.
 // At 60 the cap is the 51 the build check already enforces, so the check here
 // is only for a level below 60, and a 52-point build at 60 still fails in

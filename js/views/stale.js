@@ -27,7 +27,7 @@ const WEAPON_NAMES = Object.freeze({
 const PART_NAMES = Object.freeze({
   target: "the target",
   talents: "the talents",
-  talentLevel: "the talents",
+  talentLevel: "the level",
   poisons: "the poisons",
   rotation: "the rotation",
 });

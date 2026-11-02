@@ -259,9 +259,9 @@ function spending(ranks, catalogue) {
 // Classic rule of one point a level from k("talents.firstPointLevel"), 10,
 // tagged `assumption`), and never more than k("talents.maxPoints") (51). The
 // level runs from 10 (1 point) to 60 (51 points), and 60 is the default, so a
-// build with no level is capped at 51 as before. The level caps the points and
-// nothing else: it is config.talentLevel (js/sim-config.js), not
-// character.level, and the armor divisor never reads it.
+// build with no level is capped at 51 as before. The level is
+// config.talentLevel (js/sim-config.js); since #290 it is also the character
+// level of the fight (js/levels.js), which this file does not need.
 
 // The lowest and highest talent level, and the default (the highest).
 export function talentLevelRange() {

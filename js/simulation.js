@@ -8,7 +8,7 @@ import {
   weaponSkillFor,
 } from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
-import { characterLevel, targetArmor, targetLevel } from "./levels.js";
+import { characterLevel, fightArmor, targetLevel } from "./levels.js";
 import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
 import { damageTags } from "./damage-tags.js";
 import { EventStream, RingLog, SIM_EVENT_TYPES } from "./event-stream.js";
@@ -490,7 +490,8 @@ export class Simulation {
   }
 
   // The share of a physical hit that armor lets through. The target's armor
-  // is its armour at its level (targetArmor, target.armorByLevel; #290)
+  // is config.target.armor when pinned, or else its armour at its level
+  // (fightArmor and targetArmor, target.armorByLevel; #290)
   // less any armorReduction aura on it (Expose Armor), and
   // never below 0. Then any armorIgnore modifier for this attack's context
   // takes that fraction of what is left (Serrated Blades, Hack and Slash with a
@@ -500,9 +501,13 @@ export class Simulation {
     for (const { value, stacks } of this.auraEffects("armorReduction")) {
       reduction += value * stacks;
     }
-    // Read at each hit, as target.armor was: the target's armour at its
-    // level (js/levels.js targetArmor; target.armor at 63).
-    let armor = Math.max(0, targetArmor(this.targetLevel) - reduction);
+    // Read at each hit, as target.armor was: config.target.armor when it is
+    // pinned, and otherwise the target's armour at its level (js/levels.js
+    // fightArmor and targetArmor; target.armor at 63).
+    let armor = Math.max(
+      0,
+      fightArmor(this.rogue?.config, this.targetLevel) - reduction,
+    );
     const ignored = this.modifiers.resolve("armorIgnore", 0, context);
     if (ignored > 0) {
       armor *= 1 - Math.min(ignored, 1);

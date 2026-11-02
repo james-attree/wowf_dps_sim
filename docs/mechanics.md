@@ -297,7 +297,11 @@ A fight has two levels (`js/levels.js`):
 - **Character level:** `config.talentLevel` (10 to 60, default 60). It still
   caps the talent points (level − 9), and since #290 it is also the level of
   everything below. _Assumption A1:_ the one Level field is the character
-  level; renaming it is open for James's ruling.
+  level. Scout's ruling on #317 (2 Nov 2026) left the rename to the developer:
+  the field keeps its name, `talentLevel`, because it is in every saved setup,
+  share link, preset reference build and test, and a rename buys no
+  behaviour. The page's label has always been "Level", and the docs and
+  comments now call it the character level.
 - **Enemy level:** `config.target.level`, or while that is `null` (the default,
   and every older config or link) the character level +
   `target.levelAboveCharacter` (3), so 60 fights 63 as before. A typed level
@@ -338,6 +342,17 @@ The points come from the wowsims Season of Discovery encounter presets
 ("TODO: Verify"); `[0, 0]` is the developer's anchor below 27. No Forever
 source gives armour by level, so the table is _assumption A4_. The armour
 divisor uses the character level (`armor.mitigation.perLevel × level`).
+
+**Pinned armour** (`config.target.armor`, Scout's ruling on #317). `null`, the
+default and every older config's and link's reading, is the armour at the
+enemy level above. A whole number from 0 pins the target's armour whatever the
+levels (`fightArmor`, `js/levels.js`); the page has no field for it yet. It is
+how #290's DPS check holds the armour fixed: with the gear, the talents (none)
+and the armour pinned, DPS does not rise as the level drops from 60 to 10
+(`test/level-criterion.test.js`). At a pinned 3731 most of that fall is the
+armour divisor (85 a level less in the denominator); pinned at 0 the fall is
+the ranks, the abilities and poisons learned, and the rest of the level.
+Level-appropriate gear is #297.
 
 | Enemy level | 13  | 23  | 33   | 43   | 53   | 63   |
 | ----------- | --- | --- | ---- | ---- | ---- | ---- |
@@ -1733,9 +1748,12 @@ was a config: the defaults are the default character and weapons in `data/consta
     mainHand: { min, max, speed, type },
     offHand: { min, max, speed, type },
   },
-  target: { behind },                        // true (default): no parry, no block
+  target: { behind, level, armor },          // behind true (default): no parry,
+                                             // no block; level and armor null
+                                             // follow the level (#290)
   talents: { "combat.precision": 3 },        // talent id -> rank
-  talentLevel: 60,                           // caps the talent points (#190)
+  talentLevel: 60,                           // the character level (#290); caps
+                                             // the talent points (#190)
   poisons: { mainHand: "instant", offHand: "deadly" },   // a poison id, or null
 }
 ```
@@ -1762,12 +1780,12 @@ default. A section is merged field by field, so `{ character: { attackPower:
   A config with any point is a selected build, and it must be a legal build of
   at most 51 points (D7, #106; partial builds since #190, see
   [Applying a talent build](#applying-a-talent-build-d7-issue-106)).
-- **The talent level caps the points and nothing else** (#190).
-  `config.talentLevel` (default 60) allows `level - 9` points
-  (`k("talents.firstPointLevel")`, 10, the Classic rule, tagged `ASSUMPTION`).
-  It does not set the character's level, the armor divisor or anything else in
-  the fight; a legal build gives the same fight at any talent level that allows
-  it.
+- **The level caps the talent points** (#190). `config.talentLevel` (default 60) allows `level - 9` points (`k("talents.firstPointLevel")`, 10, the
+  Classic rule, tagged `ASSUMPTION`). Since #290 it is also the character
+  level: the ranks, the abilities learned, the weapon skill, the enemy level
+  and its armour and the armour divisor follow it (see "Levels: ranks, the
+  attack table and target armour"), so one build gives a different fight at
+  each level.
   A rank of 0, or a talent that is not named, adds nothing. `poisons` is read by
   `js/rogue.js` (A5, #105): `instant` and `deadly` add a proc to that hand,
   and `null`, `wound`, `crippling` and `mind-numbing` add none, so they change
@@ -3699,11 +3717,11 @@ problem and naming talents by id:
 - at most `k("talents.maxPoints")` (51) points. Fewer is legal (a partial
   build, #190): 0, 1, 31 or 50 points run as long as the rules below hold;
 - at most `level - (k("talents.firstPointLevel") - 1)` points, where the level
-  is the talent level (`config.talentLevel`, 10 to 60, default 60, so 51
+  is the character level (`config.talentLevel`, 10 to 60, default 60, so 51
   points). A level `L` character has one point a level from level 10, `L - 9`
   in all (the Classic rule; the export does not state it, so the constant is
-  tagged `ASSUMPTION`). At level 40, 31 points pass and 32 fail. The level
-  caps the points and nothing else;
+  tagged `ASSUMPTION`). At level 40, 31 points pass and 32 fail. Since #290
+  the level also sets the ranks and the rest of the fight;
 - a talent with a `req` needs that talent at its full rank (the Classic rule; it
   needs no constant);
 - a talent on row `r` of a tree needs `k("talents.rowGating")` times `r - 1`
