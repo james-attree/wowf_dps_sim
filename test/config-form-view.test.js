@@ -319,7 +319,12 @@ describe("errors", () => {
     commit("weapons.mainHand.min", "30");
     same(1, "fixed");
     // The normalizeConfig backstop: one setting, with no field to link.
-    store.set({ config: { ...store.get().config, target: { level: "high" } } });
+    store.set({
+      config: {
+        ...store.get().config,
+        target: { ...store.get().config.target, armor: "high" },
+      },
+    });
     actions.change("character.attackPower", 900);
     assert.equal(typeof store.get().form.errors[FORM_ERROR], "string");
     same(2, "the backstop");
@@ -664,6 +669,11 @@ describe("index.html's form", async () => {
   );
   const form = html.match(/<form\s+id="config-form"[\s\S]*?<\/form>/)[0];
   const formHtml = form;
+  // Target level is the form's field but in Fight (#318, Fran's qa-319 P1).
+  const fightHtml = html.slice(
+    html.indexOf('id="area-fight"'),
+    html.indexOf('id="area-results"'),
+  );
 
   it("is not validated by the browser and has no fight controls", () => {
     assert.match(form, /^<form\s[^>]*\bnovalidate\b/);
@@ -674,7 +684,12 @@ describe("index.html's form", async () => {
   it("has a labelled control and an error line for every field", () => {
     for (const { path } of FORM_FIELDS) {
       const id = fieldId(path);
-      const form = formHtml;
+      const form = path.startsWith("target.") ? fightHtml : formHtml;
+      assert.equal(
+        formHtml.includes(`id="${id}"`),
+        !path.startsWith("target."),
+        `${path} in the form, or (the target's) in Fight`,
+      );
       assert.match(form, new RegExp(`id="${id}"`), path);
       assert.match(
         form,

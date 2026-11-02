@@ -3,6 +3,7 @@ import {
   formErrorCount,
   rotationErrorCount,
   talentErrorCount,
+  targetErrorCount,
 } from "./run-model.js";
 import { anyStale } from "./stale.js";
 
@@ -35,8 +36,10 @@ const NO_STATUS = Object.freeze({ errors: 0, warnings: 0, edited: false });
 // Results' alone (#242): a kept result is out of date.
 const status = (errors, warnings = 0) => ({ errors, warnings, edited: false });
 
-// The stats form: its fields' errors, as the form's footer counts them.
-export const formStatus = (state) => status(formErrorCount(state.form));
+// The stats form: its fields' errors, as the form's footer counts them,
+// but for the target's, which are Fight's (#318).
+export const formStatus = (state) =>
+  status(formErrorCount(state.form) - targetErrorCount(state.form));
 
 // The talent tree: a build over its level's cap is one setting to fix.
 export const talentStatus = (state) => status(talentErrorCount(state));
@@ -51,8 +54,10 @@ export const rotationStatus = (state) => {
 };
 
 // The fight's settings: the run bar's fields with an error in this mode
-// (fights only count in batch mode, as Run counts them).
-export const fightStatus = (state) => status(fieldErrors(state.run).length);
+// (fights only count in batch mode, as Run counts them), and Target level's
+// (#318).
+export const fightStatus = (state) =>
+  status(fieldErrors(state.run).length + targetErrorCount(state.form));
 
 // Results hold nothing to fix; they are edited when a kept result is out of
 // date (#242, js/views/stale.js).
