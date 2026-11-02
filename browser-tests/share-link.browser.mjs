@@ -17,6 +17,8 @@ import {
 } from "../js/build-codec.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import { referenceBuild } from "../js/preset-reference-builds.js";
+import { presetRotation } from "../js/rotation-presets.js";
+import { editedName } from "../js/config-form.js";
 import { SAVED_SETUP_KEY } from "../js/saved-setup.js";
 import { k } from "../data/constants.js";
 import {
@@ -486,6 +488,48 @@ describe("Copy link to this build (#284)", () => {
       } finally {
         await other.context.close();
       }
+    } finally {
+      await context.close();
+    }
+  });
+  test("a rule deleted in the builder still gives a short link (#330 B1)", async () => {
+    const PRESET_LINK_MAX = 64;
+    const { context, page, errors } = await open(WIDTHS[1], "#character");
+    try {
+      await page.locator("#start-card-combat-swords").click();
+      await page.locator("#start-applied").waitFor({ state: "visible" });
+      await go(page, "#rotation", "#rotation-builder");
+      const rules = page.locator("#rotation-builder li.rule");
+      const before = await rules.count();
+      await rules.first().locator("[data-key$='.del']").click();
+      await page.waitForFunction(
+        (n) =>
+          document.querySelectorAll("#rotation-builder li.rule").length === n,
+        before - 1,
+      );
+      await go(page, "#character", "#share-link-header");
+      await page.evaluate(() => document.defaultView.scrollTo(0, 0));
+      await page.locator("#share-link-header").click();
+      await page.waitForFunction(
+        (copied) =>
+          document.getElementById("run-announce").textContent === copied,
+        COPIED_TEXT,
+      );
+      const link = await page.evaluate(() =>
+        document.defaultView.navigator.clipboard.readText(),
+      );
+      assert.ok(link.startsWith(`${base}?${LINK_PARAM}=2.`), link);
+      assert.ok(
+        link.length - base.length <= PRESET_LINK_MAX,
+        `${link.length - base.length}: ${link}`,
+      );
+      const { rotation } = decodeSetup(
+        new URL(link).searchParams.get(LINK_PARAM),
+      ).setup.config;
+      const preset = presetRotation("combat-swords");
+      assert.equal(rotation.name, editedName(preset.name));
+      assert.deepEqual(rotation.rules, preset.rules.slice(1));
+      assert.deepEqual(errors, []);
     } finally {
       await context.close();
     }

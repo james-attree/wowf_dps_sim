@@ -19,6 +19,7 @@ import {
 } from "../js/build-codec.js";
 import {
   LINK_BASES,
+  LINK_EDITED_SUFFIX,
   LINK_POISONS,
   LINK_RACES,
   LINK_RUN_MODES,
@@ -26,7 +27,12 @@ import {
   LINK_WEAPON_TYPES,
   baseContent,
 } from "../js/link-codec.js";
-import { listPresets, loadPreset } from "../js/rotation-presets.js";
+import { editedName } from "../js/config-form.js";
+import {
+  listPresets,
+  loadPreset,
+  presetRotation,
+} from "../js/rotation-presets.js";
 import { referenceBuild } from "../js/preset-reference-builds.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { talentCatalogue } from "../js/talents.js";
@@ -522,7 +528,7 @@ describe("short links: newer and damaged version 2 links (#306)", () => {
       bytes(0, 1, LINK_RACES.length), // a race index past the list
       bytes(0, 0x10, 1, ...varint(LINK_TALENTS.length * 8 + 1)), // a later talent
       bytes(0, 0x80, 1, LINK_BASES.length * 2), // a later base's rotation
-      bytes(0, 0x80, 1, 5), // a rotation tag this version lacks
+      bytes(0, 0x80, 1, 7), // a rotation tag this version lacks
       bytes(0, 0x80, 2, LINK_RUN_MODES.length), // a later run mode
     ];
     for (const text of newer) {
@@ -549,6 +555,8 @@ describe("short links: newer and damaged version 2 links (#306)", () => {
       bytes(0, 0x20, 200, 7), // talent level 200
       bytes(0, 0x80, 3, 3, 0x6e, 0x6f, 0x21), // rotation JSON "no!"
       bytes(0, 0x80, 1, 1, 200), // a base rule that is not there
+      bytes(0, 0x80, 1, 5, 9, 0x41), // a rotation name cut short
+      bytes(0, 0x80, 1, 5, 0, 1, 200), // a named list's rule not there
       bytes(0, 0x80, 4, 0), // zero iterations
       bytes(0, 0x02, 1, 3), // a float tag with no float
     ];
@@ -576,5 +584,166 @@ describe("short links: newer and damaged version 2 links (#306)", () => {
       seen.add(status);
     }
     assert.ok(seen.has("corrupt"));
+  });
+});
+
+// #330 review, B1: the app renames a rotation "<name> (edited)" on its first
+// edit (editedName in js/config-form.js), so the rules-by-reference form
+// carries the name too: one byte for the base's name + LINK_EDITED_SUFFIX,
+// or the name's text for any other rename.
+describe("short links: a rotation edited in the app keeps a short link (#330 B1)", () => {
+  const editedSetup = (id, name, seed = MAX_SEED) => {
+    const p = presetConfig(id);
+    const rotation = { ...p.rotation, rules: p.rotation.rules.slice(1), name };
+    return {
+      config: { ...p, rotation },
+      run: { ...setupDefaults().run, seed },
+    };
+  };
+
+  it("the codec's edited name is the app's, for every base", () => {
+    const d = setupDefaults().config;
+    for (const entry of LINK_BASES) {
+      const { name } = baseContent(entry, d).rotation;
+      assert.equal(editedName(name), `${name}${LINK_EDITED_SUFFIX}`, entry.id);
+    }
+  });
+
+  it("a rule dropped and the name made '<name> (edited)' costs a byte more than the name kept", () => {
+    for (const id of PRESETS) {
+      const kept = editedSetup(id, presetRotation(id).name);
+      const named = editedSetup(id, editedName(presetRotation(id).name));
+      const keptLength = after(shareUrl(PAGE, kept));
+      const length = after(shareUrl(PAGE, named));
+      assert.ok(length <= PRESET_LINK_MAX, `${id}: ${length}`);
+      assert.ok(length - keptLength <= 2, `${id}: ${length} vs ${keptLength}`);
+      assert.deepEqual(decodeSetup(encodeLink(named)).setup, named, id);
+    }
+  });
+
+  it("any other rename sends the name's text with the rules as references", () => {
+    for (const name of ["Mine", "Edited ✨ ünïcode", "x".repeat(40)]) {
+      const setup = editedSetup("combat-swords", name);
+      const kept = after(
+        shareUrl(PAGE, editedSetup("combat-swords", "Combat swords")),
+      );
+      const bytes = Buffer.byteLength(name, "utf8");
+      const length = after(shareUrl(PAGE, setup));
+      assert.ok(length <= kept + Math.ceil(((bytes + 2) * 4) / 3), name);
+      assert.deepEqual(decodeSetup(encodeLink(setup)).setup, setup, name);
+    }
+  });
+
+  it("a fuzz of app-style edits (drop, move, duplicate, rename) stays short", () => {
+    // Kira's corpus (#330 review): renamed rotations were p50 1,920, max
+    // 2,488 characters. Each case here is a preset with 1-4 rule edits, the
+    // name "<name> (edited)" or a custom rename, and sometimes a race,
+    // target level or talent change.
+    let state = 330;
+    const rnd = () => {
+      state = (state * 1103515245 + 12345) % 2147483648;
+      return state / 2147483648;
+    };
+    const pick = (list) => list[Math.floor(rnd() * list.length)];
+    const lengths = [];
+    for (let n = 0; n < 300; n += 1) {
+      const id = pick(PRESETS);
+      const p = presetConfig(id);
+      const rules = structuredClone(p.rotation.rules);
+      const edits = 1 + Math.floor(rnd() * 4);
+      for (let e = 0; e < edits; e += 1) {
+        const op = pick(["drop", "move", "dup"]);
+        const at = Math.floor(rnd() * rules.length);
+        if (op === "drop" && rules.length > 1) rules.splice(at, 1);
+        if (op === "move") {
+          const [rule] = rules.splice(at, 1);
+          rules.splice(Math.floor(rnd() * (rules.length + 1)), 0, rule);
+        }
+        if (op === "dup") rules.push(structuredClone(rules[at]));
+      }
+      const custom = rnd() < 0.25;
+      const name = custom
+        ? pick(["Mine", "Edited ✨ ünïcode", "x".repeat(40)])
+        : editedName(p.rotation.name);
+      const config = { ...p, rotation: { ...p.rotation, name, rules } };
+      if (rnd() < 0.3) config.race = pick(["orc", "human", "gnome"]);
+      if (rnd() < 0.3) config.target = { ...config.target, level: 62 };
+      const setup = { config, run: { ...setupDefaults().run, seed: MAX_SEED } };
+      assert.deepEqual(decodeSetup(encodeLink(setup)).setup, setup, `#${n}`);
+      const length = after(shareUrl(PAGE, setup));
+      if (!custom) {
+        assert.ok(length <= PRESET_LINK_MAX, `#${n}: ${length}`);
+      }
+      lengths.push(length);
+    }
+    lengths.sort((a, b) => a - b);
+    const median = lengths[Math.floor(lengths.length / 2)];
+    const max = lengths[lengths.length - 1];
+    assert.ok(median <= 40, `median ${median}`);
+    assert.ok(max <= 100, `max ${max}`);
+  });
+});
+
+// #330 review, N2: known-answer links. A change to the format's numbers
+// (data/constants.js "link.codec") or to its lists changes these texts, and
+// every link already shared would read differently: such a change needs a
+// new LINK_VERSION, not an edit here.
+describe("short links: pinned version 2 texts (#330 N2)", () => {
+  const d = setupDefaults();
+  const at = (config) => ({ config, run: { ...d.run, seed: SEED } });
+  const cs = presetConfig("combat-swords");
+  const ad = presetConfig("assassination-daggers");
+  const sd = presetConfig("subtlety-daggers");
+  const PINNED = [
+    ["defaults", at(d.config), "2.AIAQAcjBraAU"],
+    ["combat-swords", at(cs), "2.AYAQAcjBraAU"],
+    ["assassination-daggers", at(ad), "2.AoAQAcjBraAU"],
+    ["subtlety-daggers", at(sd), "2.A4AQAcjBraAU"],
+    [
+      "combat-swords, rule 1 deleted in the app",
+      at({
+        ...cs,
+        rotation: {
+          ...cs.rotation,
+          name: editedName(cs.rotation.name),
+          rules: cs.rotation.rules.slice(1),
+        },
+      }),
+      "2.AYARBQAKAgQGCAoMDhASFAHIwa2gFA",
+    ],
+    [
+      "assassination-daggers, orc, target level 62",
+      at({ ...ad, race: "orc", target: { ...ad.target, level: 62 } }),
+      "2.AokQAQEBfAHIwa2gFA",
+    ],
+    [
+      "subtlety-daggers, main hand 80-150 at 1.9",
+      at({
+        ...sd,
+        weapons: {
+          ...sd.weapons,
+          mainHand: { ...sd.weapons.mainHand, min: 80, max: 150, speed: 1.9 },
+        },
+      }),
+      "2.A4QQB6ABrAL8AgHIwa2gFA",
+    ],
+  ];
+
+  it("each pinned setup encodes to its text", () => {
+    for (const [name, setup, text] of PINNED) {
+      assert.equal(encodeLink(setup), text, name);
+    }
+  });
+
+  it("each pinned text decodes to its setup", () => {
+    for (const [name, setup, text] of PINNED) {
+      assert.deepEqual(decodeSetup(text), { status: "ok", setup }, name);
+    }
+  });
+
+  it("the defaults' pin reads byte by byte as the format says", () => {
+    // base 0; parts: seed only (bit 11, varint 0x80 0x10); seed: present
+    // (1), then the number as varint 2n.
+    assert.equal(PINNED[0][2], bytes(0, 0x80, 0x10, 1, ...varint(SEED * 2)));
   });
 });
