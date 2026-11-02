@@ -65,8 +65,10 @@ cross-check would be a good later task. wowsims/classic's
 same miss, hit suppression, dodge, parry, block, glancing chance, glancing
 damage range and crit suppression at 300 skill (read 26 Oct and 2 Nov 2026).
 Every `attackTable` row is an assumption with retune on, because WoW
-Forever's own numbers are not known; `dot.critSuppression` is the other
-attack-table assumption.
+Forever's own numbers are not known; `dot.critSuppression` and
+`dot.spellCritSuppression` are the other attack-table assumptions.
+`attackTable.flatAboveSkillGap` is James's ruling (2 Nov 2026), not an
+assumption.
 
 **Two shapes.** A white swing (`attackType` `"weapon"`, main hand and off
 hand) is one roll over the bands, in this order (`k("table.white")`): miss,
@@ -166,10 +168,15 @@ suppression comes off before the clamp (D8a PR 2, #119), so a raw crit chance of
 less is as it always was, so only a raw chance above 1 behaves differently, and
 no golden fixture has one. The crit roll is still drawn at any chance above 0
 after a `hit`, so the draw count does not depend on the chance. A DoT tick
-reads the same suppressed chance (`dot.canCrit`), so its crit chance drops by
-4.8% too. That is `k("dot.critSuppression")`, an assumption on the retune list:
-no source says whether a tick takes the suppression, and `false` leaves a tick
-at the full chance. The 2x tick crit multiplier is `dot.critMultiplier`. A
+reads a chance by its damage school (Scout's ruling of 2 Nov 2026 on PR #316,
+following James's ruling that spell crit takes no suppression). A physical
+bleed tick (Rupture, Garrote) reads the suppressed chance, so its crit chance
+drops by 4.8% too. That is `k("dot.critSuppression")`, an assumption on the
+retune list: no source says whether a tick takes the suppression, and `false`
+leaves a bleed tick at the full chance. A tick of any other school (Deadly
+Poison, nature) reads `k("dot.spellCritSuppression")`, false: the full crit
+chance. That is an assumption too, since which ticks count as spell is Scout's
+reading. The 2x tick crit multiplier is `dot.critMultiplier`. A
 DoT's application never crits.
 
 **Spell hit table.** `spellMissChance` and `resolveSpellHit` give the 17%
@@ -210,7 +217,9 @@ at the default, so old links are unchanged. `weaponSkillFor` adds the race's
 weapon-skill racial. Racial and gear skill by weapon type is post-launch
 (#297); the Character field in the UI is a separate task. The default is tied
 to the level 60 character (`character.level`), not to `talentLevel`; #290 may
-tie them.
+tie them. A config's weapon skill is a whole number from 1 to level x 5 +
+50 (`attackTable.weaponSkill.maxAboveBase`; 350 at 60), from Kira's QA note N2
+on #316.
 
 The skill gap is the target's defense (`target.level x
 attackTable.defense.perLevel`, 315) less the weapon skill.
@@ -225,30 +234,37 @@ attackTable.defense.perLevel`, 315) less the weapon skill.
 | `attackTable.block`            | 5% from the front, 0 behind; value 0                                     | 0      | 0      | 0      |
 | `attackTable.glancing`         | 10% + 2%/point over the capped skill (min(skill, 300))                   | 40%    | 40%    | 40%    |
 | `attackTable.glancingDamage`   | low 1.3 - 0.05/point (0.01 to 0.91), high 1.2 - 0.03/point (0.2 to 0.99) | 55–75% | 80–90% | 91–99% |
-| `attackTable.critModel`        | `classic` (default) or `gapAura`                                         | 4.8%   | 4.8%   | 4.8%   |
+| `attackTable.critModel`        | `classic` (default) or `gapAura`                                         | 4.8%   | 3%     | 3%     |
 | `attackTable.spellMiss`        | 4%, 5%, 6%, 17% by level gap 0, 1, 2, 3+; floor 1%                       | 17%    | 17%    | 17%    |
 
 The hit cap is the miss plus the suppression: 9% at 300, 6% at 305. James
 (31 Oct 2026, issue #295) chose the flat 1% and the 9% cap as the default.
-Spell crit (a poison's) is not a separate model here: Instant Poison's crit
-takes the melee suppression (`poison.instantCritSuppression`, an assumption
-kept so the goldens do not move); poisons use the spell hit only.
+Spell crit (a poison's) takes no crit suppression: James ruled on 2 Nov 2026
+(relayed by Scout on PR #316) "Do not supress spell hit", meaning spell crit.
+Instant Poison crits at the full melee crit chance
+(`poison.instantCritSuppression`, false, James's ruling) and a Deadly Poison
+tick does too (`dot.spellCritSuppression`, false). Poisons still roll the
+spell hit (`attackTable.spellMiss`).
 
 **The crit models.** `attackTable.critModel` names one of
 `attackTable.critModels`; changing the name is the whole switch, no code.
 
 - `classic` (the default): the skill term is 0.2% per point of defense over
   the capped skill (min(skill, 300)), and the flat 1.8% aura term applies at a
-  level gap of 3 or more at any skill (`flatAboveSkillGap: null`). 4.8% at
-  300, 305 and 308.
+  level gap of 3 or more while the skill gap is over
+  `attackTable.flatAboveSkillGap` (10). 4.8% at 300; 3% at 305 and 308.
 - `gapAura` (James's AI answer, open for his ruling): 0.04% per point of the
   whole skill gap, the 1.8% only while the gap is over 10
-  (`flatAboveSkillGap: 10`), and a 0.8%-per-level aura (2.4% at +3). 4.8% at
+  (`attackTable.flatAboveSkillGap`), and a 0.8%-per-level aura (2.4% at +3). 4.8% at
   300, 2.8% at 305, 2.68% at 308.
 
-`flatAboveSkillGap` is the "+5 skill removes the 1.8%" switch on either
-model: `null` keeps the 1.8% at any skill, a number drops it once the skill
-gap is that or less. The 1.8% comes off every crit chance, as before; the
+`attackTable.flatAboveSkillGap` is the "+5 skill removes the 1.8%" switch,
+one row for both models. It is 10 by James's ruling of 2 Nov 2026 (relayed by
+Scout on PR #316): "Weapon skill being within 10 points compared to the
+enemies defense skill (e.g. defense skill - weapon skill) should remove the
+1.8%". At 300 skill against defense 315 the gap is 15, so the 1.8% stays; at
+305 (gap 10) and 308 (gap 7) it goes. `null` keeps the 1.8% at any skill, and
+any other number drops it once the skill gap is that or less. The 1.8% comes off every crit chance, as before; the
 config does not say which part of the crit chance is from auras.
 
 **The other open settings** (each a row value):
@@ -948,12 +964,11 @@ tagged `assumption` with the retune flag on. The crit context is the main
 hand's for either hand's Instant Poison (the proc has no hand of its own in
 `attackContext`), so a dagger main hand gets the +5% dagger/fist crit on
 Instant Poison, including an Instant applied by the off hand. That is an
-assumption too, not a verified Classic rule. The 4.8% crit suppression applies
-(`k("poison.instantCritSuppression")`, true, an assumption, retune on): it is
-the same treatment as the swing crit and a DoT tick's
-(`k("dot.critSuppression")`), so one rogue has one crit chance whichever hit
-rolls it. wowsims uses a different spell crit suppression, which is not
-modelled; set the constant to `false` to crit at the full chance. Draw order
+assumption too, not a verified Classic rule. No crit suppression applies
+(`k("poison.instantCritSuppression")`, false, James's ruling of 2 Nov 2026,
+retune on): spell and poison crits take none, as for a Deadly Poison tick
+(`k("dot.spellCritSuppression")`). Set the constant to `true` to take the
+swing's 4.8% off. Draw order
 for one Instant Poison: the proc chance, the spell hit, the damage, then the
 crit, and the crit is drawn only when the proc fired and the spell hit landed,
 so a resist, a missed proc roll and a build with no poison draw nothing extra.
@@ -2181,10 +2196,10 @@ open for James's review, not defects found by a test:
   tested but out of scope behind-only. The cast-before-Eviscerate rule is the
   Scout's (the Cold Blood rule of `js/rotation-default.js`). See "Assumption: an attack that does not
   land keeps the charge".
-- **Instant Poison's crit and suppression** are assumptions: the crit uses the
-  rogue's melee crit chance (the engine has no spell crit) at 1.5x, and the
-  4.8% crit suppression applies to it. Both are tagged `assumption` with the
-  retune flag on (`poison.instantCrit`, `poison.instantCritSuppression`).
+- **Instant Poison's crit** is an assumption: the crit uses the rogue's melee
+  crit chance (the engine has no spell crit) at 1.5x (`poison.instantCrit`,
+  `assumption`, retune on). No crit suppression applies to it, by James's
+  ruling of 2 Nov 2026 (`poison.instantCritSuppression`, false).
 - **Poisons roll on finishers** as in wowsims. That is not verified against Classic.
 - **Unmapped talents.** Eleven Assassination talents (Improved Gouge, Remorseless
   Attacks, Murder, Improved Expose Armor, Vile Poisons, Improved Poisons, Vigor,
