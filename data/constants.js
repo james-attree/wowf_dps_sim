@@ -1194,7 +1194,7 @@ export const CONSTANTS = {
     "ability ids",
     ASSUMPTION,
     "James, 31 Oct 2026, issue #278: A21 of the Phase 5 plan v4 (approved with yes to all): the on-use racials are off the GCD and cost no energy, as Classic racials are; the export gives neither, so tagged assumption",
-    "The on-use racials that do not start the global cooldown (js/abilities.js reads it for the racial entries; abilities.offGcd is the spellbook's). Neither has a cost: their definitions in js/ability-data.js give none. On the retune list if WoW Forever puts them on the GCD.",
+    "The on-use racials that do not start the global cooldown (js/abilities.js reads it for the racial entries; abilities.offGcd is the spellbook's). None of them has a cost: their definitions in js/ability-data.js give none. On the retune list if WoW Forever puts them on the GCD.",
     true,
   ),
   "fight.iterations": entry(

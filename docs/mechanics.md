@@ -3865,8 +3865,9 @@ them in its palette yet, and its copy for a race that lacks one is P5-04
 
 Berserking (Troll) and Eureka! (Gnome) take the same route as Blood Fury:
 `{ ability }` entries, abilities in `abilities.racials` read from the export
-text (cast time and cooldown), off the GCD and free (A21, an assumption),
-an aura each, a `cast` row, and no random draw (G2).
+text (cast time and cooldown), off the GCD and free (A21 of the Phase 5 plan
+v4, an assumption accepted under its "yes to all" approval), an aura each, a
+`cast` row, and no random draw (G2).
 
 | Racial            | Export text (first sentence)                                                                                                  | Effect                                                                                                                                                                                                       |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
