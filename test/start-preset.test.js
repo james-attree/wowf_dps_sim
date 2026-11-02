@@ -36,7 +36,7 @@ import {
 import { createStore } from "../js/store.js";
 import { createTalentTree } from "../js/talent-tree.js";
 import { MOVED_BY_RUN, MOVED_BY_USER } from "../js/views/router.js";
-import { COMBAT_DAGGERS, LANDED, withDaggers } from "./combat-daggers-328.js";
+const COMBAT_DAGGERS = "combat-daggers";
 
 // #323: Start from a preset.
 
@@ -86,20 +86,14 @@ describe("the cards (#323)", () => {
     const cards = startCards();
     assert.deepEqual(
       cards.map(({ id }) => id),
-      [
-        ASSASSINATION,
-        COMBAT,
-        ...withDaggers([], COMBAT_DAGGERS),
-        SUBTLETY,
-        CUSTOM,
-      ],
+      [ASSASSINATION, COMBAT, COMBAT_DAGGERS, SUBTLETY, CUSTOM],
     );
     assert.deepEqual(
       cards.map(({ name }) => name),
       [
         "Assassination",
         "Combat swords",
-        ...withDaggers([], "Combat daggers"),
+        "Combat daggers",
         "Subtlety",
         "Custom",
       ],
@@ -116,20 +110,12 @@ describe("the cards (#323)", () => {
     assert.equal(subtlety.detail.split(" · ")[0], "Hemorrhage");
     assert.deepEqual(
       cards.map(({ short }) => short),
-      [
-        "38/11/2",
-        "18/33/0",
-        ...withDaggers([], "16/33/2"),
-        "12/8/31",
-        "No talents",
-      ],
+      ["38/11/2", "18/33/0", "16/33/2", "12/8/31", "No talents"],
     );
-    if (LANDED) {
-      assert.equal(
-        cards[2].detail,
-        "Backstab · 16/33/2 · two daggers · Instant / Deadly",
-      );
-    }
+    assert.equal(
+      cards[2].detail,
+      "Backstab · 16/33/2 · two daggers · Instant / Deadly",
+    );
   });
 
   it("name each rotation's builder: its last combo point rule", () => {

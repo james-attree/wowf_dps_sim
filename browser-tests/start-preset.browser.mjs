@@ -16,7 +16,6 @@ import { startStaticServer } from "../scripts/serve.mjs";
 import { CUSTOM_CHOSEN, START_KEY } from "../js/start-preset.js";
 import { SAVED_SETUP_KEY } from "../js/saved-setup.js";
 import { LINK_PARAM } from "../js/build-codec.js";
-import { COMBAT_DAGGERS, withDaggers } from "../test/combat-daggers-328.js";
 
 const PINNED_FONT = "DejaVu Sans";
 const WIDTHS = [320, 360, 390, 1024, 1440];
@@ -29,10 +28,7 @@ const TARGET_LEAST = 44;
 // Where the cards cannot fit over the dock at 150% text (they scroll to).
 // Five cards (#328) also scroll to at 150% on the 360 and 390 phones; the
 // test then checks the last one scrolls clear of the dock.
-const SCROLLS = new Set([
-  "320-150%",
-  ...withDaggers([], "360-150%", "390-150%"),
-]);
+const SCROLLS = new Set(["320-150%", "360-150%", "390-150%"]);
 const SHOTS = process.env.START_PRESET_SHOTS ?? null;
 const SETTLE = 5_000;
 const RUN_TIMEOUT = 60_000;
@@ -43,15 +39,10 @@ const LIVE_SECONDS = "10";
 const ASSASSINATION = "assassination-daggers";
 const COMBAT = "combat-swords";
 const SUBTLETY = "subtlety-daggers";
+const COMBAT_DAGGERS = "combat-daggers";
 const CUSTOM = "custom";
-// #328: Combat daggers after Combat swords once its data/ entries land.
-const ORDER = [
-  ASSASSINATION,
-  COMBAT,
-  ...withDaggers([], COMBAT_DAGGERS),
-  SUBTLETY,
-  CUSTOM,
-];
+// #328: Combat daggers sorts after Combat swords (top tree, then registry).
+const ORDER = [ASSASSINATION, COMBAT, COMBAT_DAGGERS, SUBTLETY, CUSTOM];
 const PANEL = "#start-panel";
 const ROW = "#start-row";
 const ROW_ITEM = "#start-row-item";

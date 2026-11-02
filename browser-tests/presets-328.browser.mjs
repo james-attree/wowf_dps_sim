@@ -1,15 +1,14 @@
 // #328: the Combat daggers card, the fifth with Custom last. At 320, 360,
 // 390, 1024 and 1440, at 100% and 150% text, with DejaVu pinned as CI has
 // it: a pick puts in its build (two daggers, Instant / Deadly), its
-// rotation, the line says so, and Undo puts the defaults back. Skipped
-// until the data/ entries land (Scout's approval).
+// rotation, the line says so, and Undo puts the defaults back.
 // PRESETS_328_SHOTS=<dir> saves screenshots there.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { chromium } from "playwright-core";
 import { startStaticServer } from "../scripts/serve.mjs";
-import { COMBAT_DAGGERS, WAITING } from "../test/combat-daggers-328.js";
+const COMBAT_DAGGERS = "combat-daggers";
 
 const PINNED_FONT = "DejaVu Sans";
 const WIDTHS = [320, 360, 390, 1024, 1440];
@@ -30,9 +29,6 @@ let base;
 let browser;
 
 before(async () => {
-  if (WAITING) {
-    return;
-  }
   server = await startStaticServer({ port: 0 });
   base = `http://127.0.0.1:${server.address().port}/`;
   browser = await chromium.launch(
@@ -59,7 +55,7 @@ const box = (page, selector) =>
     return { top, bottom, left, right, width, height };
   });
 
-describe("The Combat daggers card (#328)", { skip: WAITING }, () => {
+describe("The Combat daggers card (#328)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {
       test(`five cards and a Combat daggers pick at ${width}, ${textSize} text`, async () => {
