@@ -76,8 +76,12 @@ const formula = (left, operator, right) =>
 export function weaponSkillHelpText({ level, weaponSkill }) {
   return `Leave blank for ${weaponSkill.blank} (${formula("your level", "×", weaponSkill.perLevel)}). At most ${weaponSkill.max} at level ${level}. ${BOTH_HANDS} ${TYPED_STAYS}`;
 }
+// ", a raid boss" only when blank gives the boss's level (qa-319 D-P1): at
+// level 40 blank is 43, which is no raid boss.
+export const RAID_BOSS = ", a raid boss";
 export function targetLevelHelpText({ targetLevel }) {
-  return `Leave blank for ${targetLevel.blank} (${formula("your level", "+", targetLevel.above)}, a raid boss). From ${targetLevel.min} to ${targetLevel.max}. ${TARGET_LEVEL_EFFECT} ${TYPED_STAYS}`;
+  const boss = targetLevel.blank === targetLevel.boss ? RAID_BOSS : "";
+  return `Leave blank for ${targetLevel.blank} (${formula("your level", "+", targetLevel.above)}${boss}). From ${targetLevel.min} to ${targetLevel.max}. ${TARGET_LEVEL_EFFECT} ${TYPED_STAYS}`;
 }
 
 const plural = (count, one, many) => (count === 1 ? one : many);

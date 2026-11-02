@@ -30,6 +30,7 @@ import { createStore } from "../js/store.js";
 import { createTalentTree } from "../js/talent-tree.js";
 import {
   BOTH_HANDS,
+  RAID_BOSS,
   TARGET_LEVEL_EFFECT,
   TYPED_STAYS,
   targetLevelHelpText,
@@ -134,6 +135,25 @@ describe("the bounds are the engine's (#318)", () => {
       "Higher levels mean more misses and glancing blows.",
     );
     assert.equal(TYPED_STAYS, "Typed values stay fixed when you change level.");
+  });
+
+  it("names a raid boss only when blank gives the boss's level (qa-319 D-P1)", () => {
+    const nb = NO_BREAK_SPACE;
+    const at60 = targetLevelHelpText(levelsInfo(MAX_LEVEL));
+    assert.equal(levelsInfo(MAX_LEVEL).targetLevel.boss, 63);
+    assert.match(
+      at60,
+      new RegExp(
+        `^Leave blank for 63 \\(your level${nb}\\+${nb}3${RAID_BOSS}\\)\\. `,
+      ),
+    );
+    assert.equal(RAID_BOSS, ", a raid boss");
+    const at40 = targetLevelHelpText(levelsInfo(LOW_LEVEL));
+    assert.equal(
+      at40,
+      `Leave blank for 43 (your level${nb}+${nb}3). From 1 to 63. Higher levels mean more misses and glancing blows. Typed values stay fixed when you change level.`,
+    );
+    assert.doesNotMatch(at40, /raid boss/);
   });
 
   it("the formula's operator never starts or ends a line (Fran's qa-319 N2)", () => {
@@ -258,7 +278,9 @@ describe("the form: blank is the default (#318)", () => {
     assert.doesNotMatch(summary(), /weapon skill|target|enemy/);
   });
 
-  it("the run summary and Ready line name a typed target level, last (qa-319 P1)", () => {
+  // Its "·" follows a no-break space, so a wrapped line never starts with it
+  // (qa-319 D-N2).
+  it("the run summary and Ready line name a typed target level, last (qa-319 P1, D-N2)", () => {
     const { store, actions } = setup();
     const nb = NO_BREAK_SPACE;
     const state = () => ({ ...store.get(), run: { ...RUN, seed: 42 } });
@@ -268,16 +290,16 @@ describe("the form: blank is the default (#318)", () => {
     assert.equal(targetPart(store.get().form), `target level${nb}62`);
     assert.equal(
       summaryText(state().run, state().form),
-      `Average · 1,000 × 300${nb}s · seed${nb}42 · target level${nb}62`,
+      `Average · 1,000 × 300${nb}s · seed${nb}42${nb}· target level${nb}62`,
     );
     assert.equal(
       summaryText({ ...state().run, mode: "live" }, state().form),
-      `Live fight · 300${nb}s · seed${nb}42 · target level${nb}62`,
+      `Live fight · 300${nb}s · seed${nb}42${nb}· target level${nb}62`,
     );
     const batch = { status: "idle", result: null, progress: null, error: null };
     assert.match(
       controlsModel({ ...state(), batch, ran: {} }).status,
-      new RegExp(`^Ready · .* · seed${nb}42 · target level${nb}62$`),
+      new RegExp(`^Ready · .* · seed${nb}42${nb}· target level${nb}62$`),
     );
     actions.change(TARGET, 64);
     assert.equal(targetPart(store.get().form), `target level${nb}?`);

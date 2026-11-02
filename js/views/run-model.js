@@ -397,7 +397,9 @@ export function targetPart(form) {
 }
 const withTarget = (text, form) => {
   const target = targetPart(form);
-  return target === null ? text : `${text} · ${target}`;
+  // A no-break space before the "·", so a wrapped line never starts with
+  // it (qa-319 D-N2).
+  return target === null ? text : `${text}${NO_BREAK_SPACE}· ${target}`;
 };
 
 // The two run types' names, the Run type switch's labels in Fight (#245:

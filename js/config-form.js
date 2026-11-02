@@ -113,6 +113,9 @@ export function levelsInfo(level = k("character.level")) {
     targetLevel: {
       blank: Math.min(max, level + k("target.levelAboveCharacter")),
       above: k("target.levelAboveCharacter"),
+      // The raid boss's level (target.level, 63: OQ4), for the help to
+      // name it only when blank gives it (Fran's qa-319 D-P1).
+      boss: k("target.level"),
       min,
       max,
     },

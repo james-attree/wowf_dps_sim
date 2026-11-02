@@ -330,12 +330,32 @@ describe("Target level in Fight, next to its note (qa-319 P1)", () => {
           assert.equal(await page.locator("#run-button").isDisabled(), false);
           assert.match(
             await textOf(page, RUN_SUMMARY),
-            new RegExp(` · target level${NB}61$`),
+            new RegExp(`${NB}· target level${NB}61$`),
           );
           assert.match(
             await textOf(page, RUN_STATUS),
-            new RegExp(`^Ready · .* · target level${NB}61$`),
+            new RegExp(`^Ready · .*${NB}· target level${NB}61$`),
           );
+          // The "·" before it stays on the line before (qa-319 D-N2): the
+          // no-break space and the dot are on one line, where the Ready
+          // line shows (the wide status; the dock has its own short text).
+          if (width >= WIDTHS[2]) {
+            const dotLines = await page.locator(RUN_STATUS).evaluate((node) => {
+              const textNode = node.firstChild;
+              const at = textNode.textContent.indexOf("\u00a0· target");
+              const range = document.createRange();
+              range.setStart(textNode, at);
+              range.setEnd(textNode, at + "\u00a0·".length);
+              return at < 0
+                ? -1
+                : new Set(
+                    [...range.getClientRects()].map((box) =>
+                      Math.round(box.top),
+                    ),
+                  ).size;
+            });
+            assert.equal(dotLines, 1, `${width} ${text}: the dot's line`);
+          }
           const root = await page.evaluate(
             () =>
               document.documentElement.scrollWidth <=
@@ -440,7 +460,7 @@ describe("Weapon skill and Target level together (#318)", () => {
       assert.equal(await page.locator(TARGET).inputValue(), "62");
       assert.match(
         await textOf(page, RUN_SUMMARY),
-        new RegExp(` · target level${NB}62$`),
+        new RegExp(`${NB}· target level${NB}62$`),
       );
       assert.deepEqual(errors, []);
     } finally {
@@ -470,7 +490,7 @@ describe("Weapon skill and Target level together (#318)", () => {
       assert.equal(await page.locator(TARGET).inputValue(), "62");
       assert.match(
         await textOf(page, RUN_SUMMARY),
-        new RegExp(` · target level${NB}62$`),
+        new RegExp(`${NB}· target level${NB}62$`),
       );
       assert.deepEqual(errors, []);
     } finally {
@@ -504,7 +524,7 @@ describe("Weapon skill and Target level together (#318)", () => {
       assert.equal(await fresh.locator(TARGET).inputValue(), "61");
       assert.match(
         await textOf(fresh, RUN_SUMMARY),
-        new RegExp(` · target level${NB}61$`),
+        new RegExp(`${NB}· target level${NB}61$`),
       );
       assert.deepEqual(errors, []);
     } finally {
