@@ -10,7 +10,8 @@ import {
   setupDefaults,
 } from "../js/build-codec.js";
 import { createConfigForm, pageDefaultConfig } from "../js/config-form.js";
-import { createPresetBuild } from "../js/preset-build.js";
+import { createPresetBuild, pickedText } from "../js/preset-build.js";
+import { referenceBuild } from "../js/preset-reference-builds.js";
 import { createRotationBuilder } from "../js/rotation-builder.js";
 import { presetRotation } from "../js/rotation-presets.js";
 import { normalizeConfig } from "../js/sim-config.js";
@@ -82,7 +83,77 @@ describe("#326 item 13: a save's bad field resets alone, and is named", () => {
     assert.deepEqual(read.reset, ["character.haste", "run.duration"]);
     assert.equal(
       resetText(read.reset),
-      "Part of your saved setup couldn't be read, so the character's stats and the fight length are back to their defaults.",
+      "Part of your saved setup couldn't be read, so the haste and the fight length are back to their defaults.",
+    );
+  });
+
+  // Fran's qa-327 P2: each stat by its name, and only those reset.
+  it("an attack power of -5 alone is named alone, in the singular", () => {
+    const read = resolveInitialSetup({
+      saved: textOf({
+        config: { character: { attackPower: -5, weaponSkill: 305 } },
+      }),
+    });
+    assert.equal(read.setup.config.character.weaponSkill, 305);
+    assert.deepEqual(read.reset, ["character.attackPower"]);
+    assert.equal(
+      resetText(read.reset),
+      "Part of your saved setup couldn't be read, so the attack power is back to its default.",
+    );
+  });
+
+  it("two bad stats fields and others: each named, the kept ones not", () => {
+    const read = resolveInitialSetup({
+      saved: textOf({
+        config: {
+          target: { level: 62, armor: -1 },
+          character: { attackPower: 900, weaponSkill: "x" },
+        },
+        run: { duration: 0, iterations: 300 },
+      }),
+    });
+    assert.equal(read.setup.config.character.attackPower, 900);
+    assert.equal(read.setup.run.iterations, 300);
+    assert.deepEqual(read.reset, [
+      "character.weaponSkill",
+      "target.armor",
+      "run.duration",
+    ]);
+    assert.equal(
+      resetText(read.reset),
+      "Part of your saved setup couldn't be read, so the weapon skill, the target's armour and the fight length are back to their defaults.",
+    );
+    assert.equal(
+      resetText(["character.attackPower", "character.weaponSkill"]),
+      "Part of your saved setup couldn't be read, so the attack power and the weapon skill are back to their defaults.",
+    );
+  });
+
+  it("every stat has its own name, and a whole section is plural", () => {
+    for (const [field, name] of [
+      ["attackPower", "the attack power"],
+      ["critChance", "the crit chance"],
+      ["bonusHitChance", "the hit chance"],
+      ["haste", "the haste"],
+      ["weaponSkill", "the weapon skill"],
+    ]) {
+      assert.equal(
+        resetText([`character.${field}`]),
+        `Part of your saved setup couldn't be read, so ${name} is back to its default.`,
+      );
+    }
+    assert.deepEqual(
+      Object.keys(setupDefaults().config.character).sort(),
+      ["attackPower", "bonusHitChance", "critChance", "haste", "weaponSkill"],
+      "a new stat needs a name here",
+    );
+    const read = resolveInitialSetup({
+      saved: textOf({ config: { character: 5 } }),
+    });
+    assert.deepEqual(read.reset, ["character"]);
+    assert.equal(
+      resetText(read.reset),
+      "Part of your saved setup couldn't be read, so the character's stats are back to their defaults.",
     );
   });
 
@@ -173,6 +244,39 @@ describe("#326 items 6 and 7: a pick and a re-pick, and what they say", () => {
     assert.equal(said(store).line, line);
     // The same values again change nothing.
     assert.equal(build.pick(ASSASSINATION, "Assassination"), false);
+  });
+
+  it("item 7 (Fran's qa-327 N3): weapons and poisons re-picked take a comma, not a second 'and'", () => {
+    const { store, form, build } = presetPage();
+    build.pick(ASSASSINATION, "Assassination");
+    form.change("weapons.mainHand.speed", 2.9);
+    form.change("poisons.mainHand", "crippling");
+    build.pick(ASSASSINATION, "Assassination");
+    const line =
+      "Assassination set: two daggers, Instant and Deadly poisons. Your stats and race are unchanged.";
+    assert.deepEqual(said(store), {
+      line,
+      announce: line,
+      undo: "Undo: put back your weapons and poisons",
+    });
+  });
+
+  it("item 7: the list joins as Scout worded it", () => {
+    const build = referenceBuild(ASSASSINATION);
+    const text = (parts, level = false) =>
+      pickedText("Assassination", build, ASSASSINATION, level, parts);
+    assert.equal(
+      text(["talents", "poisons"]),
+      "Assassination set: talents 38/11/2, Instant and Deadly poisons. Your stats and race are unchanged.",
+    );
+    assert.equal(
+      text(["weapons", "poisons", "rotation"]),
+      "Assassination set: two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
+    );
+    assert.equal(
+      text(["talents", "weapons"]),
+      "Assassination set: talents 38/11/2 and two daggers. Your stats and race are unchanged.",
+    );
   });
 
   it("item 7: a re-pick after a poison edit names the poisons alone", () => {

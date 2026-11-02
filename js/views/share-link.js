@@ -39,8 +39,16 @@ export const NOTICES = Object.freeze({
 
 // A setup read with some fields put back to their defaults (#326, item
 // 13): js/build-codec.js's `reset`, the paths it dropped, named here.
+// Each of the character's stats by its own name (Fran's qa-327 P2: they all
+// read "the character's stats"); the section's name only when the section
+// itself can't be read, and so all of it is reset.
 const RESET_NAMES = Object.freeze({
   character: "the character's stats",
+  "character.attackPower": "the attack power",
+  "character.critChance": "the crit chance",
+  "character.bonusHitChance": "the hit chance",
+  "character.haste": "the haste",
+  "character.weaponSkill": "the weapon skill",
   race: "the race",
   talents: "the talents",
   talentLevel: "the talent level",
@@ -65,6 +73,16 @@ const RESET_NAMES = Object.freeze({
 const resetName = (path) =>
   RESET_NAMES[path] ?? RESET_NAMES[path.split(".")[0]] ?? "a setting";
 
+// The names that are plural nouns: one of them alone still "are back to
+// their defaults".
+const PLURAL = new Set([
+  "the character's stats",
+  "the talents",
+  "the weapons",
+  "the poisons",
+  "the fight settings",
+]);
+
 export function resetText(paths) {
   const names = [...new Set(paths.map(resetName))];
   if (names.length === 0) return "";
@@ -73,7 +91,7 @@ export function resetText(paths) {
       ? names[0]
       : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
   const back =
-    names.length === 1
+    names.length === 1 && !PLURAL.has(names[0])
       ? "is back to its default"
       : "are back to their defaults";
   return `Part of your saved setup couldn't be read, so ${list} ${back}.`;
@@ -90,15 +108,19 @@ export function createShareLinkView(
   const announcer = $("run-announce");
   const timers = new Map();
 
+  // The last thing asked to be said; a frame's late write of an older one
+  // (or of one taken back, below) is dropped.
+  let latest = null;
   const announce = (text) => {
     if (announcer === null) return;
+    latest = text;
     announcer.textContent = "";
     if (typeof view?.requestAnimationFrame !== "function") {
       announcer.textContent = text;
       return;
     }
     view.requestAnimationFrame(() => {
-      announcer.textContent = text;
+      if (latest === text) announcer.textContent = text;
     });
   };
 
@@ -145,11 +167,14 @@ export function createShareLinkView(
     part.field.select();
   };
 
+  // What the over-cap note said aloud, while it shows.
+  let overCapSaid = null;
   const copy = async (name) => {
     const part = parts(name);
     if (overCap()) {
       show(part, "over-cap");
-      announce(part.overCap.textContent.replace(/\s+/g, " ").trim());
+      overCapSaid = part.overCap.textContent.replace(/\s+/g, " ").trim();
+      announce(overCapSaid);
       return;
     }
     const url = linkOf();
@@ -178,6 +203,21 @@ export function createShareLinkView(
   for (const field of doc.querySelectorAll(".share-url")) {
     field.addEventListener("focus", () => field.select());
   }
+
+  // The over-cap note is about the talents as they are: once they are
+  // within the cap, by any edit from any area, every note goes, and what
+  // it said leaves the announcer (#326, item 9; Fran's qa-327 P1: it stayed
+  // up, on Fight too, until the next press).
+  store.subscribe(() => {
+    if (overCapSaid === null || overCap()) return;
+    for (const name of Object.keys(BUTTON_NAMES)) {
+      const part = parts(name);
+      if (part.overCap && !part.overCap.hidden) show(part, null);
+    }
+    if (latest === overCapSaid) latest = null;
+    if (announcer?.textContent === overCapSaid) announcer.textContent = "";
+    overCapSaid = null;
+  });
 
   // The banner, only when a link was opened or a setup was read in part.
   const known = notice !== null && NOTICES[notice] !== undefined;

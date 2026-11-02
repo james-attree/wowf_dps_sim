@@ -394,7 +394,19 @@ export function pickedText(
   if (level) {
     items.push(`level${NBSP}${build.talentLevel}`);
   }
-  return `${name} set: ${listText(items)}. Your stats and race are unchanged.`;
+  return `${name} set: ${pickedList(items)}. Your stats and race are unchanged.`;
+}
+
+// listText, but a last item with its own "and" ("Instant and Deadly
+// poisons") follows a comma, not another "and": "two daggers, Instant and
+// Deadly poisons", as in "two daggers, Instant and Deadly poisons and its
+// rotation" (Fran's qa-327 N3; Scout's wording).
+function pickedList(items) {
+  const last = items.at(-1) ?? "";
+  if (items.length <= 1 || !/ and /.test(last)) {
+    return listText(items);
+  }
+  return items.join(", ");
 }
 
 // The slice's `applied`: the line, Undo's name, and the card picked (null

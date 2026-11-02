@@ -308,6 +308,64 @@ describe("#326 items 9 to 12: Copy link", () => {
     await done(session);
   });
 
+  // Fran's qa-327 P1: the note and what it said go once the talents are
+  // within the cap, whichever area makes them so, and stay gone on Fight.
+  const overCapNote = async (page) => {
+    await go(page, "#character/talents");
+    for (let i = 0; i < 2; i += 1) {
+      await page
+        .locator('button.talent[data-id="assassination.malice"]')
+        .click();
+    }
+    await page.locator("#talents-level").fill("10");
+    await page.locator("#talents-level").press("Enter");
+    await page.locator("#share-link-header").click();
+    await page.locator("#share-over-cap-header").waitFor({ state: "visible" });
+    await page.waitForFunction(
+      (selector) =>
+        /over the level's cap/.test(
+          document.querySelector(selector).textContent,
+        ),
+      ANNOUNCER,
+    );
+  };
+  const gone = async (page) => {
+    await page.locator("#share-over-cap-header").waitFor({ state: "hidden" });
+    assert.equal(await page.locator("#share-feedback-header").isHidden(), true);
+    assert.doesNotMatch(
+      await page.locator(ANNOUNCER).textContent(),
+      /over the level's cap/,
+    );
+  };
+
+  test("item 9: the note goes when the level is back to 60, and stays gone on Fight", async () => {
+    const session = await open(1280, "100%", "#character/talents");
+    const { page } = session;
+    await overCapNote(page);
+    await page.locator("#talents-level").fill("60");
+    await page.locator("#talents-level").press("Enter");
+    await gone(page);
+    await go(page, "#fight");
+    assert.equal(await page.locator("#share-over-cap-header").isHidden(), true);
+    await done(session);
+  });
+
+  test("item 9: the note goes when a card from Character fixes the talents", async () => {
+    const session = await open(1280, "100%", "#character/talents");
+    const { page } = session;
+    await overCapNote(page);
+    await go(page, "#fight");
+    assert.equal(
+      await page.locator("#share-over-cap-header").isVisible(),
+      true,
+      "still over the cap: still shown",
+    );
+    await go(page, "#character/start");
+    await page.locator("#start-card-combat-swords").click();
+    await gone(page);
+    await done(session);
+  });
+
   test("item 10: Dismiss puts focus on the area's title", async () => {
     const session = await open(1024, "100%", "?s=1.e30#character");
     const { page } = session;
@@ -375,6 +433,48 @@ describe("#326 item 13: a save's unreadable field is named", () => {
       "Part of your saved setup couldn't be read, so the target's armour is back to its default.",
     );
     assert.equal(await page.locator(TARGET).inputValue(), "62");
+    await done(session);
+  });
+
+  // Fran's qa-327 P2: each stat named, and only what was reset.
+  test("an attack power of -5 alone is named, the weapon skill kept", async () => {
+    const session = await open(1024, "100%", "#character/stats", {
+      init: savedWith({
+        config: { character: { attackPower: -5, weaponSkill: 305 } },
+      }),
+    });
+    const { page } = session;
+    await page.locator("#share-banner").waitFor({ state: "visible" });
+    assert.equal(
+      await textOf(page, "#share-banner-text"),
+      "Part of your saved setup couldn't be read, so the attack power is back to its default.",
+    );
+    assert.equal(await page.locator(SKILL).inputValue(), "305");
+    await done(session);
+  });
+
+  test("two bad fields and a bad run field: those three, no more", async () => {
+    const session = await open(1024, "100%", "#fight", {
+      init: savedWith({
+        config: {
+          target: { level: 62, armor: -1 },
+          character: { attackPower: 900, weaponSkill: "x" },
+        },
+        run: { duration: 0, iterations: 300 },
+      }),
+    });
+    const { page } = session;
+    await page.locator("#share-banner").waitFor({ state: "visible" });
+    assert.equal(
+      await textOf(page, "#share-banner-text"),
+      "Part of your saved setup couldn't be read, so the weapon skill, the target's armour and the fight length are back to their defaults.",
+    );
+    assert.equal(await page.locator(TARGET).inputValue(), "62");
+    assert.equal(await page.locator("#run-iterations").inputValue(), "300");
+    assert.equal(
+      await page.locator("#cfg-character-attackPower").inputValue(),
+      "900",
+    );
     await done(session);
   });
 
