@@ -838,6 +838,31 @@
               ></select>
             </div>
           </div>
+          <!-- The preset's reference build (#273): what the preset was built
+               for and a button that applies it, then what was set, with
+               Undo. js/views/preset-build.js draws it. Not live regions:
+               the Run bar says what happened. -->
+          <div id="cfg-preset-build" class="preset-build" hidden>
+            <div id="cfg-preset-build-offer" class="preset-build-row" hidden>
+              <p id="cfg-preset-build-hint" class="preset-build-text"></p>
+              <button
+                id="cfg-preset-build-apply"
+                class="pill-button preset-build-button"
+                type="button"
+                aria-describedby="cfg-preset-build-hint"
+              ></button>
+            </div>
+            <div id="cfg-preset-build-applied" class="preset-build-row" hidden>
+              <p id="cfg-preset-build-done" class="preset-build-text"></p>
+              <button
+                id="cfg-preset-build-undo"
+                class="pill-button preset-build-button"
+                type="button"
+              >
+                Undo
+              </button>
+            </div>
+          </div>
           <details id="cfg-summary" class="rotation-summary" open>
             <summary>What this rotation does</summary>
             <div id="cfg-rotation-summary">

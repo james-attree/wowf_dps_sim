@@ -806,6 +806,33 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
         text: exportRotation(rotation),
       };
     },
+    // A preset's reference build (#273), or the build it replaced: `values`
+    // are form fields ({ path: value }, the weapons and poisons), `talents`
+    // and `talentLevel` the talent tree's part of the config. The fields
+    // are redrawn (a new revision). The config takes the build even while
+    // another field is in error, so the talents and weapons are never left
+    // half applied; the fields in error stay as typed, and the config gets
+    // them when they are fixed, as any edit does.
+    applyBuild({ values: patch, talents, talentLevel }) {
+      forget();
+      const now = store.get();
+      const values = { ...form().values, ...patch };
+      const base = copy(now.config);
+      base.talents = copy(talents);
+      base.talentLevel = talentLevel;
+      for (const [path, value] of Object.entries(patch)) {
+        write(base, path, value);
+      }
+      store.batch(() => {
+        store.set({ config: normalizeConfig(fromBehind(base)) });
+        commit({
+          ...form(),
+          values,
+          errors: validateValues(values),
+          revision: form().revision + 1,
+        });
+      });
+    },
     // Back to the page defaults, errors cleared. Undo puts back the form and
     // config from before, until anything else is done.
     reset() {

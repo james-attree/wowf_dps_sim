@@ -9,6 +9,8 @@ import {
   followArea,
   formatRoute,
   isRouteHash,
+  MOVED_BY_RUN,
+  MOVED_BY_USER,
   mountRouter,
   parseRoute,
   titleFor,
@@ -451,6 +453,30 @@ describe("mountRouter", () => {
     assert.deepEqual(shown(page.shells), ["results"]);
     assert.equal(page.win.location.hash, "#results/live");
     assert.equal(page.doc.activeElement, page.runButton);
+  });
+
+  it("tells Run's own move from the others, in the route's change", () => {
+    // #273: the reference build's Undo stays through Run's move only.
+    const page = mount("#rotation");
+    assert.equal(page.store.get().routeBy, MOVED_BY_USER);
+    const seen = [];
+    page.store.subscribe(({ state, changed }) => {
+      if (changed.includes("route")) {
+        seen.push([state.route.area, state.routeBy]);
+      }
+    });
+    page.store.set({
+      run: { mode: "batch", state: "idle", errors: {} },
+      batch: { status: "running" },
+    });
+    page.visit("#rotation");
+    page.store.set({ batch: { status: "finished" } });
+    page.travel(-1);
+    assert.deepEqual(seen, [
+      ["results", MOVED_BY_RUN],
+      ["rotation", MOVED_BY_USER],
+      ["results", MOVED_BY_USER],
+    ]);
   });
 
   it("focuses the new h1 when the focus was in the area it leaves", () => {
