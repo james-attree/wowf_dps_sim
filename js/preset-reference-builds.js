@@ -83,15 +83,20 @@ function pointProblems(build) {
   return total === cap ? [] : [`talents spend ${total} points, not ${cap}.`];
 }
 
-// Every build carries Instant Poison on the main hand and Deadly on the off
-// hand (James's ruling, relayed by Scout: presetReferenceBuild.poisons), in
-// the SimConfig poisons shape.
-function poisonProblems(poisons) {
+// Each build carries its preset's poisons (James's ruling for #310,
+// presetReferenceBuild.poisons: Deadly MH / Instant OH for Combat swords,
+// Instant MH / Deadly OH for the dagger presets), in the SimConfig poisons
+// shape.
+function poisonProblems(presetId, poisons) {
   if (!isObject(poisons)) {
     return ["poisons is not an object."];
   }
   const ids = k("config.poisonIds");
-  const ruling = k("presetReferenceBuild.poisons");
+  const rulings = k("presetReferenceBuild.poisons");
+  if (!Object.hasOwn(rulings, presetId)) {
+    return [`presetReferenceBuild.poisons has no poisons for "${presetId}".`];
+  }
+  const ruling = rulings[presetId];
   const problems = [];
   for (const field of Object.keys(poisons)) {
     if (!HANDS.includes(field)) {
@@ -139,7 +144,7 @@ export function checkReferenceBuild(presetId, build) {
       problems.push(...pointProblems(build));
     }
   }
-  problems.push(...poisonProblems(build.poisons));
+  problems.push(...poisonProblems(presetId, build.poisons));
   if (!isObject(build.weapons)) {
     problems.push("weapons is not an object.");
   } else {

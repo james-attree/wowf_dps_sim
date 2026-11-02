@@ -31,7 +31,7 @@ starts with, the placeholder
 Combat rotation (`config.rotation`, `js/rotation-default.js`, cast by
 `js/rotation-interpreter.js`): Blade Flurry, Adrenaline Rush, then at the
 finisher combo points Slice and Dice when it has less than 1 s left, or 5 s or
-less with full energy (the combat-swords preset's rules, #173), else Cold Blood
+less with full energy (the combat-swords preset's rules from #122 to #310, #173), else Cold Blood
 when the build grants it and Eviscerate; otherwise Sinister Strike. A rotation
 that casts Cold Blood must say "when granted" (`abilityGranted`), or the
 validator rejects it (#173); since #188 every ability a talent grants needs its

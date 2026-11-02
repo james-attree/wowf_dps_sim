@@ -44,9 +44,9 @@ const SELECT = "#cfg-rotation";
 const HINT_ID = "cfg-preset-build-hint";
 
 const HINTS = {
-  [ASSASSINATION]: `Built for Assassination${NBSP}41/10/0 with two daggers.`,
-  [SUBTLETY]: `Built for Subtlety${NBSP}15/0/36 with two daggers.`,
-  [COMBAT]: `Built for Combat${NBSP}18/33/0 with two swords.`,
+  [ASSASSINATION]: `Built for Assassination${NBSP}38/11/2 with two daggers.`,
+  [SUBTLETY]: `Built for Subtlety${NBSP}12/8/31 with two daggers.`,
+  [COMBAT]: `Built for Combat${NBSP}18/33/0 with two swords, Deadly Poison on the main hand and Instant Poison on the off hand.`,
 };
 
 let server;
@@ -406,7 +406,7 @@ describe("A preset's reference build (#273)", () => {
           );
           assert.equal(
             await text(page, HINT),
-            `Built for Assassination${NBSP}41/10/0 at level${NBSP}60 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
+            `Built for Assassination${NBSP}38/11/2 at level${NBSP}60 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
           );
           assert.ok(
             (await page.locator(HINT).textContent()).includes(`level${NBSP}60`),
@@ -456,24 +456,26 @@ describe("The reference build's states (#273)", () => {
     test(`labels for what differs, and edits after applying, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
       try {
-        // Combat swords on the page's swords: only the talents differ.
+        // Combat swords on the page's swords: the talents differ, and the
+        // poisons (#310: Deadly main hand, Instant off hand).
         await choose(page, COMBAT);
-        await expectHint(page, COMBAT, "Use its talents too");
+        await expectHint(page, COMBAT, "Use its talents and poisons too");
         assert.equal(await text(page, HINT), HINTS[COMBAT]);
-        await applyNow(page, "Talents replaced.");
+        await applyNow(page, "Talents and poisons replaced.");
         assert.equal(
           await text(page, DONE),
-          "Talents set to the Combat swords build.",
+          "Talents and poisons set to the Combat swords build.",
         );
         assert.equal(await page.locator(OFFER).isHidden(), true, "matches");
 
-        // Assassination, applied, then a sword in the main hand: Undo
-        // closes, and the hint offers the weapons only.
+        // Assassination (its poisons are Combat's the other way round,
+        // #310), applied, then a sword in the main hand: Undo closes, and
+        // the hint offers the weapons only.
         await choose(page, ASSASSINATION);
         await expectHint(
           page,
           ASSASSINATION,
-          "Use its talents and weapons too",
+          "Use its talents, weapons and poisons too",
         );
         await applyNow(page);
         await setSelect(
@@ -501,7 +503,7 @@ describe("The reference build's states (#273)", () => {
         await expectHint(page, ASSASSINATION, "Use its poisons too");
         assert.equal(
           await text(page, HINT),
-          `Built for Assassination${NBSP}41/10/0 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
+          `Built for Assassination${NBSP}38/11/2 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
         );
         await applyNow(page, "Poisons replaced.");
 

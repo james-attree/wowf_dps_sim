@@ -6,62 +6,60 @@ import { k } from "./constants.js";
 // anything. js/rotation-presets.js lists them for a page and loads one into a
 // config, and checks every one against the validator when it is imported.
 //
-// A rotation is plain JSON. Its numbers are read from data/constants.js
-// where a row holds them (the finisher's combo points, the Blade Flurry cost,
-// the energy cap and the pooling window, rotation.pooling), so they keep
-// their provenance and a retune moves the preset with them. An ability is
+// A rotation is plain JSON. Its numbers are read from data/constants.js: each
+// preset's own row (presetRotation.combat, .assassination, .subtlety, James's
+// builds from his share links, issue #310), so they keep their provenance and
+// a retune moves the preset with them. An ability is
 // named by its id, and the rule that follows says when it can be cast: the
 // interpreter holds the walk at an on-GCD rule that holds but cannot be cast
 // (docs/rotation.md, "The walk"), so a rule for Blade Flurry or Adrenaline
-// Rush says `abilityUnlocked`, `cooldownReady` and the cost.
+// Rush says `abilityUnlocked` and `cooldownReady`. Combat's Blade Flurry rule
+// gives no energy condition (James's link), so when it holds and Blade Flurry
+// cannot be afforded yet, the walk pools energy for it.
 //
 // A preset is for one weapon setup. combat-swords casts nothing that needs a
 // dagger, so it runs on any main hand, and it is not written for another spec.
-// assassination-daggers and subtlety-daggers (issue #272) are written for the
-// dagger alternate and their reference builds
-// (data/preset-reference-builds.js); loading one sets the rotation only. On
-// other talents or weapons a rule whose ability the character lacks is passed
-// over (abilityGranted, or the interpreter's weapon check), as for any
-// rotation. Neither casts Expose Armor or a stealth opener.
+// assassination-daggers and subtlety-daggers (issue #272) are written for
+// daggers and their reference builds (data/preset-reference-builds.js);
+// loading one sets the rotation only. On other talents or weapons a rule
+// whose ability the character lacks is passed over (abilityGranted, or the
+// interpreter's weapon check), as for any rotation. Neither casts Expose Armor or a stealth opener.
 //
 // id             the preset's key: lower-case words joined by "-"
 // name           the display name, and the rotation's own `name`
 // description    one sentence for the preset list
 
-const FINISHER = k("rotation.finisherComboPoints");
-const { windowSeconds, recastSeconds } = k("rotation.pooling");
 const SLICE_AND_DICE = "slice-and-dice";
+const COMBAT = k("presetRotation.combat");
+const ASSASSINATION = k("presetRotation.assassination");
+const SUBTLETY = k("presetRotation.subtlety");
 
-const comboPointsAtFinisher = {
-  type: "comboPoints",
-  op: ">=",
-  value: FINISHER,
-};
+const comboPoints = (op, value) => ({ type: "comboPoints", op, value });
 const sliceAndDice = (op, value) => ({
   type: "auraRemaining",
   aura: SLICE_AND_DICE,
   op,
   value,
 });
-const underFinisher = { type: "comboPoints", op: "<", value: FINISHER };
+const sliceAndDiceUp = { type: "auraActive", aura: SLICE_AND_DICE };
+const rupture = (op, value) => ({
+  type: "debuffRemaining",
+  debuff: "rupture",
+  op,
+  value,
+});
 const granted = (ability) => ({ type: "abilityGranted", ability });
+const unlocked = (ability) => ({ type: "abilityUnlocked", ability });
 const ready = (ability) => ({ type: "cooldownReady", ability });
 const onCooldown = (ability) => ({
   type: "cooldownReady",
   ability,
   ready: false,
 });
-// A debuff is recast when it has under recastSeconds left, as Slice and Dice.
-const debuffEnding = (debuff) => ({
-  type: "debuffRemaining",
-  debuff,
-  op: "<",
-  value: recastSeconds,
-});
-const energy = (value) => ({
+const energy = (op, value) => ({
   type: "resource",
   resource: "energy",
-  op: ">=",
+  op,
   value,
 });
 
@@ -75,160 +73,173 @@ function deepFreeze(value) {
   return value;
 }
 
-// Slice and Dice, recast when it is about to end, or at full energy in the
-// pooling window (the combat-swords pair below, shared by the dagger presets).
-const sliceAndDiceRules = () => [
-  {
-    action: SLICE_AND_DICE,
-    conditions: [comboPointsAtFinisher, sliceAndDice("<", recastSeconds)],
-  },
-  {
-    action: SLICE_AND_DICE,
-    conditions: [
-      comboPointsAtFinisher,
-      sliceAndDice("<=", windowSeconds),
-      energy(k("energy.max")),
-    ],
-  },
-];
-const ruptureRule = () => ({
-  action: "rupture",
-  conditions: [comboPointsAtFinisher, debuffEnding("rupture")],
-});
-const eviscerateRule = () => ({
-  action: "eviscerate",
-  conditions: [comboPointsAtFinisher, sliceAndDice(">", windowSeconds)],
-});
-
+// Each rotation is James's share link's (issue #310), its rules and their
+// conditions in the link's order, so test/presets-310.test.js can compare
+// them. The one change: Combat's link opens with two Slice and Dice rules,
+// at 5 CP and at 3 CP, each with under 1 s left; the first is the second's
+// case with more points, so it never decides, and it is folded into the
+// second (the same fights over every seed measured; PR for #310).
 export const ROTATION_PRESETS = deepFreeze([
   {
     id: "combat-swords",
     name: "Combat swords",
     description:
-      "Slice and Dice kept up and recast just before it ends, Eviscerate with Cold Blood, Sinister Strike to build, Blade Flurry and Adrenaline Rush on cooldown.",
+      "Slice and Dice recast at 3 CP or more just before it ends, Adrenaline Rush (under 25 energy) and Blade Flurry with Slice and Dice up, Eviscerate at 5 CP with Cold Blood while Slice and Dice has 12 s or more, Sinister Strike to build, and Eviscerate at 3 CP or more to spend energy at the cap.",
     rotation: {
       schemaVersion: 1,
       name: "Combat swords",
       rules: [
         {
-          action: "blade-flurry",
+          action: SLICE_AND_DICE,
           conditions: [
-            { type: "abilityUnlocked", ability: "blade-flurry" },
-            { type: "cooldownReady", ability: "blade-flurry" },
-            energy(k("bladeFlurry").energy),
+            comboPoints(">=", COMBAT.sliceAndDiceComboPoints),
+            sliceAndDice("<", COMBAT.sliceAndDiceRecastSeconds),
           ],
         },
         {
           action: "adrenaline-rush",
           conditions: [
-            { type: "abilityUnlocked", ability: "adrenaline-rush" },
-            { type: "cooldownReady", ability: "adrenaline-rush" },
+            unlocked("adrenaline-rush"),
+            ready("adrenaline-rush"),
+            energy("<", COMBAT.adrenalineRushEnergyBelow),
+            sliceAndDiceUp,
           ],
         },
-        // Slice and Dice, recast when it is about to end (issue #122).
         {
-          action: SLICE_AND_DICE,
-          conditions: [comboPointsAtFinisher, sliceAndDice("<", recastSeconds)],
-        },
-        // The pooling window has no rule for Eviscerate or the builder, so the
-        // energy is kept for Slice and Dice, unless energy is full: then it is
-        // cast at once and not waited for.
-        {
-          action: SLICE_AND_DICE,
+          action: "blade-flurry",
           conditions: [
-            comboPointsAtFinisher,
-            sliceAndDice("<=", windowSeconds),
-            energy(k("energy.max")),
+            unlocked("blade-flurry"),
+            ready("blade-flurry"),
+            sliceAndDiceUp,
           ],
         },
         {
           action: "cold-blood",
           conditions: [
-            { type: "abilityGranted", ability: "cold-blood" },
-            comboPointsAtFinisher,
-            sliceAndDice(">", windowSeconds),
+            granted("cold-blood"),
+            comboPoints(">=", COMBAT.finisherComboPoints),
+            sliceAndDice(">", COMBAT.coldBloodSliceAndDiceSeconds),
           ],
         },
         {
           action: "eviscerate",
-          conditions: [comboPointsAtFinisher, sliceAndDice(">", windowSeconds)],
+          conditions: [
+            comboPoints(">=", COMBAT.finisherComboPoints),
+            sliceAndDice(">=", COMBAT.eviscerateSliceAndDiceSeconds),
+          ],
         },
         {
           action: "sinister-strike",
-          conditions: [{ type: "comboPoints", op: "<", value: FINISHER }],
+          conditions: [comboPoints("<", COMBAT.finisherComboPoints)],
+        },
+        // Below the builder, so it is reached only when Sinister Strike is
+        // passed over (at 5 CP) and the energy would otherwise go to waste.
+        {
+          action: "eviscerate",
+          conditions: [
+            comboPoints(">=", COMBAT.sliceAndDiceComboPoints),
+            { type: "energyToCap", op: "<", value: COMBAT.energyToCapSeconds },
+          ],
         },
       ],
     },
   },
-  // Issue #272. Assassination on daggers: the finishers keep Slice and Dice,
-  // Rupture and Venom up. Eviscerate is a fallback for 5 CP none of them
-  // needs, which never happens with the reference build (0 casts on every
-  // seed measured, Kira's #304 N3); Mutilate builds. Cold Blood goes on the
-  // next Mutilate (its crits roll Seal Fate), as Cold Blood does nothing for
-  // Rupture or Venom.
+  // Issue #310 (first #272). Assassination on daggers: every finisher at
+  // 4 CP. Slice and Dice recast just before it ends, or early at full
+  // energy; Venom kept up; Eviscerate with the energy to spare; Cold Blood on
+  // cooldown for the next Mutilate (its crits roll Seal Fate). No Rupture.
   {
     id: "assassination-daggers",
     name: "Assassination",
     description:
-      "Slice and Dice, Rupture and Venom kept up, Eviscerate only as a fallback (the reference build never reaches it), Cold Blood on cooldown for Mutilate, Mutilate to build.",
+      "Finishers at 4 CP: Slice and Dice kept up (recast early at full energy), Venom kept up, Eviscerate at 75 energy or more; Cold Blood on cooldown for Mutilate, Mutilate to build. No Rupture.",
     rotation: {
       schemaVersion: 1,
       name: "Assassination",
       rules: [
-        ...sliceAndDiceRules(),
-        ruptureRule(),
+        {
+          action: SLICE_AND_DICE,
+          conditions: [
+            comboPoints(">=", ASSASSINATION.finisherComboPoints),
+            sliceAndDice("<", ASSASSINATION.sliceAndDiceRecastSeconds),
+          ],
+        },
+        {
+          action: SLICE_AND_DICE,
+          conditions: [
+            comboPoints(">=", ASSASSINATION.finisherComboPoints),
+            sliceAndDice("<=", ASSASSINATION.sliceAndDiceWindowSeconds),
+            energy(">=", ASSASSINATION.sliceAndDiceEnergy),
+          ],
+        },
         {
           action: "venom",
           conditions: [
             granted("venom"),
-            comboPointsAtFinisher,
-            { type: "auraRemaining", aura: "venom", op: "<=", value: 0 },
+            comboPoints(">=", ASSASSINATION.finisherComboPoints),
+            {
+              type: "auraRemaining",
+              aura: "venom",
+              op: "<=",
+              value: ASSASSINATION.venomRecastSeconds,
+            },
           ],
         },
-        eviscerateRule(),
+        {
+          action: "eviscerate",
+          conditions: [
+            comboPoints(">=", ASSASSINATION.finisherComboPoints),
+            energy(">=", ASSASSINATION.eviscerateEnergy),
+          ],
+        },
         {
           action: "cold-blood",
-          conditions: [granted("cold-blood"), underFinisher],
+          conditions: [
+            granted("cold-blood"),
+            comboPoints("<", ASSASSINATION.coldBloodBelowComboPoints),
+          ],
         },
         {
           action: "mutilate",
-          conditions: [granted("mutilate"), underFinisher],
+          conditions: [
+            granted("mutilate"),
+            comboPoints("<", ASSASSINATION.finisherComboPoints),
+          ],
         },
       ],
     },
   },
-  // Issue #272. Subtlety on daggers: Premeditation on cooldown when its 2 CP
-  // fit, Preparation while Ghostly Strike is on cooldown (Premeditation is
-  // too), the Slice and Dice and Rupture finishers and Eviscerate (a fallback
-  // the reference build never reaches, Kira's #304 N3), then
-  // Ambush (only when a Cutthroat proc allows it: there is no stealth
-  // opener, and the rule has no aura condition, so it is passed over
-  // otherwise), Ghostly Strike, Hemorrhage to keep its debuff up, and
-  // Backstab.
+  // Issue #310 (first #272). Subtlety on daggers: Rupture kept up at 5 CP,
+  // Premeditation on cooldown when its 2 CP fit, Preparation while Ghostly
+  // Strike is on cooldown, Slice and Dice at 3 CP or more only while Rupture
+  // has 10 s or more, then Ghostly Strike and Hemorrhage to build. No
+  // Eviscerate, Ambush or Backstab.
   {
     id: "subtlety-daggers",
     name: "Subtlety",
     description:
-      "Premeditation and Ghostly Strike on cooldown and Preparation to reset them, Slice and Dice kept up, Rupture at 5 CP when Slice and Dice allows it (not in every 60 s fight), Eviscerate only as a fallback (the reference build never reaches it), Ambush when Cutthroat allows it, Hemorrhage kept up, Backstab to build.",
+      "Rupture kept up at 5 CP, Premeditation on cooldown and Preparation to reset Ghostly Strike, Slice and Dice at 3 CP or more while Rupture has 10 s or more, Ghostly Strike on cooldown and Hemorrhage to build.",
     rotation: {
       schemaVersion: 1,
       name: "Subtlety",
       rules: [
+        {
+          action: "rupture",
+          conditions: [
+            comboPoints(">=", SUBTLETY.ruptureComboPoints),
+            rupture("<", SUBTLETY.ruptureRecastSeconds),
+          ],
+        },
         // Off the GCD, so while it is on cooldown the rule is passed over
         // and needs no cooldownReady.
         {
           action: "premeditation",
           conditions: [
             granted("premeditation"),
-            {
-              type: "comboPoints",
-              op: "<=",
-              value: FINISHER - k("premeditation").comboPoints,
-            },
+            comboPoints("<=", SUBTLETY.premeditationMaxComboPoints),
           ],
         },
-        // On the GCD, so it needs cooldownReady. Premeditation is cast at the
-        // start (rule 1), so it is on cooldown too when Ghostly Strike is.
+        // On the GCD, so it needs cooldownReady.
         {
           action: "preparation",
           conditions: [
@@ -237,19 +248,19 @@ export const ROTATION_PRESETS = deepFreeze([
             onCooldown("ghostly-strike"),
           ],
         },
-        // Only the recast rule of the Slice and Dice pair: a share link of
-        // this preset must stay under 2,048 characters (#284), and the
-        // full-energy rule never fired with the reference build (the same
-        // DPS over 120 seeds at 60 s and 300 s without it; PR for #272).
-        sliceAndDiceRules()[0],
-        ruptureRule(),
-        eviscerateRule(),
-        { action: "ambush", conditions: [underFinisher] },
+        {
+          action: SLICE_AND_DICE,
+          conditions: [
+            comboPoints(">=", SUBTLETY.sliceAndDiceComboPoints),
+            rupture(">=", SUBTLETY.sliceAndDiceRuptureSeconds),
+            sliceAndDice("<", SUBTLETY.sliceAndDiceRecastSeconds),
+          ],
+        },
         {
           action: "ghostly-strike",
           conditions: [
             granted("ghostly-strike"),
-            underFinisher,
+            comboPoints("<", SUBTLETY.builderBelowComboPoints),
             ready("ghostly-strike"),
           ],
         },
@@ -257,11 +268,9 @@ export const ROTATION_PRESETS = deepFreeze([
           action: "hemorrhage",
           conditions: [
             granted("hemorrhage"),
-            underFinisher,
-            debuffEnding("hemorrhage"),
+            comboPoints("<", SUBTLETY.builderBelowComboPoints),
           ],
         },
-        { action: "backstab", conditions: [underFinisher] },
       ],
     },
   },

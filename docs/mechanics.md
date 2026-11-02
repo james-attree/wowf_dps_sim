@@ -1853,10 +1853,11 @@ that the link is in one place.
 
 **Combat-swords preset case (#164).** `combat-swords-preset-seed-142-120s` runs
 the reference build with the combat-swords preset rotation
-([docs/rotation.md](rotation.md#combat-swords)) at seed 142 for 120 s:
-31,185.73 damage, 259.88 DPS. It casts Blade Flurry twice, Adrenaline Rush,
-Cold Blood, Slice and Dice four times and Eviscerate three times, so it pins the
-preset's Slice and Dice pooling (#122).
+([docs/rotation.md](rotation.md#combat-swords)) at seed 142 for 120 s. Since
+#310 the preset is James's rotation: 26,621.17 damage, 221.84 DPS (31,185.73
+and 259.88 with the #122 rotation before). It casts Blade Flurry, Adrenaline
+Rush and Cold Blood once each, Slice and Dice five times and Eviscerate twice,
+so it pins the preset's rules.
 
 **Three fixtures moved on purpose in #173 (issue #155).** The default rotation
 took the combat-swords preset's two Slice and Dice rules in place of its single
@@ -3412,9 +3413,12 @@ lists and summaries are in [docs/rotation.md](rotation.md#assassination-daggers)
   its aura; no lock, no hint), Ghostly Strike, Hemorrhage while its debuff has
   under 1 s left, and Backstab.
 
-Neither casts Expose Armor or a stealth opener. Their numbers are read from
+Neither casts Expose Armor or a stealth opener. Their numbers were read from
 `data/constants.js` (`rotation.finisherComboPoints`, `rotation.pooling`, the
-energy cap, `premeditation`), as combat-swords' are.
+energy cap, `premeditation`), as combat-swords' were. **#310 replaced all
+three rotations, both dagger builds' talents and the poisons; see
+[Retuned presets](#retuned-presets-issue-310) below.** This section records
+#272 as it was.
 
 **Loading a preset sets the rotation only** (`loadPreset`, unchanged). The
 build each one is written for is separate data,
@@ -3463,6 +3467,47 @@ default config) and `referencePoison(build, hand)` (that hand's poison id for
   and the default character.
 - **Old configs.** A config with no rotation still gets the default rotation;
   one with a preset loaded keeps its own talents and weapons.
+
+## Retuned presets (issue #310)
+
+James's ruling (2 Nov 2026): each preset and its reference build is the setup
+of his share link, decoded into `test/fixtures/presets-310/`, and
+`test/presets-310.test.js` compares them (talents, weapons, poisons and
+rules). The rule lists are in [docs/rotation.md](rotation.md#presets).
+
+- **Rotations.** Each preset's numbers are its own row,
+  `presetRotation.combat`, `presetRotation.assassination` and
+  `presetRotation.subtlety` (assumption, retune on). Combat's link opens with
+  two Slice and Dice rules, at 5 CP and at 3 CP, each with under 1 s left; the
+  first is the second with more points, so it is folded (the same damage and
+  casts in 1,500 fights: 500 seeds at 60, 120 and 300 s). Assassination
+  finishes at 4 CP and casts no Rupture; Subtlety keeps Rupture up, builds
+  with Hemorrhage and Ghostly Strike, and casts no Eviscerate, Ambush or
+  Backstab.
+- **Talents.** Combat's are unchanged (the link's equal the #151 reference
+  build). Assassination and Subtlety take the links' talents (38/11/2 and
+  12/8/31).
+- **Weapons.** Combat keeps the default swords. The dagger builds keep
+  `weapon.dagger.mainHand` and take James's ruled off hand,
+  `presetReferenceBuild.daggerOffHand` (59-111 at 1.6, the "James ruling, 2
+  Nov 2026"); `weapon.dagger.offHand` (57-107) and the default dagger config
+  are unchanged, so no other fight moves. The Subtlety link's off hand is
+  57-107; the ruling replaces it.
+- **Poisons.** `presetReferenceBuild.poisons` is now per preset: Deadly main
+  hand and Instant off hand for combat-swords, Instant main hand and Deadly
+  off hand for the dagger presets. The build check refuses any other pair.
+  On the page, the default config's poisons (Instant main hand, Deadly off
+  hand) now differ from Combat's, so "Use its poisons too" is offered with
+  combat-swords.
+- **RNG (G2).** No new roll: a preset is a rule list and a build is data.
+  Fights without a preset or a reference build are unchanged.
+- **Goldens.** Only the three preset cases moved:
+  `combat-swords-preset-seed-142-120s` (the new rotation),
+  `assassination-daggers-preset-seed-272-60s` and
+  `subtlety-daggers-preset-seed-272-60s` (new rotations, talents and off
+  hand).
+- **Old configs.** Loading a preset still sets only the rotation; a config
+  with no rotation still gets the default rotation.
 
 ## Applying a talent build (D7, issue #106)
 

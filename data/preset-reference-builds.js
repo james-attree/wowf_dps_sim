@@ -28,17 +28,19 @@ import { talentLevelRange } from "../js/talent-build.js";
 //                 put into config.weapons as it is.
 //   poisons       { mainHand, offHand }, each a poison id (config.poisonIds):
 //                 the SimConfig poisons shape, so it can be put into
-//                 config.poisons as it is. Instant Poison on the main hand and
-//                 Deadly Poison on the off hand for every build (James's
-//                 ruling, relayed by Scout: presetReferenceBuild.poisons).
+//                 config.poisons as it is. Per preset (James's ruling for
+//                 #310, presetReferenceBuild.poisons): Deadly on the main hand
+//                 and Instant on the off hand for Combat swords, Instant and
+//                 Deadly for Assassination and Subtlety.
 //
 // js/preset-reference-builds.js checks every entry when it is imported.
 
-// The dagger alternate (#127): Perdition's Blade and Core Hound Tooth, the
-// rows defaultDaggerConfig() uses.
+// The dagger presets' daggers: the dagger alternate's main hand (#127,
+// Perdition's Blade) and the off hand James ruled for #310 (59-111 at 1.6).
+// defaultDaggerConfig() keeps the alternate's off hand, Core Hound Tooth.
 const DAGGERS = {
   mainHand: k("weapon.dagger.mainHand"),
-  offHand: k("weapon.dagger.offHand"),
+  offHand: k("presetReferenceBuild.daggerOffHand"),
 };
 
 // The default config's swords (js/sim-config.js defaultConfig reads the same
@@ -53,9 +55,12 @@ const SWORDS = {
   offHand: swordHand("offHand"),
 };
 
-// Every build's poisons (James's ruling, relayed by Scout), a copy for each
-// build so freezing a build leaves the constant as it is.
-const poisons = () => ({ ...k("presetReferenceBuild.poisons") });
+// A build's poisons (James's ruling for #310: Deadly MH / Instant OH on
+// Combat, Instant MH / Deadly OH on the daggers), a copy for each build so
+// freezing a build leaves the constant as it is.
+const poisonsOf = (presetId) => ({
+  ...k("presetReferenceBuild.poisons")[presetId],
+});
 
 // Every build is for level 60, the top talent level (51 points).
 const LEVEL_60 = talentLevelRange().max;
@@ -77,20 +82,19 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talentLevel: LEVEL_60,
     talents: combatReferenceTalents(),
     weapons: SWORDS,
-    poisons: poisons(),
+    poisons: poisonsOf("combat-swords"),
   },
-  // The #268 Venom build without Improved Expose Armor (the preset casts no
-  // Expose Armor): its two points go to Puncturing Wounds 2/3, Mutilate's
-  // crit. 41 Assassination (Cold Blood, Seal Fate, Mutilate, Venom) and 10
-  // Combat: 51 points.
+  // James's Assassination build (issue #310, his share link): 38
+  // Assassination (Cold Blood, Seal Fate, Mutilate, Venom), 11 Combat and
+  // Opportunity 2 in Subtlety: 51 points. Daggers, with the off hand at
+  // James's ruling (presetReferenceBuild.daggerOffHand).
   "assassination-daggers": {
     name: "Assassination daggers (Mutilate, Venom)",
     talentLevel: LEVEL_60,
     talents: {
-      "assassination.remorseless-attacks": 2,
       "assassination.malice": 5,
       "assassination.ruthlessness": 3,
-      "assassination.murder": 2,
+      "assassination.murder": 1,
       "assassination.improved-slice-and-dice": 3,
       "assassination.relentless-strikes": 1,
       "assassination.lethality": 5,
@@ -103,28 +107,33 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
       "assassination.venom": 1,
       "combat.improved-eviscerate": 3,
       "combat.improved-sinister-strike": 2,
+      "combat.puncturing-wounds": 3,
       "combat.precision": 3,
-      "combat.puncturing-wounds": 2,
+      "subtlety.opportunity": 2,
     },
     weapons: DAGGERS,
-    poisons: poisons(),
+    poisons: poisonsOf("assassination-daggers"),
   },
-  // The #271 Cutthroat build: 15 Assassination, 36 Subtlety with Ghostly
-  // Strike, Premeditation, Preparation, Hemorrhage, Quietus, Cutthroat,
-  // Improved Ambush, Initiative and Thousand Cuts: 51 points.
+  // James's Subtlety build (issue #310, his share link): 12 Assassination,
+  // 8 Combat and 31 Subtlety with Ghostly Strike, Premeditation, Preparation,
+  // Hemorrhage, Quietus and Thousand Cuts: 51 points. Daggers, with the off
+  // hand at James's later ruling (the link has 57-107).
   "subtlety-daggers": {
-    name: "Subtlety daggers (Hemorrhage, Cutthroat)",
+    name: "Subtlety daggers (Hemorrhage, Ghostly Strike)",
     talentLevel: LEVEL_60,
     talents: {
       "assassination.malice": 5,
       "assassination.ruthlessness": 3,
-      "assassination.murder": 2,
-      "assassination.lethality": 5,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.relentless-strikes": 1,
+      "combat.improved-eviscerate": 3,
+      "combat.improved-sinister-strike": 2,
+      "combat.precision": 3,
+      "subtlety.camouflage": 5,
       "subtlety.master-of-deception": 3,
-      "subtlety.opportunity": 2,
-      "subtlety.setup": 3,
+      "subtlety.setup": 1,
+      "subtlety.elusiveness": 2,
       "subtlety.dirty-tricks": 2,
-      "subtlety.improved-ambush": 3,
       "subtlety.initiative": 3,
       "subtlety.ghostly-strike": 1,
       "subtlety.premeditation": 1,
@@ -133,10 +142,9 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
       "subtlety.preparation": 1,
       "subtlety.hemorrhage": 1,
       "subtlety.quietus": 5,
-      "subtlety.cutthroat": 5,
       "subtlety.thousand-cuts": 1,
     },
     weapons: DAGGERS,
-    poisons: poisons(),
+    poisons: poisonsOf("subtlety-daggers"),
   },
 });

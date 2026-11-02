@@ -57,6 +57,9 @@ const DEV_JUDGEMENT_97 = "Developer, 26 Oct 2026, issue #97";
 const DEV_JUDGEMENT_99 = "Developer, 26 Oct 2026, issue #99";
 const DEV_JUDGEMENT_100 = "Developer, 26 Oct 2026, issue #100";
 const DEV_JUDGEMENT_101 = "Developer, 26 Oct 2026, issue #101";
+// The retuned presets (#310): James's builds, from his share links (relayed
+// by Scout, approved by James).
+const PRESETS_310 = "James, 2 Nov 2026, issue #310";
 
 // The attack table rows (A7, #100) cite the Magey classic-warrior wiki page
 // (MAGEY) as the Classic reference for the table. Where a number is not
@@ -986,7 +989,7 @@ export const CONSTANTS = {
     "s",
     WOWF_DESIGNER,
     COMBAT_ROTATION,
-    "At rotation.finisherComboPoints, the placeholder rotation casts Cold Blood only with more than this left on Slice and Dice. Until issue #155 it also recast Slice and Dice at or below this; since then its Slice and Dice rules are the Combat swords preset's (rotation.pooling).",
+    "At rotation.finisherComboPoints, the placeholder rotation casts Cold Blood only with more than this left on Slice and Dice. Until issue #155 it also recast Slice and Dice at or below this; since then its Slice and Dice rules are the pair the Combat swords preset had from #122 to #310 (rotation.pooling).",
     true,
   ),
 
@@ -995,7 +998,7 @@ export const CONSTANTS = {
     "s, s",
     ASSUMPTION,
     "James, 26 Oct 2026, issue #122: an uptime buff nearing its end (< 5 s left) has its energy pooled and is recast at < 1 s left (the GCD is 1 s), or when energy is at its maximum. The issue gives 5 and 1 as the numbers; #142 asks for any new number to be tagged assumption with retune on, so they are tagged here",
-    "Used by the Combat swords preset (data/rotation-presets.js, issue #122). At rotation.finisherComboPoints, with Slice and Dice at most windowSeconds from ending, the preset casts neither Eviscerate nor a builder, so the energy is pooled; it recasts Slice and Dice when it is missing or has less than recastSeconds left, or earlier when energy is at energy.max. With more than windowSeconds left it spends the points on Eviscerate. Since issue #155 the placeholder rotation takes the preset's two Slice and Dice rules too, but not the pooling: its Eviscerate and builder keep no guard. Rupture and Venom would use the same two numbers; no preset casts them yet.",
+    "Used by the placeholder rotation's two Slice and Dice rules (js/rotation-default.js, issue #155): at rotation.finisherComboPoints it recasts Slice and Dice when it is missing or has less than recastSeconds left, or with at most windowSeconds left when energy is at energy.max. Its Eviscerate and builder keep no pooling guard. From issue #122 to #310 the Combat swords preset read these too (and pooled for the recast); since #310 every preset reads its own presetRotation.* row instead.",
     true,
   ),
 
@@ -1640,12 +1643,72 @@ export const CONSTANTS = {
   // ref carries that date now that the provenance check takes any real date
   // up to today (#275; it once took only October 2026).
   "presetReferenceBuild.poisons": entry(
-    { mainHand: "instant", offHand: "deadly" },
-    "poison ids",
+    {
+      "combat-swords": { mainHand: "deadly", offHand: "instant" },
+      "assassination-daggers": { mainHand: "instant", offHand: "deadly" },
+      "subtlety-daggers": { mainHand: "instant", offHand: "deadly" },
+    },
+    "poison ids per preset",
     ASSUMPTION,
-    "James, 1 Nov 2026, issue #272: reference builds carry Instant MH / Deadly OH (relayed by Scout on PR #304); tagged assumption",
-    "The poison on each hand of every preset reference build (data/preset-reference-builds.js), in the SimConfig poisons shape (config.poisonIds). Nothing in #272 applies a build; #273's button will put these into config.poisons. With Deadly on the off hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.",
+    `${PRESETS_310}: James ruling, 2 Nov 2026 (his three share links): Combat swords carries Deadly MH / Instant OH, Assassination and Subtlety Instant MH / Deadly OH. It replaces the 1 Nov ruling (issue #272, relayed by Scout on PR #304) of Instant MH / Deadly OH for every build; tagged assumption`,
+    "The poison on each hand of each preset's reference build (data/preset-reference-builds.js), keyed by the preset id, each in the SimConfig poisons shape (config.poisonIds). #273's button puts them into config.poisons. With Deadly on either hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.",
     false,
+  ),
+  "presetReferenceBuild.daggerOffHand": entry(
+    { min: 59, max: 111, speed: 1.6, type: "dagger" },
+    "damage, damage, s, –",
+    ASSUMPTION,
+    `${PRESETS_310}: James ruling, 2 Nov 2026: the dagger presets' off hand is 59-111 at 1.6 speed (no item named); tagged assumption`,
+    "The off hand of the Assassination and Subtlety reference builds (data/preset-reference-builds.js). Only those builds read it: the dagger alternate's off hand (weapon.dagger.offHand, Core Hound Tooth, with its character.dagger bonuses) and defaultDaggerConfig() keep 57-107.",
+    false,
+  ),
+  "presetRotation.combat": entry(
+    {
+      finisherComboPoints: 5,
+      sliceAndDiceComboPoints: 3,
+      sliceAndDiceRecastSeconds: 1,
+      adrenalineRushEnergyBelow: 25,
+      coldBloodSliceAndDiceSeconds: 5,
+      eviscerateSliceAndDiceSeconds: 12,
+      energyToCapSeconds: 1,
+    },
+    "CP, CP, s, energy, s, s, s",
+    ASSUMPTION,
+    `${PRESETS_310}: James ruling, 2 Nov 2026 (his share link's "Combat swords (edited)" rotation); tagged assumption`,
+    "The Combat swords preset's numbers (data/rotation-presets.js). Slice and Dice at sliceAndDiceComboPoints or more with under sliceAndDiceRecastSeconds left (the link's 5-point rule with the same timer is folded into it), Adrenaline Rush under adrenalineRushEnergyBelow energy and Blade Flurry, both with Slice and Dice up, Cold Blood at finisherComboPoints with more than coldBloodSliceAndDiceSeconds of Slice and Dice, Eviscerate at finisherComboPoints with at least eviscerateSliceAndDiceSeconds of it, Sinister Strike under finisherComboPoints, and Eviscerate at sliceAndDiceComboPoints or more under energyToCapSeconds from the energy cap.",
+    true,
+  ),
+  "presetRotation.assassination": entry(
+    {
+      finisherComboPoints: 4,
+      sliceAndDiceRecastSeconds: 1,
+      sliceAndDiceWindowSeconds: 5,
+      sliceAndDiceEnergy: 100,
+      venomRecastSeconds: 3,
+      eviscerateEnergy: 75,
+      coldBloodBelowComboPoints: 5,
+    },
+    "CP, s, s, energy, s, energy, CP",
+    ASSUMPTION,
+    `${PRESETS_310}: James ruling, 2 Nov 2026 (his share link's "Assassination (edited)" rotation); tagged assumption`,
+    "The Assassination preset's numbers (data/rotation-presets.js). Every finisher at finisherComboPoints or more: Slice and Dice under sliceAndDiceRecastSeconds left, or at most sliceAndDiceWindowSeconds left with sliceAndDiceEnergy energy; Venom at most venomRecastSeconds left; Eviscerate at eviscerateEnergy energy. Cold Blood under coldBloodBelowComboPoints, Mutilate under finisherComboPoints. No Rupture.",
+    true,
+  ),
+  "presetRotation.subtlety": entry(
+    {
+      ruptureComboPoints: 5,
+      ruptureRecastSeconds: 1,
+      premeditationMaxComboPoints: 3,
+      sliceAndDiceComboPoints: 3,
+      sliceAndDiceRuptureSeconds: 10,
+      sliceAndDiceRecastSeconds: 2,
+      builderBelowComboPoints: 5,
+    },
+    "CP, s, CP, CP, s, s, CP",
+    ASSUMPTION,
+    `${PRESETS_310}: James ruling, 2 Nov 2026 (his share link's "Subtlety (edited)" rotation); tagged assumption`,
+    "The Subtlety preset's numbers (data/rotation-presets.js). Rupture at ruptureComboPoints with under ruptureRecastSeconds of it left, Premeditation at premeditationMaxComboPoints or fewer, Preparation while Ghostly Strike is on cooldown, Slice and Dice at sliceAndDiceComboPoints or more with at least sliceAndDiceRuptureSeconds of Rupture and under sliceAndDiceRecastSeconds of Slice and Dice, then Ghostly Strike and Hemorrhage under builderBelowComboPoints. No Eviscerate, Ambush or Backstab.",
+    true,
   ),
   "config.minWeaponSpeed": entry(
     0.1,

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { DOT_REFRESH, DOT_TICK_KIND, DotTicks } from "../js/core/dots.js";
@@ -8,8 +9,6 @@ import { Scheduler } from "../js/core/scheduler.js";
 import { SWING_KIND, SwingTimer } from "../js/core/swing.js";
 import { createFight, fightResult, runFight } from "../js/fight.js";
 import { RESOURCE_DEFINITIONS } from "../js/resource-data.js";
-import { ROTATION_PRESETS } from "../data/rotation-presets.js";
-import { referenceBuild } from "../js/preset-reference-builds.js";
 import { createRng } from "../js/rng.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { EXTRA_CASES, FIGHT_CASES } from "./fight-cases.js";
@@ -32,22 +31,24 @@ const HEMO = EXTRA_CASES.find(
 // hand and Deadly Poison on the off hand, and the preset's rotation; the
 // default character). Deadly Poison and Rupture tick at the same time on
 // these seeds, and a cut before that time must not swap the two ticks.
-// Built from the preset and its reference build (Kira's #307 N4), as the
-// #272 golden is (scripts/golden-update.mjs), not copied by hand.
-const ASSASSINATION_BUILD = referenceBuild("assassination-daggers");
-const POISONED_ASSASSINATION = Object.freeze({
-  talents: ASSASSINATION_BUILD.talents,
-  weapons: ASSASSINATION_BUILD.weapons,
-  poisons: ASSASSINATION_BUILD.poisons,
-  rotation: ROTATION_PRESETS.find(({ id }) => id === "assassination-daggers")
-    .rotation,
-});
+// Kira's #307 N4 had it built from the preset and its reference build, as
+// the #272 golden was. #310 retuned the preset to James's build, which casts
+// no Rupture, so the #272 config is kept as it was on main before #310
+// (fdbe32c) in test/fixtures/assassination-272.json, written from the preset
+// and its reference build there, not copied by hand.
+const POISONED_ASSASSINATION = Object.freeze(
+  JSON.parse(
+    readFileSync(
+      new URL("fixtures/assassination-272.json", import.meta.url),
+      "utf8",
+    ),
+  ),
+);
 // Kira's variant R on PR #307: the same config with Rupture cast at any
 // combo point and refreshed with under 3 s left, so its ticks meet Deadly
-// Poison's more often. The preset's rules share their condition objects, so
-// Rupture's are replaced, not edited. On seed 68 over 120 s, Rupture's tick
-// at 78.5 comes before Deadly Poison's (the order they were scheduled in):
-// the one tie that tells that order from an order by id (#275).
+// Poison's more often. Rupture's conditions are replaced, not edited. On
+// seed 68 over 120 s, Rupture's tick at 78.5 comes before Deadly Poison's
+// (the order they were scheduled in): the one tie that tells that order from an order by id (#275).
 const EARLY_RUPTURE = (() => {
   const config = structuredClone(POISONED_ASSASSINATION);
   const rupture = config.rotation.rules.find(
