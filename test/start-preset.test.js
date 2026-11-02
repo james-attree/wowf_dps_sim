@@ -6,8 +6,13 @@ import {
   pageDefaultConfig,
 } from "../js/config-form.js";
 import {
+  BUILD_PARTS,
   CUSTOM,
+  ROTATION_PART,
+  announceText,
+  appliedText,
   createPresetBuild,
+  undoName,
   customBuild,
   pickedText,
   pointsText,
@@ -380,5 +385,95 @@ describe("the config form's part (#323)", () => {
     });
     assert.equal(env.store.get().form.rotationChoice, COMBAT);
     assert.deepEqual(env.store.get().config.rotation, presetRotation(COMBAT));
+  });
+});
+
+describe("the words for every change (#325 P1)", () => {
+  const PARTS = [...BUILD_PARTS, ROTATION_PART];
+  const build = referenceBuild(COMBAT);
+  const LEVEL = `Level set to${NBSP}60.`;
+  // Every subset of the parts, in their order, with and without the level.
+  const subsets = PARTS.reduce(
+    (all, part) => [...all, ...all.map((some) => [...some, part])],
+    [[]],
+  );
+  const cases = subsets.flatMap((parts) =>
+    [false, true].map((level) => ({ parts, level })),
+  );
+
+  it("covers all of them", () => {
+    assert.equal(cases.length, 2 ** (PARTS.length + 1));
+  });
+
+  for (const { parts, level } of cases) {
+    const what = level ? [...parts, "level"] : parts;
+    const label = `${what.join(", ") || "none"}`;
+    it(`reads whole: ${label}`, () => {
+      const texts = {
+        applied: appliedText(build, parts, level),
+        announce: announceText(build, parts, level),
+        undone: announceText(build, parts, level, true),
+        name: undoName(parts, level),
+      };
+      for (const [kind, text] of Object.entries(texts)) {
+        assert.equal(text, text.trim(), `${kind} has no outer spaces`);
+        assert.doesNotMatch(text, /\s{2}|your $|^ |\. \.|^\./, kind);
+        assert.match(text, /^[A-Z]/, `${kind} starts with a capital`);
+      }
+      for (const word of what) {
+        assert.ok(texts.name.includes(word), `the name says ${word}`);
+        assert.ok(texts.undone.toLowerCase().includes(word), `undone: ${word}`);
+      }
+      if (what.length === 0) {
+        assert.equal(texts.name, "Undo");
+        assert.equal(texts.announce, "Nothing changed.");
+        assert.equal(texts.undone, "Nothing to put back.");
+        return;
+      }
+      assert.ok(texts.name.startsWith("Undo: put back your "));
+      assert.equal(texts.announce.endsWith(LEVEL), level);
+      assert.equal(texts.applied.endsWith(LEVEL), level);
+      assert.equal(texts.announce.includes("replaced."), parts.length > 0);
+      assert.match(texts.undone, / put back\.$/);
+    });
+  }
+
+  it("the level alone, and a few written out", () => {
+    assert.equal(undoName([], true), "Undo: put back your level");
+    assert.equal(announceText(build, [], true), LEVEL);
+    assert.equal(announceText(build, [], true, true), "Level put back.");
+    assert.equal(appliedText(build, [], true), LEVEL);
+    assert.equal(
+      undoName(["talents", ROTATION_PART], true),
+      "Undo: put back your talents, rotation and level",
+    );
+    assert.equal(
+      announceText(build, ["poisons", ROTATION_PART], true),
+      `Poisons and rotation replaced. ${LEVEL}`,
+    );
+    assert.equal(
+      announceText(build, [...BUILD_PARTS, ROTATION_PART], false, true),
+      "Talents, weapons, poisons and rotation put back.",
+    );
+  });
+
+  it("Custom from level 30: the level is all it changes", () => {
+    const env = page();
+    env.tree.setLevel("30");
+    assert.equal(env.start.pick(CUSTOM), true);
+    const said = env.store.get().presetBuild;
+    assert.equal(said.applied.undoName, "Undo: put back your level");
+    assert.equal(said.announce.text, LEVEL);
+    env.start.undo();
+    assert.equal(env.store.get().config.talentLevel, 30);
+    assert.equal(env.store.get().presetBuild.announce.text, "Level put back.");
+  });
+
+  it("a preset's level can't drop under its points, so only Custom differs by the level alone", () => {
+    const env = page();
+    env.start.pick(COMBAT);
+    env.tree.setLevel(LOW_LEVEL);
+    assert.equal(env.store.get().config.talentLevel, 60);
+    assert.equal(env.start.pick(COMBAT), false, "nothing to change");
   });
 });

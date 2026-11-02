@@ -19,6 +19,7 @@ import { LINK_PARAM } from "../js/build-codec.js";
 
 const PINNED_FONT = "DejaVu Sans";
 const WIDTHS = [320, 360, 390, 1024, 1440];
+const PHONE = 390;
 const TEXT_SIZES = ["100%", "150%"];
 const PHONE_HEIGHT = 844;
 const WIDE_HEIGHT = 900;
@@ -31,6 +32,7 @@ const SETTLE = 5_000;
 const RUN_TIMEOUT = 60_000;
 const BATCH_FIGHTS = "5";
 const BATCH_SECONDS = "30";
+const LIVE_SECONDS = "10";
 
 const ASSASSINATION = "assassination-daggers";
 const COMBAT = "combat-swords";
@@ -142,18 +144,23 @@ const box = (page, selector) =>
     return { top, bottom, left, right, width, height };
   });
 
-// The top of what covers the page's foot: the dock (the Run bar and the
-// nav) on a phone, else the window's bottom.
+// The top of what covers the page's foot: the phone dock, the Run bar
+// (#run-bar) over the area nav (#area-nav), both fixed to the bottom below
+// the wide breakpoint; null where neither is fixed (the wide layout, whose
+// nav and Run column are sticky at the top). #325 P2: this read ".run-bar",
+// which no element has, so it always fell back to the window's bottom.
+const DOCK = ["#run-bar", "#area-nav"];
 const dockTop = (page) =>
-  page.evaluate(() => {
-    const bar = document.querySelector(".run-bar");
-    const fixed =
-      bar !== null &&
-      ["fixed", "sticky"].includes(getComputedStyle(bar).position);
-    return fixed
-      ? Math.min(bar.getBoundingClientRect().top, globalThis.innerHeight)
-      : globalThis.innerHeight;
-  });
+  page.evaluate((selectors) => {
+    const tops = selectors
+      .map((selector) => document.querySelector(selector))
+      .filter(
+        (element) =>
+          element !== null && getComputedStyle(element).position === "fixed",
+      )
+      .map((element) => element.getBoundingClientRect().top);
+    return tops.length === 0 ? null : Math.min(...tops);
+  }, DOCK);
 
 const announced = (page, pattern) =>
   page
@@ -207,6 +214,53 @@ const current = (page) =>
 const saved = (page) =>
   page.evaluate((key) => globalThis.localStorage.getItem(key), START_KEY);
 
+// The Average card's amber "Out of date" beside the page (1024 up), or null.
+const staleSaid = (page) =>
+  page.evaluate(() => {
+    const node = document.querySelector(".results-card-stale");
+    return node === null ? null : node.textContent.replace(/\s+/g, " ").trim();
+  });
+
+const dockSaid = (page) =>
+  page.evaluate(
+    () => document.getElementById("run-status-text")?.dataset.dock ?? "",
+  );
+
+const dockLike = (page, pattern, timeout = SETTLE) =>
+  page.waitForFunction(
+    ([source, flags]) =>
+      new RegExp(source, flags).test(
+        document.getElementById("run-status-text")?.dataset.dock ?? "",
+      ),
+    [pattern.source, pattern.flags],
+    { timeout },
+  );
+
+// A short batch on Fight (#fight at 1024).
+async function shortBatch(page) {
+  await go(page, "#fight", "#run-mode-batch");
+  await page.locator("#run-mode-batch").check();
+  await page.fill("#run-iterations", BATCH_FIGHTS);
+  await page.fill("#run-duration", BATCH_SECONDS);
+  await page.locator("#run-duration").press("Tab");
+}
+
+// Run, and wait for Results to say it finished.
+async function runToEnd(page) {
+  await page.evaluate(() => {
+    document.getElementById("results-announce").textContent = "";
+  });
+  await page.locator("#run-button").click();
+  await page.waitForFunction(
+    () =>
+      /finished/.test(
+        document.getElementById("results-announce")?.textContent ?? "",
+      ),
+    null,
+    { timeout: RUN_TIMEOUT },
+  );
+}
+
 describe("Start from a preset (#323)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {
@@ -239,10 +293,15 @@ describe("Start from a preset (#323)", () => {
           // All four over the dock, but where 150% text on the narrowest
           // phones makes them scroll.
           const last = await box(page, card(CUSTOM));
+          const dock = await dockTop(page);
+          const phone = width < WIDE;
+          assert.equal(dock !== null, phone, `${name}: a fixed dock on phones`);
+          const foot =
+            dock ?? (await page.evaluate(() => globalThis.innerHeight));
           if (!SCROLLS.has(size)) {
             assert.ok(
-              last.bottom <= (await dockTop(page)) + 1,
-              `${name}: the last card over the dock`,
+              last.bottom <= foot + 1,
+              `${name}: the last card over the dock (${last.bottom} against ${foot})`,
             );
           }
           assert.ok(await fitsPage(page), `${name}: no sideways scroll`);
@@ -517,6 +576,105 @@ describe("Start from a preset (#323)", () => {
       await page.locator(UNDO).click();
       await announced(page, /put back\. Results out of date\.$/);
       assert.equal(await rotation(page), "default");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+  // #325 P3: the #273 cases that went with its button.
+  test("a pick after a run, and during one: the results go out of date", async () => {
+    const { context, page, errors } = await open(WIDE);
+    try {
+      await shortBatch(page);
+      await runToEnd(page);
+      await go(page, "#character", PANEL);
+      assert.equal(await staleSaid(page), null, "fresh");
+
+      // After a run: one line, and the results are out of date.
+      await page.locator(card(ASSASSINATION)).click();
+      await page.locator(APPLIED).waitFor({ state: "visible" });
+      await announced(
+        page,
+        /^Talents, weapons and rotation replaced\. Results out of date\.$/,
+      );
+      assert.match((await staleSaid(page)) ?? "", /^Out of date/, "amber");
+      assert.equal(await focused(page), "start-undo");
+      // Run with it: fresh, and Undo is still there back on Character.
+      await runToEnd(page);
+      assert.equal(await staleSaid(page), null, "fresh with the build");
+      await page.locator('[data-nav-area="character"]').first().click();
+      await page.locator(APPLIED).waitFor({ state: "visible" });
+
+      // During a live fight: the pick applies and the fight goes on; when
+      // it ends, it is out of date (it ran without the pick) and Undo is
+      // still there, putting Assassination back.
+      await go(page, "#fight", "#run-mode-live");
+      await page.locator("#run-mode-live").check();
+      await page.fill("#run-duration", LIVE_SECONDS);
+      await page.locator("#run-duration").press("Tab");
+      await page.locator("#run-button").click();
+      await dockLike(page, /^Running/);
+      await go(page, "#character/start", card(COMBAT));
+      await page.locator(card(COMBAT)).click();
+      await page.locator(APPLIED).waitFor({ state: "visible" });
+      await announced(
+        page,
+        /^Talents, weapons, poisons and rotation replaced\./,
+      );
+      assert.match(await dockSaid(page), /^Running/, "still running");
+      assert.equal(await text(page, "#start-summary"), "Combat swords");
+      await dockLike(page, /Out of date/, RUN_TIMEOUT);
+      await go(page, "#character", ROW);
+      assert.equal(await shown(page, APPLIED), true, "Undo stays");
+      await page.locator(UNDO).click();
+      await announced(
+        page,
+        /^Talents, weapons, poisons and rotation put back\./,
+      );
+      assert.equal(await text(page, "#start-summary"), "Assassination");
+      assert.equal(await rotation(page), ASSASSINATION);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("Undo closes on a reload; the pick stays (it is saved)", async () => {
+    const { context, page, errors } = await open(WIDE);
+    try {
+      await page.locator(card(SUBTLETY)).click();
+      await page.locator(APPLIED).waitFor({ state: "visible" });
+      await page.reload();
+      await pin(page);
+      await page.locator(ROW).waitFor({ state: "visible" });
+      assert.equal(await shown(page, APPLIED), false, "no Undo");
+      assert.equal(await shown(page, PANEL), false, "a saved setup: folded");
+      assert.equal(await text(page, "#start-summary"), "Subtlety");
+      assert.equal(await rotation(page), SUBTLETY);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("a pick that changes only the level reads whole (#325 P1)", async () => {
+    const { context, page, errors } = await open(PHONE);
+    try {
+      await go(page, "#character/talents", "#talents-level");
+      await page.fill("#talents-level", "30");
+      await page.locator("#talents-level").press("Tab");
+      await go(page, "#character", PANEL);
+      await page.locator(card(CUSTOM)).click();
+      await page.locator(APPLIED).waitFor({ state: "visible" });
+      assert.equal(
+        await page.getAttribute(UNDO, "aria-label"),
+        "Undo: put back your level",
+      );
+      await announced(page, /^Level set to.60\.$/);
+      await page.locator(UNDO).click();
+      await announced(page, /^Level put back\.$/);
+      await go(page, "#character/talents", "#talents-level");
+      assert.equal(await page.locator("#talents-level").inputValue(), "30");
       assert.deepEqual(errors, []);
     } finally {
       await context.close();

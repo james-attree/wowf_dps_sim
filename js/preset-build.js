@@ -206,27 +206,53 @@ export function hintText(build, differences, names = poisonName) {
   return `Built for ${treeText(build.talents)}${level} with ${weaponsText(build.weapons)}${poisons}.`;
 }
 
-const levelSentence = (build) => ` Level set to${NBSP}${build.talentLevel}.`;
+const levelSentence = (build) => `Level set to${NBSP}${build.talentLevel}.`;
+
+// Sentences joined with a space, the empty ones left out.
+const sentences = (...texts) => texts.filter((text) => text !== "").join(" ");
+
+// What a change puts back: the parts, and "level" when it was set.
+const withLevel = (parts, level) => (level ? [...parts, "level"] : parts);
 
 // The line after the button: "Talents and weapons set to the
-// Assassination daggers build." and "Level set to 60." when it was below.
+// Assassination daggers build." and "Level set to 60." when it was below;
+// just "Level set to 60." when the level is all that changed.
 export function appliedText(build, parts, level) {
-  return `${capital(listText(parts))} set to the ${shortName(build)} build.${level ? levelSentence(build) : ""}`;
+  if (parts.length === 0 && !level) {
+    return "Nothing changed.";
+  }
+  return sentences(
+    parts.length > 0
+      ? `${capital(listText(parts))} set to the ${shortName(build)} build.`
+      : "",
+    level ? levelSentence(build) : "",
+  );
 }
 
 // #run-announce after the button: "Talents and weapons replaced." (and the
-// level); after Undo: "Talents and weapons put back." or "Talents,
-// weapons, poisons and level put back."
+// level, or only "Level set to 60."); after Undo: "Talents and weapons put
+// back.", "Talents, weapons, poisons and level put back." or "Level put
+// back." A change of nothing says so, though a pick of nothing has no Undo.
 export function announceText(build, parts, level, undone = false) {
-  const what = capital(listText(parts));
-  if (undone) {
-    return `${capital(listText(level ? [...parts, "level"] : parts))} put back.`;
+  const what = withLevel(parts, level);
+  if (what.length === 0) {
+    return undone ? "Nothing to put back." : "Nothing changed.";
   }
-  return `${what} replaced.${level ? levelSentence(build) : ""}`;
+  if (undone) {
+    return `${capital(listText(what))} put back.`;
+  }
+  return sentences(
+    parts.length > 0 ? `${capital(listText(parts))} replaced.` : "",
+    level ? levelSentence(build) : "",
+  );
 }
 
-// Undo's accessible name, which starts with its visible label.
-export const undoName = (parts) => `Undo: put back your ${listText(parts)}`;
+// Undo's accessible name, which starts with its visible label: "Undo: put
+// back your talents and level", "Undo: put back your level".
+export function undoName(parts, level = false) {
+  const what = withLevel(parts, level);
+  return what.length === 0 ? "Undo" : `Undo: put back your ${listText(what)}`;
+}
 
 // The hint for a state, or null.
 export function hintOf(state) {
@@ -466,7 +492,7 @@ export function createPresetBuild(
         build,
         pick,
         text,
-        undoName: undoName(parts),
+        undoName: undoName(parts, level),
         // Where Undo may be now: the page, or where Run moved it.
         route: routeKey(now.route),
         after: {
