@@ -68,7 +68,7 @@ const RAW = {
   "undead.underwater-breathing": {
     textHash:
       "dd7c007b07f4cf1177714a79770acd8837acfe730f63b48131ba24ddf594c020",
-    noDpsEffect: "Breath underwater only.",
+    noDpsEffect: "Breathing underwater only.",
   },
   "undead.will-of-the-forsaken": {
     textHash:

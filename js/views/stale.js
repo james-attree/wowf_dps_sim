@@ -30,6 +30,7 @@ const PART_NAMES = Object.freeze({
   talentLevel: "the level",
   poisons: "the poisons",
   rotation: "the rotation",
+  race: "the race",
 });
 const OTHER = "the settings";
 // More changes than this are "and other settings".

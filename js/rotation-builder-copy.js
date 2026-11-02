@@ -31,7 +31,7 @@ export const TYPE_LABELS = Object.freeze({
   debuffRemaining: "Debuff time left",
   debuffStacks: "Debuff stacks",
   cooldownReady: "Cooldown ready",
-  abilityGranted: "Talent granted",
+  abilityGranted: "Race or talent granted",
   abilityUnlocked: "Talent not locked",
   fightTime: "Fight time",
   fightTimeRemaining: "Fight time left",
@@ -162,7 +162,11 @@ export function abilityGroups(ids) {
       label,
       options: facts.filter(test).map((f) => ({
         value: f.id,
-        text: f.talent ? `${f.name} (talent)` : f.name,
+        text: f.talent
+          ? `${f.name} (talent)`
+          : f.race
+            ? `${f.name} (racial)`
+            : f.name,
       })),
     }))
     .filter((group) => group.options.length > 0);

@@ -160,9 +160,10 @@ export function fixFor(entry, at, rotation) {
 
 // The default ability of "New rule casts": the first finisher the rotation
 // doesn't cast yet (Rupture for the presets, as the mockup has it), else the
-// first castable ability.
-export function defaultAddAction(rules) {
-  const castable = castableAbilities();
+// first castable ability. `race` (config.race) adds the on-use racials it
+// grants.
+export function defaultAddAction(rules, race = null) {
+  const castable = castableAbilities(race);
   const used = new Set(rules.map((rule) => rule.action));
   return (
     castable.find((id) => abilityFacts(id).finisher && !used.has(id)) ??
@@ -180,14 +181,15 @@ function selectOptions(values, label, current) {
 
 // What an id param's select offers, by the spec's `of` (CONDITION_PARAMS).
 // An ability names a cooldown for cooldownReady and a talent ability for the
-// talent checks (abilityGranted, abilityUnlocked).
+// talent checks (abilityGranted, abilityUnlocked), with the on-use racials
+// `race` grants in both (#280).
 const ID_CONTROLS = {
-  ability: (condition) => ({
+  ability: (condition, race) => ({
     label: "ability",
     values:
       condition.type === "cooldownReady"
-        ? cooldownAbilities()
-        : talentAbilities(),
+        ? cooldownAbilities(race)
+        : talentAbilities(race),
     text: nameOf,
   }),
   aura: () => ({
@@ -212,7 +214,7 @@ const noControl = (type, param, spec) =>
 // `default` the value shown when it is left out. A kind (or an id's `of`)
 // with no control here is a TypeError, never an empty select (Scout's review
 // of #218).
-function paramField(condition, param, spec, raw) {
+function paramField(condition, param, spec, raw, race = null) {
   const base = { param, kind: "select" };
   switch (spec.kind) {
     case "operator":
@@ -242,7 +244,7 @@ function paramField(condition, param, spec, raw) {
       if (control === undefined) {
         throw noControl(condition.type, param, spec);
       }
-      const { label, values, text } = control(condition);
+      const { label, values, text } = control(condition, race);
       return {
         ...base,
         label,
@@ -281,11 +283,13 @@ function paramField(condition, param, spec, raw) {
 }
 
 // The controls of one condition, in CONDITION_PARAMS order. `params` is the
-// type's spec; a type with none is a TypeError.
+// type's spec; a type with none is a TypeError. `race` (config.race) puts
+// the on-use racials it grants in an ability select.
 export function conditionFields(
   condition,
   raw = {},
   params = CONDITION_PARAMS[condition.type],
+  race = null,
 ) {
   if (params === undefined) {
     throw new TypeError(
@@ -293,7 +297,7 @@ export function conditionFields(
     );
   }
   return Object.entries(params).map(([param, spec]) =>
-    paramField(condition, param, spec, raw),
+    paramField(condition, param, spec, raw, race),
   );
 }
 
@@ -429,6 +433,7 @@ export function createRotationBuilder(store, formActions) {
     const rules = draft.rules;
     const { errors, warnings } = messagesOf(state);
     const talents = talentState(state.config);
+    const race = state.config.race ?? null;
     fixes = new Map();
     jumps = new Map();
 
@@ -515,12 +520,20 @@ export function createRotationBuilder(store, formActions) {
         });
       }
       if (skip !== null) {
-        chips.push({ kind: "skip", mark: "⊘ ", text: `Skipped: ${skip.text}` });
+        // A race's skip says it on its own: "Not your race (Orc only)" (#280).
+        chips.push({
+          kind: "skip",
+          mark: "⊘ ",
+          text: skip.race === null ? `Skipped: ${skip.text}` : skip.text,
+        });
       } else if (taken !== null) {
         chips.push({
           kind: "ok",
           mark: "◆ ",
-          text: `${taken.talent} talent taken`,
+          text:
+            taken.race === null
+              ? `${taken.talent} talent taken`
+              : `${taken.race} racial`,
         });
       }
       if (errs.length > 0) {
@@ -554,7 +567,7 @@ export function createRotationBuilder(store, formActions) {
         body = {
           actionLabel: `Rule ${n} casts`,
           action: rule.action,
-          actionGroups: abilityGroups(castableAbilities()),
+          actionGroups: abilityGroups(castableAbilities(race)),
           actionErrors: keyed
             .filter((m) => m.place.at === "action")
             .map((m) => entryText(m.entry, rotation)),
@@ -585,13 +598,16 @@ export function createRotationBuilder(store, formActions) {
               typeLabel: `Rule ${n}, condition ${m}, type`,
               typeGroups,
               note: TYPE_NOTES[condition.type] ?? null,
-              fields: conditionFields(condition, draft.raw ?? {}).map(
-                (field) => ({
-                  ...field,
-                  label: `Rule ${n}, condition ${m}, ${field.label}`,
-                  invalid: badParams.has(field.param),
-                }),
-              ),
+              fields: conditionFields(
+                condition,
+                draft.raw ?? {},
+                undefined,
+                race,
+              ).map((field) => ({
+                ...field,
+                label: `Rule ${n}, condition ${m}, ${field.label}`,
+                invalid: badParams.has(field.param),
+              })),
               typeInvalid:
                 badParams.has("type") ||
                 [...badParams].some(
@@ -659,8 +675,13 @@ export function createRotationBuilder(store, formActions) {
       .filter(([skip]) => skip !== null);
     // A skip no talent lifts (a talent check on a baseline ability) is the
     // same with any build: said on its own, not "with no talents" (#244, P1).
+    // An on-use racial the race doesn't grant is neither: said as the race
+    // (#280).
     const skipped = skips.filter(([skip]) => skip.talent !== null);
-    const unavailable = skips.filter(([skip]) => skip.talent === null);
+    const unavailable = skips.filter(
+      ([skip]) => skip.talent === null && skip.race === null,
+    );
+    const notRace = skips.filter(([skip]) => skip.race !== null);
     const ruleList = (list) =>
       list.map(([, index]) => `rule ${index + 1}`).join(", ");
     // "rules 1 and 3", "rules 1, 3 and 4".
@@ -684,15 +705,24 @@ export function createRotationBuilder(store, formActions) {
           ? `1 rule never casts with any build: its talent check is on a baseline ability (${ruleList(unavailable)}).`
           : `${count(unavailable.length, "rule")} never cast with any build: their talent checks are on baseline abilities (${andList(unavailable)}).`
         : null;
+    // "1 rule is skipped: not your race (rule 1)."; "4 rules are skipped:
+    // not your race (rules 1, 2, 3 and 4)."
+    const byRace =
+      notRace.length > 0
+        ? notRace.length === 1
+          ? `1 rule is skipped: not your race (${ruleList(notRace)}).`
+          : `${count(notRace.length, "rule")} are skipped: not your race (${andList(notRace)}).`
+        : null;
+    const parts = [byBuild, never, byRace].filter((part) => part !== null);
     const context = `${
-      byBuild !== null || never !== null
-        ? [byBuild, never].filter((part) => part !== null).join(" ")
+      parts.length > 0
+        ? parts.join(" ")
         : anyTalent
           ? "Every talent ability in the list has its talent."
           : "No rule needs a talent."
     } `;
-    if (addAction === null || !castableAbilities().includes(addAction)) {
-      addAction = defaultAddAction(rules);
+    if (addAction === null || !castableAbilities(race).includes(addAction)) {
+      addAction = defaultAddAction(rules, race);
     }
     const fullRules = rules.length >= MAX_RULES;
     const limitText = `${MAX_RULES} of ${MAX_RULES} rules: delete one to add another.`;
@@ -770,7 +800,7 @@ export function createRotationBuilder(store, formActions) {
       rules: ruleViews,
       add: {
         label: "New rule casts",
-        groups: abilityGroups(castableAbilities()),
+        groups: abilityGroups(castableAbilities(race)),
         value: addAction,
         button: "Add rule",
         disabled: fullRules,
@@ -1266,7 +1296,10 @@ export function createRotationBuilder(store, formActions) {
       if (j < 0 || rule.conditions[j].type === type) {
         return;
       }
-      const condition = { ...defaultCondition(type, rule.action), uid: cuid };
+      const condition = {
+        ...defaultCondition(type, rule.action, store.get().config.race ?? null),
+        uid: cuid,
+      };
       edit(
         (draft) => {
           const raw = { ...draft.raw };
@@ -1341,7 +1374,11 @@ export function createRotationBuilder(store, formActions) {
         return;
       }
       const condition = {
-        ...defaultCondition(nextConditionType(rule), rule.action),
+        ...defaultCondition(
+          nextConditionType(rule),
+          rule.action,
+          store.get().config.race ?? null,
+        ),
         uid: nextUid(),
       };
       edit(
@@ -1364,7 +1401,10 @@ export function createRotationBuilder(store, formActions) {
         );
         return;
       }
-      const rule = newRule(addAction ?? defaultAddAction(rules), nextUid);
+      const rule = newRule(
+        addAction ?? defaultAddAction(rules, store.get().config.race ?? null),
+        nextUid,
+      );
       const line = ruleLine(rule);
       const live = `Rule ${rules.length + 1} added at the bottom: ${line}. Move it up on the list to give it priority.`;
       screen = { kind: "rule", uid: rule.uid };

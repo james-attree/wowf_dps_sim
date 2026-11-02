@@ -17,7 +17,9 @@ describe("the skip text for a guard on a non-talent ability (#243)", () => {
     assert.deepEqual(skipOf(rule, state), {
       ability: "sinister-strike",
       talent: null,
+      race: null,
       text: "Sinister Strike is baseline, so its talent check is never true",
+      phrase: "Sinister Strike is baseline, so its talent check is never true",
     });
     assert.doesNotMatch(skipOf(rule, state).text, /talent$/);
   });

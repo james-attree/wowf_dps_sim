@@ -493,9 +493,10 @@ describe("the validator and the builder state (#278)", () => {
     assert.notEqual(skipOf(rule, talentState({})), null);
   });
 
-  it("the palette leaves the on-use racials out until the race picker (P5-04)", () => {
-    for (const { ability } of ON_USE) {
+  it("the palette leaves the on-use racials out with no race, and offers the race's (#280)", () => {
+    for (const { ability, race } of ON_USE) {
       assert.ok(!castableAbilities().includes(ability), ability);
+      assert.ok(castableAbilities(race).includes(ability), ability);
     }
   });
 });

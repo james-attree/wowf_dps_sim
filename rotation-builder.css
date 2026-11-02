@@ -35,8 +35,12 @@
 }
 
 /* ---- The panel ------------------------------------------------------------ */
+/* One track no wider than the card: an auto track grows to the widest
+   min-content inside it (a condition's fields), which spilled the rule body
+   out of the card at 1024 wide and 150% text (Fran's #322 B1). */
 .rotation-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 .rotation-panel[hidden] {
@@ -416,13 +420,22 @@
 .cond.has-error {
   border-color: #7a3b34;
 }
+/* The fields take the line beside "IF" and the remove button while they fit
+   their widest select ("Race or talent granted", #280); when they
+   don't, the button drops under them, right-aligned, instead of the select
+   cutting its choice off (#244). */
 .cond-row {
-  display: grid;
-  grid-template-columns: 2.2em minmax(0, 1fr) 44px;
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: start;
 }
+.cond-row > .is-remove {
+  flex: none;
+  margin-inline-start: auto;
+}
 .cond-and {
+  flex: 0 0 2.2em;
   padding-top: 12px;
   color: var(--text-muted);
   font-size: 0.78rem;
@@ -431,6 +444,7 @@
 }
 .cond-fields {
   display: flex;
+  flex: 1 1 min-content;
   flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
@@ -596,11 +610,13 @@
   .rule-foot .pill-button {
     flex: 1 1 auto;
   }
-  .cond-row {
-    grid-template-columns: minmax(0, 1fr) 44px;
-  }
   .cond-and {
     display: none;
+  }
+  /* A phone's line can't hold the type select and the remove button side by
+     side, so the fields take the whole line and the button sits under them. */
+  .cond-row > .cond-fields {
+    flex-basis: 100%;
   }
   .cond-type,
   .cond-type select {

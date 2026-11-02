@@ -3,7 +3,7 @@ import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { CONDITION_PARAMS } from "./rotation-conditions.js";
 import { ROTATION_SCHEMA_VERSION } from "./rotation-schema.js";
-import { raceGrantedAbilities } from "./racials.js";
+import { expandRace, raceCatalogue, raceGrantedAbilities } from "./racials.js";
 import { rotationContext } from "./rotation-validator.js";
 import { warningContext } from "./rotation-warnings.js";
 import { talentGrantedAbilities } from "./talent-build.js";
@@ -65,6 +65,9 @@ export function abilityFacts(id) {
     id,
     name: ability?.name ?? id,
     talent: talentGrantedAbilities.has(id),
+    // An on-use racial (#278): only a race grants it, so a rule that casts
+    // it needs the same "ability granted" guard as a talent's.
+    race: raceGrantedAbilities.has(id),
     onGcd: given.onGcd.includes(id),
     cooldown: given.cooldowns.includes(id),
     finisher: given.finishers.includes(id),
@@ -79,15 +82,30 @@ export function abilityFacts(id) {
   });
 }
 
-// The abilities a rule can cast, in the order the validator knows them. The
-// on-use racials (#278) are left out until the race picker (P5-04, #280)
-// shows them for a race that grants them; a rule that casts one (a preset's)
-// keeps it, as any select keeps its current value.
-export function castableAbilities() {
+// The on-use racials `race` (a config.race id, or null) grants: none for no
+// race or one the catalogue doesn't know.
+export function raceAbilities(race = null) {
+  return race === null ||
+    race === undefined ||
+    raceCatalogue.get(race) === undefined
+    ? []
+    : expandRace(race).abilities;
+}
+
+// The abilities a rule can cast, in the order the validator knows them. An
+// on-use racial (#278) is in only when `race` grants it (#280): the builder
+// offers Blood Fury to an Orc and to no one else. A rule that casts one
+// anyway (a preset's) keeps it, as any select keeps its current value.
+export function castableAbilities(race = null) {
+  const granted = raceAbilities(race);
   return rotationContext().castable.filter(
-    (id) => !raceGrantedAbilities.has(id),
+    (id) => !raceGrantedAbilities.has(id) || granted.includes(id),
   );
 }
+
+// Whether a rule that casts `facts`'s ability needs the "ability granted"
+// guard: a talent's or a race's.
+const needsGuard = (facts) => facts.talent || facts.race;
 
 // The rotation a draft describes: what the validator, the warnings and the
 // config see. No uids and no raw text.
@@ -182,8 +200,9 @@ export function copyRule(rule, nextUid) {
 // The condition a new condition of `type` starts as, for a rule that casts
 // `action` (§3: a type change resets the params to these). The ids come from
 // the data: the first self buff, the first debuff, the first debuff that
-// stacks; the numbers from rotation.builderDefaults.
-export function defaultCondition(type, action) {
+// stacks; the numbers from rotation.builderDefaults. `race` (config.race)
+// adds the on-use racials it grants to the abilities a check can name.
+export function defaultCondition(type, action, race = null) {
   const defaults = k("rotation.builderDefaults");
   const context = rotationContext();
   const facts = abilityFacts(action);
@@ -225,11 +244,14 @@ export function defaultCondition(type, action) {
     case "cooldownReady":
       return {
         type,
-        ability: facts.cooldown ? action : cooldownAbilities()[0],
+        ability: facts.cooldown ? action : cooldownAbilities(race)[0],
       };
     case "abilityGranted":
     case "abilityUnlocked":
-      return { type, ability: facts.talent ? action : talentAbilities()[0] };
+      return {
+        type,
+        ability: needsGuard(facts) ? action : talentAbilities(race)[0],
+      };
     case "energyToCap":
       return { type, op: "<", value: defaults.energyToCapSeconds };
     case "fightTime":
@@ -242,14 +264,17 @@ export function defaultCondition(type, action) {
 }
 
 // The abilities a cooldownReady condition can name: the castable ones with a
-// cooldown. The ones a talent check can name: the talent abilities (Fran, Q6).
-export function cooldownAbilities() {
+// cooldown. The ones a talent check can name: the talent abilities (Fran, Q6)
+// and the on-use racials `race` grants (#280, "Race or talent granted").
+export function cooldownAbilities(race = null) {
   const { cooldowns } = warningContext();
-  return castableAbilities().filter((id) => cooldowns.includes(id));
+  return castableAbilities(race).filter((id) => cooldowns.includes(id));
 }
 
-export function talentAbilities() {
-  return castableAbilities().filter((id) => talentGrantedAbilities.has(id));
+export function talentAbilities(race = null) {
+  return castableAbilities(race).filter(
+    (id) => talentGrantedAbilities.has(id) || raceGrantedAbilities.has(id),
+  );
 }
 
 const onComboPoints = (condition) =>
@@ -271,7 +296,7 @@ export function nextConditionType(rule) {
 export function newRule(action, nextUid) {
   const facts = abilityFacts(action);
   const conditions = [];
-  if (facts.talent) {
+  if (needsGuard(facts)) {
     conditions.push({ type: "abilityGranted", ability: action });
   }
   if (facts.onGcd && facts.cooldown) {
@@ -305,11 +330,12 @@ export function retarget(rule, action, nextUid) {
     )
     .filter(
       (condition) =>
-        facts.talent || !(isGuard(condition) && condition.ability === action),
+        needsGuard(facts) ||
+        !(isGuard(condition) && condition.ability === action),
     );
   let added = null;
   if (
-    facts.talent &&
+    needsGuard(facts) &&
     !conditions.some(
       (condition) => isGuard(condition) && condition.ability === action,
     )

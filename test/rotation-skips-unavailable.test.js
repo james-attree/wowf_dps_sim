@@ -55,7 +55,9 @@ describe("a check no talent lifts (#244, P1)", () => {
       assert.deepEqual(skip, {
         ability: "sinister-strike",
         talent: null,
+        race: null,
         text: UNAVAILABLE,
+        phrase: UNAVAILABLE,
       });
       assert.doesNotMatch(skip.text, /never granted|spec/);
     }

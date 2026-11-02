@@ -1,9 +1,11 @@
 import { k } from "../data/constants.js";
+import { RACIAL_EFFECTS } from "../data/racial-effects.js";
 import { defaultWeaponSkill, maxWeaponSkill } from "./attack-resolver.js";
 import { characterLevel } from "./levels.js";
 import { defaultRotation } from "./rotation-default.js";
 import { exportRotation, importRotation } from "./rotation-io.js";
 import { poisonCatalogue } from "./poisons.js";
+import { raceCatalogue, racialStatus } from "./racials.js";
 import { listPresets, presetRotation } from "./rotation-presets.js";
 import { placeText } from "./rotation-builder-copy.js";
 import { draftRotation } from "./rotation-edit.js";
@@ -72,6 +74,10 @@ import { formErrorCount } from "./views/run-model.js";
 //                   poison selects (#152); id is the config id ("instant").
 //   poisons         { mainHand, offHand }: poisonInfo() of each hand's poison,
 //                   or null for None.
+//   raceOptions     [{ faction, races: [{ id, label }] }] for the Race select
+//                   (#321), faction by faction as js/racials.js lists them.
+//   race            raceInfo() of config.race: its racials and how each
+//                   stands in the fight, or null for no race.
 //   revision        Moves when the values change other than by typing (fill,
 //                   Reset, Undo), so the view rewrites its inputs.
 //   canUndo         Reset was the last action, and Undo puts the form back.
@@ -191,6 +197,16 @@ function weaponFields(hand) {
 
 export const FORM_FIELDS = Object.freeze(
   [
+    // The race (#321): a race id from js/racials.js, or null for none. A
+    // select cannot hold anything else, so this only catches a value set
+    // from outside the page.
+    {
+      path: "race",
+      check: (value) =>
+        value === null || raceCatalogue.get(value) !== undefined
+          ? ""
+          : "Choose a race.",
+    },
     {
       path: "character.attackPower",
       check: numberCheck(
@@ -263,10 +279,10 @@ export function fromBehind(config) {
   return { ...config, target: { ...config?.target, behind: true } };
 }
 
-// A poison select's value: its config id, "" for None. The config id is the
+// A poison or race select's value: its config id, "" for None. The config id is the
 // catalogue's `key` ("instant"), not its `id` ("instant-poison").
 function controlValue(path, value) {
-  return (path.startsWith("poisons.") && value === "") ||
+  return ((path.startsWith("poisons.") || path === "race") && value === "") ||
     (OPTIONAL_FIELDS.includes(path) && (value === "" || value === undefined))
     ? null
     : value;
@@ -306,6 +322,68 @@ export function poisonInfo(key, catalogue = poisonCatalogue) {
     text,
   };
 }
+
+// The Race select's choices (#321), from the race catalogue: one group per
+// faction, in its order. The view adds "None (no racials)" first.
+export function raceOptions(catalogue = raceCatalogue) {
+  const groups = [];
+  for (const { id, name, faction } of catalogue.races) {
+    let group = groups.find((entry) => entry.faction === faction);
+    if (group === undefined) {
+      group = { faction, races: [] };
+      groups.push(group);
+    }
+    group.races.push({ id, label: name });
+  }
+  return groups;
+}
+
+// What the form shows under the Race select (#321), or null for no race:
+// each racial with its own text and how it stands in the fight
+// (js/racials.js racialStatus against the page's target), with the effects
+// data's one-line reason for one that does nothing or is not simulated.
+// onUse is an on-use racial a rotation rule casts; casts, for one, whether
+// `rotation` (the one the run uses) has a rule that casts it, or null with no
+// rotation given; mobTypes the targets a mob-type racial is for. The view
+// words it.
+export function raceInfo(
+  id,
+  catalogue = raceCatalogue,
+  effects = RACIAL_EFFECTS,
+  rotation = null,
+) {
+  const race = id === null || id === undefined ? undefined : catalogue.get(id);
+  if (race === undefined) {
+    return null;
+  }
+  return {
+    id: race.id,
+    name: race.name,
+    faction: race.faction,
+    racials: race.racials.map((racial) => {
+      const entry = effects[racial.id] ?? {};
+      return {
+        id: racial.id,
+        name: racial.name,
+        text: racial.text,
+        status: racialStatus(racial.id, effects),
+        reason: entry.noDpsEffect ?? entry.notSimulated ?? null,
+        onUse: entry.ability !== undefined,
+        casts:
+          entry.ability === undefined || rotation === null
+            ? null
+            : (rotation.rules ?? []).some(
+                (rule) => rule.action === entry.ability,
+              ),
+        mobTypes: entry.mobTypes ?? null,
+      };
+    }),
+  };
+}
+
+// `now` when it says what `was` said, so the slice keeps its identity.
+const sameRace = (was, now) =>
+  was !== undefined && sameJson(was, now) ? was : now;
 
 function poisonsInfo(values) {
   return Object.fromEntries(
@@ -486,10 +564,11 @@ export function summaryOf(rotation, { talents = null, errors = 0 } = {}) {
       // With no talents a talent's skip is that, so the line says it
       // plainly rather than "…is not locked by the build … — skipped: no
       // Blade Flurry talent" (Fran's #232 QA, nit 4; #234). A skip no talent
-      // lifts (talent null) is the same with any build, so it says why
-      // (#244, P1).
+      // lifts (talent null: a baseline ability's check, or an on-use racial
+      // the race doesn't grant, #280) is the same with any build, so it says
+      // why (#244, P1).
       return talents.build.selected || skip.talent === null
-        ? `${line} — skipped: ${skip.text}`
+        ? `${line} — skipped: ${skip.phrase}`
         : `${line} — skipped with no talents`;
     }),
     stale: errors > 0 ? staleNote(errors) : null,
@@ -514,6 +593,8 @@ export function formFromConfig(config, revision = 0) {
     summary: summaryOf(config.rotation, { talents: talentState(config) }),
     poisonOptions: poisonOptions(),
     poisons: poisonsInfo(formValues(config)),
+    raceOptions: raceOptions(),
+    race: raceInfo(config.race, raceCatalogue, RACIAL_EFFECTS, config.rotation),
     levels: levelsInfo(characterLevel(config)),
     revision,
     canUndo: false,
@@ -674,6 +755,18 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
             errors: check.errors.length,
           }),
           poisons: poisonsInfo(next.values),
+          // The same object while it says the same, so the view redraws
+          // the racials only when the race, or what the run's rotation
+          // casts, changes.
+          race: sameRace(
+            next.race,
+            raceInfo(
+              next.values.race,
+              raceCatalogue,
+              RACIAL_EFFECTS,
+              (config ?? store.get().config).rotation,
+            ),
+          ),
           levels: levelsInfo(characterLevel(config ?? store.get().config)),
           canUndo: false,
         },

@@ -48,7 +48,9 @@ describe("skipOf, by the rule's action (#199)", () => {
     assert.deepEqual(skipOf(byAction("blade-flurry"), state), {
       ability: "blade-flurry",
       talent: "Blade Flurry",
+      race: null,
       text: "no Blade Flurry talent",
+      phrase: "no Blade Flurry talent",
     });
     assert.equal(
       skipOf(byAction("adrenaline-rush"), state)?.text,

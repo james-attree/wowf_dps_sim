@@ -336,6 +336,49 @@
           novalidate
         >
           <div class="config-grid">
+            <!-- #321: the race (config.race). The view fills the select from
+                 the form's raceOptions and the racials from its race
+                 (js/config-form.js raceInfo). -->
+            <fieldset class="config-fieldset race-fieldset" data-screen="stats">
+              <legend>Race</legend>
+              <div class="field race-field">
+                <label for="cfg-race">Race</label>
+                <select
+                  id="cfg-race"
+                  name="race"
+                  data-field="race"
+                  aria-describedby="cfg-race-help"
+                  data-help="cfg-race-help"
+                ></select>
+                <p class="field-help" id="cfg-race-help">
+                  Enter your stats without racials; the race adds them.
+                </p>
+                <p class="field-error" id="cfg-race-error" hidden></p>
+              </div>
+              <div id="cfg-race-racials" class="race-racials" hidden>
+                <p class="race-racials-title" id="cfg-race-racials-title">
+                  <span id="cfg-race-racials-name"></span> racials
+                </p>
+                <ul
+                  id="cfg-race-racials-list"
+                  class="race-racials-list"
+                  aria-labelledby="cfg-race-racials-title"
+                ></ul>
+                <!-- #322 P2: the racials with no DPS effect, folded. -->
+                <details
+                  id="cfg-race-racials-more"
+                  class="race-racials-more"
+                  hidden
+                >
+                  <summary id="cfg-race-racials-more-summary"></summary>
+                  <ul
+                    id="cfg-race-racials-more-list"
+                    class="race-racials-list"
+                    aria-labelledby="cfg-race-racials-more-summary"
+                  ></ul>
+                </details>
+              </div>
+            </fieldset>
             <fieldset
               class="config-fieldset character-fieldset"
               data-screen="stats"
@@ -444,7 +487,7 @@
                 <p class="field-help" id="cfg-character-haste-help">
                   Melee attack speed from gear. Slice and Dice and Blade Flurry
                   are added in the fight. Haste doesn't change energy or the
-                  global cooldown.
+                  global cooldown. Don't include Wind Blessed; the race adds it.
                 </p>
                 <p
                   class="field-error"

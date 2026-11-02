@@ -437,7 +437,7 @@ function rotationLines(ranks, rotation, info) {
       text:
         skip === null
           ? ` · rule ${index + 1} casts it`
-          : ` · rule ${index + 1} skipped: ${skip.text}`,
+          : ` · rule ${index + 1} skipped: ${skip.phrase}`,
     });
   });
   return lines;
