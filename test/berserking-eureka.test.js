@@ -231,9 +231,10 @@ describe("racial effects grant Berserking and Eureka! (#279)", () => {
       assert.equal(RACIAL_EFFECTS[racial].ability, ability);
       assert.equal(racialStatus(racial), "simulated");
     }
+    // In the export's racial order (Orc, Troll, ..., Night Elf, Gnome).
     assert.deepEqual(
       [...raceGrantedAbilities],
-      ["blood-fury", "elunes-light", BERSERKING, EUREKA],
+      ["blood-fury", BERSERKING, "elunes-light", EUREKA],
     );
   });
 

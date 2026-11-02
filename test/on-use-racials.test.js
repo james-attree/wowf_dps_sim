@@ -181,10 +181,9 @@ describe("racial effects grant the on-use abilities (#278)", () => {
       assert.equal(RACIAL_EFFECTS[racial].ability, ability);
       assert.equal(racialStatus(racial), "simulated");
     }
-    assert.deepEqual([...raceGrantedAbilities].slice(0, ON_USE.length), [
-      BLOOD_FURY,
-      ELUNES_LIGHT,
-    ]);
+    // Berserking and Eureka! (#279) are granted too.
+    assert.ok(raceGrantedAbilities.has(BLOOD_FURY));
+    assert.ok(raceGrantedAbilities.has(ELUNES_LIGHT));
   });
 
   it("expandRace lists the race's granted abilities, none for no race", () => {
