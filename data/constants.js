@@ -1297,8 +1297,8 @@ export const CONSTANTS = {
     { energy: 100, comboPoints: 0 },
     "energy, CP",
     ASSUMPTION,
-    `${JAMES}: 100 energy and 0 combo points, with no pre-pull Premeditation`,
-    "The engine reads the energy: the fight starts at 100, which is the full bar only at the base cap. A raised cap (Vigor's 110, Gnome Expansive Mind's 105 or 115, #277) does not raise the start, so those fights start below their cap (QA note N2, Scout, 2 Nov 2026). Combo points stay on character.startingComboPoints until Q10.",
+    `${JAMES}: full energy and 0 combo points, with no pre-pull Premeditation`,
+    "The quote is James's wording. His 'full energy' means 100 energy, the base cap: the engine reads the energy and starts every fight at 100, which is a full bar only at the base cap. A raised cap (Vigor's 110, Gnome Expansive Mind's 105 or 115, #277) does not raise the start, so those fights start below their cap (QA note N2, Scout, 2 Nov 2026). Combo points stay on character.startingComboPoints until Q10.",
     true,
   ),
   "talents.rowGating": entry(
