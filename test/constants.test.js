@@ -55,7 +55,7 @@ const ROADMAP = [
   ["poison.procSource", "classic-1.12"],
   ["poison.deadlyTick", "classic-1.12"],
   ["poison.instantCrit", "assumption"],
-  ["poison.instantCritSuppression", "assumption"],
+  ["poison.instantCritSuppression", "wowf-designer"],
   ["bleed.ignoresArmor", "classic-1.12"],
   ["dot.snapshot", "classic-1.12"],
   ["rupture.tickInterval", "classic-1.12"],

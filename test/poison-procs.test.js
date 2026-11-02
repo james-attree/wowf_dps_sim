@@ -299,13 +299,27 @@ describe("Instant Poison crits", () => {
     assert.equal(sim.abilityStats["instant-poison"].damage, 76);
   });
 
-  it("crits at the melee crit chance less the 4.8% suppression, for 1.5x", () => {
+  // James, 2 Nov 2026 (#295): spell and poison crits take no suppression, so
+  // poison.instantCritSuppression is false. With the row on, the hit loses the
+  // swing's 4.8%.
+  it("crits at the full melee crit chance by default, for 1.5x (James, 2 Nov 2026)", () => {
     assert.equal(k("poison.instantCrit"), 1.5);
-    assert.equal(k("poison.instantCritSuppression"), true);
-    const hit = crit(SUPPRESSED + 0.001);
+    assert.equal(k("poison.instantCritSuppression"), false);
+    const edge = crit(MELEE_CRIT - 0.001);
+    assert.equal(edge.sim.abilityStats["instant-poison"].damage, 114);
+    assert.equal(edge.sim.combatLog[0].status, "Crit");
+    const miss = crit(MELEE_CRIT + 0.001);
+    assert.equal(miss.sim.abilityStats["instant-poison"].damage, 76);
+    assert.equal(crit(SUPPRESSED + 0.001).sim.combatLog[0].status, "Crit");
+  });
+
+  it("crits at the melee crit chance less the 4.8% suppression when poison.instantCritSuppression is on", () => {
+    const on = (roll) =>
+      withConstant("poison.instantCritSuppression", true, () => crit(roll));
+    const hit = on(SUPPRESSED + 0.001);
     assert.equal(hit.sim.abilityStats["instant-poison"].damage, 76);
     assert.equal(hit.sim.combatLog[0].status, "Hit");
-    const edge = crit(SUPPRESSED - 0.001);
+    const edge = on(SUPPRESSED - 0.001);
     assert.equal(edge.sim.abilityStats["instant-poison"].damage, 114);
     assert.equal(edge.sim.combatLog[0].status, "Crit");
     assert.equal(edge.sim.combatLog[0].damage, 114);
@@ -323,7 +337,12 @@ describe("Instant Poison crits", () => {
     );
     assert.equal(miss.sim.abilityStats["instant-poison"].damage, 76);
     // With it on, the same roll is a hit: the suppression is what separates them.
-    assert.equal(crit(MELEE_CRIT - 0.001).sim.combatLog[0].status, "Hit");
+    assert.equal(
+      withConstant("poison.instantCritSuppression", true, () =>
+        crit(MELEE_CRIT - 0.001),
+      ).sim.combatLog[0].status,
+      "Hit",
+    );
   });
 
   it("reads poison.instantCrit for the multiplier, and a poison critDamage modifier scales its bonus", () => {

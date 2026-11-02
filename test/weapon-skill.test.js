@@ -123,12 +123,9 @@ describe("the attack table is one table of assumptions (#295)", () => {
       "classic",
       "gapAura",
     ]);
-    assert.equal(
-      k("attackTable.critModels").classic.flatAboveSkillGap,
-      null,
-      "the 1.8% stays at any skill by default",
-    );
-    assert.equal(k("attackTable.critModels").gapAura.flatAboveSkillGap, 10);
+    // The "+5 skill removes the 1.8%" switch is its own row since James's
+    // ruling of 2 Nov 2026 (attackTable.flatAboveSkillGap, test/rulings-316).
+    assert.equal(k("attackTable.flatAboveSkillGap"), 10);
   });
 });
 
@@ -244,9 +241,10 @@ describe("weapon skill moves the table (#295)", () => {
     near(glance(100), 0.9, "high");
   });
 
-  it("keeps the classic crit suppression at 4.8% at 300, 305 and 308", () => {
-    for (const weaponSkill of [300, 305, 308]) {
-      near(totalCrit(deriveAttackTable({ weaponSkill })), 0.048, weaponSkill);
+  it("has the classic crit suppression at 4.8% at 300, and 3% at 305 and 308 (James, 2 Nov 2026)", () => {
+    near(totalCrit(deriveAttackTable({ weaponSkill: 300 })), 0.048, 300);
+    for (const weaponSkill of [305, 308]) {
+      near(totalCrit(deriveAttackTable({ weaponSkill })), 0.03, weaponSkill);
     }
   });
 
@@ -288,20 +286,17 @@ describe("the crit model is a row: classic or gapAura (#295, open for James)", (
   });
 
   it("flatAboveSkillGap is the '+5 skill removes the 1.8%' switch", () => {
-    const models = copy(k("attackTable.critModels"));
-    models.classic.flatAboveSkillGap = 10;
-    withRows({ "attackTable.critModels": models }, () => {
-      near(totalCrit(deriveAttackTable()), 0.048, "300 keeps it");
-      near(
-        totalCrit(deriveAttackTable({ weaponSkill: 305 })),
-        0.03,
-        "305 drops it",
-      );
-    });
-    const off = copy(k("attackTable.critModels"));
-    off.gapAura.flatAboveSkillGap = null;
+    near(totalCrit(deriveAttackTable()), 0.048, "300 keeps it");
+    near(
+      totalCrit(deriveAttackTable({ weaponSkill: 305 })),
+      0.03,
+      "305 drops it",
+    );
     withRows(
-      { "attackTable.critModels": off, "attackTable.critModel": "gapAura" },
+      {
+        "attackTable.flatAboveSkillGap": null,
+        "attackTable.critModel": "gapAura",
+      },
       () => {
         near(
           totalCrit(deriveAttackTable({ weaponSkill: 305 })),
