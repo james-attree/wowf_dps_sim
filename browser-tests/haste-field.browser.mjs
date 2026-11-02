@@ -107,7 +107,7 @@ describe("the haste field on Character › Stats (#274)", () => {
           .trim();
         assert.equal(
           help,
-          "Melee attack speed from gear. Slice and Dice and Blade Flurry are added in the fight. Haste doesn't change energy or the global cooldown.",
+          "Melee attack speed from gear. Slice and Dice and Blade Flurry are added in the fight. Haste doesn't change energy or the global cooldown. Don't include Wind Blessed; the race adds it.",
         );
 
         const none = await summary(page);

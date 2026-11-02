@@ -314,3 +314,127 @@ describe("#321: the race is kept, cleared, and reaches the run", () => {
     assert.equal(undead, none, "Undead's racials have no DPS effect");
   });
 });
+
+// #322 rulings and #280: the builder offers an on-use racial only for the
+// race that grants it, its guard reads "Race or talent: ability granted", a
+// racial the race lacks is "Not your race (Orc only)", and the Stats line
+// says whether the rotation casts it.
+const ADD = "#rb-add-action";
+const PICK = "#cfg-rotation";
+const FURY = "Blood Fury (racial)";
+
+const addOptions = (page) =>
+  page
+    .locator(`${ADD} option`)
+    .evaluateAll((options) => options.map((option) => option.textContent));
+
+// Each rule on the list: its name and its chips.
+const ruleChips = (page) =>
+  page.locator(".rule-title").evaluateAll((titles) =>
+    titles.map((title) => ({
+      name: title.querySelector(".rule-name").lastChild.textContent,
+      chips: [...title.querySelectorAll(".rule-chips > *")].map((chip) =>
+        chip.textContent.replace(/^[⊘◆✕⚠]\s*/, "").trim(),
+      ),
+    })),
+  );
+
+const furyLine = (page) =>
+  page
+    .locator(ITEMS)
+    .filter({ hasText: "Blood Fury" })
+    .locator(".race-racial-line")
+    .textContent();
+
+const sideScroll = (page) =>
+  page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+
+describe("#280: the rotation builder and the race", () => {
+  for (const width of WIDTHS) {
+    for (const text of TEXT_SIZES) {
+      test(`${width} wide at ${text}: racials offered by race, with race copy`, async () => {
+        const { context, page, errors } = await open(width, text);
+        try {
+          // The default rotation has no rule for it; a preset casts it.
+          await page.locator(RACE).selectOption("orc");
+          await page.locator(RACIALS).waitFor({ state: "visible" });
+          assert.match(
+            clean(await furyLine(page)),
+            /The preset rotations use it on cooldown\. Your rotation has no rule for it, so it isn't used\.$/,
+          );
+          await go(page, "#rotation", ADD);
+          assert.ok((await addOptions(page)).includes(FURY));
+          await page.selectOption(PICK, "combat-swords");
+          await page.waitForFunction(() =>
+            /not your race/.test(document.body.textContent),
+          );
+          const rules = await ruleChips(page);
+          assert.deepEqual(
+            rules.slice(0, 4).map(({ name }) => name),
+            ["Blood Fury", "Elune's Light", "Berserking", "Eureka!"],
+          );
+          assert.ok(rules[0].chips.includes("Orc racial"), rules[0].chips);
+          assert.ok(
+            rules[1].chips.includes("Not your race (Night Elf only)"),
+            rules[1].chips,
+          );
+          assert.ok(rules[2].chips.includes("Not your race (Troll only)"));
+          assert.ok(rules[3].chips.includes("Not your race (Gnome only)"));
+          assert.match(
+            clean(await page.locator(".builder-context").textContent()),
+            /3 rules are skipped: not your race \(rules 2, 3 and 4\)\./,
+          );
+          assert.equal(await sideScroll(page), false);
+
+          // Rule 1's guard, by its type's label.
+          await page.evaluate(() => {
+            document.location.hash = "#rotation/rule/1";
+          });
+          const type = page.getByRole("combobox", {
+            name: "Rule 1, condition 1, type",
+          });
+          await type.waitFor({ state: "visible" });
+          assert.equal(
+            clean(
+              await type.evaluate(
+                (select) => select.selectedOptions[0].textContent,
+              ),
+            ),
+            "Race or talent: ability granted",
+          );
+          assert.equal(await sideScroll(page), false);
+
+          await go(page, "#character/stats", RACE);
+          assert.match(
+            clean(await furyLine(page)),
+            /The preset rotations use it on cooldown\. Your rotation casts it\.$/,
+          );
+          // No race: not offered, and the preset's rule says whose it is.
+          await page.locator(RACE).selectOption("");
+          await go(page, "#rotation", ADD);
+          assert.ok(!(await addOptions(page)).includes(FURY));
+          const none = await ruleChips(page);
+          assert.ok(
+            none[0].chips.includes("Not your race (Orc only)"),
+            none[0].chips,
+          );
+          assert.match(
+            clean(await page.locator(".builder-context").textContent()),
+            /4 rules are skipped: not your race \(rules 1, 2, 3 and 4\)\./,
+          );
+          assert.doesNotMatch(
+            clean(await page.locator(".builder-context").textContent()),
+            /baseline/,
+          );
+          assert.deepEqual(errors, []);
+        } finally {
+          await context.close();
+        }
+      });
+    }
+  }
+});

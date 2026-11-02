@@ -1,6 +1,6 @@
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { abilityCatalogue } from "./abilities.js";
-import { expandRace, raceGrantedAbilities } from "./racials.js";
+import { expandRace, raceCatalogue, raceGrantedAbilities } from "./racials.js";
 import { evaluateTrusted } from "./rotation-conditions.js";
 import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { talentCatalogue } from "./talents.js";
@@ -62,22 +62,51 @@ export function grantingTalentName(ability) {
 
 const nameOf = (id) => abilityCatalogue.get(id)?.name ?? id;
 
-// The skip for an ability the build lacks: { ability, talent, text }. A
+// The races that grant an on-use racial, by name ("Orc"), in catalogue order.
+export function grantingRaceNames(ability) {
+  return raceCatalogue.races
+    .filter((race) => expandRace(race.id).abilities.includes(ability))
+    .map((race) => race.name);
+}
+
+// "Orc", "Orc or Troll", "Gnome, Orc or Troll".
+function orList(names) {
+  const rest = names.slice(0, -1);
+  return rest.length === 0
+    ? names.join("")
+    : `${rest.join(", ")} or ${names.at(-1)}`;
+}
+
+// The skip for an ability the build lacks: { ability, talent, race, text,
+// phrase }. An on-use racial (#278) the race doesn't grant reads "Not your
+// race (Orc only)" (#280): race is then the granting races ("Orc") and
+// talent null. Otherwise race is null and, a
 // guard on an ability no talent grants (abilityGranted on Sinister Strike)
 // is never true, whatever the talents: no talent to name, and the ability
 // is baseline, so the text says its check is never true (#244, Fran's #255
 // check, P1, and her qa-256 P-c wording; it read "Sinister Strike is never
 // granted (no talent gives it)"). talent is null then.
+// phrase is text as it reads after "skipped: " ("not your race (Orc
+// only)").
 function skipFor(ability) {
-  const talent = grantingTalentName(ability);
-  if (talent === null) {
+  if (raceGrantedAbilities.has(ability)) {
+    const race = orList(grantingRaceNames(ability));
+    const text = `Not your race (${race} only)`;
     return {
       ability,
       talent: null,
-      text: `${nameOf(ability)} is baseline, so its talent check is never true`,
+      race,
+      text,
+      phrase: `not your race (${race} only)`,
     };
   }
-  return { ability, talent, text: `no ${talent} talent` };
+  const talent = grantingTalentName(ability);
+  if (talent === null) {
+    const text = `${nameOf(ability)} is baseline, so its talent check is never true`;
+    return { ability, talent: null, race: null, text, phrase: text };
+  }
+  const text = `no ${talent} talent`;
+  return { ability, talent, race: null, text, phrase: text };
 }
 
 // Why `rule` is skipped with this build: { ability, talent, text } for its
@@ -106,8 +135,10 @@ export function skipOf(rule, state) {
   return skipFor(failing.ability);
 }
 
-// The talents a rule's checks find taken: { ability, talent } for its first
-// talent check on an ability the build grants, or null.
+// The talents a rule's checks find taken: { ability, talent, race } for its
+// first talent check on an ability the build or the race grants, or null.
+// For an on-use racial, race is the granting races ("Orc") and talent null;
+// otherwise race is null.
 export function takenOf(rule, state) {
   const taken = rule.conditions.find(
     (condition) =>
@@ -118,8 +149,16 @@ export function takenOf(rule, state) {
   if (taken === undefined) {
     return null;
   }
+  if (raceGrantedAbilities.has(taken.ability)) {
+    return {
+      ability: taken.ability,
+      talent: null,
+      race: orList(grantingRaceNames(taken.ability)),
+    };
+  }
   return {
     ability: taken.ability,
     talent: grantingTalentName(taken.ability) ?? nameOf(taken.ability),
+    race: null,
   };
 }
