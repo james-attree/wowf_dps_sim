@@ -176,7 +176,7 @@ export function createControlsView(doc, store, actions = {}) {
 
     // The narrow row shows Pause while a fight or batch runs, Run otherwise.
     bar.setAttribute("data-slot", locked ? "pause" : "run");
-    write(summary, summaryText(run));
+    write(summary, summaryText(run, state.form));
     const dock = dockText(state);
     summary.setAttribute("data-dock", dock.summary);
     statusText.setAttribute("data-dock", dock.status);
@@ -366,7 +366,13 @@ export function createControlsView(doc, store, actions = {}) {
     if (named?.getAttribute?.("aria-invalid") === "true") {
       return named;
     }
-    return doc.querySelector('#config-form [aria-invalid="true"]');
+    const inForm = doc.querySelector('#config-form [aria-invalid="true"]');
+    if (inForm !== null && inForm !== undefined) {
+      return inForm;
+    }
+    // Target level is the form's but in Fight (#318).
+    const target = doc.querySelector(`#${fieldId("target.level")}`);
+    return target?.getAttribute?.("aria-invalid") === "true" ? target : null;
   }
 
   // Focus the first setting to fix: what the "Fix" link and a blocked Run

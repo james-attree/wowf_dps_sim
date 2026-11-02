@@ -452,6 +452,31 @@
                   hidden
                 ></p>
               </div>
+              <!-- #318: blank follows the level; the view writes the
+                   placeholder, the bounds and the help from the form's
+                   levels (js/config-form.js levelsInfo). -->
+              <div class="field">
+                <label for="cfg-character-weaponSkill">Weapon skill</label>
+                <div class="field-control">
+                  <input
+                    id="cfg-character-weaponSkill"
+                    name="character.weaponSkill"
+                    data-field="character.weaponSkill"
+                    data-optional="true"
+                    aria-describedby="cfg-character-weaponSkill-help"
+                    data-help="cfg-character-weaponSkill-help"
+                    type="number"
+                    inputmode="numeric"
+                    step="1"
+                  />
+                </div>
+                <p class="field-help" id="cfg-character-weaponSkill-help"></p>
+                <p
+                  class="field-error"
+                  id="cfg-character-weaponSkill-error"
+                  hidden
+                ></p>
+              </div>
             </fieldset>
             <div class="hands" data-screen="gear">
               <fieldset class="config-fieldset hand-fieldset">
@@ -787,8 +812,8 @@
             <p class="talents-help" id="talents-level-help">
               Level sets your talent points (level − 9), the spell ranks you
               have learned, your default weapon skill (level × 5), and the
-              enemy: level + 3, with that level's armour. Enter that character's
-              own stats under Character.
+              target: level + 3, with that level's armour. Enter that
+              character's own stats under Character.
             </p>
           </div>
           <div class="talents-message" id="talents-message"></div>
@@ -931,9 +956,9 @@
         <!-- The fight's settings (#245; proposal section 3): the run type,
              its length, fights and seed, then the target. The ids are the
              Run bar's, as before (js/views/controls.js draws them). The
-             target is a note, not a setting: the sim is built for attacking
-             from behind (James's ruling on Fran's qa-256; js/config-form.js
-             fromBehind). -->
+             target's side is a note, not a setting: the sim is built for
+             attacking from behind (James's ruling on Fran's qa-256;
+             js/config-form.js fromBehind). Its level is a setting (#318). -->
         <div id="run-settings" class="panel fight-settings">
           <div class="run-row run-row-inputs">
             <fieldset class="run-mode">
@@ -1004,6 +1029,29 @@
               from the front are out of scope.</span
             >
           </p>
+          <!-- #318: the target's level, beside the Target note (Fran's
+               qa-319 P1). It is the stats form's field (js/views/config-form.js
+               finds it by id), outside the form; blank follows the level. -->
+          <div class="config-panel fight-target-level">
+            <div class="field">
+              <label for="cfg-target-level">Target level</label>
+              <div class="field-control">
+                <input
+                  id="cfg-target-level"
+                  name="target.level"
+                  data-field="target.level"
+                  data-optional="true"
+                  aria-describedby="cfg-target-level-help"
+                  data-help="cfg-target-level-help"
+                  type="number"
+                  inputmode="numeric"
+                  step="1"
+                />
+              </div>
+              <p class="field-help" id="cfg-target-level-help"></p>
+              <p class="field-error" id="cfg-target-level-error" hidden></p>
+            </div>
+          </div>
         </div>
       </section>
 

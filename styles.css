@@ -374,6 +374,34 @@ h3 {
   color: #e7ddc9;
 }
 
+/* The target's level under the note (#318, Fran's qa-319 P1): the stats
+   form's field and its look (.config-panel), no wider than its help reads
+   well, and no extra space under it (the panel's gap spaces it). */
+.fight-target-level {
+  max-width: 28rem;
+  margin-bottom: 0;
+}
+
+.fight-target-level .field {
+  margin-top: 0;
+}
+
+/* It reads as one of Fight's fields (.run-field): the same label size, and
+   an input as Fights' is (its size, its type size, its background), at the
+   full text size and the panel's width on a phone as they are (the narrow
+   block below). */
+.fight-target-level .field label {
+  font-size: 0.72rem;
+}
+
+.config-panel.fight-target-level input[type="number"] {
+  width: 9em;
+  max-width: 100%;
+  padding: 4px 8px;
+  background: #100f0c;
+  font-size: 0.8rem;
+}
+
 /* On wide screens the Run panel links to Fight's settings (#245; proposal
    section 5), except on Fight, where they are in view. Below the wide
    breakpoint the area nav's Fight does it. */
@@ -563,8 +591,14 @@ h3 {
     display: contents;
   }
 
-  .fight-settings .run-field input {
+  .fight-settings .run-field input,
+  .config-panel.fight-target-level input[type="number"] {
     font-size: 1rem;
+  }
+
+  /* Target level (#318) fills the panel's width as the fields do. */
+  .config-panel.fight-target-level input[type="number"] {
+    width: 100%;
   }
 
   /* Each field takes the panel's width and the seed input fills its row,
