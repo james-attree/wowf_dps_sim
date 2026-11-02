@@ -11,9 +11,9 @@ import { ROTATION_SCHEMA_VERSION } from "./rotation-schema.js";
 // the rotation is a plain JSON value. test/rotation-default.test.js holds it
 // equal to the example in docs/rotation.md.
 //
-// Slice and Dice is kept up with the combat-swords preset's two refresh rules
-// (data/rotation-presets.js, issue #122; taken into the default in issue
-// #155): at the finisher's combo points it is recast when it has less than
+// Slice and Dice is kept up with the two refresh rules the combat-swords
+// preset had from issue #122 to #310 (taken into the default in issue #155;
+// #310 gave the preset James's rotation and left these as they were): at the finisher's combo points it is recast when it has less than
 // rotation.pooling.recastSeconds left, or when it has at most
 // rotation.pooling.windowSeconds left and energy is full. They replace the
 // single rule the default had before #155 (recast at

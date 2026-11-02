@@ -1,0 +1,149 @@
+{
+  "config": {
+    "weapons": {
+      "mainHand": {
+        "min": 73,
+        "max": 137,
+        "speed": 1.8,
+        "type": "dagger"
+      },
+      "offHand": {
+        "min": 59,
+        "max": 111,
+        "speed": 1.6,
+        "type": "dagger"
+      }
+    },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.murder": 1,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.relentless-strikes": 1,
+      "assassination.lethality": 5,
+      "assassination.vile-poisons": 5,
+      "assassination.cold-blood": 1,
+      "assassination.improved-poisons": 5,
+      "assassination.vigor": 2,
+      "assassination.mutilate": 1,
+      "assassination.seal-fate": 5,
+      "assassination.venom": 1,
+      "combat.improved-eviscerate": 3,
+      "combat.improved-sinister-strike": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "subtlety.opportunity": 2
+    },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Assassination (edited)",
+      "rules": [
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 4
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 4
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "venom",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "venom"
+            },
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 4
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "venom",
+              "op": "<=",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 4
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 75
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "cold-blood"
+            },
+            {
+              "type": "comboPoints",
+              "op": "<",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "action": "mutilate",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "mutilate"
+            },
+            {
+              "type": "comboPoints",
+              "op": "<",
+              "value": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "run": {
+    "seed": 1093938626
+  }
+}

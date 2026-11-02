@@ -30,19 +30,18 @@ const COMBAT = "combat-swords";
 const LEVEL_60 = talentLevelRange().max;
 const SIGNATURES = {
   [ASSASSINATION]: ["mutilate", "venom"],
-  [SUBTLETY]: ["hemorrhage", "ambush", "preparation"],
+  [SUBTLETY]: ["hemorrhage", "ghostly-strike", "rupture", "preparation"],
 };
 const SEEDS = [1, 2, 3];
 const LONG_FIGHT = 300;
 const SHORT_FIGHT = 60;
-// Scout's #304 ruling on N1: a proc-reliant signature (Venom, which needs a
-// free 5 CP finisher; Ambush, which needs a Cutthroat proc) may go uncast on
-// some 60 s seeds. It must have a mean above 0 at 60 s and be cast on at
-// least 95% of seeds at 300 s (measured on 200 seeds; a cheap 40-seed sample
-// here). The other signatures are cast on every seed.
-const PROC_RELIANT = new Set(["venom", "ambush"]);
+// Scout's #304 ruling on N1 let a proc-reliant signature (Venom, which then
+// needed a free 5 CP finisher; Ambush, which needed a Cutthroat proc) go
+// uncast on some 60 s seeds. Since #310 no preset relies on a proc for one:
+// Venom is cast at 4 CP and there is no Ambush, so every signature is cast on
+// every seed (all 200 seeds measured at 60 s and 300 s; a cheap 40-seed
+// sample here).
 const SAMPLE_SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
-const LONG_FIGHT_SHARE = 0.95;
 
 const presetById = (id) => ROTATION_PRESETS.find((preset) => preset.id === id);
 
@@ -72,36 +71,34 @@ describe("the Assassination and Subtlety presets (#272)", () => {
     }
   });
 
-  it("cast no Expose Armor and no stealth opener, and Ambush has no aura condition", () => {
+  it("cast no Expose Armor and no stealth opener (no Ambush since #310)", () => {
     for (const id of [ASSASSINATION, SUBTLETY]) {
       const actions = presetById(id).rotation.rules.map((rule) => rule.action);
-      for (const banned of ["expose-armor", "garrote", "cheap-shot"]) {
+      for (const banned of [
+        "expose-armor",
+        "garrote",
+        "cheap-shot",
+        "ambush",
+      ]) {
         assert.ok(!actions.includes(banned), `${id} casts ${banned}`);
       }
     }
-    const ambush = presetById(SUBTLETY).rotation.rules.filter(
-      (rule) => rule.action === "ambush",
-    );
-    assert.equal(ambush.length, 1);
-    assert.ok(
-      ambush[0].conditions.every((c) => c.type !== "auraRemaining"),
-      "no lock or hint on the cutthroat aura",
-    );
   });
 
-  it("Assassination builds with Mutilate below 5 CP and keeps Slice and Dice, Rupture and Venom up", () => {
+  it("Assassination builds with Mutilate below 4 CP and keeps Slice and Dice and Venom up, with no Rupture (#310)", () => {
     const actions = presetById(ASSASSINATION).rotation.rules.map(
       (rule) => rule.action,
     );
     for (const action of [
       "slice-and-dice",
-      "rupture",
       "venom",
+      "eviscerate",
       "cold-blood",
       "mutilate",
     ]) {
       assert.ok(actions.includes(action), action);
     }
+    assert.ok(!actions.includes("rupture"));
     const mutilate = presetById(ASSASSINATION).rotation.rules.find(
       (rule) => rule.action === "mutilate",
     );
@@ -110,34 +107,29 @@ describe("the Assassination and Subtlety presets (#272)", () => {
         (c) =>
           c.type === "comboPoints" &&
           c.op === "<" &&
-          c.value === k("rotation.finisherComboPoints"),
+          c.value === k("presetRotation.assassination").finisherComboPoints,
       ),
     );
   });
 
-  it("Subtlety keeps Slice and Dice and Hemorrhage up, Premeditation on cooldown, Preparation, Ambush and Backstab", () => {
+  it("Subtlety keeps Rupture up, Premeditation on cooldown, Preparation, Slice and Dice with Rupture up, and builds with Ghostly Strike and Hemorrhage (#310)", () => {
     const actions = presetById(SUBTLETY).rotation.rules.map(
       (rule) => rule.action,
     );
-    for (const action of [
-      "slice-and-dice",
-      "hemorrhage",
+    assert.deepEqual(actions, [
+      "rupture",
       "premeditation",
       "preparation",
+      "slice-and-dice",
       "ghostly-strike",
-      "ambush",
-      "backstab",
-    ]) {
-      assert.ok(actions.includes(action), action);
-    }
+      "hemorrhage",
+    ]);
     const hemorrhage = presetById(SUBTLETY).rotation.rules.find(
       (rule) => rule.action === "hemorrhage",
     );
     assert.ok(
-      hemorrhage.conditions.some(
-        (c) => c.type === "debuffRemaining" && c.debuff === "hemorrhage",
-      ),
-      "Hemorrhage is cast to keep its debuff up",
+      hemorrhage.conditions.every((c) => c.type !== "debuffRemaining"),
+      "Hemorrhage is the builder, not kept for its debuff",
     );
   });
 
@@ -199,7 +191,7 @@ describe("the Assassination and Subtlety presets (#272)", () => {
   }
 
   for (const [id, signatures] of Object.entries(SIGNATURES)) {
-    it(`${id}: each signature over ${SAMPLE_SEEDS.length} seeds, and no Eviscerate (Scout's N1 rule, Kira's N3)`, () => {
+    it(`${id}: each signature on each of ${SAMPLE_SEEDS.length} seeds${id === SUBTLETY ? ", and no Eviscerate" : ""}`, () => {
       for (const duration of [SHORT_FIGHT, LONG_FIGHT]) {
         const casts = SAMPLE_SEEDS.map((seed) => {
           const fight = createFight(seed, withReferenceBuild(id));
@@ -211,19 +203,14 @@ describe("the Assassination and Subtlety presets (#272)", () => {
           const counts = casts.map((of) => of(ability));
           const cast = counts.filter((n) => n > 0).length / counts.length;
           const label = `${id} ${duration}s ${ability}`;
-          if (!PROC_RELIANT.has(ability)) {
-            assert.equal(cast, 1, `${label}: cast on every seed`);
-          } else if (duration === SHORT_FIGHT) {
-            assert.ok(
-              counts.some((n) => n > 0),
-              `${label}: mean above 0`,
-            );
-          } else {
-            assert.ok(cast >= LONG_FIGHT_SHARE, `${label}: ${cast}`);
-          }
+          assert.equal(cast, 1, `${label}: cast on every seed`);
         }
-        for (const of of casts) {
-          assert.equal(of("eviscerate"), 0, `${id} ${duration}s Eviscerate`);
+        // Subtlety has no Eviscerate rule (#310); Assassination's spends
+        // spare energy at 4 CP.
+        if (id === SUBTLETY) {
+          for (const of of casts) {
+            assert.equal(of("eviscerate"), 0, `${id} ${duration}s Eviscerate`);
+          }
         }
       }
     });
@@ -275,11 +262,14 @@ describe("the preset reference builds (#272, for #273)", () => {
     }
   });
 
-  it("the dagger presets' builds have the dagger alternate in both hands", () => {
+  it("the dagger presets' builds have the dagger alternate's main hand and James's ruled off hand (#310)", () => {
     for (const id of [ASSASSINATION, SUBTLETY]) {
       const build = referenceBuild(id);
       assert.deepEqual(build.weapons.mainHand, k("weapon.dagger.mainHand"));
-      assert.deepEqual(build.weapons.offHand, k("weapon.dagger.offHand"));
+      assert.deepEqual(
+        build.weapons.offHand,
+        k("presetReferenceBuild.daggerOffHand"),
+      );
     }
   });
 
@@ -326,7 +316,7 @@ describe("the preset reference builds (#272, for #273)", () => {
     }
   });
 
-  it("Assassination has Mutilate, Venom and Cold Blood and no Improved Expose Armor; Subtlety has Hemorrhage, Cutthroat, Premeditation and Preparation", () => {
+  it("Assassination has Mutilate, Venom and Cold Blood and no Improved Expose Armor; Subtlety has Hemorrhage, Premeditation, Preparation and Ghostly Strike and no Cutthroat (#310)", () => {
     const assassination = referenceBuild(ASSASSINATION).talents;
     for (const id of [
       "assassination.mutilate",
@@ -342,21 +332,21 @@ describe("the preset reference builds (#272, for #273)", () => {
     const subtlety = referenceBuild(SUBTLETY).talents;
     for (const id of [
       "subtlety.hemorrhage",
-      "subtlety.cutthroat",
       "subtlety.premeditation",
       "subtlety.preparation",
       "subtlety.ghostly-strike",
     ]) {
       assert.ok(subtlety[id] > 0, id);
     }
+    assert.equal(subtlety["subtlety.cutthroat"], undefined);
   });
 
   it("referenceBuild gives a copy: changing it changes nothing else", () => {
     const build = referenceBuild(SUBTLETY);
-    build.talents["subtlety.cutthroat"] = 0;
+    build.talents["subtlety.quietus"] = 0;
     build.weapons.mainHand.min = 1;
     build.poisons.mainHand = "wound";
-    assert.equal(referenceBuild(SUBTLETY).talents["subtlety.cutthroat"], 5);
+    assert.equal(referenceBuild(SUBTLETY).talents["subtlety.quietus"], 5);
     assert.equal(referenceBuild(SUBTLETY).poisons.mainHand, "instant");
     assert.notEqual(
       referenceBuild(SUBTLETY).poisons,
@@ -423,7 +413,7 @@ describe("the preset reference builds (#272, for #273)", () => {
     hand.speed = 9;
     assert.deepEqual(
       referenceWeapon(build, "offHand"),
-      k("weapon.dagger.offHand"),
+      k("presetReferenceBuild.daggerOffHand"),
     );
     assert.throws(() => referenceWeapon(build, "ranged"), RangeError);
     const config = normalizeConfig({
@@ -432,12 +422,16 @@ describe("the preset reference builds (#272, for #273)", () => {
     assert.deepEqual(config.weapons.mainHand, k("weapon.dagger.mainHand"));
   });
 
-  it("every build carries Instant Poison on the main hand and Deadly on the off hand (James's ruling, relayed by Scout)", () => {
-    const ruling = k("presetReferenceBuild.poisons");
-    assert.deepEqual(ruling, { mainHand: "instant", offHand: "deadly" });
+  it("each build carries its preset's poisons: Deadly MH / Instant OH on Combat, Instant MH / Deadly OH on the daggers (James's ruling, #310)", () => {
+    const rulings = k("presetReferenceBuild.poisons");
+    assert.deepEqual(rulings, {
+      [COMBAT]: { mainHand: "deadly", offHand: "instant" },
+      [ASSASSINATION]: { mainHand: "instant", offHand: "deadly" },
+      [SUBTLETY]: { mainHand: "instant", offHand: "deadly" },
+    });
     for (const id of [ASSASSINATION, COMBAT, SUBTLETY]) {
       const build = referenceBuild(id);
-      assert.deepEqual(build.poisons, ruling, id);
+      assert.deepEqual(build.poisons, rulings[id], id);
       // The SimConfig shape: a config reads it back as it is.
       assert.deepEqual(
         normalizeConfig({ poisons: build.poisons }).poisons,
@@ -516,6 +510,7 @@ describe("the preset reference builds (#272, for #273)", () => {
   it("checkReferenceBuild accepts the documented fields and refuses bad ones", () => {
     const good = referenceBuild(SUBTLETY);
     assert.deepEqual(checkReferenceBuild(SUBTLETY, good), []);
+    assert.deepEqual(checkReferenceBuild(COMBAT, referenceBuild(COMBAT)), []);
     const { talentLevel, ...noLevel } = good;
     const { poisons, ...noPoisons } = good;
     assert.deepEqual(poisons, { mainHand: "instant", offHand: "deadly" });
@@ -528,7 +523,7 @@ describe("the preset reference builds (#272, for #273)", () => {
       ),
     );
     const fewer = { ...good.talents };
-    delete fewer["subtlety.cutthroat"];
+    delete fewer["subtlety.quietus"];
     const bad = [
       ["nope", good],
       [SUBTLETY, { ...good, talentLevel: "60" }],
@@ -574,6 +569,15 @@ describe("the preset reference builds (#272, for #273)", () => {
         },
       ],
       [SUBTLETY, { ...good, talentLevel: 20 }],
+      // #310: Combat's ruling is Deadly MH / Instant OH, so the daggers'
+      // pair is refused on it.
+      [
+        COMBAT,
+        {
+          ...referenceBuild(COMBAT),
+          poisons: { mainHand: "instant", offHand: "deadly" },
+        },
+      ],
     ];
     for (const [id, build] of bad) {
       assert.ok(

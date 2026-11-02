@@ -339,6 +339,9 @@ export const GOLDEN_CASES = deepFreeze([
   // The default fight kept the placeholder rotation, so the cases above did
   // not move then. Issue #155 gave the default the preset's two Slice and Dice
   // rules, which moved three of them (other-seed, talented-build and poisons).
+  // Issue #310 replaced the preset with James's rotation (Slice and Dice at 3
+  // CP, Eviscerate at 5 CP while Slice and Dice has 12 s, and at 3 CP to spend
+  // energy at the cap), which moved this case and no other.
   {
     name: "combat-swords-preset-seed-142-120s",
     seed: 142,
@@ -430,7 +433,9 @@ export const GOLDEN_CASES = deepFreeze([
   // Issue #272. Each dagger preset with its reference build
   // (js/preset-reference-builds.js): the talents, both weapons and both
   // poisons (Instant main hand, Deadly off hand), put in as #273's button
-  // would, and nothing else (the default character).
+  // would, and nothing else (the default character). Issue #310 retuned both
+  // presets and builds to James's share links (new talents and rotations, and
+  // the ruled 59-111 off-hand dagger), which moved these two cases.
   ...["assassination-daggers", "subtlety-daggers"].map((id) => {
     const build = presetReferenceBuild(id);
     return {

@@ -21,8 +21,7 @@ const DOCS = await readFile(
   new URL("../docs/rotation.md", import.meta.url),
   "utf8",
 );
-const FINISHER = k("rotation.finisherComboPoints");
-const { windowSeconds: WINDOW, recastSeconds: RECAST } = k("rotation.pooling");
+const COMBAT = k("presetRotation.combat");
 const SND_COST = k("sliceAndDice").energy;
 const SS_COST = k("sinisterStrike").energy;
 const EVISCERATE_COST = k("eviscerate").energy;
@@ -218,9 +217,14 @@ describe("the readable summary in docs/rotation.md", () => {
     }
   });
 
-  it("states the pooling numbers the preset reads", () => {
-    assert.ok(presets.includes(`${WINDOW} seconds or less`));
-    assert.ok(presets.includes(`${RECAST} second left`));
+  it("names the constants row each preset reads its numbers from (#310)", () => {
+    for (const row of [
+      "presetRotation.combat",
+      "presetRotation.assassination",
+      "presetRotation.subtlety",
+    ]) {
+      assert.ok(presets.includes(`\`${row}\``), row);
+    }
   });
 });
 
@@ -282,132 +286,137 @@ function walk({
   return { outcome, log };
 }
 
-describe("Combat swords: Slice and Dice pooling (#122)", () => {
+describe("Combat swords: James's rotation (#310)", () => {
   const quiet = { ready: [] };
+  const finisher = COMBAT.finisherComboPoints;
+  const low = COMBAT.sliceAndDiceComboPoints;
+  const long = COMBAT.eviscerateSliceAndDiceSeconds;
+  // Energy this far from the cap is more than energyToCapSeconds away.
+  const MID = 60;
 
   it("builds with Sinister Strike below the finisher's combo points", () => {
-    for (const comboPoints of [0, FINISHER - 1]) {
-      const scene = walk({ ...quiet, energy: 60, comboPoints, slice: 12 });
-      assert.deepEqual(scene.log, ["sinister-strike"]);
+    for (const comboPoints of [0, low, finisher - 1]) {
+      const scene = walk({ ...quiet, energy: MID, comboPoints, slice: long });
+      assert.deepEqual(scene.log, ["sinister-strike"], `${comboPoints} CP`);
     }
   });
 
-  it("casts Eviscerate at the finisher's points while Slice and Dice has time", () => {
+  it("casts Eviscerate at the finisher's points while Slice and Dice has long enough", () => {
     const scene = walk({
       ...quiet,
-      energy: 60,
-      comboPoints: FINISHER,
-      slice: WINDOW + 0.5,
+      energy: MID,
+      comboPoints: finisher,
+      slice: long,
     });
     assert.deepEqual(scene.log, ["eviscerate"]);
   });
 
-  it("waits inside the window: no Eviscerate and no builder, energy is kept", () => {
-    for (const energy of [SND_COST, 60, ENERGY_MAX - 1]) {
-      const scene = walk({
-        ...quiet,
-        energy,
-        comboPoints: FINISHER,
-        slice: WINDOW,
-      });
-      assert.deepEqual(scene.log, [], `energy ${energy}`);
-      assert.equal(scene.outcome, "none");
-    }
+  it("below that at the finisher's points, waits until the energy is about to cap, then Eviscerates", () => {
+    const below = long - COMBAT.sliceAndDiceRecastSeconds;
+    const waiting = walk({
+      ...quiet,
+      energy: MID,
+      comboPoints: finisher,
+      slice: below,
+    });
+    assert.deepEqual(waiting.log, []);
+    assert.equal(waiting.outcome, "none");
+    const regen = 10;
+    const nearCap = ENERGY_MAX - (COMBAT.energyToCapSeconds * regen) / 2;
+    const capped = walk({
+      ...quiet,
+      energy: nearCap,
+      comboPoints: finisher,
+      slice: below,
+    });
+    assert.deepEqual(capped.log, ["eviscerate"]);
   });
 
-  it("recasts Slice and Dice below the recast time, and pools for the energy when short", () => {
-    const near = RECAST / 2;
-    const cast = walk({
-      ...quiet,
-      energy: SND_COST,
-      comboPoints: FINISHER,
-      slice: near,
-    });
-    assert.deepEqual(cast.log, ["slice-and-dice"]);
+  it("recasts Slice and Dice at its combo points when it is missing or about to end, and pools for it when short", () => {
+    const near = COMBAT.sliceAndDiceRecastSeconds / 2;
+    for (const slice of [null, near]) {
+      const cast = walk({
+        ...quiet,
+        energy: SND_COST,
+        comboPoints: low,
+        slice,
+      });
+      assert.deepEqual(cast.log, ["slice-and-dice"], String(slice));
+    }
     const short = walk({
       ...quiet,
       energy: SND_COST - 1,
-      comboPoints: FINISHER,
+      comboPoints: low,
       slice: near,
     });
     assert.deepEqual(short.log, []);
     assert.equal(short.outcome, "pooling");
-    // At the recast time exactly it is still waiting.
+    // At the recast time exactly, and below its points, it is not recast.
     const exactly = walk({
       ...quiet,
-      energy: 60,
-      comboPoints: FINISHER,
-      slice: RECAST,
+      energy: MID,
+      comboPoints: low,
+      slice: COMBAT.sliceAndDiceRecastSeconds,
     });
-    assert.deepEqual(exactly.log, []);
+    assert.deepEqual(exactly.log, ["sinister-strike"]);
+    const fewer = walk({ ...quiet, energy: MID, comboPoints: low - 1 });
+    assert.deepEqual(fewer.log, ["sinister-strike"]);
   });
 
-  it("recasts at once when Slice and Dice is missing", () => {
-    const scene = walk({ ...quiet, energy: SND_COST, comboPoints: FINISHER });
-    assert.deepEqual(scene.log, ["slice-and-dice"]);
-  });
-
-  it("casts at the energy cap inside the window, and not a point below", () => {
-    const full = walk({
-      ...quiet,
-      energy: ENERGY_MAX,
-      comboPoints: FINISHER,
-      slice: WINDOW,
-    });
-    assert.deepEqual(full.log, ["slice-and-dice"]);
-    const outside = walk({
-      ...quiet,
-      energy: ENERGY_MAX,
-      comboPoints: FINISHER,
-      slice: WINDOW + 0.5,
-    });
-    assert.deepEqual(outside.log, ["eviscerate"]);
-  });
-
-  it("does not recast Slice and Dice below the finisher's points", () => {
-    const scene = walk({
-      ...quiet,
-      energy: ENERGY_MAX,
-      comboPoints: FINISHER - 1,
-      slice: RECAST / 2,
-    });
-    assert.deepEqual(scene.log, ["sinister-strike"]);
-  });
-
-  it("casts Blade Flurry, then Adrenaline Rush, ahead of the rest: each is on the GCD and ends the walk", () => {
-    const both = walk({ energy: 60, comboPoints: 0, slice: 12 });
-    assert.deepEqual(both.log, ["blade-flurry"]);
-    const rush = walk({
-      energy: 60,
-      comboPoints: 0,
-      slice: 12,
-      ready: ["adrenaline-rush"],
-    });
+  it("casts Adrenaline Rush under its energy with Slice and Dice up, and not otherwise", () => {
+    const rushReady = { ready: ["adrenaline-rush"], comboPoints: 0 };
+    const under = COMBAT.adrenalineRushEnergyBelow - 1;
+    const rush = walk({ ...rushReady, energy: under, slice: long });
     assert.deepEqual(rush.log, ["adrenaline-rush"]);
+    const full = walk({
+      ...rushReady,
+      energy: COMBAT.adrenalineRushEnergyBelow + SS_COST,
+      slice: long,
+    });
+    assert.deepEqual(full.log, ["sinister-strike"]);
+    const noSlice = walk({ ...rushReady, energy: under });
+    assert.deepEqual(noSlice.log, []);
+    assert.equal(noSlice.outcome, "pooling", "Sinister Strike waits");
+  });
+
+  it("casts Blade Flurry with Slice and Dice up, and pools for its energy", () => {
+    const flurry = walk({
+      ready: ["blade-flurry"],
+      energy: MID,
+      comboPoints: 0,
+      slice: long,
+    });
+    assert.deepEqual(flurry.log, ["blade-flurry"]);
     const short = walk({
+      ready: ["blade-flurry"],
       energy: 0,
       comboPoints: 0,
-      slice: 12,
-      ready: ["blade-flurry"],
+      slice: long,
     });
     assert.deepEqual(short.log, [], "Blade Flurry waits for its energy");
     assert.equal(short.outcome, "pooling");
+    const noSlice = walk({
+      ready: ["blade-flurry"],
+      energy: MID,
+      comboPoints: 0,
+    });
+    assert.deepEqual(noSlice.log, ["sinister-strike"]);
   });
 
   it("casts a granted Cold Blood right before Eviscerate, and not when it is not granted", () => {
     const granted = walk({
       ...quiet,
-      energy: 60,
-      comboPoints: FINISHER,
-      slice: 12,
+      energy: MID,
+      comboPoints: finisher,
+      slice: long,
       granted: ["cold-blood"],
     });
     assert.deepEqual(granted.log, ["cold-blood", "eviscerate"]);
     const plain = walk({
       ...quiet,
-      energy: 60,
-      comboPoints: FINISHER,
-      slice: 12,
+      energy: MID,
+      comboPoints: finisher,
+      slice: long,
     });
     assert.deepEqual(plain.log, ["eviscerate"]);
   });
