@@ -25,7 +25,7 @@ const WIDE_HEIGHT = 900;
 const WIDE = 1024;
 const TARGET_LEAST = 44;
 // Where four cards cannot fit over the dock at 150% text (they scroll to).
-const SCROLLS = new Set(["320-150%", "360-150%"]);
+const SCROLLS = new Set(["320-150%"]);
 const SHOTS = process.env.START_PRESET_SHOTS ?? null;
 const SETTLE = 5_000;
 const RUN_TIMEOUT = 60_000;
