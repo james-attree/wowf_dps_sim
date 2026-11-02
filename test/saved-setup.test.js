@@ -532,6 +532,120 @@ describe("#296: Reset to defaults clears the save; an area's own reset saves", (
   });
 });
 
+describe("#296 ruling A2: Reset to defaults resets the run settings too, and Undo puts them back", () => {
+  // A stand-in for js/run-actions.js resetSettings and restoreSettings.
+  const runSettings = (store) => {
+    const calls = [];
+    return {
+      calls,
+      resetSettings() {
+        calls.push("reset");
+        const { run } = store.get();
+        const before = { mode: run.mode, duration: run.duration };
+        store.set({ run: { ...run, mode: "batch", duration: 300 } });
+        return before;
+      },
+      restoreSettings(before) {
+        calls.push("restore");
+        store.set({ run: { ...store.get().run, ...before } });
+        return true;
+      },
+    };
+  };
+  const mount = (store, storage, timers, form, run) =>
+    mountSavedSetup(null, store, {
+      initial: { source: "defaults" },
+      storage,
+      timers,
+      form,
+      runSettings: run,
+    });
+
+  it("Reset to defaults resets the run settings, and leaves no save", () => {
+    const storage = memoryStorage();
+    const store = pageStore();
+    const timers = fakeTimers();
+    const form = createConfigForm(store);
+    const run = runSettings(store);
+    const saved = mount(store, storage, timers, form, run);
+    store.set({ run: { ...store.get().run, mode: "live", duration: 60 } });
+    form.change("character.haste", 0.05);
+    timers.advance(DELAY);
+    form.reset();
+    timers.advance(DELAY);
+    assert.deepEqual(run.calls, ["reset"]);
+    assert.equal(store.get().run.mode, "batch");
+    assert.equal(store.get().run.duration, 300);
+    assert.equal(
+      store.get().config.character.haste,
+      setupDefaults().config.character.haste,
+    );
+    assert.equal(savedOf(storage), null);
+    saved.stop();
+  });
+
+  it("Undo puts back the run settings with the config, and saves them", () => {
+    const storage = memoryStorage();
+    const store = pageStore();
+    const timers = fakeTimers();
+    const form = createConfigForm(store);
+    const run = runSettings(store);
+    const saved = mount(store, storage, timers, form, run);
+    store.set({ run: { ...store.get().run, mode: "live", duration: 60 } });
+    form.change("character.haste", 0.05);
+    form.reset();
+    assert.equal(form.undo(), true);
+    timers.advance(DELAY);
+    assert.deepEqual(run.calls, ["reset", "restore"]);
+    assert.equal(store.get().run.mode, "live");
+    assert.equal(store.get().run.duration, 60);
+    const back = readBack(savedOf(storage));
+    assert.equal(back.config.character.haste, 0.05);
+    assert.equal(back.run.mode, "live");
+    assert.equal(back.run.duration, 60);
+    saved.stop();
+  });
+
+  it("Undo leaves run settings changed since the Reset alone, and an Undo with nothing to undo restores nothing", () => {
+    const store = pageStore();
+    const timers = fakeTimers();
+    const form = createConfigForm(store);
+    const run = runSettings(store);
+    const saved = mount(store, memoryStorage(), timers, form, run);
+    store.set({ run: { ...store.get().run, mode: "live", duration: 60 } });
+    form.reset();
+    store.set({ run: { ...store.get().run, duration: 90 } });
+    assert.equal(form.undo(), true);
+    assert.deepEqual(
+      run.calls,
+      ["reset"],
+      "the run settings were edited after the Reset",
+    );
+    assert.equal(store.get().run.duration, 90);
+    assert.equal(form.undo(), false);
+    assert.deepEqual(run.calls, ["reset"]);
+    saved.stop();
+  });
+
+  it("a Reset while a run is on (resetSettings gives null) resets the config only, and Undo restores the config only", () => {
+    const store = pageStore();
+    const timers = fakeTimers();
+    const form = createConfigForm(store);
+    const calls = [];
+    const run = {
+      resetSettings: () => (calls.push("reset"), null),
+      restoreSettings: () => (calls.push("restore"), true),
+    };
+    const saved = mount(store, memoryStorage(), timers, form, run);
+    form.change("character.haste", 0.05);
+    form.reset();
+    assert.equal(form.undo(), true);
+    assert.deepEqual(calls, ["reset"]);
+    assert.equal(store.get().config.character.haste, 0.05);
+    saved.stop();
+  });
+});
+
 describe("#296: on load, on leaving and on pageshow", () => {
   // A window stand-in: an event target with a document.
   function fakeWindow() {

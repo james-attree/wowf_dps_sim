@@ -2164,3 +2164,64 @@ describe("the phone dock (#240, UX2)", () => {
     assert.equal(page.store.get().run.state, "paused");
   });
 });
+
+describe("#296 ruling A2: the run settings' defaults for Reset to defaults", () => {
+  it("resetSettings sets batch, the default length and fights, a new seed and no field errors, and returns what was there", () => {
+    const { store, actions } = setup();
+    actions.edit("duration", {
+      text: "x",
+      value: null,
+      error: "Not a number.",
+    });
+    const before = actions.resetSettings();
+    assert.deepEqual(before, {
+      mode: "live",
+      duration: DURATION,
+      iterations: 4,
+      seed: SEED,
+      fields: { duration: "x", iterations: "4", seed: String(SEED) },
+      errors: { duration: "Not a number." },
+    });
+    const { run } = store.get();
+    assert.equal(run.mode, "batch");
+    assert.equal(run.state, store.get().batch.status);
+    assert.equal(run.duration, k("batch.duration"));
+    assert.equal(run.iterations, k("fight.iterations"));
+    assert.equal(run.seed, 8, "a new seed, as on a first visit");
+    assert.deepEqual(run.fields, {
+      duration: String(k("batch.duration")),
+      iterations: String(k("fight.iterations")),
+      seed: "8",
+    });
+    assert.deepEqual(run.errors, {});
+  });
+
+  it("restoreSettings puts back what resetSettings returned, in that mode's state", () => {
+    const { store, actions, live } = setup();
+    const before = actions.resetSettings();
+    assert.equal(actions.restoreSettings(before), true);
+    const { run } = store.get();
+    assert.equal(run.mode, "live");
+    assert.equal(run.state, live.state);
+    assert.equal(run.duration, DURATION);
+    assert.equal(run.iterations, 4);
+    assert.equal(run.seed, SEED);
+    assert.deepEqual(run.fields, {
+      duration: String(DURATION),
+      iterations: "4",
+      seed: String(SEED),
+    });
+  });
+
+  it("while a run is on, neither changes anything", () => {
+    const { store, actions } = setup();
+    actions.run();
+    assert.equal(store.get().run.state, "running");
+    const run = store.get().run;
+    assert.equal(actions.resetSettings(), null);
+    assert.equal(store.get().run, run);
+    assert.equal(actions.restoreSettings({ ...run, mode: "batch" }), false);
+    assert.equal(store.get().run, run);
+    assert.equal(actions.restoreSettings(null), false);
+  });
+});
