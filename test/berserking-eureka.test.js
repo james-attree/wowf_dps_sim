@@ -267,19 +267,38 @@ describe("racial effects grant Berserking and Eureka! (#279)", () => {
   });
 });
 
-describe("the presets cast all four on-use racials when granted (decision 6)", () => {
+// Decision 6 puts every on-use racial at the top of every preset, but the
+// Phase 5 plan (P5-07, #284) also caps each preset's share link under 2,048
+// characters. combat-swords is at 1,975 with Blood Fury and Elune's Light,
+// and each racial rule adds about 112, so Berserking and Eureka! fit only in
+// the two dagger presets (assumption, flagged for James in #279).
+const RACIALS_IN = {
+  "assassination-daggers": ["blood-fury", "elunes-light", BERSERKING, EUREKA],
+  "subtlety-daggers": ["blood-fury", "elunes-light", BERSERKING, EUREKA],
+  "combat-swords": ["blood-fury", "elunes-light"],
+};
+const DAGGERS = "assassination-daggers";
+
+describe("the presets cast the on-use racials when granted (decision 6, under the #284 link cap)", () => {
+  it("every preset is listed", () => {
+    assert.deepEqual(PRESETS.toSorted(), Object.keys(RACIALS_IN).toSorted());
+  });
+
   for (const id of PRESETS) {
-    it(`${id}: four racial rules, guarded by abilityGranted, at the top`, () => {
+    it(`${id}: its racial rules, guarded by abilityGranted, at the top`, () => {
       const { rules } = ROTATION_PRESETS.find((p) => p.id === id).rotation;
+      const racials = RACIALS_IN[id];
       assert.deepEqual(
-        rules.slice(0, 4),
-        ["blood-fury", "elunes-light", BERSERKING, EUREKA].map((action) => ({
+        rules.slice(0, racials.length),
+        racials.map((action) => ({
           action,
           conditions: [{ type: "abilityGranted", ability: action }],
         })),
       );
       assert.ok(
-        rules.slice(4).every((rule) => !raceGrantedAbilities.has(rule.action)),
+        rules
+          .slice(racials.length)
+          .every((rule) => !raceGrantedAbilities.has(rule.action)),
       );
     });
 
@@ -302,9 +321,19 @@ describe("the presets cast all four on-use racials when granted (decision 6)", (
   }
 });
 
+describe("combat-swords leaves Berserking and Eureka! out (#284 link cap)", () => {
+  it("a Troll or a Gnome never casts them there", () => {
+    for (const { race, ability } of ON_USE) {
+      const { casts } = fought(1, presetConfig(COMBAT, race), FIVE_MINUTES);
+      assert.ok(casts.length > 0, race);
+      assert.ok(!casts.some((c) => c.ability === ability), race);
+    }
+  });
+});
+
 describe("Berserking in the fight (#279, A20)", () => {
   it("is cast at 0 and 3 min of a 5 min fight, off the GCD and free", () => {
-    const { casts } = fought(1, presetConfig(COMBAT, "troll"), FIVE_MINUTES);
+    const { casts } = fought(1, presetConfig(DAGGERS, "troll"), FIVE_MINUTES);
     const cast = casts.filter((c) => c.ability === BERSERKING);
     assert.deepEqual(
       cast.map((c) => c.time),
@@ -320,7 +349,7 @@ describe("Berserking in the fight (#279, A20)", () => {
   it("uptime is casts x 15 s over 5 min", () => {
     const { casts, auras } = fought(
       2,
-      presetConfig(COMBAT, "troll"),
+      presetConfig(DAGGERS, "troll"),
       FIVE_MINUTES,
     );
     const times = casts.filter((c) => c.ability === BERSERKING);
@@ -333,10 +362,10 @@ describe("Berserking in the fight (#279, A20)", () => {
   });
 
   it("multiplies haste by 1.10 while up, on top of the rest (haste.stacking)", () => {
-    const config = presetConfig(COMBAT, "troll");
+    const config = presetConfig(DAGGERS, "troll");
     const up = createFight(1, config, { duration: MINUTE });
     up.simulation.run(1);
-    const none = createFight(1, presetConfig(COMBAT), { duration: MINUTE });
+    const none = createFight(1, presetConfig(DAGGERS), { duration: MINUTE });
     none.simulation.run(1);
     const haste = (f) => f.rogue.modifiers.resolve("haste", 1);
     assert.ok(
@@ -402,7 +431,7 @@ describe("Berserking in the fight (#279, A20)", () => {
 
 describe("Eureka! in the fight (#279, A19, A22)", () => {
   it("is cast at 0, 2 and 4 min of a 5 min fight, off the GCD and free", () => {
-    const { casts } = fought(1, presetConfig(COMBAT, "gnome"), FIVE_MINUTES);
+    const { casts } = fought(1, presetConfig(DAGGERS, "gnome"), FIVE_MINUTES);
     const cast = casts.filter((c) => c.ability === EUREKA);
     assert.deepEqual(
       cast.map((c) => c.time),
@@ -416,7 +445,7 @@ describe("Eureka! in the fight (#279, A19, A22)", () => {
   });
 
   it("a cast inside the window pays its cost x 0.9 rounded down, outside the full cost", () => {
-    for (const id of [COMBAT, "assassination-daggers", "subtlety-daggers"]) {
+    for (const id of [DAGGERS, "subtlety-daggers"]) {
       const { casts } = fought(1, presetConfig(id, "gnome"), FIVE_MINUTES);
       const windows = casts
         .filter((c) => c.ability === EUREKA)
@@ -448,14 +477,14 @@ describe("Eureka! in the fight (#279, A19, A22)", () => {
   });
 
   it("multiplies the damage of the direct abilities and Instant Poison by 1.10, nothing else", () => {
-    const up = createFight(1, presetConfig(COMBAT, "gnome"), {
+    const up = createFight(1, presetConfig(DAGGERS, "gnome"), {
       duration: MINUTE,
     });
     up.simulation.run(1);
     assert.ok(up.simulation.hasAura(EUREKA));
     const sim = up.simulation;
     const mult = k("racial.eureka").damage;
-    const none = createFight(1, presetConfig(COMBAT), { duration: MINUTE });
+    const none = createFight(1, presetConfig(DAGGERS), { duration: MINUTE });
     none.simulation.run(1);
     const ratio = (context) =>
       sim.modifiers.resolve("damage", PERCENT, context) /
@@ -474,13 +503,13 @@ describe("Eureka! in the fight (#279, A19, A22)", () => {
   });
 
   it("costs nothing less after the window: 8 s later every cost is back", () => {
-    const fight = createFight(1, presetConfig(COMBAT, "gnome"), {
+    const fight = createFight(1, presetConfig(DAGGERS, "gnome"), {
       duration: MINUTE,
     });
     fight.simulation.run(k("racial.eureka").duration + 1);
     assert.equal(fight.simulation.hasAura(EUREKA), false);
     const ss = fight.rogue.abilities.sinisterStrike;
-    const plain = createFight(1, presetConfig(COMBAT), { duration: MINUTE });
+    const plain = createFight(1, presetConfig(DAGGERS), { duration: MINUTE });
     plain.simulation.run(k("racial.eureka").duration + 1);
     assert.equal(
       ss.costNow(fight.simulation),
@@ -492,7 +521,7 @@ describe("Eureka! in the fight (#279, A19, A22)", () => {
 describe("Berserking and Eureka! add no random draw and no proc (G2)", () => {
   it("the cast itself draws no random number", () => {
     for (const { race, ability } of ON_USE) {
-      const fight = createFight(1, presetConfig(COMBAT, race), {
+      const fight = createFight(1, presetConfig(DAGGERS, race), {
         duration: MINUTE,
       });
       let count = 0;
@@ -513,8 +542,8 @@ describe("Berserking and Eureka! add no random draw and no proc (G2)", () => {
   it("adds no proc", () => {
     for (const { race } of ON_USE) {
       assert.deepEqual(
-        new Rogue(presetConfig(COMBAT, race)).procs.map((p) => p.id),
-        new Rogue(presetConfig(COMBAT)).procs.map((p) => p.id),
+        new Rogue(presetConfig(DAGGERS, race)).procs.map((p) => p.id),
+        new Rogue(presetConfig(DAGGERS)).procs.map((p) => p.id),
       );
     }
   });

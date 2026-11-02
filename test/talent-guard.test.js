@@ -80,7 +80,12 @@ describe("talent guard (#188): which abilities it covers", () => {
       [...rotationContext().talentGrantedAbilities].sort(),
       ENGINE_GRANTED,
     );
-    assert.deepEqual(RACE_GRANTED, ["blood-fury", "elunes-light"]);
+    assert.deepEqual(RACE_GRANTED, [
+      "berserking",
+      "blood-fury",
+      "elunes-light",
+      "eureka",
+    ]);
     // Today: Cold Blood, Blade Flurry and Adrenaline Rush (#188's list), and
     // Ghostly Strike, Hemorrhage and Premeditation (#207), Mutilate (#267),
     // Venom (#268) and Preparation (#270).
