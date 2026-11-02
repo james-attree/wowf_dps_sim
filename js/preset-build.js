@@ -1,5 +1,9 @@
 import { poisonName } from "./build-label.js";
-import { originRotation } from "./config-form.js";
+import {
+  isEditedChoice,
+  originRotation,
+  pageDefaultConfig,
+} from "./config-form.js";
 import { exportRotation } from "./rotation-io.js";
 import {
   listPresets,
@@ -42,7 +46,14 @@ import { MOVED_BY_RUN } from "./views/router.js";
 //     focus     null, or { target, seq }: "undo", "button" or "select",
 //               where the focus goes after a press.
 //
-// and main.js hands its actions, { apply, undo }, to that view.
+// and main.js hands its actions, { apply, pick, undo }, to that view and
+// to js/start-preset.js.
+//
+// pick (#323, the Start from a preset panel on Character) is the same
+// press for a card: the preset's reference build and its rotation, or
+// Custom's (the page defaults' talents, weapons and poisons, and the
+// default rotation). Its Undo puts the rotation back too: the choice, the
+// import and the session drafts.
 
 const HANDS = ["mainHand", "offHand"];
 const NBSP = "\u00a0";
@@ -261,14 +272,103 @@ export function savedValues(current) {
   return values;
 }
 
+// The Custom card (#323): the page defaults, no preset.
+export const CUSTOM = "custom";
+// The rotation as a part a pick replaces, after BUILD_PARTS.
+export const ROTATION_PART = "rotation";
+
+// Custom's build: the page defaults' talents, level, weapons and poisons,
+// in a reference build's shape.
+export function customBuild(defaults = pageDefaultConfig()) {
+  return {
+    name: "Custom",
+    talents: { ...(defaults.talents ?? {}) },
+    talentLevel: defaults.talentLevel,
+    weapons: {
+      mainHand: { ...defaults.weapons.mainHand },
+      offHand: { ...defaults.weapons.offHand },
+    },
+    poisons: { ...defaults.poisons },
+  };
+}
+
+// The build a card puts in: a preset's reference build, or Custom's.
+export const pickBuild = (choice, defaults) =>
+  choice === CUSTOM ? customBuild(defaults) : referenceBuild(choice);
+
+// The rotation choice a card puts in: the preset, or the default.
+export const pickRotation = (choice) =>
+  choice === CUSTOM ? "default" : choice;
+
+// Whether the card's rotation differs from the form's: another choice, or
+// an edited draft of it (a pick gives the clean rotation).
+export function rotationDiffers(form, choice) {
+  const target = pickRotation(choice);
+  return form?.rotationChoice !== target || isEditedChoice(form, target);
+}
+
+// The points in each tree, "38/11/2", or "no talents".
+export function pointsText(talents, catalogue = talentCatalogue) {
+  const points = pointsByTree(talents, catalogue);
+  const counts = catalogue.trees.map((tree) => points[tree.id] ?? 0);
+  return counts.some((count) => count > 0) ? counts.join("/") : "";
+}
+
+// A poison as a card names it: "Instant" for Instant Poison.
+export const poisonShort = (id, names = poisonName) =>
+  id === null || id === undefined
+    ? "no poison"
+    : names(id).replace(/\s+Poison$/i, "");
+
+// "Instant and Deadly poisons", "Deadly poison on both hands".
+export function poisonsText(poisons, names = poisonName) {
+  const [main, off] = HANDS.map((hand) => poisonShort(poisons[hand], names));
+  return main === off
+    ? `${main} poison on both hands`
+    : `${main} and ${off} poisons`;
+}
+
+// The line after a pick: "Assassination set: talents 38/11/2, two daggers,
+// Instant and Deadly poisons and its rotation. Your stats and race are
+// unchanged." It names the whole build put in (Fran's mock), the parts
+// that were the same too; `level` adds "level 60" when it was below.
+export function pickedText(name, build, choice, level) {
+  const parts = [...BUILD_PARTS, ROTATION_PART];
+  const points = pointsText(build.talents);
+  const says = {
+    talents: points === "" ? "no talents" : `talents ${points}`,
+    weapons: weaponsText(build.weapons),
+    poisons: poisonsText(build.poisons),
+    [ROTATION_PART]:
+      choice === CUSTOM ? "the default rotation" : "its rotation",
+  };
+  const items = parts.map((part) => says[part]);
+  if (level) {
+    items.push(`level${NBSP}${build.talentLevel}`);
+  }
+  return `${name} set: ${listText(items)}. Your stats and race are unchanged.`;
+}
+
+// The slice's `applied`: the line, Undo's name, and the card picked (null
+// for #273's button).
+const appliedOf = (saved) =>
+  saved === null
+    ? null
+    : { text: saved.text, undoName: saved.undoName, pick: saved.pick };
+
 const routeKey = (route) =>
   route === undefined || route === null
     ? ""
     : JSON.stringify([route.area, route.sub ?? null, route.param ?? null]);
 
 // The model. `formActions` is js/config-form.js's: applyBuild writes the
-// fields and the config in one change. Returns { apply, undo }.
-export function createPresetBuild(store, formActions) {
+// fields and the config in one change. `defaults` is the config Custom puts
+// back (the form's Reset's). Returns { apply, pick, undo }.
+export function createPresetBuild(
+  store,
+  formActions,
+  { defaults = pageDefaultConfig() } = {},
+) {
   // What Undo puts back, and the state just after the press it undoes.
   let saved = null;
   let seq = 0;
@@ -285,8 +385,7 @@ export function createPresetBuild(store, formActions) {
   function refresh(extra = {}) {
     const state = store.get();
     const hint = hintOf(state);
-    const applied =
-      saved === null ? null : { text: saved.text, undoName: saved.undoName };
+    const applied = appliedOf(saved);
     store.set({
       presetBuild: { ...slice(), hint, applied, ...extra },
     });
@@ -332,30 +431,32 @@ export function createPresetBuild(store, formActions) {
     return { text, seq };
   };
 
-  function apply() {
+  // Put `build` in, with the rotation `rotation` (a pick's) or the
+  // rotation as it is (#273's button). `parts` are what differs.
+  function replace({ build, parts, level, rotation, text, pick }) {
     const state = store.get();
-    const presetId = presetOfChoice(state.form);
-    const build = presetId === null ? null : referenceBuild(presetId);
-    if (build === null) {
-      return false;
-    }
     const current = currentBuild(state);
-    const differences = buildDifferences(build, current);
-    const parts = differingParts(differences);
-    if (parts.length === 0) {
-      return false;
-    }
-    const level = differences.level;
+    const { form } = state;
     const before = {
       values: savedValues(current),
       talents: { ...current.talents },
       talentLevel: current.talentLevel,
+      rotation:
+        rotation === null
+          ? null
+          : {
+              rotationChoice: form.rotationChoice,
+              imported: form.imported,
+              drafts: form.drafts,
+              importStatus: form.importStatus ?? null,
+            },
     };
     store.batch(() => {
       formActions.applyBuild({
         values: buildValues(build),
         talents: build.talents,
         talentLevel: level ? build.talentLevel : current.talentLevel,
+        rotation,
       });
       const now = store.get();
       saved = {
@@ -363,7 +464,8 @@ export function createPresetBuild(store, formActions) {
         parts,
         level,
         build,
-        text: appliedText(build, parts, level),
+        pick,
+        text,
         undoName: undoName(parts),
         // Where Undo may be now: the page, or where Run moved it.
         route: routeKey(now.route),
@@ -382,18 +484,79 @@ export function createPresetBuild(store, formActions) {
     return true;
   }
 
+  function apply() {
+    const state = store.get();
+    const presetId = presetOfChoice(state.form);
+    const build = presetId === null ? null : referenceBuild(presetId);
+    if (build === null) {
+      return false;
+    }
+    const differences = buildDifferences(build, currentBuild(state));
+    const parts = differingParts(differences);
+    if (parts.length === 0) {
+      return false;
+    }
+    const level = differences.level;
+    return replace({
+      build,
+      parts,
+      level,
+      rotation: null,
+      text: appliedText(build, parts, level),
+      pick: null,
+    });
+  }
+
+  // A card (#323): `choice` is a preset id or CUSTOM, `name` the card's.
+  // False when the page has that build and rotation already (nothing to
+  // put in, and no Undo).
+  function pick(choice, name = choice) {
+    const state = store.get();
+    const build = pickBuild(choice, defaults);
+    if (build === null) {
+      return false;
+    }
+    const differences = buildDifferences(build, currentBuild(state));
+    const parts = [
+      ...differingParts(differences),
+      ...(rotationDiffers(state.form, choice) ? [ROTATION_PART] : []),
+    ];
+    const level = differences.level;
+    if (parts.length === 0 && !level) {
+      return false;
+    }
+    const drafts = { ...(state.form.drafts ?? {}) };
+    delete drafts[pickRotation(choice)];
+    return replace({
+      build,
+      parts,
+      level,
+      rotation: {
+        rotationChoice: pickRotation(choice),
+        imported: state.form.imported,
+        drafts,
+        importStatus: null,
+      },
+      text: pickedText(name, build, choice, level),
+      pick: choice,
+    });
+  }
+
   function undo() {
     if (saved === null) {
       return false;
     }
-    const { before, parts, level, build } = saved;
+    const { before, parts, level, build, pick: picked } = saved;
     saved = null;
     store.batch(() => {
       formActions.applyBuild(before);
       const hint = hintOf(store.get());
       refresh({
         announce: nextAnnounce(announceText(build, parts, level, true)),
-        focus: nextFocus(hint === null ? "select" : "button"),
+        // A card's Undo: the Start from a preset view puts the focus back.
+        focus: nextFocus(
+          picked !== null ? "start" : hint === null ? "select" : "button",
+        ),
       });
     });
     return true;
@@ -409,8 +572,7 @@ export function createPresetBuild(store, formActions) {
     }
     const hint = hintOf(state);
     const current = slice();
-    const applied =
-      saved === null ? null : { text: saved.text, undoName: saved.undoName };
+    const applied = appliedOf(saved);
     if (
       JSON.stringify(hint) !== JSON.stringify(current.hint) ||
       JSON.stringify(applied) !== JSON.stringify(current.applied)
@@ -419,5 +581,5 @@ export function createPresetBuild(store, formActions) {
     }
   });
 
-  return { apply, undo };
+  return { apply, pick, undo };
 }

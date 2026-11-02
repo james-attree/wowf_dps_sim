@@ -922,6 +922,20 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
         errors: validateValues(values, levelsNow()),
       });
     },
+    // A field set from another control than its own (#323: the Race
+    // select on Start from a preset): as change, and a new revision, so
+    // the form's own control shows it too.
+    setField(path, raw) {
+      forget();
+      const value = controlValue(path, raw);
+      const values = { ...form().values, [path]: value };
+      commit({
+        ...form(),
+        values,
+        errors: validateValues(values, levelsNow()),
+        revision: form().revision + 1,
+      });
+    },
     chooseRotation(choice) {
       forget();
       if (!form().rotationOptions.some(({ id }) => id === choice)) {
@@ -1018,14 +1032,26 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
     // are redrawn (a new revision). The config takes the build even while
     // another field is in error, so the talents and weapons are never left
     // half applied; the fields in error stay as typed, and the config gets
-    // them when they are fixed, as any edit does.
-    applyBuild({ values: patch, talents, talentLevel }) {
+    // them when they are fixed, as any edit does. `rotation` (#323, the
+    // Start from a preset panel) is the rotation's part of the form too:
+    // { rotationChoice, imported, drafts, importStatus }, written in the
+    // same change; without it the rotation is left as it is.
+    applyBuild({ values: patch, talents, talentLevel, rotation = null }) {
       forget();
       const now = store.get();
       const values = { ...form().values, ...patch };
       const base = copy(now.config);
       base.talents = copy(talents);
       base.talentLevel = talentLevel;
+      // The rotation goes in with them, even while another field's error
+      // keeps the form's config back.
+      if (rotation !== null) {
+        base.rotation = rotationOf(
+          rotation.rotationChoice,
+          rotation.imported,
+          rotation.drafts,
+        );
+      }
       for (const [path, value] of Object.entries(patch)) {
         write(base, path, value);
       }
@@ -1033,6 +1059,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
         store.set({ config: normalizeConfig(fromBehind(base)) });
         commit({
           ...form(),
+          ...(rotation === null ? {} : rotation),
           values,
           errors: validateValues(values, levelsNow()),
           revision: form().revision + 1,

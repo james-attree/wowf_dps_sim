@@ -18,6 +18,9 @@ export const SCREENS = Object.freeze({
   gear: Object.freeze({ title: "Gear and weapons", row: "character-row-gear" }),
   stats: Object.freeze({ title: "Stats", row: "character-row-stats" }),
   talents: Object.freeze({ title: "Talents", row: "talents-edit" }),
+  // The Start from a preset cards (#323): js/views/start-preset.js shows
+  // them, on this screen and at the top of the list on a first visit.
+  start: Object.freeze({ title: "Starting point", row: "start-row" }),
 });
 
 const ONE = 1;

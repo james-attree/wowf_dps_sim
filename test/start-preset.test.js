@@ -1,0 +1,384 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  createConfigForm,
+  isEditedChoice,
+  pageDefaultConfig,
+} from "../js/config-form.js";
+import {
+  CUSTOM,
+  createPresetBuild,
+  customBuild,
+  pickedText,
+  pointsText,
+  poisonsText,
+} from "../js/preset-build.js";
+import { draftOf, moveRule } from "../js/rotation-edit.js";
+import { presetRotation, referenceBuild } from "../js/rotation-presets.js";
+import {
+  CUSTOM_CHOSEN,
+  START_KEY,
+  builderOf,
+  createStartPreset,
+  leadText,
+  needsRace,
+  opensFirst,
+  readStartChoice,
+  startCards,
+  startingPoint,
+  writeStartChoice,
+} from "../js/start-preset.js";
+import { createStore } from "../js/store.js";
+import { createTalentTree } from "../js/talent-tree.js";
+import { MOVED_BY_RUN, MOVED_BY_USER } from "../js/views/router.js";
+
+// #323: Start from a preset.
+
+const NBSP = "\u00a0";
+const ASSASSINATION = "assassination-daggers";
+const COMBAT = "combat-swords";
+const SUBTLETY = "subtlety-daggers";
+const LOW_LEVEL = "40";
+const route = (area, sub = null) => Object.freeze({ area, sub, param: null });
+const LIST = route("character");
+const START = route("character", "start");
+
+function memory() {
+  const items = new Map();
+  return {
+    getItem: (key) => (items.has(key) ? items.get(key) : null),
+    setItem: (key, value) => items.set(key, String(value)),
+    removeItem: (key) => items.delete(key),
+  };
+}
+
+function page({ open = true, remembered = null } = {}) {
+  const store = createStore({ config: pageDefaultConfig(), route: LIST });
+  const form = createConfigForm(store);
+  const tree = createTalentTree(store);
+  const build = createPresetBuild(store, form);
+  const storage = memory();
+  if (remembered !== null) {
+    storage.setItem(START_KEY, remembered);
+  }
+  const moves = [];
+  const start = createStartPreset(store, build, {
+    open,
+    remembered,
+    remember: (value) => writeStartChoice(storage, value),
+    toList: () => {
+      moves.push("list");
+      store.set({ route: LIST, routeBy: MOVED_BY_USER });
+    },
+  });
+  const slice = () => store.get().start;
+  return { store, form, tree, build, start, storage, moves, slice };
+}
+
+describe("the cards (#323)", () => {
+  it("are the presets in the trees' order, then Custom", () => {
+    const cards = startCards();
+    assert.deepEqual(
+      cards.map(({ id }) => id),
+      [ASSASSINATION, COMBAT, SUBTLETY, CUSTOM],
+    );
+    assert.deepEqual(
+      cards.map(({ name }) => name),
+      ["Assassination", "Combat swords", "Subtlety", "Custom"],
+    );
+    assert.equal(
+      cards[0].detail,
+      "Mutilate · 38/11/2 · two daggers · Instant / Deadly",
+    );
+    assert.equal(
+      cards[1].detail,
+      "Sinister Strike · 18/33/0 · two swords · Deadly / Instant",
+    );
+    assert.equal(cards[2].detail.split(" · ")[0], "Hemorrhage");
+    assert.deepEqual(
+      cards.map(({ short }) => short),
+      ["38/11/2", "18/33/0", "12/8/31", "No talents"],
+    );
+  });
+
+  it("name each rotation's builder: its last combo point rule", () => {
+    assert.equal(builderOf(presetRotation(ASSASSINATION)), "Mutilate");
+    assert.equal(builderOf(presetRotation(COMBAT)), "Sinister Strike");
+    assert.equal(builderOf(presetRotation(SUBTLETY)), "Hemorrhage");
+    assert.equal(builderOf({ rules: [] }), null);
+  });
+
+  it("the lead names the level, the text bits read whole", () => {
+    assert.equal(
+      leadText(),
+      `Each sets talents, weapons, poisons and the rotation for a level${NBSP}60 rogue.`,
+    );
+    assert.equal(pointsText({}), "");
+    assert.equal(
+      poisonsText({ mainHand: "instant", offHand: "deadly" }),
+      "Instant and Deadly poisons",
+    );
+    assert.equal(
+      poisonsText({ mainHand: "instant", offHand: "instant" }),
+      "Instant poison on both hands",
+    );
+    const build = referenceBuild(ASSASSINATION);
+    assert.equal(
+      pickedText("Assassination", build, ASSASSINATION, false),
+      "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
+    );
+    assert.match(
+      pickedText("Assassination", build, ASSASSINATION, true),
+      new RegExp(`its rotation and level${NBSP}60\\.`),
+    );
+    const custom = customBuild(pageDefaultConfig());
+    assert.match(
+      pickedText("Custom", custom, CUSTOM, false),
+      /^Custom set: no talents, .* and the default rotation\./,
+    );
+  });
+});
+
+describe("when the panel opens (#323)", () => {
+  it("only from the defaults, and not once Custom was chosen", () => {
+    assert.equal(opensFirst({ source: "defaults", remembered: null }), true);
+    assert.equal(
+      opensFirst({ source: "defaults", remembered: CUSTOM_CHOSEN }),
+      false,
+    );
+    for (const source of ["saved", "link"]) {
+      assert.equal(opensFirst({ source, remembered: null }), false, source);
+    }
+  });
+
+  it("reads and writes its key, and storage that throws is dropped", () => {
+    const storage = memory();
+    assert.equal(readStartChoice(storage), null);
+    writeStartChoice(storage, CUSTOM_CHOSEN);
+    assert.equal(storage.getItem(START_KEY), CUSTOM_CHOSEN);
+    assert.equal(readStartChoice(storage), CUSTOM_CHOSEN);
+    writeStartChoice(storage, null);
+    assert.equal(readStartChoice(storage), null);
+    const throws = {
+      getItem() {
+        throw new Error("no");
+      },
+      setItem() {
+        throw new Error("no");
+      },
+      removeItem() {
+        throw new Error("no");
+      },
+    };
+    assert.equal(readStartChoice(throws), null);
+    assert.doesNotThrow(() => writeStartChoice(throws, CUSTOM_CHOSEN));
+    assert.equal(readStartChoice(undefined), null);
+  });
+
+  it("starts open or folded as told, the defaults' card current", () => {
+    const open = page().slice();
+    assert.equal(open.open, true);
+    assert.deepEqual(open.point, { id: CUSTOM, text: "Custom" });
+    assert.deepEqual(
+      open.cards.filter(({ current }) => current).map(({ id }) => id),
+      [CUSTOM],
+    );
+    assert.equal(page({ open: false }).slice().open, false);
+  });
+});
+
+describe("a pick and its Undo (#323)", () => {
+  it("puts in the build and the rotation, folds, and focuses Undo", () => {
+    const env = page();
+    env.form.change("character.attackPower", 1234);
+    env.form.change("race", "orc");
+    const before = env.store.get().config;
+    assert.equal(env.start.pick(ASSASSINATION), true);
+    const { config, form } = env.store.get();
+    const reference = referenceBuild(ASSASSINATION);
+    assert.deepEqual(config.talents, reference.talents);
+    assert.deepEqual(config.weapons, reference.weapons);
+    assert.deepEqual(config.poisons, reference.poisons);
+    assert.equal(form.rotationChoice, ASSASSINATION);
+    assert.deepEqual(config.rotation, presetRotation(ASSASSINATION));
+    // Stats, race and the fight stay.
+    assert.deepEqual(config.character, before.character);
+    assert.equal(config.race, before.race);
+    assert.deepEqual(config.fight, before.fight);
+    const slice = env.slice();
+    assert.equal(slice.open, false);
+    assert.deepEqual(slice.point, {
+      id: ASSASSINATION,
+      text: "Assassination",
+    });
+    assert.equal(slice.needsRace, false, "a race is set");
+    const said = env.store.get().presetBuild;
+    assert.equal(said.applied.pick, ASSASSINATION);
+    assert.equal(said.focus.target, "undo");
+    assert.match(said.announce.text, /replaced\.$/);
+  });
+
+  it("Undo puts back the build, the rotation and its draft, and the panel", () => {
+    const env = page();
+    const draft = draftOf(
+      presetRotation(COMBAT),
+      (() => {
+        let n = 0;
+        return () => `d${(n += 1)}`;
+      })(),
+    );
+    draft.rules = moveRule(draft.rules, 0, 1);
+    env.form.chooseRotation(COMBAT);
+    env.form.setDraft(COMBAT, draft);
+    env.tree.setLevel(LOW_LEVEL);
+    const before = env.store.get();
+    assert.equal(isEditedChoice(before.form, COMBAT), true);
+    env.start.pick(SUBTLETY);
+    assert.equal(env.store.get().config.talentLevel, 60);
+    assert.equal(env.start.undo(), true);
+    const after = env.store.get();
+    assert.equal(after.form.rotationChoice, COMBAT);
+    assert.deepEqual(after.form.drafts, before.form.drafts);
+    assert.deepEqual(after.config.rotation, before.config.rotation);
+    assert.deepEqual(after.config.talents, before.config.talents);
+    assert.deepEqual(after.config.weapons, before.config.weapons);
+    assert.equal(after.config.talentLevel, Number(LOW_LEVEL));
+    const slice = env.slice();
+    assert.equal(slice.open, true, "open again");
+    assert.deepEqual(
+      { target: slice.focus.target, id: slice.focus.id },
+      { target: "card", id: SUBTLETY },
+    );
+    assert.equal(after.presetBuild.applied, null);
+    // One step.
+    assert.equal(env.start.undo(), false);
+  });
+
+  it("switching back gives the clean preset: its draft goes", () => {
+    const env = page();
+    env.start.pick(COMBAT);
+    const draft = draftOf(
+      presetRotation(COMBAT),
+      (() => {
+        let n = 0;
+        return () => `e${(n += 1)}`;
+      })(),
+    );
+    draft.rules = moveRule(draft.rules, 0, 1);
+    env.form.setDraft(COMBAT, draft);
+    assert.equal(env.slice().point.text, "Combat swords · Edited");
+    assert.equal(
+      env.slice().cards.find(({ id }) => id === COMBAT).edited,
+      true,
+    );
+    env.start.pick(ASSASSINATION);
+    assert.equal(env.start.pick(COMBAT), true);
+    const { form, config } = env.store.get();
+    assert.equal(form.drafts[COMBAT], undefined);
+    assert.deepEqual(config.rotation, presetRotation(COMBAT));
+    assert.equal(env.slice().point.text, "Combat swords");
+  });
+
+  it("a press that changes nothing: no Undo, the focus moves on", () => {
+    const env = page();
+    assert.equal(env.start.pick(CUSTOM), false);
+    assert.equal(env.slice().focus.target, "gear");
+    assert.equal(env.store.get().presetBuild.applied, null);
+    env.start.pick(COMBAT);
+    assert.equal(env.start.pick(COMBAT), false);
+    assert.equal(env.slice().focus.target, "row");
+  });
+
+  it("from #character/start: to the list first; Undo's focus on the row once folded", () => {
+    const env = page({ open: false });
+    env.store.set({ route: START, routeBy: MOVED_BY_USER });
+    env.start.pick(SUBTLETY);
+    assert.deepEqual(env.moves, ["list"]);
+    assert.equal(env.store.get().route.sub, null);
+    env.start.undo();
+    assert.equal(env.slice().open, false);
+    assert.equal(env.slice().focus.target, "row");
+  });
+
+  it("Undo survives Run's move to Results, not the user's", () => {
+    const env = page();
+    env.start.pick(ASSASSINATION);
+    env.store.set({ route: route("results"), routeBy: MOVED_BY_RUN });
+    assert.notEqual(env.store.get().presetBuild.applied, null);
+    env.store.set({ route: LIST, routeBy: MOVED_BY_USER });
+    assert.notEqual(env.store.get().presetBuild.applied, null);
+    assert.equal(env.start.undo(), true);
+    env.start.pick(ASSASSINATION);
+    env.store.set({ route: route("rotation"), routeBy: MOVED_BY_USER });
+    assert.equal(env.store.get().presetBuild.applied, null);
+  });
+
+  it("asks for a race after a preset's pick with none", () => {
+    const env = page();
+    env.start.pick(SUBTLETY);
+    assert.equal(env.slice().needsRace, true);
+    assert.equal(needsRace(env.store.get()), true);
+    env.form.change("race", "troll");
+    assert.equal(env.slice().needsRace, false);
+  });
+});
+
+describe("Custom remembered (#323)", () => {
+  it("Custom is remembered; a preset or Reset forgets it; Reset's Undo puts it back", () => {
+    const env = page();
+    env.start.pick(CUSTOM);
+    assert.equal(env.storage.getItem(START_KEY), CUSTOM_CHOSEN);
+    assert.equal(env.slice().open, false);
+    env.start.pick(COMBAT);
+    assert.equal(env.storage.getItem(START_KEY), null);
+    env.start.undo();
+    assert.equal(env.storage.getItem(START_KEY), CUSTOM_CHOSEN, "Undo");
+
+    const before = env.start.reset();
+    assert.equal(env.slice().open, true);
+    assert.equal(env.storage.getItem(START_KEY), null);
+    env.start.restore(before);
+    assert.equal(env.slice().open, false);
+    assert.equal(env.storage.getItem(START_KEY), CUSTOM_CHOSEN);
+  });
+
+  it("Custom puts back the page's defaults", () => {
+    const env = page();
+    env.start.pick(ASSASSINATION);
+    assert.equal(env.start.pick(CUSTOM), true);
+    const { config, form } = env.store.get();
+    const defaults = pageDefaultConfig();
+    assert.deepEqual(config.talents, defaults.talents);
+    assert.deepEqual(config.weapons, defaults.weapons);
+    assert.equal(form.rotationChoice, "default");
+    assert.deepEqual(startingPoint(env.store.get()), {
+      id: CUSTOM,
+      edited: false,
+    });
+  });
+});
+
+describe("the config form's part (#323)", () => {
+  it("setField is a change the form redraws (a new revision)", () => {
+    const env = page();
+    const revision = env.store.get().form.revision;
+    env.form.setField("race", "orc");
+    assert.equal(env.store.get().config.race, "orc");
+    assert.equal(env.store.get().form.revision, revision + 1);
+  });
+
+  it("applyBuild with a rotation sets it, a field in error or not", () => {
+    const env = page();
+    env.form.change("character.attackPower", "not a number");
+    assert.ok(Object.keys(env.store.get().form.errors).length > 0);
+    const build = referenceBuild(COMBAT);
+    env.form.applyBuild({
+      values: {},
+      talents: build.talents,
+      talentLevel: build.talentLevel,
+      rotation: { rotationChoice: COMBAT, imported: null, drafts: {} },
+    });
+    assert.equal(env.store.get().form.rotationChoice, COMBAT);
+    assert.deepEqual(env.store.get().config.rotation, presetRotation(COMBAT));
+  });
+});

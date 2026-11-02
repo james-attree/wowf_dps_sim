@@ -40,10 +40,11 @@ export const APP_TITLE = "WoW Forever Rogue Simulator";
 // has a rule's screen, #rotation/rule/2, and Export or import,
 // #rotation/share (js/views/rotation-builder.js shows them). Character
 // (#244, UX6) has Gear and weapons, Stats and Talents
-// (js/views/character-screens.js). A route's sub or param that is not one of
+// (js/views/character-screens.js), and the Starting point's cards (#323,
+// js/views/start-preset.js). A route's sub or param that is not one of
 // its area's is dropped, so #character/armor is #character.
 export const SUBS = Object.freeze({
-  character: Object.freeze(["gear", "stats", "talents"]),
+  character: Object.freeze(["gear", "stats", "talents", "start"]),
   results: Object.freeze(["average", "live"]),
   rotation: Object.freeze(["rule", "share"]),
 });
@@ -56,6 +57,7 @@ export const SCREEN_NAMES = Object.freeze({
     gear: "Gear and weapons",
     stats: "Stats",
     talents: "Talents",
+    start: "Starting point",
   }),
 });
 export const RESULT_VIEWS = SUBS.results;
