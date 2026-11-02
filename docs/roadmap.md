@@ -222,7 +222,7 @@ of truth, and this list will go stale.
 
 Since then, in Phase 3: Backstab is dagger-only (#142, PR #164), and Cold Blood is a rotation rule that must hold only when the build grants it (#155, PR #173).
 
-**Scope (project owner ruling 2026-10-26).** Block and parry are out of scope: the sim is for attacking from behind, where neither applies. The front attack table (`config.target.behind = false`, with its parry and block bands) is retained in the engine and tests but is unsupported for tuning, and `block.value` stays 0. See [Position](mechanics.md#attack-table).
+**Scope (project owner ruling 2026-10-26).** Block and parry are out of scope: the sim is for attacking from behind, where neither applies. The front attack table (`config.target.behind = false`, with its parry and block bands) is retained in the engine and tests but is unsupported for tuning, and the block value (`attackTable.block.value`) stays 0. See [Position](mechanics.md#attack-table).
 
 ## Phase 1 status
 

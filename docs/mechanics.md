@@ -51,21 +51,22 @@ worker sends the error back by name and message, so a batch run through
 ## Attack table
 
 `resolveAttack` in `js/attack-resolver.js` is the Classic 1.12 melee attack
-table (A7, #100), at 300 weapon skill against a level 63 target. The numbers
-are the Magey Classic Warrior wiki's "Attack table" page, read as constants
-(source `classic-1.12`, on the retune list; the page is the `ref`). They are
-not re-derived from a skill gap: a change of `k("weaponSkill.base")` or
-`k("target.defense")` moves only the hit suppression (below), and the other
-rows would have to be retuned by hand.
+table (A7, #100). Since #295 every number of it is in one table, the
+`attackTable.*` rows of `data/constants.js`, and `deriveAttackTable()` works
+the bands out from the weapon skill (`config.character.weaponSkill`, default 300) against the target's defense (315 for the level 63 boss). At the default
+skill the derived table is exactly the fixed table the engine had before, so
+no golden moved. See [Weapon skill and the attack table](#weapon-skill-and-the-attack-table-issue-295)
+for every row, its source and the two settings open for James's ruling.
 
-The page is written for warriors and is cited as the Classic reference for the
-table. Where a number is not defined, the row uses the Classic value (or 0)
-tagged as an assumption with retune on: `block.value` and `dot.critSuppression`
-are the two. A rogue-specific cross-check would be a good later task.
-wowsims/classic's `sim/core/target.go` (`NewAttackTable`, which cites the same
-page) gives the same miss, hit suppression, dodge, parry, block, glancing
-chance, glancing damage range and crit suppression at these levels (read 26 Oct
-2026); each row's note says so.
+The Magey Classic Warrior wiki's "Attack table" page is the Classic
+reference for the formulas; it is written for warriors, and a rogue-specific
+cross-check would be a good later task. wowsims/classic's
+`sim/core/target.go` (`NewAttackTable`, which cites the same page) gives the
+same miss, hit suppression, dodge, parry, block, glancing chance, glancing
+damage range and crit suppression at 300 skill (read 26 Oct and 2 Nov 2026).
+Every `attackTable` row is an assumption with retune on, because WoW
+Forever's own numbers are not known; `dot.critSuppression` is the other
+attack-table assumption.
 
 **Two shapes.** A white swing (`attackType` `"weapon"`, main hand and off
 hand) is one roll over the bands, in this order (`k("table.white")`): miss,
@@ -98,20 +99,22 @@ non-finite chance throws. The sim passes `Rogue.getBonusHitChance()` and
 `Rogue.getCritChance()` (the `k("character.bonusHitChance")` and
 `k("character.critChance")` rows, `classic-1.12` and on the retune list).
 
-| Band                  | Chance                                                                                           | At 300 against 315                         |
-| --------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| Yellow miss           | `max(0, k("miss.yellow") - hit)`                                                                 | 8% (5% + 15 x 0.2%)                        |
-| White miss            | `max(0, k("miss.yellow") + k("miss.dualWieldPenalty") - hit)`                                    | 27% (8% + the flat 19% dual-wield penalty) |
-| Dodge                 | `max(0, k("dodge.target") - dodgeReduction)`                                                     | 6.5%                                       |
-| Parry (front only)    | `max(0, k("parry.target").front - parryReduction)`, 0 from behind                                | 14%                                        |
-| Glancing (white only) | `k("glancing.chance")`                                                                           | 40%                                        |
-| Block (front only)    | `k("block.target").front`, 0 from behind                                                         | 5%                                         |
-| Crit                  | the clamped crit chance less `k("crit.suppressionSkill")` and `k("crit.suppressionAura")`, min 0 | 4.8% less (3% skill + 1.8% aura)           |
+`table` below is the fight's derived attack table (`Simulation.attackTable`).
 
-`hit` is the clamped bonus hit less `k("hit.suppression")` (1%), floored at 0. The suppression applies only while `k("target.defense")` is more than
-`k("hit.suppressionGap")` (10) above `k("weaponSkill.base")`, which is true
-here (315 against 300). That is why the hit cap is 9% for a yellow attack
-(8% miss plus the 1% that does not count) and 28% for a white one. A dodge or
+| Band                  | Chance                                                                 | At 300 against 315                         |
+| --------------------- | ---------------------------------------------------------------------- | ------------------------------------------ |
+| Yellow miss           | `max(0, table.miss - hit)`                                             | 8% (5% + 15 x 0.2%)                        |
+| White miss            | `max(0, table.miss + table.dualWieldPenalty - hit)`                    | 27% (8% + the flat 19% dual-wield penalty) |
+| Dodge                 | `max(0, table.dodge - dodgeReduction)`                                 | 6.5%                                       |
+| Parry (front only)    | `max(0, table.parry.front - parryReduction)`, 0 from behind            | 14%                                        |
+| Glancing (white only) | `table.glancing`                                                       | 40%                                        |
+| Block (front only)    | `table.block.front`, 0 from behind                                     | 5%                                         |
+| Crit                  | the clamped crit chance less the table's crit suppression terms, min 0 | 4.8% less (3% skill + 1.8% aura)           |
+
+`hit` is the clamped bonus hit less `table.hitSuppression` (1%), floored at 0. The suppression applies only while the defense is more than 10 above the
+weapon skill (`attackTable.hitSuppression`), which is true at 300 (315
+against 300). That is why the hit cap is 9% for a yellow attack (8% miss plus
+the 1% that does not count) and 28% for a white one; at 305 skill it is 6%. A dodge or
 parry reduction comes from the modifier pipeline, comes off its own band only,
 and never takes the band below 0, so it cannot move another band.
 `k("target.behind")` is the default position (see SimConfig, `target.behind`).
@@ -121,7 +124,7 @@ not change the dodge chance.
 **Position.** `config.target.behind` (default `true`, `k("target.behind")`)
 says where the rogue stands. Behind the target the parry and block bands have
 zero width, so the default fight has no parry and no block. From the front
-they are `k("parry.target").front` and `k("block.target").front`. The
+they are `attackTable.parry` and `attackTable.block` `front`. The
 position is read for every attack and DoT application, and the golden cases
 all use the default.
 
@@ -130,17 +133,18 @@ neither parry nor block applies (project owner ruling 2026-10-26). The front
 table (`target.behind = false`, with its parry and block bands) is retained in
 the engine and covered by tests, but it is out of scope and unsupported for
 tuning: its constants are not retuned and no result from the front should be
-relied on. `k("block.value")` stays 0.
+relied on. The block value (`attackTable.block.value`) stays 0.
 
-**Glancing damage.** A glancing blow does `k("glancing.damage")`, a range
-`{ low, high }` (0.55 to 0.75 at this skill gap, the Magey formulas
-`min(0.91, 1.3 - 0.05 x gap)` and `min(0.99, max(0.2, 1.2 - 0.03 x gap))`),
+**Glancing damage.** A glancing blow does `table.glancingDamage`, a range
+`{ low, high }` (0.55 to 0.75 at 300 skill, the Magey formulas
+`min(0.91, 1.3 - 0.05 x gap)` and `min(0.99, max(0.2, 1.2 - 0.03 x gap))`,
+held at wowsims' floors 0.01 and 0.2; 0.80 to 0.90 at 305, 0.91 to 0.99 at 308),
 and the factor is the glancing draw spread evenly across it:
 `low + (high - low) x draw / rollScale`. The result has `glanceFactor`; it is
 null for anything else.
 
-**Block.** A block is a landed hit that loses `k("block.value")` damage, never
-below 0, and cannot crit. `k("block.value")` is 0 (an assumption, no source in
+**Block.** A block is a landed hit that loses `table.blockValue` damage, never
+below 0, and cannot crit. The block value is 0 (an assumption, no source in
 hand gives the amount), so a block does full damage. Blocks are counted under
 `blocks` in an ability's record, next to `parries`.
 
@@ -153,7 +157,9 @@ that would go below 0 or above 1 (noted in the #121 QA review).
 
 **Crit suppression.** The crit chance a white swing or a yellow second roll
 reads is the chance less 3% (the skill gap, 0.2% per point) and less
-1.8% (the aura term, a flat reduction Magey notes), then clamped to 0 to 1. The
+1.8% (the aura term, a flat reduction Magey notes), then clamped to 0 to 1.
+That is the default `classic` crit model; `attackTable.critModel` switches it
+(see [Weapon skill and the attack table](#weapon-skill-and-the-attack-table-issue-295)). The
 suppression comes off before the clamp (D8a PR 2, #119), so a raw crit chance of
 104.8% or more is a sure crit once the suppression is paid, which Cold Blood's
 +100% needs; clamped first, it would have given 95.2%. A raw chance of 100% or
@@ -167,7 +173,8 @@ at the full chance. The 2x tick crit multiplier is `dot.critMultiplier`. A
 DoT's application never crits.
 
 **Spell hit table.** `spellMissChance` and `resolveSpellHit` give the 17%
-miss, floored at 1%, that a poison proc uses (A5, `k("spell.missTarget")`),
+miss, floored at 1%, that a poison proc uses (A5, `table.spellMiss`, from
+`attackTable.spellMiss` by level gap: 4%, 5%, 6%, then 17% at +3),
 less the rogue's bonus spell hit (the `spellHitChance` modifiers: only Dwarf
 Artisan's Precision so far, an assumption, #277), with status "Resist". A `dealDamage` or `applyDot` proc action with `spellHit`
 draws one roll from it (see [Poison procs](#poison-procs-a5-issue-105)).
@@ -183,6 +190,89 @@ is `{ outcome, status, roll, critRoll, glanceFactor, damage, landed }`, with
 `Simulation.resolveAttack` then runs that damage through armor (see Armor)
 and adds it to the total when the attack landed and the armored damage is
 still positive.
+
+## Weapon skill and the attack table (issue #295)
+
+Every number of the attack table is one row of the `attackTable.*` block in
+`data/constants.js` (P5-10, #295), and nothing in the engine holds another.
+`deriveAttackTable({ weaponSkill, characterLevel, targetLevel })` in
+`js/attack-resolver.js` works the fight's table out from them; a
+`Simulation` derives it once, as `attackTable`, from `weaponSkillFor(config)`,
+and passes it to every attack, DoT tick and poison roll. Each derived chance
+is rounded to `k("attack.derivedDigits")` (12, `engineering`) decimal places,
+so the derived 0.05 + 15 x 0.002 is exactly the 0.08 the fixed row held.
+
+**The weapon skill.** `config.character.weaponSkill` is a whole number of 1 or
+more, default `character.level x 5` = 300 (`attackTable.weaponSkill.perLevel`).
+An old config or link without it reads as 300 (G4), and a share link drops it
+at the default, so old links are unchanged. `weaponSkillFor` adds the race's
+`attackTable.weaponSkill.racialBonus`, which is empty: WoW Forever has no
+weapon-skill racial. Racial and gear skill by weapon type is post-launch
+(#297); the Character field in the UI is a separate task. The default is tied
+to the level 60 character (`character.level`), not to `talentLevel`; #290 may
+tie them.
+
+The skill gap is the target's defense (`target.level x
+attackTable.defense.perLevel`, 315) less the weapon skill.
+
+| Row                            | Value                                                                    | 300    | 305    | 308    |
+| ------------------------------ | ------------------------------------------------------------------------ | ------ | ------ | ------ |
+| `attackTable.miss`             | 5% + 0.2%/point when the gap is over 10, else 5% + 0.1%/point; min 0     | 8%     | 6%     | 5.7%   |
+| `attackTable.dualWieldPenalty` | +19% on a white swing (James: 27% = 19% + 8%)                            | 27%    | 25%    | 24.7%  |
+| `attackTable.hitSuppression`   | flat 1% while the gap is over 10                                         | 1%     | 0      | 0      |
+| `attackTable.dodge`            | 5% + 0.1%/point; min 0                                                   | 6.5%   | 6%     | 5.7%   |
+| `attackTable.parry`            | 14% from the front, 0 behind (not skill-based; front is out of scope)    | 0      | 0      | 0      |
+| `attackTable.block`            | 5% from the front, 0 behind; value 0                                     | 0      | 0      | 0      |
+| `attackTable.glancing`         | 10% + 2%/point over the capped skill (min(skill, 300))                   | 40%    | 40%    | 40%    |
+| `attackTable.glancingDamage`   | low 1.3 - 0.05/point (0.01 to 0.91), high 1.2 - 0.03/point (0.2 to 0.99) | 55–75% | 80–90% | 91–99% |
+| `attackTable.critModel`        | `classic` (default) or `gapAura`                                         | 4.8%   | 4.8%   | 4.8%   |
+| `attackTable.spellMiss`        | 4%, 5%, 6%, 17% by level gap 0, 1, 2, 3+; floor 1%                       | 17%    | 17%    | 17%    |
+
+The hit cap is the miss plus the suppression: 9% at 300, 6% at 305. James
+(31 Oct 2026, issue #295) chose the flat 1% and the 9% cap as the default.
+Spell crit (a poison's) is not a separate model here: Instant Poison's crit
+takes the melee suppression (`poison.instantCritSuppression`, an assumption
+kept so the goldens do not move); poisons use the spell hit only.
+
+**The crit models.** `attackTable.critModel` names one of
+`attackTable.critModels`; changing the name is the whole switch, no code.
+
+- `classic` (the default): the skill term is 0.2% per point of defense over
+  the capped skill (min(skill, 300)), and the flat 1.8% aura term applies at a
+  level gap of 3 or more at any skill (`flatAboveSkillGap: null`). 4.8% at
+  300, 305 and 308.
+- `gapAura` (James's AI answer, open for his ruling): 0.04% per point of the
+  whole skill gap, the 1.8% only while the gap is over 10
+  (`flatAboveSkillGap: 10`), and a 0.8%-per-level aura (2.4% at +3). 4.8% at
+  300, 2.8% at 305, 2.68% at 308.
+
+`flatAboveSkillGap` is the "+5 skill removes the 1.8%" switch on either
+model: `null` keeps the 1.8% at any skill, a number drops it once the skill
+gap is that or less. The 1.8% comes off every crit chance, as before; the
+config does not say which part of the crit chance is from auras.
+
+**The other open settings** (each a row value):
+
+- Dodge per point: 0.1% (`attackTable.dodge.perPoint` 0.001, the default:
+  6.5% at 300, 6% at 305) or James's alternative 0.04% (0.0004: 5.6% at 300,
+  5.4% at 305).
+- Hit suppression: flat 1% above a gap of 10 (`flat` 0.01,
+  `perPointAboveGap` 0, the default) or wowsims' linear 0.2% per point above
+  10 (`flat` 0, `perPointAboveGap` 0.002). They agree at 300 and from 305 up,
+  and differ only at 301 to 304.
+- Glancing chance from the capped skill (`skill: "capped"`, the default) or
+  the whole skill (`"total"`).
+
+**What each source supports.**
+
+| Source                                      | Supports                                                                                                                                                                                                                                                   |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Magey, Classic Warrior wiki "Attack table"  | `classic`: miss, 19% dual-wield, 0.1%/point dodge, glancing 10% + 2%/point and its damage, crit suppression from the capped skill plus the flat 1.8%                                                                                                       |
+| wowsims/classic `sim/core/target.go`        | `classic` (crit from the base skill, + 1.8% at a level gap of 3 or more: 4.8% at 300, 305 and 308); the miss and dodge formulas; the linear hit suppression; the glancing damage clamps; the spell miss by level gap                                       |
+| Blizzard, Classic hit and level differences | the 8% miss, 6.5% dodge, 14% parry at +3 and the 1% suppression at 300                                                                                                                                                                                     |
+| Marrow, the Marrow compendium (mechanics)   | the miss gap rule, the flat 1% suppression (the cap is the miss + 1% at 300 to 304), glancing 40% and its damage (0.85 at 305, 0.95 at 308+); no crit formula, so neither model's 1.8% rule. Its dual-wield miss is miss x 0.8 + 20% (26.4%), not modelled |
+| WoWWiki, Weapon skill                       | `gapAura`'s 0.04% per point; no 1.8% gap rule                                                                                                                                                                                                              |
+| James, 31 Oct 2026 (issue #295)             | the flat 1% default, the 0.04%/point dodge alternative, 27% = 19% + 8%, no parry or block from behind, no spell crit suppression, poisons on spell hit only                                                                                                |
 
 ## Weapon swings and normalised speed
 
@@ -834,7 +924,7 @@ poison; if it is measured to differ, narrow the proc's `scope` (a tag the
 ability data would carry) and nothing else changes. `test/poison-procs.test.js`
 pins the current rule, Eviscerate included.
 
-**Spell hit.** The proc draws the 17% `k("spell.missTarget")` once. On a
+**Spell hit.** The proc draws the 17% spell miss (`attackTable.spellMiss`) once. On a
 resist nothing is dealt or applied, and the resist shows in the breakdown and
 the log under the poison's name. A hit on the weapon table does not change it.
 Only a `spellHitChance` modifier lowers it: Dwarf Artisan's Precision takes
@@ -1694,12 +1784,14 @@ unverified) only (the engine has no buff slot for them).
 What the default character does not model: the Chance on hit effects of Vis'kag
 the Bloodletter (a 240 damage fatal wound) and Perdition's Blade (40 to 56 Fire
 damage); the Crusader enchant procs; Hand of Justice's extra attack; the
-Nightslayer set bonuses; and weapon skill. A Human gets +5 sword skill, which
-would lower the miss and crit suppression a little, and the attack table has no
-skill term, so the sheet's hit and crit are the ones it reads.
+Nightslayer set bonuses; and gear weapon skill. WoW Forever has no
+weapon-skill racial (the export lists none; Classic's Human sword and mace
+skill is gone), so the default 300 is every race's skill. A config can set
+`character.weaponSkill`, and the table follows it (#295); gear skill by
+weapon type is post-launch (#297).
 
 Hit above the cap: the table takes `bonusHitChance` less 1% (the engine's
-suppression term, `miss.yellow` of 8% plus 1% is the 9% cap), so a yellow attack
+suppression term, the 8% miss plus 1% is the 9% cap), so a yellow attack
 (Sinister Strike and the other abilities) gains nothing above 9% hit, while a
 white swing, which starts from 27% miss (8% plus the 19% dual-wield penalty),
 still loses 1% of miss for each 1% of hit up to 27%. The default 7% sheet plus
@@ -2059,7 +2151,7 @@ at the end of Phase 2.
   asserts it (see Benchmark).
 - **Parry and block.** The default fight is behind the target, so `parries` and
   `blocks` are `0` in the default results and no golden fixture has either (see
-  Golden-seed tests). `k("block.value")` is 0 for lack of a source, so a block
+  Golden-seed tests). The block value (`attackTable.block.value`) is 0 for lack of a source, so a block
   does full damage.
 - **Live page.** It picks a new random seed on every load; the Seed field
   replays one. It stops at the Fight length (`k("batch.duration")` by

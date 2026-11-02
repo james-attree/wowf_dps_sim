@@ -57,20 +57,24 @@ const DEV_JUDGEMENT_97 = "Developer, 26 Oct 2026, issue #97";
 const DEV_JUDGEMENT_99 = "Developer, 26 Oct 2026, issue #99";
 const DEV_JUDGEMENT_100 = "Developer, 26 Oct 2026, issue #100";
 const DEV_JUDGEMENT_101 = "Developer, 26 Oct 2026, issue #101";
+const ATTACK_TABLE_295 = "Developer, 2 Nov 2026, issue #295";
 // The retuned presets (#310): James's builds, from his share links (relayed
 // by Scout, approved by James).
 const PRESETS_310 = "James, 2 Nov 2026, issue #310";
 
-// The attack table rows (A7, #100) cite the Magey classic-warrior wiki page
-// (MAGEY) as the Classic reference for the table. Where a number is not
-// defined, the Classic value is used, tagged assumption with retune on (see
-// block.value and dot.critSuppression). The page is for warriors; a
-// rogue-specific cross-check would be a later task. wowsims/classic's
-// sim/core/target.go agrees with the values it covers, noted on each row.
+// The attack table rows (A7, #100; one table since #295, the attackTable.*
+// rows) cite the Magey classic-warrior wiki page (MAGEY) as the Classic
+// reference for the table, with wowsims/classic's sim/core/target.go
+// (NewAttackTable) as the cross-check. Every one is tagged assumption with
+// retune on until WoW Forever's numbers are known (see attackTable.block and
+// dot.critSuppression). The page is for warriors; a rogue-specific
+// cross-check would be a later task.
 const MAGEY = "https://github.com/magey/classic-warrior/wiki/Attack-table";
 const BLIZZ_HIT =
   "https://us.forums.blizzard.com/en/wow/t/bug-hit-tables/185675/12";
 const ZUG = "https://zugzugdb.com/formulas";
+const MARROW =
+  "https://bookdown.org/marrowwar/marrow_compendium/mechanics.html";
 const HIT_WIKI = "https://classic-wow-archive.fandom.com/wiki/Hit";
 const ATTACK_WIKI = "https://vanilla-wow-archive.fandom.com/wiki/Attack_table";
 const WH_DW = "https://www.wowhead.com/classic/spell=674/dual-wield";
@@ -529,100 +533,136 @@ export const CONSTANTS = {
     "Physical crits deal double damage. Lethality-style talents raise the bonus later.",
     true,
   ),
-  "weaponSkill.base": entry(
-    300,
+  // The attack table (#295, P5-10): every number of the Classic attack table in
+  // one table, the attackTable.* rows, all next to each other here. js/attack-
+  // resolver.js deriveAttackTable() reads them, with the weapon skill
+  // (config.character.weaponSkill) against the target's defense, and nothing
+  // else in the engine holds an attack-table number. Every row is an
+  // assumption: Classic 1.12 values, kept until WoW Forever's are known.
+  "attackTable.weaponSkill": entry(
+    { perLevel: 5, racialBonus: {} },
     "skill",
-    CLASSIC,
-    MAGEY,
-    "Level \u00d7 5 at 60. The attack table (A7) reads it with target.defense for the hit-suppression gap.",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: the default weapon skill is level \u00d7 5 (${MAGEY}; wowsims ${WS}core/target.go NewAttackTable, baseWeaponSkill = level \u00d7 5). WoW Forever has no weapon-skill racial: rogue.json lists none (data/racial-effects.js), and the Phase 5 plan notes that Forever removed them`,
+    "perLevel: the default of config.character.weaponSkill is character.level \u00d7 perLevel (300 at 60), and the capped skill of the glancing chance and the classic crit model is the same level \u00d7 perLevel. racialBonus: race id \u2192 skill points added to the config's weapon skill for that race, on every weapon. It is empty: no WoW Forever race has a weapon-skill racial (Classic's Human swords and maces, Orc axes are not in the export). Racial and gear weapon skill by weapon type belongs to the post-launch Character and gear milestone (#297).",
     true,
   ),
-  "target.defense": entry(
-    315,
+  "attackTable.defense": entry(
+    { perLevel: 5 },
     "defense",
-    CLASSIC,
-    MAGEY,
-    "Target level \u00d7 5 (63 \u00d7 5). The attack table (A7) reads it with weaponSkill.base for the hit-suppression gap.",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: a mob's defense is its level \u00d7 5 (${MAGEY}; wowsims ${WS}core/target.go NewAttackTable, targetDefense = level \u00d7 5)`,
+    "The target's defense is target.level \u00d7 perLevel: 315 for the level 63 boss. The skill gap is defense \u2212 weapon skill (15 at the default 300).",
     true,
   ),
-  "miss.yellow": entry(
-    0.08,
+  "attackTable.miss": entry(
+    { base: 0.05, perPoint: 0.001, perPointAboveGap: 0.002, gap: 10 },
     "chance",
-    CLASSIC,
-    BLIZZ_HIT,
-    "5% + 0.2% per point when defense \u2212 skill > 10, else 0.1%. 8% at 300 skill, 6% at 305. A7 reads this row as the miss chance at 300 skill against defense 315; a different skill gap does not re-derive it. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: Blizzard's 8% at +3 (${BLIZZ_HIT}); the formula from ${MAGEY} and ${MARROW}; wowsims ${WS}core/target.go NewAttackTable has the same`,
+    "The yellow (and one-hand) miss: base + gap \u00d7 perPointAboveGap when the skill gap is more than `gap`, else base + gap \u00d7 perPoint, never below 0. 8% at 300 skill (gap 15), 6% at 305 (gap 10), 5.7% at 308. The white dual-wield miss adds attackTable.dualWieldPenalty.",
     true,
   ),
-  "hit.suppression": entry(
-    0.01,
-    "chance",
-    CLASSIC,
-    BLIZZ_HIT,
-    "First 1% of +hit is ignored when defense \u2212 skill > hit.suppressionGap, so the hit cap is 9%. The attack table (A7) takes it off the bonus hit. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
-    true,
-  ),
-  "hit.suppressionGap": entry(
-    10,
-    "skill points",
-    CLASSIC,
-    MAGEY,
-    "Hit suppression applies when target defense − weapon skill is above this: 315 − 300 = 15 is above 10. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
-    true,
-  ),
-  "miss.dualWieldPenalty": entry(
+  "attackTable.dualWieldPenalty": entry(
     0.19,
     "chance",
-    CLASSIC,
-    MAGEY,
-    "White swings only. 8% + 19% = 27% miss at 300 skill. Confirmed by James, 22 Oct 2026. The engine previously used a flat 24%.",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: ${MAGEY} (dual-wield white miss = yellow miss + 19%); James, 31 Oct 2026, on issue #295: 27% = 19% + 8% at 300 against 315`,
+    "Added to the miss of a white swing only: 27% at 300 skill, 25% at 305, 24.7% at 308. Marrow's compendium gives miss \u00d7 0.8 + 20% instead (26.4% at 300); not modelled. The engine used a flat 24% before #100.",
     true,
   ),
-  "dodge.target": entry(
-    0.065,
+  "attackTable.hitSuppression": entry(
+    { gap: 10, flat: 0.01, perPointAboveGap: 0 },
     "chance",
-    CLASSIC,
-    BLIZZ_HIT,
-    "5% + 0.1% per point of defense over skill. Read by the attack table (A7) on every yellow and white roll; the dodgeReduction modifier takes it off. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: Blizzard (${BLIZZ_HIT}) and ${MARROW} (its table 3.2: the hit cap is the miss + 1% from 300 to 304 skill); James, 31 Oct 2026, on issue #295: a 1% suppression above a gap of 10, the 9% cap, as the default`,
+    "The bonus hit that does not count, while the skill gap is more than `gap`: flat + perPointAboveGap \u00d7 (skill gap \u2212 gap). The default is a flat 1% (the hit cap is 9% at 300, 6% at 305). wowsims (NewAttackTable) uses flat 0 and perPointAboveGap 0.002 instead, the same 1% at 300 skill and 0 from 305 up; the two differ only at 301 to 304.",
     true,
   ),
-  "parry.target": entry(
+  "attackTable.dodge": entry(
+    { base: 0.05, perPoint: 0.001 },
+    "chance",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: Blizzard's 6.5% at +3 (${BLIZZ_HIT}); ${MAGEY} and wowsims ${WS}core/target.go NewAttackTable (5% + 0.1% per point)`,
+    "base + skill gap \u00d7 perPoint, never below 0: 6.5% at 300, 6% at 305, 5.7% at 308. The dodgeReduction modifier takes it off. Open for James's ruling (issue #295): his AI answer gives 0.04% per point (perPoint 0.0004 with the same base: 5.6% at 300, 5.4% at 305). Today's 0.1% is the default so the goldens do not move.",
+    true,
+  ),
+  "attackTable.parry": entry(
     { front: 0.14, behind: 0 },
     "chance",
-    CLASSIC,
-    BLIZZ_HIT,
-    "Front 14% (Blizzard, +3 creature); behind removes parry. The attack table (A7) reads front or behind from config.target.behind; the parryReduction modifier takes it off. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
-    true,
-  ),
-  "block.target": entry(
-    { front: 0.05, behind: 0 },
-    "chance",
-    CLASSIC,
-    MAGEY,
-    "Mob block is capped at 5%. Behind removes block. The attack table (A7) reads front or behind from config.target.behind. The value of a block is block.value. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
-    true,
-  ),
-  "block.value": entry(
-    0,
-    "damage",
     ASSUMPTION,
-    `${DEV_JUDGEMENT_100}: no source in hand gives how much damage a mob block takes off`,
-    "Flat damage a blocked swing loses. 0 makes a block a separate outcome that still deals full damage. A block needs the target in front (config.target.behind false). Retune when a source is found.",
+    `${ATTACK_TABLE_295}: Blizzard's 14% at +3 (${BLIZZ_HIT}); wowsims ${WS}core/target.go NewAttackTable gives 14% at a gap of 15 from the base skill`,
+    "Front 14%; behind removes parry. Not derived from the skill: the front table is out of scope (the sim attacks from behind, James, 26 Oct 2026). The attack table reads front or behind from config.target.behind; the parryReduction modifier takes it off.",
     true,
   ),
-  "glancing.chance": entry(
-    0.4,
+  "attackTable.block": entry(
+    { front: 0.05, behind: 0, value: 0 },
     "chance",
-    CLASSIC,
-    MAGEY,
-    "10% + 2% per point of defense over capped skill. White swings only. Read by the attack table (A7). Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: mob block is capped at 5% (${MAGEY}; wowsims NewAttackTable BaseBlockChance 0.05). value is the issue #100 developer judgement (Developer, 26 Oct 2026): no source in hand gives how much damage a mob block takes off`,
+    "front and behind: the block chance; behind removes block. value: the flat damage a blocked swing loses (0, so a block is a separate outcome that still deals full damage). Front only, which is out of scope.",
     true,
   ),
-  "glancing.damage": entry(
-    { low: 0.55, high: 0.75 },
-    "×",
-    CLASSIC,
-    MAGEY,
-    "Magey range at 300 skill against defense 315: low 1.3 \u2212 0.05\u0394 (max 0.91) = 0.55 and high 1.2 \u2212 0.03\u0394 (min 0.2, max 0.99) = 0.75, with \u0394 = defense \u2212 skill = 15. A glancing blow draws a factor between them (A7). The mean is 0.65. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
+  "attackTable.glancing": entry(
+    { base: 0.1, perPoint: 0.02, skill: "capped" },
+    "chance",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: ${MAGEY} and ${MARROW} (10% + 2% per point of defense over the capped skill); wowsims ${WS}core/target.go NewAttackTable (BaseGlanceChance, from the base skill)`,
+    'White swings only: base + perPoint \u00d7 (defense \u2212 skill), held between 0 and 1. skill "capped" uses min(weapon skill, level \u00d7 5), so skill above 300 does not lower it (40% at 300, 305 and 308); "total" would use the whole weapon skill.',
+    true,
+  ),
+  "attackTable.glancingDamage": entry(
+    {
+      low: { at: 1.3, perPoint: 0.05, min: 0.01, max: 0.91 },
+      high: { at: 1.2, perPoint: 0.03, min: 0.2, max: 0.99 },
+    },
+    "\u00d7",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: ${MAGEY}; wowsims ${WS}core/target.go NewAttackTable (GlanceMultiplierMin and Max); Marrow's table 3.2 has the same means`,
+    "A glancing blow's damage factor is drawn between low and high, each at \u2212 perPoint \u00d7 (defense \u2212 weapon skill), held between its min and max. 0.55 to 0.75 at 300 skill (mean 0.65), 0.80 to 0.90 at 305, 0.91 to 0.99 at 308.",
+    true,
+  ),
+  "attackTable.critModel": entry(
+    "classic",
+    "model",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: the issue's default, the common Classic reading (${MAGEY}; wowsims ${WS}core/target.go NewAttackTable). The other model, gapAura, is James's AI answer of 31 Oct 2026 (issue #295), open for his ruling`,
+    'Which set of attackTable.critModels takes crit off: "classic" (the default, 4.8% at 300, 305 and 308 skill) or "gapAura" (4.8% at 300, 2.8% at 305, 2.68% at 308). A one-line change, no code.',
+    true,
+  ),
+  "attackTable.critModels": entry(
+    {
+      classic: {
+        skill: "capped",
+        perPoint: 0.002,
+        perPointAhead: 0.0004,
+        flat: 0.018,
+        flatMinLevelGap: 3,
+        flatAboveSkillGap: null,
+        levelAuraPerLevel: 0,
+      },
+      gapAura: {
+        skill: "total",
+        perPoint: 0.0004,
+        perPointAhead: 0.0004,
+        flat: 0.018,
+        flatMinLevelGap: 0,
+        flatAboveSkillGap: 10,
+        levelAuraPerLevel: 0.008,
+      },
+    },
+    "chance",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: classic from ${MAGEY} (crit suppression uses MIN(level \u00d7 5, skill); the 1.8% is an aura-crit estimate at +3) and wowsims ${WS}core/target.go NewAttackTable (MeleeCritSuppression); gapAura from James's AI answer, 31 Oct 2026, on issue #295, whose sources (the Marrow compendium ${MARROW}, the WoWWiki weapon skill page, Wowhead) were read on 2 Nov 2026: only WoWWiki gives the 0.04% per point, and none of them gives the 1.8% only above a gap of 10`,
+    'Per model: skill "capped" (min(weapon skill, level \u00d7 5)) or "total" picks the skill for the gap; the skill term is gap \u00d7 perPoint (perPointAhead when the skill is above the defense). flat (the 1.8% aura term) applies when target.level \u2212 character.level is at least flatMinLevelGap and, when flatAboveSkillGap is a number, only while defense \u2212 weapon skill (the whole skill) is more than it: that number is the "+5 skill removes the 1.8%" switch, null keeps the 1.8% at any skill. levelAuraPerLevel \u00d7 the level gap is added (2.4% at +3 for gapAura). The 1.8% comes off every crit chance, as before (the config does not say how much crit is from auras).',
+    true,
+  ),
+  "attackTable.spellMiss": entry(
+    { byLevelGap: [0.04, 0.05, 0.06, 0.17], floor: 0.01 },
+    "chance",
+    ASSUMPTION,
+    `${ATTACK_TABLE_295}: wowsims ${WS}core/target.go NewAttackTable (BaseSpellMissChance by level gap 0, 1, 2, 3+)`,
+    "The spell miss a poison proc rolls (A5, #105), by target.level \u2212 character.level (0, 1, 2, then 3 or more: 17% at +3), less the bonus spell hit, never below floor. Melee hit and weapon skill do not reduce it (poison.hitModel). The bonus spell hit is the spellHitChance modifiers only: 0, or 0.01 for a Dwarf (racial.artisansPrecision.spellHitChance, #277).",
     true,
   ),
   "table.white": entry(
@@ -639,30 +679,6 @@ export const CONSTANTS = {
     CLASSIC,
     HIT_WIKI,
     "Roll 1: miss, dodge, parry, block, else hit. Roll 2 (only after a hit, and only when the attack can crit): crit or hit. Applied by the attack table (A7); yellow attacks do not glance.",
-    true,
-  ),
-  "crit.suppressionSkill": entry(
-    0.03,
-    "chance",
-    CLASSIC,
-    MAGEY,
-    "0.2% per point of defense over capped skill (315 \u2212 300). Taken off the crit chance by the attack table (A7), for swings and for DoT ticks. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
-    true,
-  ),
-  "crit.suppressionAura": entry(
-    0.018,
-    "chance",
-    CLASSIC,
-    MAGEY,
-    "Test estimate for crit from auras against +3 targets. With the skill term, total suppression is 4.8%. The attack table (A7) takes the whole 1.8% off every crit chance, because the config does not say how much of its crit comes from auras; with no aura crit the true figure would be 3%. Cross-check: wowsims/classic sim/core/target.go (NewAttackTable) gives the same value at these levels (read 26 Oct 2026).",
-    true,
-  ),
-  "spell.missTarget": entry(
-    { chance: 0.17, floor: 0.01 },
-    "chance",
-    CLASSIC,
-    `${WS}core/target.go`,
-    "Spell miss used for poisons: 17% at +3 levels, floor 1%. Read by resolveSpellHit in js/attack-resolver.js (A7). Each Instant Poison and Deadly Poison proc rolls it once (A5, #105), so a poison can resist. The bonus spell hit is the spellHitChance modifiers only: 0, or 0.01 for a Dwarf (racial.artisansPrecision.spellHitChance, #277).",
     true,
   ),
   "poison.tab": entry(
@@ -701,7 +717,7 @@ export const CONSTANTS = {
     "–",
     CLASSIC,
     `${WS}rogue/poisons.go`,
-    "Melee hit does not reduce poison misses: a poison proc rolls spell.missTarget less only the spellHitChance modifiers (A5, #105), so far only Dwarf Artisan's Precision (racial.artisansPrecision.spellHitChance, #277). Uncertain.",
+    "Melee hit does not reduce poison misses: a poison proc rolls the attack table's spell miss (attackTable.spellMiss) less only the spellHitChance modifiers (A5, #105), so far only Dwarf Artisan's Precision (racial.artisansPrecision.spellHitChance, #277). Uncertain.",
     true,
   ),
   "poison.procSource": entry(
@@ -733,7 +749,7 @@ export const CONSTANTS = {
     "–",
     ASSUMPTION,
     `${DEV_JUDGEMENT_105}: the sources give crit suppression for swings; none says whether a poison's direct hit takes it, and issue #105 does not say, so this is a developer judgement. dot.critSuppression is itself a developer judgement (issue #100); the project owner only said he is happy with the current DoT crit and suppression handling, not a ruling on poison hits`,
-    "Instant Poison's crit chance loses the same 4.8% as a swing and a DoT tick (crit.suppressionSkill and crit.suppressionAura), like dot.critSuppression, so the three crit rolls of a poisoned build are on one footing. wowsims takes spell crit suppression from a different (smaller) table; that is not modelled. false would leave the hit at the full crit chance.",
+    "Instant Poison's crit chance loses the same crit suppression as a swing and a DoT tick (attackTable.critModel; 4.8% at the default), like dot.critSuppression, so the three crit rolls of a poisoned build are on one footing. wowsims takes spell crit suppression from a different (smaller) table; that is not modelled. false would leave the hit at the full crit chance.",
     true,
   ),
   "bleed.ignoresArmor": entry(
@@ -889,7 +905,7 @@ export const CONSTANTS = {
     "–",
     ASSUMPTION,
     `${DEV_JUDGEMENT_100}: the sources give crit suppression for swings; none says whether a DoT tick takes it`,
-    "A DoT tick's crit chance loses the same 4.8% as a swing (crit.suppressionSkill and crit.suppressionAura). Classic ticks do not crit, and WoW Forever's DoT crits (dot.canCrit) are outside the Classic table, so this is an assumption. The 2x multiplier is dot.critMultiplier. false would leave a tick at the full crit chance.",
+    "A DoT tick's crit chance loses the same crit suppression as a swing (attackTable.critModel; 4.8% at the default). Classic ticks do not crit, and WoW Forever's DoT crits (dot.canCrit) are outside the Classic table, so this is an assumption. The 2x multiplier is dot.critMultiplier. false would leave a tick at the full crit chance.",
     true,
   ),
   "rotation.priority": entry(
@@ -1098,7 +1114,7 @@ export const CONSTANTS = {
     "chance",
     ASSUMPTION,
     `Developer, 2 Nov 2026, issue #277: QA note N1 (Kira's #313 review), resolved by Scout and relayed; ${NOT_JAMES} rogue.json → racials[Alliance|Dwarf] Artisan's Precision: Increases hit chance with spells and attacks by 1%.`,
-    "Dwarf. The spells part of the text: a spellHitChance add that lowers the poison (spell) miss chance, spell.missTarget, to its floor at most. An assumption that a rogue's poisons are the spells the text means; melee hit still does not reduce poison misses (poison.hitModel). On the retune list.",
+    "Dwarf. The spells part of the text: a spellHitChance add that lowers the poison (spell) miss chance, attackTable.spellMiss, to its floor at most. An assumption that a rogue's poisons are the spells the text means; melee hit still does not reduce poison misses (poison.hitModel). On the retune list.",
     true,
   ),
   "racial.expansiveMind.energyMax": entry(
@@ -1662,6 +1678,14 @@ export const CONSTANTS = {
     ENGINEERING,
     `${DEVELOPER}: ${NOT_JAMES} Injected attack rolls use a 0–100 scale so tests can hit each boundary`,
     "Not a game rule. Callers and the resolver tests depend on it.",
+    false,
+  ),
+  "attack.derivedDigits": entry(
+    12,
+    "digits",
+    ENGINEERING,
+    `${ATTACK_TABLE_295}: ${NOT_JAMES} the attack table derived from the attackTable rows is rounded to this many decimal places, so 0.05 + 15 \u00d7 0.002 is exactly the 0.08 the fixed row held and the level 60 fights draw the same outcomes`,
+    "Not a game rule. Each chance and factor deriveAttackTable() works out (js/attack-resolver.js) is rounded to 12 decimal places, which removes floating-point dust and nothing else.",
     false,
   ),
   "rng.defaultSeed": entry(

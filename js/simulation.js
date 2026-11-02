@@ -1,9 +1,11 @@
 import { k } from "../data/constants.js";
 import {
+  deriveAttackTable,
   resolveAttack,
   resolveSpellHit,
   rollCrit,
   suppressCrit,
+  weaponSkillFor,
 } from "./attack-resolver.js";
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
@@ -118,6 +120,11 @@ export class Simulation {
     const rng = own("rng");
     const fightLength = own("fightLength");
     this.rogue = rogue;
+    // The attack table of this fight (#295): every band worked out once from
+    // the config's weapon skill against the target's defense.
+    this.attackTable = deriveAttackTable({
+      weaponSkill: weaponSkillFor(rogue?.config),
+    });
     // The event core while it runs this fight (js/core/fight.js), told where
     // a DoT starts; null between runs.
     this.core = null;
@@ -319,7 +326,7 @@ export class Simulation {
       k("dot.canCrit") &&
       rollCrit(
         k("dot.critSuppression")
-          ? suppressCrit(tickCritChance)
+          ? suppressCrit(tickCritChance, this.attackTable)
           : tickCritChance,
         this.rng,
       )
@@ -768,6 +775,7 @@ export class Simulation {
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
+      table: this.attackTable,
       rng: this.rng,
       roll,
     });
@@ -828,6 +836,7 @@ export class Simulation {
     if (spellHit) {
       hit = resolveSpellHit({
         bonusSpellHit: this.rogue.getBonusSpellHitChance(),
+        table: this.attackTable,
         rng: this.rng,
       });
     }
@@ -843,7 +852,7 @@ export class Simulation {
         if (
           rollCrit(
             k("poison.instantCritSuppression")
-              ? suppressCrit(critChance)
+              ? suppressCrit(critChance, this.attackTable)
               : critChance,
             this.rng,
           )
@@ -899,6 +908,7 @@ export class Simulation {
     if (spellHit) {
       hit = resolveSpellHit({
         bonusSpellHit: this.rogue.getBonusSpellHitChance(),
+        table: this.attackTable,
         rng: this.rng,
       });
     }
@@ -959,6 +969,7 @@ export class Simulation {
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
+      table: this.attackTable,
       rng: this.rng,
     });
     const tickInterval = k("rupture.tickInterval");
@@ -1006,6 +1017,7 @@ export class Simulation {
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
+      table: this.attackTable,
       rng: this.rng,
     });
     this.recordAbility(source, result.outcome, 0);
