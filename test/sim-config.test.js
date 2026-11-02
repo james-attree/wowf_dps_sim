@@ -72,6 +72,7 @@ describe("defaultDaggerConfig", () => {
 describe("defaultConfig", () => {
   it("is built from the constants, in full form", () => {
     assert.deepEqual(defaultConfig(), {
+      race: k("character.race"),
       character: {
         attackPower: k("character.attackPower"),
         critChance: k("character.critChance"),
@@ -238,7 +239,7 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { charcter: {} },
       RangeError,
-      /config has an unknown field "charcter"\. Allowed fields: character, weapons, target, talents, talentLevel, poisons, rotation\./,
+      /config has an unknown field "charcter"\. Allowed fields: race, character, weapons, target, talents, talentLevel, poisons, rotation\./,
     );
     rejects(
       { character: { ap: 5 } },

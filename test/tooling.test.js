@@ -48,6 +48,10 @@ describe("dev package", () => {
       pkg.scripts["talents:coverage"],
       "node scripts/talent-coverage.mjs",
     );
+    assert.equal(
+      pkg.scripts["racials:coverage"],
+      "node scripts/racial-coverage.mjs",
+    );
     // Not part of test, lint, or provenance: fixtures change only on purpose.
     assert.equal(
       pkg.scripts["golden:update"],
