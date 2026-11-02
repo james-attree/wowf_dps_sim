@@ -794,6 +794,15 @@ describe("#320 B1: opening the page with no change writes nothing (Kira's QA)", 
         character: { ...setupDefaults().config.character, haste: 0.04 },
       },
     }),
+    // #319's optional inputs typed (the levels redraw on pageshow, #318).
+    "a save with a weapon skill and target level": encodeSetup({
+      ...setupDefaults(),
+      config: {
+        ...setupDefaults().config,
+        character: { ...setupDefaults().config.character, weaponSkill: 310 },
+        target: { ...setupDefaults().config.target, level: 62 },
+      },
+    }),
     "an unreadable save": "1.!!!not-base64",
     "a newer-version save": `${SETUP_VERSION + 1}.${body}`,
     "an older-version save": `0.${body}`,
@@ -831,6 +840,39 @@ describe("#320 B1: opening the page with no change writes nothing (Kira's QA)", 
       assert.equal(savedOf(storage), text, name);
     });
   }
+
+  it("#319's weapon skill and target level round-trip through the save: typed, then blank (null)", () => {
+    const storage = memoryStorage();
+    const page = load(storage);
+    page.form.change("character.weaponSkill", 310);
+    page.form.change("target.level", 62);
+    page.timers.advance(DELAY);
+    page.saved.stop();
+    const typed = readBack(savedOf(storage));
+    assert.equal(typed.config.character.weaponSkill, 310);
+    assert.equal(typed.config.target.level, 62);
+    const again = load(storage);
+    again.timers.advance(DELAY * 4);
+    const { form, config } = again.store.get();
+    assert.equal(form.values["character.weaponSkill"], 310);
+    assert.equal(form.values["target.level"], 62);
+    assert.equal(config.character.weaponSkill, 310);
+    assert.equal(config.target.level, 62);
+    // Blank: the field's text "" is null, which follows the level.
+    again.form.change("character.weaponSkill", "");
+    again.form.change("target.level", "");
+    again.timers.advance(DELAY);
+    again.saved.stop();
+    const blank = readBack(savedOf(storage));
+    assert.equal(blank.config.character.weaponSkill, null);
+    assert.equal(blank.config.target.level, null);
+    const third = load(storage);
+    third.timers.advance(DELAY * 4);
+    assert.equal(third.store.get().form.values["character.weaponSkill"], null);
+    assert.equal(third.store.get().form.values["target.level"], null);
+    assert.deepEqual(third.store.get().form.errors, {});
+    third.saved.stop();
+  });
 
   it("an edit after such a visit still saves", () => {
     for (const text of Object.values(SAVES)) {
@@ -938,6 +980,23 @@ describe("#320 N4: pageshow puts a field in error back to the build's value", ()
     assert.deepEqual(after.errors, {});
     assert.equal(after.fields.duration, String(run.duration));
     assert.equal(after.duration, run.duration);
+  });
+
+  it("#319's target level in error shows the build's (blank) again; a weapon skill in error its typed build value", () => {
+    const store = pageStore();
+    const form = createConfigForm(store);
+    form.change("character.weaponSkill", 310);
+    form.change("character.weaponSkill", 999);
+    form.change("target.level", 99);
+    assert.ok(store.get().form.errors["character.weaponSkill"]);
+    assert.ok(store.get().form.errors["target.level"]);
+    const config = store.get().config;
+    redrawInputs(store);
+    const after = store.get();
+    assert.deepEqual(after.form.errors, {});
+    assert.equal(after.form.values["character.weaponSkill"], 310);
+    assert.equal(after.form.values["target.level"], null);
+    assert.equal(after.config, config);
   });
 
   it("a form with no errors keeps its values as they are", () => {

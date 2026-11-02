@@ -28,6 +28,9 @@ const SETTLE = k("ui.saveSetupMs") + 400;
 // must have written nothing by then (#320 B1 wrote at about 540 ms).
 const LOAD_SETTLE = 4 * k("ui.saveSetupMs") + 600;
 const ROTATION = "#cfg-rotation";
+// #319's optional inputs (#318): blank (null) follows the level.
+const SKILL = "#cfg-character-weaponSkill";
+const TARGET = "#cfg-target-level";
 
 let server;
 let base;
@@ -477,6 +480,112 @@ describe("Remember my setup (#296)", () => {
       );
       assert.equal((await build(page)).config.character.haste, 0.05);
       assert.equal(await saved(page), text, "nothing written");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("#319's weapon skill and target level survive a refresh, and blank stays blank with its placeholder", async () => {
+    const { context, page, errors } = await open(1440, "#character/stats");
+    const writes = () =>
+      page.evaluate(() => document.defaultView.__setupWrites);
+    try {
+      await set(page, "#character/stats", SKILL, "310");
+      await set(page, "#fight", TARGET, "62");
+      await page.waitForTimeout(SETTLE);
+      const typed = decodeSetup(await saved(page));
+      assert.equal(typed.setup.config.character.weaponSkill, 310);
+      assert.equal(typed.setup.config.target.level, 62);
+
+      await page.reload();
+      await ready(page);
+      assert.equal(await value(page, "#character/stats", SKILL), "310");
+      assert.equal(await value(page, "#fight", TARGET), "62");
+      const held = await build(page);
+      assert.equal(held.config.character.weaponSkill, 310);
+      assert.equal(held.config.target.level, 62);
+
+      await set(page, "#character/stats", SKILL, "");
+      await set(page, "#fight", TARGET, "");
+      await page.waitForTimeout(SETTLE);
+      const blank = decodeSetup(await saved(page));
+      assert.equal(blank.setup.config.character.weaponSkill, null);
+      assert.equal(blank.setup.config.target.level, null);
+      const text = await saved(page);
+
+      await page.reload();
+      await ready(page);
+      assert.equal(await value(page, "#character/stats", SKILL), "");
+      assert.equal(
+        await page.locator(SKILL).getAttribute("placeholder"),
+        "300",
+      );
+      assert.equal(await value(page, "#fight", TARGET), "");
+      assert.equal(
+        await page.locator(TARGET).getAttribute("placeholder"),
+        "63",
+      );
+      const followed = await build(page);
+      assert.equal(followed.config.character.weaponSkill, null);
+      assert.equal(followed.config.target.level, null);
+      // B1 holds: the reload wrote nothing.
+      await page.waitForTimeout(LOAD_SETTLE);
+      assert.equal(await writes(), 0, "after the reload");
+      assert.equal(await saved(page), text);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("a real bfcache restore with #319's inputs typed: the levels redraw writes nothing, and a target level in error shows the build's", async () => {
+    bfcacheBrowser ??= await chromium.launch({
+      ...(process.env.CHROME_PATH
+        ? { executablePath: process.env.CHROME_PATH }
+        : { channel: "chrome" }),
+      ignoreDefaultArgs: ["--disable-back-forward-cache"],
+      args: ["--enable-features=BackForwardCache"],
+    });
+    const { context, page, errors } = await open(1440, "#character/stats", {
+      from: bfcacheBrowser,
+    });
+    const writes = () =>
+      page.evaluate(() => document.defaultView.__setupWrites);
+    try {
+      await set(page, "#character/stats", SKILL, "310");
+      await set(page, "#fight", TARGET, "62");
+      await page.waitForTimeout(SETTLE);
+      const text = await saved(page);
+      await set(page, "#fight", TARGET, "99");
+      await page.waitForTimeout(SETTLE);
+      const before = await writes();
+      await page.evaluate(() => {
+        document.defaultView.__kept = true;
+      });
+      await page.goto(`${base}demo/charts.html`);
+      await page.goBack({ waitUntil: "commit" });
+      await page.waitForFunction(
+        () => document.defaultView.__shows?.at(-1) === true,
+      );
+      assert.equal(
+        await page.evaluate(() => document.defaultView.__kept),
+        true,
+        "restored from the bfcache, not loaded again",
+      );
+      await page.waitForTimeout(LOAD_SETTLE);
+      assert.equal(await writes(), before, "the pageshow redraw wrote nothing");
+      assert.equal(await saved(page), text);
+      assert.equal(await value(page, "#character/stats", SKILL), "310");
+      assert.equal(await value(page, "#fight", TARGET), "62");
+      assert.equal(await page.locator(`${TARGET}-error`).isHidden(), true);
+      assert.equal(
+        await page.locator(TARGET).getAttribute("aria-invalid"),
+        null,
+      );
+      const held = await build(page);
+      assert.equal(held.config.character.weaponSkill, 310);
+      assert.equal(held.config.target.level, 62);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
