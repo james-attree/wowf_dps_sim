@@ -1154,7 +1154,7 @@ export const CONSTANTS = {
     "chance, s, s",
     WOWF_EXPORT,
     "rogue.json → racials[Alliance|Night Elf] Elune's Light: Instant, 3 min cooldown. Increases your critical strike chance with all spells and attacks by 10% for 15 sec.",
-    "Night Elf, on use (P5-03a, #278). A critChance add on every attack while the aura is up, as Ruthless's (A18). The race grants the elunes-light ability (data/racial-effects.js), cast by a rule with an abilityGranted check. cooldown is the catalogue's, read from the same text (js/abilities.js); a test checks the two agree.",
+    "Night Elf, on use (P5-03a, #278). A critChance add with no scope while the aura is up, as Ruthless's (A18): it raises the crit chance of every attack, the poisons and the DoT ticks (Rupture and Deadly Poison, through the tick crit chance). Flagged for a ruling: whether racial crit applies to poisons and DoT ticks. The race grants the elunes-light ability (data/racial-effects.js), cast by a rule with an abilityGranted check. cooldown is the catalogue's, read from the same text (js/abilities.js); a test checks the two agree.",
     false,
   ),
   "racial.berserking": entry(
@@ -1193,7 +1193,7 @@ export const CONSTANTS = {
     ["blood-fury", "elunes-light", "berserking", "eureka"],
     "ability ids",
     ASSUMPTION,
-    "James, 31 Oct 2026, issue #278: Phase 5 plan ruling A21: the on-use racials are off the GCD and cost no energy, as Classic racials are; the export gives neither, so tagged assumption",
+    "James, 31 Oct 2026, issue #278: A21 of the Phase 5 plan v4 (approved with yes to all): the on-use racials are off the GCD and cost no energy, as Classic racials are; the export gives neither, so tagged assumption",
     "The on-use racials that do not start the global cooldown (js/abilities.js reads it for the racial entries; abilities.offGcd is the spellbook's). Neither has a cost: their definitions in js/ability-data.js give none. On the retune list if WoW Forever puts them on the GCD.",
     true,
   ),
@@ -1337,8 +1337,8 @@ export const CONSTANTS = {
     { energy: 100, comboPoints: 0 },
     "energy, CP",
     ASSUMPTION,
-    `${JAMES}: 100 energy and 0 combo points, with no pre-pull Premeditation`,
-    "The engine reads the energy: the fight starts at 100, which is the full bar only at the base cap. A raised cap (Vigor's 110, Gnome Expansive Mind's 105 or 115, #277) does not raise the start, so those fights start below their cap (QA note N2, Scout, 2 Nov 2026). Combo points stay on character.startingComboPoints until Q10.",
+    `${JAMES}: full energy and 0 combo points, with no pre-pull Premeditation`,
+    "The quote is James's wording. His 'full energy' means 100 energy, the base cap: the engine reads the energy and starts every fight at 100, which is a full bar only at the base cap. A raised cap (Vigor's 110, Gnome Expansive Mind's 105 or 115, #277) does not raise the start, so those fights start below their cap (QA note N2, Scout, 2 Nov 2026). Combo points stay on character.startingComboPoints until Q10.",
     true,
   ),
   "talents.rowGating": entry(
