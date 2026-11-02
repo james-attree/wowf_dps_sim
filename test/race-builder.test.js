@@ -1,7 +1,7 @@
 // #322 rulings (Scout) and #280: the rotation builder and the race. The
 // on-use racials are offered, and a new rule gets its "ability granted"
 // guard, only when the race grants them; the guard's label is "Race or
-// talent: ability granted"; a race-gated skip reads "Not your race (Orc
+// talent granted"; a race-gated skip reads "Not your race (Orc
 // only)"; and a preset with an on-use race beats no race at a fixed seed.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -39,6 +39,7 @@ import {
   ON_USE_CAST,
   ON_USE_NOTE,
   racialLineText,
+  ROGUE_LINES,
 } from "../js/views/config-form.js";
 
 // Each on-use racial, the race that grants it, and the skip's words.
@@ -169,8 +170,8 @@ describe("#280: the builder offers an on-use racial only when the race grants it
 });
 
 describe("#280: the builder's copy for a race", () => {
-  it('the guard reads "Race or talent: ability granted"', () => {
-    assert.equal(TYPE_LABELS.abilityGranted, "Race or talent: ability granted");
+  it('the guard reads "Race or talent granted"', () => {
+    assert.equal(TYPE_LABELS.abilityGranted, "Race or talent granted");
   });
 
   it('a racial the race lacks is skipped: "Not your race (Orc only)"', () => {
@@ -272,13 +273,13 @@ describe("#322: the on-use line says what the rotation does", () => {
     assert.equal(preset.casts, true);
     assert.equal(
       racialLineText(preset),
-      `${preset.text} ${ON_USE_NOTE} ${ON_USE_CAST.yes}`,
+      `${ROGUE_LINES["blood-fury"]} ${ON_USE_NOTE} ${ON_USE_CAST.yes}`,
     );
     const plain = fury(defaultRotation());
     assert.equal(plain.casts, false);
     assert.equal(
       racialLineText(plain),
-      `${plain.text} ${ON_USE_NOTE} ${ON_USE_CAST.no}`,
+      `${ROGUE_LINES["blood-fury"]} ${ON_USE_NOTE} ${ON_USE_CAST.no}`,
     );
     assert.equal(ON_USE_NOTE, "The preset rotations use it on cooldown.");
     assert.doesNotMatch(racialLineText(plain), /built-in rotations don't/);

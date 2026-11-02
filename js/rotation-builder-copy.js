@@ -31,7 +31,7 @@ export const TYPE_LABELS = Object.freeze({
   debuffRemaining: "Debuff time left",
   debuffStacks: "Debuff stacks",
   cooldownReady: "Cooldown ready",
-  abilityGranted: "Race or talent: ability granted",
+  abilityGranted: "Race or talent granted",
   abilityUnlocked: "Talent not locked",
   fightTime: "Fight time",
   fightTimeRemaining: "Fight time left",

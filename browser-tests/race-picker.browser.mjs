@@ -1,10 +1,11 @@
 // #321 (Phase 5): the Race picker on Character › Stats, at 320, 360, 1024
 // and 1440 wide and 100% and 150% text, with DejaVu pinned as CI has it.
-// The select lists None and every race by faction, a race shows its
-// racials with a chip and a plain line, the Stats row leads with it, and
-// nothing runs off the screen. Then, at one size: a share link and a refresh
-// keep the race, Reset to defaults clears it, a race change puts the results
-// out of date, and the DPS moves as the engine says (Human's Ruthless is
+// The select lists None and every race by faction, a race shows the racials
+// that change the damage with a chip and a plain line, simulated first, and
+// folds the rest under one "No DPS effect: …" summary (#322 P2), the Stats
+// row leads with it, and nothing runs off the screen. Then, at one size: a
+// share link and a refresh keep the race, Reset to defaults clears it, a
+// race change puts the results out of date, and the DPS moves as the engine says (Human's Ruthless is
 // simulated; Undead's racials do nothing to DPS).
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -21,6 +22,11 @@ const SCREEN_HEIGHT = 900;
 const RACE = "#cfg-race";
 const RACIALS = "#cfg-race-racials";
 const ITEMS = "#cfg-race-racials-list > li";
+const MORE = "#cfg-race-racials-more";
+const MORE_ITEMS = "#cfg-race-racials-more-list > li";
+const SHOWN_CHIPS = ["Simulated", "Not simulated yet"];
+// The folded summary's least height: a 44 px touch target.
+const TARGET = 44;
 const SUMMARY = "#character-stats-summary";
 const HELP = "Enter your stats without racials; the race adds them.";
 const STATS_LINE = "767 attack power · 22.45% crit · 7% hit";
@@ -110,6 +116,25 @@ const racials = (page) =>
     })),
   );
 
+// The folded racials (#322 P2): the summary, whether it is open, its height,
+// and each one's name, line and whether it has a chip.
+const folded = (page) =>
+  page.locator(MORE).evaluate(
+    (more, items) => ({
+      hidden: more.hidden,
+      open: more.open,
+      summary: more.querySelector("summary").textContent,
+      height: more.querySelector("summary").getBoundingClientRect().height,
+      items: [...more.querySelectorAll(items)].map((item) => ({
+        name: item.querySelector(".race-racial-name").textContent,
+        chip: item.querySelector(".race-chip") !== null,
+        line: item.querySelector(".race-racial-line").textContent,
+        visible: item.checkVisibility({ contentVisibilityAuto: true }),
+      })),
+    }),
+    MORE_ITEMS,
+  );
+
 // The race fieldset's parts inside it and the page no wider than the screen.
 const layout = (page) =>
   page.locator(RACE).evaluate((select, edge) => {
@@ -119,7 +144,7 @@ const layout = (page) =>
       ...select
         .closest("fieldset")
         .querySelectorAll(
-          "label, .field-help, .race-racials-title, .race-racial, .race-chip",
+          "label, .field-help, .race-racials-title, .race-racial, .race-chip, .race-racials-more > summary",
         ),
     ]
       .filter((node) => node.getClientRects().length > 0)
@@ -182,13 +207,31 @@ describe("#321: the Race picker", () => {
               `${race.name} racials`,
             );
             const shown = await racials(page);
+            const more = await folded(page);
+            // Every racial once: the ones that change the damage listed,
+            // simulated first, and the rest folded under one summary.
             assert.deepEqual(
-              shown.map(({ name }) => name),
-              race.racials.map(({ name }) => name),
+              [...shown, ...more.items].map(({ name }) => name).sort(),
+              race.racials.map(({ name }) => name).sort(),
             );
+            const kinds = shown.map(({ chip }) => SHOWN_CHIPS.indexOf(chip));
+            assert.ok(!kinds.includes(-1), race.id);
+            assert.deepEqual(kinds, [...kinds].sort(), race.id);
             for (const { chip, line } of shown) {
               assert.ok(CHIPS.includes(chip), chip);
               assert.ok(line.length > 0);
+            }
+            assert.equal(more.hidden, false, race.id);
+            assert.equal(more.open, false, race.id);
+            assert.equal(
+              clean(more.summary),
+              `No DPS effect: ${more.items.map(({ name }) => name).join(", ")}`,
+            );
+            assert.ok(more.height >= TARGET - EDGE, `${more.height}`);
+            for (const item of more.items) {
+              assert.equal(item.chip, false, item.name);
+              assert.equal(item.visible, false, item.name);
+              assert.ok(item.line.length > 0, item.name);
             }
             const fit = await layout(page);
             assert.deepEqual(
@@ -201,6 +244,20 @@ describe("#321: the Race picker", () => {
               `${race.id}`,
             );
           }
+          // Opened, the folded ones show their lines inside the fieldset.
+          await page.locator(RACE).selectOption("orc");
+          await page.locator(`${MORE} > summary`).click();
+          let more = await folded(page);
+          assert.equal(more.open, true);
+          assert.ok(more.items.every(({ visible }) => visible));
+          assert.deepEqual(await layout(page), {
+            inside: true,
+            noSideScroll: true,
+            chipsFit: true,
+          });
+          await page.locator(`${MORE} > summary`).press("Enter");
+          more = await folded(page);
+          assert.equal(more.open, false);
           await page.locator(RACE).selectOption("night-elf");
           assert.equal(await summary(page), `Night Elf · ${STATS_LINE}`);
           await page.locator(RACE).selectOption("");
@@ -237,7 +294,7 @@ describe("#321: the race is kept, cleared, and reaches the run", () => {
     );
     try {
       assert.equal(await page.locator(RACE).inputValue(), "troll");
-      assert.equal(await page.locator(ITEMS).count(), 4);
+      assert.equal(await page.locator(`${ITEMS}, ${MORE_ITEMS}`).count(), 4);
       await page.locator(RACE).selectOption("gnome");
       await page.waitForTimeout(SETTLE);
       assert.notEqual(await build(page), null);
@@ -316,7 +373,7 @@ describe("#321: the race is kept, cleared, and reaches the run", () => {
 });
 
 // #322 rulings and #280: the builder offers an on-use racial only for the
-// race that grants it, its guard reads "Race or talent: ability granted", a
+// race that grants it, its guard reads "Race or talent granted", a
 // racial the race lacks is "Not your race (Orc only)", and the Stats line
 // says whether the rotation casts it.
 const ADD = "#rb-add-action";
@@ -404,7 +461,7 @@ describe("#280: the rotation builder and the race", () => {
                 (select) => select.selectedOptions[0].textContent,
               ),
             ),
-            "Race or talent: ability granted",
+            "Race or talent granted",
           );
           assert.equal(await sideScroll(page), false);
 

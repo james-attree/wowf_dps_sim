@@ -836,7 +836,10 @@ they need no "is ready": each is cast at the pull and again as its cooldown
 ends. `test/presets-310.test.js` compares the rest with the link. A rule
 casting either needs `abilityGranted` (the validator's `talentGuard`, which
 names the race); `abilityUnlocked` does not guard it, as a build never
-unlocks a racial. The builder's palette does not offer them yet (P5-04, #280).
+unlocks a racial. The builder's palette offers each one, as "Blood Fury
+(racial)" and so on, only when the chosen race grants it, with the "Race or
+talent granted" guard; a rule for another race's racial reads "Not your race
+(Orc only)" (P5-04, #280).
 
 [#279](https://github.com/james-attree/wowf_dps_sim/issues/279) (P5-03b) adds
 Berserking (Troll) and Eureka! (Gnome) the same way, as rules 3 and 4 of

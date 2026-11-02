@@ -1698,6 +1698,48 @@ h3 {
   margin: 2px 0 0;
 }
 
+/* The racials with no DPS effect, folded into one line that names them
+   (Fran's #322 P2); open, each shows why. The summary is a 2.75rem-tall
+   target, its marker drawn so it sits on the first line at any size. */
+.race-racials-more {
+  font-size: 0.85rem;
+}
+
+.race-racials-more[hidden] {
+  display: none;
+}
+
+.race-racials-more > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  padding-block: 0.6rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.race-racials-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.race-racials-more > summary::before {
+  content: "▸";
+  flex: none;
+}
+
+.race-racials-more[open] > summary::before {
+  content: "▾";
+}
+
+.race-racials-more > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .race-chip {
   display: inline-block;
   padding: 0 7px;

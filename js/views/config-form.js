@@ -168,6 +168,36 @@ export const ON_USE_CAST = {
 
 const pluralType = (type) => `${capitalised(type)}s`;
 
+// A racial's own text is the game's tooltip, written for every class (Fran's
+// #322 P3). These are the rogue's lines, by the racial's slug (the id after
+// "race."), each from that tooltip with the other classes' clauses left out
+// and no number it does not state (test/race-picker.test.js checks). A
+// racial not here shows its own text.
+export const ROGUE_LINES = Object.freeze({
+  "blood-fury":
+    "Instant, 2 min cooldown. Increases your Attack Power by 10% for 15 sec.",
+  berserking:
+    "Instant, 3 min cooldown. Increases your attack speed by 10% for 15 sec.",
+  "elunes-light":
+    "Instant, 3 min cooldown. Increases your critical strike chance with attacks by 10% for 15 sec.",
+  eureka:
+    "Instant, 2 min cooldown. For 8 sec, your non-periodic damaging abilities cost 10% less Energy and deal 10% more damage.",
+  "expansive-mind": "Maximum Energy increased by 5%.",
+  ruthless: "Increases your critical strike chance with attacks by 1%.",
+  "artisans-precision": "Increases your hit chance with attacks by 1%.",
+  "wind-blessed": "Increases your melee and ranged haste by 2%.",
+  "touch-of-the-grave":
+    "Your damaging attacks have a 20% chance to drain health from the target, up to 5% of your maximum health. 15 sec internal cooldown.",
+});
+// Why a racial that would change the damage isn't in the fight yet, in
+// plain words from the effects data's reason (data/racial-effects.js
+// notSimulated: "… which the simulator does not model").
+export const NOT_SIMULATED_REASONS = Object.freeze({
+  "touch-of-the-grave":
+    "Not simulated yet: the simulator doesn't model the rogue's health.",
+});
+const slugOf = (id) => String(id ?? "").replace(/^[^.]*\./, "");
+
 // The chip of a racial from the model's raceInfo(): which of RACIAL_CHIPS,
 // as { kind, text }. A mob-type racial against the page's target does
 // nothing, as one with no DPS effect.
@@ -182,20 +212,27 @@ export function racialChip({ status }) {
 }
 
 // The plain line under a racial's name: what it does. One with no DPS
-// effect gives the effects data's reason; the rest give the racial's own
-// text, an on-use racial adds ON_USE_NOTE and whether the rotation casts it
+// effect gives the effects data's reason; the rest give the rogue's line
+// (ROGUE_LINES, else the racial's own text), one not simulated yet adds why,
+// an on-use racial adds ON_USE_NOTE and whether the rotation casts it
 // (casts: true, false, or null for not known), and a mob-type racial the
 // targets it is for.
 export function racialLineText({
+  id = null,
   status,
-  text,
+  text: tooltip,
   reason,
   onUse,
   casts = null,
   mobTypes,
 }) {
   if (status === "noDpsEffect") {
-    return reason ?? text;
+    return reason ?? tooltip;
+  }
+  const slug = slugOf(id);
+  const text = ROGUE_LINES[slug] ?? tooltip;
+  if (status === "notSimulated" && NOT_SIMULATED_REASONS[slug] !== undefined) {
+    return `${text} ${NOT_SIMULATED_REASONS[slug]}`;
   }
   if (status === "inert") {
     const types = (mobTypes ?? []).map(pluralType).join(" or ");
@@ -212,6 +249,25 @@ export function racialLineText({
   }
   return text;
 }
+
+// The racials in the order Stats shows them (Fran's #322 P2): the ones that
+// change the damage, simulated first and then the ones not simulated yet,
+// each with its line; the ones with no DPS effect are folded into one
+// <details> whose summary names them, "No DPS effect: Hardiness, Command,
+// Shatter Curse". Data order within each.
+const SHOWN_ORDER = Object.freeze(["simulated", "later"]);
+export function racialGroups(racials) {
+  const kindOf = (racial) => racialChip(racial).kind;
+  const shown = SHOWN_ORDER.flatMap((kind) =>
+    racials.filter((racial) => kindOf(racial) === kind),
+  );
+  const folded = racials.filter(
+    (racial) => !SHOWN_ORDER.includes(kindOf(racial)),
+  );
+  return { shown, folded };
+}
+export const noDpsSummary = (folded) =>
+  `${RACIAL_CHIPS.off}: ${folded.map((racial) => racial.name).join(", ")}`;
 
 export function createConfigFormView(doc, store, actions) {
   const $ = (id) => doc.querySelector(`#${id}`);
@@ -345,24 +401,38 @@ export function createConfigFormView(doc, store, actions) {
     const on = race !== null && race !== undefined;
     box.hidden = !on;
     $("cfg-race-racials-name").textContent = on ? race.name : "";
-    $("cfg-race-racials-list").replaceChildren(
-      ...(on ? race.racials : []).map((racial) => {
-        const item = doc.createElement("li");
-        item.className = "race-racial";
-        const name = doc.createElement("span");
-        name.className = "race-racial-name";
-        name.textContent = racial.name;
+    const { shown, folded } = racialGroups(on ? race.racials : []);
+    const itemOf = (racial, withChip) => {
+      const item = doc.createElement("li");
+      item.className = "race-racial";
+      const name = doc.createElement("span");
+      name.className = "race-racial-name";
+      name.textContent = racial.name;
+      item.append(name);
+      if (withChip) {
         const { kind, text } = racialChip(racial);
         const chip = doc.createElement("span");
         chip.className = `race-chip is-${kind}`;
         chip.textContent = text;
-        const line = doc.createElement("p");
-        line.className = "field-help race-racial-line";
-        line.textContent = racialLineText(racial);
-        item.append(name, " ", chip, line);
-        return item;
-      }),
+        item.append(" ", chip);
+      }
+      const line = doc.createElement("p");
+      line.className = "field-help race-racial-line";
+      line.textContent = racialLineText(racial);
+      item.append(line);
+      return item;
+    };
+    $("cfg-race-racials-list").replaceChildren(
+      ...shown.map((racial) => itemOf(racial, true)),
     );
+    const more = $("cfg-race-racials-more");
+    if (more !== null && more !== undefined) {
+      more.hidden = !folded.some(Boolean);
+      $("cfg-race-racials-more-summary").textContent = noDpsSummary(folded);
+      $("cfg-race-racials-more-list").replaceChildren(
+        ...folded.map((racial) => itemOf(racial, false)),
+      );
+    }
   }
 
   // A poison select's description ids: rank and effect while a poison is on,

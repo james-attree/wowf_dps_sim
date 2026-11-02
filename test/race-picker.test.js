@@ -28,6 +28,7 @@ import { SAVED_SETUP_KEY, mountSavedSetup } from "../js/saved-setup.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
 import { characterRows } from "../js/views/character-screens.js";
+import { changedNames, namesText, staleBanner } from "../js/views/stale.js";
 import {
   NO_RACE_LABEL,
   ON_USE_CAST,
@@ -35,6 +36,10 @@ import {
   RACIAL_CHIPS,
   racialChip,
   racialLineText,
+  racialGroups,
+  noDpsSummary,
+  ROGUE_LINES,
+  NOT_SIMULATED_REASONS,
 } from "../js/views/config-form.js";
 
 const DELAY = k("ui.saveSetupMs");
@@ -243,7 +248,7 @@ describe("#321: each racial's plain line", () => {
     // Not known: the line says the presets cast it and yours needs a rule.
     assert.equal(
       racialLineText(fury),
-      `${fury.text} ${ON_USE_NOTE} ${ON_USE_CAST.unknown}`,
+      `${ROGUE_LINES["blood-fury"]} ${ON_USE_NOTE} ${ON_USE_CAST.unknown}`,
     );
     for (const racial of all.filter(({ status }) => status === "noDpsEffect")) {
       assert.equal(racialChip(racial).text, "No DPS effect");
@@ -257,7 +262,7 @@ describe("#321: each racial's plain line", () => {
       ({ status }) => status === "notSimulated",
     )) {
       assert.equal(racialChip(racial).text, "Not simulated yet");
-      assert.equal(racialLineText(racial), racial.text);
+      assert.match(racialLineText(racial), /Not simulated yet: /);
     }
   });
 
@@ -373,5 +378,139 @@ describe("#321: the race in the saved setup", () => {
     assert.equal(store.get().config.race, null);
     assert.equal(storage.items.has(SAVED_SETUP_KEY), false);
     saved.stop();
+  });
+});
+
+// Fran's #322 P4: a race change names "the race" in the stale banner, as the
+// other build edits name theirs, rather than "the settings".
+describe("the stale banner names the race (#322 P4)", () => {
+  const config = normalizeConfig({});
+  const ranWith = (now) => ({
+    config: now,
+    ran: { batch: { config, at: null } },
+    batch: { result: { completed: 1 } },
+  });
+  it("a race change alone is the race", () => {
+    const now = { ...config, race: "orc" };
+    assert.deepEqual(changedNames(config, now), ["the race"]);
+    assert.equal(
+      staleBanner(ranWith(now), "batch").detail,
+      "You changed the race after this ran, so these numbers are for the old settings.",
+    );
+    assert.equal(
+      staleBanner(ranWith(now), "batch").short,
+      "The race changed after this ran.",
+    );
+  });
+  it("with a stat edit too, both are named", () => {
+    const now = {
+      ...config,
+      race: "orc",
+      character: { ...config.character, attackPower: 800 },
+    };
+    assert.equal(
+      staleBanner(ranWith(now), "batch").detail,
+      `You changed ${namesText(changedNames(config, now))} after this ran, so these numbers are for the old settings.`,
+    );
+    assert.deepEqual(
+      new Set(changedNames(config, now)),
+      new Set(["Attack power", "the race"]),
+    );
+  });
+});
+
+describe("#322 P3: the rogue's plain lines", () => {
+  const all = raceCatalogue.races.flatMap((race) => raceInfo(race.id).racials);
+  const slug = (id) => id.replace(/^[^.]*\./, "");
+  const numbers = (text) => text.match(/\d+(?:\.\d+)?/g) ?? [];
+
+  it("every racial that changes the damage has a rogue line", () => {
+    for (const racial of all.filter(({ status }) =>
+      ["simulated", "notSimulated"].includes(status),
+    )) {
+      assert.ok(ROGUE_LINES[slug(racial.id)], racial.id);
+    }
+  });
+
+  it("no line has a number its tooltip or the data doesn't state", () => {
+    for (const racial of all) {
+      const line = ROGUE_LINES[slug(racial.id)];
+      if (line === undefined) continue;
+      const source = `${racial.text} ${racial.reason ?? ""}`;
+      for (const n of numbers(line)) {
+        assert.ok(numbers(source).includes(n), `${racial.id}: ${n}`);
+      }
+    }
+    for (const [key, reason] of Object.entries(NOT_SIMULATED_REASONS)) {
+      assert.deepEqual(numbers(reason), [], key);
+    }
+  });
+
+  it("the lines are the rogue's: no other class, no Mana or Rage", () => {
+    for (const line of Object.values(ROGUE_LINES)) {
+      assert.doesNotMatch(
+        line,
+        /\b(Priests?|Mages?|Paladins?|Warriors?|casters?|Mana|Rage|spells?|spellcasting)\b/i,
+      );
+    }
+    const eureka = all.find(({ id }) => id === "gnome.eureka");
+    assert.match(eureka.text, /Priest/);
+    assert.match(
+      racialLineText(eureka),
+      /^Instant, 2 min cooldown\. For 8 sec/,
+    );
+    assert.doesNotMatch(racialLineText(eureka), /Priest|Mage/);
+  });
+
+  it("Touch of the Grave says what it does and why it isn't simulated", () => {
+    const tog = all.find(({ id }) => id === "undead.touch-of-the-grave");
+    assert.equal(tog.status, "notSimulated");
+    assert.match(tog.reason, /does not model/);
+    assert.equal(
+      racialLineText(tog),
+      "Your damaging attacks have a 20% chance to drain health from the target, up to 5% of your maximum health. 15 sec internal cooldown. Not simulated yet: the simulator doesn't model the rogue's health.",
+    );
+  });
+});
+
+describe("#322 P2: simulated racials first, no DPS effect folded", () => {
+  it("each race: simulated, then not yet, then the folded ones", () => {
+    for (const race of raceCatalogue.races) {
+      const { racials } = raceInfo(race.id);
+      const { shown, folded } = racialGroups(racials);
+      assert.equal(shown.length + folded.length, racials.length, race.id);
+      const kinds = shown.map((racial) => racialChip(racial).kind);
+      assert.deepEqual(
+        kinds,
+        [...kinds].sort((a, b) => (a === b ? 0 : a === "simulated" ? -1 : 1)),
+        race.id,
+      );
+      for (const racial of folded) {
+        assert.equal(racialChip(racial).kind, "off", racial.id);
+      }
+    }
+  });
+
+  it("the summary names them in Fran's words", () => {
+    const folded = [
+      { name: "Hardiness" },
+      { name: "Command" },
+      { name: "Shatter Curse" },
+    ];
+    assert.equal(
+      noDpsSummary(folded),
+      "No DPS effect: Hardiness, Command, Shatter Curse",
+    );
+  });
+
+  it("the page folds them in a details whose summary is the label", async () => {
+    const html = await readFile(
+      new URL("../index.html", import.meta.url),
+      "utf8",
+    );
+    assert.match(
+      html,
+      /<details[^>]*id="cfg-race-racials-more"[\s\S]*?<summary id="cfg-race-racials-more-summary"><\/summary>[\s\S]*?id="cfg-race-racials-more-list"/,
+    );
   });
 });

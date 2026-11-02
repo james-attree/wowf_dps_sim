@@ -35,8 +35,12 @@
 }
 
 /* ---- The panel ------------------------------------------------------------ */
+/* One track no wider than the card: an auto track grows to the widest
+   min-content inside it (a condition's fields), which spilled the rule body
+   out of the card at 1024 wide and 150% text (Fran's #322 B1). */
 .rotation-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 .rotation-panel[hidden] {
@@ -417,7 +421,7 @@
   border-color: #7a3b34;
 }
 /* The fields take the line beside "IF" and the remove button while they fit
-   their widest select ("Race or talent: ability granted", #280); when they
+   their widest select ("Race or talent granted", #280); when they
    don't, the button drops under them, right-aligned, instead of the select
    cutting its choice off (#244). */
 .cond-row {
@@ -432,8 +436,6 @@
 }
 .cond-and {
   flex: 0 0 2.2em;
-}
-.cond-and {
   padding-top: 12px;
   color: var(--text-muted);
   font-size: 0.78rem;

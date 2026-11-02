@@ -265,8 +265,7 @@ export function defaultCondition(type, action, race = null) {
 
 // The abilities a cooldownReady condition can name: the castable ones with a
 // cooldown. The ones a talent check can name: the talent abilities (Fran, Q6)
-// and the on-use racials `race` grants (#280: "Race or talent: ability
-// granted").
+// and the on-use racials `race` grants (#280, "Race or talent granted").
 export function cooldownAbilities(race = null) {
   const { cooldowns } = warningContext();
   return castableAbilities(race).filter((id) => cooldowns.includes(id));
