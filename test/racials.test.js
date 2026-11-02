@@ -36,14 +36,17 @@ const RACES = [
   "skyborne-high-order",
 ];
 // In the export's order. The on-use racials (#278) are simulated as abilities
-// the race grants.
+// the race grants: Blood Fury and Elune's Light since #278, Berserking and
+// Eureka! since #279.
 const SIMULATED = [
   "orc.blood-fury",
+  "troll.berserking",
   "skyborne-windshaper.wind-blessed",
   "human.ruthless",
   "dwarf.artisans-precision",
   "night-elf.elunes-light",
   "gnome.expansive-mind",
+  "gnome.eureka",
   "skyborne-high-order.wind-blessed",
 ];
 const MOB_TYPE = [
@@ -52,11 +55,7 @@ const MOB_TYPE = [
   "dwarf.big-game-hunter",
   "skyborne-high-order.elemental-insight",
 ];
-const NOT_SIMULATED = [
-  "undead.touch-of-the-grave",
-  "troll.berserking",
-  "gnome.eureka",
-];
+const NOT_SIMULATED = ["undead.touch-of-the-grave"];
 const ENERGY = RESOURCE_DEFINITIONS.find(
   (definition) => definition.id === "energy",
 );
@@ -171,7 +170,7 @@ describe("racial effects (#277)", () => {
     }
   });
 
-  it("classes the racials: 7 simulated, 4 by target type, 3 not simulated, the rest no DPS effect", () => {
+  it("classes the racials: 9 simulated, 4 by target type, 1 not simulated, the rest no DPS effect", () => {
     const by = (status) =>
       raceCatalogue.racials
         .map((racial) => racial.id)
@@ -179,7 +178,7 @@ describe("racial effects (#277)", () => {
     assert.deepEqual(by("simulated"), SIMULATED);
     assert.deepEqual(by("inert"), MOB_TYPE);
     assert.deepEqual(by("notSimulated"), NOT_SIMULATED);
-    assert.equal(by("noDpsEffect").length, 36 - 7 - 4 - 3);
+    assert.equal(by("noDpsEffect").length, 36 - 9 - 4 - 1);
     assert.deepEqual(by("unmapped"), []);
   });
 
@@ -481,8 +480,9 @@ describe("passive racials in the fight (#277)", () => {
     }
   });
 
-  // Orc and Night Elf grant an on-use racial (#278), but the default rotation
-  // has no rule for it, so their default fight is still the no-race fight.
+  // Orc, Night Elf (#278) and Troll (#279) grant an on-use racial, but the
+  // default rotation has no rule for it, so their default fight is still the
+  // no-race fight.
   it("a race with nothing simulated, or nothing the rotation casts, fights the no-race fight", () => {
     for (const race of ["orc", "undead", "troll", "night-elf"]) {
       for (const seed of SEEDS) {
