@@ -73,12 +73,10 @@ const energy = (op, value) => ({
 // cooldownReady. With no race, or another race, none is granted and the rules
 // are skipped, so the preset fights as before (G4). Not in James's #310
 // links: test/presets-310.test.js lists them as a documented difference.
-// combat-swords has Blood Fury and Elune's Light only: its share link is
-// 1,975 characters with them, each racial rule adds about 112, and P5-07
-// (#284) keeps each preset's link under 2,048. Berserking and Eureka! are in
-// the dagger presets alone (#279, an assumption flagged for James).
+// Every preset has all four, Combat included (Scout, 2 Nov 2026, on #315):
+// the app's share link cap is LINK_CAP, 8,192 (js/views/share-link.js), and
+// each racial rule adds about 112 characters.
 const ON_USE_RACIALS = ["blood-fury", "elunes-light", "berserking", "eureka"];
-const ON_USE_RACIALS_UNDER_LINK_CAP = ["blood-fury", "elunes-light"];
 const onUseRacialRules = (abilities = ON_USE_RACIALS) =>
   abilities.map((ability) => ({
     action: ability,
@@ -109,7 +107,7 @@ export const ROTATION_PRESETS = deepFreeze([
       schemaVersion: 1,
       name: "Combat swords",
       rules: [
-        ...onUseRacialRules(ON_USE_RACIALS_UNDER_LINK_CAP),
+        ...onUseRacialRules(),
         {
           action: SLICE_AND_DICE,
           conditions: [
