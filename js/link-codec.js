@@ -66,6 +66,7 @@ export const LINK_BASES = Object.freeze([
     preset: "assassination-daggers",
   }),
   Object.freeze({ id: "subtlety-daggers", preset: "subtlety-daggers" }),
+  Object.freeze({ id: "combat-daggers", preset: "combat-daggers" }),
 ]);
 
 // talentCatalogue order at #306.
