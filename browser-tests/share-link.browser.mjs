@@ -10,11 +10,14 @@ import { chromium } from "playwright-core";
 import { startStaticServer } from "../scripts/serve.mjs";
 import {
   LINK_PARAM,
-  SETUP_VERSION,
+  LINK_VERSION,
+  decodeSetup,
   setupDefaults,
   shareUrl,
 } from "../js/build-codec.js";
 import { defaultRotation } from "../js/rotation-default.js";
+import { referenceBuild } from "../js/preset-reference-builds.js";
+import { SAVED_SETUP_KEY } from "../js/saved-setup.js";
 import { k } from "../data/constants.js";
 import {
   BUTTON_NAMES,
@@ -191,7 +194,8 @@ describe("Copy link to this build (#284)", () => {
         const url = new URL(link);
         assert.equal(url.origin + url.pathname, base);
         assert.equal(url.hash, "");
-        assert.match(url.searchParams.get(LINK_PARAM), /^1\.[\w-]+$/);
+        // #306: a short version 2 link.
+        assert.match(url.searchParams.get(LINK_PARAM), /^2\.[\w-]+$/);
         // "Link copied" for 2 s, then the label again.
         await page.waitForFunction(
           (label) =>
@@ -377,11 +381,14 @@ describe("Copy link to this build (#284)", () => {
   });
 
   test("a newer or damaged link loads nothing and says so", async () => {
-    const newer = `${base}?${LINK_PARAM}=${SETUP_VERSION + 1}.e30#character/stats`;
+    const newer = `${base}?${LINK_PARAM}=${LINK_VERSION + 1}.e30#character/stats`;
     const damaged = `${base}?${LINK_PARAM}=1.not-json#character/stats`;
+    // #306: a version 2 link with a byte too many.
+    const damagedV2 = `${base}?${LINK_PARAM}=2.AAAA#character/stats`;
     for (const [address, notice] of [
       [newer, NOTICES.newer],
       [damaged, NOTICES.corrupt],
+      [damagedV2, NOTICES.corrupt],
     ]) {
       const { context, page, errors } = await open(WIDTHS[0], address);
       try {
@@ -412,6 +419,65 @@ describe("Copy link to this build (#284)", () => {
     try {
       await page.locator(".share-hint").waitFor({ state: "visible" });
       assert.equal(await text(page, ".share-hint"), SHARE_HINT);
+    } finally {
+      await context.close();
+    }
+  });
+
+  // #306: a preset with a typical edit copies as a short link, and the link
+  // opens that build in a fresh browser (the saved setup it leaves is still
+  // version 1).
+  test("a preset's link is short, and it opens the build elsewhere (#306)", async () => {
+    const PRESET_LINK_MAX = 64;
+    const SPEED = "#cfg-weapons-mainHand-speed";
+    const { context, page, errors } = await open(WIDTHS[1], "#character");
+    try {
+      await page.locator("#start-card-combat-swords").click();
+      await page.locator("#start-applied").waitFor({ state: "visible" });
+      await set(page, "#character/gear", SPEED, "1.9");
+      await page.evaluate(() => document.defaultView.scrollTo(0, 0));
+      await page.locator("#share-link-header").click();
+      await page.waitForFunction(
+        (copied) =>
+          document.getElementById("run-announce").textContent === copied,
+        COPIED_TEXT,
+      );
+      const link = await page.evaluate(() =>
+        document.defaultView.navigator.clipboard.readText(),
+      );
+      assert.ok(link.startsWith(`${base}?${LINK_PARAM}=2.`), link);
+      assert.ok(
+        link.length - base.length <= PRESET_LINK_MAX,
+        `${link.length - base.length}: ${link}`,
+      );
+      const read = decodeSetup(new URL(link).searchParams.get(LINK_PARAM));
+      assert.equal(read.status, "ok");
+      const build = referenceBuild("combat-swords");
+      assert.deepEqual(read.setup.config.talents, build.talents);
+      assert.equal(read.setup.config.weapons.mainHand.speed, 1.9);
+      assert.deepEqual(errors, []);
+
+      const other = await open(WIDTHS[1], link);
+      try {
+        const { page: opened, errors: openedErrors } = other;
+        await opened.locator("#share-banner").waitFor({ state: "visible" });
+        assert.equal(await text(opened, "#share-banner-text"), NOTICES.loaded);
+        await go(opened, "#character/gear", SPEED);
+        assert.equal(await opened.locator(SPEED).inputValue(), "1.9");
+        await opened.waitForFunction(
+          (key) => document.defaultView.localStorage.getItem(key) !== null,
+          SAVED_SETUP_KEY,
+        );
+        const saved = await opened.evaluate(
+          (key) => document.defaultView.localStorage.getItem(key),
+          SAVED_SETUP_KEY,
+        );
+        assert.match(saved, /^1\./);
+        assert.deepEqual(decodeSetup(saved).setup.config, read.setup.config);
+        assert.deepEqual(openedErrors, []);
+      } finally {
+        await other.context.close();
+      }
     } finally {
       await context.close();
     }

@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   LINK_PARAM,
+  LINK_VERSION,
   SETUP_VERSION,
   decodeSetup,
   encodeSetup,
@@ -22,11 +23,13 @@ import { LINK_CAP } from "../js/views/share-link.js";
 
 // GitHub Pages' address for the sim, with a route: the link drops the route.
 const PAGES = "https://james-attree.github.io/wowf_dps_sim/#rotation/share";
-// A test budget for the presets' links, with margin, not an app limit: the
-// app's real cap is LINK_CAP (8,192) in js/views/share-link.js, over which
-// the copy button offers a file export instead. Raised from 2,048 so every
-// preset can carry all four on-use racial rules (Scout, 2 Nov 2026, #315).
-const PRESET_LINK_MAX = 4096;
+// A test budget for the presets' links, not an app limit: the app's real cap
+// is LINK_CAP (8,192) in js/views/share-link.js, over which the copy button
+// offers a file export instead. Characters after the page's address. 64
+// since #306's short links (Scout's ruling, 2 Nov 2026); it was 4,096 of the
+// whole address (#315), and test/short-links-306.test.js holds a preset plus
+// a typical edit to it too.
+const PRESET_LINK_MAX = 64;
 const SEED = 424242;
 const MAX_SEED = 4294967295;
 
@@ -153,7 +156,7 @@ describe("build codec: a captured v1 link still loads (#284)", () => {
 
 describe("build codec: versions and unknown fields (#284)", () => {
   it("a newer version is 'newer' for a link and the defaults for a save", () => {
-    const text = linkOf({ run: { seed: 1 } }, SETUP_VERSION + 1);
+    const text = linkOf({ run: { seed: 1 } }, LINK_VERSION + 1);
     assert.deepEqual(decodeSetup(text), { status: "newer" });
     assert.deepEqual(decodeSetup(text, { strict: false }), {
       status: "ok",
@@ -314,12 +317,20 @@ describe("build codec: the share link's address and length (#284)", () => {
       // The preset as picked, at the longest seed.
       const setup = { config, run: { ...d.run, seed: MAX_SEED } };
       const url = shareUrl(PAGES, setup);
-      assert.ok(url.length < PRESET_LINK_MAX, `${id}: ${url.length}`);
+      const address = PAGES.slice(0, PAGES.indexOf("#"));
+      const length = url.length - address.length;
+      assert.ok(length <= PRESET_LINK_MAX, `${id}: ${length}`);
     }
   });
 
   it("goes over the 8 KB cap with a long rotation, and that link still reads", () => {
-    const rule = defaultRotation().rules[0];
+    // A rule unlike the base's: #306's link sends a base's own rule as a
+    // reference, so it is this rule's JSON, once a rule, that fills the link.
+    const first = defaultRotation().rules[0];
+    const rule = {
+      ...first,
+      conditions: [...first.conditions, ...first.conditions],
+    };
     const rotation = {
       ...defaultRotation(),
       rules: Array.from({ length: k("rotation.maxRules") }, () => rule),
@@ -384,7 +395,7 @@ describe("the page's first setup: link, then saved, then defaults (#284, #296)",
   });
 
   it("a newer or corrupt link loads nothing, says why, and is still taken out", () => {
-    const newer = `?${LINK_PARAM}=${linkOf({}, SETUP_VERSION + 1)}`;
+    const newer = `?${LINK_PARAM}=${linkOf({}, LINK_VERSION + 1)}`;
     assert.deepEqual(resolveInitialSetup({ search: newer }), {
       setup: setupDefaults(),
       source: "defaults",
