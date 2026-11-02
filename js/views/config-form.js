@@ -60,13 +60,15 @@ export function formatField(value, percent) {
   return percent ? formatPercent(value) : String(value);
 }
 
+// A typed value does not follow the level (Scout's ruling on #319).
+export const TYPED_STAYS = "Typed values stay fixed when you change level.";
 // The help under Weapon skill and Enemy level (#318), from the form's
 // levels (js/config-form.js levelsInfo).
 export function weaponSkillHelpText({ level, weaponSkill }) {
-  return `Leave blank for ${weaponSkill.blank} (your level × ${weaponSkill.perLevel}). At most ${weaponSkill.max} at level ${level}.`;
+  return `Leave blank for ${weaponSkill.blank} (your level × ${weaponSkill.perLevel}). At most ${weaponSkill.max} at level ${level}. ${TYPED_STAYS}`;
 }
 export function enemyLevelHelpText({ targetLevel }) {
-  return `Leave blank for ${targetLevel.blank} (your level + ${targetLevel.above}). From ${targetLevel.min} to ${targetLevel.max}.`;
+  return `Leave blank for ${targetLevel.blank} (your level + ${targetLevel.above}). From ${targetLevel.min} to ${targetLevel.max}. ${TYPED_STAYS}`;
 }
 
 const plural = (count, one, many) => (count === 1 ? one : many);

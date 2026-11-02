@@ -47,8 +47,9 @@ const capital = (text) =>
 // Character's rows from the form slice: what the fields show, and how many
 // of each screen's fields have a message. { gear, stats }: { summary, fix }.
 // "Main hand Sword 100–187 · Instant Poison / Off hand Sword 90–168 · Deadly
-// Poison" and "767 attack power · 22.45% crit · 7% hit"; a value that is not
-// a number yet is a dash.
+// Poison" and "767 attack power · 22.45% crit · 7% hit", then haste, weapon
+// skill and enemy level only when set; a value that is not a number yet is
+// a dash.
 export function characterRows(form) {
   const values = form?.values ?? {};
   const fix = { gear: 0, stats: 0 };
@@ -80,6 +81,14 @@ export function characterRows(form) {
         // Left out at none (Fran 7), so the 360 summary keeps its one line.
         ...(values["character.haste"] > NO_HASTE
           ? [`${percentText(values["character.haste"])} haste`]
+          : []),
+        // Only when typed (#318, Scout's ruling on #319): blank follows the
+        // level and is left out, as no haste is.
+        ...(isNumber(values["character.weaponSkill"])
+          ? [`${values["character.weaponSkill"]} weapon skill`]
+          : []),
+        ...(isNumber(values["target.level"])
+          ? [`enemy level ${values["target.level"]}`]
           : []),
       ].join(" · "),
       fix: fix.stats,

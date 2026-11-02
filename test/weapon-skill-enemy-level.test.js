@@ -105,15 +105,15 @@ describe("the bounds are the engine's (#318)", () => {
   it("the help says what blank gives, in plain words", () => {
     assert.equal(
       weaponSkillHelpText(levelsInfo(MAX_LEVEL)),
-      "Leave blank for 300 (your level × 5). At most 350 at level 60.",
+      "Leave blank for 300 (your level × 5). At most 350 at level 60. Typed values stay fixed when you change level.",
     );
     assert.equal(
       enemyLevelHelpText(levelsInfo(MAX_LEVEL)),
-      "Leave blank for 63 (your level + 3). From 1 to 63.",
+      "Leave blank for 63 (your level + 3). From 1 to 63. Typed values stay fixed when you change level.",
     );
     assert.equal(
       weaponSkillHelpText(levelsInfo(LOW_LEVEL)),
-      "Leave blank for 200 (your level × 5). At most 250 at level 40.",
+      "Leave blank for 200 (your level × 5). At most 250 at level 40. Typed values stay fixed when you change level.",
     );
   });
 });
@@ -206,6 +206,21 @@ describe("the form: blank is the default (#318)", () => {
     );
   });
 
+  it("the Stats summary names them only when typed, as haste (#319)", () => {
+    const { store, actions } = setup();
+    const summary = () => characterRows(store.get().form).stats.summary;
+    assert.doesNotMatch(summary(), /weapon skill|enemy level/);
+    actions.change(SKILL, 315);
+    assert.match(summary(), / · 7% hit · 315 weapon skill$/);
+    actions.change(ENEMY, 62);
+    assert.match(summary(), / · 315 weapon skill · enemy level 62$/);
+    actions.change("character.haste", 0.05);
+    assert.match(summary(), / · 5% haste · 315 weapon skill · enemy level 62$/);
+    actions.change(SKILL, null);
+    actions.change(ENEMY, null);
+    assert.doesNotMatch(summary(), /weapon skill|enemy level/);
+  });
+
   it("an error counts on the Stats row's chip", () => {
     const { store, actions } = setup();
     actions.change(SKILL, 999);
@@ -242,9 +257,25 @@ describe("the level moves the weapon skill's cap (#318)", () => {
     );
     assert.equal(nextRunConfig(store.get()), null);
     tree.setLevel(String(MAX_LEVEL));
+    assert.equal(store.get().config.talentLevel, MAX_LEVEL);
     assert.deepEqual(store.get().form.errors, {});
+    assert.equal(store.get().form.values[SKILL], 350);
+    assert.equal(store.get().form.levels.weaponSkill.max, 350);
     assert.equal(store.get().config.character.weaponSkill, 350);
     assert.notEqual(nextRunConfig(store.get()), null);
+  });
+
+  it("a typed enemy level stays fixed through a level change, and so does 350 once back at 60", () => {
+    const { store, actions } = setup();
+    const tree = createTalentTree(store);
+    actions.change(SKILL, 350);
+    actions.change(ENEMY, 62);
+    for (const level of [LOW_LEVEL, MAX_LEVEL]) {
+      assert.doesNotThrow(() => tree.setLevel(String(level)));
+      assert.equal(store.get().config.target.level, 62, `level ${level}`);
+      assert.equal(store.get().form.values[ENEMY], 62, `level ${level}`);
+    }
+    assert.equal(store.get().config.character.weaponSkill, 350);
   });
 
   it("a typed skill under the lower cap stays as typed", () => {

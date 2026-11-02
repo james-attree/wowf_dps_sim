@@ -15,9 +15,11 @@ const TEXT_SIZES = ["100%", "150%"];
 const SCREEN_HEIGHT = 900;
 const SKILL = "#cfg-character-weaponSkill";
 const ENEMY = "#cfg-target-level";
-const SKILL_HELP =
-  "Leave blank for 300 (your level × 5). At most 350 at level 60.";
-const ENEMY_HELP = "Leave blank for 63 (your level + 3). From 1 to 63.";
+const TYPED_STAYS = "Typed values stay fixed when you change level.";
+const SKILL_HELP = `Leave blank for 300 (your level × 5). At most 350 at level 60. ${TYPED_STAYS}`;
+const ENEMY_HELP = `Leave blank for 63 (your level + 3). From 1 to 63. ${TYPED_STAYS}`;
+const SUMMARY = "#character-stats-summary";
+const LEVEL = "#talents-level";
 const SKILL_ERROR =
   "Weapon skill must be a whole number from 1 to 350 at level 60.";
 const ENEMY_ERROR = "Enemy level must be a whole number from 1 to 63.";
@@ -69,6 +71,23 @@ const clean = (text) => text.replace(/\s+/g, " ").trim();
 async function enter(page, selector, value) {
   await page.locator(selector).fill(value);
   await page.locator(selector).blur();
+}
+
+const go = async (page, hash, selector) => {
+  await page.evaluate((to) => {
+    document.location.hash = to;
+  }, hash);
+  await page.locator(selector).waitFor({ state: "visible" });
+};
+
+// The Stats row's summary on Character's list: its text, and whether it
+// fits its row.
+async function summary(page) {
+  await go(page, "#character", SUMMARY);
+  return page.locator(SUMMARY).evaluate((node) => ({
+    text: node.textContent.replace(/\s+/g, " ").trim(),
+    fits: node.scrollWidth <= node.clientWidth,
+  }));
 }
 
 // The field's parts inside its fieldset, none over another, and the page
@@ -217,11 +236,18 @@ describe("Weapon skill and Enemy level on Character › Stats (#318)", () => {
           assert.equal(await page.locator(`${SKILL}-error`).isHidden(), true);
           assert.equal(await page.locator(`${ENEMY}-error`).isHidden(), true);
           assert.equal(await page.locator("#run-button").isDisabled(), false);
+          // The Stats row names them while typed (#319), and still fits.
+          const typed = await summary(page);
+          assert.match(typed.text, / · 320 weapon skill · enemy level 61$/);
+          assert.ok(typed.fits, `${width} ${text}: the summary fits its row`);
+          await go(page, "#character/stats", SKILL);
           await enter(page, SKILL, "");
           await enter(page, ENEMY, "");
           assert.equal(await page.locator(`${SKILL}-error`).isHidden(), true);
           assert.equal(await skill.getAttribute("aria-invalid"), null);
           assert.equal(await page.locator("#run-button").isDisabled(), false);
+          const blank = await summary(page);
+          assert.doesNotMatch(blank.text, /weapon skill|enemy level/);
           assert.deepEqual(errors, []);
         } finally {
           await context.close();
@@ -229,6 +255,50 @@ describe("Weapon skill and Enemy level on Character › Stats (#318)", () => {
       });
     }
   }
+
+  test("350 typed, level 40 then back to 60: an error, then 350 again", async () => {
+    const { context, page, errors } = await open(WIDTHS[2], TEXT_SIZES[0]);
+    try {
+      await enter(page, SKILL, "350");
+      await enter(page, ENEMY, "62");
+      const setLevel = async (level) => {
+        await go(page, "#character/talents", LEVEL);
+        await enter(page, LEVEL, level);
+        await go(page, "#character/stats", SKILL);
+      };
+      await setLevel("40");
+      assert.equal(await page.locator(SKILL).inputValue(), "350");
+      assert.equal(
+        clean(await page.locator(`${SKILL}-error`).textContent()),
+        "⚠ Weapon skill must be a whole number from 1 to 250 at level 40.",
+      );
+      assert.equal(await page.locator(SKILL).getAttribute("max"), "250");
+      assert.equal(
+        await page.locator(SKILL).getAttribute("placeholder"),
+        "200",
+      );
+      assert.equal(await page.locator(ENEMY).inputValue(), "62");
+      assert.equal(await page.locator(ENEMY).getAttribute("placeholder"), "43");
+      assert.equal(await page.locator("#run-button").isDisabled(), true);
+      await setLevel("60");
+      assert.equal(await page.locator(SKILL).inputValue(), "350");
+      assert.equal(await page.locator(`${SKILL}-error`).isHidden(), true);
+      assert.equal(
+        await page.locator(SKILL).getAttribute("aria-invalid"),
+        null,
+      );
+      assert.equal(await page.locator(SKILL).getAttribute("max"), "350");
+      assert.equal(await page.locator(ENEMY).inputValue(), "62");
+      assert.equal(await page.locator("#run-button").isDisabled(), false);
+      assert.match(
+        (await summary(page)).text,
+        / · 350 weapon skill · enemy level 62$/,
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
 
   test("a share link fills both fields", async () => {
     const d = setupDefaults();
