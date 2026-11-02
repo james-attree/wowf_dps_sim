@@ -31,11 +31,11 @@ import { formErrorCount } from "./views/run-model.js";
 //                   percent (the view converts at its edge), damage, speed and
 //                   attack power as numbers, weapon types and poisons as ids
 //                   (a poison is null for None). A value the player typed
-//                   that is not a number is NaN. Weapon skill and the enemy
+//                   that is not a number is NaN. Weapon skill and the target
 //                   level (#318) are null while blank: they follow the
 //                   level (OPTIONAL_FIELDS).
 //   levels          levelsInfo() of the config's level: what a blank weapon
-//                   skill or enemy level is, and their bounds, for the view
+//                   skill or target level is, and their bounds, for the view
 //                   to show (#318).
 //   errors          { field path: message } for each field that is invalid
 //                   now. A message of null marks a field invalid with its
@@ -97,7 +97,7 @@ const PERCENT_MESSAGE = "Enter a percentage from 0 to 100.";
 const NUMBER_MESSAGE = "Enter a number.";
 const WHOLE_MESSAGE = "Use a whole number, 0 or more.";
 
-// What a blank weapon skill and enemy level are at a config's level, and
+// What a blank weapon skill and target level are at a config's level, and
 // their bounds (#318; the engine's: js/attack-resolver.js defaultWeaponSkill
 // and maxWeaponSkill, js/levels.js targetLevel, target.levelRange).
 export function levelsInfo(level = k("character.level")) {
@@ -214,7 +214,7 @@ export const FORM_FIELDS = Object.freeze(
       path: "target.level",
       check: optionalCheck(
         ({ targetLevel: { min, max } }) =>
-          `Enemy level must be a whole number from ${min} to ${max}.`,
+          `Target level must be a whole number from ${min} to ${max}.`,
         (value, { targetLevel: { min, max } }) => isWholeIn(value, min, max),
       ),
     },

@@ -165,6 +165,15 @@ export function formErrorCount(form) {
     .length;
 }
 
+// The stats form's errors that are the target's (#318, Fran's qa-319 P1):
+// Target level is in Fight, so Fight counts them and Character does not.
+export const isTargetPath = (path) => path.startsWith("target.");
+export function targetErrorCount(form) {
+  return Object.entries(form?.errors ?? {}).filter(
+    ([path, message]) => message !== null && isTargetPath(path),
+  ).length;
+}
+
 // The form error to fix first (#247): the first with a message, the one the
 // form's footer lists first. For Min above Max that is the Max, which holds
 // the pair's message; the Min is only marked. Null when there is none.
@@ -373,6 +382,24 @@ export const NO_BREAK_SPACE = "\u00a0";
 export const seedPart = (seed) => `seed${NO_BREAK_SPACE}${seedText(seed)}`;
 export const unitPart = (value) => `${value}${NO_BREAK_SPACE}s`;
 
+// The target's level when it is typed (#318, Fran's qa-319 P1): "target
+// level 62", the last of the run's summary and Ready lines; "target level ?"
+// while it has an error, as a run field's is "?". Null while blank: it
+// follows the level, as the Stats row leaves out a blank weapon skill.
+export function targetPart(form) {
+  const value = form?.values?.["target.level"];
+  if (typeof form?.errors?.["target.level"] === "string") {
+    return `target level${NO_BREAK_SPACE}?`;
+  }
+  return typeof value === "number" && Number.isFinite(value)
+    ? `target level${NO_BREAK_SPACE}${value}`
+    : null;
+}
+const withTarget = (text, form) => {
+  const target = targetPart(form);
+  return target === null ? text : `${text} · ${target}`;
+};
+
 // The two run types' names, the Run type switch's labels in Fight (#245:
 // one name each, everywhere; Fran's #260 check).
 export const AVERAGE_NAME = "Average";
@@ -401,7 +428,10 @@ function liveModel(state) {
     text = `Stopped at ${clock(run.stoppedAt)} · fight discarded · Run replays ${seedPart(run.seed)} from 0:00`;
     announce = `Stopped at ${spokenTime(run.stoppedAt)}. Fight discarded.`;
   } else {
-    text = `Ready · ${unitPart(secondsText(run.duration))} · ${seedPart(run.seed)}`;
+    text = withTarget(
+      `Ready · ${unitPart(secondsText(run.duration))} · ${seedPart(run.seed)}`,
+      state.form,
+    );
     announce = "Ready";
   }
   const stale = !active && isStale(state, "live");
@@ -464,7 +494,10 @@ function batchModel(state) {
     announce = null;
   } else {
     // The fight length too (#245, Fran's #260 check): what Run will run.
-    text = `Ready · ${grouped(run.iterations)} × ${unitPart(secondsText(run.duration))} ${fightsWord(run.iterations)} · ${seedPart(run.seed)}`;
+    text = withTarget(
+      `Ready · ${grouped(run.iterations)} × ${unitPart(secondsText(run.duration))} ${fightsWord(run.iterations)} · ${seedPart(run.seed)}`,
+      state.form,
+    );
     announce = "Ready";
   }
   // An average run with other settings than today's (#242).
@@ -505,17 +538,21 @@ function batchModel(state) {
 // The narrow bar's one-line summary of the next run's settings (Scout, #153):
 // "Live fight · 300 s · seed 1234" or "Average · 1,000 × 300 s · seed 1234"
 // (#245: the run types' own names). It follows the fields as they are
-// typed; a field with an error shows "?".
-export function summaryText(run) {
+// typed; a field with an error shows "?". A typed target level comes last
+// (#318): "Average · 1,000 × 300 s · seed 1234 · target level 62".
+export function summaryText(run, form = null) {
   const bad = new Set(fieldErrors(run));
   const part = (name, text) => (bad.has(name) ? "?" : text);
   const seconds = unitPart(part("duration", `${secondsText(run.duration)}`));
   const seed = bad.has("seed") ? `seed${NO_BREAK_SPACE}?` : seedPart(run.seed);
   if (run.mode === "batch") {
     const fights = part("iterations", grouped(run.iterations));
-    return `${AVERAGE_NAME} · ${fights} × ${seconds} · ${seed}`;
+    return withTarget(
+      `${AVERAGE_NAME} · ${fights} × ${seconds} · ${seed}`,
+      form,
+    );
   }
-  return `${LIVE_NAME} · ${seconds} · ${seed}`;
+  return withTarget(`${LIVE_NAME} · ${seconds} · ${seed}`, form);
 }
 
 // The fight length changed after a kept result ran (#245, Fran's #260

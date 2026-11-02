@@ -1,6 +1,6 @@
 import { k } from "../../data/constants.js";
 import { NARROW_QUERY } from "./breakpoints.js";
-import { fieldErrors, formErrorCount } from "./run-model.js";
+import { NO_BREAK_SPACE, fieldErrors, formErrorCount } from "./run-model.js";
 import { reveal } from "./sections.js";
 import { anyStale } from "./stale.js";
 
@@ -62,13 +62,22 @@ export function formatField(value, percent) {
 
 // A typed value does not follow the level (Scout's ruling on #319).
 export const TYPED_STAYS = "Typed values stay fixed when you change level.";
-// The help under Weapon skill and Enemy level (#318), from the form's
+// One weapon skill for both hands (Fran's qa-319 N1; js/attack-resolver.js
+// weaponSkillFor).
+export const BOTH_HANDS = "Applies to both hands.";
+// What the target's level does (Fran's qa-319 P2).
+export const TARGET_LEVEL_EFFECT =
+  "Higher levels mean more misses and glancing blows.";
+// The formula's operator keeps its words on one line (Fran's qa-319 N2).
+const formula = (left, operator, right) =>
+  `${left}${NO_BREAK_SPACE}${operator}${NO_BREAK_SPACE}${right}`;
+// The help under Weapon skill and Target level (#318), from the form's
 // levels (js/config-form.js levelsInfo).
 export function weaponSkillHelpText({ level, weaponSkill }) {
-  return `Leave blank for ${weaponSkill.blank} (your level × ${weaponSkill.perLevel}). At most ${weaponSkill.max} at level ${level}. ${TYPED_STAYS}`;
+  return `Leave blank for ${weaponSkill.blank} (${formula("your level", "×", weaponSkill.perLevel)}). At most ${weaponSkill.max} at level ${level}. ${BOTH_HANDS} ${TYPED_STAYS}`;
 }
-export function enemyLevelHelpText({ targetLevel }) {
-  return `Leave blank for ${targetLevel.blank} (your level + ${targetLevel.above}). From ${targetLevel.min} to ${targetLevel.max}. ${TYPED_STAYS}`;
+export function targetLevelHelpText({ targetLevel }) {
+  return `Leave blank for ${targetLevel.blank} (${formula("your level", "+", targetLevel.above)}, a raid boss). From ${targetLevel.min} to ${targetLevel.max}. ${TARGET_LEVEL_EFFECT} ${TYPED_STAYS}`;
 }
 
 const plural = (count, one, many) => (count === 1 ? one : many);
@@ -269,7 +278,7 @@ export function createConfigFormView(doc, store, actions) {
     }
   }
 
-  // What a blank weapon skill and enemy level are, and their bounds (#318):
+  // What a blank weapon skill and target level are, and their bounds (#318):
   // the placeholder shows the value a blank gives, the help says so.
   const LEVEL_FIELDS = Object.freeze({
     "character.weaponSkill": (levels) => ({
@@ -278,7 +287,7 @@ export function createConfigFormView(doc, store, actions) {
     }),
     "target.level": (levels) => ({
       ...levels.targetLevel,
-      help: enemyLevelHelpText(levels),
+      help: targetLevelHelpText(levels),
     }),
   });
   function drawLevels(levels) {
@@ -574,7 +583,7 @@ export function createConfigFormView(doc, store, actions) {
 
   // No submit: Run is #153's. Enter commits the field it was pressed in.
   form.addEventListener("submit", (event) => event.preventDefault());
-  form.addEventListener("keydown", (event) => {
+  const onEnter = (event) => {
     if (event.key !== "Enter" || event.target?.tagName !== "INPUT") {
       return;
     }
@@ -583,7 +592,17 @@ export function createConfigFormView(doc, store, actions) {
     if (controls.has(path)) {
       actions.change(path, readControl(path));
     }
-  });
+  };
+  form.addEventListener("keydown", onEnter);
+  // A field outside the form (Target level, in Fight: #318) listens itself.
+  for (const control of controls.values()) {
+    if (
+      typeof control.closest === "function" &&
+      control.closest("#config-form") === null
+    ) {
+      control.addEventListener("keydown", onEnter);
+    }
+  }
 
   rotation.addEventListener("change", () =>
     actions.chooseRotation(rotation.value),

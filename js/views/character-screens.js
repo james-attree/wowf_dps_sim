@@ -29,8 +29,9 @@ const HANDS = Object.freeze([
   Object.freeze({ key: "offHand", name: "Off hand" }),
 ]);
 
+// Target level is in Fight (#318, Fran's qa-319 P1): not a screen's here.
 const screenOfPath = (path) =>
-  path.startsWith("character.") || path.startsWith("target.")
+  path.startsWith("character.")
     ? "stats"
     : path.startsWith("weapons.") || path.startsWith("poisons.")
       ? "gear"
@@ -47,9 +48,9 @@ const capital = (text) =>
 // Character's rows from the form slice: what the fields show, and how many
 // of each screen's fields have a message. { gear, stats }: { summary, fix }.
 // "Main hand Sword 100–187 · Instant Poison / Off hand Sword 90–168 · Deadly
-// Poison" and "767 attack power · 22.45% crit · 7% hit", then haste, weapon
-// skill and enemy level only when set; a value that is not a number yet is
-// a dash.
+// Poison" and "767 attack power · 22.45% crit · 7% hit", then haste and
+// weapon skill only when set; a value that is not a number yet is a dash.
+// Target level is Fight's (#318): the run summary names it.
 export function characterRows(form) {
   const values = form?.values ?? {};
   const fix = { gear: 0, stats: 0 };
@@ -86,9 +87,6 @@ export function characterRows(form) {
         // level and is left out, as no haste is.
         ...(isNumber(values["character.weaponSkill"])
           ? [`${values["character.weaponSkill"]} weapon skill`]
-          : []),
-        ...(isNumber(values["target.level"])
-          ? [`enemy level ${values["target.level"]}`]
           : []),
       ].join(" · "),
       fix: fix.stats,

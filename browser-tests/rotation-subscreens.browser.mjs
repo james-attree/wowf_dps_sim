@@ -35,6 +35,8 @@ const FIGHT_STOPS = [
   "run-iterations",
   "run-seed",
   "run-seed-new",
+  // Target level, under the Target note (#318, Fran's qa-319 P1).
+  "cfg-target-level",
 ];
 const WIDE_SCREENS = [
   "#character",
