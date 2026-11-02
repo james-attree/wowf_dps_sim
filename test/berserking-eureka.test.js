@@ -270,19 +270,18 @@ describe("racial effects grant Berserking and Eureka! (#279)", () => {
   });
 });
 
-// Decision 6 puts every on-use racial at the top of every preset, but the
-// Phase 5 plan (P5-07, #284) also caps each preset's share link under 2,048
-// characters. combat-swords is at 1,975 with Blood Fury and Elune's Light,
-// and each racial rule adds about 112, so Berserking and Eureka! fit only in
-// the two dagger presets (assumption, flagged for James in #279).
+// Decision 6 puts every on-use racial at the top of every preset, Combat
+// included (Scout, 2 Nov 2026, on #315). The 2,048 was only a test budget
+// (test/build-codec.test.js); the app's cap is LINK_CAP, 8,192.
+const ALL_FOUR = ["blood-fury", "elunes-light", BERSERKING, EUREKA];
 const RACIALS_IN = {
-  "assassination-daggers": ["blood-fury", "elunes-light", BERSERKING, EUREKA],
-  "subtlety-daggers": ["blood-fury", "elunes-light", BERSERKING, EUREKA],
-  "combat-swords": ["blood-fury", "elunes-light"],
+  "assassination-daggers": ALL_FOUR,
+  "subtlety-daggers": ALL_FOUR,
+  "combat-swords": ALL_FOUR,
 };
 const DAGGERS = "assassination-daggers";
 
-describe("the presets cast the on-use racials when granted (decision 6, under the #284 link cap)", () => {
+describe("the presets cast the on-use racials when granted (decision 6)", () => {
   it("every preset is listed", () => {
     assert.deepEqual(PRESETS.toSorted(), Object.keys(RACIALS_IN).toSorted());
   });
@@ -324,12 +323,15 @@ describe("the presets cast the on-use racials when granted (decision 6, under th
   }
 });
 
-describe("combat-swords leaves Berserking and Eureka! out (#284 link cap)", () => {
-  it("a Troll or a Gnome never casts them there", () => {
+describe("combat-swords casts Berserking and Eureka! too (Scout, 2 Nov 2026)", () => {
+  it("a Troll or a Gnome casts its racial at the pull, and only its own", () => {
     for (const { race, ability } of ON_USE) {
       const { casts } = fought(1, presetConfig(COMBAT, race), FIVE_MINUTES);
-      assert.ok(casts.length > 0, race);
-      assert.ok(!casts.some((c) => c.ability === ability), race);
+      const own = casts.filter((c) => c.ability === ability);
+      assert.ok(own.length > 0, race);
+      assert.equal(own[0].time, 0, race);
+      const other = ON_USE.find((o) => o.race !== race).ability;
+      assert.ok(!casts.some((c) => c.ability === other), race);
     }
   });
 });

@@ -20,9 +20,8 @@ const ASSASSINATION = "assassination-daggers";
 
 // Each preset opens with the on-use racial rules (#278, #279, Decision 6),
 // which the links predate; the rest is the link's. Each is guarded by
-// abilityGranted only. combat-swords has Blood Fury and Elune's Light only:
-// Berserking and Eureka! would take its link over 2,048 characters (#284),
-// so they are in the dagger presets alone (#279, an assumption).
+// abilityGranted only. Every preset has all four (Combat too, Scout,
+// 2 Nov 2026, #315).
 // test/on-use-racials.test.js and test/berserking-eureka.test.js check the
 // racial rules and that, with no race, they change no fight.
 const racialRule = (ability) => ({
