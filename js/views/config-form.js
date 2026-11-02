@@ -155,10 +155,16 @@ export const RACIAL_CHIPS = Object.freeze({
   off: "No DPS effect",
   later: "Not simulated yet",
 });
-// An on-use racial needs a rule that casts it (#278); no built-in rotation
-// has one.
-export const ON_USE_NOTE =
-  "A rotation rule has to cast it; the built-in rotations don't.";
+// An on-use racial needs a rule that casts it (#278). Each preset rotation
+// opens with one per on-use racial, guarded by "ability granted" (#315,
+// data/rotation-presets.js onUseRacialRules); the default rotation has none.
+// The second sentence says whether the rotation the run uses casts it.
+export const ON_USE_NOTE = "The preset rotations use it on cooldown.";
+export const ON_USE_CAST = {
+  yes: "Your rotation casts it.",
+  no: "Your rotation has no rule for it, so it isn't used.",
+  unknown: "Your own rotation needs a rule to cast it.",
+};
 
 const pluralType = (type) => `${capitalised(type)}s`;
 
@@ -177,9 +183,17 @@ export function racialChip({ status }) {
 
 // The plain line under a racial's name: what it does. One with no DPS
 // effect gives the effects data's reason; the rest give the racial's own
-// text, an on-use racial adds ON_USE_NOTE, and a mob-type racial the targets
-// it is for.
-export function racialLineText({ status, text, reason, onUse, mobTypes }) {
+// text, an on-use racial adds ON_USE_NOTE and whether the rotation casts it
+// (casts: true, false, or null for not known), and a mob-type racial the
+// targets it is for.
+export function racialLineText({
+  status,
+  text,
+  reason,
+  onUse,
+  casts = null,
+  mobTypes,
+}) {
   if (status === "noDpsEffect") {
     return reason ?? text;
   }
@@ -188,7 +202,13 @@ export function racialLineText({ status, text, reason, onUse, mobTypes }) {
     return `${text} Only against ${types}, and the target isn't one.`;
   }
   if (status === "simulated" && onUse) {
-    return `${text} ${ON_USE_NOTE}`;
+    const cast =
+      casts === null
+        ? ON_USE_CAST.unknown
+        : casts
+          ? ON_USE_CAST.yes
+          : ON_USE_CAST.no;
+    return `${text} ${ON_USE_NOTE} ${cast}`;
   }
   return text;
 }

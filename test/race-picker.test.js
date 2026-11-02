@@ -30,6 +30,7 @@ import { createStore } from "../js/store.js";
 import { characterRows } from "../js/views/character-screens.js";
 import {
   NO_RACE_LABEL,
+  ON_USE_CAST,
   ON_USE_NOTE,
   RACIAL_CHIPS,
   racialChip,
@@ -239,7 +240,11 @@ describe("#321: each racial's plain line", () => {
     const by = (id) => all.find((racial) => racial.id === id);
     const fury = by("orc.blood-fury");
     assert.equal(racialChip(fury).text, "Simulated");
-    assert.ok(racialLineText(fury).endsWith(ON_USE_NOTE));
+    // Not known: the line says the presets cast it and yours needs a rule.
+    assert.equal(
+      racialLineText(fury),
+      `${fury.text} ${ON_USE_NOTE} ${ON_USE_CAST.unknown}`,
+    );
     for (const racial of all.filter(({ status }) => status === "noDpsEffect")) {
       assert.equal(racialChip(racial).text, "No DPS effect");
       assert.equal(racialLineText(racial), racial.reason);

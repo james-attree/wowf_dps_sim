@@ -342,12 +342,15 @@ export function raceOptions(catalogue = raceCatalogue) {
 // each racial with its own text and how it stands in the fight
 // (js/racials.js racialStatus against the page's target), with the effects
 // data's one-line reason for one that does nothing or is not simulated.
-// onUse is an on-use racial a rotation rule casts; mobTypes the targets a
-// mob-type racial is for. The view words it.
+// onUse is an on-use racial a rotation rule casts; casts, for one, whether
+// `rotation` (the one the run uses) has a rule that casts it, or null with no
+// rotation given; mobTypes the targets a mob-type racial is for. The view
+// words it.
 export function raceInfo(
   id,
   catalogue = raceCatalogue,
   effects = RACIAL_EFFECTS,
+  rotation = null,
 ) {
   const race = id === null || id === undefined ? undefined : catalogue.get(id);
   if (race === undefined) {
@@ -366,11 +369,21 @@ export function raceInfo(
         status: racialStatus(racial.id, effects),
         reason: entry.noDpsEffect ?? entry.notSimulated ?? null,
         onUse: entry.ability !== undefined,
+        casts:
+          entry.ability === undefined || rotation === null
+            ? null
+            : (rotation.rules ?? []).some(
+                (rule) => rule.action === entry.ability,
+              ),
         mobTypes: entry.mobTypes ?? null,
       };
     }),
   };
 }
+
+// `now` when it says what `was` said, so the slice keeps its identity.
+const sameRace = (was, now) =>
+  was !== undefined && sameJson(was, now) ? was : now;
 
 function poisonsInfo(values) {
   return Object.fromEntries(
@@ -551,10 +564,11 @@ export function summaryOf(rotation, { talents = null, errors = 0 } = {}) {
       // With no talents a talent's skip is that, so the line says it
       // plainly rather than "…is not locked by the build … — skipped: no
       // Blade Flurry talent" (Fran's #232 QA, nit 4; #234). A skip no talent
-      // lifts (talent null) is the same with any build, so it says why
-      // (#244, P1).
+      // lifts (talent null: a baseline ability's check, or an on-use racial
+      // the race doesn't grant, #280) is the same with any build, so it says
+      // why (#244, P1).
       return talents.build.selected || skip.talent === null
-        ? `${line} — skipped: ${skip.text}`
+        ? `${line} — skipped: ${skip.phrase}`
         : `${line} — skipped with no talents`;
     }),
     stale: errors > 0 ? staleNote(errors) : null,
@@ -580,7 +594,7 @@ export function formFromConfig(config, revision = 0) {
     poisonOptions: poisonOptions(),
     poisons: poisonsInfo(formValues(config)),
     raceOptions: raceOptions(),
-    race: raceInfo(config.race),
+    race: raceInfo(config.race, raceCatalogue, RACIAL_EFFECTS, config.rotation),
     levels: levelsInfo(characterLevel(config)),
     revision,
     canUndo: false,
@@ -741,12 +755,18 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
             errors: check.errors.length,
           }),
           poisons: poisonsInfo(next.values),
-          // The same object while the race is the same, so the view redraws
-          // the racials only when it changes.
-          race:
-            (next.race?.id ?? null) === (next.values.race ?? null)
-              ? next.race
-              : raceInfo(next.values.race),
+          // The same object while it says the same, so the view redraws
+          // the racials only when the race, or what the run's rotation
+          // casts, changes.
+          race: sameRace(
+            next.race,
+            raceInfo(
+              next.values.race,
+              raceCatalogue,
+              RACIAL_EFFECTS,
+              (config ?? store.get().config).rotation,
+            ),
+          ),
           levels: levelsInfo(characterLevel(config ?? store.get().config)),
           canUndo: false,
         },
