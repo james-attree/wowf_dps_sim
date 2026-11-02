@@ -222,6 +222,7 @@ describe("the readable summary in docs/rotation.md", () => {
       "presetRotation.combat",
       "presetRotation.assassination",
       "presetRotation.subtlety",
+      "presetRotation.combatDaggers",
     ]) {
       assert.ok(presets.includes(`\`${row}\``), row);
     }

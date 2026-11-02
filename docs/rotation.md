@@ -1072,6 +1072,42 @@ will, and will set `config.talentLevel` to 60 when the config is below it
 `referencePoison(build, hand)` (a hand's poison id for `config.poisons`). A
 build carries no character sheet.
 
+### combat-daggers
+
+Issue [#328](https://github.com/james-attree/wowf_dps_sim/issues/328). James's
+Combat daggers link as sent: every finisher at 4 combo points, Slice and Dice
+recast just before it ends or early at full energy, then Eviscerate, and
+Backstab to build. Blade Flurry and Adrenaline Rush are talented but no rule
+casts them, so the talent check that guards them in combat-swords does not
+apply. Written for daggers and its reference build (16/33/2, the dagger
+presets' daggers, Instant Poison on the main hand and Deadly on the off hand:
+the link has no poisons, so it follows the dagger presets, an assumption). Its
+summary:
+
+```text
+Combat daggers
+1. Blood Fury if Blood Fury is granted
+2. Elune's Light if Elune's Light is granted
+3. Berserking if Berserking is granted
+4. Eureka! if Eureka! is granted
+5. Slice and Dice if CP >= 4 and Slice and Dice missing or < 1s left
+6. Slice and Dice if CP >= 4 and Slice and Dice missing or <= 5s left and Energy >= 100
+7. Eviscerate if CP >= 4
+8. Backstab if CP < 4
+```
+
+The numbers are `presetRotation.combatDaggers`:
+
+- 1 to 4: the on-use racials, cast only when the race grants them (above).
+- 5 and 6: Slice and Dice at `finisherComboPoints` (4) or more, with less than
+  `sliceAndDiceRecastSeconds` (1 s) left, or at most
+  `sliceAndDiceWindowSeconds` (5 s) left with `sliceAndDiceEnergy` (100)
+  energy.
+- 7: Eviscerate at 4 combo points or more.
+- 8: Backstab below 4 combo points: the builder. Its check is the link's, a
+  `resource` condition on `comboPoints`, which reads the same as a
+  `comboPoints` one.
+
 ## Import and export
 
 R6 ([#143](https://github.com/james-attree/wowf_dps_sim/issues/143)) writes a

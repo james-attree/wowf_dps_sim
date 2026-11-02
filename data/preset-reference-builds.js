@@ -147,4 +147,36 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     weapons: DAGGERS,
     poisons: poisonsOf("subtlety-daggers"),
   },
+  // James's Combat daggers build (issue #328, his share link): 16
+  // Assassination, 33 Combat and 2 Subtlety with Blade Flurry, Adrenaline
+  // Rush and Hack and Slash: 51 points. The dagger presets' daggers (the
+  // link's are the same). The link has no poisons: Instant MH / Deadly OH,
+  // as for the other dagger presets (#310's ruling; tagged assumption).
+  "combat-daggers": {
+    name: "Combat daggers (Backstab, Blade Flurry, Adrenaline Rush)",
+    talentLevel: LEVEL_60,
+    talents: {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.relentless-strikes": 1,
+      "assassination.lethality": 4,
+      "combat.improved-eviscerate": 3,
+      "combat.improved-sinister-strike": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.endurance": 2,
+      "combat.improved-sprint": 2,
+      "combat.flawless-execution": 1,
+      "combat.dual-wield-specialization": 5,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.adrenaline-rush": 1,
+      "subtlety.opportunity": 2,
+    },
+    weapons: DAGGERS,
+    poisons: poisonsOf("combat-daggers"),
+  },
 });

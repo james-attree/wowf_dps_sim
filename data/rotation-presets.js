@@ -33,6 +33,7 @@ const SLICE_AND_DICE = "slice-and-dice";
 const COMBAT = k("presetRotation.combat");
 const ASSASSINATION = k("presetRotation.assassination");
 const SUBTLETY = k("presetRotation.subtlety");
+const COMBAT_DAGGERS = k("presetRotation.combatDaggers");
 
 const comboPoints = (op, value) => ({ type: "comboPoints", op, value });
 const sliceAndDice = (op, value) => ({
@@ -290,6 +291,55 @@ export const ROTATION_PRESETS = deepFreeze([
           conditions: [
             granted("hemorrhage"),
             comboPoints("<", SUBTLETY.builderBelowComboPoints),
+          ],
+        },
+      ],
+    },
+  },
+  // Issue #328. Combat on daggers, James's link as sent: every finisher at
+  // 4 CP. Slice and Dice recast just before it ends, or early at full
+  // energy; Eviscerate; Backstab to build. Blade Flurry and Adrenaline Rush
+  // are talented but not in the rotation, so no rule casts them. The
+  // builder's combo point check is the link's (a resource condition on
+  // comboPoints, the same as a comboPoints one).
+  {
+    id: "combat-daggers",
+    name: "Combat daggers",
+    description:
+      "Finishers at 4 CP: Slice and Dice kept up (recast early at full energy), then Eviscerate; Backstab to build. Blade Flurry and Adrenaline Rush are talented but not cast.",
+    rotation: {
+      schemaVersion: 1,
+      name: "Combat daggers",
+      rules: [
+        ...onUseRacialRules(),
+        {
+          action: SLICE_AND_DICE,
+          conditions: [
+            comboPoints(">=", COMBAT_DAGGERS.finisherComboPoints),
+            sliceAndDice("<", COMBAT_DAGGERS.sliceAndDiceRecastSeconds),
+          ],
+        },
+        {
+          action: SLICE_AND_DICE,
+          conditions: [
+            comboPoints(">=", COMBAT_DAGGERS.finisherComboPoints),
+            sliceAndDice("<=", COMBAT_DAGGERS.sliceAndDiceWindowSeconds),
+            energy(">=", COMBAT_DAGGERS.sliceAndDiceEnergy),
+          ],
+        },
+        {
+          action: "eviscerate",
+          conditions: [comboPoints(">=", COMBAT_DAGGERS.finisherComboPoints)],
+        },
+        {
+          action: "backstab",
+          conditions: [
+            {
+              type: "resource",
+              resource: "comboPoints",
+              op: "<",
+              value: COMBAT_DAGGERS.finisherComboPoints,
+            },
           ],
         },
       ],

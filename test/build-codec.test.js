@@ -16,7 +16,12 @@ import {
   shareUrl,
   withoutLinkParam,
 } from "../js/build-codec.js";
-import { listPresets, loadPreset } from "../js/rotation-presets.js";
+import {
+  listPresets,
+  loadPreset,
+  referenceBuild,
+} from "../js/rotation-presets.js";
+const COMBAT_DAGGERS = "combat-daggers";
 import { defaultRotation } from "../js/rotation-default.js";
 import { k } from "../data/constants.js";
 import { LINK_CAP } from "../js/views/share-link.js";
@@ -321,6 +326,28 @@ describe("build codec: the share link's address and length (#284)", () => {
       const length = url.length - address.length;
       assert.ok(length <= PRESET_LINK_MAX, `${id}: ${length}`);
     }
+  });
+
+  // #328: Combat daggers as a card pick puts it in, its whole reference
+  // build and rotation, at the longest seed.
+  it("keeps the Combat daggers link, with its reference build, under the test budget", () => {
+    const build = referenceBuild(COMBAT_DAGGERS);
+    const d = setupDefaults();
+    const config = loadPreset(COMBAT_DAGGERS, {
+      ...d.config,
+      talents: { ...build.talents },
+      talentLevel: build.talentLevel,
+      weapons: structuredClone(build.weapons),
+      poisons: { ...build.poisons },
+    });
+    const setup = { config, run: { ...d.run, seed: MAX_SEED } };
+    const url = shareUrl(PAGES, setup);
+    assert.ok(url.length < PRESET_LINK_MAX, String(url.length));
+    assert.deepEqual(
+      decodeSetup(new URL(url).searchParams.get(LINK_PARAM)).setup.config
+        .talents,
+      build.talents,
+    );
   });
 
   it("goes over the 8 KB cap with a long rotation, and that link still reads", () => {

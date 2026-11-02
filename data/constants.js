@@ -66,6 +66,7 @@ const WS_SOD_PRESETS =
 // The retuned presets (#310): James's builds, from his share links (relayed
 // by Scout, approved by James).
 const PRESETS_310 = "James, 2 Nov 2026, issue #310";
+const PRESETS_328 = "James, 2 Nov 2026, issue #328";
 // James's #295 rulings of 2 Nov 2026, relayed by Scout on PR #316.
 const JAMES_295 = "James, 2 Nov 2026, issue #295";
 
@@ -1801,10 +1802,11 @@ export const CONSTANTS = {
       "combat-swords": { mainHand: "deadly", offHand: "instant" },
       "assassination-daggers": { mainHand: "instant", offHand: "deadly" },
       "subtlety-daggers": { mainHand: "instant", offHand: "deadly" },
+      "combat-daggers": { mainHand: "instant", offHand: "deadly" },
     },
     "poison ids per preset",
     ASSUMPTION,
-    `${PRESETS_310}: James ruling, 2 Nov 2026 (his three share links): Combat swords carries Deadly MH / Instant OH, Assassination and Subtlety Instant MH / Deadly OH. It replaces the 1 Nov ruling (issue #272, relayed by Scout on PR #304) of Instant MH / Deadly OH for every build; tagged assumption`,
+    `${PRESETS_310}: James ruling, 2 Nov 2026 (his three share links): Combat swords carries Deadly MH / Instant OH, Assassination and Subtlety Instant MH / Deadly OH; Combat daggers (#328, whose link has no poisons) follows the dagger presets, Instant MH / Deadly OH. It replaces the 1 Nov ruling (issue #272, relayed by Scout on PR #304) of Instant MH / Deadly OH for every build; tagged assumption`,
     "The poison on each hand of each preset's reference build (data/preset-reference-builds.js), keyed by the preset id, each in the SimConfig poisons shape (config.poisonIds). #273's button puts them into config.poisons. With Deadly on either hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.",
     false,
   ),
@@ -1862,6 +1864,19 @@ export const CONSTANTS = {
     ASSUMPTION,
     `${PRESETS_310}: James ruling, 2 Nov 2026 (his share link's "Subtlety (edited)" rotation); tagged assumption`,
     "The Subtlety preset's numbers (data/rotation-presets.js). Rupture at ruptureComboPoints with under ruptureRecastSeconds of it left, Premeditation at premeditationMaxComboPoints or fewer, Preparation while Ghostly Strike is on cooldown, Slice and Dice at sliceAndDiceComboPoints or more with at least sliceAndDiceRuptureSeconds of Rupture and under sliceAndDiceRecastSeconds of Slice and Dice, then Ghostly Strike and Hemorrhage under builderBelowComboPoints. No Eviscerate, Ambush or Backstab.",
+    true,
+  ),
+  "presetRotation.combatDaggers": entry(
+    {
+      finisherComboPoints: 4,
+      sliceAndDiceRecastSeconds: 1,
+      sliceAndDiceWindowSeconds: 5,
+      sliceAndDiceEnergy: 100,
+    },
+    "CP, s, s, energy",
+    ASSUMPTION,
+    `${PRESETS_328}: James ruling, 2 Nov 2026 (his share link's "Combat Daggers" rotation); tagged assumption`,
+    "The Combat daggers preset's numbers (data/rotation-presets.js). Every finisher at finisherComboPoints or more: Slice and Dice under sliceAndDiceRecastSeconds left, or at most sliceAndDiceWindowSeconds left with sliceAndDiceEnergy energy, then Eviscerate; Backstab under finisherComboPoints. Blade Flurry and Adrenaline Rush are talented but not cast (James's build as sent).",
     true,
   ),
   "config.minWeaponSpeed": entry(
