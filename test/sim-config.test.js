@@ -78,7 +78,8 @@ describe("defaultConfig", () => {
         critChance: k("character.critChance"),
         bonusHitChance: k("character.bonusHitChance"),
         haste: k("character.haste"),
-        weaponSkill: k("character.level") * 5,
+        // null: level x 5, 300 at 60 (#290).
+        weaponSkill: null,
       },
       weapons: {
         mainHand: {
@@ -94,7 +95,7 @@ describe("defaultConfig", () => {
           type: k("weapon.offHand").type,
         },
       },
-      target: { behind: k("target.behind") },
+      target: { behind: k("target.behind"), level: null },
       talents: {},
       talentLevel: 60,
       poisons: { mainHand: null, offHand: null },

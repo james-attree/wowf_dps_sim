@@ -462,13 +462,16 @@ describe("every value is a table entry that changes the result (#295)", () => {
 });
 
 describe("config.character.weaponSkill (#295)", () => {
-  it("defaults to 300 and an old config reads as the default (G4)", () => {
-    assert.equal(defaultConfig().character.weaponSkill, 300);
-    assert.equal(normalizeConfig({}).character.weaponSkill, 300);
+  // #290: the default is null, which follows the level (level x 5: 300 at
+  // 60), so a level change never leaves a stored skill above its cap.
+  it("defaults to null (300 at 60) and an old config reads as the default (G4)", () => {
+    assert.equal(defaultConfig().character.weaponSkill, null);
+    assert.equal(normalizeConfig({}).character.weaponSkill, null);
+    assert.equal(weaponSkillFor(normalizeConfig({})), 300);
     assert.equal(
       normalizeConfig({ character: { attackPower: 900 } }).character
         .weaponSkill,
-      300,
+      null,
     );
     assert.equal(
       normalizeConfig({ character: { weaponSkill: 305 } }).character
