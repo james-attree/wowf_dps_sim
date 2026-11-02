@@ -1,0 +1,152 @@
+{
+  "config": {
+    "weapons": {
+      "mainHand": {
+        "min": 73,
+        "max": 137,
+        "speed": 1.8,
+        "type": "dagger"
+      },
+      "offHand": {
+        "min": 57,
+        "max": 107,
+        "speed": 1.6,
+        "type": "dagger"
+      }
+    },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.relentless-strikes": 1,
+      "combat.improved-eviscerate": 3,
+      "combat.improved-sinister-strike": 2,
+      "combat.precision": 3,
+      "subtlety.camouflage": 5,
+      "subtlety.master-of-deception": 3,
+      "subtlety.setup": 1,
+      "subtlety.elusiveness": 2,
+      "subtlety.dirty-tricks": 2,
+      "subtlety.initiative": 3,
+      "subtlety.ghostly-strike": 1,
+      "subtlety.premeditation": 1,
+      "subtlety.serrated-blades": 3,
+      "subtlety.dirty-deeds": 2,
+      "subtlety.preparation": 1,
+      "subtlety.hemorrhage": 1,
+      "subtlety.quietus": 5,
+      "subtlety.thousand-cuts": 1
+    },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Subtlety (edited)",
+      "rules": [
+        {
+          "action": "rupture",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 5
+            },
+            {
+              "type": "debuffRemaining",
+              "debuff": "rupture",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "premeditation",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "premeditation"
+            },
+            {
+              "type": "comboPoints",
+              "op": "<=",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "action": "preparation",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "preparation"
+            },
+            {
+              "type": "cooldownReady",
+              "ability": "preparation"
+            },
+            {
+              "type": "cooldownReady",
+              "ability": "ghostly-strike",
+              "ready": false
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 3
+            },
+            {
+              "type": "debuffRemaining",
+              "debuff": "rupture",
+              "op": ">=",
+              "value": 10
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "action": "ghostly-strike",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "ghostly-strike"
+            },
+            {
+              "type": "comboPoints",
+              "op": "<",
+              "value": 5
+            },
+            {
+              "type": "cooldownReady",
+              "ability": "ghostly-strike"
+            }
+          ]
+        },
+        {
+          "action": "hemorrhage",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "hemorrhage"
+            },
+            {
+              "type": "comboPoints",
+              "op": "<",
+              "value": 5
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "run": {
+    "seed": 1093938626
+  }
+}

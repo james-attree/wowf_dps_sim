@@ -1,0 +1,171 @@
+{
+  "config": {
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.relentless-strikes": 1,
+      "assassination.lethality": 5,
+      "assassination.cold-blood": 1,
+      "combat.improved-eviscerate": 3,
+      "combat.improved-sinister-strike": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.endurance": 2,
+      "combat.improved-sprint": 2,
+      "combat.flawless-execution": 1,
+      "combat.dual-wield-specialization": 5,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.adrenaline-rush": 1
+    },
+    "poisons": {
+      "mainHand": "deadly",
+      "offHand": "instant"
+    },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Combat swords (edited)",
+      "rules": [
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            },
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 3
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            {
+              "type": "abilityUnlocked",
+              "ability": "adrenaline-rush"
+            },
+            {
+              "type": "cooldownReady",
+              "ability": "adrenaline-rush"
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": "<",
+              "value": 25
+            },
+            {
+              "type": "auraActive",
+              "aura": "slice-and-dice"
+            }
+          ]
+        },
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            {
+              "type": "abilityUnlocked",
+              "ability": "blade-flurry"
+            },
+            {
+              "type": "cooldownReady",
+              "ability": "blade-flurry"
+            },
+            {
+              "type": "auraActive",
+              "aura": "slice-and-dice"
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "cold-blood"
+            },
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 5
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 5
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">=",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "action": "sinister-strike",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": "<",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 3
+            },
+            {
+              "type": "energyToCap",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "run": {
+    "seed": 1093938626
+  }
+}

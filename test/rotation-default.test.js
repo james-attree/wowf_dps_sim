@@ -4,7 +4,6 @@ import { readFile } from "node:fs/promises";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { CONSTANTS } from "../data/constants.js";
-import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { defaultRotation } from "../js/rotation-default.js";
 import { compileRotation } from "../js/rotation-interpreter.js";
 import { rotationShapeProblems } from "../js/rotation-schema.js";
@@ -95,15 +94,42 @@ describe("defaultRotation", () => {
     );
   });
 
-  it("refreshes Slice and Dice with the combat-swords preset's rules (#155)", () => {
-    const preset = ROTATION_PRESETS.find(
-      (entry) => entry.id === "combat-swords",
-    );
+  // #155 gave the default the combat-swords preset's two refresh rules of
+  // that time (#122). #310 retuned the preset to James's build; the default
+  // keeps the #155 pair, so it is pinned here rather than read from the
+  // preset.
+  it("refreshes Slice and Dice with the #155 pair of rules (#122, #310)", () => {
     const ofSliceAndDice = (rotation) =>
       rotation.rules.filter((rule) => rule.action === "slice-and-dice");
-    const rules = ofSliceAndDice(defaultRotation());
-    assert.equal(rules.length, 2);
-    assert.deepEqual(rules, ofSliceAndDice(preset.rotation));
+    const finisher = CONSTANTS["rotation.finisherComboPoints"].value;
+    const { windowSeconds, recastSeconds } =
+      CONSTANTS["rotation.pooling"].value;
+    const points = { type: "comboPoints", op: ">=", value: finisher };
+    const left = (op, value) => ({
+      type: "auraRemaining",
+      aura: "slice-and-dice",
+      op,
+      value,
+    });
+    assert.deepEqual(ofSliceAndDice(defaultRotation()), [
+      {
+        action: "slice-and-dice",
+        conditions: [points, left("<", recastSeconds)],
+      },
+      {
+        action: "slice-and-dice",
+        conditions: [
+          points,
+          left("<=", windowSeconds),
+          {
+            type: "resource",
+            resource: "energy",
+            op: ">=",
+            value: CONSTANTS["energy.max"].value,
+          },
+        ],
+      },
+    ]);
     // Only those rules changed: the rest is the rotation before #155.
     const rest = defaultRotation().rules.filter(
       (rule) => rule.action !== "slice-and-dice",

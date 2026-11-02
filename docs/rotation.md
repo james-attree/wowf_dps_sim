@@ -814,68 +814,75 @@ with no preset is the fight it was before. The page's "Fight setup" form lists
 the presets with `listPresets` and loads one with `presetRotation`
 (`js/config-form.js`, #151).
 
-A preset's numbers are read from `data/constants.js` (the finisher's combo
-points, the Blade Flurry cost, the energy cap, `rotation.pooling`), so they keep
-their provenance. A preset is written for one weapon setup and says so.
+A preset's numbers are read from `data/constants.js`, each preset from its own
+row (`presetRotation.combat`, `presetRotation.assassination` and
+`presetRotation.subtlety`), so they keep their provenance. Since
+[#310](https://github.com/james-attree/wowf_dps_sim/issues/310) each preset is
+James's own rotation from his share links (James ruling, 2 Nov 2026), rule for
+rule and condition for condition in the link's order, with one fold in Combat
+(below); `test/presets-310.test.js` compares each with the decoded link in
+`test/fixtures/presets-310/`. The rows are tagged `assumption` with `retune`
+on. A preset is written for one weapon setup and says so.
 
 ### combat-swords
 
-Slice and Dice kept up and recast just before it ends, Eviscerate with Cold
-Blood, Sinister Strike to build, Blade Flurry and Adrenaline Rush on cooldown.
-It casts nothing that needs a dagger, so it runs on any main hand. Its summary
-(`summarizeRotation`, checked against this block by `test/rotation-presets.test.js`):
+Slice and Dice recast at 3 combo points or more just before it ends,
+Adrenaline Rush (under 25 energy) and Blade Flurry with Slice and Dice up,
+Eviscerate at 5 combo points with Cold Blood while Slice and Dice has 12 s or
+more, Sinister Strike to build, and Eviscerate at 3 combo points or more to
+spend energy at the cap. It casts nothing that needs a dagger, so it runs on
+any main hand. Its summary (`summarizeRotation`, checked against this block by
+`test/rotation-presets.test.js`):
 
 ```text
 Combat swords
-1. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Energy >= 25
-2. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready
-3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
-4. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 5s left and Energy >= 100
-5. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 5s left
-6. Eviscerate if CP >= 5 and Slice and Dice has > 5s left
-7. Sinister Strike if CP < 5
+1. Slice and Dice if CP >= 3 and Slice and Dice missing or < 1s left
+2. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready and Energy < 25 and Slice and Dice is up
+3. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Slice and Dice is up
+4. Cold Blood if Cold Blood is granted and CP >= 5 and Slice and Dice has > 5s left
+5. Eviscerate if CP >= 5 and Slice and Dice has >= 12s left
+6. Sinister Strike if CP < 5
+7. Eviscerate if CP >= 3 and time to energy cap < 1s
 ```
 
-Rules 1 and 2 carry `abilityUnlocked` because a rule for an on-GCD ability that
-holds and cannot be cast ends the walk
-([The interpreter](#the-interpreter)): without it, a build with Blade Flurry or
-Adrenaline Rush locked would stop at that rule and cast nothing else. Rule 5 is
-Cold Blood (off the GCD) with `abilityGranted`, so it is cast right before the
-Eviscerate that follows it, and only when the build or the host grants it.
+The numbers are `presetRotation.combat`:
+
+- 1: Slice and Dice at `sliceAndDiceComboPoints` (3) or more with less than
+  `sliceAndDiceRecastSeconds` (1 s) left. If it holds and the energy is short,
+  the walk stops: the rotation pools energy for it. James's link opens with a
+  second Slice and Dice rule at 5 combo points with the same time; it is the
+  same rule with more points, so it never decides, and it is folded into this
+  one (the same damage and casts in all 1,500 fights checked: 500 seeds at
+  60 s, 120 s and 300 s; `test/presets-310.test.js` repeats it on 40 seeds).
+- 2: Adrenaline Rush under `adrenalineRushEnergyBelow` (25) energy, with Slice
+  and Dice up.
+- 3: Blade Flurry with Slice and Dice up. The link gives it no energy
+  condition, so when it holds and its energy is short the walk pools for it.
+- 2 and 3 carry `abilityUnlocked` because a rule for an on-GCD ability that
+  holds and cannot be cast ends the walk
+  ([The interpreter](#the-interpreter)): without it, a build with Blade Flurry
+  or Adrenaline Rush locked would stop at that rule and cast nothing else.
+- 4: Cold Blood (off the GCD) with `abilityGranted` at
+  `finisherComboPoints` (5) while Slice and Dice has more than
+  `coldBloodSliceAndDiceSeconds` (5 s), so its charge goes on the Eviscerate
+  that follows.
+- 5: Eviscerate at 5 combo points while Slice and Dice has
+  `eviscerateSliceAndDiceSeconds` (12 s) or more. Below that, with 5 combo
+  points, no rule but 7 holds, so the rotation waits.
+- 6: Sinister Strike below 5 combo points.
+- 7: Eviscerate at 3 combo points or more when energy is less than
+  `energyToCapSeconds` (1 s) from the cap, so the energy is not wasted.
 
 #### Slice and Dice and energy (#122)
 
-Issue #122 says an uptime buff should be recast as late as it can be: energy
-generated while the buff is still up is energy the next cast does not have to
-find, so a recast with time left throws part of the buff away. Its rule: when
-Slice and Dice is within 5 seconds of ending, keep the energy for it and recast
-it with less than 1 second left (the GCD is 1 second), or at once if energy
-is at its maximum, since waiting then wastes regeneration.
-
-The placeholder rotation recasts Slice and Dice whenever it has 5 combo points
-and 10 seconds or less are left (`rotation.sliceAndDiceRefreshSeconds`), so with
-the points and the energy it recasts early and loses the rest of the buff. In
-the reference build the fight is bound by energy and combo points, so the
-recast already comes with about 0.2 seconds left and the early cut-off is small;
-it grows with a build that has more energy (talents). The measured effect of the
-preset is in the pull request that added it.
-
-The preset's rules are:
-
-- 3: Slice and Dice at 5 combo points with less than 1 second left
-  (`rotation.pooling.recastSeconds`). If it holds and the energy is short, the
-  walk stops: the rotation waits for energy and casts nothing else.
-- 4: the same with 5 seconds or less left (`rotation.pooling.windowSeconds`),
-  only at the energy cap, so full energy is spent at once.
-- 5 and 6: Cold Blood and Eviscerate only when Slice and Dice has more than 5
-  seconds left. Inside the window, with 5 combo points and energy below the
-  cap, no rule holds and the rotation waits.
-- 7: Sinister Strike below 5 combo points.
-
-The window and recast numbers (5 s and 1 s) are the issue's, tagged
-`assumption` with `retune` on in `data/constants.js`. Slice and Dice is only
-recast at 5 combo points, so a Slice and Dice that ends with fewer is not
-protected: it lapses until the points are built (a known gap, not handled here).
+From [#122](https://github.com/james-attree/wowf_dps_sim/issues/122) to #310
+this preset kept Slice and Dice with a pair of rules: recast at 5 combo points
+with less than `rotation.pooling.recastSeconds` (1 s) left, or with at most
+`rotation.pooling.windowSeconds` (5 s) left at the energy cap, with Eviscerate
+and the builder held inside the window so energy was pooled for the recast.
+The placeholder rotation still uses that pair (#155, example 1 below); the
+preset now recasts at 3 combo points (rule 1) and holds Eviscerate below 12 s
+of Slice and Dice (rule 5) instead.
 
 #### Hazards
 
@@ -912,89 +919,75 @@ protected: it lapses until the points are built (a known gap, not handled here).
 
 ### assassination-daggers
 
-Issue [#272](https://github.com/james-attree/wowf_dps_sim/issues/272).
-Slice and Dice, Rupture and Venom kept up, Eviscerate only as a fallback (the
-reference build never reaches it), Cold Blood on cooldown for Mutilate,
-Mutilate to build. It is written for the dagger alternate (Perdition's Blade
-and Core Hound Tooth) and its reference build
+Issues [#272](https://github.com/james-attree/wowf_dps_sim/issues/272) and
+#310. Finishers at 4 combo points: Slice and Dice kept up, Venom kept up,
+Eviscerate with spare energy, Cold Blood for Mutilate, Mutilate to build. No
+Rupture. It is written for daggers and its reference build
 (`data/preset-reference-builds.js`, below): Mutilate needs a dagger in both
 hands, so on other weapons its rule is passed over. Its summary:
 
 ```text
 Assassination
-1. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
-2. Slice and Dice if CP >= 5 and Slice and Dice missing or <= 5s left and Energy >= 100
-3. Rupture if CP >= 5 and Rupture on the target missing or < 1s left
-4. Venom if Venom is granted and CP >= 5 and Venom missing or <= 0s left
-5. Eviscerate if CP >= 5 and Slice and Dice has > 5s left
-6. Cold Blood if Cold Blood is granted and CP < 5
-7. Mutilate if Mutilate is granted and CP < 5
+1. Slice and Dice if CP >= 4 and Slice and Dice missing or < 1s left
+2. Slice and Dice if CP >= 4 and Slice and Dice missing or <= 5s left and Energy >= 100
+3. Venom if Venom is granted and CP >= 4 and Venom missing or <= 3s left
+4. Eviscerate if CP >= 4 and Energy >= 75
+5. Cold Blood if Cold Blood is granted and CP < 5
+6. Mutilate if Mutilate is granted and CP < 4
 ```
 
-- 1 and 2: the Slice and Dice pair of combat-swords (#122).
-- 3: Rupture at 5 combo points with less than 1 second left on the target
-  (`rotation.pooling.recastSeconds`).
-- 4: Venom at 5 combo points while its aura is down. It may go uncast in a
-  short fight (0 casts on 12 of 200 seeds at 60 s, mean 0.94; cast on all 200
-  at 300 s), within Scout's #304 rule for a proc-reliant ability (below).
-- 5: Eviscerate only when none of those three is due, the fallback finisher
-  (the issue lists none). With the reference build, 5 combo points always
-  go to one of the three: Eviscerate was cast 0 times on all 200 seeds
-  measured, at 60 s and at 300 s, with its poisons.
-- 6: Cold Blood below 5 combo points, so its charge goes on the next Mutilate
-  (both hands crit, and Seal Fate rolls on each). Cold Blood does nothing for
-  Rupture or Venom, and Eviscerate is not cast here.
-- 7: Mutilate below 5 combo points.
+The numbers are `presetRotation.assassination`:
+
+- 1 and 2: Slice and Dice at `finisherComboPoints` (4) with less than
+  `sliceAndDiceRecastSeconds` (1 s) left, or with at most
+  `sliceAndDiceWindowSeconds` (5 s) left at `sliceAndDiceEnergy` (100) energy.
+- 3: Venom at 4 combo points when its aura is down or has
+  `venomRecastSeconds` (3 s) or less left. With the reference build it is cast
+  on every seed (200 seeds at 60 s and at 300 s).
+- 4: Eviscerate at 4 combo points with `eviscerateEnergy` (75) energy or more.
+  With the reference build it was cast on 173 of 200 seeds at 60 s (mean 1.1)
+  and on all 200 at 300 s (mean 6.2).
+- 5: Cold Blood below `coldBloodBelowComboPoints` (5), so its charge goes on
+  the next Mutilate or finisher.
+- 6: Mutilate below 4 combo points.
 
 No Expose Armor and no stealth opener.
 
 ### subtlety-daggers
 
-Issue [#272](https://github.com/james-attree/wowf_dps_sim/issues/272).
-Premeditation and Ghostly Strike on cooldown and Preparation to reset them,
-Slice and Dice kept up, Rupture at 5 CP when Slice and Dice allows it (not in
-every 60 s fight), Eviscerate only as a fallback (the reference build never
-reaches it), Ambush when Cutthroat allows it,
-Hemorrhage kept up, Backstab to build. Written for the dagger alternate and
-its reference build (the #271 Cutthroat build). Its summary:
+Issues [#272](https://github.com/james-attree/wowf_dps_sim/issues/272) and
+#310. Rupture kept up at 5 combo points, Premeditation, Preparation once Ghostly
+Strike is on cooldown, Slice and Dice at 3 combo points while Rupture has 10 s
+or more, Ghostly Strike on cooldown and Hemorrhage to build. No Eviscerate, no
+Ambush and no Backstab. Written for daggers and its reference build (the
+Hemorrhage and Ghostly Strike build of James's link). Its summary:
 
 ```text
 Subtlety
-1. Premeditation if Premeditation is granted and CP <= 3
-2. Preparation if Preparation is granted and Preparation is ready and Ghostly Strike is on cooldown
-3. Slice and Dice if CP >= 5 and Slice and Dice missing or < 1s left
-4. Rupture if CP >= 5 and Rupture on the target missing or < 1s left
-5. Eviscerate if CP >= 5 and Slice and Dice has > 5s left
-6. Ambush if CP < 5
-7. Ghostly Strike if Ghostly Strike is granted and CP < 5 and Ghostly Strike is ready
-8. Hemorrhage if Hemorrhage is granted and CP < 5 and Hemorrhage on the target missing or < 1s left
-9. Backstab if CP < 5
+1. Rupture if CP >= 5 and Rupture on the target missing or < 1s left
+2. Premeditation if Premeditation is granted and CP <= 3
+3. Preparation if Preparation is granted and Preparation is ready and Ghostly Strike is on cooldown
+4. Slice and Dice if CP >= 3 and Rupture on the target has >= 10s left and Slice and Dice missing or < 2s left
+5. Ghostly Strike if Ghostly Strike is granted and CP < 5 and Ghostly Strike is ready
+6. Hemorrhage if Hemorrhage is granted and CP < 5
 ```
 
-- 1: Premeditation (off the GCD) when its 2 combo points fit under 5. An
-  off-GCD rule that cannot be cast is passed over, so it needs no "is ready".
-- 2: Preparation while Ghostly Strike is on cooldown. Premeditation is cast at
-  the start (rule 1), so it is on cooldown then too, and Preparation finishes
-  both (`preparation.resets`). Its cooldown is 600 s, so it is cast once in a
-  fight of 10 minutes or less. The measured effect is in the pull request for
-  #272.
-- 3 to 5: Slice and Dice, Rupture and Eviscerate, as above, with only the
-  recast rule of the Slice and Dice pair: a share link of this preset must
-  stay under 2,048 characters (#284), and the full-energy rule never fired
-  with the reference build (the same DPS over 120 seeds at 60 s and 300 s
-  without it). Eviscerate, as in assassination-daggers, was cast 0 times on
-  all 200 seeds measured with the reference build and its poisons. Rupture
-  is not guaranteed in a short fight: at 60 s it was cast 0 times on 26 of
-  the 200 seeds (mean 1.11); at 300 s it was cast on all 200 (mean 4.11).
-- 6: Ambush below 5 combo points, with no condition on the cutthroat aura and
-  no lock or hint: it is passed over while the aura is down (no stealth, so a
-  Cutthroat proc from Backstab is the only way it is cast). It may go uncast
-  in a short fight (0 casts on 90 of 200 seeds at 60 s, mean 0.70; 2 of 200
-  at 300 s), within Scout's #304 rule for a proc-reliant ability: a mean above
-  0 at 60 s and cast on at least 95% of seeds at 300 s.
-- 7: Ghostly Strike when it is ready.
-- 8: Hemorrhage when its debuff on the target has less than 1 second left.
-- 9: Backstab below 5 combo points.
+The numbers are `presetRotation.subtlety`:
+
+- 1: Rupture at `ruptureComboPoints` (5) with less than `ruptureRecastSeconds`
+  (1 s) left on the target. With the reference build it is cast on every seed
+  (mean 4.2 at 60 s, 20.0 at 300 s, 200 seeds).
+- 2: Premeditation (off the GCD) at `premeditationMaxComboPoints` (3) or
+  fewer, so its 2 combo points fit under 5. An off-GCD rule that cannot be
+  cast is passed over, so it needs no "is ready".
+- 3: Preparation while Ghostly Strike is on cooldown; it finishes the
+  cooldowns of Premeditation and Ghostly Strike (`preparation.resets`). Its
+  cooldown is 600 s, so it is cast once in a fight of 10 minutes or less.
+- 4: Slice and Dice at `sliceAndDiceComboPoints` (3) or more while Rupture has
+  `sliceAndDiceRuptureSeconds` (10 s) or more left, when Slice and Dice is
+  missing or has less than `sliceAndDiceRecastSeconds` (2 s) left.
+- 5: Ghostly Strike when it is ready, below `builderBelowComboPoints` (5).
+- 6: Hemorrhage below 5 combo points: the builder.
 
 #### Reference builds (#272)
 
@@ -1004,12 +997,15 @@ keyed by preset id: `{ name, talentLevel, talents, weapons, poisons }`. `talentL
 `{ talent id: rank }` (a legal 51-point build) and `weapons` is
 `{ mainHand, offHand }`, each `{ type, min, max, speed }` (the SimConfig
 weapon shape); `poisons` is `{ mainHand, offHand }`, each a poison id (the
-SimConfig poisons shape), Instant Poison on the main hand and Deadly Poison on
-the off hand for every build (James's ruling, relayed by Scout:
-`presetReferenceBuild.poisons`). combat-swords' build is the current defaults: the #151
-reference Combat talents (`data/reference-build.js`) with the default config's
-swords in both hands. The two dagger presets' builds use
-`weapon.dagger.mainHand` and `weapon.dagger.offHand`.
+SimConfig poisons shape), set per preset by James's ruling
+(`presetReferenceBuild.poisons`, #310): Deadly Poison on the main hand and
+Instant Poison on the off hand for combat-swords, Instant on the main hand and
+Deadly on the off hand for the two dagger presets. combat-swords' build is the
+#151 reference Combat talents (`data/reference-build.js`) with the default
+config's swords in both hands, as James's link has. The two dagger presets'
+talents are James's links' (#310); their weapons are `weapon.dagger.mainHand`
+and James's ruled off hand, `presetReferenceBuild.daggerOffHand` (59-111 at
+1.6; `weapon.dagger.offHand`, the dagger alternate's 57-107, is unchanged).
 **Loading a preset does not load its build**: `loadPreset` sets the rotation
 only, and nothing in the app puts a reference build into a config yet. #273
 will, and will set `config.talentLevel` to 60 when the config is below it

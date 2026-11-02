@@ -87,7 +87,7 @@ describe("text (#273)", () => {
 
   it("names the trees and weapons, kept on one line", () => {
     const build = referenceBuild("assassination-daggers");
-    assert.equal(treeText(build.talents), `Assassination${NBSP}41/10/0`);
+    assert.equal(treeText(build.talents), `Assassination${NBSP}38/11/2`);
     assert.equal(
       treeText(referenceBuild("combat-swords").talents),
       `Combat${NBSP}18/33/0`,
@@ -108,11 +108,11 @@ describe("text (#273)", () => {
     const none = { talents: true, weapons: true, poisons: false, level: false };
     assert.equal(
       hintText(build, none),
-      `Built for Subtlety${NBSP}15/0/36 with two daggers.`,
+      `Built for Subtlety${NBSP}12/8/31 with two daggers.`,
     );
     assert.equal(
       hintText(build, { ...none, level: true, poisons: true }),
-      `Built for Subtlety${NBSP}15/0/36 at level${NBSP}60 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
+      `Built for Subtlety${NBSP}12/8/31 at level${NBSP}60 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
     );
   });
 
@@ -244,8 +244,13 @@ describe("matching (#273)", () => {
     createTalentTree(store);
     createPresetBuild(store, form);
     assert.equal(store.get().form.rotationChoice, "combat-swords");
-    assert.equal(store.get().presetBuild.hint, null);
+    // #310: Combat's poisons are Deadly MH / Instant OH, the page default's
+    // the other way round, so only the poisons are offered.
+    assert.equal(store.get().presetBuild.hint.label, "Use its poisons too");
+    form.change("poisons.mainHand", "deadly");
     form.change("poisons.offHand", "instant");
+    assert.equal(store.get().presetBuild.hint, null);
+    form.change("poisons.offHand", "deadly");
     assert.equal(store.get().presetBuild.hint.label, "Use its poisons too");
   });
 });
@@ -308,23 +313,26 @@ describe("apply and Undo (#273)", () => {
     env.form.chooseRotation("combat-swords");
     assert.equal(
       env.said().hint.text,
-      `Built for Combat${NBSP}18/33/0 at level${NBSP}60 with two swords.`,
+      `Built for Combat${NBSP}18/33/0 at level${NBSP}60 with two swords, Deadly Poison on the main hand and Instant Poison on the off hand.`,
     );
     env.build.apply();
     assert.equal(env.store.get().config.talentLevel, 60);
     assert.equal(env.store.get().talents.level, 60);
     assert.equal(
       env.said().applied.text,
-      `Talents set to the Combat swords build. Level set to${NBSP}60.`,
+      `Talents and poisons set to the Combat swords build. Level set to${NBSP}60.`,
     );
     assert.equal(
       env.said().announce.text,
-      `Talents replaced. Level set to${NBSP}60.`,
+      `Talents and poisons replaced. Level set to${NBSP}60.`,
     );
     env.build.undo();
     assert.equal(env.store.get().config.talentLevel, Number(LOW_LEVEL));
     assert.equal(env.store.get().talents.level, Number(LOW_LEVEL));
-    assert.equal(env.said().announce.text, "Talents and level put back.");
+    assert.equal(
+      env.said().announce.text,
+      "Talents, poisons and level put back.",
+    );
   });
 
   it("Undo closes on the next build edit", () => {
@@ -341,8 +349,9 @@ describe("apply and Undo (#273)", () => {
     const env = page();
     env.form.chooseRotation("assassination-daggers");
     env.build.apply();
-    const id = Object.keys(referenceBuild("assassination-daggers").talents)[0];
-    env.tree.remove(id);
+    // A point the tree lets go (nothing above needs Venom); the 50 points
+    // left are held back from the config, and Undo still closes.
+    env.tree.remove("assassination.venom");
     assert.equal(env.said().applied, null);
   });
 
