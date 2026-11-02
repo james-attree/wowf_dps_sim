@@ -4,8 +4,8 @@ import { normalizeConfig } from "./sim-config.js";
 import { parseRunField } from "./views/run-model.js";
 
 // A build as text (#284, H6-lite), the one encode/decode of the page's setup:
-// the share link ("Copy link to this build") uses it now, and the saved setup
-// (#296, localStorage) is to reuse it rather than make a second format.
+// the share link ("Copy link to this build") and the saved setup (#296,
+// js/saved-setup.js, localStorage) both use it, so there is one format.
 //
 // A setup is { config, run }: config is the normalised sim config (character
 // incl. haste, weapons, talents, talent level, poisons and the rotation; the
@@ -32,8 +32,8 @@ import { parseRunField } from "./views/run-model.js";
 //   1. a share link (?s=) in the address, when it reads;
 //   2. the saved setup (#296), when there is one;
 //   3. the page defaults.
-// So a link opened on load wins over a saved setup for that visit; #296 then
-// saves what loaded as the new setup.
+// So a link opened on load wins over a saved setup for that visit, and
+// js/saved-setup.js then saves what loaded as the new setup.
 
 export const SETUP_VERSION = 1;
 export const LINK_PARAM = "s";

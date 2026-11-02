@@ -805,13 +805,15 @@ describe("The reference build's states (#273)", () => {
       await navTo(page, "rotation");
       await closedUndo(page, "the nav to Results");
 
-      // A reload starts again, with no Undo (nothing persists, #186).
+      // A reload starts again with no Undo: the Undo is not saved. Since
+      // #296 the setup is (Rotation, talents and weapons), so the reload
+      // shows what was applied rather than the default.
       await page.selectOption(SELECT, ASSASSINATION);
       await applyNow(page, "Talents replaced.");
       await page.reload();
       await page.locator(SELECT).waitFor({ state: "visible" });
       assert.equal(await page.locator(APPLIED).isHidden(), true, "reload");
-      assert.equal(await page.locator(SELECT).inputValue(), "default");
+      assert.equal(await page.locator(SELECT).inputValue(), ASSASSINATION);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();

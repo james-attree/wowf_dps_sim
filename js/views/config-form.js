@@ -470,8 +470,11 @@ export function createConfigFormView(doc, store, actions) {
     if (previous === null || state.poisons !== previous.poisons) {
       drawPoisons(state.poisons);
     }
+    // A new revision redraws it too: pageshow after back/forward (#296) can
+    // find the browser's remembered choice in it.
     if (
       previous === null ||
+      state.revision !== previous.revision ||
       state.rotationOptions !== previous.rotationOptions ||
       state.rotationChoice !== previous.rotationChoice
     ) {

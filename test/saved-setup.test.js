@@ -425,7 +425,7 @@ describe("#296: Reset to defaults clears the save; an area's own reset saves", (
       timers,
       form,
     });
-    form.change("character.haste", "5");
+    form.change("character.haste", 0.05);
     timers.advance(DELAY);
     assert.equal(readBack(savedOf(storage)).config.character.haste, 0.05);
     form.reset();
@@ -445,8 +445,8 @@ describe("#296: Reset to defaults clears the save; an area's own reset saves", (
 describe("#296: on load, on leaving and on pageshow", () => {
   // A window stand-in: an event target with a document.
   function fakeWindow() {
-    const target = new EventTarget();
-    target.document = new EventTarget();
+    const target = new globalThis.EventTarget();
+    target.document = new globalThis.EventTarget();
     target.document.visibilityState = "visible";
     return target;
   }
@@ -490,10 +490,10 @@ describe("#296: on load, on leaving and on pageshow", () => {
       });
       withHaste(store, 0.02);
       if (leave === "pagehide") {
-        win.dispatchEvent(new Event("pagehide"));
+        win.dispatchEvent(new globalThis.Event("pagehide"));
       } else {
         win.document.visibilityState = "hidden";
-        win.document.dispatchEvent(new Event("visibilitychange"));
+        win.document.dispatchEvent(new globalThis.Event("visibilitychange"));
       }
       assert.equal(readBack(savedOf(storage)).config.character.haste, 0.02);
       saved.stop();
@@ -514,7 +514,7 @@ describe("#296: on load, on leaving and on pageshow", () => {
     });
     const heard = [];
     store.subscribe(({ changed }) => heard.push(...changed));
-    win.dispatchEvent(new Event("pageshow"));
+    win.dispatchEvent(new globalThis.Event("pageshow"));
     const after = store.get();
     assert.equal(after.form.revision, before.form.revision + 1);
     assert.deepEqual(after.form.values, before.form.values);

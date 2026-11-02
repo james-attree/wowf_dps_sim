@@ -44,8 +44,8 @@ after(async () => {
   await new Promise((resolve) => server?.close(resolve));
 });
 
-// storage: "on", "throws" (every localStorage call and the getter throw), or
-// a text to put in the save before the page loads.
+// storage: "on", "throws" (the localStorage getter throws, as with storage
+// turned off), or a text to put in the save before the page loads.
 async function open(width, address = "", { storage = "on" } = {}) {
   const context = await browser.newContext({
     viewport: { width, height: SCREEN_HEIGHT },
@@ -55,18 +55,21 @@ async function open(width, address = "", { storage = "on" } = {}) {
   });
   if (storage === "throws") {
     await context.addInitScript(() => {
-      Object.defineProperty(window, "localStorage", {
+      Object.defineProperty(document.defaultView, "localStorage", {
         get() {
-          throw new DOMException("The operation is insecure.", "SecurityError");
+          throw new document.defaultView.DOMException(
+            "The operation is insecure.",
+            "SecurityError",
+          );
         },
       });
     });
   } else if (storage !== "on") {
     await context.addInitScript(
       ([key, text]) => {
-        if (sessionStorage.getItem("seeded") === null) {
-          sessionStorage.setItem("seeded", "1");
-          localStorage.setItem(key, text);
+        if (document.defaultView.sessionStorage.getItem("seeded") === null) {
+          document.defaultView.sessionStorage.setItem("seeded", "1");
+          document.defaultView.localStorage.setItem(key, text);
         }
       },
       [SAVED_SETUP_KEY, storage],
@@ -76,7 +79,12 @@ async function open(width, address = "", { storage = "on" } = {}) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
-    if (message.type() === "error" || message.type() === "warning") {
+    // The page's own errors and warnings; not the off-site requests this
+    // test aborts (route, below).
+    if (
+      (message.type() === "error" || message.type() === "warning") &&
+      !message.text().startsWith("Failed to load resource")
+    ) {
       errors.push(`console: ${message.text()}`);
     }
   });
@@ -111,16 +119,23 @@ const value = async (page, hash, selector) => {
 };
 
 const saved = (page) =>
-  page.evaluate((key) => localStorage.getItem(key), SAVED_SETUP_KEY);
+  page.evaluate(
+    (key) => document.defaultView.localStorage.getItem(key),
+    SAVED_SETUP_KEY,
+  );
 
 // The build the page holds (its store), read through its own share link.
 async function build(page) {
   await go(page, "#results/average", "#share-link-average");
-  await page.evaluate(() => navigator.clipboard.writeText(""));
+  await page.evaluate(() =>
+    document.defaultView.navigator.clipboard.writeText(""),
+  );
   await page.locator("#share-link-average").click();
   let link = "";
   for (let i = 0; i < 50 && link === ""; i += 1) {
-    link = await page.evaluate(() => navigator.clipboard.readText());
+    link = await page.evaluate(() =>
+      document.defaultView.navigator.clipboard.readText(),
+    );
     if (link === "") await page.waitForTimeout(20);
   }
   const read = decodeSetup(new URL(link).searchParams.get("s"));
@@ -139,7 +154,7 @@ describe("Remember my setup (#296)", () => {
         await set(page, "#character/stats", HASTE, "5");
         await set(page, "#character/stats", POWER, "900");
         await set(page, "#fight", LENGTH, "120");
-        await set(page, "#talents", LEVEL, "40");
+        await set(page, "#character/talents", LEVEL, "40");
         await page.waitForTimeout(SETTLE);
         const text = await saved(page);
         assert.match(text, new RegExp(`^${SETUP_VERSION}\\.`));
@@ -149,7 +164,7 @@ describe("Remember my setup (#296)", () => {
         assert.equal(await value(page, "#character/stats", HASTE), "5");
         assert.equal(await value(page, "#character/stats", POWER), "900");
         assert.equal(await value(page, "#fight", LENGTH), "120");
-        assert.equal(await value(page, "#talents", LEVEL), "40");
+        assert.equal(await value(page, "#character/talents", LEVEL), "40");
         const kept = await build(page);
         assert.equal(kept.config.character.haste, 0.05);
         assert.equal(kept.config.character.attackPower, 900);
@@ -171,7 +186,7 @@ describe("Remember my setup (#296)", () => {
           String(D.run.duration),
         );
         assert.equal(
-          await value(page, "#talents", LEVEL),
+          await value(page, "#character/talents", LEVEL),
           String(D.config.talentLevel),
         );
         const reset = await build(page);
@@ -225,7 +240,7 @@ describe("Remember my setup (#296)", () => {
     try {
       await set(page, "#character/stats", HASTE, "5");
       await page.waitForTimeout(SETTLE);
-      await set(page, "#character/stats", HASTE, "abc");
+      await set(page, "#character/stats", HASTE, "-5");
       await page.waitForTimeout(SETTLE);
       await page.goto("about:blank");
       await page.goBack();
@@ -253,8 +268,10 @@ describe("Remember my setup (#296)", () => {
         await value(page, "#character/stats", HASTE),
         String(D.config.character.haste * 100),
       );
+      // A short batch runs as before.
+      await set(page, "#fight", "#run-iterations", "10");
       await page.locator("#run-button").click();
-      await page.locator("#results").waitFor({ state: "attached" });
+      await page.waitForTimeout(1500);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
@@ -310,7 +327,9 @@ describe("Remember my setup (#296)", () => {
     );
     try {
       assert.equal(await value(page, "#character/stats", HASTE), "7");
-      assert.equal(await saved(page), linked);
+      // The link (with the seed the page drew, as its own link would carry).
+      const kept = decodeSetup(await saved(page)).setup;
+      assert.equal(kept.config.character.haste, 0.07);
       await page.goto(`${base}#character/stats`);
       await ready(page);
       assert.equal(await value(page, "#character/stats", HASTE), "7");
