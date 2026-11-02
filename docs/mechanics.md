@@ -3827,20 +3827,23 @@ tab "Racials") from the racial's export text, as it reads the spellbook: the
 cast time ("Instant") and the cooldown come from the first sentence, so a
 refresh that changes the text changes the catalogue, and a test checks the
 constants rows agree. They are off the GCD and cost nothing
-(`racial.onUse.offGcd`, A21, an assumption on the retune list). Blood Fury's
+(`racial.onUse.offGcd`, A21 of the Phase 5 plan v4, an assumption accepted
+under its "yes to all" approval and on the retune list). Blood Fury's
 mult goes through the pipeline with the other `attackPower` modifiers
 ((base + adds) × mults; the Spell Power half has no rogue use); Elune's Light
-is added to crit like Ruthless, on top of the typed crit. Each cast logs a
-`hit` row with outcome `cast`, as Cold Blood's does, and draws no random
+is added to crit like Ruthless, on top of the typed crit. With no scope it
+also raises the crit chance of the poisons and of the DoT ticks (Rupture and
+Deadly Poison); whether racial crit should reach those is flagged for a
+ruling. Each cast logs a `hit` row with outcome `cast`, as Cold Blood's does, and draws no random
 number (G2).
 
 Every preset opens with a Blood Fury rule and an Elune's Light rule, each
 guarded by `abilityGranted` only (Decision 6; see
 [Presets](rotation.md#presets)). Off the GCD, a rule that holds while the
 racial is on cooldown is passed over, so each is cast at the pull and again
-as its cooldown ends: a fight of length L has casts at 0, cd, 2·cd, … below
-L, and its uptime is the sum of min(15, L − t) over the casts (the last one
-clipped by the end). With no race, or another race, both rules are passed
+as its cooldown ends: a fight of length L has casts at 0, cd, 2·cd, … at or
+below L (a cast at L adds no uptime), and its uptime is the sum of
+min(15, L − t) over the casts (the last one clipped by the end). With no race, or another race, both rules are passed
 over and the fight is the one it was before. The default (placeholder)
 rotation has no racial rule, so its fight is unchanged by any race.
 
