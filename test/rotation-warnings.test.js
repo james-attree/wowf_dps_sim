@@ -692,8 +692,13 @@ describe("rotationWarnings: data, not names", () => {
       "ghostly-strike",
       "blade-flurry",
       "cold-blood",
+      // The on-use racials (#278): off the GCD (A21).
+      "blood-fury",
+      "elunes-light",
       "preparation",
     ]);
+    assert.ok(!context.onGcd.includes("blood-fury"));
+    assert.ok(!context.onGcd.includes("elunes-light"));
     assert.ok(!context.onGcd.includes("premeditation"));
     // Preparation starts the GCD (#270).
     assert.ok(context.onGcd.includes("preparation"));

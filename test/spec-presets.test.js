@@ -117,6 +117,9 @@ describe("the Assassination and Subtlety presets (#272)", () => {
       (rule) => rule.action,
     );
     assert.deepEqual(actions, [
+      // The on-use racials first (#278, Decision 6).
+      "blood-fury",
+      "elunes-light",
       "rupture",
       "premeditation",
       "preparation",

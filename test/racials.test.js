@@ -35,10 +35,14 @@ const RACES = [
   "gnome",
   "skyborne-high-order",
 ];
+// In the export's order. The on-use racials (#278) are simulated as abilities
+// the race grants.
 const SIMULATED = [
+  "orc.blood-fury",
   "skyborne-windshaper.wind-blessed",
   "human.ruthless",
   "dwarf.artisans-precision",
+  "night-elf.elunes-light",
   "gnome.expansive-mind",
   "skyborne-high-order.wind-blessed",
 ];
@@ -49,10 +53,8 @@ const MOB_TYPE = [
   "skyborne-high-order.elemental-insight",
 ];
 const NOT_SIMULATED = [
-  "orc.blood-fury",
   "undead.touch-of-the-grave",
   "troll.berserking",
-  "night-elf.elunes-light",
   "gnome.eureka",
 ];
 const ENERGY = RESOURCE_DEFINITIONS.find(
@@ -169,7 +171,7 @@ describe("racial effects (#277)", () => {
     }
   });
 
-  it("classes the racials: 5 simulated, 4 by target type, 5 not simulated, the rest no DPS effect", () => {
+  it("classes the racials: 7 simulated, 4 by target type, 3 not simulated, the rest no DPS effect", () => {
     const by = (status) =>
       raceCatalogue.racials
         .map((racial) => racial.id)
@@ -177,7 +179,7 @@ describe("racial effects (#277)", () => {
     assert.deepEqual(by("simulated"), SIMULATED);
     assert.deepEqual(by("inert"), MOB_TYPE);
     assert.deepEqual(by("notSimulated"), NOT_SIMULATED);
-    assert.equal(by("noDpsEffect").length, 36 - 5 - 4 - 5);
+    assert.equal(by("noDpsEffect").length, 36 - 7 - 4 - 3);
     assert.deepEqual(by("unmapped"), []);
   });
 
@@ -254,6 +256,7 @@ describe("expandRace (#277)", () => {
     assert.deepEqual(expandRace(null), {
       race: null,
       modifiers: [],
+      abilities: [],
       racials: [],
     });
     assert.throws(() => expandRace("pandaren"), RangeError);
@@ -478,7 +481,9 @@ describe("passive racials in the fight (#277)", () => {
     }
   });
 
-  it("a race with nothing simulated fights the no-race fight", () => {
+  // Orc and Night Elf grant an on-use racial (#278), but the default rotation
+  // has no rule for it, so their default fight is still the no-race fight.
+  it("a race with nothing simulated, or nothing the rotation casts, fights the no-race fight", () => {
     for (const race of ["orc", "undead", "troll", "night-elf"]) {
       for (const seed of SEEDS) {
         const plain = runFight({ seed, duration: SECONDS });

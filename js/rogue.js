@@ -8,7 +8,7 @@ import { checkProcs } from "./procs.js";
 import { abilityCatalogue } from "./abilities.js";
 import { compileRotation, decide } from "./rotation-interpreter.js";
 import { rotationHost } from "./rotation-host.js";
-import { expandRace } from "./racials.js";
+import { expandRace, raceGrantedAbilities } from "./racials.js";
 import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { createResources } from "./resource.js";
 import { REQUIRED_AURAS } from "./required-auras.js";
@@ -118,13 +118,17 @@ export class Rogue {
         this.modifiers.resolve("poisonChance", 0),
       ),
     ]);
-    // The ids of the abilities the build and the host grant, checked against
-    // the catalogue.
+    // The ids of the abilities the build, the race (its on-use racials, P5-03a,
+    // #278) and the host grant, checked against the catalogue.
     const hostGranted = options.abilities ?? [];
     if (!Array.isArray(hostGranted)) {
       throw new TypeError("Rogue option abilities must be an array of ids.");
     }
-    const granted = [...this.build.abilities, ...hostGranted];
+    const granted = [
+      ...this.build.abilities,
+      ...this.race.abilities,
+      ...hostGranted,
+    ];
     for (const id of granted) {
       if (abilityCatalogue.get(id) === undefined) {
         throw new RangeError(
@@ -305,14 +309,16 @@ export class Rogue {
     );
   }
 
-  // True when a talent grants the ability and neither the build nor the host
-  // grants it. No build is truly untalented (#199): with no talents picked a
+  // True when a talent or a race (an on-use racial, #278) grants the ability
+  // and neither the build, the race nor the host grants it. No build is truly untalented (#199): with no talents picked a
   // talent ability is locked too, as with a build that lacks its talent. The
   // grants are fixed for the fight (this.granted), so the rotation host asks
   // once (js/rotation-host.js, usable).
   lockedByBuild(ability) {
     return (
-      talentGrantedAbilities.has(ability.id) && !this.granted.has(ability.id)
+      (talentGrantedAbilities.has(ability.id) ||
+        raceGrantedAbilities.has(ability.id)) &&
+      !this.granted.has(ability.id)
     );
   }
 

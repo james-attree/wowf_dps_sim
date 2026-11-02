@@ -3794,17 +3794,66 @@ inert while `target.mobType` is `"unspecified"`, the default and so far the
 only target, as Murder is. They are written as data so that a target type
 switches them on with no code change.
 
+### On-use racials (P5-03a, issue #278)
+
+Blood Fury (Orc) and Elune's Light (Night Elf) are abilities the race grants,
+the same route as Cold Blood from its talent: the entry in
+`data/racial-effects.js` is `{ ability }` (no modifiers; it stands alone),
+`expandRace(id).abilities` lists it, and the Rogue adds it to `granted`.
+`raceGrantedAbilities` (`js/racials.js`) is the set of every ability a race
+can grant; a rogue without the race has the ability locked
+(`lockedByBuild`), so a rule for it is passed over.
+
+| Racial                   | Export text                                                                                                     | Effect                                                                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Orc, Blood Fury          | "Instant, 2 min cooldown. Increases Attack Power and Spell Power by 10% for 15 sec."                            | aura `blood-fury`: `attackPower` mult `k("racial.bloodFury").attackPower` = 1.1 for 15 s, cooldown 120 s                           |
+| Night Elf, Elune's Light | "Instant, 3 min cooldown. Increases your critical strike chance with all spells and attacks by 10% for 15 sec." | aura `elunes-light`: `critChance` add `k("racial.elunesLight").critChance` = 0.1 for 15 s (every attack: no scope), cooldown 180 s |
+
+`js/abilities.js` adds both to the ability catalogue (`abilities.racials`,
+tab "Racials") from the racial's export text, as it reads the spellbook: the
+cast time ("Instant") and the cooldown come from the first sentence, so a
+refresh that changes the text changes the catalogue, and a test checks the
+constants rows agree. They are off the GCD and cost nothing
+(`racial.onUse.offGcd`, A21, an assumption on the retune list). Blood Fury's
+mult goes through the pipeline with the other `attackPower` modifiers
+((base + adds) × mults; the Spell Power half has no rogue use); Elune's Light
+is added to crit like Ruthless, on top of the typed crit. Each cast logs a
+`hit` row with outcome `cast`, as Cold Blood's does, and draws no random
+number (G2).
+
+Every preset opens with a Blood Fury rule and an Elune's Light rule, each
+guarded by `abilityGranted` only (Decision 6; see
+[Presets](rotation.md#presets)). Off the GCD, a rule that holds while the
+racial is on cooldown is passed over, so each is cast at the pull and again
+as its cooldown ends: a fight of length L has casts at 0, cd, 2·cd, … below
+L, and its uptime is the sum of min(15, L − t) over the casts (the last one
+clipped by the end). With no race, or another race, both rules are passed
+over and the fight is the one it was before. The default (placeholder)
+rotation has no racial rule, so its fight is unchanged by any race.
+
+Golden fixtures: every existing fixture is unchanged (the golden dry run
+reports none changed; no case names Orc or Night Elf, and the two dagger
+preset cases have no race, so their racial rules are passed over). Two new
+ones pin a racial each: `race-orc-combat-swords-seed-278-60s` and
+`race-night-elf-combat-swords-seed-278-60s` (the combat-swords preset with
+its reference build and the race).
+
+The validator refuses a rule that casts either without an `abilityGranted`
+condition (`talentGuard`, whose message says the ability comes from a race);
+`abilityUnlocked` does not guard it. The rotation builder does not offer
+them in its palette yet, and its copy for a race that lacks one is P5-04
+(#280).
+
 These have a `notSimulated` reason and add nothing yet:
 
-- Blood Fury (Orc) and Elune's Light (Night Elf), on-use auras: P5-03a (#278).
 - Berserking (Troll) and Eureka! (Gnome), on-use: P5-03b (#279).
 - Touch of the Grave (Undead): its damage is a share of the rogue's maximum
   health, which is not modelled (Phase 5 decision 2, a post-launch issue).
 
 Every other racial (stun, fear and curse removal, breathing, regeneration,
 stealth, movement, treasure, engineering, pets) has a `noDpsEffect` reason.
-Of the 36 racials, 5 are simulated, 4 wait for a target type, 5 are not
-simulated yet and 22 have no DPS effect.
+Of the 36 racials, 7 are simulated (5 static, 2 on use), 4 wait for a target
+type, 3 are not simulated yet and 22 have no DPS effect.
 
 ### Coverage
 

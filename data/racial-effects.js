@@ -19,9 +19,14 @@ import { k } from "./constants.js";
 //                 racial is inert, as Murder is.
 //   noDpsEffect   a one-line reason the racial does nothing in a simulated
 //                 damage fight. It stands alone.
+//   ability       an on-use racial the race grants as a castable ability (P5-03a,
+//                 #278): the id of the ability js/abilities.js parses from the
+//                 racial's text (abilities.racials). A rotation casts it with
+//                 an abilityGranted rule; its aura is in js/auras.js. It
+//                 stands alone.
 //   notSimulated  a one-line reason a racial that would change the damage is
-//                 not in the fight yet: the on-use racials until P5-03 (#278,
-//                 #279), Touch of the Grave (Phase 5 decision 2). It stands
+//                 not in the fight yet: the on-use racials until P5-03b
+//                 (#279), Touch of the Grave (Phase 5 decision 2). It stands
 //                 alone.
 //
 //   textHash      SHA-256, in hex, of the racial's text. It says which text
@@ -43,8 +48,7 @@ const RAW = {
   "orc.blood-fury": {
     textHash:
       "f6b14aa63c88c2746e79b56075868c9a34f72f3f2ee58cb340fd3c85656f90ba",
-    notSimulated:
-      "On use: +10% attack power for 15 s on a 2 min cooldown. On-use racials are P5-03a (#278); until then the race adds nothing for it.",
+    ability: "blood-fury",
   },
   "orc.hardiness": {
     textHash:
@@ -205,8 +209,7 @@ const RAW = {
   "night-elf.elunes-light": {
     textHash:
       "63cadadcf39264c2f6c7ef15c638b00f945491c65d18e6b050fea6a6cf0bc3e8",
-    notSimulated:
-      "On use: +10% crit for 15 s on a 3 min cooldown. On-use racials are P5-03a (#278); until then the race adds nothing for it.",
+    ability: "elunes-light",
   },
   "gnome.escape-artist": {
     textHash:

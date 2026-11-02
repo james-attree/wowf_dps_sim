@@ -17,6 +17,7 @@ import {
   withArticle,
 } from "./ordinary-object.js";
 import { RESOURCE_DEFINITIONS } from "./resource-data.js";
+import { raceGrantedAbilities } from "./racials.js";
 import { talentGrantedAbilities } from "./talent-build.js";
 
 // The rotation validator (roadmap R4, issue #141). A rotation arrives from a
@@ -79,7 +80,8 @@ import { talentGrantedAbilities } from "./talent-build.js";
 //              the abilities a talent grants, whose rules need a guard (rule
 //              5). An array or a Set of id strings; the engine's is
 //              talentGrantedAbilities from js/talent-build.js, from the talent
-//              effects data. Anything else is a TypeError (#207): a string
+//              effects data, and the on-use racials a race grants
+//              (raceGrantedAbilities, js/racials.js, #278). Anything else is a TypeError (#207): a string
 //              would be read as its characters and guard nothing.
 //
 // A context may give any of these; what it leaves out is the engine's own.
@@ -89,7 +91,12 @@ const ENGINE_ABILITIES = Object.freeze(
 const ENGINE_CASTABLE = Object.freeze(
   ABILITY_DEFINITIONS.map((definition) => definition.id),
 );
-const ENGINE_TALENT_GRANTED = Object.freeze([...talentGrantedAbilities]);
+// With the abilities a race grants (the on-use racials, P5-03a, #278): their
+// rules need a guard too, and the warnings read the same list.
+const ENGINE_TALENT_GRANTED = Object.freeze([
+  ...talentGrantedAbilities,
+  ...raceGrantedAbilities,
+]);
 const auraList = Object.values(AURAS);
 const ENGINE_AURAS = Object.freeze(
   auraList.filter((aura) => aura.target === "self").map((aura) => aura.id),
@@ -380,7 +387,12 @@ function conditionMeaningErrors(condition, where, context) {
 // here, so a talent that grants a new ability is covered when it is added.
 const STRICT = Object.freeze(["abilityGranted"]);
 const TRANSITIONAL = Object.freeze(["abilityGranted", "abilityUnlocked"]);
-const STRICT_TALENT_ABILITIES = Object.freeze(["cold-blood"]);
+// Cold Blood, and every ability a race grants (#278): a race is never
+// "unlocked" by a build, so only abilityGranted guards it.
+const STRICT_TALENT_ABILITIES = Object.freeze([
+  "cold-blood",
+  ...raceGrantedAbilities,
+]);
 const guardTypes = (id) =>
   STRICT_TALENT_ABILITIES.includes(id) ? STRICT : TRANSITIONAL;
 
@@ -416,7 +428,9 @@ function talentGuardError(rule, path, context) {
   return rotationError(
     "talentGuard",
     `${path}.conditions`,
-    `${abilityLabel(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
+    raceGrantedAbilities.has(id)
+      ? `${abilityLabel(id)} comes from a race, so its rule needs a check that the race grants it. Add ${wanted} to its conditions.`
+      : `${abilityLabel(id)} comes from a talent, so its rule needs a talent check. Add ${wanted} to its conditions.`,
     { ability: id },
   );
 }

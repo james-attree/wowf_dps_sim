@@ -262,6 +262,27 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     aura: { id: "coldBlood", duration: { field: "duration" } },
   },
   {
+    // Granted by the Orc race (P5-03a, #278, data/racial-effects.js): Rogue
+    // .abilities has it always, and only a rotation that was granted it (the
+    // abilityGranted rule at the top of each preset, decision 6) casts it. No
+    // cost and off the GCD (A21, racial.onUse.offGcd); the cooldown is the
+    // catalogue's, from the export text, as is the row's. No icon in img/ yet
+    // (the race picker, P5-04, gives the export's).
+    key: "bloodFury",
+    id: "blood-fury",
+    row: "racial.bloodFury",
+    icon: null,
+    aura: { id: "bloodFury", duration: { field: "duration" } },
+  },
+  {
+    // Granted by the Night Elf race (P5-03a, #278), as Blood Fury is by the Orc.
+    key: "elunesLight",
+    id: "elunes-light",
+    row: "racial.elunesLight",
+    icon: null,
+    aura: { id: "elunesLight", duration: { field: "duration" } },
+  },
+  {
     // A baseline finisher (#268, A11): one Expose Armor stack per combo point
     // spent, for the row's 30 s. It rolls the yellow attack table like
     // Eviscerate and Rupture (B1), with no damage. No preset casts it (A12).

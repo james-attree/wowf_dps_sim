@@ -3,6 +3,7 @@ import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { CONDITION_PARAMS } from "./rotation-conditions.js";
 import { ROTATION_SCHEMA_VERSION } from "./rotation-schema.js";
+import { raceGrantedAbilities } from "./racials.js";
 import { rotationContext } from "./rotation-validator.js";
 import { warningContext } from "./rotation-warnings.js";
 import { talentGrantedAbilities } from "./talent-build.js";
@@ -78,9 +79,14 @@ export function abilityFacts(id) {
   });
 }
 
-// The abilities a rule can cast, in the order the validator knows them.
+// The abilities a rule can cast, in the order the validator knows them. The
+// on-use racials (#278) are left out until the race picker (P5-04, #280)
+// shows them for a race that grants them; a rule that casts one (a preset's)
+// keeps it, as any select keeps its current value.
 export function castableAbilities() {
-  return [...rotationContext().castable];
+  return rotationContext().castable.filter(
+    (id) => !raceGrantedAbilities.has(id),
+  );
 }
 
 // The rotation a draft describes: what the validator, the warnings and the
