@@ -8,6 +8,7 @@ import { checkProcs } from "./procs.js";
 import { abilityCatalogue } from "./abilities.js";
 import { compileRotation, decide } from "./rotation-interpreter.js";
 import { rotationHost } from "./rotation-host.js";
+import { expandRace } from "./racials.js";
 import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { createResources } from "./resource.js";
 import { REQUIRED_AURAS } from "./required-auras.js";
@@ -92,10 +93,16 @@ export class Rogue {
             ...extraModifiers,
           ]
         : extraModifiers;
+    // The race's passive racials (D12a, #277): static modifiers after the
+    // build's and before the host's. No race (config.race null) adds none, so
+    // the list is the one it was before races.
+    this.race = expandRace(this.config.race);
+    const own =
+      this.race.modifiers.length === 0
+        ? this.build.modifiers
+        : [...this.build.modifiers, ...this.race.modifiers];
     this.modifiers = new ModifierPipeline(
-      this.build.modifiers.length === 0
-        ? hostModifiers
-        : [...this.build.modifiers, ...hostModifiers],
+      own.length === 0 ? hostModifiers : [...own, ...hostModifiers],
     );
     // The procs (js/procs.js) the fight runs: the build's, the host's, then the
     // poisons on the weapons (config.poisons; js/poisons.js). None by default:

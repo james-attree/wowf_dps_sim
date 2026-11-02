@@ -27,7 +27,7 @@
 // Pure: no DOM, no clock, no random numbers.
 
 import { k } from "../../data/constants.js";
-import { checkAmount, startValue } from "../resource.js";
+import { checkAmount, resolveCap, startValue } from "../resource.js";
 import { ORDER } from "./scheduler.js";
 
 // The kind of the threshold event. Its payload is { resource, amount }.
@@ -132,7 +132,12 @@ export class EnergyPool {
   }
 
   #readCap() {
-    return this.modifiers.resolve("resourceMax", this.baseMax, this.maxContext);
+    return resolveCap(
+      this.definition,
+      this.modifiers,
+      this.baseMax,
+      this.maxContext,
+    );
   }
 
   #valueAt(time) {

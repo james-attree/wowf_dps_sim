@@ -6,6 +6,7 @@ import {
   talentPointCap,
 } from "./talent-build.js";
 import { talentCatalogue } from "./talents.js";
+import { raceCatalogue } from "./racials.js";
 import { defaultRotation } from "./rotation-default.js";
 import { rotationProblems } from "./rotation-validator.js";
 
@@ -25,6 +26,7 @@ import { rotationProblems } from "./rotation-validator.js";
 // The shape (every field is optional; a missing one takes its default):
 //
 //   {
+//     race: "human",                             // a race id, or null (#277)
 //     character: { attackPower, critChance, bonusHitChance, haste },
 //     weapons: {
 //       mainHand: { min, max, speed, type },
@@ -36,6 +38,13 @@ import { rotationProblems } from "./rotation-validator.js";
 //     poisons: { mainHand: "instant", offHand: "deadly" },   // an id, or null
 //     rotation: { schemaVersion: 1, name, rules: [...] },    // R3, #140
 //   }
+//
+// The race (D12a, #277) is an id from js/racials.js ("human", "night-elf",
+// "skyborne-windshaper", ...) or null, the default: no race, the fight it
+// was before races, so a config saved before there was a race reads as it
+// did (G4). The Rogue adds the race's passive racials as static modifiers
+// (js/racials.js expandRace). The character stats are entered without
+// racials (Q7): the race adds them.
 //
 // The rotation is a RotationRule list (js/rotation-schema.js,
 // docs/rotation.md) that the interpreter casts from (js/rotation-interpreter.js).
@@ -59,6 +68,7 @@ const CHARACTER_FIELDS = [
 const WEAPON_FIELDS = ["min", "max", "speed", "type"];
 const TARGET_FIELDS = ["behind"];
 const SECTIONS = [
+  "race",
   "character",
   "weapons",
   "target",
@@ -76,6 +86,7 @@ export function defaultConfig() {
     return { min, max, speed, type: type ?? null };
   };
   return {
+    race: k("character.race"),
     character: {
       attackPower: k("character.attackPower"),
       critChance: k("character.critChance"),
@@ -373,6 +384,13 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
   const defaults = defaultConfig();
   const talents = readTalents(given.talents, catalogue);
   return {
+    race: readChoice(
+      given.race,
+      "config.race",
+      defaults.race,
+      raceCatalogue.ids,
+      "race",
+    ),
     character: readCharacter(given.character, defaults.character),
     weapons: readWeapons(given.weapons, defaults.weapons),
     target: readTarget(given.target, defaults.target),

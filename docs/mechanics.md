@@ -336,6 +336,8 @@ object is an assumption on the retune list. Energy caps at the pool's cap,
 which is `k("energy.max")`
 (`classic-1.12`, on the retune list) through any `resourceMax` modifiers. The
 note on `k("energy.max")` says the cap matches the export's Vigor bonus.
+A cap that is not whole after the multipliers is rounded down (Gnome's
+Expansive Mind, A19; see [Races and racials](#races-and-racials-d12a-issue-277)).
 `rogue.energy` and `rogue.maxEnergy` read and set the pool, so the page and the
 tests use the names they always did.
 
@@ -1560,6 +1562,7 @@ was a config: the defaults are the default character and weapons in `data/consta
 
 ```js
 {
+  race: "human",                             // a race id, or null (#277)
   character: { attackPower, critChance, bonusHitChance },
   weapons: {
     mainHand: { min, max, speed, type },
@@ -3669,6 +3672,110 @@ Phase 2, so a build with points in them listed them under
 field until #190 added `talentLevel`. New exports: `validateBuild`, `applyBuild`, `talentGrantedAbilities`
 (`js/talent-build.js`; `js/fight.js` re-exports `validateBuild` and `applyBuild`),
 `Rogue.build` and `Rogue.lockedByBuild`, and `createFight(...).build`.
+
+## Races and racials (D12a, issue #277)
+
+`config.race` (SimConfig) picks a race: a race id, or `null` for none, the
+default (`k("character.race")`, an assumption on the retune list). With `null`
+the fight is byte for byte the one it was before races (G4), so a saved
+config, a share link or a golden case with no race reads as it did.
+`normalizeConfig` refuses an id that is not a rogue race (a RangeError naming
+the ids) and a race that is not a string.
+
+### The catalogue
+
+`js/racials.js` builds `raceCatalogue` from the snapshot's `races` (faction to
+race names) and `racials` (faction to `{ race, icon, classes, abilities }`),
+keeping the races whose `classes` include Rogue. Nothing about a race is typed
+by hand, so a refresh (`npm run data:refresh`) changes the catalogue with no
+code change. The 30 Oct 2026 export (#276) has nine rogue races:
+
+| Faction  | Races                                                 |
+| -------- | ----------------------------------------------------- |
+| Horde    | Orc, Undead, Troll, Skyborne (Windshaper)             |
+| Alliance | Human, Dwarf, Night Elf, Gnome, Skyborne (High Order) |
+
+A race id is the slug of its name (`human`, `night-elf`,
+`skyborne-windshaper`), a racial id is `race.slug` (`human.ruthless`), so each
+Skyborne race has its own Wind Blessed and Elemental Insight with the same text.
+`buildRaceCatalogue` refuses a malformed export (a race listed in `races` with
+no `racials` entry or the reverse, an ability that is not
+`[name, text, icon]`, two races with one id, no rogue race).
+
+### Racial effects
+
+`data/racial-effects.js` holds one entry per racial id, written from the
+racial's text, with the SHA-256 of that text (`textHash`). An entry has
+`modifiers` (the pipeline's static modifiers, and optionally `mobTypes`, the target types they apply to), or a
+`noDpsEffect` reason, or a `notSimulated` reason. `checkRacialEffects` refuses
+anything else when the module loads. `expandRace(id)` gives the race's
+modifiers, each with the racial id as its `source`, and every racial's status
+(`simulated`, `inert`, `noDpsEffect`, `notSimulated`). The Rogue puts the
+race's modifiers after the talent build's and before the host's. Racials are
+static: none is a proc, so a race draws no random number of its own (G2).
+
+The values are the export's (A18), each a `wowf-export` constants row whose ref
+quotes the text:
+
+| Racial                                       | Export text                                                                | Effect                                                                                                |
+| -------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Human, Ruthless                              | "Increases your critical strike chance with all spells and attacks by 1%." | `critChance` add `k("racial.ruthless.critChance")` = 0.01                                             |
+| Dwarf, Artisan's Precision                   | "Increases hit chance with spells and attacks by 1%."                      | `hitChance` add `k("racial.artisansPrecision.hitChance")` = 0.01                                      |
+| Gnome, Expansive Mind                        | "Maximum Mana, Rage or Energy increased by 5%, whichever your class uses." | `resourceMax` mult `k("racial.expansiveMind.energyMax")` = 1.05 on energy                             |
+| Skyborne (both), Wind Blessed                | "Increases your spellcasting, melee, and ranged Haste by 2%."              | `haste` add `k("racial.windBlessed.haste")` = 0.02                                                    |
+| Troll, Beast Slaying; Dwarf, Big Game Hunter | "Damage dealt versus Beasts increased by 5%."                              | `damage` add `k("racial.beastSlaying")` and `k("racial.bigGameHunter")` = 0.05, `mobTypes: ["beast"]` |
+| Skyborne (both), Elemental Insight           | "Damage dealt versus Elementals increased by 5%."                          | `damage` add `k("racial.elementalInsight")` = 0.05, `mobTypes: ["elemental"]`                         |
+
+The crit and hit a player types are without racials (Q7): Ruthless and
+Artisan's Precision are added on top, as the build's Malice and Precision are.
+Wind Blessed is attack speed only (A20): it is one more `haste` contribution,
+multiplied with gear haste, Slice and Dice and Blade Flurry, and a swing
+already running is not rescaled (see [Haste stacking](#haste-stacking)). It
+does not change energy regeneration or the GCD.
+
+Expansive Mind raises the energy cap: 100 becomes 105, and with Vigor
+110 becomes 115.5, rounded down to **115** (A19, Q4). The energy pool's
+definition says how its cap rounds (`roundMax: "energy.maxRounding"`,
+`"floor"`): `resolveCap` in `js/resource.js`, which `Resource` and the core's
+`EnergyPool` both use, rounds a cap that is not whole down after the
+`resourceMax` modifiers. A whole cap is left as it is, so a fight with no
+multiplier reads exactly the number it did. Before flooring it adds
+`k("resource.maxRoundingTolerance")` (1e-9), so a product floating point
+holds a hair under a whole number is not dropped a point. Rounding ability
+costs (Eureka!'s −10%) is P5-03b (#279).
+
+The mob-type racials (Beast Slaying, Big Game Hunter, Elemental Insight) are
+inert while `target.mobType` is `"unspecified"`, the default and so far the
+only target, as Murder is. They are written as data so that a target type
+switches them on with no code change.
+
+These have a `notSimulated` reason and add nothing yet:
+
+- Blood Fury (Orc) and Elune's Light (Night Elf), on-use auras: P5-03a (#278).
+- Berserking (Troll) and Eureka! (Gnome), on-use: P5-03b (#279).
+- Touch of the Grave (Undead): its damage is a share of the rogue's maximum
+  health, which is not modelled (Phase 5 decision 2, a post-launch issue).
+
+Every other racial (stun, fear and curse removal, breathing, regeneration,
+stealth, movement, treasure, engineering, pets) has a `noDpsEffect` reason.
+Of the 36 racials, 5 are simulated, 4 wait for a target type, 5 are not
+simulated yet and 22 have no DPS effect.
+
+### Coverage
+
+`npm run racials:coverage` (`scripts/racial-coverage.mjs`, a CI step after
+talent coverage) fails (exit 1) for a racial with no entry, for an entry whose
+`textHash` is not the hash of the racial's current text (it prints the new
+text, so the fix is to re-read the entry and set the hash), and for an entry of
+a racial that is gone. `test/racials.test.js` also checks every value against
+the percentage in its text.
+
+Golden fixtures: every existing fixture is unchanged (no case names a race).
+Four new ones pin a race each: `race-human-seed-277-60s`,
+`race-dwarf-seed-277-60s` and `race-skyborne-windshaper-seed-277-60s` (the
+reference build with Instant and Deadly Poison), and
+`race-gnome-vigor-seed-277-60s` (the dagger Mutilate fight of #267 with every
+rule held for the first 10 s, so the pool reaches the 115 cap).
 
 ## Run controller (P3-1, issue #136)
 

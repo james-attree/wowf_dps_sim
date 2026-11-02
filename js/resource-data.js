@@ -21,6 +21,9 @@
 //               tick        constants id naming how it applies. Only
 //                           "continuous" is supported: every step adds
 //                           rate * dt
+//   roundMax  optional. Constants id of how the cap is rounded after its
+//             resourceMax modifiers (A19, #277): "floor", down to a whole
+//             number. A cap that is already whole is left as it is
 //   whole     optional, true: the pool holds whole units only (combo points).
 //             A gain or a spend of a fraction is a RangeError, where a proc
 //             or an ability would otherwise leave 0.5 of a point behind
@@ -38,6 +41,7 @@ export const RESOURCE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: "energy",
     max: "energy.max",
+    roundMax: "energy.maxRounding",
     start: Object.freeze({ id: "start.state", field: "energy" }),
     regen: Object.freeze({
       perSecond: "energy.regenPerSecond",

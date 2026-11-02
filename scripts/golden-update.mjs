@@ -127,6 +127,22 @@ const MUTILATE_ROTATION = deepFreeze({
   ],
 });
 
+// Issue #277. MUTILATE_ROTATION with every rule held until 10 s into the
+// fight, so energy pools to the cap first: the Gnome case shows Expansive
+// Mind's 115.
+const POOL_SECONDS = 10;
+const POOLED_MUTILATE_ROTATION = deepFreeze({
+  schemaVersion: 1,
+  name: "Pool to the cap for 10 s, then Eviscerate at 5 CP, otherwise Mutilate",
+  rules: MUTILATE_ROTATION.rules.map((rule) => ({
+    ...rule,
+    conditions: [
+      ...rule.conditions,
+      { type: "fightTime", op: ">=", value: POOL_SECONDS },
+    ],
+  })),
+});
+
 // Issue #268 (P4.6-04b). The Mutilate build with Improved Expose Armor 2/2
 // and Venom, for the two points of Improved Gouge and the one of Improved
 // Kidney Shot, none of which has a DPS effect: 51 points.
@@ -425,6 +441,37 @@ export const GOLDEN_CASES = deepFreeze([
       weapons: defaultDaggerConfig().weapons,
       talents: { ...CUTTHROAT_BUILD },
       rotation: AMBUSH_ROTATION,
+    },
+  },
+  // Issue #277. One case per simulated passive racial. Human's Ruthless (+1%
+  // crit), Dwarf's Artisan's Precision (+1% hit) and Skyborne's Wind Blessed
+  // (+2% attack speed, A20) on the reference build with Instant and Deadly
+  // Poison. Gnome's Expansive Mind on the dagger Mutilate fight (#267), whose
+  // Vigor makes the cap 110 x 1.05 = 115.5, floored to 115 (A19), with every
+  // rule held for the first 10 s so the pool reaches the cap and the first
+  // Mutilates spend 115 energy, not 110. The cases with no race did not move:
+  // race null adds nothing.
+  ...["human", "dwarf", "skyborne-windshaper"].map((race) => ({
+    name: `race-${race}-seed-277-60s`,
+    seed: 277,
+    duration: 60,
+    config: {
+      race,
+      talents: referenceBuild(),
+      poisons: { mainHand: "instant", offHand: "deadly" },
+    },
+  })),
+  {
+    name: "race-gnome-vigor-seed-277-60s",
+    seed: 277,
+    duration: 60,
+    config: {
+      race: "gnome",
+      character: defaultDaggerConfig().character,
+      weapons: defaultDaggerConfig().weapons,
+      talents: { ...MUTILATE_BUILD },
+      poisons: { mainHand: "instant", offHand: "deadly" },
+      rotation: POOLED_MUTILATE_ROTATION,
     },
   },
   // Issue #272. Each dagger preset with its reference build
