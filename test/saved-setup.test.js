@@ -395,6 +395,96 @@ describe("#296 (G4): what a saved setup reads as", () => {
   });
 });
 
+describe("#296 (#318 prep): weapon skill, enemy level and pinned armour round-trip", () => {
+  // Save the store's setup, reload it the way the page does (resolveInitialSetup
+  // on the saved text), and check it is the same setup. null first (the
+  // default: follow the level), then a number, then back to null.
+  const roundTrip = (section, field, values) => {
+    const storage = memoryStorage();
+    const store = pageStore();
+    const timers = fakeTimers();
+    const saved = createSavedSetup({ store, storage, timers });
+    const seen = [];
+    for (const value of values) {
+      const { config } = store.get();
+      store.set({
+        config: {
+          ...config,
+          [section]: { ...config[section], [field]: value },
+        },
+      });
+      saved.flush();
+      const text = savedOf(storage);
+      const back = readBack(text);
+      assert.deepEqual(back, setupFromState(store.get()), `${field} ${value}`);
+      assert.equal(back.config[section][field], value);
+      // The same text as a share link (strict) reads the same.
+      const link = decodeSetup(text);
+      assert.equal(link.status, "ok");
+      assert.deepEqual(link.setup, back);
+      seen.push(back.config[section][field]);
+    }
+    saved.stop();
+    return seen;
+  };
+
+  it("config.character.weaponSkill: null, a number, and back to null", () => {
+    assert.equal(setupDefaults().config.character.weaponSkill, null);
+    assert.deepEqual(
+      roundTrip("character", "weaponSkill", [null, 305, 1, null]),
+      [null, 305, 1, null],
+    );
+  });
+
+  it("config.target.level: null, a number, and back to null", () => {
+    assert.equal(setupDefaults().config.target.level, null);
+    assert.deepEqual(roundTrip("target", "level", [null, 62, 63, null]), [
+      null,
+      62,
+      63,
+      null,
+    ]);
+  });
+
+  it("config.target.armor (#317's pin): the codec carries it; null, a number, 0 and back to null", () => {
+    assert.equal(setupDefaults().config.target.armor, null);
+    assert.deepEqual(roundTrip("target", "armor", [null, 3731, 0, null]), [
+      null,
+      3731,
+      0,
+      null,
+    ]);
+  });
+
+  it("all three together, at a lower talent level, survive the save and reload", () => {
+    const storage = memoryStorage();
+    const store = pageStore();
+    const timers = fakeTimers();
+    const saved = createSavedSetup({ store, storage, timers });
+    const { config } = store.get();
+    store.set({
+      config: {
+        ...config,
+        talentLevel: 40,
+        talents: {},
+        character: { ...config.character, weaponSkill: 210 },
+        target: { ...config.target, level: 44, armor: 1500 },
+      },
+    });
+    timers.advance(DELAY);
+    const back = readBack(savedOf(storage));
+    assert.deepEqual(back, setupFromState(store.get()));
+    assert.equal(back.config.talentLevel, 40);
+    assert.equal(back.config.character.weaponSkill, 210);
+    assert.deepEqual(back.config.target, {
+      behind: true,
+      level: 44,
+      armor: 1500,
+    });
+    saved.stop();
+  });
+});
+
 describe("#296: Reset to defaults clears the save; an area's own reset saves", () => {
   it("clear() removes the key, drops the pending write, and the next change saves again", () => {
     const storage = memoryStorage();

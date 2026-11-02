@@ -405,3 +405,57 @@ describe("the page's first setup: link, then saved, then defaults (#284, #296)",
     );
   });
 });
+
+describe("build codec: the target's pinned armour (#317's pin; #296 ruling)", () => {
+  // The codec carries config.target.armor as it carries every config field:
+  // a pinned number is in the link and the save, and null (the default,
+  // follow the enemy level) or a missing field is left out, so a default
+  // link is the same bytes it was before the pin existed.
+  const V1 =
+    "1.eyJjb25maWciOnsiY2hhcmFjdGVyIjp7ImF0dGFja1Bvd2VyIjo5MDAsImhhc3RlIjowLjA1fSwicG9pc29ucyI6eyJtYWluSGFuZCI6ImRlYWRseSIsIm9mZkhhbmQiOiJpbnN0YW50In19LCJydW4iOnsibW9kZSI6ImxpdmUiLCJkdXJhdGlvbiI6MTIwLCJpdGVyYXRpb25zIjo1MDAsInNlZWQiOjd9fQ";
+  const withTarget = (target) => {
+    const d = setupDefaults();
+    return {
+      ...d,
+      config: { ...d.config, target: { ...d.config.target, ...target } },
+    };
+  };
+
+  it("a pinned armour round-trips through a link (strict) and a save (lenient)", () => {
+    for (const armor of [0, 1500, 3731]) {
+      const setup = withTarget({ armor });
+      const text = encodeSetup(setup);
+      assert.deepEqual(decodeSetup(text), { status: "ok", setup });
+      assert.deepEqual(decodeSetup(text, { strict: false }), {
+        status: "ok",
+        setup,
+      });
+    }
+  });
+
+  it("at its default (null) or unset, it is left out: the default link is '1.e30', the same bytes and length", () => {
+    assert.equal(encodeSetup(withTarget({ armor: null })), "1.e30");
+    const d = setupDefaults();
+    const { armor, ...unset } = d.config.target;
+    assert.equal(armor, null);
+    const text = encodeSetup({ ...d, config: { ...d.config, target: unset } });
+    assert.equal(text, "1.e30");
+    assert.equal(text.length, 5);
+  });
+
+  it("an old link (captured at #284, before the pin) decodes with armour null and re-encodes to the same bytes", () => {
+    const read = decodeSetup(V1);
+    assert.equal(read.status, "ok");
+    assert.equal(read.setup.config.target.armor, null);
+    assert.equal(read.setup.config.target.level, null);
+    assert.equal(read.setup.config.character.weaponSkill, null);
+    assert.equal(encodeSetup(read.setup), V1);
+  });
+
+  it("a bad pin is refused whole in a link, and reads as the target's default in a save", () => {
+    const text = linkOf({ config: { target: { armor: -1 } } });
+    assert.equal(decodeSetup(text).status, "corrupt");
+    const read = decodeSetup(text, { strict: false });
+    assert.deepEqual(read.setup.config.target, setupDefaults().config.target);
+  });
+});
