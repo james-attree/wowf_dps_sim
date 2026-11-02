@@ -163,6 +163,8 @@ describe("golden fixtures", () => {
           full.config,
           {
             ...defaults,
+            // #277: the race cases name a race.
+            race: goldenCase.config.race ?? defaults.race,
             // #267: the Mutilate case runs on the dagger alternate's sheet.
             character: goldenCase.config.character ?? defaults.character,
             weapons: goldenCase.config.weapons ?? defaults.weapons,

@@ -159,7 +159,7 @@ describe("build codec: versions and unknown fields (#284)", () => {
   it("an unknown field is 'newer' for a link and ignored for a save", () => {
     for (const payload of [
       { config: { character: { attackPower: 900, mastery: 3 } } },
-      { config: { race: "human", character: { attackPower: 900 } } },
+      { config: { faction: "horde", character: { attackPower: 900 } } },
       { config: { character: { attackPower: 900 } }, saved: true },
       {
         config: { character: { attackPower: 900 } },
@@ -176,6 +176,19 @@ describe("build codec: versions and unknown fields (#284)", () => {
       assert.equal(read.status, "ok");
       assert.equal(read.setup.config.character.attackPower, 900);
     }
+  });
+
+  it("config.race (#277) is a known field: it round-trips, and no race is the default", () => {
+    const d = setupDefaults();
+    assert.equal(d.config.race, null);
+    const setup = { ...d, config: { ...d.config, race: "night-elf" } };
+    const read = decodeSetup(encodeSetup(setup));
+    assert.equal(read.status, "ok");
+    assert.equal(read.setup.config.race, "night-elf");
+    assert.equal(
+      encodeSetup(d),
+      encodeSetup({ ...d, config: { ...d.config } }),
+    );
   });
 
   it("missing fields read as their defaults", () => {

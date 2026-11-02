@@ -119,6 +119,7 @@ dependencies.
 | `npm run lint`             | `eslint . --max-warnings 0`, then `prettier --check .` |
 | `npm run provenance`       | `node scripts/provenance.mjs`                          |
 | `npm run talents:coverage` | `node scripts/talent-coverage.mjs`                     |
+| `npm run racials:coverage` | `node scripts/racial-coverage.mjs`                     |
 | `npm run data:refresh`     | `node scripts/refresh-data.mjs`                        |
 | `npm run golden:update`    | `node scripts/golden-update.mjs`                       |
 | `npm run icons:check`      | `node scripts/check-icons.mjs`                         |
@@ -135,7 +136,8 @@ at launch. `npm test` needs no browser.
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on `push` and
 `pull_request`, on `ubuntu-latest`, with Node 22. The job checks out the repo,
 installs with `npm ci`, then runs `npm run lint`, `npm test`,
-`npm run test:browser`, `npm run provenance`, then `npm run talents:coverage`.
+`npm run test:browser`, `npm run provenance`, `npm run talents:coverage`, then
+`npm run racials:coverage`.
 The browser tests (`browser-tests/`) serve the page on a free port and drive
 the installed Google Chrome through `playwright-core` (no browser download);
 set `CHROME_PATH` to use another Chrome or Chromium binary. Refreshing the
@@ -148,6 +150,12 @@ hash no longer matches the snapshot (printed with the old and new hash and the
 current rank texts), and for an effect of a talent that is gone. See
 [Talent effects](docs/mechanics.md#talent-effects). Run it after
 `npm run data:refresh`.
+
+`npm run racials:coverage` checks the racial effects (`data/racial-effects.js`)
+against the snapshot's racials: it fails (exit 1) for a racial of a rogue race
+with no entry, for an entry whose stored text hash no longer matches (printed
+with the new text), and for an entry of a racial that is gone. See
+[Races and racials](docs/mechanics.md#races-and-racials-d12a-issue-277).
 
 A stale `docs/provenance.md` fails CI; run `npm run provenance` and commit it.
 On Node 20.19, which the `engines` range allows, that failure in
@@ -706,6 +714,14 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   tree, `max` equals the rank texts, sane positions. `slugify(name)` is the id
   rule. `js/sim-config.js` uses it, so the live page loads it. It reads the
   snapshot through `js/snapshot.js`.
+- `js/racials.js` and `data/racial-effects.js` — Races and racials (D12a,
+  #277). `raceCatalogue` is built from the snapshot's `races` and `racials`:
+  the nine rogue races, four racials each, with `race` and `race.racial` ids.
+  `data/racial-effects.js` says what each racial does (static modifiers,
+  optionally for some target types only) or why it does nothing yet, with a
+  hash of the text it was written from. `expandRace(id)` gives the modifiers
+  the Rogue adds for `config.race`; `null`, the default, adds none. See
+  [Races and racials](docs/mechanics.md#races-and-racials-d12a-issue-277).
 - `js/snapshot.js` — The one place the page and the engine import
   `data/talentsforever/rogue.json` (an import attribute). `js/talents.js` and
   `js/abilities.js` read it from here.
@@ -842,6 +858,12 @@ iterations, duration, config, signal, onProgress })` and the sliced,
 - `test/combat-talents-as-data.test.js` — Every Combat talent classified, the
   11 DPS-relevant ones in `data/talent-effects.js` checked against the snapshot's
   rank text, and a full build run through a fight.
+- `test/racials.test.js` — The race catalogue against the snapshot, every
+  racial's entry, hash and value against its text, `config.race` (default,
+  refusals, old configs), `race: null` byte-identical, each passive in a fight
+  (Gnome's 110 x 1.05 -> 115), and no random draws of its own.
+  `test/racial-coverage.test.js` checks `npm run racials:coverage` on broken
+  copies.
 - `test/talent-effects.test.js` — The talent effects data (shape, text hashes,
   proc chances against the text), `expandTalents` (ranks, order, rank 0 drawing
   nothing, bad input), the data check refusing a bad entry, the Assassination

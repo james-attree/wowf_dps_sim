@@ -10,6 +10,7 @@
     "lint": "eslint . --max-warnings 0 && prettier --check .",
     "provenance": "node scripts/provenance.mjs",
     "talents:coverage": "node scripts/talent-coverage.mjs",
+    "racials:coverage": "node scripts/racial-coverage.mjs",
     "data:refresh": "node scripts/refresh-data.mjs",
     "icons:check": "node scripts/check-icons.mjs",
     "golden:update": "node scripts/golden-update.mjs",

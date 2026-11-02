@@ -20,6 +20,20 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 
 const TICK_MODES = Object.freeze(["continuous"]);
 const TARGET_CHANGES = Object.freeze(["clear", "keep"]);
+const ROUNDINGS = Object.freeze(["floor"]);
+
+// The cap of a pool: its base cap through the resourceMax modifiers for it,
+// then rounded as its definition's `roundMax` says (A19, #277: energy rounds
+// down, so Gnome's × 1.05 on Vigor's 110 is 115.5 → 115). A cap that is
+// already whole is returned as it is, so a fight with no multiplier reads
+// the same number it always did. Shared with js/core/energy.js.
+export function resolveCap(definition, modifiers, baseMax, context) {
+  const cap = modifiers.resolve("resourceMax", baseMax, context);
+  if (definition.roundMax === undefined || Number.isInteger(cap)) {
+    return cap;
+  }
+  return Math.floor(cap + k("resource.maxRoundingTolerance"));
+}
 
 // A gain or a spend is an amount of 0 or more. A negative amount would be a
 // spend called a gain (or the reverse), and NaN would poison the pool for the
@@ -67,6 +81,14 @@ export class Resource {
         `Resource "${definition.id}" has an unknown onTargetChange. Known: ${TARGET_CHANGES.join(", ")}.`,
       );
     }
+    if (
+      definition.roundMax !== undefined &&
+      !ROUNDINGS.includes(k(definition.roundMax))
+    ) {
+      throw new RangeError(
+        `Resource "${definition.id}" has an unknown roundMax. Known: ${ROUNDINGS.join(", ")}.`,
+      );
+    }
     this.definition = definition;
     this.id = definition.id;
     this.modifiers = modifiers;
@@ -105,9 +127,15 @@ export class Resource {
   }
 
   // The cap now: the base cap through the resourceMax modifiers for this
-  // resource. With none it is baseMax itself.
+  // resource, rounded as the definition says (resolveCap). With none it is
+  // baseMax itself.
   get max() {
-    return this.modifiers.resolve("resourceMax", this.baseMax, this.maxContext);
+    return resolveCap(
+      this.definition,
+      this.modifiers,
+      this.baseMax,
+      this.maxContext,
+    );
   }
 
   has(amount) {

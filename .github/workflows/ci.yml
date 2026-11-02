@@ -59,3 +59,9 @@ jobs:
       # that is gone.
       - name: Talent coverage
         run: npm run talents:coverage
+
+      # Racial coverage (D12a, #277). Fails for a racial of a rogue race with
+      # no entry in data/racial-effects.js, for an entry whose racial text
+      # changed, and for an entry of a racial that is gone.
+      - name: Racial coverage
+        run: npm run racials:coverage

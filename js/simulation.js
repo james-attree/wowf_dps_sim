@@ -813,8 +813,8 @@ export class Simulation {
   }
 
   // Damage a proc deals from a source of its own (js/procs.js, dealDamage).
-  // `spell.missTarget` applies when it is a spell hit, with one draw, before
-  // the damage. Then the damage roll, one draw, when min and max differ. Then,
+  // `spell.missTarget` applies when it is a spell hit, less the rogue's bonus
+  // spell hit (Artisan's Precision, #277), with one draw, before the damage. Then the damage roll, one draw, when min and max differ. Then,
   // when the action `canCrit` and the hit landed, one crit draw (Instant
   // Poison): the melee crit chance, less the crit suppression when
   // poison.instantCritSuppression says so, and the damage times
@@ -826,7 +826,10 @@ export class Simulation {
     const context = this.attackContext(source, "skill");
     let hit = { outcome: "hit", status: "Hit", landed: true };
     if (spellHit) {
-      hit = resolveSpellHit({ rng: this.rng });
+      hit = resolveSpellHit({
+        bonusSpellHit: this.rogue.getBonusSpellHitChance(),
+        rng: this.rng,
+      });
     }
     let damage = 0;
     let outcome = hit.outcome;
@@ -894,7 +897,10 @@ export class Simulation {
     const context = this.attackContext(source, "skill");
     let hit = { outcome: "hit", status: "Hit", landed: true };
     if (spellHit) {
-      hit = resolveSpellHit({ rng: this.rng });
+      hit = resolveSpellHit({
+        bonusSpellHit: this.rogue.getBonusSpellHitChance(),
+        rng: this.rng,
+      });
     }
     if (hit.landed) {
       const stacks =

@@ -75,6 +75,8 @@ const NO_SCOPE = Object.freeze([]);
 //   attackPower     added to the character's attack power
 //   critChance      fraction, added to the crit chance
 //   hitChance       fraction, added to the bonus hit chance
+//   spellHitChance  fraction taken off a poison's spell miss chance
+//                   (spell.missTarget); melee hit does not (#277, N1)
 //   dodgeReduction  fraction taken off the target's dodge chance
 //   parryReduction  fraction taken off the target's parry chance
 //   armorIgnore     fraction of the target's armor ignored after reductions
@@ -98,6 +100,7 @@ export const MODIFIER_KINDS = Object.freeze({
   attackPower: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
   critChance: Object.freeze({ scope: EVERY_SCOPE }),
   hitChance: Object.freeze({ scope: EVERY_SCOPE }),
+  spellHitChance: Object.freeze({ scope: NO_SCOPE }),
   dodgeReduction: Object.freeze({ scope: HAND_SCOPES }),
   parryReduction: Object.freeze({ scope: HAND_SCOPES }),
   armorIgnore: Object.freeze({ scope: EVERY_SCOPE }),
