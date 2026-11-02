@@ -83,6 +83,7 @@ describe("the form fills from the store's config", () => {
     assert.deepEqual(
       FORM_FIELDS.map(({ path }) => path),
       [
+        "race",
         "character.attackPower",
         "character.critChance",
         "character.bonusHitChance",

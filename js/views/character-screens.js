@@ -30,8 +30,9 @@ const HANDS = Object.freeze([
 ]);
 
 // Target level is in Fight (#318, Fran's qa-319 P1): not a screen's here.
+// The race is on Stats (#321).
 const screenOfPath = (path) =>
-  path.startsWith("character.")
+  path.startsWith("character.") || path === "race"
     ? "stats"
     : path.startsWith("weapons.") || path.startsWith("poisons.")
       ? "gear"
@@ -48,8 +49,8 @@ const capital = (text) =>
 // Character's rows from the form slice: what the fields show, and how many
 // of each screen's fields have a message. { gear, stats }: { summary, fix }.
 // "Main hand Sword 100–187 · Instant Poison / Off hand Sword 90–168 · Deadly
-// Poison" and "767 attack power · 22.45% crit · 7% hit", then haste and
-// weapon skill only when set; a value that is not a number yet is a dash.
+// Poison" and "767 attack power · 22.45% crit · 7% hit", led by the race
+// when one is set (#321), then haste and weapon skill only when set; a value that is not a number yet is a dash.
 // Target level is Fight's (#318): the run summary names it.
 export function characterRows(form) {
   const values = form?.values ?? {};
@@ -72,10 +73,19 @@ export function characterRows(form) {
     const at = (part) => values[`weapons.${key}.${part}`];
     return `${name} ${capital(at("type"))} ${numberText(at("min"))}–${numberText(at("max"))} · ${poisonText(values[`poisons.${key}`])}`;
   };
+  const race = values.race ?? null;
+  const raceName =
+    race === null
+      ? null
+      : ((form?.raceOptions ?? [])
+          .flatMap((group) => group.races)
+          .find((option) => option.id === race)?.label ?? capital(race));
   return {
     gear: { summary: HANDS.map(hand).join(" / "), fix: fix.gear },
     stats: {
       summary: [
+        // No race is left out, as no haste is.
+        ...(raceName === null ? [] : [raceName]),
         `${numberText(values["character.attackPower"])} attack power`,
         `${percentText(values["character.critChance"])} crit`,
         `${percentText(values["character.bonusHitChance"])} hit`,

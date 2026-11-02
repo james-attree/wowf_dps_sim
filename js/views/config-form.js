@@ -147,6 +147,52 @@ export function poisonNoteText({ noDpsReason }) {
   return `Not simulated yet: ${reason}`;
 }
 
+// The Race select's first choice (#321): config.race null.
+export const NO_RACE_LABEL = "None (no racials)";
+// A racial's chip (#321), in the poisons' and #280's words.
+export const RACIAL_CHIPS = Object.freeze({
+  simulated: "Simulated",
+  off: "No DPS effect",
+  later: "Not simulated yet",
+});
+// An on-use racial needs a rule that casts it (#278); no built-in rotation
+// has one.
+export const ON_USE_NOTE =
+  "A rotation rule has to cast it; the built-in rotations don't.";
+
+const pluralType = (type) => `${capitalised(type)}s`;
+
+// The chip of a racial from the model's raceInfo(): which of RACIAL_CHIPS,
+// as { kind, text }. A mob-type racial against the page's target does
+// nothing, as one with no DPS effect.
+export function racialChip({ status }) {
+  const kind =
+    status === "simulated"
+      ? "simulated"
+      : status === "notSimulated"
+        ? "later"
+        : "off";
+  return { kind, text: RACIAL_CHIPS[kind] };
+}
+
+// The plain line under a racial's name: what it does. One with no DPS
+// effect gives the effects data's reason; the rest give the racial's own
+// text, an on-use racial adds ON_USE_NOTE, and a mob-type racial the targets
+// it is for.
+export function racialLineText({ status, text, reason, onUse, mobTypes }) {
+  if (status === "noDpsEffect") {
+    return reason ?? text;
+  }
+  if (status === "inert") {
+    const types = (mobTypes ?? []).map(pluralType).join(" or ");
+    return `${text} Only against ${types}, and the target isn't one.`;
+  }
+  if (status === "simulated" && onUse) {
+    return `${text} ${ON_USE_NOTE}`;
+  }
+  return text;
+}
+
 export function createConfigFormView(doc, store, actions) {
   const $ = (id) => doc.querySelector(`#${id}`);
   const form = $("config-form");
@@ -241,6 +287,62 @@ export function createConfigFormView(doc, store, actions) {
           group("Not simulated yet", notSimulated),
         );
     }
+  }
+
+  // The Race select's options, once (#321): None, then an optgroup per
+  // faction. A value is the race id ("night-elf").
+  function raceSelect(groups) {
+    const select = controls.get("race");
+    if (select === undefined || select === null) {
+      return;
+    }
+    const option = (id, label) => {
+      const element = doc.createElement("option");
+      element.value = id;
+      element.textContent = label;
+      return element;
+    };
+    select.replaceChildren(
+      option("", NO_RACE_LABEL),
+      ...(groups ?? []).map(({ faction, races }) => {
+        const group = doc.createElement("optgroup");
+        group.setAttribute("label", faction);
+        group.replaceChildren(
+          ...races.map(({ id, label }) => option(id, label)),
+        );
+        return group;
+      }),
+    );
+  }
+
+  // The race's racials under the select (#321): each one's name, its chip
+  // and what it does. Hidden with no race.
+  function drawRace(race) {
+    const box = $("cfg-race-racials");
+    if (box === null || box === undefined) {
+      return;
+    }
+    const on = race !== null && race !== undefined;
+    box.hidden = !on;
+    $("cfg-race-racials-name").textContent = on ? race.name : "";
+    $("cfg-race-racials-list").replaceChildren(
+      ...(on ? race.racials : []).map((racial) => {
+        const item = doc.createElement("li");
+        item.className = "race-racial";
+        const name = doc.createElement("span");
+        name.className = "race-racial-name";
+        name.textContent = racial.name;
+        const { kind, text } = racialChip(racial);
+        const chip = doc.createElement("span");
+        chip.className = `race-chip is-${kind}`;
+        chip.textContent = text;
+        const line = doc.createElement("p");
+        line.className = "field-help race-racial-line";
+        line.textContent = racialLineText(racial);
+        item.append(name, " ", chip, line);
+        return item;
+      }),
+    );
   }
 
   // A poison select's description ids: rank and effect while a poison is on,
@@ -529,12 +631,16 @@ export function createConfigFormView(doc, store, actions) {
     drawn = state;
     if (previous === null) {
       poisonSelects(state.poisonOptions);
+      raceSelect(state.raceOptions);
     }
     if (previous === null || state.revision !== previous.revision) {
       fillValues(state.values);
     }
     if (previous === null || state.poisons !== previous.poisons) {
       drawPoisons(state.poisons);
+    }
+    if (previous === null || state.race !== previous.race) {
+      drawRace(state.race);
     }
     if (previous === null || state.levels !== previous.levels) {
       drawLevels(state.levels);

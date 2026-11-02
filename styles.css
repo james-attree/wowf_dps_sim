@@ -1656,6 +1656,72 @@ h3 {
   gap: 10px;
 }
 
+/* The race and its racials (#321): the select at a field's width, the
+   racials under it, each a name, a chip and what it does. */
+.race-fieldset {
+  display: grid;
+  gap: 8px;
+}
+
+.race-field {
+  max-width: 22rem;
+}
+
+.race-racials[hidden] {
+  display: none;
+}
+
+.race-racials-title {
+  margin: 4px 0 0;
+  color: #d4c8b1;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.race-racials-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 6px 14px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.race-racial {
+  min-width: 0;
+  color: #f3eee2;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.race-racial-line {
+  margin: 2px 0 0;
+}
+
+.race-chip {
+  display: inline-block;
+  padding: 0 7px;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* Simulated: the green of a good result; the rest in the poisons' amber and
+   the muted text. */
+.race-chip.is-simulated {
+  color: #8fd19e;
+}
+
+.race-chip.is-later {
+  color: #f0c46a;
+}
+
+.race-chip.is-off {
+  color: var(--text-muted);
+}
+
 .hands {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
