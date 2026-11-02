@@ -1,0 +1,144 @@
+{
+  "config": {
+    "race": "night-elf",
+    "weapons": {
+      "mainHand": {
+        "min": 73,
+        "max": 137,
+        "speed": 1.8,
+        "type": "dagger"
+      },
+      "offHand": {
+        "min": 59,
+        "max": 111,
+        "speed": 1.6,
+        "type": "dagger"
+      }
+    },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.relentless-strikes": 1,
+      "assassination.lethality": 4,
+      "combat.improved-eviscerate": 3,
+      "combat.improved-sinister-strike": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.endurance": 2,
+      "combat.improved-sprint": 2,
+      "combat.flawless-execution": 1,
+      "combat.dual-wield-specialization": 5,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.adrenaline-rush": 1,
+      "subtlety.opportunity": 2
+    },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Combat Daggers",
+      "rules": [
+        {
+          "action": "blood-fury",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "blood-fury"
+            }
+          ]
+        },
+        {
+          "action": "elunes-light",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "elunes-light"
+            }
+          ]
+        },
+        {
+          "action": "berserking",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "berserking"
+            }
+          ]
+        },
+        {
+          "action": "eureka",
+          "conditions": [
+            {
+              "type": "abilityGranted",
+              "ability": "eureka"
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 4
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 4
+            },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            {
+              "type": "comboPoints",
+              "op": ">=",
+              "value": 4
+            }
+          ]
+        },
+        {
+          "action": "backstab",
+          "conditions": [
+            {
+              "type": "resource",
+              "resource": "comboPoints",
+              "op": "<",
+              "value": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "run": {
+    "seed": 1493251679
+  }
+}

@@ -1,5 +1,5 @@
 // #323: Start from a preset, at the top of Character on a first visit.
-// Four cards; one press puts in the preset's #273 reference build and its
+// Four cards (five with #328); one press puts in the preset's #273 reference build and its
 // rotation, the line after says so, with Undo (the rotation comes back
 // too); the panel folds into the first Character row, "Starting point:
 // X", which opens the cards again at #character/start. It opens only when
@@ -16,6 +16,7 @@ import { startStaticServer } from "../scripts/serve.mjs";
 import { CUSTOM_CHOSEN, START_KEY } from "../js/start-preset.js";
 import { SAVED_SETUP_KEY } from "../js/saved-setup.js";
 import { LINK_PARAM } from "../js/build-codec.js";
+import { COMBAT_DAGGERS, withDaggers } from "../test/combat-daggers-328.js";
 
 const PINNED_FONT = "DejaVu Sans";
 const WIDTHS = [320, 360, 390, 1024, 1440];
@@ -25,8 +26,13 @@ const PHONE_HEIGHT = 844;
 const WIDE_HEIGHT = 900;
 const WIDE = 1024;
 const TARGET_LEAST = 44;
-// Where four cards cannot fit over the dock at 150% text (they scroll to).
-const SCROLLS = new Set(["320-150%"]);
+// Where the cards cannot fit over the dock at 150% text (they scroll to).
+// Five cards (#328) also scroll to at 150% on the 360 and 390 phones; the
+// test then checks the last one scrolls clear of the dock.
+const SCROLLS = new Set([
+  "320-150%",
+  ...withDaggers([], "360-150%", "390-150%"),
+]);
 const SHOTS = process.env.START_PRESET_SHOTS ?? null;
 const SETTLE = 5_000;
 const RUN_TIMEOUT = 60_000;
@@ -38,7 +44,14 @@ const ASSASSINATION = "assassination-daggers";
 const COMBAT = "combat-swords";
 const SUBTLETY = "subtlety-daggers";
 const CUSTOM = "custom";
-const ORDER = [ASSASSINATION, COMBAT, SUBTLETY, CUSTOM];
+// #328: Combat daggers after Combat swords once its data/ entries land.
+const ORDER = [
+  ASSASSINATION,
+  COMBAT,
+  ...withDaggers([], COMBAT_DAGGERS),
+  SUBTLETY,
+  CUSTOM,
+];
 const PANEL = "#start-panel";
 const ROW = "#start-row";
 const ROW_ITEM = "#start-row-item";
@@ -297,7 +310,7 @@ describe("Start from a preset (#323)", () => {
             assert.ok(target.width >= TARGET_LEAST, `${id}: wide enough`);
             assert.ok(target.right <= panel.right + 1, `${id}: in the panel`);
           }
-          // All four over the dock, but where 150% text on the narrowest
+          // All of them over the dock, but where 150% text on the narrowest
           // phones makes them scroll.
           const last = await box(page, card(CUSTOM));
           const dock = await dockTop(page);
@@ -310,6 +323,15 @@ describe("Start from a preset (#323)", () => {
               last.bottom <= foot + 1,
               `${name}: the last card over the dock (${last.bottom} against ${foot})`,
             );
+          } else {
+            // It scrolls to: brought into view, it sits clear of the dock.
+            await page.locator(card(CUSTOM)).scrollIntoViewIfNeeded();
+            const scrolled = await box(page, card(CUSTOM));
+            assert.ok(
+              scrolled.bottom <= foot + 1,
+              `${name}: the last card scrolls over the dock (${scrolled.bottom} against ${foot})`,
+            );
+            await page.evaluate(() => globalThis.scrollTo(0, 0));
           }
           assert.ok(await fitsPage(page), `${name}: no sideways scroll`);
           await shot(page, `after-first-${name}`);

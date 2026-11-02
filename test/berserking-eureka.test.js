@@ -24,6 +24,7 @@ import { Rogue } from "../js/rogue.js";
 import { evaluate } from "../js/rotation-conditions.js";
 import { rotationState } from "../js/rotation-state.js";
 import { defaultConfig } from "../js/sim-config.js";
+import { COMBAT_DAGGERS, LANDED } from "./combat-daggers-328.js";
 
 // P5-03b (#279, D12b-2): the on-use racials Berserking (Troll, +10% attack
 // speed for 15 s, 3 min) and Eureka! (Gnome, non-periodic damaging abilities
@@ -278,6 +279,7 @@ const RACIALS_IN = {
   "assassination-daggers": ALL_FOUR,
   "subtlety-daggers": ALL_FOUR,
   "combat-swords": ALL_FOUR,
+  ...(LANDED ? { [COMBAT_DAGGERS]: ALL_FOUR } : {}),
 };
 const DAGGERS = "assassination-daggers";
 

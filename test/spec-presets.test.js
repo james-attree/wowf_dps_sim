@@ -18,6 +18,7 @@ import { listPresets, loadPreset } from "../js/rotation-presets.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 import { buildProblems, talentLevelRange } from "../js/talent-build.js";
 import { referenceBuild as combatReferenceTalents } from "../data/reference-build.js";
+import { COMBAT_DAGGERS, LANDED, withDaggers } from "./combat-daggers-328.js";
 
 // Issue #272 (P4.6-06): the Assassination and Subtlety presets, and the
 // reference build (talents and daggers) each is written for. Loading a preset
@@ -65,7 +66,10 @@ function withReferenceBuild(id) {
 describe("the Assassination and Subtlety presets (#272)", () => {
   it("are listed after Combat swords, each with a summary", () => {
     const ids = listPresets().map((preset) => preset.id);
-    assert.deepEqual(ids, ["combat-swords", ASSASSINATION, SUBTLETY]);
+    assert.deepEqual(
+      ids,
+      withDaggers(["combat-swords", ASSASSINATION, SUBTLETY], COMBAT_DAGGERS),
+    );
     for (const preset of listPresets()) {
       assert.ok(preset.summary.length > 0, preset.id);
     }
@@ -236,11 +240,10 @@ describe("the Assassination and Subtlety presets (#272)", () => {
 
 describe("the preset reference builds (#272, for #273)", () => {
   it("has one for each of the three presets (James's decision, relayed by Scout)", () => {
-    assert.deepEqual(Object.keys(PRESET_REFERENCE_BUILDS).sort(), [
-      ASSASSINATION,
-      COMBAT,
-      SUBTLETY,
-    ]);
+    assert.deepEqual(
+      Object.keys(PRESET_REFERENCE_BUILDS).sort(),
+      withDaggers([ASSASSINATION, COMBAT, SUBTLETY], COMBAT_DAGGERS).sort(),
+    );
     for (const { id } of listPresets()) {
       assert.notEqual(referenceBuild(id), null, id);
     }
@@ -433,8 +436,14 @@ describe("the preset reference builds (#272, for #273)", () => {
       [COMBAT]: { mainHand: "deadly", offHand: "instant" },
       [ASSASSINATION]: { mainHand: "instant", offHand: "deadly" },
       [SUBTLETY]: { mainHand: "instant", offHand: "deadly" },
+      ...(LANDED
+        ? { [COMBAT_DAGGERS]: { mainHand: "instant", offHand: "deadly" } }
+        : {}),
     });
-    for (const id of [ASSASSINATION, COMBAT, SUBTLETY]) {
+    for (const id of withDaggers(
+      [ASSASSINATION, COMBAT, SUBTLETY],
+      COMBAT_DAGGERS,
+    )) {
       const build = referenceBuild(id);
       assert.deepEqual(build.poisons, rulings[id], id);
       // The SimConfig shape: a config reads it back as it is.

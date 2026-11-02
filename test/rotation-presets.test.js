@@ -14,6 +14,7 @@ import {
 } from "../js/rotation-presets.js";
 import { summarizeRotation } from "../js/rotation-summary.js";
 import { validateRotation } from "../js/rotation-validator.js";
+import { withDaggers } from "./combat-daggers-328.js";
 
 // R5 (#142): the preset registry, its API, and the Combat swords preset.
 
@@ -222,6 +223,7 @@ describe("the readable summary in docs/rotation.md", () => {
       "presetRotation.combat",
       "presetRotation.assassination",
       "presetRotation.subtlety",
+      ...withDaggers([], "presetRotation.combatDaggers"),
     ]) {
       assert.ok(presets.includes(`\`${row}\``), row);
     }

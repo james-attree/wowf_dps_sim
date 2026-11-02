@@ -2472,10 +2472,16 @@ a.pill-button {
 }
 
 /* Two across, never three and one. The main column never reaches 56rem,
-   so a four-across step could not show (#326, item 4) and is left out. */
+   so a four-across step could not show (#326, item 4) and is left out.
+   An odd count (five cards with Combat daggers, #328) leaves Custom alone
+   on the last row, so it takes the whole row rather than half of it. */
 @container start (width >= 28rem) {
   .start-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .start-cards > li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 
