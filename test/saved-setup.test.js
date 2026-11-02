@@ -349,7 +349,7 @@ describe("#296 (G4): what a saved setup reads as", () => {
     assert.equal(read.run.seed, 99);
   });
 
-  it("an unknown field is ignored; a section that does not check out is its default", () => {
+  it("an unknown field is ignored; a field that does not check out is its default (#326)", () => {
     const payload = {
       future: { anything: true },
       config: {
@@ -362,7 +362,11 @@ describe("#296 (G4): what a saved setup reads as", () => {
     const text = `${SETUP_VERSION}.${Buffer.from(JSON.stringify(payload)).toString("base64url")}`;
     const read = readBack(text);
     const d = setupDefaults();
-    assert.deepEqual(read.config.character, d.config.character);
+    // #326 item 13: only the bad field resets, not its whole section.
+    assert.deepEqual(read.config.character, {
+      ...d.config.character,
+      attackPower: 900,
+    });
     assert.equal(read.config.talentLevel, 40);
     assert.equal(read.run.duration, d.run.duration);
     assert.equal(read.run.mode, "live");

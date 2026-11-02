@@ -31,3 +31,29 @@ export function keepFocusInView(doc = globalThis.document) {
   doc.addEventListener("focusin", onFocus);
   return () => doc.removeEventListener("focusin", onFocus);
 }
+
+// Focus a field to fix and show its whole wrapper, label to error (#326,
+// item 1): a "Fix" link or a blocked Run focused the input alone, so at a
+// phone width its error could sit under the dock. The wrapper is the form's
+// .field or the run's .run-field; html's scroll-padding leaves out the dock.
+// The scroll waits a frame, after the area the field is in is shown.
+const FIELD_WRAPPERS = ".field, .run-field";
+
+export function focusField(field) {
+  if (field === null || field === undefined) {
+    return;
+  }
+  field.focus?.();
+  const doc = field.ownerDocument;
+  const view = doc?.defaultView;
+  if (typeof view?.requestAnimationFrame !== "function") {
+    return;
+  }
+  view.requestAnimationFrame(() => {
+    if (doc.activeElement !== field) {
+      return;
+    }
+    const wrapper = field.closest?.(FIELD_WRAPPERS) ?? field;
+    wrapper.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  });
+}

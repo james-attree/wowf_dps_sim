@@ -1709,6 +1709,14 @@ h3 {
   display: none;
 }
 
+/* Open, the folded racials sit indented behind a rule, so the fold's end
+   shows (#326, item 15, N-d2). */
+.race-racials-more > .race-racials-list {
+  margin-inline-start: 0.4em;
+  padding-inline-start: 0.75em;
+  border-inline-start: 2px solid var(--border);
+}
+
 .race-racials-more > summary {
   display: flex;
   align-items: baseline;
@@ -2300,8 +2308,8 @@ a.pill-button {
 
 /* Start from a preset (#323, Fran's design/preset-first): the cards at the
    top of the Character list on a first visit, and on #character/start.
-   One card across, two from 28rem, four from 56rem; in rem, so bigger
-   text gets fewer across. In a narrow panel (a phone, or larger text) the compact grid
+   One card across, two from 28rem; in rem, so bigger text gets fewer
+   across. In a narrow panel (a phone, or larger text) the compact grid
    keeps all four above the dock: two across, each card's name and builder
    only, and the lead's second sentence left out. */
 .start-panel {
@@ -2463,16 +2471,11 @@ a.pill-button {
   overflow-wrap: anywhere;
 }
 
-/* Two across, then all four: never three and one. */
+/* Two across, never three and one. The main column never reaches 56rem,
+   so a four-across step could not show (#326, item 4) and is left out. */
 @container start (width >= 28rem) {
   .start-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@container start (width >= 56rem) {
-  .start-cards {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -3207,11 +3210,20 @@ th[aria-sort="ascending"] {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    /* A label keeps its word whole (#326, item 2: "Characte r" beside a
+       badge at 320 and 150% text): when the icon, label and badge do not
+       fit across, the badge wraps under them, the link centred. */
     .area-nav a {
       flex-direction: row;
-      gap: 6px;
+      flex-wrap: wrap;
+      gap: 0 6px;
       min-height: var(--target);
       padding: 2px 6px;
+    }
+
+    .area-nav-label {
+      min-width: auto;
+      overflow-wrap: normal;
     }
 
     .area-nav-badge {
@@ -3798,7 +3810,8 @@ th[aria-sort="ascending"] {
 /* A link that loaded nothing is a warning, not a success (Fran's #299 P4):
    the error colour of .field-error, and the text says nothing was loaded. */
 .share-banner[data-notice="newer"],
-.share-banner[data-notice="corrupt"] {
+.share-banner[data-notice="corrupt"],
+.share-banner[data-notice="reset"] {
   border-color: #f19389;
   border-left-width: 0.25rem;
 }

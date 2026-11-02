@@ -68,7 +68,8 @@ export const staleKinds = (state) =>
 export const anyStale = (state) => staleKinds(state).length > NONE;
 
 // The names of what changed between two configs, in the config's order and
-// each once: ["Attack power", "the rotation"].
+// each once: ["Attack power", "the rotation"]. The talents come first, so
+// "and other settings" never hides them (#326, item 16; Fran's qa-308 #4).
 export function changedNames(before, after) {
   const names = [];
   const add = (name) => {
@@ -103,7 +104,10 @@ export function changedNames(before, after) {
       }
     }
   }
-  return names;
+  const talents = PART_NAMES.talents;
+  return names.includes(talents)
+    ? [talents, ...names.filter((name) => name !== talents)]
+    : names;
 }
 
 // "Attack power", "Attack power and the rotation", "Attack power, the
@@ -158,5 +162,6 @@ export function staleStatus(state, kind) {
     : `Out of date · edited after the ${clock} run`;
 }
 
-// What #run-announce says once when a result goes out of date.
-export const STALE_ANNOUNCEMENT = "Results out of date";
+// What #run-announce says once when a result goes out of date: a sentence,
+// alone or after a preset's line (#326, item 16).
+export const STALE_ANNOUNCEMENT = "Results out of date.";

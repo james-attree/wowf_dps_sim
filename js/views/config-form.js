@@ -1,6 +1,12 @@
 import { k } from "../../data/constants.js";
 import { NARROW_QUERY } from "./breakpoints.js";
-import { NO_BREAK_SPACE, fieldErrors, formErrorCount } from "./run-model.js";
+import {
+  NO_BREAK_SPACE,
+  fieldErrors,
+  formErrorCount,
+  isTargetPath,
+} from "./run-model.js";
+import { focusField } from "./focus-in-view.js";
 import { reveal } from "./sections.js";
 import { anyStale } from "./stale.js";
 
@@ -214,10 +220,11 @@ export const ROGUE_LINES = Object.freeze({
 });
 // Why a racial that would change the damage isn't in the fight yet, in
 // plain words from the effects data's reason (data/racial-effects.js
-// notSimulated: "… which the simulator does not model").
+// notSimulated: "… which the simulator does not model"). Only the reason:
+// the chip above says "Not simulated yet" (#326, item 15; Fran's qa-322).
 export const NOT_SIMULATED_REASONS = Object.freeze({
   "touch-of-the-grave":
-    "Not simulated yet: the simulator doesn't model the rogue's health.",
+    "The drain's damage depends on your maximum health, which the simulator doesn't model.",
 });
 const slugOf = (id) => String(id ?? "").replace(/^[^.]*\./, "");
 
@@ -396,6 +403,7 @@ export function createConfigFormView(doc, store, actions) {
 
   // The race's racials under the select (#321): each one's name, its chip
   // and what it does. Hidden with no race.
+  let foldRace = null;
   function drawRace(race) {
     const box = $("cfg-race-racials");
     if (box === null || box === undefined) {
@@ -430,6 +438,12 @@ export function createConfigFormView(doc, store, actions) {
     );
     const more = $("cfg-race-racials-more");
     if (more !== null && more !== undefined) {
+      // Another race's fold starts closed (#326, item 15, N-d1).
+      const raceId = on ? race.id : null;
+      if (raceId !== foldRace) {
+        more.open = false;
+        foldRace = raceId;
+      }
       more.hidden = !folded.some(Boolean);
       $("cfg-race-racials-more-summary").textContent = noDpsSummary(folded);
       $("cfg-race-racials-more-list").replaceChildren(
@@ -555,24 +569,36 @@ export function createConfigFormView(doc, store, actions) {
       }
     }
 
-    const fields = Object.entries(errors).filter(
+    // The target's fields are Fight's (#318), so they come last, after the
+    // run fields, in Fight's order (#326, item 3).
+    const shown = Object.entries(errors).filter(
       ([path, message]) => controls.has(path) && message !== null,
     );
+    const fields = shown.filter(([path]) => !isTargetPath(path));
+    const fightFields = shown.filter(([path]) => isTargetPath(path));
     const backstop = Object.entries(errors).find(
       ([path]) => !controls.has(path),
     );
     // The same count as Run's (#237): js/views/run-model.js formErrorCount.
     const count = formErrorCount({ errors }) + barErrors.length;
-    const listed = fields.length + barErrors.length;
+    const listed = shown.length + barErrors.length;
     statusOk.hidden = count > 0;
     fix.hidden = listed === 0;
     fixHeading.textContent = listed > 0 ? fixHeadingText(count) : "";
     // Rebuilt only when the list of fields changes: a blur that commits a
     // field must not swap out the link the pointer is pressing.
-    const fixKey = [...fields.map(([path]) => path), ...barErrors].join(" ");
+    const fixKey = [
+      ...fields.map(([path]) => path),
+      ...barErrors,
+      ...fightFields.map(([path]) => path),
+    ].join(" ");
     if (fixKey !== shownFixKey) {
       shownFixKey = fixKey;
-      fixList.replaceChildren(...fixLinks(fields), ...barLinks(barErrors));
+      fixList.replaceChildren(
+        ...fixLinks(fields),
+        ...barLinks(barErrors),
+        ...fixLinks(fightFields),
+      );
     }
     formError.hidden = backstop === undefined;
     formError.textContent = backstop === undefined ? "" : backstop[1];
@@ -595,7 +621,7 @@ export function createConfigFormView(doc, store, actions) {
         // A field on another of Character's screens has it shown first
         // (#244).
         reveal(control);
-        control.focus();
+        focusField(control);
       });
       item.append(link);
       return item;
@@ -616,7 +642,7 @@ export function createConfigFormView(doc, store, actions) {
         event.preventDefault();
         const field = doc.querySelector(`#run-${name}`);
         reveal(field);
-        field?.focus?.();
+        focusField(field);
       });
       item.append(link);
       return item;
@@ -624,6 +650,7 @@ export function createConfigFormView(doc, store, actions) {
   }
 
   // "Main hand, Max damage": the field's legend and label, as a link's text.
+  // A target field is Fight's, named as the run fields are (#326, item 3).
   function fieldName(path) {
     const label = doc.querySelector(`label[for="${fieldId(path)}"]`);
     const own = label?.firstChild?.textContent ?? path;
@@ -631,7 +658,9 @@ export function createConfigFormView(doc, store, actions) {
       ? "Main hand, "
       : path.startsWith("weapons.offHand")
         ? "Off hand, "
-        : "";
+        : isTargetPath(path)
+          ? "Fight, "
+          : "";
     return `${hand}${String(own).trim()}`;
   }
 
@@ -703,7 +732,12 @@ export function createConfigFormView(doc, store, actions) {
   }
 
   let toastTimer = null;
+  // Undo goes with the toast, so a focus on it moves to Reset, the button
+  // that showed it (#326, item 8: it fell to the page's body).
   function hideToast() {
+    if (!undo.hidden && doc.activeElement === undo) {
+      $("cfg-reset")?.focus?.();
+    }
     win.clearTimeout?.(toastTimer);
     toastTimer = null;
     toastText.textContent = "";

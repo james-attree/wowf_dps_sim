@@ -18,6 +18,7 @@ import {
   parseRunField,
   summaryText,
 } from "./run-model.js";
+import { focusField } from "./focus-in-view.js";
 import { areaLabel, reveal } from "./sections.js";
 import { STALE_ANNOUNCEMENT, staleKinds } from "./stale.js";
 
@@ -298,9 +299,7 @@ export function createControlsView(doc, store, actions = {}) {
     const buildSaid = state.presetBuild?.announce ?? null;
     if (buildSaid !== null && buildSaid.seq !== lastBuildSaid) {
       announce(
-        newlyStale
-          ? `${buildSaid.text} ${STALE_ANNOUNCEMENT}.`
-          : buildSaid.text,
+        newlyStale ? `${buildSaid.text} ${STALE_ANNOUNCEMENT}` : buildSaid.text,
       );
     } else if (newlyStale) {
       announce(STALE_ANNOUNCEMENT);
@@ -384,7 +383,7 @@ export function createControlsView(doc, store, actions = {}) {
       const field = firstFormField();
       if (field !== null) {
         reveal(field);
-        field.focus?.();
+        focusField(field);
         return;
       }
       // Else the rotation builder's draft with errors (#217, D17), when the
@@ -401,12 +400,12 @@ export function createControlsView(doc, store, actions = {}) {
       // focus the input.
       const level = doc.querySelector("#talents-level");
       reveal(level);
-      level?.focus?.();
+      focusField(level);
       return;
     }
     // The field is in Fight (#245): Fight is shown first.
     reveal(inputs[first]);
-    inputs[first].focus?.();
+    focusField(inputs[first]);
   }
   errorsLink.addEventListener("click", (event) => {
     event?.preventDefault?.();

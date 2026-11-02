@@ -262,7 +262,11 @@ describe("#321: each racial's plain line", () => {
       ({ status }) => status === "notSimulated",
     )) {
       assert.equal(racialChip(racial).text, "Not simulated yet");
-      assert.match(racialLineText(racial), /Not simulated yet: /);
+      assert.match(
+        racialLineText(racial),
+        /which the simulator doesn't model\.$/,
+      );
+      assert.doesNotMatch(racialLineText(racial), /Not simulated yet/);
     }
   });
 
@@ -468,7 +472,7 @@ describe("#322 P3: the rogue's plain lines", () => {
     assert.match(tog.reason, /does not model/);
     assert.equal(
       racialLineText(tog),
-      "Your damaging attacks have a 20% chance to drain health from the target, up to 5% of your maximum health. 15 sec internal cooldown. Not simulated yet: the simulator doesn't model the rogue's health.",
+      "Your damaging attacks have a 20% chance to drain health from the target, up to 5% of your maximum health. 15 sec internal cooldown. The drain's damage depends on your maximum health, which the simulator doesn't model.",
     );
   });
 });

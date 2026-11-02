@@ -286,6 +286,20 @@ export function buildValues(build) {
   return values;
 }
 
+// Whether the weapons' fields differ from the build's: a type, or a damage
+// or speed as a number (a field's value is its text).
+export function weaponValuesDiffer(build, current) {
+  const wanted = buildValues(build);
+  const now = savedValues(current);
+  return Object.keys(wanted)
+    .filter((path) => path.startsWith("weapons."))
+    .some((path) =>
+      path.endsWith(".type")
+        ? wanted[path] !== now[path]
+        : Number(wanted[path]) !== Number(now[path]),
+    );
+}
+
 // The same fields as they are now, for Undo.
 export function savedValues(current) {
   const values = {};
@@ -356,10 +370,16 @@ export function poisonsText(poisons, names = poisonName) {
 
 // The line after a pick: "Assassination set: talents 38/11/2, two daggers,
 // Instant and Deadly poisons and its rotation. Your stats and race are
-// unchanged." It names the whole build put in (Fran's mock), the parts
-// that were the same too; `level` adds "level 60" when it was below.
-export function pickedText(name, build, choice, level) {
-  const parts = [...BUILD_PARTS, ROTATION_PART];
+// unchanged." It names `parts` (all of them by default), as the
+// announcement does (#326, item 7); `level` adds "level 60" when it was
+// below.
+export function pickedText(
+  name,
+  build,
+  choice,
+  level,
+  parts = [...BUILD_PARTS, ROTATION_PART],
+) {
   const points = pointsText(build.talents);
   const says = {
     talents: points === "" ? "no talents" : `talents ${points}`,
@@ -368,11 +388,25 @@ export function pickedText(name, build, choice, level) {
     [ROTATION_PART]:
       choice === CUSTOM ? "the default rotation" : "its rotation",
   };
-  const items = parts.map((part) => says[part]);
+  const items = [...BUILD_PARTS, ROTATION_PART]
+    .filter((part) => parts.includes(part))
+    .map((part) => says[part]);
   if (level) {
     items.push(`level${NBSP}${build.talentLevel}`);
   }
-  return `${name} set: ${listText(items)}. Your stats and race are unchanged.`;
+  return `${name} set: ${pickedList(items)}. Your stats and race are unchanged.`;
+}
+
+// listText, but a last item with its own "and" ("Instant and Deadly
+// poisons") follows a comma, not another "and": "two daggers, Instant and
+// Deadly poisons", as in "two daggers, Instant and Deadly poisons and its
+// rotation" (Fran's qa-327 N3; Scout's wording).
+function pickedList(items) {
+  const last = items.at(-1) ?? "";
+  if (items.length <= 1 || !/ and /.test(last)) {
+    return listText(items);
+  }
+  return items.join(", ");
 }
 
 // The slice's `applied`: the line, Undo's name, and the card picked (null
@@ -459,7 +493,9 @@ export function createPresetBuild(
 
   // Put `build` in, with the rotation `rotation` (a pick's) or the
   // rotation as it is (#273's button). `parts` are what differs.
-  function replace({ build, parts, level, rotation, text, pick }) {
+  // `said`: what #run-announce says, the line itself for a card's pick
+  // (#326, item 7); "Talents and weapons replaced." for #273's button.
+  function replace({ build, parts, level, rotation, text, pick, said }) {
     const state = store.get();
     const current = currentBuild(state);
     const { form } = state;
@@ -503,7 +539,7 @@ export function createPresetBuild(
         },
       };
       refresh({
-        announce: nextAnnounce(announceText(build, parts, level)),
+        announce: nextAnnounce(said ?? announceText(build, parts, level)),
         focus: nextFocus("undo"),
       });
     });
@@ -542,7 +578,11 @@ export function createPresetBuild(
     if (build === null) {
       return false;
     }
-    const differences = buildDifferences(build, currentBuild(state));
+    const current = currentBuild(state);
+    const differences = buildDifferences(build, current);
+    // A re-pick puts back weapon damage and speed edited since (#326, item
+    // 6): the card is the whole build, where #273's button compares types.
+    differences.weapons ||= weaponValuesDiffer(build, current);
     const parts = [
       ...differingParts(differences),
       ...(rotationDiffers(state.form, choice) ? [ROTATION_PART] : []),
@@ -551,8 +591,16 @@ export function createPresetBuild(
     if (parts.length === 0 && !level) {
       return false;
     }
+    // A first pick names the whole build, the parts that were the same
+    // too: it is everything the card gives. A re-pick of the card already
+    // started from names what changed (#326, item 7, Scout's ruling). The
+    // announcement is the line. Undo puts back what changed either way.
+    const from = presetOfChoice(state.form);
+    const again = choice === CUSTOM ? from === null : from === choice;
+    const named = again ? parts : [...BUILD_PARTS, ROTATION_PART];
     const drafts = { ...(state.form.drafts ?? {}) };
     delete drafts[pickRotation(choice)];
+    const text = pickedText(name, build, choice, level, named);
     return replace({
       build,
       parts,
@@ -563,7 +611,8 @@ export function createPresetBuild(
         drafts,
         importStatus: null,
       },
-      text: pickedText(name, build, choice, level),
+      text,
+      said: text,
       pick: choice,
     });
   }
