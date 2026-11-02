@@ -303,6 +303,39 @@ export const AURAS = Object.freeze({
       },
     ],
   }),
+  // Berserking (Troll, P5-03b, #279): +10% attack speed for 15 s, a haste add
+  // as Slice and Dice's (A20): a swing under way is not rescaled.
+  berserking: defineAura({
+    id: "berserking",
+    name: "Berserking",
+    duration: k("racial.berserking").duration,
+    effects: { haste: k("racial.berserking").haste },
+  }),
+  // Eureka! (Gnome, P5-03b, #279): for 8 s the non-periodic damaging
+  // abilities (racial.eurekaAbilities, A22) cost x0.9, rounded down (A19), and
+  // deal x1.1; Instant Poison deals x1.1 too. Not Rupture's or Deadly
+  // Poison's ticks, nor white swings.
+  eureka: defineAura({
+    id: "eureka",
+    name: "Eureka!",
+    duration: k("racial.eureka").duration,
+    modifiers: [
+      {
+        kind: "energyCost",
+        op: "mult",
+        value: k("racial.eureka").energyCost,
+        scope: { abilities: [...k("racial.eurekaAbilities")] },
+      },
+      {
+        kind: "damage",
+        op: "mult",
+        value: k("racial.eureka").damage,
+        scope: {
+          abilities: [...k("racial.eurekaAbilities"), "instant-poison"],
+        },
+      },
+    ],
+  }),
   // The marker for the Rupture DoT on the target. Its duration is the DoT's,
   // which depends on the combo points spent, so each cast gives it.
   rupture: defineAura({

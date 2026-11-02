@@ -65,17 +65,22 @@ const energy = (op, value) => ({
 
 // Frozen all the way down (#155): a preset is read and copied
 // (js/rotation-presets.js presetRotation), never changed in place.
-// The on-use racials (P5-03a, #278, Phase 5 decision 6): every preset opens
-// by casting its race's on-use racial on cooldown. Each rule says only
+// The on-use racials (P5-03a #278, P5-03b #279, Phase 5 decision 6): a preset
+// opens by casting its race's on-use racial on cooldown. Each rule says only
 // abilityGranted: the race grants the ability (data/racial-effects.js), and
 // the ability is off the GCD (A21), so a rule that holds while the ability is
 // on cooldown is passed over, as Premeditation's would be, and needs no
-// cooldownReady. With no race, or another race, neither is granted and both
-// rules are skipped, so the preset fights as before (G4). Not in James's #310
+// cooldownReady. With no race, or another race, none is granted and the rules
+// are skipped, so the preset fights as before (G4). Not in James's #310
 // links: test/presets-310.test.js lists them as a documented difference.
-const ON_USE_RACIALS = ["blood-fury", "elunes-light"];
-const onUseRacialRules = () =>
-  ON_USE_RACIALS.map((ability) => ({
+// combat-swords has Blood Fury and Elune's Light only: its share link is
+// 1,975 characters with them, each racial rule adds about 112, and P5-07
+// (#284) keeps each preset's link under 2,048. Berserking and Eureka! are in
+// the dagger presets alone (#279, an assumption flagged for James).
+const ON_USE_RACIALS = ["blood-fury", "elunes-light", "berserking", "eureka"];
+const ON_USE_RACIALS_UNDER_LINK_CAP = ["blood-fury", "elunes-light"];
+const onUseRacialRules = (abilities = ON_USE_RACIALS) =>
+  abilities.map((ability) => ({
     action: ability,
     conditions: [granted(ability)],
   }));
@@ -104,7 +109,7 @@ export const ROTATION_PRESETS = deepFreeze([
       schemaVersion: 1,
       name: "Combat swords",
       rules: [
-        ...onUseRacialRules(),
+        ...onUseRacialRules(ON_USE_RACIALS_UNDER_LINK_CAP),
         {
           action: SLICE_AND_DICE,
           conditions: [

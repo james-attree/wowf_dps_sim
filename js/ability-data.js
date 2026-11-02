@@ -283,6 +283,23 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     aura: { id: "elunesLight", duration: { field: "duration" } },
   },
   {
+    // Granted by the Troll race (P5-03b, #279): +10% attack speed (A20).
+    key: "berserking",
+    id: "berserking",
+    row: "racial.berserking",
+    icon: null,
+    aura: { id: "berserking", duration: { field: "duration" } },
+  },
+  {
+    // Granted by the Gnome race (P5-03b, #279): cheaper and harder direct
+    // abilities (A19, A22).
+    key: "eureka",
+    id: "eureka",
+    row: "racial.eureka",
+    icon: null,
+    aura: { id: "eureka", duration: { field: "duration" } },
+  },
+  {
     // A baseline finisher (#268, A11): one Expose Armor stack per combo point
     // spent, for the row's 30 s. It rolls the yellow attack table like
     // Eviscerate and Rupture (B1), with no damage. No preset casts it (A12).

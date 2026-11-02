@@ -35,6 +35,23 @@ export function resolveCap(definition, modifiers, baseMax, context) {
   return Math.floor(cap + k("resource.maxRoundingTolerance"));
 }
 
+// What an ability pays in a resource: its base cost through the definition's
+// cost modifiers (costModifier, scoped by ability), then rounded as its
+// `roundCost` says (A19, #279: Eureka! x 0.9 on Sinister Strike's 45 is 40.5
+// -> 40). A cost that is already whole is returned as it is, so every cost
+// with no multiplier is the one it always was. With no cost modifier the
+// base is returned unchanged.
+export function resolveCost(definition, modifiers, baseCost, context) {
+  if (definition.costModifier === undefined) {
+    return baseCost;
+  }
+  const cost = modifiers.resolve(definition.costModifier, baseCost, context);
+  if (definition.roundCost === undefined || Number.isInteger(cost)) {
+    return cost;
+  }
+  return Math.floor(cost + k("resource.maxRoundingTolerance"));
+}
+
 // A gain or a spend is an amount of 0 or more. A negative amount would be a
 // spend called a gain (or the reverse), and NaN would poison the pool for the
 // rest of the fight, so both fail where they are made. A pool that holds
@@ -81,13 +98,15 @@ export class Resource {
         `Resource "${definition.id}" has an unknown onTargetChange. Known: ${TARGET_CHANGES.join(", ")}.`,
       );
     }
-    if (
-      definition.roundMax !== undefined &&
-      !ROUNDINGS.includes(k(definition.roundMax))
-    ) {
-      throw new RangeError(
-        `Resource "${definition.id}" has an unknown roundMax. Known: ${ROUNDINGS.join(", ")}.`,
-      );
+    for (const field of ["roundMax", "roundCost"]) {
+      if (
+        definition[field] !== undefined &&
+        !ROUNDINGS.includes(k(definition[field]))
+      ) {
+        throw new RangeError(
+          `Resource "${definition.id}" has an unknown ${field}. Known: ${ROUNDINGS.join(", ")}.`,
+        );
+      }
     }
     this.definition = definition;
     this.id = definition.id;

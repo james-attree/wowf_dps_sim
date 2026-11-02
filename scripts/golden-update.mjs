@@ -515,6 +515,26 @@ export const GOLDEN_CASES = deepFreeze([
       }),
     };
   }),
+  // Issue #279. The same for Berserking (Troll, +10% attack speed for 15 s,
+  // A20) and Eureka! (Gnome, non-periodic abilities x0.9 cost rounded down,
+  // A19, and x1.1 damage, A22, for 8 s): each is cast at the pull. On the
+  // assassination-daggers preset: combat-swords leaves both out to keep its
+  // share link under 2,048 characters (#284). No other case moved: with no
+  // race, or another race, the racial rules are passed over.
+  ...["troll", "gnome"].map((race) => {
+    const build = presetReferenceBuild("assassination-daggers");
+    return {
+      name: `race-${race}-assassination-daggers-seed-279-60s`,
+      seed: 279,
+      duration: 60,
+      config: loadPreset("assassination-daggers", {
+        race,
+        talents: { ...build.talents },
+        weapons: { ...build.weapons },
+        poisons: { ...build.poisons },
+      }),
+    };
+  }),
 ]);
 
 // Files that can turn up in test/golden/ without being a stray case: macOS

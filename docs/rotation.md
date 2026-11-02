@@ -838,6 +838,14 @@ casting either needs `abilityGranted` (the validator's `talentGuard`, which
 names the race); `abilityUnlocked` does not guard it, as a build never
 unlocks a racial. The builder's palette does not offer them yet (P5-04, #280).
 
+[#279](https://github.com/james-attree/wowf_dps_sim/issues/279) (P5-03b) adds
+Berserking (Troll) and Eureka! (Gnome) the same way, as rules 3 and 4 of
+assassination-daggers and subtlety-daggers. combat-swords does not have them:
+its share link is 1,975 characters with Blood Fury and Elune's Light, each
+racial rule adds about 112, and #284 keeps every preset's link under 2,048
+characters (an assumption, flagged for James in #279; see
+[Berserking and Eureka!](mechanics.md#berserking-and-eureka-p5-03b-issue-279)).
+
 ### combat-swords
 
 Slice and Dice recast at 3 combo points or more just before it ends,
@@ -948,30 +956,34 @@ hands, so on other weapons its rule is passed over. Its summary:
 Assassination
 1. Blood Fury if Blood Fury is granted
 2. Elune's Light if Elune's Light is granted
-3. Slice and Dice if CP >= 4 and Slice and Dice missing or < 1s left
-4. Slice and Dice if CP >= 4 and Slice and Dice missing or <= 5s left and Energy >= 100
-5. Venom if Venom is granted and CP >= 4 and Venom missing or <= 3s left
-6. Eviscerate if CP >= 4 and Energy >= 75
-7. Cold Blood if Cold Blood is granted and CP < 5
-8. Mutilate if Mutilate is granted and CP < 4
+3. Berserking if Berserking is granted
+4. Eureka! if Eureka! is granted
+5. Slice and Dice if CP >= 4 and Slice and Dice missing or < 1s left
+6. Slice and Dice if CP >= 4 and Slice and Dice missing or <= 5s left and Energy >= 100
+7. Venom if Venom is granted and CP >= 4 and Venom missing or <= 3s left
+8. Eviscerate if CP >= 4 and Energy >= 75
+9. Cold Blood if Cold Blood is granted and CP < 5
+10. Mutilate if Mutilate is granted and CP < 4
 ```
 
 The numbers are `presetRotation.assassination`:
 
 - 1 and 2: Blood Fury and Elune's Light, cast only when the race grants them
   ([#278](https://github.com/james-attree/wowf_dps_sim/issues/278), above).
-- 3 and 4: Slice and Dice at `finisherComboPoints` (4) with less than
+- 3 and 4: Berserking and Eureka!, cast only when the race grants them
+  ([#279](https://github.com/james-attree/wowf_dps_sim/issues/279), above).
+- 5 and 6: Slice and Dice at `finisherComboPoints` (4) with less than
   `sliceAndDiceRecastSeconds` (1 s) left, or with at most
   `sliceAndDiceWindowSeconds` (5 s) left at `sliceAndDiceEnergy` (100) energy.
-- 5: Venom at 4 combo points when its aura is down or has
+- 7: Venom at 4 combo points when its aura is down or has
   `venomRecastSeconds` (3 s) or less left. With the reference build it is cast
   on every seed (200 seeds at 60 s and at 300 s).
-- 6: Eviscerate at 4 combo points with `eviscerateEnergy` (75) energy or more.
+- 8: Eviscerate at 4 combo points with `eviscerateEnergy` (75) energy or more.
   With the reference build it was cast on 173 of 200 seeds at 60 s (mean 1.1)
   and on all 200 at 300 s (mean 6.2).
-- 7: Cold Blood below `coldBloodBelowComboPoints` (5), so its charge goes on
+- 9: Cold Blood below `coldBloodBelowComboPoints` (5), so its charge goes on
   the next Mutilate or finisher.
-- 8: Mutilate below 4 combo points.
+- 10: Mutilate below 4 combo points.
 
 No Expose Armor and no stealth opener.
 
@@ -988,32 +1000,36 @@ Hemorrhage and Ghostly Strike build of James's link). Its summary:
 Subtlety
 1. Blood Fury if Blood Fury is granted
 2. Elune's Light if Elune's Light is granted
-3. Rupture if CP >= 5 and Rupture on the target missing or < 1s left
-4. Premeditation if Premeditation is granted and CP <= 3
-5. Preparation if Preparation is granted and Preparation is ready and Ghostly Strike is on cooldown
-6. Slice and Dice if CP >= 3 and Rupture on the target has >= 10s left and Slice and Dice missing or < 2s left
-7. Ghostly Strike if Ghostly Strike is granted and CP < 5 and Ghostly Strike is ready
-8. Hemorrhage if Hemorrhage is granted and CP < 5
+3. Berserking if Berserking is granted
+4. Eureka! if Eureka! is granted
+5. Rupture if CP >= 5 and Rupture on the target missing or < 1s left
+6. Premeditation if Premeditation is granted and CP <= 3
+7. Preparation if Preparation is granted and Preparation is ready and Ghostly Strike is on cooldown
+8. Slice and Dice if CP >= 3 and Rupture on the target has >= 10s left and Slice and Dice missing or < 2s left
+9. Ghostly Strike if Ghostly Strike is granted and CP < 5 and Ghostly Strike is ready
+10. Hemorrhage if Hemorrhage is granted and CP < 5
 ```
 
 The numbers are `presetRotation.subtlety`:
 
 - 1 and 2: Blood Fury and Elune's Light, cast only when the race grants them
   ([#278](https://github.com/james-attree/wowf_dps_sim/issues/278), above).
-- 3: Rupture at `ruptureComboPoints` (5) with less than `ruptureRecastSeconds`
+- 3 and 4: Berserking and Eureka!, cast only when the race grants them
+  ([#279](https://github.com/james-attree/wowf_dps_sim/issues/279), above).
+- 5: Rupture at `ruptureComboPoints` (5) with less than `ruptureRecastSeconds`
   (1 s) left on the target. With the reference build it is cast on every seed
   (mean 4.2 at 60 s, 20.0 at 300 s, 200 seeds).
-- 4: Premeditation (off the GCD) at `premeditationMaxComboPoints` (3) or
+- 6: Premeditation (off the GCD) at `premeditationMaxComboPoints` (3) or
   fewer, so its 2 combo points fit under 5. An off-GCD rule that cannot be
   cast is passed over, so it needs no "is ready".
-- 5: Preparation while Ghostly Strike is on cooldown; it finishes the
+- 7: Preparation while Ghostly Strike is on cooldown; it finishes the
   cooldowns of Premeditation and Ghostly Strike (`preparation.resets`). Its
   cooldown is 600 s, so it is cast once in a fight of 10 minutes or less.
-- 6: Slice and Dice at `sliceAndDiceComboPoints` (3) or more while Rupture has
+- 8: Slice and Dice at `sliceAndDiceComboPoints` (3) or more while Rupture has
   `sliceAndDiceRuptureSeconds` (10 s) or more left, when Slice and Dice is
   missing or has less than `sliceAndDiceRecastSeconds` (2 s) left.
-- 7: Ghostly Strike when it is ready, below `builderBelowComboPoints` (5).
-- 8: Hemorrhage below 5 combo points: the builder.
+- 9: Ghostly Strike when it is ready, below `builderBelowComboPoints` (5).
+- 10: Hemorrhage below 5 combo points: the builder.
 
 #### Reference builds (#272)
 

@@ -20,14 +20,13 @@ import { k } from "./constants.js";
 //   noDpsEffect   a one-line reason the racial does nothing in a simulated
 //                 damage fight. It stands alone.
 //   ability       an on-use racial the race grants as a castable ability (P5-03a,
-//                 #278): the id of the ability js/abilities.js parses from the
+//                 #278; Berserking and Eureka! #279): the id of the ability js/abilities.js parses from the
 //                 racial's text (abilities.racials). A rotation casts it with
 //                 an abilityGranted rule; its aura is in js/auras.js. It
 //                 stands alone.
 //   notSimulated  a one-line reason a racial that would change the damage is
-//                 not in the fight yet: the on-use racials until P5-03b
-//                 (#279), Touch of the Grave (Phase 5 decision 2). It stands
-//                 alone.
+//                 not in the fight yet: Touch of the Grave (Phase 5
+//                 decision 2). It stands alone.
 //
 //   textHash      SHA-256, in hex, of the racial's text. It says which text
 //                 the entry was written from; a test and the coverage check
@@ -91,8 +90,7 @@ const RAW = {
   "troll.berserking": {
     textHash:
       "477e7258645c5f4da1dced35bf2b0c5adeedf358194edeecaad67f1507f011aa",
-    notSimulated:
-      "On use: +10% attack speed for 15 s on a 3 min cooldown. On-use racials are P5-03b (#279); until then the race adds nothing for it.",
+    ability: "berserking",
   },
   "troll.regeneration": {
     textHash:
@@ -242,8 +240,7 @@ const RAW = {
   "gnome.eureka": {
     textHash:
       "f7d5a5e47f763170393c83568afe82b1ade4d7c1c104d6546d48d149f7213436",
-    notSimulated:
-      "On use: 10% cheaper and 10% more damage on non-periodic abilities for 8 s on a 2 min cooldown. On-use racials are P5-03b (#279); until then the race adds nothing for it.",
+    ability: "eureka",
   },
   "skyborne-high-order.walk-on-air": {
     textHash:

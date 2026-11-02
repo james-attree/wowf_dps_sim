@@ -3,6 +3,7 @@ import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { abilityCatalogue } from "./abilities.js";
 import { AURAS } from "./auras.js";
 import { isRequiredAura } from "./required-auras.js";
+import { resolveCost } from "./resource.js";
 import { spellIconUrl } from "./icons.js";
 
 // The generic ability executor (roadmap D2). An Ability is built from one
@@ -381,20 +382,20 @@ export class Ability {
   }
 
   // What a cast would pay now: the cost after the cost modifiers of its
-  // resource (Improved Sinister Strike). With none, it is this.cost as it
-  // stands. 0 for an ability that pays nothing.
+  // resource (Improved Sinister Strike), rounded as the resource says
+  // (resolveCost, A19: Eureka! 45 x 0.9 -> 40). With none, it is this.cost as
+  // it stands. 0 for an ability that pays nothing.
   costNow(simulation) {
     if (this.costResource === null) {
       return 0;
     }
     const { definition } = this.pool(this.costResource);
-    return definition.costModifier === undefined
-      ? this.cost
-      : simulation.modifiers.resolve(
-          definition.costModifier,
-          this.cost,
-          this.costContext,
-        );
+    return resolveCost(
+      definition,
+      simulation.modifiers,
+      this.cost,
+      this.costContext,
+    );
   }
 
   // Whether cast() would go ahead right now. It makes the same six checks
