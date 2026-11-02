@@ -4007,13 +4007,13 @@ it was (an assumption: rounding only a non-whole cost). Damage is not
 rounded.
 
 **Presets.** Decision 6 puts every on-use racial at the top of every preset,
-but P5-07 (#284) keeps each preset's share link under 2,048 characters.
-combat-swords' link is 1,975 characters with Blood Fury and Elune's Light,
-and each racial rule adds about 112, so it cannot take Berserking and
-Eureka!: they are in assassination-daggers and subtlety-daggers (rules 3
-and 4) and not in combat-swords (an assumption, flagged for James: the
-options are this, a larger cap, or a shorter link encoding). A Troll or a
-Gnome on combat-swords never casts them; their other racials still apply.
+and Berserking and Eureka! are rules 3 and 4 of all three, combat-swords
+included (Scout, 2 Nov 2026, on #315). Each racial rule adds about 112
+characters to a share link; combat-swords' is 2,199 with all four. That is
+well under the app's only cap, `LINK_CAP` (8,192) in
+`js/views/share-link.js`; the 2,048 the presets were held to (#284) is a
+test budget, `PRESET_LINK_MAX` in `test/build-codec.test.js`, now 4,096. A
+Troll or a Gnome on any preset casts its racial at the pull.
 
 Golden fixtures: every existing fixture is unchanged. Two new ones pin a racial each:
 `race-troll-assassination-daggers-seed-279-60s` and

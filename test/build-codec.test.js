@@ -22,8 +22,11 @@ import { LINK_CAP } from "../js/views/share-link.js";
 
 // GitHub Pages' address for the sim, with a route: the link drops the route.
 const PAGES = "https://james-attree.github.io/wowf_dps_sim/#rotation/share";
-// The longest preset link #284 allows.
-const PRESET_LINK_MAX = 2048;
+// A test budget for the presets' links, with margin, not an app limit: the
+// app's real cap is LINK_CAP (8,192) in js/views/share-link.js, over which
+// the copy button offers a file export instead. Raised from 2,048 so every
+// preset can carry all four on-use racial rules (Scout, 2 Nov 2026, #315).
+const PRESET_LINK_MAX = 4096;
 const SEED = 424242;
 const MAX_SEED = 4294967295;
 
@@ -302,7 +305,7 @@ describe("build codec: the share link's address and length (#284)", () => {
     assert.equal(new URL(url).searchParams.getAll(LINK_PARAM).length, 1);
   });
 
-  it("keeps each preset's link under 2,048 characters, at the longest seed", () => {
+  it("keeps each preset's link under the test budget, at the longest seed", () => {
     const presets = ["default", ...listPresets().map(({ id }) => id)];
     for (const id of presets) {
       const d = setupDefaults();
