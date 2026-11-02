@@ -175,6 +175,11 @@ const RAW = {
         op: "add",
         value: k("racial.artisansPrecision.hitChance"),
       },
+      {
+        kind: "spellHitChance",
+        op: "add",
+        value: k("racial.artisansPrecision.spellHitChance"),
+      },
     ],
   },
   "dwarf.big-game-hunter": {
