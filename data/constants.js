@@ -2001,6 +2001,14 @@ export const CONSTANTS = {
     "Display timing, not a game rule. Wall-clock seconds the stats form's Undo stays offered after Reset to defaults (js/views/config-form.js).",
     false,
   ),
+  "ui.saveSetupMs": entry(
+    300,
+    "ms",
+    ENGINEERING,
+    `Developer, 2 Nov 2026, issue #296: ${NOT_JAMES} The saved setup is written 300 ms after the last change; the issue asks for "save on change, debounced" and names no number`,
+    "Storage timing, not a game rule. Wall-clock milliseconds js/saved-setup.js waits after the last change to the config or run settings before writing the saved setup to localStorage; leaving the page (pagehide, or the tab going hidden) writes at once.",
+    false,
+  ),
   "ui.pageDefaultPoisons": entry(
     { mainHand: "instant", offHand: "deadly" },
     "poison id per hand",

@@ -1,3 +1,4 @@
+import { k } from "../data/constants.js";
 import { nextRunConfig } from "./config-form.js";
 
 // The control bar's actions (#153): what Run, Pause, Stop, Reset, the mode
@@ -308,6 +309,52 @@ export function createRunActions({
         errors: nextErrors,
         ...(error === null ? { [name]: value } : {}),
       });
+    },
+    // Reset to defaults (#296 ruling A2): the run settings back to the page
+    // defaults (batch, k("batch.duration"), k("fight.iterations"), a new
+    // seed as on a first visit, no field errors). Returns the settings that
+    // were there, for Undo (restoreSettings), or null while a run is on,
+    // when nothing changes.
+    resetSettings() {
+      if (locked()) {
+        return null;
+      }
+      const { mode, duration, iterations, seed, fields, errors } = run();
+      const next = {
+        duration: k("batch.duration"),
+        iterations: k("fight.iterations"),
+        seed: drawSeed(),
+      };
+      setRun({
+        mode: "batch",
+        state: store.get().batch.status,
+        ...next,
+        fields: {
+          duration: String(next.duration),
+          iterations: String(next.iterations),
+          seed: String(next.seed),
+        },
+        errors: {},
+      });
+      return { mode, duration, iterations, seed, fields, errors };
+    },
+    // Undo after Reset to defaults: put back what resetSettings returned.
+    // False (nothing changes) while a run is on or with nothing to restore.
+    restoreSettings(before) {
+      if (locked() || before === null || before === undefined) {
+        return false;
+      }
+      const { mode, duration, iterations, seed, fields, errors } = before;
+      setRun({
+        mode,
+        state: mode === "batch" ? store.get().batch.status : live.state,
+        duration,
+        iterations,
+        seed,
+        fields,
+        errors,
+      });
+      return true;
     },
     // A random seed in the field.
     newSeed() {

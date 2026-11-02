@@ -5,6 +5,7 @@ import {
   shareUrl,
   withoutLinkParam,
 } from "./build-codec.js";
+import { mountSavedSetup, readSavedSetup, storageOf } from "./saved-setup.js";
 import { buildLabel, poisonName } from "./build-label.js";
 import { createConfigForm } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
@@ -52,14 +53,17 @@ import { createVisualiserView } from "./views/visualiser.js";
 // (300 s) in both modes; a batch is k("fight.iterations") fights (1,000).
 //
 // The first build (#284) is js/build-codec.js's resolveInitialSetup: a share
-// link (?s=) in the address, else the saved setup (#296, not built yet:
-// null), else the page defaults. A link is read before the first render and
-// then taken out of the address, so a reload does not load it again.
+// link (?s=) in the address, else the saved setup (#296, js/saved-setup.js:
+// localStorage, read leniently), else the page defaults. Both are read before
+// the first render, so the defaults never flash. A link is then taken out of
+// the address, so a reload does not load it again, and becomes the save.
 // (A stand-in page in the tests may have no window, address or history.)
-const { history, location } = typeof window === "undefined" ? {} : window;
+const win = typeof window === "undefined" ? undefined : window;
+const { history, location } = win ?? {};
+const storage = storageOf(win);
 const initial = resolveInitialSetup({
   search: location?.search ?? "",
-  saved: null,
+  saved: readSavedSetup(storage),
 });
 if (initial.hadLink) {
   history?.replaceState(history.state, "", withoutLinkParam(location.href));
@@ -122,6 +126,17 @@ store.subscribe(({ state }) => {
 });
 
 const formActions = createConfigForm(store);
+// The saved setup (#296): saved on change, a link opened on load saved at
+// once, the inputs redrawn from the store on pageshow (back/forward), and the
+// stats form's Reset to defaults (formActions.reset, wrapped here before
+// anything else takes it) clearing the save too. Reset also resets the run
+// settings (the Run bar's actions; #296 ruling A2), and Undo puts them back.
+mountSavedSetup(win, store, {
+  initial,
+  storage,
+  form: formActions,
+  runSettings: actions,
+});
 // The rotation builder (U7, #217) edits a draft through the form's actions;
 // the Run bar's "Fix" link opens it at the first rotation error.
 const builder = createRotationBuilder(store, formActions);
