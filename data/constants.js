@@ -1186,7 +1186,7 @@ export const CONSTANTS = {
     "×, ×, s, s",
     WOWF_EXPORT,
     "rogue.json → racials[Alliance|Gnome] Eureka!: Instant, 2 min cooldown. For 8 sec, your non-periodic damaging abilities cost 10% less (Mana, Rage or Energy) and deal 10% more damage.",
-    "Gnome, on use (P5-03b, #279). While the aura is up, an energyCost mult of 0.9 and a damage mult of 1.1 on the abilities of racial.eurekaAbilities (A22); the damage mult also on Instant Poison. A cost is then rounded down (energy.costRounding, A19): Sinister Strike 45 → 40.5 → 40. The damage is not rounded. The race grants the eureka ability (data/racial-effects.js), cast by a rule with an abilityGranted check. cooldown is the catalogue's, read from the same text (js/abilities.js); a test checks the two agree.",
+    "Gnome, on use (P5-03b, #279). While the aura is up, an energyCost mult of 0.9 and a damage mult of 1.1 on the abilities of racial.eurekaAbilities (A22); the damage mult also on Instant Poison. A cost is then rounded down (energy.costRounding, A19): Sinister Strike 45 → 40.5 → 40. The damage is not rounded. The damage bonus is applied as a mult, an assumption tagged in racial.eurekaDamageOp. The race grants the eureka ability (data/racial-effects.js), cast by a rule with an abilityGranted check. cooldown is the catalogue's, read from the same text (js/abilities.js); a test checks the two agree.",
     false,
   ),
   "racial.eurekaAbilities": entry(
@@ -1203,6 +1203,14 @@ export const CONSTANTS = {
     ASSUMPTION,
     "James, 31 Oct 2026, issue #279: Phase 5 plan v4 A22 (plan approved by James, the entry itself an assumption): \"non-periodic\" is the direct abilities and Instant Poison, not bleeds or Deadly Poison's ticks. White swings are left out as they are not abilities: the developer's reading of the text, flagged on #279",
     "Eureka!'s non-periodic damaging abilities: the catalogue's abilities with a direct damage roll (a test checks the list against js/ability-data.js). Not Rupture (its damage is periodic), nor Expose Armor or Slice and Dice (no damage), nor white swings or Sword Specialization's extra swing (not abilities). Instant Poison's damage is added to the damage scope in js/auras.js (it has no cost).",
+    true,
+  ),
+  "racial.eurekaDamageOp": entry(
+    "mult",
+    "modifier op",
+    ASSUMPTION,
+    'Developer, 2 Nov 2026, issue #279: QA N5 on #315. The export says only "deal 10% more damage"; applying racial.eureka.damage as a multiplier ("mult") rather than an additive percentage ("add" 0.1) is the developer\'s reading, flagged on #279',
+    'How Eureka!\'s damage bonus (racial.eureka.damage, 1.1) combines with the other damage modifiers under modifiers.stacking "percent" (base x (1 + sum of adds) x product of mults): "mult" multiplies it with the talent percentages (e.g. Lethality, Opportunity), the default; "add" would sum 0.1 with them. js/auras.js reads it for the eureka aura\'s damage modifier. The cost cut (racial.eureka.energyCost) stays a mult.',
     true,
   ),
   "racial.onUse.offGcd": entry(
