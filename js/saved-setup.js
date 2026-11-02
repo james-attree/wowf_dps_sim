@@ -150,25 +150,61 @@ export function redrawInputs(store) {
   });
 }
 
+// The run settings Reset to defaults sets, as text to compare by value (a
+// pageshow redraw makes a new run slice with the same values).
+const runSettingsOf = ({ mode, duration, iterations, seed, fields, errors }) =>
+  JSON.stringify({ mode, duration, iterations, seed, fields, errors });
+
 // The page's wiring (js/main.js): save on change; a share link opened on load
 // (initial.source "link") is saved at once; leaving the page writes what is
 // pending; pageshow redraws the inputs; and the stats form's Reset to
-// defaults (form.reset, wrapped in place) clears the save. `win` may be
+// defaults (form.reset, wrapped in place) clears the save and, with
+// runSettings (js/run-actions.js resetSettings and restoreSettings; #296
+// ruling A2), resets the run settings too, which form.undo then puts back. `win` may be
 // missing (a test's stand-in page).
 export function mountSavedSetup(
   win,
   store,
-  { initial, storage = storageOf(win), delay, timers, form = null } = {},
+  {
+    initial,
+    storage = storageOf(win),
+    delay,
+    timers,
+    form = null,
+    runSettings = null,
+  } = {},
 ) {
   const saved = createSavedSetup({ store, storage, delay, timers });
   if (initial?.source === "link") {
     saved.save();
   }
   if (form !== null) {
-    const reset = form.reset;
+    const { reset, undo } = form;
+    // The run settings Reset replaced, and what it set them to, for Undo.
+    let undoRun = null;
     form.reset = (...args) => {
+      const before = runSettings?.resetSettings() ?? null;
+      undoRun =
+        before === null
+          ? null
+          : { before, after: runSettingsOf(store.get().run) };
       const result = reset(...args);
       saved.clear();
+      return result;
+    };
+    form.undo = (...args) => {
+      const result = undo(...args);
+      const pending = undoRun;
+      undoRun = null;
+      // Only when the form's Undo happened and the run settings are still
+      // what Reset set (an edit since then is kept).
+      if (
+        result &&
+        pending !== null &&
+        runSettingsOf(store.get().run) === pending.after
+      ) {
+        runSettings.restoreSettings(pending.before);
+      }
       return result;
     };
   }

@@ -171,10 +171,26 @@ describe("Remember my setup (#296)", () => {
         assert.equal(kept.config.talentLevel, 40);
         assert.equal(kept.run.duration, 120);
 
+        // Ruling A2: Reset to defaults resets the run settings too, and
+        // Undo puts them back with the config, and saves them again.
+        await go(page, "#character/stats", "#cfg-reset");
+        await page.locator("#cfg-reset").click();
+        await page.locator("#cfg-undo").click();
+        await page.waitForTimeout(SETTLE);
+        const undone = decodeSetup(await saved(page), { strict: false });
+        assert.equal(undone.setup.config.character.haste, 0.05, "Undo");
+        assert.equal(undone.setup.run.duration, 120, "Undo");
+        assert.equal(await value(page, "#fight", LENGTH), "120", "Undo");
+
         await go(page, "#character/stats", "#cfg-reset");
         await page.locator("#cfg-reset").click();
         await page.waitForTimeout(SETTLE);
         assert.equal(await saved(page), null, "Reset to defaults clears it");
+        assert.equal(
+          await value(page, "#fight", LENGTH),
+          String(D.run.duration),
+          "Reset resets the run settings on screen, before any refresh",
+        );
         await page.reload();
         await ready(page);
         assert.equal(

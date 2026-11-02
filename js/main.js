@@ -129,8 +129,14 @@ const formActions = createConfigForm(store);
 // The saved setup (#296): saved on change, a link opened on load saved at
 // once, the inputs redrawn from the store on pageshow (back/forward), and the
 // stats form's Reset to defaults (formActions.reset, wrapped here before
-// anything else takes it) clearing the save too.
-mountSavedSetup(win, store, { initial, storage, form: formActions });
+// anything else takes it) clearing the save too. Reset also resets the run
+// settings (the Run bar's actions; #296 ruling A2), and Undo puts them back.
+mountSavedSetup(win, store, {
+  initial,
+  storage,
+  form: formActions,
+  runSettings: actions,
+});
 // The rotation builder (U7, #217) edits a draft through the form's actions;
 // the Run bar's "Fix" link opens it at the first rotation error.
 const builder = createRotationBuilder(store, formActions);
