@@ -310,7 +310,7 @@ describe("Copy link to this build (#284)", () => {
           );
           assert.equal(await field.getAttribute("readonly"), "");
           const value = await field.inputValue();
-          assert.match(value, /\?s=1\./);
+          assert.match(value, /\?s=2\./);
           const selected = await field.evaluate(
             (node) =>
               document.activeElement === node &&
@@ -330,7 +330,15 @@ describe("Copy link to this build (#284)", () => {
   }
 
   test("a link over 8 KB says to export the rotation, and the button stays", async () => {
-    const rule = defaultRotation().rules[0];
+    // Not the base's own rule: a version-2 link sends that as a reference
+    // (#306), so a rule of its own (25 energy made 26) fills the link.
+    const first = defaultRotation().rules[0];
+    const rule = {
+      ...first,
+      conditions: first.conditions.map((c) =>
+        c.type === "resource" ? { ...c, value: c.value + 1 } : c,
+      ),
+    };
     const d = setupDefaults();
     const rotation = {
       ...defaultRotation(),

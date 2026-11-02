@@ -325,11 +325,13 @@ describe("build codec: the share link's address and length (#284)", () => {
 
   it("goes over the 8 KB cap with a long rotation, and that link still reads", () => {
     // A rule unlike the base's: #306's link sends a base's own rule as a
-    // reference, so it is this rule's JSON, once a rule, that fills the link.
+    // reference, so this rule (25 energy made 26) fills the link instead.
     const first = defaultRotation().rules[0];
     const rule = {
       ...first,
-      conditions: [...first.conditions, ...first.conditions],
+      conditions: first.conditions.map((c) =>
+        c.type === "resource" ? { ...c, value: c.value + 1 } : c,
+      ),
     };
     const rotation = {
       ...defaultRotation(),
