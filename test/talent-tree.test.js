@@ -21,7 +21,12 @@ import {
 // It fills the `talents` slice, writes a legal build to the config, and
 // takes every rule from js/talent-build.js (#190).
 
-function setup(config = pageDefaultConfig()) {
+// Mechanical cases start empty. Page-default coverage is the first test below.
+function emptyConfig() {
+  return { ...pageDefaultConfig(), talents: {}, talentLevel: 60 };
+}
+
+function setup(config = emptyConfig()) {
   const store = createStore({ config, form: null });
   const tree = createTalentTree(store);
   const talents = () => store.get().talents;
@@ -32,7 +37,7 @@ const cell = (view, id) =>
   view.trees.flatMap((tree) => tree.cells).find((entry) => entry.id === id);
 
 describe("talent tree model (#204)", () => {
-  it("starts from the page default: No talents at level 60", () => {
+  it("starts empty at level 60; the page default is combat-swords-temp (#333)", () => {
     const { talents } = setup();
     const state = talents();
     assert.equal(state.open, false);
@@ -48,6 +53,10 @@ describe("talent tree model (#204)", () => {
       state.view.trees.map((tree) => tree.cells.length),
       [17, 19, 18],
     );
+    const page = setup(pageDefaultConfig());
+    assert.equal(page.talents().view.summary, "Combat 16/35/0 · 51/51");
+    assert.equal(page.talents().view.pointsLine, "51 of 51 spent, 0 left");
+    assert.deepEqual(page.config().talents, pageDefaultConfig().talents);
   });
 
   it("adds a point, writes config.talents and announces the result", () => {
@@ -279,7 +288,10 @@ describe("talent tree model (#204)", () => {
     // A copy of the effects data without Improved Ambush's entry.
     const { "subtlety.improved-ambush": dropped, ...effects } = TALENT_EFFECTS;
     assert.ok(dropped);
-    const store = createStore({ config: pageDefaultConfig(), form: null });
+    const store = createStore({
+      config: { ...pageDefaultConfig(), talents: {}, talentLevel: 60 },
+      form: null,
+    });
     const tree = createTalentTree(store, { info: talentInfo({ effects }) });
     pick(tree);
     assert.match(
@@ -316,7 +328,7 @@ describe("talent tree model (#204)", () => {
     const byName = new Map(lines.map((line) => [line.name, line]));
     assert.equal(byName.get("Blade Flurry").ok, false);
     assert.match(byName.get("Blade Flurry").text, /skipped: no Blade Flurry/);
-    assert.equal(byName.get("Cold Blood").ok, false);
+    assert.equal(byName.get("Adrenaline Rush").ok, false);
   });
 
   it("follows a rule's own talent checks, as the preview does (Fran's #232 QA, nit 2; #234)", () => {
@@ -357,7 +369,7 @@ describe("talent tree model (#204)", () => {
     }
     assert.equal(
       note,
-      "With no talents picked, the fight is untalented: the sim skips Blade Flurry, Adrenaline Rush and Cold Blood, whose rules need their talents.",
+      "With no talents picked, the fight is untalented: the sim skips Adrenaline Rush and Blade Flurry, whose rules need their talents.",
     );
   });
 
@@ -434,11 +446,13 @@ describe("talent tree model (#204)", () => {
 
 describe("the talent tree and the stats form share the config (#204, #151)", () => {
   it("a field edit keeps the tree's custom build", () => {
-    const store = createStore({ config: pageDefaultConfig() });
+    const store = createStore({
+      config: { ...pageDefaultConfig(), talents: {}, talentLevel: 60 },
+    });
     const tree = createTalentTree(store);
-    const form = createConfigForm(store);
     tree.setLevel("40");
-    tree.add("combat.efficient-strikes");
+    assert.equal(tree.add("combat.efficient-strikes"), true);
+    const form = createConfigForm(store);
     form.input("character.attackPower", "1200");
     form.change("character.attackPower");
     assert.deepEqual(store.get().config.talents, {

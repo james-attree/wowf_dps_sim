@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
-import { referenceBuild } from "../data/reference-build.js";
 import {
   createConfigForm,
   draftEdited,
@@ -25,6 +24,7 @@ import {
 } from "../js/rotation-conditions.js";
 import { entryText, jumpLabel, placeOf } from "../js/rotation-builder-copy.js";
 import { defaultRotation } from "../js/rotation-default.js";
+import { presetRotation } from "../js/rotation-presets.js";
 import { exportRotation, importRotation } from "../js/rotation-io.js";
 import { rotationWarnings } from "../js/rotation-warnings.js";
 import {
@@ -51,8 +51,19 @@ function openRule(builder, view, ruleUid) {
   builder.showScreen("rule", String(at + 1));
 }
 
-function setup() {
-  const store = createStore({ config: normalizeConfig(pageDefaultConfig()) });
+// Mechanical suites start on the default rotation (7 rules, empty talents).
+// Pass pageRotation: true for suites that assert the page-default preset.
+function setup({ pageRotation = false } = {}) {
+  const rotation = pageRotation ? PAGE_ROTATION : defaultRotation();
+  const talents = pageRotation ? pageDefaultConfig().talents : {};
+  const store = createStore({
+    config: normalizeConfig({
+      ...pageDefaultConfig(),
+      rotation,
+      talents,
+      talentLevel: 60,
+    }),
+  });
   const form = createConfigForm(store);
   const builder = createRotationBuilder(store, form);
   builder.toggle();
@@ -63,34 +74,32 @@ function setup() {
   return { store, form, builder, slice, view, uid, actions };
 }
 
+const PAGE_ROTATION = presetRotation("combat-swords-temp");
+const PAGE_ACTIONS = PAGE_ROTATION.rules.map((rule) => rule.action);
 const DEFAULT_ACTIONS = defaultRotation().rules.map((rule) => rule.action);
 
 describe("the builder opens on the rotation picked in Fight setup", () => {
-  it("says a rule is skipped with no talents, or with this build (Fran's #232 QA, nit 5; #234)", () => {
-    const { store, view } = setup();
+  it("says a rule is skipped with no race, or with this build (Fran's #232 QA, nit 5; #234)", () => {
+    const { store, view } = setup({ pageRotation: true });
+    // Page default is combat-swords-temp with no race: the four on-use racials skip.
     assert.equal(
       view().context.text,
-      "3 rules are skipped with no talents (rule 1, rule 2, rule 5). ",
+      "4 rules are skipped: not your race (rules 1, 2, 3 and 4). ",
     );
-    const ranks = { ...referenceBuild() };
-    delete ranks["assassination.cold-blood"];
     store.update((state) => ({
-      config: { ...state.config, talents: ranks },
+      config: { ...state.config, race: "orc", talents: {} },
     }));
-    assert.equal(
-      view().context.text,
-      "1 rule is skipped with this build (rule 5). ",
-    );
+    assert.match(view().context.text, /rules are skipped with no talents/);
   });
   it("shows its rules, unedited, and changes nothing", () => {
-    const { store, view, actions } = setup();
+    const { store, view, actions } = setup({ pageRotation: true });
     assert.equal(view().open, true);
     assert.equal(view().screen.kind, "list");
     assert.equal(view().screen.title, "Rotation");
-    assert.equal(view().rules.length, DEFAULT_ACTIONS.length);
+    assert.equal(view().rules.length, PAGE_ACTIONS.length);
     assert.equal(view().origin.edited, false);
-    assert.equal(view().name.value, defaultRotation().name);
-    assert.deepEqual(actions(), DEFAULT_ACTIONS);
+    assert.equal(view().name.value, PAGE_ROTATION.name);
+    assert.deepEqual(actions(), PAGE_ACTIONS);
     assert.deepEqual(store.get().form.drafts, {});
     assert.equal(view().errors, null);
   });
@@ -98,7 +107,7 @@ describe("the builder opens on the rotation picked in Fight setup", () => {
   // The list is Rotation's top (#244, UX6): the preset select is on it, so
   // there is no back link to Character.
   it("its list has no back link; it closes", () => {
-    const { builder, view } = setup();
+    const { builder, view } = setup({ pageRotation: true });
     assert.equal(view().screen.back, null);
     builder.toggle();
     assert.equal(view().open, false);
@@ -115,7 +124,7 @@ describe("the first edit starts a session draft (D10, D20)", () => {
     assert.equal(view().name.value, `${defaultRotation().name} (edited)`);
     assert.equal(view().origin.edited, true);
     assert.equal(
-      store.get().form.rotationOptions[0].label,
+      store.get().form.rotationOptions.find((o) => o.id === "default").label,
       `${defaultRotation().name} · Edited`,
     );
     assert.match(slice().announce.text, /moved down to rule 2 of 7/);
@@ -123,13 +132,11 @@ describe("the first edit starts a session draft (D10, D20)", () => {
     assert.notEqual(nextRunConfig(store.get()), null);
   });
 
-  // TR-02 / #332: empty presets until #333
-  it.skip("keeps the draft across a switch to another rotation and back", () => {
-    const { store, form, builder, uid, actions } = setup();
+  it("keeps the draft across a switch to another rotation and back", () => {
+    const { form, builder, uid, actions } = setup();
     builder.move(uid(0), 1);
     const edited = actions();
-    const other = store.get().form.rotationOptions[1].id;
-    form.chooseRotation(other);
+    form.chooseRotation("combat-swords-temp");
     assert.notDeepEqual(actions(), edited);
     form.chooseRotation("default");
     assert.deepEqual(actions(), edited);
@@ -257,7 +264,12 @@ describe("the builder and the import box show the same warnings (Scout on #217)"
 });
 
 describe("Edited clears when the draft is the origin again (Scout on #217)", () => {
-  const label = (store) => store.get().form.rotationOptions[0].label;
+  const label = (store) =>
+    store
+      .get()
+      .form.rotationOptions.find(
+        (o) => o.id === store.get().form.rotationChoice,
+      ).label;
   const NAME = defaultRotation().name;
 
   it("move a rule down and up again: not edited, under the origin's name", () => {
@@ -372,10 +384,8 @@ describe("Edited clears when the draft is the origin again (Scout on #217)", () 
   });
 });
 
-// TR-02 / #332: empty presets until #333
-describe.skip("a new import never touches the edited presets (Scout on #217)", () => {
-  // TR-02 / #332: empty presets until #333
-  it.skip("keeps the default's and a preset's drafts; drops only the import's", () => {
+describe("a new import never touches the edited presets (Scout on #217)", () => {
+  it.skip("keeps the default's and a preset's drafts; drops only the import's (skipped: multi-preset draft cases wait on later preset TRs after #333)", () => {
     const { store, form, builder, uid } = setup();
     builder.move(uid(0), 1);
     const preset = store.get().form.rotationOptions[1].id;
@@ -394,7 +404,7 @@ describe.skip("a new import never touches the edited presets (Scout on #217)", (
     assert.equal(drafts.default, kept.default, "the same draft, untouched");
     assert.equal(drafts[preset], kept[preset], "the same draft, untouched");
     const labels = rotationOptions.map((option) => option.label);
-    assert.equal(labels[0], `${defaultRotation().name} · Edited`);
+    assert.ok(labels.some((l) => l === `${defaultRotation().name} · Edited`));
     assert.match(labels[1], / · Edited$/);
     assert.equal(labels.at(-1), "Imported: Trap");
   });
@@ -489,8 +499,7 @@ describe("errors keep the last valid version (D17, D19)", () => {
     assert.equal(JSON.parse(file.text).rules[5].conditions[0].value, 4);
   });
 
-  // TR-02 / #332: empty presets until #333
-  it.skip("Export follows the rotation picked: a valid one exports again (D17)", () => {
+  it("Export follows the rotation picked: a valid one exports again (D17)", () => {
     const { store, form } = broken();
     form.chooseRotation(store.get().form.rotationOptions[1].id);
     assert.equal(store.get().form.exportOff, null);
@@ -683,25 +692,27 @@ describe("the config form's drafts (#217)", () => {
 
   it("a valid draft is the config's rotation; dropping it restores the origin", () => {
     const { store, form } = fresh();
-    const draft = draftOf(defaultRotation(), uidOf);
-    draft.rules = moveRule(draft.rules, 0, 6);
-    form.setDraft("default", draft);
-    assert.equal(store.get().config.rotation.rules[6].action, "blade-flurry");
-    assert.equal(store.get().form.rotationChoice, "default");
-    form.setDraft("default", null);
-    assert.deepEqual(store.get().config.rotation, defaultRotation());
+    const draft = draftOf(PAGE_ROTATION, uidOf);
+    // Page rotation: [racials…, slice-and-dice, adrenaline-rush, blade-flurry, …]
+    // Move first rule (blood-fury) to index 9 (last).
+    draft.rules = moveRule(draft.rules, 0, 9);
+    form.setDraft("combat-swords-temp", draft);
+    assert.equal(store.get().config.rotation.rules[9].action, "blood-fury");
+    assert.equal(store.get().form.rotationChoice, "combat-swords-temp");
+    form.setDraft("combat-swords-temp", null);
+    assert.deepEqual(store.get().config.rotation, PAGE_ROTATION);
     assert.deepEqual(store.get().form.drafts, {});
   });
 
   it("an invalid draft keeps its last valid version in the config", () => {
     const { store, form } = fresh();
-    const draft = draftOf(defaultRotation(), uidOf);
-    draft.rules = moveRule(draft.rules, 0, 6);
-    form.setDraft("default", draft);
+    const draft = draftOf(PAGE_ROTATION, uidOf);
+    draft.rules = moveRule(draft.rules, 0, 9);
+    form.setDraft("combat-swords-temp", draft);
     const valid = store.get().config.rotation;
     const bad = { ...draft, rules: [...draft.rules] };
     bad.rules[0] = { ...bad.rules[0], action: "no-such-ability" };
-    form.setDraft("default", bad);
+    form.setDraft("combat-swords-temp", bad);
     assert.deepEqual(store.get().config.rotation, valid);
     assert.ok(store.get().form.rotationErrors.length > 0);
     assert.match(store.get().form.summary.stale, /so the sim keeps this/);
@@ -709,17 +720,16 @@ describe("the config form's drafts (#217)", () => {
 
   it("the summary says which rules the build skips (D9)", () => {
     const { store } = fresh();
+    // Page default has no race: on-use racials say "not your race".
     const line = store
       .get()
-      .form.summary.rules.find((rule) => rule.startsWith("Cold Blood"));
-    // With no talents it says that plainly (Fran's #232 QA, nit 4; #234).
-    assert.match(line, /— skipped with no talents$/);
-    const ranks = { ...referenceBuild() };
-    delete ranks["assassination.cold-blood"];
-    const built = summaryOf(defaultRotation(), {
-      talents: talentState({ talents: ranks }),
-    }).rules.find((rule) => rule.startsWith("Cold Blood"));
-    assert.match(built, /— skipped: no Cold Blood talent$/);
+      .form.summary.rules.find((rule) => rule.startsWith("Blood Fury"));
+    assert.match(line, /— skipped: not your race/);
+    // With no talents, Blade Flurry (a talent ability on the page rotation) says so.
+    const empty = summaryOf(PAGE_ROTATION, {
+      talents: talentState({ talents: {} }),
+    }).rules.find((rule) => rule.startsWith("Blade Flurry"));
+    assert.match(empty, /— skipped with no talents$/);
   });
 });
 

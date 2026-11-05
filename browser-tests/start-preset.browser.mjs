@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — empty presets until #333
 // #323: Start from a preset, at the top of Character on a first visit.
 // Four cards (five with #328); one press puts in the preset's #273 reference build and its
 // rotation, the line after says so, with Undo (the rotation comes back
@@ -36,7 +35,7 @@ const BATCH_SECONDS = "30";
 const LIVE_SECONDS = "10";
 
 const ASSASSINATION = "assassination-daggers";
-const COMBAT = "combat-swords";
+const COMBAT = "combat-swords-temp";
 const SUBTLETY = "subtlety-daggers";
 const COMBAT_DAGGERS = "combat-daggers";
 const CUSTOM = "custom";
@@ -271,11 +270,11 @@ async function runToEnd(page) {
   );
 }
 
-describe.skip("Start from a preset (#323)", () => {
+describe("Start from a preset (#323)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {
       const size = `${width}-${textSize}`;
-      test(`the cards, a pick and Undo at ${width}, ${textSize} text`, async () => {
+      test.skip(`the cards, a pick and Undo at ${width}, ${textSize} text (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)`, async () => {
         const { context, page, errors } = await open(width, { textSize });
         const name = `${width}-${textSize.replace("%", "")}`;
         try {
@@ -362,7 +361,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   }
 
-  test("switching from the Starting point row, and Edited", async () => {
+  test.skip("switching from the Starting point row, and Edited (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(390, { textSize: "150%" });
     try {
       await page.locator(card(COMBAT)).click();
@@ -416,7 +415,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
 
-  test("Custom is remembered; Reset to defaults opens the cards again", async () => {
+  test.skip("Custom is remembered; Reset to defaults opens the cards again (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(1024);
     try {
       // Custom is the defaults: nothing to undo, the panel folds and the
@@ -452,7 +451,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
 
-  test("a saved setup and a link that opened start folded; a failed link opens", async () => {
+  test.skip("a saved setup and a link that opened start folded; a failed link opens (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const first = await open(1024);
     let link;
     let setup;
@@ -506,7 +505,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
 
-  test("the Race select, and the Rotation screen's Starting point link", async () => {
+  test.skip("the Race select, and the Rotation screen's Starting point link (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(390);
     try {
       await page.locator(card(SUBTLETY)).click();
@@ -545,7 +544,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
 
-  test("Undo closes on an edit and on leaving Character", async () => {
+  test.skip("Undo closes on an edit and on leaving Character (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(WIDE);
     try {
       await page.locator(card(ASSASSINATION)).click();
@@ -574,7 +573,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
 
-  test("Undo survives Run's move to Results, and puts the rotation back", async () => {
+  test.skip("Undo survives Run's move to Results, and puts the rotation back (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(WIDE);
     try {
       await go(page, "#fight", "#run-mode-batch");
@@ -605,7 +604,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
   // #325 P3: the #273 cases that went with its button.
-  test("a pick after a run, and during one: the results go out of date", async () => {
+  test.skip("a pick after a run, and during one: the results go out of date (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(WIDE);
     try {
       await shortBatch(page);
@@ -662,7 +661,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
 
-  test("Undo closes on a reload; the pick stays (it is saved)", async () => {
+  test.skip("Undo closes on a reload; the pick stays (it is saved) (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(WIDE);
     try {
       await page.locator(card(SUBTLETY)).click();
@@ -680,7 +679,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
 
-  test("a re-pick of the same card names only what changed (#326, item 7)", async () => {
+  test.skip("a re-pick of the same card names only what changed (#326, item 7) (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(PHONE);
     try {
       await page.locator(card(ASSASSINATION)).click();
@@ -722,7 +721,7 @@ describe.skip("Start from a preset (#323)", () => {
     }
   });
 
-  test("a pick that changes only the level reads whole (#325 P1)", async () => {
+  test.skip("a pick that changes only the level reads whole (#325 P1) (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(PHONE);
     try {
       await go(page, "#character/talents", "#talents-level");

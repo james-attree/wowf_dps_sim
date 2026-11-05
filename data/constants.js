@@ -1799,6 +1799,10 @@ export const CONSTANTS = {
   // up to today (#275; it once took only October 2026).
   "presetReferenceBuild.poisons": entry(
     {
+      // TR-03 / #333: temporary Combat swords follows James 1 Nov (Instant MH /
+      // Deadly OH for every preset). Frozen old presets keep their #310 map
+      // only for documentation of those snapshots.
+      "combat-swords-temp": { mainHand: "instant", offHand: "deadly" },
       "combat-swords": { mainHand: "deadly", offHand: "instant" },
       "assassination-daggers": { mainHand: "instant", offHand: "deadly" },
       "subtlety-daggers": { mainHand: "instant", offHand: "deadly" },
@@ -1806,7 +1810,7 @@ export const CONSTANTS = {
     },
     "poison ids per preset",
     ASSUMPTION,
-    `${PRESETS_310}: James ruling, 2 Nov 2026 (his three share links): Combat swords carries Deadly MH / Instant OH, Assassination and Subtlety Instant MH / Deadly OH; Combat daggers (#328, whose link has no poisons) follows the dagger presets, Instant MH / Deadly OH. It replaces the 1 Nov ruling (issue #272, relayed by Scout on PR #304) of Instant MH / Deadly OH for every build; tagged assumption`,
+    `James, 5 Nov 2026, issue #333: temporary Combat swords Instant MH / Deadly OH (1 Nov every-preset ruling). Frozen #310 Combat swords Deadly/Instant kept for the old snapshot only; tagged assumption`,
     "The poison on each hand of each preset's reference build (data/preset-reference-builds.js), keyed by the preset id, each in the SimConfig poisons shape (config.poisonIds). #273's button puts them into config.poisons. With Deadly on either hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.",
     false,
   ),

@@ -73,9 +73,15 @@ describe("the form fills from the store's config", () => {
       form().values["weapons.mainHand.type"],
       config().weapons.mainHand.type,
     );
-    assert.equal(form().rotationChoice, "default");
-    assert.equal(form().summary.name, defaultRotation().name);
-    assert.equal(form().summary.rules.length, defaultRotation().rules.length);
+    assert.equal(form().rotationChoice, "combat-swords-temp");
+    assert.equal(
+      form().summary.name,
+      presetRotation("combat-swords-temp").name,
+    );
+    assert.equal(
+      form().summary.rules.length,
+      presetRotation("combat-swords-temp").rules.length,
+    );
     assert.equal(form().canUndo, false);
   });
 
@@ -450,8 +456,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(form().rotationOptions[0].label, defaultRotation().name);
   });
 
-  // TR-02 / #332: empty presets until #333
-  it.skip("choosing a preset writes config.rotation and the summary", () => {
+  it("choosing a preset writes config.rotation and the summary", () => {
     const { store, actions, form } = setup();
     const [preset] = listPresets();
     actions.chooseRotation(preset.id);
@@ -464,18 +469,16 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(form().summary.name, defaultRotation().name);
   });
 
-  // TR-02 / #332: empty presets until #333
-  it.skip("export gives exportRotation of the selected rotation, with a file name", () => {
+  it("export gives exportRotation of the selected rotation, with a file name", () => {
     const { actions } = setup();
     const [preset] = listPresets();
     actions.chooseRotation(preset.id);
     const file = actions.exportRotation();
     assert.equal(file.text, exportRotation(presetRotation(preset.id)));
-    assert.equal(file.fileName, `${preset.id}.json`);
+    assert.equal(file.fileName, "combat-swords-temporary.json");
   });
 
-  // TR-02 / #332: empty presets until #333
-  it.skip("a good import becomes the selected 'Imported: <name>' choice", () => {
+  it("a good import becomes the selected 'Imported: <name>' choice", () => {
     const { store, actions, form } = setup();
     const rotation = {
       ...presetRotation(listPresets()[0].id),
@@ -573,7 +576,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     const before = store.get().config;
     assert.equal(actions.importText("{ nope"), false);
     assert.equal(store.get().config, before);
-    assert.equal(form().rotationChoice, "default");
+    assert.equal(form().rotationChoice, "combat-swords-temp");
     assert.equal(form().importStatus.ok, false);
     assert.equal(
       form().importStatus.message,
@@ -879,8 +882,7 @@ describe("a field typed in is checked again before it is used (#247)", () => {
     assert.equal(store.get().form, before);
   });
 
-  // TR-02 / #332: empty presets until #333
-  it.skip("any commit checks the typed fields too, not only the one changed", () => {
+  it("any commit checks the typed fields too, not only the one changed", () => {
     const { actions, form, config } = repro();
     const stale = config();
     const other = form().rotationOptions.find(

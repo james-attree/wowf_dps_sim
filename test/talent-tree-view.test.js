@@ -141,7 +141,11 @@ const IDS = [
   "talents-live",
 ];
 
-function page({ config = pageDefaultConfig(), narrow = false, effects } = {}) {
+function page({
+  config = { ...pageDefaultConfig(), talents: {}, talentLevel: 60 },
+  narrow = false,
+  effects,
+} = {}) {
   const doc = {
     activeElement: null,
     createElement: (tag) => new FakeElement(doc, tag),

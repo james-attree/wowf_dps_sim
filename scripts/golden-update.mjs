@@ -4,6 +4,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { runFight } from "../js/fight.js";
 import { runScriptedFight } from "./scripted-fight.mjs";
 import { referenceBuild } from "../data/reference-build.js";
+import {
+  loadPreset,
+  referenceBuild as presetReferenceBuild,
+} from "../js/rotation-presets.js";
 import { defaultDaggerConfig } from "../js/sim-config.js";
 
 // Golden-seed regression fixtures (#77, #85). Each case pins the full result of
@@ -294,10 +298,8 @@ export const GOLDEN_CASES = deepFreeze([
       poisons: { mainHand: "instant", offHand: "deadly" },
     },
   },
-  // TR-02 / #332 interim: the combat-swords / dagger preset goldens and the
-  // Cutthroat / Venom-ability cases are retired until TR-03 / TR-11 (presets
-  // empty; those talents/abilities are gone). DPS before retirement is
-  // logged in the PR body.
+  // TR-02 / #332 retired the old multi-preset / Cutthroat / Venom-ability
+  // goldens. TR-03 / #333 restores combat-swords-temp below.
   {
     name: "assassination-build-seed-266-60s",
     seed: 266,
@@ -363,6 +365,25 @@ export const GOLDEN_CASES = deepFreeze([
       poisons: { mainHand: "instant", offHand: "deadly" },
       rotation: POOLED_MUTILATE_ROTATION,
     },
+  },
+  // TR-03 / #333: James's temporary Combat swords. Mean DPS over seeds 1–120
+  // at 60 s is reported in the PR (mean ± 1 SE); this fixture pins seed 142.
+  {
+    name: "combat-swords-temp-preset-seed-142-60s",
+    seed: 142,
+    duration: 60,
+    config: (() => {
+      const build = presetReferenceBuild("combat-swords-temp");
+      return loadPreset("combat-swords-temp", {
+        talents: { ...build.talents },
+        talentLevel: build.talentLevel,
+        weapons: {
+          mainHand: { ...build.weapons.mainHand },
+          offHand: { ...build.weapons.offHand },
+        },
+        poisons: { ...build.poisons },
+      });
+    })(),
   },
 ]);
 

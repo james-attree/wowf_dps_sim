@@ -213,7 +213,7 @@ for (const width of [WIDE, PHONE]) {
         });
         assert.deepEqual(await axOf(page, "#talents-edit"), {
           name: "Talents",
-          description: "No talents",
+          description: "Combat 16/35/0 · 51/51",
         });
         assert.deepEqual(errors, []);
       } finally {
@@ -326,7 +326,11 @@ for (const width of [WIDE, PHONE]) {
   test(`talent tiles' and tabs' edges are ${NON_TEXT}:1 or more at ${width}px (#244)`, async () => {
     const { context, page, errors } = await open(width, "#character/talents");
     try {
-      await page.locator("button.talent").first().waitFor();
+      await page
+        .locator("button.talent")
+        .filter({ visible: true })
+        .first()
+        .waitFor();
       const specs = [
         { selector: "button.talent", side: "Top", on: "parent" },
         { selector: "button.talent", side: "Top", on: "self" },

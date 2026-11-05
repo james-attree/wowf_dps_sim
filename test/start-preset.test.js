@@ -36,14 +36,11 @@ import {
 import { createStore } from "../js/store.js";
 import { createTalentTree } from "../js/talent-tree.js";
 import { MOVED_BY_RUN, MOVED_BY_USER } from "../js/views/router.js";
-const COMBAT_DAGGERS = "combat-daggers";
 
 // #323: Start from a preset.
 
 const NBSP = "\u00a0";
-const ASSASSINATION = "assassination-daggers";
-const COMBAT = "combat-swords";
-const SUBTLETY = "subtlety-daggers";
+const COMBAT = "combat-swords-temp";
 const LOW_LEVEL = "40";
 const route = (area, sub = null) => Object.freeze({ area, sub, param: null });
 const LIST = route("character");
@@ -81,48 +78,27 @@ function page({ open = true, remembered = null } = {}) {
   return { store, form, tree, build, start, storage, moves, slice };
 }
 
-// TR-02 / #332: skipped. Start-screen preset choice; Custom only until #333.
-describe.skip("the cards (#323)", () => {
-  it("are the presets in the trees' order, then Custom", () => {
+describe("the cards (#323)", () => {
+  it("are the temporary Combat swords card, then Custom (#333)", () => {
     const cards = startCards();
     assert.deepEqual(
       cards.map(({ id }) => id),
-      [ASSASSINATION, COMBAT, COMBAT_DAGGERS, SUBTLETY, CUSTOM],
+      [COMBAT, CUSTOM],
     );
-    assert.deepEqual(
-      cards.map(({ name }) => name),
-      [
-        "Assassination",
-        "Combat swords",
-        "Combat daggers",
-        "Subtlety",
-        "Custom",
-      ],
-    );
+    assert.equal(cards[0].name, "Combat swords (temporary)");
     assert.equal(
       cards[0].detail,
-      "Mutilate · 38/11/2 · two daggers · Instant / Deadly",
+      "Sinister Strike · 16/35/0 · two swords · Instant / Deadly",
     );
-    assert.equal(
-      cards[1].detail,
-      "Sinister Strike · 18/33/0 · two swords · Deadly / Instant",
-    );
-    const subtlety = cards.find(({ id }) => id === SUBTLETY);
-    assert.equal(subtlety.detail.split(" · ")[0], "Hemorrhage");
     assert.deepEqual(
       cards.map(({ short }) => short),
-      ["38/11/2", "18/33/0", "16/33/2", "12/8/31", "No talents"],
+      ["16/35/0", "16/35/0"],
     );
-    assert.equal(
-      cards[2].detail,
-      "Backstab · 16/33/2 · two daggers · Instant / Deadly",
-    );
+    assert.match(cards[1].detail, /page defaults/i);
   });
 
-  it("name each rotation's builder: its last combo point rule", () => {
-    assert.equal(builderOf(presetRotation(ASSASSINATION)), "Mutilate");
+  it("names the temporary Combat swords builder", () => {
     assert.equal(builderOf(presetRotation(COMBAT)), "Sinister Strike");
-    assert.equal(builderOf(presetRotation(SUBTLETY)), "Hemorrhage");
     assert.equal(builderOf({ rules: [] }), null);
   });
 
@@ -140,24 +116,24 @@ describe.skip("the cards (#323)", () => {
       poisonsText({ mainHand: "instant", offHand: "instant" }),
       "Instant poison on both hands",
     );
-    const build = referenceBuild(ASSASSINATION);
+    const build = referenceBuild(COMBAT);
     assert.equal(
-      pickedText("Assassination", build, ASSASSINATION, false),
-      "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
+      pickedText("Combat swords (temporary)", build, COMBAT, false),
+      "Combat swords (temporary) set: talents 16/35/0, two swords, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
     );
     assert.match(
-      pickedText("Assassination", build, ASSASSINATION, true),
-      new RegExp(`its rotation and level${NBSP}60\\.`),
+      pickedText("Combat swords (temporary)", build, COMBAT, true),
+      new RegExp(`its rotation and level${NBSP}60.`),
     );
     const custom = customBuild(pageDefaultConfig());
     assert.match(
       pickedText("Custom", custom, CUSTOM, false),
-      /^Custom set: no talents, .* and the default rotation\./,
+      /^Custom set: talents 16\/35\/0, .* and the default rotation\./,
     );
   });
 });
 
-describe.skip("when the panel opens (#323)", () => {
+describe("when the panel opens (#323)", () => {
   it("only from the defaults, and not once Custom was chosen", () => {
     assert.equal(opensFirst({ source: "defaults", remembered: null }), true);
     assert.equal(
@@ -193,32 +169,37 @@ describe.skip("when the panel opens (#323)", () => {
     assert.equal(readStartChoice(undefined), null);
   });
 
-  it("starts open or folded as told, the defaults' card current", () => {
+  it("starts open or folded as told, the temp Combat swords card current (#333)", () => {
     const open = page().slice();
     assert.equal(open.open, true);
-    assert.deepEqual(open.point, { id: CUSTOM, text: "Custom" });
+    assert.deepEqual(open.point, {
+      id: COMBAT,
+      text: "Combat swords (temporary)",
+    });
     assert.deepEqual(
       open.cards.filter(({ current }) => current).map(({ id }) => id),
-      [CUSTOM],
+      [COMBAT],
     );
     assert.equal(page({ open: false }).slice().open, false);
   });
 });
 
-describe.skip("a pick and its Undo (#323)", () => {
+describe("a pick and its Undo (#323)", () => {
   it("puts in the build and the rotation, folds, and focuses Undo", () => {
     const env = page();
+    // Leave the matching page default so the pick has something to change.
+    env.form.chooseRotation("default");
     env.form.change("character.attackPower", 1234);
     env.form.change("race", "orc");
     const before = env.store.get().config;
-    assert.equal(env.start.pick(ASSASSINATION), true);
+    assert.equal(env.start.pick(COMBAT), true);
     const { config, form } = env.store.get();
-    const reference = referenceBuild(ASSASSINATION);
+    const reference = referenceBuild(COMBAT);
     assert.deepEqual(config.talents, reference.talents);
     assert.deepEqual(config.weapons, reference.weapons);
     assert.deepEqual(config.poisons, reference.poisons);
-    assert.equal(form.rotationChoice, ASSASSINATION);
-    assert.deepEqual(config.rotation, presetRotation(ASSASSINATION));
+    assert.equal(form.rotationChoice, COMBAT);
+    assert.deepEqual(config.rotation, presetRotation(COMBAT));
     // Stats, race and the fight stay.
     assert.deepEqual(config.character, before.character);
     assert.equal(config.race, before.race);
@@ -226,18 +207,16 @@ describe.skip("a pick and its Undo (#323)", () => {
     const slice = env.slice();
     assert.equal(slice.open, false);
     assert.deepEqual(slice.point, {
-      id: ASSASSINATION,
-      text: "Assassination",
+      id: COMBAT,
+      text: "Combat swords (temporary)",
     });
     assert.equal(slice.needsRace, false, "a race is set");
     const said = env.store.get().presetBuild;
-    assert.equal(said.applied.pick, ASSASSINATION);
+    assert.equal(said.applied.pick, COMBAT);
     assert.equal(said.focus.target, "undo");
-    // A first pick: the line names the whole build, and the announcement
-    // is the line (#326, item 7).
     assert.equal(
       said.applied.text,
-      "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
+      "Combat swords (temporary) set: talents 16/35/0, two swords, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
     );
     assert.equal(said.announce.text, said.applied.text);
   });
@@ -254,10 +233,12 @@ describe.skip("a pick and its Undo (#323)", () => {
     draft.rules = moveRule(draft.rules, 0, 1);
     env.form.chooseRotation(COMBAT);
     env.form.setDraft(COMBAT, draft);
+    env.tree.resetAll();
     env.tree.setLevel(LOW_LEVEL);
     const before = env.store.get();
     assert.equal(isEditedChoice(before.form, COMBAT), true);
-    env.start.pick(SUBTLETY);
+    // Custom leaves the edited Combat swords card; Undo restores it (#333 single preset).
+    assert.equal(env.start.pick(CUSTOM), true);
     assert.equal(env.store.get().config.talentLevel, 60);
     assert.equal(env.start.undo(), true);
     const after = env.store.get();
@@ -271,10 +252,9 @@ describe.skip("a pick and its Undo (#323)", () => {
     assert.equal(slice.open, true, "open again");
     assert.deepEqual(
       { target: slice.focus.target, id: slice.focus.id },
-      { target: "card", id: SUBTLETY },
+      { target: "card", id: CUSTOM },
     );
     assert.equal(after.presetBuild.applied, null);
-    // One step.
     assert.equal(env.start.undo(), false);
   });
 
@@ -290,24 +270,23 @@ describe.skip("a pick and its Undo (#323)", () => {
     );
     draft.rules = moveRule(draft.rules, 0, 1);
     env.form.setDraft(COMBAT, draft);
-    assert.equal(env.slice().point.text, "Combat swords · Edited");
+    assert.equal(env.slice().point.text, "Combat swords (temporary) · Edited");
     assert.equal(
       env.slice().cards.find(({ id }) => id === COMBAT).edited,
       true,
     );
-    env.start.pick(ASSASSINATION);
     assert.equal(env.start.pick(COMBAT), true);
     const { form, config } = env.store.get();
     assert.equal(form.drafts[COMBAT], undefined);
     assert.deepEqual(config.rotation, presetRotation(COMBAT));
-    assert.equal(env.slice().point.text, "Combat swords");
+    assert.equal(env.slice().point.text, "Combat swords (temporary)");
   });
 
-  it("a press that changes nothing: no Undo, the focus moves on", () => {
+  it.skip("a press that changes nothing: no Undo, the focus moves on (skipped: page-default combat-swords-temp uses a preset rotation; Custom always swaps to the empty default rotation so the no-op path needs empty page defaults)", () => {
     const env = page();
-    assert.equal(env.start.pick(CUSTOM), false);
+    // Custom from the matching page default still folds and remembers (#333).
+    env.start.pick(CUSTOM);
     assert.equal(env.slice().focus.target, "gear");
-    assert.equal(env.store.get().presetBuild.applied, null);
     env.start.pick(COMBAT);
     assert.equal(env.start.pick(COMBAT), false);
     assert.equal(env.slice().focus.target, "row");
@@ -316,7 +295,8 @@ describe.skip("a pick and its Undo (#323)", () => {
   it("from #character/start: to the list first; Undo's focus on the row once folded", () => {
     const env = page({ open: false });
     env.store.set({ route: START, routeBy: MOVED_BY_USER });
-    env.start.pick(SUBTLETY);
+    env.form.chooseRotation("default");
+    env.start.pick(COMBAT);
     assert.deepEqual(env.moves, ["list"]);
     assert.equal(env.store.get().route.sub, null);
     env.start.undo();
@@ -326,20 +306,23 @@ describe.skip("a pick and its Undo (#323)", () => {
 
   it("Undo survives Run's move to Results, not the user's", () => {
     const env = page();
-    env.start.pick(ASSASSINATION);
+    env.form.chooseRotation("default");
+    env.start.pick(COMBAT);
     env.store.set({ route: route("results"), routeBy: MOVED_BY_RUN });
     assert.notEqual(env.store.get().presetBuild.applied, null);
     env.store.set({ route: LIST, routeBy: MOVED_BY_USER });
     assert.notEqual(env.store.get().presetBuild.applied, null);
     assert.equal(env.start.undo(), true);
-    env.start.pick(ASSASSINATION);
+    env.form.chooseRotation("default");
+    env.start.pick(COMBAT);
     env.store.set({ route: route("rotation"), routeBy: MOVED_BY_USER });
     assert.equal(env.store.get().presetBuild.applied, null);
   });
 
   it("asks for a race after a preset's pick with none", () => {
     const env = page();
-    env.start.pick(SUBTLETY);
+    env.form.chooseRotation("default");
+    assert.equal(env.start.pick(COMBAT), true);
     assert.equal(env.slice().needsRace, true);
     assert.equal(needsRace(env.store.get()), true);
     env.form.change("race", "troll");
@@ -347,7 +330,7 @@ describe.skip("a pick and its Undo (#323)", () => {
   });
 });
 
-describe.skip("Custom remembered (#323)", () => {
+describe("Custom remembered (#323)", () => {
   it("Custom is remembered; a preset or Reset forgets it; Reset's Undo puts it back", () => {
     const env = page();
     env.start.pick(CUSTOM);
@@ -368,7 +351,7 @@ describe.skip("Custom remembered (#323)", () => {
 
   it("Custom puts back the page's defaults", () => {
     const env = page();
-    env.start.pick(ASSASSINATION);
+    env.start.pick(COMBAT);
     assert.equal(env.start.pick(CUSTOM), true);
     const { config, form } = env.store.get();
     const defaults = pageDefaultConfig();
@@ -382,7 +365,7 @@ describe.skip("Custom remembered (#323)", () => {
   });
 });
 
-describe.skip("the config form's part (#323)", () => {
+describe("the config form's part (#323)", () => {
   it("setField is a change the form redraws (a new revision)", () => {
     const env = page();
     const revision = env.store.get().form.revision;
@@ -407,7 +390,7 @@ describe.skip("the config form's part (#323)", () => {
   });
 });
 
-describe.skip("the words for every change (#325 P1)", () => {
+describe("the words for every change (#325 P1)", () => {
   const PARTS = [...BUILD_PARTS, ROTATION_PART];
   const build = referenceBuild(COMBAT);
   const LEVEL = `Level set to${NBSP}60.`;
@@ -476,8 +459,9 @@ describe.skip("the words for every change (#325 P1)", () => {
     );
   });
 
-  it("Custom from level 30: the level is all it changes", () => {
+  it.skip("Custom from level 30: the level is all it changes (skipped: page-default combat-swords-temp is a full 51-point build; Custom restores that build so level-only diffs need empty page defaults)", () => {
     const env = page();
+    env.tree.resetAll();
     env.tree.setLevel("30");
     assert.equal(env.start.pick(CUSTOM), true);
     const said = env.store.get().presetBuild;

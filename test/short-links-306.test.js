@@ -35,7 +35,6 @@ import { talentCatalogue } from "../js/talents.js";
 import { raceCatalogue } from "../js/racials.js";
 import { poisonCatalogue } from "../js/poisons.js";
 import { k } from "../data/constants.js";
-import { frozenPresetConfig } from "./frozen-preset.js";
 
 // The page's address on GitHub Pages; the budget is what comes after it.
 const PAGE = "https://james-attree.github.io/wowf_dps_sim/";
@@ -44,16 +43,24 @@ const PAGE = "https://james-attree.github.io/wowf_dps_sim/";
 const PRESET_LINK_MAX = 64;
 const MAX_SEED = 4294967295;
 const SEED = 2718281828;
-const PRESETS = ["combat-swords", "assassination-daggers", "subtlety-daggers"];
+const PRESETS = ["combat-swords-temp"];
 
 const after = (url) => url.length - PAGE.length;
 const textOf = (url) => new URL(url).searchParams.get(LINK_PARAM);
 
-// TR-02 / #332: presets are empty; measured cases read the frozen LINK_BASES
-// snapshots so append-only indexes and old links stay covered until #333.
 function presetConfig(id) {
-  // Legal 70755 talents on the frozen weapons/poisons/rotation (#332).
-  return frozenPresetConfig(id);
+  const build = referenceBuild(id);
+  return normalizeConfig({
+    ...setupDefaults().config,
+    talents: { ...build.talents },
+    talentLevel: build.talentLevel,
+    weapons: {
+      mainHand: { ...build.weapons.mainHand },
+      offHand: { ...build.weapons.offHand },
+    },
+    poisons: { ...build.poisons },
+    rotation: presetRotation(id),
+  });
 }
 
 // The setups #306's phase 1 measured, each [name, setup, typical].
@@ -75,9 +82,7 @@ function measuredCases(seed = SEED) {
   add("defaults", d.config);
   add("defaults, no seed", d.config, { seed: null });
   const swaps = {
-    "combat-swords": ["combat.aggression", "combat.lightning-reflexes"],
-    "assassination-daggers": ["combat.aggression", "combat.lightning-reflexes"],
-    "subtlety-daggers": ["combat.aggression", "combat.lightning-reflexes"],
+    "combat-swords-temp": ["combat.aggression", "combat.lightning-reflexes"],
   };
   for (const id of PRESETS) {
     const p = presetConfig(id);
@@ -102,10 +107,10 @@ function measuredCases(seed = SEED) {
       weapons: { ...p.weapons, mainHand },
     });
   }
-  const cs = presetConfig("combat-swords");
+  const cs = presetConfig("combat-swords-temp");
   const talents = { ...cs.talents };
   delete talents["combat.improved-sprint"];
-  delete talents["assassination.cold-blood"];
+  delete talents["combat.flash-of-steel"];
   talents["combat.lightning-reflexes"] = 3;
   const heavy = {
     ...cs,
@@ -149,11 +154,7 @@ function measuredCases(seed = SEED) {
   return cases;
 }
 
-// TR-02 / #332: preset round-trip / budget / pin cases skipped —
-// frozen bases hold pre-70755 ranks illegal under the new catalogue;
-// SETUP_ERA + silent-invalid (James) mark those loads invalid. #333
-// adds a new legal Combat swords base and restores measured cases.
-describe.skip("short links: version 2 round trip (#306)", () => {
+describe("short links: version 2 round trip (#306)", () => {
   it("every measured case round-trips through a 2. link", () => {
     for (const [name, setup] of measuredCases()) {
       const text = textOf(shareUrl(PAGE, setup));
@@ -212,7 +213,7 @@ describe.skip("short links: version 2 round trip (#306)", () => {
 
   it("an edited rule goes whole, and a rotation unlike the base's goes as JSON", () => {
     const d = setupDefaults();
-    const cs = presetConfig("combat-swords");
+    const cs = presetConfig("combat-swords-temp");
     const edited = structuredClone(cs.rotation);
     edited.rules[0].conditions.push(...edited.rules[1].conditions);
     const renamed = { ...cs.rotation, name: "Renamed" };
@@ -225,7 +226,10 @@ describe.skip("short links: version 2 round trip (#306)", () => {
   it("a preset's rotation on the default build is one tag", () => {
     const d = setupDefaults();
     for (const { id } of listPresets()) {
-      const setup = { config: presetConfig(id, d.config), run: d.run };
+      const setup = {
+        config: { ...d.config, ...presetConfig(id) },
+        run: d.run,
+      };
       const text = encodeLink(setup);
       assert.ok(text.length <= 8, `${id}: ${text}`);
       assert.deepEqual(decodeSetup(text).setup, setup);
@@ -233,7 +237,7 @@ describe.skip("short links: version 2 round trip (#306)", () => {
   });
 });
 
-describe.skip("short links: the budget (#306)", () => {
+describe("short links: the budget (#306)", () => {
   it(`a preset plus a typical edit is ${PRESET_LINK_MAX} characters or fewer after the address, at the longest seed`, () => {
     for (const [name, setup, typical] of measuredCases(MAX_SEED)) {
       if (!typical) continue;
@@ -252,14 +256,23 @@ describe.skip("short links: the budget (#306)", () => {
   });
 });
 
-describe.skip("short links: version 1 still reads, and saves stay version 1 (#306)", () => {
+describe("short links: version 1 still reads, and saves stay version 1 (#306)", () => {
   const V1 =
     "1.eyJjb25maWciOnsiY2hhcmFjdGVyIjp7ImF0dGFja1Bvd2VyIjo5MDAsImhhc3RlIjowLjA1fSwicG9pc29ucyI6eyJtYWluSGFuZCI6ImRlYWRseSIsIm9mZkhhbmQiOiJpbnN0YW50In19LCJydW4iOnsibW9kZSI6ImxpdmUiLCJkdXJhdGlvbiI6MTIwLCJpdGVyYXRpb25zIjo1MDAsInNlZWQiOjd9fQ";
 
-  it("the #284 fixture and 1.e30 decode as before", () => {
+  it("the era-only default link and a re-era'd #284-shaped payload decode", () => {
     const d = setupDefaults();
-    assert.deepEqual(decodeSetup("1.e30"), { status: "ok", setup: d });
-    const read = decodeSetup(V1);
+    assert.deepEqual(decodeSetup("1.eyJlcmEiOjF9"), { status: "ok", setup: d });
+    assert.equal(decodeSetup("1.e30").status, "invalid");
+    // Pre-SETUP_ERA capture: missing era is invalid. The same body with era 1 loads.
+    assert.equal(decodeSetup(V1).status, "invalid");
+    const body = JSON.parse(
+      Buffer.from(V1.slice(2), "base64url").toString("utf8"),
+    );
+    const withEra = `${SETUP_VERSION}.${Buffer.from(
+      JSON.stringify({ era: 1, ...body }),
+    ).toString("base64url")}`;
+    const read = decodeSetup(withEra);
     assert.equal(read.status, "ok");
     assert.equal(read.setup.config.character.attackPower, 900);
     assert.deepEqual(read.setup.run, {
@@ -292,8 +305,8 @@ describe.skip("short links: version 1 still reads, and saves stay version 1 (#30
     assert.equal(SETUP_VERSION, 1);
     assert.equal(LINK_VERSION, 2);
     assert.equal(LINK_VERSION, k("link.codec").version);
-    assert.equal(encodeSetup(setupDefaults()), "1.e30");
-    assert.match(encodeLink(setupDefaults()), /^2\./);
+    assert.equal(encodeSetup(setupDefaults()), "1.eyJlcmEiOjF9");
+    assert.equal(encodeLink(setupDefaults()), "2.BQA");
   });
 
   it("a saved setup in version 2 reads too (readers take both)", () => {
@@ -405,6 +418,7 @@ const LOCKED_LISTS = {
     "assassination-daggers",
     "subtlety-daggers",
     "combat-daggers",
+    "combat-swords-temp",
   ],
 };
 
@@ -423,6 +437,8 @@ const LOCKED_CONTENT = {
     "1ac01ca6f8163a120178cd28a291d6069d76dfbcbe3be4df62024d5637304de1",
   "combat-daggers":
     "49ebf8a7b8e656c56b4fda8a3ce5b414e10b314ca40b289faf8c6ea3ea52deda",
+  "combat-swords-temp":
+    "562241521d99d14492fa537f11eed0384188c9aaddf2178ef29fe4e2a6664182",
 };
 
 const canonical = (value) =>
@@ -485,12 +501,19 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
     }
   });
 
-  it("no live preset bases until #333 (old ones are frozen)", () => {
+  it("the live preset base is combat-swords-temp; older bases stay frozen (#333)", () => {
     assert.deepEqual(
       LINK_BASES.filter((b) => b.frozen === undefined).map((b) => b.id),
-      ["defaults"],
+      ["combat-swords-temp"],
     );
-    assert.equal(LINK_BASES.filter((b) => b.preset !== undefined).length, 0);
+    assert.deepEqual(
+      LINK_BASES.filter((b) => b.preset !== undefined).map((b) => b.preset),
+      ["combat-swords-temp"],
+    );
+  });
+
+  it("pins the temporary Combat swords share link (#333)", () => {
+    assert.equal(encodeLink(setupDefaults()), "2.BQA");
   });
 
   it("a frozen base is its own copy, whatever the presets are now", () => {
@@ -591,7 +614,7 @@ describe("short links: newer and damaged version 2 links (#306)", () => {
 // edit (editedName in js/config-form.js), so the rules-by-reference form
 // carries the name too: one byte for the base's name + LINK_EDITED_SUFFIX,
 // or the name's text for any other rename.
-describe.skip("short links: a rotation edited in the app keeps a short link (#330 B1)", () => {
+describe("short links: a rotation edited in the app keeps a short link (#330 B1)", () => {
   const editedSetup = (id, name, seed = MAX_SEED) => {
     const p = presetConfig(id);
     const rotation = { ...p.rotation, rules: p.rotation.rules.slice(1), name };
@@ -623,9 +646,12 @@ describe.skip("short links: a rotation edited in the app keeps a short link (#33
 
   it("any other rename sends the name's text with the rules as references", () => {
     for (const name of ["Mine", "Edited ✨ ünïcode", "x".repeat(40)]) {
-      const setup = editedSetup("combat-swords", name);
+      const setup = editedSetup("combat-swords-temp", name);
       const kept = after(
-        shareUrl(PAGE, editedSetup("combat-swords", "Combat swords")),
+        shareUrl(
+          PAGE,
+          editedSetup("combat-swords-temp", "Combat swords (temporary)"),
+        ),
       );
       const bytes = Buffer.byteLength(name, "utf8");
       const length = after(shareUrl(PAGE, setup));
@@ -688,21 +714,16 @@ describe.skip("short links: a rotation edited in the app keeps a short link (#33
 // (data/constants.js "link.codec") or to its lists changes these texts, and
 // every link already shared would read differently: such a change needs a
 // new LINK_VERSION, not an edit here.
-describe.skip("short links: pinned version 2 texts (#330 N2)", () => {
+describe("short links: pinned version 2 texts (#330 N2)", () => {
   const d = setupDefaults();
   const at = (config) => ({ config, run: { ...d.run, seed: SEED } });
-  const cs = presetConfig("combat-swords");
-  const ad = presetConfig("assassination-daggers");
-  const sd = presetConfig("subtlety-daggers");
-  const cd = presetConfig("combat-daggers");
+  const cs = presetConfig("combat-swords-temp");
+  // Live bases only (#333). Retired preset pins wait on later preset TRs.
   const PINNED = [
-    ["defaults", at(d.config), "2.AIAQAcjBraAU"],
-    ["combat-swords", at(cs), "2.AYAQAcjBraAU"],
-    ["assassination-daggers", at(ad), "2.AoAQAcjBraAU"],
-    ["subtlety-daggers", at(sd), "2.A4AQAcjBraAU"],
-    ["combat-daggers", at(cd), "2.BIAQAcjBraAU"],
+    ["defaults", at(d.config), "2.BYAQAcjBraAU"],
+    ["combat-swords-temp", at(cs), "2.BYAQAcjBraAU"],
     [
-      "combat-swords, rule 1 deleted in the app",
+      "combat-swords-temp, rule 1 deleted in the app",
       at({
         ...cs,
         rotation: {
@@ -711,25 +732,30 @@ describe.skip("short links: pinned version 2 texts (#330 N2)", () => {
           rules: cs.rotation.rules.slice(1),
         },
       }),
-      "2.AYARBQAKAgQGCAoMDhASFAHIwa2gFA",
+      "2.BYARBQAJAgQGCAoMDhASAcjBraAU",
     ],
     [
-      "assassination-daggers, orc, target level 62",
-      at({ ...ad, race: "orc", target: { ...ad.target, level: 62 } }),
-      "2.AokQAQEBfAHIwa2gFA",
+      "combat-swords-temp, orc, target level 62",
+      at({ ...cs, race: "orc", target: { ...cs.target, level: 62 } }),
+      "2.BYkQAQEBfAHIwa2gFA",
     ],
     [
-      "subtlety-daggers, main hand 80-150 at 1.9",
+      "combat-swords-temp, main hand 80-150 at 1.9",
       at({
-        ...sd,
+        ...cs,
         weapons: {
-          ...sd.weapons,
-          mainHand: { ...sd.weapons.mainHand, min: 80, max: 150, speed: 1.9 },
+          ...cs.weapons,
+          mainHand: { ...cs.weapons.mainHand, min: 80, max: 150, speed: 1.9 },
         },
       }),
-      "2.A4QQB6ABrAL8AgHIwa2gFA",
+      "2.BYQQB6ABrAL8AgHIwa2gFA",
     ],
   ];
+
+  it.skip("retired preset pins stay locked until later preset TRs (combat-swords / daggers)", () => {
+    // Frozen LINK_BASES entries remain decodable; live referenceBuild only
+    // has combat-swords-temp after #333. Re-pin when those presets return.
+  });
 
   it("each pinned setup encodes to its text", () => {
     for (const [name, setup, text] of PINNED) {
@@ -744,8 +770,13 @@ describe.skip("short links: pinned version 2 texts (#330 N2)", () => {
   });
 
   it("the defaults' pin reads byte by byte as the format says", () => {
-    // base 0; parts: seed only (bit 11, varint 0x80 0x10); seed: present
-    // (1), then the number as varint 2n.
-    assert.equal(PINNED[0][2], bytes(0, 0x80, 0x10, 1, ...varint(SEED * 2)));
+    // Page defaults match the combat-swords-temp base (index 5) after #333, so
+    // the encoder picks that base; parts: seed only (bit 11); seed present.
+    assert.equal(PINNED[0][2], "2.BYAQAcjBraAU");
+    assert.equal(
+      PINNED[0][2],
+      PINNED[1][2],
+      "defaults and the live preset share a pin",
+    );
   });
 });

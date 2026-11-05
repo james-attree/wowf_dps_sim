@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — opportunity/lethality rank tables retuned at 70755
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createFight } from "../js/fight.js";
@@ -95,8 +94,8 @@ function build(ids) {
   );
 }
 
-describe.skip("talents from Assassination, Subtlety and Combat in one pipeline", () => {
-  it("match the snapshot's rank text", () => {
+describe("talents from Assassination, Subtlety and Combat in one pipeline", () => {
+  it.skip("match the snapshot's rank text (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     for (const [id, entries] of Object.entries(TABLES)) {
       const talent = talentCatalogue.get(id);
       for (const entry of entries) {
@@ -114,7 +113,7 @@ describe.skip("talents from Assassination, Subtlety and Combat in one pipeline",
     }
   });
 
-  it("add into one crit chance for an Ambush, from both trees", () => {
+  it.skip("add into one crit chance for an Ambush, from both trees (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const stats = new ModifierPipeline(
       build([
         "assassination.malice",
@@ -139,7 +138,7 @@ describe.skip("talents from Assassination, Subtlety and Combat in one pipeline",
     );
   });
 
-  it("scale one crit bonus and one damage factor from different trees", () => {
+  it.skip("scale one crit bonus and one damage factor from different trees (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const stats = new ModifierPipeline(
       build([
         "assassination.lethality",
@@ -167,7 +166,7 @@ describe.skip("talents from Assassination, Subtlety and Combat in one pipeline",
     );
   });
 
-  it("change a fight, and change it the same way in any order", () => {
+  it.skip("change a fight, and change it the same way in any order (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const ids = Object.keys(TABLES);
     const run = (order) => {
       const fight = createFight(11, undefined, { modifiers: build(order) });

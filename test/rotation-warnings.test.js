@@ -219,8 +219,7 @@ describe("rotationWarnings: the shipped rotations", () => {
     assert.deepEqual(rotationWarnings(defaultRotation()), []);
   });
 
-  // TR-02 / #332: empty presets until #333
-  it.skip("every preset gives no warnings", () => {
+  it("every preset gives no warnings", () => {
     assert.ok(listPresets().length > 0);
     for (const { id } of listPresets()) {
       assert.deepEqual(validateRotation(presetRotation(id)), [], id);

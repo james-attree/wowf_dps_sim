@@ -45,10 +45,13 @@ describe("page defaults (Scout: Instant main hand, Deadly off hand)", () => {
       offHand: null,
     });
     assert.deepEqual(k("ui.pageDefaultPoisons"), pageDefaultConfig().poisons);
-    const { poisons, ...rest } = pageDefaultConfig();
-    const { poisons: none, ...engine } = defaultConfig();
-    assert.deepEqual(rest, engine, "only the poisons differ");
-    assert.notEqual(poisons, none);
+    // Page defaults are the temporary Combat swords build (#333): Instant MH /
+    // Deadly OH, matching the engine's Scout defaults for poisons.
+    assert.deepEqual(pageDefaultConfig().poisons, {
+      mainHand: "instant",
+      offHand: "deadly",
+    });
+    assert.notDeepEqual(pageDefaultConfig().poisons, defaultConfig().poisons);
   });
 
   it("is a fresh copy each time, and normalizeConfig accepts it", () => {

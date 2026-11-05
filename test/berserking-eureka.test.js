@@ -17,15 +17,16 @@ import {
 import { RESOURCE_DEFINITIONS } from "../js/resource-data.js";
 import { resolveCost } from "../js/resource.js";
 import { castableAbilities } from "../js/rotation-edit.js";
-import { referenceBuild } from "../data/reference-build.js";
-import { frozenPresetConfig } from "./frozen-preset.js";
+import { referenceBuild as combatReferenceTalents } from "../data/reference-build.js";
+import { presetRotation, referenceBuild } from "../js/rotation-presets.js";
+import { setupDefaults } from "../js/build-codec.js";
+import { normalizeConfig } from "../js/sim-config.js";
 import { talentState, skipOf } from "../js/rotation-skips.js";
 import { validateRotation } from "../js/rotation-validator.js";
 import { Rogue } from "../js/rogue.js";
 import { evaluate } from "../js/rotation-conditions.js";
 import { rotationState } from "../js/rotation-state.js";
 import { defaultConfig } from "../js/sim-config.js";
-const COMBAT_DAGGERS = "combat-daggers";
 
 // P5-03b (#279, D12b-2): the on-use racials Berserking (Troll, +10% attack
 // speed for 15 s, 3 min) and Eureka! (Gnome, non-periodic damaging abilities
@@ -42,7 +43,7 @@ const ON_USE = [
   { racial: "gnome.eureka", ability: EUREKA, race: "gnome" },
 ];
 const PRESETS = ROTATION_PRESETS.map((preset) => preset.id);
-const COMBAT = "combat-swords";
+const COMBAT = "combat-swords-temp";
 const PERCENT = 100;
 const MINUTE = 60;
 const FIVE_MINUTES = 300;
@@ -58,7 +59,20 @@ function text(id) {
 }
 
 function presetConfig(id, race = null) {
-  return frozenPresetConfig(id, { race });
+  const build = referenceBuild(id);
+  const base = setupDefaults().config;
+  return normalizeConfig({
+    ...base,
+    race,
+    talents: { ...build.talents },
+    talentLevel: build.talentLevel,
+    weapons: {
+      mainHand: { ...build.weapons.mainHand },
+      offHand: { ...build.weapons.offHand },
+    },
+    poisons: { ...build.poisons },
+    rotation: presetRotation(id),
+  });
 }
 
 function withoutRacialRules(config) {
@@ -270,14 +284,11 @@ describe("racial effects grant Berserking and Eureka! (#279)", () => {
 // (test/build-codec.test.js); the app's cap is LINK_CAP, 8,192.
 const ALL_FOUR = ["blood-fury", "elunes-light", BERSERKING, EUREKA];
 const RACIALS_IN = {
-  "assassination-daggers": ALL_FOUR,
-  "subtlety-daggers": ALL_FOUR,
-  "combat-swords": ALL_FOUR,
-  [COMBAT_DAGGERS]: ALL_FOUR,
+  "combat-swords-temp": ALL_FOUR,
 };
-const DAGGERS = "combat-swords";
+const DAGGERS = "combat-swords-temp";
 
-describe.skip("the presets cast the on-use racials when granted (decision 6) (#332: no presets until #333)", () => {
+describe("the presets cast the on-use racials when granted (decision 6)", () => {
   it("every preset is listed", () => {
     assert.deepEqual(PRESETS.toSorted(), Object.keys(RACIALS_IN).toSorted());
   });
@@ -319,7 +330,7 @@ describe.skip("the presets cast the on-use racials when granted (decision 6) (#3
   }
 });
 
-describe.skip("combat-swords casts Berserking and Eureka! too (Scout, 2 Nov 2026) (#332: no presets until #333)", () => {
+describe("combat-swords-temp casts Berserking and Eureka! too (Scout, 2 Nov 2026)", () => {
   it("a Troll or a Gnome casts its racial at the pull, and only its own", () => {
     for (const { race, ability } of ON_USE) {
       const { casts } = fought(1, presetConfig(COMBAT, race), FIVE_MINUTES);
@@ -446,7 +457,7 @@ describe("Eureka! in the fight (#279, A19, A22)", () => {
   });
 
   it("a cast inside the window pays its cost x 0.9 rounded down, outside the full cost", () => {
-    for (const id of [DAGGERS, "combat-daggers"]) {
+    for (const id of [DAGGERS]) {
       const { casts } = fought(1, presetConfig(id, "gnome"), FIVE_MINUTES);
       const windows = casts
         .filter((c) => c.ability === EUREKA)
@@ -586,7 +597,7 @@ describe("the rotation state's grants with and without a race (#279 QA N3)", () 
   const stateFor = (race) => {
     const config = defaultConfig();
     config.race = race;
-    config.talents = { ...referenceBuild() };
+    config.talents = { ...combatReferenceTalents() };
     const { rogue, simulation } = createFight(1, config);
     return rotationState(rogue, simulation);
   };

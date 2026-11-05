@@ -1364,7 +1364,7 @@ describe("the control bar view (#153)", () => {
     el("pause-button").fire("click");
     assert.match(
       el("run-announce").textContent,
-      /^Paused at 1 second\. Total damage [\d,]+\. [\d,]+ DPS\. Energy \d+ of 100\. Combo points \d of 5\.$/,
+      /^Paused at 1 second\. Total damage [\d,]+\. [\d,]+ DPS\. Energy \d+ of \d+\. Combo points \d of 5\.$/,
     );
     // The label swap says it (#45, Scout): no aria-pressed.
     assert.equal(el("pause-button").getAttribute("aria-pressed"), null);

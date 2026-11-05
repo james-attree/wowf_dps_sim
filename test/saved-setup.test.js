@@ -295,7 +295,9 @@ describe("#296 (G4): what a saved setup reads as", () => {
       config: {
         ...d.config,
         character: { ...d.config.character, haste: 0.05, attackPower: 900 },
-        talentLevel: 40,
+        // Keep talentLevel 60: a 51-point build at 40 is illegal and the
+        // codec reads the level back as its default (#326 / #333).
+        talentLevel: 60,
       },
       run: { ...d.run, mode: "live", duration: 120, seed: 99 },
     };
@@ -345,7 +347,7 @@ describe("#296 (G4): what a saved setup reads as", () => {
       d.config.character.attackPower,
     );
     assert.equal(read.config.character.haste, 0.05);
-    assert.equal(read.config.talentLevel, 40);
+    assert.equal(read.config.talentLevel, 60);
     assert.equal(read.run.duration, d.run.duration);
     assert.equal(read.run.mode, "live");
     assert.equal(read.run.seed, 99);
@@ -357,6 +359,8 @@ describe("#296 (G4): what a saved setup reads as", () => {
       future: { anything: true },
       config: {
         character: { haste: "fast", attackPower: 900 },
+        // Empty talents so level 40 is legal under the 51-point page default (#333).
+        talents: {},
         talentLevel: 40,
         later: 1,
       },

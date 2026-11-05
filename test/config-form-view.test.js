@@ -395,8 +395,7 @@ describe("the form never runs anything", () => {
 });
 
 describe("rotation", () => {
-  // TR-02 / #332: empty presets until #333
-  it.skip("fills the selects, and a choice reaches config.rotation and the summary", () => {
+  it("fills the selects, and a choice reaches config.rotation and the summary", () => {
     const { $, store } = page();
     const rotation = $("cfg-rotation");
     assert.deepEqual(
@@ -478,8 +477,7 @@ describe("rotation", () => {
     assert.ok(!$("cfg-import-status").classes.has("is-warning"));
   });
 
-  // TR-02 / #332: empty presets until #333
-  it.skip("switching to another rotation clears the import status and warnings (Kira's #206 review)", () => {
+  it("switching to another rotation clears the import status and warnings (Kira's #206 review)", () => {
     const { $, store } = page();
     $("cfg-import-text").value = JSON.stringify({
       schemaVersion: 1,

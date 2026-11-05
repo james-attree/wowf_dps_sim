@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — lethality max 2; murder gone
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
@@ -70,9 +69,9 @@ function scripted(values) {
   };
 }
 
-describe.skip("the Assassination modifier tables match the snapshot's rank text", () => {
+describe("the Assassination modifier tables match the snapshot's rank text", () => {
   for (const id of [MALICE, LETHALITY, IMPROVED_SND]) {
-    it(`reads ${id} at every rank from the text`, () => {
+    it.skip(`reads ${id} at every rank from the text (skipped: needs a talent retune for Assassination talents)`, () => {
       const [table, ...rest] = TALENT_EFFECTS[id].modifiers;
       assert.equal(rest.length, 0);
       assert.equal(table.op, "add");
@@ -83,7 +82,7 @@ describe.skip("the Assassination modifier tables match the snapshot's rank text"
     });
   }
 
-  it("keeps the kind and scope the text names", () => {
+  it.skip("keeps the kind and scope the text names (skipped: needs a talent retune for the 70755 tree)", () => {
     assert.equal(TALENT_EFFECTS[MALICE].modifiers[0].kind, "critChance");
     assert.equal(TALENT_EFFECTS[MALICE].modifiers[0].scope, undefined);
     assert.equal(TALENT_EFFECTS[IMPROVED_SND].modifiers[0].kind, "duration");
@@ -93,7 +92,7 @@ describe.skip("the Assassination modifier tables match the snapshot's rank text"
     assert.equal(TALENT_EFFECTS[LETHALITY].modifiers[0].kind, "critDamage");
   });
 
-  it("scopes Lethality to the six abilities its text names, by their catalogue ids", () => {
+  it.skip("scopes Lethality to the six abilities its text names, by their catalogue ids (skipped: needs a talent retune for the 70755 tree)", () => {
     const named = /of your (.+?) abilities by/.exec(ranksOf(LETHALITY)[0])[1];
     const names = named.replace(", and ", ", ").split(", ");
     assert.equal(names.length, 6);
@@ -108,7 +107,7 @@ describe.skip("the Assassination modifier tables match the snapshot's rank text"
     );
   });
 
-  it("names one ability, Gouge, that the engine has no definition for (Mutilate is cast since #267)", () => {
+  it.skip("names one ability, Gouge, that the engine has no definition for (Mutilate is cast since #267) (skipped: needs a talent retune for the 70755 tree)", () => {
     const defined = new Set(
       ABILITY_DEFINITIONS.map((definition) => definition.id),
     );
@@ -123,7 +122,7 @@ describe.skip("the Assassination modifier tables match the snapshot's rank text"
     }
   });
 
-  it("expands each at rank 0 to nothing", () => {
+  it.skip("expands each at rank 0 to nothing (skipped: needs a talent retune for the 70755 tree)", () => {
     for (const id of [MALICE, LETHALITY, IMPROVED_SND]) {
       const build = expandTalents({ [id]: 0 });
       assert.deepEqual(build.modifiers, [], id);
@@ -133,7 +132,7 @@ describe.skip("the Assassination modifier tables match the snapshot's rank text"
     assert.deepEqual(expandTalents({}).modifiers, []);
   });
 
-  it("leaves the three PR 2 talents to their own tables: modifiers only here", () => {
+  it.skip("leaves the three PR 2 talents to their own tables: modifiers only here (skipped: needs a talent retune for the 70755 tree)", () => {
     const build = expandTalents({
       [MALICE]: 5,
       [IMPROVED_SND]: 3,
@@ -154,14 +153,14 @@ describe.skip("the Assassination modifier tables match the snapshot's rank text"
   });
 });
 
-describe.skip("the duration modifier kind", () => {
-  it("is scoped by ability, floored at 0, and stacks as a percentage", () => {
+describe("the duration modifier kind", () => {
+  it.skip("is scoped by ability, floored at 0, and stacks as a percentage (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.deepEqual(MODIFIER_KINDS.duration.scope, ["abilities"]);
     assert.equal(MODIFIER_KINDS.duration.floor, 0);
     assert.equal(k("modifiers.stacking").duration, "percent");
   });
 
-  it("adds +x% to a length, to the scoped ability only, and never below 0", () => {
+  it.skip("adds +x% to a length, to the scoped ability only, and never below 0 (skipped: waits on a later talent-rework TR after #333)", () => {
     const tables = expandRank(
       [
         {
@@ -188,7 +187,7 @@ describe.skip("the duration modifier kind", () => {
     assert.equal(cut.resolve("duration", 10, { ability: "x" }), 0);
   });
 
-  it("refuses a duration scoped by something other than abilities", () => {
+  it.skip("refuses a duration scoped by something other than abilities (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.throws(
       () =>
         expandRank(
@@ -208,7 +207,7 @@ describe.skip("the duration modifier kind", () => {
   });
 });
 
-describe.skip("Improved Slice and Dice lengthens the aura Slice and Dice puts up", () => {
+describe("Improved Slice and Dice lengthens the aura Slice and Dice puts up", () => {
   function cast(rank, points) {
     const options = rank === undefined ? undefined : only(IMPROVED_SND, rank);
     const rogue = new Rogue(undefined, options);
@@ -220,7 +219,7 @@ describe.skip("Improved Slice and Dice lengthens the aura Slice and Dice puts up
     return simulation.activeBuffs["slice-and-dice"]?.duration;
   }
 
-  it("multiplies the length for the combo points spent by 1.15, 1.30 and 1.45", () => {
+  it.skip("multiplies the length for the combo points spent by 1.15, 1.30 and 1.45 (skipped: needs a talent retune for the 70755 tree)", () => {
     for (let points = 1; points <= FINISHER_POINTS; points += 1) {
       const base = SND_SECONDS[points - 1];
       assert.equal(cast(undefined, points), base, `${points} points`);
@@ -231,11 +230,11 @@ describe.skip("Improved Slice and Dice lengthens the aura Slice and Dice puts up
     }
   });
 
-  it("puts up no aura for 0 combo points, with or without the talent", () => {
+  it.skip("puts up no aura for 0 combo points, with or without the talent (skipped: needs a talent retune for the 70755 tree)", () => {
     assert.equal(cast(3, 0), undefined);
   });
 
-  it("leaves Rupture and the other auras as they are", () => {
+  it.skip("leaves Rupture and the other auras as they are (skipped: needs a talent retune for the 70755 tree)", () => {
     const plain = new Rogue();
     const talented = new Rogue(undefined, only(IMPROVED_SND, 3));
     for (const id of ["rupture", "blade-flurry", "adrenaline-rush"]) {
@@ -253,7 +252,7 @@ describe.skip("Improved Slice and Dice lengthens the aura Slice and Dice puts up
     );
   });
 
-  it("makes the rotation refresh later, so a fight casts it less often", () => {
+  it.skip("makes the rotation refresh later, so a fight casts it less often (skipped: needs a talent retune for the 70755 tree)", () => {
     const seconds = 180;
     const casts = (options) => {
       const { simulation } = createFight(5, undefined, options);
@@ -266,7 +265,7 @@ describe.skip("Improved Slice and Dice lengthens the aura Slice and Dice puts up
     assert.ok(talented < plain, `${talented} casts is not fewer than ${plain}`);
   });
 
-  it("changes nothing for an untalented fight, nor a build at rank 0", () => {
+  it.skip("changes nothing for an untalented fight, nor a build at rank 0 (skipped: needs a talent retune for the 70755 tree)", () => {
     const plain = runFight({ seed: 3, duration: 120 });
     const zero = createFight(3, undefined, only(IMPROVED_SND, 0));
     zero.simulation.run(120);
@@ -274,8 +273,8 @@ describe.skip("Improved Slice and Dice lengthens the aura Slice and Dice puts up
   });
 });
 
-describe.skip("Malice adds 1% crit chance a rank to every attack", () => {
-  it("adds to a white swing and a skill, at every rank, and draws nothing", () => {
+describe("Malice adds 1% crit chance a rank to every attack", () => {
+  it.skip("adds to a white swing and a skill, at every rank, and draws nothing (skipped: needs a talent retune for the 70755 tree)", () => {
     for (let rank = 1; rank <= 5; rank += 1) {
       const { rogue } = createFight(1, undefined, only(MALICE, rank));
       const base = new Rogue().critChance;
@@ -288,7 +287,7 @@ describe.skip("Malice adds 1% crit chance a rank to every attack", () => {
     }
   });
 
-  it("gives more crits than the same fight without it, over a few seeds", () => {
+  it.skip("gives more crits than the same fight without it, over a few seeds (skipped: needs a talent retune for the 70755 tree)", () => {
     const crits = (options) => {
       let total = 0;
       for (let seed = 1; seed <= 20; seed += 1) {
@@ -306,7 +305,7 @@ describe.skip("Malice adds 1% crit chance a rank to every attack", () => {
   });
 });
 
-describe.skip("Lethality adds to the crit damage bonus of the abilities it names", () => {
+describe("Lethality adds to the crit damage bonus of the abilities it names", () => {
   // One Backstab (or another source) at 100 damage, the table roll a hit and
   // the crit roll a crit (0) or not (HIT), through resolveAttack.
   function attack(options, abilityId, crit, type = "skill") {
@@ -327,7 +326,7 @@ describe.skip("Lethality adds to the crit damage bonus of the abilities it names
     return type === "skill" ? result.damage : result;
   }
 
-  it("takes a 2x crit to 2.2x at 5/5, because the bonus is scaled and not the whole hit", () => {
+  it.skip("takes a 2x crit to 2.2x at 5/5, because the bonus is scaled and not the whole hit (skipped: needs a talent retune for the 70755 tree)", () => {
     assert.equal(k("crit.meleeMultiplier"), 2);
     assert.equal(k("modifiers.stacking").critDamage, "bonus");
     const options = only(LETHALITY, 5);
@@ -344,7 +343,7 @@ describe.skip("Lethality adds to the crit damage bonus of the abilities it names
     }
   });
 
-  it("adds 4% to the bonus a rank: 2.04x, 2.08x, 2.12x, 2.16x, 2.2x", () => {
+  it.skip("adds 4% to the bonus a rank: 2.04x, 2.08x, 2.12x, 2.16x, 2.2x (skipped: needs a talent retune for the 70755 tree)", () => {
     const normal = attack(undefined, "backstab", false);
     [2.04, 2.08, 2.12, 2.16, 2.2].forEach((expected, index) => {
       const crit = attack(only(LETHALITY, index + 1), "backstab", true);
@@ -352,7 +351,7 @@ describe.skip("Lethality adds to the crit damage bonus of the abilities it names
     });
   });
 
-  it("does not touch an ability it does not name, nor a white swing", () => {
+  it.skip("does not touch an ability it does not name, nor a white swing (skipped: needs a talent retune for the 70755 tree)", () => {
     const options = only(LETHALITY, 5);
     for (const id of ["eviscerate", "ambush"]) {
       assert.equal(attack(options, id, true), attack(undefined, id, true), id);
@@ -362,7 +361,7 @@ describe.skip("Lethality adds to the crit damage bonus of the abilities it names
     assert.equal(white.outcome, "crit");
   });
 
-  it("is nothing at rank 0", () => {
+  it.skip("is nothing at rank 0 (skipped: needs a talent retune for the 70755 tree)", () => {
     assert.equal(
       attack(only(LETHALITY, 0), "backstab", true),
       attack(undefined, "backstab", true),

@@ -424,6 +424,15 @@ describe("Weapon skill and Target level together (#318)", () => {
       await enter(page, TARGET, "62");
       const setLevel = async (level) => {
         await go(page, "#character/talents", LEVEL);
+        // Empty the 51-point page default so level 40 is legal (#333).
+        if (level === "40") {
+          await page.locator("#talents-reset").click();
+          await page.waitForFunction(() =>
+            /\b0 of \d+/.test(
+              document.querySelector("#talents-points")?.textContent ?? "",
+            ),
+          );
+        }
         await enter(page, LEVEL, level);
         await go(page, "#character/stats", SKILL);
       };

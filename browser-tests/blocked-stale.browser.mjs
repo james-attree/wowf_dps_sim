@@ -25,9 +25,7 @@ const BAD_AP = "-5";
 const BAD_LENGTH = "0";
 const BAD_SEED = "abc";
 const N_SEED = "259";
-// Two points in Malice, then a level whose cap they are over.
-const TALENT = 'button.talent[data-id="assassination.malice"]';
-const TALENT_POINTS = 2;
+// Page default spends 51 points (#333): over-cap is dropping the level.
 const LOW_LEVEL = "10";
 const TOP_LEVEL = "60";
 // A rule's condition left empty is a rotation error.
@@ -216,13 +214,8 @@ async function talents(page, over) {
   await go(page, "#character/talents");
   const level = page.locator("#talents-level");
   await level.waitFor({ state: "visible" });
-  if (over) {
-    for (let point = 0; point < TALENT_POINTS; point += 1) {
-      const talent = page.locator(TALENT);
-      await talent.scrollIntoViewIfNeeded();
-      await talent.click();
-    }
-  }
+  // Page default combat-swords-temp already spends 51 points (#333): over-cap
+  // is dropping the level; restoring is raising it back to 60.
   await level.fill(over ? LOW_LEVEL : TOP_LEVEL);
   await level.press("Enter");
 }

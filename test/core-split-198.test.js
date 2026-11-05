@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — lethality max 2 / murder gone at 70755; retune with TR talent issues
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
@@ -39,7 +38,7 @@ const HEMO = EXTRA_CASES.find(
 // and its reference build there, not copied by hand.
 // TR-02 / #332: assassination-272.json is a pre-era Assassination preset
 // fixture (murder / lethality 5 / improved-eviscerate). Skip the its below
-// that use it until #333 restores presets; the rest of this file is live
+// that use it until a talent/fixture retune restores assassination-272; not the Combat swords preset (#333). The rest of this file is live
 // (Kira P3 on #344).
 const POISONED_ASSASSINATION = Object.freeze(
   JSON.parse(
@@ -153,7 +152,7 @@ describe("a fight split on the event core is the fight in one run (#198, #197 QA
   // one time run in the order they were scheduled, across a cut too. Seed 34
   // cut at 29 (ticks at 29.5) and seed 37 cut at 70.5 over 120 s swapped
   // them on main before #305, through runOnCore and sim.run.
-  // Stale assassination-272 fixture until #333.
+  // Stale assassination-272 fixture — needs a talent/fixture retune, not #333.
   it.skip("the poisoned Assassination config, DoT ticks at one time across a cut (#305)", () => {
     for (const [seed, duration, cut] of [
       [34, 60, 29],

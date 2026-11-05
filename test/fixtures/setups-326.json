@@ -1,8 +1,7 @@
 {
-  "note": "Captured on main 5f9ae06 (#326): link and save texts, what main read them as, and the text main wrote back.",
   "setups": {
     "defaults": {
-      "text": "1.e30",
+      "text": "1.eyJlcmEiOjF9",
       "setup": {
         "config": {
           "race": null,
@@ -25,948 +24,6 @@
               "max": 168,
               "speed": 2.5,
               "type": "sword"
-            }
-          },
-          "target": {
-            "behind": true,
-            "level": null,
-            "armor": null
-          },
-          "talents": {},
-          "talentLevel": 60,
-          "poisons": {
-            "mainHand": "instant",
-            "offHand": "deadly"
-          },
-          "rotation": {
-            "schemaVersion": 1,
-            "name": "Default (Combat)",
-            "rules": [
-              {
-                "action": "blade-flurry",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 25
-                  }
-                ]
-              },
-              {
-                "action": "adrenaline-rush",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "adrenaline-rush"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "adrenaline-rush"
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<",
-                    "value": 1
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<=",
-                    "value": 5
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 100
-                  }
-                ]
-              },
-              {
-                "action": "cold-blood",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "cold-blood"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": ">",
-                    "value": 10
-                  }
-                ]
-              },
-              {
-                "action": "eviscerate",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  }
-                ]
-              },
-              {
-                "action": "sinister-strike",
-                "conditions": []
-              }
-            ]
-          }
-        },
-        "run": {
-          "mode": "batch",
-          "duration": 300,
-          "iterations": 1000,
-          "seed": null
-        }
-      },
-      "written": "1.e30"
-    },
-    "stats": {
-      "text": "1.eyJjb25maWciOnsiY2hhcmFjdGVyIjp7ImF0dGFja1Bvd2VyIjoxMjAwLCJjcml0Q2hhbmNlIjowLjMsImhhc3RlIjowLjA0LCJ3ZWFwb25Ta2lsbCI6MzA1fX19",
-      "setup": {
-        "config": {
-          "race": null,
-          "character": {
-            "attackPower": 1200,
-            "critChance": 0.3,
-            "bonusHitChance": 0.07,
-            "haste": 0.04,
-            "weaponSkill": 305
-          },
-          "weapons": {
-            "mainHand": {
-              "min": 100,
-              "max": 187,
-              "speed": 2.6,
-              "type": "sword"
-            },
-            "offHand": {
-              "min": 90,
-              "max": 168,
-              "speed": 2.5,
-              "type": "sword"
-            }
-          },
-          "target": {
-            "behind": true,
-            "level": null,
-            "armor": null
-          },
-          "talents": {},
-          "talentLevel": 60,
-          "poisons": {
-            "mainHand": "instant",
-            "offHand": "deadly"
-          },
-          "rotation": {
-            "schemaVersion": 1,
-            "name": "Default (Combat)",
-            "rules": [
-              {
-                "action": "blade-flurry",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 25
-                  }
-                ]
-              },
-              {
-                "action": "adrenaline-rush",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "adrenaline-rush"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "adrenaline-rush"
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<",
-                    "value": 1
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<=",
-                    "value": 5
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 100
-                  }
-                ]
-              },
-              {
-                "action": "cold-blood",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "cold-blood"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": ">",
-                    "value": 10
-                  }
-                ]
-              },
-              {
-                "action": "eviscerate",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  }
-                ]
-              },
-              {
-                "action": "sinister-strike",
-                "conditions": []
-              }
-            ]
-          }
-        },
-        "run": {
-          "mode": "batch",
-          "duration": 300,
-          "iterations": 1000,
-          "seed": null
-        }
-      },
-      "written": "1.eyJjb25maWciOnsiY2hhcmFjdGVyIjp7ImF0dGFja1Bvd2VyIjoxMjAwLCJjcml0Q2hhbmNlIjowLjMsImhhc3RlIjowLjA0LCJ3ZWFwb25Ta2lsbCI6MzA1fX19"
-    },
-    "target": {
-      "text": "1.eyJjb25maWciOnsidGFyZ2V0Ijp7ImJlaGluZCI6ZmFsc2UsImxldmVsIjo2MiwiYXJtb3IiOjM3MzF9fX0",
-      "setup": {
-        "config": {
-          "race": null,
-          "character": {
-            "attackPower": 767,
-            "critChance": 0.2245,
-            "bonusHitChance": 0.07,
-            "haste": 0,
-            "weaponSkill": null
-          },
-          "weapons": {
-            "mainHand": {
-              "min": 100,
-              "max": 187,
-              "speed": 2.6,
-              "type": "sword"
-            },
-            "offHand": {
-              "min": 90,
-              "max": 168,
-              "speed": 2.5,
-              "type": "sword"
-            }
-          },
-          "target": {
-            "behind": true,
-            "level": 62,
-            "armor": 3731
-          },
-          "talents": {},
-          "talentLevel": 60,
-          "poisons": {
-            "mainHand": "instant",
-            "offHand": "deadly"
-          },
-          "rotation": {
-            "schemaVersion": 1,
-            "name": "Default (Combat)",
-            "rules": [
-              {
-                "action": "blade-flurry",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 25
-                  }
-                ]
-              },
-              {
-                "action": "adrenaline-rush",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "adrenaline-rush"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "adrenaline-rush"
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<",
-                    "value": 1
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<=",
-                    "value": 5
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 100
-                  }
-                ]
-              },
-              {
-                "action": "cold-blood",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "cold-blood"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": ">",
-                    "value": 10
-                  }
-                ]
-              },
-              {
-                "action": "eviscerate",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  }
-                ]
-              },
-              {
-                "action": "sinister-strike",
-                "conditions": []
-              }
-            ]
-          }
-        },
-        "run": {
-          "mode": "batch",
-          "duration": 300,
-          "iterations": 1000,
-          "seed": null
-        }
-      },
-      "written": "1.eyJjb25maWciOnsidGFyZ2V0Ijp7ImxldmVsIjo2MiwiYXJtb3IiOjM3MzF9fX0"
-    },
-    "talentLevel40": {
-      "text": "1.eyJjb25maWciOnsidGFsZW50TGV2ZWwiOjQwfX0",
-      "setup": {
-        "config": {
-          "race": null,
-          "character": {
-            "attackPower": 767,
-            "critChance": 0.2245,
-            "bonusHitChance": 0.07,
-            "haste": 0,
-            "weaponSkill": null
-          },
-          "weapons": {
-            "mainHand": {
-              "min": 100,
-              "max": 187,
-              "speed": 2.6,
-              "type": "sword"
-            },
-            "offHand": {
-              "min": 90,
-              "max": 168,
-              "speed": 2.5,
-              "type": "sword"
-            }
-          },
-          "target": {
-            "behind": true,
-            "level": null,
-            "armor": null
-          },
-          "talents": {},
-          "talentLevel": 40,
-          "poisons": {
-            "mainHand": "instant",
-            "offHand": "deadly"
-          },
-          "rotation": {
-            "schemaVersion": 1,
-            "name": "Default (Combat)",
-            "rules": [
-              {
-                "action": "blade-flurry",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 25
-                  }
-                ]
-              },
-              {
-                "action": "adrenaline-rush",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "adrenaline-rush"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "adrenaline-rush"
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<",
-                    "value": 1
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<=",
-                    "value": 5
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 100
-                  }
-                ]
-              },
-              {
-                "action": "cold-blood",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "cold-blood"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": ">",
-                    "value": 10
-                  }
-                ]
-              },
-              {
-                "action": "eviscerate",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  }
-                ]
-              },
-              {
-                "action": "sinister-strike",
-                "conditions": []
-              }
-            ]
-          }
-        },
-        "run": {
-          "mode": "batch",
-          "duration": 300,
-          "iterations": 1000,
-          "seed": null
-        }
-      },
-      "written": "1.eyJjb25maWciOnsidGFsZW50TGV2ZWwiOjQwfX0"
-    },
-    "run": {
-      "text": "1.eyJydW4iOnsibW9kZSI6ImxpdmUiLCJkdXJhdGlvbiI6MTIwLCJpdGVyYXRpb25zIjo1MDAsInNlZWQiOjQyfX0",
-      "setup": {
-        "config": {
-          "race": null,
-          "character": {
-            "attackPower": 767,
-            "critChance": 0.2245,
-            "bonusHitChance": 0.07,
-            "haste": 0,
-            "weaponSkill": null
-          },
-          "weapons": {
-            "mainHand": {
-              "min": 100,
-              "max": 187,
-              "speed": 2.6,
-              "type": "sword"
-            },
-            "offHand": {
-              "min": 90,
-              "max": 168,
-              "speed": 2.5,
-              "type": "sword"
-            }
-          },
-          "target": {
-            "behind": true,
-            "level": null,
-            "armor": null
-          },
-          "talents": {},
-          "talentLevel": 60,
-          "poisons": {
-            "mainHand": "instant",
-            "offHand": "deadly"
-          },
-          "rotation": {
-            "schemaVersion": 1,
-            "name": "Default (Combat)",
-            "rules": [
-              {
-                "action": "blade-flurry",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 25
-                  }
-                ]
-              },
-              {
-                "action": "adrenaline-rush",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "adrenaline-rush"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "adrenaline-rush"
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<",
-                    "value": 1
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<=",
-                    "value": 5
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 100
-                  }
-                ]
-              },
-              {
-                "action": "cold-blood",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "cold-blood"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": ">",
-                    "value": 10
-                  }
-                ]
-              },
-              {
-                "action": "eviscerate",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  }
-                ]
-              },
-              {
-                "action": "sinister-strike",
-                "conditions": []
-              }
-            ]
-          }
-        },
-        "run": {
-          "mode": "live",
-          "duration": 120,
-          "iterations": 500,
-          "seed": 42
-        }
-      },
-      "written": "1.eyJydW4iOnsibW9kZSI6ImxpdmUiLCJkdXJhdGlvbiI6MTIwLCJpdGVyYXRpb25zIjo1MDAsInNlZWQiOjQyfX0"
-    },
-    "race": {
-      "text": "1.eyJjb25maWciOnsicmFjZSI6Im9yYyJ9fQ",
-      "setup": {
-        "config": {
-          "race": "orc",
-          "character": {
-            "attackPower": 767,
-            "critChance": 0.2245,
-            "bonusHitChance": 0.07,
-            "haste": 0,
-            "weaponSkill": null
-          },
-          "weapons": {
-            "mainHand": {
-              "min": 100,
-              "max": 187,
-              "speed": 2.6,
-              "type": "sword"
-            },
-            "offHand": {
-              "min": 90,
-              "max": 168,
-              "speed": 2.5,
-              "type": "sword"
-            }
-          },
-          "target": {
-            "behind": true,
-            "level": null,
-            "armor": null
-          },
-          "talents": {},
-          "talentLevel": 60,
-          "poisons": {
-            "mainHand": "instant",
-            "offHand": "deadly"
-          },
-          "rotation": {
-            "schemaVersion": 1,
-            "name": "Default (Combat)",
-            "rules": [
-              {
-                "action": "blade-flurry",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "blade-flurry"
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 25
-                  }
-                ]
-              },
-              {
-                "action": "adrenaline-rush",
-                "conditions": [
-                  {
-                    "type": "abilityUnlocked",
-                    "ability": "adrenaline-rush"
-                  },
-                  {
-                    "type": "cooldownReady",
-                    "ability": "adrenaline-rush"
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<",
-                    "value": 1
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<=",
-                    "value": 5
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 100
-                  }
-                ]
-              },
-              {
-                "action": "cold-blood",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "cold-blood"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": ">",
-                    "value": 10
-                  }
-                ]
-              },
-              {
-                "action": "eviscerate",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  }
-                ]
-              },
-              {
-                "action": "sinister-strike",
-                "conditions": []
-              }
-            ]
-          }
-        },
-        "run": {
-          "mode": "batch",
-          "duration": 300,
-          "iterations": 1000,
-          "seed": null
-        }
-      },
-      "written": "1.eyJjb25maWciOnsicmFjZSI6Im9yYyJ9fQ"
-    },
-    "assassination-daggers": {
-      "text": "1.eyJjb25maWciOnsid2VhcG9ucyI6eyJtYWluSGFuZCI6eyJtaW4iOjczLCJtYXgiOjEzNywic3BlZWQiOjEuOCwidHlwZSI6ImRhZ2dlciJ9LCJvZmZIYW5kIjp7Im1pbiI6NTksIm1heCI6MTExLCJzcGVlZCI6MS42LCJ0eXBlIjoiZGFnZ2VyIn19LCJ0YWxlbnRzIjp7ImFzc2Fzc2luYXRpb24ubWFsaWNlIjo1LCJhc3Nhc3NpbmF0aW9uLnJ1dGhsZXNzbmVzcyI6MywiYXNzYXNzaW5hdGlvbi5tdXJkZXIiOjEsImFzc2Fzc2luYXRpb24uaW1wcm92ZWQtc2xpY2UtYW5kLWRpY2UiOjMsImFzc2Fzc2luYXRpb24ucmVsZW50bGVzcy1zdHJpa2VzIjoxLCJhc3Nhc3NpbmF0aW9uLmxldGhhbGl0eSI6NSwiYXNzYXNzaW5hdGlvbi52aWxlLXBvaXNvbnMiOjUsImFzc2Fzc2luYXRpb24uY29sZC1ibG9vZCI6MSwiYXNzYXNzaW5hdGlvbi5pbXByb3ZlZC1wb2lzb25zIjo1LCJhc3Nhc3NpbmF0aW9uLnZpZ29yIjoyLCJhc3Nhc3NpbmF0aW9uLm11dGlsYXRlIjoxLCJhc3Nhc3NpbmF0aW9uLnNlYWwtZmF0ZSI6NSwiYXNzYXNzaW5hdGlvbi52ZW5vbSI6MSwiY29tYmF0LmltcHJvdmVkLWV2aXNjZXJhdGUiOjMsImNvbWJhdC5pbXByb3ZlZC1zaW5pc3Rlci1zdHJpa2UiOjIsImNvbWJhdC5wdW5jdHVyaW5nLXdvdW5kcyI6MywiY29tYmF0LnByZWNpc2lvbiI6Mywic3VidGxldHkub3Bwb3J0dW5pdHkiOjJ9LCJyb3RhdGlvbiI6eyJzY2hlbWFWZXJzaW9uIjoxLCJuYW1lIjoiQXNzYXNzaW5hdGlvbiIsInJ1bGVzIjpbeyJhY3Rpb24iOiJibG9vZC1mdXJ5IiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6ImJsb29kLWZ1cnkifV19LHsiYWN0aW9uIjoiZWx1bmVzLWxpZ2h0IiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6ImVsdW5lcy1saWdodCJ9XX0seyJhY3Rpb24iOiJiZXJzZXJraW5nIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6ImJlcnNlcmtpbmcifV19LHsiYWN0aW9uIjoiZXVyZWthIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6ImV1cmVrYSJ9XX0seyJhY3Rpb24iOiJzbGljZS1hbmQtZGljZSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJjb21ib1BvaW50cyIsIm9wIjoiPj0iLCJ2YWx1ZSI6NH0seyJ0eXBlIjoiYXVyYVJlbWFpbmluZyIsImF1cmEiOiJzbGljZS1hbmQtZGljZSIsIm9wIjoiPCIsInZhbHVlIjoxfV19LHsiYWN0aW9uIjoic2xpY2UtYW5kLWRpY2UiLCJjb25kaXRpb25zIjpbeyJ0eXBlIjoiY29tYm9Qb2ludHMiLCJvcCI6Ij49IiwidmFsdWUiOjR9LHsidHlwZSI6ImF1cmFSZW1haW5pbmciLCJhdXJhIjoic2xpY2UtYW5kLWRpY2UiLCJvcCI6Ijw9IiwidmFsdWUiOjV9LHsidHlwZSI6InJlc291cmNlIiwicmVzb3VyY2UiOiJlbmVyZ3kiLCJvcCI6Ij49IiwidmFsdWUiOjEwMH1dfSx7ImFjdGlvbiI6InZlbm9tIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6InZlbm9tIn0seyJ0eXBlIjoiY29tYm9Qb2ludHMiLCJvcCI6Ij49IiwidmFsdWUiOjR9LHsidHlwZSI6ImF1cmFSZW1haW5pbmciLCJhdXJhIjoidmVub20iLCJvcCI6Ijw9IiwidmFsdWUiOjN9XX0seyJhY3Rpb24iOiJldmlzY2VyYXRlIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI-PSIsInZhbHVlIjo0fSx7InR5cGUiOiJyZXNvdXJjZSIsInJlc291cmNlIjoiZW5lcmd5Iiwib3AiOiI-PSIsInZhbHVlIjo3NX1dfSx7ImFjdGlvbiI6ImNvbGQtYmxvb2QiLCJjb25kaXRpb25zIjpbeyJ0eXBlIjoiYWJpbGl0eUdyYW50ZWQiLCJhYmlsaXR5IjoiY29sZC1ibG9vZCJ9LHsidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI8IiwidmFsdWUiOjV9XX0seyJhY3Rpb24iOiJtdXRpbGF0ZSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJtdXRpbGF0ZSJ9LHsidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI8IiwidmFsdWUiOjR9XX1dfX19",
-      "setup": {
-        "config": {
-          "race": null,
-          "character": {
-            "attackPower": 767,
-            "critChance": 0.2245,
-            "bonusHitChance": 0.07,
-            "haste": 0,
-            "weaponSkill": null
-          },
-          "weapons": {
-            "mainHand": {
-              "min": 73,
-              "max": 137,
-              "speed": 1.8,
-              "type": "dagger"
-            },
-            "offHand": {
-              "min": 59,
-              "max": 111,
-              "speed": 1.6,
-              "type": "dagger"
             }
           },
           "target": {
@@ -977,242 +34,33 @@
           "talents": {
             "assassination.malice": 5,
             "assassination.ruthlessness": 3,
-            "assassination.murder": 1,
             "assassination.improved-slice-and-dice": 3,
-            "assassination.relentless-strikes": 1,
-            "assassination.lethality": 5,
-            "assassination.vile-poisons": 5,
-            "assassination.cold-blood": 1,
-            "assassination.improved-poisons": 5,
             "assassination.vigor": 2,
-            "assassination.mutilate": 1,
-            "assassination.seal-fate": 5,
-            "assassination.venom": 1,
-            "combat.improved-eviscerate": 3,
-            "combat.improved-sinister-strike": 2,
+            "assassination.blood-splatter": 1,
+            "assassination.lethality": 2,
+            "combat.coup-de-grace": 3,
+            "combat.efficient-strikes": 2,
             "combat.puncturing-wounds": 3,
             "combat.precision": 3,
-            "subtlety.opportunity": 2
-          },
-          "talentLevel": 60,
-          "poisons": {
-            "mainHand": "instant",
-            "offHand": "deadly"
-          },
-          "rotation": {
-            "schemaVersion": 1,
-            "name": "Assassination",
-            "rules": [
-              {
-                "action": "blood-fury",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "blood-fury"
-                  }
-                ]
-              },
-              {
-                "action": "elunes-light",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "elunes-light"
-                  }
-                ]
-              },
-              {
-                "action": "berserking",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "berserking"
-                  }
-                ]
-              },
-              {
-                "action": "eureka",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "eureka"
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 4
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<",
-                    "value": 1
-                  }
-                ]
-              },
-              {
-                "action": "slice-and-dice",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 4
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": "<=",
-                    "value": 5
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 100
-                  }
-                ]
-              },
-              {
-                "action": "venom",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "venom"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 4
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "venom",
-                    "op": "<=",
-                    "value": 3
-                  }
-                ]
-              },
-              {
-                "action": "eviscerate",
-                "conditions": [
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 4
-                  },
-                  {
-                    "type": "resource",
-                    "resource": "energy",
-                    "op": ">=",
-                    "value": 75
-                  }
-                ]
-              },
-              {
-                "action": "cold-blood",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "cold-blood"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": "<",
-                    "value": 5
-                  }
-                ]
-              },
-              {
-                "action": "mutilate",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "mutilate"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": "<",
-                    "value": 4
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        "run": {
-          "mode": "batch",
-          "duration": 300,
-          "iterations": 1000,
-          "seed": null
-        }
-      },
-      "written": "1.eyJjb25maWciOnsid2VhcG9ucyI6eyJtYWluSGFuZCI6eyJtaW4iOjczLCJtYXgiOjEzNywic3BlZWQiOjEuOCwidHlwZSI6ImRhZ2dlciJ9LCJvZmZIYW5kIjp7Im1pbiI6NTksIm1heCI6MTExLCJzcGVlZCI6MS42LCJ0eXBlIjoiZGFnZ2VyIn19LCJ0YWxlbnRzIjp7ImFzc2Fzc2luYXRpb24ubWFsaWNlIjo1LCJhc3Nhc3NpbmF0aW9uLnJ1dGhsZXNzbmVzcyI6MywiYXNzYXNzaW5hdGlvbi5tdXJkZXIiOjEsImFzc2Fzc2luYXRpb24uaW1wcm92ZWQtc2xpY2UtYW5kLWRpY2UiOjMsImFzc2Fzc2luYXRpb24ucmVsZW50bGVzcy1zdHJpa2VzIjoxLCJhc3Nhc3NpbmF0aW9uLmxldGhhbGl0eSI6NSwiYXNzYXNzaW5hdGlvbi52aWxlLXBvaXNvbnMiOjUsImFzc2Fzc2luYXRpb24uY29sZC1ibG9vZCI6MSwiYXNzYXNzaW5hdGlvbi5pbXByb3ZlZC1wb2lzb25zIjo1LCJhc3Nhc3NpbmF0aW9uLnZpZ29yIjoyLCJhc3Nhc3NpbmF0aW9uLm11dGlsYXRlIjoxLCJhc3Nhc3NpbmF0aW9uLnNlYWwtZmF0ZSI6NSwiYXNzYXNzaW5hdGlvbi52ZW5vbSI6MSwiY29tYmF0LmltcHJvdmVkLWV2aXNjZXJhdGUiOjMsImNvbWJhdC5pbXByb3ZlZC1zaW5pc3Rlci1zdHJpa2UiOjIsImNvbWJhdC5wdW5jdHVyaW5nLXdvdW5kcyI6MywiY29tYmF0LnByZWNpc2lvbiI6Mywic3VidGxldHkub3Bwb3J0dW5pdHkiOjJ9LCJyb3RhdGlvbiI6eyJzY2hlbWFWZXJzaW9uIjoxLCJuYW1lIjoiQXNzYXNzaW5hdGlvbiIsInJ1bGVzIjpbeyJhY3Rpb24iOiJibG9vZC1mdXJ5IiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6ImJsb29kLWZ1cnkifV19LHsiYWN0aW9uIjoiZWx1bmVzLWxpZ2h0IiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6ImVsdW5lcy1saWdodCJ9XX0seyJhY3Rpb24iOiJiZXJzZXJraW5nIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6ImJlcnNlcmtpbmcifV19LHsiYWN0aW9uIjoiZXVyZWthIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6ImV1cmVrYSJ9XX0seyJhY3Rpb24iOiJzbGljZS1hbmQtZGljZSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJjb21ib1BvaW50cyIsIm9wIjoiPj0iLCJ2YWx1ZSI6NH0seyJ0eXBlIjoiYXVyYVJlbWFpbmluZyIsImF1cmEiOiJzbGljZS1hbmQtZGljZSIsIm9wIjoiPCIsInZhbHVlIjoxfV19LHsiYWN0aW9uIjoic2xpY2UtYW5kLWRpY2UiLCJjb25kaXRpb25zIjpbeyJ0eXBlIjoiY29tYm9Qb2ludHMiLCJvcCI6Ij49IiwidmFsdWUiOjR9LHsidHlwZSI6ImF1cmFSZW1haW5pbmciLCJhdXJhIjoic2xpY2UtYW5kLWRpY2UiLCJvcCI6Ijw9IiwidmFsdWUiOjV9LHsidHlwZSI6InJlc291cmNlIiwicmVzb3VyY2UiOiJlbmVyZ3kiLCJvcCI6Ij49IiwidmFsdWUiOjEwMH1dfSx7ImFjdGlvbiI6InZlbm9tIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImFiaWxpdHlHcmFudGVkIiwiYWJpbGl0eSI6InZlbm9tIn0seyJ0eXBlIjoiY29tYm9Qb2ludHMiLCJvcCI6Ij49IiwidmFsdWUiOjR9LHsidHlwZSI6ImF1cmFSZW1haW5pbmciLCJhdXJhIjoidmVub20iLCJvcCI6Ijw9IiwidmFsdWUiOjN9XX0seyJhY3Rpb24iOiJldmlzY2VyYXRlIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI-PSIsInZhbHVlIjo0fSx7InR5cGUiOiJyZXNvdXJjZSIsInJlc291cmNlIjoiZW5lcmd5Iiwib3AiOiI-PSIsInZhbHVlIjo3NX1dfSx7ImFjdGlvbiI6ImNvbGQtYmxvb2QiLCJjb25kaXRpb25zIjpbeyJ0eXBlIjoiYWJpbGl0eUdyYW50ZWQiLCJhYmlsaXR5IjoiY29sZC1ibG9vZCJ9LHsidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI8IiwidmFsdWUiOjV9XX0seyJhY3Rpb24iOiJtdXRpbGF0ZSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJtdXRpbGF0ZSJ9LHsidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI8IiwidmFsdWUiOjR9XX1dfX19"
-    },
-    "combat-swords": {
-      "text": "1.eyJjb25maWciOnsidGFsZW50cyI6eyJhc3Nhc3NpbmF0aW9uLm1hbGljZSI6NSwiYXNzYXNzaW5hdGlvbi5ydXRobGVzc25lc3MiOjMsImFzc2Fzc2luYXRpb24uaW1wcm92ZWQtc2xpY2UtYW5kLWRpY2UiOjMsImFzc2Fzc2luYXRpb24ucmVsZW50bGVzcy1zdHJpa2VzIjoxLCJhc3Nhc3NpbmF0aW9uLmxldGhhbGl0eSI6NSwiYXNzYXNzaW5hdGlvbi5jb2xkLWJsb29kIjoxLCJjb21iYXQuaW1wcm92ZWQtZXZpc2NlcmF0ZSI6MywiY29tYmF0LmltcHJvdmVkLXNpbmlzdGVyLXN0cmlrZSI6MiwiY29tYmF0LnB1bmN0dXJpbmctd291bmRzIjozLCJjb21iYXQucHJlY2lzaW9uIjozLCJjb21iYXQuZW5kdXJhbmNlIjoyLCJjb21iYXQuaW1wcm92ZWQtc3ByaW50IjoyLCJjb21iYXQuZmxhd2xlc3MtZXhlY3V0aW9uIjoxLCJjb21iYXQuZHVhbC13aWVsZC1zcGVjaWFsaXphdGlvbiI6NSwiY29tYmF0LmJsYWRlLWZsdXJyeSI6MSwiY29tYmF0LmhhY2stYW5kLXNsYXNoIjo1LCJjb21iYXQud2VhcG9uLWV4cGVydGlzZSI6MiwiY29tYmF0LmFnZ3Jlc3Npb24iOjMsImNvbWJhdC5hZHJlbmFsaW5lLXJ1c2giOjF9LCJwb2lzb25zIjp7Im1haW5IYW5kIjoiZGVhZGx5Iiwib2ZmSGFuZCI6Imluc3RhbnQifSwicm90YXRpb24iOnsic2NoZW1hVmVyc2lvbiI6MSwibmFtZSI6IkNvbWJhdCBzd29yZHMiLCJydWxlcyI6W3siYWN0aW9uIjoiYmxvb2QtZnVyeSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJibG9vZC1mdXJ5In1dfSx7ImFjdGlvbiI6ImVsdW5lcy1saWdodCIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJlbHVuZXMtbGlnaHQifV19LHsiYWN0aW9uIjoiYmVyc2Vya2luZyIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJiZXJzZXJraW5nIn1dfSx7ImFjdGlvbiI6ImV1cmVrYSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJldXJla2EifV19LHsiYWN0aW9uIjoic2xpY2UtYW5kLWRpY2UiLCJjb25kaXRpb25zIjpbeyJ0eXBlIjoiY29tYm9Qb2ludHMiLCJvcCI6Ij49IiwidmFsdWUiOjN9LHsidHlwZSI6ImF1cmFSZW1haW5pbmciLCJhdXJhIjoic2xpY2UtYW5kLWRpY2UiLCJvcCI6IjwiLCJ2YWx1ZSI6MX1dfSx7ImFjdGlvbiI6ImFkcmVuYWxpbmUtcnVzaCIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5VW5sb2NrZWQiLCJhYmlsaXR5IjoiYWRyZW5hbGluZS1ydXNoIn0seyJ0eXBlIjoiY29vbGRvd25SZWFkeSIsImFiaWxpdHkiOiJhZHJlbmFsaW5lLXJ1c2gifSx7InR5cGUiOiJyZXNvdXJjZSIsInJlc291cmNlIjoiZW5lcmd5Iiwib3AiOiI8IiwidmFsdWUiOjI1fSx7InR5cGUiOiJhdXJhQWN0aXZlIiwiYXVyYSI6InNsaWNlLWFuZC1kaWNlIn1dfSx7ImFjdGlvbiI6ImJsYWRlLWZsdXJyeSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5VW5sb2NrZWQiLCJhYmlsaXR5IjoiYmxhZGUtZmx1cnJ5In0seyJ0eXBlIjoiY29vbGRvd25SZWFkeSIsImFiaWxpdHkiOiJibGFkZS1mbHVycnkifSx7InR5cGUiOiJhdXJhQWN0aXZlIiwiYXVyYSI6InNsaWNlLWFuZC1kaWNlIn1dfSx7ImFjdGlvbiI6ImNvbGQtYmxvb2QiLCJjb25kaXRpb25zIjpbeyJ0eXBlIjoiYWJpbGl0eUdyYW50ZWQiLCJhYmlsaXR5IjoiY29sZC1ibG9vZCJ9LHsidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI-PSIsInZhbHVlIjo1fSx7InR5cGUiOiJhdXJhUmVtYWluaW5nIiwiYXVyYSI6InNsaWNlLWFuZC1kaWNlIiwib3AiOiI-IiwidmFsdWUiOjV9XX0seyJhY3Rpb24iOiJldmlzY2VyYXRlIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI-PSIsInZhbHVlIjo1fSx7InR5cGUiOiJhdXJhUmVtYWluaW5nIiwiYXVyYSI6InNsaWNlLWFuZC1kaWNlIiwib3AiOiI-PSIsInZhbHVlIjoxMn1dfSx7ImFjdGlvbiI6InNpbmlzdGVyLXN0cmlrZSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJjb21ib1BvaW50cyIsIm9wIjoiPCIsInZhbHVlIjo1fV19LHsiYWN0aW9uIjoiZXZpc2NlcmF0ZSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJjb21ib1BvaW50cyIsIm9wIjoiPj0iLCJ2YWx1ZSI6M30seyJ0eXBlIjoiZW5lcmd5VG9DYXAiLCJvcCI6IjwiLCJ2YWx1ZSI6MX1dfV19fX0",
-      "setup": {
-        "config": {
-          "race": null,
-          "character": {
-            "attackPower": 767,
-            "critChance": 0.2245,
-            "bonusHitChance": 0.07,
-            "haste": 0,
-            "weaponSkill": null
-          },
-          "weapons": {
-            "mainHand": {
-              "min": 100,
-              "max": 187,
-              "speed": 2.6,
-              "type": "sword"
-            },
-            "offHand": {
-              "min": 90,
-              "max": 168,
-              "speed": 2.5,
-              "type": "sword"
-            }
-          },
-          "target": {
-            "behind": true,
-            "level": null,
-            "armor": null
-          },
-          "talents": {
-            "assassination.malice": 5,
-            "assassination.ruthlessness": 3,
-            "assassination.improved-slice-and-dice": 3,
-            "assassination.relentless-strikes": 1,
-            "assassination.lethality": 5,
-            "assassination.cold-blood": 1,
-            "combat.improved-eviscerate": 3,
-            "combat.improved-sinister-strike": 2,
-            "combat.puncturing-wounds": 3,
-            "combat.precision": 3,
-            "combat.endurance": 2,
             "combat.improved-sprint": 2,
+            "combat.composure": 2,
             "combat.flawless-execution": 1,
-            "combat.dual-wield-specialization": 5,
-            "combat.blade-flurry": 1,
-            "combat.hack-and-slash": 5,
             "combat.weapon-expertise": 2,
             "combat.aggression": 3,
+            "combat.dual-wield-specialization": 2,
+            "combat.blade-flurry": 1,
+            "combat.hack-and-slash": 5,
+            "combat.flash-of-steel": 5,
             "combat.adrenaline-rush": 1
           },
           "talentLevel": 60,
           "poisons": {
-            "mainHand": "deadly",
-            "offHand": "instant"
+            "mainHand": "instant",
+            "offHand": "deadly"
           },
           "rotation": {
             "schemaVersion": 1,
-            "name": "Combat swords",
+            "name": "Combat swords (temporary)",
             "rules": [
               {
                 "action": "blood-fury",
@@ -1303,26 +151,6 @@
                   {
                     "type": "auraActive",
                     "aura": "slice-and-dice"
-                  }
-                ]
-              },
-              {
-                "action": "cold-blood",
-                "conditions": [
-                  {
-                    "type": "abilityGranted",
-                    "ability": "cold-blood"
-                  },
-                  {
-                    "type": "comboPoints",
-                    "op": ">=",
-                    "value": 5
-                  },
-                  {
-                    "type": "auraRemaining",
-                    "aura": "slice-and-dice",
-                    "op": ">",
-                    "value": 5
                   }
                 ]
               },
@@ -1377,7 +205,1436 @@
           "seed": null
         }
       },
-      "written": "1.eyJjb25maWciOnsidGFsZW50cyI6eyJhc3Nhc3NpbmF0aW9uLm1hbGljZSI6NSwiYXNzYXNzaW5hdGlvbi5ydXRobGVzc25lc3MiOjMsImFzc2Fzc2luYXRpb24uaW1wcm92ZWQtc2xpY2UtYW5kLWRpY2UiOjMsImFzc2Fzc2luYXRpb24ucmVsZW50bGVzcy1zdHJpa2VzIjoxLCJhc3Nhc3NpbmF0aW9uLmxldGhhbGl0eSI6NSwiYXNzYXNzaW5hdGlvbi5jb2xkLWJsb29kIjoxLCJjb21iYXQuaW1wcm92ZWQtZXZpc2NlcmF0ZSI6MywiY29tYmF0LmltcHJvdmVkLXNpbmlzdGVyLXN0cmlrZSI6MiwiY29tYmF0LnB1bmN0dXJpbmctd291bmRzIjozLCJjb21iYXQucHJlY2lzaW9uIjozLCJjb21iYXQuZW5kdXJhbmNlIjoyLCJjb21iYXQuaW1wcm92ZWQtc3ByaW50IjoyLCJjb21iYXQuZmxhd2xlc3MtZXhlY3V0aW9uIjoxLCJjb21iYXQuZHVhbC13aWVsZC1zcGVjaWFsaXphdGlvbiI6NSwiY29tYmF0LmJsYWRlLWZsdXJyeSI6MSwiY29tYmF0LmhhY2stYW5kLXNsYXNoIjo1LCJjb21iYXQud2VhcG9uLWV4cGVydGlzZSI6MiwiY29tYmF0LmFnZ3Jlc3Npb24iOjMsImNvbWJhdC5hZHJlbmFsaW5lLXJ1c2giOjF9LCJwb2lzb25zIjp7Im1haW5IYW5kIjoiZGVhZGx5Iiwib2ZmSGFuZCI6Imluc3RhbnQifSwicm90YXRpb24iOnsic2NoZW1hVmVyc2lvbiI6MSwibmFtZSI6IkNvbWJhdCBzd29yZHMiLCJydWxlcyI6W3siYWN0aW9uIjoiYmxvb2QtZnVyeSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJibG9vZC1mdXJ5In1dfSx7ImFjdGlvbiI6ImVsdW5lcy1saWdodCIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJlbHVuZXMtbGlnaHQifV19LHsiYWN0aW9uIjoiYmVyc2Vya2luZyIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJiZXJzZXJraW5nIn1dfSx7ImFjdGlvbiI6ImV1cmVrYSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5R3JhbnRlZCIsImFiaWxpdHkiOiJldXJla2EifV19LHsiYWN0aW9uIjoic2xpY2UtYW5kLWRpY2UiLCJjb25kaXRpb25zIjpbeyJ0eXBlIjoiY29tYm9Qb2ludHMiLCJvcCI6Ij49IiwidmFsdWUiOjN9LHsidHlwZSI6ImF1cmFSZW1haW5pbmciLCJhdXJhIjoic2xpY2UtYW5kLWRpY2UiLCJvcCI6IjwiLCJ2YWx1ZSI6MX1dfSx7ImFjdGlvbiI6ImFkcmVuYWxpbmUtcnVzaCIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5VW5sb2NrZWQiLCJhYmlsaXR5IjoiYWRyZW5hbGluZS1ydXNoIn0seyJ0eXBlIjoiY29vbGRvd25SZWFkeSIsImFiaWxpdHkiOiJhZHJlbmFsaW5lLXJ1c2gifSx7InR5cGUiOiJyZXNvdXJjZSIsInJlc291cmNlIjoiZW5lcmd5Iiwib3AiOiI8IiwidmFsdWUiOjI1fSx7InR5cGUiOiJhdXJhQWN0aXZlIiwiYXVyYSI6InNsaWNlLWFuZC1kaWNlIn1dfSx7ImFjdGlvbiI6ImJsYWRlLWZsdXJyeSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJhYmlsaXR5VW5sb2NrZWQiLCJhYmlsaXR5IjoiYmxhZGUtZmx1cnJ5In0seyJ0eXBlIjoiY29vbGRvd25SZWFkeSIsImFiaWxpdHkiOiJibGFkZS1mbHVycnkifSx7InR5cGUiOiJhdXJhQWN0aXZlIiwiYXVyYSI6InNsaWNlLWFuZC1kaWNlIn1dfSx7ImFjdGlvbiI6ImNvbGQtYmxvb2QiLCJjb25kaXRpb25zIjpbeyJ0eXBlIjoiYWJpbGl0eUdyYW50ZWQiLCJhYmlsaXR5IjoiY29sZC1ibG9vZCJ9LHsidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI-PSIsInZhbHVlIjo1fSx7InR5cGUiOiJhdXJhUmVtYWluaW5nIiwiYXVyYSI6InNsaWNlLWFuZC1kaWNlIiwib3AiOiI-IiwidmFsdWUiOjV9XX0seyJhY3Rpb24iOiJldmlzY2VyYXRlIiwiY29uZGl0aW9ucyI6W3sidHlwZSI6ImNvbWJvUG9pbnRzIiwib3AiOiI-PSIsInZhbHVlIjo1fSx7InR5cGUiOiJhdXJhUmVtYWluaW5nIiwiYXVyYSI6InNsaWNlLWFuZC1kaWNlIiwib3AiOiI-PSIsInZhbHVlIjoxMn1dfSx7ImFjdGlvbiI6InNpbmlzdGVyLXN0cmlrZSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJjb21ib1BvaW50cyIsIm9wIjoiPCIsInZhbHVlIjo1fV19LHsiYWN0aW9uIjoiZXZpc2NlcmF0ZSIsImNvbmRpdGlvbnMiOlt7InR5cGUiOiJjb21ib1BvaW50cyIsIm9wIjoiPj0iLCJ2YWx1ZSI6M30seyJ0eXBlIjoiZW5lcmd5VG9DYXAiLCJvcCI6IjwiLCJ2YWx1ZSI6MX1dfV19fX0"
+      "written": "1.eyJlcmEiOjF9"
+    },
+    "stats": {
+      "text": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJjaGFyYWN0ZXIiOnsiYXR0YWNrUG93ZXIiOjEyMDAsImNyaXRDaGFuY2UiOjAuMywiaGFzdGUiOjAuMDQsIndlYXBvblNraWxsIjozMDV9fX0",
+      "setup": {
+        "config": {
+          "race": null,
+          "character": {
+            "attackPower": 1200,
+            "critChance": 0.3,
+            "bonusHitChance": 0.07,
+            "haste": 0.04,
+            "weaponSkill": 305
+          },
+          "weapons": {
+            "mainHand": {
+              "min": 100,
+              "max": 187,
+              "speed": 2.6,
+              "type": "sword"
+            },
+            "offHand": {
+              "min": 90,
+              "max": 168,
+              "speed": 2.5,
+              "type": "sword"
+            }
+          },
+          "target": {
+            "behind": true,
+            "level": null,
+            "armor": null
+          },
+          "talents": {
+            "assassination.malice": 5,
+            "assassination.ruthlessness": 3,
+            "assassination.improved-slice-and-dice": 3,
+            "assassination.vigor": 2,
+            "assassination.blood-splatter": 1,
+            "assassination.lethality": 2,
+            "combat.coup-de-grace": 3,
+            "combat.efficient-strikes": 2,
+            "combat.puncturing-wounds": 3,
+            "combat.precision": 3,
+            "combat.improved-sprint": 2,
+            "combat.composure": 2,
+            "combat.flawless-execution": 1,
+            "combat.weapon-expertise": 2,
+            "combat.aggression": 3,
+            "combat.dual-wield-specialization": 2,
+            "combat.blade-flurry": 1,
+            "combat.hack-and-slash": 5,
+            "combat.flash-of-steel": 5,
+            "combat.adrenaline-rush": 1
+          },
+          "talentLevel": 60,
+          "poisons": {
+            "mainHand": "instant",
+            "offHand": "deadly"
+          },
+          "rotation": {
+            "schemaVersion": 1,
+            "name": "Combat swords (temporary)",
+            "rules": [
+              {
+                "action": "blood-fury",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "blood-fury"
+                  }
+                ]
+              },
+              {
+                "action": "elunes-light",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "elunes-light"
+                  }
+                ]
+              },
+              {
+                "action": "berserking",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "berserking"
+                  }
+                ]
+              },
+              {
+                "action": "eureka",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "eureka"
+                  }
+                ]
+              },
+              {
+                "action": "slice-and-dice",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "action": "adrenaline-rush",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "resource",
+                    "resource": "energy",
+                    "op": "<",
+                    "value": 25
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "blade-flurry",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 5
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": ">=",
+                    "value": 12
+                  }
+                ]
+              },
+              {
+                "action": "sinister-strike",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": "<",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "energyToCap",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "run": {
+          "mode": "batch",
+          "duration": 300,
+          "iterations": 1000,
+          "seed": null
+        }
+      },
+      "written": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJjaGFyYWN0ZXIiOnsiYXR0YWNrUG93ZXIiOjEyMDAsImNyaXRDaGFuY2UiOjAuMywiaGFzdGUiOjAuMDQsIndlYXBvblNraWxsIjozMDV9fX0"
+    },
+    "target": {
+      "text": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJ0YXJnZXQiOnsibGV2ZWwiOjYyLCJhcm1vciI6MzIwMH19fQ",
+      "setup": {
+        "config": {
+          "race": null,
+          "character": {
+            "attackPower": 767,
+            "critChance": 0.2245,
+            "bonusHitChance": 0.07,
+            "haste": 0,
+            "weaponSkill": null
+          },
+          "weapons": {
+            "mainHand": {
+              "min": 100,
+              "max": 187,
+              "speed": 2.6,
+              "type": "sword"
+            },
+            "offHand": {
+              "min": 90,
+              "max": 168,
+              "speed": 2.5,
+              "type": "sword"
+            }
+          },
+          "target": {
+            "behind": true,
+            "level": 62,
+            "armor": 3200
+          },
+          "talents": {
+            "assassination.malice": 5,
+            "assassination.ruthlessness": 3,
+            "assassination.improved-slice-and-dice": 3,
+            "assassination.vigor": 2,
+            "assassination.blood-splatter": 1,
+            "assassination.lethality": 2,
+            "combat.coup-de-grace": 3,
+            "combat.efficient-strikes": 2,
+            "combat.puncturing-wounds": 3,
+            "combat.precision": 3,
+            "combat.improved-sprint": 2,
+            "combat.composure": 2,
+            "combat.flawless-execution": 1,
+            "combat.weapon-expertise": 2,
+            "combat.aggression": 3,
+            "combat.dual-wield-specialization": 2,
+            "combat.blade-flurry": 1,
+            "combat.hack-and-slash": 5,
+            "combat.flash-of-steel": 5,
+            "combat.adrenaline-rush": 1
+          },
+          "talentLevel": 60,
+          "poisons": {
+            "mainHand": "instant",
+            "offHand": "deadly"
+          },
+          "rotation": {
+            "schemaVersion": 1,
+            "name": "Combat swords (temporary)",
+            "rules": [
+              {
+                "action": "blood-fury",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "blood-fury"
+                  }
+                ]
+              },
+              {
+                "action": "elunes-light",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "elunes-light"
+                  }
+                ]
+              },
+              {
+                "action": "berserking",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "berserking"
+                  }
+                ]
+              },
+              {
+                "action": "eureka",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "eureka"
+                  }
+                ]
+              },
+              {
+                "action": "slice-and-dice",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "action": "adrenaline-rush",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "resource",
+                    "resource": "energy",
+                    "op": "<",
+                    "value": 25
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "blade-flurry",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 5
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": ">=",
+                    "value": 12
+                  }
+                ]
+              },
+              {
+                "action": "sinister-strike",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": "<",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "energyToCap",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "run": {
+          "mode": "batch",
+          "duration": 300,
+          "iterations": 1000,
+          "seed": null
+        }
+      },
+      "written": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJ0YXJnZXQiOnsibGV2ZWwiOjYyLCJhcm1vciI6MzIwMH19fQ"
+    },
+    "talentLevel40": {
+      "text": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJ0YWxlbnRzIjp7fSwidGFsZW50TGV2ZWwiOjQwfX0",
+      "setup": {
+        "config": {
+          "race": null,
+          "character": {
+            "attackPower": 767,
+            "critChance": 0.2245,
+            "bonusHitChance": 0.07,
+            "haste": 0,
+            "weaponSkill": null
+          },
+          "weapons": {
+            "mainHand": {
+              "min": 100,
+              "max": 187,
+              "speed": 2.6,
+              "type": "sword"
+            },
+            "offHand": {
+              "min": 90,
+              "max": 168,
+              "speed": 2.5,
+              "type": "sword"
+            }
+          },
+          "target": {
+            "behind": true,
+            "level": null,
+            "armor": null
+          },
+          "talents": {},
+          "talentLevel": 40,
+          "poisons": {
+            "mainHand": "instant",
+            "offHand": "deadly"
+          },
+          "rotation": {
+            "schemaVersion": 1,
+            "name": "Combat swords (temporary)",
+            "rules": [
+              {
+                "action": "blood-fury",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "blood-fury"
+                  }
+                ]
+              },
+              {
+                "action": "elunes-light",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "elunes-light"
+                  }
+                ]
+              },
+              {
+                "action": "berserking",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "berserking"
+                  }
+                ]
+              },
+              {
+                "action": "eureka",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "eureka"
+                  }
+                ]
+              },
+              {
+                "action": "slice-and-dice",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "action": "adrenaline-rush",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "resource",
+                    "resource": "energy",
+                    "op": "<",
+                    "value": 25
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "blade-flurry",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 5
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": ">=",
+                    "value": 12
+                  }
+                ]
+              },
+              {
+                "action": "sinister-strike",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": "<",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "energyToCap",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "run": {
+          "mode": "batch",
+          "duration": 300,
+          "iterations": 1000,
+          "seed": null
+        }
+      },
+      "written": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJ0YWxlbnRzIjp7fSwidGFsZW50TGV2ZWwiOjQwfX0"
+    },
+    "run": {
+      "text": "1.eyJlcmEiOjEsInJ1biI6eyJtb2RlIjoibGl2ZSIsImR1cmF0aW9uIjoxMjAsIml0ZXJhdGlvbnMiOjUwMCwic2VlZCI6N319",
+      "setup": {
+        "config": {
+          "race": null,
+          "character": {
+            "attackPower": 767,
+            "critChance": 0.2245,
+            "bonusHitChance": 0.07,
+            "haste": 0,
+            "weaponSkill": null
+          },
+          "weapons": {
+            "mainHand": {
+              "min": 100,
+              "max": 187,
+              "speed": 2.6,
+              "type": "sword"
+            },
+            "offHand": {
+              "min": 90,
+              "max": 168,
+              "speed": 2.5,
+              "type": "sword"
+            }
+          },
+          "target": {
+            "behind": true,
+            "level": null,
+            "armor": null
+          },
+          "talents": {
+            "assassination.malice": 5,
+            "assassination.ruthlessness": 3,
+            "assassination.improved-slice-and-dice": 3,
+            "assassination.vigor": 2,
+            "assassination.blood-splatter": 1,
+            "assassination.lethality": 2,
+            "combat.coup-de-grace": 3,
+            "combat.efficient-strikes": 2,
+            "combat.puncturing-wounds": 3,
+            "combat.precision": 3,
+            "combat.improved-sprint": 2,
+            "combat.composure": 2,
+            "combat.flawless-execution": 1,
+            "combat.weapon-expertise": 2,
+            "combat.aggression": 3,
+            "combat.dual-wield-specialization": 2,
+            "combat.blade-flurry": 1,
+            "combat.hack-and-slash": 5,
+            "combat.flash-of-steel": 5,
+            "combat.adrenaline-rush": 1
+          },
+          "talentLevel": 60,
+          "poisons": {
+            "mainHand": "instant",
+            "offHand": "deadly"
+          },
+          "rotation": {
+            "schemaVersion": 1,
+            "name": "Combat swords (temporary)",
+            "rules": [
+              {
+                "action": "blood-fury",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "blood-fury"
+                  }
+                ]
+              },
+              {
+                "action": "elunes-light",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "elunes-light"
+                  }
+                ]
+              },
+              {
+                "action": "berserking",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "berserking"
+                  }
+                ]
+              },
+              {
+                "action": "eureka",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "eureka"
+                  }
+                ]
+              },
+              {
+                "action": "slice-and-dice",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "action": "adrenaline-rush",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "resource",
+                    "resource": "energy",
+                    "op": "<",
+                    "value": 25
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "blade-flurry",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 5
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": ">=",
+                    "value": 12
+                  }
+                ]
+              },
+              {
+                "action": "sinister-strike",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": "<",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "energyToCap",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "run": {
+          "mode": "live",
+          "duration": 120,
+          "iterations": 500,
+          "seed": 7
+        }
+      },
+      "written": "1.eyJlcmEiOjEsInJ1biI6eyJtb2RlIjoibGl2ZSIsImR1cmF0aW9uIjoxMjAsIml0ZXJhdGlvbnMiOjUwMCwic2VlZCI6N319"
+    },
+    "race": {
+      "text": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJyYWNlIjoib3JjIn19",
+      "setup": {
+        "config": {
+          "race": "orc",
+          "character": {
+            "attackPower": 767,
+            "critChance": 0.2245,
+            "bonusHitChance": 0.07,
+            "haste": 0,
+            "weaponSkill": null
+          },
+          "weapons": {
+            "mainHand": {
+              "min": 100,
+              "max": 187,
+              "speed": 2.6,
+              "type": "sword"
+            },
+            "offHand": {
+              "min": 90,
+              "max": 168,
+              "speed": 2.5,
+              "type": "sword"
+            }
+          },
+          "target": {
+            "behind": true,
+            "level": null,
+            "armor": null
+          },
+          "talents": {
+            "assassination.malice": 5,
+            "assassination.ruthlessness": 3,
+            "assassination.improved-slice-and-dice": 3,
+            "assassination.vigor": 2,
+            "assassination.blood-splatter": 1,
+            "assassination.lethality": 2,
+            "combat.coup-de-grace": 3,
+            "combat.efficient-strikes": 2,
+            "combat.puncturing-wounds": 3,
+            "combat.precision": 3,
+            "combat.improved-sprint": 2,
+            "combat.composure": 2,
+            "combat.flawless-execution": 1,
+            "combat.weapon-expertise": 2,
+            "combat.aggression": 3,
+            "combat.dual-wield-specialization": 2,
+            "combat.blade-flurry": 1,
+            "combat.hack-and-slash": 5,
+            "combat.flash-of-steel": 5,
+            "combat.adrenaline-rush": 1
+          },
+          "talentLevel": 60,
+          "poisons": {
+            "mainHand": "instant",
+            "offHand": "deadly"
+          },
+          "rotation": {
+            "schemaVersion": 1,
+            "name": "Combat swords (temporary)",
+            "rules": [
+              {
+                "action": "blood-fury",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "blood-fury"
+                  }
+                ]
+              },
+              {
+                "action": "elunes-light",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "elunes-light"
+                  }
+                ]
+              },
+              {
+                "action": "berserking",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "berserking"
+                  }
+                ]
+              },
+              {
+                "action": "eureka",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "eureka"
+                  }
+                ]
+              },
+              {
+                "action": "slice-and-dice",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "action": "adrenaline-rush",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "resource",
+                    "resource": "energy",
+                    "op": "<",
+                    "value": 25
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "blade-flurry",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 5
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": ">=",
+                    "value": 12
+                  }
+                ]
+              },
+              {
+                "action": "sinister-strike",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": "<",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "energyToCap",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "run": {
+          "mode": "batch",
+          "duration": 300,
+          "iterations": 1000,
+          "seed": null
+        }
+      },
+      "written": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJyYWNlIjoib3JjIn19"
+    },
+    "assassination-daggers": {
+      "text": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJ3ZWFwb25zIjp7Im1haW5IYW5kIjp7Im1pbiI6NTQsIm1heCI6MTAxLCJzcGVlZCI6MS44LCJ0eXBlIjoiZGFnZ2VyIn0sIm9mZkhhbmQiOnsibWluIjo1OSwibWF4IjoxMTEsInNwZWVkIjoxLjYsInR5cGUiOiJkYWdnZXIifX19fQ",
+      "setup": {
+        "config": {
+          "race": null,
+          "character": {
+            "attackPower": 767,
+            "critChance": 0.2245,
+            "bonusHitChance": 0.07,
+            "haste": 0,
+            "weaponSkill": null
+          },
+          "weapons": {
+            "mainHand": {
+              "min": 54,
+              "max": 101,
+              "speed": 1.8,
+              "type": "dagger"
+            },
+            "offHand": {
+              "min": 59,
+              "max": 111,
+              "speed": 1.6,
+              "type": "dagger"
+            }
+          },
+          "target": {
+            "behind": true,
+            "level": null,
+            "armor": null
+          },
+          "talents": {
+            "assassination.malice": 5,
+            "assassination.ruthlessness": 3,
+            "assassination.improved-slice-and-dice": 3,
+            "assassination.vigor": 2,
+            "assassination.blood-splatter": 1,
+            "assassination.lethality": 2,
+            "combat.coup-de-grace": 3,
+            "combat.efficient-strikes": 2,
+            "combat.puncturing-wounds": 3,
+            "combat.precision": 3,
+            "combat.improved-sprint": 2,
+            "combat.composure": 2,
+            "combat.flawless-execution": 1,
+            "combat.weapon-expertise": 2,
+            "combat.aggression": 3,
+            "combat.dual-wield-specialization": 2,
+            "combat.blade-flurry": 1,
+            "combat.hack-and-slash": 5,
+            "combat.flash-of-steel": 5,
+            "combat.adrenaline-rush": 1
+          },
+          "talentLevel": 60,
+          "poisons": {
+            "mainHand": "instant",
+            "offHand": "deadly"
+          },
+          "rotation": {
+            "schemaVersion": 1,
+            "name": "Combat swords (temporary)",
+            "rules": [
+              {
+                "action": "blood-fury",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "blood-fury"
+                  }
+                ]
+              },
+              {
+                "action": "elunes-light",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "elunes-light"
+                  }
+                ]
+              },
+              {
+                "action": "berserking",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "berserking"
+                  }
+                ]
+              },
+              {
+                "action": "eureka",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "eureka"
+                  }
+                ]
+              },
+              {
+                "action": "slice-and-dice",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "action": "adrenaline-rush",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "resource",
+                    "resource": "energy",
+                    "op": "<",
+                    "value": 25
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "blade-flurry",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 5
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": ">=",
+                    "value": 12
+                  }
+                ]
+              },
+              {
+                "action": "sinister-strike",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": "<",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "energyToCap",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "run": {
+          "mode": "batch",
+          "duration": 300,
+          "iterations": 1000,
+          "seed": null
+        }
+      },
+      "written": "1.eyJlcmEiOjEsImNvbmZpZyI6eyJ3ZWFwb25zIjp7Im1haW5IYW5kIjp7Im1pbiI6NTQsIm1heCI6MTAxLCJzcGVlZCI6MS44LCJ0eXBlIjoiZGFnZ2VyIn0sIm9mZkhhbmQiOnsibWluIjo1OSwibWF4IjoxMTEsInNwZWVkIjoxLjYsInR5cGUiOiJkYWdnZXIifX19fQ"
+    },
+    "combat-swords": {
+      "text": "1.eyJlcmEiOjF9",
+      "setup": {
+        "config": {
+          "race": null,
+          "character": {
+            "attackPower": 767,
+            "critChance": 0.2245,
+            "bonusHitChance": 0.07,
+            "haste": 0,
+            "weaponSkill": null
+          },
+          "weapons": {
+            "mainHand": {
+              "min": 100,
+              "max": 187,
+              "speed": 2.6,
+              "type": "sword"
+            },
+            "offHand": {
+              "min": 90,
+              "max": 168,
+              "speed": 2.5,
+              "type": "sword"
+            }
+          },
+          "target": {
+            "behind": true,
+            "level": null,
+            "armor": null
+          },
+          "talents": {
+            "assassination.malice": 5,
+            "assassination.ruthlessness": 3,
+            "assassination.improved-slice-and-dice": 3,
+            "assassination.vigor": 2,
+            "assassination.blood-splatter": 1,
+            "assassination.lethality": 2,
+            "combat.coup-de-grace": 3,
+            "combat.efficient-strikes": 2,
+            "combat.puncturing-wounds": 3,
+            "combat.precision": 3,
+            "combat.improved-sprint": 2,
+            "combat.composure": 2,
+            "combat.flawless-execution": 1,
+            "combat.weapon-expertise": 2,
+            "combat.aggression": 3,
+            "combat.dual-wield-specialization": 2,
+            "combat.blade-flurry": 1,
+            "combat.hack-and-slash": 5,
+            "combat.flash-of-steel": 5,
+            "combat.adrenaline-rush": 1
+          },
+          "talentLevel": 60,
+          "poisons": {
+            "mainHand": "instant",
+            "offHand": "deadly"
+          },
+          "rotation": {
+            "schemaVersion": 1,
+            "name": "Combat swords (temporary)",
+            "rules": [
+              {
+                "action": "blood-fury",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "blood-fury"
+                  }
+                ]
+              },
+              {
+                "action": "elunes-light",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "elunes-light"
+                  }
+                ]
+              },
+              {
+                "action": "berserking",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "berserking"
+                  }
+                ]
+              },
+              {
+                "action": "eureka",
+                "conditions": [
+                  {
+                    "type": "abilityGranted",
+                    "ability": "eureka"
+                  }
+                ]
+              },
+              {
+                "action": "slice-and-dice",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "action": "adrenaline-rush",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "adrenaline-rush"
+                  },
+                  {
+                    "type": "resource",
+                    "resource": "energy",
+                    "op": "<",
+                    "value": 25
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "blade-flurry",
+                "conditions": [
+                  {
+                    "type": "abilityUnlocked",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "cooldownReady",
+                    "ability": "blade-flurry"
+                  },
+                  {
+                    "type": "auraActive",
+                    "aura": "slice-and-dice"
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 5
+                  },
+                  {
+                    "type": "auraRemaining",
+                    "aura": "slice-and-dice",
+                    "op": ">=",
+                    "value": 12
+                  }
+                ]
+              },
+              {
+                "action": "sinister-strike",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": "<",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "action": "eviscerate",
+                "conditions": [
+                  {
+                    "type": "comboPoints",
+                    "op": ">=",
+                    "value": 3
+                  },
+                  {
+                    "type": "energyToCap",
+                    "op": "<",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "run": {
+          "mode": "batch",
+          "duration": 300,
+          "iterations": 1000,
+          "seed": null
+        }
+      },
+      "written": "1.eyJlcmEiOjF9"
     }
-  }
+  },
+  "era": 1
 }

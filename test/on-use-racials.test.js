@@ -16,7 +16,9 @@ import {
   racialStatus,
 } from "../js/racials.js";
 import { castableAbilities } from "../js/rotation-edit.js";
-import { frozenPresetConfig } from "./frozen-preset.js";
+import { presetRotation, referenceBuild } from "../js/rotation-presets.js";
+import { setupDefaults } from "../js/build-codec.js";
+import { normalizeConfig } from "../js/sim-config.js";
 import { talentState, skipOf } from "../js/rotation-skips.js";
 import { validateRotation } from "../js/rotation-validator.js";
 import { Rogue } from "../js/rogue.js";
@@ -37,7 +39,7 @@ const ON_USE = [
   },
 ];
 const PRESETS = ROTATION_PRESETS.map((preset) => preset.id);
-const COMBAT = "combat-swords";
+const COMBAT = "combat-swords-temp";
 const PERCENT = 100;
 const MINUTE = 60;
 const FIVE_MINUTES = 300;
@@ -51,7 +53,20 @@ function text(id) {
 // The preset as #273's button loads it: its rotation and its whole
 // reference build, plus `race`.
 function presetConfig(id, race = null) {
-  return frozenPresetConfig(id, { race });
+  const build = referenceBuild(id);
+  const base = setupDefaults().config;
+  return normalizeConfig({
+    ...base,
+    race,
+    talents: { ...build.talents },
+    talentLevel: build.talentLevel,
+    weapons: {
+      mainHand: { ...build.weapons.mainHand },
+      offHand: { ...build.weapons.offHand },
+    },
+    poisons: { ...build.poisons },
+    rotation: presetRotation(id),
+  });
 }
 
 // The preset with its on-use racial rules taken out: the rotation as it was
@@ -236,7 +251,7 @@ describe("racial effects grant the on-use abilities (#278)", () => {
   });
 });
 
-describe.skip("the presets cast the on-use racials on cooldown when granted (decision 6) (#332: no presets until #333)", () => {
+describe("the presets cast the on-use racials on cooldown when granted (decision 6)", () => {
   for (const id of PRESETS) {
     it(`${id}: Blood Fury and Elune's Light, guarded by abilityGranted, at the top`, () => {
       const { rules } = ROTATION_PRESETS.find((p) => p.id === id).rotation;
