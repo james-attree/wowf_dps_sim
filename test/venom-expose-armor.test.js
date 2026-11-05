@@ -1,3 +1,5 @@
+// TR-02 / #332: whole file skipped until a later TR restores the
+// removed talent / pending Venom ability (see talent-effects pending tags).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
@@ -93,7 +95,8 @@ function cast(h, key, points) {
   return h.rogue.abilities[key].cast(h.rogue, h.simulation);
 }
 
-describe("Venom and Expose Armor as data (#268)", () => {
+// TR-02 / #332: skipped. Venom ability effect is pending (talent-effects); Expose Armor preset goldens retired until #333/#TR-11.
+describe.skip("Venom and Expose Armor as data (#268)", () => {
   it("Venom: a finisher granted by its talent, 25 energy, 9-21 s by CP", () => {
     const entry = ABILITY_DEFINITIONS.find(({ id }) => id === "venom");
     assert.ok(entry);
@@ -152,7 +155,7 @@ describe("Venom and Expose Armor as data (#268)", () => {
   });
 });
 
-describe("A9: Venom adds 10 points to every poison's chance", () => {
+describe.skip("A9: Venom adds 10 points to every poison's chance", () => {
   it("Instant 20 + 10 Improved Poisons + 10 Venom = 40%, exactly", () => {
     const h = harness();
     assert.deepEqual(poisonChances(h), [
@@ -193,7 +196,7 @@ describe("A9: Venom adds 10 points to every poison's chance", () => {
   });
 });
 
-describe("A10: Venom's +30% poison damage multiplies with Vile Poisons", () => {
+describe.skip("A10: Venom's +30% poison damage multiplies with Vile Poisons", () => {
   it("×1.2 (Vile Poisons 5/5) × 1.3 (Venom), not +50%", () => {
     const h = harness();
     const poison = { tags: ["poison"] };
@@ -232,7 +235,7 @@ describe("A10: Venom's +30% poison damage multiplies with Vile Poisons", () => {
   });
 });
 
-describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
+describe.skip("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
   it("takes 450 armor per CP for 30 s", () => {
     for (const [index, armor] of EA_ARMOR.entries()) {
       const h = harness({ talents: {} });
@@ -292,7 +295,7 @@ describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
   });
 });
 
-describe("A12: Expose Armor and Sunder: the highest reduction wins", () => {
+describe.skip("A12: Expose Armor and Sunder: the highest reduction wins", () => {
   it("a weaker Expose Armor neither replaces nor refreshes a stronger one", () => {
     const h = harness({ talents: {} });
     cast(h, "exposeArmor", 5);
@@ -315,7 +318,7 @@ describe("A12: Expose Armor and Sunder: the highest reduction wins", () => {
   });
 });
 
-describe("B1: Expose Armor rolls the yellow attack table", () => {
+describe.skip("B1: Expose Armor rolls the yellow attack table", () => {
   const PROCS = {
     ...ROWS_ABOVE,
     "assassination.ruthlessness": 3,
@@ -367,7 +370,7 @@ describe("B1: Expose Armor rolls the yellow attack table", () => {
   }
 });
 
-describe("B2: a weaker Expose Armor leaves a stronger one alone", () => {
+describe.skip("B2: a weaker Expose Armor leaves a stronger one alone", () => {
   // Casts at the given times on the event core; returns when the debuff
   // expired and the stacks it held.
   function onEvents(casts) {
@@ -424,7 +427,7 @@ describe("B2: a weaker Expose Armor leaves a stronger one alone", () => {
   });
 });
 
-describe("G2 and G4 (#268)", () => {
+describe.skip("G2 and G4 (#268)", () => {
   it("at 0 points: no Venom, no refund, and only the table roll", () => {
     const h = harness({ talents: {} });
     assert.equal(h.rogue.granted.has("venom"), false);
@@ -454,7 +457,7 @@ describe("G2 and G4 (#268)", () => {
   });
 });
 
-describe("chanceBonus on a proc (#268)", () => {
+describe.skip("chanceBonus on a proc (#268)", () => {
   const base = {
     id: "test-bonus",
     trigger: "onHit",

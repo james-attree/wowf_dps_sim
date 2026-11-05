@@ -1,6 +1,12 @@
 import { k } from "../data/constants.js";
 import { presetRotation } from "./rotation-presets.js";
 import { referenceBuild } from "./preset-reference-builds.js";
+import {
+  COMBAT_SWORDS_FROZEN,
+  ASSASSINATION_DAGGERS_FROZEN,
+  SUBTLETY_DAGGERS_FROZEN,
+  COMBAT_DAGGERS_FROZEN,
+} from "../data/link-bases-frozen.js";
 
 // The short share link's body (#306): version 2 of the build codec's text,
 // "2.<base64url bytes>". js/build-codec.js owns the text, the checks and the
@@ -60,13 +66,26 @@ export const LINK_EDITED_SUFFIX = " (edited)";
 // others are live presets (preset: its id) until they change.
 export const LINK_BASES = Object.freeze([
   Object.freeze({ id: "defaults" }),
-  Object.freeze({ id: "combat-swords", preset: "combat-swords" }),
+  Object.freeze({
+    id: "combat-swords",
+    // Frozen at TR-02 / #332: old-era. Not selectable; see data/link-bases-frozen.js.
+    frozen: COMBAT_SWORDS_FROZEN,
+  }),
   Object.freeze({
     id: "assassination-daggers",
-    preset: "assassination-daggers",
+    // Frozen at TR-02 / #332: old-era. Not selectable; see data/link-bases-frozen.js.
+    frozen: ASSASSINATION_DAGGERS_FROZEN,
   }),
-  Object.freeze({ id: "subtlety-daggers", preset: "subtlety-daggers" }),
-  Object.freeze({ id: "combat-daggers", preset: "combat-daggers" }),
+  Object.freeze({
+    id: "subtlety-daggers",
+    // Frozen at TR-02 / #332: old-era. Not selectable; see data/link-bases-frozen.js.
+    frozen: SUBTLETY_DAGGERS_FROZEN,
+  }),
+  Object.freeze({
+    id: "combat-daggers",
+    // Frozen at TR-02 / #332: old-era. Not selectable; see data/link-bases-frozen.js.
+    frozen: COMBAT_DAGGERS_FROZEN,
+  }),
 ]);
 
 // talentCatalogue order at #306.
@@ -124,6 +143,15 @@ export const LINK_TALENTS = Object.freeze([
   "subtlety.quietus",
   "subtlety.cutthroat",
   "subtlety.thousand-cuts",
+  // Appended at TR-02 / #332 (1.60.1.70755). Removed ids above stay at their index.
+  "assassination.blood-splatter",
+  "combat.coup-de-grace",
+  "combat.efficient-strikes",
+  "combat.composure",
+  "combat.flash-of-steel",
+  "subtlety.quick-getaway",
+  "subtlety.boot-knife",
+  "subtlety.death-mark",
 ]);
 
 // null (no race), then raceCatalogue order at #306.

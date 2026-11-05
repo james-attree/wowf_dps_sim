@@ -210,6 +210,23 @@ function parseTableValue(value, fail, line) {
       armorReduction: toNumber(match.groups.armor),
     };
   }
+  // Death Mark (#332 / TR-07): "12% stored, 401 damage cap".
+  if (
+    (match = value.match(
+      new RegExp(
+        `^(?<stored>${NUMBER})% stored, (?<cap>${NUMBER}) damage cap$`,
+      ),
+    ))
+  ) {
+    return {
+      damage: null,
+      duration: null,
+      armorReduction: null,
+      storedPercent:
+        toNumber(match.groups.stored) / k("abilities.percentScale"),
+      damageCap: toNumber(match.groups.cap),
+    };
+  }
   return fail(`unrecognised table row ${JSON.stringify(line)}`);
 }
 
@@ -375,7 +392,7 @@ export function parseSpell({ name, rank, label, tab, key, entry }, read = k) {
     !isObject(entry) ||
     !Array.isArray(entry.l) ||
     typeof entry.d !== "string" ||
-    !Number.isInteger(entry.id) ||
+    (entry.id !== null && !Number.isInteger(entry.id)) ||
     typeof entry.sc !== "string"
   ) {
     fail(`the spell_desc entry ${JSON.stringify(key)} lacks l, d, id or sc`);

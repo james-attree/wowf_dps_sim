@@ -81,9 +81,10 @@ describe("a check no talent lifts (#244, P1)", () => {
       setup({}).view().context.text,
       "1 rule is skipped with no talents (rule 2). 1 rule never casts with any build: its talent check is on a baseline ability (rule 1). ",
     );
+    // #332: James temp reference is Combat — Cold Blood (rule 2) stays skipped.
     assert.equal(
       setup(referenceBuild()).view().context.text,
-      "1 rule never casts with any build: its talent check is on a baseline ability (rule 1). ",
+      "1 rule is skipped with this build (rule 2). 1 rule never casts with any build: its talent check is on a baseline ability (rule 1). ",
     );
   });
 

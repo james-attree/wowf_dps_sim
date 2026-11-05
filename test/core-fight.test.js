@@ -6,7 +6,7 @@ import { createFight, runFight } from "../js/fight.js";
 import { SimRunner } from "../js/sim-runner.js";
 import { Rogue } from "../js/rogue.js";
 import { importRotation } from "../js/rotation-io.js";
-import { loadPreset } from "../js/rotation-presets.js";
+import { frozenPresetConfig } from "./frozen-preset.js";
 import { Simulation } from "../js/simulation.js";
 import { GOLDEN_CASES } from "../scripts/golden-update.mjs";
 import { runScriptedFight } from "../scripts/scripted-fight.mjs";
@@ -89,10 +89,21 @@ const IMPORTED = importRotation(
 );
 assert.ok(IMPORTED.ok, JSON.stringify(IMPORTED.errors));
 
+// #332: reference Combat build has no Cold Blood; a legal Assassination
+// path that unlocks it for the talent-gated cast check below.
+const COLD_BLOOD_BUILD = {
+  "assassination.malice": 5,
+  "assassination.ruthlessness": 3,
+  "assassination.improved-slice-and-dice": 3,
+  "assassination.lethality": 2,
+  "assassination.vigor": 2,
+  "assassination.cold-blood": 1,
+};
+
 const CONFIGS = {
   default: undefined,
-  preset: loadPreset("combat-swords", { talents: referenceBuild() }),
-  talented: { talents: referenceBuild() },
+  preset: frozenPresetConfig("combat-swords"),
+  talented: { talents: COLD_BLOOD_BUILD },
   poisons: { talents: referenceBuild(), poisons: POISONS },
   imported: {
     talents: referenceBuild(),
@@ -212,7 +223,7 @@ describe("the event core: a whole fight at decision points (#197)", () => {
   it("keeps the energy line's rate and cap equal to a fresh read after every event", () => {
     let checked = 0;
     let fast = 0;
-    const { casts } = coreFight(2, CONFIGS.talented, 120, {
+    const { casts } = coreFight(2, CONFIGS.preset, 120, {
       afterEvent: (event, fight) => {
         const pool = fight.energy;
         const rate = pool.modifiers.resolve(

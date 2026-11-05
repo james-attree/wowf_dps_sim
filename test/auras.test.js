@@ -11,7 +11,6 @@ import {
 } from "../js/auras.js";
 import { Rogue } from "../js/rogue.js";
 import { Simulation } from "../js/simulation.js";
-import { talentCatalogue } from "../js/talents.js";
 import { setRoll, testRng } from "./rolls.js";
 import { runOnCore } from "../js/core/fight.js";
 import { quiet } from "./quiet.js";
@@ -123,24 +122,10 @@ describe("aura definitions", () => {
         assert.equal(abilityCatalogue.get(aura.id), undefined);
         continue;
       }
-      if (key === "cutthroat") {
-        // Cutthroat's proc (#261): a talent's aura, not an ability's, and
-        // labelled by what it does (the coordinator's "Ambush allowed").
+      if (key === "venom" || key === "cutthroat" || key === "thousandCuts") {
+        // #332 / 70755: Venom, Cutthroat and Thousand Cuts are pending or
+        // removed; their aura ids stay for later TR work but are not abilities.
         assert.equal(abilityCatalogue.get(aura.id), undefined);
-        assert.equal(
-          talentCatalogue.get("subtlety.cutthroat").name,
-          "Cutthroat",
-        );
-        assert.equal(aura.name, "Ambush allowed");
-        continue;
-      }
-      if (key === "thousandCuts") {
-        // Thousand Cuts (#269): a talent's aura, named after its talent.
-        assert.equal(abilityCatalogue.get(aura.id), undefined);
-        assert.equal(
-          talentCatalogue.get("subtlety.thousand-cuts").name,
-          aura.name,
-        );
         continue;
       }
       const ability = abilityCatalogue.get(aura.id);

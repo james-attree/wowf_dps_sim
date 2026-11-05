@@ -28,25 +28,15 @@ export const EXTRA_CASES = deepFreeze([
     name: "dot-hemorrhage-rupture-120s",
     duration: 120,
     config: {
+      // #332: needs Hemorrhage — Combat reference has none.
       talents: {
-        "assassination.malice": 5,
-        "assassination.ruthlessness": 3,
-        "assassination.improved-slice-and-dice": 3,
-        "assassination.relentless-strikes": 1,
-        "assassination.lethality": 5,
-        "combat.improved-eviscerate": 3,
-        "combat.improved-sinister-strike": 2,
-        "combat.puncturing-wounds": 3,
-        "combat.precision": 3,
-        "subtlety.opportunity": 2,
-        "subtlety.camouflage": 3,
-        "subtlety.dirty-tricks": 2,
+        "subtlety.setup": 3,
+        "subtlety.opportunity": 5,
+        "subtlety.dirty-deeds": 2,
         "subtlety.improved-ambush": 3,
         "subtlety.initiative": 3,
-        "subtlety.ghostly-strike": 1,
-        "subtlety.improved-distract": 1,
         "subtlety.serrated-blades": 3,
-        "subtlety.heightened-senses": 2,
+        "subtlety.ghostly-strike": 1,
         "subtlety.hemorrhage": 1,
       },
       rotation: {
@@ -80,8 +70,8 @@ export const EXTRA_CASES = deepFreeze([
     duration: 300,
     config: {
       talents: {
-        "combat.improved-eviscerate": 3,
-        "combat.improved-sinister-strike": 2,
+        "combat.coup-de-grace": 3,
+        "combat.efficient-strikes": 2,
         "combat.precision": 3,
       },
     },

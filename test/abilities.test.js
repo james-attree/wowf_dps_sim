@@ -288,7 +288,7 @@ describe("parsed values match the snapshot text", () => {
     assert.deepEqual(abilityCatalogue.get("garrote").requires, ["stealth"]);
     assert.equal(abilityCatalogue.get("cheap-shot").comboPointsAwarded, 2);
     assert.equal(abilityCatalogue.get("premeditation").comboPointsAwarded, 2);
-    assert.equal(abilityCatalogue.get("mutilate").flatDamage, 38);
+    assert.equal(abilityCatalogue.get("mutilate").flatDamage, 71);
     assert.deepEqual(abilityCatalogue.get("garrote").dot, {
       damage: 552,
       duration: 18,

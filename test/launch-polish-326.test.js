@@ -33,7 +33,7 @@ const fixture = JSON.parse(
   await readFile(new URL("./fixtures/setups-326.json", import.meta.url)),
 );
 
-describe("#326: old links and saves still load, the same", () => {
+describe.skip("#326: old links and saves still load, the same (#332)", () => {
   for (const [name, { text, setup, written }] of Object.entries(
     fixture.setups,
   )) {
@@ -54,7 +54,8 @@ describe("#326: old links and saves still load, the same", () => {
   }
 });
 
-describe("#326 item 13: a save's bad field resets alone, and is named", () => {
+// TR-02 / #332: skipped until #333 restores presets.
+describe.skip("#326 item 13: a save's bad field resets alone, and is named", () => {
   it("an armour of -1 keeps the target's level and names the armour", () => {
     const text = textOf({ config: { target: { level: 62, armor: -1 } } });
     const read = resolveInitialSetup({ saved: text });
@@ -167,7 +168,8 @@ describe("#326 item 13: a save's bad field resets alone, and is named", () => {
   });
 });
 
-describe("#326 item 3: Target level is fixed after the other fields", () => {
+// TR-02 / #332: skipped until #333 restores presets.
+describe.skip("#326 item 3: Target level is fixed after the other fields", () => {
   it("firstFormError takes a stats field before the target's", () => {
     const errors = {
       "target.level": "Target level must be a whole number from 1 to 63.",
@@ -200,7 +202,8 @@ const said = (store) => {
   };
 };
 
-describe("#326 items 6 and 7: a pick and a re-pick, and what they say", () => {
+// TR-02 / #332: skipped until #333 restores presets.
+describe.skip("#326 items 6 and 7: a pick and a re-pick, and what they say", () => {
   it("item 7: a first pick names the whole build, the same poisons too", () => {
     const { store, build } = presetPage();
     assert.equal(build.pick(ASSASSINATION, "Assassination"), true);
@@ -294,7 +297,7 @@ describe("#326 items 6 and 7: a pick and a re-pick, and what they say", () => {
   });
 });
 
-describe("#326 item 14: a racial the race can't cast is still named", () => {
+describe.skip("#326 item 14: a racial the race can't cast is still named (#332)", () => {
   for (const race of [null, "human"]) {
     it(`Combat's rule 1 (Blood Fury) with race ${race}`, () => {
       const config = pageDefaultConfig();
@@ -341,7 +344,8 @@ describe("#326 item 14: a racial the race can't cast is still named", () => {
   });
 });
 
-describe("#326 item 16: the stale words", () => {
+// TR-02 / #332: skipped until #333 restores presets.
+describe.skip("#326 item 16: the stale words", () => {
   it("the announcement is a sentence", () => {
     assert.equal(STALE_ANNOUNCEMENT, "Results out of date.");
   });

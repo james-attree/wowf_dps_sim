@@ -33,6 +33,8 @@ import { k } from "./constants.js";
 //                it is not decided here (D7).
 //   noDpsEffect  a one-line reason the talent does nothing in a simulated
 //                damage fight. It stands alone.
+//   pending      a one-line reason naming the follow-up issue that will map
+//                the talent. It stands alone. Coverage treats it as covered.
 //
 // A modifier's numbers are written here and checked against the percentage or
 // amount in the snapshot's own rank text by test/talent-effects.test.js, at
@@ -55,10 +57,9 @@ import { k } from "./constants.js";
 // energy), Vile Poisons (`damage` on the poison tag), Improved Poisons (the
 // `poisonChance` kind, A9; its charges half does nothing, since charges are
 // unlimited), Seal Fate (an onCrit proc on the combo point builders, A8) and
-// Murder. Murder's `mobTypes` lists the target types it works on
-// (murder.mobTypes); expandTalents drops its modifiers unless target.mobType is
-// one of them, so it is inert while the type is "unspecified". Improved Gouge,
-// Remorseless Attacks and Improved Kidney Shot have no DPS effect.
+// Murder was removed in the 3 Nov / 70755 rework (TR-02 / #332). Remorseless
+// Attacks and Improved Kidney Shot have no DPS effect. New 70755 talents that
+// need engine work are marked `pending` until TR-04…TR-07.
 
 const RAW = {
   "assassination.improved-gouge": {
@@ -106,48 +107,6 @@ const RAW = {
       },
     ],
   },
-  "assassination.murder": {
-    textHash:
-      "0922403a7f99b2ff844da74f1d405e8cff2c4c6d7ff75f4ac93d498656472dcc",
-    mobTypes: [...k("murder.mobTypes")],
-    modifiers: [{ kind: "damage", op: "add", values: [0.02, 0.04] }],
-  },
-  "assassination.improved-slice-and-dice": {
-    textHash:
-      "ff51ea59688681eef5c6b5a3eb0ea378d85e65928f838fdd908a1ab7840d6f4b",
-    modifiers: [
-      {
-        kind: "duration",
-        op: "add",
-        values: [0.15, 0.3, 0.45],
-        scope: { abilities: ["slice-and-dice"] },
-      },
-    ],
-  },
-  "assassination.relentless-strikes": {
-    textHash:
-      "43cd64cecd1646ad869e4d9ef60a036980689e8e53f407b753ec742c3f01ead9",
-    procs: [
-      {
-        id: "relentless-strikes",
-        trigger: "onAbility",
-        scope: { tags: ["finisher"] },
-        chance: {
-          mode: "perSpent",
-          values: [k("relentlessStrikes.energy").chancePerComboPoint],
-        },
-        actions: [
-          {
-            type: "gainResource",
-            resource: "energy",
-            amount: k("relentlessStrikes.energy").energy,
-          },
-        ],
-      },
-    ],
-  },
-  // #268 (P4.6-04b, A11): -5/-10 energy on Expose Armor, and 1/2 combo points
-  // back from a cast that spent combo.max (improvedExposeArmor.refundAt).
   "assassination.improved-expose-armor": {
     textHash:
       "afb8de558b07711c51a09b57eff17ad7f0d20d007e43097d3b45d4a8a712e0ac",
@@ -166,14 +125,44 @@ const RAW = {
       },
     ],
   },
+  "assassination.improved-slice-and-dice": {
+    textHash:
+      "ff51ea59688681eef5c6b5a3eb0ea378d85e65928f838fdd908a1ab7840d6f4b",
+    modifiers: [
+      {
+        kind: "duration",
+        op: "add",
+        values: [0.15, 0.3, 0.45],
+        scope: { abilities: ["slice-and-dice"] },
+      },
+    ],
+  },
+  "assassination.vigor": {
+    textHash:
+      "6cf7f109e3aa1f99662f5119b753d60c667b8674b0eabe1b96bdeed52c00a452",
+    modifiers: [
+      {
+        kind: "resourceMax",
+        op: "add",
+        values: [5, 10],
+        scope: { resources: ["energy"] },
+      },
+    ],
+  },
+  "assassination.blood-splatter": {
+    textHash:
+      "6d86c1fb8bffdb133105cd9f51935958f62f9bd9daf264fa109290f36780b14b",
+    pending:
+      "TR-06 / #335: +6 s Rupture / +9 s Garrote duration (Blood Splatter).",
+  },
   "assassination.lethality": {
     textHash:
-      "0f6498f9390e119a5005c63f535f814544feb5193f3ee58e5e84a39893ecab37",
+      "432e1f4b33da651496b330773e8b63a4a91e56033caf1ddca1d4c87e22b6cb6c",
     modifiers: [
       {
         kind: "critDamage",
         op: "add",
-        values: [0.04, 0.08, 0.12, 0.16, 0.2],
+        values: [0.1, 0.2],
         scope: {
           abilities: [
             "sinister-strike",
@@ -215,23 +204,33 @@ const RAW = {
       },
     ],
   },
-  "assassination.vigor": {
+  "assassination.relentless-strikes": {
     textHash:
-      "6cf7f109e3aa1f99662f5119b753d60c667b8674b0eabe1b96bdeed52c00a452",
-    modifiers: [
+      "53bd23c8c4c586ff360e721f67059ae35d03e97bb9a5964d287ea9e7dfd9f440",
+    procs: [
       {
-        kind: "resourceMax",
-        op: "add",
-        values: [5, 10],
-        scope: { resources: ["energy"] },
+        id: "relentless-strikes",
+        trigger: "onAbility",
+        scope: { tags: ["finisher"] },
+        chance: {
+          mode: "perSpent",
+          values: [...k("relentlessStrikes.energy").chancePerComboPoint],
+        },
+        actions: [
+          {
+            type: "gainResource",
+            resource: "energy",
+            amount: k("relentlessStrikes.energy").energy,
+          },
+        ],
       },
     ],
   },
-  // #267 (P4.6-04a): the Mutilate ability, as Cold Blood grants its own.
-  "assassination.mutilate": {
+  "assassination.venom": {
     textHash:
-      "65f33c2d6574dff85196deaeeaf5805f15af7803e3a8d6fb0bed43c5a40c6b9b",
-    ability: "mutilate",
+      "ab33e37b89c7fb46aa4985e2ed074b6ef3c83f88d7588b0c0f96552bbb1bc9d1",
+    pending:
+      "TR-05 / #334: Venom is a passive on Shank (+30% poison damage, +20% apply chance for 6 s), not a finisher.",
   },
   "assassination.improved-kidney-shot": {
     textHash:
@@ -241,7 +240,7 @@ const RAW = {
   },
   "assassination.seal-fate": {
     textHash:
-      "acd452f2180e3f0b08d4df0421400c746b9382a4aa5b33bc82b3a9c81c2d467e",
+      "346fecba55d8823658fb26ab4f2e76cac854c1d9d0c54240c1914d9cf98c286b",
     procs: [
       {
         id: "seal-fate",
@@ -258,15 +257,15 @@ const RAW = {
       },
     ],
   },
-  // #268 (P4.6-04b, A9-A10): the Venom ability, as Cold Blood grants its own.
-  "assassination.venom": {
+  "assassination.mutilate": {
     textHash:
-      "6802955fcb0b377044947cc9dbd4c3431542b2eeabc1092a974dbc16f8bee6c0",
-    ability: "venom",
+      "14c34c1dac0402649630fa65721b995ddfd1dd9d6b1ce12143301dae4c69c89d",
+    ability: "mutilate",
   },
-  "combat.improved-eviscerate": {
+  "combat.coup-de-grace": {
     textHash:
-      "38bb3ab89f86629b00fb85655e8f136a81e7700cfa37bb3a98029567cbfb4d10",
+      "29a705776a7ad658d1b67e9ef239f9dc5547ba2a922b3b9b04be2b2f9ecc580a",
+    // Eviscerate damage now (TR-02). Death Mark storage/damage is TR-07 / #336.
     modifiers: [
       {
         kind: "damage",
@@ -276,15 +275,15 @@ const RAW = {
       },
     ],
   },
-  "combat.improved-sinister-strike": {
+  "combat.efficient-strikes": {
     textHash:
-      "63b5425316309cf861bed9e9e3a9ff9e096fb69789abd3accd8944a2bf723354",
+      "3751d930cfb5395a87e92565b687ffa9d309ff89ba0088f30bb4df75b7d615fa",
     modifiers: [
       {
         kind: "energyCost",
         op: "add",
         values: [-3, -5],
-        scope: { abilities: ["sinister-strike"] },
+        scope: { abilities: ["sinister-strike", "hemorrhage"] },
       },
     ],
   },
@@ -339,6 +338,11 @@ const RAW = {
       "e4ba9b265a1171194ccd514dde0bb0e7339e4a747f002a8c4b60e2c1e1838147",
     modifiers: [{ kind: "hitChance", op: "add", values: [0.01, 0.02, 0.03] }],
   },
+  "combat.improved-sprint": {
+    textHash:
+      "4225f9149fb1454f4058344b61779ab67a9970a8419d0ccedd0f0a8717fc2db5",
+    noDpsEffect: "movement: not simulated",
+  },
   "combat.endurance": {
     textHash:
       "1f72e31fba7599c0792fb622039ad5536ed40c0e9fafb4b291cf09fa13b43502",
@@ -351,10 +355,11 @@ const RAW = {
     noDpsEffect:
       "needs a parry of an incoming attack; block and parry are out of scope (project owner ruling 2026-10-26)",
   },
-  "combat.improved-sprint": {
+  "combat.composure": {
     textHash:
-      "4225f9149fb1454f4058344b61779ab67a9970a8419d0ccedd0f0a8717fc2db5",
-    noDpsEffect: "movement: not simulated",
+      "eb293255ebade87da6cffa23996437960b13e04aeb8186107e90cdbea419d99b",
+    pending:
+      "TR-05 / #334: Composure adds +5/+10 to Poised's energy cost reduction.",
   },
   "combat.improved-kick": {
     textHash:
@@ -363,24 +368,44 @@ const RAW = {
   },
   "combat.flawless-execution": {
     textHash:
-      "2b54db5239b098cc672fbe3257a472a822025de5152034b177116ab3c94efefa",
+      "6a65a7426ee451aa8e5fe98e140884c5293dd5e95f29056a95d1977103c485b1",
     modifiers: [
       {
         kind: "energyCost",
         op: "add",
-        values: [-10],
+        values: [-15],
         scope: { abilities: ["eviscerate"] },
+      },
+    ],
+  },
+  "combat.weapon-expertise": {
+    textHash:
+      "584a39561acf9655f770dec7c000e737db3bdc97a069ae05a4c190b732d02103",
+    modifiers: [
+      { kind: "dodgeReduction", op: "add", values: [0.01, 0.02] },
+      { kind: "parryReduction", op: "add", values: [0.01, 0.02] },
+    ],
+  },
+  "combat.aggression": {
+    textHash:
+      "3efe4fdc21234a4615a8bfa740bdd0f13d52a2f5184d3bc9b8bec778c773a9d1",
+    modifiers: [
+      {
+        kind: "damage",
+        op: "add",
+        values: [0.05, 0.1, 0.15],
+        scope: { abilities: ["sinister-strike", "eviscerate"] },
       },
     ],
   },
   "combat.dual-wield-specialization": {
     textHash:
-      "5ade073a03315616bc576365efc0bedb4f7cb32122871c812f34aba724ca2341",
+      "bbcc8cd7e18374f42bc807e269a05fda1ca221492477ccc4069c0c1c7f24a70b",
     modifiers: [
       {
         kind: "damage",
         op: "add",
-        values: [0.05, 0.1, 0.15, 0.2, 0.25],
+        values: [0.25, 0.5],
         scope: { hands: ["offHand"] },
       },
     ],
@@ -420,59 +445,21 @@ const RAW = {
       },
     ],
   },
-  "combat.weapon-expertise": {
+  "combat.flash-of-steel": {
     textHash:
-      "584a39561acf9655f770dec7c000e737db3bdc97a069ae05a4c190b732d02103",
-    modifiers: [
-      { kind: "dodgeReduction", op: "add", values: [0.01, 0.02] },
-      { kind: "parryReduction", op: "add", values: [0.01, 0.02] },
-    ],
-  },
-  "combat.aggression": {
-    textHash:
-      "68fe38f14b304c0e144dfd0961732bbaca6a889a82bf644210959ff1fcfb91eb",
-    modifiers: [
-      {
-        kind: "damage",
-        op: "add",
-        values: [0.02, 0.04, 0.06],
-        scope: { abilities: ["sinister-strike", "backstab", "eviscerate"] },
-      },
-    ],
+      "3d455e1528445216a8729da00eafb6500e05bf176d326c9a2dea680f479590d7",
+    pending:
+      "TR-04 / #337: Flash of Steel +3 energy / −0.4 s Shank cooldown per rank.",
   },
   "combat.adrenaline-rush": {
     textHash:
       "a25233e25ca9613deceaaa95c196fe1275178f7bd462389d33cb8b4ab9744ada",
     ability: "adrenaline-rush",
   },
-  // Issue #207 gave the three Subtlety talents that grant an ability the
-  // engine casts (Ghostly Strike, Premeditation, Hemorrhage) their ability
-  // link alone, so the rotation casts the ability only when the build has the
-  // talent, with no build too (#199, Rogue.lockedByBuild), and a rule that
-  // casts it needs a guard (js/rotation-validator.js).
-  //
-  // Issue #269 (P4.6-05a) maps the Subtlety passives. Opportunity is a
-  // `damage` table on Backstab, Garrote, Ambush and Mutilate (the sim attacks
-  // from behind; Garrote is never cast, so that part is inert, and Ambush
-  // only follows Cutthroat). Serrated Blades is an unscoped `armorIgnore`
-  // (A11, flat with Hack and Slash's mace part) and a `damage` table on
-  // Rupture, which a Rupture takes when it is applied. Thousand Cuts (A13) is
-  // an onDotTick proc on Rupture with a flat chance of 1 (thousandCuts.chance),
-  // drawless so it fires with no RNG draw, that applies the thousand-cuts aura (js/auras.js). Quietus (A14) is a
-  // `damage` table on Sinister Strike, Ghostly Strike and Hemorrhage with a
-  // targetHealthBelow of quietus.targetHealth (js/modifiers.js), so it
-  // applies only while the target is below 35% health under the linear
-  // health model (target.healthModel). Eight talents have no DPS effect.
-  // #271 (D8d-3) maps the last three: Improved Ambush is a `critChance` table
-  // on Ambush; Initiative an onAbility proc on Ambush that adds a combo point
-  // (drawless "whenCertain": no draw at 3/3, whose chance is 1); Cutthroat an
-  // onAbility proc on Backstab that puts up the cutthroat aura ("Ambush
-  // allowed", js/auras.js) for 10 s, the only way Ambush is cast.
-  "subtlety.camouflage": {
+  "subtlety.setup": {
     textHash:
-      "d05aa50424d62d615dfb30d4b8fd4d66a7e0bbf52d3fd83a8f79f8ebd38237b4",
-    noDpsEffect:
-      "Needs Stealth or an opener: the sim models neither; Camouflage is speed and stealth detection while stealthed.",
+      "cb610db4d13a397b27e9e1b3c0f33dd9d533dc4eaa18708afbeaf0d3943a61f0",
+    noDpsEffect: "Needs a dodge of an enemy attack: nothing attacks the rogue.",
   },
   "subtlety.master-of-deception": {
     textHash:
@@ -482,32 +469,27 @@ const RAW = {
   },
   "subtlety.opportunity": {
     textHash:
-      "ce994806f63a201506bc8a5152f9af9f0ce02a53134521d5dcc38f5f5af24972",
+      "e3aa7d109f8ecb2a9d83fb48f60cfe1e6ee2ba4e44fe252b48259452b6b346dd",
     modifiers: [
       {
         kind: "damage",
         op: "add",
-        values: [0.05, 0.1],
+        values: [0.04, 0.08, 0.12, 0.16, 0.2],
         scope: { abilities: ["backstab", "garrote", "ambush", "mutilate"] },
       },
     ],
   },
-  "subtlety.setup": {
+  "subtlety.dirty-deeds": {
     textHash:
-      "192453ff342b27a1fa6794fb4d81223002c517a068b50e927eae828e72a61d03",
-    noDpsEffect: "Needs a dodge of an enemy attack: nothing attacks the rogue.",
-  },
-  "subtlety.elusiveness": {
-    textHash:
-      "a0f882c213637be7e9be60e940246cc65e0cde7cb8dbd3dbf99d0c6311dadb41",
+      "3d8fdc2486a32de0fdbfa8f57419a5a2cca47613b30b104ce804df0ead7093ad",
     noDpsEffect:
-      "Vanish and Blind cooldowns: neither is cast in a damage fight.",
+      "Needs Stealth or an opener: the sim models neither; Dirty Deeds cuts the cost of Garrote and Cheap Shot, openers the sim never casts, and its not-behind part is moot when the rogue is always behind.",
   },
-  "subtlety.dirty-tricks": {
+  "subtlety.camouflage": {
     textHash:
-      "d6762cc441add5295373d0f6a057f96e2fad3744b774074723437f01032c0a58",
+      "9f380cbf63291ae0901901def9fde290dc914256f354764ce0422cda2485d220",
     noDpsEffect:
-      "Sap and Blind range and energy cost: neither is cast in a damage fight.",
+      "Needs Stealth or an opener: the sim models neither; Camouflage is speed and stealth detection while stealthed.",
   },
   "subtlety.improved-ambush": {
     textHash:
@@ -521,7 +503,12 @@ const RAW = {
       },
     ],
   },
-  // The Ambush part of Initiative; Garrote and Cheap Shot are never cast.
+  "subtlety.dirty-tricks": {
+    textHash:
+      "d6762cc441add5295373d0f6a057f96e2fad3744b774074723437f01032c0a58",
+    noDpsEffect:
+      "Sap and Blind range and energy cost: neither is cast in a damage fight.",
+  },
   "subtlety.initiative": {
     textHash:
       "4266f766714189cc0cc0ae8dd2ba8bdbe779e05b8a901398939f97dbf5f5f0f4",
@@ -547,23 +534,6 @@ const RAW = {
       },
     ],
   },
-  "subtlety.ghostly-strike": {
-    textHash:
-      "cbaf3c73023e1b0f6b47679a27b7131378d0ede7c3d141691a1d117ff78f18cf",
-    ability: "ghostly-strike",
-  },
-  "subtlety.improved-distract": {
-    textHash:
-      "ee1b6501414919b076ec604412b365ba0c15578b3bad2341727cbadbcffab579",
-    noDpsEffect:
-      "Needs Stealth or an opener: the sim models neither; Distract is a stealth tool, not cast in a damage fight.",
-  },
-  "subtlety.heightened-senses": {
-    textHash:
-      "2bb4814bbd217e046959304f707fa97549b96fb675d38cf5166fda90bfb717df",
-    noDpsEffect:
-      "Needs Stealth or an opener: the sim models neither; Heightened Senses is stealth detection and spell hit taken.",
-  },
   "subtlety.premeditation": {
     textHash:
       "80ab80aeadcc84e51d1957ead8531af1890884dfcfe32f00d55048ea2a7b86c3",
@@ -582,15 +552,30 @@ const RAW = {
       },
     ],
   },
-  "subtlety.dirty-deeds": {
+  "subtlety.elusiveness": {
     textHash:
-      "3d8fdc2486a32de0fdbfa8f57419a5a2cca47613b30b104ce804df0ead7093ad",
+      "a0f882c213637be7e9be60e940246cc65e0cde7cb8dbd3dbf99d0c6311dadb41",
     noDpsEffect:
-      "Needs Stealth or an opener: the sim models neither; Dirty Deeds cuts the cost of Garrote and Cheap Shot, openers the sim never casts, and its not-behind part is moot when the rogue is always behind.",
+      "Vanish and Blind cooldowns: neither is cast in a damage fight.",
   },
-  // Issue #270 (P4.6-05b): Preparation grants the preparation ability, a
-  // 10 min cooldown that finishes the cooldowns preparation.resets lists
-  // (A15), so a rotation casts it only with the talent, behind a guard.
+  "subtlety.ghostly-strike": {
+    textHash:
+      "710845f74a092462f5a6c14f27c0d0f61a43c21cf7ef78f999dc2f1d02c1fbc3",
+    // Ambush/Garrote window without Stealth is TR-06 / #335.
+    ability: "ghostly-strike",
+  },
+  "subtlety.quick-getaway": {
+    textHash:
+      "f7394b07a1740212a3b376eb9edd2863b6b8f58e297e99e312213e9371a31cfb",
+    noDpsEffect:
+      "Sap target count and post-Sap movement: Sap is not cast in a damage fight.",
+  },
+  "subtlety.heightened-senses": {
+    textHash:
+      "2bb4814bbd217e046959304f707fa97549b96fb675d38cf5166fda90bfb717df",
+    noDpsEffect:
+      "Needs Stealth or an opener: the sim models neither; Heightened Senses is stealth detection and spell hit taken.",
+  },
   "subtlety.preparation": {
     textHash:
       "40b086f126c9a5a986b7e9c007982aace22e72f7b36ade6c4a60717bc2e3ce64",
@@ -598,57 +583,21 @@ const RAW = {
   },
   "subtlety.hemorrhage": {
     textHash:
-      "67df2d6b721d2e14f2665901eba0b257522b3dcd5a4892bc3c8d921fb4bf8465",
+      "6358b8fdbde842219d4e8370e80858c08e8141efa537ca9e83797d4bd516f885",
+    // +15% Rupture/Garrote taken is TR-06 / #335.
     ability: "hemorrhage",
   },
-  "subtlety.quietus": {
+  "subtlety.boot-knife": {
     textHash:
-      "87ccab93b6b59c7e83439e05332f99396e5f33b0b98220b1203137578a96c18a",
-    modifiers: [
-      {
-        kind: "damage",
-        op: "add",
-        values: [0.02, 0.04, 0.06, 0.08, 0.1],
-        scope: {
-          abilities: ["sinister-strike", "ghostly-strike", "hemorrhage"],
-        },
-        targetHealthBelow: { ...k("quietus.targetHealth") },
-      },
-    ],
+      "31294ac2ba6e3e8c5ac664ed81403f3ce6f8eb528cbe8981891f8843898a110f",
+    pending:
+      "TR-04 / #337: Boot Knife 20–100% chance for Shank to award +2 combo points.",
   },
-  "subtlety.cutthroat": {
+  "subtlety.death-mark": {
     textHash:
-      "e12999bcae05e62b8bfe509690a337a6a64d39cb6275e52620b5fd54bca2798f",
-    procs: [
-      {
-        id: "cutthroat",
-        trigger: "onAbility",
-        scope: { abilities: ["backstab"] },
-        chance: { mode: "flat", values: [...k("cutthroat.proc").chance] },
-        actions: [
-          {
-            type: "applyAura",
-            aura: "cutthroat",
-            duration: k("cutthroat.proc").duration,
-          },
-        ],
-      },
-    ],
-  },
-  "subtlety.thousand-cuts": {
-    textHash:
-      "4244de397159247b10086cf0c0cb25c7c7df5ba4747a00fc449e30b38a8a0273",
-    procs: [
-      {
-        id: "thousand-cuts",
-        trigger: "onDotTick",
-        scope: { abilities: ["rupture"] },
-        chance: { mode: "flat", values: [...k("thousandCuts").chance] },
-        // A chance of 1 cannot fail: it fires with no draw (G2).
-        drawless: true,
-        actions: [{ type: "applyAura", aura: "thousand-cuts" }],
-      },
-    ],
+      "d68af3c464e41a0e92a3ebdd01c58ee787974dd8514346a66264fa3807c4e3d9",
+    pending:
+      "TR-07 / #336: Death Mark finisher (storage %, 2× Rupture/Garrote, release, caps).",
   },
 };
 

@@ -1,5 +1,21 @@
 # Mechanics
 
+## 3 Nov rework / 1.60.1.70755 (TR-02 / #332)
+
+Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; live pull 5 Nov 2026 identical). `SETUP_ERA` is **1**: old-era links and saved setups are invalid and load the page defaults. No migration and no notice.
+
+**Applied in this refresh (existing modifier / proc kinds):** Relentless Strikes 5 ranks (4–20% per CP), Lethality 10/20 (max 2), Seal Fate 33/66/100 (max 3), Dual Wield Specialization 25/50 (max 2), Aggression 5/10/15 on Sinister Strike + Eviscerate, Flawless Execution −15 energy on Eviscerate, Opportunity 4%×5, Efficient Strikes (−3/−5 energy on Sinister Strike + Hemorrhage), Coup de Grace Eviscerate damage 7/13/20%. Mutilate flat bonus 36/51/71 from spell_desc. Death Mark table shape parsed (storage % + damage cap).
+
+**Pending (later TR issues):**
+
+- TR-04 / #337 — Shank, Flash of Steel, Boot Knife
+- TR-05 / #334 — Venom passive on Shank, Poised, Composure
+- TR-06 / #335 — Ghostly Strike Ambush window, Hemorrhage Rupture/Garrote taken, Blood Splatter, Mutilate poisoned bonus polish
+- TR-07 / #336 — Death Mark finisher; Coup de Grace Death Mark storage/damage part
+- TR-03 / #333 — temporary Combat swords preset (old presets frozen / not selectable)
+
+Removed from the tree (effects retired): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. Venom is no longer a finisher ability.
+
 How the engine on `main` resolves attacks, resources, and time. Every
 formula names a constant id from [`data/constants.js`](../data/constants.js).
 Values, units, source tags, refs, and notes are in the generated

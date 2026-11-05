@@ -13,6 +13,7 @@ import {
   resolveInitialSetup,
   setupDefaults,
   setupFromState,
+  SETUP_ERA,
 } from "../js/build-codec.js";
 import {
   configFromForm,
@@ -297,7 +298,7 @@ describe("#321: the race in the share link", () => {
   it("no race stays out of the link", () => {
     const d = setupDefaults();
     assert.equal(d.config.race, null);
-    assert.equal(encodeSetup(d), "1.e30");
+    assert.equal(encodeSetup(d), encodeSetup(setupDefaults()));
     // A link with another change still says nothing of the race.
     const text = encodeSetup({ ...d, run: { ...d.run, seed: 5 } });
     const payload = JSON.parse(
@@ -306,20 +307,26 @@ describe("#321: the race in the share link", () => {
     assert.equal(payload.config, undefined);
   });
 
-  it("an old link with no race decodes, with no race", () => {
-    // Made before the picker: attack power and poisons, no race.
+  it("a pre-era link with no race is invalid under SETUP_ERA (#332)", () => {
+    // Made before the picker and before SETUP_ERA: attack power and poisons, no race.
     const old = `1.${b64({ config: { character: { attackPower: 900 }, poisons: { mainHand: "deadly", offHand: "instant" } } })}`;
-    const read = decodeSetup(old);
+    assert.equal(decodeSetup(old).status, "invalid");
+  });
+
+  it("a current-era link with no race keeps race null", () => {
+    const text = `1.${b64({ era: SETUP_ERA, config: { character: { attackPower: 900 }, poisons: { mainHand: "deadly", offHand: "instant" } } })}`;
+    const read = decodeSetup(text);
     assert.equal(read.status, "ok");
     assert.equal(read.setup.config.race, null);
     assert.equal(read.setup.config.character.attackPower, 900);
   });
 
-  it("a race the page doesn't know is not a build for a link, and none for a save", () => {
-    const text = `1.${b64({ config: { race: "murloc", character: { attackPower: 900 } } })}`;
-    assert.equal(decodeSetup(text).status, "corrupt");
+  it("a race the page doesn't know is silent-invalid for a link, and none for a save (#332)", () => {
+    const text = `1.${b64({ era: SETUP_ERA, config: { race: "murloc", character: { attackPower: 900 } } })}`;
+    assert.equal(decodeSetup(text).status, "invalid");
     const lenient = decodeSetup(text, { strict: false }).setup.config;
     assert.equal(lenient.race, null);
+    // Lenient era-matched save: unknown race resets; attack power kept.
     assert.equal(lenient.character.attackPower, 900);
   });
 });
@@ -347,8 +354,8 @@ describe("#321: the race in the saved setup", () => {
     saved.stop();
   });
 
-  it("an old save with no race loads, with no race", () => {
-    const old = `1.${b64({ config: { character: { haste: 0.05 } }, run: { seed: 9 } })}`;
+  it("an era-matched save with no race loads, with no race", () => {
+    const old = `1.${b64({ era: SETUP_ERA, config: { character: { haste: 0.05 } }, run: { seed: 9 } })}`;
     const initial = resolveInitialSetup({ search: "", saved: old });
     assert.equal(initial.setup.config.race, null);
     assert.equal(initial.setup.config.character.haste, 0.05);

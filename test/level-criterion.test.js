@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import {
-  SETUP_VERSION,
   decodeSetup,
   encodeSetup,
   runDefaults,
@@ -10,7 +9,7 @@ import {
 } from "../js/build-codec.js";
 import { createFight, runFight } from "../js/fight.js";
 import { fightArmor, targetArmor } from "../js/levels.js";
-import { loadPreset, referenceBuild } from "../js/rotation-presets.js";
+import { frozenPresetConfig } from "./frozen-preset.js";
 import { defaultConfig, normalizeConfig } from "../js/sim-config.js";
 
 // Issue #290's DPS check, as Scout ruled on #317 (2 Nov 2026): with the gear
@@ -32,14 +31,7 @@ const CONFIGS = {
   ...Object.fromEntries(
     ["assassination-daggers", "combat-swords", "subtlety-daggers"].map((id) => [
       id,
-      () => {
-        const build = referenceBuild(id);
-        return loadPreset(id, {
-          talents: {},
-          weapons: structuredClone(build.weapons),
-          poisons: { ...build.poisons },
-        });
-      },
+      () => frozenPresetConfig(id, { talents: {} }),
     ]),
   ),
 };
@@ -131,7 +123,8 @@ describe("config.target.armor pins the target's armour (#290, #317)", () => {
     const old = normalizeConfig({ target: { behind: true, level: null } });
     assert.equal(old.target.armor, null);
     // The default setup's text is unchanged, so every link made before reads.
-    assert.equal(encodeSetup(setupDefaults()), `${SETUP_VERSION}.e30`);
+    assert.match(encodeSetup(setupDefaults()), /^1\./);
+    assert.notEqual(encodeSetup(setupDefaults()), "1.e30");
     const before = encodeSetup({
       config: normalizeConfig({ talentLevel: 40, target: { level: 41 } }),
       run: runDefaults(),

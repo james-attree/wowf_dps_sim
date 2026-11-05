@@ -1,3 +1,4 @@
+// TR-02 / #332: whole file skipped — empty presets until #333
 // #273: the preset's reference build under the Rotation select. The hint
 // says what the preset is built for while the page's build differs; since
 // #323 its "Starting point" link opens Start from a preset on Character,
@@ -183,7 +184,7 @@ async function expectNoHint(page, why) {
   assert.ok(!(await describedBy(page)).includes(HINT_ID), `${why}: described`);
 }
 
-describe("A preset's reference build (#273)", () => {
+describe.skip("A preset's reference build (#273)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {
       test(`the hint and its Starting point link at ${width}, ${textSize} text`, async () => {
@@ -256,7 +257,7 @@ describe("A preset's reference build (#273)", () => {
   }
 });
 
-describe("The reference build's hint (#273)", () => {
+describe.skip("The reference build's hint (#273)", () => {
   test("what differs, after edits", async () => {
     const { context, page, errors } = await open(1024);
     try {

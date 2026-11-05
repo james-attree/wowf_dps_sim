@@ -30,8 +30,9 @@ import { parseRunField } from "./views/run-model.js";
 //     know, is "newer" and loads nothing ("This link was made with a newer
 //     version of the sim"); bytes that do not read are "corrupt"; a setup
 //     the live catalogue refuses (unknown talent, rank over max, row gates /
-//     prerequisites, unknown rotation action, or an old SETUP_ERA) is
-//     "invalid" (#331) and loads nothing, with no banner (James 5 Nov 2026).
+//     prerequisites, unknown rotation action, an unknown race / weapon type
+//     / poison, or an old SETUP_ERA) is "invalid" (#331 / #332) and loads
+//     nothing, with no banner (James 5 Nov 2026).
 //   lenient (a saved setup, #296): unknown fields are ignored; a soft field
 //     error recovers that field (#326); a catalogue refusal discards the
 //     whole save and is the defaults (#331). A newer or unreadable save is
@@ -53,7 +54,7 @@ export const LINK_PARAM = "s";
 // catalogue lands; a v1 payload whose era (missing counts as 0) does not
 // match is refused. encodeSetup writes era only once it is non-zero, so
 // today's "1.e30" bytes stay put until then.
-export const SETUP_ERA = 0;
+export const SETUP_ERA = 1; // TR-02 / #332: 1.60.1.70755 talent rework
 
 const RUN_MODES = Object.freeze(["batch", "live"]);
 // Talents and the rotation are kept or dropped whole: a partial talent map or
@@ -145,11 +146,14 @@ const checkConfig = (config) => {
   return { ...normal, target: { ...normal.target, behind: true } };
 };
 
-// True when the error is a live-catalogue refusal (#331): talents, rotation,
-// or talent build rules (row gates / prerequisites / point cap at the level).
+// True when a strict link should be silent-"invalid" rather than "corrupt"
+// (#331 / #332): live-catalogue refusals (talents, rotation, row gates /
+// prerequisites / point cap) and, per James 5 Nov 2026 on #332, an unknown
+// race, weapon type or poison. Soft field shape errors (armour, attack
+// power, …) stay "corrupt" and still show the damaged banner.
 const isCatalogueError = (error) =>
   error instanceof Error &&
-  /config\.talents|config\.rotation|Talent build is not valid/.test(
+  /config\.talents|config\.rotation|Talent build is not valid|unknown race|unknown weapon type|unknown poison/.test(
     error.message,
   );
 

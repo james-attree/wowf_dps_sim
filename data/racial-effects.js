@@ -159,7 +159,7 @@ const RAW = {
   },
   "dwarf.find-treasure": {
     textHash:
-      "d9df8516d32e517cfbd0d1fc922fc51951162e015c6dc433b7334aca1bcff005",
+      "387906ee07fcc772a444c1ca17d3bd5139431402b39ea962830c71b2d09dda28",
     noDpsEffect: "Shows treasure on the minimap.",
   },
   "dwarf.stoneform": {
@@ -249,7 +249,7 @@ const RAW = {
   },
   "skyborne-high-order.read-leyline": {
     textHash:
-      "cd0039790264ea9822b02688084c44e433e0106fc9f8a2e0eae6d537895fe259",
+      "9a9a38763d10e4d473fd16a55ae159e9ffce20d1e2e33caa42db4c0082572281",
     noDpsEffect: "Health and mana regeneration only.",
   },
   "skyborne-high-order.elemental-insight": {

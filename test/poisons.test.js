@@ -62,16 +62,16 @@ function failsWith(source, spell, rank, problem, read) {
 }
 
 describe("Instant Poison rank 6 and Deadly Poison rank 5, against the snapshot", () => {
-  it("reads Instant Poison rank 6: 20% for 76 to 100 Nature damage, 175 charges", () => {
+  it("reads Instant Poison rank 6: 20% for 76 to 100 Nature damage, 250 charges", () => {
     const rank = poisonCatalogue.rank("instant-poison", 6);
     assert.equal(
       snapshot.spell_desc[INSTANT].d,
-      "Coats a weapon with poison that lasts for 30 minutes. Each strike has a 20% chance of poisoning the enemy which instantly inflicts 76 to 100 Nature damage. 175 charges.",
+      "Coats a weapon with poison that lasts for 30 minutes. Each strike has a 20% chance of poisoning the enemy which instantly inflicts 76 to 100 Nature damage. 250 charges.",
     );
     assert.equal(rank.rank, 6);
     assert.equal(rank.spellId, snapshot.spell_desc[INSTANT].id);
     assert.equal(rank.chance, 0.2);
-    assert.equal(rank.charges, 175);
+    assert.equal(rank.charges, 250);
     assert.equal(rank.coatingDuration, 1800);
     assert.deepEqual(rank.effect, {
       kind: "damage",
@@ -82,16 +82,16 @@ describe("Instant Poison rank 6 and Deadly Poison rank 5, against the snapshot",
     assert.equal(rank.text, snapshot.spell_desc[INSTANT].d);
   });
 
-  it("reads Deadly Poison rank 5: 30% for 92 Nature damage over 12 s, 5 stacks, 180 charges", () => {
+  it("reads Deadly Poison rank 5: 30% for 92 Nature damage over 12 s, 5 stacks, 240 charges", () => {
     const rank = poisonCatalogue.rank("deadly-poison", 5);
     assert.equal(
       snapshot.spell_desc[DEADLY].d,
-      "Coats a weapon with poison that lasts for 30 minutes. Each strike has a 30% chance of poisoning the enemy for 92 Nature damage over 12 sec. Stacks up to 5 times on a single target. 180 charges.",
+      "Coats a weapon with poison that lasts for 30 minutes. Each strike has a 30% chance of poisoning the enemy for 92 Nature damage over 12 sec. Stacks up to 5 times on a single target. 240 charges.",
     );
     assert.equal(rank.rank, 5);
     assert.equal(rank.spellId, snapshot.spell_desc[DEADLY].id);
     assert.equal(rank.chance, 0.3);
-    assert.equal(rank.charges, 180);
+    assert.equal(rank.charges, 240);
     assert.deepEqual(rank.effect, {
       kind: "dot",
       school: "nature",
@@ -104,7 +104,7 @@ describe("Instant Poison rank 6 and Deadly Poison rank 5, against the snapshot",
   it("reads the other three top ranks", () => {
     const wound = poisonCatalogue.rank("wound-poison", 4);
     assert.equal(wound.chance, 0.3);
-    assert.equal(wound.charges, 160);
+    assert.equal(wound.charges, 240);
     assert.deepEqual(wound.effect, {
       kind: "healingReduction",
       amount: 165,
@@ -121,7 +121,7 @@ describe("Instant Poison rank 6 and Deadly Poison rank 5, against the snapshot",
     });
     const mind = poisonCatalogue.rank("mind-numbing-poison", 3);
     assert.equal(mind.chance, 0.2);
-    assert.equal(mind.charges, 150);
+    assert.equal(mind.charges, 225);
     assert.deepEqual(mind.effect, {
       kind: "castSlow",
       fraction: 0.6,
@@ -298,8 +298,8 @@ describe("DPS poisons and explicit no-ops", () => {
 
   it("keeps the parsed charges although the engine ignores them", () => {
     assert.equal(k("poison.charges"), "unlimited");
-    assert.equal(poisonCatalogue.get("instant-poison").top.charges, 175);
-    assert.equal(poisonCatalogue.get("deadly-poison").top.charges, 180);
+    assert.equal(poisonCatalogue.get("instant-poison").top.charges, 250);
+    assert.equal(poisonCatalogue.get("deadly-poison").top.charges, 240);
   });
 
   it("skips the Blinding Powder reagent in the poison tab and nothing else", () => {
@@ -400,8 +400,8 @@ describe("malformed text", () => {
       INSTANT,
       (t) =>
         t.replace(
-          " 175 charges.",
-          " Stacks up to 5 times on a single target. 175 charges.",
+          " 250 charges.",
+          " Stacks up to 5 times on a single target. 250 charges.",
         ),
       /does not stack/,
     ],
@@ -420,19 +420,19 @@ describe("malformed text", () => {
     [
       "a charge count of 0",
       INSTANT,
-      (t) => t.replace("175 charges", "0 charges"),
+      (t) => t.replace("250 charges", "0 charges"),
       /charge count 0 is not a whole number of at least 1/,
     ],
     [
       "a fractional charge count",
       INSTANT,
-      (t) => t.replace("175 charges", "17.5 charges"),
+      (t) => t.replace("250 charges", "17.5 charges"),
       /charge count 17.5 is not a whole number/,
     ],
     [
       "a reworded charge sentence",
       INSTANT,
-      (t) => t.replace("175 charges.", "Lasts 175 hits."),
+      (t) => t.replace("250 charges.", "Lasts 175 hits."),
       /text the parser does not read: " Lasts 175 hits\."/,
     ],
     [
@@ -444,7 +444,7 @@ describe("malformed text", () => {
     [
       "an extra sentence before the charges",
       DEADLY,
-      (t) => t.replace(" 180 charges.", " Cannot be dodged. 180 charges."),
+      (t) => t.replace(" 240 charges.", " Cannot be dodged. 240 charges."),
       /text the parser does not read/,
     ],
     [
@@ -492,7 +492,7 @@ describe("malformed text", () => {
     [
       "a charge count of 0",
       DEADLY,
-      (t) => t.replace("180 charges", "0 charges"),
+      (t) => t.replace("240 charges", "0 charges"),
       /charge count 0 is not a whole number of at least 1/,
     ],
     [
@@ -635,7 +635,7 @@ describe("values at the edge of what is accepted", () => {
     const rank = parsed(DEADLY, (t) =>
       t
         .replace("up to 5 times", "up to 1 times")
-        .replace("180 charges", "1 charges"),
+        .replace("240 charges", "1 charges"),
     );
     assert.equal(rank.effect.maxStacks, 1);
     assert.equal(rank.charges, 1);
@@ -646,7 +646,7 @@ describe("values at the edge of what is accepted", () => {
       t.replace(" Stacks up to 5 times on a single target.", ""),
     );
     assert.equal(rank.effect.maxStacks, 1);
-    assert.equal(rank.charges, 180);
+    assert.equal(rank.charges, 240);
   });
 
   it("gives the poison's id as the slug of its name", () => {

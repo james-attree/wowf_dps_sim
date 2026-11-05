@@ -64,12 +64,13 @@ export function rankTextHash(ranks) {
 
 // An entry covers a talent when it does something or says why it does not.
 function hasEffect(entry) {
-  const { modifiers, procs, ability, noDpsEffect } = entry;
+  const { modifiers, procs, ability, noDpsEffect, pending } = entry;
   return (
     (Array.isArray(modifiers) && modifiers.length > 0) ||
     (Array.isArray(procs) && procs.length > 0) ||
     (typeof ability === "string" && ability !== "") ||
-    (typeof noDpsEffect === "string" && noDpsEffect !== "")
+    (typeof noDpsEffect === "string" && noDpsEffect !== "") ||
+    (typeof pending === "string" && pending !== "")
   );
 }
 

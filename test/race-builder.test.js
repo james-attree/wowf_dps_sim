@@ -238,7 +238,8 @@ describe("#280: the builder's view follows the race", () => {
     );
   });
 
-  it("a preset's racial rules: the race's is taken, the others not your race", () => {
+  // TR-02 / #332: empty presets until #333
+  it.skip("a preset's racial rules: the race's is taken, the others not your race", () => {
     const { form, view } = setup("orc");
     form.chooseRotation("combat-swords");
     const chips = view()
@@ -268,7 +269,8 @@ describe("#322: the on-use line says what the rotation does", () => {
       (racial) => racial.id === "orc.blood-fury",
     );
 
-  it("a preset casts it; the default rotation has no rule for it", () => {
+  // TR-02 / #332: empty presets until #333
+  it.skip("a preset casts it; the default rotation has no rule for it", () => {
     const preset = fury(ROTATION_PRESETS[0].rotation);
     assert.equal(preset.casts, true);
     assert.equal(
@@ -285,7 +287,8 @@ describe("#322: the on-use line says what the rotation does", () => {
     assert.doesNotMatch(racialLineText(plain), /built-in rotations don't/);
   });
 
-  it("the form's line follows the rotation picked", () => {
+  // TR-02 / #332: empty presets until #333
+  it.skip("the form's line follows the rotation picked", () => {
     const { store, form } = setup("orc");
     const line = () =>
       store.get().form.race.racials.find((r) => r.id === "orc.blood-fury")
@@ -297,7 +300,8 @@ describe("#322: the on-use line says what the rotation does", () => {
     assert.equal(line(), false);
   });
 
-  it("every preset opens with the four racials, each guarded only by ability granted", () => {
+  // TR-02 / #332: empty presets until #333
+  it.skip("every preset opens with the four racials, each guarded only by ability granted", () => {
     for (const preset of ROTATION_PRESETS) {
       assert.deepEqual(
         preset.rotation.rules.slice(0, ON_USE.length),
@@ -325,7 +329,8 @@ function presetConfig(id, race) {
   });
 }
 
-describe("#322: a preset with an on-use race beats no race (fixed seed)", () => {
+// TR-02 / #332: empty presets until #333
+describe.skip("#322: a preset with an on-use race beats no race (fixed seed)", () => {
   for (const id of PRESETS) {
     for (const race of ["orc", "troll"]) {
       it(`${id}: ${race} over no race, seed ${SEED}`, () => {

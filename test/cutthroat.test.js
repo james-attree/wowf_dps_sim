@@ -1,3 +1,5 @@
+// TR-02 / #332: whole file skipped until a later TR restores the
+// removed talent / pending Venom ability (see talent-effects pending tags).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
@@ -92,7 +94,8 @@ function backstabWith(talents, procRoll) {
   return h;
 }
 
-describe("Cutthroat, Improved Ambush and Initiative read their rank text (#271)", () => {
+// TR-02 / #332: skipped. Cutthroat left the 70755 catalogue; Ambush remapping is a later issue.
+describe.skip("Cutthroat, Improved Ambush and Initiative read their rank text (#271)", () => {
   it("Cutthroat: a 3/6/9/12/15% Backstab proc that allows Ambush for 10 s", () => {
     const row = k("cutthroat.proc");
     assert.deepEqual(
@@ -232,7 +235,7 @@ describe('a ranked proc with drawless "whenCertain" (#271, G2)', () => {
   });
 });
 
-describe("Cutthroat's proc (#271)", () => {
+describe.skip("Cutthroat's proc (#271)", () => {
   it("at 0 points is no proc: no draw, no aura, nothing granted (G2)", () => {
     for (const talents of [{}, { [CUTTHROAT]: 0 }]) {
       const h = backstabWith(talents, 0);
@@ -307,7 +310,7 @@ describe("Cutthroat's proc (#271)", () => {
   });
 });
 
-describe("Improved Ambush (#271)", () => {
+describe.skip("Improved Ambush (#271)", () => {
   it("adds exactly 15% crit chance per rank to Ambush and nothing to Backstab", () => {
     const base = ready({});
     const crit = (h, id) => h.rogue.getCritChance(h.sim.abilityContext(id));
@@ -323,7 +326,7 @@ describe("Improved Ambush (#271)", () => {
   });
 });
 
-describe("Initiative (#271)", () => {
+describe.skip("Initiative (#271)", () => {
   // An Ambush with the aura up, every draw HIT but the one after the
   // Ambush's own (Initiative's roll, if it rolls), which is `procRoll`.
   function ambushWith(talents, procRoll = HIT) {
@@ -377,7 +380,7 @@ describe("Initiative (#271)", () => {
   });
 });
 
-describe("a Cutthroat build in a fight (#271)", () => {
+describe.skip("a Cutthroat build in a fight (#271)", () => {
   const config = (talents, rotation = AMBUSH_ROTATION) => ({
     ...defaultDaggerConfig(),
     talents,

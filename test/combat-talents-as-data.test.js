@@ -32,15 +32,15 @@ const PERCENT = 100;
 const AMOUNT = 1;
 
 const READINGS = {
-  "combat.improved-eviscerate": [
+  "combat.coup-de-grace": [
     {
       text: /Eviscerate ability by (\d+)%/,
       scale: PERCENT,
     },
   ],
-  "combat.improved-sinister-strike": [
+  "combat.efficient-strikes": [
     {
-      text: /Energy cost of your Sinister Strike ability by (\d+)/,
+      text: /Energy cost of your Sinister Strike(?: and Hemorrhage)? abilit(?:y|ies) by (\d+)/,
       scale: -AMOUNT,
     },
   ],
@@ -147,6 +147,16 @@ const NOT_DPS = Object.fromEntries(
     .map(([id, effect]) => [id, effect.noDpsEffect]),
 );
 
+// Pending TR talent work at 70755 (#332): Composure, Flash of Steel, …
+const PENDING = Object.fromEntries(
+  Object.entries(TALENT_EFFECTS)
+    .filter(
+      ([id, effect]) =>
+        id.startsWith("combat.") && effect.pending !== undefined,
+    )
+    .map(([id, effect]) => [id, effect.pending]),
+);
+
 const COMBAT = talentCatalogue.byTree("combat");
 
 function readNumber(entry, text) {
@@ -167,7 +177,7 @@ function buildModifiers(ranks) {
 
 describe("every Combat talent has a place", () => {
   it("is a modifier table, an aura, or not DPS, and only one of them", () => {
-    const groups = [MODIFIER_TALENTS, AURA_TALENTS, NOT_DPS];
+    const groups = [MODIFIER_TALENTS, AURA_TALENTS, NOT_DPS, PENDING];
     const named = groups.flatMap((group) => Object.keys(group));
     assert.equal(
       new Set(named).size,
@@ -175,11 +185,11 @@ describe("every Combat talent has a place", () => {
       "a talent is in two groups",
     );
     assert.deepEqual(named.sort(), COMBAT.map((talent) => talent.id).sort());
-    assert.equal(COMBAT.length, 17);
+    assert.equal(COMBAT.length, 19);
     assert.equal(
       Object.keys(MODIFIER_TALENTS).length + Object.keys(AURA_TALENTS).length,
       11,
-      "11 of 17 are DPS-relevant",
+      "11 of 19 are DPS-relevant modifiers/auras; 2 pending",
     );
   });
 
@@ -233,7 +243,12 @@ describe("the Combat modifier tables match the snapshot's rank text", () => {
           .flatMap((entry) => entry.scope.abilities)
           .sort();
         assert.ok(named.length > 0, `${first} names no ability`);
-        assert.deepEqual(scopedIds, named);
+        // #332: Coup de Grace also names Death Mark; DM is pending so the
+        // live modifier scopes Eviscerate only until that TR lands.
+        assert.deepEqual(
+          scopedIds,
+          named.filter((id) => id !== "death-mark"),
+        );
       });
     }
     for (const entry of entries.filter((item) => item.scope?.weaponTypes)) {
@@ -311,14 +326,14 @@ describe("a Combat build, as data, in the engine", () => {
       0.15,
     );
     assert.equal(stats.resolve("armorIgnore", 0, at("backstab")), 0);
-    // Improved Eviscerate 3 and Aggression 3 add inside one factor.
+    // Coup de Grace 3 and Aggression 3 add inside one factor (#332: Agg 15%).
     assert.equal(
       stats.resolve("damage", 100, at("eviscerate")),
-      100 * (1 + (0.2 + 0.06)),
+      100 * (1 + (0.2 + 0.15)),
     );
     assert.equal(stats.resolve("damage", 100, at("rupture")), 100);
-    // Dual Wield Specialization 5 on the off-hand's swing only.
-    assert.equal(stats.resolve("damage", 100, at("off-hand", "offHand")), 125);
+    // Dual Wield Specialization 2 on the off-hand's swing only (#332: max 2).
+    assert.equal(stats.resolve("damage", 100, at("off-hand", "offHand")), 150);
     assert.equal(stats.resolve("damage", 100, at("main-hand")), 100);
     assert.equal(
       stats.resolve("energyCost", 40, { ability: "sinister-strike" }),
@@ -326,7 +341,7 @@ describe("a Combat build, as data, in the engine", () => {
     );
     assert.equal(
       stats.resolve("energyCost", 35, { ability: "eviscerate" }),
-      25,
+      20,
     );
     assert.equal(stats.resolve("dodgeReduction", 0, at("backstab")), 0.02);
     assert.equal(stats.resolve("parryReduction", 0, at("backstab")), 0.02);

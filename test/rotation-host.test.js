@@ -48,19 +48,19 @@ const noRush = buildWithout(["combat.adrenaline-rush"]);
 // Blade Flurry left out: Adrenaline Rush and Weapon Expertise need it, so
 // they go too, and the four points move to Assassination (#155).
 const noFlurry = (() => {
-  const ranks = referenceBuild();
+  // #332: also drop row-5 talents that need 20 pts above once WE/BF/AR go.
+  const ranks = { ...referenceBuild() };
   for (const id of [
     "combat.blade-flurry",
     "combat.adrenaline-rush",
     "combat.weapon-expertise",
+    "combat.dual-wield-specialization",
+    "combat.hack-and-slash",
+    "combat.flash-of-steel",
   ]) {
     delete ranks[id];
   }
-  return {
-    ...ranks,
-    "assassination.murder": 2,
-    "assassination.improved-poisons": 2,
-  };
+  return ranks;
 })();
 
 describe("rotationHost", () => {
