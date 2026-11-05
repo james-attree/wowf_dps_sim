@@ -194,7 +194,7 @@ describe("short links: version 2 round trip (#306)", () => {
           offHand: { ...d.config.weapons.offHand, speed: 1.234, type: "fist" },
         },
         talentLevel: 40,
-        talents: { "combat.precision": 3 },
+        talents: { "assassination.malice": 5 },
         poisons: { mainHand: null, offHand: "mind-numbing" },
         rotation: { ...d.config.rotation, name: "Mine, édité ✓" },
       },

@@ -60,7 +60,7 @@ function busySetup() {
         mainHand: { min: 60, max: 110, speed: 1.8, type: "dagger" },
         offHand: { min: 50, max: 95, speed: 1.4, type: "dagger" },
       },
-      talents: { "combat.precision": 3 },
+      talents: { "assassination.malice": 5 },
       talentLevel: 40,
       poisons: { mainHand: "deadly", offHand: "instant" },
       rotation: { ...defaultRotation(), name: "Mine, édité ✓" },
@@ -241,9 +241,7 @@ describe("build codec: garbage never throws (#284, G4)", () => {
     linkOf({ config: { character: "fast" } }),
     linkOf({ config: { character: { attackPower: -5 } } }),
     linkOf({ config: { character: { critChance: 2 } } }),
-    linkOf({ config: { talents: { "not.a-talent": 3 } } }),
     linkOf({ config: { talentLevel: 999 } }),
-    linkOf({ config: { rotation: { schemaVersion: 1, rules: "none" } } }),
     linkOf({ run: { mode: "forever" } }),
     linkOf({ run: { duration: 0 } }),
     linkOf({ run: { duration: "300" } }),
@@ -260,6 +258,15 @@ describe("build codec: garbage never throws (#284, G4)", () => {
   it("a link that does not read is 'corrupt'", () => {
     for (const text of garbage) {
       assert.deepEqual(decodeSetup(text), { status: "corrupt" }, String(text));
+    }
+  });
+
+  it("a link the live catalogue refuses is 'invalid' (#331)", () => {
+    for (const text of [
+      linkOf({ config: { talents: { "not.a-talent": 3 } } }),
+      linkOf({ config: { rotation: { schemaVersion: 1, rules: "none" } } }),
+    ]) {
+      assert.deepEqual(decodeSetup(text), { status: "invalid" }, String(text));
     }
   });
 

@@ -1,6 +1,7 @@
 import { k } from "../data/constants.js";
 import { pageDefaultConfig } from "./config-form.js";
 import { normalizeConfig } from "./sim-config.js";
+import { validateBuild } from "./talent-build.js";
 import { LINK_VERSION, decodeLinkBody, encodeLinkBody } from "./link-codec.js";
 import { parseRunField } from "./views/run-model.js";
 
@@ -27,11 +28,14 @@ import { parseRunField } from "./views/run-model.js";
 // Two ways to read (decodeSetup's `strict`):
 //   strict (a share link): a newer version, or a field this version does not
 //     know, is "newer" and loads nothing ("This link was made with a newer
-//     version of the sim"); anything unreadable or invalid is "corrupt" and
-//     loads nothing.
-//   lenient (a saved setup, #296): unknown fields are ignored, a section that
-//     does not check out reads as its default, and a newer or unreadable save
-//     is the defaults. It never throws and never blocks the page's load.
+//     version of the sim"); bytes that do not read are "corrupt"; a setup
+//     the live catalogue refuses (unknown talent, rank over max, row gates /
+//     prerequisites, unknown rotation action, or an old SETUP_ERA) is
+//     "invalid" (#331) and loads nothing, with no banner (James 5 Nov 2026).
+//   lenient (a saved setup, #296): unknown fields are ignored; a soft field
+//     error recovers that field (#326); a catalogue refusal discards the
+//     whole save and is the defaults (#331). A newer or unreadable save is
+//     the defaults. It never throws and never blocks the page's load.
 //
 // Which setup the page starts with is resolveInitialSetup's one order:
 //   1. a share link (?s=) in the address, when it reads;
@@ -45,6 +49,11 @@ export const SETUP_VERSION = 1;
 // Readers take both; the saved setup is still written as SETUP_VERSION.
 export { LINK_VERSION };
 export const LINK_PARAM = "s";
+// Setup era (#331 / TR-01). 0 is pre-rework. TR-02 bumps this when the 70755
+// catalogue lands; a v1 payload whose era (missing counts as 0) does not
+// match is refused. encodeSetup writes era only once it is non-zero, so
+// today's "1.e30" bytes stay put until then.
+export const SETUP_ERA = 0;
 
 const RUN_MODES = Object.freeze(["batch", "live"]);
 // Talents and the rotation are kept or dropped whole: a partial talent map or
@@ -136,6 +145,31 @@ const checkConfig = (config) => {
   return { ...normal, target: { ...normal.target, behind: true } };
 };
 
+// True when the error is a live-catalogue refusal (#331): talents, rotation,
+// or talent build rules (row gates / prerequisites / point cap at the level).
+const isCatalogueError = (error) =>
+  error instanceof Error &&
+  /config\.talents|config\.rotation|Talent build is not valid/.test(
+    error.message,
+  );
+
+// normalizeConfig plus validateBuild. Catalogue failures throw; other shape
+// failures throw too (callers classify with isCatalogueError).
+function checkLiveCatalogue(config) {
+  const checked = checkConfig(config);
+  validateBuild(checked.talents, undefined, { level: checked.talentLevel });
+  return checked;
+}
+
+// Strip and check the optional v1 `era` field. Missing era counts as 0.
+function takeEra(payload) {
+  if (!isPlain(payload) || !("era" in payload)) {
+    return { era: 0, rest: payload };
+  }
+  const { era, ...rest } = payload;
+  return { era, rest };
+}
+
 // The run settings, or null when one does not check out. A missing seed is
 // null (the page draws one).
 function checkRun(run) {
@@ -158,6 +192,7 @@ function checkRun(run) {
 // The setup as "1.<base64url JSON>".
 export function encodeSetup(setup, defaults = setupDefaults()) {
   const payload = {};
+  if (SETUP_ERA !== 0) payload.era = SETUP_ERA;
   const config = diff(setup.config, defaults.config);
   const run = diff(setup.run, defaults.run);
   if (config !== undefined) payload.config = config;
@@ -177,8 +212,9 @@ export function encodeLink(setup, defaults = setupDefaults()) {
   }
 }
 
-// { status: "ok", setup } | { status: "newer" } | { status: "corrupt" }.
-// Lenient reading always says "ok": what did not read is the defaults.
+// { status: "ok", setup } | { status: "newer" } | { status: "corrupt" }
+// | { status: "invalid" }. Lenient reading always says "ok": what did not
+// read is the defaults.
 export function decodeSetup(
   text,
   { strict = true, defaults = setupDefaults() } = {},
@@ -193,13 +229,13 @@ export function decodeSetup(
     const read = decodeLinkBody(body, defaults);
     if (read.status !== "ok") return fallback(read.status);
     try {
-      const config = checkConfig(read.setup.config);
+      const config = checkLiveCatalogue(read.setup.config);
       const run = checkRun(read.setup.run);
       return run === null
         ? fallback("corrupt")
         : { status: "ok", setup: { config, run } };
-    } catch {
-      return fallback("corrupt");
+    } catch (error) {
+      return fallback(isCatalogueError(error) ? "invalid" : "corrupt");
     }
   }
   if (Number(version) !== SETUP_VERSION) return fallback("corrupt");
@@ -210,21 +246,21 @@ export function decodeSetup(
     return fallback("corrupt");
   }
   if (!isPlain(payload)) return fallback("corrupt");
-  return strict
-    ? readStrict(payload, defaults)
-    : readLenient(payload, defaults);
+  const { era, rest } = takeEra(payload);
+  if (era !== SETUP_ERA) return fallback("invalid");
+  return strict ? readStrict(rest, defaults) : readLenient(rest, defaults);
 }
 
 function readStrict(payload, defaults) {
   if (hasUnknown(payload, defaults)) return { status: "newer" };
   try {
-    const config = checkConfig(merge(defaults.config, payload.config));
+    const config = checkLiveCatalogue(merge(defaults.config, payload.config));
     const run = checkRun(merge(defaults.run, payload.run));
     return run === null
       ? { status: "corrupt" }
       : { status: "ok", setup: { config, run } };
-  } catch {
-    return { status: "corrupt" };
+  } catch (error) {
+    return { status: isCatalogueError(error) ? "invalid" : "corrupt" };
   }
 }
 
@@ -243,9 +279,11 @@ function tryConfig(config, section, value) {
 // its defaults), so one bad field does not take the rest of it with it
 // (#326, item 13: an armour of -1 reset the target's level too). `reset`
 // lists what reads as its default: "target.armor", or a whole section that
-// can't be read by field ("talents"). The format is unchanged: a save that
-// checks out reads exactly as before, with nothing reset.
+// can't be read by field. A talents or rotation section the live catalogue
+// refuses, or a finished build that fails validateBuild, discards the whole
+// save (#331). Soft field errors still recover.
 function readLenient(payload, defaults) {
+  const discard = () => ({ status: "ok", setup: defaults });
   let config = defaults.config;
   const reset = [];
   const given = isPlain(payload.config) ? payload.config : {};
@@ -258,7 +296,9 @@ function readLenient(payload, defaults) {
       config = next;
       continue;
     }
-    if (whole || !isPlain(base) || !isPlain(given[section])) {
+    // Talents and rotation are whole: a catalogue refusal drops the save.
+    if (WHOLE.has(section)) return discard();
+    if (!isPlain(base) || !isPlain(given[section])) {
       reset.push(section);
       continue;
     }
@@ -287,10 +327,15 @@ function readLenient(payload, defaults) {
       Object.assign(run, checked);
     }
   }
-  const setup = { config: checkConfig(config), run };
-  return reset.length === 0
-    ? { status: "ok", setup }
-    : { status: "ok", setup, reset };
+  try {
+    const setup = { config: checkLiveCatalogue(config), run };
+    return reset.length === 0
+      ? { status: "ok", setup }
+      : { status: "ok", setup, reset };
+  } catch (error) {
+    if (isCatalogueError(error)) return discard();
+    throw error;
+  }
 }
 
 // The setup the page holds: the store's config and its run settings.
@@ -327,9 +372,10 @@ export function withoutLinkParam(href) {
 
 // The page's first setup, in the order above. `search` is location.search;
 // `saved` is the saved setup's text (#296) or null. notice is null, "loaded",
-// "newer" or "corrupt" (the link's banner); hadLink says ?s= is to be taken
-// out of the address. reset, only when there are any, lists the saved
-// setup's fields read as their defaults (#326, item 13), for the banner.
+// "newer" or "corrupt" (the link's banner). "invalid" (#331) sets no notice:
+// the link is discarded and the next source loads in silence. hadLink says
+// ?s= is to be taken out of the address. reset, only when there are any,
+// lists the saved setup's fields read as their defaults (#326, item 13).
 export function resolveInitialSetup({
   search = "",
   saved = null,
@@ -347,7 +393,8 @@ export function resolveInitialSetup({
         hadLink: true,
       };
     }
-    notice = read.status;
+    // Catalogue refusals are silent (#331). Damaged / newer still say so.
+    if (read.status !== "invalid") notice = read.status;
   }
   const hadLink = link !== null;
   if (saved !== null && saved !== undefined) {
