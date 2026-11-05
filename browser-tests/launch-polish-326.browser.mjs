@@ -121,7 +121,7 @@ const savedWith = (payload) => ({
   ],
 });
 
-describe.skip("#326 item 1: a touch Fix shows its field above the dock", () => {
+describe("#326 item 1: a touch Fix shows its field above the dock", () => {
   for (const text of TEXT_SIZES) {
     for (const [field, area, value] of [
       [SKILL, "#character/stats", "351"],
@@ -160,7 +160,7 @@ describe.skip("#326 item 1: a touch Fix shows its field above the dock", () => {
   }
 });
 
-describe.skip("#326 item 2: the area labels keep to one line with a badge", () => {
+describe("#326 item 2: the area labels keep to one line with a badge", () => {
   for (const width of NARROW) {
     for (const text of TEXT_SIZES) {
       test(`${width} wide, ${text} text`, async () => {
@@ -185,7 +185,7 @@ describe.skip("#326 item 2: the area labels keep to one line with a badge", () =
   }
 });
 
-describe.skip("#326 item 3: the fix list keeps the Fight's target last", () => {
+describe("#326 item 3: the fix list keeps the Fight's target last", () => {
   test("stats, gear, run fields, then the target", async () => {
     const session = await open(1024, "100%", "#character/stats");
     const { page } = session;
@@ -208,7 +208,7 @@ describe.skip("#326 item 3: the fix list keeps the Fight's target last", () => {
   });
 });
 
-describe.skip("#326 item 4: the preset cards are never three and one", () => {
+describe("#326 item 4: the preset cards are never three and one", () => {
   for (const width of WIDE) {
     for (const text of TEXT_SIZES) {
       test(`${width} wide, ${text} text`, async () => {
@@ -227,7 +227,7 @@ describe.skip("#326 item 4: the preset cards are never three and one", () => {
   }
 });
 
-describe.skip("#326 items 5 and 8: Reset and Undo, both values, and focus", () => {
+describe("#326 items 5 and 8: Reset and Undo, both values, and focus", () => {
   for (const text of TEXT_SIZES) {
     test(`${text} text`, async () => {
       const session = await open(1024, text, "#fight");
@@ -258,6 +258,7 @@ describe.skip("#326 items 5 and 8: Reset and Undo, both values, and focus", () =
   }
 });
 
+// Needs Assassination start card; only combat-swords-temp until later TRs.
 describe.skip("#326 item 7: a first pick names the whole build, a re-pick what changed", () => {
   test("the line, and the announcement the same", async () => {
     const session = await open(1024, "100%", "#character/start");
@@ -292,6 +293,7 @@ describe("#326 items 9 to 12: Copy link", () => {
   test("item 9: over the level's cap says why, by the button", async () => {
     const session = await open(1024, "100%", "#character/talents");
     const { page } = session;
+    await page.locator("#talents-reset").click();
     for (let i = 0; i < 2; i += 1) {
       await page
         .locator('button.talent[data-id="assassination.malice"]')
@@ -317,6 +319,8 @@ describe("#326 items 9 to 12: Copy link", () => {
   // within the cap, whichever area makes them so, and stay gone on Fight.
   const overCapNote = async (page) => {
     await go(page, "#character/talents");
+    // Page defaults spend 51 points (#333); clear them before dropping level.
+    await page.locator("#talents-reset").click();
     for (let i = 0; i < 2; i += 1) {
       await page
         .locator('button.talent[data-id="assassination.malice"]')
@@ -355,8 +359,7 @@ describe("#326 items 9 to 12: Copy link", () => {
     await done(session);
   });
 
-  // Needs combat-swords start card until #333 restores presets.
-  test.skip("item 9: the note goes when a card from Character fixes the talents", async () => {
+  test("item 9: the note goes when a card from Character fixes the talents", async () => {
     const session = await open(1280, "100%", "#character/talents");
     const { page } = session;
     await overCapNote(page);
@@ -367,7 +370,7 @@ describe("#326 items 9 to 12: Copy link", () => {
       "still over the cap: still shown",
     );
     await go(page, "#character/start");
-    await page.locator("#start-card-combat-swords").click();
+    await page.locator("#start-card-combat-swords-temp").click();
     await gone(page);
     await done(session);
   });
@@ -497,22 +500,14 @@ describe("#326 item 13: a save's unreadable field is named", () => {
   });
 });
 
-// Presets empty until #333: grant Blood Fury as an orc, then change race so
-// the same rule shows as a disabled "Orc racial" (Kira P2 on #344). A save
-// with that racial is refused whole by the live catalogue.
 describe("#326 item 14: a racial the race can't cast shows in its rule", () => {
   for (const width of [320, 1024]) {
-    test(`Blood Fury as rule 1 at ${width} wide`, async () => {
-      const session = await open(width, "100%", "#character/stats");
+    test(`Combat swords rule 1 at ${width} wide`, async () => {
+      const session = await open(width, "100%", "#rotation");
       const { page } = session;
-      await page.locator("#cfg-race").selectOption("orc");
+      await page.selectOption("#cfg-rotation", "combat-swords-temp");
       await go(page, "#rotation/rule/1");
       const select = page.locator(".rule-action select");
-      await select.waitFor();
-      await select.selectOption("blood-fury");
-      await go(page, "#character/stats");
-      await page.locator("#cfg-race").selectOption("human");
-      await go(page, "#rotation/rule/1");
       await select.waitFor();
       const shown = await select.evaluate((node) => ({
         value: node.value,

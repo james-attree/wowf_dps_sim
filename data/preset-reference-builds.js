@@ -1,11 +1,9 @@
-// The reference build each preset rotation is written for (issue #272), as
-// data: the talent ranks and the two weapons. Nothing here, and nothing in
-// js/preset-reference-builds.js, puts a build into a config. Loading a preset
-// (js/rotation-presets.js loadPreset) sets the rotation only; a page that
-// offers "use this preset's build" (#273) reads a build from here and decides
-// what to change.
-//
-// TR-02 / #332: empty until TR-03 / #333 adds the temporary Combat swords.
+import { k } from "./constants.js";
+import { referenceBuild as combatReferenceTalents } from "./reference-build.js";
+import { talentLevelRange } from "../js/talent-build.js";
+
+// The reference build each preset rotation is written for (issue #272).
+// TR-03 / #333: only the temporary Combat swords build.
 
 function deepFreeze(value) {
   if (value !== null && typeof value === "object") {
@@ -15,6 +13,30 @@ function deepFreeze(value) {
   return value;
 }
 
+const swordHand = (hand) => {
+  const { type, min, max, speed } = k(`weapon.${hand}`);
+  return { min, max, speed, type };
+};
+
+// assumption: MH/OH sword damage and speed from the prior Combat swords
+// preset / page defaults until James sends a sim share link (#333).
+const SWORDS = {
+  mainHand: swordHand("mainHand"),
+  offHand: swordHand("offHand"),
+};
+
+const LEVEL_60 = talentLevelRange().max;
+
+const poisonsOf = (presetId) => ({
+  ...k("presetReferenceBuild.poisons")[presetId],
+});
+
 export const PRESET_REFERENCE_BUILDS = deepFreeze({
-  // Empty until TR-03 / #333.
+  "combat-swords-temp": {
+    name: "Combat swords (temporary, #333)",
+    talentLevel: LEVEL_60,
+    talents: combatReferenceTalents(),
+    weapons: SWORDS,
+    poisons: poisonsOf("combat-swords-temp"),
+  },
 });

@@ -69,7 +69,7 @@ function useParts(env, id, parts) {
 }
 
 // TR-02 / #332: skipped. presetReferenceBuild / apply preset build; empty until #333.
-describe.skip("text (#273)", () => {
+describe("text (#273)", () => {
   it("lists parts with commas and and", () => {
     assert.equal(listText(["talents"]), "talents");
     assert.equal(listText(["talents", "poisons"]), "talents and poisons");
@@ -87,13 +87,9 @@ describe.skip("text (#273)", () => {
   });
 
   it("names the trees and weapons, kept on one line", () => {
-    const build = referenceBuild("assassination-daggers");
-    assert.equal(treeText(build.talents), `Assassination${NBSP}38/11/2`);
-    assert.equal(
-      treeText(referenceBuild("combat-swords").talents),
-      `Combat${NBSP}18/33/0`,
-    );
-    assert.equal(weaponsText(build.weapons), "two daggers");
+    const build = referenceBuild("combat-swords-temp");
+    assert.equal(treeText(build.talents), `Combat${NBSP}16/35/0`);
+    assert.equal(weaponsText(build.weapons), "two swords");
     assert.equal(
       weaponsText({ mainHand: { type: "sword" }, offHand: { type: "axe" } }),
       "a sword and an axe",
@@ -105,29 +101,28 @@ describe.skip("text (#273)", () => {
   });
 
   it("the hint says the level below 60 and the poisons when they differ", () => {
-    const build = referenceBuild("subtlety-daggers");
+    const build = referenceBuild("combat-swords-temp");
     const none = { talents: true, weapons: true, poisons: false, level: false };
     assert.equal(
       hintText(build, none),
-      `Built for Subtlety${NBSP}12/8/31 with two daggers.`,
+      `Built for Combat${NBSP}16/35/0 with two swords.`,
     );
     assert.equal(
       hintText(build, { ...none, level: true, poisons: true }),
-      `Built for Subtlety${NBSP}12/8/31 at level${NBSP}60 with two daggers, Instant Poison on the main hand and Deadly Poison on the off hand.`,
+      `Built for Combat${NBSP}16/35/0 at level${NBSP}60 with two swords, Instant Poison on the main hand and Deadly Poison on the off hand.`,
     );
   });
 
   it("the applied line, announcement and Undo name", () => {
-    const build = referenceBuild("assassination-daggers");
-    assert.equal(shortName(build), "Assassination daggers");
-    assert.equal(shortName(referenceBuild("combat-swords")), "Combat swords");
+    const build = referenceBuild("combat-swords-temp");
+    assert.equal(shortName(build), "Combat swords");
     assert.equal(
       appliedText(build, ["talents", "weapons"], false),
-      "Talents and weapons set to the Assassination daggers build.",
+      "Talents and weapons set to the Combat swords build.",
     );
     assert.equal(
       appliedText(build, BUILD_PARTS, true),
-      `Talents, weapons and poisons set to the Assassination daggers build. Level set to${NBSP}60.`,
+      `Talents, weapons and poisons set to the Combat swords build. Level set to${NBSP}60.`,
     );
     assert.equal(
       announceText(build, BUILD_PARTS, false),
@@ -203,14 +198,14 @@ describe.skip("matching (#273)", () => {
 
   it("weapon numbers, level and stats are not compared", () => {
     const env = page();
-    env.form.chooseRotation("combat-swords");
+    env.form.chooseRotation("combat-swords-temp");
     env.build.apply();
     assert.equal(env.said().hint, null);
     env.form.change("weapons.mainHand.min", 50);
     env.form.change("character.attackPower", 1500);
     assert.equal(env.said().hint, null);
     const differences = buildDifferences(
-      referenceBuild("combat-swords"),
+      referenceBuild("combat-swords-temp"),
       currentBuild(env.store.get()),
     );
     assert.deepEqual(differences, {
@@ -237,14 +232,14 @@ describe.skip("matching (#273)", () => {
   it("is computed from the current build after a share link loads", () => {
     const config = {
       ...pageDefaultConfig(),
-      rotation: presetRotation("combat-swords"),
-      talents: referenceBuild("combat-swords").talents,
+      rotation: presetRotation("combat-swords-temp"),
+      talents: referenceBuild("combat-swords-temp").talents,
     };
     const store = createStore({ config });
     const form = createConfigForm(store);
     createTalentTree(store);
     createPresetBuild(store, form);
-    assert.equal(store.get().form.rotationChoice, "combat-swords");
+    assert.equal(store.get().form.rotationChoice, "combat-swords-temp");
     // #310: Combat's poisons are Deadly MH / Instant OH, the page default's
     // the other way round, so only the poisons are offered.
     assert.equal(store.get().presetBuild.hint.label, "Use its poisons too");
@@ -311,7 +306,7 @@ describe.skip("apply and Undo (#273)", () => {
     const env = page();
     env.tree.setLevel(LOW_LEVEL);
     assert.equal(env.store.get().config.talentLevel, Number(LOW_LEVEL));
-    env.form.chooseRotation("combat-swords");
+    env.form.chooseRotation("combat-swords-temp");
     assert.equal(
       env.said().hint.text,
       `Built for Combat${NBSP}18/33/0 at level${NBSP}60 with two swords, Deadly Poison on the main hand and Instant Poison on the off hand.`,
@@ -417,7 +412,7 @@ describe.skip("apply and Undo (#273)", () => {
     ]) {
       const env = page();
       env.store.set({ route: ROTATION, routeBy: MOVED_BY_USER });
-      env.form.chooseRotation("combat-swords");
+      env.form.chooseRotation("combat-swords-temp");
       env.build.apply();
       env.store.set({ route: RESULTS, routeBy: MOVED_BY_RUN });
       assert.notEqual(env.said().applied, null);
@@ -429,7 +424,7 @@ describe.skip("apply and Undo (#273)", () => {
   it("Undo stays through another Run's move, from Results to its Live view", () => {
     const env = page();
     env.store.set({ route: ROTATION, routeBy: MOVED_BY_USER });
-    env.form.chooseRotation("combat-swords");
+    env.form.chooseRotation("combat-swords-temp");
     env.build.apply();
     env.store.set({ route: RESULTS, routeBy: MOVED_BY_RUN });
     env.store.set({ route: LIVE, routeBy: MOVED_BY_RUN });
@@ -442,7 +437,7 @@ describe.skip("apply and Undo (#273)", () => {
   // before the button and finished after it leaves Undo there.
   it("Undo stays through a run and puts the build back after it", () => {
     const env = page();
-    env.form.chooseRotation("combat-swords");
+    env.form.chooseRotation("combat-swords-temp");
     env.build.apply();
     const ran = env.store.get().config;
     env.store.set({
@@ -478,7 +473,7 @@ describe.skip("apply and Undo (#273)", () => {
 
   it("Undo brings the hint back, so the focus goes to its button", () => {
     const env = page();
-    env.form.chooseRotation("combat-swords");
+    env.form.chooseRotation("combat-swords-temp");
     env.build.apply();
     // Undo puts back a build that differed (the button was there), so the
     // hint is back and the focus goes to it, not to the select.
@@ -490,7 +485,7 @@ describe.skip("apply and Undo (#273)", () => {
 // Fran's test 13 (closes R5): after the button, each preset's own abilities
 // are cast in the config the next run uses, from the page's defaults.
 const SIGNATURES = {
-  "combat-swords": ["sinister-strike", "slice-and-dice", "blade-flurry"],
+  "combat-swords-temp": ["sinister-strike", "slice-and-dice", "blade-flurry"],
   "assassination-daggers": ["mutilate"],
   "subtlety-daggers": ["hemorrhage"],
   "combat-daggers": ["backstab", "eviscerate", "slice-and-dice"],

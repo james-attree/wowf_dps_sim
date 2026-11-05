@@ -12,6 +12,143 @@ function deepFreeze(value) {
   return value;
 }
 
+// Page defaults as they stood at the end of TR-02 / #332 (empty talents,
+// placeholder Default (Combat) rotation, Instant MH / Deadly OH). Frozen so
+// TR-03 can retarget pageDefaultConfig at combat-swords-temp without moving
+// the append-only "defaults" short-link base (#306 ruling (b)).
+export const DEFAULTS_FROZEN = deepFreeze({
+  talents: {},
+  talentLevel: 60,
+  weapons: {
+    mainHand: {
+      min: 100,
+      max: 187,
+      speed: 2.6,
+      type: "sword",
+    },
+    offHand: {
+      min: 90,
+      max: 168,
+      speed: 2.5,
+      type: "sword",
+    },
+  },
+  poisons: {
+    mainHand: "instant",
+    offHand: "deadly",
+  },
+  rotation: {
+    schemaVersion: 1,
+    name: "Default (Combat)",
+    rules: [
+      {
+        action: "blade-flurry",
+        conditions: [
+          {
+            type: "abilityUnlocked",
+            ability: "blade-flurry",
+          },
+          {
+            type: "cooldownReady",
+            ability: "blade-flurry",
+          },
+          {
+            type: "resource",
+            resource: "energy",
+            op: ">=",
+            value: 25,
+          },
+        ],
+      },
+      {
+        action: "adrenaline-rush",
+        conditions: [
+          {
+            type: "abilityUnlocked",
+            ability: "adrenaline-rush",
+          },
+          {
+            type: "cooldownReady",
+            ability: "adrenaline-rush",
+          },
+        ],
+      },
+      {
+        action: "slice-and-dice",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "auraRemaining",
+            aura: "slice-and-dice",
+            op: "<",
+            value: 1,
+          },
+        ],
+      },
+      {
+        action: "slice-and-dice",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "auraRemaining",
+            aura: "slice-and-dice",
+            op: "<=",
+            value: 5,
+          },
+          {
+            type: "resource",
+            resource: "energy",
+            op: ">=",
+            value: 100,
+          },
+        ],
+      },
+      {
+        action: "cold-blood",
+        conditions: [
+          {
+            type: "abilityGranted",
+            ability: "cold-blood",
+          },
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "auraRemaining",
+            aura: "slice-and-dice",
+            op: ">",
+            value: 10,
+          },
+        ],
+      },
+      {
+        action: "eviscerate",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+        ],
+      },
+      {
+        action: "sinister-strike",
+        conditions: [],
+      },
+    ],
+  },
+});
+
 export const COMBAT_SWORDS_FROZEN = deepFreeze({
   talents: {
     "assassination.malice": 5,

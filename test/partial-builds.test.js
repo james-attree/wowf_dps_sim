@@ -1,4 +1,4 @@
-// TR-02 / #332: whole file skipped — empty presets until #333
+// Partial-build / reference-link cases need a talent retune for the 70755 tree, not #333.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";

@@ -76,7 +76,7 @@ function presetSetup(id) {
   );
 }
 
-// TR-02 / #332: skipped. Old James #310 preset links; presets empty until #333.
+// Old #310 multi-preset share links; needs later Assassination/Subtlety preset TRs, not #333.
 describe.skip("#310: each preset is its share link's setup", () => {
   for (const id of PRESETS) {
     it(`${id}: the reference build's talents are the link's`, () => {

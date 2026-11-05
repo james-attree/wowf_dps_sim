@@ -94,7 +94,7 @@ function backstabWith(talents, procRoll) {
   return h;
 }
 
-// TR-02 / #332: skipped. Cutthroat left the 70755 catalogue; Ambush remapping is a later issue.
+// Needs a talent retune (Cutthroat left the 70755 catalogue; Ambush remapping is a later TR), not #333.ue.
 describe.skip("Cutthroat, Improved Ambush and Initiative read their rank text (#271)", () => {
   it("Cutthroat: a 3/6/9/12/15% Backstab proc that allows Ambush for 10 s", () => {
     const row = k("cutthroat.proc");

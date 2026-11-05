@@ -6,6 +6,7 @@ import {
   ASSASSINATION_DAGGERS_FROZEN,
   SUBTLETY_DAGGERS_FROZEN,
   COMBAT_DAGGERS_FROZEN,
+  DEFAULTS_FROZEN,
 } from "../data/link-bases-frozen.js";
 
 // The short share link's body (#306): version 2 of the build codec's text,
@@ -65,7 +66,12 @@ export const LINK_EDITED_SUFFIX = " (edited)";
 // The bases a link can start from. "defaults" is the page defaults; the
 // others are live presets (preset: its id) until they change.
 export const LINK_BASES = Object.freeze([
-  Object.freeze({ id: "defaults" }),
+  Object.freeze({
+    id: "defaults",
+    // Frozen at TR-03 / #333: page defaults moved to combat-swords-temp.
+    // Old short links that named this base keep the TR-02 empty build.
+    frozen: DEFAULTS_FROZEN,
+  }),
   Object.freeze({
     id: "combat-swords",
     // Frozen at TR-02 / #332: old-era. Not selectable; see data/link-bases-frozen.js.
@@ -85,6 +91,10 @@ export const LINK_BASES = Object.freeze([
     id: "combat-daggers",
     // Frozen at TR-02 / #332: old-era. Not selectable; see data/link-bases-frozen.js.
     frozen: COMBAT_DAGGERS_FROZEN,
+  }),
+  Object.freeze({
+    id: "combat-swords-temp",
+    preset: "combat-swords-temp",
   }),
 ]);
 

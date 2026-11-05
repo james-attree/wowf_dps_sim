@@ -36,7 +36,7 @@ const TALENT = 'button.talent[data-id="assassination.malice"]';
 const TALENT_POINTS = 2;
 const LOW_LEVEL = "10";
 // A rule's condition left empty is a rotation error.
-const RULE = "#rotation/rule/6";
+const RULE = "#rotation/rule/5";
 const CONDITION = "input.cond-value";
 const ALL_NAMED = "3 settings, the talents and the rotation";
 const ALL_COUNTED = "Fix 5 issues";
@@ -112,6 +112,9 @@ async function overCap(page) {
   await go(page, "#character/talents");
   const level = page.locator("#talents-level");
   await level.waitFor({ state: "visible" });
+  // Page defaults spend 51 points (#333); clear them so two Malice ranks
+  // can go over a level-10 cap.
+  await page.locator("#talents-reset").click();
   for (let point = 0; point < TALENT_POINTS; point += 1) {
     const talent = page.locator(TALENT);
     await talent.scrollIntoViewIfNeeded();

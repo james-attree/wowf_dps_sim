@@ -342,7 +342,7 @@ describe("build codec: the share link's address and length (#284)", () => {
 
   // #328: Combat daggers as a card pick puts it in, its whole reference
   // build and rotation, at the longest seed.
-  it.skip("keeps the Combat daggers link, with its reference build, under the test budget (#332: no combat-daggers preset until #333)", () => {
+  it.skip("keeps the Combat daggers link, with its reference build, under the test budget (combat-daggers preset retired; needs a later dagger preset TR, not #333)", () => {
     const build = referenceBuild(COMBAT_DAGGERS);
     const d = setupDefaults();
     const config = loadPreset(COMBAT_DAGGERS, {
@@ -402,7 +402,11 @@ describe("the page's first setup: link, then saved, then defaults (#284, #296)",
   const linked = busySetup();
   const savedSetup = (() => {
     const d = setupDefaults();
-    return { ...d, config: { ...d.config, talentLevel: 30 } };
+    // Empty talents so talentLevel 30 stays legal under the 51-point page default.
+    return {
+      ...d,
+      config: { ...d.config, talents: {}, talentLevel: 30 },
+    };
   })();
   const search = `?${LINK_PARAM}=${encodeSetup(linked)}`;
   const saved = encodeSetup(savedSetup);

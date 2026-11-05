@@ -60,8 +60,8 @@ export const CUSTOM_CHOSEN = "custom";
 
 const CUSTOM_NAME = "Custom";
 const CUSTOM_DETAIL =
-  "Start from scratch: no talents, the default Combat rotation";
-const CUSTOM_SHORT = "No talents";
+  "The page defaults: temporary Combat swords talents and rotation";
+const CUSTOM_SHORT = "16/35/0";
 const EDITED = " · Edited";
 const DOT = " · ";
 

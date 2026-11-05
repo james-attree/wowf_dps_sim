@@ -411,22 +411,22 @@ const sideScroll = (page) =>
   );
 
 // TR-02 / #332: empty presets until #333
-describe.skip("#280: the rotation builder and the race", () => {
+describe("#280: the rotation builder and the race", () => {
   for (const width of WIDTHS) {
     for (const text of TEXT_SIZES) {
       test(`${width} wide at ${text}: racials offered by race, with race copy`, async () => {
         const { context, page, errors } = await open(width, text);
         try {
-          // The default rotation has no rule for it; a preset casts it.
+          // Page defaults are combat-swords-temp (#333), which casts racials.
           await page.locator(RACE).selectOption("orc");
           await page.locator(RACIALS).waitFor({ state: "visible" });
           assert.match(
             clean(await furyLine(page)),
-            /The preset rotations use it on cooldown\. Your rotation has no rule for it, so it isn't used\.$/,
+            /The preset rotations use it on cooldown\. Your rotation casts it\.$/,
           );
           await go(page, "#rotation", ADD);
           assert.ok((await addOptions(page)).includes(FURY));
-          await page.selectOption(PICK, "combat-swords");
+          await page.selectOption(PICK, "combat-swords-temp");
           await page.waitForFunction(() =>
             /not your race/.test(document.body.textContent),
           );

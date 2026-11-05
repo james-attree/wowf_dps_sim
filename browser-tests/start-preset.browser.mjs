@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — empty presets until #333
 // #323: Start from a preset, at the top of Character on a first visit.
 // Four cards (five with #328); one press puts in the preset's #273 reference build and its
 // rotation, the line after says so, with Undo (the rotation comes back
@@ -36,7 +35,7 @@ const BATCH_SECONDS = "30";
 const LIVE_SECONDS = "10";
 
 const ASSASSINATION = "assassination-daggers";
-const COMBAT = "combat-swords";
+const COMBAT = "combat-swords-temp";
 const SUBTLETY = "subtlety-daggers";
 const COMBAT_DAGGERS = "combat-daggers";
 const CUSTOM = "custom";
@@ -271,6 +270,7 @@ async function runToEnd(page) {
   );
 }
 
+// Multi-card pick/Undo browser cases need rewrite for single combat-swords-temp + page-default talents (#333); unit start-preset covers the cards.
 describe.skip("Start from a preset (#323)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {

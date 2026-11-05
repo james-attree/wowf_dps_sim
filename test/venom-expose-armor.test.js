@@ -95,7 +95,7 @@ function cast(h, key, points) {
   return h.rogue.abilities[key].cast(h.rogue, h.simulation);
 }
 
-// TR-02 / #332: skipped. Venom ability effect is pending (talent-effects); Expose Armor preset goldens retired until #333/#TR-11.
+// Needs a talent retune (Venom ability → passive is TR-05 / #334), not #333.
 describe.skip("Venom and Expose Armor as data (#268)", () => {
   it("Venom: a finisher granted by its talent, 25 energy, 9-21 s by CP", () => {
     const entry = ABILITY_DEFINITIONS.find(({ id }) => id === "venom");

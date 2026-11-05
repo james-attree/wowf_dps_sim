@@ -7,16 +7,12 @@ import {
   talentLabel,
 } from "../js/build-label.js";
 import { pageDefaultConfig } from "../js/config-form.js";
-import { referenceBuild } from "../data/reference-build.js";
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { talentCatalogue } from "../js/talents.js";
 import { frozenPresetConfig } from "./frozen-preset.js";
 
 // Issue #154: the build label of the batch results panel (Fran's spec,
 // section 1a and the section 10 checks).
-
-// The page defaults (#152) with the reference talents (16/35/0).
-const reference = () => ({ ...pageDefaultConfig(), talents: referenceBuild() });
 
 describe("buildLabel (#154)", () => {
   it("labels the reference build with the Combat swords preset", () => {
@@ -27,10 +23,10 @@ describe("buildLabel (#154)", () => {
     );
   });
 
-  it("labels the reference build with the default rotation", () => {
+  it("labels the page-default temporary Combat swords build", () => {
     assert.equal(
-      buildLabel(reference()),
-      "Combat 16/35/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
+      buildLabel(pageDefaultConfig()),
+      "Combat 16/35/0 · 51/51 · Combat swords (temporary) · Instant MH, Deadly OH",
     );
   });
 

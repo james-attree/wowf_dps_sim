@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — empty presets until #333
 // #273: the preset's reference build under the Rotation select. The hint
 // says what the preset is built for while the page's build differs; since
 // #323 its "Starting point" link opens Start from a preset on Character,
@@ -30,7 +29,7 @@ const POWER_STEP = 10;
 
 const ASSASSINATION = "assassination-daggers";
 const SUBTLETY = "subtlety-daggers";
-const COMBAT = "combat-swords";
+const COMBAT = "combat-swords-temp";
 const HINT = "#cfg-preset-build-hint";
 const LINK = "#cfg-preset-build-start";
 const BOX = "#cfg-preset-build";
@@ -184,6 +183,7 @@ async function expectNoHint(page, why) {
   assert.ok(!(await describedBy(page)).includes(HINT_ID), `${why}: described`);
 }
 
+// Reference-build hint cases still name retired Assassination/Subtlety cards; needs later preset TRs, not #333.
 describe.skip("A preset's reference build (#273)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {

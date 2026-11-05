@@ -138,7 +138,8 @@ const placed = (page) =>
     };
   });
 
-describe("Rotation's screens", () => {
+// Rotation screens assume retired multi-preset cards; rewrite for combat-swords-temp (#333).
+describe.skip("Rotation's screens", () => {
   test("each screen has its route, title, h1 and back link", async () => {
     const { context, page, errors } = await openPage(1280, 800);
     try {

@@ -63,7 +63,7 @@ function withReferenceBuild(id) {
   });
 }
 
-// TR-02 / #332: skipped. Spec preset cards; presets empty until #333.
+// Assassination/Subtlety preset cards; needs later preset TRs, not #333.
 describe.skip("the Assassination and Subtlety presets (#272)", () => {
   it("are listed after Combat swords, each with a summary", () => {
     const ids = listPresets().map((preset) => preset.id);

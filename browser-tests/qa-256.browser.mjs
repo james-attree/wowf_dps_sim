@@ -1,7 +1,7 @@
 // Fran's design check of PR #256 (qa-256, #244): a repeated condition's
 // warning is said on its field (B1); a sub-screen route with an extra part
 // is normalised in place (P-b); the talent trees' headings read "Assassination,
-// 0 points", with the effects blocks a level below a heading of their own
+// 16 points", with the effects blocks a level below a heading of their own
 // (P-d); the poison selects are named by hand (P-e). What a screen reader is
 // given comes from Chrome's accessibility tree. Fonts are pinned to DejaVu
 // Sans, CI's. `npm run test:browser`; Chrome as in the other files.
@@ -172,11 +172,12 @@ for (const width of [WIDE, PHONE]) {
     test("P-d: the talent headings read 'Tree, N points'; the effects are h3s", async () => {
       const { context, page, errors } = await open(width, "#character/talents");
       try {
-        const head = page.locator("#talents-tree-h-assassination");
+        // Page defaults are Combat 16/35/0 (#333); Combat is the open tab.
+        const head = page.locator("#talents-tree-h-combat");
         await head.waitFor({ state: "visible" });
         assert.equal(
-          (await axOf(page, "#talents-tree-h-assassination")).name,
-          "Assassination, 0 points",
+          (await axOf(page, "#talents-tree-h-combat")).name,
+          "Combat, 35 points",
         );
         const outline = await page.evaluate(() =>
           [

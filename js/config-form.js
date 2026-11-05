@@ -6,7 +6,11 @@ import { defaultRotation } from "./rotation-default.js";
 import { exportRotation, importRotation } from "./rotation-io.js";
 import { poisonCatalogue } from "./poisons.js";
 import { raceCatalogue, racialStatus } from "./racials.js";
-import { listPresets, presetRotation } from "./rotation-presets.js";
+import {
+  listPresets,
+  presetRotation,
+  referenceBuild,
+} from "./rotation-presets.js";
 import { placeText } from "./rotation-builder-copy.js";
 import { draftRotation } from "./rotation-edit.js";
 import { skipOf, talentState } from "./rotation-skips.js";
@@ -258,13 +262,23 @@ function pairedMin(path) {
   return path.endsWith(".max") ? path.replace(/\.max$/, ".min") : null;
 }
 
-// The config the page starts with and Reset restores: defaultConfig() with
-// the page's poisons (#152, Scout: Instant on the main hand, Deadly on the off
-// hand). The engine's default keeps no poisons, so goldens do not move.
+// The config the page starts with and Reset restores: James's temporary
+// Combat swords preset (TR-03 / #333) — talents, weapons, Instant MH / Deadly
+// OH poisons, and its rotation. Race is left unset (the preset does not set
+// one). The engine's defaultConfig() keeps empty talents and no poisons so
+// engine goldens that omit a config stay put.
 export function pageDefaultConfig() {
+  const build = referenceBuild("combat-swords-temp");
   return fromBehind({
     ...defaultConfig(),
-    poisons: { ...k("ui.pageDefaultPoisons") },
+    talents: { ...build.talents },
+    talentLevel: build.talentLevel,
+    weapons: {
+      mainHand: { ...build.weapons.mainHand },
+      offHand: { ...build.weapons.offHand },
+    },
+    poisons: { ...build.poisons },
+    rotation: presetRotation("combat-swords-temp"),
   });
 }
 

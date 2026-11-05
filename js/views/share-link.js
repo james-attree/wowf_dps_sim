@@ -14,7 +14,7 @@
 // names fields a save soft-reset (#326). It sits under the shown area's h1
 // until dismissed. "newer" is a warning, styled apart from "loaded" by
 // data-notice (styles.css). Damaged / garbage links are silent (Scout on
-// #332); NOTICES.corrupt is kept only so an old caller still has copy.
+// #332); the corrupt notice string was removed in #333 (Kira N1 on #344).
 
 import { talentErrorCount } from "./run-model.js";
 
@@ -34,8 +34,6 @@ export const NOTICES = Object.freeze({
   loaded: "Loaded a shared build. Press Run to see its DPS.",
   newer:
     "This link is from a newer version. Nothing was loaded; update the page and try again.",
-  corrupt:
-    "This link is damaged. Nothing was loaded; the build on the page is unchanged.",
 });
 
 // A setup read with some fields put back to their defaults (#326, item

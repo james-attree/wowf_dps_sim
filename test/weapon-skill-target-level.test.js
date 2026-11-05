@@ -83,6 +83,9 @@ describe("the bounds are the engine's (#318)", () => {
       () =>
         normalizeConfig({
           ...pageDefaultConfig(),
+          // Page defaults spend 51 points (#333); empty talents when the
+          // level can't hold them so the weapon-skill bounds stay in view.
+          talents: talentLevel < MAX_LEVEL ? {} : pageDefaultConfig().talents,
           talentLevel,
           character: { ...pageDefaultConfig().character, weaponSkill },
         });
@@ -333,9 +336,11 @@ describe("the form: blank is the default (#318)", () => {
 });
 
 describe("the level moves the weapon skill's cap (#318)", () => {
+  // Page defaults spend 51 points (#333); clear them before dropping level.
   it("a lower level follows: the blank and the cap move with it", () => {
     const { store } = setup();
     const tree = createTalentTree(store);
+    tree.resetAll();
     tree.setLevel(String(LOW_LEVEL));
     assert.equal(store.get().config.talentLevel, LOW_LEVEL);
     assert.equal(store.get().form.levels.weaponSkill.blank, 200);
@@ -347,6 +352,7 @@ describe("the level moves the weapon skill's cap (#318)", () => {
   it("a typed skill over the lower level's cap is an error and blocks Run, and is fine again back at 60", () => {
     const { store, actions } = setup();
     const tree = createTalentTree(store);
+    tree.resetAll();
     actions.change(SKILL, 350);
     assert.doesNotThrow(() => tree.setLevel(String(LOW_LEVEL)));
     assert.equal(store.get().config.talentLevel, LOW_LEVEL);
@@ -371,6 +377,7 @@ describe("the level moves the weapon skill's cap (#318)", () => {
   it("a typed target level stays fixed through a level change, and so does 350 once back at 60", () => {
     const { store, actions } = setup();
     const tree = createTalentTree(store);
+    tree.resetAll();
     actions.change(SKILL, 350);
     actions.change(TARGET, 62);
     for (const level of [LOW_LEVEL, MAX_LEVEL]) {
@@ -384,6 +391,7 @@ describe("the level moves the weapon skill's cap (#318)", () => {
   it("a typed skill under the lower cap stays as typed", () => {
     const { store, actions } = setup();
     const tree = createTalentTree(store);
+    tree.resetAll();
     actions.change(SKILL, 240);
     tree.setLevel(String(LOW_LEVEL));
     assert.equal(store.get().config.character.weaponSkill, 240);

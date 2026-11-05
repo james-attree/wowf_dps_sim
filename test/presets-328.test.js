@@ -53,7 +53,7 @@ function presetSetup() {
   );
 }
 
-// TR-02 / #332: skipped. Preset seed buttons; presets empty until #333.
+// Combat daggers (#328) retired with the 70755 scrap; needs a later dagger preset TR, not #333.
 describe.skip("#328: Combat daggers is James's link's setup", () => {
   it("the reference build's talents and level are the link's: 16/33/2, 51 points", () => {
     const build = referenceBuild(COMBAT_DAGGERS);
