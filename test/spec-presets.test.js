@@ -63,7 +63,8 @@ function withReferenceBuild(id) {
   });
 }
 
-describe("the Assassination and Subtlety presets (#272)", () => {
+// TR-02 / #332: skipped. Spec preset cards; presets empty until #333.
+describe.skip("the Assassination and Subtlety presets (#272)", () => {
   it("are listed after Combat swords, each with a summary", () => {
     const ids = listPresets().map((preset) => preset.id);
     assert.deepEqual(ids, [
@@ -240,7 +241,7 @@ describe("the Assassination and Subtlety presets (#272)", () => {
   });
 });
 
-describe("the preset reference builds (#272, for #273)", () => {
+describe.skip("the preset reference builds (#272, for #273)", () => {
   it("has one for each of the three presets (James's decision, relayed by Scout)", () => {
     assert.deepEqual(
       Object.keys(PRESET_REFERENCE_BUILDS).sort(),

@@ -56,11 +56,12 @@ export function decodeBuildLink(link, catalogue = talentCatalogue) {
   return { className, level: Number(level), ranks };
 }
 
-// The reference build: Assassination 18, Combat 33, Subtlety 0 (the link in
-// issue #106). It is a legal 51-point build, and every talent in it has an
-// entry in data/talent-effects.js.
+// The interim reference build after TR-02 / #332: James's temporary Combat
+// swords talents (Assassination 16 / Combat 35 / Subtlety 0) from the 70755
+// tree. The selectable preset itself is TR-03 / #333; until then this is the
+// shared talent map for tests and benches that need a legal 51-point build.
 export const REFERENCE_LINK =
-  "https://talentsforever.com/rogue/60/00530310501-32030320201515231--CD1FDGISRUWZXbc4defg2hgcK-8?b=70425h&d=261026";
+  "https://talentsforever.com/rogue/60/005303212-3203032002012321551--SRUWaXcdeghijfCDFIHG-12?b=70755h&d=261105";
 
 // The reference build as a SimConfig talent map: { talent id: rank } with the
 // zero ranks left out, the form config.talents takes.

@@ -26,24 +26,27 @@ const SEAL_FATE = "assassination.seal-fate";
 // nothing to a strike's roll: Cold Blood only grants its ability, Improved
 // Expose Armor is not mapped yet, and the rest are finisher, poison or no-DPS
 // talents (Murder is inert while the target's mobType is unspecified).
+// 70755: Murder gone. Row 7 needs 30 points on rows 1–6 (talents.rowGating).
 const ROWS_ABOVE = {
   "assassination.improved-gouge": 3,
   "assassination.remorseless-attacks": 2,
-  "assassination.murder": 2,
-  "assassination.improved-slice-and-dice": 3,
+  "assassination.malice": 5,
   "assassination.ruthlessness": 3,
-  "assassination.relentless-strikes": 1,
-  "assassination.improved-expose-armor": 1,
+  "assassination.improved-expose-armor": 2,
+  "assassination.improved-slice-and-dice": 3,
+  "assassination.vigor": 2,
+  "assassination.lethality": 2,
   "assassination.vile-poisons": 5,
   "assassination.cold-blood": 1,
+  "assassination.improved-poisons": 1,
+  "assassination.venom": 1,
 };
 const TALENTED = { ...ROWS_ABOVE, [MUTILATE]: 1 };
-// The 5 more Seal Fate's row needs: Vigor and Improved Kidney Shot.
+// Seal Fate row 6 needs 25 above; max rank is 3 at 70755.
 const SEAL_FATE_BUILD = {
   ...TALENTED,
-  "assassination.vigor": 2,
   "assassination.improved-kidney-shot": 2,
-  [SEAL_FATE]: 5,
+  [SEAL_FATE]: 3,
 };
 const HIT = 0.99;
 const NO_CRIT = 0.99;
@@ -99,7 +102,7 @@ function harness(
   };
 }
 
-// (weapon roll + AP bonus at the dagger's normalized speed + 38) × 0.75.
+// (weapon roll + AP bonus at the dagger's normalized speed + 71) × 0.9.
 function expected(rogue, hand, roll) {
   const weapon = rogue.weapons[hand];
   const die =
@@ -154,20 +157,20 @@ describe("Mutilate as data (#267)", () => {
     assert.equal(entry.damage.kind, "bothHands");
   });
 
-  it("reads 60 energy, 2 CP, 75% and +38 from the export's Rank 4 row", () => {
+  it("reads 60 energy, 2 CP, 90% and +71 from the export's Rank 3 row", () => {
     const row = k("mutilate");
     const spell = abilityCatalogue.get("mutilate");
     assert.equal(row.energy, spell.cost.amount);
     assert.equal(row.energy, 60);
     assert.equal(row.comboPoints, 2);
-    assert.equal(row.weaponMultiplier, 0.75);
-    assert.equal(row.bonusDamage, 38);
+    assert.equal(row.weaponMultiplier, 0.9);
+    assert.equal(row.bonusDamage, 71);
     assert.equal(row.cooldown, 0);
     assert.equal(CONSTANTS.mutilate.source, "wowf-export");
     assert.equal(row.poisonedMultiplier, 1.2);
     assert.match(
       spell.text,
-      /75% weapon damage plus an additional 38 with each weapon\. Damage increased by 20% against Poisoned targets\. Awards 2 Combo Points\./,
+      /90% weapon damage plus an additional 71 with each weapon\. Damage increased by 20% against Poisoned targets\. Awards 2 Combo Points\./,
     );
   });
 
@@ -252,7 +255,7 @@ describe("A2: needs a dagger in both hands; otherwise passed over, no warning", 
   });
 });
 
-describe("A3: per hand (weapon + 38) × 0.75, no off-hand penalty", () => {
+describe("A3: per hand (weapon + 71) × 0.9, no off-hand penalty", () => {
   it("gives each hand's exact damage at a fixed roll", () => {
     const { rogue, simulation, strikes, mutilate } = harness(
       scripted([HIT, LOW, NO_CRIT, HIT, TOP, NO_CRIT]).rng,
@@ -374,7 +377,7 @@ describe("A6: 2 CP, Seal Fate at most 1 more, capped at 5", () => {
     return { rogue, simulation, strikes };
   }
 
-  it("a double crit with Seal Fate 5/5 gives 3 CP, and Seal Fate rolls once", () => {
+  it("a double crit with Seal Fate 3/3 gives 3 CP, and Seal Fate rolls once", () => {
     const { rogue, simulation, strikes } = doubleCrit(0, SEAL_FATE_BUILD);
     assert.deepEqual(
       strikes.map((strike) => strike.outcome),

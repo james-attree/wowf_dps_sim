@@ -1,3 +1,4 @@
+import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { isEditedChoice } from "./config-form.js";
 import {
@@ -160,7 +161,10 @@ export function leadText(presets = listPresets()) {
   const levels = presets
     .map(({ id }) => referenceBuild(id)?.talentLevel)
     .filter((level) => Number.isFinite(level));
-  const level = Math.max(...levels);
+  // TR-02 / #332: no selectable presets until #333; fall back to the page
+  // default level so the Custom-only start screen still reads sensibly.
+  const level =
+    levels.length === 0 ? k("character.level") : Math.max(...levels);
   return `Each sets talents, weapons, poisons and the rotation for a level${"\u00a0"}${level} rogue.`;
 }
 

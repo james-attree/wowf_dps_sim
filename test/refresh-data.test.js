@@ -746,9 +746,9 @@ describe("vendored snapshot", () => {
     assert.equal(snapshotText, await formatSnapshot(data));
     assert.equal(manifestText, await formatSnapshot(manifest));
     assertSnapshot(data);
-    // #276 (P5-01): the export as fetched on 2 Nov 2026, client 1.60.1.70630.
-    assert.equal(data.generated, "2026-10-30");
-    assert.equal(data.spellbook.build, "1.60.1.70630");
+    // #332 (TR-02): the export as fetched for 1.60.1.70755.
+    assert.equal(data.generated, "2026-11-04");
+    assert.equal(data.spellbook.build, "1.60.1.70755");
     assert.match(data._readme, /talentsforever\.com/);
     assert.match(data._readme, /CC BY 4\.0/);
     assert.equal(manifest.source, EXPORT_URL);
@@ -760,7 +760,7 @@ describe("vendored snapshot", () => {
     assert.equal(findDuplicateKey(snapshotText), null);
     assert.equal(manifest.generated, data.generated);
     assert.equal(manifest.build, data.spellbook.build);
-    assert.equal(manifest.fetched, "2026-11-02");
+    assert.equal(manifest.fetched, "2026-11-05");
 
     const trees = data.talents.trees.map((tree) => tree.name);
     assert.deepEqual(trees, ["Assassination", "Combat", "Subtlety"]);
@@ -775,7 +775,7 @@ describe("vendored snapshot", () => {
     assert.equal(poisons.has("Rogue|Instant Poison|Rank 6"), true);
     assert.equal(poisons.has("Rogue|Deadly Poison|Rank 5"), true);
     assert.equal(poisons.has("Rogue|Blinding Powder|"), true);
-    assert.equal(spells.has("Rogue|Venom|"), true);
+    assert.equal(spells.has("Rogue|Venom|"), false); // #332: Venom pending, not in 70755 export as a castable Rogue|Venom|
 
     const diff = diffSnapshot(data, data);
     assert.deepEqual(diff.talents.added, []);
@@ -799,7 +799,11 @@ describe("vendored snapshot", () => {
     const data = JSON.parse(await readFile(DEFAULT_SNAPSHOT_PATH, "utf8"));
     const manifest = JSON.parse(await readFile(DEFAULT_MANIFEST_PATH, "utf8"));
     assert.equal(readBuild(data), manifest.build);
-    assert.ok(data.talents.source.endsWith(`build ${manifest.build}.`));
+    // #332: talent source names the build, then notes hotfixes ahead of the files.
+    assert.match(
+      data.talents.source,
+      new RegExp(`build ${manifest.build.replaceAll(".", "\\.")}`),
+    );
     const builds = new Set();
     for (const entry of Object.values(data.spell_desc)) {
       const match = /^beta client (\d+(?:\.\d+)+)$/.exec(entry?.src ?? "");

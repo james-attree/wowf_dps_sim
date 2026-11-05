@@ -373,7 +373,7 @@ describe("changes apply to the next run", () => {
 describe("talents: the talent tree owns the build (#204)", () => {
   // A build the old select did not offer: a partial Combat build at level 40.
   const custom = () => ({
-    "combat.improved-sinister-strike": 2,
+    "combat.efficient-strikes": 2,
     "combat.precision": 3,
   });
 
@@ -450,7 +450,8 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(form().rotationOptions[0].label, defaultRotation().name);
   });
 
-  it("choosing a preset writes config.rotation and the summary", () => {
+  // TR-02 / #332: empty presets until #333
+  it.skip("choosing a preset writes config.rotation and the summary", () => {
     const { store, actions, form } = setup();
     const [preset] = listPresets();
     actions.chooseRotation(preset.id);
@@ -463,7 +464,8 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(form().summary.name, defaultRotation().name);
   });
 
-  it("export gives exportRotation of the selected rotation, with a file name", () => {
+  // TR-02 / #332: empty presets until #333
+  it.skip("export gives exportRotation of the selected rotation, with a file name", () => {
     const { actions } = setup();
     const [preset] = listPresets();
     actions.chooseRotation(preset.id);
@@ -472,7 +474,8 @@ describe("rotation: one source of truth, config.rotation", () => {
     assert.equal(file.fileName, `${preset.id}.json`);
   });
 
-  it("a good import becomes the selected 'Imported: <name>' choice", () => {
+  // TR-02 / #332: empty presets until #333
+  it.skip("a good import becomes the selected 'Imported: <name>' choice", () => {
     const { store, actions, form } = setup();
     const rotation = {
       ...presetRotation(listPresets()[0].id),
@@ -876,7 +879,8 @@ describe("a field typed in is checked again before it is used (#247)", () => {
     assert.equal(store.get().form, before);
   });
 
-  it("any commit checks the typed fields too, not only the one changed", () => {
+  // TR-02 / #332: empty presets until #333
+  it.skip("any commit checks the typed fields too, not only the one changed", () => {
     const { actions, form, config } = repro();
     const stale = config();
     const other = form().rotationOptions.find(

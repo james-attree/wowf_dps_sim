@@ -1,10 +1,13 @@
 // #326 (Phase 5): the launch polish from #287, on the page, at 100% and
 // 150% text and 320 to 1440 wide, with DejaVu pinned as CI has it. The
-// copy and models are test/launch-polish-326.test.js's.
+// copy and models are test/launch-polish-326.test.js's. Items that need
+// rotation presets stay skipped until #333; copy-link / soft-reset /
+// racials that do not are live (Kira P2 on #344).
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
 import { startStaticServer } from "../scripts/serve.mjs";
+import { SETUP_ERA } from "../js/build-codec.js";
 
 const PINNED_FONT = "DejaVu Sans";
 const TEXT_SIZES = ["100%", "150%"];
@@ -112,11 +115,13 @@ const savedWith = (payload) => ({
   },
   arg: [
     SETUP_KEY,
-    `1.${Buffer.from(JSON.stringify(payload)).toString("base64url")}`,
+    `1.${Buffer.from(JSON.stringify({ era: SETUP_ERA, ...payload })).toString(
+      "base64url",
+    )}`,
   ],
 });
 
-describe("#326 item 1: a touch Fix shows its field above the dock", () => {
+describe.skip("#326 item 1: a touch Fix shows its field above the dock", () => {
   for (const text of TEXT_SIZES) {
     for (const [field, area, value] of [
       [SKILL, "#character/stats", "351"],
@@ -155,7 +160,7 @@ describe("#326 item 1: a touch Fix shows its field above the dock", () => {
   }
 });
 
-describe("#326 item 2: the area labels keep to one line with a badge", () => {
+describe.skip("#326 item 2: the area labels keep to one line with a badge", () => {
   for (const width of NARROW) {
     for (const text of TEXT_SIZES) {
       test(`${width} wide, ${text} text`, async () => {
@@ -180,7 +185,7 @@ describe("#326 item 2: the area labels keep to one line with a badge", () => {
   }
 });
 
-describe("#326 item 3: the fix list keeps the Fight's target last", () => {
+describe.skip("#326 item 3: the fix list keeps the Fight's target last", () => {
   test("stats, gear, run fields, then the target", async () => {
     const session = await open(1024, "100%", "#character/stats");
     const { page } = session;
@@ -203,7 +208,7 @@ describe("#326 item 3: the fix list keeps the Fight's target last", () => {
   });
 });
 
-describe("#326 item 4: the preset cards are never three and one", () => {
+describe.skip("#326 item 4: the preset cards are never three and one", () => {
   for (const width of WIDE) {
     for (const text of TEXT_SIZES) {
       test(`${width} wide, ${text} text`, async () => {
@@ -222,7 +227,7 @@ describe("#326 item 4: the preset cards are never three and one", () => {
   }
 });
 
-describe("#326 items 5 and 8: Reset and Undo, both values, and focus", () => {
+describe.skip("#326 items 5 and 8: Reset and Undo, both values, and focus", () => {
   for (const text of TEXT_SIZES) {
     test(`${text} text`, async () => {
       const session = await open(1024, text, "#fight");
@@ -253,7 +258,7 @@ describe("#326 items 5 and 8: Reset and Undo, both values, and focus", () => {
   }
 });
 
-describe("#326 item 7: a first pick names the whole build, a re-pick what changed", () => {
+describe.skip("#326 item 7: a first pick names the whole build, a re-pick what changed", () => {
   test("the line, and the announcement the same", async () => {
     const session = await open(1024, "100%", "#character/start");
     const { page } = session;
@@ -350,7 +355,8 @@ describe("#326 items 9 to 12: Copy link", () => {
     await done(session);
   });
 
-  test("item 9: the note goes when a card from Character fixes the talents", async () => {
+  // Needs combat-swords start card until #333 restores presets.
+  test.skip("item 9: the note goes when a card from Character fixes the talents", async () => {
     const session = await open(1280, "100%", "#character/talents");
     const { page } = session;
     await overCapNote(page);
@@ -367,7 +373,9 @@ describe("#326 items 9 to 12: Copy link", () => {
   });
 
   test("item 10: Dismiss puts focus on the area's title", async () => {
-    const session = await open(1024, "100%", "?s=1.e30#character");
+    // Scout on #332: a damaged body is silent; a newer-version link still
+    // banners, which is what Dismiss needs here.
+    const session = await open(1024, "100%", "?s=2.e30#character");
     const { page } = session;
     await page.locator("#share-banner-close").focus();
     await page.keyboard.press("Enter");
@@ -489,14 +497,22 @@ describe("#326 item 13: a save's unreadable field is named", () => {
   });
 });
 
+// Presets empty until #333: grant Blood Fury as an orc, then change race so
+// the same rule shows as a disabled "Orc racial" (Kira P2 on #344). A save
+// with that racial is refused whole by the live catalogue.
 describe("#326 item 14: a racial the race can't cast shows in its rule", () => {
   for (const width of [320, 1024]) {
-    test(`Combat's rule 1 at ${width} wide`, async () => {
-      const session = await open(width, "100%", "#rotation");
+    test(`Blood Fury as rule 1 at ${width} wide`, async () => {
+      const session = await open(width, "100%", "#character/stats");
       const { page } = session;
-      await page.selectOption("#cfg-rotation", "combat-swords");
+      await page.locator("#cfg-race").selectOption("orc");
       await go(page, "#rotation/rule/1");
       const select = page.locator(".rule-action select");
+      await select.waitFor();
+      await select.selectOption("blood-fury");
+      await go(page, "#character/stats");
+      await page.locator("#cfg-race").selectOption("human");
+      await go(page, "#rotation/rule/1");
       await select.waitFor();
       const shown = await select.evaluate((node) => ({
         value: node.value,

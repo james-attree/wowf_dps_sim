@@ -242,7 +242,7 @@ describe("talent tree view (#204)", () => {
   it("builds three trees of tiles, one tab stop each, with accessible names", () => {
     const { doc } = page();
     const tiles = doc.body.findAll((node) => node.getAttribute("data-id"));
-    assert.equal(tiles.length, 53);
+    assert.equal(tiles.length, 54);
     const stops = tiles.filter((node) => node.getAttribute("tabindex") === "0");
     assert.equal(stops.length, 3);
     const grids = doc.body.findAll(
@@ -265,7 +265,7 @@ describe("talent tree view (#204)", () => {
 
   it("adds with a click or Enter and removes with − or Shift+click; focus stays", () => {
     const { tile, store, $, doc } = page();
-    const id = "combat.improved-sinister-strike";
+    const id = "combat.efficient-strikes";
     const node = tile(id);
     node.focus();
     assert.equal(store.get().talents.selected, id);
@@ -279,7 +279,7 @@ describe("talent tree view (#204)", () => {
     assert.match(node.getAttribute("class"), /\bis-maxed\b/);
     assert.equal(
       $("talents-live").textContent,
-      "Improved Sinister Strike 2/2. Combat 2 points. 2 of 51 spent, 49 left.",
+      "Efficient Strikes 2/2. Combat 2 points. 2 of 51 spent, 49 left.",
     );
     node.dispatch("keydown", { key: "-" });
     assert.equal(store.get().config.talents[id], 1);
@@ -295,7 +295,7 @@ describe("talent tree view (#204)", () => {
     // redraw rebuilt the tile, and the icon under the pointer was detached
     // between mousedown and mouseup. The tile's nodes must stay put.
     const { tile, store } = page();
-    const id = "combat.improved-sinister-strike";
+    const id = "combat.efficient-strikes";
     const node = tile(id);
     const [image, ...badges] = node.childNodes;
     assert.equal(image.tagName, "IMG");
@@ -322,7 +322,7 @@ describe("talent tree view (#204)", () => {
 
   it("moves the roving tab stop with the arrow keys", () => {
     const { tile, doc } = page();
-    const first = tile("combat.improved-eviscerate");
+    const first = tile("combat.coup-de-grace");
     first.focus();
     const event = first.dispatch("keydown", { key: "ArrowRight" });
     assert.equal(event.defaultPrevented, true);
@@ -405,7 +405,7 @@ describe("talent tree view (#204)", () => {
     const add = detail.find((node) => node.getAttribute("data-step") === "add");
     assert.equal(add.getAttribute("aria-disabled"), "true");
     assert.equal(add.getAttribute("aria-label"), "Add a point to Lethality");
-    tile("combat.improved-sinister-strike").focus();
+    tile("combat.efficient-strikes").focus();
     const plus = $("talents-detail").find(
       (node) => node.getAttribute("data-step") === "add",
     );
@@ -450,7 +450,7 @@ describe("talent tree view (#204)", () => {
     const full = page();
     assert.equal(
       full.doc.body.findAll((node) => node.getAttribute("data-id")).length,
-      53,
+      54,
     );
     assert.deepEqual(legendText(full.$), shared);
     assert.ok(

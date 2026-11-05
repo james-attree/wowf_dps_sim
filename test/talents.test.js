@@ -63,22 +63,22 @@ describe("slugify", () => {
 });
 
 describe("talent catalogue from the vendored snapshot", () => {
-  it("has 53 talents: 17 Assassination, 17 Combat, 19 Subtlety", () => {
-    assert.equal(talentCatalogue.talents.length, 53);
+  it("has 54 talents: 17 Assassination, 19 Combat, 18 Subtlety (#332 / 70755)", () => {
+    assert.equal(talentCatalogue.talents.length, 54);
     assert.deepEqual(
       talentCatalogue.trees.map((tree) => [tree.id, tree.talents.length]),
       [
         ["assassination", 17],
-        ["combat", 17],
-        ["subtlety", 19],
+        ["combat", 19],
+        ["subtlety", 18],
       ],
     );
     assert.deepEqual(
       talentCatalogue.trees.map((tree) => tree.name),
       ["Assassination", "Combat", "Subtlety"],
     );
-    assert.equal(talentCatalogue.byTree("combat").length, 17);
-    assert.equal(talentCatalogue.byTree("subtlety").length, 19);
+    assert.equal(talentCatalogue.byTree("combat").length, 19);
+    assert.equal(talentCatalogue.byTree("subtlety").length, 18);
   });
 
   it("gives every talent a unique tree.slug id", () => {
@@ -132,15 +132,15 @@ describe("talent catalogue from the vendored snapshot", () => {
     const dws = talentCatalogue.get("combat.dual-wield-specialization");
     assert.equal(dws.tree, "combat");
     assert.equal(dws.name, "Dual Wield Specialization");
-    assert.deepEqual([dws.row, dws.col, dws.max], [4, 3, 5]);
-    assert.equal(dws.req, "combat.precision");
+    assert.deepEqual([dws.row, dws.col, dws.max], [5, 1, 2]);
+    assert.equal(dws.req, null);
     assert.equal(dws.icon, "ability_dualwield");
-    assert.equal(dws.ranks.length, 5);
+    assert.equal(dws.ranks.length, 2);
     assert.equal(
-      talentCatalogue.rankText("combat.dual-wield-specialization", 5),
+      talentCatalogue.rankText("combat.dual-wield-specialization", 2),
       snapshot.talents.trees[1].talents.find(
         (talent) => talent.name === "Dual Wield Specialization",
-      ).desc[4],
+      ).desc[1],
     );
 
     const precision = talentCatalogue.get("combat.precision");
@@ -156,19 +156,19 @@ describe("talent catalogue from the vendored snapshot", () => {
 
     const ar = talentCatalogue.get("combat.adrenaline-rush");
     assert.deepEqual([ar.row, ar.col, ar.max], [7, 2, 1]);
-    assert.equal(ar.req, null);
+    assert.equal(ar.req, "combat.blade-flurry");
 
     const lethality = talentCatalogue.get("assassination.lethality");
     assert.equal(lethality.req, "assassination.malice");
-    assert.equal(lethality.max, 5);
+    assert.equal(lethality.max, 2);
 
     const hemorrhage = talentCatalogue.get("subtlety.hemorrhage");
     assert.equal(hemorrhage.req, "subtlety.serrated-blades");
     assert.deepEqual([hemorrhage.row, hemorrhage.col], [5, 3]);
 
     assert.match(
-      talentCatalogue.rankText("combat.improved-sinister-strike", 2),
-      /Energy cost of your Sinister Strike ability by 5\./,
+      talentCatalogue.rankText("combat.efficient-strikes", 2),
+      /Energy cost of your Sinister Strike/,
     );
   });
 
@@ -239,7 +239,7 @@ describe("talent catalogue from the vendored snapshot", () => {
     assert.throws(() => {
       talentCatalogue.get = () => undefined;
     }, TypeError);
-    assert.equal(talentCatalogue.talents.length, 53);
+    assert.equal(talentCatalogue.talents.length, 54);
   });
 
   it("refuses a name that is not a string, and trims one that is", () => {
@@ -272,14 +272,14 @@ describe("talent catalogue from the vendored snapshot", () => {
     const catalogue = buildTalentCatalogue(copy);
     copy.talents.trees[1].talents[0].desc[0] = "changed";
     assert.equal(
-      catalogue.get("combat.improved-eviscerate").ranks[0],
+      catalogue.get("combat.coup-de-grace").ranks[0],
       snapshot.talents.trees[1].talents[0].desc[0],
     );
   });
 });
 
-// Adrenaline Rush has no `req` in the snapshot, and that is legitimate: it is a
-// row 7 talent with no prerequisite. A missing `req` is not an error.
+// Adrenaline Rush requires Blade Flurry at 70755 (#332). A missing `req` is
+// still legitimate for other talents; the catalogue allows either.
 
 function outlaw(...talents) {
   return fixture([{ name: "Outlaw", icon: "i", talents }]);
@@ -288,7 +288,10 @@ function outlaw(...talents) {
 describe("buildTalentCatalogue load-time validation (D11)", () => {
   it("loads the vendored snapshot, which passes every check", () => {
     assert.doesNotThrow(() => buildTalentCatalogue(snapshot));
-    assert.equal(talentCatalogue.get("combat.adrenaline-rush").req, null);
+    assert.equal(
+      talentCatalogue.get("combat.adrenaline-rush").req,
+      "combat.blade-flurry",
+    );
   });
 
   it("rejects a bad or missing name", () => {

@@ -7,30 +7,30 @@ import {
   talentLabel,
 } from "../js/build-label.js";
 import { pageDefaultConfig } from "../js/config-form.js";
-import { loadPreset } from "../js/rotation-presets.js";
 import { referenceBuild } from "../data/reference-build.js";
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { talentCatalogue } from "../js/talents.js";
+import { frozenPresetConfig } from "./frozen-preset.js";
 
 // Issue #154: the build label of the batch results panel (Fran's spec,
 // section 1a and the section 10 checks).
 
-// The page defaults (#152) with the reference talents (18/33/0).
+// The page defaults (#152) with the reference talents (16/35/0).
 const reference = () => ({ ...pageDefaultConfig(), talents: referenceBuild() });
 
 describe("buildLabel (#154)", () => {
   it("labels the reference build with the Combat swords preset", () => {
-    const config = loadPreset("combat-swords", reference());
+    const config = frozenPresetConfig("combat-swords");
     assert.equal(
       buildLabel(config),
-      "Combat 18/33/0 · 51/51 · Combat swords · Instant MH, Deadly OH",
+      "Combat 16/35/0 · 51/51 · Combat swords · Deadly MH, Instant OH",
     );
   });
 
   it("labels the reference build with the default rotation", () => {
     assert.equal(
       buildLabel(reference()),
-      "Combat 18/33/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
+      "Combat 16/35/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
     );
   });
 
@@ -79,7 +79,7 @@ describe("buildLabel (#154)", () => {
 
 describe("the talents part of the label (#204, Fran's U6 spec D17 and section 6)", () => {
   const combat = {
-    "combat.improved-sinister-strike": 2,
+    "combat.efficient-strikes": 2,
     "combat.lightning-reflexes": 5,
   };
   it("shows the level only below 60, before the points", () => {

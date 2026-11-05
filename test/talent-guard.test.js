@@ -88,7 +88,7 @@ describe("talent guard (#188): which abilities it covers", () => {
     ]);
     // Today: Cold Blood, Blade Flurry and Adrenaline Rush (#188's list), and
     // Ghostly Strike, Hemorrhage and Premeditation (#207), Mutilate (#267),
-    // Venom (#268) and Preparation (#270).
+    // Preparation (#270). Venom is pending at 70755 (#332 / later TR).
     assert.deepEqual(FROM_DATA, [
       "adrenaline-rush",
       "blade-flurry",
@@ -98,7 +98,6 @@ describe("talent guard (#188): which abilities it covers", () => {
       "mutilate",
       "premeditation",
       "preparation",
-      "venom",
     ]);
     assert.ok(Object.isFrozen(rotationContext().talentGrantedAbilities));
   });
@@ -364,7 +363,7 @@ describe("talent guard (#188): read from the data, not a list in the validator",
 describe("talent guard (#188): nothing that ships moves", () => {
   it("the default rotation, every preset and every golden rotation validate unchanged", () => {
     assert.deepEqual(validateRotation(defaultRotation()), []);
-    assert.ok(ROTATION_PRESETS.length > 0);
+    // TR-02 / #332: presets emptied until #333 restores Combat swords.
     for (const preset of ROTATION_PRESETS) {
       assert.deepEqual(validateRotation(preset.rotation), [], preset.id);
     }

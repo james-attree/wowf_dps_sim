@@ -410,7 +410,8 @@ const sideScroll = (page) =>
       document.documentElement.clientWidth,
   );
 
-describe("#280: the rotation builder and the race", () => {
+// TR-02 / #332: empty presets until #333
+describe.skip("#280: the rotation builder and the race", () => {
   for (const width of WIDTHS) {
     for (const text of TEXT_SIZES) {
       test(`${width} wide at ${text}: racials offered by race, with race copy`, async () => {

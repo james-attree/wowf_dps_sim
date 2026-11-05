@@ -1,10 +1,12 @@
-// #331 (TR-01): an invalid old link or saved setup loads the new default.
-// James 5 Nov 2026: no migration, no migration notice. Catalogue failures
-// (unknown talent, rank over max, row gates / prerequisites, unknown
-// rotation action, or a setup era older than SETUP_ERA) discard the whole
-// setup. Until TR-03's temporary Combat swords preset lands, the default is
-// pageDefaultConfig (setupDefaults). Soft field errors (armour, run, …) still
-// recover section by section in a save (#326).
+// #331 (TR-01) / #332: an invalid old link or saved setup loads the new
+// default. James 5 Nov 2026: no migration, no migration notice. Catalogue
+// failures (unknown talent, rank over max, row gates / prerequisites,
+// unknown rotation action, unknown race / weapon type / poison, or a setup
+// era older than SETUP_ERA) discard the whole setup with no banner. An
+// invalid link does nothing: the page loads the save if there is one,
+// otherwise the default. Until TR-03's temporary Combat swords preset lands,
+// the default is pageDefaultConfig (setupDefaults). Soft field errors
+// (armour, run, …) still recover section by section in a save (#326).
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -17,17 +19,23 @@ import {
   setupDefaults,
 } from "../js/build-codec.js";
 import { defaultRotation } from "../js/rotation-default.js";
-import { referenceBuild } from "../js/preset-reference-builds.js";
 
 const b64 = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
-const v1 = (payload) => `${SETUP_VERSION}.${b64(payload)}`;
+// Current-era payload by default. Pass era explicitly only when the test is
+// about era itself.
+const v1 = (payload) => {
+  const body = Object.hasOwn(payload, "era")
+    ? payload
+    : { era: SETUP_ERA, ...payload };
+  return `${SETUP_VERSION}.${b64(body)}`;
+};
 
 const withTalents = (talents, extra = {}) =>
   v1({ config: { talents, ...extra } });
 
 describe("#331: invalid old loads become the new default (TR-01)", () => {
-  it("SETUP_ERA is 0 until the 70755 data refresh (TR-02)", () => {
-    assert.equal(SETUP_ERA, 0);
+  it("SETUP_ERA is 1 after the 70755 data refresh (TR-02 / #332)", () => {
+    assert.equal(SETUP_ERA, 1);
   });
 
   it("a share link with an unknown talent is invalid: nothing loads, no notice", () => {
@@ -73,49 +81,51 @@ describe("#331: invalid old loads become the new default (TR-01)", () => {
     assert.equal(decodeSetup(text).status, "invalid");
   });
 
-  it("a share link from a future setup era is invalid; a damaged body stays corrupt", () => {
+  it("a share link from a future setup era is invalid; a damaged body is silent (Scout #332)", () => {
     assert.equal(decodeSetup(v1({ era: SETUP_ERA + 1 })).status, "invalid");
     assert.equal(decodeSetup("1.nope!").status, "corrupt");
-    assert.equal(
-      resolveInitialSetup({ search: `?${LINK_PARAM}=1.nope!` }).notice,
-      "corrupt",
-    );
+    const damaged = resolveInitialSetup({ search: `?${LINK_PARAM}=1.nope!` });
+    assert.equal(damaged.notice, null);
+    assert.equal(damaged.source, "defaults");
   });
 
-  it("an old combat-swords / assassination / subtlety / combat-daggers save with a removed talent loads the defaults whole", () => {
-    for (const id of [
-      "combat-swords",
-      "assassination-daggers",
-      "subtlety-daggers",
-      "combat-daggers",
-    ]) {
-      const build = referenceBuild(id);
-      // Mimic a post-rework catalogue that no longer has one of the preset's
-      // talents: the save still names it, so the whole save is discarded.
-      const gone = Object.keys(build.talents)[0];
-      const talents = { ...build.talents, [gone]: build.talents[gone] };
-      // Swap the first id for one the live catalogue will never have.
-      delete talents[gone];
-      talents["removed." + id] = 1;
-      const saved = withTalents(talents, {
-        weapons: build.weapons,
-        talentLevel: build.talentLevel,
-      });
-      const read = decodeSetup(saved, { strict: false });
-      assert.equal(read.status, "ok", id);
-      assert.equal(read.reset, undefined, id);
-      assert.deepEqual(read.setup, setupDefaults(), id);
-      assert.deepEqual(
-        resolveInitialSetup({ search: "", saved }),
-        {
-          setup: setupDefaults(),
-          source: "saved",
-          notice: null,
-          hadLink: false,
-        },
-        id,
-      );
-    }
+  it("a pure garbage link loads the save if present, otherwise the default, with no banner", () => {
+    const garbage = "1.nope!";
+    const alone = resolveInitialSetup({ search: `?${LINK_PARAM}=${garbage}` });
+    assert.equal(alone.notice, null);
+    assert.deepEqual(alone.setup, setupDefaults());
+    assert.equal(alone.source, "defaults");
+    assert.equal(alone.hadLink, true);
+    const saved = encodeSetup({
+      ...setupDefaults(),
+      config: {
+        ...setupDefaults().config,
+        character: { ...setupDefaults().config.character, attackPower: 900 },
+      },
+    });
+    const withSave = resolveInitialSetup({
+      search: `?${LINK_PARAM}=${garbage}`,
+      saved,
+    });
+    assert.equal(withSave.notice, null);
+    assert.equal(withSave.source, "saved");
+    assert.equal(withSave.setup.config.character.attackPower, 900);
+  });
+
+  it("a save with a removed talent loads the defaults whole", () => {
+    // Presets are empty until TR-03 / #333; a synthetic removed talent is
+    // enough to pin the discard path.
+    const saved = withTalents({ "removed.old-preset-talent": 1 });
+    const read = decodeSetup(saved, { strict: false });
+    assert.equal(read.status, "ok");
+    assert.equal(read.reset, undefined);
+    assert.deepEqual(read.setup, setupDefaults());
+    assert.deepEqual(resolveInitialSetup({ search: "", saved }), {
+      setup: setupDefaults(),
+      source: "saved",
+      notice: null,
+      hadLink: false,
+    });
   });
 
   it("a save that breaks row gating is the defaults whole, not a partial recovery", () => {
@@ -186,5 +196,63 @@ describe("#331: invalid old loads become the new default (TR-01)", () => {
     assert.equal(first.source, "saved");
     assert.deepEqual(first.setup, savedSetup);
     assert.equal(first.hadLink, true);
+  });
+
+  it("a share link with an unknown race, weapon type or poison is invalid (James #332)", () => {
+    const cases = [
+      withTalents({}, { race: "not-a-race" }),
+      v1({
+        config: {
+          weapons: {
+            mainHand: { type: "potato", min: 1, max: 2, speed: 2.0 },
+          },
+        },
+      }),
+      v1({ config: { poisons: { mainHand: "banana" } } }),
+    ];
+    for (const text of cases) {
+      assert.equal(decodeSetup(text).status, "invalid", text.slice(0, 40));
+      assert.deepEqual(
+        resolveInitialSetup({ search: `?${LINK_PARAM}=${text}` }),
+        {
+          setup: setupDefaults(),
+          source: "defaults",
+          notice: null,
+          hadLink: true,
+        },
+      );
+    }
+  });
+
+  it("an invalid link leaves a valid save in place; with no save it loads the defaults (James #332)", () => {
+    const savedSetup = {
+      ...setupDefaults(),
+      config: {
+        ...setupDefaults().config,
+        character: { ...setupDefaults().config.character, attackPower: 900 },
+      },
+    };
+    const saved = encodeSetup(savedSetup);
+    for (const bad of [
+      withTalents({ "removed.x": 1 }),
+      v1({ era: 0, config: { character: { attackPower: 900 } } }),
+      v1({ config: { race: "not-a-race" } }),
+    ]) {
+      const withSave = resolveInitialSetup({
+        search: `?${LINK_PARAM}=${bad}`,
+        saved,
+      });
+      assert.equal(withSave.notice, null, bad.slice(0, 24));
+      assert.equal(withSave.source, "saved");
+      assert.deepEqual(withSave.setup, savedSetup);
+      assert.equal(withSave.hadLink, true);
+
+      const noSave = resolveInitialSetup({
+        search: `?${LINK_PARAM}=${bad}`,
+      });
+      assert.equal(noSave.notice, null);
+      assert.equal(noSave.source, "defaults");
+      assert.deepEqual(noSave.setup, setupDefaults());
+    }
   });
 });

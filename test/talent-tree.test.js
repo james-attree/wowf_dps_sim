@@ -46,20 +46,20 @@ describe("talent tree model (#204)", () => {
     assert.equal(state.view.trees.length, 3);
     assert.deepEqual(
       state.view.trees.map((tree) => tree.cells.length),
-      [17, 17, 19],
+      [17, 19, 18],
     );
   });
 
   it("adds a point, writes config.talents and announces the result", () => {
     const { tree, talents, config } = setup();
-    assert.equal(tree.add("combat.improved-sinister-strike"), true);
+    assert.equal(tree.add("combat.efficient-strikes"), true);
     assert.deepEqual(config().talents, {
-      "combat.improved-sinister-strike": 1,
+      "combat.efficient-strikes": 1,
     });
     assert.equal(config().talentLevel, 60);
     assert.equal(
       talents().announce.text,
-      "Improved Sinister Strike 1/2. Combat 1 point. 1 of 51 spent, 50 left.",
+      "Efficient Strikes 1/2. Combat 1 point. 1 of 51 spent, 50 left.",
     );
     assert.equal(talents().view.summary, "Combat 0/1/0 · 1/51");
     assert.equal(
@@ -80,7 +80,7 @@ describe("talent tree model (#204)", () => {
     assert.equal(talents().message, null, "a refused add has no banner");
     const lethality = cell(talents().view, "assassination.lethality");
     assert.equal(lethality.state, "locked");
-    assert.match(lethality.label, /^Lethality, 0\/5, locked: Needs 10/);
+    assert.match(lethality.label, /^Lethality, 0\/2, locked: Needs 10/);
   });
 
   it("refuses a removal that would strand talents, naming every blocker", () => {
@@ -106,15 +106,15 @@ describe("talent tree model (#204)", () => {
 
   it("removes a point and keeps the build legal", () => {
     const { tree, config } = setup();
-    tree.add("combat.improved-sinister-strike");
-    tree.add("combat.improved-sinister-strike");
-    assert.equal(tree.remove("combat.improved-sinister-strike"), true);
+    tree.add("combat.efficient-strikes");
+    tree.add("combat.efficient-strikes");
+    assert.equal(tree.remove("combat.efficient-strikes"), true);
     assert.deepEqual(config().talents, {
-      "combat.improved-sinister-strike": 1,
+      "combat.efficient-strikes": 1,
     });
-    assert.equal(tree.remove("combat.improved-sinister-strike"), true);
+    assert.equal(tree.remove("combat.efficient-strikes"), true);
     assert.deepEqual(config().talents, {});
-    assert.equal(tree.remove("combat.improved-sinister-strike"), false);
+    assert.equal(tree.remove("combat.efficient-strikes"), false);
   });
 
   it("caps points by level − 9 and shows the level below 60", () => {
@@ -122,9 +122,9 @@ describe("talent tree model (#204)", () => {
     assert.equal(tree.setLevel("10"), true);
     assert.equal(config().talentLevel, 10);
     assert.equal(talents().view.cap, 1);
-    assert.equal(tree.add("combat.improved-sinister-strike"), true);
-    assert.equal(tree.add("combat.improved-sinister-strike"), false);
-    assert.match(talents().announce.text, /^Can't add to Improved Sinister/);
+    assert.equal(tree.add("combat.efficient-strikes"), true);
+    assert.equal(tree.add("combat.efficient-strikes"), false);
+    assert.match(talents().announce.text, /^Can't add to Efficient Strikes/);
     assert.equal(talents().view.summary, "Combat 0/1/0 · level 10 · 1/1");
     assert.equal(talents().view.note, null);
   });
@@ -163,8 +163,8 @@ describe("talent tree model (#204)", () => {
   it("one point over the cap says 1 point, not 1 points (#204 polish)", () => {
     const { tree, talents } = setup();
     tree.setLevel("11");
-    assert.equal(tree.add("combat.improved-sinister-strike"), true);
-    assert.equal(tree.add("combat.improved-sinister-strike"), true);
+    assert.equal(tree.add("combat.efficient-strikes"), true);
+    assert.equal(tree.add("combat.efficient-strikes"), true);
     tree.setLevel("10");
     assert.equal(talents().view.pill, "⚠ 1 over");
     assert.deepEqual(talents().view.errorBanner, {
@@ -205,7 +205,7 @@ describe("talent tree model (#204)", () => {
     assert.equal(tree.undo(), false, "Undo is spent");
     // Any other change drops the Undo.
     tree.resetAll();
-    tree.add("combat.improved-sinister-strike");
+    tree.add("combat.efficient-strikes");
     assert.equal(tree.undo(), false);
     assert.equal(tree.resetAll(), true);
     assert.equal(tree.resetAll(), false, "nothing left to remove");
@@ -223,7 +223,7 @@ describe("talent tree model (#204)", () => {
     });
     assert.deepEqual(talents().ranks, referenceBuild());
     assert.equal(talents().open, true, "the panel stays open");
-    assert.equal(talents().view.summary, "Combat 18/33/0 · 51/51");
+    assert.equal(talents().view.summary, "Combat 16/35/0 · 51/51");
   });
 
   it("selecting, tabs and Show move the detail pane and the narrow tab", () => {
@@ -259,22 +259,22 @@ describe("talent tree model (#204)", () => {
     // and marks eight Subtlety talents as no DPS (+8): 32 / 17 / 4. #270
     // simulates Preparation: 33 / 17 / 3. #271 simulates Improved Ambush,
     // Initiative and Cutthroat: 36 / 17 / 0, every tree covered (D8).
-    assert.deepEqual(counts, { simulated: 36, noDps: 17, notSimulated: 0 });
+    assert.deepEqual(counts, { simulated: 37, noDps: 17, notSimulated: 0 });
   });
 
   it("counts picked talents the sim does not model yet in the summary", () => {
-    // Camouflage was the example until #269 marked it no DPS, Improved
-    // Ambush until #271 simulated it. Improved Ambush is on row 2, so five
-    // points go on row 1 first.
+    // #332 / 70755: Camouflage is row 2 (max 3, no DPS). Spend five on
+    // Opportunity (row 1), then Camouflage + Improved Ambush.
     const pick = (tree) => {
       for (let point = 0; point < 5; point += 1) {
-        tree.add("subtlety.camouflage");
+        tree.add("subtlety.opportunity");
       }
+      tree.add("subtlety.camouflage");
       tree.add("subtlety.improved-ambush");
     };
     const real = setup();
     pick(real.tree);
-    assert.equal(real.talents().view.summary, "Subtlety 0/0/6 · 6/51");
+    assert.equal(real.talents().view.summary, "Subtlety 0/0/7 · 7/51");
     assert.equal(real.talents().view.effects.coverage.notSimulated, null);
     // A copy of the effects data without Improved Ambush's entry.
     const { "subtlety.improved-ambush": dropped, ...effects } = TALENT_EFFECTS;
@@ -293,7 +293,7 @@ describe("talent tree model (#204)", () => {
     tree.setLevel("40");
     tree.select("assassination.lethality");
     const detail = talents().view.detail;
-    assert.equal(detail.sub, "Assassination, row 3 · rank 0 of 5");
+    assert.equal(detail.sub, "Assassination, row 3 · rank 0 of 2");
     assert.equal(detail.addLabel, "Add a point to Lethality");
     assert.equal(detail.removeLabel, "Remove a point from Lethality");
     assert.equal(detail.coverageTag, "Simulated");
@@ -311,7 +311,7 @@ describe("talent tree model (#204)", () => {
 
   it("names a granted ability's rule as cast or skipped (§4)", () => {
     const { tree, talents } = setup();
-    tree.add("combat.improved-sinister-strike");
+    tree.add("combat.efficient-strikes");
     const lines = talents().view.effects.rotation.lines;
     const byName = new Map(lines.map((line) => [line.name, line]));
     assert.equal(byName.get("Blade Flurry").ok, false);
@@ -438,15 +438,15 @@ describe("the talent tree and the stats form share the config (#204, #151)", () 
     const tree = createTalentTree(store);
     const form = createConfigForm(store);
     tree.setLevel("40");
-    tree.add("combat.improved-sinister-strike");
+    tree.add("combat.efficient-strikes");
     form.input("character.attackPower", "1200");
     form.change("character.attackPower");
     assert.deepEqual(store.get().config.talents, {
-      "combat.improved-sinister-strike": 1,
+      "combat.efficient-strikes": 1,
     });
     assert.equal(store.get().config.talentLevel, 40);
     assert.deepEqual(store.get().talents.ranks, {
-      "combat.improved-sinister-strike": 1,
+      "combat.efficient-strikes": 1,
     });
   });
 });

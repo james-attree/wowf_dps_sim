@@ -3,9 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runFight } from "../js/fight.js";
 import { runScriptedFight } from "./scripted-fight.mjs";
-import { loadPreset } from "../js/rotation-presets.js";
 import { referenceBuild } from "../data/reference-build.js";
-import { referenceBuild as presetReferenceBuild } from "../js/preset-reference-builds.js";
 import { defaultDaggerConfig } from "../js/sim-config.js";
 
 // Golden-seed regression fixtures (#77, #85). Each case pins the full result of
@@ -76,38 +74,55 @@ function deepFreeze(value) {
   return value;
 }
 
-// Issue #266 (P4.6-03). A 51-point Assassination build (Assassination 43 /
-// Combat 8) that spends points on every Assassination passive #266 maps:
-// Vigor, Vile Poisons, Improved Poisons, Seal Fate and Murder (inert while
-// target.mobType is "unspecified"), with Malice, Ruthlessness, Relentless
-// Strikes, Lethality and Cold Blood, and the three no-DPS talents. No
-// Mutilate (the case below, #267) and no Venom (the last case, #268).
+// Issue #266 (P4.6-03), retuned for TR-02 / #332 (1.60.1.70755): Murder,
+// Improved Sinister Strike and Improved Eviscerate are gone; Lethality is
+// max 2, Seal Fate max 3, Relentless Strikes max 5. Points fill Coup de
+// Grace, Efficient Strikes and Precision instead. Blood Splatter is pending
+// (TR-07) but legal to spend.
 export const ASSASSINATION_BUILD = deepFreeze({
   "assassination.improved-gouge": 3,
   "assassination.remorseless-attacks": 2,
   "assassination.malice": 5,
   "assassination.ruthlessness": 3,
-  "assassination.murder": 2,
+  "assassination.improved-expose-armor": 2,
   "assassination.improved-slice-and-dice": 3,
-  "assassination.relentless-strikes": 1,
-  "assassination.lethality": 5,
+  "assassination.vigor": 2,
+  "assassination.blood-splatter": 1,
+  "assassination.lethality": 2,
   "assassination.vile-poisons": 5,
   "assassination.cold-blood": 1,
   "assassination.improved-poisons": 5,
-  "assassination.vigor": 2,
-  "assassination.improved-kidney-shot": 1,
-  "assassination.seal-fate": 5,
-  "combat.improved-sinister-strike": 2,
-  "combat.improved-eviscerate": 3,
-  "combat.precision": 3,
+  "assassination.relentless-strikes": 5,
+  "assassination.improved-kidney-shot": 2,
+  "assassination.seal-fate": 3,
+  "combat.coup-de-grace": 3,
+  "combat.efficient-strikes": 2,
+  "combat.precision": 2,
 });
 
-// Issue #267 (P4.6-04a). The build above with Mutilate, for one of the
-// three points of Improved Gouge, which has no DPS effect: 51 points.
+// Issue #267 (P4.6-04a). Mutilate now requires Venom (still a talent; the
+// Venom ability was removed from the spellbook — TR-05 owns the passive).
 export const MUTILATE_BUILD = deepFreeze({
-  ...ASSASSINATION_BUILD,
   "assassination.improved-gouge": 2,
+  "assassination.remorseless-attacks": 2,
+  "assassination.malice": 5,
+  "assassination.ruthlessness": 3,
+  "assassination.improved-expose-armor": 2,
+  "assassination.improved-slice-and-dice": 3,
+  "assassination.vigor": 2,
+  "assassination.blood-splatter": 1,
+  "assassination.lethality": 2,
+  "assassination.vile-poisons": 5,
+  "assassination.cold-blood": 1,
+  "assassination.improved-poisons": 5,
+  "assassination.relentless-strikes": 5,
+  "assassination.venom": 1,
+  "assassination.improved-kidney-shot": 2,
+  "assassination.seal-fate": 3,
   "assassination.mutilate": 1,
+  "combat.coup-de-grace": 3,
+  "combat.efficient-strikes": 2,
+  "combat.precision": 1,
 });
 
 // Eviscerate at 5 CP, otherwise Mutilate (with the talent check a rule for a
@@ -127,9 +142,8 @@ const MUTILATE_ROTATION = deepFreeze({
   ],
 });
 
-// Issue #277. MUTILATE_ROTATION with every rule held until 10 s into the
-// fight, so energy pools to the cap first: the Gnome case shows Expansive
-// Mind's 115.
+// The same, but every rule is held for the first 10 s so a Gnome + Vigor
+// fight (#277) can fill to the raised energy cap before the first spend.
 const POOL_SECONDS = 10;
 const POOLED_MUTILATE_ROTATION = deepFreeze({
   schemaVersion: 1,
@@ -143,87 +157,36 @@ const POOLED_MUTILATE_ROTATION = deepFreeze({
   })),
 });
 
-// Issue #268 (P4.6-04b). The Mutilate build with Improved Expose Armor 2/2
-// and Venom, for the two points of Improved Gouge and the one of Improved
-// Kidney Shot, none of which has a DPS effect: 51 points.
-// The ranks it drops are left out, as the config's normal form leaves a 0 out.
-const DROPPED = [
-  "assassination.improved-gouge",
-  "assassination.improved-kidney-shot",
-];
-export const VENOM_BUILD = deepFreeze({
-  ...Object.fromEntries(
-    Object.entries(MUTILATE_BUILD).filter(([id]) => !DROPPED.includes(id)),
-  ),
-  "assassination.improved-expose-armor": 2,
-  "assassination.venom": 1,
-});
-
-// At 5 CP: Expose Armor while it has under 5 stacks on the target, then
-// Venom while it is down, then Eviscerate. Otherwise Mutilate.
 const FIVE_CP = deepFreeze({ type: "comboPoints", op: ">=", value: 5 });
-const VENOM_EXPOSE_ROTATION = deepFreeze({
-  schemaVersion: 1,
-  name: "Expose Armor, Venom, then Eviscerate at 5 CP, otherwise Mutilate",
-  rules: [
-    {
-      action: "expose-armor",
-      conditions: [
-        FIVE_CP,
-        { type: "debuffStacks", debuff: "expose-armor", op: "<", value: 5 },
-      ],
-    },
-    {
-      action: "venom",
-      conditions: [
-        FIVE_CP,
-        { type: "abilityGranted", ability: "venom" },
-        { type: "auraRemaining", aura: "venom", op: "<=", value: 0 },
-      ],
-    },
-    { action: "eviscerate", conditions: [FIVE_CP] },
-    {
-      action: "mutilate",
-      conditions: [{ type: "abilityGranted", ability: "mutilate" }],
-    },
-  ],
-});
+const UNDER_FIVE_CP = deepFreeze({ type: "comboPoints", op: "<", value: 5 });
 
-// Issue #269. A Subtlety build of 51 points on the dagger/dagger alternate:
-// the four passives at their top rank (Opportunity, Serrated Blades, Quietus,
-// Thousand Cuts) with Hemorrhage, the eight no-DPS Subtlety talents and
-// Preparation (unmapped until #270) to reach Quietus and Thousand Cuts, and 20
-// Assassination points for crit (Malice, Lethality) and finishers.
+// Issue #269. Subtlety on the 70755 tree: Quietus, Thousand Cuts and
+// Improved Distract are gone; Opportunity is max 5. Pending talents (Boot
+// Knife, Death Mark, Quick Getaway) are left for later TR issues.
 export const SUBTLETY_BUILD = deepFreeze({
-  "assassination.improved-gouge": 1,
   "assassination.malice": 5,
   "assassination.ruthlessness": 3,
-  "assassination.murder": 2,
   "assassination.improved-slice-and-dice": 3,
-  "assassination.relentless-strikes": 1,
-  "assassination.lethality": 5,
-  "subtlety.camouflage": 3,
-  "subtlety.opportunity": 2,
+  "assassination.vigor": 2,
+  "assassination.blood-splatter": 1,
+  "assassination.lethality": 2,
+  "assassination.vile-poisons": 4,
   "subtlety.setup": 3,
-  "subtlety.dirty-tricks": 2,
-  "subtlety.master-of-deception": 2,
-  "subtlety.ghostly-strike": 1,
-  "subtlety.improved-distract": 2,
-  "subtlety.serrated-blades": 3,
-  "subtlety.heightened-senses": 2,
-  "subtlety.elusiveness": 1,
+  "subtlety.opportunity": 5,
   "subtlety.dirty-deeds": 2,
+  "subtlety.camouflage": 2,
+  "subtlety.improved-ambush": 3,
+  "subtlety.dirty-tricks": 2,
+  "subtlety.initiative": 3,
+  "subtlety.premeditation": 1,
+  "subtlety.serrated-blades": 3,
+  "subtlety.elusiveness": 2,
+  "subtlety.ghostly-strike": 1,
+  "subtlety.heightened-senses": 2,
   "subtlety.preparation": 1,
   "subtlety.hemorrhage": 1,
-  "subtlety.quietus": 5,
-  "subtlety.thousand-cuts": 1,
 });
 
-// At 5 CP: Rupture when it is (nearly) down, else Eviscerate. Otherwise
-// Hemorrhage when its debuff is (nearly) down, else Backstab. Rupture's ticks
-// stack Thousand Cuts, which Hemorrhage and Backstab use; Hemorrhage takes
-// Quietus after 0.65 of the fight.
-const UNDER_FIVE_CP = deepFreeze({ type: "comboPoints", op: "<", value: 5 });
 export const SUBTLETY_ROTATION = deepFreeze({
   schemaVersion: 1,
   name: "Rupture, Eviscerate, Hemorrhage, then Backstab",
@@ -248,9 +211,6 @@ export const SUBTLETY_ROTATION = deepFreeze({
   ],
 });
 
-// Issue #270. The Subtlety rotation above with Ghostly Strike when it is
-// ready and Preparation while Ghostly Strike is on cooldown, so Preparation
-// finishes Ghostly Strike's cooldown once in the fight.
 export const PREPARATION_ROTATION = deepFreeze({
   schemaVersion: 1,
   name: "Ghostly Strike, Preparation, then the Subtlety rotation",
@@ -275,9 +235,6 @@ export const PREPARATION_ROTATION = deepFreeze({
   ],
 });
 
-// Issue #271. A legal 51-point Subtlety build with Cutthroat 5/5, Improved
-// Ambush 3/3 and Initiative 3/3 (and Hemorrhage, Quietus and Thousand Cuts,
-// as SUBTLETY_BUILD has), 15 points in Assassination.
 export const CUTTHROAT_BUILD = deepFreeze({
   "assassination.malice": 5,
   "assassination.ruthlessness": 3,
@@ -299,11 +256,6 @@ export const CUTTHROAT_BUILD = deepFreeze({
   "subtlety.cutthroat": 5,
   "subtlety.thousand-cuts": 1,
 });
-
-// Issue #271. The Subtlety rotation with Ambush under 5 CP before Hemorrhage
-// and Backstab. The rule has no condition on the aura: while the cutthroat
-// aura is down it is passed over (no pooling), and a Backstab proc of
-// Cutthroat puts it up for the next Ambush.
 export const AMBUSH_ROTATION = deepFreeze({
   schemaVersion: 1,
   name: "Rupture, Eviscerate, Ambush, Hemorrhage, then Backstab",
@@ -314,26 +266,19 @@ export const AMBUSH_ROTATION = deepFreeze({
   ],
 });
 
+// CUTTHROAT_BUILD / AMBUSH_ROTATION kept for unit tests (#271).
+// The cutthroat golden case is retired until a later issue remaps Ambush.
+
 export const GOLDEN_CASES = deepFreeze([
   { name: "short-seed-1-10s", seed: 1, duration: 10 },
   { name: "five-minute-seed-1-300s", seed: 1, duration: 300 },
   { name: "other-seed-12345-90s", seed: 12345, duration: 90 },
-  // Issue #234. Seed 68 for 50 s, as #85's scripted-finishers-seed-68-50s
-  // was (retired by James's decision), with the script that finishes on every
-  // seed.
   {
     name: "scripted-finishers-in-budget-seed-68-50s",
     seed: 68,
     duration: 50,
     script: FINISHER_SCRIPT_IN_BUDGET,
   },
-  // Issue #107. The two cases below run the reference build (Assassination 18
-  // / Combat 33 / Subtlety 0, the talentsforever.com link in
-  // data/reference-build.js, the same one the talent coverage check uses)
-  // through applyBuild, and they share a seed.
-  // The first has the talents and no poisons. The second adds Instant Poison
-  // on the main hand and Deadly Poison on the off hand. The build is read from
-  // the test helper so that the link is written down in one place.
   {
     name: "talented-build-seed-107-60s",
     seed: 107,
@@ -349,23 +294,10 @@ export const GOLDEN_CASES = deepFreeze([
       poisons: { mainHand: "instant", offHand: "deadly" },
     },
   },
-  // Issue #142. The Combat swords preset (js/rotation-presets.js) on the
-  // reference build, to pin what the preset rotation does: the Slice and Dice
-  // pooling rule of #122, with Blade Flurry and Adrenaline Rush on cooldown.
-  // The default fight kept the placeholder rotation, so the cases above did
-  // not move then. Issue #155 gave the default the preset's two Slice and Dice
-  // rules, which moved three of them (other-seed, talented-build and poisons).
-  // Issue #310 replaced the preset with James's rotation (Slice and Dice at 3
-  // CP, Eviscerate at 5 CP while Slice and Dice has 12 s, and at 3 CP to spend
-  // energy at the cap), which moved this case and no other.
-  {
-    name: "combat-swords-preset-seed-142-120s",
-    seed: 142,
-    duration: 120,
-    config: loadPreset("combat-swords", { talents: referenceBuild() }),
-  },
-  // Issue #266. The Assassination build above, with Instant Poison on the main
-  // hand and Deadly Poison on the off hand, on the default rotation.
+  // TR-02 / #332 interim: the combat-swords / dagger preset goldens and the
+  // Cutthroat / Venom-ability cases are retired until TR-03 / TR-11 (presets
+  // empty; those talents/abilities are gone). DPS before retirement is
+  // logged in the PR body.
   {
     name: "assassination-build-seed-266-60s",
     seed: 266,
@@ -375,9 +307,6 @@ export const GOLDEN_CASES = deepFreeze([
       poisons: { mainHand: "instant", offHand: "deadly" },
     },
   },
-  // Issue #267. Mutilate on the dagger/dagger alternate (#127, its weapons
-  // and character sheet), with Instant Poison on the main hand and Deadly
-  // Poison on the off hand, so the +20% against a poisoned target applies.
   {
     name: "mutilate-daggers-seed-267-60s",
     seed: 267,
@@ -390,24 +319,6 @@ export const GOLDEN_CASES = deepFreeze([
       rotation: MUTILATE_ROTATION,
     },
   },
-  // Issue #268. The dagger/dagger Mutilate fight with Venom and Expose
-  // Armor in the rotation, so poisons roll at Venom's chance and damage, and
-  // white and Mutilate hits meet 5 stacks of Expose Armor.
-  {
-    name: "venom-expose-armor-seed-268-60s",
-    seed: 268,
-    duration: 60,
-    config: {
-      character: defaultDaggerConfig().character,
-      weapons: defaultDaggerConfig().weapons,
-      talents: { ...VENOM_BUILD },
-      poisons: { mainHand: "instant", offHand: "deadly" },
-      rotation: VENOM_EXPOSE_ROTATION,
-    },
-  },
-  // Issue #269. The Subtlety build above on the dagger/dagger alternate with
-  // no poisons, so Opportunity, Serrated Blades, Thousand Cuts and Quietus
-  // all act; the fight is told its 60 s, so Quietus is on after 39 s.
   {
     name: "subtlety-build-seed-269-60s",
     seed: 269,
@@ -419,9 +330,6 @@ export const GOLDEN_CASES = deepFreeze([
       rotation: SUBTLETY_ROTATION,
     },
   },
-  // Issue #270. The same build and weapons with Preparation in the rotation
-  // (PREPARATION_ROTATION), so it is cast once and Ghostly Strike's
-  // cooldown is finished.
   {
     name: "preparation-subtlety-seed-270-60s",
     seed: 270,
@@ -433,27 +341,6 @@ export const GOLDEN_CASES = deepFreeze([
       rotation: PREPARATION_ROTATION,
     },
   },
-  // Issue #271. CUTTHROAT_BUILD with AMBUSH_ROTATION: Cutthroat's Backstab
-  // procs allow Ambush, which Improved Ambush and Initiative act on.
-  {
-    name: "cutthroat-subtlety-seed-271-60s",
-    seed: 271,
-    duration: 60,
-    config: {
-      character: defaultDaggerConfig().character,
-      weapons: defaultDaggerConfig().weapons,
-      talents: { ...CUTTHROAT_BUILD },
-      rotation: AMBUSH_ROTATION,
-    },
-  },
-  // Issue #277. One case per simulated passive racial. Human's Ruthless (+1%
-  // crit), Dwarf's Artisan's Precision (+1% hit) and Skyborne's Wind Blessed
-  // (+2% attack speed, A20) on the reference build with Instant and Deadly
-  // Poison. Gnome's Expansive Mind on the dagger Mutilate fight (#267), whose
-  // Vigor makes the cap 110 x 1.05 = 115.5, floored to 115 (A19), with every
-  // rule held for the first 10 s so the pool reaches the cap and the first
-  // Mutilates spend 115 energy, not 110. The cases with no race did not move:
-  // race null adds nothing.
   ...["human", "dwarf", "skyborne-windshaper"].map((race) => ({
     name: `race-${race}-seed-277-60s`,
     seed: 277,
@@ -477,64 +364,6 @@ export const GOLDEN_CASES = deepFreeze([
       rotation: POOLED_MUTILATE_ROTATION,
     },
   },
-  // Issue #272. Each dagger preset with its reference build
-  // (js/preset-reference-builds.js): the talents, both weapons and both
-  // poisons (Instant main hand, Deadly off hand), put in as #273's button
-  // would, and nothing else (the default character). Issue #310 retuned both
-  // presets and builds to James's share links (new talents and rotations, and
-  // the ruled 59-111 off-hand dagger), which moved these two cases.
-  ...["assassination-daggers", "subtlety-daggers"].map((id) => {
-    const build = presetReferenceBuild(id);
-    return {
-      name: `${id}-preset-seed-272-60s`,
-      seed: 272,
-      duration: 60,
-      config: loadPreset(id, {
-        talents: { ...build.talents },
-        weapons: { ...build.weapons },
-        poisons: { ...build.poisons },
-      }),
-    };
-  }),
-  // Issue #278. One case per on-use racial: combat-swords (its racial rules
-  // first, Decision 6) with its reference build and the race that grants the
-  // racial. Blood Fury (Orc, AP x1.1) and Elune's Light (Night Elf, +10% crit)
-  // are each cast at the pull, so the first 15 s carry the aura. No other case
-  // moved: with no race the racial rules are passed over.
-  ...["orc", "night-elf"].map((race) => {
-    const build = presetReferenceBuild("combat-swords");
-    return {
-      name: `race-${race}-combat-swords-seed-278-60s`,
-      seed: 278,
-      duration: 60,
-      config: loadPreset("combat-swords", {
-        race,
-        talents: { ...build.talents },
-        weapons: { ...build.weapons },
-        poisons: { ...build.poisons },
-      }),
-    };
-  }),
-  // Issue #279. The same for Berserking (Troll, +10% attack speed for 15 s,
-  // A20) and Eureka! (Gnome, non-periodic abilities x0.9 cost rounded down,
-  // A19, and x1.1 damage, A22, for 8 s): each is cast at the pull. On the
-  // assassination-daggers preset (combat-swords has them too since Scout's
-  // call of 2 Nov 2026 on #315; no golden covers it). No other case moved: with no
-  // race, or another race, the racial rules are passed over.
-  ...["troll", "gnome"].map((race) => {
-    const build = presetReferenceBuild("assassination-daggers");
-    return {
-      name: `race-${race}-assassination-daggers-seed-279-60s`,
-      seed: 279,
-      duration: 60,
-      config: loadPreset("assassination-daggers", {
-        race,
-        talents: { ...build.talents },
-        weapons: { ...build.weapons },
-        poisons: { ...build.poisons },
-      }),
-    };
-  }),
 ]);
 
 // Files that can turn up in test/golden/ without being a stray case: macOS

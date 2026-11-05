@@ -44,9 +44,11 @@ const EFFECT_KEYS = [
   "procs",
   "ability",
   "noDpsEffect",
+  "pending",
   "mobTypes",
 ];
 const NO_DPS_KEYS = ["textHash", "noDpsEffect"];
+const PENDING_KEYS = ["textHash", "pending"];
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
 
 function fail(id, message) {
@@ -106,6 +108,18 @@ export function checkTalentEffects(
       }
       continue;
     }
+    if (entry.pending !== undefined) {
+      if (typeof entry.pending !== "string" || entry.pending === "") {
+        fail(
+          id,
+          "pending must be a one-line reason naming the follow-up issue.",
+        );
+      }
+      if (Object.keys(entry).some((key) => !PENDING_KEYS.includes(key))) {
+        fail(id, "pending stands alone, with textHash.");
+      }
+      continue;
+    }
     if (
       entry.mobTypes !== undefined &&
       (!Array.isArray(entry.mobTypes) ||
@@ -115,7 +129,10 @@ export function checkTalentEffects(
       fail(id, "mobTypes must be a non-empty list of target types.");
     }
     if (Object.keys(entry).every((key) => key === "textHash")) {
-      fail(id, "an entry needs modifiers, procs, an ability or noDpsEffect.");
+      fail(
+        id,
+        "an entry needs modifiers, procs, an ability, pending or noDpsEffect.",
+      );
     }
     for (const table of entry.modifiers ?? []) {
       if (!Array.isArray(table.values) || table.values.length !== talent.max) {

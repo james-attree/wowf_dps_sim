@@ -10,6 +10,7 @@ import { k } from "../data/constants.js";
 import {
   LINK_VERSION,
   SETUP_VERSION,
+  SETUP_ERA,
   decodeSetup,
   encodeSetup,
   resolveInitialSetup,
@@ -17,7 +18,7 @@ import {
   setupFromState,
 } from "../js/build-codec.js";
 import { createConfigForm } from "../js/config-form.js";
-import { referenceBuild } from "../js/preset-reference-builds.js";
+import { referenceBuild } from "../data/reference-build.js";
 import {
   SAVED_SETUP_KEY,
   createSavedSetup,
@@ -352,6 +353,7 @@ describe("#296 (G4): what a saved setup reads as", () => {
 
   it("an unknown field is ignored; a field that does not check out is its default (#326)", () => {
     const payload = {
+      era: SETUP_ERA,
       future: { anything: true },
       config: {
         character: { haste: "fast", attackPower: 900 },
@@ -374,9 +376,12 @@ describe("#296 (G4): what a saved setup reads as", () => {
   });
 
   it("over the cap: a 51-point build saved with level 40 keeps the build and reads the level as its default (60)", () => {
-    const build = referenceBuild("combat-swords");
+    const build = { talents: { ...referenceBuild() } };
     const d = setupDefaults();
-    const payload = { config: { talents: build.talents, talentLevel: 40 } };
+    const payload = {
+      era: SETUP_ERA,
+      config: { talents: build.talents, talentLevel: 40 },
+    };
     const text = `${SETUP_VERSION}.${Buffer.from(JSON.stringify(payload)).toString("base64url")}`;
     const read = readBack(text);
     assert.deepEqual(read.config.talents, build.talents);

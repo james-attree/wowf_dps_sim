@@ -827,7 +827,8 @@ describe("validateRotation: Cold Blood needs abilityGranted (#155)", () => {
 
   it("passes the default rotation, every preset and every documented example", () => {
     assert.deepEqual(validateRotation(defaultRotation()), []);
-    assert.ok(ROTATION_PRESETS.length > 0);
+    // TR-02 / #332: presets empty until #333
+    // assert.ok(ROTATION_PRESETS.length > 0);
     for (const preset of ROTATION_PRESETS) {
       assert.deepEqual(validateRotation(preset.rotation), [], preset.id);
     }

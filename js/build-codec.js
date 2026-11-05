@@ -30,8 +30,9 @@ import { parseRunField } from "./views/run-model.js";
 //     know, is "newer" and loads nothing ("This link was made with a newer
 //     version of the sim"); bytes that do not read are "corrupt"; a setup
 //     the live catalogue refuses (unknown talent, rank over max, row gates /
-//     prerequisites, unknown rotation action, or an old SETUP_ERA) is
-//     "invalid" (#331) and loads nothing, with no banner (James 5 Nov 2026).
+//     prerequisites, unknown rotation action, an unknown race / weapon type
+//     / poison, or an old SETUP_ERA) is "invalid" (#331 / #332) and loads
+//     nothing, with no banner (James 5 Nov 2026).
 //   lenient (a saved setup, #296): unknown fields are ignored; a soft field
 //     error recovers that field (#326); a catalogue refusal discards the
 //     whole save and is the defaults (#331). A newer or unreadable save is
@@ -53,7 +54,7 @@ export const LINK_PARAM = "s";
 // catalogue lands; a v1 payload whose era (missing counts as 0) does not
 // match is refused. encodeSetup writes era only once it is non-zero, so
 // today's "1.e30" bytes stay put until then.
-export const SETUP_ERA = 0;
+export const SETUP_ERA = 1; // TR-02 / #332: 1.60.1.70755 talent rework
 
 const RUN_MODES = Object.freeze(["batch", "live"]);
 // Talents and the rotation are kept or dropped whole: a partial talent map or
@@ -145,11 +146,16 @@ const checkConfig = (config) => {
   return { ...normal, target: { ...normal.target, behind: true } };
 };
 
-// True when the error is a live-catalogue refusal (#331): talents, rotation,
-// or talent build rules (row gates / prerequisites / point cap at the level).
+// True when a strict link should be silent-"invalid" rather than "corrupt"
+// (#331 / #332): live-catalogue refusals (talents, rotation, row gates /
+// prerequisites / point cap) and, per James 5 Nov 2026 on #332, an unknown
+// race, weapon type or poison. Soft field shape errors (armour, attack
+// power, …) still decode as "corrupt", but Scout's follow-up on #332 retires
+// the damaged banner for links: resolveInitialSetup treats corrupt like
+// invalid (silent save-or-default).
 const isCatalogueError = (error) =>
   error instanceof Error &&
-  /config\.talents|config\.rotation|Talent build is not valid/.test(
+  /config\.talents|config\.rotation|Talent build is not valid|unknown race|unknown weapon type|unknown poison/.test(
     error.message,
   );
 
@@ -371,9 +377,10 @@ export function withoutLinkParam(href) {
 }
 
 // The page's first setup, in the order above. `search` is location.search;
-// `saved` is the saved setup's text (#296) or null. notice is null, "loaded",
-// "newer" or "corrupt" (the link's banner). "invalid" (#331) sets no notice:
-// the link is discarded and the next source loads in silence. hadLink says
+// `saved` is the saved setup's text (#296) or null. notice is null, "loaded"
+// or "newer" (the link's banner). "invalid" (#331) and "corrupt" (Scout on
+// #332: pure garbage and soft field refusals on a link) set no notice: the
+// link is discarded and the next source loads in silence. hadLink says
 // ?s= is to be taken out of the address. reset, only when there are any,
 // lists the saved setup's fields read as their defaults (#326, item 13).
 export function resolveInitialSetup({
@@ -393,8 +400,9 @@ export function resolveInitialSetup({
         hadLink: true,
       };
     }
-    // Catalogue refusals are silent (#331). Damaged / newer still say so.
-    if (read.status !== "invalid") notice = read.status;
+    // Catalogue refusals (#331) and damaged / garbage links (Scout on #332)
+    // are silent. Only a newer-version link still says so.
+    if (read.status === "newer") notice = "newer";
   }
   const hadLink = link !== null;
   if (saved !== null && saved !== undefined) {

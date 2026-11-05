@@ -23,6 +23,9 @@ const REFERENCE = referenceBuild();
 const SECONDS = 120;
 const SEEDS = 40;
 const SHORT = 30;
+// Reference (16/35/0) grants Combat's two on-use abilities; Cold Blood needs
+// an Assassination pick that the temp James reference does not take.
+const REFERENCE_ABILITIES = ["blade-flurry", "adrenaline-rush"];
 const ASSASSINATION_ABILITIES = [
   "cold-blood",
   "blade-flurry",
@@ -63,27 +66,29 @@ const NO_FLURRY_OR_RUSH = swap(REFERENCE, {
 // exactly 5 points on row 1 of Combat above it: the smallest gap row gating
 // allows.
 const ASSASSINATION_43 = {
-  "assassination.improved-gouge": 3,
+  // 70755: Murder gone, Lethality max 2, Relentless Strikes max 5. Drop
+  // Improved Gouge (3) so the tree spends 43 of 46.
   "assassination.remorseless-attacks": 2,
   "assassination.malice": 5,
   "assassination.ruthlessness": 3,
-  "assassination.murder": 2,
-  "assassination.improved-slice-and-dice": 3,
-  "assassination.relentless-strikes": 1,
   "assassination.improved-expose-armor": 2,
-  "assassination.lethality": 5,
+  "assassination.improved-slice-and-dice": 3,
+  "assassination.vigor": 2,
+  "assassination.blood-splatter": 1,
+  "assassination.lethality": 2,
   "assassination.vile-poisons": 5,
   "assassination.cold-blood": 1,
   "assassination.improved-poisons": 5,
-  "assassination.vigor": 2,
-  "assassination.mutilate": 1,
-  "assassination.improved-kidney-shot": 2,
+  "assassination.relentless-strikes": 5,
   "assassination.venom": 1,
+  "assassination.improved-kidney-shot": 2,
+  "assassination.seal-fate": 3,
+  "assassination.mutilate": 1,
 };
 const BOUNDARY = {
   ...ASSASSINATION_43,
-  "combat.improved-eviscerate": 3,
-  "combat.improved-sinister-strike": 2,
+  "combat.coup-de-grace": 3,
+  "combat.efficient-strikes": 2,
   "combat.precision": 3,
 };
 
@@ -115,8 +120,8 @@ describe("validateBuild: what a character can have", () => {
 
   it("rejects a build one point short of the row above it, by id", () => {
     const short = swap(BOUNDARY, {
-      "combat.improved-sinister-strike": 1,
-      "assassination.seal-fate": 1,
+      "combat.efficient-strikes": 1,
+      "assassination.improved-gouge": 1,
     });
     assert.equal(points(short), k("talents.maxPoints"));
     assert.throws(() => validateBuild(short), {
@@ -130,8 +135,9 @@ describe("validateBuild: what a character can have", () => {
     const top = swap(
       {
         ...ASSASSINATION_43,
-        "assassination.seal-fate": 5,
-        "subtlety.master-of-deception": 2,
+        "assassination.mutilate": 0,
+        "subtlety.master-of-deception": 3,
+        "subtlety.opportunity": 5,
       },
       { "combat.adrenaline-rush": 1 },
     );
@@ -190,7 +196,7 @@ describe("validateBuild: what a character can have", () => {
     });
     assert.throws(() => validateBuild(gone), {
       message:
-        /"combat\.dual-wield-specialization" needs its prerequisite "combat\.precision" at rank 3, and it is at rank 0/,
+        /"combat\.weapon-expertise" needs its prerequisite "combat\.precision" at rank 3, and it is at rank 0/,
     });
   });
 
@@ -209,7 +215,7 @@ describe("validateBuild: what a character can have", () => {
     }
     assert.match(message, /^Talent build is not valid: /);
     assert.match(message, /spends 52 talent points/);
-    assert.match(message, /"combat\.dual-wield-specialization" needs/);
+    assert.match(message, /"combat\.weapon-expertise" needs/);
     assert.doesNotMatch(message, /Precision|Dual Wield|Specialization /);
   });
 
@@ -261,11 +267,8 @@ describe("applyBuild", () => {
   it("applies the reference build: every talent in it has an effect or a reason", () => {
     const { unmapped, abilities, noDps } = applyBuild(REFERENCE);
     assert.deepEqual(unmapped, []);
-    assert.deepEqual(
-      [...abilities].sort(),
-      [...ASSASSINATION_ABILITIES].sort(),
-    );
-    assert.deepEqual(noDps, ["combat.endurance", "combat.improved-sprint"]);
+    assert.deepEqual([...abilities].sort(), [...REFERENCE_ABILITIES].sort());
+    assert.deepEqual(noDps, ["combat.improved-sprint"]);
   });
 
   it("no ranks, or only zero ranks, is no build: nothing is checked or given", () => {
@@ -282,9 +285,9 @@ describe("applyBuild", () => {
 
   it("a build of one or two points is a selected build, and runs (#190)", () => {
     for (const ranks of [
-      { "combat.improved-eviscerate": 1 },
-      { "combat.improved-eviscerate": 2 },
-      { "combat.improved-eviscerate": 1, "combat.improved-sinister-strike": 1 },
+      { "combat.coup-de-grace": 1 },
+      { "combat.coup-de-grace": 2 },
+      { "combat.coup-de-grace": 1, "combat.efficient-strikes": 1 },
     ]) {
       const small = points(ranks);
       assert.ok(small >= 1 && small <= 2);
@@ -324,7 +327,6 @@ describe("applyBuild", () => {
       [
         ...ASSASSINATION_ABILITIES,
         "mutilate",
-        "venom",
         "ghostly-strike",
         "premeditation",
         "hemorrhage",
@@ -395,7 +397,7 @@ describe("a selected build in config.talents runs the fight", () => {
     assert.equal(fight.build.selected, true);
     assert.deepEqual(
       [...fight.build.abilities].sort(),
-      [...ASSASSINATION_ABILITIES].sort(),
+      [...REFERENCE_ABILITIES].sort(),
     );
     assert.equal(createFight(1).build.selected, false);
   });
@@ -494,16 +496,11 @@ describe("the build's modifiers reach the stats and the damage", () => {
     const critDamage = modifiers.resolve("critDamage", 2, strike);
     assert.ok(Math.abs(critDamage - 2 - 0.2) < 1e-9);
     const damage = modifiers.resolve("damage", 100, strike);
-    assert.ok(Math.abs(damage - 100 * 1.06) < 1e-6);
+    assert.ok(Math.abs(damage - 100 * 1.15) < 1e-6);
     const ids = new Set(
       fight.build.procs.map((proc) => proc.id ?? proc.source),
     );
-    for (const id of [
-      "ruthlessness",
-      "relentless-strikes",
-      "puncturing-wounds",
-      "hack-and-slash",
-    ]) {
+    for (const id of ["ruthlessness", "puncturing-wounds", "hack-and-slash"]) {
       assert.ok(ids.has(id), id);
     }
   });
@@ -512,10 +509,10 @@ describe("the build's modifiers reach the stats and the damage", () => {
 describe("a selected build gates the abilities a talent grants", () => {
   const casts = (fight, id) => fight.simulation.abilityStats[id]?.casts ?? 0;
 
-  it("casts Blade Flurry, Adrenaline Rush and Cold Blood when the build has them", () => {
+  it("casts Blade Flurry and Adrenaline Rush when the reference build has them", () => {
     const fight = createFight(1, { talents: REFERENCE });
     fight.simulation.run(SECONDS);
-    for (const id of ASSASSINATION_ABILITIES) {
+    for (const id of REFERENCE_ABILITIES) {
       assert.ok(casts(fight, id) >= 1, id);
     }
   });
@@ -526,7 +523,6 @@ describe("a selected build gates the abilities a talent grants", () => {
     fight.simulation.run(SECONDS);
     assert.equal(casts(fight, "blade-flurry"), 0);
     assert.equal(casts(fight, "adrenaline-rush"), 0);
-    assert.ok(casts(fight, "cold-blood") >= 1);
     // The rest of the rotation is still cast.
     assert.ok(casts(fight, "sinister-strike") > 0);
     assert.ok(casts(fight, "slice-and-dice") > 0);
@@ -581,26 +577,27 @@ describe("a selected build gates the abilities a talent grants", () => {
 // Issue #207: Ghostly Strike, Premeditation and Hemorrhage come from Subtlety
 // talents, so a selected build without them holds them back like Blade Flurry.
 // A legal 21-point Subtlety build that takes all three.
+// 70755: Improved Distract / Quietus gone; Camouflage max 3. A legal build
+// that still takes Ghostly Strike, Premeditation and Hemorrhage.
 const SUBTLETY_THREE = {
-  "subtlety.camouflage": 5,
+  "subtlety.setup": 3,
   "subtlety.master-of-deception": 3,
-  "subtlety.setup": 2,
-  "subtlety.ghostly-strike": 1,
-  "subtlety.initiative": 3,
-  "subtlety.improved-distract": 1,
+  "subtlety.opportunity": 5,
+  "subtlety.camouflage": 3,
+  "subtlety.improved-ambush": 3,
   "subtlety.premeditation": 1,
   "subtlety.serrated-blades": 3,
-  "subtlety.heightened-senses": 1,
+  "subtlety.ghostly-strike": 1,
   "subtlety.hemorrhage": 1,
 };
 const SUBTLETY_KEYS = ["ghostlyStrike", "premeditation", "hemorrhage"];
 
 describe("the Subtlety talent abilities are held back by a build without them (#207)", () => {
   it("grants all three to a build that has the talents", () => {
-    assert.deepEqual(applyBuild(SUBTLETY_THREE).abilities, [
+    assert.deepEqual([...applyBuild(SUBTLETY_THREE).abilities].sort(), [
       "ghostly-strike",
-      "premeditation",
       "hemorrhage",
+      "premeditation",
     ]);
   });
 

@@ -23,6 +23,20 @@ const TALENTED = {
   poisons: { mainHand: "instant", offHand: "deadly" },
 };
 
+// #332: Combat reference spends energy tightly; a finisher-only rotation
+// lets the pool sit at cap so waste is measurable.
+const IDLE_ROTATION = {
+  schemaVersion: 1,
+  name: "Idle for energy waste",
+  rules: [
+    {
+      action: "eviscerate",
+      conditions: [{ type: "comboPoints", op: ">=", value: 5 }],
+    },
+  ],
+};
+const WASTEFUL = { ...TALENTED, rotation: IDLE_ROTATION };
+
 describe("refreshedEnd input checks (#198, #195 QA 3)", () => {
   it("refuses a bad rule first, then options that are not an object", () => {
     assert.throws(() => refreshedEnd("nope", null), {
@@ -280,7 +294,7 @@ describe("openCore: the event core held open (#198)", () => {
   });
 
   it("hands the energy pool's waste back once, however often it is closed", () => {
-    const { simulation, rogue } = fight();
+    const { simulation, rogue } = createFight(9, WASTEFUL, { duration: 30 });
     const run = openCore(simulation, 30);
     run.runUntil(30);
     run.close();

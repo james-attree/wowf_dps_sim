@@ -81,7 +81,8 @@ function page({ open = true, remembered = null } = {}) {
   return { store, form, tree, build, start, storage, moves, slice };
 }
 
-describe("the cards (#323)", () => {
+// TR-02 / #332: skipped. Start-screen preset choice; Custom only until #333.
+describe.skip("the cards (#323)", () => {
   it("are the presets in the trees' order, then Custom", () => {
     const cards = startCards();
     assert.deepEqual(
@@ -156,7 +157,7 @@ describe("the cards (#323)", () => {
   });
 });
 
-describe("when the panel opens (#323)", () => {
+describe.skip("when the panel opens (#323)", () => {
   it("only from the defaults, and not once Custom was chosen", () => {
     assert.equal(opensFirst({ source: "defaults", remembered: null }), true);
     assert.equal(
@@ -204,7 +205,7 @@ describe("when the panel opens (#323)", () => {
   });
 });
 
-describe("a pick and its Undo (#323)", () => {
+describe.skip("a pick and its Undo (#323)", () => {
   it("puts in the build and the rotation, folds, and focuses Undo", () => {
     const env = page();
     env.form.change("character.attackPower", 1234);
@@ -346,7 +347,7 @@ describe("a pick and its Undo (#323)", () => {
   });
 });
 
-describe("Custom remembered (#323)", () => {
+describe.skip("Custom remembered (#323)", () => {
   it("Custom is remembered; a preset or Reset forgets it; Reset's Undo puts it back", () => {
     const env = page();
     env.start.pick(CUSTOM);
@@ -381,7 +382,7 @@ describe("Custom remembered (#323)", () => {
   });
 });
 
-describe("the config form's part (#323)", () => {
+describe.skip("the config form's part (#323)", () => {
   it("setField is a change the form redraws (a new revision)", () => {
     const env = page();
     const revision = env.store.get().form.revision;
@@ -406,7 +407,7 @@ describe("the config form's part (#323)", () => {
   });
 });
 
-describe("the words for every change (#325 P1)", () => {
+describe.skip("the words for every change (#325 P1)", () => {
   const PARTS = [...BUILD_PARTS, ROTATION_PART];
   const build = referenceBuild(COMBAT);
   const LEVEL = `Level set to${NBSP}60.`;

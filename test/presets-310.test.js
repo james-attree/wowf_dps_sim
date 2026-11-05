@@ -76,7 +76,8 @@ function presetSetup(id) {
   );
 }
 
-describe("#310: each preset is its share link's setup", () => {
+// TR-02 / #332: skipped. Old James #310 preset links; presets empty until #333.
+describe.skip("#310: each preset is its share link's setup", () => {
   for (const id of PRESETS) {
     it(`${id}: the reference build's talents are the link's`, () => {
       assert.deepEqual(referenceBuild(id).talents, linkSetup(id).talents);

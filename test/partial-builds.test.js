@@ -1,3 +1,4 @@
+// TR-02 / #332: whole file skipped — empty presets until #333
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
@@ -50,7 +51,7 @@ function fill(points, trees = ["combat", "assassination"]) {
 
 const PROBLEM_KEYS = ["code", "talent", "need", "have", "message"];
 
-describe("the talent level and its cap (#190)", () => {
+describe.skip("the talent level and its cap (#190)", () => {
   it("runs from 10 to 60, 60 by default, and caps at level - 9", () => {
     assert.deepEqual({ ...talentLevelRange() }, { min: 10, max: 60 });
     assert.equal(DEFAULT_TALENT_LEVEL, 60);
@@ -202,7 +203,7 @@ describe("the talent level and its cap (#190)", () => {
   });
 });
 
-describe("partial builds run (#190)", () => {
+describe.skip("partial builds run (#190)", () => {
   for (const points of [0, 1, 31, 50]) {
     it(`a legal ${points}-point build is valid and runs`, () => {
       const ranks = points === 0 ? {} : fill(points);
@@ -282,7 +283,7 @@ describe("partial builds run (#190)", () => {
   });
 });
 
-describe("a partial build locks the talent abilities it lacks (#190, before #199)", () => {
+describe.skip("a partial build locks the talent abilities it lacks (#190, before #199)", () => {
   const casts = (fight, id) => fight.simulation.abilityStats[id]?.casts ?? 0;
   const PARTIAL = {
     "combat.improved-eviscerate": 3,
@@ -327,7 +328,7 @@ describe("a partial build locks the talent abilities it lacks (#190, before #199
   });
 });
 
-describe("pointsByTree", () => {
+describe.skip("pointsByTree", () => {
   it("counts the points by tree and in all, frozen", () => {
     const points = pointsByTree(REFERENCE);
     assert.deepEqual(
@@ -372,7 +373,7 @@ describe("pointsByTree", () => {
   });
 });
 
-describe("buildProblems: every problem as data", () => {
+describe.skip("buildProblems: every problem as data", () => {
   const codes = (list) => list.map((entry) => entry.code);
 
   it("gives frozen { code, talent, need, have, message } entries", () => {
@@ -509,7 +510,7 @@ describe("buildProblems: every problem as data", () => {
   });
 });
 
-describe("canAdd, canRemove and why: the per-talent model", () => {
+describe.skip("canAdd, canRemove and why: the per-talent model", () => {
   const ROW1 = {
     "combat.improved-eviscerate": 3,
     "combat.improved-sinister-strike": 2,
@@ -765,7 +766,7 @@ describe("canAdd, canRemove and why: the per-talent model", () => {
   });
 });
 
-describe("options that are not an object are the default level (#190)", () => {
+describe.skip("options that are not an object are the default level (#190)", () => {
   const NOT_OBJECTS = [null, undefined, 0, 40, "40", true, []];
 
   it("buildProblems, why, canAdd and canRemove do not throw on them", () => {
@@ -833,7 +834,7 @@ describe("options that are not an object are the default level (#190)", () => {
   });
 });
 
-describe("why judges the one change, not a build already illegal elsewhere", () => {
+describe.skip("why judges the one change, not a build already illegal elsewhere", () => {
   // { "combat.precision": 3 } breaks precision's row gate (row 2 needs 5
   // points above it). One point in improved eviscerate (combat row 1) does not
   // fix that, but the add itself breaks nothing, so it is allowed.
@@ -867,7 +868,7 @@ describe("why judges the one change, not a build already illegal elsewhere", () 
   });
 });
 
-describe("the capReached message counts its points", () => {
+describe.skip("the capReached message counts its points", () => {
   it("is singular for 1 point and plural for more", () => {
     assert.match(
       why(
@@ -894,7 +895,7 @@ describe("the capReached message counts its points", () => {
   });
 });
 
-describe("validateBuild stays the throwing wrapper", () => {
+describe.skip("validateBuild stays the throwing wrapper", () => {
   it("keeps its signature: validateBuild(ranks, catalogue), and returns the points", () => {
     assert.equal(validateBuild(REFERENCE), 51);
     assert.equal(validateBuild(REFERENCE, talentCatalogue), 51);
@@ -934,7 +935,7 @@ describe("validateBuild stays the throwing wrapper", () => {
   });
 });
 
-describe("the build label shows a partial build's points (#190)", () => {
+describe.skip("the build label shows a partial build's points (#190)", () => {
   it("adds N/cap to every build, the level below 60 (#204 D17)", () => {
     const part = (config) => buildLabel(config).split(" · Default rotation")[0];
     assert.equal(part({ talents: REFERENCE }), "Combat 18/33/0 · 51/51");

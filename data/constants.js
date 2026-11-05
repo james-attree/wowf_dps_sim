@@ -386,15 +386,15 @@ export const CONSTANTS = {
     {
       energy: 60,
       cooldown: 0,
-      weaponMultiplier: 0.75,
-      bonusDamage: 38,
+      weaponMultiplier: 0.9,
+      bonusDamage: 71,
       comboPoints: 2,
       poisonedMultiplier: 1.2,
     },
     "energy, s, ×, damage, CP, ×",
     WOWF_EXPORT,
-    "rogue.json → spell_desc[Rogue|Mutilate|Rank 4]: 75% weapon damage plus an additional 38 with each weapon, damage increased by 20% against Poisoned targets, awards 2 Combo Points",
-    "A strike with each weapon (#267). Per hand (weapon roll + 38) × 0.75 (A3: the spell's Rank 4 numbers, not the talent text's +13), with no off-hand penalty on the off-hand strike. ×1.2 (poisonedMultiplier) while the target has Deadly Poison (A1: Instant Poison leaves no aura). Needs a dagger in both hands (requiresMainHand and requiresOffHand in js/ability-data.js, A2): otherwise its rule is passed over, with no warning. The main hand resolves first, attack roll, damage roll, crit roll, then its procs; then the off hand the same way (A4). A main hand that does not land: no off hand, no CP, the miss refund. 2 CP when the main hand lands; Seal Fate rolls on the first hand that crits only, so it adds at most 1 (A6). Each hand procs its own weapon's poison (A5). Cold Blood makes both hands crit and is used once by the cast (A7). The 2 CP, the 60 energy and the per-hand formula are TBC values on the retune list.",
+    "rogue.json → spell_desc[Rogue|Mutilate|Rank 3] (1.60.1.70755): 90% weapon damage plus an additional 71 with each weapon, damage increased by 20% against Poisoned targets, awards 2 Combo Points",
+    "A strike with each weapon (#267, retuned #332). Per hand (weapon roll + 71) × 0.9 (A3: the spell's Rank 3 numbers), with no off-hand penalty on the off-hand strike. ×1.2 (poisonedMultiplier) while the target has Deadly Poison (A1: Instant Poison leaves no aura). Needs a dagger in both hands (requiresMainHand and requiresOffHand in js/ability-data.js, A2): otherwise its rule is passed over, with no warning. The main hand resolves first, attack roll, damage roll, crit roll, then its procs; then the off hand the same way (A4). A main hand that does not land: no off hand, no CP, the miss refund. 2 CP when the main hand lands; Seal Fate rolls on the first hand that crits only, so it adds at most 1 (A6). Each hand procs its own weapon's poison (A5). Cold Blood makes both hands crit and is used once by the cast (A7).",
     true,
   ),
   "mutilate.poisonedAura": entry(
@@ -409,7 +409,7 @@ export const CONSTANTS = {
     "main hand, then off hand",
     "–",
     ASSUMPTION,
-    "James, 31 Oct 2026, issue #267: A3-A7 (Q1, TBC rules): per hand (weapon + 38) × 0.75 with no off-hand penalty; each hand its own yellow roll, the main hand resolved fully first and the off hand not attempted when it does not land; 2 CP when the main hand lands and at most 1 from Seal Fate; each hand procs its own poison; Cold Blood makes both crit and is used once",
+    "James, 31 Oct 2026, issue #267: A3-A7 (Q1, TBC rules): per hand (weapon + 71) × 0.9 with no off-hand penalty; each hand its own yellow roll, the main hand resolved fully first and the off hand not attempted when it does not land; 2 CP when the main hand lands and at most 1 from Seal Fate; each hand procs its own poison; Cold Blood makes both crit and is used once",
     "Documents the rules: no code reads this row (js/ability.js, castBothHands). The draws per hand are the attack roll, the damage roll, then the crit roll on a hit, then that hand's procs.",
     false,
   ),
@@ -436,7 +436,7 @@ export const CONSTANTS = {
     true,
   ),
   "poison.instant": entry(
-    { chance: 0.2, min: 76, max: 100, charges: 175 },
+    { chance: 0.2, min: 76, max: 100, charges: 250 },
     "chance, damage, charges",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Instant Poison|Rank 6]",
@@ -444,7 +444,7 @@ export const CONSTANTS = {
     false,
   ),
   "poison.deadly": entry(
-    { chance: 0.3, damage: 92, duration: 12, stacks: 5, charges: 180 },
+    { chance: 0.3, damage: 92, duration: 12, stacks: 5, charges: 240 },
     "chance, damage, s, stacks, charges",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Deadly Poison|Rank 5]",
@@ -1501,7 +1501,7 @@ export const CONSTANTS = {
   ),
   "sealFate.comboPoint": entry(
     {
-      chance: [0.2, 0.4, 0.6, 0.8, 1],
+      chance: [0.33, 0.66, 1],
       comboPoints: 1,
       abilities: [
         "ambush",
@@ -1518,8 +1518,8 @@ export const CONSTANTS = {
     },
     "chance per rank, combo points, ability ids",
     WOWF_EXPORT,
-    "rogue.json → talents[Assassination|Seal Fate] desc: critical strikes from abilities that add Combo Points have a 20/40/60/80/100% chance to add an additional Combo Point",
-    "A proc on a crit from a combo point builder (onCrit). The abilities are the ones the ability catalogue gives comboPointsAwarded above 0; a test checks the two lists match.",
+    "rogue.json → talents[Assassination|Seal Fate] desc (1.60.1.70755): critical strikes from abilities that add Combo Points have a 33/66/100% chance to add an additional Combo Point (max 3)",
+    "A proc on a crit from a combo point builder (onCrit). The abilities are the ones the ability catalogue gives comboPointsAwarded above 0; a test checks the two lists match. Shank is not in the list (assumption: Shank does not trigger Seal Fate; TR-04).",
     false,
   ),
   "sealFate.stacking": entry(
@@ -1531,11 +1531,11 @@ export const CONSTANTS = {
     false,
   ),
   "relentlessStrikes.energy": entry(
-    { chancePerComboPoint: 0.2, energy: 25 },
-    "chance per combo point, energy",
+    { chancePerComboPoint: [0.04, 0.08, 0.12, 0.16, 0.2], energy: 25 },
+    "chance per combo point per rank, energy",
     WOWF_EXPORT,
-    "rogue.json → talents[Assassination|Relentless Strikes] desc. Cross-check: wowsims/classic sim/rogue/talents.go applyRelentlessStrikes, 0.2 per combo point and 25 energy (read 26 Oct 2026)",
-    "Finishing moves have 20% chance per combo point to restore 25 energy. A proc on a landed finisher cast (onAbility, tag finisher), chance mode perSpent: 20% times the points the cast spent, capped at 100%, so one draw per finisher.",
+    "rogue.json → talents[Assassination|Relentless Strikes] desc (1.60.1.70755): finishing moves have a 4/8/12/16/20% chance per Combo Point to restore 25 Energy (max 5)",
+    "A proc on a landed finisher cast (onAbility, tag finisher), chance mode perSpent: the rank's chance times the points the cast spent, capped at 100%, so one draw per finisher.",
     false,
   ),
   thousandCuts: entry(

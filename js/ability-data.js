@@ -318,17 +318,6 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     },
   },
   {
-    // Granted by the Venom talent (#268, A9-A10): a self aura for 9-21 s by
-    // combo points spent. A cast that does not attack. No icon in img/ yet.
-    key: "venom",
-    id: "venom",
-    row: "venom",
-    icon: null,
-    cost: ENERGY,
-    spend: { resource: "comboPoints" },
-    aura: { id: "venom", duration: { bySpent: "durationByCp" } },
-  },
-  {
     // Granted by the Preparation talent (#270): no cost, on the GCD, a 10 min
     // cooldown, and it finishes the cooldowns preparation.resets lists (A15).
     // A cast that does not attack and draws nothing. No icon in img/ yet.

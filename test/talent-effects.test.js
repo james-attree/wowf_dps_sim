@@ -25,28 +25,29 @@ const FIGHT_SECONDS = 60;
 // ranks that link must decode to (written out from the issue, so the decoder
 // is checked against something other than itself).
 const REFERENCE_LINK =
-  "https://talentsforever.com/rogue/60/00530310501-32030320201515231--CD1FDGISRUWZXbc4defg2hgcK-8?b=70425h&d=261026";
+  "https://talentsforever.com/rogue/60/005303212-3203032002012321551--SRUWaXcdeghijfCDFIHG-12?b=70755h&d=261105";
 const REFERENCE_ASSASSINATION = {
   "assassination.malice": 5,
   "assassination.ruthlessness": 3,
   "assassination.improved-slice-and-dice": 3,
-  "assassination.relentless-strikes": 1,
-  "assassination.lethality": 5,
-  "assassination.cold-blood": 1,
+  "assassination.vigor": 2,
+  "assassination.blood-splatter": 1,
+  "assassination.lethality": 2,
 };
 const REFERENCE_COMBAT = {
-  "combat.improved-eviscerate": 3,
-  "combat.improved-sinister-strike": 2,
+  "combat.coup-de-grace": 3,
+  "combat.efficient-strikes": 2,
   "combat.puncturing-wounds": 3,
   "combat.precision": 3,
-  "combat.endurance": 2,
   "combat.improved-sprint": 2,
+  "combat.composure": 2,
   "combat.flawless-execution": 1,
-  "combat.dual-wield-specialization": 5,
-  "combat.blade-flurry": 1,
-  "combat.hack-and-slash": 5,
   "combat.weapon-expertise": 2,
   "combat.aggression": 3,
+  "combat.dual-wield-specialization": 2,
+  "combat.blade-flurry": 1,
+  "combat.hack-and-slash": 5,
+  "combat.flash-of-steel": 5,
   "combat.adrenaline-rush": 1,
 };
 const POINTS_AT_LEVEL_60 = 51;
@@ -98,18 +99,24 @@ const ASSASSINATION_MAPPED = [
   "assassination.remorseless-attacks",
   "assassination.malice",
   "assassination.ruthlessness",
-  "assassination.murder",
-  "assassination.improved-slice-and-dice",
-  "assassination.relentless-strikes",
   "assassination.improved-expose-armor",
+  "assassination.improved-slice-and-dice",
+  "assassination.vigor",
+  "assassination.blood-splatter",
   "assassination.lethality",
   "assassination.vile-poisons",
   "assassination.cold-blood",
   "assassination.improved-poisons",
-  "assassination.vigor",
-  "assassination.mutilate",
+  "assassination.relentless-strikes",
+  "assassination.venom",
   "assassination.improved-kidney-shot",
   "assassination.seal-fate",
+  "assassination.mutilate",
+];
+// Kira N3 on #344: pin the Assassination talents still pending a follow-up
+// issue. Mutant M11 (Venom pending → ability) fails this list.
+const ASSASSINATION_PENDING = [
+  "assassination.blood-splatter",
   "assassination.venom",
 ];
 // The three Subtlety talents that grant an ability the engine casts (#207),
@@ -117,33 +124,32 @@ const ASSASSINATION_MAPPED = [
 // Preparation, and since #271 Improved Ambush, Initiative and Cutthroat: the
 // whole tree (D8).
 const SUBTLETY_MAPPED = [
-  "subtlety.camouflage",
+  "subtlety.setup",
   "subtlety.master-of-deception",
   "subtlety.opportunity",
-  "subtlety.setup",
-  "subtlety.elusiveness",
-  "subtlety.dirty-tricks",
+  "subtlety.dirty-deeds",
+  "subtlety.camouflage",
   "subtlety.improved-ambush",
+  "subtlety.dirty-tricks",
   "subtlety.initiative",
-  "subtlety.ghostly-strike",
-  "subtlety.improved-distract",
-  "subtlety.heightened-senses",
   "subtlety.premeditation",
   "subtlety.serrated-blades",
-  "subtlety.dirty-deeds",
+  "subtlety.elusiveness",
+  "subtlety.ghostly-strike",
+  "subtlety.quick-getaway",
+  "subtlety.heightened-senses",
   "subtlety.preparation",
   "subtlety.hemorrhage",
-  "subtlety.quietus",
-  "subtlety.cutthroat",
-  "subtlety.thousand-cuts",
+  "subtlety.boot-knife",
+  "subtlety.death-mark",
 ];
 const MAPPED = talentCatalogue.talents.filter(
   (talent) => TALENT_EFFECTS[talent.id] !== undefined,
 );
 
 describe("the talent effects data covers all three trees (#271)", () => {
-  it("has an entry for each of the 17 Combat talents, all 17 Assassination ones and all 19 Subtlety ones, in catalogue order, and no others", () => {
-    assert.equal(COMBAT.length, 17);
+  it("has an entry for each catalogue talent in catalogue order, and no others", () => {
+    assert.equal(COMBAT.length, 19);
     assert.equal(ASSASSINATION.length, ASSASSINATION_MAPPED.length);
     assert.deepEqual(Object.keys(TALENT_EFFECTS), [
       ...ASSASSINATION_MAPPED,
@@ -171,7 +177,7 @@ describe("the talent effects data covers all three trees (#271)", () => {
   });
 
   it("says which text each entry was written from, and the snapshot still has that text", () => {
-    assert.equal(MAPPED.length, 53);
+    assert.equal(MAPPED.length, 54);
     assert.equal(MAPPED.length, talentCatalogue.talents.length);
     for (const talent of MAPPED) {
       const hash = createHash("sha256")
@@ -207,16 +213,16 @@ describe("the talent effects data covers all three trees (#271)", () => {
     }
   });
 
-  it("says why each of the six talents with no DPS effect has none", () => {
+  it("says why each Combat talent with no DPS effect has none", () => {
     const none = COMBAT.filter(
       (talent) => TALENT_EFFECTS[talent.id].noDpsEffect !== undefined,
     ).map((talent) => talent.id);
     assert.deepEqual(none, [
       "combat.lightning-reflexes",
       "combat.deflection",
+      "combat.improved-sprint",
       "combat.endurance",
       "combat.riposte",
-      "combat.improved-sprint",
       "combat.improved-kick",
     ]);
     for (const id of none) {
@@ -263,24 +269,45 @@ describe("the procs' chances match the snapshot's rank text", () => {
 });
 
 describe("the 11 DPS-relevant Combat talents, and the 6 that are not", () => {
-  it("splits the 17 into 11 with an effect and 6 without", () => {
-    const withEffect = COMBAT.filter(
-      (talent) => TALENT_EFFECTS[talent.id].noDpsEffect === undefined,
-    ).map((talent) => talent.id);
-    assert.equal(withEffect.length, 11);
+  it("splits Combat into talents with a mapped effect and ones without (or pending)", () => {
+    const withEffect = COMBAT.filter((talent) => {
+      const entry = TALENT_EFFECTS[talent.id];
+      return entry.noDpsEffect === undefined && entry.pending === undefined;
+    }).map((talent) => talent.id);
     assert.deepEqual(withEffect, [
-      "combat.improved-eviscerate",
-      "combat.improved-sinister-strike",
+      "combat.coup-de-grace",
+      "combat.efficient-strikes",
       "combat.puncturing-wounds",
       "combat.precision",
       "combat.flawless-execution",
+      "combat.weapon-expertise",
+      "combat.aggression",
       "combat.dual-wield-specialization",
       "combat.blade-flurry",
       "combat.hack-and-slash",
-      "combat.weapon-expertise",
-      "combat.aggression",
       "combat.adrenaline-rush",
     ]);
+  });
+});
+
+describe("Assassination pending talents stay pending until their follow-up (Kira N3 / #344)", () => {
+  it("pins blood-splatter and venom as the only Assassination pending entries", () => {
+    const pending = ASSASSINATION.filter(
+      (talent) => TALENT_EFFECTS[talent.id].pending !== undefined,
+    ).map((talent) => talent.id);
+    assert.deepEqual(pending, ASSASSINATION_PENDING);
+    for (const id of ASSASSINATION_PENDING) {
+      assert.equal(
+        TALENT_EFFECTS[id].ability,
+        undefined,
+        `${id}: pending must not also grant an ability`,
+      );
+      assert.equal(
+        TALENT_EFFECTS[id].modifiers,
+        undefined,
+        `${id}: pending stands alone`,
+      );
+    }
   });
 });
 
@@ -438,7 +465,16 @@ describe("expandTalents", () => {
       }).modifiers,
     );
     assert.equal(stats.resolve("hitChance", 0, { ability: "backstab" }), 0.02);
-    assert.equal(stats.resolve("damage", 100, { ability: "backstab" }), 106);
+    // Aggression is SS + Eviscerate only after 70755 (was SS + Backstab + Evisc).
+    assert.equal(
+      Number(
+        stats
+          .resolve("damage", 100, { ability: "sinister-strike" })
+          .toFixed(10),
+      ),
+      115,
+    );
+    assert.equal(stats.resolve("damage", 100, { ability: "backstab" }), 100);
     assert.equal(stats.resolve("damage", 100, { ability: "rupture" }), 100);
     assert.equal(
       stats.resolve("critChance", 0, {
@@ -530,7 +566,7 @@ describe("the data is checked when it loads, and the check refuses a bad entry",
   it("refuses an entry that does nothing and says nothing", () => {
     refuses(
       { "combat.precision": entry({}) },
-      /needs modifiers, procs, an ability or noDpsEffect/,
+      /needs modifiers, procs, an ability, pending or noDpsEffect/,
     );
   });
 
@@ -542,6 +578,35 @@ describe("the data is checked when it loads, and the check refuses a bad entry",
     refuses({ "combat.riposte": entry({ noDpsEffect: 1 }) }, /one-line reason/);
     refuses(
       { "combat.riposte": entry({ noDpsEffect: "x", ability: "riposte" }) },
+      /stands alone/,
+    );
+  });
+
+  // Kira N3 on #344: kills mutant M11 (Venom pending → ability while pending stays).
+  it("refuses pending that is empty, not text, or not alone (Venom pending→ability)", () => {
+    refuses(
+      {
+        "assassination.venom": entry({
+          pending: "",
+        }),
+      },
+      /one-line reason/,
+    );
+    refuses(
+      {
+        "assassination.venom": entry({
+          pending: 1,
+        }),
+      },
+      /one-line reason/,
+    );
+    refuses(
+      {
+        "assassination.venom": entry({
+          pending: "TR-05 / #334: Venom",
+          ability: "venom",
+        }),
+      },
       /stands alone/,
     );
   });
@@ -585,7 +650,7 @@ describe("the data is checked when it loads, and the check refuses a bad entry",
   });
 });
 
-describe("the reference build (Assassination 18 / Combat 33 / Subtlety 0), decoded from its link", () => {
+describe("the reference build (Assassination 16 / Combat 35 / Subtlety 0), decoded from its link", () => {
   const decoded = decodeBuildLink(REFERENCE_LINK);
 
   it("decodes to the ranks the issue lists, and no others", () => {
@@ -596,8 +661,8 @@ describe("the reference build (Assassination 18 / Combat 33 / Subtlety 0), decod
       ...REFERENCE_COMBAT,
     });
     assert.equal(sum(decoded.ranks), POINTS_AT_LEVEL_60);
-    assert.equal(sum(inTree(decoded.ranks, "assassination")), 18);
-    assert.equal(sum(inTree(decoded.ranks, "combat")), 33);
+    assert.equal(sum(inTree(decoded.ranks, "assassination")), 16);
+    assert.equal(sum(inTree(decoded.ranks, "combat")), 35);
     assert.equal(sum(inTree(decoded.ranks, "subtlety")), 0);
   });
 
@@ -615,37 +680,34 @@ describe("the reference build (Assassination 18 / Combat 33 / Subtlety 0), decod
     const link = (path) => `https://talentsforever.com/rogue/60/${path}`;
     assert.throws(() => decodeBuildLink(link("0x0--")), /not digits/);
     assert.throws(
-      () => decodeBuildLink(link("-" + "1".repeat(18) + "-")),
-      /has 17 talents/,
+      () => decodeBuildLink(link("-" + "1".repeat(20) + "-")),
+      /has 19 talents/,
     );
     assert.throws(() => decodeBuildLink(link("9--")), /ranks 0 to 3/);
     assert.deepEqual(nonZero(decodeBuildLink(link("--")).ranks), {});
   });
 
-  it("expands to the Combat talents' and six Assassination talents' modifiers, procs and abilities, and reports nothing unmapped", () => {
+  it("expands to the reference build's modifiers, procs and abilities, and reports nothing unmapped", () => {
     const build = expandTalents(decoded.ranks);
-    // Three Assassination modifier talents (D8a PR 1), then nine Combat ones,
-    // three of them with two tables (Puncturing Wounds, Hack and Slash, Weapon
-    // Expertise). Ruthlessness, Relentless Strikes and Cold Blood (D8a PR 2)
-    // are procs and an ability, so they add no modifier.
     assert.deepEqual(
       [...new Set(build.modifiers.map((m) => m.source))],
       [
         "assassination.malice",
         "assassination.improved-slice-and-dice",
+        "assassination.vigor",
         "assassination.lethality",
-        "combat.improved-eviscerate",
-        "combat.improved-sinister-strike",
+        "combat.coup-de-grace",
+        "combat.efficient-strikes",
         "combat.puncturing-wounds",
         "combat.precision",
         "combat.flawless-execution",
-        "combat.dual-wield-specialization",
-        "combat.hack-and-slash",
         "combat.weapon-expertise",
         "combat.aggression",
+        "combat.dual-wield-specialization",
+        "combat.hack-and-slash",
       ],
     );
-    assert.equal(build.modifiers.length, 15);
+    assert.equal(build.modifiers.length, 16);
     assert.deepEqual(
       build.modifiers
         .slice(0, 3)
@@ -653,30 +715,16 @@ describe("the reference build (Assassination 18 / Combat 33 / Subtlety 0), decod
       [
         ["critChance", "add", 0.05],
         ["duration", "add", 0.45],
-        ["critDamage", "add", 0.2],
+        ["resourceMax", "add", 10],
       ],
     );
     assert.deepEqual(
       build.procs.map((proc) => proc.id),
-      [
-        "ruthlessness",
-        "relentless-strikes",
-        "puncturing-wounds",
-        "hack-and-slash",
-      ],
+      ["ruthlessness", "puncturing-wounds", "hack-and-slash"],
     );
-    assert.deepEqual(build.abilities, [
-      "cold-blood",
-      "blade-flurry",
-      "adrenaline-rush",
-    ]);
-    assert.deepEqual(build.noDps, [
-      "combat.endurance",
-      "combat.improved-sprint",
-    ]);
+    assert.deepEqual(build.abilities, ["blade-flurry", "adrenaline-rush"]);
+    assert.deepEqual(build.noDps, ["combat.improved-sprint"]);
     assert.deepEqual(build.unmapped, []);
-    // The reference build's six Assassination talents are all mapped (#266
-    // mapped more, which it does not spend points on).
     for (const id of Object.keys(REFERENCE_ASSASSINATION)) {
       assert.ok(ASSASSINATION_MAPPED.includes(id), id);
     }

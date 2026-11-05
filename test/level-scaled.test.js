@@ -30,7 +30,7 @@ describe("ranks by level (#290)", () => {
     assert.equal(learnedAt("Rupture"), 20);
     assert.equal(learnedAt("Expose Armor"), 14);
     assert.equal(learnedAt("Slice and Dice"), 10);
-    assert.equal(learnedAt("Mutilate"), 30);
+    assert.equal(learnedAt("Mutilate"), 40);
     assert.equal(learnedAt("Cold Blood"), 25);
     assert.equal(learnedAt("Instant Poison"), 20);
     assert.equal(learnedAt("Deadly Poison"), 30);
@@ -65,7 +65,7 @@ describe("ranks by level (#290)", () => {
       rankedStats("rupture", 40).damageByCp,
       [53, 79, 109, 143, 183],
     );
-    assert.equal(rankedStats("mutilate", 40).bonusDamage, 19);
+    assert.equal(rankedStats("mutilate", 40).bonusDamage, 36);
     assert.equal(rankedStats("ambush", 40).bonusDamage, 125);
     assert.equal(rankedStats("exposeArmor", 40).armorPerComboPoint, 270);
     assert.equal(rankedStats("sliceAndDice", 41).haste, 0.2);

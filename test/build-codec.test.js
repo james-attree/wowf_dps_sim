@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   LINK_PARAM,
   LINK_VERSION,
+  SETUP_ERA,
   SETUP_VERSION,
   decodeSetup,
   encodeSetup,
@@ -39,8 +40,15 @@ const SEED = 424242;
 const MAX_SEED = 4294967295;
 
 const b64 = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
-const linkOf = (payload, version = SETUP_VERSION) =>
-  `${version}.${b64(payload)}`;
+// TR-02 / #332: SETUP_ERA is 1; a payload without era is era 0 and invalid.
+const linkOf = (payload, version = SETUP_VERSION) => {
+  const body =
+    payload && typeof payload === "object" && !("era" in payload)
+      ? { era: SETUP_ERA, ...payload }
+      : payload;
+  return `${version}.${b64(body)}`;
+};
+const DEFAULT_LINK = linkOf({});
 
 // Every field away from its default.
 function busySetup() {
@@ -105,11 +113,12 @@ describe("build codec: round trip (#284)", () => {
     }
   });
 
-  it("drops default fields: the defaults are '1.e30', a seed alone stays short", () => {
-    assert.equal(encodeSetup(setupDefaults()), "1.e30");
+  it("drops default fields: the defaults are era-only, a seed alone stays short", () => {
+    assert.equal(encodeSetup(setupDefaults()), DEFAULT_LINK);
     const d = setupDefaults();
     const text = encodeSetup({ ...d, run: { ...d.run, seed: SEED } });
     assert.deepEqual(JSON.parse(Buffer.from(text.slice(2), "base64url")), {
+      era: SETUP_ERA,
       run: { seed: SEED },
     });
   });
@@ -138,24 +147,20 @@ describe("build codec: round trip (#284)", () => {
   });
 });
 
-describe("build codec: a captured v1 link still loads (#284)", () => {
-  // Made when #284 merged. It must keep loading: a later field (race, #277)
-  // reads as its default.
+describe("build codec: a pre-era v1 link is invalid (#332)", () => {
+  // Made when #284 merged (no era field). SETUP_ERA 1 refuses it silently
+  // (James, #332): same path as catalogue refusals; no damaged banner.
   const V1 =
     "1.eyJjb25maWciOnsiY2hhcmFjdGVyIjp7ImF0dGFja1Bvd2VyIjo5MDAsImhhc3RlIjowLjA1fSwicG9pc29ucyI6eyJtYWluSGFuZCI6ImRlYWRseSIsIm9mZkhhbmQiOiJpbnN0YW50In19LCJydW4iOnsibW9kZSI6ImxpdmUiLCJkdXJhdGlvbiI6MTIwLCJpdGVyYXRpb25zIjo1MDAsInNlZWQiOjd9fQ";
 
-  it("decodes to the build it was made from", () => {
-    const read = decodeSetup(V1);
-    assert.equal(read.status, "ok");
-    const d = setupDefaults();
-    assert.deepEqual(read.setup, {
-      config: {
-        ...d.config,
-        character: { ...d.config.character, attackPower: 900, haste: 0.05 },
-        poisons: { mainHand: "deadly", offHand: "instant" },
-      },
-      run: { mode: "live", duration: 120, iterations: 500, seed: 7 },
+  it("is invalid, and resolveInitialSetup loads save-or-default with no notice", () => {
+    assert.deepEqual(decodeSetup(V1), { status: "invalid" });
+    const resolved = resolveInitialSetup({
+      search: `?${LINK_PARAM}=${V1}`,
+      saved: null,
     });
+    assert.equal(resolved.notice, null);
+    assert.deepEqual(resolved.setup, setupDefaults());
   });
 });
 
@@ -337,7 +342,7 @@ describe("build codec: the share link's address and length (#284)", () => {
 
   // #328: Combat daggers as a card pick puts it in, its whole reference
   // build and rotation, at the longest seed.
-  it("keeps the Combat daggers link, with its reference build, under the test budget", () => {
+  it.skip("keeps the Combat daggers link, with its reference build, under the test budget (#332: no combat-daggers preset until #333)", () => {
     const build = referenceBuild(COMBAT_DAGGERS);
     const d = setupDefaults();
     const config = loadPreset(COMBAT_DAGGERS, {
@@ -430,7 +435,7 @@ describe("the page's first setup: link, then saved, then defaults (#284, #296)",
     });
   });
 
-  it("a newer or corrupt link loads nothing, says why, and is still taken out", () => {
+  it("a newer link loads nothing, says why, and is still taken out; corrupt is silent (Scout #332)", () => {
     const newer = `?${LINK_PARAM}=${linkOf({}, LINK_VERSION + 1)}`;
     assert.deepEqual(resolveInitialSetup({ search: newer }), {
       setup: setupDefaults(),
@@ -440,9 +445,12 @@ describe("the page's first setup: link, then saved, then defaults (#284, #296)",
     });
     const corrupt = `?${LINK_PARAM}=1.nope!`;
     const first = resolveInitialSetup({ search: corrupt, saved });
-    assert.equal(first.notice, "corrupt");
+    assert.equal(first.notice, null);
     assert.equal(first.source, "saved");
     assert.deepEqual(first.setup, savedSetup);
+    const alone = resolveInitialSetup({ search: corrupt });
+    assert.equal(alone.notice, null);
+    assert.equal(alone.source, "defaults");
   });
 
   it("a broken save is the defaults, never an error", () => {
@@ -480,23 +488,18 @@ describe("build codec: the target's pinned armour (#317's pin; #296 ruling)", ()
     }
   });
 
-  it("at its default (null) or unset, it is left out: the default link is '1.e30', the same bytes and length", () => {
-    assert.equal(encodeSetup(withTarget({ armor: null })), "1.e30");
+  it("at its default (null) or unset, it is left out: the default link is era-only", () => {
+    assert.equal(encodeSetup(withTarget({ armor: null })), DEFAULT_LINK);
     const d = setupDefaults();
     const { armor, ...unset } = d.config.target;
     assert.equal(armor, null);
     const text = encodeSetup({ ...d, config: { ...d.config, target: unset } });
-    assert.equal(text, "1.e30");
-    assert.equal(text.length, 5);
+    assert.equal(text, DEFAULT_LINK);
+    assert.equal(text, encodeSetup(setupDefaults()));
   });
 
-  it("an old link (captured at #284, before the pin) decodes with armour null and re-encodes to the same bytes", () => {
-    const read = decodeSetup(V1);
-    assert.equal(read.status, "ok");
-    assert.equal(read.setup.config.target.armor, null);
-    assert.equal(read.setup.config.target.level, null);
-    assert.equal(read.setup.config.character.weaponSkill, null);
-    assert.equal(encodeSetup(read.setup), V1);
+  it("an old pre-era link (captured at #284) is invalid under SETUP_ERA 1 (#332)", () => {
+    assert.deepEqual(decodeSetup(V1), { status: "invalid" });
   });
 
   it("a bad pin is refused whole in a link, and reads as the target's default in a save", () => {
