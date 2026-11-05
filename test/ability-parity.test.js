@@ -270,8 +270,12 @@ describe("generic executor", () => {
     assert.equal(calls[0][4], true, "the bleed flag reaches the DoT");
   });
 
-  it("attacks with the main hand", () => {
+  it("attacks with the main hand, except Shank (off hand, TR-04 / #337)", () => {
     for (const ability of Object.values(new Rogue().abilities)) {
+      if (ability.id === "shank") {
+        assert.equal(ability.hand, "offHand", ability.id);
+        continue;
+      }
       assert.equal(ability.hand, "mainHand", ability.id);
     }
   });

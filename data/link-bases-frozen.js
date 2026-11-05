@@ -869,3 +869,188 @@ export const COMBAT_DAGGERS_FROZEN = deepFreeze({
     ],
   },
 });
+
+// Frozen at TR-04 / #337: combat-swords-temp before Shank entered the live
+// rotation. Old short links that named this base keep the pre-Shank rules.
+export const COMBAT_SWORDS_TEMP_FROZEN = deepFreeze({
+  talents: {
+    "assassination.malice": 5,
+    "assassination.ruthlessness": 3,
+    "assassination.improved-slice-and-dice": 3,
+    "assassination.vigor": 2,
+    "assassination.blood-splatter": 1,
+    "assassination.lethality": 2,
+    "combat.coup-de-grace": 3,
+    "combat.efficient-strikes": 2,
+    "combat.puncturing-wounds": 3,
+    "combat.precision": 3,
+    "combat.improved-sprint": 2,
+    "combat.composure": 2,
+    "combat.flawless-execution": 1,
+    "combat.weapon-expertise": 2,
+    "combat.aggression": 3,
+    "combat.dual-wield-specialization": 2,
+    "combat.blade-flurry": 1,
+    "combat.hack-and-slash": 5,
+    "combat.flash-of-steel": 5,
+    "combat.adrenaline-rush": 1,
+  },
+  talentLevel: 60,
+  weapons: {
+    mainHand: {
+      min: 100,
+      max: 187,
+      speed: 2.6,
+      type: "sword",
+    },
+    offHand: {
+      min: 90,
+      max: 168,
+      speed: 2.5,
+      type: "sword",
+    },
+  },
+  poisons: {
+    mainHand: "instant",
+    offHand: "deadly",
+  },
+  rotation: {
+    schemaVersion: 1,
+    name: "Combat swords (temporary)",
+    rules: [
+      {
+        action: "blood-fury",
+        conditions: [
+          {
+            type: "abilityGranted",
+            ability: "blood-fury",
+          },
+        ],
+      },
+      {
+        action: "elunes-light",
+        conditions: [
+          {
+            type: "abilityGranted",
+            ability: "elunes-light",
+          },
+        ],
+      },
+      {
+        action: "berserking",
+        conditions: [
+          {
+            type: "abilityGranted",
+            ability: "berserking",
+          },
+        ],
+      },
+      {
+        action: "eureka",
+        conditions: [
+          {
+            type: "abilityGranted",
+            ability: "eureka",
+          },
+        ],
+      },
+      {
+        action: "slice-and-dice",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 3,
+          },
+          {
+            type: "auraRemaining",
+            aura: "slice-and-dice",
+            op: "<",
+            value: 1,
+          },
+        ],
+      },
+      {
+        action: "adrenaline-rush",
+        conditions: [
+          {
+            type: "abilityUnlocked",
+            ability: "adrenaline-rush",
+          },
+          {
+            type: "cooldownReady",
+            ability: "adrenaline-rush",
+          },
+          {
+            type: "resource",
+            resource: "energy",
+            op: "<",
+            value: 25,
+          },
+          {
+            type: "auraActive",
+            aura: "slice-and-dice",
+          },
+        ],
+      },
+      {
+        action: "blade-flurry",
+        conditions: [
+          {
+            type: "abilityUnlocked",
+            ability: "blade-flurry",
+          },
+          {
+            type: "cooldownReady",
+            ability: "blade-flurry",
+          },
+          {
+            type: "auraActive",
+            aura: "slice-and-dice",
+          },
+        ],
+      },
+      {
+        action: "eviscerate",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 5,
+          },
+          {
+            type: "auraRemaining",
+            aura: "slice-and-dice",
+            op: ">=",
+            value: 12,
+          },
+        ],
+      },
+      {
+        action: "sinister-strike",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: "<",
+            value: 5,
+          },
+        ],
+      },
+      {
+        action: "eviscerate",
+        conditions: [
+          {
+            type: "comboPoints",
+            op: ">=",
+            value: 3,
+          },
+          {
+            type: "energyToCap",
+            op: "<",
+            value: 1,
+          },
+        ],
+      },
+    ],
+  },
+});

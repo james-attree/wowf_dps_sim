@@ -631,6 +631,10 @@ export class ProcRunner {
     if (result === null) {
       context.tags = context.tags.filter((tag) => !ATTACK_TAGS.includes(tag));
     }
+    // TR-04 / #337 (Kira B1): shank.appliesOffHandPoison gates hand-scoped
+    // poison procs on Shank. Ability-scoped procs (Boot Knife) still fire.
+    const suppressHandPoisons =
+      ability.id === "shank" && !k("shank.appliesOffHandPoison");
     this.dispatch({
       kinds,
       context,
@@ -638,6 +642,7 @@ export class ProcRunner {
       spent,
       attacks: result !== null,
       extra: false,
+      suppressHandPoisons,
     });
   }
 
@@ -737,6 +742,10 @@ export class ProcRunner {
 
   consider(proc, event) {
     if (!scopeMatches(proc.scope, event.context)) {
+      return;
+    }
+    // Shank with appliesOffHandPoison false: skip poison procs (hands scope).
+    if (event.suppressHandPoisons && proc.scope?.hands !== undefined) {
       return;
     }
     if (event.extra && proc.extraAttack && !k("hackAndSlash.chain")) {

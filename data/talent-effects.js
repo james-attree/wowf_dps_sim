@@ -448,8 +448,20 @@ const RAW = {
   "combat.flash-of-steel": {
     textHash:
       "3d455e1528445216a8729da00eafb6500e05bf176d326c9a2dea680f479590d7",
-    pending:
-      "TR-04 / #337: Flash of Steel +3 energy / −0.4 s Shank cooldown per rank.",
+    modifiers: [
+      {
+        kind: "castGain",
+        op: "add",
+        values: [...k("flashOfSteel.energy").energy],
+        scope: { abilities: ["shank"] },
+      },
+      {
+        kind: "cooldown",
+        op: "add",
+        values: [...k("flashOfSteel.cooldown").seconds],
+        scope: { abilities: ["shank"] },
+      },
+    ],
   },
   "combat.adrenaline-rush": {
     textHash:
@@ -590,8 +602,24 @@ const RAW = {
   "subtlety.boot-knife": {
     textHash:
       "31294ac2ba6e3e8c5ac664ed81403f3ce6f8eb528cbe8981891f8843898a110f",
-    pending:
-      "TR-04 / #337: Boot Knife 20–100% chance for Shank to award +2 combo points.",
+    procs: [
+      {
+        id: "boot-knife",
+        trigger: "onHit",
+        scope: { abilities: [...k("bootKnife.comboPoint").abilities] },
+        chance: {
+          mode: "flat",
+          values: [...k("bootKnife.comboPoint").chance],
+        },
+        actions: [
+          {
+            type: "gainResource",
+            resource: "comboPoints",
+            amount: k("bootKnife.comboPoint").comboPoints,
+          },
+        ],
+      },
+    ],
   },
   "subtlety.death-mark": {
     textHash:

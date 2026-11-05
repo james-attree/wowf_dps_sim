@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  PENDING_SHANK_RULE,
+  COMBAT_SWORDS_SHANK_RULE,
   ROTATION_PRESETS,
 } from "../data/rotation-presets.js";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
@@ -37,8 +37,8 @@ describe("the preset registry (TR-03 / #333)", () => {
     assert.throws(() => ROTATION_PRESETS.push({ id: "x" }), TypeError);
   });
 
-  it("pins the pending Shank rule for TR-04 / #337 (not in the live rotation)", () => {
-    assert.deepEqual(PENDING_SHANK_RULE, {
+  it("includes the live Shank rule (energy < 50) from TR-04 / #337", () => {
+    assert.deepEqual(COMBAT_SWORDS_SHANK_RULE, {
       action: "shank",
       conditions: [
         { type: "cooldownReady", ability: "shank" },
@@ -46,7 +46,7 @@ describe("the preset registry (TR-03 / #333)", () => {
       ],
     });
     assert.ok(
-      !presetRotation("combat-swords-temp").rules.some(
+      presetRotation("combat-swords-temp").rules.some(
         (r) => r.action === "shank",
       ),
     );
@@ -104,72 +104,52 @@ describe("the preset API", () => {
   });
 });
 
-describe("Shank stays gated until TR-04 / #337 (Kira P1 / M14)", () => {
-  it("is not in ABILITY_DEFINITIONS, so the builder cannot offer it", () => {
-    assert.equal(
+describe("Shank is live in the Combat swords preset (TR-04 / #337)", () => {
+  it("is in ABILITY_DEFINITIONS and the castable list", () => {
+    assert.ok(
       ABILITY_DEFINITIONS.find((definition) => definition.id === "shank"),
-      undefined,
     );
-    assert.ok(!castableAbilities().includes("shank"));
-    assert.ok(!castableAbilities("orc").includes("shank"));
+    assert.ok(castableAbilities().includes("shank"));
+    assert.ok(castableAbilities("orc").includes("shank"));
   });
 
-  it("the validator refuses a Shank rule (notCastYet)", () => {
+  it("the validator accepts the Shank rule", () => {
     const rotation = {
       schemaVersion: 1,
-      name: "Pending Shank",
-      rules: [PENDING_SHANK_RULE],
+      name: "Live Shank",
+      rules: [COMBAT_SWORDS_SHANK_RULE],
     };
-    const errors = validateRotation(rotation);
-    assert.ok(errors.some((error) => error.code === "notCastYet"));
-    assert.ok(
-      errors.some(
-        (error) =>
-          error.path === "rules[0].action" && /shank/.test(error.message),
-      ),
-    );
-    assert.throws(
-      () => assertValidRotation(rotation),
-      (error) =>
-        error instanceof RangeError &&
-        /Bad rotation/.test(error.message) &&
-        /shank/.test(error.message),
-    );
+    assert.deepEqual(validateRotation(rotation), []);
+    assert.doesNotThrow(() => assertValidRotation(rotation));
   });
 
-  it("a page-default fight never casts Shank", () => {
+  it("a page-default fight casts Shank", () => {
     const result = runFight({
       config: normalizeConfig(pageDefaultConfig()),
       seed: 142,
       duration: 60,
     });
-    assert.equal(result.abilities.Shank, undefined);
     assert.ok(
-      !Object.keys(result.abilities).some((name) => /shank/i.test(name)),
+      Object.keys(result.abilities).some((name) => /shank/i.test(name)),
+      `abilities: ${Object.keys(result.abilities).join(",")}`,
     );
   });
 });
 
 describe("indexPresets runs assertValidRotation (Kira M10 / N1)", () => {
-  it("refuses a preset whose rotation casts Shank", () => {
-    assert.throws(
-      () =>
-        indexPresets([
-          {
-            id: "with-shank",
-            name: "With Shank",
-            description: "Injected pending rule.",
-            rotation: {
-              schemaVersion: 1,
-              name: "With Shank",
-              rules: [PENDING_SHANK_RULE],
-            },
-          },
-        ]),
-      (error) =>
-        error instanceof RangeError &&
-        /Bad rotation/.test(error.message) &&
-        /shank/.test(error.message),
-    );
+  it("accepts a preset whose rotation casts Shank now that it is live", () => {
+    const map = indexPresets([
+      {
+        id: "with-shank",
+        name: "With Shank",
+        description: "Live Shank rule.",
+        rotation: {
+          schemaVersion: 1,
+          name: "With Shank",
+          rules: [COMBAT_SWORDS_SHANK_RULE],
+        },
+      },
+    ]);
+    assert.equal(map.get("with-shank").rotation.rules[0].action, "shank");
   });
 });

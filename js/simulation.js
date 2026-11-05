@@ -813,6 +813,7 @@ export class Simulation {
       dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
+      cannotMiss: source.cannotMiss === true,
       table: this.attackTable,
       rng: this.rng,
       roll,

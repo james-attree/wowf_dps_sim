@@ -133,7 +133,7 @@ for (const width of WIDTHS) {
     after(() => context?.close());
 
     test("opens from Fight setup with the picked rotation's rules", async () => {
-      assert.equal(await rules(page).count(), 10);
+      assert.equal(await rules(page).count(), 11);
       assert.equal(
         await page.evaluate(() => globalThis.location.hash),
         "#rotation",
@@ -174,7 +174,7 @@ for (const width of WIDTHS) {
         `Reorder rule 1, ${before[1]}`,
       );
       await page.waitForFunction(() =>
-        /rule 1 of 10/.test(
+        /rule 1 of 11/.test(
           document.querySelector("#rotation-builder .builder-live").textContent,
         ),
       );
@@ -265,10 +265,10 @@ for (const width of WIDTHS) {
     });
 
     test("a quick fix adds the missing combo point check", async () => {
-      // Page default combat-swords-temp: rule 8 (index 7) is Eviscerate with CP >= 5
-      // and Slice and Dice remaining — two conditions. Drop CP, then the quick fix
-      // puts it back alongside the Slice and Dice check.
-      const screen = await openRule(page, 7);
+      // Page default combat-swords-temp: rule 9 (index 8) is Eviscerate with CP >= 5
+      // and Slice and Dice remaining — two conditions. Shank is index 7 (#337).
+      // Drop CP, then the quick fix puts it back alongside the Slice and Dice check.
+      const screen = await openRule(page, 8);
       await clickCentre(screen.locator("[data-key$='.rm']").first());
       const fix = screen.locator(".fix-button");
       assert.match(await fix.first().textContent(), /CP/);
@@ -354,7 +354,7 @@ for (const width of WIDTHS) {
     test("Delete focuses Undo", async () => {
       await clickCentre(rule(page, 6).locator("[data-key$='.del']"));
       await onUndo(page);
-      assert.equal(await rules(page).count(), 9);
+      assert.equal(await rules(page).count(), 10);
     });
 
     test("the duplicate warning's Delete rule N focuses Undo", async () => {
@@ -366,7 +366,7 @@ for (const width of WIDTHS) {
       });
       await clickCentre(fix);
       await onUndo(page);
-      assert.equal(await rules(page).count(), 10);
+      assert.equal(await rules(page).count(), 11);
     });
 
     test("Clear all focuses Undo", async () => {
@@ -388,7 +388,7 @@ for (const width of WIDTHS) {
       await page.keyboard.press("ArrowDown");
       await page.keyboard.press("Tab");
       await page.waitForFunction(() =>
-        / dropped at rule 3 of 10\.$/.test(
+        / dropped at rule 3 of 11\.$/.test(
           document.querySelector("#rotation-builder .builder-live").textContent,
         ),
       );

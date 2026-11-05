@@ -333,6 +333,7 @@ describe("the catalogue agrees with the constants the engine reads", () => {
       ["blade-flurry", "bladeFlurry"],
       ["adrenaline-rush", "adrenalineRush"],
       ["premeditation", "premeditation"],
+      ["shank", "shank"],
     ];
     for (const [id, constant] of pairs) {
       const ability = get(id);
@@ -343,6 +344,8 @@ describe("the catalogue agrees with the constants the engine reads", () => {
         assert.equal(ability.comboPointsAwarded, values.comboPoints, id);
       }
     }
+    assert.equal(get("shank").weaponPercent.base, k("shank").weaponMultiplier);
+    assert.equal(get("shank").comboPointsAwarded, 0);
   });
 
   it("weapon percents and flat damage", () => {

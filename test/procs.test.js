@@ -922,7 +922,8 @@ describe("Hack and Slash and Puncturing Wounds", () => {
       "combat.puncturing-wounds",
       "combat.hack-and-slash",
       "subtlety.initiative",
-      // #332: Cutthroat and Thousand Cuts gone at 70755
+      "subtlety.boot-knife",
+      // #332: Cutthroat and Thousand Cuts gone at 70755; #337 adds Boot Knife
     ]);
     const procs = procsFromTalents({
       "combat.hack-and-slash": 3,

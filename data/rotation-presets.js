@@ -5,9 +5,8 @@
 // config, and checks every one against the validator when it is imported.
 //
 // TR-03 / #333: James's temporary Combat swords (16/35/0) is the only
-// selectable preset until later TRs restore the rest. Shank (energy < 50)
-// is pending TR-04 / #337 — the engine does not cast it yet, so the rule is
-// omitted from the live rotation and pinned as PENDING_SHANK_RULE below.
+// selectable preset until later TRs restore the rest. TR-04 / #337: Shank
+// when energy < 50 is live in COMBAT_SWORDS_TEMP_RULES.
 
 function deepFreeze(value) {
   if (value !== null && typeof value === "object") {
@@ -18,9 +17,8 @@ function deepFreeze(value) {
 }
 
 // The only Shank rule James ruled for the temporary Combat swords preset
-// (5 Nov 2026): cast when energy < 50 and the cooldown is ready. Insert into
-// the live rules once TR-04 / #337 teaches the engine to cast Shank.
-export const PENDING_SHANK_RULE = deepFreeze({
+// (5 Nov 2026 / TR-04 #337): cast when energy < 50 and the cooldown is ready.
+export const COMBAT_SWORDS_SHANK_RULE = deepFreeze({
   action: "shank",
   conditions: [
     { type: "cooldownReady", ability: "shank" },
@@ -121,6 +119,7 @@ const COMBAT_SWORDS_TEMP_RULES = deepFreeze([
       },
     ],
   },
+  COMBAT_SWORDS_SHANK_RULE,
   {
     action: "eviscerate",
     conditions: [
@@ -169,7 +168,7 @@ export const ROTATION_PRESETS = deepFreeze([
     id: "combat-swords-temp",
     name: "Combat swords (temporary)",
     description:
-      "James's temporary Combat swords build for the 70755 rework (TR-03 / #333): Assassination 16 / Combat 35 / Subtlety 0. Shank when energy is low lands in TR-04 / #337.",
+      "James's temporary Combat swords build for the 70755 rework (TR-03 / #333, Shank in TR-04 / #337): Assassination 16 / Combat 35 / Subtlety 0. Casts Shank when energy is below 50.",
     rotation: {
       schemaVersion: 1,
       name: "Combat swords (temporary)",
