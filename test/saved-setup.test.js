@@ -382,7 +382,7 @@ describe("#296 (G4): what a saved setup reads as", () => {
     assert.deepEqual(read.config.talents, build.talents);
     assert.equal(read.config.talentLevel, d.config.talentLevel);
     // The same text as a share link is refused whole (strict): nothing loads.
-    assert.equal(decodeSetup(text, { strict: true }).status, "corrupt");
+    assert.equal(decodeSetup(text, { strict: true }).status, "invalid");
   });
 
   it("a share link in the address wins over the save for the visit", () => {
