@@ -416,7 +416,7 @@ describe("Target level in Fight, next to its note (qa-319 P1)", () => {
 });
 
 describe("Weapon skill and Target level together (#318)", () => {
-  test.skip("350 typed, level 40 then back to 60: an error, then 350 again (skipped: page-default combat-swords-temp spends 51 points; level-40 cases need a clear-all rewrite after #333)", async () => {
+  test("350 typed, level 40 then back to 60: an error, then 350 again", async () => {
     const { context, page, errors } = await open(WIDTHS[2], TEXT_SIZES[0]);
     try {
       await enter(page, SKILL, "350");
@@ -424,6 +424,15 @@ describe("Weapon skill and Target level together (#318)", () => {
       await enter(page, TARGET, "62");
       const setLevel = async (level) => {
         await go(page, "#character/talents", LEVEL);
+        // Empty the 51-point page default so level 40 is legal (#333).
+        if (level === "40") {
+          await page.locator("#talents-reset").click();
+          await page.waitForFunction(() =>
+            /\b0 of \d+/.test(
+              document.querySelector("#talents-points")?.textContent ?? "",
+            ),
+          );
+        }
         await enter(page, LEVEL, level);
         await go(page, "#character/stats", SKILL);
       };

@@ -60,6 +60,17 @@ async function openTree(width) {
 }
 
 const tile = (page, id) => page.locator(`button.talent[data-id="${id}"]`);
+
+// Page default spends 51 points (#333): empty-tree cases clear first.
+async function clearTalents(page) {
+  await page.locator("#talents-reset").click();
+  await page.waitForFunction(() =>
+    /\b0 of \d+/.test(
+      document.querySelector("#talents-points")?.textContent ?? "",
+    ),
+  );
+}
+
 const spent = async (page) =>
   (await page.locator("#talents-points").textContent()).match(/\d+ of \d+/)[0];
 
@@ -83,7 +94,8 @@ for (const width of WIDTHS) {
     });
     after(() => context?.close());
 
-    test.skip("one click on an unfocused tile adds a point (1 of N) (skipped: page-default combat-swords-temp is a full 51-point build; empty-tree cases need a clear-all rewrite or another talent TR)", async () => {
+    test("one click on an unfocused tile adds a point (1 of N)", async () => {
+      await clearTalents(page);
       const malice = "assassination.malice";
       assert.notEqual(
         await page.evaluate(() => document.activeElement?.dataset?.id),
@@ -94,7 +106,8 @@ for (const width of WIDTHS) {
       assert.match(await tile(page, malice).getAttribute("aria-label"), /1\/5/);
     });
 
-    test.skip("one Shift-click on an unfocused tile removes a point (skipped: page-default combat-swords-temp is a full 51-point build; empty-tree cases need a clear-all rewrite or another talent TR)", async () => {
+    test("one Shift-click on an unfocused tile removes a point", async () => {
+      await clearTalents(page);
       const malice = "assassination.malice";
       await clickCentre(page, malice);
       await clickCentre(page, malice);
@@ -110,7 +123,8 @@ for (const width of WIDTHS) {
       assert.match(await tile(page, malice).getAttribute("aria-label"), /1\/5/);
     });
 
-    test.skip("a tile keeps its nodes through a select and a rank change (skipped: page-default combat-swords-temp is a full 51-point build; empty-tree cases need a clear-all rewrite or another talent TR)", async () => {
+    test("a tile keeps its nodes through a select and a rank change", async () => {
+      await clearTalents(page);
       const malice = "assassination.malice";
       await page.evaluate((id) => {
         const node = document.querySelector(`button.talent[data-id="${id}"]`);

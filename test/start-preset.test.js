@@ -282,7 +282,7 @@ describe("a pick and its Undo (#323)", () => {
     assert.equal(env.slice().point.text, "Combat swords (temporary)");
   });
 
-  it.skip("a press that changes nothing: no Undo, the focus moves on (skipped: page-default combat-swords-temp is a full 51-point build; level-only / no-op Custom cases need empty defaults or another preset TR)", () => {
+  it.skip("a press that changes nothing: no Undo, the focus moves on (skipped: page-default combat-swords-temp uses a preset rotation; Custom always swaps to the empty default rotation so the no-op path needs empty page defaults)", () => {
     const env = page();
     // Custom from the matching page default still folds and remembers (#333).
     env.start.pick(CUSTOM);
@@ -459,7 +459,7 @@ describe("the words for every change (#325 P1)", () => {
     );
   });
 
-  it.skip("Custom from level 30: the level is all it changes (skipped: page-default combat-swords-temp is a full 51-point build; level-only / no-op Custom cases need empty defaults or another preset TR)", () => {
+  it.skip("Custom from level 30: the level is all it changes (skipped: page-default combat-swords-temp is a full 51-point build; Custom restores that build so level-only diffs need empty page defaults)", () => {
     const env = page();
     env.tree.resetAll();
     env.tree.setLevel("30");

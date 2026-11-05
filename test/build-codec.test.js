@@ -25,7 +25,7 @@ import {
 const COMBAT_DAGGERS = "combat-daggers";
 import { defaultRotation } from "../js/rotation-default.js";
 import { k } from "../data/constants.js";
-import { LINK_CAP } from "../js/views/share-link.js";
+import { LINK_CAP, NOTICES } from "../js/views/share-link.js";
 
 // GitHub Pages' address for the sim, with a route: the link drops the route.
 const PAGES = "https://james-attree.github.io/wowf_dps_sim/#rotation/share";
@@ -76,6 +76,18 @@ function busySetup() {
     run: { mode: "live", duration: 120.5, iterations: 250, seed: SEED },
   };
 }
+
+describe("share-link NOTICES: no corrupt / damaged (#344 N1 / Kira M2)", () => {
+  it("has no corrupt key and no damaged notice text", () => {
+    assert.equal(Object.hasOwn(NOTICES, "corrupt"), false);
+    assert.equal(NOTICES.corrupt, undefined);
+    for (const [key, text] of Object.entries(NOTICES)) {
+      assert.doesNotMatch(String(text), /damaged/i, key);
+      assert.doesNotMatch(key, /corrupt/i);
+    }
+    assert.deepEqual(Object.keys(NOTICES).sort(), ["loaded", "newer"]);
+  });
+});
 
 describe("build codec: round trip (#284)", () => {
   it("round-trips every config field and the run settings", () => {

@@ -178,13 +178,21 @@ const D = setupDefaults();
 
 describe("Remember my setup (#296)", () => {
   for (const width of WIDTHS) {
-    test.skip(`a change survives a refresh, and Reset to defaults then a refresh shows the defaults, at ${width} (skipped: page-default combat-swords-temp spends 51 points; level-40 cases need a clear-all rewrite after #333)`, async () => {
+    test(`a change survives a refresh, and Reset to defaults then a refresh shows the defaults, at ${width}`, async () => {
       const { context, page, errors } = await open(width, "#character/stats");
       try {
         assert.equal(await saved(page), null, "nothing saved before a change");
         await set(page, "#character/stats", HASTE, "5");
         await set(page, "#character/stats", POWER, "900");
         await set(page, "#fight", LENGTH, "120");
+        // Empty the 51-point page default so level 40 is legal (#333).
+        await go(page, "#character/talents", "#talents-reset");
+        await page.locator("#talents-reset").click();
+        await page.waitForFunction(() =>
+          /\b0 of \d+/.test(
+            document.querySelector("#talents-points")?.textContent ?? "",
+          ),
+        );
         await set(page, "#character/talents", LEVEL, "40");
         await page.waitForTimeout(SETTLE);
         const text = await saved(page);

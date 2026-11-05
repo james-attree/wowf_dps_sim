@@ -4,12 +4,21 @@ import {
   PENDING_SHANK_RULE,
   ROTATION_PRESETS,
 } from "../data/rotation-presets.js";
+import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
+import { runFight } from "../js/fight.js";
+import { pageDefaultConfig } from "../js/config-form.js";
+import { castableAbilities } from "../js/rotation-edit.js";
 import {
   indexPresets,
   listPresets,
   loadPreset,
   presetRotation,
 } from "../js/rotation-presets.js";
+import {
+  assertValidRotation,
+  validateRotation,
+} from "../js/rotation-validator.js";
+import { normalizeConfig } from "../js/sim-config.js";
 
 describe("the preset registry (TR-03 / #333)", () => {
   it("lists only the temporary Combat swords preset", () => {
@@ -92,5 +101,75 @@ describe("the preset API", () => {
         /combat-swords-temp/.test(error.message),
     );
     assert.throws(() => loadPreset("nope"), RangeError);
+  });
+});
+
+describe("Shank stays gated until TR-04 / #337 (Kira P1 / M14)", () => {
+  it("is not in ABILITY_DEFINITIONS, so the builder cannot offer it", () => {
+    assert.equal(
+      ABILITY_DEFINITIONS.find((definition) => definition.id === "shank"),
+      undefined,
+    );
+    assert.ok(!castableAbilities().includes("shank"));
+    assert.ok(!castableAbilities("orc").includes("shank"));
+  });
+
+  it("the validator refuses a Shank rule (notCastYet)", () => {
+    const rotation = {
+      schemaVersion: 1,
+      name: "Pending Shank",
+      rules: [PENDING_SHANK_RULE],
+    };
+    const errors = validateRotation(rotation);
+    assert.ok(errors.some((error) => error.code === "notCastYet"));
+    assert.ok(
+      errors.some(
+        (error) =>
+          error.path === "rules[0].action" && /shank/.test(error.message),
+      ),
+    );
+    assert.throws(
+      () => assertValidRotation(rotation),
+      (error) =>
+        error instanceof RangeError &&
+        /Bad rotation/.test(error.message) &&
+        /shank/.test(error.message),
+    );
+  });
+
+  it("a page-default fight never casts Shank", () => {
+    const result = runFight({
+      config: normalizeConfig(pageDefaultConfig()),
+      seed: 142,
+      duration: 60,
+    });
+    assert.equal(result.abilities.Shank, undefined);
+    assert.ok(
+      !Object.keys(result.abilities).some((name) => /shank/i.test(name)),
+    );
+  });
+});
+
+describe("indexPresets runs assertValidRotation (Kira M10 / N1)", () => {
+  it("refuses a preset whose rotation casts Shank", () => {
+    assert.throws(
+      () =>
+        indexPresets([
+          {
+            id: "with-shank",
+            name: "With Shank",
+            description: "Injected pending rule.",
+            rotation: {
+              schemaVersion: 1,
+              name: "With Shank",
+              rules: [PENDING_SHANK_RULE],
+            },
+          },
+        ]),
+      (error) =>
+        error instanceof RangeError &&
+        /Bad rotation/.test(error.message) &&
+        /shank/.test(error.message),
+    );
   });
 });
