@@ -386,7 +386,7 @@ export const CONSTANTS = {
     "yes/no",
     ASSUMPTION,
     "James, 5 Nov 2026, issue #337: Shank applies off-hand poison",
-    "Assumption: a landed Shank is an off-hand yellow and procs the off-hand poison (hand: offHand on the ability). Configurable here if WoW Forever rules otherwise.",
+    "Assumption: a landed Shank is an off-hand yellow and procs the off-hand poison (hand: offHand on the ability). Read by js/procs.js onCast: false skips hand-scoped poison procs on Shank (Boot Knife and other ability-scoped procs still fire). Configurable if WoW Forever rules otherwise.",
     false,
   ),
   backstab: entry(

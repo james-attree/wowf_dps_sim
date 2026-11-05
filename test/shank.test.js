@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { k } from "../data/constants.js";
+import { CONSTANTS, k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { createFight } from "../js/fight.js";
@@ -46,6 +46,7 @@ describe("Shank is a live castable off-hand ability (#337)", () => {
   });
 
   it("costs 5 energy, deals 50% off-hand weapon damage, generates 25 energy, 10 s CD", () => {
+    assert.equal(k("shank").weaponMultiplier, 0.5);
     const { rogue, simulation } = ready();
     // Start below the cap so generated energy is visible.
     rogue.energy = 50;
@@ -90,6 +91,7 @@ describe("Shank is a live castable off-hand ability (#337)", () => {
     const { rogue, simulation } = ready({
       poisons: { mainHand: null, offHand: "instant" },
     });
+    assert.equal(rogue.abilities.shank.hand, "offHand");
     // Fill energy repeatedly and cast until a hit lands.
     let landed = null;
     for (let i = 0; i < 20 && !landed; i += 1) {
@@ -130,6 +132,63 @@ describe("Shank is a live castable off-hand ability (#337)", () => {
       if (stats) sealFateGains += stats.procs ?? 0;
     }
     assert.equal(sealFateGains, 0);
+  });
+});
+
+describe("shank.appliesOffHandPoison (Kira B1 / M7)", () => {
+  function withConstant(id, value, run) {
+    const original = CONSTANTS[id].value;
+    CONSTANTS[id].value = value;
+    try {
+      return run();
+    } finally {
+      CONSTANTS[id].value = original;
+    }
+  }
+
+  function instantPoisonCasts(applies) {
+    return withConstant("shank.appliesOffHandPoison", applies, () => {
+      let poisonCasts = 0;
+      let shankHits = 0;
+      for (let seed = 1; seed <= 80; seed += 1) {
+        const fight = createFight(seed, {
+          ...swords,
+          poisons: { mainHand: null, offHand: "instant" },
+        });
+        fight.rogue.energy = fight.rogue.maxEnergy;
+        fight.simulation.gcd = 0;
+        const result = fight.rogue.abilities.shank.cast(
+          fight.rogue,
+          fight.simulation,
+        );
+        if (result?.landed) {
+          shankHits += 1;
+          poisonCasts +=
+            fight.simulation.abilityStats["instant-poison"]?.casts ?? 0;
+        }
+      }
+      return { poisonCasts, shankHits };
+    });
+  }
+
+  it("default true: a landed Shank can apply off-hand Instant Poison", () => {
+    assert.equal(k("shank.appliesOffHandPoison"), true);
+    const { poisonCasts, shankHits } = instantPoisonCasts(true);
+    assert.ok(shankHits > 20, `hits ${shankHits}`);
+    assert.ok(
+      poisonCasts > 0,
+      `expected Instant Poison on Shank hits (casts ${poisonCasts})`,
+    );
+  });
+
+  it("false: a landed Shank never applies off-hand Instant Poison (kills M7)", () => {
+    const { poisonCasts, shankHits } = instantPoisonCasts(false);
+    assert.ok(shankHits > 20, `hits ${shankHits}`);
+    assert.equal(
+      poisonCasts,
+      0,
+      `Shank must not apply OH poison when shank.appliesOffHandPoison is false (got ${poisonCasts})`,
+    );
   });
 });
 

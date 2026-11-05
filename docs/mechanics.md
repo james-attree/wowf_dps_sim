@@ -17,7 +17,7 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 
 ### Shank, Flash of Steel and Boot Knife (TR-04 / #337)
 
-- **Shank** is a live ability (`js/ability-data.js`): off-hand yellow, 50% weapon damage (`weaponMultiplier` 0.5), 5 energy, 10 s cooldown, generates 15 / 25 energy by rank. `cannotMiss` zeroes the miss band only; dodge, parry and block still apply. A landed cast procs the off-hand poison (`assumption`, `shank.appliesOffHandPoison`). Shank is **not** on Seal Fate's builder list (`assumption` on `sealFate.comboPoint`).
+- **Shank** is a live ability (`js/ability-data.js`): off-hand yellow, 50% weapon damage (`weaponMultiplier` 0.5), 5 energy, 10 s cooldown, generates 15 / 25 energy by rank. `cannotMiss` zeroes the miss band only; dodge, parry and block still apply. A landed cast procs the off-hand poison when `k("shank.appliesOffHandPoison")` is true (`assumption`; `js/procs.js` onCast skips hand-scoped poison procs when false). Shank is **not** on Seal Fate's builder list (`assumption` on `sealFate.comboPoint`).
 - **Flash of Steel** (`combat.flash-of-steel`): `castGain` +3 per rank and `cooldown` −0.4 s per rank, scoped to `shank`. New modifier kinds `castGain` and `cooldown` (flat, abilities scope, floor 0).
 - **Boot Knife** (`subtlety.boot-knife`): onHit proc on Shank, 20–100% chance for +2 combo points (`bootKnife.comboPoint`).
 - **Rotation:** the temporary Combat swords preset casts Shank when energy &lt; 50 and the cooldown is ready (James, 5 Nov). Short-link base `combat-swords-temp` is frozen pre-Shank; live base is `combat-swords-temp-337` (#306 append-only).
