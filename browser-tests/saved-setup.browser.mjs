@@ -594,7 +594,7 @@ describe("Remember my setup (#296)", () => {
   });
 
   // TR-02 / #332: empty presets until #333
-test.skip("back after another tab changed the rotation: the rotation shown is the build's (the form revision redraw, N9)", async () => {
+  test.skip("back after another tab changed the rotation: the rotation shown is the build's (the form revision redraw, N9)", async () => {
     const { context, page, errors } = await open(1440, "#rotation");
     try {
       await go(page, "#rotation", ROTATION);

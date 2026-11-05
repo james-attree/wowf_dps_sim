@@ -438,7 +438,7 @@ describe("Copy link to this build (#284)", () => {
   // opens that build in a fresh browser (the saved setup it leaves is still
   // version 1).
   // TR-02 / #332: empty presets until #333
-test.skip("a preset's link is short, and it opens the build elsewhere (#306)", async () => {
+  test.skip("a preset's link is short, and it opens the build elsewhere (#306)", async () => {
     const PRESET_LINK_MAX = 64;
     const SPEED = "#cfg-weapons-mainHand-speed";
     const { context, page, errors } = await open(WIDTHS[1], "#character");
@@ -494,7 +494,7 @@ test.skip("a preset's link is short, and it opens the build elsewhere (#306)", a
     }
   });
   // TR-02 / #332: empty presets until #333
-test.skip("a rule deleted in the builder still gives a short link (#330 B1)", async () => {
+  test.skip("a rule deleted in the builder still gives a short link (#330 B1)", async () => {
     const PRESET_LINK_MAX = 64;
     const { context, page, errors } = await open(WIDTHS[1], "#character");
     try {

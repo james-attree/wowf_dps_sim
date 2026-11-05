@@ -275,7 +275,7 @@ for (const width of WIDTHS) {
     });
 
     // TR-02 / #332: empty presets until #333
-test.skip("switching rotations keeps the draft; revert and undo", async () => {
+    test.skip("switching rotations keeps the draft; revert and undo", async () => {
       const before = await names(page);
       await clickCentre(rule(page, 0).locator("[data-key$='.down']"));
       const edited = await names(page);
