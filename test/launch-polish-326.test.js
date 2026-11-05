@@ -39,6 +39,11 @@ const fixture = JSON.parse(
 );
 
 describe("#326: old links and saves still load, the same (#332)", () => {
+  it("the fixture is stamped for SETUP_ERA (Kira M6 / #344 N3)", () => {
+    assert.equal(fixture.era, SETUP_ERA);
+    assert.equal(fixture.era, 1);
+  });
+
   for (const [name, { text, setup, written }] of Object.entries(
     fixture.setups,
   )) {
@@ -47,6 +52,11 @@ describe("#326: old links and saves still load, the same (#332)", () => {
       assert.equal(link.status, "ok");
       assert.deepEqual(link.setup, setup);
       assert.equal(encodeSetup(link.setup), written);
+      // Each pinned text carries era 1 in its payload (#332 / M6).
+      const payload = JSON.parse(
+        Buffer.from(text.split(".")[1], "base64url").toString(),
+      );
+      assert.equal(payload.era, SETUP_ERA, name);
       const saved = decodeSetup(text, { strict: false });
       assert.deepEqual(saved, { status: "ok", setup });
       const first = resolveInitialSetup({ search: "", saved: text });
@@ -207,8 +217,8 @@ const said = (store) => {
 };
 
 // Needs Assassination (and other) preset cards; only combat-swords-temp until later TRs.
-describe.skip("#326 items 6 and 7: a pick and a re-pick, and what they say", () => {
-  it("item 7: a first pick names the whole build, the same poisons too", () => {
+describe("#326 items 6 and 7: a pick and a re-pick, and what they say", () => {
+  it.skip("item 7: a first pick names the whole build, the same poisons too (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", () => {
     const { store, build } = presetPage();
     assert.equal(build.pick(ASSASSINATION, "Assassination"), true);
     // The defaults have Assassination's poisons already: Undo has none to
@@ -220,7 +230,7 @@ describe.skip("#326 items 6 and 7: a pick and a re-pick, and what they say", () 
     });
   });
 
-  it("item 7: a first pick of another card names the whole build", () => {
+  it.skip("item 7: a first pick of another card names the whole build (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", () => {
     const { store, build } = presetPage();
     build.pick(ASSASSINATION, "Assassination");
     build.pick(COMBAT, "Combat");
@@ -232,7 +242,7 @@ describe.skip("#326 items 6 and 7: a pick and a re-pick, and what they say", () 
     assert.equal(announce, line);
   });
 
-  it("items 6 and 7: a re-pick after a speed edit puts the weapons back, and says only that", () => {
+  it.skip("items 6 and 7: a re-pick after a speed edit puts the weapons back, and says only that (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", () => {
     const { store, form, build } = presetPage();
     build.pick(ASSASSINATION, "Assassination");
     const speed = store.get().config.weapons.mainHand.speed;
@@ -253,7 +263,7 @@ describe.skip("#326 items 6 and 7: a pick and a re-pick, and what they say", () 
     assert.equal(build.pick(ASSASSINATION, "Assassination"), false);
   });
 
-  it("item 7 (Fran's qa-327 N3): weapons and poisons re-picked take a comma, not a second 'and'", () => {
+  it.skip("item 7 (Fran's qa-327 N3): weapons and poisons re-picked take a comma, not a second 'and' (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", () => {
     const { store, form, build } = presetPage();
     build.pick(ASSASSINATION, "Assassination");
     form.change("weapons.mainHand.speed", 2.9);
@@ -268,7 +278,7 @@ describe.skip("#326 items 6 and 7: a pick and a re-pick, and what they say", () 
     });
   });
 
-  it("item 7: the list joins as Scout worded it", () => {
+  it.skip("item 7: the list joins as Scout worded it (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", () => {
     const build = referenceBuild(ASSASSINATION);
     const text = (parts, level = false) =>
       pickedText("Assassination", build, ASSASSINATION, level, parts);
@@ -286,7 +296,7 @@ describe.skip("#326 items 6 and 7: a pick and a re-pick, and what they say", () 
     );
   });
 
-  it("item 7: a re-pick after a poison edit names the poisons alone", () => {
+  it.skip("item 7: a re-pick after a poison edit names the poisons alone (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", () => {
     const { store, form, build } = presetPage();
     build.pick(ASSASSINATION, "Assassination");
     form.change("poisons.mainHand", "crippling");

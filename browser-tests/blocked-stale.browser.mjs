@@ -229,9 +229,8 @@ async function talents(page, over) {
 
 for (const size of [WIDE, PHONE]) {
   const card = size.width === WIDE.width;
-  // Out-of-date Run surfaces assume empty page-default talents; rewrite for combat-swords-temp (#333).
-  describe.skip(`what blocks Run, on every out-of-date surface at ${size.width}px (#259 check)`, () => {
-    test("each cause and each mix of them, then each fixed", async () => {
+  describe(`what blocks Run, on every out-of-date surface at ${size.width}px (#259 check)`, () => {
+    test.skip("each cause and each mix of them, then each fixed (skipped: page-default combat-swords-temp is a full 51-point build; empty-tree cases need a clear-all rewrite or another talent TR)", async () => {
       const { context, page, errors } = await open(size);
       try {
         await keepBoth(page);

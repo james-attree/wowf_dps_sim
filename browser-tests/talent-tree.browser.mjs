@@ -74,8 +74,7 @@ async function clickCentre(page, id, modifiers = []) {
 }
 
 for (const width of WIDTHS) {
-  // Talent-tree browser cases assume empty page defaults; rewrite for combat-swords-temp (#333).
-  describe.skip(`talent tree in Chrome at ${width}px`, () => {
+  describe(`talent tree in Chrome at ${width}px`, () => {
     let context;
     let page;
     beforeEach(async () => {
@@ -84,7 +83,7 @@ for (const width of WIDTHS) {
     });
     after(() => context?.close());
 
-    test("one click on an unfocused tile adds a point (1 of N)", async () => {
+    test.skip("one click on an unfocused tile adds a point (1 of N) (skipped: page-default combat-swords-temp is a full 51-point build; empty-tree cases need a clear-all rewrite or another talent TR)", async () => {
       const malice = "assassination.malice";
       assert.notEqual(
         await page.evaluate(() => document.activeElement?.dataset?.id),
@@ -95,7 +94,7 @@ for (const width of WIDTHS) {
       assert.match(await tile(page, malice).getAttribute("aria-label"), /1\/5/);
     });
 
-    test("one Shift-click on an unfocused tile removes a point", async () => {
+    test.skip("one Shift-click on an unfocused tile removes a point (skipped: page-default combat-swords-temp is a full 51-point build; empty-tree cases need a clear-all rewrite or another talent TR)", async () => {
       const malice = "assassination.malice";
       await clickCentre(page, malice);
       await clickCentre(page, malice);
@@ -111,7 +110,7 @@ for (const width of WIDTHS) {
       assert.match(await tile(page, malice).getAttribute("aria-label"), /1\/5/);
     });
 
-    test("a tile keeps its nodes through a select and a rank change", async () => {
+    test.skip("a tile keeps its nodes through a select and a rank change (skipped: page-default combat-swords-temp is a full 51-point build; empty-tree cases need a clear-all rewrite or another talent TR)", async () => {
       const malice = "assassination.malice";
       await page.evaluate((id) => {
         const node = document.querySelector(`button.talent[data-id="${id}"]`);
@@ -131,8 +130,7 @@ for (const width of WIDTHS) {
     });
 
     test("over the cap, the run bar shows the whole status and stays compact", async () => {
-      await clickCentre(page, "assassination.malice");
-      await clickCentre(page, "assassination.malice");
+      // Page default combat-swords-temp already spends 51 points; drop the level.
       await page.fill("#talents-level", "10");
       await page.press("#talents-level", "Enter");
       const bar = await page.evaluate(() => {
@@ -176,8 +174,7 @@ for (const width of WIDTHS) {
     });
 
     test("over the cap, Fix the talents opens the tree and focuses Level", async () => {
-      await clickCentre(page, "assassination.malice");
-      await clickCentre(page, "assassination.malice");
+      // Page default combat-swords-temp already spends 51 points; drop the level.
       await page.fill("#talents-level", "10");
       await page.press("#talents-level", "Enter");
       // Leave the tree's screen so the link has to open it again.

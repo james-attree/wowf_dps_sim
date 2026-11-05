@@ -451,7 +451,6 @@ describe("Copy link to this build (#284)", () => {
   // #306: a preset with a typical edit copies as a short link, and the link
   // opens that build in a fresh browser (the saved setup it leaves is still
   // version 1).
-  // TR-02 / #332: empty presets until #333
   test("a preset's link is short, and it opens the build elsewhere (#306)", async () => {
     const PRESET_LINK_MAX = 64;
     const SPEED = "#cfg-weapons-mainHand-speed";
@@ -506,7 +505,6 @@ describe("Copy link to this build (#284)", () => {
       await context.close();
     }
   });
-  // TR-02 / #332: empty presets until #333
   test("a rule deleted in the builder still gives a short link (#330 B1)", async () => {
     const PRESET_LINK_MAX = 64;
     const { context, page, errors } = await open(WIDTHS[1], "#character");

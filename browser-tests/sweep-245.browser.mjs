@@ -70,8 +70,7 @@ const sideways = (page) =>
       document.documentElement.clientWidth,
   );
 
-// Ambush builder rule needs a talent retune for 70755 Ambush, not #333.
-describe.skip("Talents and Gear fit a phone at large text (#245)", () => {
+describe("Talents and Gear fit a phone at large text (#245)", () => {
   for (const hash of ["#character/talents", "#character/gear"]) {
     for (const viewport of PHONES) {
       for (const text of LARGE_TEXT) {
@@ -89,7 +88,7 @@ describe.skip("Talents and Gear fit a phone at large text (#245)", () => {
   }
 });
 
-describe.skip("the talent tabs show their whole names (#245, item 28)", () => {
+describe("the talent tabs show their whole names (#245, item 28)", () => {
   for (const text of [null, ...LARGE_TEXT]) {
     test(`at ${PHONE.width}, ${text ?? "default"} text`, async () => {
       const { context, page } = await open(PHONE, "#character/talents", text);
@@ -199,7 +198,7 @@ async function setField(page, selector, value) {
   await page.locator(selector).press("Tab");
 }
 
-describe.skip("the dock's lines wrap, not cut, at large text (#245, items 20, 21 and 25)", () => {
+describe("the dock's lines wrap, not cut, at large text (#245, items 20, 21 and 25)", () => {
   for (const viewport of PHONES) {
     for (const text of [null, ...LARGE_TEXT]) {
       const size = text ?? "100%";
@@ -273,7 +272,7 @@ const lineCount = (page, selector) =>
     }),
   );
 
-describe.skip("the phone nav's labels stay whole at large text (#245; Fran's #258 check)", () => {
+describe("the phone nav's labels stay whole at large text (#245; Fran's #258 check)", () => {
   for (const viewport of PHONES) {
     test(`at ${viewport.width}, 200% text`, async () => {
       const { context, page } = await open(viewport, "#fight", "200%");
@@ -291,7 +290,7 @@ describe.skip("the phone nav's labels stay whole at large text (#245; Fran's #25
   }
 });
 
-describe.skip("the phone nav's labels stay on the screen (#245; Fran's #258 check)", () => {
+describe("the phone nav's labels stay on the screen (#245; Fran's #258 check)", () => {
   for (const viewport of PHONES) {
     for (const text of [null, ...LARGE_TEXT]) {
       test(`at ${viewport.width}, ${text ?? "default"} text, with badges`, async () => {
@@ -325,7 +324,7 @@ describe.skip("the phone nav's labels stay on the screen (#245; Fran's #258 chec
   }
 });
 
-describe.skip("the run help on a phone (#245)", () => {
+describe("the run help on a phone (#245)", () => {
   test("is not above the area's heading off Results, and stays Stop's description", async () => {
     const { context, page } = await open(PHONE, "#fight");
     try {
@@ -349,7 +348,7 @@ describe.skip("the run help on a phone (#245)", () => {
 
 const WIDE = { width: 1024, height: 800 };
 
-describe.skip("the wide layout at 200% text (#245, items 22 and 23; Fran's #260 check)", () => {
+describe("the wide layout at 200% text (#245, items 22 and 23; Fran's #260 check)", () => {
   test("the nav column holds its links, clear of the area heading", async () => {
     const { context, page } = await open(WIDE, "#character", "200%");
     try {
@@ -449,7 +448,7 @@ async function batch(page) {
   await page.locator(".results-table[data-sortable]").waitFor();
 }
 
-describe.skip("a control you tab to shows whole (#245, items 19 and 27)", () => {
+describe("a control you tab to shows whole (#245, items 19 and 27)", () => {
   // A short screen: the textarea starts part way under the dock.
   for (const viewport of [
     { width: 360, height: 320 },
@@ -533,7 +532,7 @@ describe.skip("a control you tab to shows whole (#245, items 19 and 27)", () => 
   }
 });
 
-describe.skip("the damage table fits a wide screen in DejaVu Sans (#245, item 26)", () => {
+describe("the damage table fits a wide screen in DejaVu Sans (#245, item 26)", () => {
   test("at 1024, no sideways scroll in the table", async () => {
     const { context, page, errors } = await open(
       { width: 1024, height: 768 },
@@ -559,7 +558,7 @@ describe.skip("the damage table fits a wide screen in DejaVu Sans (#245, item 26
 const NEXT_SECONDS = "6";
 const NEXT_FIGHTS = "8";
 
-describe.skip("a result beside changed run fields (#245, Fran's #260 check)", () => {
+describe("a result beside changed run fields (#245, Fran's #260 check)", () => {
   test("a new fight length gets a neutral note, and the dock keeps the result's run", async () => {
     const { context, page, errors } = await open(PHONE, "#fight");
     try {
@@ -647,8 +646,8 @@ const builderNotes = (page) =>
       ?.textContent.trim(),
   }));
 
-describe.skip("an Ambush rule in the builder (#245, James's ruling)", () => {
-  test("on a dagger build it shows no warning or note", async () => {
+describe("an Ambush rule in the builder (#245, James's ruling)", () => {
+  test.skip("on a dagger build it shows no warning or note (skipped: Ambush needs talent retune for 70755, see #335)", async () => {
     const { context, page, errors } = await open(WIDE, "#character/gear");
     try {
       await page.selectOption("#cfg-weapons-mainHand-type", "dagger");
@@ -664,7 +663,7 @@ describe.skip("an Ambush rule in the builder (#245, James's ruling)", () => {
     }
   });
 
-  test("a dagger ability under an always-true rule still warns", async () => {
+  test.skip("a dagger ability under an always-true rule still warns (skipped: Ambush needs talent retune for 70755, see #335)", async () => {
     const { context, page, errors } = await open(WIDE, "#rotation");
     try {
       await addRule(page, "backstab");
@@ -705,7 +704,7 @@ async function hintParts(page, action) {
   return { card, editor };
 }
 
-describe.skip("an Ambush rule has no hint chip or hint (#264)", () => {
+describe("an Ambush rule has no hint chip or hint (#264)", () => {
   for (const size of FRAN_WIDTHS) {
     test(`at ${size.width}`, async () => {
       const { context, page, errors } = await open(size, "#character/gear");
@@ -764,7 +763,7 @@ async function breakEveryField(page) {
 const navTop = (page) =>
   page.$eval(".area-nav", (nav) => nav.getBoundingClientRect().top);
 
-describe.skip("the dock's longest Fix link and status at 360 (#245; Fran's #263 check)", () => {
+describe("the dock's longest Fix link and status at 360 (#245; Fran's #263 check)", () => {
   for (const text of LARGE_TEXT) {
     test(`${text} text: 'Fix ${ALL_BROKEN} issues' stays over the nav`, async () => {
       const { context, page, errors } = await open(PHONE, "#fight", text);
@@ -822,7 +821,7 @@ describe.skip("the dock's longest Fix link and status at 360 (#245; Fran's #263 
 // Fran's #263 note: the dock's link counts the settings alone as issues
 // too, and the reason that describes it and Run drops the "Can't run" the
 // status already says.
-describe.skip("the dock's Fix link and the reason, settings alone (#245; Fran's #263 note)", () => {
+describe("the dock's Fix link and the reason, settings alone (#245; Fran's #263 note)", () => {
   test(`at ${PHONE.width}: 'Fix 2 issues', described by '2 settings to fix'`, async () => {
     const { context, page, errors } = await open(PHONE, "#fight");
     try {

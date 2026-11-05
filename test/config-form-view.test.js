@@ -152,8 +152,7 @@ function page({ narrow = false, run } = {}) {
   return { doc, store, actions, $, commit, queried, created, timers };
 }
 
-// View expectations still assume empty page-default talents; rewrite for combat-swords-temp (#333).
-describe.skip("percent at the edge", () => {
+describe("percent at the edge", () => {
   it("shows 0.2245 as 22.45 and 0.07 as 7, and reads them back", () => {
     assert.equal(formatPercent(0.2245), "22.45");
     assert.equal(formatPercent(0.07), "7");
@@ -183,7 +182,7 @@ describe.skip("percent at the edge", () => {
   });
 });
 
-describe.skip("errors", () => {
+describe("errors", () => {
   it("mark the field, describe it by its help and error, and show the message", () => {
     const { $, commit } = page();
     const type = $("cfg-weapons-mainHand-type");
@@ -363,7 +362,7 @@ describe.skip("errors", () => {
   });
 });
 
-describe.skip("the form never runs anything", () => {
+describe("the form never runs anything", () => {
   it("submit and Enter are prevented; Enter commits the field", () => {
     const { $, store } = page();
     let prevented = 0;
@@ -395,8 +394,7 @@ describe.skip("the form never runs anything", () => {
   });
 });
 
-describe.skip("rotation", () => {
-  // TR-02 / #332: empty presets until #333
+describe("rotation", () => {
   it("fills the selects, and a choice reaches config.rotation and the summary", () => {
     const { $, store } = page();
     const rotation = $("cfg-rotation");
@@ -479,7 +477,6 @@ describe.skip("rotation", () => {
     assert.ok(!$("cfg-import-status").classes.has("is-warning"));
   });
 
-  // TR-02 / #332: empty presets until #333
   it("switching to another rotation clears the import status and warnings (Kira's #206 review)", () => {
     const { $, store } = page();
     $("cfg-import-text").value = JSON.stringify({
@@ -516,7 +513,7 @@ describe.skip("rotation", () => {
   });
 });
 
-describe.skip("Reset and Undo", () => {
+describe("Reset and Undo", () => {
   it("Reset shows 'Defaults restored' with Undo for the ui constant's time", () => {
     const { $, commit, timers, store } = page();
     commit("character.attackPower", "1234");
@@ -545,7 +542,7 @@ describe.skip("Reset and Undo", () => {
   });
 });
 
-describe.skip("poison selects (#152)", () => {
+describe("poison selects (#152)", () => {
   const pick = ($, hand, value) => {
     $(`cfg-poisons-${hand}`).value = value;
     $(`cfg-poisons-${hand}`).fire("change");
@@ -665,7 +662,7 @@ describe.skip("poison selects (#152)", () => {
   });
 });
 
-describe.skip("index.html's form", async () => {
+describe("index.html's form", async () => {
   const html = await readFile(
     new URL("../index.html", import.meta.url),
     "utf8",
@@ -754,7 +751,7 @@ describe.skip("index.html's form", async () => {
   });
 });
 
-describe.skip("a field typed in is checked on blur (#247)", () => {
+describe("a field typed in is checked on blur (#247)", () => {
   it("Backspace then the same digit: no change fires; the pair is checked as typed (#240 N2) and on blur", () => {
     const { $, commit, store } = page();
     commit("weapons.mainHand.min", "50");

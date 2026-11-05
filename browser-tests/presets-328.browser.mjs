@@ -56,10 +56,10 @@ const box = (page, selector) =>
     return { top, bottom, left, right, width, height };
   });
 
-describe.skip("The Combat daggers card (#328)", () => {
+describe("The Combat daggers card (#328)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {
-      test(`five cards and a Combat daggers pick at ${width}, ${textSize} text`, async () => {
+      test.skip(`five cards and a Combat daggers pick at ${width}, ${textSize} text (skipped: waits on a later dagger preset TR)`, async () => {
         const context = await browser.newContext({
           viewport: {
             width,

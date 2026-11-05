@@ -48,8 +48,7 @@ function setup() {
   return { store, actions, form, config };
 }
 
-// Form expectations still assume empty page-default talents; rewrite for combat-swords-temp (#333).
-describe.skip("the reference build moved to data/ (Scout, 29 Oct)", () => {
+describe("the reference build moved to data/ (Scout, 29 Oct)", () => {
   it("is one build: test/talentsforever.js re-exports data/reference-build.js", () => {
     assert.equal(testBuild.referenceBuild, dataBuild.referenceBuild);
     assert.equal(testBuild.decodeBuildLink, dataBuild.decodeBuildLink);
@@ -58,7 +57,7 @@ describe.skip("the reference build moved to data/ (Scout, 29 Oct)", () => {
   });
 });
 
-describe.skip("the form fills from the store's config", () => {
+describe("the form fills from the store's config", () => {
   it("shows the page defaults with no errors and the default rotation", () => {
     const { form, config } = setup();
     assert.deepEqual(form().errors, {});
@@ -74,9 +73,15 @@ describe.skip("the form fills from the store's config", () => {
       form().values["weapons.mainHand.type"],
       config().weapons.mainHand.type,
     );
-    assert.equal(form().rotationChoice, "default");
-    assert.equal(form().summary.name, defaultRotation().name);
-    assert.equal(form().summary.rules.length, defaultRotation().rules.length);
+    assert.equal(form().rotationChoice, "combat-swords-temp");
+    assert.equal(
+      form().summary.name,
+      presetRotation("combat-swords-temp").name,
+    );
+    assert.equal(
+      form().summary.rules.length,
+      presetRotation("combat-swords-temp").rules.length,
+    );
     assert.equal(form().canUndo, false);
   });
 
@@ -117,7 +122,7 @@ describe.skip("the form fills from the store's config", () => {
   });
 });
 
-describe.skip("field checks (Fran's notes, section 3)", () => {
+describe("field checks (Fran's notes, section 3)", () => {
   const valid = () => formFromConfig(normalizeConfig(defaultConfig())).values;
   const cases = [
     ["character.attackPower", Number.NaN, "Enter a number."],
@@ -184,7 +189,7 @@ describe.skip("field checks (Fran's notes, section 3)", () => {
   });
 });
 
-describe.skip("an invalid value never reaches the config", () => {
+describe("an invalid value never reaches the config", () => {
   it("change with a bad value sets the error and leaves config alone", () => {
     const { actions, form, config } = setup();
     const before = config();
@@ -254,7 +259,7 @@ describe.skip("an invalid value never reaches the config", () => {
   });
 });
 
-describe.skip("a null Min never stands alone (#237)", () => {
+describe("a null Min never stands alone (#237)", () => {
   const MIN = "weapons.mainHand.min";
   const MAX = "weapons.mainHand.max";
   // Max under Min: the pair's error, on the Max, with the Min marked.
@@ -331,7 +336,7 @@ describe.skip("a null Min never stands alone (#237)", () => {
   });
 });
 
-describe.skip("changes apply to the next run", () => {
+describe("changes apply to the next run", () => {
   it("nextRunConfig is null while the form has errors", () => {
     const { store, actions } = setup();
     assert.notEqual(nextRunConfig(store.get()), null);
@@ -371,7 +376,7 @@ describe.skip("changes apply to the next run", () => {
   });
 });
 
-describe.skip("talents: the talent tree owns the build (#204)", () => {
+describe("talents: the talent tree owns the build (#204)", () => {
   // A build the old select did not offer: a partial Combat build at level 40.
   const custom = () => ({
     "combat.efficient-strikes": 2,
@@ -441,7 +446,7 @@ describe.skip("talents: the talent tree owns the build (#204)", () => {
   });
 });
 
-describe.skip("rotation: one source of truth, config.rotation", () => {
+describe("rotation: one source of truth, config.rotation", () => {
   it("offers the default, then each preset", () => {
     const { form } = setup();
     assert.deepEqual(
@@ -451,7 +456,6 @@ describe.skip("rotation: one source of truth, config.rotation", () => {
     assert.equal(form().rotationOptions[0].label, defaultRotation().name);
   });
 
-  // TR-02 / #332: empty presets until #333
   it("choosing a preset writes config.rotation and the summary", () => {
     const { store, actions, form } = setup();
     const [preset] = listPresets();
@@ -465,17 +469,15 @@ describe.skip("rotation: one source of truth, config.rotation", () => {
     assert.equal(form().summary.name, defaultRotation().name);
   });
 
-  // TR-02 / #332: empty presets until #333
   it("export gives exportRotation of the selected rotation, with a file name", () => {
     const { actions } = setup();
     const [preset] = listPresets();
     actions.chooseRotation(preset.id);
     const file = actions.exportRotation();
     assert.equal(file.text, exportRotation(presetRotation(preset.id)));
-    assert.equal(file.fileName, `${preset.id}.json`);
+    assert.equal(file.fileName, "combat-swords-temporary.json");
   });
 
-  // TR-02 / #332: empty presets until #333
   it("a good import becomes the selected 'Imported: <name>' choice", () => {
     const { store, actions, form } = setup();
     const rotation = {
@@ -574,7 +576,7 @@ describe.skip("rotation: one source of truth, config.rotation", () => {
     const before = store.get().config;
     assert.equal(actions.importText("{ nope"), false);
     assert.equal(store.get().config, before);
-    assert.equal(form().rotationChoice, "default");
+    assert.equal(form().rotationChoice, "combat-swords-temp");
     assert.equal(form().importStatus.ok, false);
     assert.equal(
       form().importStatus.message,
@@ -751,7 +753,7 @@ describe.skip("rotation: one source of truth, config.rotation", () => {
   });
 });
 
-describe.skip("Reset to defaults and Undo", () => {
+describe("Reset to defaults and Undo", () => {
   it("Reset restores the defaults and clears errors; Undo puts everything back", () => {
     const { store, actions, form } = setup();
     actions.change("character.attackPower", 1000);
@@ -790,7 +792,7 @@ describe.skip("Reset to defaults and Undo", () => {
   });
 });
 
-describe.skip("a field typed in is checked again before it is used (#247)", () => {
+describe("a field typed in is checked again before it is used (#247)", () => {
   const MIN = "weapons.mainHand.min";
   const MAX = "weapons.mainHand.max";
   const PAIR_MIN = 50;
@@ -880,7 +882,6 @@ describe.skip("a field typed in is checked again before it is used (#247)", () =
     assert.equal(store.get().form, before);
   });
 
-  // TR-02 / #332: empty presets until #333
   it("any commit checks the typed fields too, not only the one changed", () => {
     const { actions, form, config } = repro();
     const stale = config();

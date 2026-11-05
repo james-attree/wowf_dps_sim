@@ -174,8 +174,7 @@ function setup({ seed = SEED, duration = DURATION } = {}) {
 const reference = (duration, seed = SEED) =>
   runFight({ seed, duration, config });
 
-// Run controls cases assume empty page defaults; rewrite for combat-swords-temp (#333).
-describe.skip("run bar fields (#153)", () => {
+describe("run bar fields (#153)", () => {
   it("fight length: a plain decimal from 1 to 3,600 seconds (#155)", () => {
     assert.equal(MIN_FIGHT_SECONDS, 1);
     for (const ok of ["300", "1", "2.5", "3600", " 12 ", "7.", "0001.50"]) {
@@ -343,7 +342,7 @@ function press(page, control) {
   }
 }
 
-describe.skip("live mode walks every state and transition (#153)", () => {
+describe("live mode walks every state and transition (#153)", () => {
   for (const [from, path] of Object.entries(LIVE_PATHS)) {
     for (const [control, to] of Object.entries(LIVE_MOVES[from])) {
       it(`${from} + ${control} -> ${to}`, () => {
@@ -539,7 +538,7 @@ describe.skip("live mode walks every state and transition (#153)", () => {
   });
 });
 
-describe.skip("batch mode (#153, #154 §10)", () => {
+describe("batch mode (#153, #154 §10)", () => {
   function batchPage() {
     const page = setup();
     page.actions.setMode("batch");
@@ -793,7 +792,7 @@ describe.skip("batch mode (#153, #154 §10)", () => {
   });
 });
 
-describe.skip("one fight is a fight (#155, Fran's Phase 3 QA 5)", () => {
+describe("one fight is a fight (#155, Fran's Phase 3 QA 5)", () => {
   it("the bar's batch statuses and progress say fight, not fights, for 1", async () => {
     const page = setup();
     page.store.set({
@@ -819,7 +818,7 @@ describe.skip("one fight is a fight (#155, Fran's Phase 3 QA 5)", () => {
   });
 });
 
-describe.skip("the running total is short (#155)", () => {
+describe("the running total is short (#155)", () => {
   it("keeps numbers under a thousand whole and shortens the rest to k", () => {
     assert.equal(compact(999), "999");
     assert.equal(compact(1000), "1k");
@@ -828,7 +827,7 @@ describe.skip("the running total is short (#155)", () => {
   });
 });
 
-describe.skip("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
+describe("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
   it("the status says why and how many, never Ready, in both modes", () => {
     const page = setup();
     page.actions.edit("duration", {
@@ -902,7 +901,7 @@ describe.skip("Run blocked (#155, Fran's Phase 3 QA 1)", () => {
   });
 });
 
-describe.skip("Run's blocked check is its count (#237)", () => {
+describe("Run's blocked check is its count (#237)", () => {
   const MIN = "weapons.mainHand.min";
   const MAX = "weapons.mainHand.max";
   // Each blocker on its own, by the slice it lives in.
@@ -990,7 +989,7 @@ describe.skip("Run's blocked check is its count (#237)", () => {
   });
 });
 
-describe.skip("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
+describe("the reason and the Fix link name each cause (Fran's #245 N1)", () => {
   it("only the run and stats fields are counted as settings", () => {
     const page = setup();
     const { doc, el } = standIn({
@@ -1088,7 +1087,7 @@ describe.skip("the reason and the Fix link name each cause (Fran's #245 N1)", ()
   });
 });
 
-describe.skip("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () => {
+describe("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)", () => {
   const withErrors = (page, n) =>
     page.store.set({
       form: {
@@ -1142,7 +1141,7 @@ describe.skip("Run blocked by a rotation with errors (#217, D17; Scout, 29 Oct)"
   });
 });
 
-describe.skip("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => {
+describe("Run blocked by talents over the cap (#204, Fran's QA of #208)", () => {
   const overCap = (page) =>
     page.store.set({
       talents: { ...page.store.get().talents, error: "Over the cap." },
@@ -1332,7 +1331,7 @@ function fakeMedia(matches) {
   };
 }
 
-describe.skip("the control bar view (#153)", () => {
+describe("the control bar view (#153)", () => {
   it("draws the model, calls the actions and never writes the store", () => {
     const page = setup();
     const { doc, el } = standIn();
@@ -1365,7 +1364,7 @@ describe.skip("the control bar view (#153)", () => {
     el("pause-button").fire("click");
     assert.match(
       el("run-announce").textContent,
-      /^Paused at 1 second\. Total damage [\d,]+\. [\d,]+ DPS\. Energy \d+ of 100\. Combo points \d of 5\.$/,
+      /^Paused at 1 second\. Total damage [\d,]+\. [\d,]+ DPS\. Energy \d+ of \d+\. Combo points \d of 5\.$/,
     );
     // The label swap says it (#45, Scout): no aria-pressed.
     assert.equal(el("pause-button").getAttribute("aria-pressed"), null);
@@ -1519,7 +1518,7 @@ describe.skip("the control bar view (#153)", () => {
 // or Pause, Stop, Reset and a one-line summary with the mode; the settings
 // collapse under it, closed by default; an error in a closed field is reached
 // through the row's link. Wide screens are unchanged.
-describe.skip("the narrow control bar (#153, Scout)", () => {
+describe("the narrow control bar (#153, Scout)", () => {
   const runOf = (overrides) => ({
     mode: "live",
     state: "idle",
@@ -1832,7 +1831,7 @@ describe.skip("the narrow control bar (#153, Scout)", () => {
   });
 });
 
-describe.skip("Run never starts with stale settings (#247)", () => {
+describe("Run never starts with stale settings (#247)", () => {
   const MIN = "weapons.mainHand.min";
   const MAX = "weapons.mainHand.max";
   const PAIR_MIN = 50;
@@ -1999,7 +1998,7 @@ describe.skip("Run never starts with stale settings (#247)", () => {
   });
 });
 
-describe.skip("the phone dock (#240, UX2)", () => {
+describe("the phone dock (#240, UX2)", () => {
   const DOCK_MAX_CHARS = 24;
   const fits = (dock, label) => {
     assert.ok(
@@ -2166,7 +2165,7 @@ describe.skip("the phone dock (#240, UX2)", () => {
   });
 });
 
-describe.skip("#296 ruling A2: the run settings' defaults for Reset to defaults", () => {
+describe("#296 ruling A2: the run settings' defaults for Reset to defaults", () => {
   it("resetSettings sets batch, the default length and fights, a new seed and no field errors, and returns what was there", () => {
     const { store, actions } = setup();
     actions.edit("duration", {

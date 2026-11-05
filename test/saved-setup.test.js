@@ -124,8 +124,7 @@ const savedOf = (storage) => storage.items.get(SAVED_SETUP_KEY) ?? null;
 const readBack = (text) =>
   resolveInitialSetup({ search: "", saved: text }).setup;
 
-// Saved-setup cases assume empty page defaults; rewrite for combat-swords-temp (#333).
-describe.skip("#296: where the setup is kept", () => {
+describe("#296: where the setup is kept", () => {
   it("is one localStorage key holding the share link's codec text", () => {
     assert.equal(SAVED_SETUP_KEY, "wowf_dps_sim.setup");
     const storage = memoryStorage();
@@ -165,7 +164,7 @@ describe.skip("#296: where the setup is kept", () => {
   });
 });
 
-describe.skip("#296: saving on change, debounced", () => {
+describe("#296: saving on change, debounced", () => {
   it("saves a config change once the delay has passed, and only once for a burst", () => {
     const storage = memoryStorage();
     const store = pageStore();
@@ -258,7 +257,7 @@ describe.skip("#296: saving on change, debounced", () => {
   });
 });
 
-describe.skip("#296 (G4): storage that throws or is missing changes nothing on the page", () => {
+describe("#296 (G4): storage that throws or is missing changes nothing on the page", () => {
   it("a write that throws (quota, private mode) is swallowed and tried again on the next change", () => {
     const storage = memoryStorage({}, ["setItem", "removeItem"]);
     const store = pageStore();
@@ -289,14 +288,16 @@ describe.skip("#296 (G4): storage that throws or is missing changes nothing on t
   });
 });
 
-describe.skip("#296 (G4): what a saved setup reads as", () => {
+describe("#296 (G4): what a saved setup reads as", () => {
   const busy = () => {
     const d = setupDefaults();
     return {
       config: {
         ...d.config,
         character: { ...d.config.character, haste: 0.05, attackPower: 900 },
-        talentLevel: 40,
+        // Keep talentLevel 60: a 51-point build at 40 is illegal and the
+        // codec reads the level back as its default (#326 / #333).
+        talentLevel: 60,
       },
       run: { ...d.run, mode: "live", duration: 120, seed: 99 },
     };
@@ -346,7 +347,7 @@ describe.skip("#296 (G4): what a saved setup reads as", () => {
       d.config.character.attackPower,
     );
     assert.equal(read.config.character.haste, 0.05);
-    assert.equal(read.config.talentLevel, 40);
+    assert.equal(read.config.talentLevel, 60);
     assert.equal(read.run.duration, d.run.duration);
     assert.equal(read.run.mode, "live");
     assert.equal(read.run.seed, 99);
@@ -358,6 +359,8 @@ describe.skip("#296 (G4): what a saved setup reads as", () => {
       future: { anything: true },
       config: {
         character: { haste: "fast", attackPower: 900 },
+        // Empty talents so level 40 is legal under the 51-point page default (#333).
+        talents: {},
         talentLevel: 40,
         later: 1,
       },
@@ -406,7 +409,7 @@ describe.skip("#296 (G4): what a saved setup reads as", () => {
   });
 });
 
-describe.skip("#296 (#318 prep): weapon skill, enemy level and pinned armour round-trip", () => {
+describe("#296 (#318 prep): weapon skill, enemy level and pinned armour round-trip", () => {
   // Save the store's setup, reload it the way the page does (resolveInitialSetup
   // on the saved text), and check it is the same setup. null first (the
   // default: follow the level), then a number, then back to null.
@@ -496,7 +499,7 @@ describe.skip("#296 (#318 prep): weapon skill, enemy level and pinned armour rou
   });
 });
 
-describe.skip("#296: Reset to defaults clears the save; an area's own reset saves", () => {
+describe("#296: Reset to defaults clears the save; an area's own reset saves", () => {
   it("clear() removes the key, drops the pending write, and the next change saves again", () => {
     const storage = memoryStorage();
     const store = pageStore();
@@ -543,7 +546,7 @@ describe.skip("#296: Reset to defaults clears the save; an area's own reset save
   });
 });
 
-describe.skip("#296 ruling A2: Reset to defaults resets the run settings too, and Undo puts them back", () => {
+describe("#296 ruling A2: Reset to defaults resets the run settings too, and Undo puts them back", () => {
   // A stand-in for js/run-actions.js resetSettings and restoreSettings.
   const runSettings = (store) => {
     const calls = [];
@@ -657,7 +660,7 @@ describe.skip("#296 ruling A2: Reset to defaults resets the run settings too, an
   });
 });
 
-describe.skip("#296: on load, on leaving and on pageshow", () => {
+describe("#296: on load, on leaving and on pageshow", () => {
   // A window stand-in: an event target with a document.
   function fakeWindow() {
     const target = new globalThis.EventTarget();
@@ -764,7 +767,7 @@ describe.skip("#296: on load, on leaving and on pageshow", () => {
   });
 });
 
-describe.skip("#320 B1: opening the page with no change writes nothing (Kira's QA)", () => {
+describe("#320 B1: opening the page with no change writes nothing (Kira's QA)", () => {
   function fakeWindow() {
     const target = new globalThis.EventTarget();
     target.document = new globalThis.EventTarget();
@@ -961,7 +964,7 @@ describe.skip("#320 B1: opening the page with no change writes nothing (Kira's Q
   });
 });
 
-describe.skip("#320 N4: pageshow puts a field in error back to the build's value", () => {
+describe("#320 N4: pageshow puts a field in error back to the build's value", () => {
   it("the stats form: a field in error shows the build again, with no error; the build is not touched", () => {
     const store = pageStore();
     const form = createConfigForm(store);
@@ -1019,7 +1022,7 @@ describe.skip("#320 N4: pageshow puts a field in error back to the build's value
   });
 });
 
-describe.skip("#320 N8 (assumption A8): an Undo during a run puts the run settings back when the run ends", () => {
+describe("#320 N8 (assumption A8): an Undo during a run puts the run settings back when the run ends", () => {
   // run-actions' resetSettings and restoreSettings: neither does anything
   // while a run is on (state "running" or "paused").
   const runSettings = (store) => {

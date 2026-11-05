@@ -78,8 +78,7 @@ before(() => {
   zero = stopped(0);
 });
 
-// Results panel cases assume empty page defaults; rewrite for combat-swords-temp (#333).
-describe.skip("the results figures (#154)", () => {
+describe("the results figures (#154)", () => {
   it("are per fight: the total row equals the mean DPS times the fight length", () => {
     const model = breakdownModel(done);
     assert.ok(
@@ -176,7 +175,7 @@ describe.skip("the results figures (#154)", () => {
   });
 });
 
-describe.skip("the results panel states (#154)", () => {
+describe("the results panel states (#154)", () => {
   const model = (batch, run = RUN) =>
     panelModel({ batch: batchState(batch), run }, LABELS);
 
@@ -201,7 +200,7 @@ describe.skip("the results panel states (#154)", () => {
     assert.equal(running.busy, true);
     assert.equal(
       running.meta,
-      "24 × 60\u00a0s fights · seed\u00a0154 · Combat 16/35/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
+      "24 × 60\u00a0s fights · seed\u00a0154 · Combat 16/35/0 · 51/51 · Combat swords (temporary) · Instant MH, Deadly OH",
     );
     const html = markup(running.body);
     assert.match(text(running.body), /0 of 24 fights/);
@@ -252,7 +251,7 @@ describe.skip("the results panel states (#154)", () => {
     assert.equal(shown.busy, false);
     assert.equal(
       shown.meta,
-      "24 × 60\u00a0s fights · seed\u00a0154 · Combat 16/35/0 · 51/51 · Default (Combat) · Instant MH, Deadly OH",
+      "24 × 60\u00a0s fights · seed\u00a0154 · Combat 16/35/0 · 51/51 · Combat swords (temporary) · Instant MH, Deadly OH",
     );
     const html = markup(shown.body);
     const buttons = html.match(/<button[^>]*>/g) ?? [];
@@ -304,7 +303,7 @@ describe.skip("the results panel states (#154)", () => {
   });
 });
 
-describe.skip("the results panel charts (#154)", () => {
+describe("the results panel charts (#154)", () => {
   const model = (batch, options = {}) =>
     panelModel(
       { batch: batchState(batch), run: RUN },
@@ -434,7 +433,7 @@ describe.skip("the results panel charts (#154)", () => {
   });
 });
 
-describe.skip("the results panel live region (#154)", () => {
+describe("the results panel live region (#154)", () => {
   const running = (completed) =>
     batchState({
       status: "running",
@@ -586,7 +585,7 @@ function panelDocument() {
   };
 }
 
-describe.skip("the results panel view (#154)", () => {
+describe("the results panel view (#154)", () => {
   function mount(batch) {
     const doc = panelDocument();
     const store = createStore({ run: RUN, batch: batchState(batch) });

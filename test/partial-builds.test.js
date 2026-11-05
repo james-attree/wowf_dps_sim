@@ -51,8 +51,8 @@ function fill(points, trees = ["combat", "assassination"]) {
 
 const PROBLEM_KEYS = ["code", "talent", "need", "have", "message"];
 
-describe.skip("the talent level and its cap (#190)", () => {
-  it("runs from 10 to 60, 60 by default, and caps at level - 9", () => {
+describe("the talent level and its cap (#190)", () => {
+  it.skip("runs from 10 to 60, 60 by default, and caps at level - 9 (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.deepEqual({ ...talentLevelRange() }, { min: 10, max: 60 });
     assert.equal(DEFAULT_TALENT_LEVEL, 60);
     assert.equal(talentPointCap(), k("talents.maxPoints"));
@@ -64,7 +64,7 @@ describe.skip("the talent level and its cap (#190)", () => {
     }
   });
 
-  it("refuses a level outside 10 to 60, or not a whole number", () => {
+  it.skip("refuses a level outside 10 to 60, or not a whole number (skipped: waits on a later talent-rework TR after #333)", () => {
     for (const bad of [9, 61, 0, -1, 40.5, NaN, Infinity, "40", null]) {
       assert.throws(() => talentPointCap(bad), {
         name: "RangeError",
@@ -73,14 +73,14 @@ describe.skip("the talent level and its cap (#190)", () => {
     }
   });
 
-  it("starts at the first-point level, the Classic rule, tagged assumption", () => {
+  it.skip("starts at the first-point level, the Classic rule, tagged assumption (skipped: waits on a later talent-rework TR after #333)", () => {
     const entry = CONSTANTS["talents.firstPointLevel"];
     assert.equal(entry.value, 10);
     assert.equal(entry.source, "assumption");
     assert.match(entry.ref, /Classic/);
   });
 
-  it("gates rows at 5 points a row, confirmed by James for WoW Forever (wowf-designer)", () => {
+  it.skip("gates rows at 5 points a row, confirmed by James for WoW Forever (wowf-designer) (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.equal(CONSTANTS["talents.rowGating"].value, 5);
     assert.equal(CONSTANTS["talents.rowGating"].source, "wowf-designer");
     assert.match(
@@ -89,7 +89,7 @@ describe.skip("the talent level and its cap (#190)", () => {
     );
   });
 
-  it("is config.talentLevel: 60 by default, 10 to 60, whole", () => {
+  it.skip("is config.talentLevel: 60 by default, 10 to 60, whole (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.equal(defaultConfig().talentLevel, 60);
     assert.equal(normalizeConfig().talentLevel, 60);
     assert.equal(normalizeConfig({ talentLevel: 10 }).talentLevel, 10);
@@ -112,7 +112,7 @@ describe.skip("the talent level and its cap (#190)", () => {
     assert.deepEqual(normalizeConfig(config), config);
   });
 
-  it("at level 40, 31 points pass and 32 fail", () => {
+  it.skip("at level 40, 31 points pass and 32 fail (skipped: waits on a later talent-rework TR after #333)", () => {
     const ok = fill(31);
     const over = fill(32);
     assert.equal(validateBuild(ok, talentCatalogue, { level: 40 }), 31);
@@ -149,7 +149,7 @@ describe.skip("the talent level and its cap (#190)", () => {
     assert.deepEqual(buildProblems(ok, { level: 40 }), []);
   });
 
-  it("at level 10, one point passes and two fail; at 60, the reference build", () => {
+  it.skip("at level 10, one point passes and two fail; at 60, the reference build (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.equal(validateBuild(fill(1), talentCatalogue, { level: 10 }), 1);
     assert.throws(
       () => validateBuild(fill(2), talentCatalogue, { level: 10 }),
@@ -165,7 +165,7 @@ describe.skip("the talent level and its cap (#190)", () => {
     );
   });
 
-  it("caps the points, and (since #290) is the character level of the fight", () => {
+  it.skip("caps the points, and (since #290) is the character level of the fight (skipped: waits on a later talent-rework TR after #333)", () => {
     // The result echoes its config, so compare all but that, and the config
     // but its talentLevel.
     const fight = (config) => {
@@ -203,9 +203,9 @@ describe.skip("the talent level and its cap (#190)", () => {
   });
 });
 
-describe.skip("partial builds run (#190)", () => {
+describe("partial builds run (#190)", () => {
   for (const points of [0, 1, 31, 50]) {
-    it(`a legal ${points}-point build is valid and runs`, () => {
+    it.skip(`a legal ${points}-point build is valid and runs (skipped: needs a talent retune for the 70755 tree)`, () => {
       const ranks = points === 0 ? {} : fill(points);
       assert.equal(validateBuild(ranks), points);
       assert.deepEqual(buildProblems(ranks), []);
@@ -221,7 +221,7 @@ describe.skip("partial builds run (#190)", () => {
     });
   }
 
-  it("an empty build is no build: the same fight as no talents", () => {
+  it.skip("an empty build is no build: the same fight as no talents (skipped: needs a talent retune for the 70755 tree)", () => {
     assert.equal(applyBuild({}).selected, false);
     assert.deepEqual(
       runFight({ seed: 4, duration: 60, config: { talents: {} } }),
@@ -229,7 +229,7 @@ describe.skip("partial builds run (#190)", () => {
     );
   });
 
-  it("a 52-point build, a row-gate break and a prerequisite break still throw", () => {
+  it.skip("a 52-point build, a row-gate break and a prerequisite break still throw (skipped: needs a talent retune for the 70755 tree)", () => {
     const fiftyTwo = { ...REFERENCE, "combat.lightning-reflexes": 1 };
     assert.throws(
       () => validateBuild(fiftyTwo),
@@ -259,7 +259,7 @@ describe.skip("partial builds run (#190)", () => {
     }
   });
 
-  it("decodes a partial talentsforever link, with its level, into a legal build", () => {
+  it.skip("decodes a partial talentsforever link, with its level, into a legal build (skipped: needs a talent retune for the 70755 tree)", () => {
     const decoded = decodeBuildLink("https://talentsforever.com/rogue/14/-32");
     assert.equal(decoded.level, 14);
     const ranks = Object.fromEntries(
@@ -283,7 +283,7 @@ describe.skip("partial builds run (#190)", () => {
   });
 });
 
-describe.skip("a partial build locks the talent abilities it lacks (#190, before #199)", () => {
+describe("a partial build locks the talent abilities it lacks (#190, before #199)", () => {
   const casts = (fight, id) => fight.simulation.abilityStats[id]?.casts ?? 0;
   const PARTIAL = {
     "combat.improved-eviscerate": 3,
@@ -291,15 +291,17 @@ describe.skip("a partial build locks the talent abilities it lacks (#190, before
     "combat.precision": 3,
   };
 
-  for (const [label, config] of [
-    ["the default rotation", { talents: PARTIAL }],
+  // loadPreset is deferred into the skipped body: retired combat-swords
+  // throws at suite load under the single live preset (#333).
+  for (const [label, makeConfig] of [
+    ["the default rotation", () => ({ talents: PARTIAL })],
     [
-      "the combat-swords preset",
-      loadPreset("combat-swords", { talents: PARTIAL }),
+      "the combat-swords-temp preset",
+      () => loadPreset("combat-swords-temp", { talents: PARTIAL }),
     ],
   ]) {
-    it(`keeps build.selected, locks Blade Flurry and Adrenaline Rush, and falls through (${label})`, () => {
-      const fight = createFight(1, config);
+    it.skip(`keeps build.selected, locks Blade Flurry and Adrenaline Rush, and falls through (${label}) (skipped: needs a talent retune for the 70755 tree)`, () => {
+      const fight = createFight(1, makeConfig());
       assert.equal(fight.build.selected, true);
       assert.equal(fight.build.points, 8);
       const { rogue } = fight;
@@ -314,7 +316,7 @@ describe.skip("a partial build locks the talent abilities it lacks (#190, before
     });
   }
 
-  it("with no build, Blade Flurry and Adrenaline Rush are not cast either (#199)", () => {
+  it.skip("with no build, Blade Flurry and Adrenaline Rush are not cast either (#199) (skipped: needs a talent retune for the 70755 tree)", () => {
     const fight = createFight(1);
     assert.equal(fight.build.selected, false);
     const { rogue } = fight;
@@ -328,8 +330,8 @@ describe.skip("a partial build locks the talent abilities it lacks (#190, before
   });
 });
 
-describe.skip("pointsByTree", () => {
-  it("counts the points by tree and in all, frozen", () => {
+describe("pointsByTree", () => {
+  it.skip("counts the points by tree and in all, frozen (skipped: waits on a later talent-rework TR after #333)", () => {
     const points = pointsByTree(REFERENCE);
     assert.deepEqual(
       { ...points },
@@ -352,7 +354,7 @@ describe.skip("pointsByTree", () => {
     );
   });
 
-  it("never throws, and counts nothing that is not a valid rank", () => {
+  it.skip("never throws, and counts nothing that is not a valid rank (skipped: waits on a later talent-rework TR after #333)", () => {
     const zero = { assassination: 0, combat: 0, subtlety: 0, total: 0 };
     for (const bad of [undefined, null, 3, "x", [], [1, 2], () => 1]) {
       assert.deepEqual({ ...pointsByTree(bad) }, zero);
@@ -373,10 +375,10 @@ describe.skip("pointsByTree", () => {
   });
 });
 
-describe.skip("buildProblems: every problem as data", () => {
+describe("buildProblems: every problem as data", () => {
   const codes = (list) => list.map((entry) => entry.code);
 
-  it("gives frozen { code, talent, need, have, message } entries", () => {
+  it.skip("gives frozen { code, talent, need, have, message } entries (skipped: waits on a later talent-rework TR after #333)", () => {
     const list = buildProblems({ "combat.precision": 1, "combat.riposte": 1 });
     assert.ok(Object.isFrozen(list));
     assert.ok(list.length > 0);
@@ -387,7 +389,7 @@ describe.skip("buildProblems: every problem as data", () => {
     }
   });
 
-  it("names each code with its numbers", () => {
+  it.skip("names each code with its numbers (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.deepEqual(buildProblems(null), [
       {
         code: "notAnObject",
@@ -478,7 +480,7 @@ describe.skip("buildProblems: every problem as data", () => {
     ]);
   });
 
-  it("reports the input problems and still the rules for the valid ranks", () => {
+  it.skip("reports the input problems and still the rules for the valid ranks (skipped: waits on a later talent-rework TR after #333)", () => {
     const list = buildProblems(
       { "combat.nope": 1, "combat.deflection": 7, "combat.precision": 1 },
       { level: 5 },
@@ -491,7 +493,7 @@ describe.skip("buildProblems: every problem as data", () => {
     ]);
   });
 
-  it("has a message for each rule problem that validateBuild throws, in order", () => {
+  it.skip("has a message for each rule problem that validateBuild throws, in order (skipped: waits on a later talent-rework TR after #333)", () => {
     const broken = {
       ...REFERENCE,
       "combat.precision": 2,
@@ -503,20 +505,20 @@ describe.skip("buildProblems: every problem as data", () => {
     });
   });
 
-  it("does not count fewer points than the cap as a problem", () => {
+  it.skip("does not count fewer points than the cap as a problem (skipped: waits on a later talent-rework TR after #333)", () => {
     for (const points of [0, 1, 10, 31, 50, 51]) {
       assert.deepEqual(buildProblems(points === 0 ? {} : fill(points)), []);
     }
   });
 });
 
-describe.skip("canAdd, canRemove and why: the per-talent model", () => {
+describe("canAdd, canRemove and why: the per-talent model", () => {
   const ROW1 = {
     "combat.improved-eviscerate": 3,
     "combat.improved-sinister-strike": 2,
   };
 
-  it("allows a point that keeps the build legal, and why() is null", () => {
+  it.skip("allows a point that keeps the build legal, and why() is null (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.equal(canAdd({}, "combat.improved-eviscerate"), true);
     assert.equal(why({}, "combat.improved-eviscerate"), null);
     assert.equal(why({}, "combat.improved-eviscerate", "add"), null);
@@ -528,7 +530,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     assert.equal(canRemove(ROW1, "combat.improved-eviscerate"), true);
   });
 
-  it("refuses an add at full rank (maxRank)", () => {
+  it.skip("refuses an add at full rank (maxRank) (skipped: waits on a later talent-rework TR after #333)", () => {
     const answer = why(
       { "combat.improved-eviscerate": 3 },
       "combat.improved-eviscerate",
@@ -551,7 +553,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     );
   });
 
-  it("refuses an add past the cap (capReached), by level", () => {
+  it.skip("refuses an add past the cap (capReached), by level (skipped: waits on a later talent-rework TR after #333)", () => {
     const one = { "combat.improved-eviscerate": 1 };
     const answer = why(one, "combat.improved-eviscerate", "add", { level: 10 });
     assert.equal(answer.code, "capReached");
@@ -573,7 +575,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     assert.equal(why(REFERENCE, "combat.lightning-reflexes").need, 51);
   });
 
-  it("refuses an add above the row gate (rowGate)", () => {
+  it.skip("refuses an add above the row gate (rowGate) (skipped: waits on a later talent-rework TR after #333)", () => {
     const answer = why({ "combat.improved-eviscerate": 3 }, "combat.precision");
     assert.equal(answer.code, "rowGate");
     assert.equal(answer.talent, "combat.precision");
@@ -583,7 +585,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     assert.equal(why({}, "combat.adrenaline-rush").need, 30);
   });
 
-  it("refuses an add without the prerequisite at full rank, naming it (prerequisite)", () => {
+  it.skip("refuses an add without the prerequisite at full rank, naming it (prerequisite) (skipped: waits on a later talent-rework TR after #333)", () => {
     const ranks = { ...ROW1, "combat.deflection": 2 };
     const answer = why(ranks, "combat.riposte");
     assert.equal(answer.code, "prerequisite");
@@ -604,13 +606,13 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     assert.equal(canAdd(ready, "combat.riposte"), true);
   });
 
-  it("refuses a remove with no point (notTaken)", () => {
+  it.skip("refuses a remove with no point (notTaken) (skipped: waits on a later talent-rework TR after #333)", () => {
     const answer = why({}, "combat.precision", "remove");
     assert.equal(answer.code, "notTaken");
     assert.equal(canRemove({}, "combat.precision"), false);
   });
 
-  it("refuses a remove that would strand a talent below on its row gate (strands)", () => {
+  it.skip("refuses a remove that would strand a talent below on its row gate (strands) (skipped: waits on a later talent-rework TR after #333)", () => {
     const ranks = { ...ROW1, "combat.precision": 3 };
     for (const id of Object.keys(ROW1)) {
       assert.equal(canRemove(ranks, id), false, id);
@@ -635,7 +637,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     assert.equal(canRemove(spare, "combat.lightning-reflexes"), true);
   });
 
-  it("refuses a remove that would strand a talent hanging below it (prerequisite)", () => {
+  it.skip("refuses a remove that would strand a talent hanging below it (prerequisite) (skipped: waits on a later talent-rework TR after #333)", () => {
     const ranks = {
       ...ROW1,
       "combat.deflection": 3,
@@ -656,7 +658,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     );
   });
 
-  it("lists every talent a remove would strand, and only new problems", () => {
+  it.skip("lists every talent a remove would strand, and only new problems (skipped: waits on a later talent-rework TR after #333)", () => {
     // The reference build: Combat row 1 has exactly 5, and many talents sit on
     // the rows below it.
     const answer = why(REFERENCE, "combat.improved-sinister-strike", "remove");
@@ -668,7 +670,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     assert.equal(canRemove(broken, "combat.improved-eviscerate"), true);
   });
 
-  it("never throws, and answers bad input with its code", () => {
+  it.skip("never throws, and answers bad input with its code (skipped: waits on a later talent-rework TR after #333)", () => {
     const cases = [
       [[null, "combat.precision"], "notAnObject"],
       [[[], "combat.precision"], "notAnObject"],
@@ -713,7 +715,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     assert.doesNotThrow(() => canAdd({}, "combat.precision", undefined));
   });
 
-  it("agrees with buildProblems: every add canAdd allows keeps a legal build legal", () => {
+  it.skip("agrees with buildProblems: every add canAdd allows keeps a legal build legal (skipped: waits on a later talent-rework TR after #333)", () => {
     for (const level of [10, 25, 40, 60]) {
       let ranks = {};
       for (let step = 0; step < 60; step += 1) {
@@ -740,7 +742,7 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
     }
   });
 
-  it("takes the catalogue as the last argument", () => {
+  it.skip("takes the catalogue as the last argument (skipped: waits on a later talent-rework TR after #333)", () => {
     const tiny = {
       trees: [{ id: "t" }],
       talents: [
@@ -766,10 +768,10 @@ describe.skip("canAdd, canRemove and why: the per-talent model", () => {
   });
 });
 
-describe.skip("options that are not an object are the default level (#190)", () => {
+describe("options that are not an object are the default level (#190)", () => {
   const NOT_OBJECTS = [null, undefined, 0, 40, "40", true, []];
 
-  it("buildProblems, why, canAdd and canRemove do not throw on them", () => {
+  it.skip("buildProblems, why, canAdd and canRemove do not throw on them (skipped: waits on a later talent-rework TR after #333)", () => {
     for (const options of NOT_OBJECTS) {
       assert.deepEqual(buildProblems({}, options), []);
       assert.deepEqual(
@@ -806,13 +808,13 @@ describe.skip("options that are not an object are the default level (#190)", () 
     }
   });
 
-  it("an object without a level is the default level too", () => {
+  it.skip("an object without a level is the default level too (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.deepEqual(buildProblems({}, {}), []);
     assert.deepEqual(buildProblems({}, { level: undefined }), []);
     assert.equal(canAdd(REFERENCE, "combat.lightning-reflexes", {}), false);
   });
 
-  it("a level that is given is still checked", () => {
+  it.skip("a level that is given is still checked (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.deepEqual(
       buildProblems({}, { level: null }).map((entry) => entry.code),
       ["badLevel"],
@@ -823,7 +825,7 @@ describe.skip("options that are not an object are the default level (#190)", () 
     );
   });
 
-  it("validateBuild and applyBuild take them as the default level", () => {
+  it.skip("validateBuild and applyBuild take them as the default level (skipped: waits on a later talent-rework TR after #333)", () => {
     for (const options of [null, 0, "40"]) {
       assert.equal(validateBuild(REFERENCE, talentCatalogue, options), 51);
       assert.equal(
@@ -834,20 +836,20 @@ describe.skip("options that are not an object are the default level (#190)", () 
   });
 });
 
-describe.skip("why judges the one change, not a build already illegal elsewhere", () => {
+describe("why judges the one change, not a build already illegal elsewhere", () => {
   // { "combat.precision": 3 } breaks precision's row gate (row 2 needs 5
   // points above it). One point in improved eviscerate (combat row 1) does not
   // fix that, but the add itself breaks nothing, so it is allowed.
   const ILLEGAL = { "combat.precision": 3 };
 
-  it("the build is illegal on precision's row gate", () => {
+  it.skip("the build is illegal on precision's row gate (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.deepEqual(
       buildProblems(ILLEGAL).map((entry) => [entry.code, entry.talent]),
       [["rowGate", "combat.precision"]],
     );
   });
 
-  it("an add elsewhere is not refused for precision's rowGate", () => {
+  it.skip("an add elsewhere is not refused for precision's rowGate (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.equal(why(ILLEGAL, "combat.improved-eviscerate"), null);
     assert.equal(canAdd(ILLEGAL, "combat.improved-eviscerate"), true);
     assert.equal(
@@ -859,7 +861,7 @@ describe.skip("why judges the one change, not a build already illegal elsewhere"
     );
   });
 
-  it("an add to the broken talent itself is still refused on its row gate", () => {
+  it.skip("an add to the broken talent itself is still refused on its row gate (skipped: waits on a later talent-rework TR after #333)", () => {
     const broken = { "combat.precision": 1 };
     const answer = why(broken, "combat.precision");
     assert.equal(answer.code, "rowGate");
@@ -868,8 +870,8 @@ describe.skip("why judges the one change, not a build already illegal elsewhere"
   });
 });
 
-describe.skip("the capReached message counts its points", () => {
-  it("is singular for 1 point and plural for more", () => {
+describe("the capReached message counts its points", () => {
+  it.skip("is singular for 1 point and plural for more (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.match(
       why(
         { "combat.improved-eviscerate": 1 },
@@ -895,14 +897,14 @@ describe.skip("the capReached message counts its points", () => {
   });
 });
 
-describe.skip("validateBuild stays the throwing wrapper", () => {
-  it("keeps its signature: validateBuild(ranks, catalogue), and returns the points", () => {
+describe("validateBuild stays the throwing wrapper", () => {
+  it.skip("keeps its signature: validateBuild(ranks, catalogue), and returns the points (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.equal(validateBuild(REFERENCE), 51);
     assert.equal(validateBuild(REFERENCE, talentCatalogue), 51);
     assert.equal(validateBuild({}), 0);
   });
 
-  it("keeps the id and rank errors of before #190", () => {
+  it.skip("keeps the id and rank errors of before #190 (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.throws(() => validateBuild({ "combat.nope": 1 }), {
       name: "RangeError",
       message:
@@ -919,14 +921,14 @@ describe.skip("validateBuild stays the throwing wrapper", () => {
     });
   });
 
-  it("throws a RangeError for a bad level", () => {
+  it.skip("throws a RangeError for a bad level (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.throws(() => validateBuild({}, talentCatalogue, { level: 61 }), {
       name: "RangeError",
       message: "The talent level must be a whole number from 10 to 60, not 61.",
     });
   });
 
-  it("applyBuild takes the level too, and the Rogue's default caps at 51", () => {
+  it.skip("applyBuild takes the level too, and the Rogue's default caps at 51 (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.throws(
       () => applyBuild(fill(32), undefined, undefined, { level: 40 }),
       /at most 31/,
@@ -935,8 +937,8 @@ describe.skip("validateBuild stays the throwing wrapper", () => {
   });
 });
 
-describe.skip("the build label shows a partial build's points (#190)", () => {
-  it("adds N/cap to every build, the level below 60 (#204 D17)", () => {
+describe("the build label shows a partial build's points (#190)", () => {
+  it.skip("adds N/cap to every build, the level below 60 (#204 D17) (skipped: needs a talent retune for the 70755 tree)", () => {
     const part = (config) => buildLabel(config).split(" · Default rotation")[0];
     assert.equal(part({ talents: REFERENCE }), "Combat 18/33/0 · 51/51");
     assert.equal(

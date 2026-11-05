@@ -184,10 +184,10 @@ async function expectNoHint(page, why) {
 }
 
 // Reference-build hint cases still name retired Assassination/Subtlety cards; needs later preset TRs, not #333.
-describe.skip("A preset's reference build (#273)", () => {
+describe("A preset's reference build (#273)", () => {
   for (const width of WIDTHS) {
     for (const textSize of TEXT_SIZES) {
-      test(`the hint and its Starting point link at ${width}, ${textSize} text`, async () => {
+      test.skip(`the hint and its Starting point link at ${width}, ${textSize} text (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)`, async () => {
         const { context, page, errors } = await open(width, { textSize });
         const name = `${width}-${textSize.replace("%", "")}`;
         const shoot = SHOT_WIDTHS.includes(width)
@@ -257,8 +257,8 @@ describe.skip("A preset's reference build (#273)", () => {
   }
 });
 
-describe.skip("The reference build's hint (#273)", () => {
-  test("what differs, after edits", async () => {
+describe("The reference build's hint (#273)", () => {
+  test.skip("what differs, after edits (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(1024);
     try {
       // Combat swords on the page's swords: the talents and poisons differ.
@@ -316,7 +316,7 @@ describe.skip("The reference build's hint (#273)", () => {
     }
   });
 
-  test("imported rotations, and an edited preset", async () => {
+  test.skip("imported rotations, and an edited preset (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(1024);
     try {
       const paste = async (json) => {
@@ -365,7 +365,7 @@ describe.skip("The reference build's hint (#273)", () => {
     }
   });
 
-  test("the share link carries a picked build, under the link cap", async () => {
+  test.skip("the share link carries a picked build, under the link cap (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(1024, {
       address: "#character",
     });

@@ -176,10 +176,9 @@ async function build(page) {
 
 const D = setupDefaults();
 
-// Saved-setup browser cases assume empty page defaults; rewrite for combat-swords-temp (#333).
-describe.skip("Remember my setup (#296)", () => {
+describe("Remember my setup (#296)", () => {
   for (const width of WIDTHS) {
-    test(`a change survives a refresh, and Reset to defaults then a refresh shows the defaults, at ${width}`, async () => {
+    test.skip(`a change survives a refresh, and Reset to defaults then a refresh shows the defaults, at ${width} (skipped: page-default combat-swords-temp spends 51 points; level-40 cases need a clear-all rewrite after #333)`, async () => {
       const { context, page, errors } = await open(width, "#character/stats");
       try {
         assert.equal(await saved(page), null, "nothing saved before a change");
@@ -594,8 +593,7 @@ describe.skip("Remember my setup (#296)", () => {
     }
   });
 
-  // TR-02 / #332: empty presets until #333
-  test("back after another tab changed the rotation: the rotation shown is the build's (the form revision redraw, N9)", async () => {
+  test.skip("back after another tab changed the rotation: the rotation shown is the build's (the form revision redraw, N9) (skipped: only combat-swords-temp + default in the rotation select until later preset TRs after #333)", async () => {
     const { context, page, errors } = await open(1440, "#rotation");
     try {
       await go(page, "#rotation", ROTATION);

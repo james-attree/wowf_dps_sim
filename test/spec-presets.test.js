@@ -64,8 +64,8 @@ function withReferenceBuild(id) {
 }
 
 // Assassination/Subtlety preset cards; needs later preset TRs, not #333.
-describe.skip("the Assassination and Subtlety presets (#272)", () => {
-  it("are listed after Combat swords, each with a summary", () => {
+describe("the Assassination and Subtlety presets (#272)", () => {
+  it.skip("are listed after Combat swords, each with a summary (skipped: waits on later preset TRs after #333)", () => {
     const ids = listPresets().map((preset) => preset.id);
     assert.deepEqual(ids, [
       "combat-swords",
@@ -78,7 +78,7 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
     }
   });
 
-  it("cast no Expose Armor and no stealth opener (no Ambush since #310)", () => {
+  it.skip("cast no Expose Armor and no stealth opener (no Ambush since #310) (skipped: waits on later preset TRs after #333)", () => {
     for (const id of [ASSASSINATION, SUBTLETY]) {
       const actions = presetById(id).rotation.rules.map((rule) => rule.action);
       for (const banned of [
@@ -92,7 +92,7 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
     }
   });
 
-  it("Assassination builds with Mutilate below 4 CP and keeps Slice and Dice and Venom up, with no Rupture (#310)", () => {
+  it.skip("Assassination builds with Mutilate below 4 CP and keeps Slice and Dice and Venom up, with no Rupture (#310) (skipped: waits on later preset TRs after #333)", () => {
     const actions = presetById(ASSASSINATION).rotation.rules.map(
       (rule) => rule.action,
     );
@@ -119,7 +119,7 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
     );
   });
 
-  it("Subtlety keeps Rupture up, Premeditation on cooldown, Preparation, Slice and Dice with Rupture up, and builds with Ghostly Strike and Hemorrhage (#310)", () => {
+  it.skip("Subtlety keeps Rupture up, Premeditation on cooldown, Preparation, Slice and Dice with Rupture up, and builds with Ghostly Strike and Hemorrhage (#310) (skipped: waits on later preset TRs after #333)", () => {
     const actions = presetById(SUBTLETY).rotation.rules.map(
       (rule) => rule.action,
     );
@@ -145,7 +145,7 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
     );
   });
 
-  it("loading one sets only the rotation: talents, weapons and the rest are the config's (G4)", () => {
+  it.skip("loading one sets only the rotation: talents, weapons and the rest are the config's (G4) (skipped: waits on later preset TRs after #333)", () => {
     for (const id of [ASSASSINATION, SUBTLETY]) {
       assert.deepEqual(Object.keys(loadPreset(id)), ["rotation"]);
       const config = { talents: { "combat.precision": 3 }, target: {} };
@@ -159,12 +159,12 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
     }
   });
 
-  it("an old config with no rotation still reads the default rotation (G4)", () => {
+  it.skip("an old config with no rotation still reads the default rotation (G4) (skipped: waits on later preset TRs after #333)", () => {
     const old = normalizeConfig({ talents: {} });
     assert.deepEqual(old.rotation, normalizeConfig(defaultConfig()).rotation);
   });
 
-  it("run on the default swords without their talents, they cast no talent ability and do not throw", () => {
+  it.skip("run on the default swords without their talents, they cast no talent ability and do not throw (skipped: waits on later preset TRs after #333)", () => {
     for (const id of [ASSASSINATION, SUBTLETY]) {
       const fight = createFight(1, loadPreset(id));
       fight.simulation.run(60);
@@ -184,7 +184,7 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
   });
 
   for (const [id, signatures] of Object.entries(SIGNATURES)) {
-    it(`${id} casts ${signatures.join(", ")} with its reference build loaded`, () => {
+    it.skip(`${id} casts ${signatures.join(", ")} with its reference build loaded (skipped: waits on later preset TRs after #333)`, () => {
       for (const seed of SEEDS) {
         const fight = createFight(seed, withReferenceBuild(id));
         fight.simulation.run(LONG_FIGHT);
@@ -203,7 +203,7 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
   }
 
   for (const [id, signatures] of Object.entries(SIGNATURES)) {
-    it(`${id}: each signature on each of ${SAMPLE_SEEDS.length} seeds${id === SUBTLETY ? ", and no Eviscerate" : ""}`, () => {
+    it.skip(`${id}: each signature on each of ${SAMPLE_SEEDS.length} seeds${id === SUBTLETY ? ", and no Eviscerate" : ""} (skipped: waits on later preset TRs after #333)`, () => {
       for (const duration of [SHORT_FIGHT, LONG_FIGHT]) {
         const casts = SAMPLE_SEEDS.map((seed) => {
           const fight = createFight(seed, withReferenceBuild(id));
@@ -228,7 +228,7 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
     });
   }
 
-  it("a fight with a preset and its reference build repeats from its recorded config", () => {
+  it.skip("a fight with a preset and its reference build repeats from its recorded config (skipped: waits on later preset TRs after #333)", () => {
     for (const id of [ASSASSINATION, SUBTLETY]) {
       const first = runFight({
         seed: 7,
@@ -241,8 +241,8 @@ describe.skip("the Assassination and Subtlety presets (#272)", () => {
   });
 });
 
-describe.skip("the preset reference builds (#272, for #273)", () => {
-  it("has one for each of the three presets (James's decision, relayed by Scout)", () => {
+describe("the preset reference builds (#272, for #273)", () => {
+  it.skip("has one for each of the three presets (James's decision, relayed by Scout) (skipped: waits on later preset TRs after #333)", () => {
     assert.deepEqual(
       Object.keys(PRESET_REFERENCE_BUILDS).sort(),
       [ASSASSINATION, COMBAT, SUBTLETY, COMBAT_DAGGERS].sort(),
@@ -253,14 +253,14 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     assert.throws(() => referenceBuild("nope"), RangeError);
   });
 
-  it("every build carries talent level 60, which #273 sets on a config below it", () => {
+  it.skip("every build carries talent level 60, which #273 sets on a config below it (skipped: waits on later preset TRs after #333)", () => {
     assert.equal(LEVEL_60, 60);
     for (const id of [ASSASSINATION, COMBAT, SUBTLETY]) {
       assert.equal(referenceBuild(id).talentLevel, LEVEL_60, id);
     }
   });
 
-  it("each is a legal level 60 build of 51 points", () => {
+  it.skip("each is a legal level 60 build of 51 points (skipped: waits on later preset TRs after #333)", () => {
     for (const id of [ASSASSINATION, COMBAT, SUBTLETY]) {
       const build = referenceBuild(id);
       assert.deepEqual(
@@ -273,7 +273,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     }
   });
 
-  it("the dagger presets' builds have the dagger alternate's main hand and James's ruled off hand (#310)", () => {
+  it.skip("the dagger presets' builds have the dagger alternate's main hand and James's ruled off hand (#310) (skipped: waits on later preset TRs after #333)", () => {
     for (const id of [ASSASSINATION, SUBTLETY]) {
       const build = referenceBuild(id);
       assert.deepEqual(build.weapons.mainHand, k("weapon.dagger.mainHand"));
@@ -284,7 +284,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     }
   });
 
-  it("Combat swords' build is the current defaults: the #151 Combat talents and the default config's swords", () => {
+  it.skip("Combat swords' build is the current defaults: the #151 Combat talents and the default config's swords (skipped: waits on later preset TRs after #333)", () => {
     const build = referenceBuild(COMBAT);
     assert.deepEqual(build.talents, combatReferenceTalents());
     const defaults = defaultConfig();
@@ -306,7 +306,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     assert.deepEqual(config.weapons, normalizeConfig(defaultConfig()).weapons);
   });
 
-  it("Combat swords with its build casts its cooldowns and finishers", () => {
+  it.skip("Combat swords with its build casts its cooldowns and finishers (skipped: waits on later preset TRs after #333)", () => {
     const build = referenceBuild(COMBAT);
     const config = loadPreset(COMBAT, {
       talents: { ...build.talents },
@@ -327,7 +327,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     }
   });
 
-  it("Assassination has Mutilate, Venom and Cold Blood and no Improved Expose Armor; Subtlety has Hemorrhage, Premeditation, Preparation and Ghostly Strike and no Cutthroat (#310)", () => {
+  it.skip("Assassination has Mutilate, Venom and Cold Blood and no Improved Expose Armor; Subtlety has Hemorrhage, Premeditation, Preparation and Ghostly Strike and no Cutthroat (#310) (skipped: waits on later preset TRs after #333)", () => {
     const assassination = referenceBuild(ASSASSINATION).talents;
     for (const id of [
       "assassination.mutilate",
@@ -352,7 +352,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     assert.equal(subtlety["subtlety.cutthroat"], undefined);
   });
 
-  it("referenceBuild gives a copy: changing it changes nothing else", () => {
+  it.skip("referenceBuild gives a copy: changing it changes nothing else (skipped: waits on later preset TRs after #333)", () => {
     const build = referenceBuild(SUBTLETY);
     build.talents["subtlety.quietus"] = 0;
     build.weapons.mainHand.min = 1;
@@ -369,7 +369,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     );
   });
 
-  it("talentDifferences lists each talent whose rank differs, both ways, with a missing rank as 0 (a)", () => {
+  it.skip("talentDifferences lists each talent whose rank differs, both ways, with a missing rank as 0 (a) (skipped: waits on later preset TRs after #333)", () => {
     const build = referenceBuild(ASSASSINATION);
     assert.deepEqual(talentDifferences(build, { ...build.talents }), []);
     const current = {
@@ -398,7 +398,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     );
   });
 
-  it("weaponTypeDifferences compares the type in each hand (b)", () => {
+  it.skip("weaponTypeDifferences compares the type in each hand (b) (skipped: waits on later preset TRs after #333)", () => {
     const build = referenceBuild(SUBTLETY);
     const swords = normalizeConfig(defaultConfig()).weapons;
     assert.deepEqual(weaponTypeDifferences(build, swords), {
@@ -417,7 +417,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     assert.equal(daggers.mainHand.same && daggers.offHand.same, true);
   });
 
-  it("referenceWeapon is a SimConfig hand: type, min, max and speed, a copy (c)", () => {
+  it.skip("referenceWeapon is a SimConfig hand: type, min, max and speed, a copy (c) (skipped: waits on later preset TRs after #333)", () => {
     const build = referenceBuild(ASSASSINATION);
     const hand = referenceWeapon(build, "offHand");
     assert.deepEqual(Object.keys(hand).sort(), ["max", "min", "speed", "type"]);
@@ -433,7 +433,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     assert.deepEqual(config.weapons.mainHand, k("weapon.dagger.mainHand"));
   });
 
-  it("each build carries its preset's poisons: Deadly MH / Instant OH on Combat, Instant MH / Deadly OH on the daggers (James's ruling, #310)", () => {
+  it.skip("each build carries its preset's poisons: Deadly MH / Instant OH on Combat, Instant MH / Deadly OH on the daggers (James's ruling, #310) (skipped: waits on later preset TRs after #333)", () => {
     const rulings = k("presetReferenceBuild.poisons");
     assert.deepEqual(rulings, {
       [COMBAT]: { mainHand: "deadly", offHand: "instant" },
@@ -453,7 +453,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     }
   });
 
-  it("referencePoison gives a hand's poison id; poisonDifferences compares each hand", () => {
+  it.skip("referencePoison gives a hand's poison id; poisonDifferences compares each hand (skipped: waits on later preset TRs after #333)", () => {
     const build = referenceBuild(ASSASSINATION);
     assert.equal(referencePoison(build, "mainHand"), "instant");
     assert.equal(referencePoison(build, "offHand"), "deadly");
@@ -488,7 +488,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     assert.equal(same.mainHand.same && same.offHand.same, true);
   });
 
-  it("js/rotation-presets.js re-exports every helper #273 needs", () => {
+  it.skip("js/rotation-presets.js re-exports every helper #273 needs (skipped: waits on later preset TRs after #333)", () => {
     for (const name of [
       "referenceBuild",
       "referenceWeapon",
@@ -501,7 +501,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     }
   });
 
-  it("the reference poisons change the fight: Venom and Mutilate's poisoned bonus have Deadly to read", () => {
+  it.skip("the reference poisons change the fight: Venom and Mutilate's poisoned bonus have Deadly to read (skipped: waits on later preset TRs after #333)", () => {
     const build = referenceBuild(ASSASSINATION);
     const poisoned = runFight({
       seed: 1,
@@ -519,7 +519,7 @@ describe.skip("the preset reference builds (#272, for #273)", () => {
     assert.ok(poisoned.dps > bare.dps);
   });
 
-  it("checkReferenceBuild accepts the documented fields and refuses bad ones", () => {
+  it.skip("checkReferenceBuild accepts the documented fields and refuses bad ones (skipped: waits on later preset TRs after #333)", () => {
     const good = referenceBuild(SUBTLETY);
     assert.deepEqual(checkReferenceBuild(SUBTLETY, good), []);
     assert.deepEqual(checkReferenceBuild(COMBAT, referenceBuild(COMBAT)), []);

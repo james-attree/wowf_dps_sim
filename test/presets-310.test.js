@@ -77,20 +77,20 @@ function presetSetup(id) {
 }
 
 // Old #310 multi-preset share links; needs later Assassination/Subtlety preset TRs, not #333.
-describe.skip("#310: each preset is its share link's setup", () => {
+describe("#310: each preset is its share link's setup", () => {
   for (const id of PRESETS) {
-    it(`${id}: the reference build's talents are the link's`, () => {
+    it.skip(`${id}: the reference build's talents are the link's (skipped: waits on later preset TRs after #333)`, () => {
       assert.deepEqual(referenceBuild(id).talents, linkSetup(id).talents);
       assert.equal(referenceBuild(id).talentLevel, linkSetup(id).talentLevel);
     });
 
-    it(`${id}: the reference build's poisons are the link's`, () => {
+    it.skip(`${id}: the reference build's poisons are the link's (skipped: waits on later preset TRs after #333)`, () => {
       assert.deepEqual(referenceBuild(id).poisons, linkSetup(id).poisons);
       assert.deepEqual(checkReferenceBuild(id, referenceBuild(id)), []);
     });
   }
 
-  it("the weapons are the links', with the daggers' off hand at James's ruling", () => {
+  it.skip("the weapons are the links', with the daggers' off hand at James's ruling (skipped: waits on later preset TRs after #333)", () => {
     assert.deepEqual(referenceBuild(COMBAT).weapons, linkSetup(COMBAT).weapons);
     assert.deepEqual(
       referenceBuild(ASSASSINATION).weapons,
@@ -107,7 +107,7 @@ describe.skip("#310: each preset is its share link's setup", () => {
     assert.deepEqual(k("presetReferenceBuild.daggerOffHand"), RULED_OFF_HAND);
   });
 
-  it("Combat is Deadly on the main hand and Instant on the off hand; the daggers the reverse", () => {
+  it.skip("Combat is Deadly on the main hand and Instant on the off hand; the daggers the reverse (skipped: waits on later preset TRs after #333)", () => {
     assert.deepEqual(referenceBuild(COMBAT).poisons, {
       mainHand: "deadly",
       offHand: "instant",
@@ -121,12 +121,12 @@ describe.skip("#310: each preset is its share link's setup", () => {
   });
 
   for (const id of [ASSASSINATION, SUBTLETY]) {
-    it(`${id}: the rotation's rules are the link's, in order`, () => {
+    it.skip(`${id}: the rotation's rules are the link's, in order (skipped: waits on later preset TRs after #333)`, () => {
       assert.deepEqual(presetRules(id), linkSetup(id).rotation.rules);
     });
   }
 
-  it("combat-swords: the rules are the link's, its first Slice and Dice rule folded into the second", () => {
+  it.skip("combat-swords: the rules are the link's, its first Slice and Dice rule folded into the second (skipped: waits on later preset TRs after #333)", () => {
     const link = linkSetup(COMBAT).rotation.rules;
     const [first, second] = link;
     assert.equal(first.action, "slice-and-dice");
@@ -146,7 +146,7 @@ describe.skip("#310: each preset is its share link's setup", () => {
     assert.deepEqual(presetRules(COMBAT), link.slice(1));
   });
 
-  it("combat-swords: the folded rule changes no fight (identical results over many seeds)", () => {
+  it.skip("combat-swords: the folded rule changes no fight (identical results over many seeds) (skipped: waits on later preset TRs after #333)", () => {
     const folded = presetSetup(COMBAT);
     const unfolded = {
       ...folded,
@@ -163,7 +163,7 @@ describe.skip("#310: each preset is its share link's setup", () => {
     }
   });
 
-  it("the daggers' off-hand ruling leaves the dagger alternate (Core Hound Tooth) as it is", () => {
+  it.skip("the daggers' off-hand ruling leaves the dagger alternate (Core Hound Tooth) as it is (skipped: waits on later preset TRs after #333)", () => {
     assert.deepEqual(k("weapon.dagger.offHand"), LINK_OFF_HAND);
   });
 });

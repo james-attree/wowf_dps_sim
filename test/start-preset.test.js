@@ -40,9 +40,7 @@ import { MOVED_BY_RUN, MOVED_BY_USER } from "../js/views/router.js";
 // #323: Start from a preset.
 
 const NBSP = "\u00a0";
-const ASSASSINATION = "assassination-daggers";
 const COMBAT = "combat-swords-temp";
-const SUBTLETY = "subtlety-daggers";
 const LOW_LEVEL = "40";
 const route = (area, sub = null) => Object.freeze({ area, sub, param: null });
 const LIST = route("character");
@@ -80,7 +78,6 @@ function page({ open = true, remembered = null } = {}) {
   return { store, form, tree, build, start, storage, moves, slice };
 }
 
-// TR-02 / #332: skipped. Start-screen preset choice; Custom only until #333.
 describe("the cards (#323)", () => {
   it("are the temporary Combat swords card, then Custom (#333)", () => {
     const cards = startCards();
@@ -187,11 +184,11 @@ describe("when the panel opens (#323)", () => {
   });
 });
 
-// Pick/Undo unit strings still name retired multi-preset cards; needs later
-// preset TRs. Card catalogue unit tests above cover combat-swords-temp.
-describe.skip("a pick and its Undo (#323)", () => {
+describe("a pick and its Undo (#323)", () => {
   it("puts in the build and the rotation, folds, and focuses Undo", () => {
     const env = page();
+    // Leave the matching page default so the pick has something to change.
+    env.form.chooseRotation("default");
     env.form.change("character.attackPower", 1234);
     env.form.change("race", "orc");
     const before = env.store.get().config;
@@ -210,18 +207,16 @@ describe.skip("a pick and its Undo (#323)", () => {
     const slice = env.slice();
     assert.equal(slice.open, false);
     assert.deepEqual(slice.point, {
-      id: ASSASSINATION,
-      text: "Assassination",
+      id: COMBAT,
+      text: "Combat swords (temporary)",
     });
     assert.equal(slice.needsRace, false, "a race is set");
     const said = env.store.get().presetBuild;
-    assert.equal(said.applied.pick, ASSASSINATION);
+    assert.equal(said.applied.pick, COMBAT);
     assert.equal(said.focus.target, "undo");
-    // A first pick: the line names the whole build, and the announcement
-    // is the line (#326, item 7).
     assert.equal(
       said.applied.text,
-      "Assassination set: talents 38/11/2, two daggers, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
+      "Combat swords (temporary) set: talents 16/35/0, two swords, Instant and Deadly poisons and its rotation. Your stats and race are unchanged.",
     );
     assert.equal(said.announce.text, said.applied.text);
   });
@@ -238,10 +233,12 @@ describe.skip("a pick and its Undo (#323)", () => {
     draft.rules = moveRule(draft.rules, 0, 1);
     env.form.chooseRotation(COMBAT);
     env.form.setDraft(COMBAT, draft);
+    env.tree.resetAll();
     env.tree.setLevel(LOW_LEVEL);
     const before = env.store.get();
     assert.equal(isEditedChoice(before.form, COMBAT), true);
-    env.start.pick(SUBTLETY);
+    // Custom leaves the edited Combat swords card; Undo restores it (#333 single preset).
+    assert.equal(env.start.pick(CUSTOM), true);
     assert.equal(env.store.get().config.talentLevel, 60);
     assert.equal(env.start.undo(), true);
     const after = env.store.get();
@@ -255,10 +252,9 @@ describe.skip("a pick and its Undo (#323)", () => {
     assert.equal(slice.open, true, "open again");
     assert.deepEqual(
       { target: slice.focus.target, id: slice.focus.id },
-      { target: "card", id: SUBTLETY },
+      { target: "card", id: CUSTOM },
     );
     assert.equal(after.presetBuild.applied, null);
-    // One step.
     assert.equal(env.start.undo(), false);
   });
 
@@ -274,24 +270,23 @@ describe.skip("a pick and its Undo (#323)", () => {
     );
     draft.rules = moveRule(draft.rules, 0, 1);
     env.form.setDraft(COMBAT, draft);
-    assert.equal(env.slice().point.text, "Combat swords · Edited");
+    assert.equal(env.slice().point.text, "Combat swords (temporary) · Edited");
     assert.equal(
       env.slice().cards.find(({ id }) => id === COMBAT).edited,
       true,
     );
-    env.start.pick(COMBAT);
     assert.equal(env.start.pick(COMBAT), true);
     const { form, config } = env.store.get();
     assert.equal(form.drafts[COMBAT], undefined);
     assert.deepEqual(config.rotation, presetRotation(COMBAT));
-    assert.equal(env.slice().point.text, "Combat swords");
+    assert.equal(env.slice().point.text, "Combat swords (temporary)");
   });
 
-  it("a press that changes nothing: no Undo, the focus moves on", () => {
+  it.skip("a press that changes nothing: no Undo, the focus moves on (skipped: page-default combat-swords-temp is a full 51-point build; level-only / no-op Custom cases need empty defaults or another preset TR)", () => {
     const env = page();
-    assert.equal(env.start.pick(CUSTOM), false);
+    // Custom from the matching page default still folds and remembers (#333).
+    env.start.pick(CUSTOM);
     assert.equal(env.slice().focus.target, "gear");
-    assert.equal(env.store.get().presetBuild.applied, null);
     env.start.pick(COMBAT);
     assert.equal(env.start.pick(COMBAT), false);
     assert.equal(env.slice().focus.target, "row");
@@ -300,7 +295,8 @@ describe.skip("a pick and its Undo (#323)", () => {
   it("from #character/start: to the list first; Undo's focus on the row once folded", () => {
     const env = page({ open: false });
     env.store.set({ route: START, routeBy: MOVED_BY_USER });
-    env.start.pick(SUBTLETY);
+    env.form.chooseRotation("default");
+    env.start.pick(COMBAT);
     assert.deepEqual(env.moves, ["list"]);
     assert.equal(env.store.get().route.sub, null);
     env.start.undo();
@@ -310,12 +306,14 @@ describe.skip("a pick and its Undo (#323)", () => {
 
   it("Undo survives Run's move to Results, not the user's", () => {
     const env = page();
+    env.form.chooseRotation("default");
     env.start.pick(COMBAT);
     env.store.set({ route: route("results"), routeBy: MOVED_BY_RUN });
     assert.notEqual(env.store.get().presetBuild.applied, null);
     env.store.set({ route: LIST, routeBy: MOVED_BY_USER });
     assert.notEqual(env.store.get().presetBuild.applied, null);
     assert.equal(env.start.undo(), true);
+    env.form.chooseRotation("default");
     env.start.pick(COMBAT);
     env.store.set({ route: route("rotation"), routeBy: MOVED_BY_USER });
     assert.equal(env.store.get().presetBuild.applied, null);
@@ -323,7 +321,8 @@ describe.skip("a pick and its Undo (#323)", () => {
 
   it("asks for a race after a preset's pick with none", () => {
     const env = page();
-    env.start.pick(SUBTLETY);
+    env.form.chooseRotation("default");
+    assert.equal(env.start.pick(COMBAT), true);
     assert.equal(env.slice().needsRace, true);
     assert.equal(needsRace(env.store.get()), true);
     env.form.change("race", "troll");
@@ -331,7 +330,7 @@ describe.skip("a pick and its Undo (#323)", () => {
   });
 });
 
-describe.skip("Custom remembered (#323)", () => {
+describe("Custom remembered (#323)", () => {
   it("Custom is remembered; a preset or Reset forgets it; Reset's Undo puts it back", () => {
     const env = page();
     env.start.pick(CUSTOM);
@@ -366,7 +365,7 @@ describe.skip("Custom remembered (#323)", () => {
   });
 });
 
-describe.skip("the config form's part (#323)", () => {
+describe("the config form's part (#323)", () => {
   it("setField is a change the form redraws (a new revision)", () => {
     const env = page();
     const revision = env.store.get().form.revision;
@@ -391,7 +390,7 @@ describe.skip("the config form's part (#323)", () => {
   });
 });
 
-describe.skip("the words for every change (#325 P1)", () => {
+describe("the words for every change (#325 P1)", () => {
   const PARTS = [...BUILD_PARTS, ROTATION_PART];
   const build = referenceBuild(COMBAT);
   const LEVEL = `Level set to${NBSP}60.`;
@@ -460,8 +459,9 @@ describe.skip("the words for every change (#325 P1)", () => {
     );
   });
 
-  it("Custom from level 30: the level is all it changes", () => {
+  it.skip("Custom from level 30: the level is all it changes (skipped: page-default combat-swords-temp is a full 51-point build; level-only / no-op Custom cases need empty defaults or another preset TR)", () => {
     const env = page();
+    env.tree.resetAll();
     env.tree.setLevel("30");
     assert.equal(env.start.pick(CUSTOM), true);
     const said = env.store.get().presetBuild;

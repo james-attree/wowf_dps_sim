@@ -138,8 +138,7 @@ const placed = (page) =>
     };
   });
 
-// Rotation screens assume retired multi-preset cards; rewrite for combat-swords-temp (#333).
-describe.skip("Rotation's screens", () => {
+describe("Rotation's screens", () => {
   test("each screen has its route, title, h1 and back link", async () => {
     const { context, page, errors } = await openPage(1280, 800);
     try {
@@ -220,7 +219,7 @@ describe.skip("Rotation's screens", () => {
       await page.goto(`${base}#rotation/rule/99`);
       await hashIs(page, "#rotation");
       await titleIs(page, `Rotation · ${APP}`);
-      assert.equal(await page.locator("#rotation-builder li.rule").count(), 7);
+      assert.equal(await page.locator("#rotation-builder li.rule").count(), 10);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
@@ -277,7 +276,7 @@ describe.skip("Rotation's screens", () => {
       await page.locator(`[data-key='${deleted}.del']`).click();
       await hashIs(page, "#rotation");
       await page.locator("#rotation-builder li.rule").first().waitFor();
-      assert.equal(await page.locator("#rotation-builder li.rule").count(), 6);
+      assert.equal(await page.locator("#rotation-builder li.rule").count(), 9);
       // The Delete added no entry: the list replaced the rule's.
       assert.equal(
         await page.evaluate(() => globalThis.history.length),

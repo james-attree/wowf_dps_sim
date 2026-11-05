@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — talent ids renamed/removed at 70755.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
@@ -62,8 +61,8 @@ function strike(rank, start, roll = HALF) {
   };
 }
 
-describe.skip("Assassination passives (#266)", () => {
-  it("map each talent's rank text, at every rank", () => {
+describe("Assassination passives (#266)", () => {
+  it.skip("map each talent's rank text, at every rank (skipped: needs a talent retune for the 70755 tree)", () => {
     const read = (id, pattern) =>
       talentCatalogue
         .get(id)
@@ -95,7 +94,7 @@ describe.skip("Assassination passives (#266)", () => {
     assert.deepEqual(k("murder.mobTypes"), ["humanoid", "giant"]);
   });
 
-  it("Vigor raises the energy cap to 110, a whole number; no Vigor leaves 100", () => {
+  it.skip("Vigor raises the energy cap to 110, a whole number; no Vigor leaves 100 (skipped: needs a talent retune for the 70755 tree)", () => {
     const base = new Rogue().resources.energy.max;
     const vigor = new Rogue({ talents: ASSASSINATION_BUILD }).resources.energy
       .max;
@@ -106,7 +105,7 @@ describe.skip("Assassination passives (#266)", () => {
     assert.equal(none.resources.energy.max, base);
   });
 
-  it("Vile Poisons is +20% exact on Instant Poison hits and Deadly Poison ticks", () => {
+  it.skip("Vile Poisons is +20% exact on Instant Poison hits and Deadly Poison ticks (skipped: needs a talent retune for the 70755 tree)", () => {
     const fight = (talents) => {
       const result = createFight(5, { talents, poisons: POISONS });
       const hits = [];
@@ -139,7 +138,7 @@ describe.skip("Assassination passives (#266)", () => {
     assert.ok(kinds.has("deadly-poison/dot"));
   });
 
-  it("Improved Poisons 5/5 adds 10 points to each poison's chance; its charges half is inert", () => {
+  it.skip("Improved Poisons 5/5 adds 10 points to each poison's chance; its charges half is inert (skipped: needs a talent retune for the 70755 tree)", () => {
     const rogue = new Rogue({ talents: ASSASSINATION_BUILD, poisons: POISONS });
     assert.deepEqual(
       rogue.procs
@@ -154,7 +153,7 @@ describe.skip("Assassination passives (#266)", () => {
     assert.equal(k("poison.charges"), "unlimited");
   });
 
-  it("Seal Fate fires on CP builder crits only, and with Ruthlessness never passes 5 CP (A8)", () => {
+  it.skip("Seal Fate fires on CP builder crits only, and with Ruthlessness never passes 5 CP (A8) (skipped: needs a talent retune for the 70755 tree)", () => {
     const builders = abilityCatalogue.abilities
       .filter((ability) => ability.comboPointsAwarded > 0)
       .map((ability) => ability.id);
@@ -197,7 +196,7 @@ describe.skip("Assassination passives (#266)", () => {
     }
   });
 
-  it("Seal Fate's point is capped at 5 CP from every starting count, and the lost point is overflow", () => {
+  it.skip("Seal Fate's point is capped at 5 CP from every starting count, and the lost point is overflow (skipped: needs a talent retune for the 70755 tree)", () => {
     const max = k("combo.max");
     const rank = k("sealFate.comboPoint").chance.length;
     const gain = strike(0, 0).comboPoints;
@@ -217,7 +216,7 @@ describe.skip("Assassination passives (#266)", () => {
     }
   });
 
-  it("Seal Fate fires on a roll under its rank's chance, at every rank", () => {
+  it.skip("Seal Fate fires on a roll under its rank's chance, at every rank (skipped: needs a talent retune for the 70755 tree)", () => {
     const chances = k("sealFate.comboPoint").chance;
     assert.deepEqual(chances, [0.2, 0.4, 0.6, 0.8, 1]);
     for (let rank = 1; rank <= chances.length; rank += 1) {
@@ -244,7 +243,7 @@ describe.skip("Assassination passives (#266)", () => {
     }
   });
 
-  it("Murder is inert while target.mobType is unspecified", () => {
+  it.skip("Murder is inert while target.mobType is unspecified (skipped: needs a talent retune for the 70755 tree)", () => {
     assert.equal(k("target.mobType"), "unspecified");
     const build = expandTalents({ "assassination.murder": 2 });
     assert.deepEqual(sources(build.modifiers, "assassination.murder"), []);
@@ -276,7 +275,7 @@ describe.skip("Assassination passives (#266)", () => {
     assert.deepEqual(sources(beast.modifiers, "assassination.murder"), []);
   });
 
-  it("says why Improved Gouge, Remorseless Attacks and Improved Kidney Shot do nothing", () => {
+  it.skip("says why Improved Gouge, Remorseless Attacks and Improved Kidney Shot do nothing (skipped: needs a talent retune for the 70755 tree)", () => {
     const build = expandTalents(ASSASSINATION_BUILD);
     for (const id of [
       "assassination.improved-gouge",
@@ -289,20 +288,20 @@ describe.skip("Assassination passives (#266)", () => {
     assert.deepEqual(build.unmapped, []);
   });
 
-  it("registers no proc and draws nothing at 0 points (G2, Seal Fate)", () => {
+  it.skip("registers no proc and draws nothing at 0 points (G2, Seal Fate) (skipped: needs a talent retune for the 70755 tree)", () => {
     assert.deepEqual(expandTalents({ "assassination.seal-fate": 0 }).procs, []);
     const rogue = new Rogue({ talents: without(["assassination.seal-fate"]) });
     assert.ok(!rogue.procs.some((proc) => proc.id === "seal-fate"));
   });
 
-  it("an old config, with none of these talents, reads their defaults (G4)", () => {
+  it.skip("an old config, with none of these talents, reads their defaults (G4) (skipped: needs a talent retune for the 70755 tree)", () => {
     const rogue = new Rogue({});
     assert.equal(rogue.resources.energy.max, k("energy.max"));
     assert.deepEqual(rogue.procs, []);
     assert.equal(rogue.modifiers.resolve("poisonChance", 0), 0);
   });
 
-  it("has an Assassination-build golden case with poisons", () => {
+  it.skip("has an Assassination-build golden case with poisons (skipped: needs a talent retune for the 70755 tree)", () => {
     const found = GOLDEN_CASES.find(
       (goldenCase) => goldenCase.name === "assassination-build-seed-266-60s",
     );

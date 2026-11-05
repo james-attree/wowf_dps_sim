@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — talent ids renamed/removed at 70755.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
@@ -119,7 +118,7 @@ function cuts(sim) {
   return sim.activeBuffs["thousand-cuts"];
 }
 
-describe.skip("Subtlety passives read their rank text (#269)", () => {
+describe("Subtlety passives read their rank text (#269)", () => {
   const read = (id, pattern) =>
     talentCatalogue.get(id).ranks.map((text) => {
       const found = pattern.exec(text);
@@ -127,7 +126,7 @@ describe.skip("Subtlety passives read their rank text (#269)", () => {
       return Number(found[1]) / 100;
     });
 
-  it("Opportunity: damage by rank on Backstab, Garrote, Ambush and Mutilate", () => {
+  it.skip("Opportunity: damage by rank on Backstab, Garrote, Ambush and Mutilate (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const [table] = TALENT_EFFECTS[OPPORTUNITY].modifiers;
     assert.equal(table.kind, "damage");
     assert.deepEqual(table.values, read(OPPORTUNITY, /abilities by (\d+)%/));
@@ -139,7 +138,7 @@ describe.skip("Subtlety passives read their rank text (#269)", () => {
     ]);
   });
 
-  it("Serrated Blades: armor ignored on every attack, and Rupture damage", () => {
+  it.skip("Serrated Blades: armor ignored on every attack, and Rupture damage (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const [ignore, rupture] = TALENT_EFFECTS[SERRATED].modifiers;
     assert.equal(ignore.kind, "armorIgnore");
     assert.equal(ignore.scope, undefined);
@@ -152,7 +151,7 @@ describe.skip("Subtlety passives read their rank text (#269)", () => {
     );
   });
 
-  it("Quietus: damage by rank on its three strikes, below 35% health", () => {
+  it.skip("Quietus: damage by rank on its three strikes, below 35% health (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const [table] = TALENT_EFFECTS[QUIETUS].modifiers;
     assert.equal(table.kind, "damage");
     assert.deepEqual(table.values, read(QUIETUS, /cause (\d+)% more/));
@@ -169,7 +168,7 @@ describe.skip("Subtlety passives read their rank text (#269)", () => {
     assert.equal(k("target.healthModel"), "linear");
   });
 
-  it("Thousand Cuts: the constants row is the text's 3 energy, 5 stacks, 10 s", () => {
+  it.skip("Thousand Cuts: the constants row is the text's 3 energy, 5 stacks, 10 s (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const [text] = talentCatalogue.get(CUTS).ranks;
     const found =
       /within (\d+) sec is reduced by (\d+), stacking up to (\d+) times/.exec(
@@ -209,8 +208,8 @@ describe.skip("Subtlety passives read their rank text (#269)", () => {
   });
 });
 
-describe.skip("Opportunity and Serrated Blades (#269)", () => {
-  it("Opportunity 2/2 is ×1.1 on Backstab and Mutilate, and nothing on Sinister Strike", () => {
+describe("Opportunity and Serrated Blades (#269)", () => {
+  it.skip("Opportunity 2/2 is ×1.1 on Backstab and Mutilate, and nothing on Sinister Strike (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const talents = { [OPPORTUNITY]: maxRank(OPPORTUNITY) };
     for (const id of ["backstab", "mutilate", "ambush", "garrote"]) {
       close(multiplier(talents, id), 1.1, id);
@@ -225,7 +224,7 @@ describe.skip("Opportunity and Serrated Blades (#269)", () => {
     );
   });
 
-  it("Serrated Blades 3/3 ignores 9% of the armor, flat with Hack and Slash's mace part", () => {
+  it.skip("Serrated Blades 3/3 ignores 9% of the armor, flat with Hack and Slash's mace part (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const { sim } = ready({ [SERRATED]: maxRank(SERRATED) });
     const context = sim.abilityContext("sinister-strike");
     assert.equal(sim.modifiers.resolve("armorIgnore", 0, context), 0.09);
@@ -244,7 +243,7 @@ describe.skip("Opportunity and Serrated Blades (#269)", () => {
     assert.ok(sim.armorMultiplier(context) > plain);
   });
 
-  it("Serrated Blades 3/3 is ×1.3 on Rupture's ticks, and leaves Eviscerate alone", () => {
+  it.skip("Serrated Blades 3/3 is ×1.3 on Rupture's ticks, and leaves Eviscerate alone (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const tickOf = (talents) => {
       const { rogue, sim } = ready(talents);
       rogue.abilities.rupture.cast(rogue, sim);
@@ -267,10 +266,11 @@ describe.skip("Opportunity and Serrated Blades (#269)", () => {
   });
 });
 
-describe.skip("Thousand Cuts (#269, A13)", () => {
-  const talents = { [CUTS]: 1 };
+describe("Thousand Cuts (#269, A13)", () => {
+  // thousand-cuts left the 70755 catalogue; keep suite load side-effect free.
+  const talents = null;
 
-  it("each Rupture tick adds a stack, up to 5, and refreshes the 10 s", () => {
+  it.skip("each Rupture tick adds a stack, up to 5, and refreshes the 10 s (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const { sim } = ready(talents);
     for (let at = 1; at <= 7; at += 1) {
       if (cuts(sim) !== undefined) {
@@ -283,14 +283,14 @@ describe.skip("Thousand Cuts (#269, A13)", () => {
     assert.equal(sim.procs.stats["thousand-cuts"].fires, 7);
   });
 
-  it("a tick of another DoT adds nothing", () => {
+  it.skip("a tick of another DoT adds nothing (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const { sim } = ready(talents);
     sim.procs.onDotTick(sim.abilityContext("deadly-poison"));
     sim.procs.onDotTick(sim.abilityContext("garrote", { bleed: true }));
     assert.equal(cuts(sim), undefined);
   });
 
-  it("takes 3 energy a stack off Hemorrhage and Backstab only", () => {
+  it.skip("takes 3 energy a stack off Hemorrhage and Backstab only (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const { rogue, sim } = ready(talents);
     const base = (id) => ready({}).rogue.abilities[id].costNow(ready({}).sim);
     for (let stacks = 1; stacks <= 5; stacks += 1) {
@@ -314,7 +314,7 @@ describe.skip("Thousand Cuts (#269, A13)", () => {
     }
   });
 
-  it("never takes a cost below 0", () => {
+  it.skip("never takes a cost below 0 (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const [modifier] = AURAS.thousandCuts.modifiers;
     assert.equal(
       combine("energyCost", ready({}).rogue.abilities.hemorrhage.cost, [
@@ -324,7 +324,7 @@ describe.skip("Thousand Cuts (#269, A13)", () => {
     );
   });
 
-  it("the Backstab or Hemorrhage that pays the cut cost uses every stack, hit or miss", () => {
+  it.skip("the Backstab or Hemorrhage that pays the cut cost uses every stack, hit or miss (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     for (const [id, roll] of [
       ["backstab", HALF],
       ["hemorrhage", HALF],
@@ -349,7 +349,7 @@ describe.skip("Thousand Cuts (#269, A13)", () => {
     }
   });
 
-  it("a Sinister Strike or Eviscerate leaves the stacks up", () => {
+  it.skip("a Sinister Strike or Eviscerate leaves the stacks up (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     for (const id of ["sinisterStrike", "eviscerate"]) {
       const { rogue, sim } = ready(talents);
       tick(sim);
@@ -359,7 +359,7 @@ describe.skip("Thousand Cuts (#269, A13)", () => {
     }
   });
 
-  it("in a fight: never over 5, gone 10 s after the last tick, used only by Hemorrhage or Backstab", () => {
+  it.skip("in a fight: never over 5, gone 10 s after the last tick, used only by Hemorrhage or Backstab (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const cutsOnly = {
       schemaVersion: 1,
       name: "Rupture in the first 20 s, then Sinister Strike",
@@ -423,12 +423,13 @@ describe.skip("Thousand Cuts (#269, A13)", () => {
   });
 });
 
-describe.skip("Quietus (#269, A14)", () => {
-  const talents = { [QUIETUS]: maxRank(QUIETUS) };
-  const bonus = TALENT_EFFECTS[QUIETUS].modifiers[0].values.at(-1);
+describe("Quietus (#269, A14)", () => {
+  // quietus left the 70755 catalogue; avoid maxRank at suite load (throws).
+  const talents = null;
+  const bonus = null;
 
   // (a) A strike just either side of 0.65·L, in exact seconds.
-  it("is off up to 0.65·L (65 s of 100, 39 of 60) and on strictly after", () => {
+  it.skip("is off up to 0.65·L (65 s of 100, 39 of 60) and on strictly after (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     for (const [length, at, on] of [
       [100, 64, false],
       [100, 64.999, false],
@@ -463,7 +464,7 @@ describe.skip("Quietus (#269, A14)", () => {
   });
 
   // (d) No fight length: off.
-  it("is off with no fight length", () => {
+  it.skip("is off with no fight length (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     for (const at of [0, 65, 1e6]) {
       assert.equal(
         damageOf(talents, "hemorrhage", { at, length: null }),
@@ -478,7 +479,7 @@ describe.skip("Quietus (#269, A14)", () => {
     );
   });
 
-  it("Simulation.targetHealthBelow is d·t > (d − n)·L", () => {
+  it.skip("Simulation.targetHealthBelow is d·t > (d − n)·L (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const share = { numerator: 7, denominator: 20 };
     const { sim } = ready({}, { length: 60 });
     for (const [at, below] of [
@@ -494,7 +495,7 @@ describe.skip("Quietus (#269, A14)", () => {
   });
 
   // (b) A cut across 0.65·L is the fight in one piece.
-  it("a fight cut across 0.65·L is the fight in one run", () => {
+  it.skip("a fight cut across 0.65·L is the fight in one run (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const logged = () => {
       const fight = createFight(
         SUBTLETY_CASE.seed,
@@ -532,7 +533,7 @@ describe.skip("Quietus (#269, A14)", () => {
   });
 
   // (c) Live (SimRunner, in chunks) is batch (runBatch) for the same seed.
-  it("live equals batch for the same seed", () => {
+  it.skip("live equals batch for the same seed (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const { config, duration } = SUBTLETY_CASE;
     const seed = 269;
     const batch = runBatch({ seed, iterations: 3, duration, config });
@@ -553,8 +554,8 @@ describe.skip("Quietus (#269, A14)", () => {
   });
 });
 
-describe.skip("no phantom draws, and old configs (#269, G2 and G4)", () => {
-  it("at rank 0 the four talents give no modifier and no proc", () => {
+describe("no phantom draws, and old configs (#269, G2 and G4)", () => {
+  it.skip("at rank 0 the four talents give no modifier and no proc (skipped: waits on a later talent-rework TR after #333)", () => {
     const zero = Object.fromEntries(
       [OPPORTUNITY, SERRATED, CUTS, QUIETUS].map((id) => [id, 0]),
     );
@@ -563,7 +564,7 @@ describe.skip("no phantom draws, and old configs (#269, G2 and G4)", () => {
     assert.deepEqual(build.procs, []);
   });
 
-  it("a Rupture tick draws nothing, with Thousand Cuts or without it", () => {
+  it.skip("a Rupture tick draws nothing, with Thousand Cuts or without it (skipped: waits on a later talent-rework TR after #333)", () => {
     const none = ready({});
     tick(none.sim);
     assert.equal(none.draws(), 0);
@@ -574,7 +575,7 @@ describe.skip("no phantom draws, and old configs (#269, G2 and G4)", () => {
     assert.equal(one.sim.procs.stats["thousand-cuts"].fires, 1);
   });
 
-  it("in a fight, Thousand Cuts puts its stack up with no draw after the tick", () => {
+  it.skip("in a fight, Thousand Cuts puts its stack up with no draw after the tick (skipped: waits on a later talent-rework TR after #333)", () => {
     const { sim, counted } = fightOn(
       SUBTLETY_CASE.config.talents,
       SUBTLETY_ROTATION,
@@ -596,7 +597,7 @@ describe.skip("no phantom draws, and old configs (#269, G2 and G4)", () => {
     assert.deepEqual(new Set(after), new Set([0]));
   });
 
-  it("Opportunity, Serrated Blades and Quietus draw nothing: the same draws, the same times", () => {
+  it.skip("Opportunity, Serrated Blades and Quietus draw nothing: the same draws, the same times (skipped: waits on a later talent-rework TR after #333)", () => {
     const run = (talents) => {
       const { sim, counted } = fightOn(talents, SUBTLETY_ROTATION);
       const times = [];
@@ -618,7 +619,7 @@ describe.skip("no phantom draws, and old configs (#269, G2 and G4)", () => {
     assert.ok(withThem.damage > without.damage);
   });
 
-  it("a config without the new talents reads as before: no new field, the default health model", () => {
+  it.skip("a config without the new talents reads as before: no new field, the default health model (skipped: waits on a later talent-rework TR after #333)", () => {
     const old = { ...defaultDaggerConfig() };
     assert.deepEqual(
       normalizeConfig(old),
@@ -642,7 +643,7 @@ describe.skip("no phantom draws, and old configs (#269, G2 and G4)", () => {
   });
 });
 
-describe.skip("a drawless proc (#269, G2)", () => {
+describe("a drawless proc (#269, G2)", () => {
   const base = {
     id: "certain",
     trigger: "onDotTick",
@@ -650,7 +651,7 @@ describe.skip("a drawless proc (#269, G2)", () => {
     actions: [{ type: "applyAura", aura: "thousand-cuts" }],
   };
 
-  it("needs a flat chance of 1, and only a proc that asks for it has the field", () => {
+  it.skip("needs a flat chance of 1, and only a proc that asks for it has the field (skipped: waits on a later talent-rework TR after #333)", () => {
     assert.equal(defineProc({ ...base, drawless: true }).drawless, true);
     assert.equal(Object.hasOwn(defineProc(base), "drawless"), false);
     assert.throws(
@@ -687,7 +688,7 @@ describe.skip("a drawless proc (#269, G2)", () => {
     );
   });
 
-  it("a flat chance of 1 without it still draws, as Seal Fate 5/5 does in the goldens", () => {
+  it.skip("a flat chance of 1 without it still draws, as Seal Fate 5/5 does in the goldens (skipped: waits on a later talent-rework TR after #333)", () => {
     const fires = (spec) => {
       const rogue = new Rogue(defaultDaggerConfig(), {
         procs: [defineProc(spec)],
@@ -711,7 +712,7 @@ describe.skip("a drawless proc (#269, G2)", () => {
   });
 });
 
-describe.skip("the eight Subtlety talents with no DPS effect (#269)", () => {
+describe("the eight Subtlety talents with no DPS effect (#269)", () => {
   const STEALTH = [
     "subtlety.camouflage",
     "subtlety.master-of-deception",
@@ -725,7 +726,7 @@ describe.skip("the eight Subtlety talents with no DPS effect (#269)", () => {
     "subtlety.dirty-tricks",
   ];
 
-  it("each has a one-line reason; the five that need Stealth or an opener say so", () => {
+  it.skip("each has a one-line reason; the five that need Stealth or an opener say so (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     for (const id of [...STEALTH, ...OWN]) {
       assert.match(TALENT_EFFECTS[id].noDpsEffect, /^[^\n]{10,}$/, id);
     }
@@ -742,7 +743,7 @@ describe.skip("the eight Subtlety talents with no DPS effect (#269)", () => {
     assert.match(TALENT_EFFECTS["subtlety.dirty-deeds"].noDpsEffect, /behind/);
   });
 
-  it("go into noDps, not unmapped", () => {
+  it.skip("go into noDps, not unmapped (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const build = expandTalents(
       Object.fromEntries([...STEALTH, ...OWN].map((id) => [id, 1])),
     );
@@ -752,8 +753,8 @@ describe.skip("the eight Subtlety talents with no DPS effect (#269)", () => {
   });
 });
 
-describe.skip("the Subtlety golden case (#269)", () => {
-  it("spends 51 points on the four passives, Hemorrhage and the no-DPS talents", () => {
+describe("the Subtlety golden case (#269)", () => {
+  it.skip("spends 51 points on the four passives, Hemorrhage and the no-DPS talents (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const points = Object.values(SUBTLETY_BUILD).reduce((a, b) => a + b, 0);
     assert.equal(points, 51);
     for (const id of [OPPORTUNITY, SERRATED, CUTS, QUIETUS]) {
@@ -764,7 +765,7 @@ describe.skip("the Subtlety golden case (#269)", () => {
     assert.equal(SUBTLETY_CASE.duration, 60);
   });
 
-  it("Thousand Cuts lowers what Backstab and Hemorrhage pay in it", () => {
+  it.skip("Thousand Cuts lowers what Backstab and Hemorrhage pay in it (skipped: needs a talent retune for the 70755 Subtlety/Assassination tree)", () => {
     const fight = createFight(SUBTLETY_CASE.seed, SUBTLETY_CASE.config, {
       duration: SUBTLETY_CASE.duration,
     });

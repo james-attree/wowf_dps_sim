@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — empty presets until #333
 // Browser test for #322 B1 (Fran's check): at 1024 wide and 150% text a
 // condition's fields (flex: 1 1 min-content) grew .rotation-panel's auto
 // grid track past its card, so every rule with conditions spilled its body
@@ -94,7 +93,7 @@ async function show(page, hash) {
   );
 }
 
-describe.skip("a rule's body stays in the builder card at 1024 and 150% (#322 B1)", () => {
+describe("a rule's body stays in the builder card at 1024 and 150% (#322 B1)", () => {
   for (const [font, css] of FONTS) {
     test(`in ${font}`, async () => {
       const context = await browser.newContext({ viewport: SIZE });

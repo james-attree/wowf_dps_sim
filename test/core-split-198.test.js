@@ -1,4 +1,3 @@
-// TR-02 / #332: whole file skipped — lethality max 2 / murder gone at 70755; retune with TR talent issues
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";

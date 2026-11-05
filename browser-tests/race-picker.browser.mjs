@@ -410,7 +410,6 @@ const sideScroll = (page) =>
       document.documentElement.clientWidth,
   );
 
-// TR-02 / #332: empty presets until #333
 describe("#280: the rotation builder and the race", () => {
   for (const width of WIDTHS) {
     for (const text of TEXT_SIZES) {

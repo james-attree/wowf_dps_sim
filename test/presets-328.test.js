@@ -54,8 +54,8 @@ function presetSetup() {
 }
 
 // Combat daggers (#328) retired with the 70755 scrap; needs a later dagger preset TR, not #333.
-describe.skip("#328: Combat daggers is James's link's setup", () => {
-  it("the reference build's talents and level are the link's: 16/33/2, 51 points", () => {
+describe("#328: Combat daggers is James's link's setup", () => {
+  it.skip("the reference build's talents and level are the link's: 16/33/2, 51 points (skipped: waits on a later dagger preset TR)", () => {
     const build = referenceBuild(COMBAT_DAGGERS);
     const link = linkSetup();
     assert.deepEqual(build.talents, link.talents);
@@ -69,7 +69,7 @@ describe.skip("#328: Combat daggers is James's link's setup", () => {
     assert.equal(points.total, talentPointCap(LEVEL_60));
   });
 
-  it("the weapons are the link's two daggers", () => {
+  it.skip("the weapons are the link's two daggers (skipped: waits on a later dagger preset TR)", () => {
     assert.deepEqual(
       referenceBuild(COMBAT_DAGGERS).weapons,
       linkSetup().weapons,
@@ -80,7 +80,7 @@ describe.skip("#328: Combat daggers is James's link's setup", () => {
     });
   });
 
-  it("the link has no poisons; the build has Instant MH / Deadly OH, as the dagger presets (assumption)", () => {
+  it.skip("the link has no poisons; the build has Instant MH / Deadly OH, as the dagger presets (assumption) (skipped: waits on a later dagger preset TR)", () => {
     assert.equal(Object.hasOwn(payload.config, "poisons"), false);
     assert.deepEqual(referenceBuild(COMBAT_DAGGERS).poisons, {
       mainHand: "instant",
@@ -96,7 +96,7 @@ describe.skip("#328: Combat daggers is James's link's setup", () => {
     );
   });
 
-  it("the rotation's rules are the link's, in order, racials included", () => {
+  it.skip("the rotation's rules are the link's, in order, racials included (skipped: waits on a later dagger preset TR)", () => {
     assert.deepEqual(
       presetRotation(COMBAT_DAGGERS).rules,
       linkSetup().rotation.rules,
@@ -104,13 +104,13 @@ describe.skip("#328: Combat daggers is James's link's setup", () => {
     assert.equal(presetSetup().rotation.rules.length, 8);
   });
 
-  it("the race and seed are not part of the preset", () => {
+  it.skip("the race and seed are not part of the preset (skipped: waits on a later dagger preset TR)", () => {
     assert.equal(payload.config.race, "night-elf");
     assert.equal(Object.hasOwn(loadPreset(COMBAT_DAGGERS), "race"), false);
     assert.equal(presetSetup().race ?? null, null);
   });
 
-  it("the rotation select lists it, named Combat daggers", () => {
+  it.skip("the rotation select lists it, named Combat daggers (skipped: waits on a later dagger preset TR)", () => {
     const preset = listPresets().find(({ id }) => id === COMBAT_DAGGERS);
     assert.equal(preset.name, "Combat daggers");
     assert.equal(presetRotation(COMBAT_DAGGERS).name, "Combat daggers");
@@ -118,8 +118,8 @@ describe.skip("#328: Combat daggers is James's link's setup", () => {
   });
 });
 
-describe.skip("#328: the combat-swords Blade Flurry and Adrenaline Rush guard", () => {
-  it("does not fire on Combat daggers: no rule casts them, and it validates", () => {
+describe("#328: the combat-swords Blade Flurry and Adrenaline Rush guard", () => {
+  it.skip("does not fire on Combat daggers: no rule casts them, and it validates (skipped: waits on a later dagger preset TR)", () => {
     const rotation = presetRotation(COMBAT_DAGGERS);
     assert.deepEqual(validateRotation(rotation), []);
     const actions = rotation.rules.map(({ action }) => action);
@@ -128,7 +128,7 @@ describe.skip("#328: the combat-swords Blade Flurry and Adrenaline Rush guard", 
     }
   });
 
-  it("still fires if a rule casts Blade Flurry with no talent check", () => {
+  it.skip("still fires if a rule casts Blade Flurry with no talent check (skipped: waits on a later dagger preset TR)", () => {
     const rotation = presetRotation(COMBAT_DAGGERS);
     rotation.rules.push({ action: "blade-flurry", conditions: [] });
     const errors = validateRotation(rotation);
@@ -138,7 +138,7 @@ describe.skip("#328: the combat-swords Blade Flurry and Adrenaline Rush guard", 
     );
   });
 
-  it("with the reference build it backstabs and never casts Blade Flurry or Adrenaline Rush", () => {
+  it.skip("with the reference build it backstabs and never casts Blade Flurry or Adrenaline Rush (skipped: waits on a later dagger preset TR)", () => {
     const config = presetSetup();
     for (const seed of SEEDS) {
       const fight = createFight(seed, config);
@@ -154,8 +154,8 @@ describe.skip("#328: the combat-swords Blade Flurry and Adrenaline Rush guard", 
   });
 });
 
-describe.skip("#328: the start card", () => {
-  it("is the fifth card, after Combat swords (the trees' order) and before Custom", () => {
+describe("#328: the start card", () => {
+  it.skip("is the fifth card, after Combat swords (the trees' order) and before Custom (skipped: waits on a later dagger preset TR)", () => {
     const cards = startCards();
     assert.equal(cards.length, 5);
     const index = cards.findIndex(({ id }) => id === COMBAT_DAGGERS);
