@@ -114,6 +114,9 @@ export const MODIFIER_KINDS = Object.freeze({
   duration: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
   poisonChance: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
   comboRefund: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
+  // TR-04 / #337: Flash of Steel raises Shank's energy generated and cuts its CD.
+  castGain: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
+  cooldown: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
 });
 
 export const STACKING_FORMS = Object.freeze([

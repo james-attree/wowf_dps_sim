@@ -96,6 +96,8 @@ const ENERGY = {
   refund: "skill.missEnergyRefund",
 };
 const COMBO_POINTS = { resource: "comboPoints", field: "comboPoints" };
+// Energy a landed cast generates (Shank). No miss-refund field: gains are not costs.
+const ENERGY_GAIN = { resource: "energy", field: "energyGenerated" };
 
 // Freeze an entry and everything inside it, so one caller cannot change what
 // another reads. The constants ids in it are strings, so this is plain data.
@@ -298,6 +300,19 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     row: "racial.eureka",
     icon: null,
     aura: { id: "eureka", duration: { field: "duration" } },
+  },
+  {
+    // TR-04 / #337: off-hand yellow, 50% weapon damage, cannot miss, generates
+    // energy (rank 2: 25). Flash of Steel and Boot Knife modify it.
+    key: "shank",
+    id: "shank",
+    row: "shank",
+    icon: null,
+    hand: "offHand",
+    cannotMiss: true,
+    cost: ENERGY,
+    gain: ENERGY_GAIN,
+    damage: { kind: "weapon", multiplier: "weaponMultiplier" },
   },
   {
     // A baseline finisher (#268, A11): one Expose Armor stack per combo point

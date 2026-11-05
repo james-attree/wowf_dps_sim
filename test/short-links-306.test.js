@@ -306,7 +306,7 @@ describe("short links: version 1 still reads, and saves stay version 1 (#306)", 
     assert.equal(LINK_VERSION, 2);
     assert.equal(LINK_VERSION, k("link.codec").version);
     assert.equal(encodeSetup(setupDefaults()), "1.eyJlcmEiOjF9");
-    assert.equal(encodeLink(setupDefaults()), "2.BQA");
+    assert.equal(encodeLink(setupDefaults()), "2.BgA");
   });
 
   it("a saved setup in version 2 reads too (readers take both)", () => {
@@ -419,6 +419,7 @@ const LOCKED_LISTS = {
     "subtlety-daggers",
     "combat-daggers",
     "combat-swords-temp",
+    "combat-swords-temp-337",
   ],
 };
 
@@ -439,6 +440,8 @@ const LOCKED_CONTENT = {
     "49ebf8a7b8e656c56b4fda8a3ce5b414e10b314ca40b289faf8c6ea3ea52deda",
   "combat-swords-temp":
     "562241521d99d14492fa537f11eed0384188c9aaddf2178ef29fe4e2a6664182",
+  "combat-swords-temp-337":
+    "89d45e91921add42cc957b176083a8eb08968b56a73930fd3a50a883e6c83288",
 };
 
 const canonical = (value) =>
@@ -501,10 +504,10 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
     }
   });
 
-  it("the live preset base is combat-swords-temp; older bases stay frozen (#333)", () => {
+  it("the live preset base is combat-swords-temp-337; older bases stay frozen (#337)", () => {
     assert.deepEqual(
       LINK_BASES.filter((b) => b.frozen === undefined).map((b) => b.id),
-      ["combat-swords-temp"],
+      ["combat-swords-temp-337"],
     );
     assert.deepEqual(
       LINK_BASES.filter((b) => b.preset !== undefined).map((b) => b.preset),
@@ -513,7 +516,7 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
   });
 
   it("pins the temporary Combat swords share link (#333)", () => {
-    assert.equal(encodeLink(setupDefaults()), "2.BQA");
+    assert.equal(encodeLink(setupDefaults()), "2.BgA");
   });
 
   it("a frozen base is its own copy, whatever the presets are now", () => {
@@ -720,8 +723,8 @@ describe("short links: pinned version 2 texts (#330 N2)", () => {
   const cs = presetConfig("combat-swords-temp");
   // Live bases only (#333). Retired preset pins wait on later preset TRs.
   const PINNED = [
-    ["defaults", at(d.config), "2.BYAQAcjBraAU"],
-    ["combat-swords-temp", at(cs), "2.BYAQAcjBraAU"],
+    ["defaults", at(d.config), "2.BoAQAcjBraAU"],
+    ["combat-swords-temp", at(cs), "2.BoAQAcjBraAU"],
     [
       "combat-swords-temp, rule 1 deleted in the app",
       at({
@@ -732,12 +735,12 @@ describe("short links: pinned version 2 texts (#330 N2)", () => {
           rules: cs.rotation.rules.slice(1),
         },
       }),
-      "2.BYARBQAJAgQGCAoMDhASAcjBraAU",
+      "2.BoARBQAKAgQGCAoMDhASFAHIwa2gFA",
     ],
     [
       "combat-swords-temp, orc, target level 62",
       at({ ...cs, race: "orc", target: { ...cs.target, level: 62 } }),
-      "2.BYkQAQEBfAHIwa2gFA",
+      "2.BokQAQEBfAHIwa2gFA",
     ],
     [
       "combat-swords-temp, main hand 80-150 at 1.9",
@@ -748,7 +751,7 @@ describe("short links: pinned version 2 texts (#330 N2)", () => {
           mainHand: { ...cs.weapons.mainHand, min: 80, max: 150, speed: 1.9 },
         },
       }),
-      "2.BYQQB6ABrAL8AgHIwa2gFA",
+      "2.BoQQB6ABrAL8AgHIwa2gFA",
     ],
   ];
 
@@ -770,9 +773,9 @@ describe("short links: pinned version 2 texts (#330 N2)", () => {
   });
 
   it("the defaults' pin reads byte by byte as the format says", () => {
-    // Page defaults match the combat-swords-temp base (index 5) after #333, so
+    // Page defaults match the combat-swords-temp-337 base (index 6) after #337, so
     // the encoder picks that base; parts: seed only (bit 11); seed present.
-    assert.equal(PINNED[0][2], "2.BYAQAcjBraAU");
+    assert.equal(PINNED[0][2], "2.BoAQAcjBraAU");
     assert.equal(
       PINNED[0][2],
       PINNED[1][2],

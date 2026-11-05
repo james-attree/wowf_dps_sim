@@ -696,6 +696,7 @@ describe("rotationWarnings: data, not names", () => {
       "elunes-light",
       "berserking",
       "eureka",
+      "shank",
       "preparation",
     ]);
     assert.ok(!context.onGcd.includes("blood-fury"));

@@ -85,11 +85,25 @@ export function rankAt(name, level, source = snapshot) {
 // and stays the row's.
 const energy = (spell) => ({ energy: spell.cost.amount });
 const bonus = (spell) => ({ ...energy(spell), bonusDamage: spell.flatDamage });
+// Shank's generated energy changes by rank (15 at rank 1, 25 at rank 2).
+const shankFields = (spell) => {
+  const found = /generating (\d+) Energy/i.exec(spell.text);
+  if (found === null) {
+    throw new RangeError(
+      `${spell.name} rank ${spell.rank} gives no "generating N Energy".`,
+    );
+  }
+  return {
+    ...energy(spell),
+    energyGenerated: Number(found[1]),
+  };
+};
 const RANKED = {
   sinisterStrike: { id: "sinister-strike", fields: bonus },
   backstab: { id: "backstab", fields: bonus },
   ambush: { id: "ambush", fields: bonus },
   mutilate: { id: "mutilate", fields: bonus },
+  shank: { id: "shank", fields: shankFields },
   eviscerate: {
     id: "eviscerate",
     fields: (spell) => ({

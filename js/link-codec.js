@@ -7,6 +7,7 @@ import {
   SUBTLETY_DAGGERS_FROZEN,
   COMBAT_DAGGERS_FROZEN,
   DEFAULTS_FROZEN,
+  COMBAT_SWORDS_TEMP_FROZEN,
 } from "../data/link-bases-frozen.js";
 
 // The short share link's body (#306): version 2 of the build codec's text,
@@ -94,6 +95,11 @@ export const LINK_BASES = Object.freeze([
   }),
   Object.freeze({
     id: "combat-swords-temp",
+    // Frozen at TR-04 / #337: pre-Shank rotation. Not the live preset.
+    frozen: COMBAT_SWORDS_TEMP_FROZEN,
+  }),
+  Object.freeze({
+    id: "combat-swords-temp-337",
     preset: "combat-swords-temp",
   }),
 ]);

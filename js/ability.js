@@ -37,13 +37,13 @@ function weaponMultiplier(value, rogue) {
 // dot, the total. The weapon and finisherRoll kinds draw one number from the
 // rogue's rng, and the dot kind none.
 const DAMAGE = {
-  weapon(spec, stats, rogue) {
+  weapon(spec, stats, rogue, _spent, _durations, hand = "mainHand") {
     const multiplier =
       spec.multiplier === undefined
         ? 1
         : weaponMultiplier(stats[spec.multiplier], rogue);
     const bonus = spec.bonus === undefined ? 0 : stats[spec.bonus];
-    return rogue.rollWeaponDamageForSkill() * multiplier + bonus;
+    return rogue.rollWeaponDamageForSkill(hand) * multiplier + bonus;
   },
 
   finisherRoll(spec, stats, rogue, spent) {
@@ -160,9 +160,16 @@ export class Ability {
     // The share of the cost a cast that does not land gives back.
     this.refund =
       definition.cost?.refund === undefined ? 0 : k(definition.cost.refund);
-    // What a cost modifier's scope sees of this ability. An ability
-    // attacks with the main hand (Simulation.attackContext reads `hand`).
-    this.hand = "mainHand";
+    // What a cost modifier's scope sees of this ability. Simulation.attackContext
+    // reads `hand`. Shank is off-hand (TR-04 / #337); everything else is main hand.
+    this.hand = definition.hand ?? "mainHand";
+    if (this.hand !== "mainHand" && this.hand !== "offHand") {
+      throw new RangeError(
+        `Ability "${definition.id}" has hand ${JSON.stringify(this.hand)}; known: mainHand, offHand.`,
+      );
+    }
+    // Shank: miss chance is forced to 0 (dodge/parry/block still apply).
+    this.cannotMiss = definition.cannotMiss === true;
     this.costContext = Object.freeze({ ability: this.id });
     // The main-hand weapon type a cast needs, or null for none (Backstab).
     this.requiresMainHand = definition.requiresMainHand ?? null;
@@ -316,6 +323,7 @@ export class Ability {
       rogue,
       spent,
       stats[table] ?? [],
+      this.hand,
     );
     return damage === null ? { damage: 0, duration: 0 } : { damage, duration };
   }
@@ -564,9 +572,9 @@ export class Ability {
         this.award();
       }
 
-      //  Put this attack on CD
+      // Put this attack on CD (Flash of Steel cuts Shank's via cooldown modifiers).
       if (this.cooldown > 0) {
-        simulation.cooldowns[this.id] = this.cooldown; // Set the ability's cooldown
+        simulation.cooldowns[this.id] = this.cooldownNow();
       }
       // Finish the listed cooldowns that are running (Preparation, #270,
       // A15). The event core sees the 0 and drops the timer (js/core/fight.js
@@ -609,9 +617,25 @@ export class Ability {
 
   // What a landed builder adds to its gain resource, and the expiry that
   // goes with it.
+  // Cooldown after cooldown modifiers (Flash of Steel on Shank).
+  cooldownNow() {
+    return this.rogue.modifiers.resolve(
+      "cooldown",
+      this.cooldown,
+      this.costContext,
+    );
+  }
+
   award() {
     const gains = this.pool(this.gainResource);
-    const gained = gains.gain(this.gain, this.id);
+    // castGain modifiers (Flash of Steel) are abilities-scoped; other gains
+    // see no matching table and keep their base amount.
+    const amount = this.rogue.modifiers.resolve(
+      "castGain",
+      this.gain,
+      this.costContext,
+    );
+    const gained = gains.gain(amount, this.id);
     if (this.expires !== null) {
       gains.armExpiry(this.expires.amount, this.expires.after);
     } else if (gained > 0) {
@@ -638,7 +662,7 @@ export class Ability {
     }
     this.award();
     if (this.cooldown > 0) {
-      simulation.cooldowns[this.id] = this.cooldown;
+      simulation.cooldowns[this.id] = this.cooldownNow();
     }
     simulation.procs.onCast(this, main, 0);
     const off = simulation.resolveStrike(this.offHandSource, () =>

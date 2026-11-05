@@ -316,6 +316,7 @@ export function resolveAttack({
   parryReduction = 0,
   behind = k("target.behind"),
   canCrit = true,
+  cannotMiss = false,
   table = deriveAttackTable(),
   rng,
   roll = drawRoll(rng),
@@ -342,6 +343,10 @@ export function resolveAttack({
     canCrit,
     table,
   });
+  // Shank (TR-04 / #337): "cannot Miss" zeroes the miss band only.
+  if (cannotMiss) {
+    chances.miss = 0;
+  }
   const white = attackType === "weapon";
 
   // The first roll. A white swing has its crit band here; a yellow attack

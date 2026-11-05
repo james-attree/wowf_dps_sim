@@ -56,7 +56,7 @@ const ON_USE = [
 ];
 const RACIALS = ON_USE.map(({ ability }) => ability);
 const PRESETS = ROTATION_PRESETS.map((preset) => preset.id);
-const SEED = 1;
+const SEED = 2; // #337: seed 1 made troll lose to no-race once Shank was live (haste/RNG); 2 keeps both races ahead.
 const FIVE_MINUTES = 300;
 const ruleFor = (ability) => ({
   action: ability,

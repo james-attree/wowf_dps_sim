@@ -235,6 +235,7 @@ describe("the procs' chances match the snapshot's rank text", () => {
   const readings = {
     "combat.puncturing-wounds": /gives Backstab a (\d+)% chance/,
     "combat.hack-and-slash": /Axe\/Sword:[\s\S]*?have a (\d+)% chance/,
+    "subtlety.boot-knife": /Shank ability a (\d+)% chance/,
   };
   for (const [id, text] of Object.entries(readings)) {
     it(id, () => {
@@ -268,7 +269,7 @@ describe("the procs' chances match the snapshot's rank text", () => {
   });
 });
 
-describe("the 11 DPS-relevant Combat talents, and the 6 that are not", () => {
+describe("the 12 DPS-relevant Combat talents, and the 6 that are not", () => {
   it("splits Combat into talents with a mapped effect and ones without (or pending)", () => {
     const withEffect = COMBAT.filter((talent) => {
       const entry = TALENT_EFFECTS[talent.id];
@@ -285,6 +286,7 @@ describe("the 11 DPS-relevant Combat talents, and the 6 that are not", () => {
       "combat.dual-wield-specialization",
       "combat.blade-flurry",
       "combat.hack-and-slash",
+      "combat.flash-of-steel",
       "combat.adrenaline-rush",
     ]);
   });
@@ -705,9 +707,10 @@ describe("the reference build (Assassination 16 / Combat 35 / Subtlety 0), decod
         "combat.aggression",
         "combat.dual-wield-specialization",
         "combat.hack-and-slash",
+        "combat.flash-of-steel",
       ],
     );
-    assert.equal(build.modifiers.length, 16);
+    assert.equal(build.modifiers.length, 18);
     assert.deepEqual(
       build.modifiers
         .slice(0, 3)

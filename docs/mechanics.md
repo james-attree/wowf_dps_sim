@@ -6,15 +6,21 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 
 **Applied in this refresh (existing modifier / proc kinds):** Relentless Strikes 5 ranks (4–20% per CP), Lethality 10/20 (max 2), Seal Fate 33/66/100 (max 3), Dual Wield Specialization 25/50 (max 2), Aggression 5/10/15 on Sinister Strike + Eviscerate, Flawless Execution −15 energy on Eviscerate, Opportunity 4%×5, Efficient Strikes (−3/−5 energy on Sinister Strike + Hemorrhage), Coup de Grace Eviscerate damage 7/13/20%. Mutilate flat bonus 36/51/71 from spell_desc. Death Mark table shape parsed (storage % + damage cap).
 
+**Landed:** TR-03 / #333 temporary Combat swords; TR-04 / #337 Shank, Flash of Steel, Boot Knife.
+
 **Pending (later TR issues):**
 
-- TR-04 / #337 — Shank, Flash of Steel, Boot Knife
 - TR-05 / #334 — Venom passive on Shank, Poised, Composure
 - TR-06 / #335 — Ghostly Strike Ambush window, Hemorrhage Rupture/Garrote taken, Blood Splatter, Mutilate poisoned bonus polish
 - TR-07 / #336 — Death Mark finisher; Coup de Grace Death Mark storage/damage part
-- TR-03 / #333 — temporary Combat swords preset (old presets frozen / not selectable)
+  Removed from the tree (effects retired): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. Venom is no longer a finisher ability.
 
-Removed from the tree (effects retired): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. Venom is no longer a finisher ability.
+### Shank, Flash of Steel and Boot Knife (TR-04 / #337)
+
+- **Shank** is a live ability (`js/ability-data.js`): off-hand yellow, 50% weapon damage (`weaponMultiplier` 0.5), 5 energy, 10 s cooldown, generates 15 / 25 energy by rank. `cannotMiss` zeroes the miss band only; dodge, parry and block still apply. A landed cast procs the off-hand poison (`assumption`, `shank.appliesOffHandPoison`). Shank is **not** on Seal Fate's builder list (`assumption` on `sealFate.comboPoint`).
+- **Flash of Steel** (`combat.flash-of-steel`): `castGain` +3 per rank and `cooldown` −0.4 s per rank, scoped to `shank`. New modifier kinds `castGain` and `cooldown` (flat, abilities scope, floor 0).
+- **Boot Knife** (`subtlety.boot-knife`): onHit proc on Shank, 20–100% chance for +2 combo points (`bootKnife.comboPoint`).
+- **Rotation:** the temporary Combat swords preset casts Shank when energy &lt; 50 and the cooldown is ready (James, 5 Nov). Short-link base `combat-swords-temp` is frozen pre-Shank; live base is `combat-swords-temp-337` (#306 append-only).
 
 How the engine on `main` resolves attacks, resources, and time. Every
 formula names a constant id from [`data/constants.js`](../data/constants.js).
