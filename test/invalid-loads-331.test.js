@@ -81,13 +81,35 @@ describe("#331: invalid old loads become the new default (TR-01)", () => {
     assert.equal(decodeSetup(text).status, "invalid");
   });
 
-  it("a share link from a future setup era is invalid; a damaged body stays corrupt", () => {
+  it("a share link from a future setup era is invalid; a damaged body is silent (Scout #332)", () => {
     assert.equal(decodeSetup(v1({ era: SETUP_ERA + 1 })).status, "invalid");
     assert.equal(decodeSetup("1.nope!").status, "corrupt");
-    assert.equal(
-      resolveInitialSetup({ search: `?${LINK_PARAM}=1.nope!` }).notice,
-      "corrupt",
-    );
+    const damaged = resolveInitialSetup({ search: `?${LINK_PARAM}=1.nope!` });
+    assert.equal(damaged.notice, null);
+    assert.equal(damaged.source, "defaults");
+  });
+
+  it("a pure garbage link loads the save if present, otherwise the default, with no banner", () => {
+    const garbage = "1.nope!";
+    const alone = resolveInitialSetup({ search: `?${LINK_PARAM}=${garbage}` });
+    assert.equal(alone.notice, null);
+    assert.deepEqual(alone.setup, setupDefaults());
+    assert.equal(alone.source, "defaults");
+    assert.equal(alone.hadLink, true);
+    const saved = encodeSetup({
+      ...setupDefaults(),
+      config: {
+        ...setupDefaults().config,
+        character: { ...setupDefaults().config.character, attackPower: 900 },
+      },
+    });
+    const withSave = resolveInitialSetup({
+      search: `?${LINK_PARAM}=${garbage}`,
+      saved,
+    });
+    assert.equal(withSave.notice, null);
+    assert.equal(withSave.source, "saved");
+    assert.equal(withSave.setup.config.character.attackPower, 900);
   });
 
   it("a save with a removed talent loads the defaults whole", () => {

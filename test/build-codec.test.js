@@ -435,7 +435,7 @@ describe("the page's first setup: link, then saved, then defaults (#284, #296)",
     });
   });
 
-  it("a newer or corrupt link loads nothing, says why, and is still taken out", () => {
+  it("a newer link loads nothing, says why, and is still taken out; corrupt is silent (Scout #332)", () => {
     const newer = `?${LINK_PARAM}=${linkOf({}, LINK_VERSION + 1)}`;
     assert.deepEqual(resolveInitialSetup({ search: newer }), {
       setup: setupDefaults(),
@@ -445,9 +445,12 @@ describe("the page's first setup: link, then saved, then defaults (#284, #296)",
     });
     const corrupt = `?${LINK_PARAM}=1.nope!`;
     const first = resolveInitialSetup({ search: corrupt, saved });
-    assert.equal(first.notice, "corrupt");
+    assert.equal(first.notice, null);
     assert.equal(first.source, "saved");
     assert.deepEqual(first.setup, savedSetup);
+    const alone = resolveInitialSetup({ search: corrupt });
+    assert.equal(alone.notice, null);
+    assert.equal(alone.source, "defaults");
   });
 
   it("a broken save is the defaults, never an error", () => {

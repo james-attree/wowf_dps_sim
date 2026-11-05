@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 import {
+  SETUP_ERA,
   decodeSetup,
   encodeSetup,
   resolveInitialSetup,
@@ -27,12 +28,18 @@ import {
 
 const ASSASSINATION = "assassination-daggers";
 const COMBAT = "combat-swords";
+// Inject the current setup era so soft-reset fixtures are not discarded as
+// an old-era invalid load under SETUP_ERA=1 (#332 / Kira P1 on #344).
 const textOf = (payload) =>
-  `1.${Buffer.from(JSON.stringify(payload)).toString("base64url")}`;
+  `1.${Buffer.from(JSON.stringify({ era: SETUP_ERA, ...payload })).toString(
+    "base64url",
+  )}`;
 const fixture = JSON.parse(
   await readFile(new URL("./fixtures/setups-326.json", import.meta.url)),
 );
 
+// TR-02 / #332: era-0 fixtures in setups-326.json; stay skipped until #333
+// rewrites them for SETUP_ERA=1. Soft-reset (item 13) is unskipped above.
 describe.skip("#326: old links and saves still load, the same (#332)", () => {
   for (const [name, { text, setup, written }] of Object.entries(
     fixture.setups,
@@ -54,8 +61,7 @@ describe.skip("#326: old links and saves still load, the same (#332)", () => {
   }
 });
 
-// TR-02 / #332: skipped until #333 restores presets.
-describe.skip("#326 item 13: a save's bad field resets alone, and is named", () => {
+describe("#326 item 13: a save's bad field resets alone, and is named", () => {
   it("an armour of -1 keeps the target's level and names the armour", () => {
     const text = textOf({ config: { target: { level: 62, armor: -1 } } });
     const read = resolveInitialSetup({ saved: text });

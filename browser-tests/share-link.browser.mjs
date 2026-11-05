@@ -390,27 +390,41 @@ describe("Copy link to this build (#284)", () => {
     }
   });
 
-  test("a newer or damaged link loads nothing and says so", async () => {
+  test("a newer link loads nothing and says so; damaged links are silent (Scout #332)", async () => {
     const newer = `${base}?${LINK_PARAM}=${LINK_VERSION + 1}.e30#character/stats`;
     const damaged = `${base}?${LINK_PARAM}=1.not-json#character/stats`;
     // #306: a version 2 link with a byte too many.
     const damagedV2 = `${base}?${LINK_PARAM}=2.AAAA#character/stats`;
-    for (const [address, notice] of [
-      [newer, NOTICES.newer],
-      [damaged, NOTICES.corrupt],
-      [damagedV2, NOTICES.corrupt],
-    ]) {
-      const { context, page, errors } = await open(WIDTHS[0], address);
+    {
+      const { context, page, errors } = await open(WIDTHS[0], newer);
       try {
-        assert.equal(await text(page, "#share-banner-text"), notice);
-        assert.match(notice, /Nothing was loaded/);
-        // Fran's #299 P4: a warning does not look like the success banner.
+        assert.equal(await text(page, "#share-banner-text"), NOTICES.newer);
+        assert.match(NOTICES.newer, /Nothing was loaded/);
         const border = await page.evaluate(
           () =>
             getComputedStyle(document.getElementById("share-banner"))
               .borderTopColor,
         );
         assert.equal(border, "rgb(241, 147, 137)");
+        await page.locator(HASTE).waitFor({ state: "visible" });
+        assert.equal(await page.locator(HASTE).inputValue(), "0");
+        assert.equal(
+          await page.evaluate(() => document.location.href),
+          `${base}#character/stats`,
+        );
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    }
+    for (const address of [damaged, damagedV2]) {
+      const { context, page, errors } = await open(WIDTHS[0], address);
+      try {
+        assert.equal(
+          await page.locator("#share-banner").isHidden(),
+          true,
+          "damaged link must show no banner",
+        );
         await page.locator(HASTE).waitFor({ state: "visible" });
         assert.equal(await page.locator(HASTE).inputValue(), "0");
         assert.equal(

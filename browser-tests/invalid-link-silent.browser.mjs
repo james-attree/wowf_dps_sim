@@ -1,7 +1,8 @@
-// Kira N3 on #332 (James 5 Nov 2026): an invalid share link shows no banner.
-// Covers an unknown race / weapon type / poison and an old-era (pre-SETUP_ERA)
-// link. The page loads the defaults (or a save, covered in unit tests) in
-// silence; damaged / newer links still show their banner (share-link.browser).
+// Kira N3 on #332 (James 5 Nov 2026) + Scout follow-up: an invalid or
+// damaged/garbage share link shows no banner. Covers an unknown race /
+// weapon type / poison, an old-era (pre-SETUP_ERA) link, and pure garbage
+// (`1.nope!`). The page loads the defaults (or a save) in silence. A newer
+// link still shows its banner (share-link.browser).
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
@@ -55,7 +56,7 @@ async function open(address) {
   return { context, page, errors };
 }
 
-describe("invalid share links stay silent (Kira N3 / #332)", () => {
+describe("invalid and garbage share links stay silent (Kira N3 / Scout #332)", () => {
   const cases = [
     ["unknown race", v1({ era: SETUP_ERA, config: { race: "not-a-race" } })],
     [
@@ -89,6 +90,7 @@ describe("invalid share links stay silent (Kira N3 / #332)", () => {
         },
       }),
     ],
+    ["pure garbage body", "1.nope!"],
   ];
 
   for (const [label, text] of cases) {

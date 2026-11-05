@@ -150,7 +150,9 @@ const checkConfig = (config) => {
 // (#331 / #332): live-catalogue refusals (talents, rotation, row gates /
 // prerequisites / point cap) and, per James 5 Nov 2026 on #332, an unknown
 // race, weapon type or poison. Soft field shape errors (armour, attack
-// power, …) stay "corrupt" and still show the damaged banner.
+// power, …) still decode as "corrupt", but Scout's follow-up on #332 retires
+// the damaged banner for links: resolveInitialSetup treats corrupt like
+// invalid (silent save-or-default).
 const isCatalogueError = (error) =>
   error instanceof Error &&
   /config\.talents|config\.rotation|Talent build is not valid|unknown race|unknown weapon type|unknown poison/.test(
@@ -375,9 +377,10 @@ export function withoutLinkParam(href) {
 }
 
 // The page's first setup, in the order above. `search` is location.search;
-// `saved` is the saved setup's text (#296) or null. notice is null, "loaded",
-// "newer" or "corrupt" (the link's banner). "invalid" (#331) sets no notice:
-// the link is discarded and the next source loads in silence. hadLink says
+// `saved` is the saved setup's text (#296) or null. notice is null, "loaded"
+// or "newer" (the link's banner). "invalid" (#331) and "corrupt" (Scout on
+// #332: pure garbage and soft field refusals on a link) set no notice: the
+// link is discarded and the next source loads in silence. hadLink says
 // ?s= is to be taken out of the address. reset, only when there are any,
 // lists the saved setup's fields read as their defaults (#326, item 13).
 export function resolveInitialSetup({
@@ -397,8 +400,9 @@ export function resolveInitialSetup({
         hadLink: true,
       };
     }
-    // Catalogue refusals are silent (#331). Damaged / newer still say so.
-    if (read.status !== "invalid") notice = read.status;
+    // Catalogue refusals (#331) and damaged / garbage links (Scout on #332)
+    // are silent. Only a newer-version link still says so.
+    if (read.status === "newer") notice = "newer";
   }
   const hadLink = link !== null;
   if (saved !== null && saved !== undefined) {

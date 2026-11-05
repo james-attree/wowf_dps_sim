@@ -113,6 +113,12 @@ const ASSASSINATION_MAPPED = [
   "assassination.seal-fate",
   "assassination.mutilate",
 ];
+// Kira N3 on #344: pin the Assassination talents still pending a follow-up
+// issue. Mutant M11 (Venom pending → ability) fails this list.
+const ASSASSINATION_PENDING = [
+  "assassination.blood-splatter",
+  "assassination.venom",
+];
 // The three Subtlety talents that grant an ability the engine casts (#207),
 // and since #269 the passives and the no-DPS talents, since #270
 // Preparation, and since #271 Improved Ambush, Initiative and Cutthroat: the
@@ -281,6 +287,27 @@ describe("the 11 DPS-relevant Combat talents, and the 6 that are not", () => {
       "combat.hack-and-slash",
       "combat.adrenaline-rush",
     ]);
+  });
+});
+
+describe("Assassination pending talents stay pending until their follow-up (Kira N3 / #344)", () => {
+  it("pins blood-splatter and venom as the only Assassination pending entries", () => {
+    const pending = ASSASSINATION.filter(
+      (talent) => TALENT_EFFECTS[talent.id].pending !== undefined,
+    ).map((talent) => talent.id);
+    assert.deepEqual(pending, ASSASSINATION_PENDING);
+    for (const id of ASSASSINATION_PENDING) {
+      assert.equal(
+        TALENT_EFFECTS[id].ability,
+        undefined,
+        `${id}: pending must not also grant an ability`,
+      );
+      assert.equal(
+        TALENT_EFFECTS[id].modifiers,
+        undefined,
+        `${id}: pending stands alone`,
+      );
+    }
   });
 });
 
@@ -551,6 +578,35 @@ describe("the data is checked when it loads, and the check refuses a bad entry",
     refuses({ "combat.riposte": entry({ noDpsEffect: 1 }) }, /one-line reason/);
     refuses(
       { "combat.riposte": entry({ noDpsEffect: "x", ability: "riposte" }) },
+      /stands alone/,
+    );
+  });
+
+  // Kira N3 on #344: kills mutant M11 (Venom pending → ability while pending stays).
+  it("refuses pending that is empty, not text, or not alone (Venom pending→ability)", () => {
+    refuses(
+      {
+        "assassination.venom": entry({
+          pending: "",
+        }),
+      },
+      /one-line reason/,
+    );
+    refuses(
+      {
+        "assassination.venom": entry({
+          pending: 1,
+        }),
+      },
+      /one-line reason/,
+    );
+    refuses(
+      {
+        "assassination.venom": entry({
+          pending: "TR-05 / #334: Venom",
+          ability: "venom",
+        }),
+      },
       /stands alone/,
     );
   });

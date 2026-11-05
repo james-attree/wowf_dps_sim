@@ -10,10 +10,11 @@
 // be of the last legal build, so none is made and the button says why
 // (#326, item 9).
 //
-// The banner says what a link opened on load did ("loaded", "newer" or
-// "corrupt"); it sits under the shown area's h1, following the route, until
-// dismissed. "newer" and "corrupt" are warnings, styled apart from
-// "loaded" by data-notice (styles.css), and say that nothing was loaded.
+// The banner says what a link opened on load did ("loaded" or "newer"), or
+// names fields a save soft-reset (#326). It sits under the shown area's h1
+// until dismissed. "newer" is a warning, styled apart from "loaded" by
+// data-notice (styles.css). Damaged / garbage links are silent (Scout on
+// #332); NOTICES.corrupt is kept only so an old caller still has copy.
 
 import { talentErrorCount } from "./run-model.js";
 
