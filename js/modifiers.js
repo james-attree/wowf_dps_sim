@@ -592,11 +592,17 @@ export class ModifierPipeline {
   }
 
   // The value of a stat: base when nothing applies, else the combination.
-  resolve(kind, base, context) {
+  // skipSources drops contributions whose source is named (the Venom aura's
+  // damage, left out of a poison's stored tick so it can follow the aura).
+  resolve(kind, base, context, { skipSources } = {}) {
     if (!Object.hasOwn(MODIFIER_KINDS, kind)) {
       throw new RangeError(`Unknown modifier kind: ${kind}`);
     }
-    return combine(kind, base, this.contributions(kind, context));
+    let found = this.contributions(kind, context);
+    if (skipSources !== undefined) {
+      found = found.filter((entry) => !skipSources.includes(entry.source));
+    }
+    return combine(kind, base, found);
   }
 
   // For tests and the page: each contribution to a kind as a plain row.

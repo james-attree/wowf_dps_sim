@@ -331,6 +331,16 @@ export class Simulation {
   // procs (procs.onDotTick).
   resolveDotTick(dotId, dot, dotContext) {
     let dotTickDamage = dot.tickDamage;
+    // James, 8 Nov 2026, #334: Venom's poison multiplier follows the aura.
+    // It is not part of the stored tick (resolveProcDot), so a tick after
+    // the aura expires does not keep it. Other damage modifiers stay stored.
+    if (
+      k("venom.tickDamage") === "while active" &&
+      dotContext.tags.includes("poison") &&
+      this.hasAura("venom")
+    ) {
+      dotTickDamage *= k("venom").poisonDamage;
+    }
 
     // An aura on the target can raise the damage the DoT takes
     // (hemorrhage.ruptureBonus.bonus: Rupture ticks only).
@@ -969,7 +979,10 @@ export class Simulation {
         tickInterval: interval,
         timeUntilNextTick: running?.timeUntilNextTick ?? interval,
         tickDamage:
-          this.modifiers.resolve("damage", tickDamage, context) * stacks,
+          this.modifiers.resolve("damage", tickDamage, context, {
+            skipSources:
+              k("venom.tickDamage") === "while active" ? ["venom"] : [],
+          }) * stacks,
         icon,
         attackType: "skill",
         bleed: false,

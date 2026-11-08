@@ -217,6 +217,90 @@ describe("Venom aura is still not an ability", () => {
   });
 });
 
+describe("Venom on Deadly Poison ticks (#334)", () => {
+  // James, 8 Nov 2026, relayed by Scout: the ×1.3 applies only while the aura
+  // is up. It must not stay inside the application snapshot after expiry.
+  // Vile Poisons and any other damage modifier stay in that snapshot.
+  function poisonFight(ranks = {}) {
+    const h = fight({}, fromTalents(ranks));
+    h.simulation.rng = () => 1;
+    return h;
+  }
+
+  function applyDeadly(h, tickDamage = 100) {
+    h.simulation.resolveProcDot({
+      id: "deadly-poison",
+      name: "Deadly Poison",
+      tickDamage,
+      interval: 3,
+      duration: 12,
+      aura: "deadly-poison",
+    });
+    return h.simulation.activeDots["deadly-poison"].tickDamage;
+  }
+
+  function tick(h) {
+    const dot = h.simulation.activeDots["deadly-poison"];
+    h.simulation.resolveDotTick(
+      "deadly-poison",
+      dot,
+      h.simulation.abilityContext("deadly-poison", dot),
+    );
+    return h.simulation.combatLog[0].damage;
+  }
+
+  function dropVenom(h) {
+    h.simulation.activeBuffs.venom.duration = 0;
+  }
+
+  it("records the ruling and reads it", () => {
+    assert.equal(CONSTANTS["venom.tickDamage"].source, "wowf-designer");
+    assert.match(
+      CONSTANTS["venom.tickDamage"].ref,
+      /^James, 8 Nov 2026, issue #334: /,
+    );
+    assert.equal(k("venom.tickDamage"), "while active");
+  });
+
+  it("a poison applied before Venom is buffed only on ticks while the aura is up", () => {
+    const h = poisonFight({ "assassination.venom": 1 });
+    const stored = applyDeadly(h);
+    assert.equal(stored, 100);
+    assert.equal(tick(h), 100);
+    landShank(h);
+    assert.equal(h.simulation.activeDots["deadly-poison"].tickDamage, 100);
+    assert.equal(tick(h), 100 * k("venom").poisonDamage);
+    dropVenom(h);
+    assert.equal(tick(h), 100);
+  });
+
+  it("a poison applied during Venom does not keep the bonus after expiry", () => {
+    const h = poisonFight({ "assassination.venom": 1 });
+    landShank(h);
+    const stored = applyDeadly(h);
+    assert.equal(stored, 100);
+    assert.equal(tick(h), 100 * k("venom").poisonDamage);
+    dropVenom(h);
+    assert.equal(h.simulation.activeDots["deadly-poison"].tickDamage, 100);
+    assert.equal(tick(h), 100);
+  });
+
+  it("a refresh while Venom is up stores the other modifiers once, and ticks multiply Venom once", () => {
+    const h = poisonFight({
+      "assassination.venom": 1,
+      "assassination.vile-poisons": 5,
+    });
+    landShank(h);
+    assert.equal(applyDeadly(h), 120);
+    assert.equal(tick(h), 120 * k("venom").poisonDamage);
+    assert.equal(applyDeadly(h), 240);
+    assert.equal(tick(h), 240 * k("venom").poisonDamage);
+    assert.notEqual(tick(h), 240 * k("venom").poisonDamage ** 2);
+    dropVenom(h);
+    assert.equal(tick(h), 240);
+  });
+});
+
 describe("TR-05 review nits (#334)", () => {
   // N3. The proc is chance 1 and drawless. A landed Shank with the talent
   // applies the aura and adds no rng call. Dropping drawless (so the certain

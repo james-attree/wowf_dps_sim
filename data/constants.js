@@ -286,7 +286,7 @@ export const CONSTANTS = {
     "s, ×, ability ids",
     WOWF_EXPORT,
     "rogue.json → talents[Assassination|Venom] desc: Causes your Shank ability to increase your Poison damage by 30% and your chance to apply Poisons by 20% for 6 sec.",
-    "Passive on a landed Shank (TR-05 / #334), not a finisher. The aura lasts duration seconds. Poison damage is × poisonDamage, a separate multiplier (venom.stacking). The +20% apply chance is venom.chanceAdd, and only while venom.chanceAddMode is percentage points. The old finisher is not in the castable ability list.",
+    "Passive on a landed Shank (TR-05 / #334), not a finisher. The aura lasts duration seconds. Poison damage is × poisonDamage, a separate multiplier (venom.stacking), and on Deadly Poison ticks only while the aura is up (venom.tickDamage). The +20% apply chance is venom.chanceAdd, and only while venom.chanceAddMode is percentage points. The old finisher is not in the castable ability list.",
     false,
   ),
   "venom.chanceAdd": entry(
@@ -303,6 +303,14 @@ export const CONSTANTS = {
     ASSUMPTION,
     "Developer, 8 Nov 2026, issue #334: Team assumption: Venom's +20% chance to apply poisons is +20 percentage points, the same treatment as Improved Poisons. Not a ruling by James.",
     'Read when a fight is built (js/fight.js). "percentage points" adds venom.chanceAdd to the poison roll, capped at poison.chanceCap. Any other value adds no chance. The +30% poison damage and the 6 s length stay the export\'s (venom).',
+    true,
+  ),
+  "venom.tickDamage": entry(
+    "while active",
+    "–",
+    WOWF_DESIGNER,
+    "James, 8 Nov 2026, issue #334: apply the Venom damage bonus to Deadly Poison ticks only while Venom is active. No Venom bonus may persist in the application-time snapshot after the aura expires. Relayed by Scout (coordinator).",
+    'Read when a Deadly Poison is applied and on each of its ticks (js/simulation.js). "while active" leaves Venom out of the stored tick damage and multiplies a poison tick by venom.poisonDamage only while the aura is up. Any other value keeps Venom inside the application snapshot and does not multiply again on the tick. Other damage modifiers, including Vile Poisons, stay in that snapshot either way.',
     true,
   ),
   "venom.stacking": entry(
