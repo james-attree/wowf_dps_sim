@@ -1,4 +1,5 @@
 import { k } from "../data/constants.js";
+import { ABILITY_DEFINITIONS } from "./ability-data.js";
 import { defineModifier } from "./modifiers.js";
 
 // The aura model (A1). An aura is a timed effect on the player (a buff) or on
@@ -250,6 +251,50 @@ export function auraWithEffects(aura, effects) {
   return defineAura({ ...spec, effects: { ...spec.effects, ...effects } });
 }
 
+// Venom's aura from the current constants. Chance is added only when
+// venom.chanceAddMode is the team assumption "percentage points".
+export function venomAura() {
+  const chance =
+    k("venom.chanceAddMode") === "percentage points" ? k("venom.chanceAdd") : 0;
+  return defineAura({
+    id: "venom",
+    name: "Venom",
+    duration: k("venom").duration,
+    modifiers: [
+      { kind: "poisonChance", op: "add", value: chance },
+      {
+        kind: "damage",
+        op: "mult",
+        value: k("venom").poisonDamage,
+        scope: { tags: ["poison"] },
+      },
+    ],
+  });
+}
+
+// Poised's aura for a reduction of `energy` (the spell's 10 plus Composure).
+export function poisedAura(energy) {
+  // Every energy-paying ability, not white swings: an unscoped modifier would
+  // also match a swing (consumeUseCharges) and the opener would eat Poised.
+  const abilities = ABILITY_DEFINITIONS.filter(
+    (definition) => definition.cost !== undefined,
+  ).map((definition) => definition.id);
+  return defineAura({
+    id: "poised",
+    name: "Poised",
+    duration: k("poised").duration,
+    charges: 1,
+    modifiers: [
+      {
+        kind: "energyCost",
+        op: "add",
+        value: -energy,
+        scope: { abilities },
+      },
+    ],
+  });
+}
+
 // The auras the Combat rogue applies. The order is the order effects are
 // combined in, so it does not depend on which one was cast first.
 export const AURAS = Object.freeze({
@@ -390,23 +435,14 @@ export const AURAS = Object.freeze({
     stackRule: "highest",
     effects: { armorReduction: k("exposeArmor").armorPerComboPoint },
   }),
-  // Venom (#268, A9-A10): a self aura, its length by combo points spent. While
-  // it is up every poison's chance gets venom.poisonChance more points (read
-  // when a poison rolls, js/procs.js) and poison damage is × venom.poisonDamage,
-  // a mult, so it multiplies Vile Poisons' add (venom.stacking).
-  venom: defineAura({
-    id: "venom",
-    name: "Venom",
-    modifiers: [
-      { kind: "poisonChance", op: "add", value: k("venom").poisonChance },
-      {
-        kind: "damage",
-        op: "mult",
-        value: k("venom").poisonDamage,
-        scope: { tags: ["poison"] },
-      },
-    ],
-  }),
+  // Venom (TR-05 / #334): a self aura Shank applies when the talent is taken.
+  // Poison damage is × venom.poisonDamage (venom.stacking). The apply-chance
+  // add is venom.chanceAdd only while venom.chanceAddMode is percentage points.
+  // createFight builds this again so those rows are read at fight start.
+  venom: venomAura(),
+  // Poised (TR-05 / #334): the next energy-costing ability costs poised.energy
+  // less. Composure is added when the fight is built. One charge.
+  poised: poisedAura(k("poised").energy),
   // The Deadly Poison stacks on the target. Each landed proc adds a stack and
   // restarts the duration (the applyDot action, js/procs.js; A5, #105). The
   // poison's damage over time is a DoT of its own (nature, so it skips armor),

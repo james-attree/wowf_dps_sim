@@ -48,6 +48,10 @@ describe("Shank is a live castable off-hand ability (#337)", () => {
   it("costs 5 energy, deals 50% off-hand weapon damage, generates 25 energy, 10 s CD", () => {
     assert.equal(k("shank").weaponMultiplier, 0.5);
     const { rogue, simulation } = ready();
+    // Poised may be up from a full bar (TR-05). This cast measures Shank.
+    if (simulation.hasAura("poised")) {
+      simulation.consumeCharge("poised");
+    }
     // Start below the cap so generated energy is visible.
     rogue.energy = 50;
     let result = null;
@@ -213,6 +217,9 @@ describe("Flash of Steel (#337)", () => {
       {},
       { modifiers: build.modifiers, procs: build.procs },
     );
+    if (simulation.hasAura("poised")) {
+      simulation.consumeCharge("poised");
+    }
     // Start below the cap so the +40 generated energy is visible.
     const before = 50;
     let landed = false;

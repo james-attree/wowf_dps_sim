@@ -1,7 +1,7 @@
 // removed talent / pending Venom ability (see talent-effects pending tags).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CONSTANTS, k } from "../data/constants.js";
+import { k } from "../data/constants.js";
 import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { abilityCatalogue } from "../js/abilities.js";
 import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
@@ -29,25 +29,16 @@ const ROWS_ABOVE = {
   "assassination.improved-gouge": 3,
   "assassination.remorseless-attacks": 2,
   "assassination.malice": 5,
-  "assassination.murder": 2,
   "assassination.improved-slice-and-dice": 3,
   [IEA]: 2,
   "assassination.vile-poisons": 5,
   "assassination.cold-blood": 1,
   "assassination.improved-poisons": 5,
   "assassination.vigor": 2,
-  "assassination.mutilate": 1,
   "assassination.improved-kidney-shot": 2,
 };
 const TALENTED = { ...ROWS_ABOVE, [VENOM]: 1 };
 const BOTH = { mainHand: "instant", offHand: "deadly" };
-// The exact chances A9 names, as literals so a float drift shows.
-const INSTANT_IP = 0.3;
-const INSTANT_IP_VENOM = 0.4;
-const DEADLY_IP = 0.4;
-const DEADLY_IP_VENOM = 0.5;
-const INSTANT_VENOM = 0.3;
-const DURATIONS = [9, 12, 15, 18, 21];
 const EA_ARMOR = [450, 900, 1350, 1800, 2250];
 const SERRATED = 0.09;
 // 3731 armor, less 2250, then 9% of the rest ignored: 1481 × 0.91 = 1347.71.
@@ -94,25 +85,10 @@ function cast(h, key, points) {
   return h.rogue.abilities[key].cast(h.rogue, h.simulation);
 }
 
-// Needs a talent retune (Venom ability → passive is TR-05 / #334), not #333.
-describe("Venom and Expose Armor as data (#268)", () => {
-  it.skip("Venom: a finisher granted by its talent, 25 energy, 9-21 s by CP (skipped: waits on #334 Venom)", () => {
-    const entry = ABILITY_DEFINITIONS.find(({ id }) => id === "venom");
-    assert.ok(entry);
-    assert.equal(entry.spend.resource, "comboPoints");
-    assert.equal(TALENT_EFFECTS[VENOM].ability, "venom");
-    const row = k("venom");
-    const spell = abilityCatalogue.get("venom");
-    assert.equal(row.energy, spell.cost.amount);
-    assert.equal(row.energy, 25);
-    assert.deepEqual(row.durationByCp, DURATIONS);
-    assert.equal(row.poisonDamage, 1.3);
-    assert.equal(row.poisonChance, 0.1);
-    assert.equal(new Rogue({ talents: TALENTED }).granted.has("venom"), true);
-    assert.equal(new Rogue().lockedByBuild(new Rogue().abilities.venom), true);
-  });
-
-  it.skip("Expose Armor: a baseline finisher, 25 energy, 450 per CP for 30 s (skipped: waits on #334 Venom)", () => {
+// The 25-energy Venom finisher is retired (#334). These tests cover Expose
+// Armor, which stayed. Venom's aura is in test/tr-05-venom-poised.test.js.
+describe("Expose Armor as data (#268)", () => {
+  it("Expose Armor: a baseline finisher, 25 energy, 450 per CP for 30 s", () => {
     const entry = ABILITY_DEFINITIONS.find(({ id }) => id === "expose-armor");
     assert.ok(entry);
     assert.equal(entry.spend.resource, "comboPoints");
@@ -132,110 +108,44 @@ describe("Venom and Expose Armor as data (#268)", () => {
     );
   });
 
-  it.skip("both are in the builder palette, and rules for them validate (skipped: waits on #334 Venom)", () => {
-    assert.ok(castableAbilities().includes("venom"));
+  it("is in the builder palette, and a rule for it validates", () => {
+    assert.equal(castableAbilities().includes("venom"), false);
     assert.ok(castableAbilities().includes("expose-armor"));
     const rotation = {
       schemaVersion: 1,
-      name: "Venom, then Expose Armor",
-      rules: [
-        {
-          action: "venom",
-          conditions: [{ type: "abilityGranted", ability: "venom" }],
-        },
-        { action: "expose-armor", conditions: [] },
-      ],
+      name: "Expose Armor",
+      rules: [{ action: "expose-armor", conditions: [] }],
     };
     assert.deepEqual(validateRotation(rotation), []);
+    assert.ok(
+      validateRotation({
+        schemaVersion: 1,
+        name: "retired Venom finisher",
+        rules: [{ action: "venom", conditions: [] }],
+      }).length > 0,
+    );
   });
 
-  it.skip("Assassination is a full-coverage tree (skipped: waits on #334 Venom)", () => {
+  it("Assassination is a full-coverage tree", () => {
     assert.ok(FULL_COVERAGE_TREES.includes("assassination"));
   });
 });
 
-describe("A9: Venom adds 10 points to every poison's chance", () => {
-  it.skip("Instant 20 + 10 Improved Poisons + 10 Venom = 40%, exactly (skipped: waits on #334 Venom)", () => {
-    const h = harness();
-    assert.deepEqual(poisonChances(h), [
-      ["instant-poison.mainHand", INSTANT_IP],
-      ["deadly-poison.offHand", DEADLY_IP],
-    ]);
-    cast(h, "venom", 5);
-    assert.equal(h.simulation.hasAura("venom"), true);
-    assert.deepEqual(poisonChances(h), [
-      ["instant-poison.mainHand", INSTANT_IP_VENOM],
-      ["deadly-poison.offHand", DEADLY_IP_VENOM],
-    ]);
-  });
-
-  it.skip("without Improved Poisons Venom alone gives 20 + 10 = 30% (skipped: waits on #334 Venom)", () => {
-    const plain = harness({ talents: {} });
-    plain.simulation.applyAura(AURAS.venom, { duration: 9 });
-    assert.equal(poisonChances(plain)[0][1], INSTANT_VENOM);
-  });
-
-  it.skip("is capped at poison.chanceCap (skipped: waits on #334 Venom)", () => {
+describe("poison chance still caps, with no Venom finisher", () => {
+  it("is capped at poison.chanceCap", () => {
     const h = harness({
       talents: {},
       modifiers: [{ kind: "poisonChance", op: "add", value: 0.95 }],
     });
-    h.simulation.applyAura(AURAS.venom, { duration: 9 });
     assert.deepEqual(
       poisonChances(h).map(([, chance]) => chance),
       [k("poison.chanceCap"), k("poison.chanceCap")],
     );
   });
-
-  it.skip("ends with the aura (skipped: waits on #334 Venom)", () => {
-    const h = harness();
-    cast(h, "venom", 1);
-    h.simulation.activeBuffs.venom.duration = 0;
-    assert.equal(poisonChances(h)[0][1], INSTANT_IP);
-  });
-});
-
-describe("A10: Venom's +30% poison damage multiplies with Vile Poisons", () => {
-  it.skip("×1.2 (Vile Poisons 5/5) × 1.3 (Venom), not +50% (skipped: waits on #334 Venom)", () => {
-    const h = harness();
-    const poison = { tags: ["poison"] };
-    assert.equal(h.simulation.modifiers.resolve("damage", 100, poison), 120);
-    cast(h, "venom", 5);
-    const venomed = h.simulation.modifiers.resolve("damage", 100, poison);
-    assert.equal(venomed, 100 * 1.2 * 1.3);
-    assert.notEqual(venomed, 150);
-    // Not a weapon strike's damage.
-    assert.equal(
-      h.simulation.modifiers.resolve("damage", 100, { tags: ["white"] }),
-      100,
-    );
-  });
-
-  it.skip("lasts 9/12/15/18/21 s by combo points spent (skipped: waits on #334 Venom)", () => {
-    for (const [index, seconds] of DURATIONS.entries()) {
-      const h = harness();
-      cast(h, "venom", index + 1);
-      assert.equal(h.simulation.activeBuffs.venom.duration, seconds);
-      assert.equal(h.rogue.comboPoints, 0);
-    }
-  });
-
-  it.skip("the multiplier and the stacking are assumption rows (TBC) (skipped: waits on #334 Venom)", () => {
-    assert.equal(CONSTANTS["venom.stacking"].source, "assumption");
-    assert.match(
-      CONSTANTS["venom.stacking"].ref,
-      /^James, 31 Oct 2026, issue #268: /,
-    );
-    // N2: the 9-21 s is the export's; only the x1.3 stacking is assumed.
-    assert.doesNotMatch(CONSTANTS["venom.stacking"].ref, /9\/12\/15/);
-    assert.equal(CONSTANTS.venom.source, "wowf-export");
-    // N1: the export's key for Venom's spell has no rank.
-    assert.ok(CONSTANTS.venom.ref.includes("spell_desc[Rogue|Venom|]"));
-  });
 });
 
 describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
-  it.skip("takes 450 armor per CP for 30 s (skipped: waits on #334 Venom)", () => {
+  it("takes 450 armor per CP for 30 s ", () => {
     for (const [index, armor] of EA_ARMOR.entries()) {
       const h = harness({ talents: {} });
       cast(h, "exposeArmor", index + 1);
@@ -245,7 +155,7 @@ describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
     }
   });
 
-  it.skip("5 CP Expose Armor plus a 9% ignore: an exact multiplier on 3731 armor (skipped: waits on #334 Venom)", () => {
+  it("5 CP Expose Armor plus a 9% ignore: an exact multiplier on 3731 armor ", () => {
     const h = harness({
       talents: {},
       modifiers: [{ kind: "armorIgnore", op: "add", value: SERRATED }],
@@ -255,7 +165,7 @@ describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
     assert.equal(h.simulation.armorMultiplier({}), EA5_SERRATED_MULTIPLIER);
   });
 
-  it.skip("floors the armor at 0 (skipped: waits on #334 Venom)", () => {
+  it("floors the armor at 0 ", () => {
     const h = harness({ talents: {} });
     const sunder = defineAura({
       id: "test-armor-reduction",
@@ -268,7 +178,7 @@ describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
     assert.equal(h.simulation.armorMultiplier({}), 1);
   });
 
-  it.skip("Improved Expose Armor: -5/-10 energy, 1/2 CP back only at 5 CP (skipped: waits on #334 Venom)", () => {
+  it("Improved Expose Armor: -5/-10 energy, 1/2 CP back only at 5 CP ", () => {
     const base = k("exposeArmor").energy;
     for (const [rank, saved, refund] of [
       [0, 0, 0],
@@ -285,7 +195,7 @@ describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
     }
   });
 
-  it.skip("Improved Expose Armor's numbers are its rank text's (skipped: waits on #334 Venom)", () => {
+  it("Improved Expose Armor's numbers are its rank text's ", () => {
     const [cost, refund] = TALENT_EFFECTS[IEA].modifiers;
     assert.deepEqual(cost.values, [-5, -10]);
     assert.deepEqual(cost.scope, { abilities: ["expose-armor"] });
@@ -295,7 +205,7 @@ describe("A11: Expose Armor, Improved Expose Armor and the armor order", () => {
 });
 
 describe("A12: Expose Armor and Sunder: the highest reduction wins", () => {
-  it.skip("a weaker Expose Armor neither replaces nor refreshes a stronger one (skipped: waits on #334 Venom)", () => {
+  it("a weaker Expose Armor neither replaces nor refreshes a stronger one ", () => {
     const h = harness({ talents: {} });
     cast(h, "exposeArmor", 5);
     h.simulation.activeDebuffs["expose-armor"].duration = 12;
@@ -305,15 +215,12 @@ describe("A12: Expose Armor and Sunder: the highest reduction wins", () => {
     assert.equal(AURAS.exposeArmor.stackRule, "highest");
   });
 
-  it.skip("no preset casts Expose Armor (skipped: waits on #334 Venom)", async () => {
+  it("no preset casts Expose Armor ", async () => {
     const { ROTATION_PRESETS } = await import("../data/rotation-presets.js");
     const actions = JSON.stringify(ROTATION_PRESETS);
     assert.equal(actions.includes('"expose-armor"'), false);
-    // Venom is cast only by the Assassination preset (#272).
-    const venom = ROTATION_PRESETS.filter((preset) =>
-      JSON.stringify(preset.rotation).includes('"venom"'),
-    ).map(({ id }) => id);
-    assert.deepEqual(venom, ["assassination-daggers"]);
+    // The Venom finisher is gone from the live presets (#334).
+    assert.equal(actions.includes('"venom"'), false);
   });
 });
 
@@ -335,7 +242,7 @@ describe("B1: Expose Armor rolls the yellow attack table", () => {
     });
   }
 
-  it.skip("a landed cast takes one draw, the table roll, and logs a hit (skipped: waits on #334 Venom)", () => {
+  it("a landed cast takes one draw, the table roll, and logs a hit ", () => {
     const h = harness({ talents: {} });
     const result = cast(h, "exposeArmor", 5);
     assert.equal(result.outcome, "hit");
@@ -345,7 +252,7 @@ describe("B1: Expose Armor rolls the yellow attack table", () => {
   });
 
   for (const outcome of ["miss", "dodge"]) {
-    it.skip(`a ${outcome} keeps the CP, refunds 80%, and puts up nothing (skipped: waits on #334 Venom)`, () => {
+    it(`a ${outcome} keeps the CP, refunds 80%, and puts up nothing `, () => {
       const probe = harness({ talents: PROCS });
       const { miss, dodge } = chances(probe);
       assert.ok(miss > 0 && dodge > 0);
@@ -399,7 +306,7 @@ describe("B2: a weaker Expose Armor leaves a stronger one alone", () => {
   }
   const SPENT = k("exposeArmor").energy;
 
-  it.skip("5 CP then 2 CP: the 5 stacks still expire at their own time (skipped: waits on #334 Venom)", () => {
+  it("5 CP then 2 CP: the 5 stacks still expire at their own time ", () => {
     const { expiries, seen } = onEvents([
       [0, 5],
       [10, 2],
@@ -409,7 +316,7 @@ describe("B2: a weaker Expose Armor leaves a stronger one alone", () => {
     assert.deepEqual(seen[1], [0, new Rogue().maxEnergy - SPENT, 5]);
   });
 
-  it.skip("an equal cast refreshes, a stronger one replaces (skipped: waits on #334 Venom)", () => {
+  it("an equal cast refreshes, a stronger one replaces ", () => {
     assert.deepEqual(
       onEvents([
         [0, 5],
@@ -427,7 +334,7 @@ describe("B2: a weaker Expose Armor leaves a stronger one alone", () => {
 });
 
 describe("G2 and G4 (#268)", () => {
-  it.skip("at 0 points: no Venom, no refund, and only the table roll (skipped: waits on a later talent-rework TR after #333)", () => {
+  it("at 0 points: no Venom, no refund, and only the table roll ", () => {
     const h = harness({ talents: {} });
     assert.equal(h.rogue.granted.has("venom"), false);
     cast(h, "exposeArmor", 5);
@@ -435,15 +342,14 @@ describe("G2 and G4 (#268)", () => {
     assert.equal(h.draws.length, 1);
   });
 
-  it.skip("Venom draws nothing; Expose Armor draws only its table roll (skipped: waits on a later talent-rework TR after #333)", () => {
-    const h = harness();
-    cast(h, "venom", 5);
-    assert.equal(h.draws.length, 0);
+  it("Expose Armor draws only its table roll ", () => {
+    const h = harness({ talents: {} });
+    assert.equal(h.rogue.abilities.venom, undefined);
     cast(h, "exposeArmor", 5);
     assert.equal(h.draws.length, 1);
   });
 
-  it.skip("an old config without Venom or Improved Expose Armor reads as 0 points (skipped: waits on a later talent-rework TR after #333)", () => {
+  it("an old config without Venom or Improved Expose Armor reads as 0 points ", () => {
     const config = normalizeConfig({ talents: { "assassination.malice": 5 } });
     assert.equal(config.talents[VENOM] ?? 0, 0);
     assert.equal(config.talents[IEA] ?? 0, 0);
@@ -463,7 +369,7 @@ describe("chanceBonus on a proc (#268)", () => {
     chance: { mode: "flat", value: 0.2 },
     actions: [{ type: "gainResource", resource: "energy", amount: 1 }],
   };
-  it.skip("is checked when the data loads (skipped: waits on a later talent-rework TR after #333)", async () => {
+  it("is checked when the data loads ", async () => {
     const { defineProc } = await import("../js/procs.js");
     const bonus = { kind: "poisonChance", cap: 1, points: 100 };
     assert.deepEqual(

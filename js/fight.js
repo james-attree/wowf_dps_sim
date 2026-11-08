@@ -1,8 +1,10 @@
+import { k } from "../data/constants.js";
 import { dataVersion } from "./data-version.js";
 import { describeValue, isOrdinaryObject } from "./ordinary-object.js";
 import { Rogue } from "./rogue.js";
 import { normalizeSeed } from "./rng.js";
 import { normalizeConfig } from "./sim-config.js";
+import { poisedAura, venomAura } from "./auras.js";
 import { Simulation } from "./simulation.js";
 
 // A talent build is expanded by hand only in a test or a tool that wants one
@@ -45,6 +47,31 @@ export { applyBuild, expandTalents, validateBuild } from "./talent-build.js";
 // rotation's only and does not end the fight; simulation.run(duration) does,
 // so give both the same number (runFight and SimRunner do). Without it
 // fightTimeRemaining reads as Infinity. A bad one is a RangeError.
+// Rebuild Venom from the constants, then apply Poised when the team
+// assumption says to and starting energy is at the cap. A Simulation built
+// without createFight does not do this: pull is a fight, and createFight is
+// where a fight starts (the page, runFight, the goldens).
+function installOpeningAuras(simulation) {
+  const venom = venomAura();
+  simulation.auraDefinitions.set(venom.id, venom);
+  const reduction =
+    k("poised").energy + simulation.modifiers.resolve("poisedEnergy", 0, {});
+  const poised = poisedAura(reduction);
+  simulation.auraDefinitions.set(poised.id, poised);
+  simulation.auraModifierIndex = null;
+  if (k("poised.atPull") !== "when energy is full") {
+    return;
+  }
+  const pool = simulation.rogue?.resources?.energy;
+  if (pool === undefined) {
+    return;
+  }
+  if (pool.value + k("sim.tickEpsilon") < pool.max) {
+    return;
+  }
+  simulation.applyAura(poised, { source: "pull" });
+}
+
 export function createFight(seed, config, options) {
   const fightSeed = normalizeSeed(seed);
   // duration is createFight's own; the rest are the Rogue's, which checks
@@ -58,6 +85,9 @@ export function createFight(seed, config, options) {
     seed: fightSeed,
     fightLength: duration,
   });
+  // TR-05 / #334. Venom's aura is rebuilt so chanceAddMode is read now.
+  // Poised goes up when starting energy is already at the cap.
+  installOpeningAuras(simulation);
   return {
     seed: fightSeed,
     dataVersion,

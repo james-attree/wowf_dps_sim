@@ -910,8 +910,9 @@ describe("FightResources", () => {
         event.change === "gain",
     ).length;
     assert.equal(gained, k("combo.max"));
-    // Seed 5 over 60 s: 14 landed (12 hits, 2 crits), so 9 wasted.
-    assert.equal(landed, 14);
+    // Seed 5 over 120 s. Poised (TR-05) makes the first Sinister Strike 10
+    // energy cheaper, so one more lands than before that aura: 15 landed, 10 wasted.
+    assert.equal(landed, 15);
     assert.equal(summary.comboPointWaste, landed - k("combo.max"));
   });
 

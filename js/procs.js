@@ -86,7 +86,9 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //                 starts the damage over time or refreshes it to `duration`,
 //                 and sets each tick to stacks × tickDamage. A refresh keeps
 //                 the tick clock, so the ticks stay `interval` apart.
-//                 The damage modifiers apply to tickDamage at the application,
+//                 The damage modifiers apply to tickDamage at the application
+//                 (Venom's poison multiplier is left out while
+//                 venom.tickDamage is "while active", and applied on the tick),
 //                 and the ticks take armor, crit and the damage tags of the id
 //                 as any damage over time does. The roll is the one spell
 //                 hit draw and nothing else. It fires no procs.

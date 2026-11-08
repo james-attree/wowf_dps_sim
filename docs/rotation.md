@@ -942,11 +942,10 @@ of Slice and Dice (rule 7) instead.
   nothing about it. Mutilate needs a dagger in both hands (#267): with any
   other weapon in either hand its rule is passed over in the same way, and
   nothing is said about it.
-- Expose Armor and Venom (#268) are finishers in the palette, so a rule for
-  either takes a combo points condition like any finisher. Expose Armor is
-  baseline and rolls the attack table, so it can miss (#294); Venom comes from its talent and needs an `abilityGranted` or
-  `abilityUnlocked` guard. No preset casts Expose Armor; assassination-daggers
-  casts Venom (#272).
+- Expose Armor (#268) is a finisher in the palette, so a rule for it takes a
+  combo points condition like any finisher. It is baseline and rolls the
+  attack table, so it can miss (#294). No preset casts it. The 25-energy Venom
+  finisher is not in the palette (#334).
 - Preparation (#270) is a talent cooldown in the palette's Cooldowns group
   ("Preparation (talent)"). Its rule needs an `abilityGranted` or
   `abilityUnlocked` guard. It finishes the cooldowns of Cold Blood,
@@ -958,9 +957,10 @@ of Slice and Dice (rule 7) instead.
 ### assassination-daggers
 
 Issues [#272](https://github.com/james-attree/wowf_dps_sim/issues/272) and
-#310. Finishers at 4 combo points: Slice and Dice kept up, Venom kept up,
-Eviscerate with spare energy, Cold Blood for Mutilate, Mutilate to build. No
-Rupture. It is written for daggers and its reference build
+#310. Finishers at 4 combo points: Slice and Dice kept up, Eviscerate with
+spare energy, Cold Blood for Mutilate, Mutilate to build. No Rupture. The
+25-energy Venom finisher is not in this rotation (#334). It is written for
+daggers and its reference build
 (`data/preset-reference-builds.js`, below): Mutilate needs a dagger in both
 hands, so on other weapons its rule is passed over. Its summary:
 
@@ -972,10 +972,9 @@ Assassination
 4. Eureka! if Eureka! is granted
 5. Slice and Dice if CP >= 4 and Slice and Dice missing or < 1s left
 6. Slice and Dice if CP >= 4 and Slice and Dice missing or <= 5s left and Energy >= 100
-7. Venom if Venom is granted and CP >= 4 and Venom missing or <= 3s left
-8. Eviscerate if CP >= 4 and Energy >= 75
-9. Cold Blood if Cold Blood is granted and CP < 5
-10. Mutilate if Mutilate is granted and CP < 4
+7. Eviscerate if CP >= 4 and Energy >= 75
+8. Cold Blood if Cold Blood is granted and CP < 5
+9. Mutilate if Mutilate is granted and CP < 4
 ```
 
 The numbers are `presetRotation.assassination`:
@@ -987,15 +986,12 @@ The numbers are `presetRotation.assassination`:
 - 5 and 6: Slice and Dice at `finisherComboPoints` (4) with less than
   `sliceAndDiceRecastSeconds` (1 s) left, or with at most
   `sliceAndDiceWindowSeconds` (5 s) left at `sliceAndDiceEnergy` (100) energy.
-- 7: Venom at 4 combo points when its aura is down or has
-  `venomRecastSeconds` (3 s) or less left. With the reference build it is cast
-  on every seed (200 seeds at 60 s and at 300 s).
-- 8: Eviscerate at 4 combo points with `eviscerateEnergy` (75) energy or more.
+- 7: Eviscerate at 4 combo points with `eviscerateEnergy` (75) energy or more.
   With the reference build it was cast on 173 of 200 seeds at 60 s (mean 1.1)
   and on all 200 at 300 s (mean 6.2).
-- 9: Cold Blood below `coldBloodBelowComboPoints` (5), so its charge goes on
+- 8: Cold Blood below `coldBloodBelowComboPoints` (5), so its charge goes on
   the next Mutilate or finisher.
-- 10: Mutilate below 4 combo points.
+- 9: Mutilate below 4 combo points.
 
 No Expose Armor and no stealth opener.
 

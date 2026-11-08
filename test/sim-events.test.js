@@ -117,7 +117,7 @@ const OUTCOMES = [
 const RESOURCE_CHANGES = ["gain", "spend", "expire", "clear"];
 const AURA_CHANGES = ["apply", "refresh", "stack", "expire"];
 const AURA_TARGETS = ["self", "target"];
-const EXPIRE_REASONS = ["time"]; // #332: poison charges ignored (unlimited)
+const EXPIRE_REASONS = ["time", "charges"];
 
 function checkShape(event) {
   const shape = SHAPES[event.type];

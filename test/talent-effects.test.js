@@ -115,10 +115,7 @@ const ASSASSINATION_MAPPED = [
 ];
 // Kira N3 on #344: pin the Assassination talents still pending a follow-up
 // issue. Mutant M11 (Venom pending → ability) fails this list.
-const ASSASSINATION_PENDING = [
-  "assassination.blood-splatter",
-  "assassination.venom",
-];
+const ASSASSINATION_PENDING = ["assassination.blood-splatter"];
 // The three Subtlety talents that grant an ability the engine casts (#207),
 // and since #269 the passives and the no-DPS talents, since #270
 // Preparation, and since #271 Improved Ambush, Initiative and Cutthroat: the
@@ -269,8 +266,8 @@ describe("the procs' chances match the snapshot's rank text", () => {
   });
 });
 
-describe("the 12 DPS-relevant Combat talents, and the 6 that are not", () => {
-  it("splits Combat into talents with a mapped effect and ones without (or pending)", () => {
+describe("the 13 DPS-relevant Combat talents, and the 6 that are not", () => {
+  it("splits Combat into talents with a mapped effect and ones without", () => {
     const withEffect = COMBAT.filter((talent) => {
       const entry = TALENT_EFFECTS[talent.id];
       return entry.noDpsEffect === undefined && entry.pending === undefined;
@@ -280,6 +277,7 @@ describe("the 12 DPS-relevant Combat talents, and the 6 that are not", () => {
       "combat.efficient-strikes",
       "combat.puncturing-wounds",
       "combat.precision",
+      "combat.composure",
       "combat.flawless-execution",
       "combat.weapon-expertise",
       "combat.aggression",
@@ -293,7 +291,7 @@ describe("the 12 DPS-relevant Combat talents, and the 6 that are not", () => {
 });
 
 describe("Assassination pending talents stay pending until their follow-up (Kira N3 / #344)", () => {
-  it("pins blood-splatter and venom as the only Assassination pending entries", () => {
+  it("pins blood-splatter as the only Assassination pending entry", () => {
     const pending = ASSASSINATION.filter(
       (talent) => TALENT_EFFECTS[talent.id].pending !== undefined,
     ).map((talent) => talent.id);
@@ -702,6 +700,7 @@ describe("the reference build (Assassination 16 / Combat 35 / Subtlety 0), decod
         "combat.efficient-strikes",
         "combat.puncturing-wounds",
         "combat.precision",
+        "combat.composure",
         "combat.flawless-execution",
         "combat.weapon-expertise",
         "combat.aggression",
@@ -710,7 +709,7 @@ describe("the reference build (Assassination 16 / Combat 35 / Subtlety 0), decod
         "combat.flash-of-steel",
       ],
     );
-    assert.equal(build.modifiers.length, 18);
+    assert.equal(build.modifiers.length, 19);
     assert.deepEqual(
       build.modifiers
         .slice(0, 3)

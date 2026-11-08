@@ -643,7 +643,9 @@ describe("rotationState builds the view from a fight", () => {
     assert.equal(view.resources.comboPoints.value, fight.rogue.comboPoints);
     assert.equal(view.resources.comboPoints.max, k("combo.max"));
     assert.equal(view.resources.comboPoints.regenPerSecond, 0);
-    assert.deepEqual(view.auras, {});
+    assert.deepEqual(view.auras, {
+      poised: { remaining: k("poised").duration, stacks: 1 },
+    });
     assert.deepEqual(view.debuffs, {});
     assert.deepEqual(view.cooldowns, {});
     assert.deepEqual(view.build, { selected: false });
@@ -663,7 +665,9 @@ describe("rotationState builds the view from a fight", () => {
     };
     const view = rotationState(rogue, simulation);
     assert.deepEqual(view.debuffs, { rupture: { remaining: 6, stacks: 2 } });
-    assert.deepEqual(view.auras, {});
+    assert.deepEqual(view.auras, {
+      poised: { remaining: k("poised").duration, stacks: 1 },
+    });
   });
 
   it("lists a cooldown only while it has time left", () => {

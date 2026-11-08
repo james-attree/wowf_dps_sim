@@ -59,7 +59,8 @@ import { k } from "./constants.js";
 // unlimited), Seal Fate (an onCrit proc on the combo point builders, A8) and
 // Murder was removed in the 3 Nov / 70755 rework (TR-02 / #332). Remorseless
 // Attacks and Improved Kidney Shot have no DPS effect. New 70755 talents that
-// need engine work are marked `pending` until TR-04…TR-07.
+// need engine work are marked `pending` until TR-06 and TR-07. Venom and
+// Composure are mapped (TR-05 / #334).
 
 const RAW = {
   "assassination.improved-gouge": {
@@ -229,8 +230,16 @@ const RAW = {
   "assassination.venom": {
     textHash:
       "ab33e37b89c7fb46aa4985e2ed074b6ef3c83f88d7588b0c0f96552bbb1bc9d1",
-    pending:
-      "TR-05 / #334: Venom is a passive on Shank (+30% poison damage, +20% apply chance for 6 s), not a finisher.",
+    procs: [
+      {
+        id: "venom",
+        trigger: "onHit",
+        scope: { abilities: [...k("venom").abilities] },
+        chance: { mode: "flat", values: [1] },
+        drawless: "whenCertain",
+        actions: [{ type: "applyAura", aura: "venom" }],
+      },
+    ],
   },
   "assassination.improved-kidney-shot": {
     textHash:
@@ -358,8 +367,13 @@ const RAW = {
   "combat.composure": {
     textHash:
       "eb293255ebade87da6cffa23996437960b13e04aeb8186107e90cdbea419d99b",
-    pending:
-      "TR-05 / #334: Composure adds +5/+10 to Poised's energy cost reduction.",
+    modifiers: [
+      {
+        kind: "poisedEnergy",
+        op: "add",
+        values: [...k("composure.energy")],
+      },
+    ],
   },
   "combat.improved-kick": {
     textHash:

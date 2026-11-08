@@ -18,6 +18,9 @@ const COOLDOWN = [0, 0.01, 30];
 function setUp(id, { energy, points, gcd, cooldown }, modifiers, config) {
   const fight = createFight(3, config, { modifiers });
   const { rogue, simulation } = fight;
+  if (simulation.hasAura("poised")) {
+    simulation.consumeCharge("poised");
+  }
   rogue.energy = energy;
   rogue.comboPoints = points;
   simulation.gcd = gcd;
@@ -203,6 +206,9 @@ describe("gcdClear", () => {
 describe("Ability.costNow", () => {
   it("is the cost after the cost modifiers, and 0 for an ability that pays nothing", () => {
     const { rogue, simulation } = createFight(3);
+    if (simulation.hasAura("poised")) {
+      simulation.consumeCharge("poised");
+    }
     for (const ability of rogue.abilitiesById.values()) {
       const now = ability.costNow(simulation);
       assert.ok(Number.isFinite(now) && now >= 0, ability.id);
