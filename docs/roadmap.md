@@ -59,7 +59,7 @@ truth, and this list will go stale.
 - [#332](https://github.com/james-attree/wowf_dps_sim/issues/332) — [TR-02] Data refresh to 1.60.1.70755 — merged (PR [#344](https://github.com/james-attree/wowf_dps_sim/pull/344))
 - [#333](https://github.com/james-attree/wowf_dps_sim/issues/333) — [TR-03] Temporary Combat swords preset (James's build) — merged (PR [#345](https://github.com/james-attree/wowf_dps_sim/pull/345))
 - [#337](https://github.com/james-attree/wowf_dps_sim/issues/337) — [TR-04] Shank, Flash of Steel and Boot Knife — merged (PR [#346](https://github.com/james-attree/wowf_dps_sim/pull/346))
-- [#334](https://github.com/james-attree/wowf_dps_sim/issues/334) — [TR-05] Passive Venom, Poised and Composure — in progress (this branch)
+- [#334](https://github.com/james-attree/wowf_dps_sim/issues/334) — [TR-05] Passive Venom, Poised and Composure — implemented (awaiting merge)
 - [#335](https://github.com/james-attree/wowf_dps_sim/issues/335) — [TR-06] Ghostly Strike Ambush window, Hemorrhage, Blood Splatter, Mutilate — open
 - [#336](https://github.com/james-attree/wowf_dps_sim/issues/336) — [TR-07] Death Mark and Coup de Grace (Death Mark part) — open
 - [#338](https://github.com/james-attree/wowf_dps_sim/issues/338) — [TR-08] Rotation vocabulary for the rework — open
