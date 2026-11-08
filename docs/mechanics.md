@@ -23,7 +23,7 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 
 ### Passive Venom, Poised and Composure (TR-05 / #334)
 
-- **Venom** is not a finisher and is not in the castable ability list. With the talent, a landed Shank applies the self aura for `k("venom").duration` (6 s). Poison damage is × `k("venom").poisonDamage` (1.3), still its own multiplier (`venom.stacking`, James, #268). The apply-chance bonus is `k("venom.chanceAdd")` (0.2) only when `k("venom.chanceAddMode")` is `"percentage points"` (team assumption, same treatment as Improved Poisons; not a ruling by James). Any other mode adds no chance. A miss, dodge or parry applies nothing. The proc is drawless.
+- **Venom** is not a finisher and is not in the castable ability list. With the talent, a landed Shank applies the self aura for `k("venom").duration` (6 s). Poison damage is × `k("venom").poisonDamage` (1.3), still its own multiplier (`venom.stacking`, James, #268). The apply-chance bonus is `k("venom.chanceAdd")` (0.2) only when `k("venom.chanceAddMode")` is `"percentage points"` (team assumption, same treatment as Improved Poisons; not a ruling by James). Any other mode adds no chance. A miss, dodge or parry applies nothing. The proc is drawless. Deadly Poison stores tick damage at application (`applyDot` resolves `damage` once; ticks use the stored value), so a Deadly Poison applied while Venom is up keeps ×1.3 on later ticks after the aura expires, until the next application. That is the existing DoT path (`dot.snapshot` is `at application` for Rupture; PR #133 re-prices Deadly Poison at each application). The talent text says the increase lasts 6 sec and does not say whether ticks of a poison already applied keep the bonus. Poison tick behavior was left as it is.
 - **Poised** is a baseline passive. `k("poised.atPull")` `"when energy is full"` (team assumption, not a ruling by James) puts the aura up when the fight is built if energy is already at its cap. A start of 100 with Vigor's 110 is not full, so Poised stays down. The next ability that pays energy costs `k("poised").energy` less (10) and spends the charge, hit or miss. Any other `poised.atPull` value leaves it down.
 - **Composure** is a `poisedEnergy` modifier, `k("composure.energy")` 5/10, added to that reduction when the aura is built. It does not change costs while Poised is down.
 - No new preset and no Death Mark condition. `LINK_BASES` is unchanged.
@@ -1126,16 +1126,20 @@ between a DoT's first and later stacks (a timed buff or a debuff). Kept as it
 is, by ruling on PR #133; recorded here so a comparison with wowsims is
 read with it in mind.
 
-**Not in A5.** Vile Poisons, Improved Poisons and Venom (no entry in the
-talent data then; they have one since #266 and #268; Malice has one and reaches poison crit, see
-[Applying a talent build](#applying-a-talent-build-d7-issue-106)); a `procChance` modifier kind; poison charges. No
-poison counter is in the `runFight` result.
+**Not in A5.** Vile Poisons and Improved Poisons (no entry in the talent data
+then; they have one since #266; Malice has one and reaches poison crit, see
+[Applying a talent build](#applying-a-talent-build-d7-issue-106)); a `procChance` modifier kind; poison charges. The
+25-energy Venom finisher is not an ability. Venom is the Shank aura in
+[TR-05](#tr-05-venom-poised-and-composure-334). No poison counter is in the
+`runFight` result.
 
 ### Poison chance (A9, #266)
 
 A `poisonChance` modifier (js/modifiers.js) adds to the chance of every poison
 on the weapons, in percentage points, as in Classic: Instant Poison's 20% plus
-10 (Improved Poisons 5/5) plus 10 (Venom) is 40%. It is a `flat` kind with no
+10 (Improved Poisons 5/5) is 30%. The retired Venom finisher's extra 10 points
+are not applied. While the TR-05 Venom aura is up the chance gains the points
+in `k("venom.chanceAdd")`. It is a `flat` kind with no
 scope. The Rogue resolves it once, as `modifiers.resolve("poisonChance", 0)`,
 and hands it to `poisonProcs`, which adds it to the export's chance and caps
 the sum at `k("poison.chanceCap")`, 100%. Both are `assumption` rows (A9 of
@@ -2552,14 +2556,14 @@ that says "+20% damage from poisons" is data and needs no engine code.
 `js/damage-tags.js` builds them, `Simulation.attackContext(source, attackType)`
 passes them, and nothing is keyed by a display name.
 
-| Part       | Values               | Comes from                                                                                                                                                                                |
-| ---------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `school`   | `physical`, `nature` | `nature.spells`, else the ability's `school` in the catalogue, else physical (an id the catalogue does not know)                                                                          |
-| `bleed`    | tag                  | `bleed.spells`, or a source (a skill, a DoT) that sets `bleed`                                                                                                                            |
-| `poison`   | tag                  | `poison.spells` (`instant-poison`, `deadly-poison`)                                                                                                                                       |
-| `white`    | tag                  | the attack type `weapon`, an auto attack. A poison is never white                                                                                                                         |
-| `yellow`   | tag                  | the attack type `skill`, an ability's attack. A poison is never yellow                                                                                                                    |
-| `finisher` | tag                  | the ability's `finisher` field in the catalogue (a combo point cell in the spell data). The catalogue gives six: Eviscerate, Expose Armor, Kidney Shot, Rupture, Slice and Dice and Venom |
+| Part       | Values               | Comes from                                                                                                                                                                                                   |
+| ---------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `school`   | `physical`, `nature` | `nature.spells`, else the ability's `school` in the catalogue, else physical (an id the catalogue does not know)                                                                                             |
+| `bleed`    | tag                  | `bleed.spells`, or a source (a skill, a DoT) that sets `bleed`                                                                                                                                               |
+| `poison`   | tag                  | `poison.spells` (`instant-poison`, `deadly-poison`)                                                                                                                                                          |
+| `white`    | tag                  | the attack type `weapon`, an auto attack. A poison is never white                                                                                                                                            |
+| `yellow`   | tag                  | the attack type `skill`, an ability's attack. A poison is never yellow                                                                                                                                       |
+| `finisher` | tag                  | the ability's `finisher` field in the catalogue (a combo point cell in the spell data). The catalogue gives five: Eviscerate, Expose Armor, Kidney Shot, Rupture and Slice and Dice. Venom is not a finisher |
 
 So Rupture is physical, `bleed`, `yellow` and `finisher`; Garrote is physical,
 `bleed` and `yellow`; Backstab is `yellow`; a main-hand swing is `white`; Deadly
@@ -3425,26 +3429,12 @@ Assassination: an Assassination talent with no entry fails the coverage check.
   cast spent `combo.max` (`improvedExposeArmor.refundAt`) and gains the points
   after the aura is up and before the onCast procs. At 1 to 4 points there is
   no refund. It draws nothing.
-- **Venom** (`k("venom")`, granted by its talent, so locked without it): 25
-  energy, spends its combo points, a self aura for 9 / 12 / 15 / 18 / 21 s by
-  points spent. While it is up every poison's chance gets +10 percentage
-  points and poison damage (the `poison` tag) is ×1.3.
-  - The chance (A9): a proc may carry a `chanceBonus`
-    (`{ kind, cap, points }`, flat chances only). `chanceOf` adds the live
-    aura modifiers of that kind to the proc's chance, rounds to whole points
-    and caps it at `poison.chanceCap`. Improved Poisons stays baked into the
-    proc when the Rogue is built, so with Venom down nothing changes. Instant
-    Poison with Improved Poisons 5/5 and Venom up is 20 + 10 + 10 = 40%.
-  - The damage (A10, `venom.stacking`): a `mult` modifier, so the percent form
-    `base × (1 + Σ add) × Π mult` multiplies it with Vile Poisons' +20%:
-    ×1.2 × 1.3 = ×1.56.
-  - Venom is not a Deadly Poison debuff, so Mutilate's poisoned bonus ignores
-    it.
-- **Presets and goldens.** No preset casts Expose Armor or Venom, so the
-  existing golden fixtures are byte-identical. The one fixture that casts
-  them, `venom-expose-armor-seed-268-60s`, was regenerated for B1 and B2. `onStrike`'s off-hand on-crit
-  filtering (js/procs.js) is unchanged: neither ability adds a per-hand
-  on-crit proc (#275).
+- **Venom** is not this finisher. The 25-energy, combo-point Venom
+  (9 / 12 / 15 / 18 / 21 s, +10 poison chance) is retired. The live talent is
+  the Shank aura in [TR-05](#tr-05-venom-poised-and-composure-334).
+- **Presets and goldens.** No preset casts Expose Armor. `onStrike`'s
+  off-hand on-crit filtering (js/procs.js) is unchanged: Expose Armor adds no
+  per-hand on-crit proc (#275).
 
 ### Subtlety passives (#269, P4.6-05a)
 
@@ -3637,8 +3627,8 @@ act only on those Ambushes.
 Two preset rotations join combat-swords (`data/rotation-presets.js`; the rule
 lists and summaries are in [docs/rotation.md](rotation.md#assassination-daggers)):
 
-- **assassination-daggers**: Slice and Dice (the #122 pair), Rupture and Venom
-  kept up at 5 CP, Eviscerate only when none of them is due, Cold Blood below
+- **assassination-daggers**: Slice and Dice (the #122 pair) and Rupture kept
+  up at 5 CP, Eviscerate only when none of them is due, Cold Blood below
   5 CP so its charge goes on the next Mutilate, and Mutilate to build.
 - **subtlety-daggers**: Premeditation on cooldown when its 2 CP fit,
   Preparation while Ghostly Strike (and so Premeditation, cast at the start)
@@ -3666,7 +3656,7 @@ build each one is written for is separate data,
   `weapons`, `{ mainHand, offHand }`, each `{ type, min, max, speed }` (the
   SimConfig weapon shape); `poisons`, `{ mainHand, offHand }`, each a poison
   id (the SimConfig poisons shape, `config.poisonIds`).
-- assassination-daggers: the #268 Venom build without Improved Expose Armor,
+- assassination-daggers: the Assassination dagger build without Improved Expose Armor,
   whose 2 points go to Puncturing Wounds 2/3 (41 Assassination, 10 Combat).
   subtlety-daggers: the #271 Cutthroat build (15 Assassination, 36 Subtlety).
   Both are 51 points, on the dagger alternate (`weapon.dagger.mainHand`,
@@ -3677,7 +3667,7 @@ build each one is written for is separate data,
 - Every build carries Instant Poison on the main hand and Deadly Poison on
   the off hand, `{ mainHand: "instant", offHand: "deadly" }` (James's ruling,
   relayed by Scout: `presetReferenceBuild.poisons`). With Deadly on the off
-  hand the target is poisoned, so Venom and Mutilate's poisoned bonus act.
+  hand the target is poisoned, so Mutilate's poisoned bonus can act.
 - A build has no character sheet.
 
 `js/preset-reference-builds.js` checks every entry when it is imported (a

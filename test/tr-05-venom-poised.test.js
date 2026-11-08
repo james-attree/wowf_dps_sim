@@ -216,3 +216,54 @@ describe("Venom aura is still not an ability", () => {
     assert.equal(AURAS.poised.id, "poised");
   });
 });
+
+describe("TR-05 review nits (#334)", () => {
+  // N3. The proc is chance 1 and drawless. A landed Shank with the talent
+  // applies the aura and adds no rng call. Dropping drawless (so the certain
+  // proc still rolls) adds one draw and fails this.
+  it("a landed Shank with Venom draws nothing for the proc", () => {
+    function drawsFor(options) {
+      const h = createFight(
+        1,
+        {
+          weapons: swords.weapons,
+          poisons: { mainHand: null, offHand: null },
+          talents: {},
+        },
+        options,
+      );
+      let draws = 0;
+      h.simulation.rng = () => {
+        draws += 1;
+        return 0.99;
+      };
+      h.simulation.gcd = 0;
+      h.rogue.energy = h.rogue.maxEnergy;
+      const result = h.rogue.abilities.shank.cast(h.rogue, h.simulation);
+      assert.equal(result.landed, true);
+      return { draws, venom: h.simulation.hasAura("venom") };
+    }
+    const plain = drawsFor({});
+    const venomed = drawsFor(fromTalents({ "assassination.venom": 1 }));
+    assert.equal(plain.venom, false);
+    assert.equal(venomed.venom, true);
+    assert.equal(venomed.draws, plain.draws);
+  });
+
+  // N4. A full bar starts Poised. Shank's 5 energy minus 10 floors at 0, the
+  // charge is spent on that cast, and the energy it generates cannot pass the cap.
+  it("a full bar makes Shank cost 0, spends Poised, and caps the energy gain", () => {
+    const h = fight({});
+    const ability = h.rogue.abilities.shank;
+    assert.equal(h.rogue.energy, h.rogue.maxEnergy);
+    assert.equal(h.simulation.hasAura("poised"), true);
+    assert.equal(ability.costNow(h.simulation), 0);
+    h.simulation.gcd = 0;
+    h.simulation.rng = () => 0.99;
+    const result = ability.cast(h.rogue, h.simulation);
+    assert.equal(result.landed, true);
+    assert.equal(h.simulation.hasAura("poised"), false);
+    assert.equal(h.rogue.energy, h.rogue.maxEnergy);
+    assert.ok(h.rogue.resources.energy.waste().overflow > 0);
+  });
+});
