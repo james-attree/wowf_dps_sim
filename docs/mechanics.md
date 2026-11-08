@@ -32,7 +32,7 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 - **Ambush** requires the self aura `ambush-window` (`ghostlyStrike.ambushWindow`, 7 s, wowf-export). A landed Ghostly Strike opens it. One charge (`ghostlyStrike.ambushWindowCharges`, team assumption from "your next", not a ruling by James) is used by the Ambush that goes ahead, hit or miss. A miss opens nothing. The dodge buff stays up. Garrote is not simulated. The removed Cutthroat talent is not the gate. Without Ghostly Strike granted, an Ambush rule is passed over.
 - **Dagger percents.** Ghostly Strike 180% and Hemorrhage 145% are `assumption` rows James accepted on 8 Nov 2026 (export `fx`: the 2 Nov notes give no new number). The non-dagger percents stay the export's 125% and 100%.
 - **Hemorrhage** still adds `k("hemorrhage.ruptureBonus").bonus` to Rupture ticks only. The export also names Garrote; that half is inert.
-- **Blood Splatter** adds `k("bloodSplatter").rupture` (6 s) to Rupture through `flatDuration`. `k("bloodSplatter.apply")` `"after percent"` (team assumption, not a ruling by James) adds those seconds after percent duration modifiers. Any other value adds them first. A length of 0 stays 0. The export's +9 s Garrote is recorded and not applied.
+- **Blood Splatter** adds `k("bloodSplatter").rupture` (6 s) to Rupture through `flatDuration`. `k("bloodSplatter.apply")` `"after percent"` (team assumption, not a ruling by James) adds those seconds after percent duration modifiers. Any other value adds them first. A length of 0 stays 0. James, 8 Nov 2026, 23:28 UK, relayed by Scout: the extra seconds are full-strength ticks and the total rises (`k("bloodSplatter.ticks")` `"full strength"`). The tooltip total is still split across the tick count of the length before those flat seconds, so a percent duration modifier still changes that tick. Any other `bloodSplatter.ticks` value splits the same total across the final length. The export's +9 s Garrote is recorded and not applied.
 - **Mutilate** stays 90% weapon damage. The flat per hand is 36/51/71 by rank (`mutilate.bonusByRank`, wowf-export, not an assumption). The poisoned ×1.2 still requires Deadly Poison.
 - No new preset and no Death Mark condition. `LINK_BASES` is unchanged. Venom's tick rule is unchanged: the bonus applies to Deadly Poison ticks only while the aura is up.
 
@@ -903,17 +903,21 @@ rotation does not create one; the poison procs do. See Poisons.
 
 `Simulation.resolveDotAttack` rolls the application as a skill with a zero
 crit chance, so the application cannot crit. The log event for that cast
-records no damage. The tick count is the duration divided by
-`k("rupture.tickInterval")`, floored. That interval is `classic-1.12` and on
+records no damage. The ticks that fire are `floor(duration / k("rupture.tickInterval"))`. That interval is `classic-1.12` and on
 the retune list. The note says the dot applicator uses it for every DoT.
-When the attack landed, the floored damage is positive, and the tick count
-is positive, the sim stores
+The tooltip total is split across `floor(splitDuration / interval)` instead.
+`splitDuration` is the aura length, except for Blood Splatter: James, 8 Nov
+2026, 23:28 UK, relayed by Scout, ruled that the flat seconds add
+full-strength ticks (`k("bloodSplatter.ticks")`), so the split uses the
+length before those seconds. A percent `duration` modifier stays inside the
+split. When the attack landed, the floored damage is positive, and that
+split count is positive, the sim stores
 
-`tickDamage = floored application damage / tick count`
+`tickDamage = floored application damage / split tick count`
 
 with `timeUntilNextTick` set to one interval. That division splits the
 whole-DoT total, including the `k("rupture.apByCP")` term, evenly across
-the ticks. Otherwise no dot is stored.
+the split ticks. The extra Blood Splatter ticks repeat that amount. Otherwise no dot is stored.
 `k("dot.snapshot")` (`classic-1.12`, on the retune list) says Rupture damage
 is fixed when the cast resolves. The stored `tickDamage` is that snapshot.
 The per-tick crit roll is not part of it.
@@ -948,8 +952,9 @@ n-th at the cast time plus n intervals. Each tick:
 5. Add the result to the damage total. Tick damage is not floored here.
 
 Every tick deals a full tick. The dot is removed when its time left is at
-or below `k("sim.tickEpsilon")`. A cast DoT has `floor(duration / interval)`
-ticks, the count its damage is split over.
+or below `k("sim.tickEpsilon")`. A cast DoT schedules `floor(duration / interval)`
+ticks. Its damage is split over `floor(splitDuration / interval)`, which is
+the same count except when Blood Splatter adds full-strength ticks.
 
 Before its ticks, each DoT's `tickInterval` is checked (#193). One that is not
 a finite number above 0 throws a `RangeError` naming the DoT, for example

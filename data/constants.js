@@ -451,7 +451,7 @@ export const CONSTANTS = {
     "s, s",
     WOWF_EXPORT,
     "rogue.json → talents[Assassination|Blood Splatter] desc: Increases the duration of your Rupture ability by 6 sec and your Garrote ability by 9 sec.",
-    "Rupture's length gains rupture seconds (flatDuration, data/talent-effects.js), after or before percent duration modifiers as bloodSplatter.apply says. Garrote is not simulated, so garrote seconds are recorded and not applied.",
+    "Rupture's length gains rupture seconds (flatDuration, data/talent-effects.js), after or before percent duration modifiers as bloodSplatter.apply says. Those seconds add ticks at the strength the DoT already had (bloodSplatter.ticks). Garrote is not simulated, so garrote seconds are recorded and not applied.",
     false,
   ),
   "bloodSplatter.apply": entry(
@@ -459,8 +459,16 @@ export const CONSTANTS = {
     "–",
     ASSUMPTION,
     "Developer, 8 Nov 2026, issue #335: Team assumption: Blood Splatter's +6 s is added after percent duration modifiers such as Improved Slice and Dice. Not a ruling by James.",
-    'Read when an ability resolves its aura length (js/ability.js). "after percent" adds bloodSplatter.rupture after the duration kind. Any other value adds the seconds first, then the percent form. A length of 0 stays 0.',
+    'Read when an ability resolves its aura length (js/ability.js). "after percent" adds bloodSplatter.rupture after the duration kind. Any other value adds the seconds first, then the percent form. A length of 0 stays 0. Either way the extra seconds are full-strength ticks (bloodSplatter.ticks): a percent duration still changes the tick the tooltip total is split into, and the flat seconds do not.',
     true,
+  ),
+  "bloodSplatter.ticks": entry(
+    "full strength",
+    "–",
+    WOWF_DESIGNER,
+    "James, 8 Nov 2026, issue #335: Blood Splatter adds full-strength Rupture ticks and increases total damage. The +6 s does not spread the existing total over more ticks. Relayed by Scout (coordinator) at 23:28 UK.",
+    'Read when a cast DoT splits its tooltip total (js/ability.js, js/simulation.js). "full strength" divides that total by the tick count of the length before the flat seconds, then the longer duration deals that same tick again. Any other value divides by the tick count of the final length, which spreads the same total thinner. A percent duration modifier is still part of the length the total is split across. Garrote is not simulated.',
+    false,
   ),
   shank: entry(
     {

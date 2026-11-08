@@ -235,10 +235,12 @@ describe("generic executor", () => {
       assert.deepEqual(rogue.abilities.sliceAndDice.resolve(), {
         damage: 0,
         duration: 0,
+        splitDuration: 0,
       });
       assert.deepEqual(rogue.abilities.rupture.resolve(), {
         damage: 0,
         duration: 0,
+        splitDuration: 0,
       });
     }
     rogue.comboPoints = 6;

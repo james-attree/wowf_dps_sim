@@ -1003,7 +1003,14 @@ export class Simulation {
     return hit;
   }
 
-  resolveDotAttack(source, attackType, baseDamage, duration, bleed = false) {
+  resolveDotAttack(
+    source,
+    attackType,
+    baseDamage,
+    duration,
+    bleed = false,
+    splitDuration = duration,
+  ) {
     const context = this.attackContext(
       bleed ? { ...source, bleed: true } : source,
       attackType,
@@ -1025,7 +1032,10 @@ export class Simulation {
       rng: this.rng,
     });
     const tickInterval = k("rupture.tickInterval");
-    const tickCount = Math.floor(duration / tickInterval);
+    // The aura lasts `duration`. The tooltip total is split over
+    // `splitDuration` (James, 8 Nov 2026, #335: Blood Splatter adds ticks
+    // and does not dilute them). With no split passed, the two are equal.
+    const tickCount = Math.floor(splitDuration / tickInterval);
     if (result.landed && result.damage > 0 && tickCount > 0) {
       this.activeDots[source.id] = {
         name: source.name,

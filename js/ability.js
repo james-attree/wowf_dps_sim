@@ -342,16 +342,21 @@ export class Ability {
     }
     // Percent duration (Improved Slice and Dice), then flat seconds (Blood
     // Splatter) when bloodSplatter.apply is "after percent". Any other value
-    // adds the seconds first. A length of 0 stays 0.
+    // adds the seconds first. A length of 0 stays 0. splitDuration is the
+    // length the tooltip total is divided across. James, 8 Nov 2026 23:28 UK,
+    // relayed by Scout: Blood Splatter's extra seconds are full-strength
+    // ticks, so they are not part of that divisor. A percent duration with
+    // no flat seconds still divides the total by the lengthened tick count.
+    let splitDuration;
     if (duration > 0) {
       const flat = rogue.modifiers.resolve("flatDuration", 0, this.costContext);
+      splitDuration = rogue.modifiers.resolve(
+        "duration",
+        duration,
+        this.costContext,
+      );
       if (k("bloodSplatter.apply") === "after percent") {
-        duration = rogue.modifiers.resolve(
-          "duration",
-          duration,
-          this.costContext,
-        );
-        duration += flat;
+        duration = splitDuration + flat;
       } else {
         duration = rogue.modifiers.resolve(
           "duration",
@@ -359,16 +364,20 @@ export class Ability {
           this.costContext,
         );
       }
+      if (k("bloodSplatter.ticks") !== "full strength") {
+        splitDuration = duration;
+      }
     } else {
       duration = rogue.modifiers.resolve(
         "duration",
         duration,
         this.costContext,
       );
+      splitDuration = duration;
     }
     const spec = definition.damage;
     if (spec === undefined) {
-      return { damage: 0, duration };
+      return { damage: 0, duration, splitDuration };
     }
     const damage = DAMAGE[spec.kind](
       spec,
@@ -378,7 +387,9 @@ export class Ability {
       stats[table] ?? [],
       this.hand,
     );
-    return damage === null ? { damage: 0, duration: 0 } : { damage, duration };
+    return damage === null
+      ? { damage: 0, duration: 0, splitDuration: 0 }
+      : { damage, duration, splitDuration };
   }
 
   // What the spend resource holds now, the most a cast could spend. 0 for an
@@ -580,7 +591,7 @@ export class Ability {
 
       let result = null;
       let spent = 0;
-      const { damage, duration } = this.resolve();
+      const { damage, duration, splitDuration } = this.resolve();
 
       if (this.attackSkill) {
         if (this.dot) {
@@ -591,6 +602,7 @@ export class Ability {
             damage,
             duration,
             this.bleed,
+            splitDuration,
           );
         } else if (this.attackOnly) {
           result = simulation.resolveTableAttack(this, "skill");

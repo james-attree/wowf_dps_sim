@@ -225,6 +225,26 @@ describe("TR-06 Hemorrhage and Blood Splatter (#335)", () => {
       after.rogue.abilities.rupture.resolve().duration,
       base * 1.5 + 6,
     );
+    // A percent duration with no flat seconds still splits the tooltip total
+    // across the longer tick count. Blood Splatter does not change that.
+    const percentOnly = createFight(1, daggers, extra);
+    percentOnly.rogue.comboPoints = 5;
+    percentOnly.rogue.critChance = 0;
+    percentOnly.rogue.bonusHitChance = 1;
+    percentOnly.simulation.rng = () => 0.99;
+    const percentTotal = percentOnly.rogue.abilities.rupture.resolve(5).damage;
+    const percentCast = percentOnly.rogue.abilities.rupture.cast(
+      percentOnly.rogue,
+      percentOnly.simulation,
+    );
+    assert.equal(percentCast.landed, true);
+    const percentDot = percentOnly.simulation.activeDots.rupture;
+    const percentTicks = Math.floor((base * 1.5) / k("rupture.tickInterval"));
+    assert.equal(percentDot.duration, base * 1.5);
+    assert.equal(
+      percentDot.tickDamage,
+      Math.floor(percentTotal) / percentTicks,
+    );
     withConstant("bloodSplatter.apply", "before percent", () => {
       const before = createFight(1, daggers, {
         modifiers: [...splatter.modifiers, ...extra.modifiers],
@@ -235,6 +255,152 @@ describe("TR-06 Hemorrhage and Blood Splatter (#335)", () => {
         before.rogue.abilities.rupture.resolve().duration,
         (base + 6) * 1.5,
       );
+    });
+  });
+});
+
+describe("TR-06 Blood Splatter full-strength ticks (#335)", () => {
+  const interval = () => k("rupture.tickInterval");
+  const quiet = {
+    character: { critChance: 0, bonusHitChance: 1 },
+  };
+
+  function ruptureFight(talents, extraModifiers = []) {
+    const build = expandTalents(talents);
+    const h = createFight(
+      1,
+      { ...daggers, ...quiet },
+      {
+        modifiers: [...build.modifiers, ...extraModifiers],
+        procs: build.procs,
+        abilities: build.abilities,
+      },
+    );
+    if (h.simulation.hasAura("poised")) {
+      h.simulation.consumeCharge("poised");
+    }
+    h.rogue.energy = h.rogue.maxEnergy;
+    h.simulation.gcd = 0;
+    h.simulation.rng = () => 0.99;
+    return h;
+  }
+
+  function castRupture(h, comboPoints) {
+    h.rogue.comboPoints = comboPoints;
+    h.rogue.energy = h.rogue.maxEnergy;
+    h.simulation.gcd = 0;
+    const result = h.rogue.abilities.rupture.cast(h.rogue, h.simulation);
+    assert.equal(result.landed, true);
+    return h.simulation.activeDots.rupture;
+  }
+
+  it("keeps the 5 CP tick and adds three ticks, so the total rises", () => {
+    assert.equal(CONSTANTS["bloodSplatter.ticks"].source, "wowf-designer");
+    assert.match(CONSTANTS["bloodSplatter.ticks"].ref, /23:28/);
+    assert.match(CONSTANTS["bloodSplatter.ticks"].ref, /Scout/);
+    assert.equal(k("bloodSplatter.ticks"), "full strength");
+    const plain = ruptureFight({});
+    const baseDot = castRupture(plain, 5);
+    const talented = ruptureFight({ "assassination.blood-splatter": 1 });
+    const dot = castRupture(talented, 5);
+    const baseTicks = Math.floor(k("rupture").durationByCp[4] / interval());
+    const added = Math.floor(k("bloodSplatter").rupture / interval());
+    assert.equal(baseDot.tickDamage, dot.tickDamage);
+    assert.equal(dot.duration, k("rupture").durationByCp[4] + 6);
+    assert.equal(Math.floor(dot.duration / interval()), baseTicks + added);
+    runOnCore(talented.simulation, dot.duration);
+    const ticks = talented.simulation.combatLog.filter(
+      (event) => event.name === "Rupture" && event.damage > 0,
+    );
+    assert.equal(ticks.length, baseTicks + added);
+    for (const event of ticks) {
+      assert.equal(event.damage, dot.tickDamage);
+    }
+    assert.equal(
+      ticks.reduce((sum, event) => sum + event.damage, 0),
+      dot.tickDamage * (baseTicks + added),
+    );
+  });
+
+  it("a damage modifier scales the tick the same with and without the talent", () => {
+    const bonus = {
+      kind: "damage",
+      op: "add",
+      value: 0.3,
+      scope: { abilities: ["rupture"] },
+      source: "test",
+    };
+    const plain = ruptureFight({}, [bonus]);
+    const talented = ruptureFight({ "assassination.blood-splatter": 1 }, [
+      bonus,
+    ]);
+    const baseDot = castRupture(plain, 5);
+    const dot = castRupture(talented, 5);
+    assert.equal(dot.tickDamage, baseDot.tickDamage);
+    assert.ok(dot.tickDamage > castRupture(ruptureFight({}), 5).tickDamage);
+  });
+
+  it("a refresh uses the new combo points at full tick strength", () => {
+    const h = ruptureFight({ "assassination.blood-splatter": 1 });
+    castRupture(h, 5);
+    const dot = castRupture(h, 3);
+    const alone = ruptureFight({});
+    const baseDot = castRupture(alone, 3);
+    assert.equal(dot.tickDamage, baseDot.tickDamage);
+    assert.equal(dot.duration, k("rupture").durationByCp[2] + 6);
+  });
+
+  it("a fight that ends early keeps full ticks and drops the ones that do not fit", () => {
+    const h = ruptureFight({ "assassination.blood-splatter": 1 });
+    const dot = castRupture(h, 5);
+    const plain = castRupture(ruptureFight({}), 5);
+    runOnCore(h.simulation, 10);
+    const ticks = h.simulation.combatLog.filter(
+      (event) => event.name === "Rupture" && event.damage > 0,
+    );
+    assert.ok(ticks.length > 0);
+    assert.ok(ticks.length < Math.floor(dot.duration / interval()));
+    assert.equal(dot.tickDamage, plain.tickDamage);
+    for (const event of ticks) {
+      assert.equal(event.damage, plain.tickDamage);
+    }
+  });
+
+  it("percent duration still lengthens first; the flat seconds stay full ticks", () => {
+    const percent = {
+      kind: "duration",
+      op: "add",
+      value: 0.5,
+      scope: { abilities: ["rupture"] },
+      source: "test",
+    };
+    const h = ruptureFight({ "assassination.blood-splatter": 1 }, [percent]);
+    const dot = castRupture(h, 5);
+    const base = k("rupture").durationByCp[4];
+    const split = base * 1.5;
+    assert.equal(dot.duration, split + 6);
+    const expected =
+      Math.floor(h.rogue.abilities.rupture.resolve(5).damage) /
+      Math.floor(split / interval());
+    assert.equal(dot.tickDamage, expected);
+    withConstant("bloodSplatter.apply", "before percent", () => {
+      const before = ruptureFight({ "assassination.blood-splatter": 1 }, [
+        percent,
+      ]);
+      const stretched = castRupture(before, 5);
+      assert.equal(stretched.duration, (base + 6) * 1.5);
+      assert.equal(stretched.tickDamage, expected);
+    });
+  });
+
+  it("any other bloodSplatter.ticks value keeps the fixed-total split", () => {
+    withConstant("bloodSplatter.ticks", "spread", () => {
+      const h = ruptureFight({ "assassination.blood-splatter": 1 });
+      const dot = castRupture(h, 5);
+      const total = Math.floor(h.rogue.abilities.rupture.resolve(5).damage);
+      const ticks = Math.floor(dot.duration / interval());
+      assert.equal(dot.tickDamage, total / ticks);
+      assert.ok(dot.tickDamage < total / Math.floor(16 / interval()));
     });
   });
 });
