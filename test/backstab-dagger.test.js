@@ -22,6 +22,9 @@ const OTHERS = ["sword", "mace", "fist", "axe"];
 
 function ready(type) {
   const fight = createFight(5, config(type));
+  if (fight.simulation.hasAura("poised")) {
+    fight.simulation.consumeCharge("poised");
+  }
   fight.rogue.energy = fight.rogue.maxEnergy;
   fight.rogue.comboPoints = 0;
   fight.simulation.gcd = 0;

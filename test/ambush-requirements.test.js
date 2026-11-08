@@ -44,6 +44,9 @@ const weapons = (type) => ({ mainHand: { type } });
 
 function ready(type, options) {
   const fight = createFight(5, { weapons: weapons(type) }, options);
+  if (fight.simulation.hasAura("poised")) {
+    fight.simulation.consumeCharge("poised");
+  }
   fight.rogue.energy = fight.rogue.maxEnergy;
   fight.rogue.comboPoints = 0;
   fight.simulation.gcd = 0;

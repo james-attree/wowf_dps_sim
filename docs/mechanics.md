@@ -10,7 +10,6 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 
 **Pending (later TR issues):**
 
-- TR-05 / #334 — Venom passive on Shank, Poised, Composure
 - TR-06 / #335 — Ghostly Strike Ambush window, Hemorrhage Rupture/Garrote taken, Blood Splatter, Mutilate poisoned bonus polish
 - TR-07 / #336 — Death Mark finisher; Coup de Grace Death Mark storage/damage part
   Removed from the tree (effects retired): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. Venom is no longer a finisher ability.
@@ -21,6 +20,13 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 - **Flash of Steel** (`combat.flash-of-steel`): `castGain` +3 per rank and `cooldown` −0.4 s per rank, scoped to `shank`. New modifier kinds `castGain` and `cooldown` (flat, abilities scope, floor 0).
 - **Boot Knife** (`subtlety.boot-knife`): onHit proc on Shank, 20–100% chance for +2 combo points (`bootKnife.comboPoint`).
 - **Rotation:** the temporary Combat swords preset casts Shank when energy &lt; 50 and the cooldown is ready (James, 5 Nov). Short-link base `combat-swords-temp` is frozen pre-Shank; live base is `combat-swords-temp-337` (#306 append-only).
+
+### Passive Venom, Poised and Composure (TR-05 / #334)
+
+- **Venom** is not a finisher and is not in the castable ability list. With the talent, a landed Shank applies the self aura for `k("venom").duration` (6 s). Poison damage is × `k("venom").poisonDamage` (1.3), still its own multiplier (`venom.stacking`, James, #268). The apply-chance bonus is `k("venom.chanceAdd")` (0.2) only when `k("venom.chanceAddMode")` is `"percentage points"` (team assumption, same treatment as Improved Poisons; not a ruling by James). Any other mode adds no chance. A miss, dodge or parry applies nothing. The proc is drawless.
+- **Poised** is a baseline passive. `k("poised.atPull")` `"when energy is full"` (team assumption, not a ruling by James) puts the aura up when the fight is built if energy is already at its cap. A start of 100 with Vigor's 110 is not full, so Poised stays down. The next ability that pays energy costs `k("poised").energy` less (10) and spends the charge, hit or miss. Any other `poised.atPull` value leaves it down.
+- **Composure** is a `poisedEnergy` modifier, `k("composure.energy")` 5/10, added to that reduction when the aura is built. It does not change costs while Poised is down.
+- No new preset and no Death Mark condition. `LINK_BASES` is unchanged.
 
 How the engine on `main` resolves attacks, resources, and time. Every
 formula names a constant id from [`data/constants.js`](../data/constants.js).

@@ -30,8 +30,13 @@ function withConstant(id, value, run) {
   }
 }
 
-function fight(talents, extra = {}) {
-  return createFight(1, { ...swords, talents, ...extra });
+function fight(talents = {}, options = {}) {
+  return createFight(1, { ...swords, talents }, options);
+}
+
+function fromTalents(ranks) {
+  const build = expandTalents(ranks);
+  return { modifiers: build.modifiers, procs: build.procs };
 }
 
 function landShank(fight) {
@@ -62,7 +67,7 @@ describe("TR-05 Venom (#334)", () => {
   it("reads the team assumption that +20% is percentage points", () => {
     assert.equal(CONSTANTS["venom.chanceAddMode"].source, "assumption");
     assert.match(CONSTANTS["venom.chanceAddMode"].ref, /Team assumption/);
-    assert.doesNotMatch(CONSTANTS["venom.chanceAddMode"].ref, /James/);
+    assert.match(CONSTANTS["venom.chanceAddMode"].ref, /Not a ruling by James/);
     assert.equal(k("venom.chanceAddMode"), "percentage points");
     assert.equal(k("venom.chanceAdd"), 0.2);
     assert.equal(k("venom").duration, 6);
@@ -71,7 +76,7 @@ describe("TR-05 Venom (#334)", () => {
   });
 
   it("a landed Shank with the talent applies 6 s of +30% poison damage and +20 points", () => {
-    const h = fight({ "assassination.venom": 1 });
+    const h = fight({}, fromTalents({ "assassination.venom": 1 }));
     assert.equal(h.simulation.hasAura("venom"), false);
     landShank(h);
     const aura = h.simulation.activeBuffs.venom;
@@ -88,7 +93,7 @@ describe("TR-05 Venom (#334)", () => {
   });
 
   it("does not apply Venom when Shank does not land, or without the talent", () => {
-    const missed = fight({ "assassination.venom": 1 });
+    const missed = fight({}, fromTalents({ "assassination.venom": 1 }));
     const { rogue, simulation } = missed;
     rogue.energy = rogue.maxEnergy;
     simulation.gcd = 0;
@@ -106,7 +111,7 @@ describe("TR-05 Venom (#334)", () => {
 
   it("reads chanceAddMode at fight build, so another mode adds no chance", () => {
     withConstant("venom.chanceAddMode", "off", () => {
-      const h = fight({ "assassination.venom": 1 });
+      const h = fight({}, fromTalents({ "assassination.venom": 1 }));
       landShank(h);
       assert.equal(h.simulation.hasAura("venom"), true);
       assert.equal(
@@ -122,8 +127,11 @@ describe("TR-05 Venom (#334)", () => {
 
   it("Venom's poison damage still multiplies with a poison-damage add", () => {
     const h = fight(
-      { "assassination.venom": 1, "assassination.vile-poisons": 5 },
       {},
+      fromTalents({
+        "assassination.venom": 1,
+        "assassination.vile-poisons": 5,
+      }),
     );
     landShank(h);
     assert.equal(
@@ -137,7 +145,7 @@ describe("TR-05 Poised and Composure (#334)", () => {
   it("tags the at-pull rule as a team assumption and reads it", () => {
     assert.equal(CONSTANTS["poised.atPull"].source, "assumption");
     assert.match(CONSTANTS["poised.atPull"].ref, /Team assumption/);
-    assert.doesNotMatch(CONSTANTS["poised.atPull"].ref, /James/);
+    assert.match(CONSTANTS["poised.atPull"].ref, /Not a ruling by James/);
     assert.equal(k("poised.atPull"), "when energy is full");
     assert.equal(k("poised").energy, 10);
     assert.equal(TALENT_EFFECTS["combat.composure"].pending, undefined);
@@ -152,19 +160,32 @@ describe("TR-05 Poised and Composure (#334)", () => {
     const h = fight({});
     assert.equal(h.rogue.energy, h.rogue.maxEnergy);
     assert.equal(h.simulation.hasAura("poised"), true);
-    const before = h.rogue.energy;
-    h.simulation.gcd = 0;
-    const result = h.rogue.abilities.sinisterStrike.cast(h.rogue, h.simulation);
-    assert.ok(result);
+    const ability = h.rogue.abilities.sinisterStrike;
     assert.equal(
-      before - h.rogue.energy,
-      Math.max(0, k("sinisterStrike").energy - k("poised").energy),
+      ability.costNow(h.simulation),
+      k("sinisterStrike").energy - k("poised").energy,
     );
+    h.simulation.gcd = 0;
+    h.simulation.rng = () => 0.99;
+    const result = ability.cast(h.rogue, h.simulation);
+    assert.equal(result.landed, true);
     assert.equal(h.simulation.hasAura("poised"), false);
   });
 
   it("stays down when starting energy is below the cap (Vigor)", () => {
-    const h = fight({ "assassination.vigor": 2 });
+    const h = fight(
+      {},
+      {
+        modifiers: [
+          {
+            kind: "resourceMax",
+            op: "add",
+            value: 10,
+            scope: { resources: ["energy"] },
+          },
+        ],
+      },
+    );
     assert.ok(h.rogue.energy < h.rogue.maxEnergy);
     assert.equal(h.simulation.hasAura("poised"), false);
   });
@@ -178,22 +199,14 @@ describe("TR-05 Poised and Composure (#334)", () => {
   });
 
   it("Composure adds its rank's energy to Poised, from the constant", () => {
-    withConstant("start.state", { energy: 110, comboPoints: 0 }, () => {
-      const h = fight({
-        "assassination.vigor": 2,
-        "combat.composure": 2,
-      });
-      assert.equal(h.rogue.energy, h.rogue.maxEnergy);
-      assert.equal(h.simulation.hasAura("poised"), true);
-      const before = h.rogue.energy;
-      h.simulation.gcd = 0;
-      h.rogue.abilities.sinisterStrike.cast(h.rogue, h.simulation);
-      const cut = k("poised").energy + k("composure.energy")[1];
-      assert.equal(
-        before - h.rogue.energy,
-        Math.max(0, k("sinisterStrike").energy - cut),
-      );
-    });
+    const h = fight({}, fromTalents({ "combat.composure": 2 }));
+    assert.equal(h.rogue.energy, h.rogue.maxEnergy);
+    assert.equal(h.simulation.hasAura("poised"), true);
+    const cut = k("poised").energy + k("composure.energy")[1];
+    assert.equal(
+      h.rogue.abilities.sinisterStrike.costNow(h.simulation),
+      k("sinisterStrike").energy - cut,
+    );
   });
 });
 

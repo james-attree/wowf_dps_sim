@@ -477,7 +477,9 @@ describe("what the carry leaves to the fields (#198)", () => {
   });
 
   // Rupture's ticks over 8 s after a run to 10 s on the Hemorrhage case,
-  // with `change` made to its entry between the two runs.
+  // with `change` made to its entry between the two runs. Poised (TR-05)
+  // makes the opener 10 energy cheaper, so the first Rupture is 1 s earlier
+  // than before that aura.
   function ruptureTicksAfter(change) {
     const { simulation } = createFight(30, structuredClone(HEMO.config), {
       duration: 120,
@@ -502,7 +504,7 @@ describe("what the carry leaves to the fields (#198)", () => {
   it("a DoT left as it was goes on with its clock", () => {
     assert.deepEqual(
       ruptureTicksAfter(() => {}),
-      [12, 14, 16, 18],
+      [11, 13, 15, 17],
     );
   });
 
@@ -511,19 +513,19 @@ describe("what the carry leaves to the fields (#198)", () => {
       assert.equal(dot.tickInterval, 2);
       dot.tickInterval = 0.5;
     });
-    assert.equal(ticks[0], 12);
-    assert.equal(ticks[1], 12.5);
-    assert.equal(ticks.length, 13);
+    assert.equal(ticks[0], 11);
+    assert.equal(ticks[1], 11.5);
+    assert.equal(ticks.length, 15);
   });
 
   it("a DoT's duration set between runs is read from the field (K9)", () => {
-    // Its next tick is at 12; with 0.25 s past that left, it is the last.
+    // Its next tick is at 11; with 0.25 s past that left, it is the last.
     const ticks = ruptureTicksAfter((dot) => {
-      assert.equal(dot.timeUntilNextTick, 2);
+      assert.equal(dot.timeUntilNextTick, 1);
       assert.ok(dot.duration > 4);
       dot.duration = dot.timeUntilNextTick + 0.25;
     });
-    assert.deepEqual(ticks, [12]);
+    assert.deepEqual(ticks, [11]);
   });
 
   it("the check poll goes on with its grid, and a step in between drops it", () => {

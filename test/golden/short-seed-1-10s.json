@@ -1,22 +1,22 @@
 {
   "seed": 1,
   "duration": 10,
-  "totalDamage": 1517.5495612609684,
-  "dps": 151.75495612609683,
+  "totalDamage": 1337.0165745856355,
+  "dps": 133.70165745856355,
   "abilities": {
-    "Main-hand": {"damage":426.0101830787564,"casts":4,"hits":0,"crits":1,"glances":1,"misses":2,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
-    "Sinister Strike": {"damage":989.654425306034,"casts":4,"hits":3,"crits":1,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
-    "Off-hand": {"damage":101.88495287617809,"casts":4,"hits":0,"crits":0,"glances":2,"misses":1,"dodges":1,"parries":0,"blocks":0,"ticks":0,"tickCrits":0}
+    "Main-hand": {"damage":438.5223702740765,"casts":4,"hits":0,"crits":1,"glances":1,"misses":2,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
+    "Sinister Strike": {"damage":789.4594301809121,"casts":4,"hits":4,"crits":0,"glances":0,"misses":0,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0},
+    "Off-hand": {"damage":109.03477413064674,"casts":4,"hits":0,"crits":0,"glances":2,"misses":2,"dodges":0,"parries":0,"blocks":0,"ticks":0,"tickCrits":0}
   },
   "log": [
-    {"id":11,"time":8,"name":"Sinister Strike","type":"skill","damage":212.1113638825696,"status":"Hit","outcome":"hit","icon":"./img/sinister_strike.jpg"},
-    {"id":10,"time":8,"name":"Off-hand","type":"weapon","damage":50.644567219152854,"status":"Glance","outcome":"glancing","icon":null},
-    {"id":9,"time":7.800000000000001,"name":"Main-hand","type":"weapon","damage":97.11840537319901,"status":"Glance","outcome":"glancing","icon":null},
+    {"id":11,"time":8,"name":"Off-hand","type":"weapon","damage":57.794388473621495,"status":"Glance","outcome":"glancing","icon":null},
+    {"id":10,"time":7.800000000000001,"name":"Main-hand","type":"weapon","damage":109.63059256851912,"status":"Glance","outcome":"glancing","icon":null},
+    {"id":9,"time":7,"name":"Sinister Strike","type":"skill","damage":179.93716823746072,"status":"Hit","outcome":"hit","icon":"./img/sinister_strike.jpg"},
     {"id":8,"time":5.5,"name":"Off-hand","type":"weapon","damage":0,"status":"Miss","outcome":"miss","icon":null},
     {"id":7,"time":5.2,"name":"Main-hand","type":"weapon","damage":328.8917777055574,"status":"Crit","outcome":"crit","icon":null},
-    {"id":6,"time":3.5,"name":"Sinister Strike","type":"skill","damage":371.7907052323692,"status":"Crit","outcome":"crit","icon":"./img/sinister_strike.jpg"},
-    {"id":5,"time":3,"name":"Off-hand","type":"weapon","damage":0,"status":"Dodge","outcome":"dodge","icon":null},
-    {"id":4,"time":2.6,"name":"Main-hand","type":"weapon","damage":0,"status":"Miss","outcome":"miss","icon":null},
+    {"id":6,"time":3,"name":"Off-hand","type":"weapon","damage":0,"status":"Miss","outcome":"miss","icon":null},
+    {"id":5,"time":2.6,"name":"Main-hand","type":"weapon","damage":0,"status":"Miss","outcome":"miss","icon":null},
+    {"id":4,"time":2.5,"name":"Sinister Strike","type":"skill","damage":203.76990575235618,"status":"Hit","outcome":"hit","icon":"./img/sinister_strike.jpg"},
     {"id":3,"time":1,"name":"Sinister Strike","type":"skill","damage":200.19499512512186,"status":"Hit","outcome":"hit","icon":"./img/sinister_strike.jpg"},
     {"id":2,"time":0.5,"name":"Off-hand","type":"weapon","damage":51.24038565702524,"status":"Glance","outcome":"glancing","icon":null},
     {"id":1,"time":0,"name":"Sinister Strike","type":"skill","damage":205.55736106597334,"status":"Hit","outcome":"hit","icon":"./img/sinister_strike.jpg"},

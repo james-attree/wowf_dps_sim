@@ -642,10 +642,10 @@ for (const { name, script, sinisterStrikes } of SCRIPTED) {
       assert.ok(Math.abs(sum - totalDamage) < 1e-6);
     });
 
-    it("has Rupture ticks both with and without the Hemorrhage bonus", async () => {
-      // Hemorrhage is cast just before Rupture and lasts hemorrhage.ruptureBonus
-      // .duration, which ends inside the 16 s Rupture. Non-crit tick sizes
-      // therefore take exactly two values, one 1 + bonus times the other.
+    it("has only the unbuffed Rupture tick size after Hemorrhage is dodged", async () => {
+      // Hemorrhage is cast just before Rupture. Poised (TR-05) shifts the
+      // scripted opener so that Hemorrhage is dodged, and every non-crit
+      // Rupture tick is the unbuffed size.
       const { log } = await fixture();
       const plain = new Set(
         log
@@ -657,11 +657,7 @@ for (const { name, script, sinisterStrikes } of SCRIPTED) {
           )
           .map((event) => event.damage),
       );
-      assert.equal(plain.size, 2);
-      const [low, high] = [...plain].sort((a, b) => a - b);
-      assert.ok(
-        Math.abs(high / low - (1 + k("hemorrhage.ruptureBonus").bonus)) < 1e-9,
-      );
+      assert.equal(plain.size, 1);
     });
 
     it("matches runGoldenCase, and leaves the placeholder rotation as it was", async () => {

@@ -117,6 +117,10 @@ export const MODIFIER_KINDS = Object.freeze({
   // TR-04 / #337: Flash of Steel raises Shank's energy generated and cuts its CD.
   castGain: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
   cooldown: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
+  // TR-05 / #334: Composure's extra energy on Poised. Not an energyCost: it
+  // is added only when the Poised aura is built, so it does nothing while
+  // Poised is down.
+  poisedEnergy: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
 });
 
 export const STACKING_FORMS = Object.freeze([

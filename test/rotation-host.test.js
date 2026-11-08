@@ -184,11 +184,9 @@ describe("rotationHost", () => {
     const { rogue, simulation } = fightWith({});
     const host = rotationHost(rogue, simulation);
     rogue.energy = 100;
+    const cost = rogue.abilitiesById.get("sinister-strike").costNow(simulation);
     host.cast("sinister-strike");
-    assert.equal(
-      rogue.energy,
-      100 - rogue.abilitiesById.get("sinister-strike").cost,
-    );
+    assert.equal(rogue.energy, 100 - cost);
     assert.ok(simulation.gcd > 0);
     assert.deepEqual(read(host.state()), rotationState(rogue, simulation, {}));
     assert.equal(host.state().duration, null);
