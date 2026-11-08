@@ -11,6 +11,8 @@ import { rotationHost } from "./rotation-host.js";
 import { expandRace, raceGrantedAbilities } from "./racials.js";
 import { applyBuild, talentGrantedAbilities } from "./talent-build.js";
 import { createResources } from "./resource.js";
+import { ABILITY_DEFINITIONS } from "./ability-data.js";
+import { AURAS } from "./auras.js";
 import { REQUIRED_AURAS } from "./required-auras.js";
 import { characterLevel } from "./levels.js";
 import { learnedAt } from "./ranks.js";
@@ -19,12 +21,25 @@ const REQUIRED_IDS = new Set(Object.values(REQUIRED_AURAS).map(({ id }) => id));
 
 // The ids of the required auras (js/required-auras.js) that one of `procs`
 // puts up with an applyAura action (Cutthroat, #271).
-function grantedAurasOf(procs) {
+function grantedAurasOf(procs, grantedAbilities) {
   const granted = new Set();
   for (const { actions } of procs) {
     for (const action of actions) {
       if (action.type === "applyAura" && REQUIRED_IDS.has(action.aura)) {
         granted.add(action.aura);
+      }
+    }
+  }
+  // An ability the build grants can open a required aura (Ghostly Strike's
+  // ambush window, TR-06 / #335). Without that ability, the set stays empty.
+  for (const definition of ABILITY_DEFINITIONS) {
+    if (!grantedAbilities.has(definition.id)) {
+      continue;
+    }
+    for (const aura of [definition.aura, definition.followUpAura]) {
+      const id = aura === undefined ? undefined : AURAS[aura.id]?.id;
+      if (id !== undefined && REQUIRED_IDS.has(id)) {
+        granted.add(id);
       }
     }
   }
@@ -151,7 +166,7 @@ export class Rogue {
     // Ambush rule is reachable; without it the set is empty and an Ambush
     // rule is passed over. It is not an option, so a host, a preset or the
     // page cannot pass one; only the procs, or a test, fill it.
-    this.grantedAuras = grantedAurasOf(this.procs);
+    this.grantedAuras = grantedAurasOf(this.procs, this.granted);
     const { character, weapons } = this.config;
     // Energy and combo points are resource pools (js/resource.js), described
     // as data in js/resource-data.js. The pools are made before the abilities,

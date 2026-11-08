@@ -16,6 +16,7 @@ import { REQUIRED_AURAS } from "../js/required-auras.js";
 import {
   allowCutthroat,
   grantCutthroat,
+  procAmbushWindow,
   procCutthroat,
 } from "./cutthroat-override.js";
 
@@ -135,7 +136,7 @@ describe("a refused Ambush spends nothing (#261)", () => {
     assert.equal(rogue.abilities.ambush.cast(rogue, simulation), null);
     assert.equal(counter.draws, 0);
     assert.equal(snapshot(fight), before);
-    assert.equal(simulation.hasAura("cutthroat"), true, "not used up");
+    assert.equal(simulation.hasAura("ambush-window"), true, "not used up");
     const host = rotationHost(rogue, simulation);
     assert.equal(host.usable("ambush"), false);
     assert.equal(host.canCast("ambush"), false);
@@ -177,12 +178,12 @@ describe("the host passes an Ambush rule over (#261)", () => {
 });
 
 describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
-  it("names the aura: Ambush requires the self aura cutthroat, with one charge", () => {
-    const aura = REQUIRED_AURAS.cutthroat;
-    assert.equal(aura.id, "cutthroat");
-    assert.equal(aura.name, "Ambush allowed");
+  it("names the aura: Ambush requires the ambush window, with one charge", () => {
+    const aura = REQUIRED_AURAS.ambushWindow;
+    assert.equal(aura.id, "ambush-window");
+    assert.equal(aura.name, "Ambush window");
     assert.equal(aura.target, "self");
-    assert.equal(aura.charges, k("cutthroat.aura").charges);
+    assert.equal(aura.charges, k("ghostlyStrike.ambushWindowCharges"));
     assert.equal(aura.charges, 1);
     assert.equal(aura.duration, null, "the granter gives the duration");
     assert.deepEqual(
@@ -195,7 +196,7 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
     for (const type of ["sword", "dagger"]) {
       const { rogue, simulation } = ready(type);
       assert.deepEqual([...rogue.grantedAuras], []);
-      assert.equal(simulation.hasAura("cutthroat"), false);
+      assert.equal(simulation.hasAura("ambush-window"), false);
     }
   });
 
@@ -212,11 +213,11 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
     assert.equal(simulation.abilityStats.ambush.casts, 1);
     assert.equal(rogue.energy, rogue.maxEnergy - k("ambush").energy);
     // Consumed: the cast used the one charge, and the aura ended.
-    assert.equal(simulation.hasAura("cutthroat"), false);
-    assert.equal(Object.hasOwn(simulation.activeBuffs, "cutthroat"), false);
+    assert.equal(simulation.hasAura("ambush-window"), false);
+    assert.equal(Object.hasOwn(simulation.activeBuffs, "ambush-window"), false);
     assert.deepEqual(
       events
-        .filter(({ aura }) => aura === "cutthroat")
+        .filter(({ aura }) => aura === "ambush-window")
         .map(({ change, reason }) => [change, reason]),
       [
         ["apply", null],
@@ -247,7 +248,7 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
     assert.ok(result);
     assert.equal(result.landed, false);
     assert.equal(result.outcome, "miss");
-    assert.equal(simulation.hasAura("cutthroat"), false);
+    assert.equal(simulation.hasAura("ambush-window"), false);
   });
 
   it("a cast refused for something else (energy) leaves the aura up", () => {
@@ -255,7 +256,7 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
     grantCutthroat(rogue, simulation);
     rogue.energy = 0;
     assert.equal(rogue.abilities.ambush.cast(rogue, simulation), null);
-    assert.equal(simulation.hasAura("cutthroat"), true);
+    assert.equal(simulation.hasAura("ambush-window"), true);
   });
 
   it("granted, in a rotation: an Ambush rule casts while the aura is up, then is passed over, not pooled for", () => {
@@ -285,7 +286,7 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
     });
     // Up again (a new proc): the rule holds the walk as any other, casting or
     // pooling for its energy.
-    procCutthroat(simulation);
+    procAmbushWindow(simulation);
     simulation.gcd = 0;
     rogue.energy = 0;
     assert.equal(host.ready("ambush"), true);
@@ -328,7 +329,7 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
       );
       const casts = [];
       fight.simulation.on("cast", ({ ability }) => {
-        casts.push([ability, fight.simulation.hasAura("cutthroat")]);
+        casts.push([ability, fight.simulation.hasAura("ambush-window")]);
       });
       setup(fight);
       fight.simulation.run(120);
@@ -355,7 +356,7 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
         if (ability === "backstab") {
           backstabs += 1;
           if (backstabs % 3 === 0) {
-            procCutthroat(simulation, 10);
+            procAmbushWindow(simulation, 10);
           }
         }
       });
@@ -381,8 +382,12 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
     const order = [];
     simulation.on("*", (event) => {
       if (event.type === "cast") {
-        order.push(["cast", event.ability, simulation.hasAura("cutthroat")]);
-      } else if (event.type === "aura" && event.aura === "cutthroat") {
+        order.push([
+          "cast",
+          event.ability,
+          simulation.hasAura("ambush-window"),
+        ]);
+      } else if (event.type === "aura" && event.aura === "ambush-window") {
         order.push(["aura", event.change, event.reason]);
       }
     });
@@ -395,27 +400,27 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
 
   it("the aura up but not granted: a cast goes ahead, and a rotation rule is still passed over", () => {
     const { rogue, simulation } = ready("dagger");
-    simulation.applyAura(REQUIRED_AURAS.cutthroat, { duration: 10 });
+    simulation.applyAura(REQUIRED_AURAS.ambushWindow, { duration: 10 });
     const host = rotationHost(rogue, simulation);
     assert.equal(host.usable("ambush"), false);
     assert.ok(rogue.abilities.ambush.cast(rogue, simulation));
   });
 
   it("is in the AURAS registry, so auraActive and the labels see it, and nothing reads it as Stealth", () => {
-    assert.equal(AURAS.cutthroat, REQUIRED_AURAS.cutthroat);
-    const condition = { type: "auraActive", aura: "cutthroat" };
+    assert.equal(AURAS.ambushWindow, REQUIRED_AURAS.ambushWindow);
+    const condition = { type: "auraActive", aura: "ambush-window" };
     const program = {
       schemaVersion: 1,
-      name: "Ambush while Cutthroat is up",
+      name: "Ambush while the window is up",
       rules: [{ action: "ambush", conditions: [condition] }],
     };
     assert.deepEqual(validateRotation(program), []);
-    assert.equal(summarizeCondition(condition), "Ambush allowed is up");
+    assert.equal(summarizeCondition(condition), "Ambush window is up");
     const { rogue, simulation } = ready("dagger");
     const read = () =>
       Object.hasOwn(
         rotationStateReader(rogue, simulation)().auras,
-        "cutthroat",
+        "ambush-window",
       );
     assert.equal(read(), false);
     grantCutthroat(rogue, simulation);
@@ -441,7 +446,7 @@ describe("the requirements are data (#261)", () => {
       ABILITY_DEFINITIONS.filter(
         (definition) => definition.requiresAura !== undefined,
       ).map((definition) => [definition.id, definition.requiresAura]),
-      [["ambush", ["cutthroat"]]],
+      [["ambush", ["ambush-window"]]],
     );
     const ambush = ABILITY_DEFINITIONS.find(({ id }) => id === "ambush");
     assert.equal(ambush.requiresMainHand, "dagger");
@@ -668,7 +673,7 @@ describe("the requirements are data (#261)", () => {
   it("the ambush constants note says what is enforced", () => {
     const { note, source } = CONSTANTS.ambush;
     assert.match(note, /dagger in the main hand/);
-    assert.match(note, /cutthroat aura/);
+    assert.match(note, /ambush window/);
     assert.doesNotMatch(
       note,
       /Stealth, dagger, and behind requirements are not enforced/,
@@ -676,12 +681,15 @@ describe("the requirements are data (#261)", () => {
     assert.equal(source, CONSTANTS.backstab.source);
   });
 
-  it("the aura's one charge is an assumption, read from Cutthroat's \"your next Ambush\"", () => {
-    const row = CONSTANTS["cutthroat.aura"];
-    assert.deepEqual(row.value, { charges: 1 });
+  it("the window's one charge is a team assumption, from Ghostly Strike's \"your next\"", () => {
+    const row = CONSTANTS["ghostlyStrike.ambushWindowCharges"];
+    assert.equal(row.value, 1);
     assert.equal(row.source, "assumption");
     assert.equal(row.retune, true);
-    assert.match(row.ref, /Cutthroat/);
+    assert.match(row.ref, /Team assumption/);
+    assert.match(row.ref, /Not a ruling by James/);
+    assert.equal(CONSTANTS["ghostlyStrike.ambushWindow"].value, 7);
+    assert.equal(CONSTANTS["ghostlyStrike.ambushWindow"].source, "wowf-export");
     assert.equal(CONSTANTS["stealth.aura"], undefined);
   });
 });

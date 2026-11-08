@@ -112,6 +112,12 @@ export const MODIFIER_KINDS = Object.freeze({
   critDamage: Object.freeze({ scope: EVERY_SCOPE, floor: 1 }),
   haste: Object.freeze({ scope: NO_SCOPE }),
   duration: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
+  // TR-06 / #335: Blood Splatter's +6 s on Rupture. Flat seconds, not the
+  // percent form Improved Slice and Dice uses. Order is bloodSplatter.apply.
+  flatDuration: Object.freeze({
+    scope: Object.freeze(["abilities"]),
+    floor: 0,
+  }),
   poisonChance: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
   comboRefund: Object.freeze({ scope: Object.freeze(["abilities"]), floor: 0 }),
   // TR-04 / #337: Flash of Steel raises Shank's energy generated and cuts its CD.

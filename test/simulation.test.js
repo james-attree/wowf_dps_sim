@@ -387,6 +387,7 @@ describe("player buffs and target debuffs", () => {
 
     assert.deepEqual(Object.keys(sim.activeBuffs).sort(), [
       "adrenaline-rush",
+      "ambush-window",
       "blade-flurry",
       "ghostly-strike",
       "slice-and-dice",

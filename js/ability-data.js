@@ -170,6 +170,11 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     gain: COMBO_POINTS,
     damage: { kind: "weapon", multiplier: "weaponMultiplier" },
     aura: { id: "ghostlyStrike", duration: { field: "duration" } },
+    // Landed only, with the dodge buff (TR-06 / #335). Garrote is not cast.
+    followUpAura: {
+      id: "ambushWindow",
+      duration: { row: "ghostlyStrike.ambushWindow" },
+    },
   },
   {
     key: "backstab",
@@ -193,7 +198,7 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     requiresMainHand: "dagger",
     // Any one aura of the list up allows the cast; the first listed that is up
     // pays one charge, or nothing when it has none (js/required-auras.js).
-    requiresAura: ["cutthroat"],
+    requiresAura: ["ambush-window"],
     cost: ENERGY,
     gain: COMBO_POINTS,
     damage: {

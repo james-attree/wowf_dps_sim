@@ -10,7 +10,6 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 
 **Pending (later TR issues):**
 
-- TR-06 / #335 — Ghostly Strike Ambush window, Hemorrhage Rupture/Garrote taken, Blood Splatter, Mutilate poisoned bonus polish
 - TR-07 / #336 — Death Mark finisher; Coup de Grace Death Mark storage/damage part
   Removed from the tree (effects retired): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. Venom is no longer a finisher ability.
 
@@ -27,6 +26,15 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 - **Poised** is a baseline passive. `k("poised.atPull")` `"when energy is full"` (team assumption, not a ruling by James) puts the aura up when the fight is built if energy is already at its cap. A start of 100 with Vigor's 110 is not full, so Poised stays down. The next ability that pays energy costs `k("poised").energy` less (10) and spends the charge, hit or miss. Any other `poised.atPull` value leaves it down.
 - **Composure** is a `poisedEnergy` modifier, `k("composure.energy")` 5/10, added to that reduction when the aura is built. It does not change costs while Poised is down.
 - No new preset and no Death Mark condition. `LINK_BASES` is unchanged.
+
+### Ghostly Strike window, Hemorrhage, Blood Splatter, Mutilate (TR-06 / #335)
+
+- **Ambush** requires the self aura `ambush-window` (`ghostlyStrike.ambushWindow`, 7 s, wowf-export). A landed Ghostly Strike opens it. One charge (`ghostlyStrike.ambushWindowCharges`, team assumption from "your next", not a ruling by James) is used by the Ambush that goes ahead, hit or miss. A miss opens nothing. The dodge buff stays up. Garrote is not simulated. The removed Cutthroat talent is not the gate. Without Ghostly Strike granted, an Ambush rule is passed over.
+- **Dagger percents.** Ghostly Strike 180% and Hemorrhage 145% are `assumption` rows James accepted on 8 Nov 2026 (export `fx`: the 2 Nov notes give no new number). The non-dagger percents stay the export's 125% and 100%.
+- **Hemorrhage** still adds `k("hemorrhage.ruptureBonus").bonus` to Rupture ticks only. The export also names Garrote; that half is inert.
+- **Blood Splatter** adds `k("bloodSplatter").rupture` (6 s) to Rupture through `flatDuration`. `k("bloodSplatter.apply")` `"after percent"` (team assumption, not a ruling by James) adds those seconds after percent duration modifiers. Any other value adds them first. A length of 0 stays 0. James, 8 Nov 2026, 23:28 UK, relayed by Scout: the extra seconds are full-strength ticks and the total rises (`k("bloodSplatter.ticks")` `"full strength"`). The tooltip total is still split across the tick count of the length before those flat seconds, so a percent duration modifier still changes that tick. Any other `bloodSplatter.ticks` value splits the same total across the final length. The export's +9 s Garrote is recorded and not applied.
+- **Mutilate** stays 90% weapon damage. The flat per hand is 36/51/71 by rank (`mutilate.bonusByRank`, wowf-export, not an assumption). The poisoned ×1.2 still requires Deadly Poison.
+- No new preset and no Death Mark condition. `LINK_BASES` is unchanged. Venom's tick rule is unchanged: the bonus applies to Deadly Poison ticks only while the aura is up.
 
 How the engine on `main` resolves attacks, resources, and time. Every
 formula names a constant id from [`data/constants.js`](../data/constants.js).
@@ -895,17 +903,21 @@ rotation does not create one; the poison procs do. See Poisons.
 
 `Simulation.resolveDotAttack` rolls the application as a skill with a zero
 crit chance, so the application cannot crit. The log event for that cast
-records no damage. The tick count is the duration divided by
-`k("rupture.tickInterval")`, floored. That interval is `classic-1.12` and on
+records no damage. The ticks that fire are `floor(duration / k("rupture.tickInterval"))`. That interval is `classic-1.12` and on
 the retune list. The note says the dot applicator uses it for every DoT.
-When the attack landed, the floored damage is positive, and the tick count
-is positive, the sim stores
+The tooltip total is split across `floor(splitDuration / interval)` instead.
+`splitDuration` is the aura length, except for Blood Splatter: James, 8 Nov
+2026, 23:28 UK, relayed by Scout, ruled that the flat seconds add
+full-strength ticks (`k("bloodSplatter.ticks")`), so the split uses the
+length before those seconds. A percent `duration` modifier stays inside the
+split. When the attack landed, the floored damage is positive, and that
+split count is positive, the sim stores
 
-`tickDamage = floored application damage / tick count`
+`tickDamage = floored application damage / split tick count`
 
 with `timeUntilNextTick` set to one interval. That division splits the
 whole-DoT total, including the `k("rupture.apByCP")` term, evenly across
-the ticks. Otherwise no dot is stored.
+the split ticks. The extra Blood Splatter ticks repeat that amount. Otherwise no dot is stored.
 `k("dot.snapshot")` (`classic-1.12`, on the retune list) says Rupture damage
 is fixed when the cast resolves. The stored `tickDamage` is that snapshot.
 The per-tick crit roll is not part of it.
@@ -940,8 +952,9 @@ n-th at the cast time plus n intervals. Each tick:
 5. Add the result to the damage total. Tick damage is not floored here.
 
 Every tick deals a full tick. The dot is removed when its time left is at
-or below `k("sim.tickEpsilon")`. A cast DoT has `floor(duration / interval)`
-ticks, the count its damage is split over.
+or below `k("sim.tickEpsilon")`. A cast DoT schedules `floor(duration / interval)`
+ticks. Its damage is split over `floor(splitDuration / interval)`, which is
+the same count except when Blood Splatter adds full-strength ticks.
 
 Before its ticks, each DoT's `tickInterval` is checked (#193). One that is not
 a finite number above 0 throws a `RangeError` naming the DoT, for example
@@ -3462,8 +3475,8 @@ value, tagged `assumption` in `data/constants.js`.
 
 - **Opportunity.** An unconditional `damage` add, so it sums with the other
   adds (Aggression, Murder) in the percent form. Garrote has no engine
-  definition and Ambush is cast only under the cutthroat aura, which only
-  Cutthroat grants (#271), so without Cutthroat it is Backstab and Mutilate.
+  definition and Ambush is cast only inside Ghostly Strike's ambush window
+  (TR-06 / #335), so without Ghostly Strike it is Backstab and Mutilate.
 - **Serrated Blades.** The armor ignore takes its share of the armor left
   after the flat reductions (see the armor order under Venom and Expose
   Armor). The Rupture bonus is a damage modifier, so it is read once, when
@@ -3851,17 +3864,17 @@ presets do not cast Backstab, so no default fight moves. Mutilate needs a
 dagger in both hands (#267, see "Mutilate"). The behind requirements are not
 enforced.
 
-**Ambush needs a dagger and the Ambush allowed aura** (#261). The Ambush row
+**Ambush needs a dagger and Ghostly Strike's ambush window** (TR-06 / #335; the hook is #261). The Ambush row
 in `js/ability-data.js` has `requiresMainHand: "dagger"`, as Backstab does, and
-`requiresAura: ["cutthroat"]`. That aura, labelled "Ambush allowed", stands in
+`requiresAura: ["ambush-window"]`. That aura, labelled "Ambush window", stands in
 for "Requires Stealth" (rogue.json → spell_desc[Rogue|Ambush|Rank 6]:
 "Requires Stealth", "Requires Daggers"). The sim models no stealth (no stealth
-openers: James, issue #261), and only the Cutthroat talent's Backstab proc
-grants the aura (#271, below), so without Cutthroat Ambush is never cast, on
+openers: James, issue #261). A landed Ghostly Strike opens the window for 7 s
+with one charge, so without Ghostly Strike granted Ambush is never cast, on
 a dagger or a sword. `Ability.canCast` and
 `Ability.cast` check the main hand and the aura before anything else: a refused
 Ambush tells no cast, spends no energy or combo points, starts no cooldown or
-GCD and draws no number. Without Cutthroat nothing grants the aura, so the host's `usable` is
+GCD and draws no number. Without Ghostly Strike nothing grants the aura, so the host's `usable` is
 false (`Ability.auraReachable`), and the interpreter passes over an Ambush rule
 as it does a Backstab rule on a sword ([rotation](rotation.md)). A rotation may
 still hold an Ambush rule, and no warning is given for it (the coordinator's

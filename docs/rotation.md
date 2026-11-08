@@ -931,12 +931,12 @@ of Slice and Dice (rule 7) instead.
   There is no weapon-type condition: the host's `usable` answers it from the
   fight's main hand, so the same list works on daggers and on a sword. The
   validator does not know the weapon.
-- An Ambush rule casts only with Cutthroat: Ambush needs a dagger and the
-  "Ambush allowed" aura (id `cutthroat`, standing in for Stealth), and the sim
-  models no stealth (#261, see [mechanics](mechanics.md)). Only the Cutthroat
-  talent grants the aura, for 10 s after a Backstab proc (#271). Without
-  Cutthroat the host's `usable` is false for it on any weapon, so it is passed
-  over in the same way. With Cutthroat, the rule is passed over while the aura
+- An Ambush rule casts only after Ghostly Strike: Ambush needs a dagger and the
+  ambush window (id `ambush-window`, standing in for Stealth), and the sim
+  models no stealth (#261, TR-06 / #335, see [mechanics](mechanics.md)). A landed
+  Ghostly Strike opens the window for 7 s and one charge. Without Ghostly Strike
+  the host's `usable` is false for it on any weapon, so it is passed
+  over in the same way. With Ghostly Strike, the rule is passed over while the window
   is down and cast while it is up (on a dagger). A
   rotation may still hold an Ambush rule: the validator and the warnings say
   nothing about it. Mutilate needs a dagger in both hands (#267): with any

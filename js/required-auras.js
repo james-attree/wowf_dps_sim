@@ -35,7 +35,11 @@ import { AURAS } from "./auras.js";
 // stealthed.
 
 // The auras that exist only to allow an ability, by key.
-export const REQUIRED_AURAS = Object.freeze({ cutthroat: AURAS.cutthroat });
+export const REQUIRED_AURAS = Object.freeze({
+  ambushWindow: AURAS.ambushWindow,
+  // The removed Cutthroat gate. Generic tests still name it. Ambush does not.
+  cutthroat: AURAS.cutthroat,
+});
 
 const SELF_AURA_IDS = new Set(
   Object.values(AURAS)

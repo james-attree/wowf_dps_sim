@@ -144,14 +144,13 @@ describe("Backstab needs a dagger", () => {
       const unusable = ABILITY_DEFINITIONS.map(({ id }) => id).filter(
         (id) => !host.usable(id),
       );
-      // Ambush needs the cutthroat aura, which nothing in the fight grants
-      // (#261), and Mutilate a dagger in both hands, which the default off
-      // hand is not (#267).
+      // Every talent is granted, including Ghostly Strike, so the ambush
+      // window can come up (TR-06 / #335) and Ambush is usable on a dagger.
+      // Mutilate still needs a dagger in both hands, which the default off
+      // hand is not (#267). Off a dagger, Backstab and Ambush are not usable.
       assert.deepEqual(
         unusable,
-        type === "dagger"
-          ? ["ambush", "mutilate"]
-          : ["backstab", "ambush", "mutilate"],
+        type === "dagger" ? ["mutilate"] : ["backstab", "ambush", "mutilate"],
         type,
       );
     }

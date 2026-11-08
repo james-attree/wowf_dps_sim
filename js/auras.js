@@ -321,6 +321,14 @@ export const AURAS = Object.freeze({
     name: "Ghostly Strike",
     duration: k("ghostlyStrike").duration,
   }),
+  // The Ambush gate (TR-06 / #335). A landed Ghostly Strike applies it for
+  // ghostlyStrike.ambushWindow seconds. One charge (the "next" cast). It is
+  // not Stealth. Garrote is not simulated.
+  ambushWindow: defineAura({
+    id: "ambush-window",
+    name: "Ambush window",
+    charges: k("ghostlyStrike.ambushWindowCharges"),
+  }),
   // Cold Blood: the next attack of the listed abilities crits for sure, then
   // the aura is gone. The crit is a flat add to the crit chance, scoped to the
   // abilities of the talent text; the one charge is used by the first of them

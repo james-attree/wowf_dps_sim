@@ -75,7 +75,7 @@ function fight({ seed, config, options, everything, cutthroat }) {
     rogue.castRotation = (sim) => {
       // Ambush uses up the cutthroat aura, so the test-only override puts it
       // back before every decision (#261).
-      if (cutthroat && !sim.hasAura("cutthroat")) {
+      if (cutthroat && !sim.hasAura("ambush-window")) {
         grantCutthroat(rogue, sim);
       }
       castEverything(rogue, sim, order);
@@ -235,10 +235,12 @@ describe("generic executor", () => {
       assert.deepEqual(rogue.abilities.sliceAndDice.resolve(), {
         damage: 0,
         duration: 0,
+        splitDuration: 0,
       });
       assert.deepEqual(rogue.abilities.rupture.resolve(), {
         damage: 0,
         duration: 0,
+        splitDuration: 0,
       });
     }
     rogue.comboPoints = 6;
