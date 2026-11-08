@@ -22,8 +22,16 @@ import { spellIconUrl } from "./icons.js";
 // slugify(name)). Its name is read from the catalogue for display: the page,
 // the combat log and the result's per-ability breakdown. Nothing compares it.
 
+// James, 8 Nov 2026, #335: the dagger percents are assumptions. The export
+// object still holds the printed 180% and 145% for the catalogue check.
+const DAGGER_ASSUMPTION = {
+  ghostlyStrike: "ghostlyStrike.daggerMultiplier",
+  hemorrhage: "hemorrhage.daggerMultiplier",
+};
+
 // A weapon multiplier is one number, or { dagger, other } by the main-hand
-// type. Only the config's weapon type decides it.
+// type. Only the config's weapon type decides it. Ghostly Strike and
+// Hemorrhage read the dagger percent from the assumption row.
 function weaponMultiplier(value, rogue) {
   if (typeof value === "number") {
     return value;
@@ -142,7 +150,17 @@ export class Ability {
     // The row at the rogue's level (#290, js/ranks.js): k(definition.row)
     // itself at a level with the top rank, a rank's numbers below it.
     const stats = rankedStats(definition.row, rogue?.level);
-    this.stats = stats;
+    const daggerRow = DAGGER_ASSUMPTION[definition.row];
+    this.stats =
+      daggerRow === undefined
+        ? stats
+        : {
+            ...stats,
+            weaponMultiplier: {
+              ...stats.weaponMultiplier,
+              dagger: k(daggerRow),
+            },
+          };
     this.definition = definition;
     this.rogue = rogue;
     this.id = definition.id;
@@ -273,9 +291,19 @@ export class Ability {
     if (length?.field !== undefined) {
       this.duration =
         length.row === undefined
-          ? stats[length.field]
+          ? this.stats[length.field]
           : k(length.row)[length.field];
     }
+    // A second aura a landed cast puts up (Ghostly Strike's ambush window,
+    // TR-06 / #335). Its length is not the ability's duration modifiers.
+    const follow = definition.followUpAura;
+    this.followUp = follow === undefined ? null : AURAS[follow.id];
+    this.followUpDuration =
+      follow?.duration?.row === undefined
+        ? 0
+        : follow.duration.field === undefined
+          ? k(follow.duration.row)
+          : k(follow.duration.row)[follow.duration.field];
   }
 
   // The resource pool an id names on the host. An id the host has no pool for
@@ -312,7 +340,32 @@ export class Ability {
       duration =
         spent >= 1 && spent <= durations.length ? durations[spent - 1] : 0;
     }
-    duration = rogue.modifiers.resolve("duration", duration, this.costContext);
+    // Percent duration (Improved Slice and Dice), then flat seconds (Blood
+    // Splatter) when bloodSplatter.apply is "after percent". Any other value
+    // adds the seconds first. A length of 0 stays 0.
+    if (duration > 0) {
+      const flat = rogue.modifiers.resolve("flatDuration", 0, this.costContext);
+      if (k("bloodSplatter.apply") === "after percent") {
+        duration = rogue.modifiers.resolve(
+          "duration",
+          duration,
+          this.costContext,
+        );
+        duration += flat;
+      } else {
+        duration = rogue.modifiers.resolve(
+          "duration",
+          duration + flat,
+          this.costContext,
+        );
+      }
+    } else {
+      duration = rogue.modifiers.resolve(
+        "duration",
+        duration,
+        this.costContext,
+      );
+    }
     const spec = definition.damage;
     if (spec === undefined) {
       return { damage: 0, duration };
@@ -591,6 +644,13 @@ export class Ability {
           icon: this.icon,
           source: this.id,
           ...(this.stacksBySpent ? { stacks: spent } : {}),
+        });
+      }
+      if (this.followUp !== null && this.followUpDuration > 0) {
+        simulation.applyAura(this.followUp, {
+          duration: this.followUpDuration,
+          icon: this.icon,
+          source: this.id,
         });
       }
 

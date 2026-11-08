@@ -75,7 +75,7 @@ function fight({ seed, config, options, everything, cutthroat }) {
     rogue.castRotation = (sim) => {
       // Ambush uses up the cutthroat aura, so the test-only override puts it
       // back before every decision (#261).
-      if (cutthroat && !sim.hasAura("cutthroat")) {
+      if (cutthroat && !sim.hasAura("ambush-window")) {
         grantCutthroat(rogue, sim);
       }
       castEverything(rogue, sim, order);

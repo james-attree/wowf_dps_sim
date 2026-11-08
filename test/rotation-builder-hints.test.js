@@ -58,7 +58,7 @@ describe("the pooling hint names the requirements the engine has", () => {
 
   it("Ambush has no hint at all: no chip, no long text, no dagger sentence", () => {
     assert.equal(poolingHint("ambush"), null);
-    assert.deepEqual(abilityFacts("ambush").auras, ["cutthroat"]);
+    assert.deepEqual(abilityFacts("ambush").auras, ["ambush-window"]);
   });
 
   it("keeps the waiting hint for an on-GCD ability with no aura to wait on", () => {
@@ -91,8 +91,8 @@ describe("the pooling hint names the requirements the engine has", () => {
     assert.match(rule.body.hint, new RegExp(DAGGER));
   });
 
-  it("Ambush allowed is still among the auras a condition can name", () => {
-    assert.equal(AURAS.cutthroat.name, "Ambush allowed");
-    assert.equal(auraName("cutthroat"), "Ambush allowed");
+  it("Ambush window is among the auras a condition can name", () => {
+    assert.equal(AURAS.ambushWindow.name, "Ambush window");
+    assert.equal(auraName("ambush-window"), "Ambush window");
   });
 });

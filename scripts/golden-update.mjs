@@ -81,8 +81,8 @@ function deepFreeze(value) {
 // Issue #266 (P4.6-03), retuned for TR-02 / #332 (1.60.1.70755): Murder,
 // Improved Sinister Strike and Improved Eviscerate are gone; Lethality is
 // max 2, Seal Fate max 3, Relentless Strikes max 5. Points fill Coup de
-// Grace, Efficient Strikes and Precision instead. Blood Splatter is pending
-// (TR-07) but legal to spend.
+// Grace, Efficient Strikes and Precision instead. Blood Splatter adds 6 s to
+// Rupture (TR-06 / #335).
 export const ASSASSINATION_BUILD = deepFreeze({
   "assassination.improved-gouge": 3,
   "assassination.remorseless-attacks": 2,

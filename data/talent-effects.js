@@ -59,8 +59,9 @@ import { k } from "./constants.js";
 // unlimited), Seal Fate (an onCrit proc on the combo point builders, A8) and
 // Murder was removed in the 3 Nov / 70755 rework (TR-02 / #332). Remorseless
 // Attacks and Improved Kidney Shot have no DPS effect. New 70755 talents that
-// need engine work are marked `pending` until TR-06 and TR-07. Venom and
-// Composure are mapped (TR-05 / #334).
+// need engine work are marked `pending` until TR-07. Venom and Composure are
+// mapped (TR-05 / #334). Blood Splatter's Rupture seconds are mapped
+// (TR-06 / #335); its Garrote seconds are inert.
 
 const RAW = {
   "assassination.improved-gouge": {
@@ -153,8 +154,14 @@ const RAW = {
   "assassination.blood-splatter": {
     textHash:
       "6d86c1fb8bffdb133105cd9f51935958f62f9bd9daf264fa109290f36780b14b",
-    pending:
-      "TR-06 / #335: +6 s Rupture / +9 s Garrote duration (Blood Splatter).",
+    modifiers: [
+      {
+        kind: "flatDuration",
+        op: "add",
+        values: [k("bloodSplatter").rupture],
+        scope: { abilities: ["rupture"] },
+      },
+    ],
   },
   "assassination.lethality": {
     textHash:
@@ -587,7 +594,6 @@ const RAW = {
   "subtlety.ghostly-strike": {
     textHash:
       "710845f74a092462f5a6c14f27c0d0f61a43c21cf7ef78f999dc2f1d02c1fbc3",
-    // Ambush/Garrote window without Stealth is TR-06 / #335.
     ability: "ghostly-strike",
   },
   "subtlety.quick-getaway": {
@@ -610,7 +616,6 @@ const RAW = {
   "subtlety.hemorrhage": {
     textHash:
       "6358b8fdbde842219d4e8370e80858c08e8141efa537ca9e83797d4bd516f885",
-    // +15% Rupture/Garrote taken is TR-06 / #335.
     ability: "hemorrhage",
   },
   "subtlety.boot-knife": {

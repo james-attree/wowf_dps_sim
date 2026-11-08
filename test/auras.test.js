@@ -122,7 +122,12 @@ describe("aura definitions", () => {
         assert.equal(abilityCatalogue.get(aura.id), undefined);
         continue;
       }
-      if (key === "venom" || key === "cutthroat" || key === "thousandCuts") {
+      if (
+        key === "venom" ||
+        key === "cutthroat" ||
+        key === "ambushWindow" ||
+        key === "thousandCuts"
+      ) {
         // #332 / 70755: Venom, Cutthroat and Thousand Cuts are pending or
         // removed; their aura ids stay for later TR work but are not abilities.
         assert.equal(abilityCatalogue.get(aura.id), undefined);
