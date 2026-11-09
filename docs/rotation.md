@@ -55,7 +55,20 @@ on `Rogue.abilities` (`sinisterStrike`), which `data/constants.js` rows such as
 `rotation.priority` use. The ids of the rogue abilities are `premeditation`,
 `sinister-strike`, `eviscerate`, `adrenaline-rush`, `slice-and-dice`,
 `ghostly-strike`, `backstab`, `ambush`, `blade-flurry`, `rupture`,
-`hemorrhage`, `cold-blood` and `preparation` (#270).
+`hemorrhage`, `cold-blood` and `preparation` (#270). TR-08
+([#338](https://github.com/james-attree/wowf_dps_sim/issues/338)) adds
+`shank` and `death-mark` to the actions a rule may cast. No new condition
+type is added. Cooldowns use `cooldownReady`. The self auras `venom`,
+`poised` and `ambush-window` use `auraActive` and `auraRemaining`. The
+target debuff `death-mark` uses `debuffActive`, `debuffRemaining` and
+`debuffStacks`. There is no `deathMarkStored` condition (James, 5 Nov 2026,
+issue #338). A Shank rule with no `cooldownReady` is the existing
+`cooldownNotChecked` warning. The validator and the warnings do not know
+whether the fight has an off-hand weapon: Shank strikes with the off hand,
+and a missing off hand is not a warning code. An Ambush rule with no
+Ghostly Strike in the build is passed over by the host (`usable` is false);
+the warnings still say nothing about Ambush, as they did for the old
+Cutthroat gate.
 
 ## The four decisions
 
