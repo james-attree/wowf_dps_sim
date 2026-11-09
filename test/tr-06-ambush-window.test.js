@@ -67,8 +67,8 @@ describe("TR-06 Ghostly Strike ambush window (#335)", () => {
     ]) {
       assert.equal(CONSTANTS[id].source, "assumption");
       assert.equal(CONSTANTS[id].retune, true);
-      assert.match(CONSTANTS[id].ref, /James, 8 Nov 2026, issue #335/);
-      assert.match(CONSTANTS[id].ref, /Tagged assumption/);
+      assert.match(CONSTANTS[id].ref, /James, 5 Nov 2026, issue #335/);
+      assert.match(CONSTANTS[id].ref, /assumption \(accepted by James 5 Nov\)/);
     }
     assert.equal(k("ghostlyStrike.daggerMultiplier"), 1.8);
     assert.equal(k("hemorrhage.daggerMultiplier"), 1.45);

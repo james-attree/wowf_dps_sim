@@ -26,13 +26,16 @@ wrap-up, and the phase ends with a review by James. Phase 3.5, an event-queue
 engine, is [a proposal](docs/phase-3.5-engine-rewrite.md). Combat is the first
 spec. A fight is `runFight` with an
 optional SimConfig: weapons, a talent build (51 points, validated), a
-poison per hand, and a rotation. With no config `runFight` runs, and the page
-starts with, the placeholder
+poison per hand, and a rotation. With no config `runFight` runs the placeholder
 Combat rotation (`config.rotation`, `js/rotation-default.js`, cast by
 `js/rotation-interpreter.js`): Blade Flurry, Adrenaline Rush, then at the
 finisher combo points Slice and Dice when it has less than 1 s left, or 5 s or
-less with full energy (the combat-swords preset's rules from #122 to #310, #173), else Cold Blood
-when the build grants it and Eviscerate; otherwise Sinister Strike. A rotation
+less with full energy (the old combat-swords rules from #122 to #310, #173), else Cold Blood
+when the build grants it and Eviscerate; otherwise Sinister Strike. The page
+does not start there. `pageDefaultConfig()` is the temporary Combat swords
+preset (`combat-swords-temp`, 1.60.1.70755): Instant Poison on the main hand,
+Deadly Poison on the off hand, and Shank when energy is below 50. `dataVersion`
+is `2026-11-04+1.60.1.70755`. A rotation
 that casts Cold Blood must say "when granted" (`abilityGranted`), or the
 validator rejects it (#173); since #188 every ability a talent grants needs its
 guard, and Blade Flurry, Adrenaline Rush and (since #207) Ghostly Strike,
@@ -40,9 +43,8 @@ Hemorrhage and Premeditation may use `abilityUnlocked` instead. With no talents
 picked the fight is untalented (#199): the sim casts none of the abilities a
 talent grants unless the host grants it, so the default fight casts no Blade
 Flurry, Adrenaline Rush or Cold Blood.
-The page's first fight adds Instant Poison on the main hand and Deadly Poison
-on the off hand (`pageDefaultConfig()`, #152); `runFight`'s default has no
-poisons, so the goldens do not move. The page's "Fight setup" form (Phase 3)
+`runFight`'s default has no poisons, so the goldens that omit a config do not
+move. The page's "Fight setup" form (Phase 3)
 edits the stats, weapons, talents, rotation and poisons. The
 [roadmap](docs/roadmap.md#phase-3-status) has the Phase 3 issue list, the exit
 criteria and what is left open for review, and
@@ -591,7 +593,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   and Deadly Poison in `poisons` add procs (A5, #105); a selected talent build is validated and applied (D7, #106). See
   [SimConfig](docs/mechanics.md#simconfig).
 - `js/data-version.js` — The data version (D11): `dataVersion`, a string
-  `<generated>+<build>` such as `2026-10-30+1.60.1.70630`, read from
+  `<generated>+<build>`, currently `2026-11-04+1.60.1.70755`, read from
   `data/talentsforever/manifest.json`. `buildDataVersion(manifest)` validates a
   manifest. Every `runFight` result carries it.
 - `js/rogue.js` — Energy, combo points, crit, hit, weapons, abilities, the
@@ -627,7 +629,9 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   or DOM. See [Rotation as data](docs/rotation.md#import-and-export).
 - `js/ability-data.js` — The abilities the engine casts, as data (D2):
   Sinister Strike, Eviscerate, Premeditation, Adrenaline Rush, Slice and Dice,
-  Ghostly Strike, Backstab, Ambush, Blade Flurry, Rupture, and Hemorrhage. Each
+  Ghostly Strike, Backstab, Ambush, Mutilate, Blade Flurry, Rupture, Hemorrhage,
+  Shank, Expose Armor, Preparation, Death Mark, Cold Blood and the on-use
+  racials. Each
   entry names its catalogue `id`, the constants row with its numbers, its icon,
   what it costs, gains and spends (each by resource id), its damage formula (`weapon`,
   `finisherRoll` or `dot`) and the aura it applies. It holds no number and no
