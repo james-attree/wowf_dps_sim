@@ -16,6 +16,18 @@ import { abilityGroups } from "../js/rotation-builder-copy.js";
 import { CONDITION_TYPES } from "../js/rotation-conditions.js";
 import { castableAbilities } from "../js/rotation-edit.js";
 import { startCards } from "../js/start-preset.js";
+
+// Prefix only. TR-10 appends one LINK_BASES entry per new share link and
+// does not edit this list.
+const SHIPPED_LINK_BASES = [
+  "defaults",
+  "combat-swords",
+  "assassination-daggers",
+  "subtlety-daggers",
+  "combat-daggers",
+  "combat-swords-temp",
+  "combat-swords-temp-337",
+];
 import { expandTalents } from "../js/talent-build.js";
 
 const optionText = (groups) =>
@@ -51,19 +63,11 @@ describe("TR-09 builder pickers and start cards (#339)", () => {
     );
   });
 
-  it("does not change the short-link bases", () => {
-    assert.deepEqual(
-      LINK_BASES.map((base) => base.id),
-      [
-        "defaults",
-        "combat-swords",
-        "assassination-daggers",
-        "subtlety-daggers",
-        "combat-daggers",
-        "combat-swords-temp",
-        "combat-swords-temp-337",
-      ],
-    );
+  it("keeps the shipped short-link bases; a later preset only appends", () => {
+    const ids = LINK_BASES.map((base) => base.id);
+    assert.deepEqual(ids.slice(0, SHIPPED_LINK_BASES.length), [
+      ...SHIPPED_LINK_BASES,
+    ]);
   });
 });
 

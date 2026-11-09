@@ -504,11 +504,11 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
     }
   });
 
-  it("the live preset base is combat-swords-temp-337; older bases stay frozen (#337)", () => {
-    assert.deepEqual(
-      LINK_BASES.filter((b) => b.frozen === undefined).map((b) => b.id),
-      ["combat-swords-temp-337"],
+  it("live preset bases start with combat-swords-temp-337; a later preset only appends (#337)", () => {
+    const live = LINK_BASES.filter((b) => b.frozen === undefined).map(
+      (b) => b.id,
     );
+    assert.deepEqual(live.slice(0, 1), ["combat-swords-temp-337"]);
     assert.deepEqual(
       LINK_BASES.filter((b) => b.preset !== undefined).map((b) => b.preset),
       ["combat-swords-temp"],

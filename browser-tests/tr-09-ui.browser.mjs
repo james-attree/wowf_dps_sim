@@ -11,7 +11,7 @@ import { startStaticServer } from "../scripts/serve.mjs";
 
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const SHOTS = process.env.TR09_SHOTS ?? null;
-const WIDTHS = [1280, 390];
+const WIDTHS = [1440, 1280, 1024, 390, 320];
 const TALENTS = [
   ["assassination.venom", "Venom"],
   ["combat.flash-of-steel", "Flash of Steel"],

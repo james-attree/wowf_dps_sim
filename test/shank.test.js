@@ -175,6 +175,15 @@ describe("shank.appliesOffHandPoison (Kira B1 / M7)", () => {
     });
   }
 
+  it("credits the off-hand poison flag to the team, not to James (#275)", () => {
+    const row = CONSTANTS["shank.appliesOffHandPoison"];
+    assert.equal(row.source, "assumption");
+    assert.match(row.ref, /^Developer, 5 Nov 2026, issue #337: /);
+    assert.match(row.ref, /team assumption/);
+    assert.doesNotMatch(row.ref, /^James,/);
+    assert.match(row.note, /not a ruling by James/);
+  });
+
   it("default true: a landed Shank can apply off-hand Instant Poison", () => {
     assert.equal(k("shank.appliesOffHandPoison"), true);
     const { poisonCasts, shankHits } = instantPoisonCasts(true);
