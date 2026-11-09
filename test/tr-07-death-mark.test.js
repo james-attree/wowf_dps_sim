@@ -235,6 +235,33 @@ describe("TR-07 Death Mark in a fight (#336)", () => {
     );
   });
 
+  it("a Deadly Poison tick of 100 post-armor damage stores 12 at rank 4 (Kira N1)", () => {
+    // Test only. Rank 4 is the constants row (12% at 1 combo point). A mutant
+    // that skips storing Deadly Poison ticks, and nothing else, fails here.
+    const h = fight({ "subtlety.death-mark": 1 });
+    h.rogue.comboPoints = 1;
+    cast(h, "deathMark");
+    assert.equal(h.simulation.activeDebuffs["death-mark"].rate, 0.12);
+    h.simulation.resolveProcDot({
+      id: "deadly-poison",
+      name: "Deadly Poison",
+      tickDamage: 100,
+      interval: 3,
+      duration: 12,
+      aura: "deadly-poison",
+    });
+    const dot = h.simulation.activeDots["deadly-poison"];
+    assert.equal(dot.tickDamage, 100);
+    const before = h.simulation.activeDebuffs["death-mark"].stored;
+    h.simulation.resolveDotTick(
+      "deadly-poison",
+      dot,
+      h.simulation.abilityContext("deadly-poison", dot),
+    );
+    assert.equal(h.simulation.combatLog[0].damage, 100);
+    assert.equal(h.simulation.activeDebuffs["death-mark"].stored - before, 12);
+  });
+
   it("a poison hit stores at 1× of the damage it dealt", () => {
     const h = fight(
       { "subtlety.death-mark": 1 },
