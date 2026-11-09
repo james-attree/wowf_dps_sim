@@ -80,8 +80,12 @@ describe("TR-07 Death Mark data (#336)", () => {
     for (const id of ["deathMark.apPerCp", "deathMark.cap"]) {
       assert.equal(CONSTANTS[id].source, "assumption");
       assert.equal(CONSTANTS[id].retune, true);
-      assert.match(CONSTANTS[id].ref, /James, 5 Nov 2026, issue #336/);
-      assert.match(CONSTANTS[id].ref, /assumption/);
+      assert.match(CONSTANTS[id].ref, /Developer, 9 Nov 2026, issue #336/);
+      assert.match(
+        CONSTANTS[id].ref,
+        /does not quote 0\.04|does not quote that tooltip/,
+      );
+      assert.doesNotMatch(CONSTANTS[id].ref, /James, 5 Nov 2026/);
     }
     assert.equal(k("deathMark.apPerCp"), 0.04);
     assert.equal(k("deathMark.cap"), "ap and crit");
@@ -203,6 +207,76 @@ describe("TR-07 Death Mark in a fight (#336)", () => {
       runOnCore(flat.simulation, k("deathMark").duration);
       assert.equal(flat.simulation.abilityStats["death-mark"].damage, 401);
     });
+  });
+
+  it("stores the post-armor hit, not the pre-armor roll", () => {
+    const h = fight(
+      { "subtlety.death-mark": 1 },
+      { ...swords, target: { armor: 20000 } },
+    );
+    h.rogue.comboPoints = 1;
+    cast(h, "deathMark");
+    const strike = cast(h, "sinisterStrike");
+    const context = h.simulation.attackContext(
+      h.rogue.abilities.sinisterStrike,
+      "skill",
+    );
+    const kept = h.simulation.armorMultiplier(context);
+    assert.ok(kept < 0.5, `armor should matter, kept ${kept}`);
+    assert.ok(strike.damage > 0);
+    close(
+      h.simulation.activeDebuffs["death-mark"].stored,
+      strike.damage * 0.12,
+    );
+    const preArmor = strike.damage / kept;
+    assert.ok(preArmor > strike.damage * 1.5);
+    assert.ok(
+      Math.abs(
+        h.simulation.activeDebuffs["death-mark"].stored - preArmor * 0.12,
+      ) > 1,
+    );
+  });
+
+  it("the release draws no random number", () => {
+    const h = fight({ "subtlety.death-mark": 1 });
+    h.rogue.comboPoints = 1;
+    cast(h, "deathMark");
+    cast(h, "sinisterStrike");
+    holdSwings(h);
+    let draws = 0;
+    const rng = h.simulation.rng;
+    const wrap = () => {
+      draws += 1;
+      return rng();
+    };
+    h.simulation.rng = wrap;
+    h.rogue.rng = wrap;
+    runOnCore(h.simulation, k("deathMark").duration);
+    assert.equal(draws, 0);
+    assert.ok(h.simulation.abilityStats["death-mark"].damage > 0);
+  });
+
+  it("the cap follows combo points in the export base and the AP term", () => {
+    const config = {
+      ...swords,
+      character: { attackPower: 1000, critChance: 0.25 },
+    };
+    const dealt = (points) => {
+      const h = fight({ "subtlety.death-mark": 1 }, config);
+      h.rogue.comboPoints = points;
+      cast(h, "deathMark");
+      h.simulation.activeDebuffs["death-mark"].stored = 100000;
+      holdSwings(h);
+      runOnCore(h.simulation, k("deathMark").duration);
+      return h.simulation.abilityStats["death-mark"].damage;
+    };
+    const cap = (points) =>
+      (k("deathMark").capByCp[points - 1] + points * 0.04 * 1000) * 1.25;
+    assert.equal(dealt(2), cap(2));
+    assert.equal(dealt(5), cap(5));
+    assert.notEqual(cap(1), cap(2));
+    assert.notEqual(cap(2), cap(5));
+    assert.equal(cap(5), (1381 + 5 * 40) * 1.25);
   });
 
   it("Coup de Grace scales storage and the damage dealt, not the cap", () => {
