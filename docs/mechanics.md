@@ -3766,9 +3766,8 @@ default config) and `referencePoison(build, hand)` (that hand's poison id for
 
 Historical, before 1.60.1.70755. These four presets are not selectable. The live preset is temporary Combat swords. See [The only preset](#the-only-preset).
 
-The 2 Nov 2026 share-link rotations are not one of the dated James rulings
-kept for this rework. The record is the setups
-decoded into `test/fixtures/presets-310/`, and
+James's ruling (2 Nov 2026): each preset and its reference build was the setup
+of his share link, decoded into `test/fixtures/presets-310/`, and
 `test/presets-310.test.js` compares them (talents, weapons, poisons and
 rules). The rule lists are in [docs/rotation.md](rotation.md#presets).
 

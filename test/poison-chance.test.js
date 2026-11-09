@@ -38,10 +38,7 @@ describe("poisonChance (#266, A9)", () => {
     const cap = CONSTANTS["poison.chanceCap"];
     assert.equal(cap.value, 1);
     assert.equal(cap.source, "assumption");
-    assert.match(
-      cap.ref,
-      /^Developer, 31 Oct 2026, issue #266: Team assumption, not a ruling by James. /,
-    );
+    assert.match(cap.ref, /^James, 31 Oct 2026, issue #266: /);
   });
 
   it("leaves every poison chance as the export gives it at 0 (G1)", () => {

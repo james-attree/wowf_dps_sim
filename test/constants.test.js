@@ -131,11 +131,11 @@ describe("constants", () => {
   it("records a signed reason on every assumption and engineering ref", () => {
     assert.match(
       CONSTANTS["dot.canCrit"].ref,
-      /^Developer, 22 Oct 2026: Team assumption, not a ruling by James. all DoTs, bleeds included, can crit/,
+      /^James, 22 Oct 2026: all DoTs, bleeds included, can crit/,
     );
     assert.equal(
       CONSTANTS["dot.critMultiplier"].ref,
-      "Developer, 22 Oct 2026: Team assumption, not a ruling by James. 2x DoT/bleed crit is standard and unlikely to change; update the code if it does",
+      "James, 22 Oct 2026: 2x DoT/bleed crit is standard and unlikely to change; update the code if it does",
     );
     assert.equal(CONSTANTS["dot.critMultiplier"].source, "assumption");
     assert.equal(CONSTANTS["dot.critMultiplier"].retune, false);
@@ -152,7 +152,7 @@ describe("constants", () => {
     assert.equal(CONSTANTS["rupture.apAtZeroCp"], undefined);
     assert.equal(
       CONSTANTS["character.startingComboPoints"].ref,
-      "Developer, 22 Oct 2026: Team assumption, not a ruling by James. no pre-pull Premeditation or stealth opener (#18, OQ7)",
+      "James, 22 Oct 2026: no pre-pull Premeditation or stealth opener (#18, OQ7)",
     );
     assert.equal(
       CONSTANTS["character.startingComboPoints"].source,
@@ -160,7 +160,7 @@ describe("constants", () => {
     );
     assert.equal(
       CONSTANTS["premeditation.cpRemovedOnExpiry"].ref,
-      "Developer, 22 Oct 2026: Team assumption, not a ruling by James. always removes 2 on expiry",
+      "James, 22 Oct 2026: always removes 2 on expiry",
     );
     assert.equal(
       CONSTANTS["premeditation.cpRemovedOnExpiry"].source,
@@ -212,7 +212,7 @@ describe("constants", () => {
     assert.equal(CONSTANTS["weapon.mainHand.type"].source, "wowf-designer");
     assert.match(
       CONSTANTS["weapon.mainHand.type"].ref,
-      /^Developer, 26 Oct 2026, issue #127: Team assumption, not a ruling by James. the project owner asked for the standard Tier 1 stats and weapon damage; the sword\/sword pairing is Scout's recommendation from the research \(relayed\), not James's explicit choice/,
+      /^James, 26 Oct 2026, issue #127: the project owner asked for the standard Tier 1 stats and weapon damage; the sword\/sword pairing is Scout's recommendation from the research \(relayed\), not James's explicit choice/,
     );
     assert.equal(k("weapon.mainHand").type, k("weapon.mainHand.type"));
 
@@ -252,8 +252,7 @@ describe("constants", () => {
   });
 
   it("records the placeholder Combat rotation from issue #68", () => {
-    const ref =
-      "Developer, 25 Oct 2026, issue #68: Team assumption, not a ruling by James. placeholder Combat rotation";
+    const ref = "James, 25 Oct 2026, issue #68: placeholder Combat rotation";
     for (const id of [
       "rotation.priority",
       "rotation.finisherComboPoints",

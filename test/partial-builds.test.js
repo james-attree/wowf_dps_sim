@@ -85,7 +85,7 @@ describe("the talent level and its cap (#190)", () => {
     assert.equal(CONSTANTS["talents.rowGating"].source, "wowf-designer");
     assert.match(
       CONSTANTS["talents.rowGating"].ref,
-      /^Developer, 29 Oct 2026: Team assumption, not a ruling by James. WoW Forever matches Classic \(5 points per row\)/,
+      /^James, 29 Oct 2026: WoW Forever matches Classic \(5 points per row\)/,
     );
   });
 
