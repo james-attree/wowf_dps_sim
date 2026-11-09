@@ -80,12 +80,10 @@ describe("TR-07 Death Mark data (#336)", () => {
     for (const id of ["deathMark.apPerCp", "deathMark.cap"]) {
       assert.equal(CONSTANTS[id].source, "assumption");
       assert.equal(CONSTANTS[id].retune, true);
-      assert.match(CONSTANTS[id].ref, /Developer, 9 Nov 2026, issue #336/);
-      assert.match(
-        CONSTANTS[id].ref,
-        /does not quote 0\.04|does not quote that tooltip/,
-      );
-      assert.doesNotMatch(CONSTANTS[id].ref, /James, 5 Nov 2026/);
+      assert.match(CONSTANTS[id].ref, /James, 9 Nov 2026, issue #336/);
+      assert.match(CONSTANTS[id].ref, /Wowhead Forever/);
+      assert.match(CONSTANTS[id].ref, /1325758/);
+      assert.match(CONSTANTS[id].ref, /assumption|Tagged assumption/);
     }
     assert.equal(k("deathMark.apPerCp"), 0.04);
     assert.equal(k("deathMark.cap"), "ap and crit");
@@ -235,6 +233,46 @@ describe("TR-07 Death Mark in a fight (#336)", () => {
         h.simulation.activeDebuffs["death-mark"].stored - preArmor * 0.12,
       ) > 1,
     );
+  });
+
+  it("a poison hit stores at 1× of the damage it dealt", () => {
+    const h = fight(
+      { "subtlety.death-mark": 1 },
+      { ...swords, target: { armor: 20000 } },
+    );
+    h.rogue.comboPoints = 1;
+    cast(h, "deathMark");
+    const mark = h.simulation.activeDebuffs["death-mark"];
+    const before = mark.stored;
+    const poison = h.simulation.resolveProcDamage({
+      id: "instant-poison",
+      name: "Instant Poison",
+      min: 80,
+      max: 80,
+      spellHit: false,
+      canCrit: false,
+    });
+    assert.equal(poison.damage, 80);
+    close(mark.stored - before, poison.damage * 0.12);
+    assert.ok(Math.abs(mark.stored - before - poison.damage * 0.24) > 1);
+  });
+
+  it("the release is not reduced by armor again", () => {
+    const h = fight(
+      { "subtlety.death-mark": 1 },
+      { ...swords, target: { armor: 20000 } },
+    );
+    h.rogue.comboPoints = 1;
+    cast(h, "deathMark");
+    const context = h.simulation.attackContext({ id: "death-mark" }, "skill");
+    const kept = h.simulation.armorMultiplier(context);
+    assert.ok(kept < 0.5, `armor should matter, kept ${kept}`);
+    h.simulation.activeDebuffs["death-mark"].stored = 100;
+    holdSwings(h);
+    runOnCore(h.simulation, k("deathMark").duration);
+    const dealt = h.simulation.abilityStats["death-mark"].damage;
+    assert.equal(dealt, 100);
+    assert.ok(Math.abs(dealt - 100 * kept) > 1);
   });
 
   it("the release draws no random number", () => {
