@@ -16,7 +16,8 @@ import { talentCatalogue } from "./talents.js";
 //   points spent out of the cap (config.talentLevel - 9, 51 at 60; #190):
 //   "Combat 18/33/0 · 51/51", "Combat 7/22/0 · level 40 · 29/31" (Fran's U6
 //   spec D17, #204). Then the count of the build's talents the sim does not
-//   model yet (no entry in data/talent-effects.js, spec section 6):
+//   model yet (no entry in data/talent-effects.js, or an entry that is only
+//   `pending`, spec section 6):
 //   "· 11 not simulated yet". "No talents" with no point spent ("No talents
 //   · level 40" below 60). The talent tree's summary row (#204) shows the
 //   same text.
@@ -47,7 +48,10 @@ function talentPart(talents, catalogue, level, effects) {
     const talent = catalogue.get(id);
     if (talent !== undefined && Number.isFinite(rank)) {
       points.set(talent.tree, points.get(talent.tree) + rank);
-      if (rank > 0 && !(id in effects)) {
+      if (
+        rank > 0 &&
+        (!(id in effects) || typeof effects[id]?.pending === "string")
+      ) {
         notSimulated += 1;
       }
     }

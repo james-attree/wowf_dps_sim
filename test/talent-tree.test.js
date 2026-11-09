@@ -271,6 +271,18 @@ describe("talent tree model (#204)", () => {
     assert.deepEqual(counts, { simulated: 37, noDps: 17, notSimulated: 0 });
   });
 
+  it("a pending entry is not simulated, and a mapped entry is (#339)", () => {
+    const pending = {
+      ...TALENT_EFFECTS,
+      "subtlety.death-mark": { pending: "Follow-up issue." },
+    };
+    assert.equal(
+      talentInfo({ effects: pending }).get("subtlety.death-mark").coverage,
+      "notSimulated",
+    );
+    assert.equal(talentInfo().get("subtlety.death-mark").coverage, "simulated");
+  });
+
   it("counts picked talents the sim does not model yet in the summary", () => {
     // #332 / 70755: Camouflage is row 2 (max 3, no DPS). Spend five on
     // Opportunity (row 1), then Camouflage + Improved Ambush.
