@@ -18,9 +18,9 @@ A version-2 link whose base index is a **frozen** `LINK_BASES` entry still decod
 
 ### The only preset
 
-James, 5 Nov 2026 (#332, #333): the four old presets are scrapped. **Combat swords (`combat-swords-temp`) is temporary** until sim share links arrive ([#340](https://github.com/james-attree/wowf_dps_sim/issues/340), TR-10, parked). It is the only start-card build, beside Custom, and it is `pageDefaultConfig()`. Weapons are the previous sword defaults (MH 100–187 at 2.6 s, OH 90–168 at 2.5 s), tagged `assumption` until a gear link arrives. James, 1 Nov 2026: every preset is Instant Poison on the main hand and Deadly Poison on the off hand. The preset does not set a race. There is no `deathMarkStored` condition (James, 5 Nov 2026, #336).
+James, 5 Nov 2026 (#332, #333): the four old presets are scrapped. **Combat swords (`combat-swords-temp`) is temporary** until sim share links arrive ([#340](https://github.com/james-attree/wowf_dps_sim/issues/340), TR-10, parked). It is the only start-card build, beside Custom, and it is `pageDefaultConfig()`. Weapons are the previous sword defaults (MH 100–187 at 2.6 s, OH 90–168 at 2.5 s), tagged `assumption` until a gear link arrives. James, 1 Nov 2026: the old preset reference builds set Instant on the main hand and Deadly on the off hand, and those presets are historical. James, 5 Nov 2026: this temporary preset uses Instant on the main hand and Deadly on the off hand (`pageDefaultConfig` reads `combat-swords-temp` from `presetReferenceBuild.poisons`). The preset does not set a race. There is no `deathMarkStored` condition (James, 5 Nov 2026, #336).
 
-`ROTATION_PRESETS` is that one id. Frozen `LINK_BASES` ids `combat-swords`, `assassination-daggers`, `subtlety-daggers`, `combat-daggers` and the pre-Shank `combat-swords-temp` are not presets. The live base is `combat-swords-temp-337`.
+`ROTATION_PRESETS` is that one id. The live share-link base is `combat-swords-temp-337`. Of the frozen bases, only `defaults` and the pre-Shank `combat-swords-temp` still decode (`decodeSetup` returns ok). The other frozen preset indexes do not: the live catalogue rejects them, and the page loads the default with no notice.
 
 **TR-10 intake (one link, one append).** Do not edit a frozen base. For each new preset: append a `LINK_BASES` entry, add a golden and a lock test, and update the `deepEqual` in `test/short-links-306.test.js` whose expected preset-id list is exactly `["combat-swords-temp"]` (the filter is `LINK_BASES` entries that have `preset`).
 
@@ -28,25 +28,27 @@ James, 5 Nov 2026 (#332, #333): the four old presets are scrapped. **Combat swor
 
 Tagged `assumption` and read through `k()`. A James date is a ruling he accepted. A Developer or Scout line is not his.
 
-| Topic                        | Who                                                                                          | What the code does                                                                                                                                                                                                                                                                                    |
-| ---------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Poisons on presets           | James, 1 Nov 2026                                                                            | Instant MH / Deadly OH on `combat-swords-temp`.                                                                                                                                                                                                                                                       |
-| Spell and poison crit        | James, 2 Nov 2026 (#295), relayed on PR #316: "Do not supress spell hit", read as spell crit | No crit suppression on spell and poison crits. The 1.8% aura term of melee crit suppression is off when defense − weapon skill is at most 10 (`attackTable.flatAboveSkillGap`); a larger gap keeps it.                                                                                                |
-| Which DoT schools are spells | Scout, 2 Nov 2026 (#295)                                                                     | Physical ticks (Rupture, Garrote) keep melee suppression (`dot.critSuppression`). Other schools take none (`dot.spellCritSuppression`).                                                                                                                                                               |
-| Old presets                  | James, 5 Nov 2026                                                                            | Scrapped. Temporary Combat swords only.                                                                                                                                                                                                                                                               |
-| Shank rule                   | James, 5 Nov 2026 (#333)                                                                     | The only Shank rule is energy &lt; 50 and cooldown ready.                                                                                                                                                                                                                                             |
-| No `deathMarkStored`         | James, 5 Nov 2026 (#336)                                                                     | Not a condition. Aura and debuff conditions cover `venom`, `poised`, `ambush-window` and the `death-mark` debuff.                                                                                                                                                                                     |
-| Venom on Deadly ticks        | James, 8 Nov 2026 (#334), relayed by Scout                                                   | `venom.tickDamage` `"while active"`: the ×1.3 applies to a Deadly Poison tick only while Venom is up. No snapshot. Instant Poison is unchanged.                                                                                                                                                       |
-| Blood Splatter ticks         | James, 8 Nov 2026, 23:28 UK (#335), relayed by Scout                                         | `bloodSplatter.ticks` `"full strength"`: the extra seconds are full-strength Rupture ticks. The +9 s Garrote is not applied.                                                                                                                                                                          |
-| Dagger percents              | James, 8 Nov 2026 (#335)                                                                     | Ghostly Strike 180% and Hemorrhage 145% accepted as `assumption` (export `fx` gives no new number).                                                                                                                                                                                                   |
-| Death Mark cap               | James, 9 Nov 2026 (#336), relayed by Scout                                                   | Accepted as a tagged assumption, not a sourced export coefficient: `(base cap + CP × 0.04 × AP) × (1 + crit)`, AP and crit at expiry. 0.04 is the Wowhead Forever tooltip for spell 1325758.                                                                                                          |
-| Death Mark storage           | James, 9 Nov 2026 (#336), relayed by Scout                                                   | Poison stores at 1×. Only Rupture and Garrote store at 2×. Garrote is not simulated.                                                                                                                                                                                                                  |
-| Venom apply chance           | Team, 8 Nov 2026 (#334). Not James.                                                          | `venom.chanceAddMode` `"percentage points"` (+20 points). Any other value adds none.                                                                                                                                                                                                                  |
-| Poised at pull               | Team, 8 Nov 2026 (#334). Not James.                                                          | `poised.atPull` `"when energy is full"`. A start of 100 against Vigor's 110 is not full.                                                                                                                                                                                                              |
-| Ambush window charges        | Team, 8 Nov 2026 (#335). Not James.                                                          | `ghostlyStrike.ambushWindowCharges` is 1.                                                                                                                                                                                                                                                             |
-| Blood Splatter order         | Team, 8 Nov 2026 (#335). Not James.                                                          | `bloodSplatter.apply` `"after percent"`. Either order, the flat seconds are full-strength ticks.                                                                                                                                                                                                      |
-| Shank off-hand poison        | Team, 5 Nov 2026 (#337). Not James.                                                          | `shank.appliesOffHandPoison` true. Seal Fate does not trigger on Shank (`sealFate.comboPoint`).                                                                                                                                                                                                       |
-| Shank / Ambush warnings      | Coordinator, 9 Nov 2026                                                                      | No "Shank without an off hand" warning: every build has an off hand, and Shank has no `requiresOffHand`. Ambush without Ghostly Strike is the same: no warning; the host's `usable` is false, so the rule is passed over. `cooldownNotChecked` still applies to a Shank rule that skips its cooldown. |
+| Topic                        | Who                                                                                          | What the code does                                                                                                                                                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Old reference-build poisons  | James, 1 Nov 2026                                                                            | The old preset reference builds set Instant MH and Deadly OH. Those presets are historical. `data/preset-reference-builds.js` no longer has them.                                                      |
+| Temporary preset poisons     | James, 5 Nov 2026 (#333)                                                                     | `combat-swords-temp` uses Instant MH and Deadly OH. The constant still holds other keys; only this id is a live reference build.                                                                       |
+| Spell and poison crit        | James, 2 Nov 2026 (#295), relayed on PR #316: "Do not supress spell hit", read as spell crit | No crit suppression on spell and poison crits. The 1.8% aura term of melee crit suppression is off when defense − weapon skill is at most 10 (`attackTable.flatAboveSkillGap`); a larger gap keeps it. |
+| Which DoT schools are spells | Scout, 2 Nov 2026 (#295)                                                                     | Physical ticks (Rupture, Garrote) keep melee suppression (`dot.critSuppression`). Other schools take none (`dot.spellCritSuppression`).                                                                |
+| Old presets                  | James, 5 Nov 2026                                                                            | Scrapped. Temporary Combat swords only.                                                                                                                                                                |
+| Shank rule                   | James, 5 Nov 2026 (#333)                                                                     | The only Shank rule is energy &lt; 50 and cooldown ready.                                                                                                                                              |
+| No `deathMarkStored`         | James, 5 Nov 2026 (#336)                                                                     | Not a condition. Aura and debuff conditions cover `venom`, `poised`, `ambush-window` and the `death-mark` debuff.                                                                                      |
+| Venom on Deadly ticks        | James, 8 Nov 2026 (#334), relayed by Scout                                                   | `venom.tickDamage` `"while active"`: the ×1.3 applies to a Deadly Poison tick only while Venom is up. No snapshot. Instant Poison is unchanged.                                                        |
+| Blood Splatter ticks         | James, 8 Nov 2026, 23:28 UK (#335), relayed by Scout                                         | `bloodSplatter.ticks` `"full strength"`: the extra seconds are full-strength Rupture ticks. The +9 s Garrote is not applied.                                                                           |
+| Dagger percents              | James, 5 Nov 2026 (#335)                                                                     | Ghostly Strike 180% and Hemorrhage 145% are `assumption (accepted by James 5 Nov)`. The export `fx` gives no new number.                                                                               |
+| Death Mark cap               | James, 9 Nov 2026 (#336), relayed by Scout                                                   | Accepted as a tagged assumption, not a sourced export coefficient: `(base cap + CP × 0.04 × AP) × (1 + crit)`, AP and crit at expiry. 0.04 is the Wowhead Forever tooltip for spell 1325758.           |
+| Death Mark storage           | James, 9 Nov 2026 (#336), relayed by Scout                                                   | Poison stores at 1×. Only Rupture and Garrote store at 2×. Garrote is not simulated.                                                                                                                   |
+| Venom apply chance           | Team, 8 Nov 2026 (#334). Not James.                                                          | `venom.chanceAddMode` `"percentage points"` (+20 points). Any other value adds none.                                                                                                                   |
+| Poised at pull               | Team, 8 Nov 2026 (#334). Not James.                                                          | `poised.atPull` `"when energy is full"`. A start of 100 against Vigor's 110 is not full.                                                                                                               |
+| Ambush window charges        | Team, 8 Nov 2026 (#335). Not James.                                                          | `ghostlyStrike.ambushWindowCharges` is 1.                                                                                                                                                              |
+| Blood Splatter order         | Team, 8 Nov 2026 (#335). Not James.                                                          | `bloodSplatter.apply` `"after percent"`. Either order, the flat seconds are full-strength ticks.                                                                                                       |
+| Shank off-hand poison        | Team, 5 Nov 2026 (#337). Not James.                                                          | `shank.appliesOffHandPoison` true. Seal Fate does not trigger on Shank (`sealFate.comboPoint`).                                                                                                        |
+| Shank off-hand warning       | James, 9 Nov 2026                                                                            | Dropped. Every build has an off hand, and Shank has no `requiresOffHand`. A Shank rule that skips its cooldown still gets `cooldownNotChecked`.                                                        |
+| Ambush in a rotation         | James, 31 Oct 2026                                                                           | Ambush stays freely addable: no lock, no warning, and no explanatory note. Without Ghostly Strike the host's `usable` is false, so the rule is passed over.                                            |
 
 ### Inert or not simulated
 
@@ -73,7 +75,7 @@ The sections below (Dagger presets, Retuned presets, Cutthroat, the Venom finish
 ### Ghostly Strike window, Hemorrhage, Blood Splatter, Mutilate (TR-06 / #335)
 
 - **Ambush** requires the self aura `ambush-window` (`ghostlyStrike.ambushWindow`, 7 s, wowf-export). A landed Ghostly Strike opens it. One charge (`ghostlyStrike.ambushWindowCharges`, team assumption from "your next", not a ruling by James) is used by the Ambush that goes ahead, hit or miss. A miss opens nothing. The dodge buff stays up. Garrote is not simulated. The removed Cutthroat talent is not the gate. Without Ghostly Strike granted, an Ambush rule is passed over.
-- **Dagger percents.** Ghostly Strike 180% and Hemorrhage 145% are `assumption` rows James accepted on 8 Nov 2026 (export `fx`: the 2 Nov notes give no new number). The non-dagger percents stay the export's 125% and 100%.
+- **Dagger percents.** Ghostly Strike 180% and Hemorrhage 145% are `assumption (accepted by James 5 Nov)` (export `fx`: the 2 Nov notes give no new number). The non-dagger percents stay the export's 125% and 100%.
 - **Hemorrhage** still adds `k("hemorrhage.ruptureBonus").bonus` to Rupture ticks only. The export also names Garrote; that half is inert.
 - **Blood Splatter** adds `k("bloodSplatter").rupture` (6 s) to Rupture through `flatDuration`. `k("bloodSplatter.apply")` `"after percent"` (team assumption, not a ruling by James) adds those seconds after percent duration modifiers. Any other value adds them first. A length of 0 stays 0. James, 8 Nov 2026, 23:28 UK, relayed by Scout: the extra seconds are full-strength ticks and the total rises (`k("bloodSplatter.ticks")` `"full strength"`). The tooltip total is still split across the tick count of the length before those flat seconds, so a percent duration modifier still changes that tick. Any other `bloodSplatter.ticks` value splits the same total across the final length. The export's +9 s Garrote is recorded and not applied.
 - **Mutilate** stays 90% weapon damage. The flat per hand is 36/51/71 by rank (`mutilate.bonusByRank`, wowf-export, not an assumption). The poisoned ×1.2 still requires Deadly Poison.
@@ -3714,8 +3716,9 @@ three rotations, both dagger builds' talents and the poisons; see
 #272 as it was.
 
 **Loading a preset sets the rotation only** (`loadPreset`, unchanged). The
-build each one is written for is separate data,
-`data/preset-reference-builds.js`, keyed by preset id:
+build each one was written for was separate data. That file now has only
+`combat-swords-temp`. It does not have assassination-daggers or
+subtlety-daggers. The old shape, no longer stored, was:
 
 - `name`; `talentLevel`, 60 for every build (James's decision, relayed by
   Scout; #273 sets `config.talentLevel` to it when the config is below it, and
@@ -3753,11 +3756,9 @@ default config) and `referencePoison(build, hand)` (that hand's poison id for
 
 - **RNG (G2).** No new proc, roll or ability: a preset is a rule list, and
   the reference builds are data that no fight reads.
-- **Goldens.** The existing fixtures are unchanged (no default changed). The
-  two new ones, `assassination-daggers-preset-seed-272-60s` and
-  `subtlety-daggers-preset-seed-272-60s`, run each preset with its reference
-  build's talents, weapons and poisons (Instant main hand, Deadly off hand)
-  and the default character.
+- **Goldens.** Those preset fixtures are not in `test/golden/` now.
+  `data/preset-reference-builds.js` has no assassination-daggers or
+  subtlety-daggers entry.
 - **Old configs.** A config with no rotation still gets the default rotation;
   one with a preset loaded keeps its own talents and weapons.
 
@@ -3765,8 +3766,9 @@ default config) and `referencePoison(build, hand)` (that hand's poison id for
 
 Historical, before 1.60.1.70755. These four presets are not selectable. The live preset is temporary Combat swords. See [The only preset](#the-only-preset).
 
-James's ruling (2 Nov 2026): each preset and its reference build was the setup
-of his share link, decoded into `test/fixtures/presets-310/`, and
+The 2 Nov 2026 share-link rotations are not one of the dated James rulings
+kept for this rework. The record is the setups
+decoded into `test/fixtures/presets-310/`, and
 `test/presets-310.test.js` compares them (talents, weapons, poisons and
 rules). The rule lists are in [docs/rotation.md](rotation.md#presets).
 
@@ -3796,11 +3798,9 @@ rules). The rule lists are in [docs/rotation.md](rotation.md#presets).
   combat-swords.
 - **RNG (G2).** No new roll: a preset is a rule list and a build is data.
   Fights without a preset or a reference build are unchanged.
-- **Goldens.** Only the three preset cases moved:
-  `combat-swords-preset-seed-142-120s` (the new rotation),
-  `assassination-daggers-preset-seed-272-60s` and
-  `subtlety-daggers-preset-seed-272-60s` (new rotations, talents and off
-  hand).
+- **Goldens.** Those preset fixtures, including
+  `combat-swords-preset-seed-142-120s`, are not in `test/golden/` now. The
+  live preset golden is `combat-swords-temp-preset-seed-142-60s`.
 - **Old configs.** Loading a preset still sets only the rotation; a config
   with no rotation still gets the default rotation.
 

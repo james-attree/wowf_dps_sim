@@ -820,24 +820,26 @@ Do not document or ship any other preset. The start screen offers that card
 and Custom. `pageDefaultConfig()` loads it. The sections
 [combat-swords](#combat-swords), [assassination-daggers](#assassination-daggers),
 [subtlety-daggers](#subtlety-daggers) and [combat-daggers](#combat-daggers)
-below are the pre-70755 record. Those ids are not presets. Their `LINK_BASES`
-entries are frozen so an old index still has bytes; a link that fails the live
-catalogue loads the default with no notice (James, 5 Nov 2026, #331).
+below are the pre-70755 record. They are not presets. Frozen link bases that
+still decode are `defaults` and the pre-Shank `combat-swords-temp`. A link the
+live catalogue rejects loads the default with no notice (James, 5 Nov 2026, #331).
 
 **TR-10, one link at a time.** Append a `LINK_BASES` entry. Add a golden and a
 lock test. Update the `deepEqual` in `test/short-links-306.test.js` that
 expects the preset ids to be exactly `["combat-swords-temp"]`
-(`LINK_BASES` entries that set `preset`). James, 1 Nov 2026: every preset is
-Instant Poison on the main hand and Deadly Poison on the off hand.
+(`LINK_BASES` entries that set `preset`). James, 1 Nov 2026: the old preset
+reference builds set Instant on the main hand and Deadly on the off hand, and
+those presets are historical. James, 5 Nov 2026: this temporary preset uses
+Instant on the main hand and Deadly on the off hand.
 
 There is no `deathMarkStored` condition (James, 5 Nov 2026). `shank` and
 `death-mark` are actions. `cooldownReady` covers both. Aura conditions cover
 `venom`, `poised` and `ambush-window`. Debuff conditions cover `death-mark`.
-The coordinator, 9 Nov 2026: no warning for Shank without an off hand (every
-build has one) and no warning for Ambush without Ghostly Strike. A Shank rule
-that does not check its cooldown still gets `cooldownNotChecked`. Without
-Ghostly Strike the host's `usable` is false for Ambush, so the rule is passed
-over.
+James, 9 Nov 2026: the Shank off-hand warning is dropped. Every build has an
+off hand, and Shank has no `requiresOffHand`. A Shank rule that skips its
+cooldown still gets `cooldownNotChecked`. James, 31 Oct 2026: Ambush stays
+freely addable, with no lock, warning, or explanatory note. Without Ghostly
+Strike the host's `usable` is false, so the rule is passed over.
 
 - `listPresets()`: `[{ id, name, description, summary }]` in registry order.
   `summary` is the rotation as text ([The readable summary](#the-readable-summary)).
@@ -897,7 +899,7 @@ characters after the address.
 The only preset. Temporary (TR-03 / #333, Shank wired in TR-04 / #337) until
 TR-10. Talents 16/35/0. Swords MH 100–187 at 2.6 s and OH 90–168 at 2.5 s
 (`assumption` until a gear link). Instant main hand, Deadly off hand (James,
-1 Nov 2026). Race unchanged. The rotation is the old Combat swords list
+5 Nov 2026). Race unchanged. The rotation is the old Combat swords list
 without Cold Blood, plus Shank when energy is below 50 and Shank is ready
 (James, 5 Nov 2026: that is the only Shank rule). Its summary:
 
@@ -1115,10 +1117,11 @@ The numbers are `presetRotation.subtlety`:
 #### Reference builds (#272)
 
 `data/preset-reference-builds.js` holds the build the live preset is written
-for, keyed by preset id. The only key is `combat-swords-temp`: level 60,
+for. The only key is `combat-swords-temp`: level 60,
 the 16/35/0 talents in `data/reference-build.js`, the default swords, Instant
-on the main hand and Deadly on the off hand (James, 1 Nov 2026, applied in
-#333). `loadPreset` sets the rotation only. The page default
+on the main hand and Deadly on the off hand (James, 5 Nov 2026, #333). The
+1 Nov ruling is the historical reference builds, which this file no longer
+stores. `loadPreset` sets the rotation only. The page default
 (`pageDefaultConfig`) copies talents, weapons, poisons and the rotation.
 `referenceBuild(id)` returns a copy. The constant
 `presetReferenceBuild.poisons` still lists the scrapped ids; those are not

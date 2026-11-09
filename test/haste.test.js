@@ -55,7 +55,7 @@ describe("character.haste (#265)", () => {
     assert.equal(row.source, "assumption");
     assert.match(
       row.ref,
-      /^James, 31 Oct 2026, issue #265: like Classic, attack speed only/,
+      /^Developer, 31 Oct 2026, issue #265: Team assumption, not a ruling by James. like Classic, attack speed only/,
     );
     assert.equal(defaultConfig().character.haste, 0);
   });
