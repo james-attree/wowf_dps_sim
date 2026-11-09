@@ -810,7 +810,34 @@ R5 ([#142](https://github.com/james-attree/wowf_dps_sim/issues/142)) adds
 rotations to pick from. A preset is a rotation (the JSON above) with an id, a
 name and a short description, held as data in `data/rotation-presets.js`. The
 API is `js/rotation-presets.js`, with no DOM, so a page, a worker or a test
-calls it the same way:
+calls it the same way.
+
+**Live preset.** James, 5 Nov 2026: the old four presets are scrapped.
+`ROTATION_PRESETS` holds one id, `combat-swords-temp` ("Combat swords
+(temporary)"). It is temporary until James sends sim share links
+([#340](https://github.com/james-attree/wowf_dps_sim/issues/340), TR-10).
+Do not document or ship any other preset. The start screen offers that card
+and Custom. `pageDefaultConfig()` loads it. The sections
+[combat-swords](#combat-swords), [assassination-daggers](#assassination-daggers),
+[subtlety-daggers](#subtlety-daggers) and [combat-daggers](#combat-daggers)
+below are the pre-70755 record. Those ids are not presets. Their `LINK_BASES`
+entries are frozen so an old index still has bytes; a link that fails the live
+catalogue loads the default with no notice (James, 5 Nov 2026, #331).
+
+**TR-10, one link at a time.** Append a `LINK_BASES` entry. Add a golden and a
+lock test. Update the `deepEqual` in `test/short-links-306.test.js` that
+expects the preset ids to be exactly `["combat-swords-temp"]`
+(`LINK_BASES` entries that set `preset`). James, 1 Nov 2026: every preset is
+Instant Poison on the main hand and Deadly Poison on the off hand.
+
+There is no `deathMarkStored` condition (James, 5 Nov 2026). `shank` and
+`death-mark` are actions. `cooldownReady` covers both. Aura conditions cover
+`venom`, `poised` and `ambush-window`. Debuff conditions cover `death-mark`.
+The coordinator, 9 Nov 2026: no warning for Shank without an off hand (every
+build has one) and no warning for Ambush without Ghostly Strike. A Shank rule
+that does not check its cooldown still gets `cooldownNotChecked`. Without
+Ghostly Strike the host's `usable` is false for Ambush, so the rule is passed
+over.
 
 - `listPresets()`: `[{ id, name, description, summary }]` in registry order.
   `summary` is the rotation as text ([The readable summary](#the-readable-summary)).
@@ -827,15 +854,13 @@ with no preset is the fight it was before. The page's "Fight setup" form lists
 the presets with `listPresets` and loads one with `presetRotation`
 (`js/config-form.js`, #151).
 
-A preset's numbers are read from `data/constants.js`, each preset from its own
-row (`presetRotation.combat`, `presetRotation.assassination` and
-`presetRotation.subtlety`), so they keep their provenance. Since
-[#310](https://github.com/james-attree/wowf_dps_sim/issues/310) each preset is
-James's own rotation from his share links (James ruling, 2 Nov 2026), rule for
-rule and condition for condition in the link's order, with one fold in Combat
-(below); `test/presets-310.test.js` compares each with the decoded link in
-`test/fixtures/presets-310/`. The rows are tagged `assumption` with `retune`
-on. A preset is written for one weapon setup and says so.
+The temporary preset's Shank threshold (energy below 50) is written in
+`data/rotation-presets.js`, not in a `presetRotation.*` row. The older rows
+(`presetRotation.combat`, `presetRotation.assassination`,
+`presetRotation.subtlety`, `presetRotation.combatDaggers`) are the pre-70755
+links (James, 2 Nov 2026, #310 and #328), tagged `assumption`. They are not
+selectable. `test/presets-310.test.js` still compares those frozen links where
+the suite has not retired the case.
 
 Since [#278](https://github.com/james-attree/wowf_dps_sim/issues/278) (P5-03a,
 Decision 6 of the Phase 5 plan) every preset opens with two rules the links
@@ -867,7 +892,38 @@ with a typical edit is under 40. The test budget (`PRESET_LINK_MAX` in
 `test/build-codec.test.js`), 2,048 for #284 and 4,096 for #315, is now 64
 characters after the address.
 
+### combat-swords-temp
+
+The only preset. Temporary (TR-03 / #333, Shank wired in TR-04 / #337) until
+TR-10. Talents 16/35/0. Swords MH 100–187 at 2.6 s and OH 90–168 at 2.5 s
+(`assumption` until a gear link). Instant main hand, Deadly off hand (James,
+1 Nov 2026). Race unchanged. The rotation is the old Combat swords list
+without Cold Blood, plus Shank when energy is below 50 and Shank is ready
+(James, 5 Nov 2026: that is the only Shank rule). Its summary:
+
+```text
+Combat swords (temporary)
+1. Blood Fury if Blood Fury is granted
+2. Elune's Light if Elune's Light is granted
+3. Berserking if Berserking is granted
+4. Eureka! if Eureka! is granted
+5. Slice and Dice if CP >= 3 and Slice and Dice missing or < 1s left
+6. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready and Energy < 25 and Slice and Dice is up
+7. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Slice and Dice is up
+8. Shank if Shank is ready and Energy < 50
+9. Eviscerate if CP >= 5 and Slice and Dice has >= 12s left
+10. Sinister Strike if CP < 5
+11. Eviscerate if CP >= 3 and time to energy cap < 1s
+```
+
+The share-link base for this rotation is `combat-swords-temp-337`. The id
+`combat-swords-temp` in `LINK_BASES` is the frozen pre-Shank copy, not a
+second preset. The page default encodes as `2.BgA`.
+
 ### combat-swords
+
+Historical. Not in `ROTATION_PRESETS` after 5 Nov 2026. The record of James's
+2 Nov 2026 share link (#310):
 
 Slice and Dice recast at 3 combo points or more just before it ends,
 Adrenaline Rush (under 25 energy) and Blade Flurry with Slice and Dice up,
@@ -969,6 +1025,8 @@ of Slice and Dice (rule 7) instead.
 
 ### assassination-daggers
 
+Historical. Not a preset after 5 Nov 2026.
+
 Issues [#272](https://github.com/james-attree/wowf_dps_sim/issues/272) and
 #310. Finishers at 4 combo points: Slice and Dice kept up, Eviscerate with
 spare energy, Cold Blood for Mutilate, Mutilate to build. No Rupture. The
@@ -1009,6 +1067,8 @@ The numbers are `presetRotation.assassination`:
 No Expose Armor and no stealth opener.
 
 ### subtlety-daggers
+
+Historical. Not a preset after 5 Nov 2026.
 
 Issues [#272](https://github.com/james-attree/wowf_dps_sim/issues/272) and
 #310. Rupture kept up at 5 combo points, Premeditation, Preparation once Ghostly
@@ -1054,26 +1114,16 @@ The numbers are `presetRotation.subtlety`:
 
 #### Reference builds (#272)
 
-`data/preset-reference-builds.js` holds the build each preset is written for,
-keyed by preset id: `{ name, talentLevel, talents, weapons, poisons }`. `talentLevel` is
-60 for every build (James's decision, relayed by Scout); `talents` is
-`{ talent id: rank }` (a legal 51-point build) and `weapons` is
-`{ mainHand, offHand }`, each `{ type, min, max, speed }` (the SimConfig
-weapon shape); `poisons` is `{ mainHand, offHand }`, each a poison id (the
-SimConfig poisons shape), set per preset by James's ruling
-(`presetReferenceBuild.poisons`, #310): Deadly Poison on the main hand and
-Instant Poison on the off hand for combat-swords, Instant on the main hand and
-Deadly on the off hand for the two dagger presets. combat-swords' build is the
-#151 reference Combat talents (`data/reference-build.js`) with the default
-config's swords in both hands, as James's link has. The two dagger presets'
-talents are James's links' (#310); their weapons are `weapon.dagger.mainHand`
-and James's ruled off hand, `presetReferenceBuild.daggerOffHand` (59-111 at
-1.6; `weapon.dagger.offHand`, the dagger alternate's 57-107, is unchanged).
-**Loading a preset does not load its build**: `loadPreset` sets the rotation
-only, and nothing in the app puts a reference build into a config yet. #273
-will, and will set `config.talentLevel` to 60 when the config is below it
-(the page says so). `js/preset-reference-builds.js` (re-exported by
-`js/rotation-presets.js`) is the API for that: `referenceBuild(id)` (a copy),
+`data/preset-reference-builds.js` holds the build the live preset is written
+for, keyed by preset id. The only key is `combat-swords-temp`: level 60,
+the 16/35/0 talents in `data/reference-build.js`, the default swords, Instant
+on the main hand and Deadly on the off hand (James, 1 Nov 2026, applied in
+#333). `loadPreset` sets the rotation only. The page default
+(`pageDefaultConfig`) copies talents, weapons, poisons and the rotation.
+`referenceBuild(id)` returns a copy. The constant
+`presetReferenceBuild.poisons` still lists the scrapped ids; those are not
+presets. `js/preset-reference-builds.js` (re-exported by
+`js/rotation-presets.js`) is the API: `referenceBuild(id)` (a copy),
 `talentDifferences(build, talents)` (each talent whose rank differs),
 `weaponTypeDifferences(build, weapons)` (the type in each hand) and
 `referenceWeapon(build, hand)` (a hand to put into `config.weapons`),
@@ -1082,6 +1132,8 @@ will, and will set `config.talentLevel` to 60 when the config is below it
 build carries no character sheet.
 
 ### combat-daggers
+
+Historical. Not a preset after 5 Nov 2026.
 
 Issue [#328](https://github.com/james-attree/wowf_dps_sim/issues/328). James's
 Combat daggers link as sent: every finisher at 4 combo points, Slice and Dice

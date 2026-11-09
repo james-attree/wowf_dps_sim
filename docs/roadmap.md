@@ -48,12 +48,15 @@ issues when that phase starts.
 James approved this phase as [milestone 13](https://github.com/james-attree/wowf_dps_sim/milestone/13)
 on 5 Nov 2026. It sits before Post-launch Character and gear
 ([#297](https://github.com/james-attree/wowf_dps_sim/issues/297)). The current
-default is his temporary Combat swords preset from the talentsforever 70755
-build: Instant on the main hand, Deadly on the off hand, and Shank when energy
-is below 50. Invalid old links and saved setups load that new default silently.
-The Plan Page and the local plan hold the task detail. This is a snapshot as
-of 6 Nov 2026 (Europe/London), with main at `2b4c93e`. GitHub is the source of
-truth, and this list will go stale.
+default is his **temporary** Combat swords preset (`combat-swords-temp`) from
+the talentsforever 70755 build: Instant on the main hand, Deadly on the off
+hand, and Shank when energy is below 50. It stays temporary until he sends
+sim share links ([#340](https://github.com/james-attree/wowf_dps_sim/issues/340)).
+Invalid old links and saved setups load that default silently.
+`dataVersion` is `2026-11-04+1.60.1.70755`. Formulas and the assumption tags
+are in [mechanics](mechanics.md#talent-rework--160170755-tr-01-through-tr-11).
+This is a snapshot as of 9 Nov 2026, with main at `cebd5ca`. GitHub is the
+source of truth.
 
 - [#331](https://github.com/james-attree/wowf_dps_sim/issues/331) — [TR-01] Invalid old links and saved setups load the new default — merged (PR [#343](https://github.com/james-attree/wowf_dps_sim/pull/343))
 - [#332](https://github.com/james-attree/wowf_dps_sim/issues/332) — [TR-02] Data refresh to 1.60.1.70755 — merged (PR [#344](https://github.com/james-attree/wowf_dps_sim/pull/344))
@@ -61,12 +64,12 @@ truth, and this list will go stale.
 - [#337](https://github.com/james-attree/wowf_dps_sim/issues/337) — [TR-04] Shank, Flash of Steel and Boot Knife — merged (PR [#346](https://github.com/james-attree/wowf_dps_sim/pull/346))
 - [#334](https://github.com/james-attree/wowf_dps_sim/issues/334) — [TR-05] Passive Venom, Poised and Composure — merged (PR [#349](https://github.com/james-attree/wowf_dps_sim/pull/349))
 - [#335](https://github.com/james-attree/wowf_dps_sim/issues/335) — [TR-06] Ghostly Strike Ambush window, Hemorrhage, Blood Splatter, Mutilate — merged (PR [#350](https://github.com/james-attree/wowf_dps_sim/pull/350))
-- [#336](https://github.com/james-attree/wowf_dps_sim/issues/336) — [TR-07] Death Mark and Coup de Grace (Death Mark part) — implemented (awaiting merge)
-- [#338](https://github.com/james-attree/wowf_dps_sim/issues/338) — [TR-08] Rotation vocabulary for the rework — open
-- [#339](https://github.com/james-attree/wowf_dps_sim/issues/339) — [TR-09] UI for the new trees, abilities and conditions — open
-- [#340](https://github.com/james-attree/wowf_dps_sim/issues/340) — [TR-10] Further preset intake (when James sends more) — open
-- [#341](https://github.com/james-attree/wowf_dps_sim/issues/341) — [TR-11] Goldens and test sweep — open
-- [#342](https://github.com/james-attree/wowf_dps_sim/issues/342) — [TR-12] Docs and provenance — open
+- [#336](https://github.com/james-attree/wowf_dps_sim/issues/336) — [TR-07] Death Mark and Coup de Grace (Death Mark part) — merged (PR [#351](https://github.com/james-attree/wowf_dps_sim/pull/351))
+- [#338](https://github.com/james-attree/wowf_dps_sim/issues/338) — [TR-08] Rotation vocabulary for the rework — merged (PR [#352](https://github.com/james-attree/wowf_dps_sim/pull/352))
+- [#339](https://github.com/james-attree/wowf_dps_sim/issues/339) — [TR-09] UI for the new trees, abilities and conditions — merged (PR [#353](https://github.com/james-attree/wowf_dps_sim/pull/353))
+- [#340](https://github.com/james-attree/wowf_dps_sim/issues/340) — [TR-10] Further preset intake (when James sends more) — open, parked
+- [#341](https://github.com/james-attree/wowf_dps_sim/issues/341) — [TR-11] Goldens and test sweep — merged (PR [#354](https://github.com/james-attree/wowf_dps_sim/pull/354))
+- [#342](https://github.com/james-attree/wowf_dps_sim/issues/342) — [TR-12] Docs and provenance — this update
 
 ## Post-launch: Character and gear
 
