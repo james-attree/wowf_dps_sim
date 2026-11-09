@@ -42,6 +42,7 @@ const LABELS = {
   mutilate: "Mutilate (mutilate)",
   venom: "Venom (venom)",
   preparation: "Preparation (preparation)",
+  "death-mark": "Death Mark (death-mark)",
 };
 const labelOf = (id) => LABELS[id] ?? id;
 
@@ -93,6 +94,7 @@ describe("talent guard (#188): which abilities it covers", () => {
       "adrenaline-rush",
       "blade-flurry",
       "cold-blood",
+      "death-mark",
       "ghostly-strike",
       "hemorrhage",
       "mutilate",

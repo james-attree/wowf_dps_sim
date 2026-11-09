@@ -257,17 +257,21 @@ describe("rotationWarnings: a finisher with no comboPoints condition", () => {
       "slice-and-dice",
       "rupture",
       "expose-armor",
-      // #332: Venom pending at 70755
+      "death-mark",
     ]);
     for (const [id, label] of [
       ["eviscerate", "Eviscerate"],
       ["slice-and-dice", "Slice and Dice"],
       ["rupture", "Rupture"],
       ["expose-armor", "Expose Armor"],
+      ["death-mark", "Death Mark"],
     ]) {
-      // Venom comes from a talent (#268), so its rule carries the guard.
-      const guard = id === "venom" ? [granted(id)] : [];
-      const trap = rotation(rule(id, energy(FINISHER), ...guard));
+      // Venom and Death Mark come from talents, so the rule carries the guard.
+      const guard = id === "venom" || id === "death-mark" ? [granted(id)] : [];
+      // Death Mark also has a cooldown, so the finisher warning is the one
+      // this case is about.
+      const cooldown = id === "death-mark" ? [ready(id)] : [];
+      const trap = rotation(rule(id, energy(FINISHER), ...guard, ...cooldown));
       assert.deepEqual(messages(trap), [
         finisherText(
           `${label} (${id})`,
@@ -698,6 +702,7 @@ describe("rotationWarnings: data, not names", () => {
       "eureka",
       "shank",
       "preparation",
+      "death-mark",
     ]);
     assert.ok(!context.onGcd.includes("blood-fury"));
     assert.ok(!context.onGcd.includes("elunes-light"));

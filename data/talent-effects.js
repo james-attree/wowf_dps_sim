@@ -59,9 +59,10 @@ import { k } from "./constants.js";
 // unlimited), Seal Fate (an onCrit proc on the combo point builders, A8) and
 // Murder was removed in the 3 Nov / 70755 rework (TR-02 / #332). Remorseless
 // Attacks and Improved Kidney Shot have no DPS effect. New 70755 talents that
-// need engine work are marked `pending` until TR-07. Venom and Composure are
-// mapped (TR-05 / #334). Blood Splatter's Rupture seconds are mapped
-// (TR-06 / #335); its Garrote seconds are inert.
+// need engine work are marked `pending`. Venom and Composure are mapped
+// (TR-05 / #334). Blood Splatter's Rupture seconds are mapped
+// (TR-06 / #335); its Garrote seconds are inert. Death Mark is mapped
+// (TR-07 / #336).
 
 const RAW = {
   "assassination.improved-gouge": {
@@ -281,13 +282,26 @@ const RAW = {
   "combat.coup-de-grace": {
     textHash:
       "29a705776a7ad658d1b67e9ef239f9dc5547ba2a922b3b9b04be2b2f9ecc580a",
-    // Eviscerate damage now (TR-02). Death Mark storage/damage is TR-07 / #336.
+    // Eviscerate damage, and Death Mark's storage rate and dealt damage
+    // (TR-07 / #336). The cap is not scaled.
     modifiers: [
       {
         kind: "damage",
         op: "add",
         values: [0.07, 0.13, 0.2],
         scope: { abilities: ["eviscerate"] },
+      },
+      {
+        kind: "damage",
+        op: "add",
+        values: [0.07, 0.13, 0.2],
+        scope: { abilities: ["death-mark"] },
+      },
+      {
+        kind: "storageRate",
+        op: "add",
+        values: [0.07, 0.13, 0.2],
+        scope: { abilities: ["death-mark"] },
       },
     ],
   },
@@ -643,8 +657,7 @@ const RAW = {
   "subtlety.death-mark": {
     textHash:
       "d68af3c464e41a0e92a3ebdd01c58ee787974dd8514346a66264fa3807c4e3d9",
-    pending:
-      "TR-07 / #336: Death Mark finisher (storage %, 2× Rupture/Garrote, release, caps).",
+    ability: "death-mark",
   },
 };
 

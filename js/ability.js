@@ -264,6 +264,8 @@ export class Ability {
     this.dot = definition.damage?.kind === "dot";
     // An attack that only rolls the table (Expose Armor, #268, B1).
     this.attackOnly = definition.damage?.kind === "attackOnly";
+    // Death Mark (TR-07 / #336): the landed cast arms the mark it just applied.
+    this.marksDeath = definition.marksDeath === true;
     this.bleed = definition.damage?.bleed === true;
     // The aura (js/auras.js) a cast puts up for `duration` seconds, if any. An
     // aura on the player (haste, energy regen) is a buff, one on the target (a
@@ -651,12 +653,15 @@ export class Ability {
       }
 
       if (duration > 0 && this.aura) {
-        simulation.applyAura(this.aura, {
+        const applied = simulation.applyAura(this.aura, {
           duration,
           icon: this.icon,
           source: this.id,
           ...(this.stacksBySpent ? { stacks: spent } : {}),
         });
+        if (this.marksDeath) {
+          simulation.armDeathMark(applied, spent, this.stats);
+        }
       }
       if (this.followUp !== null && this.followUpDuration > 0) {
         simulation.applyAura(this.followUp, {

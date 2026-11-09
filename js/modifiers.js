@@ -127,6 +127,11 @@ export const MODIFIER_KINDS = Object.freeze({
   // is added only when the Poised aura is built, so it does nothing while
   // Poised is down.
   poisedEnergy: Object.freeze({ scope: NO_SCOPE, floor: 0 }),
+  // TR-07 / #336: Coup de Grace raises the fraction of damage Death Mark stores.
+  storageRate: Object.freeze({
+    scope: Object.freeze(["abilities"]),
+    floor: 0,
+  }),
 });
 
 export const STACKING_FORMS = Object.freeze([

@@ -10,6 +10,7 @@ import {
 import { EFFECT_KINDS, auraRegistry } from "./auras.js";
 import { characterLevel, fightArmor, targetLevel } from "./levels.js";
 import { ModifierPipeline, isNeutral, scopeMatches } from "./modifiers.js";
+import { abilityCatalogue } from "./abilities.js";
 import { damageTags } from "./damage-tags.js";
 import { EventStream, RingLog, SIM_EVENT_TYPES } from "./event-stream.js";
 import { DOT_REFRESH } from "./core/dots.js";
@@ -382,6 +383,7 @@ export class Simulation {
       dotContext,
     );
     this.updateDamage(dotTickDamage);
+    this.storeDeathMark(dotId, dotTickDamage);
     const dotSource = { id: dotId, name: dot.name ?? dotId };
     this.recordAbility(
       dotSource,
@@ -795,6 +797,83 @@ export class Simulation {
     this.damageDone += d;
   }
 
+  // A landed Death Mark (TR-07 / #336). `stats` is the cast's rank row.
+  // A refresh replaces the stored total: the new combo points are a new mark.
+  armDeathMark(aura, spent, stats) {
+    const row = stats ?? k("deathMark");
+    const index = spent - 1;
+    const base =
+      index >= 0 && index < row.storedByCp.length ? row.storedByCp[index] : 0;
+    aura.stored = 0;
+    aura.rate = this.modifiers.resolve("storageRate", base, {
+      ability: "death-mark",
+    });
+    aura.baseCap =
+      index >= 0 && index < row.capByCp.length ? row.capByCp[index] : 0;
+    aura.comboPoints = spent;
+  }
+
+  // Damage dealt while the mark is up, after armor. The release itself is
+  // not stored: the aura is already gone when it is dealt. Rupture and
+  // Garrote use deathMark.doubleRate.
+  storeDeathMark(sourceId, damage) {
+    if (!(damage > 0) || sourceId === "death-mark") {
+      return;
+    }
+    const aura = Object.hasOwn(this.activeDebuffs, "death-mark")
+      ? this.activeDebuffs["death-mark"]
+      : undefined;
+    if (aura === undefined || !(aura.rate > 0)) {
+      return;
+    }
+    const times = k("deathMark.double").includes(sourceId)
+      ? k("deathMark.doubleRate")
+      : 1;
+    aura.stored += damage * aura.rate * times;
+  }
+
+  // The mark's time ran out. The cap is the export number, or that number
+  // raised by Attack Power and crit when deathMark.cap says so. Coup de
+  // Grace's damage modifier applies to what is dealt, not to the cap.
+  // No attack roll and no crit roll: the tooltip already puts crit on the cap.
+  releaseDeathMark(aura) {
+    if (typeof aura?.stored !== "number") {
+      return 0;
+    }
+    const context = this.attackContext({ id: "death-mark" }, "skill");
+    let cap = aura.baseCap ?? 0;
+    if (k("deathMark.cap") === "ap and crit") {
+      const ap = this.rogue.getAttackPower();
+      const crit = this.rogue.getCritChance(context);
+      cap = (cap + aura.comboPoints * k("deathMark.apPerCp") * ap) * (1 + crit);
+    }
+    const raw = Math.min(aura.stored, cap);
+    const damage = this.modifiers.resolve("damage", raw, context);
+    if (!(damage > 0)) {
+      return 0;
+    }
+    const source = {
+      id: "death-mark",
+      name:
+        this.abilityNames["death-mark"] ??
+        abilityCatalogue.get("death-mark").name,
+    };
+    this.updateDamage(damage);
+    this.abilityStats[source.id] ??= newAbilityRecord();
+    this.abilityNames[source.id] = source.name;
+    this.abilityStats[source.id].damage += damage;
+    this.addCombatEvent(
+      source.name,
+      "skill",
+      damage,
+      "Hit",
+      "hit",
+      null,
+      source.id,
+    );
+    return damage;
+  }
+
   // `source` is who made the attack: { id, name, icon? }. A skill is one, and
   // so is a weapon's swing (Weapon.attack). The id keys the totals, the name
   // and icon go in the combat log. A white swing then fires its procs
@@ -831,6 +910,7 @@ export class Simulation {
     const damage = this.applyArmor(result.damage, skipsArmor(context), context);
     if (result.landed && damage > 0) {
       this.updateDamage(damage);
+      this.storeDeathMark(source.id, damage);
     }
     this.recordAbility(source, result.outcome, result.landed ? damage : 0);
     this.addCombatEvent(
@@ -917,6 +997,7 @@ export class Simulation {
       }
       damage = this.applyArmor(modified, skipsArmor(context), context);
       this.updateDamage(damage);
+      this.storeDeathMark(id, damage);
     }
     this.recordAbility(source, outcome, damage);
     this.addCombatEvent(

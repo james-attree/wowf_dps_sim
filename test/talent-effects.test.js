@@ -710,7 +710,7 @@ describe("the reference build (Assassination 16 / Combat 35 / Subtlety 0), decod
         "combat.flash-of-steel",
       ],
     );
-    assert.equal(build.modifiers.length, 20);
+    assert.equal(build.modifiers.length, 22);
     assert.deepEqual(
       build.modifiers
         .slice(0, 3)

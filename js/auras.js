@@ -456,6 +456,18 @@ export const AURAS = Object.freeze({
   // poison's damage over time is a DoT of its own (nature, so it skips armor),
   // each tick the stacks × one stack's tick. The id is the slug of the poison's
   // name (js/poisons.js), which is also the id of its DoT.
+  // Death Mark (TR-07 / #336): the target stores a fraction of damage dealt
+  // for the aura's length, then the stored amount is dealt. The cast fills
+  // stored, rate, baseCap and comboPoints (Simulation.armDeathMark).
+  deathMark: defineAura({
+    id: "death-mark",
+    name: "Death Mark",
+    target: "target",
+    duration: k("deathMark").duration,
+    onExpire(simulation, aura) {
+      simulation.releaseDeathMark(aura);
+    },
+  }),
   deadlyPoison: defineAura({
     id: "deadly-poison",
     name: "Deadly Poison",

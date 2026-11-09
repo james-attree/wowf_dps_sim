@@ -37,6 +37,14 @@ const READINGS = {
       text: /Eviscerate ability by (\d+)%/,
       scale: PERCENT,
     },
+    {
+      text: /Death Mark ability by (\d+)%/,
+      scale: PERCENT,
+    },
+    {
+      text: /Death Mark ability by (\d+)%/,
+      scale: PERCENT,
+    },
   ],
   "combat.efficient-strikes": [
     {
@@ -259,12 +267,7 @@ describe("the Combat modifier tables match the snapshot's rank text", () => {
           ...new Set(scoped.flatMap((entry) => entry.scope.abilities)),
         ].sort();
         assert.ok(named.length > 0, `${first} names no ability`);
-        // #332: Coup de Grace also names Death Mark; DM is pending so the
-        // live modifier scopes Eviscerate only until that TR lands.
-        assert.deepEqual(
-          scopedIds,
-          named.filter((id) => id !== "death-mark"),
-        );
+        assert.deepEqual(scopedIds, named);
       });
     }
     for (const entry of entries.filter((item) => item.scope?.weaponTypes)) {
