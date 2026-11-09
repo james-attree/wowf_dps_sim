@@ -94,6 +94,17 @@ describe("TR-06 Ghostly Strike ambush window (#335)", () => {
       sword.rogue.abilities.ghostlyStrike.stats.weaponMultiplier.other,
       1.25,
     );
+    // Sword path damage, not only the stored percent (Kira, #350).
+    sword.rogue.rng = () => 0;
+    const swordDie = sword.rogue.rollWeaponDamageForSkill();
+    assert.equal(
+      sword.rogue.abilities.ghostlyStrike.damage(),
+      swordDie * k("ghostlyStrike").weaponMultiplier.other,
+    );
+    assert.equal(
+      sword.rogue.abilities.hemorrhage.damage(),
+      swordDie * k("hemorrhage").weaponMultiplier.other,
+    );
     const dagger = fight({});
     dagger.rogue.rng = () => 0;
     const die = dagger.rogue.rollWeaponDamageForSkill();

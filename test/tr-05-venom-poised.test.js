@@ -299,6 +299,33 @@ describe("Venom on Deadly Poison ticks (#334)", () => {
     dropVenom(h);
     assert.equal(tick(h), 240);
   });
+
+  // Any value other than "while active" is the old snapshot: Venom is stored
+  // at application and is not applied again on the tick. The default stays
+  // "while active" (James, 8 Nov 2026).
+  it("a non-default venom.tickDamage keeps Venom in the application snapshot", () => {
+    withConstant("venom.tickDamage", "at application", () => {
+      const during = poisonFight({
+        "assassination.venom": 1,
+        "assassination.vile-poisons": 5,
+      });
+      landShank(during);
+      const stored = applyDeadly(during);
+      assert.equal(stored, 120 * k("venom").poisonDamage);
+      assert.equal(tick(during), stored);
+      dropVenom(during);
+      assert.equal(
+        during.simulation.activeDots["deadly-poison"].tickDamage,
+        stored,
+      );
+      assert.equal(tick(during), stored);
+
+      const before = poisonFight({ "assassination.venom": 1 });
+      assert.equal(applyDeadly(before), 100);
+      landShank(before);
+      assert.equal(tick(before), 100);
+    });
+  });
 });
 
 describe("TR-05 review nits (#334)", () => {

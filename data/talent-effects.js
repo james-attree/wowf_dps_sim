@@ -35,6 +35,8 @@ import { k } from "./constants.js";
 //                damage fight. It stands alone.
 //   pending      a one-line reason naming the follow-up issue that will map
 //                the talent. It stands alone. Coverage treats it as covered.
+//                A pending entry still needs textHash (64 hex digits) or boot
+//                throws in js/talent-build.js.
 //
 // A modifier's numbers are written here and checked against the percentage or
 // amount in the snapshot's own rank text by test/talent-effects.test.js, at

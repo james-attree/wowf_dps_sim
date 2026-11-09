@@ -273,6 +273,8 @@ export const AMBUSH_ROTATION = deepFreeze({
 // CUTTHROAT_BUILD / AMBUSH_ROTATION kept for unit tests (#271).
 // The cutthroat golden case is retired until a later issue remaps Ambush.
 
+// Append a case here for a new preset share link (TR-10): one name, one
+// fixture, one lock. Do not rewrite an existing entry.
 export const GOLDEN_CASES = deepFreeze([
   { name: "short-seed-1-10s", seed: 1, duration: 10 },
   { name: "five-minute-seed-1-300s", seed: 1, duration: 300 },

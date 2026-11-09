@@ -519,7 +519,7 @@ function effectsOf(ranks, total, config, info) {
           : null,
       notSimulated:
         notSimulated.length > 0
-          ? `Not simulated yet: ${notSimulated.map(({ name }) => name).join(", ")} (${notSimulated.length}). Their points add no DPS.`
+          ? `Not simulated yet: ${notSimulated.map(({ name }) => name).join(", ")} (${notSimulated.length}). ${notSimulated.length === 1 ? "Its points" : "Those points"} add no DPS.`
           : null,
       noDps:
         noDps.length > 0

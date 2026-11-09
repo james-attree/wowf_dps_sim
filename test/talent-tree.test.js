@@ -308,7 +308,26 @@ describe("talent tree model (#204)", () => {
     pick(tree);
     assert.match(
       store.get().talents.view.effects.coverage.notSimulated,
-      /^Not simulated yet: Improved Ambush \(1\)\. Their points add no DPS\.$/,
+      /^Not simulated yet: Improved Ambush \(1\)\. Its points add no DPS\.$/,
+    );
+    const {
+      "subtlety.improved-ambush": droppedAmbush,
+      "subtlety.camouflage": droppedCamo,
+      ...twoMissing
+    } = TALENT_EFFECTS;
+    assert.ok(droppedAmbush);
+    assert.ok(droppedCamo);
+    const two = createStore({
+      config: { ...pageDefaultConfig(), talents: {}, talentLevel: 60 },
+      form: null,
+    });
+    const twoTree = createTalentTree(two, {
+      info: talentInfo({ effects: twoMissing }),
+    });
+    pick(twoTree);
+    assert.match(
+      two.get().talents.view.effects.coverage.notSimulated,
+      /^Not simulated yet: Camouflage, Improved Ambush \(2\)\. Those points add no DPS\.$/,
     );
   });
 
