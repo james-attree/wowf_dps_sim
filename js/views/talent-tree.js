@@ -296,8 +296,9 @@ export function createTalentTreeView(
   }
 
   // The legend names only the badges a tile can show: "not simulated yet"
-  // only while some talent has no effect entry (#275, Kira's #302 N4; every
-  // talent has one since #271). Coverage is fixed data, so once is enough.
+  // only while some talent has no effect entry or is still `pending`
+  // (#275, Kira's #302 N4; TR-09 / #339). Coverage is fixed data, so once
+  // is enough. A mapped entry drops the badge without a UI change.
   function buildLegend(view) {
     const lock = make("span", { class: "lg lg-lock", "aria-hidden": "true" });
     lock.append(toDom(LOCK, doc));

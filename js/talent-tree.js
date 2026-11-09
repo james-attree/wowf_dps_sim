@@ -117,7 +117,8 @@ function statBonuses(effect) {
 }
 
 // What the tree knows of each talent besides its rank, worked out once:
-// coverage (data/talent-effects.js: no entry is "not simulated yet"), the
+// coverage (data/talent-effects.js: no entry, or an entry that is only
+// `pending`, is "not simulated yet"; a mapped entry is not), the
 // ability it grants, the Classic 1.12 difference, and the icon URL.
 export function talentInfo({
   catalogue = talentCatalogue,
@@ -134,7 +135,7 @@ export function talentInfo({
     for (const talent of tree.talents) {
       const effect = effects[talent.id];
       const coverage =
-        effect === undefined
+        effect === undefined || typeof effect.pending === "string"
           ? "notSimulated"
           : typeof effect.noDpsEffect === "string"
             ? "noDps"

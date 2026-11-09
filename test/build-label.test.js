@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import {
   buildLabel,
   LABEL_SEPARATOR,
@@ -7,7 +8,6 @@ import {
   talentLabel,
 } from "../js/build-label.js";
 import { pageDefaultConfig } from "../js/config-form.js";
-import { TALENT_EFFECTS } from "../data/talent-effects.js";
 import { talentCatalogue } from "../js/talents.js";
 import { frozenPresetConfig } from "./frozen-preset.js";
 
@@ -101,6 +101,19 @@ describe("the talents part of the label (#204, Fran's U6 spec D17 and section 6)
       buildLabel({ talents: ranks, talentLevel: 30 }, { effects }),
       "Combat 0/7/1 · level 30 · 8/21 · 1 not simulated yet · Default rotation · No poisons",
     );
+  });
+
+  it("counts a pending talent, and drops it once the entry is mapped (#339)", () => {
+    const ranks = { ...combat, "subtlety.death-mark": 1 };
+    const pending = {
+      ...TALENT_EFFECTS,
+      "subtlety.death-mark": { pending: "Follow-up issue." },
+    };
+    assert.match(
+      talentLabel(ranks, 60, { effects: pending }),
+      /1 not simulated yet/,
+    );
+    assert.doesNotMatch(talentLabel(ranks, 60), /not simulated yet/);
   });
 
   it("counts none not simulated in any tree on the real data (#271)", () => {

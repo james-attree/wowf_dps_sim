@@ -471,6 +471,29 @@ describe("talent tree view (#204)", () => {
     ]);
   });
 
+  it("a pending talent shows the badge, and a mapped talent does not (#339)", () => {
+    const badge = (id, effects) => {
+      const { tile } = page({ effects });
+      return tile(id).find(
+        (node) => node.getAttribute("class") === "talent-cov is-notsim",
+      );
+    };
+    const pending = {
+      ...TALENT_EFFECTS,
+      "combat.flash-of-steel": { pending: "Follow-up issue." },
+    };
+    assert.equal(badge("combat.flash-of-steel", pending).hidden, false);
+    assert.equal(badge("combat.flash-of-steel").hidden, true);
+    const note = page({ effects: pending });
+    note.tile("combat.flash-of-steel").focus();
+    assert.match(note.$("talents-detail").textContent, /Not simulated yet:/);
+    note.actions.select("combat.composure");
+    assert.doesNotMatch(
+      note.$("talents-detail").textContent,
+      /Not simulated yet:/,
+    );
+  });
+
   it("below NARROW_QUERY the trees are tabs, one shown at a time (§7)", () => {
     const { $, doc, setNarrow, store } = page({ narrow: true });
     assert.equal($("talents-tabs").hidden, false);
