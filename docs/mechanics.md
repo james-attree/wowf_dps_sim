@@ -8,10 +8,7 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 
 **Landed:** TR-03 / #333 temporary Combat swords; TR-04 / #337 Shank, Flash of Steel, Boot Knife.
 
-**Pending (later TR issues):**
-
-- TR-07 / #336 — Death Mark finisher; Coup de Grace Death Mark storage/damage part
-  Removed from the tree (effects retired): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. Venom is no longer a finisher ability.
+**Pending (later TR issues):** none in this mechanics section. Removed from the tree (effects retired): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. Venom is no longer a finisher ability.
 
 ### Shank, Flash of Steel and Boot Knife (TR-04 / #337)
 
@@ -35,6 +32,14 @@ Data refreshed to talentsforever build **1.60.1.70755** (generated 2026-11-04; l
 - **Blood Splatter** adds `k("bloodSplatter").rupture` (6 s) to Rupture through `flatDuration`. `k("bloodSplatter.apply")` `"after percent"` (team assumption, not a ruling by James) adds those seconds after percent duration modifiers. Any other value adds them first. A length of 0 stays 0. James, 8 Nov 2026, 23:28 UK, relayed by Scout: the extra seconds are full-strength ticks and the total rises (`k("bloodSplatter.ticks")` `"full strength"`). The tooltip total is still split across the tick count of the length before those flat seconds, so a percent duration modifier still changes that tick. Any other `bloodSplatter.ticks` value splits the same total across the final length. The export's +9 s Garrote is recorded and not applied.
 - **Mutilate** stays 90% weapon damage. The flat per hand is 36/51/71 by rank (`mutilate.bonusByRank`, wowf-export, not an assumption). The poisoned ×1.2 still requires Deadly Poison.
 - No new preset and no Death Mark condition. `LINK_BASES` is unchanged. Venom's tick rule is unchanged: the bonus applies to Deadly Poison ticks only while the aura is up.
+
+### Death Mark and Coup de Grace (TR-07 / #336)
+
+- **Death Mark** is a finisher (`js/ability-data.js`). 25 energy, 10 s cooldown, 1–5 combo points, on the GCD. A landed cast spends the combo points and marks the target for `k("deathMark").duration` (6 s). A miss, dodge, parry or block spends nothing and applies no mark. The cast itself deals no damage and draws only the yellow attack-table roll.
+- **Storage.** While the mark is up, damage that has already had armor applied is added to the mark at `storedByCp` for the combo points spent (12% through 60% at rank 4). `k("deathMark.double")` (Rupture and Garrote) stores at `k("deathMark.doubleRate")` (2). Garrote is not simulated. James, 9 Nov 2026, relayed by Scout: poison damage stores at the normal 1× rate. Every other positive damage event does too, including white swings. The release is not stored. A new landed cast replaces the mark and starts the stored total again.
+- **Release.** When the 6 s ends, the stored amount is dealt, limited by the cap, as a Death Mark breakdown row. Armor is not applied again. There is no second attack roll and no crit roll. The fight ending before the 6 s deals nothing extra.
+- **Cap.** `storedByCp` and `capByCp` are the 70755 export (real data; the printed caps are 0 Attack Power and 0 crit). James, 9 Nov 2026, relayed by Scout, accepted this as a tagged assumption, not a sourced coefficient: `k("deathMark.cap")` `"ap and crit"` sets the cap to (export cap + combo points × `k("deathMark.apPerCp")` × Attack Power) × (1 + melee crit chance). Attack Power and crit are read when the mark expires. `apPerCp` is 0.04. The reference for that figure is the Wowhead Forever tooltip for spell 1325758 (`deathMark.apPerCp`). Crit is `getCritChance` for the Death Mark context, with no attack-table suppression. Any other `deathMark.cap` value uses the export cap alone. The product is not floored or clamped except by the later `min(stored, cap)`.
+- **Coup de Grace** still adds 7/13/20% Eviscerate damage. The same percents are a `storageRate` add on Death Mark and a `damage` add on the amount released. The cap is not scaled. There is no `deathMarkStored` rotation condition. No new preset. `LINK_BASES` is unchanged.
 
 How the engine on `main` resolves attacks, resources, and time. Every
 formula names a constant id from [`data/constants.js`](../data/constants.js).

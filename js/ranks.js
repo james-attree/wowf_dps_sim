@@ -138,6 +138,14 @@ const RANKED = {
       };
     },
   },
+  deathMark: {
+    id: "death-mark",
+    fields: (spell) => ({
+      ...energy(spell),
+      storedByCp: spell.perComboPoint.map((row) => row.storedPercent),
+      capByCp: spell.perComboPoint.map((row) => row.damageCap),
+    }),
+  },
   exposeArmor: {
     id: "expose-armor",
     fields: (spell) => ({

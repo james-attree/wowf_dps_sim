@@ -470,6 +470,55 @@ export const CONSTANTS = {
     'Read when a cast DoT splits its tooltip total (js/ability.js, js/simulation.js). "full strength" divides that total by the tick count of the length before the flat seconds, then the longer duration deals that same tick again. Any other value divides by the tick count of the final length, which spreads the same total thinner. A percent duration modifier is still part of the length the total is split across. Garrote is not simulated.',
     false,
   ),
+  // TR-07 / #336. Rank 4 is the level-60 spell. storedByCp and capByCp are the
+  // export's table (0 Attack Power, 0 crit). The AP and crit terms are the
+  // assumption rows below.
+  deathMark: entry(
+    {
+      energy: 25,
+      cooldown: 10,
+      duration: 6,
+      storedByCp: [0.12, 0.24, 0.36, 0.48, 0.6],
+      capByCp: [401, 646, 891, 1136, 1381],
+    },
+    "energy, s, s, fraction, damage",
+    WOWF_EXPORT,
+    "rogue.json → spell_desc[Rogue|Death Mark|Rank 4] (1.60.1.70755): 25 Energy, 10 sec cooldown, After 6 sec, 12/24/36/48/60% stored, caps 401/646/891/1136/1381. Garrote and Rupture damage is stored at twice the rate.",
+    "Finisher. A landed cast marks the target for duration seconds and spends combo points. Damage dealt while the mark is up is stored at storedByCp for the points spent. The ids in deathMark.double are stored at deathMark.doubleRate instead. At the end of the mark the stored amount is dealt, limited by the cap. Rank 4's table is this row. Ranks 1–3 overlay storedByCp and capByCp from the same spell text (js/ranks.js). The export's caps are the 0 Attack Power, 0 crit numbers. How Attack Power and crit raise the cap is deathMark.cap.",
+    false,
+  ),
+  "deathMark.double": entry(
+    ["rupture", "garrote"],
+    "ability ids",
+    WOWF_EXPORT,
+    "rogue.json → spell_desc[Rogue|Death Mark|Rank 4]: Garrote and Rupture damage is stored at twice the rate.",
+    "Those ability ids store at deathMark.doubleRate. Garrote is not simulated, so its id is recorded and does nothing until a Garrote cast exists. James, 9 Nov 2026, issue #336, relayed by Scout: poison damage is stored at the normal rate (1×), not at doubleRate. Every source that is not in this list, including poisons, stores at the mark's rate.",
+    false,
+  ),
+  "deathMark.doubleRate": entry(
+    2,
+    "×",
+    WOWF_EXPORT,
+    "rogue.json → spell_desc[Rogue|Death Mark|Rank 4]: stored at twice the rate.",
+    "The multiplier on deathMark.double while a mark is up. Read when damage is stored (js/simulation.js).",
+    false,
+  ),
+  "deathMark.apPerCp": entry(
+    0.04,
+    "× Attack Power per combo point",
+    ASSUMPTION,
+    "James, 9 Nov 2026, issue #336: James accepted the proposed coefficient 0.04 as a tagged assumption. It is not a coefficient in the vendored 1.60.1.70755 export. The reference for where 0.04 came from is the Wowhead Forever tooltip for spell 1325758. Relayed by Scout.",
+    'Added to the export cap, once per combo point spent, before the crit multiplier, when deathMark.cap is "ap and crit". Attack Power is read when the mark expires. Any other deathMark.cap ignores this row.',
+    true,
+  ),
+  "deathMark.cap": entry(
+    "ap and crit",
+    "–",
+    ASSUMPTION,
+    "James, 9 Nov 2026, issue #336: James accepted the proposed cap (export cap + combo points × 0.04 × Attack Power) × (1 + crit), with Attack Power and crit evaluated when the mark expires. Tagged assumption, not a sourced coefficient. 0.04 is the Wowhead Forever spell 1325758 tooltip figure, kept as the reference for where it came from. Relayed by Scout.",
+    'Read when the mark expires (js/simulation.js). "ap and crit" sets the cap to (export cap + combo points × deathMark.apPerCp × Attack Power) × (1 + melee crit chance). Attack Power is getAttackPower() at expiry. Crit is getCritChance for the Death Mark context at expiry (sheet plus critChance modifiers), with no attack-table suppression. Any other value uses the export cap alone. There is no floor and no other clamp; the release then takes min(stored, cap) and does not apply armor again. Coup de Grace does not change the cap. It scales the storage rate and the damage dealt.',
+    true,
+  ),
   shank: entry(
     {
       energy: 5,
@@ -2129,11 +2178,12 @@ export const CONSTANTS = {
       cooldown: "flat",
       poisedEnergy: "flat",
       flatDuration: "flat",
+      storageRate: "percent",
     },
     "modifier kind → stacking form",
     ASSUMPTION,
     `${DEV_JUDGEMENT_96}: a judgement call by the dev, not a decision by James. A guess at how WoW Forever combines the modifiers of one kind (js/modifiers.js)`,
-    'A guess at a game rule, the stacking model, so it is on the retune list. "flat" is (base + the sum of the add values) × the product of the mult values, so a chance or a cost adds in its own units. "percent" is base × (1 + the sum of the add values) × the product of the mult values, so "+x% damage" talents add together and a separate multiplier multiplies. "bonus" is the same as "percent", applied to the crit bonus (the multiplier minus one), so Lethality-style effects scale the bonus and not the whole hit. "haste" is the product (or sum) that haste.stacking selects, once per stack. "duration" is "percent" on the length of an aura, so the +15% a rank of Improved Slice and Dice multiplies the 9 to 21 seconds of the table (+45% at 3/3 is 9 × 1.45), and a separate multiplier would multiply (D8a, #119). "flatDuration" is "flat" seconds added to that length (Blood Splatter, TR-06 / #335); whether they are added before or after the percent form is bloodSplatter.apply. These follow the Classic convention that talent percentages add and buffs multiply. If WoW Forever stacks a kind differently, change its form here and nowhere else.',
+    'A guess at a game rule, the stacking model, so it is on the retune list. "flat" is (base + the sum of the add values) × the product of the mult values, so a chance or a cost adds in its own units. "percent" is base × (1 + the sum of the add values) × the product of the mult values, so "+x% damage" talents add together and a separate multiplier multiplies. "bonus" is the same as "percent", applied to the crit bonus (the multiplier minus one), so Lethality-style effects scale the bonus and not the whole hit. "haste" is the product (or sum) that haste.stacking selects, once per stack. "duration" is "percent" on the length of an aura, so the +15% a rank of Improved Slice and Dice multiplies the 9 to 21 seconds of the table (+45% at 3/3 is 9 × 1.45), and a separate multiplier would multiply (D8a, #119). "flatDuration" is "flat" seconds added to that length (Blood Splatter, TR-06 / #335); whether they are added before or after the percent form is bloodSplatter.apply. "storageRate" is "percent" on the fraction of damage Death Mark stores (TR-07 / #336). These follow the Classic convention that talent percentages add and buffs multiply. If WoW Forever stacks a kind differently, change its form here and nowhere else.',
     true,
   ),
   "abilities.offGcd": entry(

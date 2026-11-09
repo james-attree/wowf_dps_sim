@@ -347,4 +347,17 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     icon: null,
     resets: "preparation.resets",
   },
+  {
+    // TR-07 / #336. A landed cast marks the target. The cast deals no damage
+    // of its own. Stored damage is dealt when the mark expires.
+    key: "deathMark",
+    id: "death-mark",
+    row: "deathMark",
+    icon: null,
+    cost: ENERGY,
+    spend: { resource: "comboPoints" },
+    damage: { kind: "attackOnly" },
+    marksDeath: true,
+    aura: { id: "deathMark", duration: { field: "duration" } },
+  },
 ]);

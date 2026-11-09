@@ -331,6 +331,7 @@ describe("applyBuild", () => {
         "premeditation",
         "hemorrhage",
         "preparation",
+        "death-mark",
       ].sort(),
     );
   });
