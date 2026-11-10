@@ -975,10 +975,11 @@ Assassination daggers
 ### subtlety-daggers
 
 James, 10 Nov 2026 (#340). Talents 12/8/31. Same daggers and the same
-`character.dagger` sheet as the other dagger presets. Instant main hand
-and Deadly off hand are James's 1 Nov 2026 ruling that every preset
-reference build uses that pair, carried forward to this TR-10 preset as
-an assumption. The share-link base is `subtlety-daggers-340`. Garrote is
+`character.dagger` sheet as the other dagger presets. Assumption (dev
+choice): Subtlety daggers uses Instant MH / Deadly OH, matching the Combat
+and Assassination dagger presets. James has not ruled Subtlety poisons.
+Cf. his 1 Nov ruling for the historical #273 reference builds. The
+share-link base is `subtlety-daggers-340`. Garrote is
 castable only while Ghostly Strike's no-stealth window is up. Hemorrhage's
 combo-point cap under 4, the place of Premeditation and Preparation
 (after the racials, before the finishers), and Death Mark's cooldown check

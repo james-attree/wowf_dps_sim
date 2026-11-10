@@ -2047,7 +2047,7 @@ export const CONSTANTS = {
     },
     "poison ids per preset",
     ASSUMPTION,
-    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: Combat daggers and Assassination daggers use Instant MH and Deadly OH. James, 1 Nov 2026: every preset reference build uses Instant MH and Deadly OH. That ruling is carried forward to the TR-10 Subtlety daggers preset as an assumption; it is not a 10 Nov ruling. combat-swords in this map is historical. The assassination-daggers and subtlety-daggers keys are the live presets. No claim about the frozen link bases. Tagged assumption`,
+    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: Combat daggers and Assassination daggers use Instant MH and Deadly OH. Assumption (dev choice): Subtlety daggers uses Instant MH / Deadly OH, matching the Combat and Assassination dagger presets. James has not ruled Subtlety poisons. Cf. his 1 Nov ruling for the historical #273 reference builds. combat-swords in this map is historical. The assassination-daggers and subtlety-daggers keys are the live presets. No claim about the frozen link bases. Tagged assumption`,
     "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp, combat-daggers, assassination-daggers and subtlety-daggers (instant main hand, deadly off hand). combat-swords is not a live reference build.",
     false,
   ),

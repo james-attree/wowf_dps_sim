@@ -104,10 +104,10 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talentLevel: LEVEL_60,
     talents: talentsFromLink(SUBTLETY_DAGGERS_LINK),
     weapons: DAGGERS,
-    // James, 1 Nov 2026: every preset reference build uses Instant MH and
-    // Deadly OH. Carried forward to this TR-10 preset as an assumption.
-    // Combat daggers and Assassination daggers cite the same pair as James,
-    // 10 Nov 2026, issue #340.
+    // Assumption (dev choice): Subtlety daggers uses Instant MH / Deadly OH,
+    // matching the Combat and Assassination dagger presets. James has not
+    // ruled Subtlety poisons. Cf. his 1 Nov ruling for the historical #273
+    // reference builds.
     poisons: poisonsOf("subtlety-daggers"),
     character: DAGGER_SHEET,
   },

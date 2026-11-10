@@ -444,7 +444,7 @@ export const ROTATION_PRESETS = deepFreeze([
     id: "subtlety-daggers",
     name: "Subtlety daggers",
     description:
-      "James, 10 Nov 2026, issue #340: finishers at 4 or more combo points (Slice and Dice, then Rupture, then Death Mark). Death Mark only when Garrote and Rupture each have more than 6s left. Ghostly Strike when Garrote is not up, then Garrote, Shank below 50 energy, Hemorrhage. Premeditation and Preparation on cooldown. Talents are the 70755 link (Assassination 12 / Combat 8 / Subtlety 31). Two daggers. Instant on the main hand and Deadly on the off hand are James's 1 Nov 2026 ruling that every preset reference build uses that pair, carried forward to this TR-10 preset as an assumption.",
+      "James, 10 Nov 2026, issue #340: finishers at 4 or more combo points (Slice and Dice, then Rupture, then Death Mark). Death Mark only when Garrote and Rupture each have more than 6s left. Ghostly Strike when Garrote is not up, then Garrote, Shank below 50 energy, Hemorrhage. Premeditation and Preparation on cooldown. Talents are the 70755 link (Assassination 12 / Combat 8 / Subtlety 31). Two daggers. Assumption (dev choice): Subtlety daggers uses Instant MH / Deadly OH, matching the Combat and Assassination dagger presets. James has not ruled Subtlety poisons. Cf. his 1 Nov ruling for the historical #273 reference builds.",
     rotation: {
       schemaVersion: 1,
       name: "Subtlety daggers",
