@@ -59,6 +59,9 @@ const COMBAT_DAGGERS_LINK =
 const ASSASSINATION_DAGGERS_LINK =
   "https://talentsforever.com/rogue/60/00530321251551031-320303-003-CFDIHGLKJ4NMJPQSRUWm-12?b=70755h&d=261110";
 
+const SUBTLETY_DAGGERS_LINK =
+  "https://talentsforever.com/rogue/60/00530301-320003-025233031301001151-mpntrsvo2yzol05SRWCDFH-12?b=70755h&d=261110";
+
 function talentsFromLink(link) {
   const { ranks } = decodeBuildLink(link);
   return Object.fromEntries(
@@ -94,6 +97,14 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talents: talentsFromLink(ASSASSINATION_DAGGERS_LINK),
     weapons: DAGGERS,
     poisons: poisonsOf("assassination-daggers"),
+    character: DAGGER_SHEET,
+  },
+  "subtlety-daggers": {
+    name: "Subtlety daggers (#340)",
+    talentLevel: LEVEL_60,
+    talents: talentsFromLink(SUBTLETY_DAGGERS_LINK),
+    weapons: DAGGERS,
+    poisons: poisonsOf("subtlety-daggers"),
     character: DAGGER_SHEET,
   },
 });

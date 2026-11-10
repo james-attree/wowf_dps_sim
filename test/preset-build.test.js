@@ -508,6 +508,17 @@ const SIGNATURES = {
     "cold-blood",
     "shank",
   ],
+  "subtlety-daggers": [
+    "hemorrhage",
+    "slice-and-dice",
+    "rupture",
+    "garrote",
+    "ghostly-strike",
+    "death-mark",
+    "premeditation",
+    "preparation",
+    "shank",
+  ],
 };
 const SEED = 1;
 const FIGHT_SECONDS = 120;

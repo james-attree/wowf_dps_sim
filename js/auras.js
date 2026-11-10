@@ -321,9 +321,9 @@ export const AURAS = Object.freeze({
     name: "Ghostly Strike",
     duration: k("ghostlyStrike").duration,
   }),
-  // The Ambush gate (TR-06 / #335). A landed Ghostly Strike applies it for
-  // ghostlyStrike.ambushWindow seconds. One charge (the "next" cast). It is
-  // not Stealth. Garrote is not simulated.
+  // The Ambush and Garrote gate (TR-06 / #335, Garrote in #340). A landed
+  // Ghostly Strike applies it for ghostlyStrike.ambushWindow seconds. One
+  // charge (the "next" cast). It is not Stealth.
   ambushWindow: defineAura({
     id: "ambush-window",
     name: "Ambush window",
@@ -412,6 +412,12 @@ export const AURAS = Object.freeze({
   }),
   // The marker for the Rupture DoT on the target. Its duration is the DoT's,
   // which depends on the combo points spent, so each cast gives it.
+  // The marker for the Garrote bleed on the target. Its length is the DoT's.
+  garrote: defineAura({
+    id: "garrote",
+    name: "Garrote",
+    target: "target",
+  }),
   rupture: defineAura({
     id: "rupture",
     name: "Rupture",
@@ -425,7 +431,7 @@ export const AURAS = Object.freeze({
     duration: k("hemorrhage.ruptureBonus").duration,
     effects: {
       dotDamageTaken: {
-        ids: ["rupture"],
+        ids: ["rupture", "garrote"],
         bonus: k("hemorrhage.ruptureBonus").bonus,
       },
     },

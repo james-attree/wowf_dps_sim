@@ -83,6 +83,11 @@ const DAMAGE = {
   },
 
   dot(spec, stats, rogue, spent, durations) {
+    // Garrote: one total, 552 + a coefficient × attack power, not per combo
+    // point. Attack power is read here, when the cast resolves (garrote.snapshot).
+    if (spec.apTotal !== undefined) {
+      return stats.damage + rogue.getAttackPower() * k(spec.apTotal);
+    }
     // Totals, not per tick. The DoT applicator divides this by the tick count.
     const apBySpent = k(spec.ap);
     if (
