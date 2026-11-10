@@ -1919,7 +1919,7 @@ export const CONSTANTS = {
     "damage, damage, s, –",
     CLASSIC,
     `${WH_ITEM}18816/perditions-blade; ${CHAR_REF}`,
-    "Perdition's Blade: dagger, 73-137 at 1.8s. Its Chance on hit (40 to 56 Fire damage) is not modelled. The main hand of the dagger/dagger alternate (defaultDaggerConfig).",
+    "Perdition's Blade: dagger, 73-137 at 1.8s. Its Chance on hit (40 to 56 Fire damage) is not modelled. The main hand of the dagger/dagger alternate (defaultDaggerConfig) and of the Combat daggers reference build (data/preset-reference-builds.js, James, 10 Nov 2026, issue #340: the #328 daggers).",
     false,
   ),
   "weapon.dagger.offHand": entry(
@@ -2019,8 +2019,8 @@ export const CONSTANTS = {
     },
     "poison ids per preset",
     ASSUMPTION,
-    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 1 Nov 2026: the old preset reference builds set Instant MH and Deadly OH, and those presets are historical. The map still has keys the live reference-build object does not read. No claim about the frozen combat-swords link base. Tagged assumption`,
-    "Poison ids keyed by name. data/preset-reference-builds.js reads only combat-swords-temp (instant main hand, deadly off hand). The other keys are not live reference builds and are not the frozen combat-swords link base.",
+    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: the Combat daggers reference build uses Instant MH and Deadly OH. James, 1 Nov 2026: the old preset reference builds set Instant MH and Deadly OH, and assassination-daggers, subtlety-daggers and combat-swords in this map are historical. No claim about the frozen combat-swords or combat-daggers link bases. Tagged assumption`,
+    "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp and combat-daggers (instant main hand, deadly off hand). The other keys are not live reference builds and are not the frozen link bases.",
     false,
   ),
   "presetReferenceBuild.daggerOffHand": entry(
@@ -2028,7 +2028,7 @@ export const CONSTANTS = {
     "damage, damage, s, –",
     ASSUMPTION,
     `${PRESETS_310}: James ruling, 2 Nov 2026: the dagger presets' off hand is 59-111 at 1.6 speed (no item named); tagged assumption`,
-    "The off hand of the Assassination and Subtlety reference builds (data/preset-reference-builds.js). Only those builds read it: the dagger alternate's off hand (weapon.dagger.offHand, Core Hound Tooth, with its character.dagger bonuses) and defaultDaggerConfig() keep 57-107.",
+    "The off hand of the Combat daggers reference build (data/preset-reference-builds.js, James, 10 Nov 2026, issue #340: the #328 daggers). No item is named. The dagger alternate's off hand (weapon.dagger.offHand, Core Hound Tooth, with its character.dagger bonuses) and defaultDaggerConfig() keep 57-107.",
     false,
   ),
   "presetRotation.combat": entry(
@@ -2089,7 +2089,7 @@ export const CONSTANTS = {
     "CP, s, s, energy",
     ASSUMPTION,
     `${PRESETS_328}: James ruling, 2 Nov 2026 (his share link's "Combat Daggers" rotation); tagged assumption`,
-    "The Combat daggers preset's numbers (data/rotation-presets.js). Every finisher at finisherComboPoints or more: Slice and Dice under sliceAndDiceRecastSeconds left, or at most sliceAndDiceWindowSeconds left with sliceAndDiceEnergy energy, then Eviscerate; Backstab under finisherComboPoints. Blade Flurry and Adrenaline Rush are talented but not cast (James's build as sent).",
+    "Historical #328 Combat daggers numbers. The live #340 preset does not read this row: James, 10 Nov 2026, replaced Sinister Strike with Backstab in the temporary Combat swords rotation and kept every other rule.",
     true,
   ),
   "config.minWeaponSpeed": entry(

@@ -102,6 +102,11 @@ export const LINK_BASES = Object.freeze([
     id: "combat-swords-temp-337",
     preset: "combat-swords-temp",
   }),
+  Object.freeze({
+    id: "combat-daggers-340",
+    // TR-10 / #340. Appended. The frozen id "combat-daggers" stays the #328 snapshot.
+    preset: "combat-daggers",
+  }),
 ]);
 
 // talentCatalogue order at #306.

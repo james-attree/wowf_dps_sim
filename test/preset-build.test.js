@@ -493,6 +493,13 @@ const SIGNATURES = {
     "blade-flurry",
     "eviscerate",
   ],
+  "combat-daggers": [
+    "backstab",
+    "slice-and-dice",
+    "blade-flurry",
+    "eviscerate",
+    "shank",
+  ],
 };
 const SEED = 1;
 const FIGHT_SECONDS = 120;

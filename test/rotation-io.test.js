@@ -9,6 +9,7 @@ import {
   listPresets,
   loadPreset,
   presetRotation,
+  referenceBuild as presetReferenceBuild,
 } from "../js/rotation-presets.js";
 import { validateRotation } from "../js/rotation-validator.js";
 import { ERROR_DATA } from "./rotation-error-codes.js";
@@ -283,7 +284,18 @@ describe("round trip", () => {
         { label: `${preset.id}`, config: loadPreset(preset.id) },
         {
           label: `${preset.id} with build`,
-          config: loadPreset(preset.id, { talents: referenceBuild() }),
+          // Combat daggers on the swords talent map (Vigor, energy-to-cap
+          // exactly 1 s) and sword weapons cannot cast Backstab, and the
+          // energy-to-cap wake then crawls (#234). Use that preset's own build.
+          config:
+            preset.id === "combat-daggers"
+              ? loadPreset(preset.id, {
+                  talents: { ...presetReferenceBuild(preset.id).talents },
+                  weapons: structuredClone(
+                    presetReferenceBuild(preset.id).weapons,
+                  ),
+                })
+              : loadPreset(preset.id, { talents: referenceBuild() }),
         },
       ]),
     ];

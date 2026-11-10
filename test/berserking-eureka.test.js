@@ -285,6 +285,7 @@ describe("racial effects grant Berserking and Eureka! (#279)", () => {
 const ALL_FOUR = ["blood-fury", "elunes-light", BERSERKING, EUREKA];
 const RACIALS_IN = {
   "combat-swords-temp": ALL_FOUR,
+  "combat-daggers": ALL_FOUR,
 };
 const DAGGERS = "combat-swords-temp";
 

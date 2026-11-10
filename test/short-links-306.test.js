@@ -420,6 +420,7 @@ const LOCKED_LISTS = {
     "combat-daggers",
     "combat-swords-temp",
     "combat-swords-temp-337",
+    "combat-daggers-340",
   ],
 };
 
@@ -442,6 +443,8 @@ const LOCKED_CONTENT = {
     "562241521d99d14492fa537f11eed0384188c9aaddf2178ef29fe4e2a6664182",
   "combat-swords-temp-337":
     "89d45e91921add42cc957b176083a8eb08968b56a73930fd3a50a883e6c83288",
+  "combat-daggers-340":
+    "4ab65073766fdf2817df019a48368d9abf0b997d8e1ef7b8b243f0a7699c5955",
 };
 
 const canonical = (value) =>
@@ -511,7 +514,18 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
     assert.deepEqual(live.slice(0, 1), ["combat-swords-temp-337"]);
     assert.deepEqual(
       LINK_BASES.filter((b) => b.preset !== undefined).map((b) => b.preset),
-      ["combat-swords-temp"],
+      ["combat-swords-temp", "combat-daggers"],
+    );
+  });
+
+  it("locks the Combat daggers share-link base (#340)", () => {
+    const entry = LINK_BASES.at(-1);
+    assert.equal(entry.id, "combat-daggers-340");
+    assert.equal(entry.preset, "combat-daggers");
+    assert.equal(entry.frozen, undefined);
+    assert.equal(
+      hash(baseContent(entry, setupDefaults().config)),
+      LOCKED_CONTENT["combat-daggers-340"],
     );
   });
 

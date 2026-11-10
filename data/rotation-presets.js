@@ -4,9 +4,10 @@
 // anything. js/rotation-presets.js lists them for a page and loads one into a
 // config, and checks every one against the validator when it is imported.
 //
-// TR-03 / #333: James's temporary Combat swords (16/35/0) is the only
-// selectable preset until later TRs restore the rest. TR-04 / #337: Shank
-// when energy < 50 is live in COMBAT_SWORDS_TEMP_RULES.
+// TR-03 / #333: James's temporary Combat swords (16/35/0) stays selectable
+// and stays the page default. TR-04 / #337: Shank when energy < 50 is live
+// in COMBAT_SWORDS_TEMP_RULES. TR-10 / #340: Combat daggers is the same
+// rotation with Sinister Strike replaced by Backstab (James, 10 Nov 2026).
 
 function deepFreeze(value) {
   if (value !== null && typeof value === "object") {
@@ -163,6 +164,15 @@ const COMBAT_SWORDS_TEMP_RULES = deepFreeze([
   },
 ]);
 
+// James, 10 Nov 2026, issue #340: the temporary Combat swords rotation with
+// Sinister Strike replaced by Backstab. Every other rule stays identical,
+// including Shank below 50 energy.
+const COMBAT_DAGGERS_RULES = deepFreeze(
+  COMBAT_SWORDS_TEMP_RULES.map((rule) =>
+    rule.action === "sinister-strike" ? { ...rule, action: "backstab" } : rule,
+  ),
+);
+
 export const ROTATION_PRESETS = deepFreeze([
   {
     id: "combat-swords-temp",
@@ -173,6 +183,17 @@ export const ROTATION_PRESETS = deepFreeze([
       schemaVersion: 1,
       name: "Combat swords (temporary)",
       rules: COMBAT_SWORDS_TEMP_RULES,
+    },
+  },
+  {
+    id: "combat-daggers",
+    name: "Combat daggers",
+    description:
+      "James, 10 Nov 2026, issue #340: the temporary Combat swords rotation with Sinister Strike replaced by Backstab. Talents are the 70755 link (Assassination 13 / Combat 35 / Subtlety 3). Two daggers, Instant on the main hand and Deadly on the off hand.",
+    rotation: {
+      schemaVersion: 1,
+      name: "Combat daggers",
+      rules: COMBAT_DAGGERS_RULES,
     },
   },
 ]);

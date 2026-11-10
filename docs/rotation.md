@@ -812,12 +812,12 @@ name and a short description, held as data in `data/rotation-presets.js`. The
 API is `js/rotation-presets.js`, with no DOM, so a page, a worker or a test
 calls it the same way.
 
-**Live preset.** James, 5 Nov 2026: the old four presets are scrapped.
-`ROTATION_PRESETS` holds one id, `combat-swords-temp` ("Combat swords
-(temporary)"). It is temporary until James sends sim share links
-([#340](https://github.com/james-attree/wowf_dps_sim/issues/340), TR-10).
-Do not document or ship any other preset. The start screen offers that card
-and Custom. `pageDefaultConfig()` loads it. The sections
+**Live presets.** James, 5 Nov 2026: the old four presets are scrapped.
+`ROTATION_PRESETS` holds `combat-swords-temp` ("Combat swords (temporary)")
+and, from 10 Nov 2026 ([#340](https://github.com/james-attree/wowf_dps_sim/issues/340),
+TR-10), `combat-daggers` ("Combat daggers"). Combat swords stays temporary
+and stays `pageDefaultConfig()`. The start screen offers those two cards
+and Custom. The sections
 [combat-swords](#combat-swords), [assassination-daggers](#assassination-daggers),
 [subtlety-daggers](#subtlety-daggers) and [combat-daggers](#combat-daggers)
 below are the pre-70755 record. They are not presets. Frozen link bases that
@@ -826,7 +826,7 @@ live catalogue rejects loads the default with no notice (James, 5 Nov 2026, #331
 
 **TR-10, one link at a time.** Append a `LINK_BASES` entry. Add a golden and a
 lock test. Update the `deepEqual` in `test/short-links-306.test.js` that
-expects the preset ids to be exactly `["combat-swords-temp"]`
+expects the preset ids to be exactly `["combat-swords-temp", "combat-daggers"]`
 (`LINK_BASES` entries that set `preset`). James, 1 Nov 2026: the old preset
 reference builds set Instant on the main hand and Deadly on the off hand, and
 those presets are historical. James, 5 Nov 2026: this temporary preset uses
@@ -896,8 +896,8 @@ characters after the address.
 
 ### combat-swords-temp
 
-The only preset. Temporary (TR-03 / #333, Shank wired in TR-04 / #337) until
-TR-10. Talents 16/35/0. Swords MH 100–187 at 2.6 s and OH 90–168 at 2.5 s
+Temporary (TR-03 / #333, Shank wired in TR-04 / #337). It stays the page
+default. Talents 16/35/0. Swords MH 100–187 at 2.6 s and OH 90–168 at 2.5 s
 (`assumption` until a gear link). Instant main hand, Deadly off hand (James,
 5 Nov 2026). Race unchanged. The rotation is the old Combat swords list
 without Cold Blood, plus Shank when energy is below 50 and Shank is ready
@@ -921,6 +921,29 @@ Combat swords (temporary)
 The share-link base for this rotation is `combat-swords-temp-337`. The id
 `combat-swords-temp` in `LINK_BASES` is the frozen pre-Shank copy, not a
 second preset. The page default encodes as `2.BgA`.
+
+### combat-daggers
+
+TR-10 / #340. James, 10 Nov 2026: the temporary Combat swords rotation with
+Sinister Strike replaced by Backstab. Talents 13/35/3 from his 70755 link.
+Weapons are the #328 reference daggers (main hand 73–137 at 1.8 s, off hand
+59–111 at 1.6 s). Instant main hand, Deadly off hand. The share-link base is
+`combat-daggers-340`. Its summary:
+
+```text
+Combat daggers
+1. Blood Fury if Blood Fury is granted
+2. Elune's Light if Elune's Light is granted
+3. Berserking if Berserking is granted
+4. Eureka! if Eureka! is granted
+5. Slice and Dice if CP >= 3 and Slice and Dice missing or < 1s left
+6. Adrenaline Rush if Adrenaline Rush is not locked by the build and Adrenaline Rush is ready and Energy < 25 and Slice and Dice is up
+7. Blade Flurry if Blade Flurry is not locked by the build and Blade Flurry is ready and Slice and Dice is up
+8. Shank if Shank is ready and Energy < 50
+9. Eviscerate if CP >= 5 and Slice and Dice has >= 12s left
+10. Backstab if CP < 5
+11. Eviscerate if CP >= 3 and time to energy cap < 1s
+```
 
 ### combat-swords
 
@@ -1116,10 +1139,12 @@ The numbers are `presetRotation.subtlety`:
 
 #### Reference builds (#272)
 
-`data/preset-reference-builds.js` holds the build the live preset is written
-for. The only key is `combat-swords-temp`: level 60,
-the 16/35/0 talents in `data/reference-build.js`, the default swords, Instant
-on the main hand and Deadly on the off hand (James, 5 Nov 2026, #333). The
+`data/preset-reference-builds.js` holds the build each live preset is written
+for. `combat-swords-temp` is level 60, the 16/35/0 talents in
+`data/reference-build.js`, the default swords, Instant on the main hand and
+Deadly on the off hand (James, 5 Nov 2026, #333). `combat-daggers` is level
+60, the 13/35/3 talents from James's 10 Nov 2026 link, the #328 daggers, and
+the same poisons. The
 1 Nov ruling is the historical reference builds, which this file no longer
 stores. `loadPreset` sets the rotation only. The page default
 (`pageDefaultConfig`) copies talents, weapons, poisons and the rotation.
