@@ -288,7 +288,8 @@ describe("round trip", () => {
           // exactly 1 s) and sword weapons cannot cast Backstab, and the
           // energy-to-cap wake then crawls (#234). Use that preset's own build.
           config:
-            preset.id === "combat-daggers"
+            preset.id === "combat-daggers" ||
+            preset.id === "assassination-daggers"
               ? loadPreset(preset.id, {
                   talents: { ...presetReferenceBuild(preset.id).talents },
                   weapons: structuredClone(

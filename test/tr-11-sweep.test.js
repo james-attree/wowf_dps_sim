@@ -1,6 +1,7 @@
 // TR-11 / #341: the 70755 sweep. Coverage has no pending talent left, and
 // the era-0 goldens (Cutthroat, Venom as an ability, the old presets) stay
-// retired. A later preset golden is appended in scripts/golden-update.mjs;
+// retired. Assassination daggers is live again (#340), so its seed-142 golden
+// is not on this list. A later preset golden is appended in scripts/golden-update.mjs;
 // this file does not list the fixture names it would have to rewrite.
 import assert from "node:assert/strict";
 import { readdir } from "node:fs/promises";
@@ -17,7 +18,6 @@ import { checkCoverage } from "../scripts/talent-coverage.mjs";
 const RETIRED = [
   "cutthroat",
   "venom-expose-armor",
-  "assassination-daggers-preset",
   "combat-swords-preset",
   "subtlety-daggers-preset",
 ];

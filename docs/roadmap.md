@@ -53,6 +53,7 @@ the talentsforever 70755 build: Instant on the main hand, Deadly on the off
 hand, and Shank when energy is below 50. It stays temporary.
 [Combat daggers](https://github.com/james-attree/wowf_dps_sim/issues/340)
 (`combat-daggers`, 10 Nov 2026) is a second start card and does not replace it.
+Assassination daggers (`assassination-daggers`, 10 Nov 2026) is a third.
 Invalid old links and saved setups load that default silently.
 `dataVersion` is `2026-11-04+1.60.1.70755`. Formulas and the assumption tags
 are in [mechanics](mechanics.md#talent-rework--160170755-tr-01-through-tr-11).

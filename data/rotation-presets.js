@@ -1,3 +1,5 @@
+import { k } from "./constants.js";
+
 // The preset rotations (R5, issue #142), as data: a list of
 // { id, name, description, rotation }, where `rotation` is a RotationRule
 // rotation (js/rotation-schema.js, docs/rotation.md). Nothing here runs
@@ -173,6 +175,116 @@ const COMBAT_DAGGERS_RULES = deepFreeze(
   ),
 );
 
+// James, 10 Nov 2026, issue #340. Finishers at 4+ CP, in order: Slice and Dice,
+// Rupture, Eviscerate. Cold Blood whenever it is ready, before Mutilate.
+// Mutilate before Shank. The builder cap (CP below the finisher threshold)
+// is the Combat swords pattern. Mutilate also requires energy at or above
+// the Shank line so that rule can be reached (an unpaid on-GCD rule pools).
+// The four racials are the opening every live preset uses.
+const ASSASSINATION_NUMBERS = k("presetRotation.assassinationDaggers");
+const FINISHER_CP = {
+  type: "comboPoints",
+  op: ">=",
+  value: ASSASSINATION_NUMBERS.finisherComboPoints,
+};
+
+const ASSASSINATION_DAGGERS_RULES = deepFreeze([
+  {
+    action: "blood-fury",
+    conditions: [{ type: "abilityGranted", ability: "blood-fury" }],
+  },
+  {
+    action: "elunes-light",
+    conditions: [{ type: "abilityGranted", ability: "elunes-light" }],
+  },
+  {
+    action: "berserking",
+    conditions: [{ type: "abilityGranted", ability: "berserking" }],
+  },
+  {
+    action: "eureka",
+    conditions: [{ type: "abilityGranted", ability: "eureka" }],
+  },
+  {
+    action: "slice-and-dice",
+    conditions: [
+      FINISHER_CP,
+      {
+        type: "auraRemaining",
+        aura: "slice-and-dice",
+        op: "<",
+        value: ASSASSINATION_NUMBERS.refreshSeconds,
+      },
+    ],
+  },
+  {
+    action: "rupture",
+    conditions: [
+      FINISHER_CP,
+      {
+        type: "debuffRemaining",
+        debuff: "rupture",
+        op: "<",
+        value: ASSASSINATION_NUMBERS.refreshSeconds,
+      },
+    ],
+  },
+  {
+    action: "eviscerate",
+    conditions: [
+      FINISHER_CP,
+      {
+        type: "auraRemaining",
+        aura: "slice-and-dice",
+        op: ">",
+        value: ASSASSINATION_NUMBERS.bothRemainingSeconds,
+      },
+      {
+        type: "debuffRemaining",
+        debuff: "rupture",
+        op: ">",
+        value: ASSASSINATION_NUMBERS.bothRemainingSeconds,
+      },
+    ],
+  },
+  {
+    action: "cold-blood",
+    conditions: [
+      { type: "abilityGranted", ability: "cold-blood" },
+      { type: "cooldownReady", ability: "cold-blood" },
+    ],
+  },
+  {
+    action: "mutilate",
+    conditions: [
+      { type: "abilityUnlocked", ability: "mutilate" },
+      {
+        type: "comboPoints",
+        op: "<",
+        value: ASSASSINATION_NUMBERS.finisherComboPoints,
+      },
+      {
+        type: "resource",
+        resource: "energy",
+        op: ">=",
+        value: ASSASSINATION_NUMBERS.shankEnergyBelow,
+      },
+    ],
+  },
+  {
+    action: "shank",
+    conditions: [
+      { type: "cooldownReady", ability: "shank" },
+      {
+        type: "resource",
+        resource: "energy",
+        op: "<",
+        value: ASSASSINATION_NUMBERS.shankEnergyBelow,
+      },
+    ],
+  },
+]);
+
 export const ROTATION_PRESETS = deepFreeze([
   {
     id: "combat-swords-temp",
@@ -194,6 +306,17 @@ export const ROTATION_PRESETS = deepFreeze([
       schemaVersion: 1,
       name: "Combat daggers",
       rules: COMBAT_DAGGERS_RULES,
+    },
+  },
+  {
+    id: "assassination-daggers",
+    name: "Assassination daggers",
+    description:
+      "James, 10 Nov 2026, issue #340: finishers at 4 or more combo points (Slice and Dice, then Rupture, then Eviscerate). Slice and Dice and Rupture refresh when missing or under 2s. Eviscerate only when both have more than 10s left. Cold Blood when it is ready, before Mutilate. Shank when energy is below 50. Talents are the 70755 link (Assassination 37 / Combat 11 / Subtlety 3). Two daggers, Instant on the main hand and Deadly on the off hand.",
+    rotation: {
+      schemaVersion: 1,
+      name: "Assassination daggers",
+      rules: ASSASSINATION_DAGGERS_RULES,
     },
   },
 ]);

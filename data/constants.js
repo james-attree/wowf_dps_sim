@@ -2019,8 +2019,8 @@ export const CONSTANTS = {
     },
     "poison ids per preset",
     ASSUMPTION,
-    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: the Combat daggers reference build uses Instant MH and Deadly OH. James, 1 Nov 2026: the old preset reference builds set Instant MH and Deadly OH, and assassination-daggers, subtlety-daggers and combat-swords in this map are historical. No claim about the frozen combat-swords or combat-daggers link bases. Tagged assumption`,
-    "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp and combat-daggers (instant main hand, deadly off hand). The other keys are not live reference builds and are not the frozen link bases.",
+    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: Combat daggers and Assassination daggers use Instant MH and Deadly OH. James, 1 Nov 2026: the old preset reference builds set Instant MH and Deadly OH; subtlety-daggers and combat-swords in this map are historical. The assassination-daggers key is the live preset. No claim about the frozen link bases. Tagged assumption`,
+    "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp, combat-daggers and assassination-daggers (instant main hand, deadly off hand). subtlety-daggers and combat-swords are not live reference builds.",
     false,
   ),
   // James, 10 Nov 2026, #340 option A. The numbers stay on character.dagger.
@@ -2029,7 +2029,7 @@ export const CONSTANTS = {
     "constant id",
     ASSUMPTION,
     "James, 10 Nov 2026, issue #340: dagger presets set the character sheet to the existing character.dagger sheet (769 AP, 22.14% crit) and keep the unnamed 59-111 off hand. Assumption: that attack power and crit come from Core Hound Tooth (weapon.dagger.offHand), not from the 59-111 off hand. Tagged assumption",
-    "data/preset-reference-builds.js copies character.dagger.attackPower and character.dagger.critChance onto combat-daggers. Hit and haste stay the page defaults. Combat swords does not read this row.",
+    "data/preset-reference-builds.js copies character.dagger.attackPower and character.dagger.critChance onto combat-daggers and assassination-daggers. Hit and haste stay the page defaults. Combat swords does not read this row.",
     false,
   ),
   "presetReferenceBuild.daggerOffHand": entry(
@@ -2055,6 +2055,20 @@ export const CONSTANTS = {
     `${PRESETS_310}: James ruling, 2 Nov 2026 (his share link's "Combat swords (edited)" rotation); tagged assumption`,
     "The Combat swords preset's numbers (data/rotation-presets.js). Slice and Dice at sliceAndDiceComboPoints or more with under sliceAndDiceRecastSeconds left (the link's 5-point rule with the same timer is folded into it), Adrenaline Rush under adrenalineRushEnergyBelow energy and Blade Flurry, both with Slice and Dice up, Cold Blood at finisherComboPoints with more than coldBloodSliceAndDiceSeconds of Slice and Dice, Eviscerate at finisherComboPoints with at least eviscerateSliceAndDiceSeconds of it, Sinister Strike under finisherComboPoints, and Eviscerate at sliceAndDiceComboPoints or more under energyToCapSeconds from the energy cap.",
     true,
+  ),
+  // James, 10 Nov 2026, #340. Distinct from the historical presetRotation.assassination row.
+  "presetRotation.assassinationDaggers": entry(
+    {
+      finisherComboPoints: 4,
+      refreshSeconds: 2,
+      bothRemainingSeconds: 10,
+      shankEnergyBelow: 50,
+    },
+    "CP, s, s, energy",
+    ASSUMPTION,
+    "James, 10 Nov 2026, issue #340: Assassination daggers finishers fire at 4 or more combo points. Slice and Dice and Rupture refresh when missing or under 2s. Eviscerate only when both have more than 10s left. Shank only when energy is below 50. Tagged assumption",
+    "data/rotation-presets.js. Mutilate is cast below finisherComboPoints, the Combat swords builder cap (the builder stops under the finisher threshold). Mutilate also requires energy >= shankEnergyBelow: it is listed before Shank, and an on-GCD rule that holds but cannot be paid for pools, so without that gate Shank's energy rule would never be reached while combo points are under 4. Cold Blood is whenever it is ready, before Mutilate. The four racial rules are the same opening every live preset uses.",
+    false,
   ),
   "presetRotation.assassination": entry(
     {

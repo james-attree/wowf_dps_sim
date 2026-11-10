@@ -24,11 +24,11 @@ describe("the preset registry (TR-03 / #333)", () => {
   it("lists the temporary Combat swords preset, then Combat daggers (#340)", () => {
     assert.deepEqual(
       ROTATION_PRESETS.map((p) => p.id),
-      ["combat-swords-temp", "combat-daggers"],
+      ["combat-swords-temp", "combat-daggers", "assassination-daggers"],
     );
     assert.deepEqual(
       listPresets().map((p) => p.id),
-      ["combat-swords-temp", "combat-daggers"],
+      ["combat-swords-temp", "combat-daggers", "assassination-daggers"],
     );
   });
 

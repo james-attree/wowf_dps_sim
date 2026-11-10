@@ -56,7 +56,7 @@ const ON_USE = [
 ];
 const RACIALS = ON_USE.map(({ ability }) => ability);
 const PRESETS = ROTATION_PRESETS.map((preset) => preset.id);
-const SEED = 5; // #340: seed 2 made troll lose to no-race on Combat daggers. Seed 5 keeps orc and troll ahead on both live presets. Seed 1 lost once Shank was live (#337).
+const SEED = 5; // #340: seed 2 made troll lose to no-race on Combat daggers. Seed 5 keeps orc and troll ahead on the live presets. Seed 1 lost once Shank was live (#337).
 const FIVE_MINUTES = 300;
 const ruleFor = (ability) => ({
   action: ability,

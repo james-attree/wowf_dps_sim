@@ -140,7 +140,12 @@ describe("TR-09 start screen (#339)", () => {
               node.id.replace("start-card-", ""),
             ),
           ),
-          ["combat-swords-temp", "combat-daggers", "custom"],
+          [
+            "assassination-daggers",
+            "combat-swords-temp",
+            "combat-daggers",
+            "custom",
+          ],
         );
         await shot(page, `start-${width}`);
         assert.deepEqual(errors, []);

@@ -500,6 +500,14 @@ const SIGNATURES = {
     "eviscerate",
     "shank",
   ],
+  "assassination-daggers": [
+    "mutilate",
+    "slice-and-dice",
+    "rupture",
+    "eviscerate",
+    "cold-blood",
+    "shank",
+  ],
 };
 const SEED = 1;
 const FIGHT_SECONDS = 120;
