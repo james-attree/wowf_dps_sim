@@ -285,6 +285,127 @@ const ASSASSINATION_DAGGERS_RULES = deepFreeze([
   },
 ]);
 
+// James, 10 Nov 2026, issue #340. Finishers at 4+ CP: Slice and Dice, Rupture,
+// Death Mark. Ghostly Strike when Garrote is down, then Garrote, Shank below
+// 50 energy, Hemorrhage. Premeditation and Preparation are on cooldown.
+// Their place (after the racials, before the finishers) and Hemorrhage's
+// combo-point cap are dev choices. See presetRotation.subtletyDaggers.
+const SUBTLETY_NUMBERS = k("presetRotation.subtletyDaggers");
+const SUBTLETY_FINISHER = {
+  type: "comboPoints",
+  op: ">=",
+  value: SUBTLETY_NUMBERS.finisherComboPoints,
+};
+
+const SUBTLETY_DAGGERS_RULES = deepFreeze([
+  {
+    action: "blood-fury",
+    conditions: [{ type: "abilityGranted", ability: "blood-fury" }],
+  },
+  {
+    action: "elunes-light",
+    conditions: [{ type: "abilityGranted", ability: "elunes-light" }],
+  },
+  {
+    action: "berserking",
+    conditions: [{ type: "abilityGranted", ability: "berserking" }],
+  },
+  {
+    action: "eureka",
+    conditions: [{ type: "abilityGranted", ability: "eureka" }],
+  },
+  {
+    action: "premeditation",
+    conditions: [
+      { type: "abilityGranted", ability: "premeditation" },
+      { type: "cooldownReady", ability: "premeditation" },
+    ],
+  },
+  {
+    action: "preparation",
+    conditions: [
+      { type: "abilityGranted", ability: "preparation" },
+      { type: "cooldownReady", ability: "preparation" },
+    ],
+  },
+  {
+    action: "slice-and-dice",
+    conditions: [
+      SUBTLETY_FINISHER,
+      {
+        type: "auraRemaining",
+        aura: "slice-and-dice",
+        op: "<",
+        value: SUBTLETY_NUMBERS.refreshSeconds,
+      },
+    ],
+  },
+  {
+    action: "rupture",
+    conditions: [
+      SUBTLETY_FINISHER,
+      {
+        type: "debuffRemaining",
+        debuff: "rupture",
+        op: "<",
+        value: SUBTLETY_NUMBERS.refreshSeconds,
+      },
+    ],
+  },
+  {
+    action: "death-mark",
+    conditions: [
+      { type: "abilityGranted", ability: "death-mark" },
+      { type: "cooldownReady", ability: "death-mark" },
+      SUBTLETY_FINISHER,
+      {
+        type: "debuffRemaining",
+        debuff: "garrote",
+        op: ">",
+        value: SUBTLETY_NUMBERS.deathMarkRemainingSeconds,
+      },
+      {
+        type: "debuffRemaining",
+        debuff: "rupture",
+        op: ">",
+        value: SUBTLETY_NUMBERS.deathMarkRemainingSeconds,
+      },
+    ],
+  },
+  {
+    action: "ghostly-strike",
+    conditions: [
+      { type: "abilityUnlocked", ability: "ghostly-strike" },
+      { type: "cooldownReady", ability: "ghostly-strike" },
+      { type: "debuffActive", debuff: "garrote", active: false },
+    ],
+  },
+  { action: "garrote", conditions: [] },
+  {
+    action: "shank",
+    conditions: [
+      { type: "cooldownReady", ability: "shank" },
+      {
+        type: "resource",
+        resource: "energy",
+        op: "<",
+        value: SUBTLETY_NUMBERS.shankEnergyBelow,
+      },
+    ],
+  },
+  {
+    action: "hemorrhage",
+    conditions: [
+      { type: "abilityUnlocked", ability: "hemorrhage" },
+      {
+        type: "comboPoints",
+        op: "<",
+        value: SUBTLETY_NUMBERS.builderComboPointsBelow,
+      },
+    ],
+  },
+]);
+
 export const ROTATION_PRESETS = deepFreeze([
   {
     id: "combat-swords-temp",
@@ -317,6 +438,17 @@ export const ROTATION_PRESETS = deepFreeze([
       schemaVersion: 1,
       name: "Assassination daggers",
       rules: ASSASSINATION_DAGGERS_RULES,
+    },
+  },
+  {
+    id: "subtlety-daggers",
+    name: "Subtlety daggers",
+    description:
+      "James, 10 Nov 2026, issue #340: finishers at 4 or more combo points (Slice and Dice, then Rupture, then Death Mark). Death Mark only when Garrote and Rupture each have more than 6s left. Ghostly Strike when Garrote is not up, then Garrote, Shank below 50 energy, Hemorrhage. Premeditation and Preparation on cooldown. Talents are the 70755 link (Assassination 12 / Combat 8 / Subtlety 31). Two daggers. Assumption (dev choice): Subtlety daggers uses Instant MH / Deadly OH, matching the Combat and Assassination dagger presets. James has not ruled Subtlety poisons. Cf. his 1 Nov ruling for the historical #273 reference builds.",
+    rotation: {
+      schemaVersion: 1,
+      name: "Subtlety daggers",
+      rules: SUBTLETY_DAGGERS_RULES,
     },
   },
 ]);

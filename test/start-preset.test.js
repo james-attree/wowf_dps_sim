@@ -84,7 +84,13 @@ describe("the cards (#323)", () => {
     const cards = startCards();
     assert.deepEqual(
       cards.map(({ id }) => id),
-      ["assassination-daggers", COMBAT, "combat-daggers", CUSTOM],
+      [
+        "assassination-daggers",
+        COMBAT,
+        "combat-daggers",
+        "subtlety-daggers",
+        CUSTOM,
+      ],
     );
     assert.equal(cards[0].name, "Assassination daggers");
     assert.equal(
@@ -101,9 +107,14 @@ describe("the cards (#323)", () => {
       cards[2].detail,
       "Backstab · 13/35/3 · two daggers · Instant / Deadly",
     );
+    assert.equal(cards[3].name, "Subtlety daggers");
+    assert.equal(
+      cards[3].detail,
+      "Hemorrhage · 12/8/31 · two daggers · Instant / Deadly",
+    );
     assert.deepEqual(
       cards.map(({ short }) => short),
-      ["37/11/3", "16/35/0", "13/35/3", "16/35/0"],
+      ["37/11/3", "16/35/0", "13/35/3", "12/8/31", "16/35/0"],
     );
     assert.match(cards.at(-1).detail, /page defaults/i);
   });

@@ -171,15 +171,18 @@ describe("TR-06 Ghostly Strike ambush window (#335)", () => {
 });
 
 describe("TR-06 Hemorrhage and Blood Splatter (#335)", () => {
-  it("Hemorrhage raises Rupture only; Garrote is not an ability", () => {
-    assert.deepEqual(AURAS.hemorrhage.effects.dotDamageTaken.ids, ["rupture"]);
+  it("Hemorrhage raises Rupture and Garrote", () => {
+    assert.deepEqual(AURAS.hemorrhage.effects.dotDamageTaken.ids, [
+      "rupture",
+      "garrote",
+    ]);
     assert.equal(
       AURAS.hemorrhage.effects.dotDamageTaken.bonus,
       k("hemorrhage.ruptureBonus").bonus,
     );
     assert.equal(
       ABILITY_DEFINITIONS.some((definition) => definition.id === "garrote"),
-      false,
+      true,
     );
     assert.equal(TALENT_EFFECTS["subtlety.hemorrhage"].pending, undefined);
     assert.equal(TALENT_EFFECTS["subtlety.ghostly-strike"].pending, undefined);
@@ -189,7 +192,7 @@ describe("TR-06 Hemorrhage and Blood Splatter (#335)", () => {
     );
   });
 
-  it("adds 6 s to Rupture and records 9 s of Garrote without applying it", () => {
+  it("adds 6 s to Rupture and 9 s to Garrote", () => {
     assert.equal(CONSTANTS.bloodSplatter.source, "wowf-export");
     assert.deepEqual(k("bloodSplatter"), { rupture: 6, garrote: 9 });
     assert.equal(CONSTANTS["bloodSplatter.apply"].source, "assumption");
@@ -201,11 +204,19 @@ describe("TR-06 Hemorrhage and Blood Splatter (#335)", () => {
       plain.rogue.abilities.rupture.resolve().duration,
       k("rupture").durationByCp[4],
     );
+    assert.equal(
+      plain.rogue.abilities.garrote.resolve().duration,
+      k("garrote").duration,
+    );
     const splatter = fight({ "assassination.blood-splatter": 1 });
     splatter.rogue.comboPoints = 5;
     assert.equal(
       splatter.rogue.abilities.rupture.resolve().duration,
       k("rupture").durationByCp[4] + k("bloodSplatter").rupture,
+    );
+    assert.equal(
+      splatter.rogue.abilities.garrote.resolve().duration,
+      k("garrote").duration + k("bloodSplatter").garrote,
     );
     assert.equal(
       expandTalents({ "assassination.blood-splatter": 1 }).modifiers[0].kind,

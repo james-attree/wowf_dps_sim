@@ -245,7 +245,7 @@ export const CONSTANTS = {
     "×, s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Hemorrhage|]",
-    "Export is +15% Rupture and Garrote damage for 15s. Only Rupture ticks are increased: Garrote is not simulated (TR-06 / #335), so that half is inert. The dagger weapon percent the engine uses is hemorrhage.daggerMultiplier.",
+    "Export is +15% Rupture and Garrote damage for 15s. Both DoTs take it. The dagger weapon percent the engine uses is hemorrhage.daggerMultiplier.",
     false,
   ),
   hemorrhage: entry(
@@ -435,14 +435,14 @@ export const CONSTANTS = {
     "s",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Ghostly Strike|]: causes your next Ambush or Garrote cast within 7 sec to not require Stealth",
-    "How long a landed Ghostly Strike leaves the ambush window up (js/ability.js followUpAura). Garrote is not simulated, so only Ambush reads it. The one charge is ghostlyStrike.ambushWindowCharges.",
+    "How long a landed Ghostly Strike leaves the ambush window up (js/ability.js followUpAura). Ambush and Garrote both read it. The one charge is ghostlyStrike.ambushWindowCharges.",
     false,
   ),
   "ghostlyStrike.ambushWindowCharges": entry(
     1,
     "charges",
     ASSUMPTION,
-    'Developer, 8 Nov 2026, issue #335: Team assumption: Ghostly Strike\'s "your next Ambush or Garrote" is one charge, used by the Ambush that goes ahead, hit or miss. Not a ruling by James.',
+    'Developer, 8 Nov 2026, issue #335: Team assumption: Ghostly Strike\'s "your next Ambush or Garrote" is one charge, used by the Ambush or Garrote that goes ahead, hit or miss. Not a ruling by James.',
     "Charges on the ambush-window aura (js/auras.js). A cast that goes ahead uses one (js/ability.js). Configurable: a whole number, 1 or more. The 7 s length is ghostlyStrike.ambushWindow.",
     true,
   ),
@@ -451,7 +451,7 @@ export const CONSTANTS = {
     "s, s",
     WOWF_EXPORT,
     "rogue.json → talents[Assassination|Blood Splatter] desc: Increases the duration of your Rupture ability by 6 sec and your Garrote ability by 9 sec.",
-    "Rupture's length gains rupture seconds (flatDuration, data/talent-effects.js), after or before percent duration modifiers as bloodSplatter.apply says. Those seconds add ticks at the strength the DoT already had (bloodSplatter.ticks). Garrote is not simulated, so garrote seconds are recorded and not applied.",
+    "Rupture's length gains rupture seconds and Garrote's length gains garrote seconds (flatDuration, data/talent-effects.js), after or before percent duration modifiers as bloodSplatter.apply says. Those seconds add ticks at the strength the DoT already had (bloodSplatter.ticks).",
     false,
   ),
   "bloodSplatter.apply": entry(
@@ -467,7 +467,7 @@ export const CONSTANTS = {
     "–",
     WOWF_DESIGNER,
     "James, 8 Nov 2026, issue #335: Blood Splatter adds full-strength Rupture ticks and increases total damage. The +6 s does not spread the existing total over more ticks. Relayed by Scout (coordinator) at 23:28 UK.",
-    'Read when a cast DoT splits its tooltip total (js/ability.js, js/simulation.js). "full strength" divides that total by the tick count of the length before the flat seconds, then the longer duration deals that same tick again. Any other value divides by the tick count of the final length, which spreads the same total thinner. A percent duration modifier is still part of the length the total is split across. Garrote is not simulated.',
+    'Read when a cast DoT splits its tooltip total (js/ability.js, js/simulation.js). "full strength" divides that total by the tick count of the length before the flat seconds, then the longer duration deals that same tick again. Any other value divides by the tick count of the final length, which spreads the same total thinner. A percent duration modifier is still part of the length the total is split across. Rupture and Garrote both read it.',
     false,
   ),
   // TR-07 / #336. Rank 4 is the level-60 spell. storedByCp and capByCp are the
@@ -492,7 +492,7 @@ export const CONSTANTS = {
     "ability ids",
     WOWF_EXPORT,
     "rogue.json → spell_desc[Rogue|Death Mark|Rank 4]: Garrote and Rupture damage is stored at twice the rate.",
-    "Those ability ids store at deathMark.doubleRate. Garrote is not simulated, so its id is recorded and does nothing until a Garrote cast exists. James, 9 Nov 2026, issue #336, relayed by Scout: poison damage is stored at the normal rate (1×), not at doubleRate. Every source that is not in this list, including poisons, stores at the mark's rate.",
+    "Those ability ids store at deathMark.doubleRate. James, 9 Nov 2026, issue #336, relayed by Scout: poison damage is stored at the normal rate (1×), not at doubleRate. Every source that is not in this list, including poisons, stores at the mark's rate.",
     false,
   ),
   "deathMark.doubleRate": entry(
@@ -959,7 +959,7 @@ export const CONSTANTS = {
     "ability ids",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff only increases Rupture. Deadly Poison is nature, not a bleed.",
+    "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff increases Rupture and Garrote. Deadly Poison is nature, not a bleed.",
     true,
   ),
   "nature.ignoresArmor": entry(
@@ -1072,6 +1072,34 @@ export const CONSTANTS = {
     ENGINEERING,
     `Developer, 2 Nov 2026, issue #277: ${NOT_JAMES}`,
     "Rounding down adds this first, so a product that floating point leaves a hair under a whole number (for example a cap that should be 147 held as 146.99999999999997) rounds to the whole number and not one below. Far smaller than any energy amount.",
+    false,
+  ),
+
+  // Rank 6. Energy, base damage, duration and the combo point are the 70755
+  // export. The tick interval is Rupture's, and the attack-power term is
+  // James's answer; the export states neither.
+  garrote: entry(
+    { energy: 50, cooldown: 0, damage: 552, duration: 18, comboPoints: 1 },
+    "energy, s, damage, s, CP",
+    WOWF_EXPORT,
+    'rogue.json → spell_desc[Rogue|Garrote|Rank 6] (1.60.1.70755): "50 Energy", "Instant", "Requires Stealth", "causing 552 damage over 18 sec, increased by your Attack Power. Must be stealthed and behind the target. Awards 1 combo point."',
+    "Baseline cast (js/ability-data.js). It needs Ghostly Strike's ambush window (requiresAura), which stands in for Stealth: the sim has no Stealth, and a cast without the window is rejected. A cast that goes ahead spends the window's one charge. Ticks use rupture.tickInterval (2s): James, 10 Nov 2026, issue #340, an assumption because the export does not state the interval, so 18s is 9 ticks. The attack-power term is garrote.apCoefficient. Attack power is read when the cast resolves (garrote.snapshot). The behind line is not a separate cast gate, the same as Ambush. Blood Splatter adds bloodSplatter.garrote seconds.",
+    false,
+  ),
+  "garrote.apCoefficient": entry(
+    0.42,
+    "AP",
+    ASSUMPTION,
+    "James, 10 Nov 2026, issue #340: Garrote's total damage is 552 + 0.42 × attack power, spread evenly over the ticks. Assumption: the 70755 export says the damage is increased by Attack Power and gives no coefficient. Tagged assumption",
+    "Read when a Garrote cast resolves its total (js/ability.js). The total is divided across the ticks of the length before Blood Splatter's extra seconds.",
+    true,
+  ),
+  "garrote.snapshot": entry(
+    "at application",
+    "–",
+    ENGINEERING,
+    "Developer, 10 Nov 2026, issue #340: snapshot attack power when Garrote is applied, the same way Rupture does. Not a ruling by James.",
+    'js/ability.js reads attack power in the cast\'s resolve, and js/simulation.js stores the tick damage. A later change to attack power does not change ticks already applied. The only value is "at application".',
     false,
   ),
 
@@ -1803,7 +1831,7 @@ export const CONSTANTS = {
     "chance per rank, combo points, ability ids",
     WOWF_EXPORT,
     "rogue.json → talents[Subtlety|Initiative] desc: gives you a 33/67/100% chance to add an additional combo point to your target when using your Ambush, Garrote, or Cheap Shot ability",
-    'An onAbility proc on a landed Ambush that adds one combo point, on top of the point Ambush gives (the pool\'s cap applies). The export says 67% at rank 2 (the issue and plan say 66%; the export is the source). At rank 3 the chance is 1, so the proc is drawless there (drawless: "whenCertain", js/procs.js) and draws nothing (G2); ranks 1 and 2 draw once. Garrote and Cheap Shot are stealth openers the sim does not cast, so that part of the talent is inert (partly simulated, #275). Classic 1.12 gives 25/50/75%.',
+    'An onAbility proc on a landed Ambush that adds one combo point, on top of the point Ambush gives (the pool\'s cap applies). The export says 67% at rank 2 (the issue and plan say 66%; the export is the source). At rank 3 the chance is 1, so the proc is drawless there (drawless: "whenCertain", js/procs.js) and draws nothing (G2); ranks 1 and 2 draw once. The ability list is Ambush only, so the Garrote and Cheap Shot parts stay inert (partly simulated, #275). Garrote is cast inside the Ghostly Strike window (#340). Cheap Shot is not cast. Classic 1.12 gives 25/50/75%.',
     false,
   ),
   "quietus.rules": entry(
@@ -2019,8 +2047,8 @@ export const CONSTANTS = {
     },
     "poison ids per preset",
     ASSUMPTION,
-    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: Combat daggers and Assassination daggers use Instant MH and Deadly OH. James, 1 Nov 2026: the old preset reference builds set Instant MH and Deadly OH; subtlety-daggers and combat-swords in this map are historical. The assassination-daggers key is the live preset. No claim about the frozen link bases. Tagged assumption`,
-    "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp, combat-daggers and assassination-daggers (instant main hand, deadly off hand). subtlety-daggers and combat-swords are not live reference builds.",
+    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: Combat daggers and Assassination daggers use Instant MH and Deadly OH. Assumption (dev choice): Subtlety daggers uses Instant MH / Deadly OH, matching the Combat and Assassination dagger presets. James has not ruled Subtlety poisons. Cf. his 1 Nov ruling for the historical #273 reference builds. combat-swords in this map is historical. The assassination-daggers and subtlety-daggers keys are the live presets. No claim about the frozen link bases. Tagged assumption`,
+    "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp, combat-daggers, assassination-daggers and subtlety-daggers (instant main hand, deadly off hand). combat-swords is not a live reference build.",
     false,
   ),
   // James, 10 Nov 2026, #340 option A. The numbers stay on character.dagger.
@@ -2029,7 +2057,7 @@ export const CONSTANTS = {
     "constant id",
     ASSUMPTION,
     "James, 10 Nov 2026, issue #340: dagger presets set the character sheet to the existing character.dagger sheet (769 AP, 22.14% crit) and keep the unnamed 59-111 off hand. Assumption: that attack power and crit come from Core Hound Tooth (weapon.dagger.offHand), not from the 59-111 off hand. Tagged assumption",
-    "data/preset-reference-builds.js copies character.dagger.attackPower and character.dagger.critChance onto combat-daggers and assassination-daggers. Hit and haste stay the page defaults. Combat swords does not read this row.",
+    "data/preset-reference-builds.js copies character.dagger.attackPower and character.dagger.critChance onto combat-daggers, assassination-daggers and subtlety-daggers. Hit and haste stay the page defaults. Combat swords does not read this row.",
     false,
   ),
   "presetReferenceBuild.daggerOffHand": entry(
@@ -2038,6 +2066,21 @@ export const CONSTANTS = {
     ASSUMPTION,
     `${PRESETS_310}: James ruling, 2 Nov 2026: the dagger presets' off hand is 59-111 at 1.6 speed (no item named); tagged assumption`,
     "The off hand of the Combat daggers reference build (data/preset-reference-builds.js, James, 10 Nov 2026, issue #340: the #328 daggers). No item is named. The dagger alternate's off hand (weapon.dagger.offHand, Core Hound Tooth, with its character.dagger bonuses) and defaultDaggerConfig() keep 57-107.",
+    false,
+  ),
+  // James, 10 Nov 2026, #340. Distinct from the historical presetRotation.subtlety row.
+  "presetRotation.subtletyDaggers": entry(
+    {
+      finisherComboPoints: 4,
+      refreshSeconds: 2,
+      deathMarkRemainingSeconds: 6,
+      shankEnergyBelow: 50,
+      builderComboPointsBelow: 4,
+    },
+    "CP, s, s, energy, CP",
+    ASSUMPTION,
+    "James, 10 Nov 2026, issue #340: Subtlety daggers finishers fire at 4 or more combo points. Slice and Dice and Rupture refresh when missing or under 2s. Death Mark only when Garrote and Rupture each have more than 6s left. Ghostly Strike when Garrote is not up. Shank only when energy is below 50. Premeditation and Preparation are used on cooldown. Tagged assumption",
+    "data/rotation-presets.js. Hemorrhage stops below builderComboPointsBelow. That cap is a dev choice, not a James ruling: James did not give the builder a combo-point cap. Premeditation and Preparation sit after the racials and before the finishers, also a dev choice: James said they are used on cooldown and did not place them. Death Mark's rule checks cooldownReady, also a dev choice: James did not say it, and without the check a Death Mark that is cooling down would hold back every rule below it. Garrote has no extra rotation condition; the ambush window is the cast gate.",
     false,
   ),
   "presetRotation.combat": entry(

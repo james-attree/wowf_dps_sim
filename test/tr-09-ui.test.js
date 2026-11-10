@@ -63,6 +63,7 @@ describe("TR-09 builder pickers and start cards (#339)", () => {
         "assassination-daggers",
         "combat-swords-temp",
         "combat-daggers",
+        "subtlety-daggers",
         "custom",
       ],
     );

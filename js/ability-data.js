@@ -170,7 +170,8 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     gain: COMBO_POINTS,
     damage: { kind: "weapon", multiplier: "weaponMultiplier" },
     aura: { id: "ghostlyStrike", duration: { field: "duration" } },
-    // Landed only, with the dodge buff (TR-06 / #335). Garrote is not cast.
+    // Landed only, with the dodge buff (TR-06 / #335). The follow-up is the
+    // no-stealth window Ambush and Garrote both spend.
     followUpAura: {
       id: "ambushWindow",
       duration: { row: "ghostlyStrike.ambushWindow" },
@@ -242,6 +243,19 @@ export const ABILITY_DEFINITIONS = deepFreeze([
     spend: { resource: "comboPoints" },
     damage: { kind: "dot", ap: "rupture.apByCP", bleed: true },
     aura: { id: "rupture", duration: { bySpent: "durationByCp" } },
+  },
+  {
+    // Baseline. Castable while Ghostly Strike's ambush window is up, which
+    // stands in for Stealth (the sim has none). The cast spends the window's
+    // one charge, the same way Ambush does.
+    key: "garrote",
+    id: "garrote",
+    row: "garrote",
+    requiresAura: ["ambush-window"],
+    cost: ENERGY,
+    gain: COMBO_POINTS,
+    damage: { kind: "dot", apTotal: "garrote.apCoefficient", bleed: true },
+    aura: { id: "garrote", duration: { field: "duration" } },
   },
   {
     key: "hemorrhage",

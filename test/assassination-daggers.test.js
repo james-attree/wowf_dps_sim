@@ -22,7 +22,12 @@ describe("Assassination daggers (#340)", () => {
   it("is the third live preset", () => {
     assert.deepEqual(
       ROTATION_PRESETS.map((preset) => preset.id),
-      ["combat-swords-temp", "combat-daggers", "assassination-daggers"],
+      [
+        "combat-swords-temp",
+        "combat-daggers",
+        "assassination-daggers",
+        "subtlety-daggers",
+      ],
     );
   });
 

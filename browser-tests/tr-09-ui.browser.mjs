@@ -144,6 +144,7 @@ describe("TR-09 start screen (#339)", () => {
             "assassination-daggers",
             "combat-swords-temp",
             "combat-daggers",
+            "subtlety-daggers",
             "custom",
           ],
         );

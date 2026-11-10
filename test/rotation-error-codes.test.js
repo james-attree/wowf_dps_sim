@@ -109,7 +109,7 @@ const CASES = [
   ],
   [
     "notCastYet",
-    () => validateRotation(rotation(rule("garrote"))),
+    () => validateRotation(rotation(rule("kick"))),
     { path: "rules[0].action" },
   ],
   [

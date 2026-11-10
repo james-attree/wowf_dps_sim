@@ -255,8 +255,8 @@ describe("generic executor", () => {
   it("marks Rupture's ticks as bleeds, and nothing else", () => {
     const rogue = new Rogue();
     for (const [key, ability] of Object.entries(rogue.abilities)) {
-      assert.equal(ability.bleed, key === "rupture", key);
-      assert.equal(ability.dot, key === "rupture", key);
+      assert.equal(ability.bleed, key === "rupture" || key === "garrote", key);
+      assert.equal(ability.dot, key === "rupture" || key === "garrote", key);
     }
     const simulation = new Simulation(rogue, { seed: 3 });
     const calls = [];

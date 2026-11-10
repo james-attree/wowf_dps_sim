@@ -175,7 +175,7 @@ describe("bleed ticks and armor", () => {
     assert.equal(garrote.damageDone, TICK_DAMAGE);
     assert.equal(hemorrhageTick.damageDone, TICK_DAMAGE);
     assert.equal(boosted.damageDone, TICK_DAMAGE * bonus);
-    assert.equal(garroteBoosted.damageDone, TICK_DAMAGE);
+    assert.equal(garroteBoosted.damageDone, TICK_DAMAGE * bonus);
     assert.equal(poison.damageDone, TICK_DAMAGE);
     assert.equal(poisonBoosted.damageDone, TICK_DAMAGE);
     assert.equal(poison.combatLog[0].damage, TICK_DAMAGE);

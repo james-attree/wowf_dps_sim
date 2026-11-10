@@ -287,6 +287,7 @@ const RACIALS_IN = {
   "combat-swords-temp": ALL_FOUR,
   "combat-daggers": ALL_FOUR,
   "assassination-daggers": ALL_FOUR,
+  "subtlety-daggers": ALL_FOUR,
 };
 const DAGGERS = "combat-swords-temp";
 
