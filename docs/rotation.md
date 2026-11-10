@@ -927,7 +927,10 @@ second preset. The page default encodes as `2.BgA`.
 TR-10 / #340. James, 10 Nov 2026: the temporary Combat swords rotation with
 Sinister Strike replaced by Backstab. Talents 13/35/3 from his 70755 link.
 Weapons are the #328 reference daggers (main hand 73–137 at 1.8 s, off hand
-59–111 at 1.6 s). Instant main hand, Deadly off hand. The share-link base is
+59–111 at 1.6 s). The sheet is `character.dagger` (769 attack power, 22.14%
+crit). James, 10 Nov 2026: that is an assumption, because those stats come
+from Core Hound Tooth while the off hand is the unnamed 59–111. Instant main
+hand, Deadly off hand. The share-link base is
 `combat-daggers-340`. Its summary:
 
 ```text

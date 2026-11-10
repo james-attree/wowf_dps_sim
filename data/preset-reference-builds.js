@@ -32,7 +32,9 @@ const SWORDS = {
 // #328's Combat daggers weapons, still in data: Perdition's Blade
 // (weapon.dagger.mainHand) and the unnamed 59–111 off hand
 // (presetReferenceBuild.daggerOffHand). James, 10 Nov 2026, issue #340: use
-// those daggers. The character sheet is not changed.
+// those daggers. James, 10 Nov 2026, issue #340: the sheet is character.dagger
+// (Core Hound Tooth's attack power and crit) even though the off hand is the
+// unnamed 59-111. presetReferenceBuild.daggerCharacter records that assumption.
 const daggerHand = (id) => {
   const { type, min, max, speed } = k(id);
   return { min, max, speed, type };
@@ -41,6 +43,12 @@ const daggerHand = (id) => {
 const DAGGERS = {
   mainHand: daggerHand("weapon.dagger.mainHand"),
   offHand: daggerHand("presetReferenceBuild.daggerOffHand"),
+};
+
+const daggerSheetId = k("presetReferenceBuild.daggerCharacter");
+const DAGGER_SHEET = {
+  attackPower: k(`${daggerSheetId}.attackPower`),
+  critChance: k(`${daggerSheetId}.critChance`),
 };
 
 // Glyphs and the query string are ignored by decodeBuildLink.
@@ -74,5 +82,6 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talents: talentsFromLink(COMBAT_DAGGERS_LINK),
     weapons: DAGGERS,
     poisons: poisonsOf("combat-daggers"),
+    character: DAGGER_SHEET,
   },
 });

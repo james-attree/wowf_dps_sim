@@ -402,6 +402,7 @@ export const GOLDEN_CASES = deepFreeze([
           offHand: { ...build.weapons.offHand },
         },
         poisons: { ...build.poisons },
+        character: { ...build.character },
       });
     })(),
   },
