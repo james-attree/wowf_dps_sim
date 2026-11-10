@@ -59,7 +59,12 @@ describe("TR-09 builder pickers and start cards (#339)", () => {
   it("shows temporary Combat swords, Combat daggers, and Custom", () => {
     assert.deepEqual(
       startCards().map((card) => card.id),
-      ["combat-swords-temp", "combat-daggers", "custom"],
+      [
+        "assassination-daggers",
+        "combat-swords-temp",
+        "combat-daggers",
+        "custom",
+      ],
     );
   });
 

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { k } from "../data/constants.js";
 import {
   createConfigForm,
   isEditedChoice,
@@ -83,21 +84,26 @@ describe("the cards (#323)", () => {
     const cards = startCards();
     assert.deepEqual(
       cards.map(({ id }) => id),
-      [COMBAT, "combat-daggers", CUSTOM],
+      ["assassination-daggers", COMBAT, "combat-daggers", CUSTOM],
     );
-    assert.equal(cards[0].name, "Combat swords (temporary)");
+    assert.equal(cards[0].name, "Assassination daggers");
     assert.equal(
       cards[0].detail,
-      "Sinister Strike · 16/35/0 · two swords · Instant / Deadly",
+      "Mutilate · 37/11/3 · two daggers · Instant / Deadly",
     );
-    assert.equal(cards[1].name, "Combat daggers");
+    assert.equal(cards[1].name, "Combat swords (temporary)");
     assert.equal(
       cards[1].detail,
+      "Sinister Strike · 16/35/0 · two swords · Instant / Deadly",
+    );
+    assert.equal(cards[2].name, "Combat daggers");
+    assert.equal(
+      cards[2].detail,
       "Backstab · 13/35/3 · two daggers · Instant / Deadly",
     );
     assert.deepEqual(
       cards.map(({ short }) => short),
-      ["16/35/0", "13/35/3", "16/35/0"],
+      ["37/11/3", "16/35/0", "13/35/3", "16/35/0"],
     );
     assert.match(cards.at(-1).detail, /page defaults/i);
   });
@@ -205,8 +211,13 @@ describe("a pick and its Undo (#323)", () => {
     assert.deepEqual(config.poisons, reference.poisons);
     assert.equal(form.rotationChoice, COMBAT);
     assert.deepEqual(config.rotation, presetRotation(COMBAT));
-    // Stats, race and the fight stay.
-    assert.deepEqual(config.character, before.character);
+    // James, 10 Nov 2026, #340: Combat swords puts back the sword sheet.
+    // Race and the fight stay.
+    assert.deepEqual(config.character, {
+      ...before.character,
+      attackPower: k("character.attackPower"),
+      critChance: k("character.critChance"),
+    });
     assert.equal(config.race, before.race);
     assert.deepEqual(config.fight, before.fight);
     const slice = env.slice();

@@ -286,6 +286,7 @@ const ALL_FOUR = ["blood-fury", "elunes-light", BERSERKING, EUREKA];
 const RACIALS_IN = {
   "combat-swords-temp": ALL_FOUR,
   "combat-daggers": ALL_FOUR,
+  "assassination-daggers": ALL_FOUR,
 };
 const DAGGERS = "combat-swords-temp";
 

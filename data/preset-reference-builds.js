@@ -7,7 +7,8 @@ import { talentLevelRange } from "../js/talent-build.js";
 
 // The reference build each preset rotation is written for (issue #272).
 // TR-03 / #333: the temporary Combat swords build stays the page default.
-// TR-10 / #340: Combat daggers, from James's 10 Nov 2026 talentsforever link.
+// TR-10 / #340: Combat daggers and Assassination daggers, from James's
+// 10 Nov 2026 talentsforever links.
 
 function deepFreeze(value) {
   if (value !== null && typeof value === "object") {
@@ -55,6 +56,9 @@ const DAGGER_SHEET = {
 const COMBAT_DAGGERS_LINK =
   "https://talentsforever.com/rogue/60/005303002-3203032002012321551-003-mCFDISRUWaXde2cfghije-12?b=70755h&d=261110";
 
+const ASSASSINATION_DAGGERS_LINK =
+  "https://talentsforever.com/rogue/60/00530321251551031-320303-003-CFDIHGLKJ4NMJPQSRUWm-12?b=70755h&d=261110";
+
 function talentsFromLink(link) {
   const { ranks } = decodeBuildLink(link);
   return Object.fromEntries(
@@ -82,6 +86,14 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talents: talentsFromLink(COMBAT_DAGGERS_LINK),
     weapons: DAGGERS,
     poisons: poisonsOf("combat-daggers"),
+    character: DAGGER_SHEET,
+  },
+  "assassination-daggers": {
+    name: "Assassination daggers (#340)",
+    talentLevel: LEVEL_60,
+    talents: talentsFromLink(ASSASSINATION_DAGGERS_LINK),
+    weapons: DAGGERS,
+    poisons: poisonsOf("assassination-daggers"),
     character: DAGGER_SHEET,
   },
 });

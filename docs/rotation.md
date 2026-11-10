@@ -815,7 +815,8 @@ calls it the same way.
 **Live presets.** James, 5 Nov 2026: the old four presets are scrapped.
 `ROTATION_PRESETS` holds `combat-swords-temp` ("Combat swords (temporary)")
 and, from 10 Nov 2026 ([#340](https://github.com/james-attree/wowf_dps_sim/issues/340),
-TR-10), `combat-daggers` ("Combat daggers"). Combat swords stays temporary
+TR-10), `combat-daggers` ("Combat daggers") and `assassination-daggers`
+("Assassination daggers"). Combat swords stays temporary
 and stays `pageDefaultConfig()`. The start screen offers those two cards
 and Custom. The sections
 [combat-swords](#combat-swords), [assassination-daggers](#assassination-daggers),
@@ -826,7 +827,7 @@ live catalogue rejects loads the default with no notice (James, 5 Nov 2026, #331
 
 **TR-10, one link at a time.** Append a `LINK_BASES` entry. Add a golden and a
 lock test. Update the `deepEqual` in `test/short-links-306.test.js` that
-expects the preset ids to be exactly `["combat-swords-temp", "combat-daggers"]`
+expects the preset ids to be exactly `["combat-swords-temp", "combat-daggers", "assassination-daggers"]`
 (`LINK_BASES` entries that set `preset`). James, 1 Nov 2026: the old preset
 reference builds set Instant on the main hand and Deadly on the off hand, and
 those presets are historical. James, 5 Nov 2026: this temporary preset uses
@@ -946,6 +947,29 @@ Combat daggers
 9. Eviscerate if CP >= 5 and Slice and Dice has >= 12s left
 10. Backstab if CP < 5
 11. Eviscerate if CP >= 3 and time to energy cap < 1s
+```
+
+### assassination-daggers
+
+James, 10 Nov 2026 (#340). Talents 37/11/3 from his 70755 link. Same daggers
+and the same `character.dagger` sheet assumption as Combat daggers. Instant
+main hand, Deadly off hand. The share-link base is `assassination-daggers-340`.
+Mutilate stops below 4 combo points, the same cap Combat swords uses for its
+builder, and only at 50 or more energy so Shank's rule is reached. The four
+racials are the opening every live preset uses. Its summary:
+
+```text
+Assassination daggers
+1. Blood Fury if Blood Fury is granted
+2. Elune's Light if Elune's Light is granted
+3. Berserking if Berserking is granted
+4. Eureka! if Eureka! is granted
+5. Slice and Dice if CP >= 4 and Slice and Dice missing or < 2s left
+6. Rupture if CP >= 4 and Rupture on the target missing or < 2s left
+7. Eviscerate if CP >= 4 and Slice and Dice has > 10s left and Rupture on the target has > 10s left
+8. Cold Blood if Cold Blood is granted and Cold Blood is ready
+9. Mutilate if Mutilate is not locked by the build and CP < 4 and Energy >= 50
+10. Shank if Shank is ready and Energy < 50
 ```
 
 ### combat-swords
@@ -1146,8 +1170,10 @@ The numbers are `presetRotation.subtlety`:
 for. `combat-swords-temp` is level 60, the 16/35/0 talents in
 `data/reference-build.js`, the default swords, Instant on the main hand and
 Deadly on the off hand (James, 5 Nov 2026, #333). `combat-daggers` is level
-60, the 13/35/3 talents from James's 10 Nov 2026 link, the #328 daggers, and
-the same poisons. The
+60, the 13/35/3 talents from James's 10 Nov 2026 link, the #328 daggers, the
+`character.dagger` sheet, and the same poisons. `assassination-daggers` is
+level 60, the 37/11/3 talents from his other 10 Nov 2026 link, those daggers,
+that sheet, and those poisons. The
 1 Nov ruling is the historical reference builds, which this file no longer
 stores. `loadPreset` sets the rotation only. The page default
 (`pageDefaultConfig`) copies talents, weapons, poisons and the rotation.
@@ -1159,8 +1185,9 @@ presets. `js/preset-reference-builds.js` (re-exported by
 `weaponTypeDifferences(build, weapons)` (the type in each hand) and
 `referenceWeapon(build, hand)` (a hand to put into `config.weapons`),
 `poisonDifferences(build, poisons)` (the poison id in each hand) and
-`referencePoison(build, hand)` (a hand's poison id for `config.poisons`). A
-build carries no character sheet.
+`referencePoison(build, hand)` (a hand's poison id for `config.poisons`).
+`combat-daggers` and `assassination-daggers` also carry the `character.dagger`
+attack power and crit. Combat swords does not.
 
 ### combat-daggers
 
