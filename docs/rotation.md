@@ -955,7 +955,7 @@ James, 10 Nov 2026 (#340). Talents 37/11/3 from his 70755 link. Same daggers
 and the same `character.dagger` sheet assumption as Combat daggers. Instant
 main hand, Deadly off hand. The share-link base is `assassination-daggers-340`.
 Mutilate stops below 4 combo points, the same cap Combat swords uses for its
-builder, and only at 50 or more energy so Shank's rule is reached. The four
+builder, and only at 50 or more energy so Shank's rule is reached. The combo-point cap under 4 and the energy gate of 50 are dev choices, not James rulings. The four
 racials are the opening every live preset uses. Its summary:
 
 ```text

@@ -164,4 +164,17 @@ describe("Assassination daggers (#340)", () => {
       false,
     );
   });
+
+  it("locks the 2s refreshes and the 10s Eviscerate gate", () => {
+    const rules = ROTATION_PRESETS.find((preset) => preset.id === ID).rotation
+      .rules;
+    const valueOf = (rule, type) =>
+      rule.conditions.find((condition) => condition.type === type).value;
+    assert.equal(NUMBERS.refreshSeconds, 2);
+    assert.equal(NUMBERS.bothRemainingSeconds, 10);
+    assert.equal(valueOf(rules[4], "auraRemaining"), 2);
+    assert.equal(valueOf(rules[5], "debuffRemaining"), 2);
+    assert.equal(valueOf(rules[6], "auraRemaining"), 10);
+    assert.equal(valueOf(rules[6], "debuffRemaining"), 10);
+  });
 });

@@ -2067,7 +2067,7 @@ export const CONSTANTS = {
     "CP, s, s, energy",
     ASSUMPTION,
     "James, 10 Nov 2026, issue #340: Assassination daggers finishers fire at 4 or more combo points. Slice and Dice and Rupture refresh when missing or under 2s. Eviscerate only when both have more than 10s left. Shank only when energy is below 50. Tagged assumption",
-    "data/rotation-presets.js. Mutilate is cast below finisherComboPoints, the Combat swords builder cap (the builder stops under the finisher threshold). Mutilate also requires energy >= shankEnergyBelow: it is listed before Shank, and an on-GCD rule that holds but cannot be paid for pools, so without that gate Shank's energy rule would never be reached while combo points are under 4. Cold Blood is whenever it is ready, before Mutilate. The four racial rules are the same opening every live preset uses.",
+    "data/rotation-presets.js. Mutilate is cast below finisherComboPoints, the Combat swords builder cap (the builder stops under the finisher threshold). Mutilate also requires energy >= shankEnergyBelow: it is listed before Shank, and an on-GCD rule that holds but cannot be paid for pools, so without that gate Shank's energy rule would never be reached while combo points are under 4. The combo-point cap under 4 and the energy gate of 50 are dev choices, not James rulings. Cold Blood is whenever it is ready, before Mutilate. The four racial rules are the same opening every live preset uses.",
     false,
   ),
   "presetRotation.assassination": entry(
