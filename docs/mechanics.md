@@ -24,7 +24,7 @@ James, 10 Nov 2026 (#340): **Combat daggers (`combat-daggers`)** is a share-link
 
 **Assassination daggers (`assassination-daggers`)** is the next share-link preset (James, 10 Nov 2026, #340). Talents 37/11/3. Same daggers and the same `character.dagger` sheet assumption. Instant main hand, Deadly off hand. Finishers at 4 or more combo points, in order: Slice and Dice, then Rupture, then Eviscerate. Slice and Dice and Rupture refresh when missing or under 2s. Eviscerate only when both have more than 10s left. Cold Blood when it is ready, before Mutilate. Mutilate is below 4 combo points and at 50 or more energy (the Combat swords builder cap, plus the energy gate so Shank can be reached). Shank when energy is below 50. It does not replace the page default.
 
-**Subtlety daggers (`subtlety-daggers`)** is the next share-link preset (James, 10 Nov 2026, #340). Talents 12/8/31. Same daggers, sheet and poisons. Finishers at 4 or more combo points: Slice and Dice, Rupture, then Death Mark when Garrote and Rupture each have more than 6s left. Ghostly Strike when Garrote is not up, then Garrote, Shank below 50 energy, Hemorrhage. Premeditation and Preparation on cooldown. Garrote ticks every 2s (9 ticks in 18s) and its total is 552 + 0.42 × attack power; both are assumptions because the export does not state them. Hemorrhage's combo-point cap and where Premeditation and Preparation sit are dev choices. It does not replace the page default.
+**Subtlety daggers (`subtlety-daggers`)** is the next share-link preset (James, 10 Nov 2026, #340). Talents 12/8/31. Same daggers and the same `character.dagger` sheet. Instant main hand and Deadly off hand are James's 1 Nov 2026 ruling that every preset reference build uses that pair, carried forward to this TR-10 preset as an assumption. Finishers at 4 or more combo points: Slice and Dice, Rupture, then Death Mark when Garrote and Rupture each have more than 6s left. Ghostly Strike when Garrote is not up, then Garrote, Shank below 50 energy, Hemorrhage. Premeditation and Preparation on cooldown. Garrote ticks every 2s (9 ticks in 18s) and its total is 552 + 0.42 × attack power; both are assumptions because the export does not state them. Hemorrhage's combo-point cap and where Premeditation and Preparation sit are dev choices. It does not replace the page default.
 
 James, 10 Nov 2026 (#340): picking a non-dagger preset, including Combat swords after a dagger preset, sets attack power and crit back to the sword sheet (767 attack power, 22.45% crit). Undo restores the sheet from before that pick.
 
@@ -47,10 +47,10 @@ Tagged `assumption` and read through `k()`. A James date is a ruling he accepted
 | Shank rule                   | James, 5 Nov 2026 (#333)                                                                     | The only Shank rule is energy &lt; 50 and cooldown ready.                                                                                                                                              |
 | No `deathMarkStored`         | James, 5 Nov 2026 (#336)                                                                     | Not a condition. Aura and debuff conditions cover `venom`, `poised`, `ambush-window` and the `death-mark` debuff.                                                                                      |
 | Venom on Deadly ticks        | James, 8 Nov 2026 (#334), relayed by Scout                                                   | `venom.tickDamage` `"while active"`: the ×1.3 applies to a Deadly Poison tick only while Venom is up. No snapshot. Instant Poison is unchanged.                                                        |
-| Blood Splatter ticks         | James, 8 Nov 2026, 23:28 UK (#335), relayed by Scout                                         | `bloodSplatter.ticks` `"full strength"`: the extra seconds are full-strength Rupture ticks. The +9 s Garrote is not applied.                                                                           |
+| Blood Splatter ticks         | James, 8 Nov 2026, 23:28 UK (#335), relayed by Scout                                         | `bloodSplatter.ticks` `"full strength"`: the extra seconds are full-strength ticks on Rupture and on Garrote.                                                                                          |
 | Dagger percents              | James, 5 Nov 2026 (#335)                                                                     | Ghostly Strike 180% and Hemorrhage 145% are `assumption (accepted by James 5 Nov)`. The export `fx` gives no new number.                                                                               |
 | Death Mark cap               | James, 9 Nov 2026 (#336), relayed by Scout                                                   | Accepted as a tagged assumption, not a sourced export coefficient: `(base cap + CP × 0.04 × AP) × (1 + crit)`, AP and crit at expiry. 0.04 is the Wowhead Forever tooltip for spell 1325758.           |
-| Death Mark storage           | James, 9 Nov 2026 (#336), relayed by Scout                                                   | Poison stores at 1×. Only Rupture and Garrote store at 2×. Garrote is not simulated.                                                                                                                   |
+| Death Mark storage           | James, 9 Nov 2026 (#336), relayed by Scout                                                   | Poison stores at 1×. Rupture and Garrote store at 2×. Garrote ticks are stored that way.                                                                                                               |
 | Venom apply chance           | Team, 8 Nov 2026 (#334). Not James.                                                          | `venom.chanceAddMode` `"percentage points"` (+20 points). Any other value adds none.                                                                                                                   |
 | Poised at pull               | Team, 8 Nov 2026 (#334). Not James.                                                          | `poised.atPull` `"when energy is full"`. A start of 100 against Vigor's 110 is not full.                                                                                                               |
 | Ambush window charges        | Team, 8 Nov 2026 (#335). Not James.                                                          | `ghostlyStrike.ambushWindowCharges` is 1.                                                                                                                                                              |
@@ -63,7 +63,7 @@ Tagged `assumption` and read through `k()`. A James date is a ruling he accepted
 
 Coverage is 54 talents, 54 effect entries, 0 `pending` (TR-11). These `noDpsEffect` rows do nothing in a fight: Improved Gouge, Remorseless Attacks, Improved Kidney Shot, Lightning Reflexes, Deflection, Improved Sprint, Endurance, Riposte, Improved Kick, Setup, Master of Deception, Dirty Deeds, Camouflage, Dirty Tricks, Elusiveness, Quick Getaway, Heightened Senses.
 
-Removed from the 70755 tree (no catalogue row, no effect): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. The old Venom finisher is gone; Venom is the Shank aura. Garrote is not an ability. Hemorrhage's Garrote half and Blood Splatter's +9 s Garrote are recorded and not applied. Boot Knife and Flash of Steel are not damage rows. Death Mark's cast and its release share the Death Mark breakdown row.
+Removed from the 70755 tree (no catalogue row, no effect): Murder, Improved Eviscerate, Improved Sinister Strike, Improved Distract, Quietus, Cutthroat, Thousand Cuts. The old Venom finisher is gone; Venom is the Shank aura. Garrote is a cast (`js/ability-data.js`): Hemorrhage's +15% covers its ticks, and Blood Splatter adds 9 s of full-strength ticks. Boot Knife and Flash of Steel are not damage rows. Death Mark's cast and its release share the Death Mark breakdown row.
 
 The sections below (Dagger presets, Retuned presets, Cutthroat, the Venom finisher) describe the catalogue before this rework. They are not the live presets.
 
@@ -83,17 +83,17 @@ The sections below (Dagger presets, Retuned presets, Cutthroat, the Venom finish
 
 ### Ghostly Strike window, Hemorrhage, Blood Splatter, Mutilate (TR-06 / #335)
 
-- **Ambush** requires the self aura `ambush-window` (`ghostlyStrike.ambushWindow`, 7 s, wowf-export). A landed Ghostly Strike opens it. One charge (`ghostlyStrike.ambushWindowCharges`, team assumption from "your next", not a ruling by James) is used by the Ambush that goes ahead, hit or miss. A miss opens nothing. The dodge buff stays up. Garrote is not simulated. The removed Cutthroat talent is not the gate. Without Ghostly Strike granted, an Ambush rule is passed over.
+- **Ambush** requires the self aura `ambush-window` (`ghostlyStrike.ambushWindow`, 7 s, wowf-export). A landed Ghostly Strike opens it. One charge (`ghostlyStrike.ambushWindowCharges`, team assumption from "your next", not a ruling by James) is used by the Ambush or Garrote that goes ahead, hit or miss. A miss opens nothing. The dodge buff stays up. Garrote is the same gate: it is castable only while that window is up, which stands in for Stealth. The removed Cutthroat talent is not the gate. Without Ghostly Strike granted, an Ambush or Garrote rule is passed over.
 - **Dagger percents.** Ghostly Strike 180% and Hemorrhage 145% are `assumption (accepted by James 5 Nov)` (export `fx`: the 2 Nov notes give no new number). The non-dagger percents stay the export's 125% and 100%.
-- **Hemorrhage** still adds `k("hemorrhage.ruptureBonus").bonus` to Rupture ticks only. The export also names Garrote; that half is inert.
-- **Blood Splatter** adds `k("bloodSplatter").rupture` (6 s) to Rupture through `flatDuration`. `k("bloodSplatter.apply")` `"after percent"` (team assumption, not a ruling by James) adds those seconds after percent duration modifiers. Any other value adds them first. A length of 0 stays 0. James, 8 Nov 2026, 23:28 UK, relayed by Scout: the extra seconds are full-strength ticks and the total rises (`k("bloodSplatter.ticks")` `"full strength"`). The tooltip total is still split across the tick count of the length before those flat seconds, so a percent duration modifier still changes that tick. Any other `bloodSplatter.ticks` value splits the same total across the final length. The export's +9 s Garrote is recorded and not applied.
+- **Hemorrhage** adds `k("hemorrhage.ruptureBonus").bonus` to Rupture and Garrote ticks. The export names both.
+- **Blood Splatter** adds `k("bloodSplatter").rupture` (6 s) to Rupture through `flatDuration`. `k("bloodSplatter.apply")` `"after percent"` (team assumption, not a ruling by James) adds those seconds after percent duration modifiers. Any other value adds them first. A length of 0 stays 0. James, 8 Nov 2026, 23:28 UK, relayed by Scout: the extra seconds are full-strength ticks and the total rises (`k("bloodSplatter.ticks")` `"full strength"`). The tooltip total is still split across the tick count of the length before those flat seconds, so a percent duration modifier still changes that tick. Any other `bloodSplatter.ticks` value splits the same total across the final length. The export's +9 s is the same full-strength treatment on Garrote (`k("bloodSplatter").garrote`).
 - **Mutilate** stays 90% weapon damage. The flat per hand is 36/51/71 by rank (`mutilate.bonusByRank`, wowf-export, not an assumption). The poisoned ×1.2 still requires Deadly Poison.
 - No new preset and no Death Mark condition. `LINK_BASES` is unchanged. Venom's tick rule is unchanged: the bonus applies to Deadly Poison ticks only while the aura is up.
 
 ### Death Mark and Coup de Grace (TR-07 / #336)
 
 - **Death Mark** is a finisher (`js/ability-data.js`). 25 energy, 10 s cooldown, 1–5 combo points, on the GCD. A landed cast spends the combo points and marks the target for `k("deathMark").duration` (6 s). A miss, dodge, parry or block spends nothing and applies no mark. The cast itself deals no damage and draws only the yellow attack-table roll.
-- **Storage.** While the mark is up, damage that has already had armor applied is added to the mark at `storedByCp` for the combo points spent (12% through 60% at rank 4). `k("deathMark.double")` (Rupture and Garrote) stores at `k("deathMark.doubleRate")` (2). Garrote is not simulated. James, 9 Nov 2026, relayed by Scout: poison damage stores at the normal 1× rate. Every other positive damage event does too, including white swings. The release is not stored. A new landed cast replaces the mark and starts the stored total again.
+- **Storage.** While the mark is up, damage that has already had armor applied is added to the mark at `storedByCp` for the combo points spent (12% through 60% at rank 4). `k("deathMark.double")` (Rupture and Garrote) stores at `k("deathMark.doubleRate")` (2). Garrote ticks are stored that way. James, 9 Nov 2026, relayed by Scout: poison damage stores at the normal 1× rate. Every other positive damage event does too, including white swings. The release is not stored. A new landed cast replaces the mark and starts the stored total again.
 - **Release.** When the 6 s ends, the stored amount is dealt, limited by the cap, as a Death Mark breakdown row. Armor is not applied again. There is no second attack roll and no crit roll. The fight ending before the 6 s deals nothing extra.
 - **Cap.** `storedByCp` and `capByCp` are the 70755 export (real data; the printed caps are 0 Attack Power and 0 crit). James, 9 Nov 2026, relayed by Scout, accepted this as a tagged assumption, not a sourced coefficient: `k("deathMark.cap")` `"ap and crit"` sets the cap to (export cap + combo points × `k("deathMark.apPerCp")` × Attack Power) × (1 + melee crit chance). Attack Power and crit are read when the mark expires. `apPerCp` is 0.04. The reference for that figure is the Wowhead Forever tooltip for spell 1325758 (`deathMark.apPerCp`). Crit is `getCritChance` for the Death Mark context, with no attack-table suppression. Any other `deathMark.cap` value uses the export cap alone. The product is not floored or clamped except by the later `min(stored, cap)`.
 - **Coup de Grace** still adds 7/13/20% Eviscerate damage. The same percents are a `storageRate` add on Death Mark and a `damage` add on the amount released. The cap is not scaled. There is no `deathMarkStored` rotation condition. No new preset. `LINK_BASES` is unchanged.
@@ -957,7 +957,7 @@ modelled. Nothing in `js/simulation.js` applies spell resistance.
 
 `k("bleed.spells")` lists the ids `rupture` and `garrote`. `k("nature.spells")`
 lists `instant-poison` and `deadly-poison`. Rupture's cast sets `bleed`, so its ticks skip when
-`k("bleed.ignoresArmor")` is set. Garrote has no skill class. A dot with the id
+`k("bleed.ignoresArmor")` is set. Garrote's cast sets `bleed`, so its ticks skip the same way. A dot with the id
 `deadly-poison` skips as nature: Deadly Poison's ticks do skip armor. The
 rotation does not create one; the poison procs do. See Poisons.
 
@@ -990,13 +990,12 @@ n-th at the cast time plus n intervals. Each tick:
 
 1. Start from `tickDamage`.
 2. For each `dotDamageTaken` effect on the target that names this DoT's id
-   (Hemorrhage's names `rupture`), multiply by `1 + bonus × stacks`. Stacks
+   (Hemorrhage's names `rupture` and `garrote`), multiply by `1 + bonus × stacks`. Stacks
    add, they do not compound: two stacks of a +15% effect give `1.30`, not
    `1.3225`. For Hemorrhage (one stack) that is
    `1 + k("hemorrhage.ruptureBonus").bonus`. The `1` is
    the code's base, not a constant. `k("hemorrhage.ruptureBonus")` is `wowf-export` and is not on
-   the retune list. Its note says only Rupture ticks are increased. Garrote,
-   Deadly Poison, and any other DoT are unchanged. A Hemorrhage aura stored
+   the retune list. Its note says Rupture and Garrote ticks are increased. Deadly Poison and any other DoT are unchanged. A Hemorrhage aura stored
    on the player does not count. The strike itself is a direct hit and takes
    armor.
 3. If `k("dot.canCrit")` is set and `rollCrit` succeeds, multiply by
@@ -2386,7 +2385,7 @@ open for James's review, not defects found by a test:
   see "Backstab needs a dagger" and "Ambush needs a dagger and the Ambush
   allowed aura". Ambush's Stealth requirement is enforced through that aura,
   which only Cutthroat's Backstab proc grants (#271). Mutilate's two daggers are enforced too (#267,
-  "Mutilate"). The Stealth requirement of every other ability (Garrote, Cheap Shot and the like, which
+  "Mutilate"). Garrote's Stealth requirement is the same Ghostly Strike window (#340). The Stealth requirement of every other ability (Cheap Shot and the like, which
   no rotation can cast), and every behind requirement are parsed from the
   catalogue and not enforced.
 - **Cold Blood** keeps its charge when the attack does not land (a miss, a
@@ -3521,25 +3520,24 @@ Subtlety is a full-coverage tree in `scripts/talent-coverage.mjs` since #271. Th
 behind (ruling on #269), and numbers the issue left open take the Classic
 value, tagged `assumption` in `data/constants.js`.
 
-| Talent              | Max | What it is in the data                                                                             |
-| ------------------- | --- | -------------------------------------------------------------------------------------------------- |
-| Opportunity         | 2   | `damage` +5/10%, Backstab, Ambush, Mutilate, Garrote                                               |
-| Serrated Blades     | 3   | `armorIgnore` +3/6/9% (A11); `damage` +10/20/30%, Rupture                                          |
-| Quietus             | 5   | `damage` +2..10%, Sinister Strike, Ghostly Strike, Hemorrhage, with `targetHealthBelow` 7/20 (A14) |
-| Thousand Cuts       | 1   | proc: `onDotTick`, Rupture, `flat` chance 1, `drawless`, `applyAura` thousand-cuts (A13)           |
-| Camouflage          | 5   | none: Needs Stealth or an opener; the sim models neither                                           |
-| Master of Deception | 3   | none: Needs Stealth or an opener; the sim models neither                                           |
-| Improved Distract   | 2   | none: Needs Stealth or an opener; the sim models neither                                           |
-| Heightened Senses   | 2   | none: Needs Stealth or an opener; the sim models neither                                           |
-| Dirty Deeds         | 2   | none: Needs Stealth or an opener; the sim models neither (Garrote and Cheap Shot, from behind)     |
-| Setup               | 3   | none: needs a dodge of an enemy attack; nothing attacks the rogue                                  |
-| Elusiveness         | 2   | none: Vanish and Blind cooldowns                                                                   |
-| Dirty Tricks        | 2   | none: Sap and Blind range and energy cost                                                          |
+| Talent              | Max | What it is in the data                                                                                                             |
+| ------------------- | --- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Opportunity         | 2   | `damage` +5/10%, Backstab, Ambush, Mutilate, Garrote                                                                               |
+| Serrated Blades     | 3   | `armorIgnore` +3/6/9% (A11); `damage` +10/20/30%, Rupture                                                                          |
+| Quietus             | 5   | `damage` +2..10%, Sinister Strike, Ghostly Strike, Hemorrhage, with `targetHealthBelow` 7/20 (A14)                                 |
+| Thousand Cuts       | 1   | proc: `onDotTick`, Rupture, `flat` chance 1, `drawless`, `applyAura` thousand-cuts (A13)                                           |
+| Camouflage          | 5   | none: Needs Stealth or an opener; the sim models neither                                                                           |
+| Master of Deception | 3   | none: Needs Stealth or an opener; the sim models neither                                                                           |
+| Improved Distract   | 2   | none: Needs Stealth or an opener; the sim models neither                                                                           |
+| Heightened Senses   | 2   | none: Needs Stealth or an opener; the sim models neither                                                                           |
+| Dirty Deeds         | 2   | none: Needs Stealth or an opener; the sim models neither (Cheap Shot, from behind). Garrote uses the Ghostly Strike window instead |
+| Setup               | 3   | none: needs a dodge of an enemy attack; nothing attacks the rogue                                                                  |
+| Elusiveness         | 2   | none: Vanish and Blind cooldowns                                                                                                   |
+| Dirty Tricks        | 2   | none: Sap and Blind range and energy cost                                                                                          |
 
 - **Opportunity.** An unconditional `damage` add, so it sums with the other
-  adds (Aggression, Murder) in the percent form. Garrote has no engine
-  definition and Ambush is cast only inside Ghostly Strike's ambush window
-  (TR-06 / #335), so without Ghostly Strike it is Backstab and Mutilate.
+  adds (Aggression, Murder) in the percent form. Garrote and Ambush are cast only inside Ghostly Strike's ambush window
+  (TR-06 / #335, Garrote in #340), so without Ghostly Strike it is Backstab and Mutilate.
 - **Serrated Blades.** The armor ignore takes its share of the armor left
   after the flat reductions (see the armor order under Venom and Expose
   Armor). The Rupture bonus is a damage modifier, so it is read once, when
@@ -3676,7 +3674,7 @@ act only on those Ambushes.
   part only: a landed Ambush rolls at 33/67/100% by rank (the export says
   67% at rank 2; the issue said 66%) and on a fire gains 1 combo point, on top
   of Ambush's own, capped at 5 like any gain. The Garrote and Cheap Shot parts
-  are inert: neither is ever cast ("partly simulated", #275). Classic 1.12
+  stay inert: Initiative's ability list is Ambush only. Garrote is cast inside the Ghostly Strike window (#340) and Cheap Shot is not cast ("partly simulated", #275). Classic 1.12
   had 25/50/75%; the export's numbers are used.
 - **`drawless: "whenCertain"` (G2).** A ranked proc may ask to be drawless at
   only its certain ranks: `defineRankedProc` makes rank 3 of Initiative

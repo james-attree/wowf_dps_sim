@@ -959,7 +959,7 @@ export const CONSTANTS = {
     "ability ids",
     CLASSIC,
     `${WS}core/spell_resistances.go`,
-    "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff only increases Rupture. Deadly Poison is nature, not a bleed.",
+    "Periodic physical damage. Issue #23: these ticks skip armor. Hemorrhage's strike is a direct hit; its debuff increases Rupture and Garrote. Deadly Poison is nature, not a bleed.",
     true,
   ),
   "nature.ignoresArmor": entry(
@@ -1831,7 +1831,7 @@ export const CONSTANTS = {
     "chance per rank, combo points, ability ids",
     WOWF_EXPORT,
     "rogue.json → talents[Subtlety|Initiative] desc: gives you a 33/67/100% chance to add an additional combo point to your target when using your Ambush, Garrote, or Cheap Shot ability",
-    'An onAbility proc on a landed Ambush that adds one combo point, on top of the point Ambush gives (the pool\'s cap applies). The export says 67% at rank 2 (the issue and plan say 66%; the export is the source). At rank 3 the chance is 1, so the proc is drawless there (drawless: "whenCertain", js/procs.js) and draws nothing (G2); ranks 1 and 2 draw once. Garrote and Cheap Shot are stealth openers the sim does not cast, so that part of the talent is inert (partly simulated, #275). Classic 1.12 gives 25/50/75%.',
+    'An onAbility proc on a landed Ambush that adds one combo point, on top of the point Ambush gives (the pool\'s cap applies). The export says 67% at rank 2 (the issue and plan say 66%; the export is the source). At rank 3 the chance is 1, so the proc is drawless there (drawless: "whenCertain", js/procs.js) and draws nothing (G2); ranks 1 and 2 draw once. The ability list is Ambush only, so the Garrote and Cheap Shot parts stay inert (partly simulated, #275). Garrote is cast inside the Ghostly Strike window (#340). Cheap Shot is not cast. Classic 1.12 gives 25/50/75%.',
     false,
   ),
   "quietus.rules": entry(
@@ -2047,7 +2047,7 @@ export const CONSTANTS = {
     },
     "poison ids per preset",
     ASSUMPTION,
-    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: Combat daggers, Assassination daggers and Subtlety daggers use Instant MH and Deadly OH. James, 1 Nov 2026: the old preset reference builds set Instant MH and Deadly OH; combat-swords in this map is historical. The assassination-daggers and subtlety-daggers keys are the live presets. No claim about the frozen link bases. Tagged assumption`,
+    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: Combat daggers and Assassination daggers use Instant MH and Deadly OH. James, 1 Nov 2026: every preset reference build uses Instant MH and Deadly OH. That ruling is carried forward to the TR-10 Subtlety daggers preset as an assumption; it is not a 10 Nov ruling. combat-swords in this map is historical. The assassination-daggers and subtlety-daggers keys are the live presets. No claim about the frozen link bases. Tagged assumption`,
     "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp, combat-daggers, assassination-daggers and subtlety-daggers (instant main hand, deadly off hand). combat-swords is not a live reference build.",
     false,
   ),

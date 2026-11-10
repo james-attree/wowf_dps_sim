@@ -62,6 +62,7 @@ describe("Garrote (#340)", () => {
   it("ticks every 2s, nine times over 18s, for 552 + 0.42 × attack power", () => {
     assert.equal(k("rupture.tickInterval"), 2);
     assert.equal(k("garrote").duration / k("rupture.tickInterval"), 9);
+    assert.equal(k("garrote.apCoefficient"), 0.42);
     assert.equal(CONSTANTS["garrote.apCoefficient"].source, "assumption");
     assert.match(
       CONSTANTS["garrote.apCoefficient"].ref,
