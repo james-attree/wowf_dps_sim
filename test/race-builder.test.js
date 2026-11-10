@@ -323,6 +323,7 @@ function presetConfig(id, race) {
     talentLevel: build.talentLevel,
     weapons: structuredClone(build.weapons),
     poisons: { ...build.poisons },
+    ...(build.character ? { character: { ...build.character } } : {}),
   });
 }
 

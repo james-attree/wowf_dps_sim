@@ -283,6 +283,10 @@ export function buildValues(build) {
     }
     values[`poisons.${hand}`] = referencePoison(build, hand);
   }
+  if (build.character) {
+    values["character.attackPower"] = build.character.attackPower;
+    values["character.critChance"] = build.character.critChance;
+  }
   return values;
 }
 
@@ -394,7 +398,10 @@ export function pickedText(
   if (level) {
     items.push(`level${NBSP}${build.talentLevel}`);
   }
-  return `${name} set: ${pickedList(items)}. Your stats and race are unchanged.`;
+  const stats = build.character
+    ? "Attack power and crit are the dagger sheet. Your race is unchanged."
+    : "Your stats and race are unchanged.";
+  return `${name} set: ${pickedList(items)}. ${stats}`;
 }
 
 // listText, but a last item with its own "and" ("Instant and Deadly
@@ -500,7 +507,15 @@ export function createPresetBuild(
     const current = currentBuild(state);
     const { form } = state;
     const before = {
-      values: savedValues(current),
+      values: {
+        ...savedValues(current),
+        ...(build.character
+          ? {
+              "character.attackPower": state.config.character.attackPower,
+              "character.critChance": state.config.character.critChance,
+            }
+          : {}),
+      },
       talents: { ...current.talents },
       talentLevel: current.talentLevel,
       rotation:

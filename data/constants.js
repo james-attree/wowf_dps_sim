@@ -2023,6 +2023,15 @@ export const CONSTANTS = {
     "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp and combat-daggers (instant main hand, deadly off hand). The other keys are not live reference builds and are not the frozen link bases.",
     false,
   ),
+  // James, 10 Nov 2026, #340 option A. The numbers stay on character.dagger.
+  "presetReferenceBuild.daggerCharacter": entry(
+    "character.dagger",
+    "constant id",
+    ASSUMPTION,
+    "James, 10 Nov 2026, issue #340: dagger presets set the character sheet to the existing character.dagger sheet (769 AP, 22.14% crit) and keep the unnamed 59-111 off hand. Assumption: that attack power and crit come from Core Hound Tooth (weapon.dagger.offHand), not from the 59-111 off hand. Tagged assumption",
+    "data/preset-reference-builds.js copies character.dagger.attackPower and character.dagger.critChance onto combat-daggers. Hit and haste stay the page defaults. Combat swords does not read this row.",
+    false,
+  ),
   "presetReferenceBuild.daggerOffHand": entry(
     { min: 59, max: 111, speed: 1.6, type: "dagger" },
     "damage, damage, s, –",

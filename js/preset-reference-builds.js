@@ -40,7 +40,14 @@ import {
 
 const HANDS = ["mainHand", "offHand"];
 const WEAPON_NUMBERS = ["min", "max", "speed"];
-const FIELDS = ["name", "talentLevel", "talents", "weapons", "poisons"];
+const FIELDS = [
+  "name",
+  "talentLevel",
+  "talents",
+  "weapons",
+  "poisons",
+  "character",
+];
 const PRESET_IDS = new Set(ROTATION_PRESETS.map((preset) => preset.id));
 
 const isObject = (value) =>
@@ -182,6 +189,7 @@ export function referenceBuild(presetId) {
       offHand: { ...build.weapons.offHand },
     },
     poisons: { ...build.poisons },
+    ...(build.character ? { character: { ...build.character } } : {}),
   };
   return copy;
 }

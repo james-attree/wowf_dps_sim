@@ -294,6 +294,13 @@ describe("round trip", () => {
                   weapons: structuredClone(
                     presetReferenceBuild(preset.id).weapons,
                   ),
+                  ...(presetReferenceBuild(preset.id).character
+                    ? {
+                        character: {
+                          ...presetReferenceBuild(preset.id).character,
+                        },
+                      }
+                    : {}),
                 })
               : loadPreset(preset.id, { talents: referenceBuild() }),
         },
