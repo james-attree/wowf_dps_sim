@@ -83,18 +83,23 @@ describe("the cards (#323)", () => {
     const cards = startCards();
     assert.deepEqual(
       cards.map(({ id }) => id),
-      [COMBAT, CUSTOM],
+      [COMBAT, "combat-daggers", CUSTOM],
     );
     assert.equal(cards[0].name, "Combat swords (temporary)");
     assert.equal(
       cards[0].detail,
       "Sinister Strike · 16/35/0 · two swords · Instant / Deadly",
     );
+    assert.equal(cards[1].name, "Combat daggers");
+    assert.equal(
+      cards[1].detail,
+      "Backstab · 13/35/3 · two daggers · Instant / Deadly",
+    );
     assert.deepEqual(
       cards.map(({ short }) => short),
-      ["16/35/0", "16/35/0"],
+      ["16/35/0", "13/35/3", "16/35/0"],
     );
-    assert.match(cards[1].detail, /page defaults/i);
+    assert.match(cards.at(-1).detail, /page defaults/i);
   });
 
   it("names the temporary Combat swords builder", () => {

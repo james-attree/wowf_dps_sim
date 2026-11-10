@@ -50,8 +50,9 @@ on 5 Nov 2026. It sits before Post-launch Character and gear
 ([#297](https://github.com/james-attree/wowf_dps_sim/issues/297)). The current
 default is his **temporary** Combat swords preset (`combat-swords-temp`) from
 the talentsforever 70755 build: Instant on the main hand, Deadly on the off
-hand, and Shank when energy is below 50. It stays temporary until he sends
-sim share links ([#340](https://github.com/james-attree/wowf_dps_sim/issues/340)).
+hand, and Shank when energy is below 50. It stays temporary.
+[Combat daggers](https://github.com/james-attree/wowf_dps_sim/issues/340)
+(`combat-daggers`, 10 Nov 2026) is a second start card and does not replace it.
 Invalid old links and saved setups load that default silently.
 `dataVersion` is `2026-11-04+1.60.1.70755`. Formulas and the assumption tags
 are in [mechanics](mechanics.md#talent-rework--160170755-tr-01-through-tr-11).

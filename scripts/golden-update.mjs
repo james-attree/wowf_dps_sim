@@ -387,6 +387,24 @@ export const GOLDEN_CASES = deepFreeze([
       });
     })(),
   },
+  // TR-10 / #340: Combat daggers. Seed 142, 60 s, same shape as the swords pin.
+  {
+    name: "combat-daggers-preset-seed-142-60s",
+    seed: 142,
+    duration: 60,
+    config: (() => {
+      const build = presetReferenceBuild("combat-daggers");
+      return loadPreset("combat-daggers", {
+        talents: { ...build.talents },
+        talentLevel: build.talentLevel,
+        weapons: {
+          mainHand: { ...build.weapons.mainHand },
+          offHand: { ...build.weapons.offHand },
+        },
+        poisons: { ...build.poisons },
+      });
+    })(),
+  },
 ]);
 
 // Files that can turn up in test/golden/ without being a stray case: macOS

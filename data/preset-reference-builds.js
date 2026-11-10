@@ -1,9 +1,13 @@
 import { k } from "./constants.js";
-import { referenceBuild as combatReferenceTalents } from "./reference-build.js";
+import {
+  decodeBuildLink,
+  referenceBuild as combatReferenceTalents,
+} from "./reference-build.js";
 import { talentLevelRange } from "../js/talent-build.js";
 
 // The reference build each preset rotation is written for (issue #272).
-// TR-03 / #333: only the temporary Combat swords build.
+// TR-03 / #333: the temporary Combat swords build stays the page default.
+// TR-10 / #340: Combat daggers, from James's 10 Nov 2026 talentsforever link.
 
 function deepFreeze(value) {
   if (value !== null && typeof value === "object") {
@@ -25,6 +29,31 @@ const SWORDS = {
   offHand: swordHand("offHand"),
 };
 
+// #328's Combat daggers weapons, still in data: Perdition's Blade
+// (weapon.dagger.mainHand) and the unnamed 59–111 off hand
+// (presetReferenceBuild.daggerOffHand). James, 10 Nov 2026, issue #340: use
+// those daggers. The character sheet is not changed.
+const daggerHand = (id) => {
+  const { type, min, max, speed } = k(id);
+  return { min, max, speed, type };
+};
+
+const DAGGERS = {
+  mainHand: daggerHand("weapon.dagger.mainHand"),
+  offHand: daggerHand("presetReferenceBuild.daggerOffHand"),
+};
+
+// Glyphs and the query string are ignored by decodeBuildLink.
+const COMBAT_DAGGERS_LINK =
+  "https://talentsforever.com/rogue/60/005303002-3203032002012321551-003-mCFDISRUWaXde2cfghije-12?b=70755h&d=261110";
+
+function talentsFromLink(link) {
+  const { ranks } = decodeBuildLink(link);
+  return Object.fromEntries(
+    Object.entries(ranks).filter(([, rank]) => rank > 0),
+  );
+}
+
 const LEVEL_60 = talentLevelRange().max;
 
 const poisonsOf = (presetId) => ({
@@ -38,5 +67,12 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talents: combatReferenceTalents(),
     weapons: SWORDS,
     poisons: poisonsOf("combat-swords-temp"),
+  },
+  "combat-daggers": {
+    name: "Combat daggers (#340)",
+    talentLevel: LEVEL_60,
+    talents: talentsFromLink(COMBAT_DAGGERS_LINK),
+    weapons: DAGGERS,
+    poisons: poisonsOf("combat-daggers"),
   },
 });

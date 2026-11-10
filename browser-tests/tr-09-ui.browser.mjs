@@ -130,7 +130,7 @@ describe("TR-09 talent grid (#339)", () => {
 
 describe("TR-09 start screen (#339)", () => {
   for (const width of WIDTHS) {
-    test(`temporary Combat swords and Custom at ${width}`, async () => {
+    test(`temporary Combat swords, Combat daggers and Custom at ${width}`, async () => {
       const { context, page, errors } = await openPage(width, "#character");
       try {
         await page.locator("#start-cards").waitFor();
@@ -140,7 +140,7 @@ describe("TR-09 start screen (#339)", () => {
               node.id.replace("start-card-", ""),
             ),
           ),
-          ["combat-swords-temp", "custom"],
+          ["combat-swords-temp", "combat-daggers", "custom"],
         );
         await shot(page, `start-${width}`);
         assert.deepEqual(errors, []);

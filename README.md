@@ -34,7 +34,9 @@ less with full energy (the old combat-swords rules from #122 to #310, #173), els
 when the build grants it and Eviscerate; otherwise Sinister Strike. The page
 does not start there. `pageDefaultConfig()` is the temporary Combat swords
 preset (`combat-swords-temp`, 1.60.1.70755): Instant Poison on the main hand,
-Deadly Poison on the off hand, and Shank when energy is below 50. `dataVersion`
+Deadly Poison on the off hand, and Shank when energy is below 50. Combat
+daggers (`combat-daggers`, #340) is a second preset: that rotation with
+Backstab instead of Sinister Strike. `dataVersion`
 is `2026-11-04+1.60.1.70755`. A rotation
 that casts Cold Blood must say "when granted" (`abilityGranted`), or the
 validator rejects it (#173); since #188 every ability a talent grants needs its

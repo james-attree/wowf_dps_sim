@@ -21,14 +21,14 @@ import {
 import { normalizeConfig } from "../js/sim-config.js";
 
 describe("the preset registry (TR-03 / #333)", () => {
-  it("lists only the temporary Combat swords preset", () => {
+  it("lists the temporary Combat swords preset, then Combat daggers (#340)", () => {
     assert.deepEqual(
       ROTATION_PRESETS.map((p) => p.id),
-      ["combat-swords-temp"],
+      ["combat-swords-temp", "combat-daggers"],
     );
     assert.deepEqual(
       listPresets().map((p) => p.id),
-      ["combat-swords-temp"],
+      ["combat-swords-temp", "combat-daggers"],
     );
   });
 
@@ -49,6 +49,23 @@ describe("the preset registry (TR-03 / #333)", () => {
       presetRotation("combat-swords-temp").rules.some(
         (r) => r.action === "shank",
       ),
+    );
+  });
+
+  it("Combat daggers is the swords rotation with Backstab in place of Sinister Strike (#340)", () => {
+    const swords = presetRotation("combat-swords-temp").rules;
+    const daggers = presetRotation("combat-daggers").rules;
+    assert.equal(daggers.length, swords.length);
+    daggers.forEach((rule, index) => {
+      const expected =
+        swords[index].action === "sinister-strike"
+          ? { ...swords[index], action: "backstab" }
+          : swords[index];
+      assert.deepEqual(rule, expected);
+    });
+    assert.equal(
+      daggers.filter((rule) => rule.action === "sinister-strike").length,
+      0,
     );
   });
 });
