@@ -425,6 +425,24 @@ export const GOLDEN_CASES = deepFreeze([
       });
     })(),
   },
+  {
+    name: "subtlety-daggers-preset-seed-142-60s",
+    seed: 142,
+    duration: 60,
+    config: (() => {
+      const build = presetReferenceBuild("subtlety-daggers");
+      return loadPreset("subtlety-daggers", {
+        talents: { ...build.talents },
+        talentLevel: build.talentLevel,
+        weapons: {
+          mainHand: { ...build.weapons.mainHand },
+          offHand: { ...build.weapons.offHand },
+        },
+        poisons: { ...build.poisons },
+        character: { ...build.character },
+      });
+    })(),
+  },
 ]);
 
 // Files that can turn up in test/golden/ without being a stray case: macOS

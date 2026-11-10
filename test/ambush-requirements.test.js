@@ -441,12 +441,15 @@ describe("the Ambush hook: what Cutthroat will plug into (#261)", () => {
 });
 
 describe("the requirements are data (#261)", () => {
-  it("Ambush needs a dagger and the cutthroat aura; only it requires an aura", () => {
+  it("Ambush needs a dagger; Ambush and Garrote require the Ghostly Strike window", () => {
     assert.deepEqual(
       ABILITY_DEFINITIONS.filter(
         (definition) => definition.requiresAura !== undefined,
       ).map((definition) => [definition.id, definition.requiresAura]),
-      [["ambush", ["ambush-window"]]],
+      [
+        ["ambush", ["ambush-window"]],
+        ["garrote", ["ambush-window"]],
+      ],
     );
     const ambush = ABILITY_DEFINITIONS.find(({ id }) => id === "ambush");
     assert.equal(ambush.requiresMainHand, "dagger");

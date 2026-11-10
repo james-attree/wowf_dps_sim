@@ -164,6 +164,12 @@ const RAW = {
         values: [k("bloodSplatter").rupture],
         scope: { abilities: ["rupture"] },
       },
+      {
+        kind: "flatDuration",
+        op: "add",
+        values: [k("bloodSplatter").garrote],
+        scope: { abilities: ["garrote"] },
+      },
     ],
   },
   "assassination.lethality": {

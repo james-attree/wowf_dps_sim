@@ -510,7 +510,7 @@ rules[2].conditions[0].aura: "rupture" is a debuff on the target; use debuffActi
 | Anything the shape check rejects   | as in [the shape check](#the-shape-check) | The wrong version, a missing field, too many rules or conditions, and so on. The check carries on past them ([below](#carrying-on-past-shape-errors)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `rules: []`                        | `rules`                                   | A rotation with no rules casts nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Unknown ability id in `action`     | `rules[i].action`                         | Not an ability in the spell data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| An ability the rogue does not cast | `rules[i].action`                         | In the spell data (Garrote, Cheap Shot, ...), but the engine does not cast it yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| An ability the rogue does not cast | `rules[i].action`                         | In the spell data (Kick, Cheap Shot, ...), but the engine does not cast it yet. Garrote is cast, and only inside Ghostly Strike's window.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Unknown condition `type`           | `rules[i].conditions[j].type`             | Lists the known types.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | A param that is missing or wrong   | `rules[i].conditions[j].<param>`          | A missing or unknown param, or one of the wrong type (an operator not in `>= > <= < ==`, a `value` that is not a finite number, a non-boolean `active`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Unknown aura id                    | `rules[i].conditions[j].aura`             | `auraActive` and `auraRemaining` need a self buff. A target debuff id says to use the `debuff` types.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -815,8 +815,8 @@ calls it the same way.
 **Live presets.** James, 5 Nov 2026: the old four presets are scrapped.
 `ROTATION_PRESETS` holds `combat-swords-temp` ("Combat swords (temporary)")
 and, from 10 Nov 2026 ([#340](https://github.com/james-attree/wowf_dps_sim/issues/340),
-TR-10), `combat-daggers` ("Combat daggers") and `assassination-daggers`
-("Assassination daggers"). Combat swords stays temporary
+TR-10), `combat-daggers` ("Combat daggers"), `assassination-daggers`
+("Assassination daggers") and `subtlety-daggers` ("Subtlety daggers"). Combat swords stays temporary
 and stays `pageDefaultConfig()`. The start screen offers those two cards
 and Custom. The sections
 [combat-swords](#combat-swords), [assassination-daggers](#assassination-daggers),
@@ -971,6 +971,21 @@ Assassination daggers
 9. Mutilate if Mutilate is not locked by the build and CP < 4 and Energy >= 50
 10. Shank if Shank is ready and Energy < 50
 ```
+
+### subtlety-daggers
+
+James, 10 Nov 2026 (#340). Talents 12/8/31. Same daggers and the same
+`character.dagger` sheet as the other dagger presets. Assumption (dev
+choice): Subtlety daggers uses Instant MH / Deadly OH, matching the Combat
+and Assassination dagger presets. James has not ruled Subtlety poisons.
+Cf. his 1 Nov ruling for the historical #273 reference builds. The
+share-link base is `subtlety-daggers-340`. Garrote is
+castable only while Ghostly Strike's no-stealth window is up. Hemorrhage's
+combo-point cap under 4, the place of Premeditation and Preparation
+(after the racials, before the finishers), and Death Mark's cooldown check
+are dev choices, not James rulings. The cooldown check keeps a cooling-down
+Death Mark from holding back the rules below it. Garrote's attack power is
+snapshotted when the cast lands, also a dev choice.
 
 ### combat-swords
 
@@ -1173,7 +1188,9 @@ Deadly on the off hand (James, 5 Nov 2026, #333). `combat-daggers` is level
 60, the 13/35/3 talents from James's 10 Nov 2026 link, the #328 daggers, the
 `character.dagger` sheet, and the same poisons. `assassination-daggers` is
 level 60, the 37/11/3 talents from his other 10 Nov 2026 link, those daggers,
-that sheet, and those poisons. The
+that sheet, and those poisons. `subtlety-daggers` is level 60, the 12/8/31
+talents from his third 10 Nov 2026 link, those daggers, that sheet, and those
+poisons. The
 1 Nov ruling is the historical reference builds, which this file no longer
 stores. `loadPreset` sets the rotation only. The page default
 (`pageDefaultConfig`) copies talents, weapons, poisons and the rotation.

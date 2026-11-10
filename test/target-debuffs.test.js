@@ -89,7 +89,11 @@ describe("Hemorrhage and Rupture", () => {
     const boosted = tickDamage("rupture", { bleed: true, hemorrhage: true });
     assert.equal(plain, TICK_DAMAGE);
     assert.equal(boosted, TICK_DAMAGE * bonus);
-    for (const id of ["garrote", "deadly-poison", "hemorrhage"]) {
+    assert.equal(
+      tickDamage("garrote", { bleed: true, hemorrhage: true }),
+      tickDamage("garrote", { bleed: true }) * bonus,
+    );
+    for (const id of ["deadly-poison", "hemorrhage"]) {
       assert.equal(
         tickDamage(id, { hemorrhage: true }),
         tickDamage(id),

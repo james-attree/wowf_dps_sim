@@ -34,7 +34,7 @@ describe("the pooling hint names the requirements the engine has", () => {
     assert.deepEqual(needsDaggers.sort(), ["ambush", "backstab", "mutilate"]);
     for (const id of castableAbilities()) {
       const hint = poolingHint(id);
-      if (id === "ambush") {
+      if (hint === null) {
         continue;
       }
       assert.equal(hint.long.includes(DAGGER), id === "backstab", id);

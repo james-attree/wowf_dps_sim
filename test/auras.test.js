@@ -156,7 +156,7 @@ describe("aura definitions", () => {
     );
     assert.deepEqual(
       [...AURAS.hemorrhage.effects.dotDamageTaken.ids],
-      ["rupture"],
+      ["rupture", "garrote"],
     );
     assert.equal(AURAS.hemorrhage.target, "target");
     assert.equal(AURAS.rupture.target, "target");

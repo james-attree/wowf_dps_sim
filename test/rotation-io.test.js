@@ -289,7 +289,8 @@ describe("round trip", () => {
           // energy-to-cap wake then crawls (#234). Use that preset's own build.
           config:
             preset.id === "combat-daggers" ||
-            preset.id === "assassination-daggers"
+            preset.id === "assassination-daggers" ||
+            preset.id === "subtlety-daggers"
               ? loadPreset(preset.id, {
                   talents: { ...presetReferenceBuild(preset.id).talents },
                   weapons: structuredClone(
