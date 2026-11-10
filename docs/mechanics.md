@@ -24,6 +24,8 @@ James, 10 Nov 2026 (#340): **Combat daggers (`combat-daggers`)** is a share-link
 
 **Assassination daggers (`assassination-daggers`)** is the next share-link preset (James, 10 Nov 2026, #340). Talents 37/11/3. Same daggers and the same `character.dagger` sheet assumption. Instant main hand, Deadly off hand. Finishers at 4 or more combo points, in order: Slice and Dice, then Rupture, then Eviscerate. Slice and Dice and Rupture refresh when missing or under 2s. Eviscerate only when both have more than 10s left. Cold Blood when it is ready, before Mutilate. Mutilate is below 4 combo points and at 50 or more energy (the Combat swords builder cap, plus the energy gate so Shank can be reached). Shank when energy is below 50. It does not replace the page default.
 
+James, 10 Nov 2026 (#340): picking a non-dagger preset, including Combat swords after a dagger preset, sets attack power and crit back to the sword sheet (767 attack power, 22.45% crit). Undo restores the sheet from before that pick.
+
 `ROTATION_PRESETS` is those three ids. The live share-link bases are `combat-swords-temp-337`, `combat-daggers-340` and `assassination-daggers-340`. Of the frozen bases, only `defaults` and the pre-Shank `combat-swords-temp` still decode (`decodeSetup` returns ok). The other frozen preset indexes do not: the live catalogue rejects them, and the page loads the default with no notice.
 
 **TR-10 intake (one link, one append).** Do not edit a frozen base. For each new preset: append a `LINK_BASES` entry, add a golden and a lock test, and update the `deepEqual` in `test/short-links-306.test.js` whose expected preset-id list is `["combat-swords-temp", "combat-daggers", "assassination-daggers"]` (the filter is `LINK_BASES` entries that have `preset`).

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { k } from "../data/constants.js";
 import {
   createConfigForm,
   isEditedChoice,
@@ -210,8 +211,13 @@ describe("a pick and its Undo (#323)", () => {
     assert.deepEqual(config.poisons, reference.poisons);
     assert.equal(form.rotationChoice, COMBAT);
     assert.deepEqual(config.rotation, presetRotation(COMBAT));
-    // Stats, race and the fight stay.
-    assert.deepEqual(config.character, before.character);
+    // James, 10 Nov 2026, #340: Combat swords puts back the sword sheet.
+    // Race and the fight stay.
+    assert.deepEqual(config.character, {
+      ...before.character,
+      attackPower: k("character.attackPower"),
+      critChance: k("character.critChance"),
+    });
     assert.equal(config.race, before.race);
     assert.deepEqual(config.fight, before.fight);
     const slice = env.slice();

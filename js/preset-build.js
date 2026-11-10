@@ -1,4 +1,5 @@
 import { poisonName } from "./build-label.js";
+import { k } from "../data/constants.js";
 import {
   isEditedChoice,
   originRotation,
@@ -286,6 +287,11 @@ export function buildValues(build) {
   if (build.character) {
     values["character.attackPower"] = build.character.attackPower;
     values["character.critChance"] = build.character.critChance;
+  } else {
+    // James, 10 Nov 2026, issue #340: a non-dagger preset puts back the
+    // sword sheet. Combat swords has no character of its own.
+    values["character.attackPower"] = k("character.attackPower");
+    values["character.critChance"] = k("character.critChance");
   }
   return values;
 }
@@ -509,12 +515,10 @@ export function createPresetBuild(
     const before = {
       values: {
         ...savedValues(current),
-        ...(build.character
-          ? {
-              "character.attackPower": state.config.character.attackPower,
-              "character.critChance": state.config.character.critChance,
-            }
-          : {}),
+        // Always, so Undo after a sword-sheet reset restores the dagger sheet
+        // (James, 10 Nov 2026, issue #340).
+        "character.attackPower": state.config.character.attackPower,
+        "character.critChance": state.config.character.critChance,
       },
       talents: { ...current.talents },
       talentLevel: current.talentLevel,
