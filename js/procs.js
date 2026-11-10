@@ -92,8 +92,13 @@ import { RESOURCE_DEFINITIONS } from "./resource-data.js";
 //                 and the ticks take armor, crit and the damage tags of the id
 //                 as any damage over time does. The roll is the one spell
 //                 hit draw and nothing else. It fires no procs.
-//   extraAttack   a white swing of the hand that triggered the proc, rolled
-//                 and resolved like any swing and fired through the same
+//   extraAttack   a white main-hand swing, using the main-hand weapon's
+//                 damage and no off-hand penalty, whatever hand triggered
+//                 the proc and whatever the main-hand type (James 10 Nov).
+//                 It resets the main-hand swing timer immediately: the next
+//                 main-hand white swing is one full main-hand interval after
+//                 the proc. The off-hand timer is not moved. Rolled and
+//                 resolved like any swing and fired through the same
 //                 triggers, unless hackAndSlash.chain is off, when a proc that
 //                 holds an extraAttack action does not roll on an extra attack.
 //
@@ -773,11 +778,11 @@ export class ProcRunner {
       this.readyAt.set(proc.id, currentTime + proc.cooldown);
     }
     for (const action of proc.actions) {
-      this.run(proc, action, event);
+      this.run(proc, action);
     }
   }
 
-  run(proc, action, event) {
+  run(proc, action) {
     const simulation = this.simulation;
     if (action.type === "gainResource") {
       const pool = simulation.rogue.resources[action.resource];
@@ -797,17 +802,19 @@ export class ProcRunner {
     } else if (action.type === "applyDot") {
       simulation.resolveProcDot(action);
     } else {
-      this.extraAttack(event);
+      this.extraAttack();
     }
   }
 
-  extraAttack(event) {
+  extraAttack() {
     if (this.depth >= k("proc.maxChainDepth")) {
       throw new RangeError(
         `Extra attacks followed one another ${this.depth} times. A proc that cannot fail with hackAndSlash.chain on never stops.`,
       );
     }
-    const weapon = this.simulation.rogue.weapons[event.hand];
+    // James 10 Nov: always a main-hand swing, main-hand damage, no off-hand
+    // penalty, and the main-hand timer resets immediately.
+    const weapon = this.simulation.rogue.weapons.mainHand;
     this.depth += 1;
     try {
       this.simulation.resolveAttack(
@@ -816,8 +823,34 @@ export class ProcRunner {
         weapon.rollDamage(),
         { extra: true },
       );
+      this.resetMainHandTimer();
     } finally {
       this.depth -= 1;
     }
+  }
+
+  // Next main-hand white swing is one full main-hand interval from now (the
+  // current haste interval, as swung() uses). The off-hand timer is left
+  // alone. During a main-hand white swing the handler's swung() already
+  // starts that next swing, and stopping the timer here would make swung()
+  // throw, so this is a no-op in that handler.
+  resetMainHandTimer() {
+    const { core } = this.simulation;
+    if (core == null || core.swings == null) {
+      const weapon = this.simulation.rogue.weapons.mainHand;
+      const haste = this.simulation.modifiers.resolve("haste", 1);
+      weapon.swingTimer = weapon.speed / haste;
+      return;
+    }
+    const timer = core.swings.find((item) => item.hand === "mainHand");
+    if (timer == null) {
+      return;
+    }
+    if (core.scheduler.current?.payload === timer.payload) {
+      return;
+    }
+    const interval = timer.interval;
+    timer.stop();
+    timer.start(core.now + interval);
   }
 }

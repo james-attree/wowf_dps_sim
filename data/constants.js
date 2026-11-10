@@ -1661,7 +1661,7 @@ export const CONSTANTS = {
     "chance per rank, weapon types",
     WOWF_EXPORT,
     "rogue.json → talents[Combat|Hack and Slash] desc, Axe/Sword",
-    "Your successful melee attacks have this chance to trigger an extra attack on the target. A proc on a landed hit (onHit: white or yellow), main hand or off hand, with a Sword or Axe in the hand that swung. The Dagger/Fist crit and Mace armor lines of the same talent are modifiers, in the same entry of data/talent-effects.js.",
+    "Your successful melee attacks have this chance to trigger an extra attack on the target. A proc on a landed hit (onHit: white or yellow), main hand or off hand, with a Sword or Axe in the hand that swung. The Dagger/Fist crit and Mace armor lines of the same talent are modifiers, in the same entry of data/talent-effects.js. Extra attack is a main-hand swing with main-hand weapon damage (no off-hand penalty) and resets the main-hand swing timer; off-hand timer untouched (James 10 Nov).",
     false,
   ),
   "puncturingWounds.comboPoint": entry(

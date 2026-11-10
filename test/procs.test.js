@@ -774,23 +774,24 @@ describe("actions", () => {
     assert.ok(sim.abilityStats.p.damage > 0);
   });
 
-  it("makes an extra attack in the hand that triggered it, draws in order", () => {
+  it("makes an extra attack as a main-hand swing, even when the off hand triggered it", () => {
     const extra = defineProc({
       id: "extra",
       trigger: "onHit",
       chance: { mode: "flat", value: 1 },
       actions: [{ type: "extraAttack" }],
     });
-    // Swing: attack roll. Proc roll. Extra swing: weapon damage, attack roll.
-    // The extra swing's own onHit does not roll (hackAndSlash.chain is off).
+    // Off-hand swing: attack roll. Proc roll. Extra swing: main-hand weapon
+    // damage, attack roll. The extra swing's own onHit does not roll
+    // (hackAndSlash.chain is off). James 10 Nov: always a main-hand swing.
     const { sim, tape } = harness({
       procs: [extra],
       rolls: [HIT, 0, 0.5, HIT],
     });
     swing(sim, "offHand");
     assert.equal(tape.left(), 0);
-    assert.equal(sim.abilityStats["off-hand"].casts, 2);
-    assert.equal(sim.abilityStats["main-hand"], undefined);
+    assert.equal(sim.abilityStats["off-hand"].casts, 1);
+    assert.equal(sim.abilityStats["main-hand"].casts, 1);
     assert.equal(sim.procs.stats.extra.rolls, 1);
   });
 
