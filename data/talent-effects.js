@@ -475,6 +475,11 @@ const RAW = {
         scope: { weaponTypes: ["mace"] },
       },
     ],
+    // James 10 Nov: the extraAttack action (js/procs.js) is a main-hand
+    // swing, uses main-hand damage with no off-hand penalty whatever the
+    // main-hand type, and resets the main-hand swing timer. Axes behave as
+    // swords (weaponTypes already lists both). Unchanged: chain is off,
+    // the dagger/fist crit and the mace armour ignore (the modifiers above).
     procs: [
       {
         id: "hack-and-slash",
