@@ -830,10 +830,11 @@ export class ProcRunner {
   }
 
   // Next main-hand white swing is one full main-hand interval from now (the
-  // current haste interval, as swung() uses). The off-hand timer is left
-  // alone. During a main-hand white swing the handler's swung() already
-  // starts that next swing, and stopping the timer here would make swung()
-  // throw, so this is a no-op in that handler.
+  // current haste interval). The off-hand timer is left alone. James 11 Nov:
+  // that reset discards any shortened remaining time (parry-haste). During a
+  // main-hand white swing the handler calls swung() after this proc, which
+  // would throw if the timer were stopped here, so swung() is wrapped and the
+  // full interval is applied after it returns.
   resetMainHandTimer() {
     const { core } = this.simulation;
     if (core == null || core.swings == null) {
@@ -846,11 +847,23 @@ export class ProcRunner {
     if (timer == null) {
       return;
     }
+    const apply = () => {
+      const interval = timer.interval;
+      timer.stop();
+      timer.start(core.now + interval);
+    };
     if (core.scheduler.current?.payload === timer.payload) {
+      const { swung } = timer;
+      timer.swung = (...args) => {
+        try {
+          return swung.apply(timer, args);
+        } finally {
+          timer.swung = swung;
+          apply();
+        }
+      };
       return;
     }
-    const interval = timer.interval;
-    timer.stop();
-    timer.start(core.now + interval);
+    apply();
   }
 }

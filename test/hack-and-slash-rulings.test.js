@@ -1,6 +1,8 @@
-// James 10 Nov: Hack and Slash extra attacks are main-hand swings, use
-// main-hand damage with no off-hand penalty, and reset the main-hand swing
-// timer. Axes behave as swords.
+// James 10 Nov and 11 Nov: Hack and Slash extra attacks are main-hand
+// swings, use main-hand damage with no off-hand penalty, and reset the
+// main-hand swing timer (yellow hits too; parry-haste is discarded). The
+// extra swing rolls the main-hand on-hit (poison, enchant). Axes behave as
+// swords. Every extraAttack proc follows these rules.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
@@ -61,6 +63,16 @@ function setup({
   return sim;
 }
 
+function onHitMark(id, hand) {
+  return defineProc({
+    id,
+    trigger: "onHit",
+    scope: { hands: [hand] },
+    chance: { mode: "flat", value: 1 },
+    actions: [{ type: "dealDamage", id, name: id, min: 1 }],
+  });
+}
+
 function timers(sim) {
   return {
     main: sim.core.swings.find((item) => item.hand === "mainHand"),
@@ -68,7 +80,7 @@ function timers(sim) {
   };
 }
 
-describe("Hack and Slash rulings (James 10 Nov)", () => {
+describe("Hack and Slash rulings (James 10 Nov, 11 Nov)", () => {
   it("resets the main-hand timer after a main-hand proc; the off-hand timer is untouched", () => {
     const sim = setup({ offType: "dagger" });
     const run = openCore(sim, MH_SPEED + OH_START);
@@ -161,6 +173,96 @@ describe("Hack and Slash rulings (James 10 Nov)", () => {
     }
   });
 
+  it("a yellow hit (Sinister Strike) also resets the main-hand timer (James 11 Nov Q1)", () => {
+    const sim = setup({ offType: "dagger" });
+    const run = openCore(sim, MH_SPEED);
+    try {
+      run.runUntil(0);
+      const { main, off } = timers(sim);
+      assert.equal(main.nextSwingTime, MH_SPEED);
+      assert.equal(off.nextSwingTime, OH_START);
+      const at = 0.2;
+      run.runUntil(at);
+      const result = sim.rogue.abilities.sinisterStrike.cast(sim.rogue, sim);
+      assert.equal(result.landed, true);
+      assert.equal(main.nextSwingTime, at + MH_SPEED);
+      assert.equal(
+        off.nextSwingTime,
+        OH_START,
+        "the off-hand timer is untouched",
+      );
+    } finally {
+      run.close();
+    }
+  });
+
+  it("an off-hand proc discards a shortened main-hand timer (parry-haste, James 11 Nov Q2)", () => {
+    const sim = setup({ mainType: "dagger", offType: "sword" });
+    const run = openCore(sim, MH_SPEED + OH_START);
+    try {
+      run.runUntil(0);
+      const { main, off } = timers(sim);
+      assert.equal(main.nextSwingTime, MH_SPEED);
+      const shortened = 1;
+      main.stop();
+      main.start(shortened);
+      assert.equal(main.nextSwingTime, shortened);
+      run.runUntil(OH_START);
+      assert.equal(main.nextSwingTime, OH_START + MH_SPEED);
+      assert.equal(off.nextSwingTime, OH_START + OH_SPEED);
+    } finally {
+      run.close();
+    }
+  });
+
+  it("a main-hand white proc also discards a shortened next swing (parry-haste, James 11 Nov Q2)", () => {
+    const sim = setup({ offType: "dagger" });
+    const run = openCore(sim, MH_SPEED);
+    try {
+      const { main } = timers(sim);
+      const swung = main.swung.bind(main);
+      main.swung = function (...args) {
+        const event = swung(...args);
+        const next = main.nextSwingTime;
+        const now = sim.core.now;
+        main.stop();
+        main.start(now + (next - now) * 0.5);
+        return event;
+      };
+      run.runUntil(0);
+      assert.equal(main.nextSwingTime, MH_SPEED);
+    } finally {
+      run.close();
+    }
+  });
+
+  it("an off-hand-triggered extra swing rolls the main-hand on-hit, not the off-hand's (James 11 Nov Q3)", () => {
+    const sim = setup({
+      mainType: "dagger",
+      offType: "sword",
+      procs: [
+        extraProc(),
+        onHitMark("mh-on-hit", "mainHand"),
+        onHitMark("oh-on-hit", "offHand"),
+      ],
+    });
+    const run = openCore(sim, OH_START);
+    try {
+      run.runUntil(0);
+      assert.equal(sim.procs.stats["mh-on-hit"].fires, 1);
+      assert.equal(sim.procs.stats["oh-on-hit"].fires, 0);
+      run.runUntil(OH_START);
+      // The off-hand white hit rolls the off-hand on-hit once; the extra
+      // swing is a main-hand swing, so only the main-hand on-hit (poison or
+      // enchant) rolls on it.
+      assert.equal(sim.procs.stats["oh-on-hit"].fires, 1);
+      assert.equal(sim.procs.stats["mh-on-hit"].fires, 2);
+      assert.equal(sim.abilityStats["mh-on-hit"].hits, 2);
+      assert.equal(sim.abilityStats["oh-on-hit"].hits, 1);
+    } finally {
+      run.close();
+    }
+  });
   it("the talent's proc is the extraAttack action, on swords and axes", () => {
     const proc = procsFromTalents({ "combat.hack-and-slash": 5 }).find(
       (item) => item?.id === "hack-and-slash",

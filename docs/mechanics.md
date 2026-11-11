@@ -3287,7 +3287,7 @@ entry. Two talents that do work only in some builds are counted as DPS: Hack and
 Slash (a sword or axe, a dagger or fist, or a mace in the hand) and Puncturing
 Wounds (Backstab, which the placeholder rotation never casts).
 
-### Hack and Slash (James 10 Nov)
+### Hack and Slash (James 10 Nov, 11 Nov)
 
 James, 10 Nov 2026: a Hack and Slash extra attack (the `extraAttack` action) is
 always a main-hand white swing. It uses the main-hand weapon's damage, whatever
@@ -3295,10 +3295,24 @@ the main-hand type (a main-hand dagger and an off-hand sword still use the
 dagger's damage), and it does not take the off-hand penalty. A proc from either
 hand resets the main-hand swing timer immediately: the next main-hand white
 swing is one full main-hand weapon speed after the proc (the current haste
-interval, as a normal swing's `swung()` uses). The off-hand timer is not moved.
-Axes behave as swords (the proc already rolls on both). Unchanged:
-`hackAndSlash.chain` is off (James's assumption), the dagger/fist crit bonus,
-and the mace armour ignore.
+interval). The off-hand timer is not moved. Axes behave as swords (the proc
+already rolls on both). Unchanged: `hackAndSlash.chain` is off (James's
+assumption), the dagger/fist crit bonus, and the mace armour ignore.
+
+James, 11 Nov 2026, on the four follow-up questions:
+
+- A yellow melee hit (for example Sinister Strike) that procs an extra attack
+  also resets the main-hand timer, the same way a white swing does.
+- The reset starts a full current interval from the proc and discards any
+  shortened remaining time (parry-haste), whether the proc was a main-hand
+  white swing or an off-hand (or yellow) hit. Parry-haste is not simulated
+  today; the reset still replaces the pending main-hand swing rather than
+  leaving a shortened countdown in place.
+- The extra swing is a main-hand white hit, so it rolls the main-hand on-hit
+  (the main-hand poison, and a main-hand enchant when those exist). The
+  triggering off-hand weapon's poison or enchant does not roll on it.
+- These rules belong to the `extraAttack` action itself, so every current and
+  future extra-attack proc follows them, not only Hack and Slash.
 
 **The Assassination talents in D8a (#119): 6 of 6 for the reference build.**
 
