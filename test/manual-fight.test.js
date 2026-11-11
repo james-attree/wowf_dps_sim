@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { openCore } from "../js/core/fight.js";
-import { createFight, runFight } from "../js/fight.js";
+import { createFight, fightResult, runFight } from "../js/fight.js";
 import {
   blockedText,
   createManualFight,
@@ -207,10 +207,11 @@ describe("manual fight cast and wait (#348)", () => {
     const cast = manual.cast("sinister-strike");
     assert.equal(cast.ok, true);
     assert.equal(cast.reason, null);
-    assert.ok(cast.advancedBy > 0);
-    assert.equal(manual.getState().time, cast.advancedBy);
-    assert.equal(manual.getState().gcd.remaining, 0);
-    assert.equal(manual.getState().comboPoints.value, 1);
+    assert.equal(cast.advancedBy, 0);
+    const presented = manual.getState();
+    assert.ok(presented.time > 0);
+    assert.equal(presented.gcd.remaining, 0);
+    assert.equal(presented.comboPoints.value, 1);
     assert.equal(
       cast.events.some(
         (event) => event.kind === "damage" || event.kind === "cast",
@@ -399,26 +400,48 @@ describe("manual fight event names and reason times (#348)", () => {
       (event) => event.kind === "damage" && event.source === "ability",
     );
     assert.equal(yellow.name, "Sinister Strike");
+    const second = manual.cast("sinister-strike");
+    assert.equal(second.ok, true);
+    const finisher = manual.cast("slice-and-dice");
+    assert.equal(finisher.ok, true);
+    const sndCast = finisher.events.find((event) => event.kind === "cast");
+    const sndAura = finisher.events.find(
+      (event) => event.kind === "aura" && event.aura === "slice-and-dice",
+    );
+    assert.equal(sndCast.name, "Slice and Dice");
+    assert.equal(sndAura.name, "Slice and Dice");
     const speed = referenceBuild("combat-swords-temp").weapons.mainHand.speed;
     let white = null;
     let poison = null;
+    let stacks = null;
     for (
       let swing = 1;
-      swing <= 30 && (white === null || poison === null);
+      swing <= 40 && (white === null || poison === null || stacks === null);
       swing += 1
     ) {
-      const step = manual.advanceTo(speed * swing);
+      const step = manual.advanceTo(manual.getState().time + speed);
       white ??=
         step.events.find((event) => event.source === "white-mh") ?? null;
       poison ??= step.events.find((event) => event.source === "poison") ?? null;
+      stacks ??=
+        step.events.find(
+          (event) =>
+            event.kind === "aura" &&
+            event.aura === "deadly-poison" &&
+            (event.change === "stack" || event.change === "apply"),
+        ) ?? null;
     }
     assert.equal(white.name, "Main-hand");
-    assert.equal(typeof poison.name, "string");
     assert.equal(poison.name.length > 0, true);
     assert.equal(
       manual.slots.some((slot) => slot.abilityId === poison.abilityId),
       false,
     );
+    assert.equal(stacks.name, "Deadly Poison");
+    for (const event of [sndCast, sndAura, stacks]) {
+      assert.equal(typeof event.name, "string");
+      assert.ok(event.name.length > 0);
+    }
     manual.dispose();
   });
 
@@ -539,4 +562,56 @@ describe("manual fight event names and reason times (#348)", () => {
     assert.ok(Math.abs(subtlety.getState().energy.value - 40) < 1e-6);
     subtlety.dispose();
   });
+});
+
+describe("manual fight parity with runFight (#348)", () => {
+  const presets = [
+    "combat-swords-temp",
+    "combat-daggers",
+    "assassination-daggers",
+    "subtlety-daggers",
+  ];
+  const seeds = [1, 2, 7, 42];
+  const durations = [20, 45, 90];
+
+  for (const id of presets) {
+    for (const seed of seeds) {
+      for (const duration of durations) {
+        it(`replays ${id} seed ${seed} for ${duration}s`, () => {
+          const config = presetConfig(id);
+          const casts = [];
+          const scriptedFight = createFight(seed, config, { duration });
+          scriptedFight.simulation.on("*", (event) => {
+            if (event.type === "cast") {
+              casts.push({ time: event.time, ability: event.ability });
+            }
+          });
+          scriptedFight.simulation.run(duration);
+          const scripted = fightResult(scriptedFight);
+          const manual = createManualFight({ seed, duration, config });
+          let time = 0;
+          for (const cast of casts) {
+            if (cast.time > time) {
+              const moved = manual.advanceTo(cast.time);
+              assert.equal(moved.ok, true, `${cast.ability} advance`);
+              time += moved.advancedBy;
+            }
+            const acted = manual.cast(cast.ability);
+            assert.equal(
+              acted.ok,
+              true,
+              `${cast.ability} at ${cast.time}s (${time}s): ${acted.reason?.text ?? ""}`,
+            );
+            time += acted.advancedBy;
+          }
+          if (!manual.isOver()) {
+            manual.advanceTo(duration);
+          }
+          const replayed = manual.result();
+          assert.equal(replayed.totalDamage, scripted.totalDamage);
+          assert.deepEqual(replayed.abilities, scripted.abilities);
+        });
+      }
+    }
+  }
 });

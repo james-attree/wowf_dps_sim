@@ -5,6 +5,8 @@
 // the same instant is the Wait's own target (Scout, 11 Nov 2026). Nothing
 // here changes a scripted run.
 import { k } from "../data/constants.js";
+import { abilityCatalogue } from "./abilities.js";
+import { AURAS } from "./auras.js";
 import { openCore } from "./core/fight.js";
 import { createFight, fightResult } from "./fight.js";
 import { createLiveFeed, procName } from "./live-feed.js";
@@ -14,6 +16,20 @@ import { snapshot } from "./snapshot.js";
 import { remainingTime } from "./views/run-model.js";
 
 const RUN_OPTIONS = ["seed", "duration", "config"];
+
+const AURA_NAMES = new Map(
+  Object.values(AURAS).map((aura) => [aura.id, aura.name]),
+);
+
+// The stream's own name when it has one, otherwise the catalogue name for
+// that id. Nothing is filled in when neither has one.
+function recordedName(streamName, id, fromDefinition) {
+  if (typeof streamName === "string" && streamName.length > 0) {
+    return streamName;
+  }
+  const name = fromDefinition(id);
+  return typeof name === "string" && name.length > 0 ? name : null;
+}
 
 // Spec §2.3. Anything usable that is not listed is appended, in ability order.
 const SLOT_GROUPS = [
@@ -161,6 +177,11 @@ function mapStreamEvent(type, event, proc) {
       source: "ability",
       amount: event.cost,
       outcome: "cast",
+      name: recordedName(
+        event.name,
+        event.ability,
+        (id) => abilityCatalogue.get(id)?.name,
+      ),
     };
   }
   if (type === "hit") {
@@ -210,6 +231,7 @@ function mapStreamEvent(type, event, proc) {
       duration: event.duration,
       reason: event.reason,
       aura: event.aura,
+      name: recordedName(event.name, event.aura, (id) => AURA_NAMES.get(id)),
     };
   }
   if (type === "end") {
@@ -282,6 +304,11 @@ export function createManualFight(options) {
   );
 
   const events = [];
+  let spill = [];
+  // An on-GCD cast stays at its instant so an off-GCD cast can follow there,
+  // the way the scripted rotation is asked again at that same time. The next
+  // getState, wait, or on-GCD cast runs the clock to the end of that GCD.
+  let held = false;
   const proc = { name: null };
   const unsubscribe = sim.on("*", (event, type) => {
     const mapped = mapStreamEvent(type, event, proc);
@@ -312,13 +339,40 @@ export function createManualFight(options) {
   });
 
   function takeEvents() {
-    const taken = events.slice();
+    const taken = spill.concat(events);
+    spill = [];
     events.length = 0;
     return taken;
   }
 
+  // Run a held on-GCD cast out to the GCD end. Events land on the next call
+  // that returns some, so a getState in between does not drop them.
+  function presentDecision() {
+    if (!held || over) {
+      return;
+    }
+    held = false;
+    const gcdEnd = sim.core?.gcd?.endsAt ?? null;
+    // A remainder inside the tick epsilon is already clear (the same rule as
+    // a cast). Running out to that end would move the clock by a rounding
+    // ulp and start the next cooldown late.
+    if (gcdEnd === null || sim.gcd <= k("sim.tickEpsilon")) {
+      return;
+    }
+    if (gcdEnd > core.endTime) {
+      core.runUntil(core.endTime);
+      finish();
+    } else {
+      core.runUntil(gcdEnd);
+    }
+    if (events.length > 0) {
+      spill.push(...events);
+      events.length = 0;
+    }
+  }
+
   function refused(block) {
-    takeEvents();
+    events.length = 0;
     return {
       ok: false,
       reason: block,
@@ -484,6 +538,12 @@ export function createManualFight(options) {
   }
 
   function runTo(target) {
+    if (held) {
+      const gcdEnd = sim.core?.gcd?.endsAt ?? null;
+      if (gcdEnd === null || target >= gcdEnd || target >= core.endTime) {
+        held = false;
+      }
+    }
     const before = core.time;
     if (target > core.endTime) {
       core.runUntil(core.endTime);
@@ -498,9 +558,6 @@ export function createManualFight(options) {
     }
     core.runUntil(target);
     const advancedBy = core.time - before;
-    if (core.time >= core.endTime) {
-      finish();
-    }
     return { ok: true, reason: null, advancedBy, events: takeEvents() };
   }
 
@@ -527,6 +584,7 @@ export function createManualFight(options) {
   }
 
   function state() {
+    presentDecision();
     const live = feed.read();
     const soonest = cooldownTarget();
     const energyNow = live.resources.energy.value;
@@ -572,7 +630,7 @@ export function createManualFight(options) {
       duration,
       time: sim.currentTime,
       remaining: Math.max(0, duration - sim.currentTime),
-      over,
+      over: over || sim.currentTime >= duration,
       dps: sim.currentTime > 0 ? sim.damageDone / sim.currentTime : 0,
       energy: live.resources.energy,
       comboPoints: live.resources.comboPoints,
@@ -602,6 +660,12 @@ export function createManualFight(options) {
   }
 
   function cast(abilityId) {
+    if (abilityId !== undefined) {
+      const next = rogue.abilitiesById.get(abilityId);
+      if (next?.triggersGcd) {
+        presentDecision();
+      }
+    }
     if (over) {
       return refused(overReason());
     }
@@ -635,15 +699,7 @@ export function createManualFight(options) {
       );
     }
     if (ability.triggersGcd && !over) {
-      const gcdEnd = sim.core.gcd.endsAt;
-      if (gcdEnd !== null) {
-        if (gcdEnd > core.endTime) {
-          core.runUntil(core.endTime);
-          finish();
-        } else {
-          core.runUntil(gcdEnd);
-        }
-      }
+      held = true;
     }
     return {
       ok: true,
@@ -654,6 +710,7 @@ export function createManualFight(options) {
   }
 
   function wait(request) {
+    presentDecision();
     if (over) {
       return refused(overReason());
     }
@@ -714,6 +771,9 @@ export function createManualFight(options) {
     },
     isOver: () => over,
     result() {
+      if (!over && core.time >= core.endTime) {
+        finish();
+      }
       if (!over) {
         throw new Error("The fight is not over.");
       }
