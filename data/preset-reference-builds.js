@@ -96,6 +96,7 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talentLevel: LEVEL_60,
     talents: talentsFromLink(ASSASSINATION_DAGGERS_LINK),
     weapons: DAGGERS,
+    // Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026 confirmation).
     poisons: poisonsOf("assassination-daggers"),
     character: DAGGER_SHEET,
   },

@@ -433,7 +433,7 @@ export const ROTATION_PRESETS = deepFreeze([
     id: "assassination-daggers",
     name: "Assassination daggers",
     description:
-      "James, 10 Nov 2026, issue #340: finishers at 4 or more combo points (Slice and Dice, then Rupture, then Eviscerate). Slice and Dice and Rupture refresh when missing or under 2s. Eviscerate only when both have more than 10s left. Cold Blood when it is ready, before Mutilate. Shank when energy is below 50. Talents are the 70755 link (Assassination 37 / Combat 11 / Subtlety 3). Two daggers, Instant on the main hand and Deadly on the off hand.",
+      "James, 10 Nov 2026, issue #340: finishers at 4 or more combo points (Slice and Dice, then Rupture, then Eviscerate). Slice and Dice and Rupture refresh when missing or under 2s. Eviscerate only when both have more than 10s left. Cold Blood when it is ready, before Mutilate. Shank when energy is below 50. Talents are the 70755 link (Assassination 37 / Combat 11 / Subtlety 3). Two daggers. Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026 confirmation).",
     rotation: {
       schemaVersion: 1,
       name: "Assassination daggers",
