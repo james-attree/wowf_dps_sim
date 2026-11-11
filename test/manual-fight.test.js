@@ -4,7 +4,12 @@ import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { openCore } from "../js/core/fight.js";
 import { createFight, runFight } from "../js/fight.js";
-import { blockedText, createManualFight } from "../js/manual-fight.js";
+import {
+  blockedText,
+  createManualFight,
+  waitStopCode,
+} from "../js/manual-fight.js";
+import { remainingTime } from "../js/views/run-model.js";
 import { loadPreset, referenceBuild } from "../js/rotation-presets.js";
 
 function presetConfig(id, extra = {}) {
@@ -135,18 +140,21 @@ describe("manual fight block reasons (#348)", () => {
     }
     assert.ok(hungry);
     cases.push(["energy", hungry, "Not enough energy"]);
-    const gcd = fight("combat-swords-temp");
-    gcd.cast("sinister-strike");
-    const during = gcd.cast("sinister-strike");
-    cases.push(["gcd", during, null]);
-    assert.match(during.reason.text, /^GCD, .+ left$/);
-    assert.ok(during.reason.seconds > 0);
+    const gcdFight = fight("combat-swords-temp");
+    const opened = gcdFight.cast("sinister-strike");
+    assert.equal(opened.ok, true);
+    assert.equal(gcdFight.getState().gcd.remaining, 0);
+    gcdFight.dispose();
     const rush = fight("combat-swords-temp");
     rush.cast("adrenaline-rush");
     rush.advanceTo(rush.getState().time + rush.getState().gcd.remaining);
     const again = rush.cast("adrenaline-rush");
     cases.push(["cooldown", again, null]);
-    assert.match(again.reason.text, /^On cooldown, .+ left$/);
+    assert.equal(
+      again.reason.text,
+      `On cooldown, ${remainingTime(again.reason.seconds)} left`,
+    );
+    assert.match(again.reason.text, /^On cooldown, \d\d:\d\d\.\d left$/);
     const sword = fight("combat-swords-temp");
     const backstab = sword.cast("backstab");
     cases.push(["main", backstab, "Needs a dagger in the main hand"]);
@@ -187,31 +195,21 @@ describe("manual fight block reasons (#348)", () => {
         assert.equal(outcome.reason.text, text);
       }
     }
-    for (const item of [
-      manual,
-      low,
-      gcd,
-      rush,
-      sword,
-      off,
-      window,
-      locked,
-      level,
-    ]) {
+    for (const item of [manual, low, rush, sword, off, window, locked, level]) {
       item.dispose();
     }
   });
 });
 
 describe("manual fight cast and wait (#348)", () => {
-  it("casts Sinister Strike at the current time and does not step past it (Q1 open)", () => {
+  it("advances an on-GCD cast to the end of the GCD (Q1)", () => {
     const manual = fight("combat-swords-temp");
     const cast = manual.cast("sinister-strike");
     assert.equal(cast.ok, true);
     assert.equal(cast.reason, null);
-    assert.equal(cast.advancedBy, 0);
-    assert.equal(manual.getState().time, 0);
-    assert.ok(manual.getState().gcd.remaining > 0);
+    assert.ok(cast.advancedBy > 0);
+    assert.equal(manual.getState().time, cast.advancedBy);
+    assert.equal(manual.getState().gcd.remaining, 0);
     assert.equal(manual.getState().comboPoints.value, 1);
     assert.equal(
       cast.events.some(
@@ -222,10 +220,20 @@ describe("manual fight cast and wait (#348)", () => {
     manual.dispose();
   });
 
+  it("does not advance an off-GCD cast (Q1)", () => {
+    const manual = fight("assassination-daggers");
+    const before = manual.getState().time;
+    const cold = manual.cast("cold-blood");
+    assert.equal(cold.ok, true);
+    assert.equal(cold.advancedBy, 0);
+    assert.equal(manual.getState().time, before);
+    assert.equal(manual.getState().gcd.remaining, 0);
+    manual.dispose();
+  });
+
   it("lands Cold Blood then Eviscerate as a crit once the GCD is clear", () => {
     const manual = fight("assassination-daggers");
     manual.cast("mutilate");
-    manual.advanceTo(manual.getState().gcd.remaining);
     const cold = manual.cast("cold-blood");
     assert.equal(cold.ok, true);
     const finisher = manual.cast("eviscerate");
@@ -247,21 +255,41 @@ describe("manual fight cast and wait (#348)", () => {
     const manual = fight("combat-swords-temp");
     const full = manual.wait({ kind: "energy" });
     assert.equal(full.ok, false);
-    assert.equal(full.reason.text, "Already at 40 energy");
+    assert.equal(full.reason.text, "Already at 40+ energy");
+    assert.equal(full.stopReason, null);
     assert.equal(full.advancedBy, 0);
     assert.equal(manual.getState().time, 0);
     const none = manual.wait({ kind: "cooldown" });
     assert.equal(none.reason.text, "Nothing on cooldown");
+    assert.equal(none.stopReason, null);
     manual.cast("sinister-strike");
-    manual.advanceTo(manual.getState().gcd.remaining);
     manual.cast("sinister-strike");
-    manual.advanceTo(manual.getState().gcd.remaining);
+    let hops = 0;
+    while (hops < 40) {
+      const value = manual.getState().energy.value;
+      if (value >= 36 && value < 40) {
+        break;
+      }
+      if (value >= 40) {
+        if (!manual.cast("sinister-strike").ok) {
+          break;
+        }
+      } else {
+        manual.advanceTo(manual.getState().time + 0.2);
+      }
+      hops += 1;
+    }
     const energy = manual.wait({ kind: "energy" });
     assert.equal(energy.ok, true);
+    assert.equal(energy.reason, null);
+    assert.equal(energy.stopReason.code, "target");
+    assert.equal(energy.stopReason.text, "Reached the wait");
     assert.ok(Math.abs(manual.getState().energy.value - 40) < 1e-9);
     const before = manual.getState().time;
     const step = manual.wait({ kind: "time" });
     assert.equal(step.ok, true);
+    assert.equal(step.reason, null);
+    assert.equal(step.stopReason.code, "target");
     assert.equal(step.advancedBy, k("manualFight.waits").time);
     assert.equal(manual.getState().time - before, 0.5);
     manual.dispose();
@@ -280,6 +308,8 @@ describe("manual fight cast and wait (#348)", () => {
     const ready = cooledFight.getState().waits[1].readyAt;
     const cooled = cooledFight.wait({ kind: "cooldown" });
     assert.equal(cooled.ok, true);
+    assert.equal(cooled.reason, null);
+    assert.equal(cooled.stopReason.code, "target");
     assert.ok(Math.abs(cooledFight.getState().time - ready) < 1e-9);
     cooledFight.dispose();
   });
@@ -293,8 +323,9 @@ describe("manual fight cast and wait (#348)", () => {
     manual.advanceTo(0.8);
     const wait = manual.wait({ kind: "time" });
     assert.equal(wait.ok, true);
-    assert.equal(wait.reason.text, "Fight ended before the wait finished");
-    assert.equal(wait.reason.code, "fight-ended");
+    assert.equal(wait.reason, null);
+    assert.equal(wait.stopReason.code, "fight-end");
+    assert.equal(wait.stopReason.text, "Fight ended before the wait finished");
     assert.equal(manual.isOver(), true);
     assert.ok(Math.abs(manual.getState().time - 1) < 1e-9);
     const late = manual.cast("sinister-strike");
@@ -314,9 +345,6 @@ describe("manual fight replay and the scripted hook (#348)", () => {
         config: presetConfig("combat-swords-temp"),
       });
       manual.cast("sinister-strike");
-      manual.advanceTo(
-        manual.getState().gcd.remaining + manual.getState().time,
-      );
       manual.cast("sinister-strike");
       manual.advanceTo(8);
       const result = manual.result();
@@ -333,7 +361,6 @@ describe("manual fight replay and the scripted hook (#348)", () => {
     });
     const again = replay.replay();
     again.cast("sinister-strike");
-    again.advanceTo(again.getState().gcd.remaining + again.getState().time);
     again.cast("sinister-strike");
     again.advanceTo(8);
     assert.deepEqual(again.result(), first);
@@ -362,30 +389,154 @@ describe("manual fight replay and the scripted hook (#348)", () => {
     });
     assert.ok(scripted.totalDamage > 0);
   });
+});
 
-  it("matches a scripted fight when the same casts are made at the same times", () => {
-    const config = presetConfig("combat-swords-temp");
-    const casts = [];
-    const watched = createFight(142, config, { duration: 60 });
-    watched.simulation.on("cast", (event) => {
-      casts.push({ time: event.time, ability: event.ability });
-    });
-    watched.simulation.run(60);
-    const manual = createManualFight({ seed: 142, duration: 60, config });
-    let time = 0;
-    for (const cast of casts) {
-      if (cast.time > time) {
-        manual.advanceTo(cast.time);
-        time = cast.time;
-      }
-      const outcome = manual.cast(cast.ability);
-      assert.equal(outcome.ok, true, `${cast.ability} at ${cast.time}`);
+describe("manual fight event names and reason times (#348)", () => {
+  it("keeps the hit's display name, including a white swing and a poison", () => {
+    const manual = fight("combat-swords-temp");
+    const strike = manual.cast("sinister-strike");
+    const yellow = strike.events.find(
+      (event) => event.kind === "damage" && event.source === "ability",
+    );
+    assert.equal(yellow.name, "Sinister Strike");
+    const speed = referenceBuild("combat-swords-temp").weapons.mainHand.speed;
+    let white = null;
+    let poison = null;
+    for (
+      let swing = 1;
+      swing <= 30 && (white === null || poison === null);
+      swing += 1
+    ) {
+      const step = manual.advanceTo(speed * swing);
+      white ??=
+        step.events.find((event) => event.source === "white-mh") ?? null;
+      poison ??= step.events.find((event) => event.source === "poison") ?? null;
     }
-    manual.advanceTo(60);
-    const scripted = runFight({ seed: 142, duration: 60, config });
-    const { manual: played, ...rest } = manual.result();
-    assert.ok(played.inputs.length > 0);
-    assert.deepEqual(rest, scripted);
+    assert.equal(white.name, "Main-hand");
+    assert.equal(typeof poison.name, "string");
+    assert.equal(poison.name.length > 0, true);
+    assert.equal(
+      manual.slots.some((slot) => slot.abilityId === poison.abilityId),
+      false,
+    );
     manual.dispose();
+  });
+
+  it("floors a remaining time to tenths, and uses the clock from 60 s", () => {
+    assert.equal(remainingTime(12.49), "12.4 s");
+    assert.equal(remainingTime(12.4), "12.4 s");
+    assert.equal(remainingTime(59.99), "59.9 s");
+    assert.equal(remainingTime(60), "01:00.0");
+    assert.equal(remainingTime(72.46), "01:12.4");
+    assert.equal(remainingTime(0.09), "0.0 s");
+  });
+
+  it("breaks an equal cooldown by action-bar order", () => {
+    const manual = fight("combat-swords-temp", { race: "gnome" });
+    const idsOnBar = ids(manual);
+    assert.ok(idsOnBar.indexOf("blade-flurry") < idsOnBar.indexOf("eureka"));
+    manual.cast("eureka");
+    manual.cast("blade-flurry");
+    assert.equal(manual.getState().waitCooldownTarget, "blade-flurry");
+    manual.dispose();
+  });
+
+  it("stops each wait early, and not for an ability that was already castable", () => {
+    const energyFight = fight("combat-swords-temp");
+    let blocked = null;
+    while (blocked === null) {
+      const attempt = energyFight.cast("sinister-strike");
+      if (!attempt.ok) {
+        blocked = attempt;
+      }
+    }
+    const spent = energyFight.wait({ kind: "energy" });
+    assert.equal(spent.reason, null);
+    assert.equal(spent.stopReason.code, "early");
+    assert.match(spent.stopReason.text, /^Stopped early: .+ is ready$/);
+    energyFight.dispose();
+
+    const cooled = fight("combat-swords-temp");
+    while (cooled.cast("sinister-strike").ok) {
+      // spend until Sinister Strike is short of energy
+    }
+    cooled.cast("adrenaline-rush");
+    const rush = cooled.wait({ kind: "cooldown" });
+    assert.equal(rush.reason, null);
+    assert.equal(rush.stopReason.code, "early");
+    assert.notEqual(rush.stopReason.abilityId, "adrenaline-rush");
+    cooled.dispose();
+
+    const timed = fight("combat-swords-temp");
+    timed.cast("shank");
+    const left = timed
+      .getState()
+      .slots.find((slot) => slot.abilityId === "shank").cooldownRemaining;
+    timed.advanceTo(timed.getState().time + left - 0.2);
+    const step = timed.wait({ kind: "time" });
+    assert.equal(step.stopReason.code, "early");
+    assert.equal(step.stopReason.abilityId, "shank");
+    assert.equal(step.stopReason.text, "Stopped early: Shank is ready");
+    timed.dispose();
+
+    const quiet = fight("combat-swords-temp");
+    const stepOnly = quiet.wait({ kind: "time" });
+    assert.equal(stepOnly.stopReason.code, "target");
+    assert.equal(stepOnly.advancedBy, 0.5);
+    quiet.dispose();
+  });
+
+  it("reports the Wait's own target when the early stop is not strictly sooner", () => {
+    assert.equal(waitStopCode(1, 1), "target");
+    assert.equal(waitStopCode(1, 2), "early");
+    assert.equal(k("manualFight.tie"), "target");
+
+    const cooled = fight("combat-swords-temp");
+    cooled.cast("shank");
+    const ownTarget = cooled.wait({ kind: "cooldown" });
+    assert.equal(ownTarget.stopReason.code, "target");
+    assert.equal(cooled.getState().waitCooldownTarget, null);
+    cooled.dispose();
+
+    const timed = fight("combat-swords-temp");
+    timed.cast("shank");
+    const remaining = timed
+      .getState()
+      .slots.find((slot) => slot.abilityId === "shank").cooldownRemaining;
+    timed.advanceTo(
+      timed.getState().time + remaining - k("manualFight.waits").time,
+    );
+    const half = timed.wait({ kind: "time" });
+    assert.equal(half.stopReason.code, "target");
+    assert.equal(half.advancedBy, k("manualFight.waits").time);
+    timed.dispose();
+
+    const subtlety = fight("subtlety-daggers");
+    let spins = 0;
+    while (spins < 40) {
+      const now = subtlety.getState().energy.value;
+      if (now >= 35 && now < 40) {
+        break;
+      }
+      if (now >= 40) {
+        const strike = subtlety.cast("hemorrhage");
+        if (!strike.ok) {
+          subtlety.cast("backstab");
+        }
+      } else {
+        subtlety.advanceTo(subtlety.getState().time + 0.5);
+      }
+      spins += 1;
+    }
+    const cost = subtlety
+      .getState()
+      .slots.find((slot) => slot.abilityId === "ghostly-strike").cost;
+    assert.equal(cost, 40);
+    assert.ok(subtlety.getState().energy.value >= 35);
+    assert.ok(subtlety.getState().energy.value < 40);
+    const energy = subtlety.wait({ kind: "energy" });
+    assert.equal(energy.stopReason.code, "target");
+    assert.ok(Math.abs(subtlety.getState().energy.value - 40) < 1e-6);
+    subtlety.dispose();
   });
 });

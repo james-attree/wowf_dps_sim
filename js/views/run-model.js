@@ -43,6 +43,20 @@ export function clock(seconds) {
   return `${pad(Math.floor(whole / 60))}:${pad(whole % 60)}`;
 }
 
+// A cooldown or GCD still left, for the manual fight's reason text (§3.4).
+// Tenths are floored, the same cut as logRowReading. Under a minute that is
+// one decimal and " s" ("12.4 s"). From 60 s it is the §2.7 elapsed clock
+// ("01:42.3").
+export function remainingTime(seconds) {
+  const tenths = Math.floor(Math.max(seconds, 0) * 10);
+  const minutes = Math.floor(tenths / 600);
+  const rest = ((tenths % 600) / 10).toFixed(1);
+  if (minutes === 0) {
+    return `${rest} s`;
+  }
+  return `${String(minutes).padStart(2, "0")}:${rest.padStart(4, "0")}`;
+}
+
 // "1 minute 12" for 72.4 s, "12 seconds" under a minute, "5 minutes" on the
 // minute (#45, Fran: not "5 minutes 0"): what is announced.
 export function spokenTime(seconds) {
