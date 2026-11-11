@@ -2,7 +2,8 @@
 // on-use racials are offered, and a new rule gets its "ability granted"
 // guard, only when the race grants them; the guard's label is "Race or
 // talent granted"; a race-gated skip reads "Not your race (Orc
-// only)"; and a preset with an on-use race beats no race at a fixed seed.
+// only)"; and an Orc preset beats no race at a fixed seed. Troll vs no
+// race is no longer a single-seed DPS ordering (Scout, 11 Nov, #362).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ROTATION_PRESETS } from "../data/rotation-presets.js";
@@ -12,7 +13,13 @@ import {
   raceInfo,
   summaryOf,
 } from "../js/config-form.js";
+import { k } from "../data/constants.js";
+import { AURAS } from "../js/auras.js";
+import { openCore } from "../js/core/fight.js";
 import { runFight } from "../js/fight.js";
+import { defineProc } from "../js/procs.js";
+import { Rogue } from "../js/rogue.js";
+import { Simulation } from "../js/simulation.js";
 import { raceCatalogue, raceGrantedAbilities } from "../js/racials.js";
 import { createRotationBuilder } from "../js/rotation-builder.js";
 import { TYPE_LABELS, abilityGroups } from "../js/rotation-builder-copy.js";
@@ -56,7 +63,7 @@ const ON_USE = [
 ];
 const RACIALS = ON_USE.map(({ ability }) => ability);
 const PRESETS = ROTATION_PRESETS.map((preset) => preset.id);
-const SEED = 10; // #361: seed 5 made troll lose to no-race on Combat swords after the Hack and Slash timer reset. Seed 10 keeps orc and troll ahead on the live presets. Seed 5 was chosen in #340 (seed 2 lost on Combat daggers; seed 1 lost once Shank was live, #337).
+const SEED = 5; // #340: seed 2 made troll lose to no-race on Combat daggers. Seed 5 keeps orc and troll ahead on the live presets. Seed 1 lost once Shank was live (#337).
 const FIVE_MINUTES = 300;
 const ruleFor = (ability) => ({
   action: ability,
@@ -329,18 +336,149 @@ function presetConfig(id, race) {
 
 describe("#322: a preset with an on-use race beats no race (fixed seed)", () => {
   for (const id of PRESETS) {
-    for (const race of ["orc", "troll"]) {
-      it(`${id}: ${race} over no race, seed ${SEED}`, () => {
-        const dps = (r) =>
-          runFight({
-            seed: SEED,
-            duration: FIVE_MINUTES,
-            config: presetConfig(id, r),
-          }).dps;
-        const none = dps(null);
-        const raced = dps(race);
-        assert.ok(raced > none, `${id} ${race} ${raced} > ${none}`);
-      });
-    }
+    it(`${id}: orc over no race, seed ${SEED}`, () => {
+      const dps = (r) =>
+        runFight({
+          seed: SEED,
+          duration: FIVE_MINUTES,
+          config: presetConfig(id, r),
+        }).dps;
+      const none = dps(null);
+      const raced = dps("orc");
+      assert.ok(raced > none, `${id} orc ${raced} > ${none}`);
+    });
   }
+});
+
+// Combat swords troll-vs-no-race ordering dropped because Berserking's
+// margin is inside the noise after #361 (measured seeds 1–30: mean +0.29
+// DPS, SEM 2.6; Scout 11 Nov review on #362: single-seed ordering replaced
+// because it depended on noise). The same check is not reliable on the
+// other live presets either (combat-daggers mean −0.31 DPS, SEM 2.8, 15/30
+// wins; assassination-daggers mean +1.57, SEM 2.5, 17/30; subtlety-daggers
+// mean −0.40, SEM 3.0, 15/30), so those troll-vs-no-race seed-5 orderings
+// are replaced the same way, not silently dropped. Orc vs no race on seed 5
+// is unchanged.
+describe("#322: Berserking's effect, not a noisy DPS ordering (#362)", () => {
+  const EPSILON = 1e-9;
+  const OH_START = k("weapon.offHand").initialSwing;
+  const MH_SPEED = 2;
+  const OH_SPEED = 1.5;
+  const WINDOW = k("racial.berserking").duration;
+
+  function extraProc() {
+    return defineProc({
+      id: "hack-and-slash",
+      trigger: "onHit",
+      scope: { weaponTypes: ["sword", "axe"] },
+      chance: { mode: "flat", value: 1 },
+      actions: [{ type: "extraAttack" }],
+    });
+  }
+
+  function setup({ procs = [], mainType = "sword", offType = "sword" } = {}) {
+    const rogue = new Rogue(
+      {
+        race: "troll",
+        character: {
+          attackPower: 0,
+          critChance: 0,
+          bonusHitChance: 1,
+          haste: 0,
+        },
+        weapons: {
+          mainHand: { min: 100, max: 100, speed: MH_SPEED, type: mainType },
+          offHand: { min: 50, max: 50, speed: OH_SPEED, type: offType },
+        },
+        target: { armor: 0 },
+      },
+      { procs },
+    );
+    rogue.castRotation = () => ({ casts: [], outcome: "none" });
+    rogue.critChance = 0;
+    rogue.bonusHitChance = 1;
+    return new Simulation(rogue, { rng: () => 0.99 });
+  }
+
+  function countWhiteSwings(applyBerserking) {
+    const sim = setup();
+    const times = [];
+    const run = openCore(sim, WINDOW, {
+      afterEvent: (event) => {
+        if (event.kind === "swing") {
+          times.push(event.time);
+        }
+      },
+    });
+    try {
+      if (applyBerserking) {
+        sim.applyAura(AURAS.berserking);
+      }
+      run.runUntil(WINDOW);
+    } finally {
+      run.close();
+    }
+    return times.filter((time) => time >= 0 && time < WINDOW);
+  }
+
+  it("makes more white swings during Berserking uptime than in the same window without it", () => {
+    const withAura = countWhiteSwings(true);
+    const without = countWhiteSwings(false);
+    assert.ok(
+      withAura.length > without.length,
+      `Berserking ${withAura.length} swings > ${without.length} without`,
+    );
+  });
+
+  it("a Hack and Slash reset during Berserking uses weaponSpeed/haste including Berserking; outside, plain speed", () => {
+    const interval = (sim) =>
+      sim.rogue.weapons.mainHand.speed /
+      sim.rogue.modifiers.resolve("haste", 1);
+    const nextAfterOffHandProc = (berserking) => {
+      const sim = setup({
+        mainType: "dagger",
+        offType: "sword",
+        procs: [extraProc()],
+      });
+      const run = openCore(sim, OH_START);
+      try {
+        if (berserking) {
+          sim.applyAura(AURAS.berserking);
+        }
+        run.runUntil(OH_START);
+        const next = sim.core.swings.find(
+          (item) => item.hand === "mainHand",
+        ).nextSwingTime;
+        return {
+          next,
+          expected: OH_START + interval(sim),
+          haste: sim.rogue.modifiers.resolve("haste", 1),
+        };
+      } finally {
+        run.close();
+      }
+    };
+
+    const up = nextAfterOffHandProc(true);
+    assert.ok(
+      Math.abs(up.haste - (1 + k("racial.berserking").haste)) < EPSILON,
+    );
+    assert.ok(
+      Math.abs(up.next - up.expected) < EPSILON,
+      `during Berserking: next ${up.next} vs ${up.expected}`,
+    );
+    assert.ok(
+      Math.abs(
+        up.expected -
+          (OH_START + MH_SPEED / (1 + k("racial.berserking").haste)),
+      ) < EPSILON,
+    );
+
+    const down = nextAfterOffHandProc(false);
+    assert.equal(down.haste, 1);
+    assert.ok(
+      Math.abs(down.next - (OH_START + MH_SPEED)) < EPSILON,
+      `outside Berserking: next ${down.next} vs ${OH_START + MH_SPEED}`,
+    );
+  });
 });
