@@ -256,20 +256,27 @@ describe("manual fight cast and wait (#348)", () => {
     const full = manual.wait({ kind: "energy" });
     assert.equal(full.ok, false);
     assert.equal(full.reason.text, "Already at 40+ energy");
+    assert.equal(full.stopReason, null);
     assert.equal(full.advancedBy, 0);
     assert.equal(manual.getState().time, 0);
     const none = manual.wait({ kind: "cooldown" });
     assert.equal(none.reason.text, "Nothing on cooldown");
+    assert.equal(none.stopReason, null);
     manual.cast("sinister-strike");
     manual.advanceTo(manual.getState().gcd.remaining);
     manual.cast("sinister-strike");
     manual.advanceTo(manual.getState().gcd.remaining);
     const energy = manual.wait({ kind: "energy" });
     assert.equal(energy.ok, true);
+    assert.equal(energy.reason, null);
+    assert.equal(energy.stopReason.code, "target");
+    assert.equal(energy.stopReason.text, "Reached the wait");
     assert.ok(Math.abs(manual.getState().energy.value - 40) < 1e-9);
     const before = manual.getState().time;
     const step = manual.wait({ kind: "time" });
     assert.equal(step.ok, true);
+    assert.equal(step.reason, null);
+    assert.equal(step.stopReason.code, "target");
     assert.equal(step.advancedBy, k("manualFight.waits").time);
     assert.equal(manual.getState().time - before, 0.5);
     manual.dispose();
@@ -288,6 +295,8 @@ describe("manual fight cast and wait (#348)", () => {
     const ready = cooledFight.getState().waits[1].readyAt;
     const cooled = cooledFight.wait({ kind: "cooldown" });
     assert.equal(cooled.ok, true);
+    assert.equal(cooled.reason, null);
+    assert.equal(cooled.stopReason.code, "target");
     assert.ok(Math.abs(cooledFight.getState().time - ready) < 1e-9);
     cooledFight.dispose();
   });
@@ -301,8 +310,9 @@ describe("manual fight cast and wait (#348)", () => {
     manual.advanceTo(0.8);
     const wait = manual.wait({ kind: "time" });
     assert.equal(wait.ok, true);
-    assert.equal(wait.reason.text, "Fight ended before the wait finished");
-    assert.equal(wait.reason.code, "fight-ended");
+    assert.equal(wait.reason, null);
+    assert.equal(wait.stopReason.code, "fight-end");
+    assert.equal(wait.stopReason.text, "Fight ended before the wait finished");
     assert.equal(manual.isOver(), true);
     assert.ok(Math.abs(manual.getState().time - 1) < 1e-9);
     const late = manual.cast("sinister-strike");
@@ -445,6 +455,24 @@ describe("manual fight event names and reason times (#348)", () => {
     manual.cast("eureka");
     manual.cast("blade-flurry");
     assert.equal(manual.getState().waitCooldownTarget, "blade-flurry");
+    manual.dispose();
+  });
+
+  it("stops a wait early when another ability becomes castable", () => {
+    const manual = fight("combat-swords-temp");
+    manual.cast("adrenaline-rush");
+    const gcd = manual.getState().gcd.remaining;
+    const wait = manual.wait({ kind: "cooldown" });
+    assert.equal(wait.ok, true);
+    assert.equal(wait.reason, null);
+    assert.equal(wait.stopReason.code, "early");
+    assert.equal(wait.stopReason.abilityId, "sinister-strike");
+    assert.equal(
+      wait.stopReason.text,
+      "Stopped early: Sinister Strike is ready",
+    );
+    assert.ok(Math.abs(manual.getState().time - gcd) < 1e-9);
+    assert.equal(manual.isOver(), false);
     manual.dispose();
   });
 });

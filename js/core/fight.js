@@ -897,9 +897,9 @@ class CoreFight {
       // TODO(Q1): the scripted branch below re-asks at this instant after a
       // cast, so an off-GCD ability can follow. This hook does not. Whether a
       // manual decision is offered while the GCD is still rolling is open.
-      // TODO(Q2): the scripted branch arms energy and condition wakes. A manual
-      // Wait arms only the target the player named and is not cut short when a
-      // slot becomes castable sooner. Whether it should stop early is open.
+      // A manual Wait does not use these scripted wakes. js/manual-fight.js
+      // picks the stop: the named target, an earlier castable slot, or the
+      // fight end.
       const result = this.manualDecide(this.sim, event);
       const casts = result?.casts.length ?? 0;
       this.stats.casts += casts;

@@ -1,8 +1,8 @@
 // Manual fight B1 (#348). The player chooses each cast. The scripted rotation
-// is not asked. Q1 (when the next decision is offered after a cast) and Q2
-// (whether a Wait stops early when something becomes castable) are open:
-// the seams are the TODO(Q1) and TODO(Q2) comments in js/core/fight.js and
-// below. Nothing here changes a scripted run.
+// is not asked. Q1 (when the next decision is offered after a cast) is open:
+// the seam is the TODO(Q1) comment in js/core/fight.js and in cast(). A Wait
+// stops at the first slot that becomes castable. Nothing here changes a
+// scripted run.
 import { k } from "../data/constants.js";
 import { openCore } from "./core/fight.js";
 import { createFight, fightResult } from "./fight.js";
@@ -309,7 +309,13 @@ export function createManualFight(options) {
 
   function refused(block) {
     takeEvents();
-    return { ok: false, reason: block, advancedBy: 0, events: [] };
+    return {
+      ok: false,
+      reason: block,
+      stopReason: null,
+      advancedBy: 0,
+      events: [],
+    };
   }
 
   function overReason() {
@@ -329,8 +335,87 @@ export function createManualFight(options) {
     why = "end";
   }
 
-  // TODO(Q2): a Wait runs to its target. Nothing here returns early when a
-  // slot becomes castable on the way. That question is open.
+  // A wait stops at the first slot that becomes castable, or at its own
+  // target when nothing does. Q1 (a decision while the GCD is rolling after a
+  // cast) is still open: cast() does not step forward.
+  function stopReason(code, text, abilityId) {
+    const value = { code, text };
+    if (abilityId !== undefined) {
+      value.abilityId = abilityId;
+    }
+    return Object.freeze(value);
+  }
+
+  function becomesCastableAt(ability) {
+    if (
+      rogue.lockedByLevel(ability) ||
+      rogue.lockedByBuild(ability) ||
+      !ability.mainHandAllowed(rogue) ||
+      !ability.offHandAllowed(rogue) ||
+      !ability.auraMet(sim) ||
+      (ability.spender && ability.pool(ability.spendResource).value < 1)
+    ) {
+      return null;
+    }
+    let at = core.time;
+    if (ability.triggersGcd && sim.gcd > k("sim.tickEpsilon")) {
+      at = core.time + sim.gcd;
+    }
+    const left = sim.cooldowns[ability.id] ?? 0;
+    if (left > k("sim.tickEpsilon")) {
+      const ends = sim.core.cooldowns.endsAt(ability.id);
+      if (ends === null) {
+        return null;
+      }
+      at = Math.max(at, ends);
+    }
+    if (ability.costResource === "energy") {
+      const cost = ability.costNow(sim);
+      if (!ability.pool(ability.costResource).has(cost)) {
+        const reach = energyReach(sim.core.energy, cost, core.time);
+        if (reach === null) {
+          return null;
+        }
+        at = Math.max(at, reach);
+      }
+    } else if (
+      ability.costResource !== null &&
+      !ability.pool(ability.costResource).has(ability.costNow(sim))
+    ) {
+      return null;
+    }
+    return at > core.time + k("sim.tickEpsilon") ? at : null;
+  }
+
+  function nextCastable(exceptId) {
+    let best = null;
+    slots.forEach((slot, index) => {
+      if (slot.abilityId === exceptId) {
+        return;
+      }
+      const ability = rogue.abilitiesById.get(slot.abilityId);
+      const at = becomesCastableAt(ability);
+      if (
+        at !== null &&
+        (best === null ||
+          at < best.at ||
+          (at === best.at && index < best.index))
+      ) {
+        best = { at, abilityId: slot.abilityId, name: ability.name };
+      }
+    });
+    return best;
+  }
+
+  function runWait(when, stop) {
+    const outcome = runTo(when > core.endTime ? core.endTime + 1 : when);
+    return {
+      ...outcome,
+      reason: null,
+      stopReason: over ? stopReason("fight-end", TEXT.ended) : stop,
+    };
+  }
+
   function runTo(target) {
     const before = core.time;
     if (target > core.endTime) {
@@ -491,12 +576,40 @@ export function createManualFight(options) {
       why = "energy";
       waitedFor = waits.energy;
       if (reach === null || reach > core.endTime) {
-        return runTo(core.endTime + 1);
+        const early = nextCastable(null);
+        if (early !== null && early.at < core.endTime) {
+          return runWait(
+            early.at,
+            stopReason(
+              "early",
+              `Stopped early: ${early.name} is ready`,
+              early.abilityId,
+            ),
+          );
+        }
+        return runWait(core.endTime + 1, stopReason("fight-end", TEXT.ended));
+      }
+      const early = nextCastable(null);
+      if (
+        early !== null &&
+        early.at < reach - k("sim.tickEpsilon") &&
+        early.at < core.endTime
+      ) {
+        return runWait(
+          early.at,
+          stopReason(
+            "early",
+            `Stopped early: ${early.name} is ready`,
+            early.abilityId,
+          ),
+        );
       }
       const before = core.time;
       sim.core.energy.wakeAt(waits.energy);
-      // TODO(Q2): do not leave this wake early for a castable slot.
-      const outcome = runTo(sim.core.energy.wakeTime ?? reach);
+      const outcome = runWait(
+        sim.core.energy.wakeTime ?? reach,
+        stopReason("target", "Reached the wait"),
+      );
       sim.core.energy.cancelWake();
       if (outcome.advancedBy === 0) {
         outcome.advancedBy = core.time - before;
@@ -517,15 +630,44 @@ export function createManualFight(options) {
       );
       why = "cooldown";
       waitedFor = soonest.abilityId;
-      // TODO(Q2): do not stop before readyAt when another slot is castable.
-      return runTo(soonest.ends);
+      const early = nextCastable(soonest.abilityId);
+      if (
+        early !== null &&
+        early.at < soonest.ends - k("sim.tickEpsilon") &&
+        early.at < core.endTime
+      ) {
+        return runWait(
+          early.at,
+          stopReason(
+            "early",
+            `Stopped early: ${early.name} is ready`,
+            early.abilityId,
+          ),
+        );
+      }
+      return runWait(soonest.ends, stopReason("target", "Reached the wait"));
     }
     if (request?.kind === "time") {
       inputs.push(Object.freeze({ type: "wait", kind: "time" }));
       why = "time";
       waitedFor = waits.time;
-      // TODO(Q2): do not stop before the 0.5 s when a slot is castable.
-      return runTo(core.time + waits.time);
+      const when = core.time + waits.time;
+      const early = nextCastable(null);
+      if (
+        early !== null &&
+        early.at < when - k("sim.tickEpsilon") &&
+        early.at < core.endTime
+      ) {
+        return runWait(
+          early.at,
+          stopReason(
+            "early",
+            `Stopped early: ${early.name} is ready`,
+            early.abilityId,
+          ),
+        );
+      }
+      return runWait(when, stopReason("target", "Reached the wait"));
     }
     throw new RangeError(
       'wait needs { kind: "energy" }, { kind: "cooldown" }, or { kind: "time" }.',
