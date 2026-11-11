@@ -1,8 +1,9 @@
 // Manual fight B1 (#348). The player chooses each cast. The scripted rotation
-// is not asked. Q1 (when the next decision is offered after a cast) is open:
-// the seam is the TODO(Q1) comment in js/core/fight.js and in cast(). A Wait
-// stops at the first slot that becomes castable. Nothing here changes a
-// scripted run.
+// is not asked. After an on-GCD cast the clock runs to the end of the GCD
+// (James, 11 Nov 2026, Q1). A Wait stops at the first strictly earlier moment
+// an ability that was not castable becomes castable (James, 11 Nov 2026, Q2);
+// the same instant is the Wait's own target (Scout, 11 Nov 2026). Nothing
+// here changes a scripted run.
 import { k } from "../data/constants.js";
 import { openCore } from "./core/fight.js";
 import { createFight, fightResult } from "./fight.js";
@@ -60,6 +61,15 @@ export function blockedText(reason) {
   return reason.text;
 }
 
+// Scout (coordinator), 11 Nov 2026, #348. The Wait's own target wins when an
+// early stop is not strictly sooner. `manualFight.tie` is that code.
+export function waitStopCode(earlyAt, targetAt) {
+  if (earlyAt !== null && earlyAt < targetAt) {
+    return "early";
+  }
+  return k("manualFight.tie");
+}
+
 function reason(code, text, seconds) {
   const value = { code, text };
   if (seconds !== undefined) {
@@ -101,8 +111,8 @@ function blockReason(ability, rogue, sim) {
   if (ability.triggersGcd && sim.gcd > k("sim.tickEpsilon")) {
     return reason("gcd", `GCD, ${remainingTime(sim.gcd)} left`, sim.gcd);
   }
-  const left = sim.cooldowns[ability.id] ?? 0;
-  if (left > k("sim.tickEpsilon")) {
+  if (ability.onCooldown(rogue, sim)) {
+    const left = sim.cooldowns[ability.id] ?? 0;
     return reason("cooldown", `On cooldown, ${remainingTime(left)} left`, left);
   }
   if (ability.spender && ability.pool(ability.spendResource).value < 1) {
@@ -335,9 +345,8 @@ export function createManualFight(options) {
     why = "end";
   }
 
-  // A wait stops at the first slot that becomes castable, or at its own
-  // target when nothing does. Q1 (a decision while the GCD is rolling after a
-  // cast) is still open: cast() does not step forward.
+  // A wait stops on the scheduler: the energy threshold, a cooldown, the GCD,
+  // an aura, or combo points, whichever event comes first. Not a time grid.
   function stopReason(code, text, abilityId) {
     const value = { code, text };
     if (abilityId !== undefined) {
@@ -346,73 +355,131 @@ export function createManualFight(options) {
     return Object.freeze(value);
   }
 
-  function becomesCastableAt(ability) {
-    if (
+  function earlyText(name) {
+    return k("manualFight.earlyStop").replace("{ability}", name);
+  }
+
+  function isCastable(ability) {
+    return blockReason(ability, rogue, sim) === null;
+  }
+
+  function heldBack(ability) {
+    return (
       rogue.lockedByLevel(ability) ||
       rogue.lockedByBuild(ability) ||
       !ability.mainHandAllowed(rogue) ||
       !ability.offHandAllowed(rogue) ||
       !ability.auraMet(sim) ||
       (ability.spender && ability.pool(ability.spendResource).value < 1)
-    ) {
-      return null;
-    }
-    let at = core.time;
-    if (ability.triggersGcd && sim.gcd > k("sim.tickEpsilon")) {
-      at = core.time + sim.gcd;
-    }
-    const left = sim.cooldowns[ability.id] ?? 0;
-    if (left > k("sim.tickEpsilon")) {
-      const ends = sim.core.cooldowns.endsAt(ability.id);
-      if (ends === null) {
-        return null;
-      }
-      at = Math.max(at, ends);
-    }
-    if (ability.costResource === "energy") {
-      const cost = ability.costNow(sim);
-      if (!ability.pool(ability.costResource).has(cost)) {
-        const reach = energyReach(sim.core.energy, cost, core.time);
-        if (reach === null) {
-          return null;
-        }
-        at = Math.max(at, reach);
-      }
-    } else if (
-      ability.costResource !== null &&
-      !ability.pool(ability.costResource).has(ability.costNow(sim))
-    ) {
-      return null;
-    }
-    return at > core.time + k("sim.tickEpsilon") ? at : null;
+    );
   }
 
-  function nextCastable(exceptId) {
-    let best = null;
-    slots.forEach((slot, index) => {
-      if (slot.abilityId === exceptId) {
-        return;
+  function firstNewCastable(wasCastable) {
+    for (const slot of slots) {
+      if (wasCastable.has(slot.abilityId)) {
+        continue;
       }
       const ability = rogue.abilitiesById.get(slot.abilityId);
-      const at = becomesCastableAt(ability);
-      if (
-        at !== null &&
-        (best === null ||
-          at < best.at ||
-          (at === best.at && index < best.index))
-      ) {
-        best = { at, abilityId: slot.abilityId, name: ability.name };
+      if (isCastable(ability)) {
+        return ability;
       }
-    });
-    return best;
+    }
+    return null;
   }
 
-  function runWait(when, stop) {
-    const outcome = runTo(when > core.endTime ? core.endTime + 1 : when);
+  function armThreshold(limit, energyAmount) {
+    let amount = null;
+    let soonest = Infinity;
+    if (energyAmount !== null) {
+      const reach = energyReach(sim.core.energy, energyAmount, core.time);
+      if (reach !== null && reach <= limit) {
+        amount = energyAmount;
+        soonest = reach;
+      }
+    }
+    for (const slot of slots) {
+      const ability = rogue.abilitiesById.get(slot.abilityId);
+      if (isCastable(ability) || heldBack(ability)) {
+        continue;
+      }
+      if (ability.costResource !== "energy") {
+        continue;
+      }
+      const cost = ability.costNow(sim);
+      if (ability.pool(ability.costResource).has(cost)) {
+        continue;
+      }
+      const reach = energyReach(sim.core.energy, cost, core.time);
+      if (reach === null || !(reach < limit)) {
+        continue;
+      }
+      if (reach < soonest) {
+        soonest = reach;
+        amount = cost;
+      }
+    }
+    if (amount === null) {
+      sim.core.energy.cancelWake();
+      return;
+    }
+    sim.core.energy.wakeAt(amount);
+  }
+
+  function runWait(target, energyAmount = null) {
+    const wasCastable = new Set();
+    for (const slot of slots) {
+      const ability = rogue.abilitiesById.get(slot.abilityId);
+      if (isCastable(ability)) {
+        wasCastable.add(slot.abilityId);
+      }
+    }
+    const before = core.time;
+    const limit = Math.min(target, core.endTime);
+    while (!over && core.time < limit - k("sim.tickEpsilon")) {
+      armThreshold(limit, target > core.endTime ? null : energyAmount);
+      const next = core.nextTime;
+      if (next === null || !(next < limit)) {
+        break;
+      }
+      const stamp = core.time;
+      core.runUntil(next);
+      if (core.time === stamp && !(core.nextTime < limit)) {
+        break;
+      }
+      if (!(core.time < limit)) {
+        break;
+      }
+      const ready = firstNewCastable(wasCastable);
+      if (ready !== null && waitStopCode(core.time, target) === "early") {
+        sim.core.energy.cancelWake();
+        return {
+          ok: true,
+          reason: null,
+          stopReason: stopReason("early", earlyText(ready.name), ready.id),
+          advancedBy: core.time - before,
+          events: takeEvents(),
+        };
+      }
+    }
+    if (target > core.endTime) {
+      sim.core.energy.cancelWake();
+      core.runUntil(core.endTime);
+      finish();
+    } else {
+      core.runUntil(limit);
+      sim.core.energy.cancelWake();
+      if (core.time >= core.endTime) {
+        finish();
+      }
+    }
     return {
-      ...outcome,
+      ok: true,
       reason: null,
-      stopReason: over ? stopReason("fight-end", TEXT.ended) : stop,
+      stopReason: over
+        ? stopReason("fight-end", TEXT.ended)
+        : stopReason(k("manualFight.tie"), "Reached the wait"),
+      advancedBy: core.time - before,
+      events: takeEvents(),
     };
   }
 
@@ -551,10 +618,33 @@ export function createManualFight(options) {
     const before = core.time;
     queued = abilityId;
     inputs.push(Object.freeze({ type: "cast", abilityId }));
+    const mark = events.length;
     core.requestDecision();
-    // TODO(Q1): run only this decision. Do not step on to the next moment an
-    // on-GCD slot is castable, and do not re-ask while the GCD is rolling.
     core.runUntil(before);
+    const happened = events
+      .slice(mark)
+      .some((event) => event.kind === "cast" && event.abilityId === abilityId);
+    if (!happened) {
+      return refused(
+        blockReason(ability, rogue, sim) ??
+          reason(
+            "cooldown",
+            `On cooldown, ${remainingTime(sim.cooldowns[ability.id] ?? 0)} left`,
+            sim.cooldowns[ability.id] ?? 0,
+          ),
+      );
+    }
+    if (ability.triggersGcd && !over) {
+      const gcdEnd = sim.core.gcd.endsAt;
+      if (gcdEnd !== null) {
+        if (gcdEnd > core.endTime) {
+          core.runUntil(core.endTime);
+          finish();
+        } else {
+          core.runUntil(gcdEnd);
+        }
+      }
+    }
     return {
       ok: true,
       reason: null,
@@ -576,45 +666,11 @@ export function createManualFight(options) {
       why = "energy";
       waitedFor = waits.energy;
       if (reach === null || reach > core.endTime) {
-        const early = nextCastable(null);
-        if (early !== null && early.at < core.endTime) {
-          return runWait(
-            early.at,
-            stopReason(
-              "early",
-              `Stopped early: ${early.name} is ready`,
-              early.abilityId,
-            ),
-          );
-        }
-        return runWait(core.endTime + 1, stopReason("fight-end", TEXT.ended));
+        return runWait(core.endTime + 1);
       }
-      const early = nextCastable(null);
-      if (
-        early !== null &&
-        early.at < reach - k("sim.tickEpsilon") &&
-        early.at < core.endTime
-      ) {
-        return runWait(
-          early.at,
-          stopReason(
-            "early",
-            `Stopped early: ${early.name} is ready`,
-            early.abilityId,
-          ),
-        );
-      }
-      const before = core.time;
       sim.core.energy.wakeAt(waits.energy);
-      const outcome = runWait(
-        sim.core.energy.wakeTime ?? reach,
-        stopReason("target", "Reached the wait"),
-      );
-      sim.core.energy.cancelWake();
-      if (outcome.advancedBy === 0) {
-        outcome.advancedBy = core.time - before;
-      }
-      return outcome;
+      const when = sim.core.energy.wakeTime ?? reach;
+      return runWait(when, waits.energy);
     }
     if (request?.kind === "cooldown") {
       const soonest = cooldownTarget();
@@ -630,44 +686,13 @@ export function createManualFight(options) {
       );
       why = "cooldown";
       waitedFor = soonest.abilityId;
-      const early = nextCastable(soonest.abilityId);
-      if (
-        early !== null &&
-        early.at < soonest.ends - k("sim.tickEpsilon") &&
-        early.at < core.endTime
-      ) {
-        return runWait(
-          early.at,
-          stopReason(
-            "early",
-            `Stopped early: ${early.name} is ready`,
-            early.abilityId,
-          ),
-        );
-      }
-      return runWait(soonest.ends, stopReason("target", "Reached the wait"));
+      return runWait(soonest.ends);
     }
     if (request?.kind === "time") {
       inputs.push(Object.freeze({ type: "wait", kind: "time" }));
       why = "time";
       waitedFor = waits.time;
-      const when = core.time + waits.time;
-      const early = nextCastable(null);
-      if (
-        early !== null &&
-        early.at < when - k("sim.tickEpsilon") &&
-        early.at < core.endTime
-      ) {
-        return runWait(
-          early.at,
-          stopReason(
-            "early",
-            `Stopped early: ${early.name} is ready`,
-            early.abilityId,
-          ),
-        );
-      }
-      return runWait(when, stopReason("target", "Reached the wait"));
+      return runWait(core.time + waits.time);
     }
     throw new RangeError(
       'wait needs { kind: "energy" }, { kind: "cooldown" }, or { kind: "time" }.',

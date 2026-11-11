@@ -2448,6 +2448,22 @@ export const CONSTANTS = {
     'js/manual-fight.js. The energy wait is unavailable at this amount or more (Fran, 11 Nov 2026, spec §3.4: "Already at 40+ energy"). The time wait moves the clock by this many seconds. Neither number is read by a scripted fight.',
     false,
   ),
+  "manualFight.earlyStop": entry(
+    "Stopped early: {ability} is ready",
+    "text",
+    ASSUMPTION,
+    "James, 11 Nov 2026, issue #348: a Wait stops early when an ability that was not castable becomes castable, and the result says so. Relayed by Scout",
+    'js/manual-fight.js. "{ability}" is that ability\'s display name. Not read by a scripted fight.',
+    false,
+  ),
+  "manualFight.tie": entry(
+    "target",
+    "stop code",
+    ASSUMPTION,
+    "Scout (coordinator), 11 Nov 2026, #348: when an early stop and the Wait's own target fall at the same instant, report the Wait's own target. Stopped early applies only when the early stop is strictly sooner",
+    "js/manual-fight.js waitStopCode. A coordinator wording call, not James's ruling. Not a game number and not read by a scripted fight.",
+    false,
+  ),
 };
 
 export function k(id) {
