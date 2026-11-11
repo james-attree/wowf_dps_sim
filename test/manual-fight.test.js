@@ -564,6 +564,74 @@ describe("manual fight event names and reason times (#348)", () => {
   });
 });
 
+describe("manual fight off-GCD window (#348)", () => {
+  it("allows an off-GCD cast at the same instant as the on-GCD cast", () => {
+    const manual = fight("subtlety-daggers");
+    const preparation = manual.cast("preparation");
+    assert.equal(preparation.ok, true);
+    assert.equal(preparation.advancedBy, 0);
+    const premeditation = manual.cast("premeditation");
+    assert.equal(premeditation.ok, true);
+    assert.equal(premeditation.reason, null);
+    assert.equal(premeditation.advancedBy, 0);
+    assert.equal(manual.getState().time > 0, true);
+    assert.ok(manual.getState().comboPoints.value >= 2);
+    manual.dispose();
+  });
+
+  it("refuses an off-GCD cast later inside that GCD", () => {
+    const open = () => {
+      const manual = fight("subtlety-daggers");
+      assert.equal(manual.cast("preparation").ok, true);
+      manual.advanceTo(0.2);
+      return manual;
+    };
+    const late = open();
+    const clean = open();
+    const refused = late.cast("premeditation");
+    assert.equal(refused.ok, false);
+    assert.equal(refused.reason.code, "gcd");
+    assert.equal(
+      refused.reason.text,
+      `GCD, ${remainingTime(refused.reason.seconds)} left`,
+    );
+    assert.ok(refused.reason.seconds > 0.5);
+    assert.ok(refused.reason.seconds < 1);
+    assert.equal(refused.advancedBy, 0);
+    assert.deepEqual(refused.events, []);
+    assert.deepEqual(late.getState(), clean.getState());
+    late.advanceTo(31);
+    const inputs = late.result().manual.inputs;
+    assert.deepEqual(
+      inputs.filter((input) => input.abilityId === "premeditation"),
+      [],
+    );
+    clean.getState();
+    assert.equal(clean.cast("premeditation").ok, true);
+    late.dispose();
+    const again = open();
+    again.getState();
+    assert.equal(again.cast("premeditation").ok, true);
+    again.advanceTo(31);
+    clean.advanceTo(31);
+    assert.equal(again.result().totalDamage, clean.result().totalDamage);
+    assert.deepEqual(again.result().abilities, clean.result().abilities);
+    clean.dispose();
+    again.dispose();
+  });
+
+  it("allows an off-GCD cast once that GCD has ended", () => {
+    const manual = fight("subtlety-daggers");
+    assert.equal(manual.cast("preparation").ok, true);
+    const moved = manual.advanceTo(k("gcd.duration"));
+    assert.equal(moved.ok, true);
+    const premeditation = manual.cast("premeditation");
+    assert.equal(premeditation.ok, true);
+    assert.equal(premeditation.reason, null);
+    manual.dispose();
+  });
+});
+
 describe("manual fight parity with runFight (#348)", () => {
   const presets = [
     "combat-swords-temp",

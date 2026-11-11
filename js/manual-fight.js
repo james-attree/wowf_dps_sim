@@ -309,6 +309,10 @@ export function createManualFight(options) {
   // the way the scripted rotation is asked again at that same time. The next
   // getState, wait, or on-GCD cast runs the clock to the end of that GCD.
   let held = false;
+  // The instant the held GCD was opened. An off-GCD cast is allowed there,
+  // and for a remainder within the tick epsilon, and nowhere later in it
+  // (James, 11 Nov 2026 ruling, option A).
+  let gcdOpenedAt = null;
   const proc = { name: null };
   const unsubscribe = sim.on("*", (event, type) => {
     const mapped = mapStreamEvent(type, event, proc);
@@ -352,6 +356,7 @@ export function createManualFight(options) {
       return;
     }
     held = false;
+    gcdOpenedAt = null;
     const gcdEnd = sim.core?.gcd?.endsAt ?? null;
     // A remainder inside the tick epsilon is already clear (the same rule as
     // a cast). Running out to that end would move the clock by a rounding
@@ -542,6 +547,7 @@ export function createManualFight(options) {
       const gcdEnd = sim.core?.gcd?.endsAt ?? null;
       if (gcdEnd === null || target >= gcdEnd || target >= core.endTime) {
         held = false;
+        gcdOpenedAt = null;
       }
     }
     const before = core.time;
@@ -675,6 +681,16 @@ export function createManualFight(options) {
         `createManualFight has no ability ${JSON.stringify(abilityId)}.`,
       );
     }
+    if (
+      !ability.triggersGcd &&
+      held &&
+      gcdOpenedAt !== null &&
+      core.time > gcdOpenedAt + k("sim.tickEpsilon")
+    ) {
+      return refused(
+        reason("gcd", `GCD, ${remainingTime(sim.gcd)} left`, sim.gcd),
+      );
+    }
     const block = blockReason(ability, rogue, sim);
     if (block !== null) {
       return refused(block);
@@ -700,6 +716,7 @@ export function createManualFight(options) {
     }
     if (ability.triggersGcd && !over) {
       held = true;
+      gcdOpenedAt = core.time;
     }
     return {
       ok: true,

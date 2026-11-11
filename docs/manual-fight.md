@@ -12,12 +12,14 @@ rotation is not asked. `js/fight.js` re-exports `createManualFight` and
 event, so a cast's GCD, cooldown and aura timers start at that time. With no
 `decide`, a scripted run is unchanged.
 
-An on-GCD cast stays at its own instant. An off-GCD cast made before the next
-read can follow it there, which is the scripted rotation's same-instant
-re-ask (Preparation, then Premeditation). The clock then runs to the end of
-that GCD on the next `getState`, `wait`, or on-GCD `cast`. A GCD remainder
-within `sim.tickEpsilon` is already clear, so that advance does not move the
-clock by a rounding ulp. `getState().over` is true once time has reached the
+An on-GCD cast stays at its own instant. An off-GCD cast is allowed at that
+same instant, within `sim.tickEpsilon`, which is the scripted rotation's
+re-ask (Preparation, then Premeditation). James, 11 Nov 2026 ruling (option A):
+it is refused later inside that GCD with `GCD, {time} left`, and nothing is
+spent. The only caller that can leave the clock inside the held GCD is
+`advanceTo` (a test helper); `getState`, `wait`, and the next on-GCD `cast`
+run out to the GCD end first. A GCD remainder within `sim.tickEpsilon` is
+already clear, so that advance does not move the clock by a rounding ulp. `getState().over` is true once time has reached the
 duration, so the board does not offer a decision at the end (Q3). A `cast`
 that is already requested at that instant still runs, matching the scripted
 decision at the fight's end, and `result()` closes the fight.
