@@ -88,6 +88,9 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talentLevel: LEVEL_60,
     talents: talentsFromLink(COMBAT_DAGGERS_LINK),
     weapons: DAGGERS,
+    // Assumption (dev choice): Instant MH / Deadly OH, recorded as an
+    // assumption when #328 was logged on 2 Nov 2026; James has not ruled
+    // Combat daggers poisons.
     poisons: poisonsOf("combat-daggers"),
     character: DAGGER_SHEET,
   },

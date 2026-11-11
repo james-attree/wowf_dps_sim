@@ -422,7 +422,7 @@ export const ROTATION_PRESETS = deepFreeze([
     id: "combat-daggers",
     name: "Combat daggers",
     description:
-      "James, 10 Nov 2026, issue #340: the temporary Combat swords rotation with Sinister Strike replaced by Backstab. Talents are the 70755 link (Assassination 13 / Combat 35 / Subtlety 3). Two daggers, Instant on the main hand and Deadly on the off hand.",
+      "James, 10 Nov 2026, issue #340: the temporary Combat swords rotation with Sinister Strike replaced by Backstab. Talents are the 70755 link (Assassination 13 / Combat 35 / Subtlety 3). Two daggers. Assumption (dev choice): Instant MH / Deadly OH, recorded as an assumption when #328 was logged on 2 Nov 2026; James has not ruled Combat daggers poisons.",
     rotation: {
       schemaVersion: 1,
       name: "Combat daggers",

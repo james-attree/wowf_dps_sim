@@ -2044,11 +2044,14 @@ export const CONSTANTS = {
       "combat-swords": { mainHand: "deadly", offHand: "instant" },
       "assassination-daggers": { mainHand: "instant", offHand: "deadly" },
       "subtlety-daggers": { mainHand: "instant", offHand: "deadly" },
+      // Assumption (dev choice): Instant MH / Deadly OH, recorded as an
+      // assumption when #328 was logged on 2 Nov 2026; James has not ruled
+      // Combat daggers poisons.
       "combat-daggers": { mainHand: "instant", offHand: "deadly" },
     },
     "poison ids per preset",
     ASSUMPTION,
-    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. James, 10 Nov 2026, issue #340: Combat daggers uses Instant MH and Deadly OH. Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026 confirmation). Assumption (dev choice): Subtlety daggers uses Instant MH / Deadly OH, matching the Combat and Assassination dagger presets. James has not ruled Subtlety poisons. Cf. his 1 Nov ruling for the historical #273 reference builds. combat-swords in this map is historical. The assassination-daggers and subtlety-daggers keys are the live presets. No claim about the frozen link bases. Tagged assumption`,
+    `James, 5 Nov 2026, issue #333: the temporary Combat swords reference build uses Instant MH and Deadly OH. Assumption (dev choice): Instant MH / Deadly OH, recorded as an assumption when #328 was logged on 2 Nov 2026; James has not ruled Combat daggers poisons. Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026 confirmation). Assumption (dev choice): Subtlety daggers uses Instant MH / Deadly OH, matching the Combat and Assassination dagger presets. James has not ruled Subtlety poisons. Cf. his 1 Nov ruling for the historical #273 reference builds. combat-swords in this map is historical. The assassination-daggers and subtlety-daggers keys are the live presets. No claim about the frozen link bases. Tagged assumption`,
     "Poison ids keyed by name. data/preset-reference-builds.js reads combat-swords-temp, combat-daggers, assassination-daggers and subtlety-daggers (instant main hand, deadly off hand). combat-swords is not a live reference build.",
     false,
   ),
