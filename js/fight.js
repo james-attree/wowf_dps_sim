@@ -185,3 +185,7 @@ export function runFight(options) {
   fight.simulation.run(duration);
   return fightResult(fight);
 }
+
+// The manual fight is a published module. The page graph reaches it from here
+// so it ships with the engine the board imports (#348).
+export { blockedText, createManualFight } from "./manual-fight.js";

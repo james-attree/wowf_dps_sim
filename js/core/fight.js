@@ -179,9 +179,9 @@ export function runOnCore(sim, duration, options = {}) {
 export function openCore(
   sim,
   duration,
-  { pollEvery = null, afterEvent = null } = {},
+  { pollEvery = null, afterEvent = null, decide = null } = {},
 ) {
-  return new CoreRun(sim, duration, { pollEvery, afterEvent });
+  return new CoreRun(sim, duration, { pollEvery, afterEvent, decide });
 }
 
 class CoreRun {
@@ -190,7 +190,7 @@ class CoreRun {
   #closed = false;
   #empty;
 
-  constructor(sim, duration, { pollEvery, afterEvent }) {
+  constructor(sim, duration, { pollEvery, afterEvent, decide = null }) {
     if (sim.core !== null && sim.core !== undefined) {
       throw new Error("The event core is already running this fight.");
     }
@@ -213,6 +213,7 @@ class CoreRun {
       stats: this.stats,
       epsilon: k("sim.tickEpsilon"),
       pollEvery,
+      decide,
     });
     fight.afterEvent = afterEvent;
     this.#fight = fight;
@@ -243,6 +244,15 @@ class CoreRun {
 
   get closed() {
     return this.#closed;
+  }
+
+  // Schedule a decision at the fight's current time. The manual fight uses
+  // this so a cast runs inside the decision event (js/manual-fight.js).
+  requestDecision() {
+    if (this.#closed) {
+      throw new Error("This event core run is closed.");
+    }
+    this.#fight.requestDecision(this.#scheduler.now);
   }
 
   // Handle every event at or before `t` (the fight's time, from time to
@@ -277,13 +287,17 @@ class CoreRun {
 }
 
 class CoreFight {
-  constructor(sim, scheduler, { stats, epsilon, pollEvery }) {
+  constructor(sim, scheduler, { stats, epsilon, pollEvery, decide = null }) {
     this.sim = sim;
     this.rogue = sim.rogue;
     this.scheduler = scheduler;
     this.stats = stats;
     this.epsilon = epsilon;
     this.pollEvery = pollEvery;
+    // Opt-in (#348). Null on every scripted run: decide() and poll() keep
+    // calling the rotation. A function replaces that call and skips the
+    // scripted re-ask and armWakes.
+    this.manualDecide = decide;
     this.gcd = new Timer({ scheduler, kind: TIMER_KINDS.gcd });
     this.cooldowns = new TimerSet({ scheduler, kind: TIMER_KINDS.cooldown });
     // One set per aura map: a buff and a debuff may share an id.
@@ -879,6 +893,16 @@ class CoreFight {
 
   decide(event) {
     this.stats.decisions += 1;
+    if (this.manualDecide !== null) {
+      // A manual decision does not re-ask and does not arm the scripted wakes.
+      // The manual fight advances an on-GCD cast to the end of the GCD, and a
+      // Wait arms its own energy threshold (js/manual-fight.js).
+      const result = this.manualDecide(this.sim, event);
+      const casts = result?.casts.length ?? 0;
+      this.stats.casts += casts;
+      this.settle();
+      return;
+    }
     if (event.payload !== null) {
       this.stats.conditionWakes += 1;
     }
@@ -915,7 +939,10 @@ class CoreFight {
       return;
     }
     this.stats.polls += 1;
-    const result = this.rogue.castRotation(this.sim);
+    const result =
+      this.manualDecide !== null
+        ? this.manualDecide(this.sim, null)
+        : this.rogue.castRotation(this.sim);
     if (result !== undefined && result.casts.length > 0) {
       this.stats.pollCasts.push({ time: this.now, casts: result.casts });
     }
