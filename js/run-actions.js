@@ -123,31 +123,26 @@ export function createRunActions({
     });
   }
 
-  // Replay keeps the fight's seed and takes the current duration and character
-  // from the form (Fran §8).
+  // Strict Replay (Scout): the snapshot taken when the fight started, not
+  // the current form.
   function replayManual() {
-    const current = store.get();
-    const seed = current.manual?.state?.seed;
-    if (seed == null) {
+    const snap = store.get().manual?.snapshot;
+    if (snap == null) {
       return;
     }
-    const config = nextRunConfig(current);
-    if (config === null || blocking(current.run)) {
-      return;
-    }
-    const { duration } = run();
     store.batch(() => {
       setRun({
-        seed,
-        fields: { ...run().fields, seed: String(seed) },
         stoppedAt: null,
         shown: true,
-        snapshot: config,
+        snapshot: snap.config,
       });
       setRan({
-        live: record({ config, seed }, { duration, iterations: null }),
+        live: record(
+          { config: snap.config, seed: snap.seed },
+          { duration: snap.duration, iterations: null },
+        ),
       });
-      manual.replay({ seed, duration, config });
+      manual.replay();
     });
   }
 

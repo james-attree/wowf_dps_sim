@@ -21,6 +21,14 @@ function namedEvents(events, slots) {
   );
 }
 
+function fightSnapshot({ seed, duration, config }) {
+  return Object.freeze({
+    seed,
+    duration,
+    config: globalThis.structuredClone(config),
+  });
+}
+
 function publish(store, fight, extra = {}) {
   const state = fight.getState();
   const over = fight.isOver();
@@ -51,14 +59,21 @@ const emptyManual = () => ({
   lastAction: null,
   blockedAbilityId: null,
   result: null,
+  snapshot: null,
 });
 
 export function createManualRun(store) {
   let fight = null;
+  let snapshot = null;
 
   function start({ seed, duration, config }) {
     fight?.dispose();
-    fight = createManualFight({ seed, duration, config });
+    snapshot = fightSnapshot({ seed, duration, config });
+    fight = createManualFight({
+      seed: snapshot.seed,
+      duration: snapshot.duration,
+      config: snapshot.config,
+    });
     store.update((current) => ({
       run: { ...current.run, state: "running", shown: true, stoppedAt: null },
       results: { time: 0, damage: 0 },
@@ -69,6 +84,7 @@ export function createManualRun(store) {
         slots: fight.slots,
         state: fight.getState(),
         events: [],
+        snapshot,
       },
     }));
   }
@@ -115,40 +131,21 @@ export function createManualRun(store) {
       }
       return apply(fight.wait(options));
     },
-    replay({ seed, duration, config } = {}) {
-      const previous = fight?.getState();
-      const nextSeed = seed ?? previous?.seed;
-      const nextDuration = duration ?? previous?.duration;
-      const nextConfig = config;
-      if (nextSeed == null || nextDuration == null || nextConfig == null) {
-        if (fight == null) {
-          return;
-        }
-        fight = fight.replay();
-        store.update((current) => ({
-          run: {
-            ...current.run,
-            state: "running",
-            shown: true,
-            stoppedAt: null,
-          },
-          results: { time: 0, damage: 0 },
-          manual: {
-            ...emptyManual(),
-            active: true,
-            phase: "decision",
-            slots: fight.slots,
-            state: fight.getState(),
-            events: [],
-          },
-        }));
+    // Strict Replay (Scout): the start snapshot only, never the current form.
+    replay() {
+      if (snapshot == null) {
         return;
       }
-      start({ seed: nextSeed, duration: nextDuration, config: nextConfig });
+      start({
+        seed: snapshot.seed,
+        duration: snapshot.duration,
+        config: snapshot.config,
+      });
     },
     backToFight() {
       fight?.dispose();
       fight = null;
+      snapshot = null;
       store.update((current) => ({
         run: { ...current.run, state: "idle", shown: false, stoppedAt: null },
         manual: emptyManual(),
@@ -158,6 +155,7 @@ export function createManualRun(store) {
       const time = fight?.getState().time ?? 0;
       fight?.dispose();
       fight = null;
+      snapshot = null;
       store.update((current) => ({
         run: {
           ...current.run,
@@ -171,6 +169,7 @@ export function createManualRun(store) {
     reset() {
       fight?.dispose();
       fight = null;
+      snapshot = null;
       store.update((current) => ({
         run: {
           ...current.run,

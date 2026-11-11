@@ -70,11 +70,48 @@ describe("manual fight host (#348)", () => {
     assert.equal(ended.ok, true);
     assert.equal(page.get().manual.phase, "review");
     assert.ok(page.get().manual.result);
-    host.replay({ seed: 7, duration: 1, config });
+    host.replay();
     assert.equal(page.get().manual.phase, "decision");
     assert.equal(page.get().manual.state.seed, 7);
     assert.equal(page.get().manual.state.time, 0);
     assert.equal(page.get().manual.events.length, 0);
+    host.reset();
+  });
+
+  it("replays the start snapshot after the form's duration and character change", () => {
+    const page = store();
+    const host = createManualRun(page);
+    const swords = presetConfig("combat-swords-temp");
+    const daggers = presetConfig("assassination-daggers");
+    host.start({ seed: 7, duration: 1, config: swords });
+    const slots = page.get().manual.slots.map((slot) => slot.abilityId);
+    assert.equal(host.wait({ kind: "time" }).ok, true);
+    assert.equal(host.wait({ kind: "time" }).ok, true);
+    assert.equal(page.get().manual.phase, "review");
+    const finished = page.get().manual.result;
+    assert.ok(finished);
+    page.update((current) => ({
+      run: { ...current.run, duration: 30, seed: 99 },
+      config: daggers,
+    }));
+    host.replay();
+    const again = page.get().manual;
+    assert.equal(again.phase, "decision");
+    assert.equal(again.state.seed, 7);
+    assert.equal(again.state.duration, 1);
+    assert.equal(again.snapshot.seed, 7);
+    assert.equal(again.snapshot.duration, 1);
+    assert.deepEqual(
+      again.slots.map((slot) => slot.abilityId),
+      slots,
+    );
+    assert.deepEqual(again.snapshot.config.weapons, swords.weapons);
+    assert.deepEqual(again.snapshot.config.talents, swords.talents);
+    assert.notDeepEqual(again.snapshot.config.weapons, daggers.weapons);
+    assert.equal(host.wait({ kind: "time" }).ok, true);
+    assert.equal(host.wait({ kind: "time" }).ok, true);
+    assert.equal(page.get().manual.phase, "review");
+    assert.deepEqual(page.get().manual.result, finished);
     host.reset();
   });
 });
