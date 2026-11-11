@@ -448,14 +448,19 @@ function liveModel(state) {
   const described = reason === null ? null : describedReason(reason);
   return {
     run: {
-      label: status === "finished" || stale ? "Run again" : "Run",
+      label:
+        state.run?.fightMode === "manual" && state.manual?.phase === "review"
+          ? "Replay"
+          : status === "finished" || stale
+            ? "Run again"
+            : "Run",
       disabled: active || blocked(state),
     },
     reason: described,
     pause: {
       label: status === "paused" ? "Resume" : "Pause",
       resume: status === "paused",
-      disabled: !active,
+      disabled: !active || state.run?.fightMode === "manual",
       inert: false,
     },
     stop: { label: "Stop and discard", disabled: !active },

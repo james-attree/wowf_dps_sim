@@ -152,9 +152,15 @@ export function followRoute(before, after, route) {
     return { area: DEFAULT_AREA, sub: null, param: null, run: false };
   }
   const resumed = before.run?.state === "paused";
-  if (!isRunning(before) && isRunning(after) && !resumed) {
-    // Both are on Results (#245, UX7): an average on its Average view, a
-    // live fight on its Live view, with the fight's meters and combat log.
+  if (
+    !isRunning(before) &&
+    isRunning(after) &&
+    !resumed &&
+    after.run?.fightMode !== "manual"
+  ) {
+    // Scripted runs go to Results (#245, UX7): an average on its Average
+    // view, a live fight on its Live view. Manual fight mode stays on
+    // Fight (#348): the board lives there and the hash stays #fight.
     const sub = after.run?.mode === "batch" ? null : LIVE_VIEW;
     const shown = route.sub === LIVE_VIEW ? LIVE_VIEW : null;
     if (area === RESULTS_AREA && shown === sub) {
