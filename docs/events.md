@@ -169,6 +169,16 @@ These are what `test/event-stream.test.js` pins.
   handler banks its time for the call that is running; the engine is never
   entered twice. The runner's `state` handlers follow the same rules.
 
+## Manual fight events (#348)
+
+`js/manual-fight.js` maps the stream onto the board's event shape. `kind` is
+`damage` (a `hit` whose origin is white, yellow or poison), `tick` (origin
+`dot`), `energy` or `cp` (a `resource` event), `aura`, `proc`, `cast` or `end`.
+A white `main-hand` hit is source `white-mh` and `off-hand` is `white-oh`.
+`glancing` is renamed `glance`. A poison spell miss keeps outcome `miss` and
+adds `resisted: true` when the status is `Resist`. Hits that follow a `proc`
+in the same cast carry `procName`. Regeneration is still not an event.
+
 ## The combat log
 
 `Simulation.combatLog` (and `runFight(...).log`) is a ring of the newest
