@@ -3,6 +3,24 @@
 // the engine. This host applies the returned state, events, reason and
 // stopReason fields; it does not invent names or reason text.
 import { createManualFight } from "./manual-fight.js";
+import { poisonCatalogue } from "./poisons.js";
+
+const POISON_NAMES = new Set(
+  poisonCatalogue.poisons.map((poison) => poison.name),
+);
+
+function tagIncoming(events) {
+  return events.map((event) => {
+    if (event.source === "poison") {
+      return event;
+    }
+    const label = event.procName ?? event.name;
+    if (typeof label === "string" && POISON_NAMES.has(label)) {
+      return { ...event, poisonProc: true };
+    }
+    return event;
+  });
+}
 
 function fightSnapshot({ seed, duration, config }) {
   return Object.freeze({
@@ -77,7 +95,7 @@ export function createManualRun(store) {
       return action;
     }
     const prior = store.get().manual?.events ?? [];
-    const incoming = action.events ?? [];
+    const incoming = tagIncoming(action.events ?? []);
     const events = action.ok ? [...prior, ...incoming] : prior;
     let phase = "decision";
     let blockedAbilityId = null;

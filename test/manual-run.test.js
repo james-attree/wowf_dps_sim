@@ -210,4 +210,33 @@ describe("manual fight host (#348)", () => {
     assert.deepEqual(page.get().manual.result, finished);
     host.reset();
   });
+
+  it("tags Instant Poison hits that arrive without source poison", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("combat-swords-temp"),
+    });
+    assert.equal(host.cast("sinister-strike").ok, true);
+    const tagged = page
+      .get()
+      .manual.events.filter((event) => event.poisonProc === true);
+    for (const event of tagged) {
+      assert.notEqual(event.source, "poison");
+      const label = event.procName ?? event.name;
+      assert.match(label, /Poison/);
+    }
+    const named = page
+      .get()
+      .manual.events.filter(
+        (event) =>
+          event.procName === "Instant Poison" && event.source !== "poison",
+      );
+    for (const event of named) {
+      assert.equal(event.poisonProc, true);
+    }
+    host.reset();
+  });
 });

@@ -1,6 +1,6 @@
 // Manual fight board view (#348, B1). Draws the store's `manual` slice and
 // calls host actions. No engine imports.
-import { attachIconFallback, iconUrl } from "../icons.js";
+import { attachIconFallback } from "../icons.js";
 import {
   ENERGY_WAIT_TARGET,
   FLOAT_LIMIT,
@@ -11,16 +11,23 @@ import {
   TIME_WAIT_SECONDS,
   DPS_DECIMALS,
   announceLine,
+  auraIconSrc,
+  disabledWaitReason,
   elapsedClock,
-  floatCopy,
+  floatCopies,
   glyphFor,
   headerClock,
   headerClockSpoken,
   landedHits,
   mockHealthFill,
   remainingClock,
+  reviewBreakdownRows,
+  reviewTimingRows,
+  slotAccessibleName,
   slotCooldownText,
+  slotIconSrc,
   waitLabel,
+  wellIsCrit,
   wellLine,
 } from "./manual-format.js";
 
@@ -62,6 +69,39 @@ function setDisabled(button, disabled, reason) {
   }
 }
 
+function attachIcon(html, well, iconSrc, glyphText) {
+  const glyph = html.createElement("span");
+  glyph.className = "manual-slot-glyph";
+  glyph.setAttribute("aria-hidden", "true");
+  well.append(glyph);
+  if (iconSrc) {
+    const img = html.createElement("img");
+    img.alt = "";
+    img.setAttribute("aria-hidden", "true");
+    attachIconFallback(img);
+    img.addEventListener("error", () => {
+      if (img.hidden) {
+        img.hidden = false;
+        img.style.display = "none";
+        glyph.textContent = glyphText;
+      }
+    });
+    img.addEventListener("load", () => {
+      glyph.textContent = "";
+    });
+    img.src = iconSrc;
+    if (img.complete) {
+      if (img.naturalWidth > 0) {
+        glyph.textContent = "";
+      }
+    }
+    well.prepend(img);
+  } else {
+    well.classList.add("is-glyph");
+    glyph.textContent = glyphText;
+  }
+}
+
 function fillBar(node, slots, state, actions, blockedId, html) {
   node.replaceChildren();
   const live = state?.slots ?? [];
@@ -86,25 +126,12 @@ function fillBar(node, slots, state, actions, blockedId, html) {
     key.textContent = index < KEY_SLOTS ? KEYS[index] : "";
     const well = html.createElement("span");
     well.className = "manual-slot-icon";
-    const glyph = html.createElement("span");
-    glyph.className = "manual-slot-glyph";
-    glyph.textContent = glyphFor(slot.abilityId, slot.name);
-    well.append(glyph);
-    if (slot.iconKey) {
-      const img = html.createElement("img");
-      img.alt = "";
-      attachIconFallback(img);
-      img.addEventListener("error", () => {
-        if (img.hidden) {
-          img.hidden = false;
-          img.style.display = "none";
-        }
-      });
-      img.src = slot.icon ?? iconUrl(slot.iconKey);
-      well.prepend(img);
-    } else {
-      well.classList.add("is-glyph");
-    }
+    attachIcon(
+      html,
+      well,
+      slotIconSrc(slot),
+      glyphFor(slot.abilityId, slot.name),
+    );
     const name = html.createElement("span");
     name.className = "manual-slot-name";
     name.textContent = slot.name;
@@ -117,11 +144,18 @@ function fillBar(node, slots, state, actions, blockedId, html) {
       note.id = descId;
       button.setAttribute("aria-describedby", descId);
     }
-    button.setAttribute(
-      "aria-label",
-      reason ? `${slot.name}, ${reason}` : slot.name,
-    );
-    button.append(key, well, name, note);
+    const keybind = index < KEY_SLOTS ? KEYS[index] : "";
+    if (keybind || reason) {
+      button.setAttribute(
+        "aria-label",
+        slotAccessibleName(keybind, slot.name, reason),
+      );
+    }
+    if (note.textContent) {
+      button.append(key, " ", well, name, " ", note);
+    } else {
+      button.append(key, " ", well, name, note);
+    }
     button.addEventListener("click", () => {
       if (button.getAttribute("aria-disabled") === "true") {
         actions.cast(slot.abilityId);
@@ -133,7 +167,7 @@ function fillBar(node, slots, state, actions, blockedId, html) {
   });
 }
 
-function fillWaits(node, state, slots, actions, html) {
+function fillWaits(node, state, slots, actions, html, announce) {
   node.replaceChildren();
   for (const wait of state.waits ?? []) {
     const button = html.createElement("button");
@@ -156,6 +190,12 @@ function fillWaits(node, state, slots, actions, html) {
       button.setAttribute("aria-describedby", note.id);
     }
     button.addEventListener("click", () => {
+      if (!wait.available) {
+        if (announce) {
+          announce.textContent = disabledWaitReason(wait) ?? reason;
+        }
+        return;
+      }
       if (wait.kind === "energy") {
         actions.wait({
           kind: "energy",
@@ -175,22 +215,50 @@ function fillWaits(node, state, slots, actions, html) {
 }
 
 function fillTray(node, entries, emptyText) {
+  const html = node.ownerDocument;
   node.replaceChildren();
   if (entries.length === 0) {
-    const item = node.ownerDocument.createElement("li");
+    const item = html.createElement("li");
     item.className = "manual-tray-empty";
     item.textContent = emptyText;
     node.append(item);
     return;
   }
   for (const entry of entries) {
-    const item = node.ownerDocument.createElement("li");
+    const item = html.createElement("li");
     item.className = "manual-chip";
-    item.textContent = `${entry.name} ${elapsedClock(entry.remaining)}`;
+    const icon = html.createElement("span");
+    icon.className = "manual-chip-icon";
+    attachIcon(html, icon, auraIconSrc(entry), glyphFor(entry.id, entry.name));
+    const time = html.createElement("span");
+    time.className = "manual-chip-time";
+    let copy = elapsedClock(entry.remaining);
     if (entry.stacks > 1) {
-      item.textContent += ` ×${entry.stacks}`;
+      copy += ` ×${entry.stacks}`;
     }
+    time.textContent = copy;
+    item.setAttribute("aria-label", `${entry.name} ${copy}`);
+    item.append(icon, time);
     node.append(item);
+  }
+}
+
+function fillReview(html, result) {
+  el(html, "manual-review-dps").textContent =
+    `${result.dps.toFixed(DPS_DECIMALS)} DPS`;
+  const breakdown = el(html, "manual-review-breakdown");
+  breakdown.replaceChildren();
+  for (const row of reviewBreakdownRows(result)) {
+    const item = html.createElement("li");
+    item.textContent = row.text;
+    breakdown.append(item);
+  }
+  const timing = el(html, "manual-review-timing");
+  timing.replaceChildren();
+  for (const row of reviewTimingRows(result)) {
+    const item = html.createElement("li");
+    item.textContent = row.text;
+    timing.append(item);
   }
 }
 
@@ -324,6 +392,23 @@ export function createManualBoardView(html, store, actions) {
     wellEl.tabIndex = -1;
   }
 
+  let lastPhase = "ready";
+
+  function maybeScrollBoard(phase) {
+    const justStarted =
+      (lastPhase === "ready" || lastPhase === "review") &&
+      phase !== "ready" &&
+      phase !== "review";
+    lastPhase = phase;
+    if (!justStarted || board.hidden) {
+      return;
+    }
+    board.scrollIntoView({
+      block: "start",
+      behavior: reducedMotion(html) ? "auto" : "smooth",
+    });
+  }
+
   function update() {
     const state = store.get();
     const manual = state.manual;
@@ -374,6 +459,7 @@ export function createManualBoardView(html, store, actions) {
       );
       el(html, "manual-waits").hidden = true;
       el(html, "manual-bar").hidden = true;
+      lastPhase = phase;
       return;
     }
     if (fight == null) {
@@ -412,6 +498,7 @@ export function createManualBoardView(html, store, actions) {
     const line = wellLine(manual);
     prompt.textContent = line.prompt;
     eventLine.textContent = line.event;
+    wellBox.classList.toggle("is-crit", wellIsCrit(manual));
     const quiet = reducedMotion(html);
     const floats = el(html, "manual-floats");
     floats.replaceChildren();
@@ -420,20 +507,18 @@ export function createManualBoardView(html, store, actions) {
       const shown = [];
       events.forEach((event, index) => {
         const hits = landedHits(events.slice(0, index + 1));
-        const copy = floatCopy(event, hits);
-        if (copy) {
-          shown.push(copy);
-        }
+        shown.push(...floatCopies(event, hits));
       });
       const latest = shown.slice(-FLOAT_LIMIT);
       latest.forEach((item, index) => {
+        const slot = html.createElement("span");
+        slot.className = "manual-float-slot";
+        slot.dataset.stack = String(latest.length - 1 - index);
         const node = html.createElement("span");
         node.className = `manual-float is-${item.tone}`;
-        node.textContent = item.extra
-          ? `${item.text} ${item.extra}`
-          : item.text;
-        node.dataset.stack = String(latest.length - 1 - index);
-        floats.append(node);
+        node.textContent = item.text;
+        slot.append(node);
+        floats.append(slot);
       });
     }
     if (phase !== "review") {
@@ -455,6 +540,7 @@ export function createManualBoardView(html, store, actions) {
         manual.slots ?? [],
         actions,
         html,
+        announce,
       );
       if (wasOnBoard) {
         const again = priorAbility
@@ -466,13 +552,12 @@ export function createManualBoardView(html, store, actions) {
       }
     }
     if (inReview && manual.result) {
-      const result = manual.result;
-      el(html, "manual-review-dps").textContent =
-        `${result.dps.toFixed(DPS_DECIMALS)} DPS`;
+      fillReview(html, manual.result);
     }
     if (announce) {
       announce.textContent = announceLine(manual) ?? "";
     }
+    maybeScrollBoard(phase);
   }
 
   store.subscribe(update);

@@ -14,13 +14,25 @@ import {
   latestWellEvent,
   wellCopy,
   floatCopy,
+  floatCopies,
   wellLine,
   announceLine,
+  wellIsCrit,
+  slotAccessibleName,
+  slotIconSrc,
+  auraIconSrc,
+  disabledWaitReason,
+  reviewBreakdownRows,
+  reviewTimingRows,
   ENERGY_WAIT_TARGET,
   TIME_WAIT_SECONDS,
   HIT_SAMPLE,
   LARGE_HIT_RATIO,
+  FLOAT_LIMIT,
+  EMPTY_TRAY_MIN_REM,
+  EMPTY_TRAY_MAX_REM,
 } from "../js/views/manual-format.js";
+import { iconUrl, spellIconUrl } from "../js/icons.js";
 
 describe("Manual board formatters (#348)", () => {
   it("formats the header clock like logRowReading tenths and clock()", () => {
@@ -184,6 +196,10 @@ describe("Manual board formatters (#348)", () => {
     };
     assert.equal(wellCopy(hs), "Hack and Slash · extra attack 184");
     assert.equal(floatCopy(hs, [hs]).text, "Hack and Slash!");
+    assert.deepEqual(floatCopies(hs, [hs]), [
+      { text: "Hack and Slash!", tone: "proc" },
+      { text: "184", tone: "hit" },
+    ]);
     const pw = { kind: "proc", procName: "Puncturing Wounds" };
     assert.equal(wellCopy(pw), "Puncturing Wounds · +1 combo point");
     const blocked = {
@@ -298,5 +314,149 @@ describe("Manual board formatters (#348)", () => {
       }).prompt,
       "Blocked · Eviscerate — Needs combo points.",
     );
+  });
+
+  it("fills Review breakdown from abilities and timing from the log", () => {
+    const result = {
+      duration: 5,
+      dps: 100,
+      abilities: {
+        "Sinister Strike": { damage: 400, casts: 2 },
+        "Main-hand": { damage: 100, casts: 1 },
+      },
+      log: [
+        { time: 1, name: "Sinister Strike" },
+        { time: 0, name: "Main-hand" },
+      ],
+    };
+    const breakdown = reviewBreakdownRows(result);
+    assert.equal(breakdown[0].name, "Sinister Strike");
+    assert.equal(breakdown[0].text, "Sinister Strike · 400 · 80.0 DPS");
+    assert.equal(breakdown[1].name, "Main-hand");
+    const timing = reviewTimingRows(result);
+    assert.deepEqual(
+      timing.map((row) => row.text),
+      ["00:00.0 Main-hand", "00:01.0 Sinister Strike"],
+    );
+  });
+
+  it("announces a disabled Wait reason without entering Blocked", () => {
+    const wait = {
+      kind: "energy",
+      available: false,
+      reason: { code: "energy-full", text: "Already at 40+ energy" },
+    };
+    assert.equal(disabledWaitReason(wait), "Already at 40+ energy");
+    assert.equal(disabledWaitReason({ kind: "time", available: true }), null);
+    assert.equal(
+      wellLine({
+        phase: "decision",
+        lastAction: null,
+        events: [],
+      }).prompt,
+      "Your decision · GCD free",
+    );
+    assert.doesNotMatch(
+      wellLine({
+        phase: "decision",
+        lastAction: null,
+        events: [],
+      }).prompt,
+      /Blocked/,
+    );
+  });
+
+  it("includes the visible keybind in the slot accessible name", () => {
+    assert.equal(
+      slotAccessibleName("1", "Sinister Strike"),
+      "1 Sinister Strike",
+    );
+    assert.equal(
+      slotAccessibleName("5", "Eviscerate", "Needs combo points"),
+      "5 Eviscerate Needs combo points",
+    );
+  });
+
+  it("marks the well as a crit only for a crit event line", () => {
+    const crit = {
+      kind: "damage",
+      source: "ability",
+      outcome: "crit",
+      amount: 521,
+      name: "Sinister Strike",
+    };
+    const hit = { ...crit, outcome: "hit", amount: 184 };
+    assert.equal(wellIsCrit({ phase: "crit", events: [crit] }), true);
+    assert.equal(wellIsCrit({ phase: "decision", events: [hit] }), false);
+    assert.equal(
+      wellIsCrit({
+        phase: "blocked",
+        lastAction: { reason: { text: "Needs combo points" } },
+        events: [crit],
+      }),
+      false,
+    );
+  });
+
+  it("resolves slot and aura icons through iconUrl, not a local path", () => {
+    const key = "ability_rogue_sinsterstrike";
+    const slot = {
+      iconKey: key,
+      icon: "img/sinister-strike.jpg",
+    };
+    assert.equal(slotIconSrc(slot), iconUrl(key));
+    assert.notEqual(slotIconSrc(slot), slot.icon);
+    const local = {
+      name: "Blade Flurry",
+      icon: "img/blade-flurry.jpg",
+    };
+    assert.equal(auraIconSrc(local), spellIconUrl("Blade Flurry"));
+    assert.notEqual(auraIconSrc(local), local.icon);
+    const raw = { icon: "ability_warrior_punishingblow", name: "Blade Flurry" };
+    assert.equal(auraIconSrc(raw), iconUrl("ability_warrior_punishingblow"));
+  });
+
+  it("uses the poison well template for a tagged Instant Poison hit", () => {
+    const poison = {
+      kind: "damage",
+      source: "white-oh",
+      outcome: "crit",
+      amount: 247,
+      name: "Off-hand",
+      procName: "Instant Poison",
+      poisonProc: true,
+    };
+    assert.equal(wellCopy(poison), "Instant Poison · CRIT 247");
+    assert.deepEqual(floatCopies(poison, [poison]), [
+      { text: "Instant Poison!", tone: "proc" },
+      { text: "247!", tone: "crit" },
+    ]);
+    const zero = { ...poison, amount: 0, outcome: "hit" };
+    assert.equal(wellCopy(zero), null);
+    assert.deepEqual(floatCopies(zero, [zero]), []);
+  });
+
+  it("caps stacked float copies at three and keeps a name and damage pair", () => {
+    const a = {
+      kind: "damage",
+      source: "ability",
+      outcome: "hit",
+      amount: 10,
+      name: "Sinister Strike",
+    };
+    const proc = {
+      kind: "damage",
+      source: "white-mh",
+      outcome: "hit",
+      amount: 80,
+      name: "Main-hand",
+      procName: "Hack and Slash",
+    };
+    const shown = [...floatCopies(a, [a]), ...floatCopies(proc, [a, proc])];
+    assert.equal(shown.length, 3);
+    assert.equal(shown.slice(-FLOAT_LIMIT).length, FLOAT_LIMIT);
+    assert.ok(EMPTY_TRAY_MIN_REM <= EMPTY_TRAY_MAX_REM);
+    assert.ok(EMPTY_TRAY_MIN_REM >= 0.8125);
+    assert.ok(EMPTY_TRAY_MAX_REM <= 0.875);
   });
 });

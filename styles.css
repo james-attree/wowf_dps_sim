@@ -3975,16 +3975,47 @@ th[aria-sort="ascending"] {
   color: var(--manual-debuff);
 }
 
-.manual-chip,
-.manual-tray-empty {
+.manual-chip {
+  min-width: var(--target);
   min-height: var(--target);
   display: inline-flex;
   align-items: center;
-  padding: 0 0.5rem;
+  gap: 0.35rem;
+  padding: 0 0.35rem;
   border: 0.125rem solid currentColor;
   border-radius: 0.4rem;
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
+}
+
+.manual-chip-icon {
+  position: relative;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+
+.manual-chip-icon img {
+  width: 2rem;
+  height: 2rem;
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+
+.manual-chip-icon.is-glyph .manual-slot-glyph,
+.manual-chip-icon img[hidden] + .manual-slot-glyph,
+.manual-chip-icon img[style*="none"] + .manual-slot-glyph {
+  display: block;
+}
+
+.manual-tray-empty {
+  min-height: var(--target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
 .manual-well {
@@ -4017,8 +4048,20 @@ th[aria-sort="ascending"] {
   justify-content: center;
 }
 
-.manual-float {
+.manual-float-slot {
   position: absolute;
+}
+
+.manual-float-slot[data-stack="1"] {
+  transform: translate(-0.5rem, -0.875rem);
+}
+
+.manual-float-slot[data-stack="2"] {
+  transform: translate(0.5rem, -1.75rem);
+}
+
+.manual-float {
+  display: block;
   font-weight: 650;
   animation: manual-float-rise 800ms ease-out forwards;
 }
@@ -4040,14 +4083,6 @@ th[aria-sort="ascending"] {
   color: var(--manual-buff);
   font-size: 1rem;
   font-weight: 700;
-}
-
-.manual-float[data-stack="1"] {
-  transform: translate(-0.5rem, -0.875rem);
-}
-
-.manual-float[data-stack="2"] {
-  transform: translate(0.5rem, -1.75rem);
 }
 
 @keyframes manual-float-rise {
@@ -4172,6 +4207,28 @@ th[aria-sort="ascending"] {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.manual-review-dps {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.manual-review-breakdown,
+.manual-review-timing {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-review-breakdown li,
+.manual-review-timing li {
+  margin: 0;
 }
 
 .manual-review-replay,

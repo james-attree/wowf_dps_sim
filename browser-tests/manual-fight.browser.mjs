@@ -4,8 +4,14 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { chromium } from "playwright-core";
 import { startStaticServer } from "../scripts/serve.mjs";
+
+const AXE = await readFile(
+  createRequire(import.meta.url).resolve("axe-core/axe.min.js"),
+  "utf8",
+);
 
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const WIDTHS = [360, 390, 1024, 1280, 1440];
@@ -178,4 +184,220 @@ describe("Manual fight board layout and behaviour (#348)", () => {
       await context.close();
     }
   });
+
+  test("QA: accessible names, disabled Wait, icons, trays, floats and Review", async () => {
+    const { context, page, errors } = await open(390);
+    try {
+      await page.locator("#run-duration").fill("30");
+      await page.locator("#run-duration").press("Tab");
+      await startManual(page);
+      const firstLabel = await page
+        .locator(".manual-slot")
+        .first()
+        .getAttribute("aria-label");
+      assert.match(firstLabel ?? "", /^1 /);
+      await page.addScriptTag({ content: AXE });
+      const violations = await page.evaluate(async () => {
+        const board = globalThis.document.getElementById("manual-board");
+        const results = await globalThis.axe.run(board);
+        return results.violations.map(
+          (v) =>
+            `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`,
+        );
+      });
+      const nameMismatch = violations.filter((row) =>
+        row.startsWith("label-content-name-mismatch"),
+      );
+      assert.equal(nameMismatch.length, 0, nameMismatch.join("\n"));
+      assert.equal(violations.length, 0, violations.join("\n"));
+      const srcs = await page.$$eval(".manual-slot-icon img", (images) =>
+        images.map((image) => image.getAttribute("src") ?? ""),
+      );
+      assert.ok(srcs.length > 0, "no slot icons");
+      for (const src of srcs) {
+        assert.match(src, /wow\.zamimg\.com/);
+        assert.doesNotMatch(src, /\/img\//);
+      }
+      const typography = await page.evaluate(() => {
+        const empty = globalThis.document.querySelector(".manual-tray-empty");
+        const root = parseFloat(
+          globalThis.getComputedStyle(globalThis.document.documentElement)
+            .fontSize,
+        );
+        const style = globalThis.getComputedStyle(empty);
+        const probe = globalThis.document.createElement("span");
+        probe.style.color = "var(--text-muted)";
+        globalThis.document.body.append(probe);
+        const muted = globalThis.getComputedStyle(probe).color;
+        probe.remove();
+        return {
+          fontSize: parseFloat(style.fontSize),
+          root,
+          color: style.color,
+          muted,
+        };
+      });
+      const min = typography.root * 0.8125;
+      const max = typography.root * 0.875;
+      assert.ok(
+        typography.fontSize + 0.05 >= min && typography.fontSize - 0.05 <= max,
+        `empty tray ${typography.fontSize}px not in ${min}-${max}`,
+      );
+      assert.equal(typography.color, typography.muted);
+      const energy = page.locator(".manual-wait[data-wait-kind='energy']");
+      assert.equal(await energy.getAttribute("aria-disabled"), "true");
+      const wellBefore = await page
+        .locator("#manual-well-prompt")
+        .textContent();
+      await energy.click({ force: true });
+      const announced = await page.locator("#manual-announce").textContent();
+      assert.match(announced ?? "", /Already at 40\+ energy/);
+      const wellAfter = await page.locator("#manual-well-prompt").textContent();
+      assert.doesNotMatch(wellAfter ?? "", /Blocked/);
+      assert.equal(wellAfter, wellBefore);
+      const flurry = page.locator(
+        ".manual-slot[data-ability-id='blade-flurry']",
+      );
+      if ((await flurry.count()) > 0) {
+        await flurry.click();
+        const chip = page.locator("#manual-buffs .manual-chip").first();
+        await chip.waitFor({ state: "visible" });
+        const chipBox = await chip.evaluate((node) => {
+          const box = node.getBoundingClientRect();
+          const image = node.querySelector("img");
+          return {
+            h: box.height,
+            src: image?.getAttribute("src") ?? "",
+          };
+        });
+        assert.ok(chipBox.h + 0.01 >= TARGET_PX, `chip height ${chipBox.h}`);
+        assert.match(chipBox.src, /wow\.zamimg\.com/);
+      }
+      await page.locator(".manual-slot").first().focus();
+      await page.keyboard.press("1");
+      const wellEvent = await page.locator("#manual-well-event").textContent();
+      if (/Poison/.test(wellEvent ?? "")) {
+        assert.doesNotMatch(wellEvent ?? "", /extra attack/);
+      }
+      const wellClass = await page
+        .locator("#manual-well")
+        .getAttribute("class");
+      if (/CRIT/.test(wellEvent ?? "")) {
+        assert.match(wellClass ?? "", /is-crit/);
+      }
+      const floatInfo = await page.evaluate(() => {
+        const slots = [
+          ...globalThis.document.querySelectorAll(".manual-float-slot"),
+        ];
+        return {
+          count: slots.length,
+          stacks: slots.map((slot) => ({
+            stack: slot.dataset.stack,
+            transform: globalThis.getComputedStyle(slot).transform,
+            anim: globalThis.getComputedStyle(
+              slot.querySelector(".manual-float"),
+            ).animationName,
+          })),
+        };
+      });
+      assert.ok(floatInfo.count <= 3, `floats ${floatInfo.count}`);
+      if (floatInfo.count > 0) {
+        assert.ok(
+          floatInfo.stacks.every((slot) =>
+            slot.anim.includes("manual-float-rise"),
+          ),
+        );
+      }
+      for (const slot of floatInfo.stacks.filter((row) => row.stack !== "0")) {
+        assert.notEqual(slot.transform, "none");
+      }
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("Review lists fill from the fight result", async () => {
+    const { context, page, errors } = await open(390);
+    try {
+      await page.locator("#run-duration").fill("1");
+      await page.locator("#run-duration").press("Tab");
+      await startManual(page);
+      await page.locator(".manual-wait[data-wait-kind='time']").click();
+      await page.locator(".manual-wait[data-wait-kind='time']").click();
+      await page.locator("#manual-review").waitFor({ state: "visible" });
+      const dps = await page.locator("#manual-review-dps").textContent();
+      assert.match(dps ?? "", /DPS/);
+      const breakdown = await page
+        .locator("#manual-review-breakdown li")
+        .count();
+      const timing = await page.locator("#manual-review-timing li").count();
+      assert.ok(breakdown > 0, "breakdown list was empty");
+      assert.ok(timing > 0, "timing list was empty");
+      const firstBreak = await page
+        .locator("#manual-review-breakdown li")
+        .first()
+        .textContent();
+      assert.match(firstBreak ?? "", /DPS/);
+      const firstTime = await page
+        .locator("#manual-review-timing li")
+        .first()
+        .textContent();
+      assert.match(firstTime ?? "", /\d{2}:\d{2}\.\d /);
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
+  for (const reduced of [false, true]) {
+    const label = reduced ? " (reduced motion)" : "";
+    test(`Start at 360px 150% text scrolls the board into view${label}`, async () => {
+      const { context, page, errors } = await open(360, {
+        text: "150%",
+        reduced,
+      });
+      try {
+        await startManual(page);
+        await page.waitForFunction(
+          () => {
+            const board = globalThis.document.getElementById("manual-board");
+            const rect = board.getBoundingClientRect();
+            return rect.top < globalThis.innerHeight && rect.bottom > 0;
+          },
+          { timeout: reduced ? 500 : 2000 },
+        );
+        const typography = await page.evaluate(() => {
+          const empty = globalThis.document.querySelector(".manual-tray-empty");
+          const root = parseFloat(
+            globalThis.getComputedStyle(globalThis.document.documentElement)
+              .fontSize,
+          );
+          const style = globalThis.getComputedStyle(empty);
+          const probe = globalThis.document.createElement("span");
+          probe.style.color = "var(--text-muted)";
+          globalThis.document.body.append(probe);
+          const muted = globalThis.getComputedStyle(probe).color;
+          probe.remove();
+          return {
+            fontSize: parseFloat(style.fontSize),
+            root,
+            color: style.color,
+            muted,
+          };
+        });
+        const min = typography.root * 0.8125;
+        const max = typography.root * 0.875;
+        assert.ok(
+          typography.fontSize + 0.05 >= min &&
+            typography.fontSize - 0.05 <= max,
+          `empty tray ${typography.fontSize}px not in ${min}-${max}`,
+        );
+        assert.equal(typography.color, typography.muted);
+        assert.equal(errors.length, 0, errors.join("\n"));
+      } finally {
+        await context.close();
+      }
+    });
+  }
 });

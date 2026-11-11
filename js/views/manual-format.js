@@ -1,6 +1,7 @@
 // Pure formatters and combat-text rules for the Manual fight board
 // (Fran spec §2.6, §2.7, §3.3, §3.4). No engine imports.
 import { formatNumber } from "../charts.js";
+import { iconUrl, spellIconUrl } from "../icons.js";
 import { clock, remainingTime, spokenTenths } from "./run-model.js";
 import { logRowReading } from "./visualiser.js";
 
@@ -16,6 +17,9 @@ export const FLOAT_LIMIT = 3;
 export const KEY_SLOTS = 10;
 export const PERCENT = 100;
 export const DPS_DECIMALS = 1;
+export const INTEGER_DECIMALS = 0;
+export const EMPTY_TRAY_MIN_REM = 0.8125;
+export const EMPTY_TRAY_MAX_REM = 0.875;
 
 const LANDED = new Set(["hit", "crit", "glance"]);
 const AUTO_OR_ABILITY = new Set(["ability", "white-mh", "white-oh"]);
@@ -155,7 +159,7 @@ export function isLargeHit(event, hitsIncludingThis) {
 }
 
 export function damageText(amount) {
-  return formatNumber(Math.floor(amount), 0);
+  return formatNumber(Math.floor(amount), INTEGER_DECIMALS);
 }
 
 export function wellCopy(event) {
@@ -171,12 +175,12 @@ export function wellCopy(event) {
   if (event.kind === "proc" && event.procName && event.amount == null) {
     return `${event.procName} · +1 combo point`;
   }
-  if (event.source === "poison") {
+  if (isPoisonHit(event)) {
     if (!(event.amount > 0)) {
       return null;
     }
     const crit = event.outcome === "crit" ? "CRIT " : "";
-    return `${event.name} · ${crit}${damageText(event.amount)}`;
+    return `${event.procName ?? event.name} · ${crit}${damageText(event.amount)}`;
   }
   if (event.procName && event.kind === "damage") {
     const crit = event.outcome === "crit" ? "CRIT " : "";
@@ -205,56 +209,138 @@ export function wellCopy(event) {
   return null;
 }
 
-export function floatCopy(event, hitsIncludingThis) {
+export function isPoisonHit(event) {
+  return event.source === "poison" || event.poisonProc === true;
+}
+
+function damageFloat(event) {
+  const amount = Math.floor(event.amount ?? 0);
+  if (!(amount > 0)) {
+    return null;
+  }
+  if (event.outcome === "crit") {
+    return { text: `${damageText(event.amount)}!`, tone: "crit" };
+  }
+  return { text: damageText(event.amount), tone: "hit" };
+}
+
+// A damaging proc yields a name float and a separate damage float (§3.3).
+export function floatCopies(event, hitsIncludingThis) {
   if (event.kind === "proc" && event.procName && event.amount == null) {
-    return { text: `${event.procName}!`, tone: "proc" };
+    return [{ text: `${event.procName}!`, tone: "proc" }];
   }
-  if (
-    event.source === "poison" &&
-    event.kind === "damage" &&
-    event.amount > 0
-  ) {
-    const dmg =
-      event.outcome === "crit"
-        ? `${damageText(event.amount)}!`
-        : damageText(event.amount);
-    return {
-      text: `${event.procName ?? event.name}!`,
-      tone: "proc",
-      extra: dmg,
-    };
-  }
-  if (event.procName && event.kind === "damage") {
-    const dmg =
-      event.outcome === "crit"
-        ? `${damageText(event.amount)}!`
-        : damageText(event.amount);
-    return { text: `${event.procName}!`, tone: "proc", extra: dmg };
+  if (event.kind === "damage" && (isPoisonHit(event) || event.procName)) {
+    const damage = damageFloat(event);
+    if (damage == null) {
+      return [];
+    }
+    const name = event.procName ?? event.name;
+    const copies = [];
+    if (name) {
+      copies.push({ text: `${name}!`, tone: "proc" });
+    }
+    copies.push(damage);
+    return copies;
   }
   if (event.kind !== "damage" || !(event.amount > 0)) {
-    return null;
+    return [];
   }
   if (
     event.outcome === "miss" ||
     event.outcome === "dodge" ||
     event.outcome === "parry"
   ) {
-    return null;
+    return [];
   }
   if (event.kind === "tick") {
-    return null;
+    return [];
   }
   if (event.outcome === "crit") {
-    return { text: `${damageText(event.amount)}!`, tone: "crit" };
+    return [{ text: `${damageText(event.amount)}!`, tone: "crit" }];
   }
   if (!isAbilityOrAutoHit(event)) {
-    return null;
+    return [];
   }
   const large = isLargeHit(event, hitsIncludingThis);
-  return {
-    text: damageText(event.amount),
-    tone: large ? "large" : "hit",
-  };
+  return [
+    {
+      text: damageText(event.amount),
+      tone: large ? "large" : "hit",
+    },
+  ];
+}
+
+export function floatCopy(event, hitsIncludingThis) {
+  return floatCopies(event, hitsIncludingThis)[0] ?? null;
+}
+
+const ICON_NAME = /^[a-z0-9_]+$/;
+
+export function slotIconSrc(slot, resolve = iconUrl) {
+  return slot.iconKey ? resolve(slot.iconKey) : null;
+}
+
+export function auraIconSrc(
+  entry,
+  resolve = iconUrl,
+  spellResolve = spellIconUrl,
+) {
+  if (typeof entry.icon === "string" && ICON_NAME.test(entry.icon)) {
+    return resolve(entry.icon);
+  }
+  if (entry.name) {
+    return spellResolve(entry.name);
+  }
+  return null;
+}
+
+export function slotAccessibleName(key, name, reason) {
+  const lead = key ? `${key} ${name}` : name;
+  return reason ? `${lead} ${reason}` : lead;
+}
+
+export function disabledWaitReason(wait) {
+  if (wait.available) {
+    return null;
+  }
+  return wait.reason?.text ?? "";
+}
+
+export function wellIsCrit(manual) {
+  if (manual.phase === "blocked") {
+    return false;
+  }
+  if (manual.lastAction?.ok && manual.lastAction.stopReason) {
+    return false;
+  }
+  return latestWellEvent(manual.events ?? [])?.outcome === "crit";
+}
+
+export function reviewBreakdownRows(result) {
+  const duration = result.duration ?? 0;
+  return Object.entries(result.abilities ?? {})
+    .map(([name, row]) => {
+      const damage = row.damage ?? 0;
+      const dps = duration > 0 ? damage / duration : 0;
+      return {
+        name,
+        damage,
+        dps,
+        text: `${name} · ${formatNumber(damage, INTEGER_DECIMALS)} · ${formatNumber(dps, DPS_DECIMALS)} DPS`,
+      };
+    })
+    .sort((a, b) => b.damage - a.damage);
+}
+
+export function reviewTimingRows(result) {
+  const log = [...(result.log ?? [])].reverse();
+  return log
+    .filter((row) => row?.name)
+    .map((row) => ({
+      time: row.time,
+      name: row.name,
+      text: `${elapsedClock(row.time)} ${row.name}`,
+    }));
 }
 
 export function announceCopy(event) {
