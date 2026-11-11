@@ -61,7 +61,7 @@ describe("manual fight host (#348)", () => {
     host.reset();
   });
 
-  it("jumps the clock to the GCD end after an on-GCD cast, and the board follows", () => {
+  it("presents the GCD end after an on-GCD cast, and the board follows", () => {
     const page = store();
     const host = createManualRun(page);
     host.start({
@@ -73,9 +73,8 @@ describe("manual fight host (#348)", () => {
     const fillBefore = mockHealthFill(before, 30);
     const hit = host.cast("sinister-strike");
     assert.equal(hit.ok, true);
+    assert.equal(hit.advancedBy, 0);
     const state = page.get().manual.state;
-    assert.ok(hit.advancedBy > 0);
-    assert.equal(state.time, hit.advancedBy);
     assert.ok(state.time > before);
     assert.equal(state.gcd.remaining, 0);
     assert.ok(mockHealthFill(state.time, state.duration) < fillBefore);
