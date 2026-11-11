@@ -930,9 +930,10 @@ Sinister Strike replaced by Backstab. Talents 13/35/3 from his 70755 link.
 Weapons are the #328 reference daggers (main hand 73–137 at 1.8 s, off hand
 59–111 at 1.6 s). The sheet is `character.dagger` (769 attack power, 22.14%
 crit). James, 10 Nov 2026: that is an assumption, because those stats come
-from Core Hound Tooth while the off hand is the unnamed 59–111. Instant main
-hand, Deadly off hand. The share-link base is
-`combat-daggers-340`. Its summary:
+from Core Hound Tooth while the off hand is the unnamed 59–111. Assumption
+(dev choice): Instant MH / Deadly OH, recorded as an assumption when #328
+was logged on 2 Nov 2026; James has not ruled Combat daggers poisons. The
+share-link base is `combat-daggers-340`. Its summary:
 
 ```text
 Combat daggers
@@ -952,8 +953,9 @@ Combat daggers
 ### assassination-daggers
 
 James, 10 Nov 2026 (#340). Talents 37/11/3 from his 70755 link. Same daggers
-and the same `character.dagger` sheet assumption as Combat daggers. Instant
-main hand, Deadly off hand. The share-link base is `assassination-daggers-340`.
+and the same `character.dagger` sheet assumption as Combat daggers.
+Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026
+confirmation). The share-link base is `assassination-daggers-340`.
 Mutilate stops below 4 combo points, the same cap Combat swords uses for its
 builder, and only at 50 or more energy so Shank's rule is reached. The combo-point cap under 4 and the energy gate of 50 are dev choices, not James rulings. The four
 racials are the opening every live preset uses. Its summary:
@@ -1185,10 +1187,10 @@ The numbers are `presetRotation.subtlety`:
 for. `combat-swords-temp` is level 60, the 16/35/0 talents in
 `data/reference-build.js`, the default swords, Instant on the main hand and
 Deadly on the off hand (James, 5 Nov 2026, #333). `combat-daggers` is level
-60, the 13/35/3 talents from James's 10 Nov 2026 link, the #328 daggers, the
-`character.dagger` sheet, and the same poisons. `assassination-daggers` is
+60, the 13/35/3 talents from James's 10 Nov 2026 link, the #328 daggers, and the
+`character.dagger` sheet. Assumption (dev choice): Instant MH / Deadly OH, recorded as an assumption when #328 was logged on 2 Nov 2026; James has not ruled Combat daggers poisons. `assassination-daggers` is
 level 60, the 37/11/3 talents from his other 10 Nov 2026 link, those daggers,
-that sheet, and those poisons. `subtlety-daggers` is level 60, the 12/8/31
+and that sheet. Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026 confirmation). `subtlety-daggers` is level 60, the 12/8/31
 talents from his third 10 Nov 2026 link, those daggers, that sheet, and those
 poisons. The
 1 Nov ruling is the historical reference builds, which this file no longer

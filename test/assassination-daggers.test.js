@@ -31,6 +31,7 @@ describe("Assassination daggers (#340)", () => {
     );
   });
 
+  // Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026 confirmation).
   it("poisons are Instant on the main hand and Deadly on the off hand", () => {
     assert.deepEqual(referenceBuild(ID).poisons, {
       mainHand: "instant",
