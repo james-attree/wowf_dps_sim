@@ -1588,8 +1588,9 @@ legacy text (#193); a bad duration, refresh rule or id is a `RangeError` or
 Procs and poisons keep their rules on events: an internal cooldown is
 measured from `currentTime`, which the host sets to each event's time, with
 the same `k("sim.tickEpsilon")` tolerance; an extra attack is resolved inline
-from the swing that procced it, at the same time, and does not move the
-hand's next swing; a chain of extra attacks stops at `k("proc.maxChainDepth")`
+from the swing that procced it, at the same time, and resets the main-hand
+swing timer immediately (the off-hand timer is not moved; James 10 Nov); a
+chain of extra attacks stops at `k("proc.maxChainDepth")`
 with the same `RangeError`; a poison never uses up a charge
 (`k("poison.charges")`). A test host (`test/core-host.js`) runs the same seeded
 fight with swings, DoT ticks, aura expiries and scripted casts on the
@@ -3117,8 +3118,12 @@ The filter is a modifier scope (`abilities`, `hands`, `weaponTypes`, `schools`,
   crit chance (suppression per its constant, see Poison procs) for the crit
   multiplier given by `poison.instantCrit`; without it, the damage never crits.
   It fires no procs.
-- `extraAttack`: one more white swing in the hand that triggered it, resolved
-  by `resolveAttack` like any swing, so its own triggers run, depth first.
+- `extraAttack`: one more white main-hand swing, using the main-hand weapon's
+  damage and no off-hand penalty, whatever hand triggered it and whatever the
+  main-hand type (James 10 Nov). Resolved by `resolveAttack` like any swing, so
+  its own triggers run, depth first. It resets the main-hand swing timer
+  immediately: the next main-hand white swing is one full main-hand interval
+  after the proc. The off-hand timer is not moved.
 
 **Chains.** An extra attack that can itself trigger an extra attack is the
 `hackAndSlash.chain` assumption (off, a retune item): a proc that holds an
@@ -3281,6 +3286,33 @@ none acts in a fight from behind with no incoming attack. The six are marked
 entry. Two talents that do work only in some builds are counted as DPS: Hack and
 Slash (a sword or axe, a dagger or fist, or a mace in the hand) and Puncturing
 Wounds (Backstab, which the placeholder rotation never casts).
+
+### Hack and Slash (James 10 Nov, 11 Nov)
+
+James, 10 Nov 2026: a Hack and Slash extra attack (the `extraAttack` action) is
+always a main-hand white swing. It uses the main-hand weapon's damage, whatever
+the main-hand type (a main-hand dagger and an off-hand sword still use the
+dagger's damage), and it does not take the off-hand penalty. A proc from either
+hand resets the main-hand swing timer immediately: the next main-hand white
+swing is one full main-hand weapon speed after the proc (the current haste
+interval). The off-hand timer is not moved. Axes behave as swords (the proc
+already rolls on both). Unchanged: `hackAndSlash.chain` is off (James's
+assumption), the dagger/fist crit bonus, and the mace armour ignore.
+
+James, 11 Nov 2026, on the four follow-up questions:
+
+- A yellow melee hit (for example Sinister Strike) that procs an extra attack
+  also resets the main-hand timer, the same way a white swing does.
+- The reset starts a full current interval from the proc and discards any
+  shortened remaining time (parry-haste), whether the proc was a main-hand
+  white swing or an off-hand (or yellow) hit. Parry-haste is not simulated
+  today; the reset still replaces the pending main-hand swing rather than
+  leaving a shortened countdown in place.
+- The extra swing is a main-hand white hit, so it rolls the main-hand on-hit
+  (the main-hand poison, and a main-hand enchant when those exist). The
+  triggering off-hand weapon's poison or enchant does not roll on it.
+- These rules belong to the `extraAttack` action itself, so every current and
+  future extra-attack proc follows them, not only Hack and Slash.
 
 **The Assassination talents in D8a (#119): 6 of 6 for the reference build.**
 
