@@ -159,6 +159,109 @@ describe("Manual fight board layout and behaviour (#348)", () => {
     }
   });
 
+  test("keys 1–0 and W fire nothing when focus is outside the board (Kira N1)", async () => {
+    const { context, page, errors } = await open(390);
+    try {
+      await startManual(page);
+      const fightState = () =>
+        page.evaluate(() => {
+          const doc = globalThis.document;
+          const log = doc.getElementById("combat-log");
+          return {
+            clock: doc.getElementById("manual-clock")?.textContent,
+            prompt: doc.getElementById("manual-well-prompt")?.textContent,
+            event: doc.getElementById("manual-well-event")?.textContent,
+            announce: doc.getElementById("manual-announce")?.textContent,
+            log: log?.textContent,
+            focusWait: doc.activeElement?.classList.contains("manual-wait"),
+            focusSlot: doc.activeElement?.classList.contains("manual-slot"),
+          };
+        });
+      const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "w", "W"];
+
+      async function assertSilent(where, stillFocused) {
+        const before = await fightState();
+        for (const key of keys) {
+          await page.keyboard.press(key);
+          const after = await fightState();
+          assert.equal(
+            after.clock,
+            before.clock,
+            `${key} clock while ${where}`,
+          );
+          assert.equal(
+            after.prompt,
+            before.prompt,
+            `${key} well prompt while ${where}`,
+          );
+          assert.equal(
+            after.event,
+            before.event,
+            `${key} well event while ${where}`,
+          );
+          assert.equal(
+            after.announce,
+            before.announce,
+            `${key} announce while ${where}`,
+          );
+          assert.equal(after.log, before.log, `${key} log while ${where}`);
+          assert.equal(
+            after.focusWait,
+            false,
+            `${key} focused a Wait while ${where}`,
+          );
+          assert.equal(
+            after.focusSlot,
+            false,
+            `${key} focused a slot while ${where}`,
+          );
+        }
+        const focused = await page.evaluate(stillFocused);
+        assert.equal(focused, true, `focus left the ${where} target`);
+      }
+
+      // Fight dock fields are locked while running, so the test plants a
+      // throwaway input outside the board (and outside the dock).
+      await page.evaluate(() => {
+        const input = globalThis.document.createElement("input");
+        input.id = "kira-n1-off-board";
+        input.type = "text";
+        globalThis.document.body.prepend(input);
+        input.focus();
+      });
+      assert.equal(
+        await page.evaluate(() => globalThis.document.activeElement?.id),
+        "kira-n1-off-board",
+      );
+      await assertSilent(
+        "form input",
+        () => globalThis.document.activeElement?.id === "kira-n1-off-board",
+      );
+      await page.evaluate(() =>
+        globalThis.document.getElementById("kira-n1-off-board")?.remove(),
+      );
+
+      await page.evaluate(() => {
+        const body = globalThis.document.body;
+        body.tabIndex = -1;
+        body.focus();
+      });
+      assert.equal(
+        await page.evaluate(
+          () => globalThis.document.activeElement === globalThis.document.body,
+        ),
+        true,
+      );
+      await assertSilent(
+        "body",
+        () => globalThis.document.activeElement === globalThis.document.body,
+      );
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
   test("Replay restarts the same seed from 0:00", async () => {
     const { context, page, errors } = await open(390);
     try {
