@@ -930,9 +930,7 @@ Sinister Strike replaced by Backstab. Talents 13/35/3 from his 70755 link.
 Weapons are the #328 reference daggers (main hand 73–137 at 1.8 s, off hand
 59–111 at 1.6 s). The sheet is `character.dagger` (769 attack power, 22.14%
 crit). James, 10 Nov 2026: that is an assumption, because those stats come
-from Core Hound Tooth while the off hand is the unnamed 59–111. Assumption
-(dev choice): Instant MH / Deadly OH, recorded as an assumption when #328
-was logged on 2 Nov 2026; James has not ruled Combat daggers poisons. The
+from Core Hound Tooth while the off hand is the unnamed 59–111. Combat daggers uses Instant MH / Deadly OH (James 11 Nov 2026 ruling). The
 share-link base is `combat-daggers-340`. Its summary:
 
 ```text
@@ -1188,7 +1186,7 @@ for. `combat-swords-temp` is level 60, the 16/35/0 talents in
 `data/reference-build.js`, the default swords, Instant on the main hand and
 Deadly on the off hand (James, 5 Nov 2026, #333). `combat-daggers` is level
 60, the 13/35/3 talents from James's 10 Nov 2026 link, the #328 daggers, and the
-`character.dagger` sheet. Assumption (dev choice): Instant MH / Deadly OH, recorded as an assumption when #328 was logged on 2 Nov 2026; James has not ruled Combat daggers poisons. `assassination-daggers` is
+`character.dagger` sheet. Combat daggers uses Instant MH / Deadly OH (James 11 Nov 2026 ruling). `assassination-daggers` is
 level 60, the 37/11/3 talents from his other 10 Nov 2026 link, those daggers,
 and that sheet. Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026 confirmation). `subtlety-daggers` is level 60, the 12/8/31
 talents from his third 10 Nov 2026 link, those daggers, that sheet, and those
