@@ -2445,7 +2445,7 @@ export const CONSTANTS = {
     "energy, s",
     ASSUMPTION,
     "James, 11 Nov 2026, issue #348: the manual fight offers Wait to 40 energy and Wait 0.5 s. Tagged assumption",
-    'js/manual-fight.js. The energy wait is unavailable at this amount or more (Scout, 11 Nov 2026: "Already at 40 energy"). The time wait moves the clock by this many seconds. Neither number is read by a scripted fight.',
+    'js/manual-fight.js. The energy wait is unavailable at this amount or more (Fran, 11 Nov 2026, spec §3.4: "Already at 40+ energy"). The time wait moves the clock by this many seconds. Neither number is read by a scripted fight.',
     false,
   ),
 };

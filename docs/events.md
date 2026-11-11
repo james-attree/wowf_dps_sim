@@ -174,7 +174,7 @@ These are what `test/event-stream.test.js` pins.
 `js/manual-fight.js` maps the stream onto the board's event shape. `kind` is
 `damage` (a `hit` whose origin is white, yellow or poison), `tick` (origin
 `dot`), `energy` or `cp` (a `resource` event), `aura`, `proc`, `cast` or `end`.
-A white `main-hand` hit is source `white-mh` and `off-hand` is `white-oh`.
+A mapped `hit` keeps the stream event's `name`, including a white swing and a poison that is not on the bar. A white `main-hand` hit is source `white-mh` and `off-hand` is `white-oh`.
 `glancing` is renamed `glance`. A poison spell miss keeps outcome `miss` and
 adds `resisted: true` when the status is `Resist`. Hits that follow a `proc`
 in the same cast carry `procName`. Regeneration is still not an event.

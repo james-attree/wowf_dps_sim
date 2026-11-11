@@ -5,6 +5,7 @@ import { k } from "../data/constants.js";
 import { openCore } from "../js/core/fight.js";
 import { createFight, runFight } from "../js/fight.js";
 import { blockedText, createManualFight } from "../js/manual-fight.js";
+import { remainingTime } from "../js/views/run-model.js";
 import { loadPreset, referenceBuild } from "../js/rotation-presets.js";
 
 function presetConfig(id, extra = {}) {
@@ -139,14 +140,21 @@ describe("manual fight block reasons (#348)", () => {
     gcd.cast("sinister-strike");
     const during = gcd.cast("sinister-strike");
     cases.push(["gcd", during, null]);
-    assert.match(during.reason.text, /^GCD, .+ left$/);
+    assert.equal(
+      during.reason.text,
+      `GCD, ${remainingTime(during.reason.seconds)} left`,
+    );
     assert.ok(during.reason.seconds > 0);
     const rush = fight("combat-swords-temp");
     rush.cast("adrenaline-rush");
     rush.advanceTo(rush.getState().time + rush.getState().gcd.remaining);
     const again = rush.cast("adrenaline-rush");
     cases.push(["cooldown", again, null]);
-    assert.match(again.reason.text, /^On cooldown, .+ left$/);
+    assert.equal(
+      again.reason.text,
+      `On cooldown, ${remainingTime(again.reason.seconds)} left`,
+    );
+    assert.match(again.reason.text, /^On cooldown, \d\d:\d\d\.\d left$/);
     const sword = fight("combat-swords-temp");
     const backstab = sword.cast("backstab");
     cases.push(["main", backstab, "Needs a dagger in the main hand"]);
@@ -247,7 +255,7 @@ describe("manual fight cast and wait (#348)", () => {
     const manual = fight("combat-swords-temp");
     const full = manual.wait({ kind: "energy" });
     assert.equal(full.ok, false);
-    assert.equal(full.reason.text, "Already at 40 energy");
+    assert.equal(full.reason.text, "Already at 40+ energy");
     assert.equal(full.advancedBy, 0);
     assert.equal(manual.getState().time, 0);
     const none = manual.wait({ kind: "cooldown" });
@@ -386,6 +394,57 @@ describe("manual fight replay and the scripted hook (#348)", () => {
     const { manual: played, ...rest } = manual.result();
     assert.ok(played.inputs.length > 0);
     assert.deepEqual(rest, scripted);
+    manual.dispose();
+  });
+});
+
+describe("manual fight event names and reason times (#348)", () => {
+  it("keeps the hit's display name, including a white swing and a poison", () => {
+    const manual = fight("combat-swords-temp");
+    const strike = manual.cast("sinister-strike");
+    const yellow = strike.events.find(
+      (event) => event.kind === "damage" && event.source === "ability",
+    );
+    assert.equal(yellow.name, "Sinister Strike");
+    const speed = referenceBuild("combat-swords-temp").weapons.mainHand.speed;
+    let white = null;
+    let poison = null;
+    for (
+      let swing = 1;
+      swing <= 30 && (white === null || poison === null);
+      swing += 1
+    ) {
+      const step = manual.advanceTo(speed * swing);
+      white ??=
+        step.events.find((event) => event.source === "white-mh") ?? null;
+      poison ??= step.events.find((event) => event.source === "poison") ?? null;
+    }
+    assert.equal(white.name, "Main-hand");
+    assert.equal(typeof poison.name, "string");
+    assert.equal(poison.name.length > 0, true);
+    assert.equal(
+      manual.slots.some((slot) => slot.abilityId === poison.abilityId),
+      false,
+    );
+    manual.dispose();
+  });
+
+  it("floors a remaining time to tenths, and uses the clock from 60 s", () => {
+    assert.equal(remainingTime(12.49), "12.4 s");
+    assert.equal(remainingTime(12.4), "12.4 s");
+    assert.equal(remainingTime(59.99), "59.9 s");
+    assert.equal(remainingTime(60), "01:00.0");
+    assert.equal(remainingTime(72.46), "01:12.4");
+    assert.equal(remainingTime(0.09), "0.0 s");
+  });
+
+  it("breaks an equal cooldown by action-bar order", () => {
+    const manual = fight("combat-swords-temp", { race: "gnome" });
+    const idsOnBar = ids(manual);
+    assert.ok(idsOnBar.indexOf("blade-flurry") < idsOnBar.indexOf("eureka"));
+    manual.cast("eureka");
+    manual.cast("blade-flurry");
+    assert.equal(manual.getState().waitCooldownTarget, "blade-flurry");
     manual.dispose();
   });
 });

@@ -10,6 +10,7 @@ import { createLiveFeed, procName } from "./live-feed.js";
 import { raceCatalogue } from "./racials.js";
 import { rotationHost } from "./rotation-host.js";
 import { snapshot } from "./snapshot.js";
+import { remainingTime } from "./views/run-model.js";
 
 const RUN_OPTIONS = ["seed", "duration", "config"];
 
@@ -53,10 +54,6 @@ function isOrdinaryObject(value) {
   return prototype === Object.prototype || prototype === null;
 }
 
-function formatSeconds(seconds) {
-  return `${seconds} s`;
-}
-
 // The UI renders `text` and never builds it. `seconds` is set when the text
 // has a "{time}" in the spec.
 export function blockedText(reason) {
@@ -78,7 +75,7 @@ const TEXT = {
   mainHand: "Needs a dagger in the main hand",
   offHand: "Needs daggers in both hands",
   aura: "Needs Ambush window",
-  energyFull: "Already at 40 energy",
+  energyFull: "Already at 40+ energy",
   noCooldown: "Nothing on cooldown",
   ended: "Fight ended before the wait finished",
   combo: "Needs combo points",
@@ -102,11 +99,11 @@ function blockReason(ability, rogue, sim) {
     return reason("aura", TEXT.aura);
   }
   if (ability.triggersGcd && sim.gcd > k("sim.tickEpsilon")) {
-    return reason("gcd", `GCD, ${formatSeconds(sim.gcd)} left`, sim.gcd);
+    return reason("gcd", `GCD, ${remainingTime(sim.gcd)} left`, sim.gcd);
   }
   const left = sim.cooldowns[ability.id] ?? 0;
   if (left > k("sim.tickEpsilon")) {
-    return reason("cooldown", `On cooldown, ${formatSeconds(left)} left`, left);
+    return reason("cooldown", `On cooldown, ${remainingTime(left)} left`, left);
   }
   if (ability.spender && ability.pool(ability.spendResource).value < 1) {
     return reason("combo-points", TEXT.combo);
@@ -170,6 +167,7 @@ function mapStreamEvent(type, event, proc) {
       source,
       amount: event.damage,
       outcome: event.outcome === "glancing" ? "glance" : event.outcome,
+      name: event.name,
     };
     if (proc.name !== null) {
       mapped.procName = proc.name;
