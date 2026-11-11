@@ -128,11 +128,18 @@ describe("Manual fight board layout and behaviour (#348)", () => {
       await startManual(page);
       const first = page.locator(".manual-slot").first();
       await first.focus();
+      const clockBefore = await page.locator("#manual-clock").textContent();
       await page.keyboard.press("1");
-      assert.equal(await first.getAttribute("aria-disabled"), "true");
-      assert.match(await first.getAttribute("aria-label"), /GCD/);
+      const clockAfter = await page.locator("#manual-clock").textContent();
+      assert.notEqual(clockAfter, clockBefore);
+      assert.match(clockAfter, /00:01\./);
+      const fill = await page
+        .locator("#manual-mock-health-fill")
+        .evaluate((node) => node.style.width);
+      assert.notEqual(fill, "100%");
       const well = await page.locator("#manual-well-event").textContent();
       assert.ok(well.trim().length > 0, `well was ${well}`);
+      assert.notEqual(await first.getAttribute("aria-disabled"), "true");
       await page.keyboard.press("w");
       const waitFocused = await page.evaluate(() =>
         globalThis.document.activeElement?.classList.contains("manual-wait"),
@@ -154,8 +161,12 @@ describe("Manual fight board layout and behaviour (#348)", () => {
       await startManual(page);
       const seed = await page.locator("#run-seed").inputValue();
       await page.locator(".manual-wait[data-wait-kind='time']").click();
+      const reached = await page.locator("#manual-well-event").textContent();
+      assert.equal(reached.trim(), "Reached the wait");
       await page.locator(".manual-wait[data-wait-kind='time']").click();
       await page.locator("#manual-review").waitFor({ state: "visible" });
+      const announced = await page.locator("#manual-announce").textContent();
+      assert.match(announced, /Fight ended before the wait finished/);
       await page.locator("#manual-review-replay").click();
       const after = await page.locator("#run-seed").inputValue();
       assert.equal(after, seed);

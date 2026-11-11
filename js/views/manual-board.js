@@ -10,19 +10,18 @@ import {
   PERCENT,
   TIME_WAIT_SECONDS,
   DPS_DECIMALS,
+  announceLine,
   elapsedClock,
   floatCopy,
   glyphFor,
   headerClock,
   headerClockSpoken,
   landedHits,
-  latestAnnouncement,
-  latestWellEvent,
   mockHealthFill,
   remainingClock,
   slotCooldownText,
   waitLabel,
-  wellCopy,
+  wellLine,
 } from "./manual-format.js";
 
 const KEYS = "1234567890";
@@ -410,19 +409,9 @@ export function createManualBoardView(html, store, actions) {
     fillTray(el(html, "manual-debuffs"), fight.debuffs ?? [], "No debuffs");
     const prompt = el(html, "manual-well-prompt");
     const eventLine = el(html, "manual-well-event");
-    if (phase === "blocked" && manual.lastAction?.reason) {
-      prompt.textContent = `Blocked · ${
-        (manual.slots ?? []).find(
-          (s) => s.abilityId === manual.blockedAbilityId,
-        )?.name ?? ""
-      } — ${manual.lastAction.reason.text}.`;
-      eventLine.textContent = "";
-    } else {
-      prompt.textContent = "Your decision · GCD free";
-      const events = manual.events ?? [];
-      const last = latestWellEvent(events);
-      eventLine.textContent = last ? (wellCopy(last) ?? "") : "";
-    }
+    const line = wellLine(manual);
+    prompt.textContent = line.prompt;
+    eventLine.textContent = line.event;
     const quiet = reducedMotion(html);
     const floats = el(html, "manual-floats");
     floats.replaceChildren();
@@ -481,19 +470,8 @@ export function createManualBoardView(html, store, actions) {
       el(html, "manual-review-dps").textContent =
         `${result.dps.toFixed(DPS_DECIMALS)} DPS`;
     }
-    if (announce && manual.lastAction) {
-      if (!manual.lastAction.ok && manual.lastAction.reason) {
-        const name =
-          (manual.slots ?? []).find(
-            (s) => s.abilityId === manual.blockedAbilityId,
-          )?.name ?? "";
-        announce.textContent = `Blocked, ${name}, ${manual.lastAction.reason.text}`;
-      } else {
-        announce.textContent = latestAnnouncement(manual.events ?? []) ?? "";
-      }
-      if (phase === "review" && manual.result) {
-        announce.textContent = `Fight ended. ${manual.result.dps.toFixed(DPS_DECIMALS)} DPS.`;
-      }
+    if (announce) {
+      announce.textContent = announceLine(manual) ?? "";
     }
   }
 

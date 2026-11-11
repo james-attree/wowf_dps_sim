@@ -1,25 +1,8 @@
 // Host for a Manual fight (#348): talks to createManualFight and writes
 // a plain `manual` slice on the store so the board view never imports
-// the engine. Q1 and Q2 are left to the engine; this host only applies
-// the returned state, events and reason fields.
+// the engine. This host applies the returned state, events, reason and
+// stopReason fields; it does not invent names or reason text.
 import { createManualFight } from "./manual-fight.js";
-
-function eventName(event, slots) {
-  if (event.name) {
-    return event.name;
-  }
-  const slot = slots.find((item) => item.abilityId === event.abilityId);
-  if (slot?.name) {
-    return slot.name;
-  }
-  return event.procName ?? event.abilityId ?? event.aura ?? "";
-}
-
-function namedEvents(events, slots) {
-  return events.map((event) =>
-    event.name ? event : { ...event, name: eventName(event, slots) },
-  );
-}
 
 function fightSnapshot({ seed, duration, config }) {
   return Object.freeze({
@@ -94,8 +77,8 @@ export function createManualRun(store) {
       return action;
     }
     const prior = store.get().manual?.events ?? [];
-    const named = namedEvents(action.events ?? [], fight.slots);
-    const events = action.ok ? [...prior, ...named] : prior;
+    const incoming = action.events ?? [];
+    const events = action.ok ? [...prior, ...incoming] : prior;
     let phase = "decision";
     let blockedAbilityId = null;
     if (!action.ok) {
@@ -104,7 +87,7 @@ export function createManualRun(store) {
     } else if (fight.isOver()) {
       phase = "review";
     } else if (
-      named.some((event) => event.outcome === "crit" || event.procName)
+      incoming.some((event) => event.outcome === "crit" || event.procName)
     ) {
       phase = "crit";
     }

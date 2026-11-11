@@ -1,14 +1,13 @@
 // Pure formatters and combat-text rules for the Manual fight board
 // (Fran spec §2.6, §2.7, §3.3, §3.4). No engine imports.
 import { formatNumber } from "../charts.js";
-import { clock, spokenTenths } from "./run-model.js";
+import { clock, remainingTime, spokenTenths } from "./run-model.js";
 import { logRowReading } from "./visualiser.js";
 
 export const ENERGY_WAIT_TARGET = 40;
 export const TIME_WAIT_SECONDS = 0.5;
 export const HIT_SAMPLE = 5;
 export const LARGE_HIT_RATIO = 1.5;
-export const COOLDOWN_LABEL_SECONDS = 60;
 export const TENTHS = 10;
 export const TENTHS_PER_MINUTE = 600;
 export const CLOCK_PAD = 2;
@@ -101,11 +100,6 @@ export const MOCK_HEALTH_LABEL = "Mock health (not simulated)";
 export const MOCK_HEALTH_ALT =
   "Decorative mock health bar, illustrative only. It drains with remaining fight duration; it is not simulated health or damage.";
 
-export function tenthsLabel(seconds) {
-  const tenths = Math.floor(Math.max(seconds, 0) * TENTHS);
-  return (tenths / TENTHS).toFixed(1);
-}
-
 export function waitLabel(wait, slots, now) {
   if (wait.kind === "energy") {
     return "Wait to 40 energy";
@@ -119,10 +113,7 @@ export function waitLabel(wait, slots, now) {
   const slot = slots.find((item) => item.abilityId === wait.abilityId);
   const name = slot?.name ?? "";
   const left = Math.max(0, (wait.readyAt ?? now) - now);
-  if (left < COOLDOWN_LABEL_SECONDS) {
-    return `Wait until ${name} ready (${tenthsLabel(left)} s)`;
-  }
-  return `Wait until ${name} ready (${elapsedClock(left)})`;
+  return `Wait until ${name} ready (${remainingTime(left)})`;
 }
 
 export function slotCooldownText(seconds) {
@@ -299,6 +290,50 @@ export function latestAnnouncement(events) {
     }
   }
   return null;
+}
+
+function slotName(manual, abilityId) {
+  return (
+    (manual.slots ?? []).find((slot) => slot.abilityId === abilityId)?.name ??
+    ""
+  );
+}
+
+export function wellLine(manual) {
+  if (manual.phase === "blocked" && manual.lastAction?.reason) {
+    return {
+      prompt: `Blocked · ${slotName(manual, manual.blockedAbilityId)} — ${manual.lastAction.reason.text}.`,
+      event: "",
+    };
+  }
+  if (manual.lastAction?.ok && manual.lastAction.stopReason) {
+    return {
+      prompt: "Your decision · GCD free",
+      event: manual.lastAction.stopReason.text,
+    };
+  }
+  const last = latestWellEvent(manual.events ?? []);
+  return {
+    prompt: "Your decision · GCD free",
+    event: last ? (wellCopy(last) ?? "") : "",
+  };
+}
+
+export function announceLine(manual) {
+  if (manual.lastAction && !manual.lastAction.ok && manual.lastAction.reason) {
+    return `Blocked, ${slotName(manual, manual.blockedAbilityId)}, ${manual.lastAction.reason.text}`;
+  }
+  if (manual.lastAction?.ok && manual.lastAction.stopReason) {
+    const stop = manual.lastAction.stopReason.text;
+    if (manual.phase === "review" && manual.result) {
+      return `${stop} Fight ended. ${manual.result.dps.toFixed(DPS_DECIMALS)} DPS.`;
+    }
+    return stop;
+  }
+  if (manual.phase === "review" && manual.result) {
+    return `Fight ended. ${manual.result.dps.toFixed(DPS_DECIMALS)} DPS.`;
+  }
+  return latestAnnouncement(manual.events ?? []) ?? "";
 }
 
 // logRowReading is imported so a typo in the tenths math can be compared in tests.

@@ -4,6 +4,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createManualRun } from "../js/manual-run.js";
 import { loadPreset, referenceBuild } from "../js/rotation-presets.js";
+import {
+  mockHealthFill,
+  wellLine,
+  announceLine,
+} from "../js/views/manual-format.js";
 
 function presetConfig(id, extra = {}) {
   const build = referenceBuild(id);
@@ -31,7 +36,7 @@ function store() {
 }
 
 describe("manual fight host (#348)", () => {
-  it("names damage events from slot names and does not move the clock on a blocked finisher", () => {
+  it("uses engine event names and does not move the clock on a blocked finisher", () => {
     const page = store();
     const host = createManualRun(page);
     host.start({
@@ -46,8 +51,6 @@ describe("manual fight host (#348)", () => {
     assert.equal(page.get().manual.state.time, 0);
     const hit = host.cast("sinister-strike");
     assert.equal(hit.ok, true);
-    assert.equal(page.get().manual.state.time, 0);
-    assert.ok(page.get().manual.state.gcd.remaining > 0);
     const named = page
       .get()
       .manual.events.find(
@@ -55,6 +58,99 @@ describe("manual fight host (#348)", () => {
       );
     assert.ok(named);
     assert.equal(named.name, "Sinister Strike");
+    host.reset();
+  });
+
+  it("jumps the clock to the GCD end after an on-GCD cast, and the board follows", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("combat-swords-temp"),
+    });
+    const before = page.get().manual.state.time;
+    const fillBefore = mockHealthFill(before, 30);
+    const hit = host.cast("sinister-strike");
+    assert.equal(hit.ok, true);
+    const state = page.get().manual.state;
+    assert.ok(hit.advancedBy > 0);
+    assert.equal(state.time, hit.advancedBy);
+    assert.ok(state.time > before);
+    assert.equal(state.gcd.remaining, 0);
+    assert.ok(mockHealthFill(state.time, state.duration) < fillBefore);
+    const ss = state.slots.find((slot) => slot.abilityId === "sinister-strike");
+    assert.equal(ss.castable, true);
+    assert.equal(ss.reason, null);
+    host.reset();
+  });
+
+  it("renders the engine's Already at 40+ energy text and leaves a refused wait's clock alone", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("combat-swords-temp"),
+    });
+    const refused = host.wait({ kind: "energy" });
+    assert.equal(refused.ok, false);
+    assert.equal(refused.reason.code, "energy-full");
+    assert.equal(refused.reason.text, "Already at 40+ energy");
+    assert.equal(refused.stopReason, null);
+    assert.equal(page.get().manual.state.time, 0);
+    const energy = page
+      .get()
+      .manual.state.waits.find((wait) => wait.kind === "energy");
+    assert.equal(energy.reason.text, "Already at 40+ energy");
+    host.reset();
+  });
+
+  it("publishes an early wait stop and a fight-end stop for the well and live region", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("combat-swords-temp"),
+    });
+    let blocked = null;
+    while (blocked === null) {
+      const attempt = host.cast("sinister-strike");
+      if (!attempt.ok) {
+        blocked = attempt;
+      }
+    }
+    const early = host.wait({ kind: "energy" });
+    assert.equal(early.ok, true);
+    assert.equal(early.reason, null);
+    assert.equal(early.stopReason.code, "early");
+    assert.match(early.stopReason.text, /^Stopped early: .+ is ready$/);
+    assert.equal(page.get().manual.lastAction.stopReason, early.stopReason);
+    assert.equal(wellLine(page.get().manual).event, early.stopReason.text);
+    assert.equal(announceLine(page.get().manual), early.stopReason.text);
+    host.reset();
+
+    host.start({
+      seed: 7,
+      duration: 1,
+      config: presetConfig("combat-swords-temp"),
+    });
+    assert.equal(host.wait({ kind: "time" }).ok, true);
+    const ended = host.wait({ kind: "time" });
+    assert.equal(ended.ok, true);
+    assert.equal(ended.reason, null);
+    assert.equal(ended.stopReason.code, "fight-end");
+    assert.equal(ended.stopReason.text, "Fight ended before the wait finished");
+    assert.equal(page.get().manual.phase, "review");
+    assert.equal(
+      wellLine(page.get().manual).event,
+      "Fight ended before the wait finished",
+    );
+    assert.match(
+      announceLine(page.get().manual),
+      /Fight ended before the wait finished/,
+    );
     host.reset();
   });
 

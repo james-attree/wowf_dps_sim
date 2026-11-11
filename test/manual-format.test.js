@@ -14,7 +14,8 @@ import {
   latestWellEvent,
   wellCopy,
   floatCopy,
-  tenthsLabel,
+  wellLine,
+  announceLine,
   ENERGY_WAIT_TARGET,
   TIME_WAIT_SECONDS,
   HIT_SAMPLE,
@@ -86,7 +87,19 @@ describe("Manual board formatters (#348)", () => {
       ),
       "Wait until Adrenaline Rush ready (12.5 s)",
     );
-    assert.equal(tenthsLabel(12.49), "12.4");
+    assert.equal(
+      waitLabel(
+        {
+          kind: "cooldown",
+          available: true,
+          abilityId: "adrenaline-rush",
+          readyAt: 22.49,
+        },
+        slots,
+        10,
+      ),
+      "Wait until Adrenaline Rush ready (12.4 s)",
+    );
     assert.equal(
       waitLabel(
         {
@@ -219,5 +232,71 @@ describe("Manual board formatters (#348)", () => {
     ];
     assert.equal(latestWellEvent(events), hit);
     assert.equal(wellCopy(apply), null);
+  });
+
+  it("shows the engine stopReason in the well and the live region", () => {
+    const early = {
+      phase: "decision",
+      lastAction: {
+        ok: true,
+        reason: null,
+        stopReason: {
+          code: "early",
+          text: "Stopped early: Shank is ready",
+          abilityId: "shank",
+        },
+      },
+      events: [],
+    };
+    assert.equal(wellLine(early).event, "Stopped early: Shank is ready");
+    assert.equal(announceLine(early), "Stopped early: Shank is ready");
+    const ended = {
+      phase: "review",
+      lastAction: {
+        ok: true,
+        reason: null,
+        stopReason: {
+          code: "fight-end",
+          text: "Fight ended before the wait finished",
+        },
+      },
+      result: { dps: 12.3 },
+      events: [],
+    };
+    assert.equal(wellLine(ended).event, "Fight ended before the wait finished");
+    assert.match(announceLine(ended), /Fight ended before the wait finished/);
+    const refused = {
+      phase: "blocked",
+      blockedAbilityId: "eviscerate",
+      slots: [{ abilityId: "eviscerate", name: "Eviscerate" }],
+      lastAction: {
+        ok: false,
+        reason: { code: "energy-full", text: "Already at 40+ energy" },
+        stopReason: null,
+      },
+    };
+    assert.equal(
+      wellLine({
+        phase: "decision",
+        lastAction: {
+          ok: false,
+          reason: { code: "energy-full", text: "Already at 40+ energy" },
+          stopReason: null,
+        },
+        events: [],
+      }).event,
+      "",
+    );
+    assert.equal(
+      wellLine({
+        ...refused,
+        lastAction: {
+          ok: false,
+          reason: { code: "combo-points", text: "Needs combo points" },
+          stopReason: null,
+        },
+      }).prompt,
+      "Blocked · Eviscerate — Needs combo points.",
+    );
   });
 });
