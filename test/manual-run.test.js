@@ -2,7 +2,6 @@
 // never invents combat.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createFight, fightResult } from "../js/fight.js";
 import { createManualRun } from "../js/manual-run.js";
 import { loadPreset, referenceBuild } from "../js/rotation-presets.js";
 import {
@@ -240,7 +239,194 @@ describe("manual fight host (#348)", () => {
     host.reset();
   });
 
-  it("keeps Preparation then Premeditation at t=0 until Continue (James, 11 Nov 2026)", () => {
+  it("after Sinister Strike, the clock is at the GCD end (James, 12 Nov 2026)", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("combat-swords-temp"),
+    });
+    const action = host.cast("sinister-strike");
+    assert.equal(action.ok, true);
+    const manual = page.get().manual;
+    assert.deepEqual(manual.armed, []);
+    assert.equal(manual.state.time, 1);
+    assert.equal(manual.state.gcd.remaining, 0);
+    const ss = manual.state.slots.find(
+      (slot) => slot.abilityId === "sinister-strike",
+    );
+    assert.equal(ss.castable, true);
+    host.reset();
+  });
+
+  it("arms Cold Blood then lands it with Eviscerate at the same instant", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("assassination-daggers"),
+    });
+    assert.equal(host.cast("mutilate").ok, true);
+    assert.equal(page.get().manual.state.time, 1);
+    const armed = host.cast("cold-blood");
+    assert.equal(armed.ok, true);
+    assert.equal(armed.armed, true);
+    assert.deepEqual(page.get().manual.armed, ["cold-blood"]);
+    const ev = host.cast("eviscerate");
+    assert.equal(ev.ok, true);
+    const manual = page.get().manual;
+    assert.deepEqual(manual.armed, []);
+    const casts = manual.events.filter((event) => event.kind === "cast");
+    assert.deepEqual(
+      casts.map((event) => [event.abilityId, event.t]),
+      [
+        ["mutilate", 0],
+        ["cold-blood", 1],
+        ["eviscerate", 1],
+      ],
+    );
+    const evHit = manual.events.find(
+      (event) => event.kind === "damage" && event.abilityId === "eviscerate",
+    );
+    assert.equal(evHit.outcome, "crit");
+    const coldGone = !manual.state.buffs.some(
+      (aura) => aura.id === "cold-blood" || aura.name === "Cold Blood",
+    );
+    assert.equal(coldGone, true);
+    host.reset();
+  });
+
+  it("fires armed Premeditation at t=0 when a Wait is pressed", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("subtlety-daggers"),
+    });
+    const arm = host.cast("premeditation");
+    assert.equal(arm.armed, true);
+    assert.equal(page.get().manual.state.time, 0);
+    assert.deepEqual(page.get().manual.armed, ["premeditation"]);
+    const waited = host.wait({ kind: "time" });
+    assert.equal(waited.ok, true);
+    const manual = page.get().manual;
+    assert.deepEqual(manual.armed, []);
+    assert.deepEqual(
+      manual.events
+        .filter((event) => event.kind === "cast")
+        .map((event) => [event.abilityId, event.t]),
+      [["premeditation", 0]],
+    );
+    host.reset();
+  });
+
+  it("fires armed Premeditation then Preparation at t=0", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("subtlety-daggers"),
+    });
+    assert.equal(host.cast("premeditation").armed, true);
+    const prep = host.cast("preparation");
+    assert.equal(prep.ok, true);
+    const manual = page.get().manual;
+    assert.deepEqual(
+      manual.events
+        .filter((event) => event.kind === "cast")
+        .map((event) => [event.abilityId, event.t]),
+      [
+        ["premeditation", 0],
+        ["preparation", 0],
+      ],
+    );
+    assert.equal(manual.state.time, 1);
+    assert.deepEqual(manual.armed, []);
+    host.reset();
+  });
+
+  it("un-highlights an armed ability and does not fire it", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("subtlety-daggers"),
+    });
+    assert.equal(host.cast("premeditation").armed, true);
+    const off = host.cast("premeditation");
+    assert.equal(off.armed, false);
+    assert.deepEqual(page.get().manual.armed, []);
+    host.wait({ kind: "time" });
+    const casts = page
+      .get()
+      .manual.events.filter((event) => event.kind === "cast");
+    assert.equal(casts.length, 0);
+    host.reset();
+  });
+
+  it("records Blocked for a direct host.cast of an off-GCD ability on cooldown", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("subtlety-daggers"),
+    });
+    host.cast("premeditation");
+    host.wait({ kind: "time" });
+    const blocked = host.cast("premeditation");
+    assert.equal(blocked.ok, false);
+    assert.equal(page.get().manual.phase, "blocked");
+    assert.equal(page.get().manual.blockedAbilityId, "premeditation");
+    assert.equal(blocked.reason.code, "cooldown");
+    host.reset();
+  });
+
+  it("clears armed abilities on Stop and Reset", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("subtlety-daggers"),
+    });
+    host.cast("premeditation");
+    assert.deepEqual(page.get().manual.armed, ["premeditation"]);
+    host.stop();
+    assert.deepEqual(page.get().manual.armed, []);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("subtlety-daggers"),
+    });
+    host.cast("premeditation");
+    host.reset();
+    assert.deepEqual(page.get().manual.armed, []);
+  });
+
+  it("opens Review when an on-GCD lands on the fight end", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 1,
+      config: presetConfig("subtlety-daggers"),
+    });
+    host.cast("premeditation");
+    const prep = host.cast("preparation");
+    assert.equal(prep.ok, true);
+    const manual = page.get().manual;
+    assert.equal(manual.phase, "review");
+    assert.ok(manual.result);
+    host.reset();
+  });
+
+  it("cannot arm Preparation, which is on the GCD", () => {
     const page = store();
     const host = createManualRun(page);
     host.start({
@@ -250,180 +436,10 @@ describe("manual fight host (#348)", () => {
     });
     const prep = host.cast("preparation");
     assert.equal(prep.ok, true);
-    assert.equal(prep.advancedBy, 0);
-    const held = page.get().manual;
-    assert.equal(held.sameInstant, true);
-    assert.equal(held.state.time, 0);
-    const premeditation = held.state.slots.find(
-      (slot) => slot.abilityId === "premeditation",
-    );
-    const preparation = held.state.slots.find(
-      (slot) => slot.abilityId === "preparation",
-    );
-    assert.equal(premeditation.castable, true);
-    assert.equal(preparation.castable, false);
-    assert.match(preparation.reason.text, /^GCD, /);
-    assert.equal(
-      held.state.waits.every((wait) => wait.available === false),
-      true,
-    );
-    assert.equal(held.state.waits[0].reason.text, "Continue first");
-    assert.equal(host.wait({ kind: "time" }), null);
-    assert.equal(page.get().manual.state.time, 0);
-    assert.equal(host.cast("hemorrhage"), null);
-    assert.equal(page.get().manual.phase, "decision");
-    assert.equal(page.get().manual.blockedAbilityId, null);
-    assert.equal(page.get().manual.state.time, 0);
-    const premed = host.cast("premeditation");
-    assert.equal(premed.ok, true);
-    assert.equal(premed.advancedBy, 0);
-    const casts = page
-      .get()
-      .manual.events.filter((event) => event.kind === "cast");
-    assert.deepEqual(
-      casts.map((event) => [event.abilityId, event.t]),
-      [
-        ["preparation", 0],
-        ["premeditation", 0],
-      ],
-    );
-    assert.equal(page.get().manual.sameInstant, true);
-    assert.equal(page.get().manual.state.time, 0);
-    const used = page
-      .get()
-      .manual.state.slots.find((slot) => slot.abilityId === "premeditation");
-    assert.equal(used.castable, false);
-    assert.equal(used.reason.code, "cooldown");
-    host.continueGcd();
-    const after = page.get().manual;
-    assert.equal(after.sameInstant, false);
-    assert.equal(after.state.time, 1);
-    assert.equal(after.state.gcd.remaining, 0);
-    const later = after.state.slots.find(
-      (slot) => slot.abilityId === "premeditation",
-    );
-    assert.equal(later.castable, false);
-    host.reset();
-  });
-
-  it("finishes a 1s fight on Continue when getState sits on the end", () => {
-    const page = store();
-    const host = createManualRun(page);
-    host.start({
-      seed: 1,
-      duration: 1,
-      config: presetConfig("subtlety-daggers"),
-    });
-    host.cast("preparation");
-    host.cast("premeditation");
-    host.continueGcd();
+    assert.equal(prep.armed, undefined);
     const manual = page.get().manual;
-    assert.equal(manual.phase, "review");
-    assert.ok(manual.result);
-    assert.deepEqual(
-      manual.events
-        .filter((event) => event.kind === "cast")
-        .map((event) => [event.abilityId, event.t]),
-      [
-        ["preparation", 0],
-        ["premeditation", 0],
-      ],
-    );
-    host.reset();
-  });
-
-  it("skips the same-instant step when no off-GCD ability is ready", () => {
-    const page = store();
-    const host = createManualRun(page);
-    host.start({
-      seed: 1,
-      duration: 30,
-      config: presetConfig("combat-swords-temp"),
-    });
-    host.cast("sinister-strike");
-    assert.equal(page.get().manual.sameInstant, false);
-    assert.ok(page.get().manual.state.time > 0);
-    host.reset();
-  });
-
-  it("lands Premeditation, Preparation and Premeditation at t=0 via peekState", () => {
-    const seed = 1;
-    const duration = 20;
-    const config = presetConfig("subtlety-daggers");
-    const scriptedCasts = [];
-    const scriptedFight = createFight(seed, config, { duration });
-    scriptedFight.simulation.on("*", (event) => {
-      if (event.type === "cast") {
-        scriptedCasts.push({ time: event.time, ability: event.ability });
-      }
-    });
-    scriptedFight.simulation.run(duration);
-    const scripted = fightResult(scriptedFight);
-    assert.deepEqual(scriptedCasts.slice(0, 3), [
-      { time: 0, ability: "premeditation" },
-      { time: 0, ability: "preparation" },
-      { time: 0, ability: "premeditation" },
-    ]);
-
-    const page = store();
-    const host = createManualRun(page);
-    host.start({ seed, duration, config });
-    host.cast("premeditation");
-    assert.equal(page.get().manual.sameInstant, false);
-    host.cast("preparation");
-    assert.equal(page.get().manual.sameInstant, true);
-    assert.equal(page.get().manual.state.time, 0);
-    const ready = page
-      .get()
-      .manual.state.slots.find((slot) => slot.abilityId === "premeditation");
-    assert.equal(ready.castable, true);
-    host.cast("premeditation");
-    assert.deepEqual(
-      page
-        .get()
-        .manual.events.filter((event) => event.kind === "cast")
-        .map((event) => [event.abilityId, event.t]),
-      [
-        ["premeditation", 0],
-        ["preparation", 0],
-        ["premeditation", 0],
-      ],
-    );
-    host.continueGcd();
-    assert.equal(page.get().manual.state.time, 1);
-    host.reset();
-    assert.ok(scripted.totalDamage > 0);
-  });
-
-  it("shows post-cast energy, combo points and cooldowns during the hold", () => {
-    const page = store();
-    const host = createManualRun(page);
-    host.start({
-      seed: 1,
-      duration: 30,
-      config: presetConfig("assassination-daggers"),
-    });
-    const before = page.get().manual.state;
-    const coldBefore = before.slots.find(
-      (slot) => slot.abilityId === "cold-blood",
-    );
-    host.cast("mutilate");
-    const held = page.get().manual;
-    assert.equal(held.sameInstant, true);
-    assert.equal(held.state.time, 0);
-    assert.ok(held.state.energy.value < before.energy.value);
-    assert.equal(held.state.comboPoints.value, before.comboPoints.value + 2);
-    assert.ok(held.state.gcd.remaining > 0);
-    const mutilate = held.state.slots.find(
-      (slot) => slot.abilityId === "mutilate",
-    );
-    const cold = held.state.slots.find(
-      (slot) => slot.abilityId === "cold-blood",
-    );
-    assert.equal(mutilate.castable, false);
-    assert.equal(mutilate.reason.code, "gcd");
-    assert.equal(cold.castable, true);
-    assert.equal(cold.cooldownRemaining, coldBefore.cooldownRemaining);
+    assert.deepEqual(manual.armed, []);
+    assert.equal(manual.state.time, 1);
     host.reset();
   });
 });
