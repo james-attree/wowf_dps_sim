@@ -4,7 +4,6 @@
 // stopReason fields; it does not invent names or reason text.
 import { createManualFight } from "./manual-fight.js";
 import { poisonCatalogue } from "./poisons.js";
-import { continueWaitReason } from "./views/manual-format.js";
 
 const POISON_NAMES = new Set(
   poisonCatalogue.poisons.map((poison) => poison.name),
@@ -32,7 +31,7 @@ function fightSnapshot({ seed, duration, config }) {
 }
 
 function publish(store, fight, extra = {}) {
-  const { duration, ...rest } = extra;
+  const { duration, phase: requested, ...rest } = extra;
   const state = fight.getState();
   // getState() can land on the end instant without setting over;
   // result() is the public way to finish that case.
@@ -49,11 +48,12 @@ function publish(store, fight, extra = {}) {
     manual: {
       ...current.manual,
       active: true,
-      phase: rest.phase ?? (over ? "review" : "decision"),
       slots: fight.slots,
       state,
       result: over ? fight.result() : null,
       ...rest,
+      // getState() may finish the fight after apply() chose a phase.
+      phase: over ? "review" : (requested ?? "decision"),
     },
   }));
 }
@@ -68,15 +68,15 @@ const emptyManual = () => ({
   blockedAbilityId: null,
   result: null,
   snapshot: null,
-  sameInstant: false,
+  armed: [],
+  skipped: [],
 });
 
 export function createManualRun(store) {
   let fight = null;
   let snapshot = null;
-  // After an on-GCD cast, getState() would run the GCD out. peekState()
-  // stays at that instant (James, 11 Nov 2026 ruling).
-  let held = false;
+  // Armed off-GCD ids, in the order they were picked (James, 12 Nov 2026).
+  let armed = [];
 
   function slotMeta(abilityId) {
     return (fight?.slots ?? []).find((slot) => slot.abilityId === abilityId);
@@ -86,34 +86,82 @@ export function createManualRun(store) {
     return slotMeta(abilityId)?.onGcd !== false;
   }
 
-  function offGcdCastable(state) {
-    return (state?.slots ?? []).filter((row) => {
-      const meta = slotMeta(row.abilityId);
-      return meta?.onGcd === false && row.castable;
-    });
+  function clearArmed() {
+    armed = [];
   }
 
-  // Trust peekState for slots (castable and reason). Only Waits are
-  // overlaid: they stay disabled with "Continue first" until Continue.
-  function holdState(peek) {
-    const waitReason = continueWaitReason();
-    return {
-      ...peek,
-      waits: (peek.waits ?? []).map((wait) => ({
-        ...wait,
-        available: false,
-        reason: waitReason,
-      })),
-    };
+  function peek() {
+    return fight.peekState();
   }
 
-  function closeHeld() {
-    held = false;
+  function slotRow(abilityId, state = peek()) {
+    return (state.slots ?? []).find((row) => row.abilityId === abilityId);
+  }
+
+  // Drop any armed id that peekState says is no longer ready, e.g. after
+  // another armed press made it uncastable before it fired.
+  function pruneArmed(state) {
+    armed = armed.filter((id) => slotRow(id, state)?.castable === true);
+  }
+
+  function publishArmed() {
+    const state = peek();
+    pruneArmed(state);
+    store.update((current) => ({
+      manual: {
+        ...current.manual,
+        state,
+        armed: armed.slice(),
+        phase: "decision",
+        blockedAbilityId: null,
+        skipped: [],
+      },
+    }));
+  }
+
+  function toggleArm(abilityId) {
+    if (armed.includes(abilityId)) {
+      armed = armed.filter((id) => id !== abilityId);
+      publishArmed();
+      return { ok: true, armed: false, abilityId };
+    }
+    if (slotRow(abilityId)?.castable !== true) {
+      return null;
+    }
+    armed = [...armed, abilityId];
+    publishArmed();
+    return { ok: true, armed: true, abilityId };
+  }
+
+  function fireArmed() {
+    const incoming = [];
+    const skipped = [];
+    for (const id of armed) {
+      const row = slotRow(id);
+      if (row?.castable !== true) {
+        skipped.push({
+          abilityId: id,
+          reason: row?.reason?.text ?? "",
+        });
+        continue;
+      }
+      const action = fight.cast(id);
+      if (!action.ok) {
+        skipped.push({
+          abilityId: id,
+          reason: action.reason?.text ?? "",
+        });
+        continue;
+      }
+      incoming.push(...tagIncoming(action.events ?? []));
+    }
+    clearArmed();
+    return { incoming, skipped };
   }
 
   function start({ seed, duration, config }) {
     fight?.dispose();
-    closeHeld();
+    clearArmed();
     snapshot = fightSnapshot({ seed, duration, config });
     fight = createManualFight({
       seed: snapshot.seed,
@@ -131,18 +179,22 @@ export function createManualRun(store) {
         state: fight.getState(),
         events: [],
         snapshot,
+        armed: [],
       },
     }));
   }
 
-  function apply(action, abilityId) {
+  function apply(action, abilityId, extras = {}) {
     if (fight == null) {
       return action;
     }
-    closeHeld();
+    clearArmed();
     const prior = store.get().manual?.events ?? [];
-    const incoming = tagIncoming(action.events ?? []);
-    const events = action.ok ? [...prior, ...incoming] : prior;
+    const fromArmed = extras.incoming ?? [];
+    const incoming = action.ok
+      ? [...fromArmed, ...tagIncoming(action.events ?? [])]
+      : [...fromArmed];
+    const events = [...prior, ...incoming];
     let phase = "decision";
     let blockedAbilityId = null;
     if (!action.ok) {
@@ -160,60 +212,11 @@ export function createManualRun(store) {
       events,
       lastAction: action,
       blockedAbilityId,
-      sameInstant: false,
+      armed: [],
+      skipped: extras.skipped ?? [],
       duration: snapshot.duration,
     });
     return action;
-  }
-
-  function applyHeld(action, abilityId) {
-    const prior = store.get().manual?.events ?? [];
-    const incoming = tagIncoming(action.events ?? []);
-    const events = action.ok ? [...prior, ...incoming] : prior;
-    let phase = "decision";
-    let blockedAbilityId = null;
-    if (!action.ok) {
-      phase = "blocked";
-      blockedAbilityId = abilityId ?? null;
-    } else if (
-      incoming.some((event) => event.outcome === "crit" || event.procName)
-    ) {
-      phase = "crit";
-    }
-    store.update((current) => ({
-      results: current.results,
-      run: { ...current.run, state: "running" },
-      manual: {
-        ...current.manual,
-        active: true,
-        phase,
-        slots: fight.slots,
-        state: holdState(fight.peekState()),
-        events,
-        lastAction: action,
-        blockedAbilityId,
-        sameInstant: true,
-        result: null,
-      },
-    }));
-    return action;
-  }
-
-  function continueGcd() {
-    if (fight == null || !held) {
-      return null;
-    }
-    const events = store.get().manual?.events ?? [];
-    const lastAction = store.get().manual?.lastAction ?? null;
-    closeHeld();
-    publish(store, fight, {
-      events,
-      lastAction,
-      blockedAbilityId: null,
-      sameInstant: false,
-      duration: snapshot.duration,
-    });
-    return true;
   }
 
   return {
@@ -222,35 +225,23 @@ export function createManualRun(store) {
       if (fight == null || fight.isOver()) {
         return null;
       }
-      if (held) {
-        // On-GCD presses during the hold are a no-op: the board announces
-        // the GCD reason and must not enter Blocked (Fran, #369 P3).
-        if (isOnGcd(abilityId)) {
-          return null;
+      if (!isOnGcd(abilityId)) {
+        if (armed.includes(abilityId) || slotRow(abilityId)?.castable) {
+          return toggleArm(abilityId);
         }
-        return applyHeld(fight.cast(abilityId), abilityId);
+        // Direct API: an unready off-GCD records Blocked (Kira, #369 N1).
+        return apply(fight.cast(abilityId), abilityId);
       }
-      const action = fight.cast(abilityId);
-      if (action.ok && isOnGcd(abilityId) && !fight.isOver()) {
-        const peek = fight.peekState();
-        if (offGcdCastable(peek).length > 0) {
-          held = true;
-          return applyHeld(action, null);
-        }
-      }
-      return apply(action, abilityId);
+      const extras = fireArmed();
+      return apply(fight.cast(abilityId), abilityId, extras);
     },
     wait(options) {
       if (fight == null || fight.isOver()) {
         return null;
       }
-      if (held) {
-        return null;
-      }
-      return apply(fight.wait(options));
+      const extras = fireArmed();
+      return apply(fight.wait(options), null, extras);
     },
-    // Runs the held GCD out via getState() (James, 11 Nov 2026).
-    continueGcd,
     // Strict Replay (Scout): the start snapshot only, never the current form.
     replay() {
       if (snapshot == null) {
@@ -266,19 +257,18 @@ export function createManualRun(store) {
       fight?.dispose();
       fight = null;
       snapshot = null;
-      closeHeld();
+      clearArmed();
       store.update((current) => ({
         run: { ...current.run, state: "idle", shown: false, stoppedAt: null },
         manual: emptyManual(),
       }));
     },
     stop() {
-      // peekState does not run a held GCD out.
       const time = fight?.peekState().time ?? 0;
       fight?.dispose();
       fight = null;
       snapshot = null;
-      closeHeld();
+      clearArmed();
       store.update((current) => ({
         run: {
           ...current.run,
@@ -293,7 +283,7 @@ export function createManualRun(store) {
       fight?.dispose();
       fight = null;
       snapshot = null;
-      closeHeld();
+      clearArmed();
       store.update((current) => ({
         run: {
           ...current.run,
@@ -302,7 +292,7 @@ export function createManualRun(store) {
           stoppedAt: null,
           snapshot: null,
         },
-        manual: emptyManual(),
+        manual: { ...emptyManual(), armed: armed.slice() },
       }));
     },
     get active() {

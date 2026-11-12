@@ -17,11 +17,8 @@ export const FLOAT_LIMIT = 3;
 export const KEY_SLOTS = 10;
 export const PERCENT = 100;
 export const DPS_DECIMALS = 1;
-// Continue on the same-instant off-GCD step (James, 11 Nov 2026): Space,
-// not W, because W already focuses the first Wait.
-export const CONTINUE_LABEL = "Continue";
-export const CONTINUE_KEY = "Space";
-export const CONTINUE_WAIT_REASON = "Continue first";
+// Off-GCD slots that have been picked but not yet fired (James, 12 Nov 2026).
+export const ARMED_LABEL = "Armed";
 export const INTEGER_DECIMALS = 0;
 export const EMPTY_TRAY_MIN_REM = 0.8125;
 export const EMPTY_TRAY_MAX_REM = 0.875;
@@ -299,8 +296,13 @@ export function auraIconSrc(
   return null;
 }
 
-export function slotAccessibleName(key, name, reason) {
+export function slotAccessibleName(key, name, reason, armed = false) {
   const lead = key ? `${key} ${name}` : name;
+  if (armed) {
+    return reason
+      ? `${lead} ${ARMED_LABEL} ${reason}`
+      : `${lead} ${ARMED_LABEL}`;
+  }
   return reason ? `${lead} ${reason}` : lead;
 }
 
@@ -390,27 +392,6 @@ function slotName(manual, abilityId) {
   );
 }
 
-// The engine's GCD block wording (js/manual-fight.js blockReason), so the
-// host can disable on-GCD slots while getState() is deferred.
-export function gcdHeldReason(seconds) {
-  return {
-    code: "gcd",
-    text: `GCD, ${remainingTime(seconds)} left`,
-    seconds,
-  };
-}
-
-export function gcdHeldSeconds(state) {
-  if (state?.gcd?.remaining > 0) {
-    return state.gcd.remaining;
-  }
-  return state?.gcd?.duration ?? 0;
-}
-
-export function continueWaitReason() {
-  return { code: "gcd", text: CONTINUE_WAIT_REASON };
-}
-
 export function wellLine(manual) {
   if (manual.phase === "blocked" && manual.lastAction?.reason) {
     return {
@@ -425,30 +406,35 @@ export function wellLine(manual) {
     };
   }
   const last = latestWellEvent(manual.events ?? []);
-  const prompt = manual.sameInstant
-    ? "Your decision · GCD held"
-    : "Your decision · GCD free";
   return {
-    prompt,
+    prompt: "Your decision · GCD free",
     event: last ? (wellCopy(last) ?? "") : "",
   };
 }
 
 export function announceLine(manual) {
+  const skipped = (manual.skipped ?? [])
+    .map((item) => item.reason)
+    .filter(Boolean)
+    .join(" ");
   if (manual.lastAction && !manual.lastAction.ok && manual.lastAction.reason) {
-    return `Blocked, ${slotName(manual, manual.blockedAbilityId)}, ${manual.lastAction.reason.text}`;
+    const blocked = `Blocked, ${slotName(manual, manual.blockedAbilityId)}, ${manual.lastAction.reason.text}`;
+    return skipped ? `${skipped} ${blocked}` : blocked;
   }
+  let line;
   if (manual.lastAction?.ok && manual.lastAction.stopReason) {
     const stop = manual.lastAction.stopReason.text;
     if (manual.phase === "review" && manual.result) {
-      return `${stop} Fight ended. ${manual.result.dps.toFixed(DPS_DECIMALS)} DPS.`;
+      line = `${stop} Fight ended. ${manual.result.dps.toFixed(DPS_DECIMALS)} DPS.`;
+    } else {
+      line = stop;
     }
-    return stop;
+  } else if (manual.phase === "review" && manual.result) {
+    line = `Fight ended. ${manual.result.dps.toFixed(DPS_DECIMALS)} DPS.`;
+  } else {
+    line = latestAnnouncement(manual.events ?? []) ?? "";
   }
-  if (manual.phase === "review" && manual.result) {
-    return `Fight ended. ${manual.result.dps.toFixed(DPS_DECIMALS)} DPS.`;
-  }
-  return latestAnnouncement(manual.events ?? []) ?? "";
+  return skipped ? (line ? `${skipped} ${line}` : skipped) : line;
 }
 
 // logRowReading is imported so a typo in the tenths math can be compared in tests.

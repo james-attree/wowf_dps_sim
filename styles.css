@@ -4122,7 +4122,6 @@ th[aria-sort="ascending"] {
 
 .manual-slot:focus,
 .manual-wait:focus,
-.manual-continue:focus,
 .manual-review-replay:focus,
 .manual-review-back:focus {
   outline: 0.125rem solid var(--accent);
@@ -4176,31 +4175,27 @@ th[aria-sort="ascending"] {
   text-align: center;
 }
 
-.manual-continue {
-  appearance: none;
-  background: var(--manual-slot-face);
-  border: 0.125rem solid var(--control-border);
-  border-radius: 0.5rem;
-  color: inherit;
-  min-width: var(--target);
-  min-height: var(--target);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.15rem;
-  padding: 0.35rem;
-  font: inherit;
-  cursor: pointer;
+.manual-slot[aria-pressed="true"],
+.manual-slot.is-armed {
+  outline: none;
+  border-color: var(--accent);
+  border-width: 0.1875rem;
+  box-shadow: inset 0 0 0 0.125rem var(--accent);
+  background-color: color-mix(
+    in srgb,
+    var(--accent) 16%,
+    var(--manual-slot-face)
+  );
 }
 
-.manual-continue-key {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+.manual-slot[aria-pressed="true"]:focus,
+.manual-slot.is-armed:focus {
+  outline: 0.125rem solid var(--accent);
+  outline-offset: 0.1875rem;
 }
 
-.manual-continue-label {
-  font-weight: 650;
+.manual-slot[aria-pressed="true"] .manual-slot-name::before {
+  content: "✓\00a0";
 }
 
 .manual-slot-note,
@@ -4215,14 +4210,44 @@ th[aria-sort="ascending"] {
   color: var(--text-muted);
 }
 
+.manual-slot[aria-pressed="true"] .manual-slot-note,
+.manual-slot.is-armed .manual-slot-note {
+  color: var(--accent);
+}
+
+.manual-slot[aria-pressed="true"] .manual-slot-key,
+.manual-slot.is-armed .manual-slot-key {
+  color: inherit;
+}
+
+@media (forced-colors: active) {
+  .manual-slot[aria-pressed="true"],
+  .manual-slot.is-armed {
+    border: 0.1875rem solid Mark;
+    box-shadow: none;
+    outline: none;
+  }
+  .manual-slot:focus,
+  .manual-wait:focus,
+  .manual-review-replay:focus,
+  .manual-review-back:focus {
+    outline: 0.125rem solid ButtonText;
+    outline-offset: 0.125rem;
+  }
+  .manual-slot[aria-pressed="true"]:focus,
+  .manual-slot.is-armed:focus {
+    outline: 0.125rem solid ButtonText;
+    outline-offset: 0.1875rem;
+  }
+}
+
 .manual-waits {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.manual-wait,
-.manual-continue {
+.manual-wait {
   min-height: var(--target);
   flex: 1 1 8rem;
 }

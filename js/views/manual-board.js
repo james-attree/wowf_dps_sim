@@ -10,8 +10,7 @@ import {
   PERCENT,
   TIME_WAIT_SECONDS,
   DPS_DECIMALS,
-  CONTINUE_KEY,
-  CONTINUE_LABEL,
+  ARMED_LABEL,
   announceLine,
   auraIconSrc,
   disabledWaitReason,
@@ -104,9 +103,19 @@ function attachIcon(html, well, iconSrc, glyphText) {
   }
 }
 
-function fillBar(node, slots, state, actions, blockedId, html, announce) {
+function fillBar(
+  node,
+  slots,
+  state,
+  actions,
+  blockedId,
+  html,
+  announce,
+  armed,
+) {
   node.replaceChildren();
   const live = state?.slots ?? [];
+  const armedIds = armed ?? [];
   slots.forEach((slot, index) => {
     const row = live.find((item) => item.abilityId === slot.abilityId);
     const button = html.createElement("button");
@@ -122,7 +131,15 @@ function fillBar(node, slots, state, actions, blockedId, html, announce) {
     }
     const reason = row?.reason?.text ?? "";
     const castable = row?.castable !== false;
+    const isOffGcd = slot.onGcd === false;
+    const isArmed = isOffGcd && armedIds.includes(slot.abilityId);
     setDisabled(button, !castable, reason);
+    if (isOffGcd) {
+      button.setAttribute("aria-pressed", isArmed ? "true" : "false");
+    }
+    if (isArmed) {
+      button.classList.add("is-armed");
+    }
     const key = html.createElement("span");
     key.className = "manual-slot-key";
     key.textContent = index < KEY_SLOTS ? KEYS[index] : "";
@@ -140,17 +157,18 @@ function fillBar(node, slots, state, actions, blockedId, html, announce) {
     const note = html.createElement("span");
     note.className = "manual-slot-note";
     const cd = row?.cooldownRemaining ?? 0;
-    note.textContent = reason || slotCooldownText(cd);
-    if (reason) {
+    const noteText = isArmed ? ARMED_LABEL : reason || slotCooldownText(cd);
+    note.textContent = noteText;
+    if (noteText) {
       const descId = `manual-slot-reason-${slot.abilityId}`;
       note.id = descId;
       button.setAttribute("aria-describedby", descId);
     }
     const keybind = index < KEY_SLOTS ? KEYS[index] : "";
-    if (keybind || reason) {
+    if (keybind || reason || isArmed) {
       button.setAttribute(
         "aria-label",
-        slotAccessibleName(keybind, slot.name, reason),
+        slotAccessibleName(keybind, slot.name, reason, isArmed),
       );
     }
     if (note.textContent) {
@@ -171,24 +189,8 @@ function fillBar(node, slots, state, actions, blockedId, html, announce) {
   });
 }
 
-function fillWaits(node, state, slots, actions, html, announce, sameInstant) {
+function fillWaits(node, state, slots, actions, html, announce) {
   node.replaceChildren();
-  if (sameInstant) {
-    const button = html.createElement("button");
-    button.type = "button";
-    button.className = "manual-continue";
-    button.dataset.continue = "true";
-    const key = html.createElement("span");
-    key.className = "manual-continue-key";
-    key.textContent = CONTINUE_KEY;
-    const label = html.createElement("span");
-    label.className = "manual-continue-label";
-    label.textContent = CONTINUE_LABEL;
-    button.setAttribute("aria-label", `${CONTINUE_KEY} ${CONTINUE_LABEL}`);
-    button.append(key, " ", label);
-    button.addEventListener("click", () => actions.continueGcd());
-    node.append(button);
-  }
   for (const wait of state.waits ?? []) {
     const button = html.createElement("button");
     button.type = "button";
@@ -392,13 +394,6 @@ export function createManualBoardView(html, store, actions) {
       el(html, "manual-well")?.focus();
       return;
     }
-    if (event.key === " " || event.code === "Space") {
-      if (state.manual?.sameInstant) {
-        event.preventDefault();
-        actions.continueGcd();
-        return;
-      }
-    }
     if (event.key === "w" || event.key === "W") {
       event.preventDefault();
       el(html, "manual-waits")?.querySelector(".manual-wait")?.focus();
@@ -561,6 +556,7 @@ export function createManualBoardView(html, store, actions) {
         manual.blockedAbilityId,
         html,
         announce,
+        manual.armed ?? [],
       );
       fillWaits(
         el(html, "manual-waits"),
@@ -569,16 +565,13 @@ export function createManualBoardView(html, store, actions) {
         actions,
         html,
         announce,
-        manual.sameInstant,
       );
       if (wasOnBoard) {
         const again = priorAbility
           ? board.querySelector(`[data-ability-id="${priorAbility}"]`)
           : priorWait
             ? board.querySelector(`[data-wait-kind="${priorWait}"]`)
-            : prior?.dataset?.continue
-              ? board.querySelector("[data-continue]")
-              : null;
+            : null;
         (again ?? el(html, "manual-well"))?.focus();
       }
     }

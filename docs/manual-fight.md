@@ -30,16 +30,49 @@ decision at the end (Q3). A `cast`
 that is already requested at that instant still runs, matching the scripted
 decision at the fight's end, and `result()` closes the fight.
 
-## Board hold
+## Board arming
 
-James, 11 Nov 2026 ruling: an off-GCD ability may be pressed at the same
-instant as an on-GCD cast, but never later inside that GCD. After an on-GCD
-cast the board holds at that instant ("Your decision · GCD held") and
-reads `peekState()`, so it does not call `getState()`, which would run the
-GCD out. The hold shows the post-cast energy, combo points, auras and
-cooldowns at that instant, and it re-peeks after each same-instant off-GCD
-press. Continue (Space) then runs the GCD out. Waits are disabled for the
-hold. If nothing is ready, the extra step is skipped.
+James, 12 Nov 2026 ruling, replacing the 11 Nov same-instant hold: when you
+press a skill it should always trigger the GCD. If you press Sinister Strike
+you should not then be able to press something that is off the GCD. If you
+select a skill that is off the GCD, the board highlights (arms) it, so you
+can then press a skill that requires the GCD, or highlight it and press Wait
+which casts the armed skill.
+
+Pressing a ready off-GCD ability arms it instead of casting. Pressing it
+again un-arms it. Several can be armed at once, and the pick order is kept.
+Only abilities that are ready right now (`peekState` / `getState`
+`castable`) can be armed. Coordinator calls: Preparation is on the GCD per
+`abilities.offGcd`, so it cannot be armed; Premeditation then Preparation
+then Premeditation is no longer possible from the board; and slot 13
+(Premeditation) has no number key, which is pending James. Arming
+Premeditation and then pressing Preparation still lands both at the same
+instant. The engine still allows same-instant off-GCD presses (James,
+11 Nov 2026 ruling, #367 / `peekState`), but the board does not use that
+path under James's 12 Nov rule.
+
+Pressing an on-GCD ability first casts the armed off-GCD abilities at the
+current instant in pick order, then casts the on-GCD ability (for example
+Cold Blood then Eviscerate), then clears the armed set. Pressing a Wait
+first casts the armed abilities, then does the chosen Wait. If an armed
+ability is not castable when it fires, the board skips it and announces the
+reason. The board uses `peekState()` between those armed casts so it does
+not run a GCD out. After a successful on-GCD cast or a Wait, `getState()`
+runs the clock as usual.
+
+The same number keys toggle the highlight. W still focuses the first Wait.
+Armed slots use an accent border and inset fill, a tinted face, a check
+before the name, an "Armed" note, and `aria-pressed`. Focus keeps the
+offset accent outline.
+
+The armed set is cleared on Start, Replay, Stop, Reset, and Back to Fight,
+and after an on-GCD ability or a Wait fires, whether each armed ability
+succeeded. If a published `peekState()` shows an armed ability is no longer
+ready (for example it went on cooldown, or energy changed), it is dropped
+from the set.
+
+A direct `host.cast` of an off-GCD ability that is on cooldown records a
+Blocked entry. That path is API only; it comes from Kira's #369 N1.
 
 ## API
 
@@ -114,3 +147,6 @@ whose target is past the end still runs, stops at the end, and returns
   moment an ability that was not castable becomes castable.
 - Scout, 11 Nov 2026: Q3 through Q11, the wait targets, and the same-instant
   tie (`target`, not `early`).
+- James, 12 Nov 2026: the board arms ready off-GCD abilities and fires them
+  at the current instant when an on-GCD ability or a Wait is pressed,
+  replacing the 11 Nov same-instant hold.

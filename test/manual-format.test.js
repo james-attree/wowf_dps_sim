@@ -17,11 +17,7 @@ import {
   floatCopies,
   wellLine,
   announceLine,
-  gcdHeldReason,
-  gcdHeldSeconds,
-  CONTINUE_KEY,
-  CONTINUE_LABEL,
-  CONTINUE_WAIT_REASON,
+  ARMED_LABEL,
   wellIsCrit,
   slotAccessibleName,
   slotIconSrc,
@@ -380,6 +376,11 @@ describe("Manual board formatters (#348)", () => {
       slotAccessibleName("5", "Eviscerate", "Needs combo points"),
       "5 Eviscerate Needs combo points",
     );
+    assert.equal(ARMED_LABEL, "Armed");
+    assert.equal(
+      slotAccessibleName("8", "Cold Blood", "", true),
+      "8 Cold Blood Armed",
+    );
   });
 
   it("marks the well as a crit only for a crit event line", () => {
@@ -465,24 +466,24 @@ describe("Manual board formatters (#348)", () => {
     assert.ok(EMPTY_TRAY_MAX_REM <= 0.875);
   });
 
-  it("names Continue as Space and uses the engine GCD wording (James, 11 Nov 2026)", () => {
-    assert.equal(CONTINUE_KEY, "Space");
-    assert.equal(CONTINUE_LABEL, "Continue");
-    assert.equal(CONTINUE_WAIT_REASON, "Continue first");
-    assert.deepEqual(gcdHeldReason(1), {
-      code: "gcd",
-      text: "GCD, 1.0 s left",
-      seconds: 1,
-    });
-    assert.equal(gcdHeldSeconds({ gcd: { remaining: 0, duration: 1 } }), 1);
+  it("always shows GCD free on the well and announces skipped armed reasons (James, 12 Nov 2026)", () => {
     assert.equal(
       wellLine({
-        sameInstant: true,
         phase: "decision",
         lastAction: { ok: true },
         events: [],
       }).prompt,
-      "Your decision · GCD held",
+      "Your decision · GCD free",
+    );
+    assert.equal(
+      announceLine({
+        skipped: [
+          { abilityId: "cold-blood", reason: "On cooldown, 3.0 s left" },
+        ],
+        lastAction: { ok: true },
+        events: [],
+      }),
+      "On cooldown, 3.0 s left",
     );
   });
 });
