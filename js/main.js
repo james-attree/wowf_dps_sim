@@ -37,6 +37,7 @@ import { mountRouter } from "./views/router.js";
 import { PAGE_SECTIONS, createSections } from "./views/sections.js";
 import { createTalentTreeView } from "./views/talent-tree.js";
 import { createVisualiserView } from "./views/visualiser.js";
+import { createManualBoardView } from "./views/manual-board.js";
 
 // The page's bootstrap (#149, #150, #153). It puts the config in the page's
 // store (js/store.js), makes the live run (js/live-run.js: a SimRunner driven
@@ -85,6 +86,7 @@ const store = createStore({
   config,
   run: {
     mode,
+    fightMode: "scripted",
     state: "idle",
     seed,
     duration,
@@ -210,6 +212,7 @@ const renders = {
   fight: () => {
     createVisualiserView(document, store);
     createResultsView(document, store);
+    createManualBoardView(document, store, actions);
   },
   results: () => {
     // The Results area's two kept views, Average and Live fight (#242).

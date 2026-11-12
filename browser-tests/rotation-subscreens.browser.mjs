@@ -30,6 +30,7 @@ const WIDE_PX = 1024;
 // type (the page opens in Average), the fight length, fights and seed.
 const FIGHT = "#fight";
 const FIGHT_STOPS = [
+  "fight-mode-scripted",
   "run-mode-batch",
   "run-duration",
   "run-iterations",

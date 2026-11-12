@@ -1065,6 +1065,28 @@
              js/config-form.js fromBehind). Its level is a setting (#318). -->
         <div id="run-settings" class="panel fight-settings">
           <div class="run-row run-row-inputs">
+            <fieldset class="fight-play-mode" id="fight-mode">
+              <legend>Fight mode</legend>
+              <label class="run-mode-pill">
+                <input
+                  id="fight-mode-scripted"
+                  type="radio"
+                  name="fight-mode"
+                  value="scripted"
+                  checked
+                />
+                <span>Scripted</span>
+              </label>
+              <label class="run-mode-pill">
+                <input
+                  id="fight-mode-manual"
+                  type="radio"
+                  name="fight-mode"
+                  value="manual"
+                />
+                <span>Manual</span>
+              </label>
+            </fieldset>
             <fieldset class="run-mode">
               <legend>Run type</legend>
               <label class="run-mode-pill">
@@ -1157,6 +1179,13 @@
             </div>
           </div>
         </div>
+        <p id="manual-announce" class="visually-hidden" role="status"></p>
+        <section
+          id="manual-board"
+          class="manual-board"
+          aria-label="Manual fight"
+          hidden
+        ></section>
       </section>
 
       <section id="area-results" class="area" data-area="results">
