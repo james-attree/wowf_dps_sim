@@ -14,7 +14,7 @@ event, so a cast's GCD, cooldown and aura timers start at that time. With no
 
 An on-GCD cast stays at its own instant. An off-GCD cast is allowed at that
 same instant, within `sim.tickEpsilon`, which is the scripted rotation's
-re-ask (Preparation, then Premeditation). James, 11 Nov 2026 ruling (option A):
+re-ask (Preparation, then Premeditation). James, 11 Nov 2026 ruling:
 it is refused later inside that GCD with `GCD, {time} left`, and nothing is
 spent. The only caller that can leave the clock inside the held GCD is
 `advanceTo` (a test helper); `getState`, `wait`, and the next on-GCD `cast`
@@ -24,11 +24,22 @@ decision. `peekState()` returns the same shape at the current instant and
 does not move the clock, draw from the rng, process events, or change the
 fight. While the GCD is held, an on-GCD slot is not castable. An off-GCD
 slot is castable at the opening instant, within `sim.tickEpsilon`, and not
-later inside that GCD (James, 11 Nov 2026 ruling, option A). `getState().over`
+later inside that GCD (James, 11 Nov 2026 ruling). `getState().over`
 is true once time has reached the duration, so the board does not offer a
 decision at the end (Q3). A `cast`
 that is already requested at that instant still runs, matching the scripted
 decision at the fight's end, and `result()` closes the fight.
+
+## Board hold
+
+James, 11 Nov 2026 ruling: an off-GCD ability may be pressed at the same
+instant as an on-GCD cast, but never later inside that GCD. After an on-GCD
+cast the board holds at that instant ("Your decision · GCD held") and
+reads `peekState()`, so it does not call `getState()`, which would run the
+GCD out. The hold shows the post-cast energy, combo points, auras and
+cooldowns at that instant, and it re-peeks after each same-instant off-GCD
+press. Continue (Space) then runs the GCD out. Waits are disabled for the
+hold. If nothing is ready, the extra step is skipped.
 
 ## API
 

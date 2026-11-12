@@ -4,6 +4,7 @@
 // stopReason fields; it does not invent names or reason text.
 import { createManualFight } from "./manual-fight.js";
 import { poisonCatalogue } from "./poisons.js";
+import { continueWaitReason } from "./views/manual-format.js";
 
 const POISON_NAMES = new Set(
   poisonCatalogue.poisons.map((poison) => poison.name),
@@ -31,7 +32,13 @@ function fightSnapshot({ seed, duration, config }) {
 }
 
 function publish(store, fight, extra = {}) {
+  const { duration, ...rest } = extra;
   const state = fight.getState();
+  // getState() can land on the end instant without setting over;
+  // result() is the public way to finish that case.
+  if (!fight.isOver() && duration != null && state.time >= duration) {
+    fight.result();
+  }
   const over = fight.isOver();
   store.update((current) => ({
     results: { time: state.time, damage: state.dps * state.time },
@@ -42,11 +49,11 @@ function publish(store, fight, extra = {}) {
     manual: {
       ...current.manual,
       active: true,
-      phase: extra.phase ?? (over ? "review" : "decision"),
+      phase: rest.phase ?? (over ? "review" : "decision"),
       slots: fight.slots,
       state,
       result: over ? fight.result() : null,
-      ...extra,
+      ...rest,
     },
   }));
 }
@@ -61,14 +68,52 @@ const emptyManual = () => ({
   blockedAbilityId: null,
   result: null,
   snapshot: null,
+  sameInstant: false,
 });
 
 export function createManualRun(store) {
   let fight = null;
   let snapshot = null;
+  // After an on-GCD cast, getState() would run the GCD out. peekState()
+  // stays at that instant (James, 11 Nov 2026 ruling).
+  let held = false;
+
+  function slotMeta(abilityId) {
+    return (fight?.slots ?? []).find((slot) => slot.abilityId === abilityId);
+  }
+
+  function isOnGcd(abilityId) {
+    return slotMeta(abilityId)?.onGcd !== false;
+  }
+
+  function offGcdCastable(state) {
+    return (state?.slots ?? []).filter((row) => {
+      const meta = slotMeta(row.abilityId);
+      return meta?.onGcd === false && row.castable;
+    });
+  }
+
+  // Trust peekState for slots (castable and reason). Only Waits are
+  // overlaid: they stay disabled with "Continue first" until Continue.
+  function holdState(peek) {
+    const waitReason = continueWaitReason();
+    return {
+      ...peek,
+      waits: (peek.waits ?? []).map((wait) => ({
+        ...wait,
+        available: false,
+        reason: waitReason,
+      })),
+    };
+  }
+
+  function closeHeld() {
+    held = false;
+  }
 
   function start({ seed, duration, config }) {
     fight?.dispose();
+    closeHeld();
     snapshot = fightSnapshot({ seed, duration, config });
     fight = createManualFight({
       seed: snapshot.seed,
@@ -94,6 +139,7 @@ export function createManualRun(store) {
     if (fight == null) {
       return action;
     }
+    closeHeld();
     const prior = store.get().manual?.events ?? [];
     const incoming = tagIncoming(action.events ?? []);
     const events = action.ok ? [...prior, ...incoming] : prior;
@@ -114,8 +160,60 @@ export function createManualRun(store) {
       events,
       lastAction: action,
       blockedAbilityId,
+      sameInstant: false,
+      duration: snapshot.duration,
     });
     return action;
+  }
+
+  function applyHeld(action, abilityId) {
+    const prior = store.get().manual?.events ?? [];
+    const incoming = tagIncoming(action.events ?? []);
+    const events = action.ok ? [...prior, ...incoming] : prior;
+    let phase = "decision";
+    let blockedAbilityId = null;
+    if (!action.ok) {
+      phase = "blocked";
+      blockedAbilityId = abilityId ?? null;
+    } else if (
+      incoming.some((event) => event.outcome === "crit" || event.procName)
+    ) {
+      phase = "crit";
+    }
+    store.update((current) => ({
+      results: current.results,
+      run: { ...current.run, state: "running" },
+      manual: {
+        ...current.manual,
+        active: true,
+        phase,
+        slots: fight.slots,
+        state: holdState(fight.peekState()),
+        events,
+        lastAction: action,
+        blockedAbilityId,
+        sameInstant: true,
+        result: null,
+      },
+    }));
+    return action;
+  }
+
+  function continueGcd() {
+    if (fight == null || !held) {
+      return null;
+    }
+    const events = store.get().manual?.events ?? [];
+    const lastAction = store.get().manual?.lastAction ?? null;
+    closeHeld();
+    publish(store, fight, {
+      events,
+      lastAction,
+      blockedAbilityId: null,
+      sameInstant: false,
+      duration: snapshot.duration,
+    });
+    return true;
   }
 
   return {
@@ -124,14 +222,35 @@ export function createManualRun(store) {
       if (fight == null || fight.isOver()) {
         return null;
       }
-      return apply(fight.cast(abilityId), abilityId);
+      if (held) {
+        // On-GCD presses during the hold are a no-op: the board announces
+        // the GCD reason and must not enter Blocked (Fran, #369 P3).
+        if (isOnGcd(abilityId)) {
+          return null;
+        }
+        return applyHeld(fight.cast(abilityId), abilityId);
+      }
+      const action = fight.cast(abilityId);
+      if (action.ok && isOnGcd(abilityId) && !fight.isOver()) {
+        const peek = fight.peekState();
+        if (offGcdCastable(peek).length > 0) {
+          held = true;
+          return applyHeld(action, null);
+        }
+      }
+      return apply(action, abilityId);
     },
     wait(options) {
       if (fight == null || fight.isOver()) {
         return null;
       }
+      if (held) {
+        return null;
+      }
       return apply(fight.wait(options));
     },
+    // Runs the held GCD out via getState() (James, 11 Nov 2026).
+    continueGcd,
     // Strict Replay (Scout): the start snapshot only, never the current form.
     replay() {
       if (snapshot == null) {
@@ -147,16 +266,19 @@ export function createManualRun(store) {
       fight?.dispose();
       fight = null;
       snapshot = null;
+      closeHeld();
       store.update((current) => ({
         run: { ...current.run, state: "idle", shown: false, stoppedAt: null },
         manual: emptyManual(),
       }));
     },
     stop() {
-      const time = fight?.getState().time ?? 0;
+      // peekState does not run a held GCD out.
+      const time = fight?.peekState().time ?? 0;
       fight?.dispose();
       fight = null;
       snapshot = null;
+      closeHeld();
       store.update((current) => ({
         run: {
           ...current.run,
@@ -171,6 +293,7 @@ export function createManualRun(store) {
       fight?.dispose();
       fight = null;
       snapshot = null;
+      closeHeld();
       store.update((current) => ({
         run: {
           ...current.run,

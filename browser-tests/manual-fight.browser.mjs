@@ -291,7 +291,11 @@ describe("Manual fight board layout and behaviour (#348)", () => {
   test("QA: accessible names, disabled Wait, icons, trays, floats and Review", async () => {
     const { context, page, errors } = await open(390);
     try {
-      await page.locator("#run-duration").fill("30");
+      const duration = page.locator("#run-duration");
+      if (!(await duration.isVisible())) {
+        await page.locator('[data-nav-area="fight"]').click();
+      }
+      await duration.fill("30");
       await page.locator("#run-duration").press("Tab");
       await startManual(page);
       const firstLabel = await page
@@ -503,4 +507,211 @@ describe("Manual fight board layout and behaviour (#348)", () => {
       }
     });
   }
+});
+
+async function pickSubtlety(page) {
+  await page.evaluate(() => {
+    globalThis.location.hash = "#character";
+  });
+  const card = page.locator("#start-card-subtlety-daggers");
+  await card.waitFor({ state: "visible" });
+  await card.click();
+  await page.evaluate(() => {
+    globalThis.location.hash = "#fight";
+  });
+  await page.locator("#area-fight").waitFor({ state: "visible" });
+  await page.locator("#run-button").waitFor({ state: "visible" });
+}
+
+describe("same-instant off-GCD on the board (#368)", () => {
+  for (const text of ["100%", "150%"]) {
+    test(`Preparation then Premeditation land at t=0 at 390px ${text} text`, async () => {
+      const { context, page, errors } = await open(390, { text });
+      try {
+        await pickSubtlety(page);
+        const duration = page.locator("#run-duration");
+        if (!(await duration.isVisible())) {
+          await page.locator('[data-nav-area="fight"]').click();
+        }
+        await duration.fill("1");
+        await duration.press("Tab");
+        await startManual(page);
+        const prep = page.locator(
+          '.manual-slot[data-ability-id="preparation"]',
+        );
+        const premed = page.locator(
+          '.manual-slot[data-ability-id="premeditation"]',
+        );
+        await prep.click();
+        await page.waitForFunction(
+          () =>
+            globalThis.document.getElementById("manual-well-prompt")
+              ?.textContent === "Your decision · GCD held",
+        );
+        assert.match(
+          await page.locator("#manual-clock").textContent(),
+          /^00:00\.0\b/,
+        );
+        const cont = page.locator(".manual-continue");
+        await cont.waitFor({ state: "visible" });
+        assert.equal(await cont.getAttribute("aria-label"), "Space Continue");
+        assert.match(await cont.textContent(), /Space/);
+        assert.match(await cont.textContent(), /Continue/);
+        assert.equal(await premed.getAttribute("aria-disabled"), null);
+        const hemorrhage = page.locator(
+          '.manual-slot[data-ability-id="hemorrhage"]',
+        );
+        assert.equal(await hemorrhage.getAttribute("aria-disabled"), "true");
+        assert.match(await hemorrhage.getAttribute("aria-label"), /GCD,/);
+        const wait = page.locator(".manual-wait").first();
+        assert.equal(await wait.getAttribute("aria-disabled"), "true");
+        assert.equal(
+          await wait.locator(".manual-wait-reason").textContent(),
+          "Continue first",
+        );
+        await page.locator("#manual-well").focus();
+        await page.keyboard.press("w");
+        const focused = await page.evaluate(() => {
+          const el = globalThis.document.activeElement;
+          return {
+            wait: el?.classList.contains("manual-wait"),
+            cont: el?.classList.contains("manual-continue"),
+          };
+        });
+        assert.equal(focused.wait, true);
+        assert.equal(focused.cont, false);
+        await hemorrhage.click({ force: true });
+        assert.match(
+          await page.locator("#manual-announce").textContent(),
+          /^GCD, /,
+        );
+        assert.doesNotMatch(
+          await page.locator("#manual-well-prompt").textContent(),
+          /Blocked/,
+        );
+        assert.equal(
+          await page.locator("#manual-well-prompt").textContent(),
+          "Your decision · GCD held",
+        );
+        assert.equal(
+          await hemorrhage.evaluate((el) =>
+            el.classList.contains("is-blocked"),
+          ),
+          false,
+        );
+        await page.locator("#manual-well").focus();
+        await page.keyboard.press("1");
+        assert.match(
+          await page.locator("#manual-clock").textContent(),
+          /^00:00\.0\b/,
+        );
+        await premed.click();
+        assert.equal(await premed.getAttribute("aria-disabled"), "true");
+        assert.match(await premed.getAttribute("aria-label"), /cooldown/i);
+        await page.locator("#manual-well").focus();
+        await page.keyboard.press("Space");
+        await page.locator("#manual-review").waitFor({ state: "visible" });
+        const timing = await page
+          .locator("#manual-review-timing")
+          .textContent();
+        assert.match(timing, /00:00\.0\s+Preparation/);
+        assert.match(timing, /00:00\.0\s+Premeditation/);
+        assert.equal(await page.locator(".manual-continue").isVisible(), false);
+        assert.equal(errors.length, 0, errors.join("\n"));
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  for (const textSize of ["100%", "150%"]) {
+    test(`Premeditation, Preparation and Premeditation land at t=0 at 390px ${textSize} text`, async () => {
+      const { context, page, errors } = await open(390, { text: textSize });
+      try {
+        await pickSubtlety(page);
+        const duration = page.locator("#run-duration");
+        if (!(await duration.isVisible())) {
+          await page.locator('[data-nav-area="fight"]').click();
+        }
+        await duration.fill("1");
+        await duration.press("Tab");
+        await startManual(page);
+        const prep = page.locator(
+          '.manual-slot[data-ability-id="preparation"]',
+        );
+        const premed = page.locator(
+          '.manual-slot[data-ability-id="premeditation"]',
+        );
+        await premed.click();
+        assert.equal(await page.locator(".manual-continue").isVisible(), false);
+        assert.match(
+          await page.locator("#manual-clock").textContent(),
+          /^00:00\.0\b/,
+        );
+        await prep.click();
+        await page.waitForFunction(
+          () =>
+            globalThis.document.getElementById("manual-well-prompt")
+              ?.textContent === "Your decision · GCD held",
+        );
+        assert.equal(await premed.getAttribute("aria-disabled"), null);
+        await premed.click();
+        await page.locator("#manual-well").focus();
+        await page.keyboard.press("Space");
+        await page.locator("#manual-review").waitFor({ state: "visible" });
+        const timing = await page
+          .locator("#manual-review-timing")
+          .textContent();
+        const premedHits = [...timing.matchAll(/00:00\.0\s+Premeditation/g)];
+        assert.equal(premedHits.length, 2, timing);
+        assert.match(timing, /00:00\.0\s+Preparation/);
+        assert.equal(errors.length, 0, errors.join("\n"));
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  test("after Continue, the held window is gone and mid-GCD presses are not offered", async () => {
+    const { context, page, errors } = await open(390);
+    try {
+      await pickSubtlety(page);
+      const durationField = page.locator("#run-duration");
+      if (!(await durationField.isVisible())) {
+        await page.locator('[data-nav-area="fight"]').click();
+      }
+      await durationField.fill("30");
+      await durationField.press("Tab");
+      await startManual(page);
+      await page.locator('.manual-slot[data-ability-id="preparation"]').click();
+      await page
+        .locator('.manual-slot[data-ability-id="premeditation"]')
+        .click();
+      await page.locator(".manual-continue").waitFor({ state: "visible" });
+      await page.locator("#manual-well").focus();
+      await page.keyboard.press("Space");
+      await page.waitForFunction(() => {
+        const clock = globalThis.document.getElementById("manual-clock");
+        const held = globalThis.document.querySelector(".manual-continue");
+        const prompt = globalThis.document.getElementById("manual-well-prompt");
+        return (
+          (clock?.textContent ?? "").startsWith("00:01.0") &&
+          !held &&
+          prompt?.textContent === "Your decision · GCD free"
+        );
+      });
+      const premed = page.locator(
+        '.manual-slot[data-ability-id="premeditation"]',
+      );
+      assert.equal(await premed.getAttribute("aria-disabled"), "true");
+      assert.match(await premed.getAttribute("aria-label"), /cooldown/i);
+      const waitReason = await page
+        .locator(".manual-wait-reason")
+        .allTextContents();
+      assert.equal(waitReason.includes("Continue first"), false);
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
 });

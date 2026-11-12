@@ -17,6 +17,11 @@ import {
   floatCopies,
   wellLine,
   announceLine,
+  gcdHeldReason,
+  gcdHeldSeconds,
+  CONTINUE_KEY,
+  CONTINUE_LABEL,
+  CONTINUE_WAIT_REASON,
   wellIsCrit,
   slotAccessibleName,
   slotIconSrc,
@@ -458,5 +463,26 @@ describe("Manual board formatters (#348)", () => {
     assert.ok(EMPTY_TRAY_MIN_REM <= EMPTY_TRAY_MAX_REM);
     assert.ok(EMPTY_TRAY_MIN_REM >= 0.8125);
     assert.ok(EMPTY_TRAY_MAX_REM <= 0.875);
+  });
+
+  it("names Continue as Space and uses the engine GCD wording (James, 11 Nov 2026)", () => {
+    assert.equal(CONTINUE_KEY, "Space");
+    assert.equal(CONTINUE_LABEL, "Continue");
+    assert.equal(CONTINUE_WAIT_REASON, "Continue first");
+    assert.deepEqual(gcdHeldReason(1), {
+      code: "gcd",
+      text: "GCD, 1.0 s left",
+      seconds: 1,
+    });
+    assert.equal(gcdHeldSeconds({ gcd: { remaining: 0, duration: 1 } }), 1);
+    assert.equal(
+      wellLine({
+        sameInstant: true,
+        phase: "decision",
+        lastAction: { ok: true },
+        events: [],
+      }).prompt,
+      "Your decision · GCD held",
+    );
   });
 });

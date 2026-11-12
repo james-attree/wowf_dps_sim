@@ -17,6 +17,11 @@ export const FLOAT_LIMIT = 3;
 export const KEY_SLOTS = 10;
 export const PERCENT = 100;
 export const DPS_DECIMALS = 1;
+// Continue on the same-instant off-GCD step (James, 11 Nov 2026): Space,
+// not W, because W already focuses the first Wait.
+export const CONTINUE_LABEL = "Continue";
+export const CONTINUE_KEY = "Space";
+export const CONTINUE_WAIT_REASON = "Continue first";
 export const INTEGER_DECIMALS = 0;
 export const EMPTY_TRAY_MIN_REM = 0.8125;
 export const EMPTY_TRAY_MAX_REM = 0.875;
@@ -385,6 +390,27 @@ function slotName(manual, abilityId) {
   );
 }
 
+// The engine's GCD block wording (js/manual-fight.js blockReason), so the
+// host can disable on-GCD slots while getState() is deferred.
+export function gcdHeldReason(seconds) {
+  return {
+    code: "gcd",
+    text: `GCD, ${remainingTime(seconds)} left`,
+    seconds,
+  };
+}
+
+export function gcdHeldSeconds(state) {
+  if (state?.gcd?.remaining > 0) {
+    return state.gcd.remaining;
+  }
+  return state?.gcd?.duration ?? 0;
+}
+
+export function continueWaitReason() {
+  return { code: "gcd", text: CONTINUE_WAIT_REASON };
+}
+
 export function wellLine(manual) {
   if (manual.phase === "blocked" && manual.lastAction?.reason) {
     return {
@@ -399,8 +425,11 @@ export function wellLine(manual) {
     };
   }
   const last = latestWellEvent(manual.events ?? []);
+  const prompt = manual.sameInstant
+    ? "Your decision · GCD held"
+    : "Your decision · GCD free";
   return {
-    prompt: "Your decision · GCD free",
+    prompt,
     event: last ? (wellCopy(last) ?? "") : "",
   };
 }
