@@ -10,6 +10,8 @@ import {
   PERCENT,
   TIME_WAIT_SECONDS,
   DPS_DECIMALS,
+  CONTINUE_KEY,
+  CONTINUE_LABEL,
   announceLine,
   auraIconSrc,
   disabledWaitReason,
@@ -167,8 +169,24 @@ function fillBar(node, slots, state, actions, blockedId, html) {
   });
 }
 
-function fillWaits(node, state, slots, actions, html, announce) {
+function fillWaits(node, state, slots, actions, html, announce, sameInstant) {
   node.replaceChildren();
+  if (sameInstant) {
+    const button = html.createElement("button");
+    button.type = "button";
+    button.className = "manual-continue";
+    button.dataset.continue = "true";
+    const key = html.createElement("span");
+    key.className = "manual-continue-key";
+    key.textContent = CONTINUE_KEY;
+    const label = html.createElement("span");
+    label.className = "manual-continue-label";
+    label.textContent = CONTINUE_LABEL;
+    button.setAttribute("aria-label", `${CONTINUE_KEY} ${CONTINUE_LABEL}`);
+    button.append(key, " ", label);
+    button.addEventListener("click", () => actions.continueGcd());
+    node.append(button);
+  }
   for (const wait of state.waits ?? []) {
     const button = html.createElement("button");
     button.type = "button";
@@ -372,6 +390,13 @@ export function createManualBoardView(html, store, actions) {
       el(html, "manual-well")?.focus();
       return;
     }
+    if (event.key === " " || event.code === "Space") {
+      if (state.manual?.sameInstant) {
+        event.preventDefault();
+        actions.continueGcd();
+        return;
+      }
+    }
     if (event.key === "w" || event.key === "W") {
       event.preventDefault();
       el(html, "manual-waits")?.querySelector("button")?.focus();
@@ -541,13 +566,16 @@ export function createManualBoardView(html, store, actions) {
         actions,
         html,
         announce,
+        manual.sameInstant,
       );
       if (wasOnBoard) {
         const again = priorAbility
           ? board.querySelector(`[data-ability-id="${priorAbility}"]`)
           : priorWait
             ? board.querySelector(`[data-wait-kind="${priorWait}"]`)
-            : null;
+            : prior?.dataset?.continue
+              ? board.querySelector("[data-continue]")
+              : null;
         (again ?? el(html, "manual-well"))?.focus();
       }
     }

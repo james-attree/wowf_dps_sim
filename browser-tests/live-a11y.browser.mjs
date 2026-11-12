@@ -121,11 +121,61 @@ function messages(page) {
 // One real mouse click at the centre of a control, scrolled to the middle
 // of the screen first so the phone dock can't sit over it.
 async function clickCentre(locator) {
+  const page = locator.page();
   await locator.evaluate((el) => el.scrollIntoView({ block: "center" }));
-  const box = await locator.boundingBox();
-  await locator
-    .page()
-    .mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  // Wait until the control is the click target (same family as the #200
+  // hint fix: wait on state, not a settle timeout). A covered Pause
+  // button was why the 360px hint test could time out locally.
+  await page.waitForFunction(
+    (el) => {
+      if (!el || el.disabled || el.getClientRects().length === 0) {
+        return false;
+      }
+      const at = el.getBoundingClientRect();
+      const top = el.ownerDocument.elementFromPoint(
+        at.x + at.width / 2,
+        at.y + at.height / 2,
+      );
+      return el === top || (top != null && el.contains(top));
+    },
+    await locator.elementHandle(),
+    { timeout: 10_000 },
+  );
+  await locator.click({ timeout: 10_000 });
+}
+
+// Pause until the live log hint starts with `expected`. Only clicks while
+// the control still says Pause, so a press the Run tap-guard swallowed is
+// retried and a successful Pause is not immediately undone.
+async function pauseUntilHint(page, expected) {
+  await page.waitForFunction(
+    (expected) => {
+      const hint =
+        globalThis.document.querySelector("#log-hint")?.textContent ?? "";
+      if (hint.startsWith(expected)) {
+        return true;
+      }
+      const button = globalThis.document.getElementById("pause-button");
+      const label = globalThis.document.getElementById("pause-label");
+      if (!button || button.disabled || label?.textContent !== "Pause") {
+        return false;
+      }
+      button.scrollIntoView({ block: "center" });
+      const at = button.getBoundingClientRect();
+      const top = button.ownerDocument.elementFromPoint(
+        at.x + at.width / 2,
+        at.y + at.height / 2,
+      );
+      if (button === top || (top != null && button.contains(top))) {
+        button.click();
+      }
+      return (
+        globalThis.document.querySelector("#log-hint")?.textContent ?? ""
+      ).startsWith(expected);
+    },
+    expected,
+    { timeout: 10_000 },
+  );
 }
 
 // The run settings are Fight's (#245): shown first where they are not.
@@ -740,24 +790,7 @@ for (const width of [1280, 390, 360]) {
         null,
         { timeout: 20_000 },
       );
-      const pause = page.locator("#pause-button");
-      await page.waitForFunction(
-        () => {
-          const button = globalThis.document.getElementById("pause-button");
-          return Boolean(button) && !button.disabled;
-        },
-        null,
-        { timeout: 10_000 },
-      );
-      await clickCentre(pause);
-      await page.waitForFunction(
-        (expected) =>
-          (
-            globalThis.document.querySelector("#log-hint")?.textContent ?? ""
-          ).startsWith(expected),
-        `Paused. ${phrase}. `,
-        { timeout: 10_000 },
-      );
+      await pauseUntilHint(page, `Paused. ${phrase}. `);
       const hint = await page.textContent("#log-hint");
       assert.ok(hint.startsWith(`Paused. ${phrase}. `), hint);
       assert.match(hint, /Left goes to older events, Right to newer\./);

@@ -4175,6 +4175,33 @@ th[aria-sort="ascending"] {
   text-align: center;
 }
 
+.manual-continue {
+  appearance: none;
+  background: var(--manual-slot-face);
+  border: 0.125rem solid var(--control-border);
+  border-radius: 0.5rem;
+  color: inherit;
+  min-width: var(--target);
+  min-height: var(--target);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.35rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.manual-continue-key {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.manual-continue-label {
+  font-weight: 650;
+}
+
 .manual-slot-note,
 .manual-wait-reason {
   font-size: 0.75rem;
@@ -4193,7 +4220,8 @@ th[aria-sort="ascending"] {
   gap: 0.5rem;
 }
 
-.manual-wait {
+.manual-wait,
+.manual-continue {
   min-height: var(--target);
   flex: 1 1 8rem;
 }

@@ -456,6 +456,7 @@ export function createRunActions({
     backToFight: () => manual.backToFight(),
     wait: (options) => manual.wait(options),
     cast: (abilityId) => manual.cast(abilityId),
+    continueGcd: () => manual.continueGcd(),
   };
   return actions;
 }
