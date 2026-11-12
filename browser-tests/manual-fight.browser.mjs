@@ -570,12 +570,50 @@ describe("same-instant off-GCD on the board (#368)", () => {
           "Continue first",
         );
         await page.locator("#manual-well").focus();
+        await page.keyboard.press("w");
+        const focused = await page.evaluate(() => {
+          const el = globalThis.document.activeElement;
+          return {
+            wait: el?.classList.contains("manual-wait"),
+            cont: el?.classList.contains("manual-continue"),
+          };
+        });
+        assert.equal(focused.wait, true);
+        assert.equal(focused.cont, false);
+        await hemorrhage.click({ force: true });
+        assert.match(
+          await page.locator("#manual-announce").textContent(),
+          /^GCD, /,
+        );
+        assert.doesNotMatch(
+          await page.locator("#manual-well-prompt").textContent(),
+          /Blocked/,
+        );
+        assert.equal(
+          await page.locator("#manual-well-prompt").textContent(),
+          "Your decision · GCD held",
+        );
+        assert.equal(
+          await hemorrhage.evaluate((el) =>
+            el.classList.contains("is-blocked"),
+          ),
+          false,
+        );
+        await page.locator("#manual-well").focus();
         await page.keyboard.press("1");
         assert.match(
           await page.locator("#manual-clock").textContent(),
           /^00:00\.0\b/,
         );
         await premed.click();
+        assert.match(
+          await premed.getAttribute("aria-label"),
+          /Already used this instant/,
+        );
+        assert.equal(
+          await premed.locator(".manual-slot-note").textContent(),
+          "Already used this instant",
+        );
         await page.locator("#manual-well").focus();
         await page.keyboard.press("Space");
         await page.locator("#manual-review").waitFor({ state: "visible" });

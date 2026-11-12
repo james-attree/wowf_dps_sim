@@ -104,7 +104,7 @@ function attachIcon(html, well, iconSrc, glyphText) {
   }
 }
 
-function fillBar(node, slots, state, actions, blockedId, html) {
+function fillBar(node, slots, state, actions, blockedId, html, announce) {
   node.replaceChildren();
   const live = state?.slots ?? [];
   slots.forEach((slot, index) => {
@@ -160,7 +160,9 @@ function fillBar(node, slots, state, actions, blockedId, html) {
     }
     button.addEventListener("click", () => {
       if (button.getAttribute("aria-disabled") === "true") {
-        actions.cast(slot.abilityId);
+        if (announce) {
+          announce.textContent = reason;
+        }
         return;
       }
       actions.cast(slot.abilityId);
@@ -399,7 +401,7 @@ export function createManualBoardView(html, store, actions) {
     }
     if (event.key === "w" || event.key === "W") {
       event.preventDefault();
-      el(html, "manual-waits")?.querySelector("button")?.focus();
+      el(html, "manual-waits")?.querySelector(".manual-wait")?.focus();
       return;
     }
     const index = KEYS.indexOf(event.key);
@@ -558,6 +560,7 @@ export function createManualBoardView(html, store, actions) {
         actions,
         manual.blockedAbilityId,
         html,
+        announce,
       );
       fillWaits(
         el(html, "manual-waits"),

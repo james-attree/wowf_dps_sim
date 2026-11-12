@@ -270,9 +270,9 @@ describe("manual fight host (#348)", () => {
     assert.equal(held.state.waits[0].reason.text, "Continue first");
     assert.equal(host.wait({ kind: "time" }), null);
     assert.equal(page.get().manual.state.time, 0);
-    const blocked = host.cast("hemorrhage");
-    assert.equal(blocked.ok, false);
-    assert.equal(blocked.reason.code, "gcd");
+    assert.equal(host.cast("hemorrhage"), null);
+    assert.equal(page.get().manual.phase, "decision");
+    assert.equal(page.get().manual.blockedAbilityId, null);
     assert.equal(page.get().manual.state.time, 0);
     const premed = host.cast("premeditation");
     assert.equal(premed.ok, true);
@@ -289,6 +289,11 @@ describe("manual fight host (#348)", () => {
     );
     assert.equal(page.get().manual.sameInstant, true);
     assert.equal(page.get().manual.state.time, 0);
+    const used = page
+      .get()
+      .manual.state.slots.find((slot) => slot.abilityId === "premeditation");
+    assert.equal(used.castable, false);
+    assert.equal(used.reason.text, "Already used this instant");
     host.continueGcd();
     const after = page.get().manual;
     assert.equal(after.sameInstant, false);

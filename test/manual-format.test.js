@@ -22,6 +22,7 @@ import {
   CONTINUE_KEY,
   CONTINUE_LABEL,
   CONTINUE_WAIT_REASON,
+  USED_THIS_INSTANT_REASON,
   wellIsCrit,
   slotAccessibleName,
   slotIconSrc,
@@ -469,6 +470,7 @@ describe("Manual board formatters (#348)", () => {
     assert.equal(CONTINUE_KEY, "Space");
     assert.equal(CONTINUE_LABEL, "Continue");
     assert.equal(CONTINUE_WAIT_REASON, "Continue first");
+    assert.equal(USED_THIS_INSTANT_REASON, "Already used this instant");
     assert.deepEqual(gcdHeldReason(1), {
       code: "gcd",
       text: "GCD, 1.0 s left",

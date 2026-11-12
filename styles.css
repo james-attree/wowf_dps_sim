@@ -4122,6 +4122,7 @@ th[aria-sort="ascending"] {
 
 .manual-slot:focus,
 .manual-wait:focus,
+.manual-continue:focus,
 .manual-review-replay:focus,
 .manual-review-back:focus {
   outline: 0.125rem solid var(--accent);

@@ -8,6 +8,7 @@ import {
   continueWaitReason,
   gcdHeldReason,
   gcdHeldSeconds,
+  usedThisInstantReason,
 } from "./views/manual-format.js";
 
 const POISON_NAMES = new Set(
@@ -110,7 +111,7 @@ export function createManualRun(store) {
           return { ...row, castable: false, reason };
         }
         if (used.has(row.abilityId)) {
-          return { ...row, castable: false };
+          return { ...row, castable: false, reason: usedThisInstantReason() };
         }
         return row;
       }),
@@ -242,18 +243,10 @@ export function createManualRun(store) {
         return null;
       }
       if (heldBase != null) {
+        // On-GCD presses during the hold are a no-op: the board announces
+        // the GCD reason and must not enter Blocked (Fran, #369 P3).
         if (isOnGcd(abilityId)) {
-          const reason = gcdHeldReason(gcdHeldSeconds(heldBase));
-          return applyHeld(
-            {
-              ok: false,
-              reason,
-              stopReason: null,
-              advancedBy: 0,
-              events: [],
-            },
-            abilityId,
-          );
+          return null;
         }
         return applyHeld(fight.cast(abilityId), abilityId);
       }

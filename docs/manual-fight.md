@@ -24,6 +24,20 @@ duration, so the board does not offer a decision at the end (Q3). A `cast`
 that is already requested at that instant still runs, matching the scripted
 decision at the fight's end, and `result()` closes the fight.
 
+## Board hold
+
+James, 11 Nov 2026: an off-GCD ability may be pressed at the same instant as
+an on-GCD cast, but never later inside that GCD. After an on-GCD cast the
+board holds at that instant ("Your decision · GCD held") and does not call
+`getState()`, which would run the GCD out. Only off-GCD abilities that were
+ready at the cast instant are offered. Continue (Space) then runs the GCD
+out. Waits are disabled for the hold. If nothing is ready, the extra step is
+skipped.
+
+Until the engine has a non-advancing peek, the hold shows the pre-cast
+state, so energy and cooldowns can be stale, and a Premeditation →
+Preparation → Premeditation opener's second Premeditation lands at t=1.
+
 ## API
 
 ```js
