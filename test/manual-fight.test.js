@@ -632,6 +632,113 @@ describe("manual fight off-GCD window (#348)", () => {
   });
 });
 
+describe("manual fight peekState (#370)", () => {
+  it("reads the post-cast instant without running out the GCD", () => {
+    const manual = fight("combat-swords-temp");
+    const before = manual.peekState();
+    const cast = manual.cast("sinister-strike");
+    assert.equal(cast.ok, true);
+    const peek = manual.peekState();
+    assert.equal(peek.time, before.time);
+    assert.ok(peek.energy.value < before.energy.value);
+    assert.equal(peek.comboPoints.value, before.comboPoints.value + 1);
+    assert.equal(peek.gcd.remaining > 0, true);
+    const struck = manual.getState();
+    assert.ok(struck.time > peek.time);
+    manual.cast("slice-and-dice");
+    const finisher = manual.peekState();
+    assert.equal(finisher.time, struck.time);
+    assert.equal(
+      finisher.buffs.some((buff) => buff.id === "slice-and-dice"),
+      true,
+    );
+    assert.ok(finisher.energy.value < struck.energy.value);
+    assert.equal(finisher.comboPoints.value, struck.comboPoints.value);
+    manual.dispose();
+  });
+
+  it("casts Premeditation, Preparation and Premeditation at t=0", () => {
+    const play = () => {
+      const manual = fight("subtlety-daggers");
+      assert.equal(manual.cast("premeditation").ok, true);
+      assert.equal(manual.cast("preparation").ok, true);
+      assert.equal(manual.cast("premeditation").ok, true);
+      assert.equal(manual.peekState().time, 0);
+      manual.advanceTo(30);
+      return manual.result();
+    };
+    const first = play();
+    const again = fight("subtlety-daggers");
+    again.cast("premeditation");
+    again.cast("preparation");
+    again.cast("premeditation");
+    const replay = again.replay();
+    replay.cast("premeditation");
+    replay.cast("preparation");
+    replay.cast("premeditation");
+    replay.advanceTo(30);
+    again.advanceTo(30);
+    assert.deepEqual(replay.result(), again.result());
+    assert.equal(again.result().totalDamage, first.totalDamage);
+    again.dispose();
+    replay.dispose();
+  });
+
+  it("does not move the clock, the result or the scripted fight", () => {
+    const config = presetConfig("combat-swords-temp");
+    const scripted = runFight({ seed: 1, duration: 20, config });
+    const withPeeks = fight("assassination-daggers");
+    const plain = fight("assassination-daggers");
+    const firstPeek = withPeeks.peekState();
+    assert.deepEqual(withPeeks.peekState(), firstPeek);
+    assert.equal(withPeeks.cast("mutilate").ok, true);
+    const held = withPeeks.peekState();
+    assert.deepEqual(withPeeks.peekState(), held);
+    assert.equal(plain.cast("mutilate").ok, true);
+    withPeeks.getState();
+    plain.getState();
+    assert.equal(withPeeks.cast("cold-blood").ok, true);
+    assert.equal(plain.cast("cold-blood").ok, true);
+    withPeeks.advanceTo(30);
+    plain.advanceTo(30);
+    assert.equal(withPeeks.result().totalDamage, plain.result().totalDamage);
+    assert.deepEqual(withPeeks.result().abilities, plain.result().abilities);
+    withPeeks.dispose();
+    plain.dispose();
+    const again = runFight({ seed: 1, duration: 20, config });
+    assert.equal(again.totalDamage, scripted.totalDamage);
+    assert.equal(again.seed, scripted.seed);
+    assert.deepEqual(again.abilities, scripted.abilities);
+  });
+
+  it("marks off-GCD castable at the cast instant and refused later in the GCD", () => {
+    const manual = fight("assassination-daggers");
+    assert.equal(manual.cast("mutilate").ok, true);
+    const instant = manual.peekState();
+    const cold = instant.slots.find((slot) => slot.abilityId === "cold-blood");
+    const mutilate = instant.slots.find(
+      (slot) => slot.abilityId === "mutilate",
+    );
+    assert.equal(cold.castable, true);
+    assert.equal(cold.reason, null);
+    assert.equal(mutilate.castable, false);
+    assert.equal(mutilate.reason.code, "gcd");
+    manual.advanceTo(0.2);
+    const later = manual.peekState();
+    assert.equal(later.time, 0.2);
+    const coldLater = later.slots.find(
+      (slot) => slot.abilityId === "cold-blood",
+    );
+    assert.equal(coldLater.castable, false);
+    assert.equal(coldLater.reason.code, "gcd");
+    assert.equal(
+      coldLater.reason.text,
+      `GCD, ${remainingTime(coldLater.reason.seconds)} left`,
+    );
+    manual.dispose();
+  });
+});
+
 describe("manual fight parity with runFight (#348)", () => {
   const presets = [
     "combat-swords-temp",
