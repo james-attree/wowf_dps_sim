@@ -589,8 +589,39 @@ export function createManualFight(options) {
     return best;
   }
 
-  function state() {
-    presentDecision();
+  function laterInHeldGcd() {
+    return (
+      held &&
+      gcdOpenedAt !== null &&
+      core.time > gcdOpenedAt + k("sim.tickEpsilon")
+    );
+  }
+
+  function gcdReason() {
+    const endsAt = sim.core?.gcd?.endsAt ?? null;
+    const left =
+      sim.gcd > 0
+        ? sim.gcd
+        : endsAt === null
+          ? 0
+          : Math.max(0, endsAt - core.time);
+    return reason("gcd", `GCD, ${remainingTime(left)} left`, left);
+  }
+
+  // James, 11 Nov 2026 ruling (option A). On-GCD stays uncastable for the
+  // whole held GCD. Off-GCD is castable at the opening instant and refused
+  // once time has moved past it.
+  function slotBlock(ability) {
+    if (over) {
+      return overReason();
+    }
+    if (laterInHeldGcd() || (ability.triggersGcd && held)) {
+      return gcdReason();
+    }
+    return blockReason(ability, rogue, sim);
+  }
+
+  function readState() {
     const live = feed.read();
     const soonest = cooldownTarget();
     const energyNow = live.resources.energy.value;
@@ -646,7 +677,7 @@ export function createManualFight(options) {
       slots: Object.freeze(
         slots.map((slot) => {
           const ability = rogue.abilitiesById.get(slot.abilityId);
-          const block = over ? overReason() : blockReason(ability, rogue, sim);
+          const block = slotBlock(ability);
           return Object.freeze({
             abilityId: slot.abilityId,
             castable: block === null,
@@ -665,6 +696,11 @@ export function createManualFight(options) {
     });
   }
 
+  function state() {
+    presentDecision();
+    return readState();
+  }
+
   function cast(abilityId) {
     if (abilityId !== undefined) {
       const next = rogue.abilitiesById.get(abilityId);
@@ -681,15 +717,8 @@ export function createManualFight(options) {
         `createManualFight has no ability ${JSON.stringify(abilityId)}.`,
       );
     }
-    if (
-      !ability.triggersGcd &&
-      held &&
-      gcdOpenedAt !== null &&
-      core.time > gcdOpenedAt + k("sim.tickEpsilon")
-    ) {
-      return refused(
-        reason("gcd", `GCD, ${remainingTime(sim.gcd)} left`, sim.gcd),
-      );
+    if (!ability.triggersGcd && laterInHeldGcd()) {
+      return refused(gcdReason());
     }
     const block = blockReason(ability, rogue, sim);
     if (block !== null) {
@@ -776,6 +805,7 @@ export function createManualFight(options) {
   return {
     slots,
     getState: state,
+    peekState: readState,
     cast,
     wait,
     // Test helper (#348 parity). Not part of the UI interface. Runs passive

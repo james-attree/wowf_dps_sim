@@ -19,8 +19,14 @@ it is refused later inside that GCD with `GCD, {time} left`, and nothing is
 spent. The only caller that can leave the clock inside the held GCD is
 `advanceTo` (a test helper); `getState`, `wait`, and the next on-GCD `cast`
 run out to the GCD end first. A GCD remainder within `sim.tickEpsilon` is
-already clear, so that advance does not move the clock by a rounding ulp. `getState().over` is true once time has reached the
-duration, so the board does not offer a decision at the end (Q3). A `cast`
+already clear, so that advance does not move the clock by a rounding ulp. `getState` runs a held GCD out to its end and returns the state at that
+decision. `peekState()` returns the same shape at the current instant and
+does not move the clock, draw from the rng, process events, or change the
+fight. While the GCD is held, an on-GCD slot is not castable. An off-GCD
+slot is castable at the opening instant, within `sim.tickEpsilon`, and not
+later inside that GCD (James, 11 Nov 2026 ruling, option A). `getState().over`
+is true once time has reached the duration, so the board does not offer a
+decision at the end (Q3). A `cast`
 that is already requested at that instant still runs, matching the scripted
 decision at the fight's end, and `result()` closes the fight.
 
@@ -44,6 +50,7 @@ Preparation → Premeditation opener's second Premeditation lands at t=1.
 const m = createManualFight({ seed, duration, config });
 m.slots;
 m.getState();
+m.peekState(); // same shape, does not run out a held GCD
 m.cast(abilityId); // { ok, reason, stopReason, advancedBy, events }
 m.wait({ kind: "energy" } | { kind: "cooldown" } | { kind: "time" });
 m.isOver();
