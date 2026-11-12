@@ -42,10 +42,14 @@ which casts the armed skill.
 Pressing a ready off-GCD ability arms it instead of casting. Pressing it
 again un-arms it. Several can be armed at once, and the pick order is kept.
 Only abilities that are ready right now (`peekState` / `getState`
-`castable`) can be armed. Preparation is on the GCD, so it cannot be armed.
-Premeditation then Preparation then Premeditation is no longer possible from
-the board; arming Premeditation and then pressing Preparation still lands
-both at the same instant.
+`castable`) can be armed. Coordinator calls: Preparation is on the GCD per
+`abilities.offGcd`, so it cannot be armed; Premeditation then Preparation
+then Premeditation is no longer possible from the board; and slot 13
+(Premeditation) has no number key, which is pending James. Arming
+Premeditation and then pressing Preparation still lands both at the same
+instant. The engine still allows same-instant off-GCD presses (James,
+11 Nov 2026 ruling, #367 / `peekState`), but the board does not use that
+path under James's 12 Nov rule.
 
 Pressing an on-GCD ability first casts the armed off-GCD abilities at the
 current instant in pick order, then casts the on-GCD ability (for example

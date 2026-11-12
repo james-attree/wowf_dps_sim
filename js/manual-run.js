@@ -292,7 +292,7 @@ export function createManualRun(store) {
           stoppedAt: null,
           snapshot: null,
         },
-        manual: emptyManual(),
+        manual: { ...emptyManual(), armed: armed.slice() },
       }));
     },
     get active() {

@@ -387,6 +387,59 @@ describe("manual fight host (#348)", () => {
     host.reset();
   });
 
+  it("fires armed off-GCD abilities in the order they were picked", () => {
+    const config = presetConfig("assassination-daggers", { race: "orc" });
+    const page = store();
+    const host = createManualRun(page);
+    host.start({ seed: 1, duration: 30, config });
+    assert.equal(host.cast("cold-blood").armed, true);
+    assert.equal(host.cast("blood-fury").armed, true);
+    assert.deepEqual(page.get().manual.armed, ["cold-blood", "blood-fury"]);
+    assert.equal(host.wait({ kind: "time" }).ok, true);
+    assert.deepEqual(
+      page
+        .get()
+        .manual.events.filter((event) => event.kind === "cast")
+        .map((event) => [event.abilityId, event.t]),
+      [
+        ["cold-blood", 0],
+        ["blood-fury", 0],
+      ],
+    );
+    host.reset();
+
+    host.start({ seed: 1, duration: 30, config });
+    assert.equal(host.cast("blood-fury").armed, true);
+    assert.equal(host.cast("cold-blood").armed, true);
+    assert.deepEqual(page.get().manual.armed, ["blood-fury", "cold-blood"]);
+    assert.equal(host.wait({ kind: "time" }).ok, true);
+    assert.deepEqual(
+      page
+        .get()
+        .manual.events.filter((event) => event.kind === "cast")
+        .map((event) => [event.abilityId, event.t]),
+      [
+        ["blood-fury", 0],
+        ["cold-blood", 0],
+      ],
+    );
+    host.reset();
+  });
+
+  it("reset() clears the armed set", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("subtlety-daggers"),
+    });
+    assert.equal(host.cast("premeditation").armed, true);
+    assert.deepEqual(page.get().manual.armed, ["premeditation"]);
+    host.reset();
+    assert.deepEqual(page.get().manual.armed, []);
+  });
+
   it("clears armed abilities on Stop and Reset", () => {
     const page = store();
     const host = createManualRun(page);

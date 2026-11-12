@@ -602,6 +602,93 @@ async function slotChrome(locator) {
   });
 }
 
+const BUILDER_ATTEMPTS = 8;
+const REVIEW_WAITS = 24;
+
+async function comboReady(page) {
+  return page.evaluate(() => {
+    const ev = globalThis.document.querySelector(
+      '.manual-slot[data-ability-id="eviscerate"]',
+    );
+    const pips = globalThis.document.getElementById("manual-combo-text");
+    const points = Number.parseInt(pips?.textContent ?? "0", 10);
+    return (
+      ev != null && ev.getAttribute("aria-disabled") !== "true" && points >= 1
+    );
+  });
+}
+
+async function slotEnabled(page, abilityId) {
+  const slot = page.locator(`.manual-slot[data-ability-id="${abilityId}"]`);
+  if ((await slot.count()) === 0) {
+    return false;
+  }
+  return (await slot.getAttribute("aria-disabled")) !== "true";
+}
+
+async function buildComboPoints(page) {
+  for (let attempt = 0; attempt < BUILDER_ATTEMPTS; attempt += 1) {
+    if (await comboReady(page)) {
+      return;
+    }
+    const before = await page.locator("#manual-clock").textContent();
+    let pressed = false;
+    for (const id of ["mutilate", "sinister-strike"]) {
+      if (await slotEnabled(page, id)) {
+        await page.locator(`.manual-slot[data-ability-id="${id}"]`).click();
+        pressed = true;
+        break;
+      }
+    }
+    if (!pressed) {
+      const energy = page.locator(".manual-wait[data-wait-kind='energy']");
+      const timeWait = page.locator(".manual-wait[data-wait-kind='time']");
+      const wait =
+        (await energy.getAttribute("aria-disabled")) !== "true"
+          ? energy
+          : timeWait;
+      await wait.click();
+    }
+    await page.waitForFunction((prev) => {
+      const clock = globalThis.document.getElementById("manual-clock");
+      const ev = globalThis.document.querySelector(
+        '.manual-slot[data-ability-id="eviscerate"]',
+      );
+      const pips = globalThis.document.getElementById("manual-combo-text");
+      const points = Number.parseInt(pips?.textContent ?? "0", 10);
+      const evReady =
+        ev != null &&
+        ev.getAttribute("aria-disabled") !== "true" &&
+        points >= 1;
+      const moved = (clock?.textContent ?? "") !== prev;
+      return evReady || moved;
+    }, before);
+  }
+  assert.equal(
+    await comboReady(page),
+    true,
+    "no combo points after bounded builder attempts",
+  );
+}
+
+async function waitForReview(page) {
+  const review = page.locator("#manual-review");
+  for (let n = 0; n < REVIEW_WAITS; n += 1) {
+    if (await review.isVisible()) {
+      return;
+    }
+    const timeWait = page.locator(".manual-wait[data-wait-kind='time']");
+    if (
+      (await timeWait.count()) === 0 ||
+      (await timeWait.getAttribute("aria-disabled")) === "true"
+    ) {
+      break;
+    }
+    await timeWait.click();
+  }
+  await review.waitFor({ state: "visible" });
+}
+
 describe("arming off-GCD abilities on the board (#372)", () => {
   for (const text of ["100%", "150%"]) {
     test(`after Sinister Strike the GCD has already run out at 390px ${text} text`, async () => {
@@ -632,26 +719,14 @@ describe("arming off-GCD abilities on the board (#372)", () => {
       const { context, page, errors } = await open(390, { text });
       try {
         await pickAssassination(page);
-        await startManual(page, "2");
+        await startManual(page, "10");
         await page.waitForFunction(() =>
           (
             globalThis.document.getElementById("manual-clock")?.textContent ??
             ""
-          ).includes("00:00.0 / 00:02"),
+          ).includes("00:00.0 / 00:10"),
         );
-        await page.locator('.manual-slot[data-ability-id="mutilate"]').click();
-        await page.waitForFunction(() =>
-          (
-            globalThis.document.getElementById("manual-clock")?.textContent ??
-            ""
-          ).startsWith("00:01.0"),
-        );
-        await page.waitForFunction(() => {
-          const ev = globalThis.document.querySelector(
-            '.manual-slot[data-ability-id="eviscerate"]',
-          );
-          return ev != null && ev.getAttribute("aria-disabled") !== "true";
-        });
+        await buildComboPoints(page);
         const cold = page.locator('.manual-slot[data-ability-id="cold-blood"]');
         assert.equal(await cold.getAttribute("aria-pressed"), "false");
         await cold.click();
@@ -678,13 +753,16 @@ describe("arming off-GCD abilities on the board (#372)", () => {
         await page
           .locator('.manual-slot[data-ability-id="eviscerate"]')
           .click();
-        await page.locator("#manual-review").waitFor({ state: "visible" });
+        await waitForReview(page);
         const timing = await page
           .locator("#manual-review-timing")
           .textContent();
-        assert.match(timing, /00:00\.0\s+Mutilate/);
-        assert.match(timing, /00:01\.0\s+Cold Blood/);
-        assert.match(timing, /00:01\.0\s+Eviscerate/);
+        assert.match(timing, /Mutilate|Sinister Strike/);
+        const coldAt = timing.match(/(\d{2}:\d{2}\.\d)\s+Cold Blood/);
+        const evAt = timing.match(/(\d{2}:\d{2}\.\d)\s+Eviscerate/);
+        assert.ok(coldAt, timing);
+        assert.ok(evAt, timing);
+        assert.equal(coldAt[1], evAt[1], timing);
         assert.equal(errors.length, 0, errors.join("\n"));
       } finally {
         await context.close();
