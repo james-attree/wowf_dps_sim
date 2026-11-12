@@ -392,23 +392,6 @@ function slotName(manual, abilityId) {
   );
 }
 
-// The engine's GCD block wording (js/manual-fight.js blockReason), so the
-// host can disable on-GCD slots while getState() is deferred.
-export function gcdHeldReason(seconds) {
-  return {
-    code: "gcd",
-    text: `GCD, ${remainingTime(seconds)} left`,
-    seconds,
-  };
-}
-
-export function gcdHeldSeconds(state) {
-  if (state?.gcd?.remaining > 0) {
-    return state.gcd.remaining;
-  }
-  return state?.gcd?.duration ?? 0;
-}
-
 export function wellLine(manual) {
   if (manual.phase === "blocked" && manual.lastAction?.reason) {
     return {

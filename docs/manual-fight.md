@@ -57,8 +57,9 @@ not run a GCD out. After a successful on-GCD cast or a Wait, `getState()`
 runs the clock as usual.
 
 The same number keys toggle the highlight. W still focuses the first Wait.
-Armed slots use an accent outline and inset fill, an "Armed" note, and
-`aria-pressed`.
+Armed slots use an accent border and inset fill, a tinted face, a check
+before the name, an "Armed" note, and `aria-pressed`. Focus keeps the
+offset accent outline.
 
 The armed set is cleared on Start, Replay, Stop, Reset, and Back to Fight,
 and after an on-GCD ability or a Wait fires, whether each armed ability

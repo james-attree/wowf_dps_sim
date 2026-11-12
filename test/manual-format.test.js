@@ -17,8 +17,6 @@ import {
   floatCopies,
   wellLine,
   announceLine,
-  gcdHeldReason,
-  gcdHeldSeconds,
   ARMED_LABEL,
   wellIsCrit,
   slotAccessibleName,
@@ -468,13 +466,7 @@ describe("Manual board formatters (#348)", () => {
     assert.ok(EMPTY_TRAY_MAX_REM <= 0.875);
   });
 
-  it("keeps the engine GCD wording and always shows GCD free on the well (James, 12 Nov 2026)", () => {
-    assert.deepEqual(gcdHeldReason(1), {
-      code: "gcd",
-      text: "GCD, 1.0 s left",
-      seconds: 1,
-    });
-    assert.equal(gcdHeldSeconds({ gcd: { remaining: 0, duration: 1 } }), 1);
+  it("always shows GCD free on the well and announces skipped armed reasons (James, 12 Nov 2026)", () => {
     assert.equal(
       wellLine({
         phase: "decision",

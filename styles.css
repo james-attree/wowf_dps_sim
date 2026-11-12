@@ -4177,9 +4177,25 @@ th[aria-sort="ascending"] {
 
 .manual-slot[aria-pressed="true"],
 .manual-slot.is-armed {
-  outline: 0.125rem solid var(--accent);
-  outline-offset: 0.125rem;
+  outline: none;
+  border-color: var(--accent);
+  border-width: 0.1875rem;
   box-shadow: inset 0 0 0 0.125rem var(--accent);
+  background-color: color-mix(
+    in srgb,
+    var(--accent) 16%,
+    var(--manual-slot-face)
+  );
+}
+
+.manual-slot[aria-pressed="true"]:focus,
+.manual-slot.is-armed:focus {
+  outline: 0.125rem solid var(--accent);
+  outline-offset: 0.1875rem;
+}
+
+.manual-slot[aria-pressed="true"] .manual-slot-name::before {
+  content: "✓\00a0";
 }
 
 .manual-slot-note,
@@ -4197,6 +4213,27 @@ th[aria-sort="ascending"] {
 .manual-slot[aria-pressed="true"] .manual-slot-note,
 .manual-slot.is-armed .manual-slot-note {
   color: var(--accent);
+}
+
+@media (forced-colors: active) {
+  .manual-slot[aria-pressed="true"],
+  .manual-slot.is-armed {
+    border: 0.1875rem solid Mark;
+    box-shadow: none;
+    outline: none;
+  }
+  .manual-slot:focus,
+  .manual-wait:focus,
+  .manual-review-replay:focus,
+  .manual-review-back:focus {
+    outline: 0.125rem solid ButtonText;
+    outline-offset: 0.125rem;
+  }
+  .manual-slot[aria-pressed="true"]:focus,
+  .manual-slot.is-armed:focus {
+    outline: 0.125rem solid ButtonText;
+    outline-offset: 0.1875rem;
+  }
 }
 
 .manual-waits {

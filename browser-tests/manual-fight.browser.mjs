@@ -549,6 +549,24 @@ async function setDuration(page, seconds) {
   await duration.press("Tab");
 }
 
+async function slotChrome(locator) {
+  return locator.evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    const mark = globalThis.getComputedStyle(
+      el.querySelector(".manual-slot-name"),
+      "::before",
+    );
+    return {
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+      outlineOffset: style.outlineOffset,
+      borderTopWidth: style.borderTopWidth,
+      boxShadow: style.boxShadow,
+      mark: mark.content,
+    };
+  });
+}
+
 describe("arming off-GCD abilities on the board (#372)", () => {
   for (const text of ["100%", "150%"]) {
     test(`after Sinister Strike the GCD has already run out at 390px ${text} text`, async () => {
@@ -593,6 +611,12 @@ describe("arming off-GCD abilities on the board (#372)", () => {
             ""
           ).startsWith("00:01.0"),
         );
+        await page.waitForFunction(() => {
+          const ev = globalThis.document.querySelector(
+            '.manual-slot[data-ability-id="eviscerate"]',
+          );
+          return ev != null && ev.getAttribute("aria-disabled") !== "true";
+        });
         const cold = page.locator('.manual-slot[data-ability-id="cold-blood"]');
         assert.equal(await cold.getAttribute("aria-pressed"), "false");
         await cold.click();
@@ -660,6 +684,28 @@ describe("arming off-GCD abilities on the board (#372)", () => {
         );
         await premed.click();
         assert.equal(await premed.getAttribute("aria-pressed"), "true");
+        await page.locator("#manual-well").focus();
+        const armedChrome = await slotChrome(premed);
+        await prep.focus();
+        const focusChrome = await slotChrome(prep);
+        const px = (value) => Number.parseFloat(value);
+        assert.equal(
+          armedChrome.outlineStyle === "none" ||
+            px(armedChrome.outlineWidth) === 0,
+          true,
+        );
+        assert.ok(px(focusChrome.outlineWidth) > 0);
+        assert.notEqual(focusChrome.outlineStyle, "none");
+        assert.ok(
+          px(armedChrome.borderTopWidth) > px(focusChrome.borderTopWidth),
+        );
+        assert.notEqual(armedChrome.boxShadow, "none");
+        assert.match(armedChrome.mark, /✓/);
+        assert.doesNotMatch(focusChrome.mark, /✓/);
+        assert.doesNotMatch(
+          await premed.locator(".manual-slot-name").textContent(),
+          /✓/,
+        );
         await page.locator("#manual-well").focus();
         await page.keyboard.press("w");
         const focused = await page.evaluate(() => {
