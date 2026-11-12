@@ -4215,6 +4215,11 @@ th[aria-sort="ascending"] {
   color: var(--accent);
 }
 
+.manual-slot[aria-pressed="true"] .manual-slot-key,
+.manual-slot.is-armed .manual-slot-key {
+  color: inherit;
+}
+
 @media (forced-colors: active) {
   .manual-slot[aria-pressed="true"],
   .manual-slot.is-armed {

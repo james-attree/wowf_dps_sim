@@ -549,6 +549,41 @@ async function setDuration(page, seconds) {
   await duration.press("Tab");
 }
 
+const AA_TEXT_CONTRAST = 4.5;
+
+async function armedKeyContrast(locator) {
+  return locator.evaluate((el) => {
+    const key = el.querySelector(".manual-slot-key");
+    const parse = (text) => {
+      const values = (text.match(/[-\d.]+/g) ?? []).map(Number);
+      if (/color\(srgb/i.test(text)) {
+        return {
+          r: values[0] * 255,
+          g: values[1] * 255,
+          b: values[2] * 255,
+        };
+      }
+      const [r, g, b] = values;
+      return { r, g, b };
+    };
+    const lum = ({ r, g, b }) => {
+      const lin = (v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ratio = (a, b) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    return ratio(
+      parse(globalThis.getComputedStyle(key).color),
+      parse(globalThis.getComputedStyle(el).backgroundColor),
+    );
+  });
+}
+
 async function slotChrome(locator) {
   return locator.evaluate((el) => {
     const style = globalThis.getComputedStyle(el);
@@ -634,6 +669,11 @@ describe("arming off-GCD abilities on the board (#372)", () => {
         assert.equal(
           await cold.evaluate((el) => el.classList.contains("is-armed")),
           true,
+        );
+        const keyContrast = await armedKeyContrast(cold);
+        assert.ok(
+          keyContrast >= AA_TEXT_CONTRAST,
+          `armed key contrast ${keyContrast} is under ${AA_TEXT_CONTRAST}:1`,
         );
         await page
           .locator('.manual-slot[data-ability-id="eviscerate"]')
