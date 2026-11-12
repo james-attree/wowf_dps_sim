@@ -3842,3 +3842,457 @@ th[aria-sort="ascending"] {
   color: var(--text-muted);
   font-size: 0.8rem;
 }
+
+/* Manual fight B1 (#348). Tokens and layout for the step board. */
+.manual-board {
+  --manual-buff: #8ee0b6;
+  --manual-debuff: #db7a88;
+  --manual-crit: #f0c46a;
+  --manual-slot-face: var(--surface-raised);
+  --manual-track: #120f0b;
+  --manual-health: #4caf7a;
+  margin-block: 1rem;
+  padding-bottom: var(--chrome-bottom);
+}
+
+.manual-board-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.manual-board-title {
+  font-size: 1.25rem;
+  font-weight: 650;
+  margin: 0;
+}
+
+.manual-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+}
+
+.manual-frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.manual-unit {
+  flex: 1 1 12rem;
+  min-width: 0;
+  background: var(--surface-raised);
+  border: 0.125rem solid var(--control-border);
+  border-radius: 0.8125rem;
+  padding: 0.625rem;
+}
+
+.manual-unit h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.manual-energy,
+.manual-mock-health-track {
+  height: 0.5625rem;
+  background: var(--manual-track);
+  border: 0.0625rem solid var(--control-border);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.manual-energy .energy-fill,
+.manual-mock-health-fill {
+  height: 100%;
+  width: 0;
+  transition: width 200ms ease-out;
+}
+
+.manual-mock-health-fill {
+  background: var(--manual-health);
+}
+
+.manual-energy-text,
+.manual-combo-text,
+.manual-remaining,
+.manual-mock-health-label {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-mock-health-label {
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.manual-pips {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.manual-pip {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 0.125rem solid var(--control-border);
+  background: transparent;
+}
+
+.manual-pip.is-filled {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.manual-trays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block: 0.75rem;
+}
+
+.manual-tray {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: var(--target);
+}
+
+.manual-tray-buffs {
+  color: var(--manual-buff);
+}
+
+.manual-tray-debuffs {
+  color: var(--manual-debuff);
+}
+
+.manual-chip {
+  min-width: var(--target);
+  min-height: var(--target);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.35rem;
+  border: 0.125rem solid currentColor;
+  border-radius: 0.4rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-chip-icon {
+  position: relative;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+
+.manual-chip-icon img {
+  width: 2rem;
+  height: 2rem;
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+
+.manual-chip-icon.is-glyph .manual-slot-glyph,
+.manual-chip-icon img[hidden] + .manual-slot-glyph,
+.manual-chip-icon img[style*="none"] + .manual-slot-glyph {
+  display: block;
+}
+
+.manual-tray-empty {
+  min-height: var(--target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.manual-well {
+  position: relative;
+  background: var(--surface-raised);
+  border: 0.125rem solid var(--control-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  min-height: 4.5rem;
+}
+
+.manual-well-prompt {
+  font-size: 1rem;
+  font-weight: 650;
+  margin: 0 0 0.35rem;
+}
+
+.manual-well-event {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.manual-floats {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manual-float-slot {
+  position: absolute;
+}
+
+.manual-float-slot[data-stack="1"] {
+  transform: translate(-0.5rem, -0.875rem);
+}
+
+.manual-float-slot[data-stack="2"] {
+  transform: translate(0.5rem, -1.75rem);
+}
+
+.manual-float {
+  display: block;
+  font-weight: 650;
+  animation: manual-float-rise 800ms ease-out forwards;
+}
+
+.manual-float.is-hit {
+  color: #f3eee2;
+  font-size: 1rem;
+}
+
+.manual-float.is-large,
+.manual-float.is-crit,
+.manual-well.is-crit .manual-well-event {
+  color: var(--manual-crit);
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.manual-float.is-proc {
+  color: var(--manual-buff);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+@keyframes manual-float-rise {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.75rem);
+  }
+}
+
+.manual-bar {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.manual-slot,
+.manual-wait {
+  appearance: none;
+  background: var(--manual-slot-face);
+  border: 0.125rem solid var(--control-border);
+  border-radius: 0.5rem;
+  color: inherit;
+  min-width: var(--target);
+  min-height: var(--target);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.manual-slot:focus,
+.manual-wait:focus,
+.manual-review-replay:focus,
+.manual-review-back:focus {
+  outline: 0.125rem solid var(--accent);
+  outline-offset: 0.125rem;
+}
+
+.manual-slot.is-blocked {
+  border-width: 0.1875rem;
+  border-color: #f19389;
+}
+
+.manual-slot-key {
+  align-self: flex-start;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.manual-slot-icon {
+  position: relative;
+  width: var(--target);
+  height: var(--target);
+  display: grid;
+  place-items: center;
+}
+
+.manual-slot-icon img {
+  width: var(--target);
+  height: var(--target);
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+
+.manual-slot-glyph {
+  display: none;
+  font-weight: 700;
+}
+
+.manual-slot-icon.is-glyph .manual-slot-glyph,
+.manual-slot-icon img[hidden] + .manual-slot-glyph,
+.manual-slot-icon img[style*="none"] + .manual-slot-glyph {
+  display: block;
+}
+
+.manual-slot[aria-disabled="true"] .manual-slot-icon {
+  opacity: 0.7;
+}
+
+.manual-slot-name {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.manual-slot-note,
+.manual-wait-reason {
+  font-size: 0.75rem;
+  color: #f19389;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-slot:not([aria-disabled="true"]) .manual-slot-note {
+  color: var(--text-muted);
+}
+
+.manual-waits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.manual-wait {
+  min-height: var(--target);
+  flex: 1 1 8rem;
+}
+
+.manual-wait-label {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.manual-review {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.manual-review-dps {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.manual-review-breakdown,
+.manual-review-timing {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.manual-review-breakdown li,
+.manual-review-timing li {
+  margin: 0;
+}
+
+.manual-review-replay,
+.manual-review-back {
+  min-height: var(--target);
+  min-width: var(--target);
+  background: var(--surface-raised);
+  border: 0.125rem solid var(--control-border);
+  border-radius: 0.5rem;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.fight-play-mode {
+  border: 0;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+
+.fight-play-mode legend {
+  font-weight: 650;
+  padding: 0;
+  margin-right: 0.5rem;
+}
+
+@media (width < 64em) {
+  .manual-bar {
+    grid-template-columns: repeat(3, minmax(var(--target), 1fr));
+  }
+}
+
+@media (width >= 64em) {
+  .manual-bar {
+    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  }
+
+  .manual-well {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manual-energy .energy-fill,
+  .manual-mock-health-fill {
+    transition: none;
+  }
+
+  .manual-float {
+    animation: none;
+  }
+}
+
+:root.reduce-motion .manual-energy .energy-fill,
+:root.reduce-motion .manual-mock-health-fill {
+  transition: none;
+}
+
+:root.reduce-motion .manual-float {
+  animation: none;
+  display: none;
+}

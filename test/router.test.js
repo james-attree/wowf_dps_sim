@@ -7,6 +7,7 @@ import { createStore } from "../js/store.js";
 import {
   APP_TITLE,
   followArea,
+  followRoute,
   formatRoute,
   isRouteHash,
   MOVED_BY_RUN,
@@ -113,6 +114,15 @@ describe("followArea", () => {
     };
     assert.equal(followArea(idle("batch"), batch, "rotation"), "results");
     assert.equal(followArea(idle("batch"), batch, "results"), null);
+  });
+
+  it("keeps a Manual fight on Fight, so the hash stays #fight (#348)", () => {
+    const start = { run: { mode: "live", state: "idle", fightMode: "manual" } };
+    const play = {
+      run: { mode: "live", state: "running", fightMode: "manual" },
+    };
+    assert.equal(followArea(start, play, "fight"), null);
+    assert.equal(followRoute(start, play, { area: "fight", sub: null }), null);
   });
 
   it("leaves a resumed fight where it is", () => {

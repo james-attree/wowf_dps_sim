@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { nextRunConfig } from "./config-form.js";
+import { createManualRun } from "./manual-run.js";
 
 // The control bar's actions (#153): what Run, Pause, Stop, Reset, the mode
 // toggle, the fields and "New seed" do to the page's store (js/store.js). The
@@ -72,6 +73,9 @@ export function createRunActions({
     store.update((state) => ({
       ran: { ...(state.ran ?? emptyRan()), ...patch },
     }));
+  const manual = createManualRun(store);
+  const isManual = () => run().fightMode === "manual";
+
   const record = (prepared, { duration, iterations }) => ({
     config: prepared.config,
     seed: prepared.seed,
@@ -103,7 +107,54 @@ export function createRunActions({
     return { config, seed };
   }
 
+  function runManual() {
+    if (locked() && store.get().manual?.phase !== "review") {
+      return;
+    }
+    const prepared = prepare();
+    if (prepared === null) {
+      return;
+    }
+    const { duration } = run();
+    store.batch(() => {
+      setRun({ stoppedAt: null, shown: true, snapshot: prepared.config });
+      setRan({ live: record(prepared, { duration, iterations: null }) });
+      manual.start({ seed: prepared.seed, duration, config: prepared.config });
+    });
+  }
+
+  // Strict Replay (Scout): the snapshot taken when the fight started, not
+  // the current form.
+  function replayManual() {
+    const snap = store.get().manual?.snapshot;
+    if (snap == null) {
+      return;
+    }
+    store.batch(() => {
+      setRun({
+        stoppedAt: null,
+        shown: true,
+        snapshot: snap.config,
+      });
+      setRan({
+        live: record(
+          { config: snap.config, seed: snap.seed },
+          { duration: snap.duration, iterations: null },
+        ),
+      });
+      manual.replay();
+    });
+  }
+
   function runLive() {
+    if (isManual()) {
+      if (store.get().manual?.phase === "review") {
+        replayManual();
+        return;
+      }
+      runManual();
+      return;
+    }
     if (locked()) {
       return;
     }
@@ -209,11 +260,17 @@ export function createRunActions({
       }
     },
     pause() {
+      if (isManual()) {
+        return;
+      }
       if (run().mode === "live" && run().state === "running") {
         live.pause();
       }
     },
     resume() {
+      if (isManual()) {
+        return;
+      }
       if (run().mode === "live" && run().state === "paused") {
         live.resume();
       }
@@ -228,6 +285,14 @@ export function createRunActions({
         return;
       }
       if (!locked()) {
+        return;
+      }
+      if (isManual()) {
+        store.batch(() => {
+          setRun({ snapshot: null });
+          setRan({ live: null });
+          manual.stop();
+        });
         return;
       }
       store.batch(() => {
@@ -260,6 +325,11 @@ export function createRunActions({
         return;
       }
       store.batch(() => {
+        if (isManual()) {
+          manual.reset();
+          setRan({ live: null });
+          return;
+        }
         if (live.state !== "idle") {
           live.reset();
         }
@@ -371,6 +441,21 @@ export function createRunActions({
         errors: nextErrors,
       });
     },
+    setFightMode(mode) {
+      if (mode !== "scripted" && mode !== "manual") {
+        throw new RangeError(
+          `A fight mode is "scripted" or "manual". Got ${JSON.stringify(mode)}.`,
+        );
+      }
+      if (locked()) {
+        return;
+      }
+      setRun({ fightMode: mode });
+    },
+    replay: () => replayManual(),
+    backToFight: () => manual.backToFight(),
+    wait: (options) => manual.wait(options),
+    cast: (abilityId) => manual.cast(abilityId),
   };
   return actions;
 }
