@@ -22,7 +22,6 @@ export const DPS_DECIMALS = 1;
 export const CONTINUE_LABEL = "Continue";
 export const CONTINUE_KEY = "Space";
 export const CONTINUE_WAIT_REASON = "Continue first";
-export const USED_THIS_INSTANT_REASON = "Already used this instant";
 export const INTEGER_DECIMALS = 0;
 export const EMPTY_TRAY_MIN_REM = 0.8125;
 export const EMPTY_TRAY_MAX_REM = 0.875;
@@ -410,10 +409,6 @@ export function gcdHeldSeconds(state) {
 
 export function continueWaitReason() {
   return { code: "gcd", text: CONTINUE_WAIT_REASON };
-}
-
-export function usedThisInstantReason() {
-  return { code: "used", text: USED_THIS_INSTANT_REASON };
 }
 
 export function wellLine(manual) {

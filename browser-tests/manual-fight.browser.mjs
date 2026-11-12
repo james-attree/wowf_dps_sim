@@ -606,14 +606,8 @@ describe("same-instant off-GCD on the board (#368)", () => {
           /^00:00\.0\b/,
         );
         await premed.click();
-        assert.match(
-          await premed.getAttribute("aria-label"),
-          /Already used this instant/,
-        );
-        assert.equal(
-          await premed.locator(".manual-slot-note").textContent(),
-          "Already used this instant",
-        );
+        assert.equal(await premed.getAttribute("aria-disabled"), "true");
+        assert.match(await premed.getAttribute("aria-label"), /cooldown/i);
         await page.locator("#manual-well").focus();
         await page.keyboard.press("Space");
         await page.locator("#manual-review").waitFor({ state: "visible" });
@@ -623,6 +617,54 @@ describe("same-instant off-GCD on the board (#368)", () => {
         assert.match(timing, /00:00\.0\s+Preparation/);
         assert.match(timing, /00:00\.0\s+Premeditation/);
         assert.equal(await page.locator(".manual-continue").isVisible(), false);
+        assert.equal(errors.length, 0, errors.join("\n"));
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  for (const textSize of ["100%", "150%"]) {
+    test(`Premeditation, Preparation and Premeditation land at t=0 at 390px ${textSize} text`, async () => {
+      const { context, page, errors } = await open(390, { text: textSize });
+      try {
+        await pickSubtlety(page);
+        const duration = page.locator("#run-duration");
+        if (!(await duration.isVisible())) {
+          await page.locator('[data-nav-area="fight"]').click();
+        }
+        await duration.fill("1");
+        await duration.press("Tab");
+        await startManual(page);
+        const prep = page.locator(
+          '.manual-slot[data-ability-id="preparation"]',
+        );
+        const premed = page.locator(
+          '.manual-slot[data-ability-id="premeditation"]',
+        );
+        await premed.click();
+        assert.equal(await page.locator(".manual-continue").isVisible(), false);
+        assert.match(
+          await page.locator("#manual-clock").textContent(),
+          /^00:00\.0\b/,
+        );
+        await prep.click();
+        await page.waitForFunction(
+          () =>
+            globalThis.document.getElementById("manual-well-prompt")
+              ?.textContent === "Your decision · GCD held",
+        );
+        assert.equal(await premed.getAttribute("aria-disabled"), null);
+        await premed.click();
+        await page.locator("#manual-well").focus();
+        await page.keyboard.press("Space");
+        await page.locator("#manual-review").waitFor({ state: "visible" });
+        const timing = await page
+          .locator("#manual-review-timing")
+          .textContent();
+        const premedHits = [...timing.matchAll(/00:00\.0\s+Premeditation/g)];
+        assert.equal(premedHits.length, 2, timing);
+        assert.match(timing, /00:00\.0\s+Preparation/);
         assert.equal(errors.length, 0, errors.join("\n"));
       } finally {
         await context.close();

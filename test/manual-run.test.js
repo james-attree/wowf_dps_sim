@@ -293,7 +293,7 @@ describe("manual fight host (#348)", () => {
       .get()
       .manual.state.slots.find((slot) => slot.abilityId === "premeditation");
     assert.equal(used.castable, false);
-    assert.equal(used.reason.text, "Already used this instant");
+    assert.equal(used.reason.code, "cooldown");
     host.continueGcd();
     const after = page.get().manual;
     assert.equal(after.sameInstant, false);
@@ -346,13 +346,7 @@ describe("manual fight host (#348)", () => {
     host.reset();
   });
 
-  it("matches runFight's Subtlety pull only as far as a pre-cast snapshot allows", () => {
-    // Scripted Subtlety opens Premeditation, Preparation, Premeditation at
-    // t=0. The second Premeditation is only ready after Preparation resets
-    // it. getState() would run that GCD out, and the engine has no peek, so
-    // the host auto-skips from the pre-cast snapshot (Premeditation still
-    // on cooldown) and the second press lands at the GCD end. A Prep-then-
-    // Premeditation pull (James, 11 Nov 2026) is the feasible match.
+  it("lands Premeditation, Preparation and Premeditation at t=0 via peekState", () => {
     const seed = 1;
     const duration = 20;
     const config = presetConfig("subtlety-daggers");
@@ -375,42 +369,61 @@ describe("manual fight host (#348)", () => {
     const host = createManualRun(page);
     host.start({ seed, duration, config });
     host.cast("premeditation");
-    host.cast("preparation");
     assert.equal(page.get().manual.sameInstant, false);
-    host.cast("premeditation");
-    const times = page
+    host.cast("preparation");
+    assert.equal(page.get().manual.sameInstant, true);
+    assert.equal(page.get().manual.state.time, 0);
+    const ready = page
       .get()
-      .manual.events.filter((event) => event.kind === "cast")
-      .map((event) => [event.abilityId, event.t]);
-    assert.deepEqual(times, [
-      ["premeditation", 0],
-      ["preparation", 0],
-      ["premeditation", 1],
-    ]);
-    host.reset();
-
-    const pull = store();
-    const pullHost = createManualRun(pull);
-    pullHost.start({ seed, duration, config });
-    pullHost.cast("preparation");
-    assert.equal(pull.get().manual.sameInstant, true);
-    pullHost.cast("premeditation");
-    pullHost.continueGcd();
+      .manual.state.slots.find((slot) => slot.abilityId === "premeditation");
+    assert.equal(ready.castable, true);
+    host.cast("premeditation");
     assert.deepEqual(
-      pull
+      page
         .get()
         .manual.events.filter((event) => event.kind === "cast")
         .map((event) => [event.abilityId, event.t]),
       [
+        ["premeditation", 0],
         ["preparation", 0],
         ["premeditation", 0],
       ],
     );
-    assert.equal(pull.get().manual.state.time, 1);
-    // Full-duration board parity with runFight is not possible: the host
-    // cannot advanceTo off-grid instants, and the scripted second
-    // Premeditation needs a peek the engine does not expose.
+    host.continueGcd();
+    assert.equal(page.get().manual.state.time, 1);
+    host.reset();
     assert.ok(scripted.totalDamage > 0);
-    pullHost.reset();
+  });
+
+  it("shows post-cast energy, combo points and cooldowns during the hold", () => {
+    const page = store();
+    const host = createManualRun(page);
+    host.start({
+      seed: 1,
+      duration: 30,
+      config: presetConfig("assassination-daggers"),
+    });
+    const before = page.get().manual.state;
+    const coldBefore = before.slots.find(
+      (slot) => slot.abilityId === "cold-blood",
+    );
+    host.cast("mutilate");
+    const held = page.get().manual;
+    assert.equal(held.sameInstant, true);
+    assert.equal(held.state.time, 0);
+    assert.ok(held.state.energy.value < before.energy.value);
+    assert.equal(held.state.comboPoints.value, before.comboPoints.value + 2);
+    assert.ok(held.state.gcd.remaining > 0);
+    const mutilate = held.state.slots.find(
+      (slot) => slot.abilityId === "mutilate",
+    );
+    const cold = held.state.slots.find(
+      (slot) => slot.abilityId === "cold-blood",
+    );
+    assert.equal(mutilate.castable, false);
+    assert.equal(mutilate.reason.code, "gcd");
+    assert.equal(cold.castable, true);
+    assert.equal(cold.cooldownRemaining, coldBefore.cooldownRemaining);
+    host.reset();
   });
 });

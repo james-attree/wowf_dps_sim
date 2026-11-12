@@ -4,12 +4,7 @@
 // stopReason fields; it does not invent names or reason text.
 import { createManualFight } from "./manual-fight.js";
 import { poisonCatalogue } from "./poisons.js";
-import {
-  continueWaitReason,
-  gcdHeldReason,
-  gcdHeldSeconds,
-  usedThisInstantReason,
-} from "./views/manual-format.js";
+import { continueWaitReason } from "./views/manual-format.js";
 
 const POISON_NAMES = new Set(
   poisonCatalogue.poisons.map((poison) => poison.name),
@@ -79,11 +74,9 @@ const emptyManual = () => ({
 export function createManualRun(store) {
   let fight = null;
   let snapshot = null;
-  // After an on-GCD cast, getState() would run the GCD out. Keep the last
-  // presented state and offer same-instant off-GCD casts until Continue
-  // (James, 11 Nov 2026).
-  let heldBase = null;
-  let usedOffGcd = new Set();
+  // After an on-GCD cast, getState() would run the GCD out. peekState()
+  // stays at that instant (James, 11 Nov 2026 ruling).
+  let held = false;
 
   function slotMeta(abilityId) {
     return (fight?.slots ?? []).find((slot) => slot.abilityId === abilityId);
@@ -100,22 +93,13 @@ export function createManualRun(store) {
     });
   }
 
-  function heldState(base, used) {
-    const reason = gcdHeldReason(gcdHeldSeconds(base));
+  // Trust peekState for slots (castable and reason). Only Waits are
+  // overlaid: they stay disabled with "Continue first" until Continue.
+  function holdState(peek) {
     const waitReason = continueWaitReason();
     return {
-      ...base,
-      slots: (base.slots ?? []).map((row) => {
-        const meta = slotMeta(row.abilityId);
-        if (meta?.onGcd !== false) {
-          return { ...row, castable: false, reason };
-        }
-        if (used.has(row.abilityId)) {
-          return { ...row, castable: false, reason: usedThisInstantReason() };
-        }
-        return row;
-      }),
-      waits: (base.waits ?? []).map((wait) => ({
+      ...peek,
+      waits: (peek.waits ?? []).map((wait) => ({
         ...wait,
         available: false,
         reason: waitReason,
@@ -124,8 +108,7 @@ export function createManualRun(store) {
   }
 
   function closeHeld() {
-    heldBase = null;
-    usedOffGcd = new Set();
+    held = false;
   }
 
   function start({ seed, duration, config }) {
@@ -187,9 +170,6 @@ export function createManualRun(store) {
     const prior = store.get().manual?.events ?? [];
     const incoming = tagIncoming(action.events ?? []);
     const events = action.ok ? [...prior, ...incoming] : prior;
-    if (action.ok && abilityId) {
-      usedOffGcd.add(abilityId);
-    }
     let phase = "decision";
     let blockedAbilityId = null;
     if (!action.ok) {
@@ -208,7 +188,7 @@ export function createManualRun(store) {
         active: true,
         phase,
         slots: fight.slots,
-        state: heldState(heldBase, usedOffGcd),
+        state: holdState(fight.peekState()),
         events,
         lastAction: action,
         blockedAbilityId,
@@ -220,7 +200,7 @@ export function createManualRun(store) {
   }
 
   function continueGcd() {
-    if (fight == null || heldBase == null) {
+    if (fight == null || !held) {
       return null;
     }
     const events = store.get().manual?.events ?? [];
@@ -242,7 +222,7 @@ export function createManualRun(store) {
       if (fight == null || fight.isOver()) {
         return null;
       }
-      if (heldBase != null) {
+      if (held) {
         // On-GCD presses during the hold are a no-op: the board announces
         // the GCD reason and must not enter Blocked (Fran, #369 P3).
         if (isOnGcd(abilityId)) {
@@ -250,17 +230,13 @@ export function createManualRun(store) {
         }
         return applyHeld(fight.cast(abilityId), abilityId);
       }
-      const before = store.get().manual?.state;
       const action = fight.cast(abilityId);
-      if (
-        action.ok &&
-        isOnGcd(abilityId) &&
-        !fight.isOver() &&
-        offGcdCastable(before).length > 0
-      ) {
-        heldBase = before;
-        usedOffGcd = new Set();
-        return applyHeld(action, null);
+      if (action.ok && isOnGcd(abilityId) && !fight.isOver()) {
+        const peek = fight.peekState();
+        if (offGcdCastable(peek).length > 0) {
+          held = true;
+          return applyHeld(action, null);
+        }
       }
       return apply(action, abilityId);
     },
@@ -268,7 +244,7 @@ export function createManualRun(store) {
       if (fight == null || fight.isOver()) {
         return null;
       }
-      if (heldBase != null) {
+      if (held) {
         return null;
       }
       return apply(fight.wait(options));
@@ -297,7 +273,8 @@ export function createManualRun(store) {
       }));
     },
     stop() {
-      const time = fight?.getState().time ?? 0;
+      // peekState does not run a held GCD out.
+      const time = fight?.peekState().time ?? 0;
       fight?.dispose();
       fight = null;
       snapshot = null;
