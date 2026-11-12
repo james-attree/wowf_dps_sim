@@ -740,8 +740,24 @@ for (const width of [1280, 390, 360]) {
         null,
         { timeout: 20_000 },
       );
-      await clickCentre(page.locator("#pause-button"));
-      await settle(page);
+      const pause = page.locator("#pause-button");
+      await page.waitForFunction(
+        () => {
+          const button = globalThis.document.getElementById("pause-button");
+          return Boolean(button) && !button.disabled;
+        },
+        null,
+        { timeout: 10_000 },
+      );
+      await clickCentre(pause);
+      await page.waitForFunction(
+        (expected) =>
+          (
+            globalThis.document.querySelector("#log-hint")?.textContent ?? ""
+          ).startsWith(expected),
+        `Paused. ${phrase}. `,
+        { timeout: 10_000 },
+      );
       const hint = await page.textContent("#log-hint");
       assert.ok(hint.startsWith(`Paused. ${phrase}. `), hint);
       assert.match(hint, /Left goes to older events, Right to newer\./);
