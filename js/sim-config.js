@@ -253,12 +253,12 @@ function readCharacter(input, defaults, level) {
 function readWeapon(input, hand, defaults) {
   const path = `config.weapons.${hand}`;
   const given = readObject(input, path, WEAPON_FIELDS);
-  const min = readNumber(given.min, `${path}.min`, defaults.min, {
-    whole: true,
-  });
-  const max = readNumber(given.max, `${path}.max`, defaults.max, {
-    whole: true,
-  });
+  // Damage may be fractional. A +2 weapon-DPS step adds 2 × speed to min and
+  // max, and 2 × speed is not a whole number for every weapon (coordinator
+  // call 15 Nov (James delegated): apply that step with no rounding and no
+  // dagger special case). The swing roll keeps its floor formula.
+  const min = readNumber(given.min, `${path}.min`, defaults.min, {});
+  const max = readNumber(given.max, `${path}.max`, defaults.max, {});
   if (min > max) {
     throw new RangeError(
       `${path}.min (${min}) is greater than ${path}.max (${max}).`,

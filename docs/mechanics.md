@@ -4561,3 +4561,32 @@ The `end` event gains `resources` (additive). The batch result gains
 `resources`. `Resource` gains `cappedTime`, `overflow` and `waste()`;
 `Simulation` gains `resourceWaste()`; `js/fight-metrics.js` gains
 `FightResources` and `BatchResources`. No constants change.
+
+## Stat weights (issue #281)
+
+`statWeights` in `js/stat-weights.js` builds variants of a normalised config and runs them one after another on the existing batch path (`runBatch` in Node, a `BatchClient` in the browser). It draws no random numbers. Fight i of every variant is the batch's fight i, so the fights share random numbers.
+
+The caller passes the current config, race included. Deltas are applied to the typed character stats and to the weapons as they are configured. Those stats are entered without racials (James, 31 Oct 2026). There is no separate row for Agility or Strength.
+
+| Row                  | Step                 | When a side is out of range                                                                  |
+| -------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| Attack power         | +50                  | Forward only. Attack power has no upper limit.                                               |
+| Main-hand weapon DPS | +2                   | `min` and `max` each increase by 2 × that weapon's speed.                                    |
+| Off-hand weapon DPS  | +2                   | The same, on the off hand.                                                                   |
+| Crit                 | ±1 percentage point  | A side that would leave 0 to 1 is dropped.                                                   |
+| Hit                  | ±2 percentage points | The same. The step stays central.                                                            |
+| Haste                | ±2 percentage points | At the default 0 the minus side is dropped. At the upper limit 1.0 the plus side is dropped. |
+
+Weapon DPS uses the weapons on the config, including the dagger presets. There is no special case. 2 × speed is not always a whole number, so weapon damage may be fractional. The swing roll is unchanged. That is an assumption: coordinator call 15 Nov (James delegated).
+
+Hit stays ±2% even though the reference build (7% gear hit plus Precision 3/3, 10% in all) straddles the 9% yellow-hit cap, so the two sides are not the same slope. That kink is an assumption: coordinator call 15 Nov (James delegated).
+
+A central row's per-fight difference is the plus fight minus the minus fight. A one-sided row's difference is that side minus base (or base minus the minus side, so the step stays positive). DPS per point is the mean difference divided by the step in points: 50 AP, 2 weapon DPS, or the percentage points of the span (2 for a central crit row, 4 for a central hit row, 2 for a one-sided haste row). The 95% half-width is `1.96 × sample sd / √n / delta`, with the sample standard deviation (`n − 1`). The attack-power equivalent is that row's DPS per point divided by the attack-power row's, a point estimate with no interval of its own: coordinator call 15 Nov (James delegated).
+
+Progress counts variants that run, not a fixed 10. At haste 0 that is 9 (base, attack power, both weapons, crit ±, hit ±, haste +). Cancel throws the partial batches away and returns no result (`null`).
+
+The issue's "1 batch vs N worker chunks" is read as the runner's slice size (1, N, Infinity) and the worker path versus the main-thread path. There is no multi-worker parallelism. That reading is an assumption: coordinator call 15 Nov (James delegated).
+
+**Runtime.** The plan's "about 70 s" is replaced by a measurement. On Node v22.23.4, 4 vCPU, the default 9 × 1,000 fights of 300 s, seed 107, temporary Combat swords reference build, Instant Poison on both hands, took 73 s.
+
+**Manual bench, not a test.** On that same run the hit row's half-width was 10.0% of its DPS per point (0.167 on 1.670 DPS per percentage point). The fight count stays 1,000 and the seed stays 107: coordinator call 15 Nov (James delegated). Haste on that run was one-sided and its half-width was 20.0% of its DPS per point (0.314 on 1.572). The interval is reported: coordinator call 15 Nov (James delegated). Precise is 4,000 fights (`statWeights.preciseIterations`); the page does not offer it yet.

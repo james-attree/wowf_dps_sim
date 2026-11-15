@@ -311,7 +311,7 @@ export function createManualFight(options) {
   let held = false;
   // The instant the held GCD was opened. An off-GCD cast is allowed there,
   // and for a remainder within the tick epsilon, and nowhere later in it
-  // (James, 11 Nov 2026 ruling, option A).
+  // (James, 11 Nov 2026 ruling).
   let gcdOpenedAt = null;
   const proc = { name: null };
   const unsubscribe = sim.on("*", (event, type) => {
@@ -608,7 +608,7 @@ export function createManualFight(options) {
     return reason("gcd", `GCD, ${remainingTime(left)} left`, left);
   }
 
-  // James, 11 Nov 2026 ruling (option A). On-GCD stays uncastable for the
+  // James, 11 Nov 2026 ruling. On-GCD stays uncastable for the
   // whole held GCD. Off-GCD is castable at the opening instant and refused
   // once time has moved past it.
   function slotBlock(ability) {
