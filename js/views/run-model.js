@@ -156,6 +156,26 @@ export function isLocked(run) {
   return run.state === "running" || run.state === "paused";
 }
 
+// A stat weights calculation in progress (#283). Average and Live Run are
+// disabled with this reason; the fight fields stay editable, because the
+// in-progress run already has its snapshot.
+// coordinator call 15 Nov (James delegated).
+export const WEIGHTS_RUNNING_REASON = "Stat weights are running";
+export const WEIGHTS_KEEP_AWAKE = "Keep the screen on";
+export const WEIGHTS_WAKE_HELD = "held";
+export const WEIGHTS_WAKE_FALLBACK = "fallback";
+
+export function weightsRunning(state) {
+  return state.weights?.status === "running";
+}
+
+export function weightsProgress(state) {
+  return {
+    completed: state.weights?.progress?.completed ?? 0,
+    total: state.weights?.progress?.total ?? 0,
+  };
+}
+
 // The run fields with an error that counts in this mode, in the bar's order.
 // Fights only count in batch mode: their field is hidden in live mode, so an
 // error left there must not block a live Run where nobody can see or fix it.
@@ -645,6 +665,15 @@ export const STALE_SHORT = "⟳ Out of date";
 // result it shows, the summary is what that result ran with (shownSummary).
 export function dockText(state) {
   const { run, batch, results } = state;
+  // The phone dock strip is hidden on Results, so this line appears once
+  // the user leaves the screen (#283).
+  if (weightsRunning(state)) {
+    const { completed, total } = weightsProgress(state);
+    return {
+      summary: "Stat weights",
+      status: `Running · ${compact(completed)}/${compact(total)}`,
+    };
+  }
   const bad = new Set(fieldErrors(run));
   const part = (name, text) => (bad.has(name) ? "?" : text);
   const seconds = unitPart(part("duration", secondsText(run.duration)));
@@ -695,7 +724,10 @@ export function dockText(state) {
 export const NO_DPS = "—";
 export function dockDps(state) {
   const { run, batch, results } = state;
-  const blocked = controlsModel(state).reason !== null;
+  // The weights reason is not a setting to fix: keep the last DPS in the
+  // strip so the dock still has a figure beside the progress (#283).
+  const blocked =
+    controlsModel(state).reason !== null && !weightsRunning(state);
   if (run.mode === "batch") {
     const result = batch.result;
     const has =
@@ -752,7 +784,21 @@ export function warningsText(state, blocked) {
 
 // Everything the bar draws, from the store's state.
 export function controlsModel(state) {
-  return state.run.mode === "batch" ? batchModel(state) : liveModel(state);
+  const model =
+    state.run.mode === "batch" ? batchModel(state) : liveModel(state);
+  if (!weightsRunning(state)) {
+    return model;
+  }
+  const { completed, total } = weightsProgress(state);
+  const fallback = state.weights?.wakeLock === WEIGHTS_WAKE_FALLBACK;
+  const reason = WEIGHTS_RUNNING_REASON;
+  return {
+    ...model,
+    run: { ...model.run, disabled: true },
+    reason,
+    status: fallback ? `${reason}. ${WEIGHTS_KEEP_AWAKE}.` : reason,
+    statusShort: `Weights · ${compact(completed)}/${compact(total)}`,
+  };
 }
 
 // What changes the announcement: the mode and the state, and whether an idle

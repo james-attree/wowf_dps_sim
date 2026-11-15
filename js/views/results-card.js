@@ -11,6 +11,7 @@ import {
 } from "./run-model.js";
 import { formatNumber } from "../charts.js";
 import { isStale, staleBanner } from "./stale.js";
+import { weightsCardParts } from "./weights-model.js";
 
 // The desktop results column's summary card (#241, UX3; proposal sections 3
 // and 5). From 1024px up the page has a column beside the areas: the Run
@@ -199,7 +200,48 @@ export function cardModel(state, { buildLabel }) {
     ].filter(Boolean),
     open: ["running", "done", "cancelled", "error"].includes(status),
     live: `Live fight: ${liveText(state)}${liveStale}`,
+    weights: weightsCardParts(state),
   };
+}
+
+function weightsLineText(parts) {
+  return `${parts.lead}${parts.clock ? ` ${parts.clock}` : ""}${parts.suffix}`;
+}
+
+function fillWeightsLine(doc, weights, parts) {
+  if (parts === null) {
+    if ((weights.childNodes?.length ?? 0) > 0) {
+      weights.replaceChildren();
+    }
+    return;
+  }
+  if (weights.textContent === `${weightsLineText(parts)} · open`) {
+    return;
+  }
+  const text = doc.createElement("span");
+  text.id = "results-card-weights-text";
+  if (parts.clock) {
+    const lead = doc.createElement("span");
+    lead.textContent = `${parts.lead} `;
+    const clock = doc.createElement("span");
+    clock.className = "results-card-clock";
+    clock.textContent = parts.clock;
+    text.appendChild(lead);
+    text.appendChild(clock);
+    if (parts.suffix) {
+      const after = doc.createElement("span");
+      after.textContent = parts.suffix;
+      text.appendChild(after);
+    }
+  } else {
+    text.textContent = weightsLineText(parts);
+  }
+  const link = doc.createElement("a");
+  link.className = "results-card-link";
+  link.href = "#results/weights";
+  link.setAttribute("aria-label", "Open the stat weights");
+  link.textContent = "open";
+  weights.replaceChildren(text, " · ", link);
 }
 
 export function createResultsCardView(doc, store, labels) {
@@ -207,6 +249,7 @@ export function createResultsCardView(doc, store, labels) {
   const body = doc.querySelector("#results-card-body");
   const open = doc.querySelector("#results-card-open");
   const live = doc.querySelector("#results-card-live");
+  const weights = doc.querySelector("#results-card-weights");
   if (!card || !body || !open || !live) {
     return () => {};
   }
@@ -223,6 +266,17 @@ export function createResultsCardView(doc, store, labels) {
     if (live.textContent !== model.live) {
       live.textContent = model.live;
     }
+    if (weights !== null) {
+      const parts = model.weights;
+      weights.hidden = parts === null;
+      // When the card itself is not rendered (Results, #241), innerText
+      // includes hidden children, so this line must be empty until a run
+      // has finished (#283).
+      // A stub document (live-view unit tests) has the node but no children.
+      if (typeof weights.replaceChildren === "function") {
+        fillWeightsLine(doc, weights, parts);
+      }
+    }
     if (markup !== last) {
       last = markup;
       body.replaceChildren(...model.body.map((node) => toDom(node, doc)));
@@ -231,9 +285,16 @@ export function createResultsCardView(doc, store, labels) {
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (
-      ["run", "batch", "results", "config", "ran", "form", "talents"].some(
-        (s) => changed.includes(s),
-      )
+      [
+        "run",
+        "batch",
+        "results",
+        "config",
+        "ran",
+        "form",
+        "talents",
+        "weights",
+      ].some((s) => changed.includes(s))
     ) {
       render(state);
     }

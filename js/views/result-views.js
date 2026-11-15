@@ -7,6 +7,8 @@ import {
   seedPart,
   staleFixTitle,
   unitPart,
+  WEIGHTS_RUNNING_REASON,
+  weightsRunning,
 } from "./run-model.js";
 import { ranClock, ranOf, staleBanner } from "./stale.js";
 
@@ -108,7 +110,8 @@ function liveLabel(state) {
 
 // What the two views show, as plain data (the tests walk it).
 export function resultViewsModel(state) {
-  const locked = isLocked(state.run);
+  const locked = isLocked(state.run) || weightsRunning(state);
+  const weightsBusy = weightsRunning(state);
   const liveRecord = ranOf(state, "live");
   // While Run is blocked, the title says what to fix (#245).
   const fix = staleFixTitle(state);
@@ -117,6 +120,7 @@ export function resultViewsModel(state) {
   return {
     view: viewOf(state.route),
     locked,
+    weightsBusy,
     blocked: blocked(state),
     average: {
       label: averageLabel(state),
@@ -256,8 +260,18 @@ export function createResultViewsView(doc, store, actions) {
     }
     // aria-disabled, not disabled, while a run is going: the pressed button
     // keeps the focus (#253, Fran: a disabled button drops it to the page).
+    const busyReason = byId("results-weights-busy-reason");
+    if (busyReason !== null) {
+      write(busyReason, WEIGHTS_RUNNING_REASON);
+      busyReason.hidden = !model.weightsBusy;
+    }
     for (const button of buttons) {
       button.setAttribute("aria-disabled", String(model.locked));
+      if (model.weightsBusy) {
+        button.setAttribute("aria-describedby", "results-weights-busy-reason");
+      } else {
+        button.removeAttribute("aria-describedby");
+      }
     }
   }
 

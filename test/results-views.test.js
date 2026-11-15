@@ -309,6 +309,29 @@ describe("Results views (#242)", () => {
     assert.equal(model.average.label, "Average · running");
     assert.equal(model.locked, true);
   });
+
+  it("Average and Live Run lock while stat weights are running (#283)", () => {
+    const model = resultViewsModel(
+      state({
+        run: { ...RUN, state: "idle", shown: true },
+        weights: {
+          status: "running",
+          progress: { completed: 3, total: 9 },
+          result: null,
+        },
+      }),
+    );
+    assert.equal(model.locked, true);
+    assert.equal(model.weightsBusy, true);
+    const done = resultViewsModel(
+      state({
+        run: { ...RUN, state: "idle", shown: true },
+        weights: { status: "done", result: { rows: {} } },
+      }),
+    );
+    assert.equal(done.locked, false);
+    assert.equal(done.weightsBusy, false);
+  });
 });
 
 describe("Run moves to the result it makes (#242)", () => {

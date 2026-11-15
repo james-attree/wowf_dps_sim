@@ -124,6 +124,7 @@ export function createWeightsView(doc, store, actions, { capNoteOf } = {}) {
   const cap = byId("results-weights-cap");
   const run = byId("results-weights-run");
   const help = byId("results-weights-help");
+  const keepAwake = byId("results-weights-keep-awake");
 
   let lastStatus = null;
   const shown = () =>
@@ -168,6 +169,10 @@ export function createWeightsView(doc, store, actions, { capNoteOf } = {}) {
         write(progressLine, model.progress.line);
         write(estimateLine, model.progress.estimate);
       }
+    }
+    if (keepAwake !== null) {
+      keepAwake.hidden = model.keepAwake === null;
+      write(keepAwake, model.keepAwake ?? "");
     }
     if (table !== null) {
       table.hidden = !model.showTable;

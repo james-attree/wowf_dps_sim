@@ -61,8 +61,21 @@ export const fightStatus = (state) =>
 
 // Results hold nothing to fix; they are edited when a kept result is out of
 // date (#242, js/views/stale.js).
-export const resultsStatus = (state) =>
-  anyStale(state) ? { ...NO_STATUS, edited: true } : NO_STATUS;
+export const resultsStatus = (state) => {
+  // A running weights calculation puts a progress badge on Results
+  // (the dock and the area nav, #283). Errors still win if a later
+  // section ever reports them; Results itself has none.
+  if (state.weights?.status === "running") {
+    return {
+      ...NO_STATUS,
+      progress: {
+        completed: state.weights.progress?.completed ?? 0,
+        total: state.weights.progress?.total ?? 0,
+      },
+    };
+  }
+  return anyStale(state) ? { ...NO_STATUS, edited: true } : NO_STATUS;
+};
 
 // No chip summaries yet: the areas' summary rows come with the dock (UX2,
 // #240) and the Character rows (UX6, #244). A section's summary is null until then.
@@ -159,11 +172,16 @@ export function createSections() {
     return inArea(area).reduce(
       (total, section) => {
         const own = section.status(state);
-        return {
+        const next = {
           errors: total.errors + own.errors,
           warnings: total.warnings + own.warnings,
           edited: total.edited || own.edited,
         };
+        const progress = own.progress ?? total.progress;
+        if (progress) {
+          next.progress = progress;
+        }
+        return next;
       },
       { ...NO_STATUS },
     );
@@ -186,6 +204,13 @@ export function createSections() {
 // The nav badge's hidden words (proposal §5): "2 errors", "1 warning". The
 // errors win: an area with an error shows only its errors. Null for none.
 export function badgeOf(status) {
+  if (status.progress) {
+    return {
+      kind: "progress",
+      count: `${status.progress.completed}/${status.progress.total}`,
+      words: "stat weights running",
+    };
+  }
   if (status.errors > 0) {
     return { count: status.errors, words: plural(status.errors, "error") };
   }

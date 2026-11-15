@@ -203,3 +203,64 @@ describe("the card's live fight line (#241)", () => {
     assert.equal(batch({}, NO_FIGHT), "none yet");
   });
 });
+
+describe("the stat weights card line (#283)", () => {
+  const AT = new Date(2026, 10, 15, 10, 2).getTime();
+  const rows = {
+    attackPower: { dpsPerPoint: 1, ci: 0.05, apEquivalent: 1 },
+    crit: { dpsPerPoint: 19.23, ci: 0.4, apEquivalent: 19.23 },
+    hit: { dpsPerPoint: 14.8, ci: 0.2, apEquivalent: 14.8 },
+  };
+  const withWeights = (over = {}) => ({
+    ...state({ status: "idle" }),
+    config: config(),
+    weights: {
+      status: "done",
+      result: { rows, iterations: 1000, seed: 107 },
+      ...over.weights,
+    },
+    ran: {
+      live: null,
+      batch: null,
+      weights: {
+        config: config(),
+        seed: 107,
+        duration: 300,
+        iterations: 1000,
+        at: AT,
+      },
+    },
+    ...over,
+  });
+
+  it("is absent until a run has finished", () => {
+    assert.equal(cardModel(state({ status: "idle" }), LABELS).weights, null);
+  });
+
+  it("lists the measured AP equivalents and the ran clock after a run", () => {
+    const model = cardModel(withWeights(), LABELS);
+    assert.deepEqual(model.weights, {
+      lead: "Stat weights: crit 19.2 · hit 14.8 · AP 1.0",
+      clock: "(ran at 10:02)",
+      suffix: "",
+    });
+  });
+
+  it("marks the last finished line as previous while a new run is going", () => {
+    const model = cardModel(
+      withWeights({
+        weights: {
+          status: "running",
+          progress: { completed: 3, total: 9 },
+          result: { rows, iterations: 1000, seed: 107 },
+        },
+      }),
+      LABELS,
+    );
+    assert.deepEqual(model.weights, {
+      lead: "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · AP 1.0",
+      clock: "(ran at 10:02)",
+      suffix: "",
+    });
+  });
+});

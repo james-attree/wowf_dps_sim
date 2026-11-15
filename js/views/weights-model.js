@@ -19,6 +19,7 @@ import { k } from "../../data/constants.js";
 import { formatNumber } from "../charts.js";
 import { timeEstimate } from "./results-render.js";
 import {
+  compact,
   fieldErrors,
   formErrorCount,
   grouped,
@@ -28,7 +29,12 @@ import {
   staleFixTitle,
   talentErrorCount,
   unitPart,
+  WEIGHTS_KEEP_AWAKE,
+  WEIGHTS_WAKE_FALLBACK,
+  weightsProgress,
+  weightsRunning,
 } from "./run-model.js";
+
 import { ranClock, ranOf, staleBanner } from "./stale.js";
 
 export const WEIGHTS_DPS_DECIMALS = 2;
@@ -158,6 +164,76 @@ export const WEIGHTS_ROW_LABELS = Object.freeze({
   hit: "Hit (per 1%)",
   haste: "Haste (per 1%)",
 });
+
+// Short names for the desktop column card (#283). coordinator call 15 Nov (James delegated):
+// every measured row, in table sort order (AP equivalent
+// descending), 1 decimal place, no ellipsis. The issue's "AP 1 · crit 19.2
+// · hit 14.8 …" line is the shape, not a different order or a cap on rows.
+export const WEIGHTS_CARD_NAMES = Object.freeze({
+  attackPower: "AP",
+  mainHand: "MH",
+  offHand: "OH",
+  crit: "crit",
+  hit: "hit",
+  haste: "haste",
+});
+
+// coordinator call 15 Nov (James delegated), condition on decision 4:
+// a card that stays during a re-run is marked as the previous result, in
+// one line (the Average card's greyed "Previous average" block is heavier
+// than this compact line needs). The stale short is omitted while running,
+// as the Average card hides its stale line mid-batch. Progress uses the
+// same weightsProgress / compact source as the dock.
+export function weightsCardParts(state) {
+  const result = state.weights?.result ?? null;
+  const record = ranOf(state, "weights");
+  if (result === null || record === null) {
+    return null;
+  }
+  const parts = sortWeightRows(result.rows)
+    .filter((row) => row.data != null && Number.isFinite(row.data.apEquivalent))
+    .map(
+      (row) =>
+        `${WEIGHTS_CARD_NAMES[row.id]} ${formatNumber(row.data.apEquivalent, WEIGHTS_AP_DECIMALS)}`,
+    );
+  if (parts.length === ZERO) {
+    return null;
+  }
+  const at = ranClock(record.at);
+  // The card view wraps the clock in a nowrap span so "(ran at 10:02)"
+  // stays on one line box (Kira #377 P2; coordinator call 15 Nov (James delegated)).
+  const clock = at === null ? null : `(ran at ${at})`;
+  const figures = parts.join(" · ");
+  if (weightsRunning(state)) {
+    const { completed, total } = weightsProgress(state);
+    return {
+      lead: `Stat weights running · ${compact(completed)}/${compact(total)} · Previous: ${figures}`,
+      clock,
+      suffix: "",
+    };
+  }
+  const stale = staleBanner(state, "weights");
+  return {
+    lead: `Stat weights: ${figures}`,
+    clock,
+    suffix: stale === null ? "" : ` · ${stale.short}`,
+  };
+}
+
+export function weightsCardLine(state) {
+  const parts = weightsCardParts(state);
+  if (parts === null) {
+    return null;
+  }
+  return `${parts.lead}${parts.clock ? ` ${parts.clock}` : ""}${parts.suffix}`;
+}
+
+export function weightsKeepAwake(state) {
+  return state.weights?.status === "running" &&
+    state.weights?.wakeLock === WEIGHTS_WAKE_FALLBACK
+    ? WEIGHTS_KEEP_AWAKE
+    : null;
+}
 
 export function formatDpsPerPoint(value) {
   return value == null || !Number.isFinite(value)
@@ -542,5 +618,6 @@ export function weightsModel(state, { capNote = null } = {}) {
     caption: showTable ? caption(result, record) : null,
     rows,
     capNote: cap,
+    keepAwake: weightsKeepAwake(state),
   };
 }

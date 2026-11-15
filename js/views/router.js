@@ -394,6 +394,17 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
         continue;
       }
       badge.setAttribute("data-badge", key);
+      const link = links.get(id);
+      if (shown?.kind === "progress") {
+        badge.setAttribute("data-kind", "progress");
+      } else {
+        badge.removeAttribute("data-kind");
+      }
+      // Visible text already names the link (the ticking count, plus the
+      // hidden "stat weights running" words). An aria-label with extra
+      // punctuation failed axe label-content-name-mismatch (Kira #377 P1;
+      // coordinator call 15 Nov (James delegated)).
+      link.removeAttribute("aria-label");
       badge.hidden = shown === null;
       const words = doc.createElement("span");
       words.className = "visually-hidden";

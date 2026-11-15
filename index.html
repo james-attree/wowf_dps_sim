@@ -236,6 +236,7 @@
               >open</a
             >
           </p>
+          <p id="results-card-weights" class="results-card-weights" hidden></p>
         </section>
       </div>
 
@@ -1218,6 +1219,11 @@
             >Stat weights</a
           >
         </nav>
+        <span
+          id="results-weights-busy-reason"
+          class="visually-hidden"
+          hidden
+        ></span>
         <div id="results-average" class="result-view" data-result="average">
           <div class="result-label-row">
             <p id="results-average-label" class="result-label"></p>
@@ -1614,15 +1620,17 @@
             <label for="results-weights-progress-bar" class="visually-hidden"
               >Stat weights progress</label
             >
-            <progress
-              id="results-weights-progress-bar"
-              role="progressbar"
-            ></progress>
+            <progress id="results-weights-progress-bar"></progress>
             <p class="progress-line" aria-hidden="true">
               <span id="results-weights-progress-line"></span>
               <span id="results-weights-progress-estimate" class="muted"></span>
             </p>
           </div>
+          <p
+            id="results-weights-keep-awake"
+            class="weights-keep-awake"
+            hidden
+          ></p>
           <table
             id="results-weights-table"
             class="results-table weights-table"
