@@ -462,14 +462,20 @@ describe("literal suppressions", () => {
 });
 
 describe("prettier coverage", () => {
-  it("formats simulator sources and skips only binary icons and golden fixtures", async () => {
+  it("formats simulator sources and skips icons, goldens, and the gear snapshot", async () => {
     const ignore = await readFile(resolve(root, ".prettierignore"), "utf8");
     const entries = ignore
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line && !line.startsWith("#"));
     // test/golden/ holds the generated one-row-per-line fixtures (#77).
-    assert.deepEqual(entries, ["img", "test/golden/"]);
+    // data/items/ is the committed gear snapshot (#297), one record per line.
+    assert.deepEqual(entries, [
+      "img",
+      "test/golden/",
+      "data/items/",
+      "test/fixtures/items/expected/",
+    ]);
 
     const result = await run(prettierBin, ["--check", "."]);
     assert.equal(result.code, 0, result.stdout + result.stderr);

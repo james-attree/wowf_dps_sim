@@ -1151,6 +1151,12 @@ Talent, spell, and poison data comes from
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The vendored copy
 in `data/talentsforever/` is pretty-printed, with values unchanged.
 
+Item, enchant, and random-suffix data comes from
+[wowsims/forever](https://github.com/wowsims/forever) and is used under the
+MIT licence (see `LICENSE-third-party`). The copy in `data/items/` is a slim
+level-60 rogue snapshot from commit `92e67a7ae61f984e8a1fc006ebdeb012f31ac7d1`.
+`npm run items:refresh` rebuilds it. CI does not fetch.
+
 Icons are hot-linked from a public image CDN and are not part of this
 repository or its CC BY 4.0 licence ([docs/icons.md](docs/icons.md)).
 

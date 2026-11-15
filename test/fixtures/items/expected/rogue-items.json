@@ -1,0 +1,8 @@
+[
+{"icon":"inv_weapon_bow_02","id":2505,"name":"Polished Shortbow","quality":1,"reqLvl":1,"slot":"ranged","weapon":{"max":5,"min":2,"speed":2,"type":"bow"}},
+{"icon":"inv_chest_leather_03","id":7950,"name":"Armor of Thero-shan","quality":2,"setId":221,"slot":"chest","stats":{"agility":7,"hit":10}},
+{"effects":[{"kind":"proc","name":"Hand of Justice (15600)"}],"icon":"inv_jewelry_talisman_01","id":11815,"name":"Hand of Justice","quality":3,"reqLvl":53,"slot":"trinket","stats":{"attackPower":12},"unique":true},
+{"icon":"inv_belt_02","id":18505,"name":"Mugger's Belt","quality":3,"reqLvl":57,"slot":"waist","stats":{"crit":14,"stamina":15},"weaponSkills":{"daggers":1}},
+{"effects":[{"kind":"proc","name":"Thunderfury (21992)"}],"icon":"inv_sword_39","id":19019,"name":"Thunderfury, Blessed Blade of the Windseeker","quality":5,"reqLvl":60,"slot":"weapon","stats":{"agility":5,"stamina":8},"unique":true,"weapon":{"hand":"one","max":115,"min":44,"speed":1.9,"type":"sword"}},
+{"icon":"inv_weapon_shortblade_33","id":21126,"name":"Death's Sting","quality":4,"reqLvl":60,"slot":"weapon","stats":{"attackPower":38,"stamina":10},"unique":true,"weapon":{"hand":"one","max":156,"min":83,"speed":1.8,"type":"dagger"},"weaponSkills":{"daggers":3}}
+]
