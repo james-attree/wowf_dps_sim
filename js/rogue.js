@@ -133,7 +133,9 @@ export class Rogue {
       ...(options.procs ?? []),
       // A poisonChance modifier (A9, #266) raises every poison's chance.
       ...poisonProcs(
-        this.config.poisons,
+        this.config.weapons.offHand == null
+          ? { ...this.config.poisons, offHand: null }
+          : this.config.poisons,
         undefined,
         undefined,
         this.modifiers.resolve("poisonChance", 0),
@@ -189,7 +191,9 @@ export class Rogue {
           : "normalizedSpeed.oneHand",
       );
     this.normalizedWeaponSpeed = normalized(weapons.mainHand.type);
-    this.offHandNormalizedSpeed = normalized(weapons.offHand?.type);
+    this.offHandNormalizedSpeed = weapons.offHand
+      ? normalized(weapons.offHand.type)
+      : null;
 
     this.abilities = createAbilities(this);
     this.abilitiesById = new Map(
@@ -217,17 +221,21 @@ export class Rogue {
       "main",
       mainHand.type,
     );
-    this.weapons.offHand = new Weapon(
-      this,
-      offHand.min,
-      offHand.max,
-      offHand.speed,
-      "off",
-      offHand.type,
-    );
+    this.weapons.offHand = offHand
+      ? new Weapon(
+          this,
+          offHand.min,
+          offHand.max,
+          offHand.speed,
+          "off",
+          offHand.type,
+        )
+      : null;
     // The delay is not part of the config: it only stops both hands from
-    // swinging on the first frame.
-    this.weapons.offHand.swingTimer = k("weapon.offHand").initialSwing;
+    // swinging on the first frame. No off hand means no swing and no delay.
+    if (this.weapons.offHand) {
+      this.weapons.offHand.swingTimer = k("weapon.offHand").initialSwing;
+    }
   }
 
   // Every random draw (weapon die, Eviscerate, and the rolls the Simulation

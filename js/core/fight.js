@@ -82,7 +82,7 @@ function decisionMarks(sim) {
     rogue.weapons.mainHand,
     rogue.weapons.mainHand.swingTimer,
     rogue.weapons.offHand,
-    rogue.weapons.offHand.swingTimer,
+    rogue.weapons.offHand?.swingTimer,
   ];
   const entries = (object) => {
     for (const [id, value] of Object.entries(object)) {
@@ -431,8 +431,11 @@ class CoreFight {
     for (const [id, dot] of fresh) {
       this.dotApplied(id, null, dot);
     }
-    this.swings = ["mainHand", "offHand"].map((hand) => {
+    this.swings = ["mainHand", "offHand"].flatMap((hand) => {
       const weapon = rogue.weapons[hand];
+      if (!weapon) {
+        return [];
+      }
       const timer = new SwingTimer({
         weapon,
         modifiers: sim.modifiers,

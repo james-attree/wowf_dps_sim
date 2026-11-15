@@ -81,14 +81,20 @@ export function maxWeaponSkill(level = k("character.level")) {
 // has one. The level x 5 + 50 cap (maxWeaponSkill) is on the typed base skill
 // only; a racial bonus goes on top of it (assumption A11, #317). The level is
 // read through the shared helper (characterLevel, js/levels.js).
-export function weaponSkillFor(config) {
+export function weaponSkillFor(config, hand = "mainHand") {
   const { racialBonus } = k("attackTable.weaponSkill");
   const race = config?.race;
   const bonus =
     typeof race === "string" && Object.hasOwn(racialBonus, race)
       ? racialBonus[race]
       : 0;
+  const weapon = config?.weapons?.[hand];
+  const handSkill =
+    weapon && typeof weapon.weaponSkill === "number"
+      ? weapon.weaponSkill
+      : null;
   const base =
+    handSkill ??
     config?.character?.weaponSkill ??
     defaultWeaponSkill(characterLevel(config));
   return base + bonus;
@@ -160,6 +166,7 @@ export function deriveAttackTable({
   weaponSkill = defaultWeaponSkill(),
   characterLevel = k("character.level"),
   targetLevel = k("target.level"),
+  dualWield = true,
 } = {}) {
   if (!Number.isFinite(weaponSkill)) {
     throw new RangeError("Weapon skill must be a finite number.");
@@ -191,7 +198,7 @@ export function deriveAttackTable({
           gap * (gap > miss.gap ? miss.perPointAboveGap : miss.perPoint),
       ),
     ),
-    dualWieldPenalty: k("attackTable.dualWieldPenalty"),
+    dualWieldPenalty: dualWield ? k("attackTable.dualWieldPenalty") : 0,
     hitSuppression:
       gap > hit.gap
         ? tidy(hit.flat + hit.perPointAboveGap * (gap - hit.gap))

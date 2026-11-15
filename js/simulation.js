@@ -130,11 +130,25 @@ export class Simulation {
     // The attack table of this fight (#295): every band worked out once from
     // the config's weapon skill against the target's defense, and from the
     // level gap (#290).
-    this.attackTable = deriveAttackTable({
-      weaponSkill: weaponSkillFor(rogue?.config),
-      characterLevel: this.characterLevel,
-      targetLevel: this.targetLevel,
-    });
+    const tableFor = (hand) =>
+      deriveAttackTable({
+        weaponSkill: weaponSkillFor(rogue?.config, hand),
+        characterLevel: this.characterLevel,
+        targetLevel: this.targetLevel,
+        dualWield: rogue?.config?.weapons?.offHand != null,
+      });
+    // Main hand is the fight's table. The off hand has its own when its
+    // skill differs; a missing off hand is not dual wield, so white swings
+    // take no dual-wield miss.
+    this.attackTable = tableFor("mainHand");
+    this.attackTables = {
+      mainHand: this.attackTable,
+      offHand:
+        rogue?.config?.weapons?.offHand == null ? null : tableFor("offHand"),
+    };
+    const expertise = rogue?.config?.character?.expertise ?? 0;
+    this.expertiseReduction =
+      expertise / k("expertise.ratingPerPercent") / k("sheet.percent");
     // The event core while it runs this fight (js/core/fight.js), told where
     // a DoT starts; null between runs.
     this.core = null;
@@ -882,6 +896,10 @@ export class Simulation {
   // `roll` is a table roll already drawn (Mutilate's strikes, resolveStrike),
   // and `useCharges: false` leaves the use charges (Cold Blood) for the caller
   // to take once for a cast of two strikes.
+  attackTableFor(source) {
+    return this.attackTables[source?.hand] ?? this.attackTable;
+  }
+
   resolveAttack(
     source,
     attackType,
@@ -899,11 +917,13 @@ export class Simulation {
         k("crit.meleeMultiplier"),
         context,
       ),
-      dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
+      dodgeReduction:
+        this.modifiers.resolve("dodgeReduction", 0, context) +
+        this.expertiseReduction,
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
       cannotMiss: source.cannotMiss === true,
-      table: this.attackTable,
+      table: this.attackTableFor(source),
       rng: this.rng,
       roll,
     });
@@ -965,7 +985,7 @@ export class Simulation {
     if (spellHit) {
       hit = resolveSpellHit({
         bonusSpellHit: this.rogue.getBonusSpellHitChance(),
-        table: this.attackTable,
+        table: this.attackTableFor(source),
         rng: this.rng,
       });
     }
@@ -1038,7 +1058,7 @@ export class Simulation {
     if (spellHit) {
       hit = resolveSpellHit({
         bonusSpellHit: this.rogue.getBonusSpellHitChance(),
-        table: this.attackTable,
+        table: this.attackTableFor(source),
         rng: this.rng,
       });
     }
@@ -1106,10 +1126,12 @@ export class Simulation {
       // tickDamage stays before armor; the tick loop applies it.
       critChance: 0,
       canCrit: false,
-      dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
+      dodgeReduction:
+        this.modifiers.resolve("dodgeReduction", 0, context) +
+        this.expertiseReduction,
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
-      table: this.attackTable,
+      table: this.attackTableFor(source),
       rng: this.rng,
     });
     const tickInterval = k("rupture.tickInterval");
@@ -1157,10 +1179,12 @@ export class Simulation {
       bonusHitChance: this.rogue.getBonusHitChance(context),
       critChance: 0,
       canCrit: false,
-      dodgeReduction: this.modifiers.resolve("dodgeReduction", 0, context),
+      dodgeReduction:
+        this.modifiers.resolve("dodgeReduction", 0, context) +
+        this.expertiseReduction,
       parryReduction: this.modifiers.resolve("parryReduction", 0, context),
       behind: this.rogue.config.target.behind,
-      table: this.attackTable,
+      table: this.attackTableFor(source),
       rng: this.rng,
     });
     this.recordAbility(source, result.outcome, 0);

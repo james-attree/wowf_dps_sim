@@ -2791,6 +2791,14 @@ export const CONSTANTS = {
     "js/gear-derive.js. A suffix stat is allocation times the item's randPropPoints, divided by this.",
     false,
   ),
+  "expertise.ratingPerPercent": entry(
+    10,
+    "rating/%",
+    ASSUMPTION,
+    "Developer, 15 Nov 2026, issue #297: expertise rating reduces dodge at 10 rating per 1%. coordinator call 15 Nov (James delegated): Q6, through the existing dodge-reduction path",
+    "js/simulation.js. character.expertise is rating. Omitted or 0 adds nothing, so a fight from before this field is unchanged. Not measured.",
+    false,
+  ),
   "manualFight.tie": entry(
     "target",
     "stop code",
