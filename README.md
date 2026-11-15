@@ -112,6 +112,22 @@ talent ids against the catalogue, through `js/talents.js`). That needs Chrome or
 138+ (the `engines` range in `package.json` is `^20.19.0 || ^22.13.0 || >=24`).
 An older browser fails to load the page.
 
+## Stat weights
+
+Stat weights say how much DPS one more point of a stat adds, from paired fights of the current build. The rows are attack power, main-hand weapon DPS, off-hand weapon DPS, crit, hit and haste. There is no Agility row and no Strength row. The steps are attack power +50, each weapon +2 DPS (both min and max rise by 2 × that weapon's speed), crit ±1 percentage point, hit ±2 percentage points and haste ±2 percentage points. A side that would leave a stat's limits is left out, so haste at 0 is one-sided upwards and haste at 1.0 is one-sided downwards. Hit stays a central ±2% even when the build sits across the 9% yellow-hit cap. That kink is an assumption: coordinator call 15 Nov (James delegated).
+
+Each row is DPS per point, a 95% half-width from the paired per-fight differences (`1.96 ×` sample standard deviation `/ √n /` the step), and an attack-power equivalent. The equivalent is that row's DPS per point divided by the attack-power row's. It is a point estimate and has no interval of its own: coordinator call 15 Nov (James delegated).
+
+On the page, open Results and choose Stat weights (`#results/weights`). The button reads "Run stat weights", then "Cancel" while it runs, then "Run stat weights again". The run always uses 1,000 fights of the fight length on the page. The idle line says "About 73 s on a desktop. On a phone, longer. Background tabs and a sleeping phone slow it down." Cancel throws the calculation away. If you had changed the build, the last finished table stays and is marked out of date; if you had not, it stays as it was. The table sorts by attack-power equivalent. Columns are the stat, DPS per point (2 decimal places), ± at 95% (2 decimal places) and the attack-power equivalent (1 decimal place). Below 64em the ± folds into the per-point cell. A row that did not run says "Not measured". Leaving the screen does not stop the run: Results shows a badge such as `3/9`, and Run is disabled with "Stat weights are running". A screen wake lock is requested for every run; if that fails, the running view and the Run bar say "Keep the screen on". After a run finishes, the desktop column card lists every measured row at 1 decimal place, in the same order as the table, with the clock it finished (`(ran at …)`). Precise (4,000 fights) is a constant only. The page does not offer it.
+
+From Node, `statWeights` in `js/stat-weights.js` runs the same variants through `runBatch`. Pass `seed`, and omit `iterations` for the default 1,000. The measured default, 9 variants × 1,000 fights of 300 s, seed 107, the temporary Combat swords reference build, Instant Poison on both hands, took 73.1 s on Node v22.23.4, 4 vCPU (#375). See [Stat weights](docs/mechanics.md#stat-weights-issue-281).
+
+## Sharing a build
+
+"Copy link to this build" sits in the header, next to "Rogue", and on the Results run-label row. It copies a v2 link (`link.codec` version 2, issue #306, PR #330): the query parameter `?s=` because the hash is the router's. On success the button reads "Link copied" for 2 seconds. If the clipboard is missing or refuses, a read-only field shows the URL, selected. A link over 8 KB tells you to export the rotation as a file instead. Opening a link this page can read shows "Loaded a shared build. Press Run to see its DPS." A newer format shows "This link is from a newer version. Nothing was loaded; update the page and try again." A damaged link loads nothing and shows no notice (Scout on #332; the corrupt notice was removed in #333).
+
+The live presets are the temporary Combat swords page default, Combat daggers, Assassination daggers and Subtlety daggers (issue #340). Races and racials are a Character field and are in the link. See [Races and racials](docs/mechanics.md#races-and-racials-d12a-issue-277).
+
 ## Development
 
 `npm ci` installs the dev dependencies (`eslint`, `@eslint/js`, `prettier`,
