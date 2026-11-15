@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -274,6 +275,9 @@ export function slimItem(item) {
     reqLvl: item.reqLvl,
     faction: FACTION[item.factionRestriction],
     suffixes: encodeSuffixes(item.randomSuffixOptions),
+    randPropPoints: item.randomSuffixOptions?.length
+      ? scaling.randPropPoints
+      : undefined,
     effects: (item.itemEffects ?? [])
       .map((effect) => ({ name: effect.buffName, kind: effectKind(effect) }))
       .sort(
@@ -438,12 +442,38 @@ export function buildSnapshot(db, meta) {
   return { items, enchants, suffixes, manifest };
 }
 
+export function hashText(text) {
+  return createHash("sha256").update(text).digest("hex");
+}
+
+// The manifest records a sha256 of every data/items file. Its own hash is of
+// the manifest with that hash emptied, so the field can live in the file.
+export function manifestSelfText(manifest) {
+  const files = {
+    ...manifest.files,
+    "manifest.json": { sha256: "", count: 1 },
+  };
+  return stableStringify({ ...manifest, files });
+}
+
 export function snapshotFiles(snapshot) {
-  return {
+  const payloads = {
     "rogue-items.json": linesStringify(snapshot.items),
     "enchants.json": linesStringify(snapshot.enchants),
     "suffixes.json": linesStringify(snapshot.suffixes),
-    "manifest.json": stableStringify(snapshot.manifest),
+  };
+  const files = {};
+  for (const [name, text] of Object.entries(payloads)) {
+    files[name] = { sha256: hashText(text), count: JSON.parse(text).length };
+  }
+  const manifest = { ...snapshot.manifest, files };
+  files["manifest.json"] = {
+    sha256: hashText(manifestSelfText(manifest)),
+    count: 1,
+  };
+  return {
+    ...payloads,
+    "manifest.json": stableStringify(manifest),
   };
 }
 
