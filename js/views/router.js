@@ -394,10 +394,20 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
         continue;
       }
       badge.setAttribute("data-badge", key);
+      const link = links.get(id);
       if (shown?.kind === "progress") {
         badge.setAttribute("data-kind", "progress");
+        // Accname would otherwise read "Results3/9 …" (the badge sits
+        // flush against the label). A name on the link gives Scout's
+        // wording, "Results, 3/9 stat weights running" (coordinator
+        // call 15 Nov, James delegated; Fran's #377 N1).
+        link.setAttribute(
+          "aria-label",
+          `${areaLabel(id)}, ${shown.count} ${shown.words}`,
+        );
       } else {
         badge.removeAttribute("data-kind");
+        link.removeAttribute("aria-label");
       }
       badge.hidden = shown === null;
       const words = doc.createElement("span");

@@ -21,6 +21,7 @@ import { timeEstimate } from "./results-render.js";
 import {
   compact,
   fieldErrors,
+  NO_BREAK_SPACE,
   formErrorCount,
   grouped,
   rotationErrorCount,
@@ -200,7 +201,9 @@ export function weightsCardLine(state) {
     return null;
   }
   const at = ranClock(record.at);
-  const clock = at === null ? "" : ` (ran at ${at})`;
+  // Non-breaking space so "(ran at 10:02)" does not wrap before the time
+  // (coordinator call 15 Nov, James delegated; Fran's #377 N3).
+  const clock = at === null ? "" : ` (ran at${NO_BREAK_SPACE}${at})`;
   const figures = `${parts.join(" · ")}${clock}`;
   if (weightsRunning(state)) {
     const { completed, total } = weightsProgress(state);

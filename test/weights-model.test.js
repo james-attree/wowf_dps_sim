@@ -461,7 +461,7 @@ describe("stat weights across screens (#283)", () => {
     const line = weightsCardLine(state());
     assert.equal(
       line,
-      "Stat weights: crit 19.2 · MH 2.5 · OH 2.5 · hit 1.7 · AP 1.0 (ran at 09:12)",
+      "Stat weights: crit 19.2 · MH 2.5 · OH 2.5 · hit 1.7 · AP 1.0 (ran at\u00a009:12)",
     );
     assert.equal(
       weightsCardLine(state({ status: "idle", result: null })),
@@ -476,7 +476,7 @@ describe("stat weights across screens (#283)", () => {
     });
     assert.equal(
       weightsCardLine(running),
-      "Stat weights running · 3/9 · Previous: crit 19.2 · MH 2.5 · OH 2.5 · hit 1.7 · AP 1.0 (ran at 09:12)",
+      "Stat weights running · 3/9 · Previous: crit 19.2 · MH 2.5 · OH 2.5 · hit 1.7 · AP 1.0 (ran at\u00a009:12)",
     );
     const staleRunning = state({
       status: "running",

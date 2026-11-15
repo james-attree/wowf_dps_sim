@@ -142,6 +142,38 @@ function badge(page) {
   return page.locator('#area-nav a[data-nav-area="results"] [data-badge]');
 }
 
+function resultsNav(page) {
+  return page.getByRole("link", {
+    name: "Results, 3/9 stat weights running",
+    exact: true,
+  });
+}
+
+async function cardLine(page) {
+  return page
+    .locator("#results-card-weights-text")
+    .evaluate((el) => el.textContent);
+}
+
+async function clockLineCount(page) {
+  return page.evaluate(() => {
+    const node = globalThis.document.getElementById(
+      "results-card-weights-text",
+    );
+    const text = node?.firstChild;
+    const value = text?.nodeValue ?? "";
+    const start = value.indexOf("(ran at");
+    const end = value.indexOf(")", start) + 1;
+    if (!text || start < 0 || end <= start) {
+      return 0;
+    }
+    const range = globalThis.document.createRange();
+    range.setStart(text, start);
+    range.setEnd(text, end);
+    return range.getClientRects().length;
+  });
+}
+
 describe("stat weights across screens (#283)", () => {
   for (const text of ["100%", "150%"]) {
     test(`leaving the screen shows the Results progress badge at 360 / ${text}`, async () => {
@@ -156,6 +188,7 @@ describe("stat weights across screens (#283)", () => {
           await pill.getAttribute("data-badge"),
           "3/9 stat weights running",
         );
+        await assert.equal(await resultsNav(page).count(), 1);
         await assert.equal(
           await page.locator("#run-summary").getAttribute("data-dock"),
           "Stat weights",
@@ -233,6 +266,15 @@ describe("stat weights across screens (#283)", () => {
           progress: { completed: 3, total: NINE },
           wakeLock: "fallback",
         });
+        await assert.equal(
+          await page
+            .getByRole("progressbar", {
+              name: "Stat weights progress",
+              exact: true,
+            })
+            .count(),
+          1,
+        );
         const note = page.locator("#results-weights-keep-awake");
         await assert.equal(await note.isVisible(), true);
         await assert.equal(await note.innerText(), "Keep the screen on");
@@ -258,9 +300,9 @@ describe("stat weights across screens (#283)", () => {
         await assert.equal(await card.isVisible(), false);
         await setWeights(page, { status: "done", result: doneResult });
         await assert.equal(await card.isVisible(), true);
-        await assert.match(
-          await page.locator("#results-card-weights-text").innerText(),
-          /^Stat weights: crit 19\.2 · hit 14\.8 · MH 2\.5 · OH 2\.5 · AP 1\.0 \(ran at 10:02\)$/,
+        await assert.equal(
+          await cardLine(page),
+          "Stat weights: crit 19.2 · hit 14.8 · MH 2.5 · OH 2.5 · AP 1.0 (ran at\u00a010:02)",
         );
         await assert.equal(
           await page
@@ -275,8 +317,8 @@ describe("stat weights across screens (#283)", () => {
         });
         await assert.equal(await card.isVisible(), true);
         await assert.equal(
-          await page.locator("#results-card-weights-text").innerText(),
-          "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · MH 2.5 · OH 2.5 · AP 1.0 (ran at 10:02)",
+          await cardLine(page),
+          "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · MH 2.5 · OH 2.5 · AP 1.0 (ran at\u00a010:02)",
         );
         const link = page.locator("#results-card-weights a.results-card-link");
         await assert.equal(await link.innerText(), "open");
@@ -290,6 +332,34 @@ describe("stat weights across screens (#283)", () => {
       }
     });
   }
+
+  test("the card clock stays together at 1024 and 1280 at 100% text", async () => {
+    const { context, page, errors } = await open(1024, {
+      text: "100%",
+      hash: "#character",
+    });
+    try {
+      await setWeights(page, {
+        status: "running",
+        result: doneResult,
+        progress: { completed: 3, total: NINE },
+      });
+      await page.locator("#results-card-weights-text").waitFor({
+        state: "visible",
+      });
+      for (const width of [1024, 1280]) {
+        await page.setViewportSize({ width, height: SCREEN_HEIGHT });
+        assert.equal(
+          await clockLineCount(page),
+          1,
+          `the clock wrapped at ${width} / 100%`,
+        );
+      }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
 
   test("the card and badge do not overflow the five review widths", async () => {
     const { context, page, errors } = await open(1440, { hash: "#character" });

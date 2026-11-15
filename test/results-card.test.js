@@ -241,7 +241,7 @@ describe("the stat weights card line (#283)", () => {
     const model = cardModel(withWeights(), LABELS);
     assert.equal(
       model.weights,
-      "Stat weights: crit 19.2 · hit 14.8 · AP 1.0 (ran at 10:02)",
+      "Stat weights: crit 19.2 · hit 14.8 · AP 1.0 (ran at\u00a010:02)",
     );
   });
 
@@ -258,7 +258,7 @@ describe("the stat weights card line (#283)", () => {
     );
     assert.equal(
       model.weights,
-      "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · AP 1.0 (ran at 10:02)",
+      "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · AP 1.0 (ran at\u00a010:02)",
     );
   });
 });
