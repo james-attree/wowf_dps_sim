@@ -19,6 +19,7 @@ import { k } from "../../data/constants.js";
 import { formatNumber } from "../charts.js";
 import { timeEstimate } from "./results-render.js";
 import {
+  compact,
   fieldErrors,
   formErrorCount,
   grouped,
@@ -30,6 +31,8 @@ import {
   unitPart,
   WEIGHTS_KEEP_AWAKE,
   WEIGHTS_WAKE_FALLBACK,
+  weightsProgress,
+  weightsRunning,
 } from "./run-model.js";
 
 import { ranClock, ranOf, staleBanner } from "./stale.js";
@@ -175,6 +178,12 @@ export const WEIGHTS_CARD_NAMES = Object.freeze({
   haste: "haste",
 });
 
+// coordinator call 15 Nov (James delegated), condition on decision 4:
+// a card that stays during a re-run is marked as the previous result, in
+// one line (the Average card's greyed "Previous average" block is heavier
+// than this compact line needs). The stale short is omitted while running,
+// as the Average card hides its stale line mid-batch. Progress uses the
+// same weightsProgress / compact source as the dock.
 export function weightsCardLine(state) {
   const result = state.weights?.result ?? null;
   const record = ranOf(state, "weights");
@@ -192,9 +201,14 @@ export function weightsCardLine(state) {
   }
   const at = ranClock(record.at);
   const clock = at === null ? "" : ` (ran at ${at})`;
+  const figures = `${parts.join(" · ")}${clock}`;
+  if (weightsRunning(state)) {
+    const { completed, total } = weightsProgress(state);
+    return `Stat weights running · ${compact(completed)}/${compact(total)} · Previous: ${figures}`;
+  }
   const stale = staleBanner(state, "weights");
   const note = stale === null ? "" : ` · ${stale.short}`;
-  return `Stat weights: ${parts.join(" · ")}${clock}${note}`;
+  return `Stat weights: ${figures}${note}`;
 }
 
 export function weightsKeepAwake(state) {

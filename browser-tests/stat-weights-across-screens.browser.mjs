@@ -268,6 +268,22 @@ describe("stat weights across screens (#283)", () => {
             .getAttribute("href"),
           "#results/weights",
         );
+        await setWeights(page, {
+          status: "running",
+          result: doneResult,
+          progress: { completed: 3, total: NINE },
+        });
+        await assert.equal(await card.isVisible(), true);
+        await assert.equal(
+          await page.locator("#results-card-weights-text").innerText(),
+          "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · MH 2.5 · OH 2.5 · AP 1.0 (ran at 10:02)",
+        );
+        const link = page.locator("#results-card-weights a.results-card-link");
+        await assert.equal(await link.innerText(), "open");
+        await assert.equal(
+          await link.getAttribute("aria-label"),
+          "Open the stat weights",
+        );
         assert.deepEqual(errors, []);
       } finally {
         await context.close();
@@ -278,21 +294,31 @@ describe("stat weights across screens (#283)", () => {
   test("the card and badge do not overflow the five review widths", async () => {
     const { context, page, errors } = await open(1440, { hash: "#character" });
     try {
-      await setWeights(page, { status: "done", result: doneResult });
-      for (const text of ["100%", "150%"]) {
-        await page.addStyleTag({
-          content: `html { font-size: ${text} !important; }`,
-        });
-        for (const width of WIDTHS) {
-          await page.setViewportSize({ width, height: SCREEN_HEIGHT });
-          const box = await page.evaluate(() => {
-            const doc = globalThis.document.documentElement;
-            return { overflow: doc.scrollWidth, width: doc.clientWidth };
+      const cardStates = [
+        { status: "done", result: doneResult },
+        {
+          status: "running",
+          result: doneResult,
+          progress: { completed: 3, total: NINE },
+        },
+      ];
+      for (const cardState of cardStates) {
+        await setWeights(page, cardState);
+        for (const text of ["100%", "150%"]) {
+          await page.addStyleTag({
+            content: `html { font-size: ${text} !important; }`,
           });
-          assert.ok(
-            box.overflow <= box.width + SLACK,
-            `${width} at ${text}: scrollWidth ${box.overflow} > ${box.width}`,
-          );
+          for (const width of WIDTHS) {
+            await page.setViewportSize({ width, height: SCREEN_HEIGHT });
+            const box = await page.evaluate(() => {
+              const doc = globalThis.document.documentElement;
+              return { overflow: doc.scrollWidth, width: doc.clientWidth };
+            });
+            assert.ok(
+              box.overflow <= box.width + SLACK,
+              `${cardState.status} ${width} at ${text}: scrollWidth ${box.overflow} > ${box.width}`,
+            );
+          }
         }
       }
       assert.deepEqual(errors, []);

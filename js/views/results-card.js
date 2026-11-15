@@ -232,20 +232,23 @@ export function createResultsCardView(doc, store, labels) {
       // When the card itself is not rendered (Results, #241), innerText
       // includes hidden children, so this line must be empty until a run
       // has finished (#283).
-      if (line === null) {
-        if (weights.childNodes.length > 0) {
-          weights.replaceChildren();
+      // A stub document (live-view unit tests) has the node but no children.
+      if (typeof weights.replaceChildren === "function") {
+        if (line === null) {
+          if ((weights.childNodes?.length ?? 0) > 0) {
+            weights.replaceChildren();
+          }
+        } else if (weights.textContent !== `${line} · open`) {
+          const text = doc.createElement("span");
+          text.id = "results-card-weights-text";
+          text.textContent = line;
+          const link = doc.createElement("a");
+          link.className = "results-card-link";
+          link.href = "#results/weights";
+          link.setAttribute("aria-label", "Open the stat weights");
+          link.textContent = "open";
+          weights.replaceChildren(text, " · ", link);
         }
-      } else if (weights.textContent !== `${line} · open`) {
-        const text = doc.createElement("span");
-        text.id = "results-card-weights-text";
-        text.textContent = line;
-        const link = doc.createElement("a");
-        link.className = "results-card-link";
-        link.href = "#results/weights";
-        link.setAttribute("aria-label", "Open the stat weights");
-        link.textContent = "open";
-        weights.replaceChildren(text, " · ", link);
       }
     }
     if (markup !== last) {

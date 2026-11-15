@@ -245,17 +245,20 @@ describe("the stat weights card line (#283)", () => {
     );
   });
 
-  it("keeps the last finished line while a new run is going", () => {
+  it("marks the last finished line as previous while a new run is going", () => {
     const model = cardModel(
       withWeights({
         weights: {
           status: "running",
-          progress: { completed: 2, total: 9 },
+          progress: { completed: 3, total: 9 },
           result: { rows, iterations: 1000, seed: 107 },
         },
       }),
       LABELS,
     );
-    assert.match(model.weights, /^Stat weights: crit 19\.2/);
+    assert.equal(
+      model.weights,
+      "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · AP 1.0 (ran at 10:02)",
+    );
   });
 });

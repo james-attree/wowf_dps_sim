@@ -469,16 +469,35 @@ describe("stat weights across screens (#283)", () => {
     );
   });
 
-  it("a re-run keeps the last finished card, and a stale table appends the short line", () => {
+  it("a re-run marks the last finished card as previous, without the stale short", () => {
     const running = state({
       status: "running",
       progress: { completed: 3, total: 9 },
     });
-    assert.match(weightsCardLine(running), /^Stat weights: crit 19\.2/);
+    assert.equal(
+      weightsCardLine(running),
+      "Stat weights running · 3/9 · Previous: crit 19.2 · MH 2.5 · OH 2.5 · hit 1.7 · AP 1.0 (ran at 09:12)",
+    );
+    const staleRunning = state({
+      status: "running",
+      progress: { completed: 3, total: 9 },
+      now: { ...pageDefaultConfig(), character: { attackPower: 200 } },
+    });
+    assert.equal(weightsCardLine(staleRunning), weightsCardLine(running));
     const stale = state({
       now: { ...pageDefaultConfig(), character: { attackPower: 200 } },
     });
     assert.match(weightsCardLine(stale), /changed after this ran\.$/);
+    assert.equal(
+      weightsCardLine(
+        state({
+          status: "running",
+          result: null,
+          progress: { completed: 1, total: 9 },
+        }),
+      ),
+      null,
+    );
   });
 
   it("the keep-awake line shows only when a run is going and the lock fell back", () => {
