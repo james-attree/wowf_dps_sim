@@ -929,27 +929,25 @@ delay. The notes on `sliceAndDice` and `haste.stacking` both say this. The
 
 ## Armor
 
-`Simulation.armorMultiplier(context)` (a method, in `js/simulation.js`) reads
-`k("target.armor")` (an assumption on the retune list; negative armor is
-treated as zero), subtracts the armor the target's auras take off (the
-`armorReduction` effects, such as Expose Armor, A6) and floors the result at
-zero. Then it applies `k("armor.mitigation")` (`classic-1.12`, on the retune
-list). The reduction is
+`Simulation.armorMultiplier(context)` (a method, in `js/simulation.js`) is what
+`applyArmor(damage, skip, context)` calls for a direct hit or a tick that does
+not skip armour. The armour figure is `fightArmor` (`js/levels.js`):
+`config.target.armor` when that value is a number, and otherwise the target's
+armour at its level. Flat `armorReduction` auras (Expose Armor) come off next,
+and the result is floored at 0. An `armorIgnore` modifier for this attack's
+context then takes that fraction of what is left, capped at 1. Mitigation is
+`k("armor.mitigation")` (`classic-1.12`, on the retune list):
 
-`armor / (armor + k("armor.mitigation").constant + k("armor.mitigation").perLevel * k("character.level"))`
+`armor / (armor + k("armor.mitigation").constant + k("armor.mitigation").perLevel * characterLevel(config))`
 
-where `armor` is the figure left after the auras and after armor ignore. Armor
-ignore is the `armorIgnore` modifier for the attack's context (a mace talent,
-say): a fraction of the armor left after the auras, taken off before the
-formula, and capped at 1. The reduction is capped at
-`k("armor.mitigation").cap` and not below zero. Damage kept is the incoming
-damage times one minus the reduction. If the denominator is not
-positive, the multiplier is one and nothing is removed.
-`k("character.level")` is `wowf-export` and is not on the retune list. The
-notes on `character.level` and `armor.mitigation` describe the divisor's
-constant term at that level. The engine evaluates the expression above.
-`applyArmor(damage, skip, context)` is the one place damage meets it, for
-direct hits and ticks alike.
+`characterLevel` (`js/levels.js`) is `config.talentLevel`, or
+`k("character.level")` when the config has none. `k("character.level")` is
+`wowf-export` and is not on the retune list. The notes on `character.level`
+and `armor.mitigation` describe the divisor's constant term at level 60. The
+reduction is capped at `k("armor.mitigation").cap` and not below zero. Damage
+kept is the incoming damage times one minus the reduction. If the denominator
+is not positive, the multiplier is one and nothing is removed. The list below
+is that same order.
 
 **Armour order** (`Simulation.armorMultiplier`, the same order as the
 `exposeArmor` note in `data/constants.js`). Nothing here is a new ruling.
@@ -3663,9 +3661,7 @@ and never cast.
   for it). It starts the GCD, like every ability not in `abilities.offGcd`:
   the export does not say, and Classic (wowsims `preparation.go`) puts it on a
   1 s GCD.
-- **What it resets** (`k("preparation.resets")`). James, 31 Oct 2026, issue #270: A15 of the Phase 4.6 plan v4: Preparation finishes the cooldowns of Cold Blood, Premeditation, Ghostly Strike, Adrenaline Rush and Blade Flurry (Classic: all other rogue abilities; Vanish, Sprint and Evasion are not modelled); it does not reset itself or any racial; tagged assumption. On a cast, after starting its own cooldown, it sets each listed id in `simulation.cooldowns`
-  that is above 0 is set to 0, and the event core clears its timer
-  (`js/core/fight.js`). A cooldown that is not running is left alone, and an
+- **What it resets** (`k("preparation.resets")`). James, 31 Oct 2026, issue #270: A15 of the Phase 4.6 plan v4: Preparation finishes the cooldowns of Cold Blood, Premeditation, Ghostly Strike, Adrenaline Rush and Blade Flurry (Classic: all other rogue abilities; Vanish, Sprint and Evasion are not modelled); it does not reset itself or any racial; tagged assumption. On a cast, after starting its own cooldown, it sets each listed id in `simulation.cooldowns` that is above 0 to 0, and the event core clears its timer (`js/core/fight.js`). A cooldown that is not running is left alone, and an
   ability the build does not have is never on cooldown, so the list needs no
   talent check. An ability whose reset list holds its own id is refused when
   it is built (RangeError), so Preparation cannot list itself. A racial
