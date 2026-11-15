@@ -488,10 +488,22 @@ the dagger set is `weapon.dagger.*`). The main-hand type is `k("weapon.mainHand.
 (`"sword"`, Scout's recommendation from the research, relayed; the project owner asked for the Tier 1 stats), copied onto the
 weapon. The off-hand constant carries its own type, `"sword"`.
 
-The weapon die is an inclusive integer from min through max. The `1` in the
-span is the code's inclusive end, not a constant:
+When both bounds are integers the die is the inclusive integer from min
+through max, one draw, unchanged:
 
 `floor(random * (max - min + 1)) + min`
+
+The `1` in the span is the code's inclusive end, not a constant. When either
+bound is fractional the roll is continuous, `min + random × (max − min)`,
+still one draw. Its mean is exactly `(min + max) / 2`. That path is an
+assumption, coordinator call 15 Nov (James delegated). It is not a game
+mechanic. For 10.4–18.7 the floor roll averaged about 14.561; the continuous
+roll averages 14.55.
+
+`rollDamage` does not round that number. It adds attack power divided by
+`k("ap.perDps")`, times the weapon's speed, and an off-hand swing multiplies
+the whole sum. The attack table records that amount. The page floors damage
+only when it displays it.
 
 A white swing's hit, in `Weapon.rollDamage`, is that die plus attack power
 divided by `k("ap.perDps")`, times the weapon's own speed. Attack power is
@@ -4587,6 +4599,6 @@ Progress counts variants that run, not a fixed 10. At haste 0 that is 9 (base, a
 
 The issue's "1 batch vs N worker chunks" is read as the runner's slice size (1, N, Infinity) and the worker path versus the main-thread path. There is no multi-worker parallelism. That reading is an assumption: coordinator call 15 Nov (James delegated).
 
-**Runtime.** The plan's "about 70 s" is replaced by a measurement. On Node v22.23.4, 4 vCPU, the default 9 × 1,000 fights of 300 s, seed 107, temporary Combat swords reference build, Instant Poison on both hands, took 73 s.
+**Runtime.** The plan's "about 70 s" is replaced by a measurement. Re-measured after the fractional weapon roll (#374 follow-up) on Node v22.23.4, 4 vCPU: the default 9 × 1,000 fights of 300 s, seed 107, temporary Combat swords reference build, Instant Poison on both hands, took 73.1 s. Those weapons are integers, so this run uses the integer die.
 
-**Manual bench, not a test.** On that same run the hit row's half-width was 10.0% of its DPS per point (0.167 on 1.670 DPS per percentage point). The fight count stays 1,000 and the seed stays 107: coordinator call 15 Nov (James delegated). Haste on that run was one-sided and its half-width was 20.0% of its DPS per point (0.314 on 1.572). The interval is reported: coordinator call 15 Nov (James delegated). Precise is 4,000 fights (`statWeights.preciseIterations`); the page does not offer it yet.
+**Manual bench, not a test.** On that same run the hit row's half-width was 10.0% of its DPS per point (0.167 on 1.670 DPS per percentage point). The fight count stays 1,000 and the seed stays 107: coordinator call 15 Nov (James delegated). Haste on that run was one-sided and its half-width was 19.9% of its DPS per point (0.314 on 1.572). The interval is reported: coordinator call 15 Nov (James delegated). Precise is 4,000 fights (`statWeights.preciseIterations`); the page does not offer it yet.
