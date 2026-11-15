@@ -603,6 +603,12 @@ export class ProcRunner {
   // A white swing resolved (Simulation.resolveAttack). `extra` is true for a
   // swing an extraAttack action made.
   onSwing(source, result, extra) {
+    if (
+      source?.hand === "offHand" &&
+      this.simulation.rogue.weapons.offHand == null
+    ) {
+      return;
+    }
     if (!this.active || !result.landed) {
       return;
     }
@@ -658,6 +664,12 @@ export class ProcRunner {
   // `canCrit` (the main hand did not crit), so Seal Fate rolls at most once a
   // cast. No onAbility: the cast fired those with the main hand.
   onStrike(source, result, canCrit) {
+    if (
+      source?.hand === "offHand" &&
+      this.simulation.rogue.weapons.offHand == null
+    ) {
+      return;
+    }
     if (!this.active || !result.landed) {
       return;
     }

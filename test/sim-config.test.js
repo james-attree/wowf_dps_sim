@@ -246,7 +246,7 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { character: { ap: 5 } },
       RangeError,
-      /config\.character has an unknown field "ap"\. Allowed fields: attackPower, critChance, bonusHitChance, haste, weaponSkill\./,
+      /config\.character has an unknown field "ap"\. Allowed fields: attackPower, critChance, bonusHitChance, haste, weaponSkill, expertise\./,
     );
     rejects(
       { weapons: { mainhand: {} } },
@@ -256,7 +256,7 @@ describe("normalizeConfig strict validation", () => {
     rejects(
       { weapons: { offHand: { dps: 3 } } },
       RangeError,
-      /config\.weapons\.offHand has an unknown field "dps"\. Allowed fields: min, max, speed, type\./,
+      /config\.weapons\.offHand has an unknown field "dps"\. Allowed fields: min, max, speed, type, weaponSkill\./,
     );
     rejects(
       { poisons: { both: "deadly" } },

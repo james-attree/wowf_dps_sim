@@ -77,7 +77,7 @@ const CHARACTER_LIMITS = {
   attackPower: {},
   weaponSkill: { min: 1, whole: true },
 };
-const WEAPON_FIELDS = ["min", "max", "speed", "type"];
+const WEAPON_FIELDS = ["min", "max", "speed", "type", "weaponSkill"];
 const TARGET_FIELDS = ["behind", "level", "armor"];
 const SECTIONS = [
   "race",
@@ -225,7 +225,10 @@ function readChoice(value, path, fallback, ids, noun) {
 }
 
 function readCharacter(input, defaults, level) {
-  const given = readObject(input, "config.character", CHARACTER_FIELDS);
+  const given = readObject(input, "config.character", [
+    ...CHARACTER_FIELDS,
+    "expertise",
+  ]);
   const result = {};
   for (const field of CHARACTER_FIELDS) {
     // Attack power has no upper limit. A chance, and haste (a fraction of
@@ -245,6 +248,16 @@ function readCharacter(input, defaults, level) {
       `config.character.${field}`,
       defaults[field],
       limits,
+    );
+  }
+  // Expertise rating (Q6). Omitted is 0, which adds nothing to dodge, so a
+  // config from before this field fights as it did. 10 rating is 1%.
+  if (given.expertise !== undefined) {
+    result.expertise = readNumber(
+      given.expertise,
+      "config.character.expertise",
+      0,
+      { min: 0 },
     );
   }
   return result;
@@ -279,11 +292,37 @@ function readWeapon(input, hand, defaults) {
   return { min, max, speed, type };
 }
 
-function readWeapons(input, defaults) {
-  const given = readObject(input, "config.weapons", HANDS);
-  return Object.fromEntries(
-    HANDS.map((hand) => [hand, readWeapon(given[hand], hand, defaults[hand])]),
+function readWeaponSkill(given, hand, level) {
+  if (given.weaponSkill === undefined || given.weaponSkill === null) {
+    return undefined;
+  }
+  return readNumber(
+    given.weaponSkill,
+    `config.weapons.${hand}.weaponSkill`,
+    undefined,
+    { ...CHARACTER_LIMITS.weaponSkill, max: maxWeaponSkill(level) },
   );
+}
+
+function readWeapons(input, defaults, level) {
+  const given = readObject(input, "config.weapons", HANDS);
+  if (given.mainHand === null) {
+    throw new TypeError("Equip a main-hand weapon.");
+  }
+  const mainHand = readWeapon(given.mainHand, "mainHand", defaults.mainHand);
+  const mainSkill = readWeaponSkill(given.mainHand ?? {}, "mainHand", level);
+  if (mainSkill !== undefined) {
+    mainHand.weaponSkill = mainSkill;
+  }
+  if (given.offHand === null) {
+    return { mainHand, offHand: null };
+  }
+  const offHand = readWeapon(given.offHand, "offHand", defaults.offHand);
+  const offSkill = readWeaponSkill(given.offHand ?? {}, "offHand", level);
+  if (offSkill !== undefined) {
+    offHand.weaponSkill = offSkill;
+  }
+  return { mainHand, offHand };
 }
 
 // Where the rogue stands. Behind the target, the attack table has no parry and
@@ -460,7 +499,7 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
       "race",
     ),
     character: readCharacter(given.character, defaults.character, level),
-    weapons: readWeapons(given.weapons, defaults.weapons),
+    weapons: readWeapons(given.weapons, defaults.weapons, level),
     target: readTarget(given.target, defaults.target),
     talents,
     talentLevel: level,

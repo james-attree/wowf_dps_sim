@@ -131,6 +131,8 @@ export function deriveSheet(
   const worn = validateBuild(build ?? { slots: {} }, indexed);
   const gear = emptyStats();
   const setSkills = {};
+  // Q7: none of these are modelled in v1.
+  // coordinator call 15 Nov (James delegated)
   const notModelled = [];
   const counts = new Map();
   for (const { item } of worn) {
