@@ -1,0 +1,516 @@
+{
+  "items": [
+    {
+      "id": 647,
+      "name": "Destiny",
+      "icon": "inv_sword_19",
+      "type": 13,
+      "weaponType": 9,
+      "handType": 4,
+      "weaponSpeed": 3.6,
+      "reqLvl": 52,
+      "phase": 1,
+      "quality": 4,
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 42,
+          "weaponDamageMin": 155,
+          "weaponDamageMax": 233,
+          "unroundedDps": 53.945168,
+          "stats": { "0": 10 },
+          "ilvl": 57
+        }
+      },
+      "itemEffects": [
+        {
+          "buffId": 17152,
+          "buffName": "Destiny (17152)",
+          "effectDurationMs": 12000,
+          "scalingOptions": { "0": { "stats": { "0": 200 } } },
+          "proc": {}
+        }
+      ]
+    },
+    {
+      "id": 791,
+      "name": "Gnarled Ash Staff",
+      "icon": "inv_staff_02",
+      "type": 13,
+      "weaponType": 8,
+      "handType": 4,
+      "weaponSpeed": 3.2,
+      "reqLvl": 26,
+      "phase": 1,
+      "quality": 3,
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 17,
+          "weaponDamageMin": 65,
+          "weaponDamageMax": 99,
+          "unroundedDps": 25.701815,
+          "stats": { "2": 6, "13": 15 },
+          "ilvl": 31
+        }
+      }
+    },
+    {
+      "id": 1168,
+      "name": "Skullflame Shield",
+      "icon": "inv_shield_01",
+      "type": 13,
+      "weaponType": 7,
+      "handType": 3,
+      "reqLvl": 54,
+      "phase": 1,
+      "quality": 4,
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 25,
+          "stats": { "24": 53, "27": 2256, "33": 10, "36": 10 },
+          "ilvl": 59
+        }
+      },
+      "itemEffects": [
+        {
+          "buffId": 18817,
+          "buffName": "Drain Life (18815)",
+          "proc": { "procChance": 0.03 }
+        },
+        {
+          "buffId": 18818,
+          "buffName": "Flamestrike (18816)",
+          "proc": { "procChance": 0.02 }
+        }
+      ]
+    },
+    {
+      "id": 1726,
+      "name": "Poison-tipped Bone Spear",
+      "icon": "inv_spear_02",
+      "type": 13,
+      "weaponType": 6,
+      "handType": 4,
+      "weaponSpeed": 2.3,
+      "reqLvl": 31,
+      "phase": 1,
+      "quality": 3,
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 20,
+          "weaponDamageMin": 57,
+          "weaponDamageMax": 87,
+          "unroundedDps": 31.362663,
+          "ilvl": 36
+        }
+      },
+      "itemEffects": [
+        {
+          "buffId": 16401,
+          "buffName": "Poison (16401)",
+          "effectDurationMs": 30000,
+          "proc": { "ppm": 1 }
+        }
+      ]
+    },
+    {
+      "id": 1992,
+      "name": "Swampchill Fetish",
+      "icon": "inv_misc_bone_orcskull_01",
+      "type": 13,
+      "weaponType": 5,
+      "handType": 3,
+      "reqLvl": 33,
+      "phase": 1,
+      "quality": 3,
+      "expansion": 1,
+      "sources": [
+        { "drop": { "difficulty": 1, "zoneId": 796, "otherName": "Trash" } }
+      ],
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 12,
+          "stats": { "8": 11, "11": 11, "34": 5, "36": 5 },
+          "ilvl": 38
+        }
+      }
+    },
+    {
+      "id": 2505,
+      "name": "Polished Shortbow",
+      "icon": "inv_weapon_bow_02",
+      "type": 14,
+      "rangedWeaponType": 1,
+      "weaponSpeed": 2,
+      "reqLvl": 1,
+      "phase": 1,
+      "quality": 1,
+      "sources": [
+        {
+          "soldBy": {
+            "npcId": 1297,
+            "npcName": "Lina Stover",
+            "zoneId": 1519,
+            "faction": 1
+          }
+        },
+        {
+          "soldBy": {
+            "npcId": 1459,
+            "npcName": "Naela Trance",
+            "zoneId": 11,
+            "faction": 1
+          }
+        },
+        { "soldBy": { "npcId": 12029, "npcName": "Narianna", "zoneId": 493 } },
+        {
+          "soldBy": {
+            "npcId": 14301,
+            "npcName": "Brinna Valanaar",
+            "zoneId": 16,
+            "faction": 1
+          }
+        },
+        { "soldBy": { "npcId": 28989, "npcName": "Aemara", "zoneId": 36 } },
+        {
+          "soldBy": {
+            "npcId": 268238,
+            "npcName": "Nordun Steadysight",
+            "zoneId": 12,
+            "faction": 1
+          }
+        }
+      ],
+      "scalingOptions": {
+        "0": {
+          "weaponDamageMin": 2,
+          "weaponDamageMax": 5,
+          "unroundedDps": 1.998852,
+          "ilvl": 4
+        }
+      }
+    },
+    {
+      "id": 4547,
+      "name": "Gnomish Zapper",
+      "icon": "inv_wand_02",
+      "type": 14,
+      "rangedWeaponType": 5,
+      "weaponSpeed": 1.3,
+      "phase": 1,
+      "quality": 2,
+      "sources": [{ "quest": { "id": 666, "name": "Sunken Treasure" } }],
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 5,
+          "weaponDamageMin": 29,
+          "weaponDamageMax": 56,
+          "unroundedDps": 32.869144,
+          "stats": { "2": 4, "4": 3, "5": 3 },
+          "ilvl": 40
+        }
+      },
+      "spellSchool": 1
+    },
+    {
+      "id": 7930,
+      "name": "Heavy Mithril Breastplate",
+      "icon": "inv_chest_plate10",
+      "type": 5,
+      "armorType": 4,
+      "reqLvl": 41,
+      "phase": 1,
+      "quality": 2,
+      "expansion": 2,
+      "sources": [{ "crafted": { "profession": 2, "spellId": 9959 } }],
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 19,
+          "stats": { "2": 15, "27": 446, "28": 90 },
+          "ilvl": 46
+        }
+      }
+    },
+    {
+      "id": 7950,
+      "name": "Armor of Thero-shan",
+      "icon": "inv_chest_leather_03",
+      "type": 5,
+      "armorType": 2,
+      "phase": 1,
+      "quality": 2,
+      "classAllowlist": [4],
+      "setName": "Garb of Thero-shan",
+      "setId": 221,
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 17,
+          "stats": { "1": 7, "17": 10, "27": 115 },
+          "ilvl": 42
+        }
+      }
+    },
+    {
+      "id": 11815,
+      "name": "Hand of Justice",
+      "icon": "inv_jewelry_talisman_01",
+      "type": 12,
+      "reqLvl": 53,
+      "phase": 1,
+      "quality": 3,
+      "unique": true,
+      "expansion": 1,
+      "sources": [
+        { "drop": { "difficulty": 1, "npcId": 9019, "zoneId": 1584 } }
+      ],
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 25,
+          "stats": { "14": 12, "15": 12 },
+          "ilvl": 58
+        }
+      },
+      "itemEffects": [
+        {
+          "buffId": 15601,
+          "buffName": "Hand of Justice (15600)",
+          "proc": { "icdMs": 2000, "procChance": 0.03 }
+        }
+      ],
+      "creatureFamilies": [16]
+    },
+    {
+      "id": 14551,
+      "name": "Edgemaster's Handguards",
+      "icon": "inv_gauntlets_30",
+      "type": 7,
+      "armorType": 3,
+      "reqLvl": 44,
+      "phase": 1,
+      "quality": 4,
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 27,
+          "stats": { "21": 10, "27": 201, "37": 1 },
+          "ilvl": 49,
+          "weaponSkills": [
+            { "skill": 1, "value": 1 },
+            { "skill": 9, "value": 1 },
+            { "skill": 5, "value": 1 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 16400,
+      "name": "Knight-Captain's Chain Girdle",
+      "icon": "inv_belt_28",
+      "type": 8,
+      "armorType": 3,
+      "reqLvl": 55,
+      "phase": 1,
+      "quality": 3,
+      "unique": true,
+      "classAllowlist": [3],
+      "sources": [{ "pvp": {} }],
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 26,
+          "stats": { "1": 14, "2": 15, "3": 9, "27": 199 },
+          "ilvl": 60
+        }
+      }
+    },
+    {
+      "id": 18505,
+      "name": "Mugger's Belt",
+      "icon": "inv_belt_02",
+      "type": 8,
+      "armorType": 2,
+      "reqLvl": 57,
+      "phase": 1,
+      "quality": 3,
+      "expansion": 1,
+      "sources": [
+        { "drop": { "difficulty": 1, "npcId": 14325, "zoneId": 2557 } }
+      ],
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 27,
+          "stats": { "2": 15, "18": 14, "27": 98 },
+          "ilvl": 62,
+          "weaponSkills": [{ "skill": 9, "value": 1 }]
+        }
+      }
+    },
+    {
+      "id": 19019,
+      "name": "Thunderfury, Blessed Blade of the Windseeker",
+      "icon": "inv_sword_39",
+      "type": 13,
+      "weaponType": 9,
+      "handType": 2,
+      "weaponSpeed": 1.9,
+      "reqLvl": 60,
+      "phase": 2,
+      "quality": 5,
+      "qualityModifier": -20,
+      "unique": true,
+      "sources": [{ "quest": { "id": 7787, "name": "Rise, Thunderfury!" } }],
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 23,
+          "weaponDamageMin": 44,
+          "weaponDamageMax": 115,
+          "unroundedDps": 61.847954,
+          "stats": { "1": 5, "2": 8, "33": 8, "35": 9 },
+          "ilvl": 80
+        }
+      },
+      "itemEffects": [
+        {
+          "buffId": 21992,
+          "buffName": "Thunderfury (21992)",
+          "effectDurationMs": 12000,
+          "proc": { "ppm": 6 }
+        }
+      ]
+    },
+    {
+      "id": 21126,
+      "name": "Death's Sting",
+      "icon": "inv_weapon_shortblade_33",
+      "type": 13,
+      "weaponType": 2,
+      "handType": 2,
+      "weaponSpeed": 1.8,
+      "reqLvl": 60,
+      "phase": 2,
+      "quality": 4,
+      "unique": true,
+      "expansion": 1,
+      "sources": [
+        { "drop": { "difficulty": 2, "npcId": 15727, "zoneId": 3428 } }
+      ],
+      "scalingOptions": {
+        "0": {
+          "randPropPoints": 24,
+          "weaponDamageMin": 83,
+          "weaponDamageMax": 156,
+          "unroundedDps": 66.65144,
+          "stats": { "2": 10, "14": 38, "15": 38 },
+          "ilvl": 84,
+          "weaponSkills": [{ "skill": 9, "value": 3 }]
+        }
+      }
+    }
+  ],
+  "enchants": [
+    {
+      "effectId": 15,
+      "itemId": 2304,
+      "spellId": 2831,
+      "name": "Light Armor Kit",
+      "icon": "inv_misc_armorkit_17",
+      "type": 5,
+      "extraTypes": [7, 9, 10],
+      "stats": [
+        0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ],
+      "quality": 1,
+      "phase": 1,
+      "lvl": 5,
+      "sources": [
+        { "crafted": { "profession": 8, "spellId": 2152 } },
+        { "drop": { "difficulty": 1, "npcId": 6908, "zoneId": 1337 } }
+      ]
+    },
+    {
+      "effectId": 34,
+      "itemId": 6043,
+      "spellId": 7217,
+      "name": "Weapon Counterweight",
+      "icon": "inv_misc_orb_01",
+      "type": 13,
+      "enchantType": 1,
+      "stats": [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ],
+      "pseudoStats": [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ],
+      "quality": 1,
+      "phase": 1,
+      "lvl": 33,
+      "sources": [{ "crafted": { "profession": 2, "spellId": 7222 } }]
+    },
+    {
+      "effectId": 43,
+      "itemId": 6042,
+      "spellId": 9784,
+      "name": "Iron Shield Spike",
+      "icon": "inv_misc_armorkit_01",
+      "type": 13,
+      "enchantType": 2,
+      "stats": [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ],
+      "quality": 1,
+      "phase": 1,
+      "lvl": 30,
+      "procKind": 1,
+      "sources": [{ "crafted": { "profession": 2, "spellId": 7221 } }]
+    },
+    {
+      "effectId": 2583,
+      "itemId": 19782,
+      "spellId": 24148,
+      "name": "Presence of Might",
+      "icon": "spell_holy_sealofwrath",
+      "type": 1,
+      "extraTypes": [9],
+      "stats": [
+        0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0,
+        15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ],
+      "quality": 3,
+      "phase": 2,
+      "lvl": 60,
+      "classAllowlist": [1],
+      "sources": [
+        {
+          "drop": { "difficulty": 2, "zoneId": 1977, "otherName": "Enchants" }
+        },
+        { "quest": { "id": 8184, "name": "Presence of Might" } }
+      ]
+    },
+    {
+      "effectId": 7659,
+      "itemId": 273598,
+      "spellId": 1219577,
+      "name": "Enchant Off-Hand - Superior Intellect",
+      "icon": "inv_misc_enchantedscroll",
+      "type": 13,
+      "enchantType": 5,
+      "stats": [
+        0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ],
+      "quality": 1,
+      "phase": 1
+    }
+  ],
+  "randomSuffixes": [
+    {
+      "id": 12718,
+      "name": "of the Eagle",
+      "stats": [
+        0, 0, 6666, 6666, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ]
+    }
+  ]
+}

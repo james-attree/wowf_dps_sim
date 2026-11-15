@@ -4,3 +4,10 @@ img
 # Golden-seed fixtures (#77). golden-update.mjs writes them with one ability or
 # log event per line so a git diff shows what moved. Prettier would reflow that.
 test/golden/
+
+# Gear snapshot (#297). One item per line, keys sorted by the refresh script.
+# Prettier would reflow the lines and blow the raw size budget.
+data/items/
+
+# Byte-identical output of the item refresh fixture. Prettier would reflow it.
+test/fixtures/items/expected/
