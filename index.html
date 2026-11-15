@@ -1192,9 +1192,9 @@
         <h1 id="area-results-title" class="area-title" tabindex="-1">
           Results
         </h1>
-        <!-- Two kept results (#242, UX4; proposal §5): the average and the
-             live fight, each with its own label, out-of-date banner and Run
-             buttons. Running one never clears the other. -->
+        <!-- Kept results (#242, UX4; #282): the average, the live fight and
+             the stat-weights table, each with its own label, out-of-date
+             banner and Run buttons. Running one never clears the others. -->
         <nav class="result-switch" aria-label="Result views">
           <a
             id="result-view-average"
@@ -1209,6 +1209,13 @@
             href="#results/live"
             data-result-view="live"
             >Live fight</a
+          >
+          <a
+            id="result-view-weights"
+            class="result-switch-link"
+            href="#results/weights"
+            data-result-view="weights"
+            >Stat weights</a
           >
         </nav>
         <div id="results-average" class="result-view" data-result="average">
@@ -1578,6 +1585,72 @@
             </p>
             <p id="log-readout" class="visually-hidden" aria-live="polite"></p>
           </section>
+        </section>
+        <section
+          id="results-weights"
+          class="result-view"
+          data-result="weights"
+          hidden
+        >
+          <div class="result-label-row">
+            <p id="results-weights-label" class="result-label"></p>
+          </div>
+          <p id="results-weights-estimate" class="weights-estimate"></p>
+          <p id="results-weights-intro" class="weights-intro" hidden></p>
+          <div
+            id="results-weights-stale"
+            class="stale-banner"
+            data-stale="weights"
+            hidden
+          ></div>
+          <h2
+            id="results-weights-status"
+            class="weights-status"
+            tabindex="-1"
+            hidden
+          ></h2>
+          <p id="results-weights-error" class="weights-error" hidden></p>
+          <div id="results-weights-progress" class="results-progress" hidden>
+            <label for="results-weights-progress-bar" class="visually-hidden"
+              >Stat weights progress</label
+            >
+            <progress
+              id="results-weights-progress-bar"
+              role="progressbar"
+            ></progress>
+            <p class="progress-line" aria-hidden="true">
+              <span id="results-weights-progress-line"></span>
+              <span id="results-weights-progress-estimate" class="muted"></span>
+            </p>
+          </div>
+          <table
+            id="results-weights-table"
+            class="results-table weights-table"
+            hidden
+          >
+            <caption></caption>
+            <thead>
+              <tr>
+                <th scope="col">Stat</th>
+                <th scope="col">DPS per point</th>
+                <th scope="col" class="weights-ci-col">± (95%)</th>
+                <th scope="col">= N AP</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p id="results-weights-cap" class="ran-note" hidden></p>
+          <div class="result-actions">
+            <button
+              id="results-weights-run"
+              class="run-button result-action"
+              type="button"
+              data-weights-action="run"
+            >
+              Run stat weights
+            </button>
+          </div>
+          <p id="results-weights-help" class="weights-help muted"></p>
         </section>
         <section
           id="results-panel"

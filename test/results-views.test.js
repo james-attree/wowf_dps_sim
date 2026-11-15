@@ -159,6 +159,7 @@ describe("Results views (#242)", () => {
     assert.equal(viewOf(parseRoute("#results")), "average");
     assert.equal(viewOf(parseRoute("#results/average")), "average");
     assert.equal(viewOf(parseRoute("#results/live")), "live");
+    assert.equal(viewOf(parseRoute("#results/weights")), "weights");
     assert.equal(viewOf(parseRoute("#results/other")), "average");
     assert.equal(
       formatRoute({ area: "results", sub: "live" }),

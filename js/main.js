@@ -17,7 +17,12 @@ import {
   writeStartChoice,
 } from "./start-preset.js";
 import { createRotationBuilder } from "./rotation-builder.js";
-import { createRunActions, emptyBatch, emptyRan } from "./run-actions.js";
+import {
+  createRunActions,
+  emptyBatch,
+  emptyRan,
+  emptyWeights,
+} from "./run-actions.js";
 import { createStore } from "./store.js";
 import { createTalentTree } from "./talent-tree.js";
 import { trackChromeSize } from "./views/chrome-size.js";
@@ -31,6 +36,8 @@ import { createResultsView } from "./views/results.js";
 import { createResultsCardView } from "./views/results-card.js";
 import { createResultsPanelView } from "./views/results-panel.js";
 import { createResultViewsView } from "./views/result-views.js";
+import { createWeightsView } from "./views/weights-view.js";
+import { weightsCapNote } from "./weights-support.js";
 import { createShareLinkView } from "./views/share-link.js";
 import { createRotationBuilderView } from "./views/rotation-builder.js";
 import { mountRouter } from "./views/router.js";
@@ -102,6 +109,7 @@ const store = createStore({
     snapshot: null,
   },
   batch: emptyBatch(client.mode),
+  weights: emptyWeights(),
   frame: 0,
   results: { time: 0, damage: 0 },
   ran: emptyRan(),
@@ -121,11 +129,12 @@ const actions = createRunActions({
   now: () => performance.now(),
   stamp: () => Date.now(),
 });
-// The running batch's elapsed time between progress messages (#155): a
-// once-a-second tick, only while a batch runs.
+// The running batch or weights calculation's elapsed time between
+// progress messages (#155, #282): a once-a-second tick, only while one runs.
 let ticking = null;
 store.subscribe(({ state }) => {
-  const running = state.batch.status === "running";
+  const running =
+    state.batch.status === "running" || state.weights?.status === "running";
   if (running && ticking === null) {
     ticking = window.setInterval(() => actions.tick(), 1000);
   } else if (!running && ticking !== null) {
@@ -215,11 +224,18 @@ const renders = {
     createManualBoardView(document, store, actions);
   },
   results: () => {
-    // The Results area's two kept views, Average and Live fight (#242).
+    // The Results area's kept views: Average, Live fight (#242) and
+    // Stat weights (#282).
     createResultViewsView(document, store, {
       ...actions,
       commitEdits: formActions.commitEdits,
     });
+    createWeightsView(
+      document,
+      store,
+      { ...actions, commitEdits: formActions.commitEdits },
+      { capNoteOf: weightsCapNote },
+    );
     createResultsPanelView(document, store, { buildLabel, poisonName });
   },
 };
@@ -253,3 +269,10 @@ keepFocusInView(document);
 // The desktop results column's summary card (#241): outside the areas, like
 // the Run panel above it, so it shows on every area but Results.
 createResultsCardView(document, store, { buildLabel });
+
+// Browser tests (#282) may set store slices through this hook. It is off
+// unless the page is opened with ?e2e in the query.
+if (new globalThis.URLSearchParams(location?.search ?? "").has("e2e")) {
+  globalThis.__store = store;
+  globalThis.__actions = actions;
+}

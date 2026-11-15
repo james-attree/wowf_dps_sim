@@ -10,12 +10,13 @@ import {
 } from "./run-model.js";
 import { ranClock, ranOf, staleBanner } from "./stale.js";
 
-// The Results area's two kept views (#242, UX4; Fran's approved UX proposal
-// §5): the average (a batch) and the live fight. A switch (#results/average,
-// #results/live) shows one; each has its own label, says when it is out of
-// date (js/views/stale.js) and has its own Run buttons. Running one never
-// clears the other: the store keeps the batch in `batch` and the live fight
-// in `results`, and `ran` holds what each ran with (js/run-actions.js).
+// The Results area's kept views (#242, UX4; #282): the average (a batch),
+// the live fight and the stat-weights table. A switch (#results/average,
+// #results/live, #results/weights) shows one; each has its own label,
+// says when it is out of date (js/views/stale.js) and has its own Run
+// buttons. Running one never clears the others: the store keeps the batch
+// in `batch`, the live fight in `results`, the weights table in `weights`,
+// and `ran` holds what each ran with (js/run-actions.js).
 //
 // The average's numbers are js/views/results-panel.js's panel, which this
 // view shows under the Average view and hides under the Live one. The live
@@ -23,10 +24,18 @@ import { ranClock, ranOf, staleBanner } from "./stale.js";
 // (#245, UX7; js/views/visualiser.js and js/views/results.js draw them),
 // shown once a fight has started; before that it says there is none yet.
 
-export const VIEWS = Object.freeze(["average", "live"]);
+export const VIEWS = Object.freeze(["average", "live", "weights"]);
 
-// The route's view: Average unless the route says Live.
-export const viewOf = (route) => (route?.sub === "live" ? "live" : "average");
+// The route's view: Average unless the route says Live or Stat weights.
+export function viewOf(route) {
+  if (route?.sub === "live") {
+    return "live";
+  }
+  if (route?.sub === "weights") {
+    return "weights";
+  }
+  return "average";
+}
 
 const STATE_WORDS = Object.freeze({
   running: "running",
@@ -140,14 +149,20 @@ export function createResultViewsView(doc, store, actions) {
   const views = {
     average: doc.querySelector("#results-average"),
     live: doc.querySelector("#results-live"),
+    weights: doc.querySelector("#results-weights"),
   };
   const byId = (id) => doc.querySelector(`#${id}`);
-  const links = ["result-view-average", "result-view-live"]
+  const links = [
+    "result-view-average",
+    "result-view-live",
+    "result-view-weights",
+  ]
     .map(byId)
     .filter(Boolean);
   const primary = {
     average: byId("results-average-run"),
     live: byId("results-live-run"),
+    weights: byId("results-weights-run"),
   };
   const buttons = [
     primary.average,
@@ -187,7 +202,9 @@ export function createResultViewsView(doc, store, actions) {
       const focused = was?.contains?.(doc.activeElement) ?? false;
       shown = model.view;
       for (const name of VIEWS) {
-        views[name].hidden = name !== shown;
+        if (views[name] !== null) {
+          views[name].hidden = name !== shown;
+        }
       }
       if (panel !== null) {
         panel.hidden = shown !== "average";
@@ -281,6 +298,7 @@ export function createResultViewsView(doc, store, actions) {
         "config",
         "form",
         "talents",
+        "weights",
       ].some((slice) => changed.includes(slice))
     ) {
       render(state);

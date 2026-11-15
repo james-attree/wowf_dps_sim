@@ -3566,9 +3566,9 @@ th[aria-sort="ascending"] {
 }
 
 /* ---- Results views (#242, UX4) ------------------------------------------- */
-/* Average and Live fight: two kept results, one shown at a time, chosen by
-   a pair of links that read as a segmented switch. With large text on a
-   phone they wrap, rather than the page scrolling sideways (#245). */
+/* Average, Live fight and Stat weights: kept results, one shown at a time,
+   chosen by links that read as a segmented switch. With large text on a
+   phone they wrap, rather than the page scrolling sideways (#245, #282). */
 .result-switch {
   display: inline-flex;
   flex-wrap: wrap;
@@ -3589,6 +3589,7 @@ th[aria-sort="ascending"] {
   display: inline-flex;
   align-items: center;
   min-height: var(--result-switch-link-height);
+  min-width: 6.25rem;
   padding: 0 1.1rem;
   border-radius: 999px;
   color: #e7ddc9;
@@ -3634,6 +3635,114 @@ th[aria-sort="ascending"] {
 .result-action[aria-disabled="true"] {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Stat weights results (#282). The ± column folds below 64em into the
+   per-point cell; from 64em up an aria-hidden CI bar may accompany the
+   text. No bar under reduced motion. Names wrap; the first column is not
+   sticky, so the AP figure is not hidden behind it on a narrow screen. */
+.weights-table {
+  white-space: normal;
+}
+
+.weights-table th:first-child,
+.weights-table td:first-child {
+  position: static;
+}
+
+.weights-estimate,
+.weights-intro,
+.weights-help,
+.weights-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.weights-status {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.weights-status:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.weights-table th,
+.weights-table td {
+  overflow-wrap: anywhere;
+}
+
+.weights-table .num {
+  font-variant-numeric: tabular-nums;
+}
+
+.weights-stat-name {
+  display: block;
+}
+
+.weights-row-note,
+.weights-row-flag {
+  display: block;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.weights-dps-point {
+  display: none;
+}
+
+.weights-ci-folded {
+  display: inline;
+}
+
+.weights-ci-col {
+  display: none;
+}
+
+.weights-ci-bar {
+  display: none;
+}
+
+@media (width >= 64em) {
+  .weights-dps-point {
+    display: inline;
+  }
+
+  .weights-ci-folded {
+    display: none;
+  }
+
+  .weights-ci-col {
+    display: table-cell;
+  }
+
+  .weights-ci-bar {
+    display: block;
+    height: 0.35rem;
+    margin-top: 0.25rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #120f0b;
+  }
+
+  .weights-ci-bar-fill {
+    display: block;
+    height: 100%;
+    background: var(--text-muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weights-table .weights-ci-bar {
+    display: none;
+  }
+}
+
+:root.reduce-motion .weights-table .weights-ci-bar {
+  display: none;
 }
 
 /* Out of date: the result stays, with what changed since it ran. */

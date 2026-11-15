@@ -1,6 +1,10 @@
 import { k } from "../data/constants.js";
 import { nextRunConfig } from "./config-form.js";
 import { createManualRun } from "./manual-run.js";
+import {
+  statWeights as defaultStatWeights,
+  statWeightVariants as defaultStatWeightVariants,
+} from "./stat-weights.js";
 
 // The control bar's actions (#153): what Run, Pause, Stop, Reset, the mode
 // toggle, the fields and "New seed" do to the page's store (js/store.js). The
@@ -28,15 +32,18 @@ import { createManualRun } from "./manual-run.js";
 // The batch slice is #154's (docs/design 154 §10):
 //   { status, progress, startedAt, elapsedMs, result, error, previous, mode }
 //
-// The ran slice (#242, UX4) is what each kept result ran with, so the live
-// fight and the average are two results kept side by side, and each knows
-// when the settings changed after it ran (js/views/stale.js):
-//   { live: Ran | null, batch: Ran | null }
+// The ran slice (#242, UX4; #282) is what each kept result ran with, so the
+// live fight, the average and the stat-weights table are kept side by side,
+// and each knows when the settings changed after it ran (js/views/stale.js):
+//   { live: Ran | null, batch: Ran | null, weights: Ran | null }
 //   Ran = { config, seed, duration, iterations, at }
 // `live` is the fight in results (js/live-run.js writes its numbers), set
 // when it starts and cleared when it is stopped or reset; `batch` is the
-// average in batch.result, set when it arrives and cleared by Reset. Running
-// one never touches the other.
+// average in batch.result, set when it arrives and cleared by Reset;
+// `weights` is the finished table in weights.result, set when it arrives.
+// Running one never touches the others. coordinator call 15 Nov (James
+// delegated), Decision 7: fight length and seed are stored on the record
+// and shown in the label; they do not make the table stale.
 //
 // Config applies to the next run: Run snapshots nextRunConfig(state)
 // (js/config-form.js), and the fight or batch keeps it.
@@ -53,7 +60,19 @@ export function emptyBatch(mode) {
   };
 }
 
-export const emptyRan = () => ({ live: null, batch: null });
+export const emptyRan = () => ({ live: null, batch: null, weights: null });
+
+export function emptyWeights() {
+  return {
+    status: "idle",
+    progress: null,
+    startedAt: null,
+    elapsedMs: 0,
+    result: null,
+    error: null,
+    jobs: [],
+  };
+}
 
 export function createRunActions({
   store,
@@ -62,6 +81,9 @@ export function createRunActions({
   drawSeed,
   now,
   stamp = () => null,
+  statWeights: runStatWeights = defaultStatWeights,
+  statWeightVariants: listVariants = defaultStatWeightVariants,
+  weightsIterations = k("statWeights.iterations"),
 }) {
   const run = () => store.get().run;
   const setRun = (patch) =>
@@ -73,6 +95,13 @@ export function createRunActions({
     store.update((state) => ({
       ran: { ...(state.ran ?? emptyRan()), ...patch },
     }));
+  const setWeights = (patch) =>
+    store.update((state) => ({
+      weights: { ...(state.weights ?? emptyWeights()), ...patch },
+    }));
+  const weightsBusy = () => store.get().weights?.status === "running";
+  const busy = () => locked() || client.running || weightsBusy();
+  let weightsAbort = null;
   const manual = createManualRun(store);
   const isManual = () => run().fightMode === "manual";
 
@@ -86,17 +115,20 @@ export function createRunActions({
 
   // A field error that blocks Run in this mode. Fights only count in batch
   // mode, where their field is shown (js/views/run-model.js fieldErrors).
-  const blocking = ({ mode, errors }) =>
+  // coordinator call 15 Nov (James delegated): stat weights ignores Fights
+  // (`ignoreIterations`), because that run always uses 1,000 fights.
+  const blocking = ({ mode, errors }, { ignoreIterations = false } = {}) =>
     Object.keys(errors).some(
-      (name) => name !== "iterations" || mode === "batch",
+      (name) =>
+        name !== "iterations" || (mode === "batch" && !ignoreIterations),
     );
 
   // The config for Run, with the seed drawn and shown if the field is empty;
   // null when a field is invalid.
-  function prepare() {
+  function prepare({ ignoreIterations = false } = {}) {
     const state = store.get();
     const config = nextRunConfig(state);
-    if (config === null || blocking(state.run)) {
+    if (config === null || blocking(state.run, { ignoreIterations })) {
       return null;
     }
     let { seed } = state.run;
@@ -147,6 +179,9 @@ export function createRunActions({
   }
 
   function runLive() {
+    if (weightsBusy()) {
+      return;
+    }
     if (isManual()) {
       if (store.get().manual?.phase === "review") {
         replayManual();
@@ -171,7 +206,7 @@ export function createRunActions({
   }
 
   function runBatch() {
-    if (client.running || locked()) {
+    if (busy()) {
       return;
     }
     const prepared = prepare();
@@ -306,9 +341,14 @@ export function createRunActions({
     // estimate stood still between them. The host calls it about once a
     // second; it does nothing unless a batch runs.
     tick() {
-      const { status, startedAt } = store.get().batch;
+      const state = store.get();
+      const { status, startedAt } = state.batch;
       if (status === "running" && startedAt !== null) {
         setBatch({ elapsedMs: now() - startedAt });
+      }
+      const weights = state.weights;
+      if (weights?.status === "running" && weights.startedAt !== null) {
+        setWeights({ elapsedMs: now() - weights.startedAt });
       }
     },
     // Live: back to an empty fight at 0:00. Batch: forget the result.
@@ -342,7 +382,11 @@ export function createRunActions({
     // Run in a given mode (#242): the Results views' own buttons, "Run
     // average again" and "Watch fight". Nothing happens while a run is on.
     runAs(mode) {
-      if (locked()) {
+      if (mode === "weights") {
+        actions.runWeights();
+        return;
+      }
+      if (locked() || weightsBusy()) {
         return;
       }
       actions.setMode(mode);
@@ -451,6 +495,122 @@ export function createRunActions({
         return;
       }
       setRun({ fightMode: mode });
+    },
+
+    // Stat weights (#282): always k("statWeights.iterations") fights, duration
+    // and seed from the current form. Cancel aborts the signal and discards
+    // the in-progress calculation (statWeights resolves to null). The last
+    // finished table stays; coordinator call 15 Nov (James delegated),
+    // Decision 2: a cancel marks it stale only if the build changed.
+    runWeights() {
+      if (busy()) {
+        return;
+      }
+      const prepared = prepare({ ignoreIterations: true });
+      if (prepared === null) {
+        return;
+      }
+      const { duration } = run();
+      const iterations = weightsIterations;
+      const jobs = listVariants(prepared.config).map((job) => ({
+        id: job.id,
+        sign: job.sign,
+      }));
+      const previous = store.get().weights?.result ?? null;
+      const startedAt = now();
+      const abort = new globalThis.AbortController();
+      weightsAbort = abort;
+      store.batch(() => {
+        setWeights({
+          ...(store.get().weights ?? emptyWeights()),
+          status: "running",
+          progress: { completed: 0, total: jobs.length },
+          startedAt,
+          elapsedMs: 0,
+          error: null,
+          jobs,
+          result: previous,
+        });
+      });
+      const ran = record(prepared, { duration, iterations });
+      let settled = false;
+      const settle = (patch) => {
+        settled = true;
+        if (weightsAbort === abort) {
+          weightsAbort = null;
+        }
+        store.batch(() => {
+          setWeights({
+            ...patch,
+            elapsedMs: now() - startedAt,
+          });
+          if (patch.status === "done" && patch.result != null) {
+            setRan({ weights: ran });
+          }
+        });
+      };
+      runStatWeights({
+        config: prepared.config,
+        seed: prepared.seed,
+        duration,
+        iterations,
+        client,
+        signal: abort.signal,
+        onProgress(progress) {
+          if (settled) {
+            return;
+          }
+          setWeights({
+            progress: { ...progress },
+            elapsedMs: now() - startedAt,
+          });
+        },
+      }).then(
+        (result) => {
+          if (result === null) {
+            // Stay on cancelled (not idle) so the status line and the
+            // announcement can show, with or without a previous table.
+            settle({
+              status: "cancelled",
+              result: previous,
+              progress: null,
+              error: null,
+              jobs: previous?.jobs ?? jobs,
+            });
+            return;
+          }
+          settle({
+            status: "done",
+            result: { ...result, jobs },
+            progress: null,
+            error: null,
+            jobs,
+          });
+        },
+        (error) =>
+          settle({
+            status: "error",
+            error: {
+              name: error?.name ?? "Error",
+              message: String(error?.message ?? error),
+            },
+            result: previous,
+            progress: null,
+            jobs: previous?.jobs ?? jobs,
+          }),
+      );
+    },
+    cancelWeights() {
+      if (!weightsBusy()) {
+        return;
+      }
+      const abort = weightsAbort;
+      if (abort !== null) {
+        abort.abort();
+      }
+      if (client.running) {
+        client.cancel();
+      }
     },
     replay: () => replayManual(),
     backToFight: () => manual.backToFight(),
