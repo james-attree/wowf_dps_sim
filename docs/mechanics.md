@@ -929,27 +929,37 @@ delay. The notes on `sliceAndDice` and `haste.stacking` both say this. The
 
 ## Armor
 
-`Simulation.armorMultiplier(context)` (a method, in `js/simulation.js`) reads
-`k("target.armor")` (an assumption on the retune list; negative armor is
-treated as zero), subtracts the armor the target's auras take off (the
-`armorReduction` effects, such as Expose Armor, A6) and floors the result at
-zero. Then it applies `k("armor.mitigation")` (`classic-1.12`, on the retune
-list). The reduction is
+`Simulation.armorMultiplier(context)` (a method, in `js/simulation.js`) is what
+`applyArmor(damage, skip, context)` calls for a direct hit or a tick that does
+not skip armour. The armour figure is `fightArmor` (`js/levels.js`):
+`config.target.armor` when that value is a number, and otherwise the target's
+armour at its level. Flat `armorReduction` auras (Expose Armor) come off next,
+and the result is floored at 0. An `armorIgnore` modifier for this attack's
+context then takes that fraction of what is left, capped at 1. Mitigation is
+`k("armor.mitigation")` (`classic-1.12`, on the retune list):
 
-`armor / (armor + k("armor.mitigation").constant + k("armor.mitigation").perLevel * k("character.level"))`
+`armor / (armor + k("armor.mitigation").constant + k("armor.mitigation").perLevel * characterLevel(config))`
 
-where `armor` is the figure left after the auras and after armor ignore. Armor
-ignore is the `armorIgnore` modifier for the attack's context (a mace talent,
-say): a fraction of the armor left after the auras, taken off before the
-formula, and capped at 1. The reduction is capped at
-`k("armor.mitigation").cap` and not below zero. Damage kept is the incoming
-damage times one minus the reduction. If the denominator is not
-positive, the multiplier is one and nothing is removed.
-`k("character.level")` is `wowf-export` and is not on the retune list. The
-notes on `character.level` and `armor.mitigation` describe the divisor's
-constant term at that level. The engine evaluates the expression above.
-`applyArmor(damage, skip, context)` is the one place damage meets it, for
-direct hits and ticks alike.
+`characterLevel` (`js/levels.js`) is `config.talentLevel`, or
+`k("character.level")` when the config has none. `k("character.level")` is
+`wowf-export` and is not on the retune list. The notes on `character.level`
+and `armor.mitigation` describe the divisor's constant term at level 60. The
+reduction is capped at `k("armor.mitigation").cap` and not below zero. Damage
+kept is the incoming damage times one minus the reduction. If the denominator
+is not positive, the multiplier is one and nothing is removed. The list below
+is that same order.
+
+**Armour order** (`Simulation.armorMultiplier`, the same order as the
+`exposeArmor` note in `data/constants.js`). Nothing here is a new ruling.
+
+1. The armour figure is `fightArmor`: `config.target.armor` when that value is pinned, otherwise the target's armour at its level (`target.armorByLevel`, #290).
+2. Flat reductions come off next: each `armorReduction` aura contributes `value × stacks` (Expose Armor).
+3. The result is floored at 0.
+4. An `armorIgnore` modifier for this attack's context (Serrated Blades, Hack and Slash with a mace) takes that fraction of what is left, and the fraction is capped at 1.
+5. Mitigation is `armor / (armor + constant + perLevel × character level)`, with `armor.mitigation` (`classic-1.12`: constant 400, 85 per level, cap 0.75). The level is `characterLevel` of the config, not a literal.
+6. The share is capped at 0.75 and not below 0. Damage kept is `1 − share`. If the denominator is not positive, the multiplier is 1.
+
+A 5-point Expose Armor on 3731 armour with Serrated Blades 3/3 is `(3731 − 2250) × 0.91` = 1347.71 armour before mitigation. Spell resistance is not applied.
 
 `Simulation.resolveAttack` always applies this to a direct hit, after
 `resolveAttack` has floored the pre-armor damage. The running total keeps
@@ -3476,10 +3486,13 @@ Poison for 60 s.
 The Assassination talent `assassination.mutilate` grants the ability
 `mutilate` (`data/talent-effects.js`, `ability`), so a build without the
 talent does not cast it and a rule for it needs a talent check, as for Cold
-Blood. The row `mutilate` (`data/constants.js`, from Rank 4 of the spell
-text) holds its numbers: 60 energy, no cooldown, 2 combo points, and per hand
-(weapon damage + 38) × 0.75. The rules are James's answers on #267 (A1-A7,
-TBC rules):
+Blood. The row `mutilate` (`data/constants.js`, `wowf-export`, Rank 3 of the
+1.60.1.70755 spell text, retuned in #332) holds its numbers: 60 energy, no
+cooldown, 2 combo points, and per hand (weapon roll + the rank's flat) × 0.9.
+Rank 3's flat is 71 (`mutilate.bonusDamage`). Ranks 1 and 2 are
+`mutilate.bonusByRank` (36 and 51), the same spell text, not assumptions.
+The poisoned aura is James, 31 Oct 2026, issue #267: A1. The strike order
+and the other cast rules are in the `mutilate` note (A2–A7):
 
 - **A2: two daggers.** The definition in `js/ability-data.js` has
   `requiresMainHand: "dagger"` and `requiresOffHand: "dagger"`
@@ -3487,8 +3500,9 @@ TBC rules):
   `usable` is false, so a Mutilate rule is passed over as Backstab's is on a
   sword: no warning, no chip, and the pooling hint says nothing about weapons.
 - **A3: damage per hand.** Each hand rolls its own weapon damage, with attack
-  power at the normalized dagger speed as for the other strikes, then adds 38
-  and multiplies by 0.75. The off hand takes no off-hand penalty.
+  power at the normalized dagger speed as for the other strikes, then adds
+  the rank's flat and multiplies by 0.9. The off hand takes no off-hand
+  penalty.
 - **A1: poisoned.** Against a target with Deadly Poison up
   (`mutilate.poisonedAura`) each hand does ×1.2 (`mutilate.poisonedMultiplier`).
   Instant Poison leaves no debuff, so an Instant/Instant fight is never
@@ -3598,16 +3612,18 @@ value, tagged `assumption` in `data/constants.js`.
   cost is paid), whatever the outcome: a missed or dodged Backstab or
   Hemorrhage uses the stacks too (tagged `assumption` in
   `thousandCuts.rules`). Expiry puts nothing back.
-- **Quietus** (`k("quietus.targetHealth")`, `k("target.healthModel")`,
-  `k("quietus.rules")`). The
-  target's health falls linearly from 100% to 0% over the fight (ruling on
-  #269), `h(t) = 1 − t/L`. Below 35% means `20·t > 13·L`, compared in whole
-  numbers (no float): strictly after 65% of the fight, so at exactly 0.65 L it
-  is still off. `fightLength` null (a fight with no set length) means the
-  target is never below it, so Quietus is off (an assumption, in
-  `quietus.rules`). Quietus is an `add` to `damage`, so it sums with the
-  other adds (Opportunity, Aggression, Murder) in the percent form rather
-  than multiplying (an assumption, in `quietus.rules`). The check is made each time
+- **Quietus health model** (`k("quietus.targetHealth")`, `k("target.healthModel")`,
+  `Simulation.targetHealthBelow`). James, 31 Oct 2026, issue #269, A14, tagged
+  assumption in `quietus.rules`: the target's health falls linearly from 100%
+  to 0% over the fight, `h(t) = 1 − t/L`. `target.healthModel` is `"linear"`,
+  the only model. Below 35% is the export fraction 7/20 (`quietus.targetHealth`,
+  `wowf-export`), so the check is `20·t > 13·L`, in whole numbers: strictly
+  after 65% of the fight, and at exactly 0.65 L it is still off. Two further
+  points are not in A14 or the talent text. The `quietus.rules` note calls
+  them the developer's reading, accepted by Scout on PR #300, and no code
+  reads that row: with `fightLength` null the target is never below 35%, so
+  Quietus is off; and the modifier is `op` `add`, so it sums with Opportunity,
+  Aggression and Murder in the percent form rather than multiplying. The check is made each time
   the pipeline resolves a damage modifier for a scoped attack, with the
   simulation's current time, so a fight cut on a core split resolves it the
   same as one run straight through, and live and batch runs agree.
@@ -3645,18 +3661,13 @@ and never cast.
   for it). It starts the GCD, like every ability not in `abilities.offGcd`:
   the export does not say, and Classic (wowsims `preparation.go`) puts it on a
   1 s GCD.
-- **What it resets** (`k("preparation.resets")`, `assumption`, A15 of the
-  Phase 4.6 plan v4). On a cast, after starting its own cooldown, it finishes
-  the running cooldowns of Cold Blood, Premeditation, Ghostly Strike,
-  Adrenaline Rush and Blade Flurry: each listed id in `simulation.cooldowns`
-  that is above 0 is set to 0, and the event core clears its timer
-  (`js/core/fight.js`). A cooldown that is not running is left alone, and an
+- **What it resets** (`k("preparation.resets")`). James, 31 Oct 2026, issue #270: A15 of the Phase 4.6 plan v4: Preparation finishes the cooldowns of Cold Blood, Premeditation, Ghostly Strike, Adrenaline Rush and Blade Flurry (Classic: all other rogue abilities; Vanish, Sprint and Evasion are not modelled); it does not reset itself or any racial; tagged assumption. On a cast, after starting its own cooldown, it sets each listed id in `simulation.cooldowns` that is above 0 to 0, and the event core clears its timer (`js/core/fight.js`). A cooldown that is not running is left alone, and an
   ability the build does not have is never on cooldown, so the list needs no
-  talent check. Preparation does not reset itself: an ability whose reset list
-  holds its own id is refused when it is built (RangeError). It resets no
-  racial; the sim models none. Classic's Preparation reset Cold Blood,
-  Shadowstep and Vanish instead, which the export's text does not list; the
-  list is the plan's, so it is tagged `assumption`.
+  talent check. An ability whose reset list holds its own id is refused when
+  it is built (RangeError), so Preparation cannot list itself. A racial
+  cooldown is not in the list, so a cast does not finish one. Classic's
+  Preparation reset Cold Blood, Shadowstep and Vanish instead
+  (wowsims `preparation.go`); this list follows the plan.
 - **The `resets` field.** An ability definition in js/ability-data.js may
   name a constant key under `resets`; `Ability` reads it into a frozen list
   of ids. Only Preparation has one.
@@ -4589,7 +4600,7 @@ The caller passes the current config, race included. Deltas are applied to the t
 | Hit                  | ±2 percentage points | The same. The step stays central.                                                            |
 | Haste                | ±2 percentage points | At the default 0 the minus side is dropped. At the upper limit 1.0 the plus side is dropped. |
 
-Weapon DPS uses the weapons on the config, including the dagger presets. There is no special case. 2 × speed is not always a whole number, so weapon damage may be fractional. The swing roll is unchanged. That is an assumption: coordinator call 15 Nov (James delegated).
+Weapon DPS uses the weapons on the config, including the dagger presets. There is no special case. 2 × speed is not always a whole number, so weapon damage may be fractional. That is an assumption: coordinator call 15 Nov (James delegated). When either bound is fractional the swing is the continuous roll in [Weapon swings](#weapon-swings-and-normalised-speed) (#375), one draw, mean `(min + max) / 2`. Both bounds integers keep the inclusive floor die. `rollDamage` does not round the result.
 
 Hit stays ±2% even though the reference build (7% gear hit plus Precision 3/3, 10% in all) straddles the 9% yellow-hit cap, so the two sides are not the same slope. That kink is an assumption: coordinator call 15 Nov (James delegated).
 
