@@ -1,6 +1,8 @@
 // Host helpers for the stat-weights Results view (issue #282). Not a view
 // module: it may read the attack table and the rogue's hit figure so the
-// view can draw the cap note without importing the engine.
+// view can draw the cap note without importing the engine. The view hands
+// in ran.weights.config, so a stale table's note matches its figures
+// (coordinator call 15 Nov, James delegated).
 
 import { k } from "../data/constants.js";
 import {

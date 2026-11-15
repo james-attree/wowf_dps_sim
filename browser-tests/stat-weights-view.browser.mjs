@@ -297,7 +297,51 @@ describe("Stat weights results view (#282)", () => {
         await page.locator("#results-weights-table").isHidden(),
         false,
       );
-      assert.equal(await announce(page), "Stat weights finished.");
+      const spoken = await announce(page);
+      // Once in the live region, not a repeated sentence. The heading
+      // uses the same words but is not a live region.
+      assert.equal(spoken, "Stat weights finished.");
+      const heading = page.locator("#results-weights-status");
+      assert.equal(await heading.isHidden(), false);
+      assert.equal(await heading.innerText(), "Stat weights finished.");
+      assert.equal(
+        await page.evaluate(() => globalThis.document.activeElement?.id),
+        "results-weights-status",
+      );
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("a stale table keeps the cap note from the run, not today's build", async () => {
+    const { context, page, errors } = await open(1280);
+    try {
+      await show(page, { status: "done" });
+      await page.evaluate(() => {
+        const store = globalThis.__store;
+        const state = store.get();
+        const ranConfig = globalThis.structuredClone(state.ran.weights.config);
+        ranConfig.target = { ...ranConfig.target, level: 63 };
+        const now = globalThis.structuredClone(ranConfig);
+        now.target = { ...now.target, level: 60 };
+        store.set({
+          ran: {
+            ...state.ran,
+            weights: { ...state.ran.weights, config: ranConfig },
+          },
+          config: now,
+        });
+      });
+      const note = page.locator("#results-weights-cap");
+      assert.equal(await note.isHidden(), false);
+      const text = await note.innerText();
+      assert.match(text, /The yellow-hit cap is 9%/);
+      assert.doesNotMatch(text, /The yellow-hit cap is 5%/);
+      assert.equal(
+        await page.locator("#results-weights-stale").isHidden(),
+        false,
+      );
       assert.equal(errors.length, 0, errors.join("\n"));
     } finally {
       await context.close();

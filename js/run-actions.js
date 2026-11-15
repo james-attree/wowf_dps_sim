@@ -115,17 +115,20 @@ export function createRunActions({
 
   // A field error that blocks Run in this mode. Fights only count in batch
   // mode, where their field is shown (js/views/run-model.js fieldErrors).
-  const blocking = ({ mode, errors }) =>
+  // coordinator call 15 Nov (James delegated): stat weights ignores Fights
+  // (`ignoreIterations`), because that run always uses 1,000 fights.
+  const blocking = ({ mode, errors }, { ignoreIterations = false } = {}) =>
     Object.keys(errors).some(
-      (name) => name !== "iterations" || mode === "batch",
+      (name) =>
+        name !== "iterations" || (mode === "batch" && !ignoreIterations),
     );
 
   // The config for Run, with the seed drawn and shown if the field is empty;
   // null when a field is invalid.
-  function prepare() {
+  function prepare({ ignoreIterations = false } = {}) {
     const state = store.get();
     const config = nextRunConfig(state);
-    if (config === null || blocking(state.run)) {
+    if (config === null || blocking(state.run, { ignoreIterations })) {
       return null;
     }
     let { seed } = state.run;
@@ -503,7 +506,7 @@ export function createRunActions({
       if (busy()) {
         return;
       }
-      const prepared = prepare();
+      const prepared = prepare({ ignoreIterations: true });
       if (prepared === null) {
         return;
       }

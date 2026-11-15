@@ -19,11 +19,14 @@ import { k } from "../../data/constants.js";
 import { formatNumber } from "../charts.js";
 import { timeEstimate } from "./results-render.js";
 import {
-  blocked,
+  fieldErrors,
+  formErrorCount,
   grouped,
+  rotationErrorCount,
   secondsText,
   seedPart,
   staleFixTitle,
+  talentErrorCount,
   unitPart,
 } from "./run-model.js";
 import { ranClock, ranOf, staleBanner } from "./stale.js";
@@ -458,7 +461,35 @@ function buttonLabel(status, hasTable) {
   return hasTable ? "Run stat weights again" : "Run stat weights";
 }
 
+// coordinator call 15 Nov (James delegated): an invalid Fights field does
+// not block Run stat weights, because the calculation always uses 1,000
+// fights. Duration, seed, and real build errors still do. Average keeps
+// using blocked() / fieldErrors, which still count Fights in batch mode.
+export function weightsBlocked(state) {
+  const fields = fieldErrors(state.run).filter((name) => name !== "iterations");
+  return (
+    fields.length +
+      formErrorCount(state.form) +
+      talentErrorCount(state) +
+      rotationErrorCount(state) >
+    0
+  );
+}
+
+// coordinator call 15 Nov (James delegated): the cap note is computed
+// from the settings the table was run with, so a stale table's note
+// matches its figures.
+export function weightsCapConfig(state) {
+  return ranOf(state, "weights")?.config ?? null;
+}
+
 function statusLine(weights, hasTable) {
+  // P1 (#376, Fran): a successful run keeps a visible status heading
+  // so focus can land on it (spec section 7). Same words as the live
+  // announcement; the heading is not itself a live region.
+  if (weights.status === "done") {
+    return WEIGHTS_DONE_ANNOUNCEMENT;
+  }
   if (weights.status === "cancelled") {
     return hasTable
       ? "Calculation cancelled. The last finished table is still shown."
@@ -472,8 +503,9 @@ function statusLine(weights, hasTable) {
   return null;
 }
 
-// capNote is { cap, hit, step } from the host, or null. Computed from the
-// current build so the copy tracks today's settings (spec section 5).
+// capNote is { cap, hit, step } from the host, or null. Computed from
+// ran.weights.config (weightsCapConfig), so a stale table's note matches
+// its figures. coordinator call 15 Nov (James delegated).
 export function weightsModel(state, { capNote = null } = {}) {
   const weights = emptyWeights(state.weights);
   const running = weights.status === "running";
@@ -482,7 +514,7 @@ export function weightsModel(state, { capNote = null } = {}) {
   const hasTable = result !== null && record !== null;
   // Decision 8: hide the previous table while a new run is in progress.
   const showTable = hasTable && !running;
-  const fix = staleFixTitle(state);
+  const fix = weightsBlocked(state) ? staleFixTitle(state) : null;
   const stale = showTable ? staleBanner(state, "weights", fix) : null;
   const jobs = result?.jobs ?? weights.jobs;
   const cap = showTable ? capNoteText(capNote) : null;
@@ -500,7 +532,7 @@ export function weightsModel(state, { capNote = null } = {}) {
     help: WEIGHTS_HELP,
     button: buttonLabel(weights.status, hasTable || running),
     cancelling: running,
-    blocked: blocked(state),
+    blocked: weightsBlocked(state),
     stale,
     statusText: statusLine(weights, hasTable),
     errorDetail:

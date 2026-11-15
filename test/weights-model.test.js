@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { referenceBuild } from "../data/reference-build.js";
 import { pageDefaultConfig } from "../js/config-form.js";
 import { emptyRan, emptyWeights } from "../js/run-actions.js";
+import { weightsCapNote } from "../js/weights-support.js";
+import { blocked } from "../js/views/run-model.js";
 import {
   NOT_MEASURED,
   WEIGHTS_DONE_ANNOUNCEMENT,
@@ -19,6 +22,8 @@ import {
   weightsAnnounceKey,
   weightsIntro,
   weightsModel,
+  weightsBlocked,
+  weightsCapConfig,
   weightsRuntimeCopy,
   weightsStartAnnouncement,
 } from "../js/views/weights-model.js";
@@ -180,6 +185,12 @@ describe("stat weights model (#282)", () => {
       WEIGHTS_DONE_ANNOUNCEMENT,
     );
     assert.equal(WEIGHTS_DONE_ANNOUNCEMENT, "Stat weights finished.");
+  });
+
+  it("statusLine on done is Stat weights finished. (#376 P1)", () => {
+    const done = weightsModel(state({ status: "done" }));
+    assert.equal(done.statusText, "Stat weights finished.");
+    assert.equal(done.statusText, weightsAnnounce(state({ status: "done" })));
   });
 
   it("Decision 1: idle copy covers the default run only", () => {
@@ -346,5 +357,64 @@ describe("stat weights model (#282)", () => {
       kept.statusText,
       "Stat weights failed. The last finished table is unchanged.",
     );
+  });
+
+  it("a stale table keeps the cap note from the run's config after hit or levels change", () => {
+    const ranWith = { ...pageDefaultConfig(), talents: referenceBuild() };
+    ranWith.character = { ...ranWith.character };
+    const afterLevel = structuredClone(ranWith);
+    afterLevel.target = { ...afterLevel.target, level: 60 };
+    const afterHit = structuredClone(ranWith);
+    afterHit.character = { ...afterHit.character, bonusHitChance: 0 };
+    const ranNote = capNoteText(weightsCapNote(ranWith));
+    assert.match(ranNote, /The yellow-hit cap is 9%/);
+    assert.match(ranNote, /This build is at 10%/);
+    assert.notEqual(capNoteText(weightsCapNote(afterLevel)), ranNote);
+    assert.notEqual(capNoteText(weightsCapNote(afterHit)), ranNote);
+    for (const now of [afterLevel, afterHit]) {
+      const s = state({ config: ranWith, now, status: "done" });
+      assert.equal(isStale(s, "weights"), true);
+      assert.equal(weightsCapConfig(s), ranWith);
+      const model = weightsModel(s, {
+        capNote: weightsCapNote(weightsCapConfig(s)),
+      });
+      assert.equal(model.capNote, ranNote);
+      assert.ok(model.stale);
+    }
+  });
+
+  it("an invalid Fights field does not block Run stat weights; Average stays blocked", () => {
+    const s = state({ status: "idle", result: null });
+    s.run = {
+      ...s.run,
+      mode: "batch",
+      errors: {
+        iterations: "Enter a whole number of fights from 1 to 100,000.",
+      },
+    };
+    assert.equal(blocked(s), true);
+    assert.equal(weightsBlocked(s), false);
+    assert.equal(weightsModel(s).blocked, false);
+  });
+
+  it("a real build error still blocks Run stat weights", () => {
+    const duration = state({ status: "idle", result: null });
+    duration.run = {
+      ...duration.run,
+      errors: {
+        duration: "Fight length must be a number of seconds from 1 to 3,600.",
+      },
+    };
+    assert.equal(weightsBlocked(duration), true);
+    assert.equal(weightsModel(duration).blocked, true);
+    const build = state({ status: "idle", result: null });
+    build.form = {
+      errors: {
+        "character.attackPower": "Attack power must be a whole number.",
+      },
+    };
+    assert.equal(blocked(build), true);
+    assert.equal(weightsBlocked(build), true);
+    assert.equal(weightsModel(build).blocked, true);
   });
 });

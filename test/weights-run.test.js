@@ -9,6 +9,7 @@ import {
   emptyWeights,
 } from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
+import { blocked } from "../js/views/run-model.js";
 import { isStale } from "../js/views/stale.js";
 
 const SEED = 107;
@@ -176,5 +177,52 @@ describe("stat weights host (#282)", () => {
     assert.equal(store.get().weights.status, "running");
     runner.job.resolve({ ...sample });
     await settled();
+  });
+
+  it("an invalid Fights field does not block runWeights, but still blocks Average", async () => {
+    const { store, runner, actions } = setup();
+    store.set({
+      run: {
+        ...store.get().run,
+        errors: {
+          iterations: "Enter a whole number of fights from 1 to 100,000.",
+        },
+      },
+    });
+    assert.equal(blocked(store.get()), true);
+    actions.runAs("batch");
+    assert.equal(store.get().batch.status, "idle");
+    assert.equal(runner.calls.length, 0);
+    actions.runWeights();
+    assert.equal(store.get().weights.status, "running");
+    assert.equal(runner.calls.length, 1);
+    runner.job.resolve({ ...sample });
+    await settled();
+  });
+
+  it("a real build error still blocks runWeights", async () => {
+    const { store, runner, actions } = setup();
+    store.set({
+      run: {
+        ...store.get().run,
+        errors: {
+          duration: "Fight length must be a number of seconds from 1 to 3,600.",
+        },
+      },
+    });
+    actions.runWeights();
+    assert.equal(store.get().weights.status, "idle");
+    assert.equal(runner.calls.length, 0);
+    store.set({
+      run: { ...store.get().run, errors: {} },
+      form: {
+        errors: {
+          "character.attackPower": "Attack power must be a whole number.",
+        },
+      },
+    });
+    actions.runWeights();
+    assert.equal(store.get().weights.status, "idle");
+    assert.equal(runner.calls.length, 0);
   });
 });

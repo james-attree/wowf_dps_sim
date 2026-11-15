@@ -2,9 +2,11 @@
 // into #results-weights. The host (js/run-actions.js) runs statWeights and
 // stores the slice; this file does not import the engine. capNoteOf is
 // handed in from js/main.js (js/weights-support.js) so the cap note can
-// use the attack table without a view import.
+// use the attack table without a view import. The note is computed from
+// ran.weights.config (the run that produced the table), not today's
+// build. coordinator call 15 Nov (James delegated).
 
-import { weightsModel } from "./weights-model.js";
+import { weightsCapConfig, weightsModel } from "./weights-model.js";
 
 const ZERO = 0;
 const MAIN_BUTTON = 0;
@@ -129,8 +131,11 @@ export function createWeightsView(doc, store, actions, { capNoteOf } = {}) {
     store.get().route?.sub === "weights";
 
   function render(state) {
+    const capSource = weightsCapConfig(state);
     const note =
-      typeof capNoteOf === "function" ? capNoteOf(state.config) : null;
+      typeof capNoteOf === "function" && capSource !== null
+        ? capNoteOf(capSource)
+        : null;
     const model = weightsModel(state, { capNote: note });
     write(label, model.label);
     if (estimate !== null) {

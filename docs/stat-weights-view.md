@@ -50,3 +50,15 @@ view is showing, as it is for Live fight.
 
 Issue #283 (the dock badge, disabling Average/Live Run while weights run, a
 wake lock, and a desktop column card) is out of scope here.
+
+## Cap note and Run blocking (coordinator call 15 Nov, James delegated)
+
+The yellow-hit cap note is computed from `ran.weights.config`, the
+settings the table was run with, so a stale table's note matches its
+figures. Changing hit or the levels marks the table out of date but does
+not rewrite the note.
+
+An invalid Fights field does not block Run stat weights, because the
+calculation always uses 1,000 fights. Duration, seed, and real build
+errors (the stats form, talents, rotation) still block it. Average's
+blocking is unchanged: Fights still blocks Run average in batch mode.
