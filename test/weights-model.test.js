@@ -4,7 +4,7 @@ import { referenceBuild } from "../data/reference-build.js";
 import { pageDefaultConfig } from "../js/config-form.js";
 import { emptyRan, emptyWeights } from "../js/run-actions.js";
 import { weightsCapNote } from "../js/weights-support.js";
-import { blocked } from "../js/views/run-model.js";
+import { blocked, WEIGHTS_KEEP_AWAKE } from "../js/views/run-model.js";
 import {
   NOT_MEASURED,
   WEIGHTS_DONE_ANNOUNCEMENT,
@@ -24,6 +24,8 @@ import {
   weightsModel,
   weightsBlocked,
   weightsCapConfig,
+  weightsCardLine,
+  weightsKeepAwake,
   weightsRuntimeCopy,
   weightsStartAnnouncement,
 } from "../js/views/weights-model.js";
@@ -142,6 +144,41 @@ describe("stat weights model (#282)", () => {
       "attackPower",
       "haste",
     ]);
+  });
+
+  // Kira N1 from #376: a fixture where DPS-per-point order and AP-equivalent
+  // order differ, so a mutant that sorts by DPS per point fails.
+  it("Kira N1 (#376): sort is by AP equivalent, not DPS per point", () => {
+    const mixed = {
+      attackPower: { dpsPerPoint: 2, ci: 0.1, apEquivalent: 1 },
+      haste: { dpsPerPoint: 8, ci: 0.2, apEquivalent: 0.4 },
+      crit: { dpsPerPoint: 5, ci: 0.2, apEquivalent: 2.5 },
+      hit: { dpsPerPoint: 3, ci: 0.1, apEquivalent: 1.5 },
+    };
+    assert.deepEqual(
+      sortWeightRows(mixed).map((row) => row.id),
+      ["crit", "hit", "attackPower", "haste", "mainHand", "offHand"],
+    );
+    const byDps = [...sortWeightRows(mixed)].sort((a, b) => {
+      const ae = a.data?.dpsPerPoint;
+      const be = b.data?.dpsPerPoint;
+      const aMissing = ae == null || !Number.isFinite(ae);
+      const bMissing = be == null || !Number.isFinite(be);
+      if (aMissing && bMissing) {
+        return a.index - b.index;
+      }
+      if (aMissing) {
+        return 1;
+      }
+      if (bMissing) {
+        return -1;
+      }
+      return be - ae;
+    });
+    assert.notDeepEqual(
+      byDps.map((row) => row.id),
+      sortWeightRows(mixed).map((row) => row.id),
+    );
   });
 
   it("Decision 4: 2 dp per point and ±, 1 dp AP equivalent", () => {
@@ -416,5 +453,47 @@ describe("stat weights model (#282)", () => {
     assert.equal(blocked(build), true);
     assert.equal(weightsBlocked(build), true);
     assert.equal(weightsModel(build).blocked, true);
+  });
+});
+
+describe("stat weights across screens (#283)", () => {
+  it("the desktop card lists measured rows in AP-equivalent order, with the ran clock", () => {
+    const line = weightsCardLine(state());
+    assert.equal(
+      line,
+      "Stat weights: crit 19.2 · MH 2.5 · OH 2.5 · hit 1.7 · AP 1.0 (ran at 09:12)",
+    );
+    assert.equal(
+      weightsCardLine(state({ status: "idle", result: null })),
+      null,
+    );
+  });
+
+  it("a re-run keeps the last finished card, and a stale table appends the short line", () => {
+    const running = state({
+      status: "running",
+      progress: { completed: 3, total: 9 },
+    });
+    assert.match(weightsCardLine(running), /^Stat weights: crit 19\.2/);
+    const stale = state({
+      now: { ...pageDefaultConfig(), character: { attackPower: 200 } },
+    });
+    assert.match(weightsCardLine(stale), /changed after this ran\.$/);
+  });
+
+  it("the keep-awake line shows only when a run is going and the lock fell back", () => {
+    const running = state({
+      status: "running",
+      result: null,
+      progress: { completed: 1, total: 9 },
+    });
+    running.weights.wakeLock = "fallback";
+    assert.equal(weightsKeepAwake(running), WEIGHTS_KEEP_AWAKE);
+    assert.equal(weightsModel(running).keepAwake, WEIGHTS_KEEP_AWAKE);
+    running.weights.wakeLock = "held";
+    assert.equal(weightsKeepAwake(running), null);
+    const done = state();
+    done.weights.wakeLock = "fallback";
+    assert.equal(weightsKeepAwake(done), null);
   });
 });

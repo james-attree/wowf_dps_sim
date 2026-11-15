@@ -37,6 +37,7 @@ import { createResultsCardView } from "./views/results-card.js";
 import { createResultsPanelView } from "./views/results-panel.js";
 import { createResultViewsView } from "./views/result-views.js";
 import { createWeightsView } from "./views/weights-view.js";
+import { createWakeLock } from "./views/wake-lock.js";
 import { weightsCapNote } from "./weights-support.js";
 import { createShareLinkView } from "./views/share-link.js";
 import { createRotationBuilderView } from "./views/rotation-builder.js";
@@ -269,6 +270,10 @@ keepFocusInView(document);
 // The desktop results column's summary card (#241): outside the areas, like
 // the Run panel above it, so it shows on every area but Results.
 createResultsCardView(document, store, { buildLabel });
+// A running weights calculation asks for a screen wake lock (#283). The
+// fallback "Keep the screen on" is shown when the API is missing or the
+// request fails. coordinator call 15 Nov (James delegated).
+createWakeLock(document, store);
 
 // Browser tests (#282) may set store slices through this hook. It is off
 // unless the page is opened with ?e2e in the query.

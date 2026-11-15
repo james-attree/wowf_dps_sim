@@ -394,6 +394,11 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
         continue;
       }
       badge.setAttribute("data-badge", key);
+      if (shown?.kind === "progress") {
+        badge.setAttribute("data-kind", "progress");
+      } else {
+        badge.removeAttribute("data-kind");
+      }
       badge.hidden = shown === null;
       const words = doc.createElement("span");
       words.className = "visually-hidden";

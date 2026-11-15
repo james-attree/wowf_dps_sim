@@ -3142,6 +3142,13 @@ th[aria-sort="ascending"] {
   display: none;
 }
 
+/* A running weights calculation (#283): gold, so it is not an error count.
+   Tabular figures keep "3/9" from jumping as the variant count ticks. */
+.area-nav-badge[data-kind="progress"] {
+  background: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Below the wide breakpoint: a bar fixed to the bottom of the screen, four
    equal links, the current one in the accent with a bar along its top. The
    page leaves room for it under the footer. */
@@ -3565,6 +3572,21 @@ th[aria-sort="ascending"] {
   font-variant-numeric: tabular-nums;
 }
 
+.results-card-weights {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-card-weights .results-card-link {
+  display: inline-block;
+  min-width: var(--target);
+  min-height: var(--target);
+  line-height: var(--target);
+  text-align: center;
+}
+
 /* ---- Results views (#242, UX4) ------------------------------------------- */
 /* Average, Live fight and Stat weights: kept results, one shown at a time,
    chosen by links that read as a segmented switch. With large text on a
@@ -3653,7 +3675,8 @@ th[aria-sort="ascending"] {
 .weights-estimate,
 .weights-intro,
 .weights-help,
-.weights-error {
+.weights-error,
+.weights-keep-awake {
   margin: 0;
   overflow-wrap: anywhere;
 }

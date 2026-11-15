@@ -215,6 +215,22 @@ describe("badgeOf", () => {
     });
     assert.equal(badgeOf({ errors: 0, warnings: 0 }), null);
   });
+
+  it("a running weights calculation is a progress badge (#283)", () => {
+    assert.deepEqual(
+      badgeOf({
+        errors: 0,
+        warnings: 0,
+        edited: false,
+        progress: { completed: 3, total: 9 },
+      }),
+      {
+        kind: "progress",
+        count: "3/9",
+        words: "stat weights running",
+      },
+    );
+  });
 });
 
 describe("reveal", () => {

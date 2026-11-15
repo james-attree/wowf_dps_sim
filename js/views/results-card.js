@@ -11,6 +11,7 @@ import {
 } from "./run-model.js";
 import { formatNumber } from "../charts.js";
 import { isStale, staleBanner } from "./stale.js";
+import { weightsCardLine } from "./weights-model.js";
 
 // The desktop results column's summary card (#241, UX3; proposal sections 3
 // and 5). From 1024px up the page has a column beside the areas: the Run
@@ -199,6 +200,7 @@ export function cardModel(state, { buildLabel }) {
     ].filter(Boolean),
     open: ["running", "done", "cancelled", "error"].includes(status),
     live: `Live fight: ${liveText(state)}${liveStale}`,
+    weights: weightsCardLine(state),
   };
 }
 
@@ -207,6 +209,7 @@ export function createResultsCardView(doc, store, labels) {
   const body = doc.querySelector("#results-card-body");
   const open = doc.querySelector("#results-card-open");
   const live = doc.querySelector("#results-card-live");
+  const weights = doc.querySelector("#results-card-weights");
   if (!card || !body || !open || !live) {
     return () => {};
   }
@@ -223,6 +226,28 @@ export function createResultsCardView(doc, store, labels) {
     if (live.textContent !== model.live) {
       live.textContent = model.live;
     }
+    if (weights !== null) {
+      const line = model.weights;
+      weights.hidden = line === null;
+      // When the card itself is not rendered (Results, #241), innerText
+      // includes hidden children, so this line must be empty until a run
+      // has finished (#283).
+      if (line === null) {
+        if (weights.childNodes.length > 0) {
+          weights.replaceChildren();
+        }
+      } else if (weights.textContent !== `${line} · open`) {
+        const text = doc.createElement("span");
+        text.id = "results-card-weights-text";
+        text.textContent = line;
+        const link = doc.createElement("a");
+        link.className = "results-card-link";
+        link.href = "#results/weights";
+        link.setAttribute("aria-label", "Open the stat weights");
+        link.textContent = "open";
+        weights.replaceChildren(text, " · ", link);
+      }
+    }
     if (markup !== last) {
       last = markup;
       body.replaceChildren(...model.body.map((node) => toDom(node, doc)));
@@ -231,9 +256,16 @@ export function createResultsCardView(doc, store, labels) {
   render(store.get());
   return store.subscribe(({ state, changed }) => {
     if (
-      ["run", "batch", "results", "config", "ran", "form", "talents"].some(
-        (s) => changed.includes(s),
-      )
+      [
+        "run",
+        "batch",
+        "results",
+        "config",
+        "ran",
+        "form",
+        "talents",
+        "weights",
+      ].some((s) => changed.includes(s))
     ) {
       render(state);
     }

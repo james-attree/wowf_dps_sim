@@ -46,10 +46,8 @@ Scout accepted Fran's ten recommended decisions. Each is a
 view. An unknown sub still drops to `#results`. The page title is
 `Stat weights · WoW Forever Rogue Simulator`. The desktop run column and
 `#results-card` keep showing Average; `#results-panel` is hidden while this
-view is showing, as it is for Live fight.
-
-Issue #283 (the dock badge, disabling Average/Live Run while weights run, a
-wake lock, and a desktop column card) is out of scope here.
+view is showing, as it is for Live fight. The column also carries the
+stat-weights summary line from issue #283, once a run has finished.
 
 ## Cap note and Run blocking (coordinator call 15 Nov, James delegated)
 
@@ -62,3 +60,32 @@ An invalid Fights field does not block Run stat weights, because the
 calculation always uses 1,000 fights. Duration, seed, and real build
 errors (the stats form, talents, rotation) still block it. Average's
 blocking is unchanged: Fights still blocks Run average in batch mode.
+
+## Across screens (issue #283)
+
+coordinator call 15 Nov (James delegated). Leaving the Stat weights view
+keeps the calculation running.
+
+- **Progress badge.** While a run is going, the Results item on the area
+  nav (the phone dock and the wide nav) shows a gold `3/9` badge, with the
+  hidden words “stat weights running”. The badge is also drawn while the
+  Results area is showing, so leaving the screen is not a special case.
+  The phone dock strip (hidden on Results, shown after leaving) reads
+  “Stat weights” and “Running · 3/9”.
+- **Run disabled.** Average and Live Run (the Run bar and the Results
+  buttons) are disabled with the reason “Stat weights are running”. The
+  fight fields stay editable: the in-progress run already has its
+  snapshot. The weights Cancel button stays enabled.
+- **Wake lock.** A screen wake lock is requested for every weights run
+  (Precise is not offered yet; a phone run still benefits). If the API is
+  missing or the request fails, the running view and the Run bar status
+  show “Keep the screen on”. The lock is released when the run ends, and
+  asked for again if the tab comes back to the foreground mid-run.
+- **Desktop column card.** Once a run has finished, `#results-card` shows
+  a line of the form “Stat weights: crit 19.2 · MH 2.5 · OH 2.5 · hit 1.7
+  · AP 1.0 (ran at 10:02)”, with a link to `#results/weights`. Every
+  measured row is listed, in table sort order (AP equivalent descending),
+  at 1 decimal place. The last finished figures stay during a re-run. An
+  out-of-date table appends the existing short stale line, “{Names}
+  changed after this ran.” The line is absent until the first finished
+  run.

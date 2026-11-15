@@ -28,7 +28,10 @@ import {
   staleFixTitle,
   talentErrorCount,
   unitPart,
+  WEIGHTS_KEEP_AWAKE,
+  WEIGHTS_WAKE_FALLBACK,
 } from "./run-model.js";
+
 import { ranClock, ranOf, staleBanner } from "./stale.js";
 
 export const WEIGHTS_DPS_DECIMALS = 2;
@@ -158,6 +161,48 @@ export const WEIGHTS_ROW_LABELS = Object.freeze({
   hit: "Hit (per 1%)",
   haste: "Haste (per 1%)",
 });
+
+// Short names for the desktop column card (#283). coordinator call 15 Nov
+// (James delegated): every measured row, in table sort order (AP equivalent
+// descending), 1 decimal place, no ellipsis. The issue's "AP 1 · crit 19.2
+// · hit 14.8 …" line is the shape, not a different order or a cap on rows.
+export const WEIGHTS_CARD_NAMES = Object.freeze({
+  attackPower: "AP",
+  mainHand: "MH",
+  offHand: "OH",
+  crit: "crit",
+  hit: "hit",
+  haste: "haste",
+});
+
+export function weightsCardLine(state) {
+  const result = state.weights?.result ?? null;
+  const record = ranOf(state, "weights");
+  if (result === null || record === null) {
+    return null;
+  }
+  const parts = sortWeightRows(result.rows)
+    .filter((row) => row.data != null && Number.isFinite(row.data.apEquivalent))
+    .map(
+      (row) =>
+        `${WEIGHTS_CARD_NAMES[row.id]} ${formatNumber(row.data.apEquivalent, WEIGHTS_AP_DECIMALS)}`,
+    );
+  if (parts.length === ZERO) {
+    return null;
+  }
+  const at = ranClock(record.at);
+  const clock = at === null ? "" : ` (ran at ${at})`;
+  const stale = staleBanner(state, "weights");
+  const note = stale === null ? "" : ` · ${stale.short}`;
+  return `Stat weights: ${parts.join(" · ")}${clock}${note}`;
+}
+
+export function weightsKeepAwake(state) {
+  return state.weights?.status === "running" &&
+    state.weights?.wakeLock === WEIGHTS_WAKE_FALLBACK
+    ? WEIGHTS_KEEP_AWAKE
+    : null;
+}
 
 export function formatDpsPerPoint(value) {
   return value == null || !Number.isFinite(value)
@@ -542,5 +587,6 @@ export function weightsModel(state, { capNote = null } = {}) {
     caption: showTable ? caption(result, record) : null,
     rows,
     capNote: cap,
+    keepAwake: weightsKeepAwake(state),
   };
 }
