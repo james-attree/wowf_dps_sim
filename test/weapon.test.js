@@ -79,6 +79,64 @@ describe("Weapon", () => {
     });
   });
 
+  it("keeps the integer die and draws once, as the floor roll did", () => {
+    const draws = [];
+    const rogue = {
+      random() {
+        draws.push(1);
+        return draws.length === 1
+          ? 0
+          : draws.length === 2
+            ? 0.5
+            : 1 - Number.EPSILON;
+      },
+    };
+    const weapon = new Weapon(rogue, 100, 187, 2.6, "main");
+    const before = (roll) => Math.floor(roll * (187 - 100 + 1)) + 100;
+    assert.equal(weapon.rollWeaponDamage(), before(0));
+    assert.equal(weapon.rollWeaponDamage(), before(0.5));
+    assert.equal(weapon.rollWeaponDamage(), before(1 - Number.EPSILON));
+    assert.deepEqual(
+      [100, 144, 187],
+      [before(0), before(0.5), before(1 - Number.EPSILON)],
+    );
+    assert.equal(draws.length, 3);
+  });
+
+  it("gives a fractional die the mean (min + max) / 2", () => {
+    const min = 10.4;
+    const max = 18.7;
+    assert.equal((min + max) / 2, 14.55);
+    const at = (roll) => {
+      const weapon = new Weapon({ random: () => roll }, min, max, 2.6, "main");
+      return weapon.rollWeaponDamage();
+    };
+    // f(r) = min + r·(max−min) is linear, so every pair r and 1−r averages
+    // to the midpoint. That is the mean of a uniform draw on [0, 1].
+    for (const roll of [0, 0.2, 0.5, 0.8, 1]) {
+      assert.equal((at(roll) + at(1 - roll)) / 2, 14.55);
+    }
+    assert.equal(at(0), min);
+    assert.equal(at(1), max);
+  });
+
+  it("draws once on the integer path and once on the fractional path", () => {
+    let draws = 0;
+    const rogue = {
+      random() {
+        draws += 1;
+        return 0.3;
+      },
+    };
+    const integer = new Weapon(rogue, 10, 18, 2, "main");
+    const fractional = new Weapon(rogue, 10.4, 18.7, 2, "main");
+    integer.rollWeaponDamage();
+    const afterInteger = draws;
+    fractional.rollWeaponDamage();
+    assert.equal(afterInteger, 1);
+    assert.equal(draws - afterInteger, 1);
+  });
+
   it("allows a weapon whose min and max damage are equal", () => {
     const weapon = new Weapon({ random: testRng }, 80, 80, 1.8, "main");
     setRoll(0.5);

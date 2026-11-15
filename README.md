@@ -493,7 +493,7 @@ iterations, duration, config, signal, onProgress })` and the sliced,
   progress), `cancel()`, `terminate()`. Runs the batch in the worker, or on the
   main thread in slices where module workers are missing or the worker fails to
   load (`mode` `"auto"`, `"worker"` or `"main"`). The page's batch mode uses it (#153). See [Batch worker](docs/worker.md).
-- `js/stat-weights.js` — Stat weights (#281): variants of one config (attack power +50, each weapon +2 DPS, crit ±1%, hit ±2%, haste ±2%), run one after another through `runBatch` or a `BatchClient` on the same base seed. A side that would leave a stat's limits is dropped. The default is 9 variants × 1,000 fights of 300 s. Measured on Node v22.23.4, 4 vCPU: 73 s for that default on the temporary Combat swords reference build with Instant Poison on both hands, seed 107. See [Mechanics](docs/mechanics.md).
+- `js/stat-weights.js` — Stat weights (#281): variants of one config (attack power +50, each weapon +2 DPS, crit ±1%, hit ±2%, haste ±2%), run one after another through `runBatch` or a `BatchClient` on the same base seed. A side that would leave a stat's limits is dropped. The default is 9 variants × 1,000 fights of 300 s. Measured on Node v22.23.4, 4 vCPU: 73.1 s for that default on the temporary Combat swords reference build with Instant Poison on both hands, seed 107. See [Mechanics](docs/mechanics.md).
 - `js/ability-breakdown.js` — The per-ability breakdown (S2, #145): a
   `FightBreakdown` subscribed to a fight's `hit` and `cast` events, and a
   `BatchBreakdown` that sums fights in order. Rows are keyed and sorted by

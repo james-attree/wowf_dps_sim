@@ -128,6 +128,15 @@ describe("paired DPS per point", () => {
 });
 
 describe("statWeights", () => {
+  it("stays identical on two runs when a weapon bound is fractional", async () => {
+    const config = normalizeConfig({});
+    config.weapons.mainHand.min = 100.4;
+    config.weapons.mainHand.max = 187.4;
+    const first = await statWeights({ ...tiny, config });
+    const second = await statWeights({ ...tiny, config });
+    assert.deepEqual(first, second);
+  });
+
   it("is identical on two runs", async () => {
     const first = await statWeights(tiny);
     const second = await statWeights(tiny);

@@ -66,10 +66,20 @@ export class Weapon {
   }
 
   rollWeaponDamage() {
-    return (
-      Math.floor(this.rogue.random() * (this.maxDamage - this.minDamage + 1)) +
-      this.minDamage
-    );
+    const min = this.minDamage;
+    const max = this.maxDamage;
+    const roll = this.rogue.random();
+    // Both bounds integers: the inclusive die, unchanged. One draw, as before.
+    if (Number.isInteger(min) && Number.isInteger(max)) {
+      return Math.floor(roll * (max - min + 1)) + min;
+    }
+    // Either bound fractional. Assumption, coordinator call 15 Nov (James
+    // delegated): a continuous roll on [min, max], mean exactly (min + max) / 2.
+    // Not a game mechanic. One draw, the same as the integer path. The value
+    // is not rounded here; rollDamage adds the attack-power term and, for the
+    // off hand, multiplies the sum, and that amount is what the attack table
+    // records. The page floors damage only when it displays it.
+    return min + roll * (max - min);
   }
 
   rollDamage() {
