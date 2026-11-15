@@ -354,14 +354,19 @@ describe("Copy link to this build (#284)", () => {
       const { context, page, errors } = await open(width, link);
       try {
         assert.equal(await text(page, "#share-banner-text"), NOTICES.loaded);
-        assert.equal(
-          await page.evaluate(
-            () =>
-              getComputedStyle(document.getElementById("share-banner"))
-                .borderTopColor,
-          ),
-          "rgb(231, 189, 85)",
-        );
+        const bannerGold = await page.evaluate(() => {
+          const banner = globalThis.document.getElementById("share-banner");
+          const probe = globalThis.document.createElement("div");
+          probe.style.color = "var(--accent)";
+          globalThis.document.body.append(probe);
+          const accent = globalThis.getComputedStyle(probe).color;
+          probe.remove();
+          return {
+            border: globalThis.getComputedStyle(banner).borderTopColor,
+            accent,
+          };
+        });
+        assert.equal(bannerGold.border, bannerGold.accent);
         await go(page, "#results/average", "#share-link-average");
         await page.locator("#share-link-average").click();
         await page

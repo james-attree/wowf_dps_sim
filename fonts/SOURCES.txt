@@ -1,0 +1,22 @@
+Cinzel
+SIL Open Font License 1.1
+Copyright 2020 The Cinzel Project Authors (https://github.com/NDISCOVER/Cinzel)
+Licence file: fonts/OFL.txt (from the official Google Fonts repository).
+
+Official sources (Google Fonts GitHub repository, main):
+
+  https://raw.githubusercontent.com/google/fonts/main/ofl/cinzel/OFL.txt
+  sha256: f2b3029aba64c378bf0963b62945eee15e564fe4330b934c8f2eb058282b5e83
+
+  https://raw.githubusercontent.com/google/fonts/main/ofl/cinzel/Cinzel%5Bwght%5D.ttf
+  sha256: f4d83d34d1f6c741193e4acf4b3dff9531e5a67b6aa65228d00a7db72a4e0f34
+
+The two latin-subset static instances in this folder were produced from that
+variable TTF (fonttools varLib.instancer at wght=600 and wght=700, then
+pyftsubset --flavor=woff2 with the Google Fonts latin unicode-range):
+
+  fonts/cinzel-latin-600.woff2
+  sha256: 4207c378673870790b4adcf0881df9848f7291f72a8b92185bca4ef3f6a8e77d
+
+  fonts/cinzel-latin-700.woff2
+  sha256: a7ba8458c87f15c7c2ee2909f86dc612ade939d1a2f551229e7d10788dea6586
