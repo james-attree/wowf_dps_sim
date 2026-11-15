@@ -35,8 +35,9 @@ export const MOVED_BY_USER = "user";
 
 export const APP_TITLE = "WoW Forever Rogue Simulator";
 
-// The areas' sub-screens. Results has two views (#242, UX4): the average,
-// its first and #results itself, and the live fight. Rotation (#243, UX5)
+// The areas' sub-screens. Results has three views (#242, UX4; #282): the
+// average, its first and #results itself, the live fight, and stat
+// weights at #results/weights. Rotation (#243, UX5)
 // has a rule's screen, #rotation/rule/2, and Export or import,
 // #rotation/share (js/views/rotation-builder.js shows them). Character
 // (#244, UX6) has Gear and weapons, Stats and Talents
@@ -45,7 +46,7 @@ export const APP_TITLE = "WoW Forever Rogue Simulator";
 // its area's is dropped, so #character/armor is #character.
 export const SUBS = Object.freeze({
   character: Object.freeze(["gear", "stats", "talents", "start"]),
-  results: Object.freeze(["average", "live"]),
+  results: Object.freeze(["average", "live", "weights"]),
   rotation: Object.freeze(["rule", "share"]),
 });
 
@@ -58,6 +59,9 @@ export const SCREEN_NAMES = Object.freeze({
     stats: "Stats",
     talents: "Talents",
     start: "Starting point",
+  }),
+  results: Object.freeze({
+    weights: "Stat weights",
   }),
 });
 export const RESULT_VIEWS = SUBS.results;

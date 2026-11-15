@@ -173,8 +173,9 @@ describe("the Average / Live fight switch's corners (#258 check, P3)", () => {
     );
     try {
       const shape = await switchShape(page);
-      assert.equal(shape.rows, HALF, JSON.stringify(shape));
-      // A radius of half one row, not half the two-row box.
+      // Three switch links (#282) wrap to more than one row at 200% text.
+      assert.ok(shape.rows > 1, JSON.stringify(shape));
+      // A radius of half one row, not half the wrapped box.
       assert.ok(
         Math.abs(shape.radius - shape.row / HALF) <= SLACK,
         JSON.stringify(shape),

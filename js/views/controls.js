@@ -20,7 +20,12 @@ import {
 } from "./run-model.js";
 import { focusField } from "./focus-in-view.js";
 import { areaLabel, reveal } from "./sections.js";
-import { STALE_ANNOUNCEMENT, staleKinds } from "./stale.js";
+import {
+  STALE_ANNOUNCEMENT,
+  WEIGHTS_STALE_ANNOUNCEMENT,
+  staleKinds,
+} from "./stale.js";
+import { weightsAnnounce, weightsAnnounceKey } from "./weights-model.js";
 
 // "Running" and "Showing Results" as "Running. Showing Results."
 const joinMessages = (first, second) => {
@@ -169,6 +174,7 @@ export function createControlsView(doc, store, actions = {}) {
   let lastAnnounce = null;
   let lastStale = null;
   let lastBuildSaid = null;
+  let lastWeightsAnnounce = null;
   let lastFocus = null;
   function render(state) {
     const model = controlsModel(state);
@@ -302,10 +308,20 @@ export function createControlsView(doc, store, actions = {}) {
         newlyStale ? `${buildSaid.text} ${STALE_ANNOUNCEMENT}` : buildSaid.text,
       );
     } else if (newlyStale) {
-      announce(STALE_ANNOUNCEMENT);
+      const added = stale.filter((kind) => !lastStale.includes(kind));
+      const onlyWeights = added.length === 1 && added[0] === "weights";
+      announce(onlyWeights ? WEIGHTS_STALE_ANNOUNCEMENT : STALE_ANNOUNCEMENT);
     }
     lastBuildSaid = buildSaid?.seq ?? lastBuildSaid;
     lastStale = stale;
+    const weightsKey = weightsAnnounceKey(state);
+    if (lastWeightsAnnounce !== null && weightsKey !== lastWeightsAnnounce) {
+      const text = weightsAnnounce(state);
+      if (text !== null) {
+        announce(text);
+      }
+    }
+    lastWeightsAnnounce = weightsKey;
 
     // Focus follows the state's main control, and leaves a control that was
     // just disabled under it (Reset after a finished fight), but only from
@@ -592,6 +608,7 @@ export function createControlsView(doc, store, actions = {}) {
         "config",
         "ran",
         "presetBuild",
+        "weights",
       ].some((s) => changed.includes(s))
     ) {
       render(state);

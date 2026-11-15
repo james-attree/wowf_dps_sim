@@ -1,15 +1,17 @@
 // The stale state (#242, UX4; Fran's approved UX proposal §6). Plain data and
 // plain functions: no DOM, so the tests run them in Node.
 //
-// The Results area keeps two results side by side, the average (batch) and
-// the live fight, and the store's `ran` slice (js/run-actions.js) holds what
-// each ran with. A kept result is out of date when the settings it ran with
-// are not the settings now: the stats, the weapons, the talents, the poisons,
-// the rotation or the target. The run fields (fight length, fights, seed) do
-// not make it out of date: they are in the result's own label, and they are
-// the next run's, not this one's.
+// The Results area keeps three results side by side, the average (batch),
+// the live fight and the stat-weights table (#282), and the store's `ran`
+// slice (js/run-actions.js) holds what each ran with. A kept result is out
+// of date when the settings it ran with are not the settings now: the
+// stats, the weapons, the talents, the poisons, the rotation or the target.
+// The run fields (fight length, fights, seed) do not make it out of date:
+// they are in the result's own label, and they are the next run's, not this
+// one's. coordinator call 15 Nov (James delegated), Decision 7: the same
+// rule applies to the weights table.
 
-const KINDS = Object.freeze(["batch", "live"]);
+const KINDS = Object.freeze(["batch", "live", "weights"]);
 
 // What a config's parts are called in "You changed Attack power after this
 // ran". The character's stats each have their own name; a part not named
@@ -51,6 +53,10 @@ export function ranOf(state, kind) {
   if (kind === "batch") {
     const result = state.batch?.result ?? null;
     return result !== null && result.completed > NONE ? record : null;
+  }
+  if (kind === "weights") {
+    const result = state.weights?.result ?? null;
+    return result !== null ? record : null;
   }
   return state.run?.shown === true ? record : null;
 }
@@ -165,3 +171,4 @@ export function staleStatus(state, kind) {
 // What #run-announce says once when a result goes out of date: a sentence,
 // alone or after a preset's line (#326, item 16).
 export const STALE_ANNOUNCEMENT = "Results out of date.";
+export const WEIGHTS_STALE_ANNOUNCEMENT = "Stat weights out of date.";
