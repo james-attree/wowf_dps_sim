@@ -302,8 +302,8 @@
 .talent.is-maxed {
   border-color: var(--accent);
   box-shadow:
-    0 0 0 1px #e7bd5533,
-    0 0 10px #e7bd5540;
+    0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 0 10px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 .talent.is-maxed .talent-rank {
   border-color: var(--accent);
