@@ -114,6 +114,14 @@ function currentValue(base, row) {
   return base.character[row.field];
 }
 
+// coordinator call 15 Nov (James delegated): a fight with no off hand does
+// not run an off-hand weapon-DPS variant. The row is reported, not measured.
+export const OFF_HAND_NOT_MEASURED = "Not measured: no off hand";
+
+function weaponMissing(base, row) {
+  return row.kind === "weapon" && base.weapons[row.hand] == null;
+}
+
 // The variants that will actually run, in order, including base. Does not
 // mutate `config`. A config that omits a field is read as that field's default
 // (normalizeConfig). A side that would pass a limit is left out.
@@ -121,6 +129,9 @@ export function statWeightVariants(config) {
   const base = normalizeConfig(config);
   const jobs = [{ id: "base", row: null, sign: 0, config: base }];
   for (const row of ROWS) {
+    if (weaponMissing(base, row)) {
+      continue;
+    }
     const limits = limitsFor(row);
     const value = currentValue(base, row);
     for (const sign of row.signs) {
@@ -238,7 +249,12 @@ function assemble(baseDps, jobs, samples) {
   }
   const rows = {};
   let apPerPoint = null;
+  const bareOffHand = jobs[0]?.config?.weapons?.offHand == null;
   for (const row of ROWS) {
+    if (row.id === "offHand" && bareOffHand) {
+      rows.offHand = { reason: OFF_HAND_NOT_MEASURED };
+      continue;
+    }
     const bucket = byRow.get(row.id);
     if (bucket === undefined) {
       continue;
@@ -263,6 +279,9 @@ function assemble(baseDps, jobs, samples) {
     }
   }
   for (const row of Object.values(rows)) {
+    if (typeof row.reason === "string") {
+      continue;
+    }
     row.apEquivalent =
       apPerPoint === null || apPerPoint === 0
         ? null

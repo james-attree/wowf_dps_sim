@@ -331,6 +331,11 @@ export class Rogue {
   }
 
   rollWeaponDamageForSkill(hand = "mainHand") {
+    // No off hand: the roll draws nothing and adds nothing. A cast that
+    // skips offHandAllowed still lands here.
+    if (this.weapons[hand] == null) {
+      return 0;
+    }
     // Weapon die plus attack power / ap.perDps, times the normalized speed of
     // the hand's type (the dagger or the one-hand constant, set above). The
     // main hand by default; Mutilate's off-hand strike asks for the off hand

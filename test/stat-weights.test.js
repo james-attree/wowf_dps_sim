@@ -8,6 +8,7 @@ import { BatchClient } from "../js/batch-client.js";
 import { runBatch } from "../js/batch-runner.js";
 import { referenceBuild } from "../js/preset-reference-builds.js";
 import {
+  OFF_HAND_NOT_MEASURED,
   pairedDpsPerPoint,
   statWeightFightCount,
   statWeightVariants,
@@ -101,6 +102,19 @@ describe("stat weight variants", () => {
     assert.equal(mid.length, 10);
   });
 
+  it("leaves the off-hand weapon-DPS variant out when there is no off hand", () => {
+    const jobs = statWeightVariants({ weapons: { offHand: null } });
+    assert.equal(job(jobs, "offHand", 1), undefined);
+    assert.equal(jobs.length, 8);
+    const both = statWeightVariants({});
+    for (const id of ["attackPower", "mainHand", "crit", "hit", "haste"]) {
+      assert.equal(
+        jobs.filter((entry) => entry.id === id).length,
+        both.filter((entry) => entry.id === id).length,
+      );
+    }
+  });
+
   it("uses the default and Precise fight counts", () => {
     assert.equal(statWeightFightCount({}), k("statWeights.iterations"));
     assert.equal(k("statWeights.iterations"), 1000);
@@ -183,6 +197,23 @@ describe("statWeights", () => {
       onProgress: (progress) => capped.push(progress),
     });
     assert.deepEqual(capped.at(-1), { completed: 9, total: 9 });
+  });
+
+  it("marks the off-hand row not measured and leaves the other rows' shape", async () => {
+    const both = await statWeights(tiny);
+    const one = await statWeights({
+      ...tiny,
+      config: { weapons: { offHand: null } },
+    });
+    assert.equal(one.variants, 8);
+    assert.deepEqual(one.rows.offHand, { reason: OFF_HAND_NOT_MEASURED });
+    assert.equal(one.rows.offHand.dpsPerPoint, undefined);
+    for (const id of ["attackPower", "mainHand", "crit", "hit", "haste"]) {
+      assert.deepEqual(
+        Object.keys(one.rows[id]).sort(),
+        Object.keys(both.rows[id]).sort(),
+      );
+    }
   });
 
   it("returns no result when cancelled", async () => {

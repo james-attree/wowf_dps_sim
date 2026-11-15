@@ -747,6 +747,14 @@ export class Ability {
       simulation.cooldowns[this.id] = this.cooldownNow();
     }
     simulation.procs.onCast(this, main, 0);
+    // coordinator call 15 Nov (James delegated): no off hand, no off-hand
+    // roll, even when a caller skips offHandAllowed.
+    if (this.rogue.weapons.offHand == null) {
+      if (main.outcome !== "block") {
+        simulation.consumeUseCharges(simulation.attackContext(this, "skill"));
+      }
+      return main;
+    }
     const off = simulation.resolveStrike(this.offHandSource, () =>
       this.handDamage("offHand", simulation),
     );

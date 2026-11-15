@@ -190,6 +190,22 @@ describe("stat weights model (#282)", () => {
     assert.equal(foldedDps(2.34, 0.12), "2.34 ± 0.12");
   });
 
+  it("shows Not measured: no off hand when that row carries the reason", () => {
+    const bare = {
+      ...rows,
+      offHand: { reason: "Not measured: no off hand" },
+    };
+    const model = weightsModel(
+      state({ result: resultOf({ rows: bare, variants: 8 }) }),
+    );
+    const off = model.rows.find((row) => row.id === "offHand");
+    assert.equal(off.measured, false);
+    assert.equal(off.dps, "Not measured: no off hand");
+    assert.equal(off.ci, "Not measured: no off hand");
+    assert.equal(off.ap, "Not measured: no off hand");
+    assert.equal(off.bar, null);
+  });
+
   it("Decision 10: a missing row shows Not measured and sorts last", () => {
     const model = weightsModel(state());
     const haste = model.rows.find((row) => row.id === "haste");

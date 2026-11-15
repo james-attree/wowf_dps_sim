@@ -4,6 +4,8 @@ import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
 import { attackChances, deriveAttackTable } from "../js/attack-resolver.js";
 import { runOnCore } from "../js/core/fight.js";
+import { Ability } from "../js/ability.js";
+import { ABILITY_DEFINITIONS } from "../js/ability-data.js";
 import { Rogue } from "../js/rogue.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { Simulation } from "../js/simulation.js";
@@ -144,6 +146,50 @@ describe("config round trip (#297 PR3)", () => {
     assert.equal(config.weapons.offHand, null);
     assert.equal(config.character.expertise, undefined);
     assert.deepEqual(normalizeConfig(config).weapons.offHand, null);
+  });
+});
+
+describe("off-hand roll with no off hand (#297 PR3)", () => {
+  it("is a no-op for a cast that skips offHandAllowed", () => {
+    const rogue = new Rogue(normalizeConfig({ weapons: { offHand: null } }));
+    const simulation = new Simulation(rogue, { seed: 1 });
+    let rolled = false;
+    const strike = simulation.resolveStrike(
+      { id: "forced-off", name: "Forced off", hand: "offHand" },
+      () => {
+        rolled = true;
+        return 50;
+      },
+    );
+    assert.equal(rolled, false);
+    assert.equal(strike.landed, false);
+    assert.equal(strike.damage, 0);
+    assert.equal(simulation.abilityStats["forced-off"], undefined);
+    assert.equal(rogue.rollWeaponDamageForSkill("offHand"), 0);
+    const definition = ABILITY_DEFINITIONS.find(
+      (entry) => entry.damage?.kind === "bothHands",
+    );
+    const ability = new Ability(definition, rogue);
+    assert.equal(ability.offHandAllowed(rogue), false);
+    simulation.resolveStrike = (source) => {
+      if (source.hand === "offHand") {
+        throw new Error("off hand rolled");
+      }
+      return { landed: true, outcome: "hit", damage: 1, status: "Hit" };
+    };
+    const cast = ability.castBothHands(simulation, null, 0);
+    assert.equal(cast.landed, true);
+    simulation.procs.onSwing(
+      { id: "off-hand", name: "Off-hand", hand: "offHand" },
+      { landed: true, outcome: "hit", damage: 10 },
+      false,
+    );
+    simulation.procs.onStrike(
+      { id: definition.id, name: ability.name, hand: "offHand" },
+      { landed: true, outcome: "hit", damage: 10 },
+      true,
+    );
+    assert.equal(simulation.abilityStats["off-hand"], undefined);
   });
 });
 

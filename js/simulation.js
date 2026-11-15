@@ -906,6 +906,11 @@ export class Simulation {
     baseDamage,
     { extra = false, roll, useCharges = true } = {},
   ) {
+    // A swing, poison, proc or extra attack aimed at a missing off hand
+    // draws nothing and deals nothing.
+    if (source?.hand === "offHand" && this.rogue.weapons.offHand == null) {
+      return { outcome: "miss", status: "Miss", landed: false, damage: 0 };
+    }
     const context = this.attackContext(source, attackType);
     const result = resolveAttack({
       attackType,
@@ -962,6 +967,9 @@ export class Simulation {
   // `rollDamage` draws the damage, then the crit roll on a hit, so each hand
   // draws attack, damage, crit. The use charges are the caller's to take.
   resolveStrike(source, rollDamage) {
+    if (source?.hand === "offHand" && this.rogue.weapons.offHand == null) {
+      return { outcome: "miss", status: "Miss", landed: false, damage: 0 };
+    }
     const roll = this.rng() * k("attack.rollScale");
     return this.resolveAttack(source, "skill", rollDamage(), {
       roll,

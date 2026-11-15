@@ -446,18 +446,19 @@ export function weightsAnnounce(state) {
 
 export function tableRows(result, jobs, config) {
   return sortWeightRows(result?.rows).map((row) => {
-    const measured = row.data != null;
+    const reason =
+      typeof row.data?.reason === "string" ? row.data.reason : null;
+    const measured = row.data != null && reason === null;
+    const blank = reason ?? NOT_MEASURED;
     const oneSided = oneSidedNote(row.id, jobs ?? result?.jobs, config);
     return {
       id: row.id,
       label: WEIGHTS_ROW_LABELS[row.id],
       measured,
-      dps: measured ? formatDpsPerPoint(row.data.dpsPerPoint) : NOT_MEASURED,
-      ci: measured ? formatCi(row.data.ci) : NOT_MEASURED,
-      folded: measured
-        ? foldedDps(row.data.dpsPerPoint, row.data.ci)
-        : NOT_MEASURED,
-      ap: measured ? formatApEquivalent(row.data.apEquivalent) : NOT_MEASURED,
+      dps: measured ? formatDpsPerPoint(row.data.dpsPerPoint) : blank,
+      ci: measured ? formatCi(row.data.ci) : blank,
+      folded: measured ? foldedDps(row.data.dpsPerPoint, row.data.ci) : blank,
+      ap: measured ? formatApEquivalent(row.data.apEquivalent) : blank,
       bar: measured ? ciBarPercent(row.data.dpsPerPoint, row.data.ci) : null,
       oneSided,
       capFlag: false,
