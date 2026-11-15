@@ -4,9 +4,14 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { chromium } from "playwright-core";
 import { startStaticServer } from "../scripts/serve.mjs";
 
+const AXE = await readFile(
+  createRequire(import.meta.url).resolve("axe-core/axe.min.js"),
+  "utf8",
+);
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const SCREEN_HEIGHT = 900;
 const SLACK = 1;
@@ -144,9 +149,29 @@ function badge(page) {
 
 function resultsNav(page) {
   return page.getByRole("link", {
-    name: "Results, 3/9 stat weights running",
+    name: "Results 3/9 stat weights running",
     exact: true,
   });
+}
+
+async function assertResultsNavName(page) {
+  const link = page.locator('a[data-nav-area="results"]');
+  await assert.equal(await link.getAttribute("aria-label"), null);
+  await assert.equal(await resultsNav(page).count(), 1);
+  if (!(await page.evaluate(() => "axe" in globalThis))) {
+    await page.addScriptTag({ content: AXE });
+  }
+  const violations = await page.evaluate(async () => {
+    const el = globalThis.document.querySelector('a[data-nav-area="results"]');
+    const result = await globalThis.axe.run(el, {
+      runOnly: {
+        type: "rule",
+        values: ["label-content-name-mismatch"],
+      },
+    });
+    return result.violations.map((v) => v.id);
+  });
+  assert.deepEqual(violations, []);
 }
 
 async function cardLine(page) {
@@ -155,23 +180,16 @@ async function cardLine(page) {
     .evaluate((el) => el.textContent);
 }
 
-async function clockLineCount(page) {
-  return page.evaluate(() => {
-    const node = globalThis.document.getElementById(
-      "results-card-weights-text",
-    );
-    const text = node?.firstChild;
-    const value = text?.nodeValue ?? "";
-    const start = value.indexOf("(ran at");
-    const end = value.indexOf(")", start) + 1;
-    if (!text || start < 0 || end <= start) {
-      return 0;
-    }
-    const range = globalThis.document.createRange();
-    range.setStart(text, start);
-    range.setEnd(text, end);
-    return range.getClientRects().length;
-  });
+async function clockBox(page) {
+  return page
+    .locator("#results-card-weights-text .results-card-clock")
+    .evaluate((el) => {
+      const style = globalThis.getComputedStyle(el);
+      return {
+        whiteSpace: style.whiteSpace,
+        boxes: el.getClientRects().length,
+      };
+    });
 }
 
 describe("stat weights across screens (#283)", () => {
@@ -188,7 +206,7 @@ describe("stat weights across screens (#283)", () => {
           await pill.getAttribute("data-badge"),
           "3/9 stat weights running",
         );
-        await assert.equal(await resultsNav(page).count(), 1);
+        await assertResultsNavName(page);
         await assert.equal(
           await page.locator("#run-summary").getAttribute("data-dock"),
           "Stat weights",
@@ -266,6 +284,7 @@ describe("stat weights across screens (#283)", () => {
           progress: { completed: 3, total: NINE },
           wakeLock: "fallback",
         });
+        const bar = page.locator("#results-weights-progress-bar");
         await assert.equal(
           await page
             .getByRole("progressbar", {
@@ -275,6 +294,7 @@ describe("stat weights across screens (#283)", () => {
             .count(),
           1,
         );
+        await assert.equal(await bar.getAttribute("role"), null);
         const note = page.locator("#results-weights-keep-awake");
         await assert.equal(await note.isVisible(), true);
         await assert.equal(await note.innerText(), "Keep the screen on");
@@ -302,7 +322,7 @@ describe("stat weights across screens (#283)", () => {
         await assert.equal(await card.isVisible(), true);
         await assert.equal(
           await cardLine(page),
-          "Stat weights: crit 19.2 · hit 14.8 · MH 2.5 · OH 2.5 · AP 1.0 (ran at\u00a010:02)",
+          "Stat weights: crit 19.2 · hit 14.8 · MH 2.5 · OH 2.5 · AP 1.0 (ran at 10:02)",
         );
         await assert.equal(
           await page
@@ -318,8 +338,9 @@ describe("stat weights across screens (#283)", () => {
         await assert.equal(await card.isVisible(), true);
         await assert.equal(
           await cardLine(page),
-          "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · MH 2.5 · OH 2.5 · AP 1.0 (ran at\u00a010:02)",
+          "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · MH 2.5 · OH 2.5 · AP 1.0 (ran at 10:02)",
         );
+        await assertResultsNavName(page);
         const link = page.locator("#results-card-weights a.results-card-link");
         await assert.equal(await link.innerText(), "open");
         await assert.equal(
@@ -333,31 +354,35 @@ describe("stat weights across screens (#283)", () => {
     });
   }
 
-  test("the card clock stays together at 1024 and 1280 at 100% text", async () => {
-    const { context, page, errors } = await open(1024, {
-      text: "100%",
-      hash: "#character",
-    });
-    try {
-      await setWeights(page, {
-        status: "running",
-        result: doneResult,
-        progress: { completed: 3, total: NINE },
+  test("the card clock stays together at 1024 and 1280", async () => {
+    for (const text of ["100%", "150%"]) {
+      const { context, page, errors } = await open(1024, {
+        text,
+        hash: "#character",
       });
-      await page.locator("#results-card-weights-text").waitFor({
-        state: "visible",
-      });
-      for (const width of [1024, 1280]) {
-        await page.setViewportSize({ width, height: SCREEN_HEIGHT });
-        assert.equal(
-          await clockLineCount(page),
-          1,
-          `the clock wrapped at ${width} / 100%`,
-        );
+      try {
+        await setWeights(page, {
+          status: "running",
+          result: doneResult,
+          progress: { completed: 3, total: NINE },
+        });
+        await page
+          .locator("#results-card-weights-text .results-card-clock")
+          .waitFor({ state: "visible" });
+        for (const width of [1024, 1280]) {
+          await page.setViewportSize({ width, height: SCREEN_HEIGHT });
+          const box = await clockBox(page);
+          assert.equal(box.boxes, 1, `the clock wrapped at ${width} / ${text}`);
+          assert.equal(
+            box.whiteSpace,
+            "nowrap",
+            `white-space at ${width} / ${text}`,
+          );
+        }
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
       }
-      assert.deepEqual(errors, []);
-    } finally {
-      await context.close();
     }
   });
 

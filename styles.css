@@ -3579,6 +3579,12 @@ th[aria-sort="ascending"] {
   font-variant-numeric: tabular-nums;
 }
 
+/* The clock tag on the one-row desktop card stays on a single line box
+   (Kira #377 P2; coordinator call 15 Nov (James delegated)). */
+.results-card-clock {
+  white-space: nowrap;
+}
+
 .results-card-weights .results-card-link {
   display: inline-block;
   min-width: var(--target);

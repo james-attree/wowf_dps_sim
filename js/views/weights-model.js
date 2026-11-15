@@ -21,7 +21,6 @@ import { timeEstimate } from "./results-render.js";
 import {
   compact,
   fieldErrors,
-  NO_BREAK_SPACE,
   formErrorCount,
   grouped,
   rotationErrorCount,
@@ -166,8 +165,8 @@ export const WEIGHTS_ROW_LABELS = Object.freeze({
   haste: "Haste (per 1%)",
 });
 
-// Short names for the desktop column card (#283). coordinator call 15 Nov
-// (James delegated): every measured row, in table sort order (AP equivalent
+// Short names for the desktop column card (#283). coordinator call 15 Nov (James delegated):
+// every measured row, in table sort order (AP equivalent
 // descending), 1 decimal place, no ellipsis. The issue's "AP 1 · crit 19.2
 // · hit 14.8 …" line is the shape, not a different order or a cap on rows.
 export const WEIGHTS_CARD_NAMES = Object.freeze({
@@ -185,7 +184,7 @@ export const WEIGHTS_CARD_NAMES = Object.freeze({
 // than this compact line needs). The stale short is omitted while running,
 // as the Average card hides its stale line mid-batch. Progress uses the
 // same weightsProgress / compact source as the dock.
-export function weightsCardLine(state) {
+export function weightsCardParts(state) {
   const result = state.weights?.result ?? null;
   const record = ranOf(state, "weights");
   if (result === null || record === null) {
@@ -201,17 +200,32 @@ export function weightsCardLine(state) {
     return null;
   }
   const at = ranClock(record.at);
-  // Non-breaking space so "(ran at 10:02)" does not wrap before the time
-  // (coordinator call 15 Nov, James delegated; Fran's #377 N3).
-  const clock = at === null ? "" : ` (ran at${NO_BREAK_SPACE}${at})`;
-  const figures = `${parts.join(" · ")}${clock}`;
+  // The card view wraps the clock in a nowrap span so "(ran at 10:02)"
+  // stays on one line box (Kira #377 P2; coordinator call 15 Nov (James delegated)).
+  const clock = at === null ? null : `(ran at ${at})`;
+  const figures = parts.join(" · ");
   if (weightsRunning(state)) {
     const { completed, total } = weightsProgress(state);
-    return `Stat weights running · ${compact(completed)}/${compact(total)} · Previous: ${figures}`;
+    return {
+      lead: `Stat weights running · ${compact(completed)}/${compact(total)} · Previous: ${figures}`,
+      clock,
+      suffix: "",
+    };
   }
   const stale = staleBanner(state, "weights");
-  const note = stale === null ? "" : ` · ${stale.short}`;
-  return `Stat weights: ${figures}${note}`;
+  return {
+    lead: `Stat weights: ${figures}`,
+    clock,
+    suffix: stale === null ? "" : ` · ${stale.short}`,
+  };
+}
+
+export function weightsCardLine(state) {
+  const parts = weightsCardParts(state);
+  if (parts === null) {
+    return null;
+  }
+  return `${parts.lead}${parts.clock ? ` ${parts.clock}` : ""}${parts.suffix}`;
 }
 
 export function weightsKeepAwake(state) {

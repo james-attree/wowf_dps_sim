@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { emptyBatch } from "../js/run-actions.js";
 import {
@@ -107,5 +108,19 @@ describe("stat weights across screens (#283)", () => {
     assert.equal(model.run.disabled, false);
     assert.equal(model.reason, null);
     assert.match(model.status, /^Ready/);
+  });
+});
+
+describe("the weights progress element (#377 N1)", () => {
+  it("the native progress element has no redundant progressbar role", () => {
+    const html = readFileSync(
+      new URL("../index.html", import.meta.url),
+      "utf8",
+    );
+    const open = html.match(
+      /<progress\b[^>]*id="results-weights-progress-bar"[^>]*>/,
+    );
+    assert.ok(open, "expected #results-weights-progress-bar");
+    assert.equal(/\brole\s*=/.test(open[0]), false);
   });
 });

@@ -49,7 +49,7 @@ view. An unknown sub still drops to `#results`. The page title is
 view is showing, as it is for Live fight. The column also carries the
 stat-weights summary line from issue #283, once a run has finished.
 
-## Cap note and Run blocking (coordinator call 15 Nov, James delegated)
+## Cap note and Run blocking (coordinator call 15 Nov (James delegated))
 
 The yellow-hit cap note is computed from `ran.weights.config`, the
 settings the table was run with, so a stale table's note matches its

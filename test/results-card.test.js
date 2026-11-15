@@ -239,10 +239,11 @@ describe("the stat weights card line (#283)", () => {
 
   it("lists the measured AP equivalents and the ran clock after a run", () => {
     const model = cardModel(withWeights(), LABELS);
-    assert.equal(
-      model.weights,
-      "Stat weights: crit 19.2 · hit 14.8 · AP 1.0 (ran at\u00a010:02)",
-    );
+    assert.deepEqual(model.weights, {
+      lead: "Stat weights: crit 19.2 · hit 14.8 · AP 1.0",
+      clock: "(ran at 10:02)",
+      suffix: "",
+    });
   });
 
   it("marks the last finished line as previous while a new run is going", () => {
@@ -256,9 +257,10 @@ describe("the stat weights card line (#283)", () => {
       }),
       LABELS,
     );
-    assert.equal(
-      model.weights,
-      "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · AP 1.0 (ran at\u00a010:02)",
-    );
+    assert.deepEqual(model.weights, {
+      lead: "Stat weights running · 3/9 · Previous: crit 19.2 · hit 14.8 · AP 1.0",
+      clock: "(ran at 10:02)",
+      suffix: "",
+    });
   });
 });

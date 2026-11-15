@@ -158,8 +158,8 @@ export function isLocked(run) {
 
 // A stat weights calculation in progress (#283). Average and Live Run are
 // disabled with this reason; the fight fields stay editable, because the
-// in-progress run already has its snapshot. coordinator call 15 Nov
-// (James delegated).
+// in-progress run already has its snapshot.
+// coordinator call 15 Nov (James delegated).
 export const WEIGHTS_RUNNING_REASON = "Stat weights are running";
 export const WEIGHTS_KEEP_AWAKE = "Keep the screen on";
 export const WEIGHTS_WAKE_HELD = "held";
