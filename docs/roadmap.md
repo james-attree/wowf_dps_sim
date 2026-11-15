@@ -95,6 +95,17 @@ number in one table. On 2 Nov 2026 James ruled that within 10 points of the
 defense the 1.8% comes off and that spell and poison crits take no
 suppression; the crit model and boss dodge stay open for him. This is a snapshot
 as of 2026-11-01. GitHub is the source of truth, and this list will go stale.
+Re-checked for #285 on main `54eb5c86` (15 Nov 2026).
+
+**Phase 5 exit criteria** ("Stat weights, sharing, racials"), ticked only where main has them:
+
+- [x] Stat weights. The engine is [PR #374](https://github.com/james-attree/wowf_dps_sim/pull/374) (#281), the fractional weapon roll and the 73.1 s measurement are [PR #375](https://github.com/james-attree/wowf_dps_sim/pull/375), the Results view is [PR #376](https://github.com/james-attree/wowf_dps_sim/pull/376) (#282), and the badge, disabled Run and wake lock are [PR #377](https://github.com/james-attree/wowf_dps_sim/pull/377) (#283). Precise is not on the page.
+- [x] Sharing. "Copy link to this build" is [PR #299](https://github.com/james-attree/wowf_dps_sim/pull/299) (#284). The live link is v2, [PR #330](https://github.com/james-attree/wowf_dps_sim/pull/330) (#306). The keyboard test that loads a v2 link is still #285, not this tick.
+- [x] Racials. Passive racials are [PR #313](https://github.com/james-attree/wowf_dps_sim/pull/313) (#277), Blood Fury and Elune's Light are [PR #314](https://github.com/james-attree/wowf_dps_sim/pull/314) (#278), Berserking and Eureka! are [PR #315](https://github.com/james-attree/wowf_dps_sim/pull/315) (#279), and the race picker is [PR #322](https://github.com/james-attree/wowf_dps_sim/pull/322).
+
+Also on main, outside that three-part line: level-scaled sims [PR #317](https://github.com/james-attree/wowf_dps_sim/pull/317) (#290), weapon skill [PR #316](https://github.com/james-attree/wowf_dps_sim/pull/316) (#295), and the saved setup [PR #320](https://github.com/james-attree/wowf_dps_sim/pull/320) (#296). The data refresh is [PR #312](https://github.com/james-attree/wowf_dps_sim/pull/312) (#276). The wrap-up's keyboard test and Fran's check stay open on #285.
+
+The lines below are the 1 Nov snapshot. A line that still says "open" may have merged since.
 
 - [#276](https://github.com/james-attree/wowf_dps_sim/issues/276) — [P5-01] Data refresh to the 29 Oct WoW Forever export — open
 - [#277](https://github.com/james-attree/wowf_dps_sim/issues/277) — [P5-02] D12a: Race and passive racials as data — open
