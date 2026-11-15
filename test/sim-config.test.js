@@ -366,14 +366,22 @@ describe("normalizeConfig strict validation", () => {
     );
   });
 
+  it("keeps fractional weapon damage so a weapon-DPS step can be exact", () => {
+    const config = normalizeConfig({
+      weapons: { mainHand: { min: 100.2, max: 187.2 } },
+    });
+    assert.equal(config.weapons.mainHand.min, 100.2);
+    assert.equal(config.weapons.mainHand.max, 187.2);
+  });
+
   it("rejects bad weapon numbers", () => {
     for (const field of ["min", "max"]) {
-      for (const bad of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
         rejects(
           { weapons: { offHand: { [field]: bad } } },
           RangeError,
           new RegExp(
-            `^config\\.weapons\\.offHand\\.${field} must be a whole number 0 or more, not ${bad}\\.`,
+            `^config\\.weapons\\.offHand\\.${field} must be a number 0 or more, not ${bad}\\.`,
           ),
           `${field} ${bad}`,
         );

@@ -1,5 +1,11 @@
 import { k } from "../data/constants.js";
 import { ERROR_NAMES, createBatchHost, nextTask } from "./batch-host.js";
+import { statWeights } from "./stat-weights.js";
+
+// The page does not call stat weights yet (Fran signs off that UI later).
+// The module is on the published import graph through this client, which is
+// the browser path the weights use.
+export { statWeights };
 
 // The batch client (S4, issue #147): runs a batch off the main thread, in a
 // module Web Worker (js/batch-worker.js), and falls back to the main thread
