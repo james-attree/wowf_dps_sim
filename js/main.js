@@ -28,6 +28,8 @@ import { createStore } from "./store.js";
 import { createTalentTree } from "./talent-tree.js";
 import { trackChromeSize } from "./views/chrome-size.js";
 import { createCharacterScreensView } from "./views/character-screens.js";
+import { createGearActions } from "./gear-actions.js";
+import { createGearScreenView } from "./views/gear-screen.js";
 import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { keepFocusInView } from "./views/focus-in-view.js";
@@ -203,6 +205,11 @@ const renders = {
     const tree = createTalentTree(store);
     createTalentTreeView(document, store, tree);
     createCharacterScreensView(document, store, { setOpen: tree.setOpen });
+    createGearScreenView(
+      document,
+      store,
+      createGearActions(store, { searchStart: 2, resultCap: 20 }),
+    );
     createStartPresetView(document, store, {
       pick: start.pick,
       undo: start.undo,
