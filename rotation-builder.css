@@ -307,7 +307,7 @@
 }
 .chip.is-skip {
   color: var(--text);
-  border-color: #81745c;
+  border-color: var(--control);
   border-style: dashed;
 }
 .chip.is-ok {
