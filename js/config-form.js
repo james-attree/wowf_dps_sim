@@ -18,6 +18,8 @@ import { summarizeRule } from "./rotation-summary.js";
 import { validateRotation } from "./rotation-validator.js";
 import { rotationWarnings, sameRuleKey } from "./rotation-warnings.js";
 import { P1_BACKSTAB_COMBAT } from "../data/p1-backstab-combat.js";
+import p1Gear from "../data/gear/p1-bscombat.gear.json" with { type: "json" };
+import { GEAR_SLOTS } from "./gear-build.js";
 import { defaultConfig, normalizeConfig } from "./sim-config.js";
 import { formErrorCount } from "./views/run-model.js";
 
@@ -287,7 +289,20 @@ export function pageDefaultConfig() {
     talentLevel: build.talentLevel,
     poisons: { ...build.poisons },
     rotation: presetRotation("combat-daggers"),
+    gear: pageGear(),
   });
+}
+
+function pageGear() {
+  const slots = {};
+  p1Gear.items.forEach((entry, index) => {
+    slots[GEAR_SLOTS[index]] = {
+      item: entry.id,
+      enchant: entry.enchant ?? null,
+      suffix: null,
+    };
+  });
+  return { slots };
 }
 
 // The sim is built for attacking from behind (docs/mechanics.md, "Scope:

@@ -63,17 +63,24 @@ const RUN_MODES = Object.freeze(["batch", "live"]);
 const WHOLE = new Set(["talents", "rotation"]);
 // Optional fields the legacy baseline does not carry. Absent means absent:
 // they are not filled from the defaults, and a payload that names them is
-// this version. Gear stays out of the link (PR5). Developer, 16 Nov 2026,
-// issue #297: coordinator call 16 Nov (James delegated 15 Nov).
+// this version. Developer, 16 Nov 2026, issue #297: coordinator call 16 Nov
+// (James delegated 15 Nov). Gear is the same shape: absent means no gear.
 const OPTIONAL = new Set([
   "config.character.expertise",
   "config.weapons.mainHand.weaponSkill",
   "config.weapons.offHand.weaponSkill",
+  "config.gear",
 ]);
 // In Node, browsers and workers alike.
 const { atob, btoa, TextDecoder, TextEncoder, URL, URLSearchParams } =
   globalThis;
 const FORMAT = /^(\d+)\.([A-Za-z0-9_-]*)$/;
+
+// An old link or save carries character and weapons and no gear. The
+// read-only screen for that sheet is UI (Bonnie, PR7). This is only the flag.
+export function isLegacySheet(config) {
+  return config?.gear == null;
+}
 
 export function runDefaults() {
   return {

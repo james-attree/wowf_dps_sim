@@ -2799,6 +2799,22 @@ export const CONSTANTS = {
     "js/simulation.js. character.expertise is rating. Omitted or 0 adds nothing, so a fight from before this field is unchanged. Not measured.",
     false,
   ),
+  "gear.schema": entry(
+    1,
+    "–",
+    ASSUMPTION,
+    "Developer, 16 Nov 2026, issue #383: the named gear-build document in localStorage. coordinator call 15 Nov (James delegated): Q5, items only, race and level stay on the character",
+    "js/gear-store.js. A document with another schema is ignored. Not a game number.",
+    false,
+  ),
+  "gear.storageKey": entry(
+    "wowf_dps_sim.gear",
+    "–",
+    ASSUMPTION,
+    "Developer, 16 Nov 2026, issue #383: the localStorage key for named gear builds, separate from wowf_dps_sim.setup (#296)",
+    "js/gear-store.js. Reset to defaults does not remove this key. Not a game number.",
+    false,
+  ),
   "manualFight.tie": entry(
     "target",
     "stop code",
