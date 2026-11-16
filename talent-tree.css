@@ -336,7 +336,7 @@
   z-index: 0;
   justify-self: center;
   width: 0;
-  border-left: 3px dashed #54452b;
+  border-left: 3px dashed var(--connector-unlit);
 }
 .talent-arrow.is-lit {
   border-left: 3px solid var(--trim);
@@ -347,7 +347,7 @@
   left: -7px;
   bottom: 44px;
   border: 5.5px solid transparent;
-  border-top: 7px solid #54452b;
+  border-top: 7px solid var(--connector-unlit);
 }
 .talent-arrow.is-lit::after {
   border-top-color: var(--trim);
