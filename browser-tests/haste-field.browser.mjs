@@ -112,9 +112,7 @@ describe("the haste field on Character › Stats (#274)", () => {
 
         const none = await summary(page);
         assert.doesNotMatch(none.text, /haste/);
-        if (width >= 1024) {
-          assert.ok(none.oneLine, `${width}: one line at 0`);
-        }
+        assert.ok(none.oneLine, `${width}: one line at 0`);
 
         await enter(page, TOO_MUCH);
         assert.match(

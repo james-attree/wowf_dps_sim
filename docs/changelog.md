@@ -48,5 +48,6 @@ Browser expectations that moved with the same default:
 
 - `character-screens.browser.mjs`: talents chip `Combat 16/35/0 · 51/51` → `Combat 13/35/3 · 51/51`.
 - `share-link.browser.mjs`: the preset link's talents are Combat daggers, not Combat swords. A rotation edit of the page default encodes to 75 characters past the origin, was 64 when the page was the codec baseline.
-- `saved-setup.browser.mjs`: Reset and a storage failure that reloads the page show the new sheet (608 attack power, 0.179705 crit, 0.087 hit, human) without the baked expertise 11, which the form does not keep. A broken save still opens the legacy sheet.
-- `haste-field.browser.mjs`: the stats summary is not required to stay on one line at 360 and 390. It still is at 1024.
+- `saved-setup.browser.mjs`: Reset and a storage failure that reloads the page show the new sheet (608 attack power, 0.179705 crit, 0.087 hit, human) without the baked expertise 11 and without per-hand weapon skill 300. The version 2 link does not carry those fields; the version 1 save does. A broken save still opens the legacy sheet.
+- `haste-field.browser.mjs`: the one-line check stays at 360 and 390. The stats summary uses the full row and 0.65rem below 64em so the no-haste line fits.
+- `manual-fight.browser.mjs`: Cold Blood's key is `9` → `8`. Mutilate is not on the board when the off hand is an axe.

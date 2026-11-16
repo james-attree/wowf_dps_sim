@@ -723,14 +723,26 @@ export function createTalentTree(
         // blank in the config, so the fight stays one the engine runs; the
         // form keeps it as typed, in error, and the config takes it again
         // once the level allows it (js/config-form.js).
+        const cap = maxWeaponSkill(next.level);
         const skill = config.character?.weaponSkill ?? null;
         const character =
-          skill !== null && skill > maxWeaponSkill(next.level)
+          skill !== null && skill > cap
             ? { ...config.character, weaponSkill: null }
             : config.character;
+        const hand = (weapon) => {
+          if (weapon == null || weapon.weaponSkill == null) return weapon;
+          if (weapon.weaponSkill <= cap) return weapon;
+          const rest = { ...weapon };
+          delete rest.weaponSkill;
+          return rest;
+        };
         config = normalizeConfig({
           ...config,
           character,
+          weapons: {
+            mainHand: hand(config.weapons?.mainHand),
+            offHand: hand(config.weapons?.offHand),
+          },
           talents: { ...next.ranks },
           talentLevel: next.level,
         });

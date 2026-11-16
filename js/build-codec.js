@@ -61,6 +61,15 @@ const RUN_MODES = Object.freeze(["batch", "live"]);
 // Talents and the rotation are kept or dropped whole: a partial talent map or
 // rotation means nothing on its own.
 const WHOLE = new Set(["talents", "rotation"]);
+// Optional fields the legacy baseline does not carry. Absent means absent:
+// they are not filled from the defaults, and a payload that names them is
+// this version. Gear stays out of the link (PR5). Developer, 16 Nov 2026,
+// issue #297: coordinator call 16 Nov (James delegated 15 Nov).
+const OPTIONAL = new Set([
+  "config.character.expertise",
+  "config.weapons.mainHand.weaponSkill",
+  "config.weapons.offHand.weaponSkill",
+]);
 // In Node, browsers and workers alike.
 const { atob, btoa, TextDecoder, TextEncoder, URL, URLSearchParams } =
   globalThis;
@@ -112,23 +121,30 @@ function diff(value, base, whole = false) {
   return same(value, base) ? undefined : value;
 }
 
-// A field the defaults do not have, anywhere outside talents and the rotation.
-function hasUnknown(value, base) {
+const joined = (path, key) => (path === "" ? key : `${path}.${key}`);
+
+// A field the defaults do not have, anywhere outside talents, the rotation,
+// and the optional fields above.
+function hasUnknown(value, base, path = "") {
   if (!isPlain(value) || !isPlain(base)) return false;
-  return Object.entries(value).some(
-    ([key, item]) =>
-      !(key in base) || (!WHOLE.has(key) && hasUnknown(item, base[key])),
-  );
+  return Object.entries(value).some(([key, item]) => {
+    if (!(key in base)) return !OPTIONAL.has(joined(path, key));
+    return !WHOLE.has(key) && hasUnknown(item, base[key], joined(path, key));
+  });
 }
 
-// The defaults with `value` laid over them; unknown fields are left out.
-function merge(base, value, whole = false) {
+// The defaults with `value` laid over them. Unknown fields are left out.
+// An optional field is copied only when the payload has it.
+function merge(base, value, whole = false, path = "") {
   if (whole || !isPlain(base)) return value === undefined ? base : value;
   if (value === undefined) return base;
   if (!isPlain(value)) return value;
   const out = {};
   for (const [key, item] of Object.entries(base)) {
-    out[key] = merge(item, value[key], WHOLE.has(key));
+    out[key] = merge(item, value[key], WHOLE.has(key), joined(path, key));
+  }
+  for (const [key, item] of Object.entries(value)) {
+    if (!(key in base) && OPTIONAL.has(joined(path, key))) out[key] = item;
   }
   return out;
 }
@@ -268,8 +284,10 @@ export function decodeSetup(
 function readStrict(payload, defaults) {
   if (hasUnknown(payload, defaults)) return { status: "newer" };
   try {
-    const config = checkLiveCatalogue(merge(defaults.config, payload.config));
-    const run = checkRun(merge(defaults.run, payload.run));
+    const config = checkLiveCatalogue(
+      merge(defaults.config, payload.config, false, "config"),
+    );
+    const run = checkRun(merge(defaults.run, payload.run, false, "run"));
     return run === null
       ? { status: "corrupt" }
       : { status: "ok", setup: { config, run } };
@@ -305,7 +323,11 @@ function readLenient(payload, defaults) {
     if (given[section] === undefined) continue;
     const base = defaults.config[section];
     const whole = WHOLE.has(section);
-    const next = tryConfig(config, section, merge(base, given[section], whole));
+    const next = tryConfig(
+      config,
+      section,
+      merge(base, given[section], whole, `config.${section}`),
+    );
     if (next !== null) {
       config = next;
       continue;

@@ -178,9 +178,13 @@ async function build(page) {
 
 const D = setupDefaults();
 const PAGE = normalizeConfig(pageDefaultConfig());
-// Reset writes the form, which has no expertise field, so the baked 11 is dropped.
+// What a share link of the page default carries. The form has no expertise
+// field, and the version 2 link does not carry expertise or a per-hand
+// weapon skill (those round-trip on the version 1 save). Gear stays out.
 const PAGE_FORM = structuredClone(PAGE);
 delete PAGE_FORM.character.expertise;
+delete PAGE_FORM.weapons.mainHand.weaponSkill;
+delete PAGE_FORM.weapons.offHand.weaponSkill;
 
 describe("Remember my setup (#296)", () => {
   for (const width of WIDTHS) {

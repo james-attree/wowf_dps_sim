@@ -135,6 +135,16 @@ describe("talent tree model (#204)", () => {
     assert.equal(tree.remove("combat.efficient-strikes"), false);
   });
 
+  it("blanks a per-hand weapon skill the new level cannot keep", () => {
+    const { tree, config } = setup(pageDefaultConfig());
+    tree.resetAll();
+    assert.equal(config().weapons.mainHand.weaponSkill, 300);
+    assert.equal(tree.setLevel("40"), true);
+    assert.equal(config().talentLevel, 40);
+    assert.equal(config().weapons.mainHand.weaponSkill, undefined);
+    assert.equal(config().weapons.offHand.weaponSkill, undefined);
+  });
+
   it("caps points by level − 9 and shows the level below 60", () => {
     const { tree, talents, config } = setup();
     assert.equal(tree.setLevel("10"), true);

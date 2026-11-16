@@ -5,7 +5,7 @@ import { deriveSheet } from "../js/gear-derive.js";
 import { GEAR_SLOTS } from "../js/gear-build.js";
 import { P1_BACKSTAB_COMBAT } from "../data/p1-backstab-combat.js";
 import { pageDefaultConfig } from "../js/config-form.js";
-import { decodeSetup } from "../js/build-codec.js";
+import { decodeSetup, encodeSetup, freshPageSetup } from "../js/build-codec.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { GOLDEN_CASES } from "../scripts/golden-update.mjs";
 import { referenceBuild } from "../js/preset-reference-builds.js";
@@ -110,5 +110,49 @@ describe("a link from before the page default changed (#297 PR4)", () => {
       type: "sword",
     });
     assert.equal(read.setup.config.weapons.offHand.type, "sword");
+  });
+
+  it("decodes 2.BgIBwAw and an edited link byte-identically to before the optional fields", () => {
+    const frozen = JSON.parse(
+      readFileSync(
+        new URL("./fixtures/pr4-link-decode-before.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    for (const link of ["2.BgIBwAw", "2.BoAQAcjBraAU"]) {
+      const read = decodeSetup(link);
+      assert.equal(read.status, "ok", link);
+      assert.deepEqual(read.setup, frozen[link], link);
+      assert.equal(read.setup.config.character.expertise, undefined, link);
+      assert.equal(
+        read.setup.config.weapons.mainHand.weaponSkill,
+        undefined,
+        link,
+      );
+    }
+  });
+});
+
+describe("optional expertise and per-hand weapon skill (#297 PR4)", () => {
+  it("saving the first-load default round-trips, and an edit keeps the weapon skill", () => {
+    const fresh = freshPageSetup();
+    const saved = decodeSetup(encodeSetup(fresh));
+    assert.equal(saved.status, "ok");
+    assert.notEqual(saved.status, "newer");
+    assert.equal(saved.setup.config.character.expertise, 11);
+    assert.equal(saved.setup.config.weapons.mainHand.weaponSkill, 300);
+    assert.equal(saved.setup.config.weapons.offHand.weaponSkill, 300);
+    const edited = structuredClone(saved.setup);
+    edited.config.character.attackPower = 700;
+    edited.config.character.weaponSkill = 310;
+    edited.config.target.level = 62;
+    const again = decodeSetup(encodeSetup(edited));
+    assert.equal(again.status, "ok");
+    assert.equal(again.setup.config.character.attackPower, 700);
+    assert.equal(again.setup.config.character.weaponSkill, 310);
+    assert.equal(again.setup.config.target.level, 62);
+    assert.equal(again.setup.config.character.expertise, 11);
+    assert.equal(again.setup.config.weapons.mainHand.weaponSkill, 300);
+    assert.equal(again.setup.config.weapons.offHand.weaponSkill, 300);
   });
 });
