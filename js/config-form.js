@@ -872,7 +872,7 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
     // the new one is an error (the talent tree leaves the config's blank),
     // and one back under it is fine again, so the config takes it.
     if (levelChanged) {
-      // Gear builds are level 60 only; legacy sheets still run at any
+      // Gear builds need level-60 base stats; legacy sheets still run at any
       // level. The tree already wrote talentLevel, so only the form's
       // run error is refreshed — commit() would rewrite the config and
       // close a pick's Undo. coordinator call 16 Nov (James delegated).

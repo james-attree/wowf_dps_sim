@@ -6,9 +6,11 @@ Read-only stats and named gear builds (issue #385). The typed character sheet, t
 
 Named builds: save, load, rename and delete. Empty or whitespace names, duplicate names and rename collisions are rejected in the UI and model layer (`js/gear-builds.js`). The store is not edited and never throws. A `{ ok: false, reason: "storage" }` result is shown in an accessible live message (`#gear-builds-live`). Reset to defaults clears the setup on screen and does not remove saved builds.
 
-Race is still on Character. Changing it re-derives `config.character` so the doll and the sim stay in agreement; it does not drop `config.gear`. coordinator call 16 Nov (James delegated).
+Race is still on Character. Changing it re-derives `config.character` so the doll and the sim stay in agreement; it does not drop `config.gear`. The out-of-date banner names only what the user changed (the race), not derived attack power or crit. coordinator call 16 Nov (James delegated).
 
-Gear builds are level 60 only: Run is blocked with "Gear stats are level 60 only for now." A legacy sheet still runs at any level. An empty main hand still blocks Run; an empty off hand is still MH-only (coordinator call 16 Nov, James delegated, settled in PR6).
+Gear builds need level-60 base stats: Run is blocked with "Base stats are only known for level 60." `data/constants.js` `sheet.classBase` is a single level-60 rogue row (wowsims `ClassBaseStats ClassRogue`); `deriveSheet` refuses any other level because levels 1–59 have no curve in this snapshot. A legacy sheet still runs at any level. An empty main hand still blocks Run; an empty off hand is still MH-only (coordinator call 16 Nov, James delegated, settled in PR6).
+
+Presets still leave gear alone (no behaviour change here). #398 shipped James's direction: "Remove the link between weapons and talent/rotation choices." The 10 Nov preset-sheet rulings (dagger presets set the dagger sheet; non-dagger presets reset to the sword sheet) are superseded by it. coordinator call 16 Nov (James delegated).
 
 The item picker's title is an `h2` so the heading order stays intact with the picker open. The 3-column doll at 1024 / 100% does not mid-word wrap; `overflow-wrap: anywhere` is only in the stacked phone and narrow-container layouts.
 

@@ -317,7 +317,7 @@ describe("out of date after an edit (#242)", () => {
       // The desktop column's card (comment c).
       assert.match(
         await card.innerText(),
-        /Out of date — Run again\.\s+The race(?:, .+)? changed after this ran\./,
+        /Out of date — Run again\.\s+The race changed after this ran\./,
       );
       assert.match(
         await page.locator("#run-status-text").textContent(),
@@ -330,7 +330,7 @@ describe("out of date after an edit (#242)", () => {
       assert.equal(await banner.isVisible(), true);
       assert.match(
         (await banner.innerText()).replace(/\s+/g, " "),
-        /Out of date — Run again\. You changed the race(?:, .+)? after this ran, so these numbers are for the old settings\./,
+        /Out of date — Run again\. You changed the race after this ran, so these numbers are for the old settings\./,
       );
       assert.equal(
         (await page.locator("#results-average-run").textContent()).trim(),

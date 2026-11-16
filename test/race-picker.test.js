@@ -423,11 +423,11 @@ describe("the stale banner names the race (#322 P4)", () => {
       "The race changed after this ran.",
     );
   });
-  it("with a stat edit too, both are named", () => {
+  it("with a typable edit too, both are named", () => {
     const now = {
       ...config,
       race: "orc",
-      character: { ...config.character, attackPower: 800 },
+      target: { ...config.target, level: 62 },
     };
     assert.equal(
       staleBanner(ranWith(now), "batch").detail,
@@ -435,7 +435,7 @@ describe("the stale banner names the race (#322 P4)", () => {
     );
     assert.deepEqual(
       new Set(changedNames(config, now)),
-      new Set(["Attack power", "the race"]),
+      new Set(["the race", "the target"]),
     );
   });
 });

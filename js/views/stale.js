@@ -22,6 +22,17 @@ const STAT_NAMES = Object.freeze({
   bonusHitChance: "Hit chance",
   haste: "Haste",
 });
+// AP, crit, hit, haste, expertise and weapon skill are derived from gear
+// and race; they are not user settings. A race change must name only the
+// race. coordinator call 16 Nov (James delegated).
+const DERIVED_STATS = Object.freeze([
+  "attackPower",
+  "critChance",
+  "bonusHitChance",
+  "haste",
+  "expertise",
+  "weaponSkill",
+]);
 const WEAPON_NAMES = Object.freeze({
   mainHand: "the main-hand weapon",
   offHand: "the off-hand weapon",
@@ -118,6 +129,9 @@ export function changedNames(before, after) {
     }
     const inner = new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})]);
     for (const part of inner) {
+      if (key === "character" && DERIVED_STATS.includes(part)) {
+        continue;
+      }
       if (!same(a?.[part], b?.[part])) {
         add(parts[part] ?? OTHER);
       }

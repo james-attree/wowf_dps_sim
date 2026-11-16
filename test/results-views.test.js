@@ -82,7 +82,9 @@ function state({ ranWith = config(), now = ranWith, ...over } = {}) {
 }
 const edited = () => {
   const now = config();
-  now.character = { ...now.character, attackPower: 1234 };
+  // Attack power is derived, not a user setting.
+  // coordinator call 16 Nov (James delegated).
+  now.race = now.race === "orc" ? "undead" : "orc";
   return now;
 };
 
@@ -114,10 +116,10 @@ describe("stale state (#242)", () => {
     const before = config();
     const dropped = edited();
     delete dropped.gear;
-    assert.deepEqual(changedNames(before, dropped), ["Attack power"]);
+    assert.deepEqual(changedNames(before, dropped), ["the race"]);
     assert.equal(
       staleBanner(state({ ranWith: before, now: dropped }), "batch").short,
-      "Attack power changed after this ran.",
+      "The race changed after this ran.",
     );
     const swapped = config();
     swapped.gear = {
@@ -132,7 +134,7 @@ describe("stale state (#242)", () => {
   it("names what changed, two at most", () => {
     const a = config();
     const b = edited();
-    assert.deepEqual(changedNames(a, b), ["Attack power"]);
+    assert.deepEqual(changedNames(a, b), ["the race"]);
     assert.equal(namesText([]), "the settings");
     assert.equal(namesText(["A", "B"]), "A and B");
     assert.equal(namesText(["A", "B", "C"]), "A, B and other settings");
@@ -143,8 +145,8 @@ describe("stale state (#242)", () => {
     assert.deepEqual(banner, {
       title: "Out of date — Run again.",
       detail:
-        "You changed Attack power after this ran, so these numbers are for the old settings.",
-      short: "Attack power changed after this ran.",
+        "You changed the race after this ran, so these numbers are for the old settings.",
+      short: "The race changed after this ran.",
     });
     assert.equal(staleBanner(state(), "batch"), null);
   });
@@ -239,7 +241,7 @@ describe("Results views (#242)", () => {
     assert.equal(model.live.stale.title, model.average.stale.title);
     assert.match(
       text(cardModel(fields, { buildLabel }).body),
-      /^Out of date — fix 2 settings, then Run again\. Attack power changed/,
+      /^Out of date — fix 2 settings, then Run again\. The race changed/,
     );
     const talents = state({
       now: edited(),
@@ -430,7 +432,7 @@ describe("the card mid-run and out of date (#242, N7)", () => {
     const model = cardModel(state({ now: edited() }), { buildLabel });
     assert.match(
       text(model.body),
-      /^Out of date — Run again\. Attack power changed after this ran\./,
+      /^Out of date — Run again\. The race changed after this ran\./,
     );
     assert.match(model.live, / · out of date$/);
     assert.doesNotMatch(

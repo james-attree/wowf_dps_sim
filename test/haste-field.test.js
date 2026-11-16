@@ -76,11 +76,11 @@ describe("the haste field (#274)", () => {
     assert.ok(after.totalDamage > before.totalDamage);
   });
 
-  it("is named Haste when it makes a run out of date", () => {
+  it("derived haste is not named as a user setting", () => {
     const before = normalizeConfig(pageDefaultConfig());
     const after = structuredClone(before);
     after.character.haste = 0.05;
-    assert.deepEqual(changedNames(before, after), ["Haste"]);
+    assert.deepEqual(changedNames(before, after), []);
   });
 });
 

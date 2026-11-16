@@ -804,7 +804,7 @@ describe("read-only stats and gear builds (#385)", () => {
       await page.locator("#gear-level-block").waitFor({ state: "visible" });
       assert.match(
         await page.locator("#gear-level-block").innerText(),
-        /level 60 only/,
+        /Base stats are only known for level 60/,
       );
       await page.evaluate(() => {
         document.location.hash = "#character/talents";

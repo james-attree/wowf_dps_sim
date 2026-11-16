@@ -29,7 +29,7 @@ const ONE = 1;
 // (views cannot import that module). coordinator call 16 Nov (James delegated).
 const GEAR_RUN_FORM = Object.freeze([
   "This setup can't run: Equip a main-hand weapon.",
-  "This setup can't run: Gear stats are level 60 only for now.",
+  "This setup can't run: Base stats are only known for level 60.",
 ]);
 // No haste: the Stats summary leaves it out (#274).
 const NO_HASTE = 0;

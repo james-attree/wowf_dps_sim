@@ -31,7 +31,7 @@ export const V1_LEVEL = k("items.v1Level");
 const PERCENT_DECIMALS = 1;
 const PERCENT = k("sheet.percent");
 const EMPTY_MH = "Equip a main-hand weapon.";
-const LEVEL_BLOCK = "Gear stats are level 60 only for now.";
+const LEVEL_BLOCK = "Base stats are only known for level 60.";
 const TALENT_NOTE =
   "Talent crit and hit are added on the Talents screen, not here.";
 const NOT_MODELLED_HELP =
