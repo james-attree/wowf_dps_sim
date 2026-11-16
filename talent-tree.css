@@ -226,7 +226,7 @@
   bottom: -7px;
   min-width: 24px;
   padding: 0 3px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
   border-radius: 6px;
   background: #100f0c;
   color: #e7ddc9;
@@ -244,7 +244,7 @@
   place-items: center;
   width: 17px;
   height: 17px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
   border-radius: 50%;
   background: #100f0c;
   color: #e7ddc9;
@@ -374,7 +374,7 @@
   place-items: center;
   min-width: 18px;
   height: 16px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
   border-radius: 6px;
   background: #100f0c;
   color: #e7ddc9;
@@ -498,7 +498,7 @@
   content: "✓ ";
 }
 .tag-noDps {
-  border-color: #54452b;
+  border-color: var(--control);
   color: #e7ddc9;
 }
 .tag-noDps::before {
@@ -513,7 +513,7 @@
   content: "? ";
 }
 .tag-classic {
-  border-color: #54452b;
+  border-color: var(--control);
   color: var(--text-muted);
 }
 .talent-why {
@@ -662,7 +662,7 @@
 }
 .talents-tab-points {
   padding: 0 5px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
   border-radius: 999px;
   color: #e7ddc9;
   font-variant-numeric: tabular-nums;
@@ -741,7 +741,7 @@
 /* Not simulated yet: the poison note's amber on dark amber (styles.css .poison-note, #152). */
 .talent-cov.is-notsim,
 .lg-cov.is-notsim {
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
   background: #2a2112;
   color: #f0c46a;
 }

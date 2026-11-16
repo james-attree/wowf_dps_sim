@@ -262,7 +262,7 @@
 .rule-icon {
   margin-top: 6px;
   border-radius: 6px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
 }
 .rule-title {
   min-width: 0;
@@ -293,7 +293,7 @@
 .chip {
   display: inline-block;
   padding: 1px 8px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
   border-radius: 999px;
   background: #15120d;
   color: #d8cfbd;
