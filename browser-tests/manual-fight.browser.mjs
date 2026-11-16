@@ -82,6 +82,45 @@ async function startManual(page, durationSeconds) {
   await page.locator(".manual-slot").first().waitFor({ state: "visible" });
 }
 
+describe("Undo after Reset keeps Manual (#388)", () => {
+  test("Reset then Undo returns Manual, Live, and a disabled Average", async () => {
+    const { context, page, errors } = await open(1024);
+    try {
+      await page.locator("#fight-mode-manual").check();
+      await page.waitForFunction(() => {
+        const live = globalThis.document.getElementById("run-mode-live");
+        const average = globalThis.document.getElementById("run-mode-batch");
+        return live?.checked === true && average?.disabled === true;
+      });
+      await page.evaluate(() => {
+        document.location.hash = "#character/stats";
+      });
+      await page.locator("#cfg-reset").waitFor({ state: "visible" });
+      await page.locator("#cfg-reset").click();
+      await page.locator("#cfg-undo").waitFor({ state: "visible" });
+      assert.equal(
+        await page.locator("#fight-mode-scripted").isChecked(),
+        true,
+      );
+      assert.equal(await page.locator("#run-mode-batch").isDisabled(), false);
+      await page.locator("#cfg-undo").click();
+      await page.waitForFunction(() => {
+        const manual = globalThis.document.getElementById("fight-mode-manual");
+        const live = globalThis.document.getElementById("run-mode-live");
+        const average = globalThis.document.getElementById("run-mode-batch");
+        return (
+          manual?.checked === true &&
+          live?.checked === true &&
+          average?.disabled === true
+        );
+      });
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
 describe("selecting Manual also selects Live (#388)", () => {
   test("Manual alone checks Live, labels Run, and starts the board", async () => {
     const { context, page, errors } = await open(1024);

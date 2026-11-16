@@ -2174,6 +2174,7 @@ describe("#296 ruling A2: the run settings' defaults for Reset to defaults", () 
     const before = actions.resetSettings();
     assert.deepEqual(before, {
       mode: "live",
+      fightMode: undefined,
       duration: DURATION,
       iterations: 4,
       seed: SEED,
@@ -2269,6 +2270,21 @@ describe("selecting Manual also selects Live (#388)", () => {
     assert.equal(store.get().run.mode, "batch");
   });
 
+  it("Undo after Reset to defaults puts Manual back, with Live and Average disabled", () => {
+    const { store, actions } = setup();
+    actions.setFightMode("manual");
+    const before = actions.resetSettings();
+    assert.equal(store.get().run.fightMode, "scripted");
+    assert.equal(store.get().run.mode, "batch");
+    assert.equal(actions.restoreSettings(before), true);
+    assert.equal(store.get().run.fightMode, "manual");
+    assert.equal(store.get().run.mode, "live");
+    const { doc, el } = standIn();
+    createControlsView(doc, store, actions);
+    assert.equal(el("run-mode-batch").disabled, true);
+    assert.equal(el("run-mode-live").checked, true);
+  });
+
   it("applyFightMode couples a future Manual load that is still batch", () => {
     const loaded = applyFightMode({
       fightMode: "manual",
@@ -2317,6 +2333,7 @@ describe("selecting Manual also selects Live (#388)", () => {
     page.actions.setFightMode("scripted");
     assert.equal(el("run-mode-batch").disabled, false);
     assert.equal(el("run-mode-batch").getAttribute("aria-describedby"), null);
+    assert.equal(el("run-mode").getAttribute("aria-describedby"), null);
     assert.equal(el("run-mode-batch-reason").hidden, true);
     assert.equal(el("run-mode-live").checked, true);
   });
@@ -2328,16 +2345,38 @@ describe("selecting Manual also selects Live (#388)", () => {
     createControlsView(doc, page.store, page.actions);
     assert.equal(el("run-mode").getAttribute("aria-describedby"), null);
     assert.equal(el("run-mode-announce").textContent, "");
+    const announce = el("run-mode-announce");
+    let text = announce.textContent;
+    let writes = 0;
+    Object.defineProperty(announce, "textContent", {
+      configurable: true,
+      get() {
+        return text;
+      },
+      set(value) {
+        writes += 1;
+        text = String(value);
+      },
+    });
     page.actions.setFightMode("manual");
     assert.equal(
       el("run-mode").getAttribute("aria-describedby"),
       "run-mode-batch-reason",
     );
-    assert.equal(el("run-mode-announce").textContent, MANUAL_AVERAGE_REASON);
+    assert.equal(writes, 1);
+    assert.equal(text, MANUAL_AVERAGE_REASON);
     page.actions.edit("duration", { text: "30", value: 30, error: null });
-    assert.equal(el("run-mode-announce").textContent, MANUAL_AVERAGE_REASON);
-    page.actions.setFightMode("scripted");
-    assert.equal(el("run-mode").getAttribute("aria-describedby"), null);
-    assert.equal(el("run-mode-announce").textContent, "");
+    page.actions.edit("seed", { text: "9", value: 9, error: null });
+    page.actions.run();
+    for (let i = 0; i < 3; i += 1) {
+      page.store.update((state) => ({
+        results: {
+          time: state.results.time + 0.25,
+          damage: state.results.damage,
+        },
+      }));
+    }
+    assert.equal(writes, 1, "one write while Manual stays on");
+    assert.equal(text, MANUAL_AVERAGE_REASON);
   });
 });
