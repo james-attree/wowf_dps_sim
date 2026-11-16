@@ -815,6 +815,15 @@ export function createRotationBuilderView(doc, store, actions) {
               },
               h("p", {}, h("strong", {}, v.warnings.count), v.warnings.text),
               jumpList(v.warnings),
+              h(
+                "p",
+                {},
+                h(
+                  "a",
+                  { href: "#character/gear", class: "text-link" },
+                  "Go to Gear",
+                ),
+              ),
             ),
       ),
     ];

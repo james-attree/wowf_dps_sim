@@ -21,8 +21,6 @@ import { k } from "../data/constants.js";
 
 const WIDTHS = [320, 1440];
 const SCREEN_HEIGHT = 900;
-const HASTE = "#cfg-character-haste";
-const POWER = "#cfg-character-attackPower";
 const LENGTH = "#run-duration";
 const LEVEL = "#talents-level";
 // Long enough for the debounced write, with room for a slow CI machine.
@@ -32,7 +30,6 @@ const SETTLE = k("ui.saveSetupMs") + 400;
 const LOAD_SETTLE = 4 * k("ui.saveSetupMs") + 600;
 const ROTATION = "#cfg-rotation";
 // #319's optional inputs (#318): blank (null) follows the level.
-const SKILL = "#cfg-character-weaponSkill";
 const TARGET = "#cfg-target-level";
 
 let server;
@@ -188,8 +185,7 @@ describe("Remember my setup (#296)", () => {
       const { context, page, errors } = await open(width, "#character/stats");
       try {
         assert.equal(await saved(page), null, "nothing saved before a change");
-        await set(page, "#character/stats", HASTE, "5");
-        await set(page, "#character/stats", POWER, "900");
+        await set(page, "#fight", TARGET, "62");
         await set(page, "#fight", LENGTH, "120");
         // Empty the 51-point page default so level 40 is legal (#333).
         await go(page, "#character/talents", "#talents-reset");
@@ -206,13 +202,11 @@ describe("Remember my setup (#296)", () => {
 
         await page.reload();
         await ready(page);
-        assert.equal(await value(page, "#character/stats", HASTE), "5");
-        assert.equal(await value(page, "#character/stats", POWER), "900");
+        assert.equal(await value(page, "#fight", TARGET), "62");
         assert.equal(await value(page, "#fight", LENGTH), "120");
         assert.equal(await value(page, "#character/talents", LEVEL), "40");
         const kept = await build(page);
-        assert.equal(kept.config.character.haste, 0.05);
-        assert.equal(kept.config.character.attackPower, 900);
+        assert.equal(kept.config.target.level, 62);
         assert.equal(kept.config.talentLevel, 40);
         assert.equal(kept.run.duration, 120);
 
@@ -223,7 +217,7 @@ describe("Remember my setup (#296)", () => {
         await page.locator("#cfg-undo").click();
         await page.waitForTimeout(SETTLE);
         const undone = decodeSetup(await saved(page), { strict: false });
-        assert.equal(undone.setup.config.character.haste, 0.05, "Undo");
+        assert.equal(undone.setup.config.target.level, 62, "Undo");
         assert.equal(undone.setup.run.duration, 120, "Undo");
         assert.equal(await value(page, "#fight", LENGTH), "120", "Undo");
 
@@ -238,10 +232,7 @@ describe("Remember my setup (#296)", () => {
         );
         await page.reload();
         await ready(page);
-        assert.equal(
-          await value(page, "#character/stats", HASTE),
-          String(D.config.character.haste * 100),
-        );
+        assert.equal(await value(page, "#fight", TARGET), "");
         assert.equal(
           await value(page, "#fight", LENGTH),
           String(D.run.duration),
@@ -269,7 +260,7 @@ describe("Remember my setup (#296)", () => {
         storage,
       });
       try {
-        await set(page, "#character/stats", HASTE, "5");
+        await set(page, "#fight", TARGET, "62");
         await set(page, "#fight", LENGTH, "120");
         await page.waitForTimeout(SETTLE);
         await page.goto("about:blank");
@@ -279,14 +270,18 @@ describe("Remember my setup (#296)", () => {
         // values back.
         await page.waitForTimeout(100);
         const shown = {
-          haste: await value(page, "#character/stats", HASTE),
+          level: await value(page, "#fight", TARGET),
           length: await value(page, "#fight", LENGTH),
         };
         const held = await build(page);
-        assert.equal(shown.haste, String(held.config.character.haste * 100));
+        const level =
+          held.config.target.level == null
+            ? ""
+            : String(held.config.target.level);
+        assert.equal(shown.level, level);
         assert.equal(shown.length, String(held.run.duration));
         if (storage === "on") {
-          assert.equal(held.config.character.haste, 0.05);
+          assert.equal(held.config.target.level, 62);
           assert.equal(held.run.duration, 120);
         } else {
           assert.deepEqual(held.config, PAGE_FORM);
@@ -302,16 +297,16 @@ describe("Remember my setup (#296)", () => {
   test("back/forward with a field in error: the input shows the build, not the bad text", async () => {
     const { context, page, errors } = await open(1440, "#character/stats");
     try {
-      await set(page, "#character/stats", HASTE, "5");
+      await set(page, "#fight", TARGET, "62");
       await page.waitForTimeout(SETTLE);
-      await set(page, "#character/stats", HASTE, "-5");
+      await set(page, "#fight", TARGET, "0");
       await page.waitForTimeout(SETTLE);
       await page.goto("about:blank");
       await page.goBack();
       await ready(page);
       await page.waitForTimeout(100);
-      assert.equal(await value(page, "#character/stats", HASTE), "5");
-      assert.equal((await build(page)).config.character.haste, 0.05);
+      assert.equal(await value(page, "#fight", TARGET), "62");
+      assert.equal((await build(page)).config.target.level, 62);
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
@@ -323,15 +318,13 @@ describe("Remember my setup (#296)", () => {
       storage: "throws",
     });
     try {
-      await set(page, "#character/stats", HASTE, "5");
+      await set(page, "#fight", TARGET, "62");
       await page.waitForTimeout(SETTLE);
-      assert.equal((await build(page)).config.character.haste, 0.05);
+      assert.equal((await build(page)).config.target.level, 62);
       await page.reload();
       await ready(page);
-      assert.equal(
-        await value(page, "#character/stats", HASTE),
-        String(D.config.character.haste * 100),
-      );
+      // Storage threw, so the change was not kept; the field is the default.
+      assert.equal(await value(page, "#fight", TARGET), "");
       // A short batch runs as before.
       await set(page, "#fight", "#run-iterations", "10");
       await page.locator("#run-button").click();
@@ -355,10 +348,7 @@ describe("Remember my setup (#296)", () => {
         storage: text,
       });
       try {
-        assert.equal(
-          await value(page, "#character/stats", HASTE),
-          String(D.config.character.haste * 100),
-        );
+        assert.equal(await value(page, "#fight", TARGET), "");
         assert.deepEqual((await build(page)).config, D.config);
         assert.deepEqual(errors, []);
       } finally {
@@ -390,13 +380,13 @@ describe("Remember my setup (#296)", () => {
       },
     );
     try {
-      assert.equal(await value(page, "#character/stats", HASTE), "7");
-      // The link (with the seed the page drew, as its own link would carry).
+      // Linked setup is a legacy sheet with haste 0.07; target stays blank.
+      assert.equal(await value(page, "#fight", TARGET), "");
       const kept = decodeSetup(await saved(page)).setup;
       assert.equal(kept.config.character.haste, 0.07);
       await page.goto(`${base}#character/stats`);
       await ready(page);
-      assert.equal(await value(page, "#character/stats", HASTE), "7");
+      assert.equal(await value(page, "#fight", TARGET), "");
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
@@ -444,11 +434,11 @@ describe("Remember my setup (#296)", () => {
         assert.equal(await saved(page), text, "after back");
         assert.equal(await writes(), 0, "after back");
 
-        await set(page, "#character/stats", HASTE, "6");
+        await set(page, "#fight", TARGET, "61");
         await page.waitForTimeout(SETTLE);
         const kept = decodeSetup(await saved(page));
         assert.equal(kept.status, "ok");
-        assert.equal(kept.setup.config.character.haste, 0.06);
+        assert.equal(kept.setup.config.target.level, 61);
         assert.deepEqual(errors, []);
       } finally {
         await context.close();
@@ -468,10 +458,10 @@ describe("Remember my setup (#296)", () => {
       from: bfcacheBrowser,
     });
     try {
-      await set(page, "#character/stats", HASTE, "5");
+      await set(page, "#fight", TARGET, "62");
       await page.waitForTimeout(SETTLE);
       const text = await saved(page);
-      await set(page, "#character/stats", HASTE, "-5");
+      await set(page, "#fight", TARGET, "0");
       await page.waitForTimeout(SETTLE);
       await page.evaluate(() => {
         document.defaultView.__kept = true;
@@ -487,13 +477,13 @@ describe("Remember my setup (#296)", () => {
         "restored from the bfcache, not loaded again",
       );
       await page.waitForTimeout(LOAD_SETTLE);
-      assert.equal(await value(page, "#character/stats", HASTE), "5");
+      assert.equal(await value(page, "#fight", TARGET), "62");
       assert.equal(
-        await page.locator(`${HASTE}-error`).textContent(),
+        await page.locator(`${TARGET}-error`).textContent(),
         "",
         "no error shown",
       );
-      assert.equal((await build(page)).config.character.haste, 0.05);
+      assert.equal((await build(page)).config.target.level, 62);
       assert.equal(await saved(page), text, "nothing written");
       assert.deepEqual(errors, []);
     } finally {
@@ -506,43 +496,31 @@ describe("Remember my setup (#296)", () => {
     const writes = () =>
       page.evaluate(() => document.defaultView.__setupWrites);
     try {
-      await set(page, "#character/stats", SKILL, "310");
       await set(page, "#fight", TARGET, "62");
       await page.waitForTimeout(SETTLE);
       const typed = decodeSetup(await saved(page));
-      assert.equal(typed.setup.config.character.weaponSkill, 310);
       assert.equal(typed.setup.config.target.level, 62);
 
       await page.reload();
       await ready(page);
-      assert.equal(await value(page, "#character/stats", SKILL), "310");
       assert.equal(await value(page, "#fight", TARGET), "62");
       const held = await build(page);
-      assert.equal(held.config.character.weaponSkill, 310);
       assert.equal(held.config.target.level, 62);
 
-      await set(page, "#character/stats", SKILL, "");
       await set(page, "#fight", TARGET, "");
       await page.waitForTimeout(SETTLE);
       const blank = decodeSetup(await saved(page));
-      assert.equal(blank.setup.config.character.weaponSkill, null);
       assert.equal(blank.setup.config.target.level, null);
       const text = await saved(page);
 
       await page.reload();
       await ready(page);
-      assert.equal(await value(page, "#character/stats", SKILL), "");
-      assert.equal(
-        await page.locator(SKILL).getAttribute("placeholder"),
-        "300",
-      );
       assert.equal(await value(page, "#fight", TARGET), "");
       assert.equal(
         await page.locator(TARGET).getAttribute("placeholder"),
         "63",
       );
       const followed = await build(page);
-      assert.equal(followed.config.character.weaponSkill, null);
       assert.equal(followed.config.target.level, null);
       // B1 holds: the reload wrote nothing.
       await page.waitForTimeout(LOAD_SETTLE);
@@ -568,7 +546,6 @@ describe("Remember my setup (#296)", () => {
     const writes = () =>
       page.evaluate(() => document.defaultView.__setupWrites);
     try {
-      await set(page, "#character/stats", SKILL, "310");
       await set(page, "#fight", TARGET, "62");
       await page.waitForTimeout(SETTLE);
       const text = await saved(page);
@@ -591,7 +568,7 @@ describe("Remember my setup (#296)", () => {
       await page.waitForTimeout(LOAD_SETTLE);
       assert.equal(await writes(), before, "the pageshow redraw wrote nothing");
       assert.equal(await saved(page), text);
-      assert.equal(await value(page, "#character/stats", SKILL), "310");
+      assert.equal(await value(page, "#fight", TARGET), "62");
       assert.equal(await value(page, "#fight", TARGET), "62");
       assert.equal(await page.locator(`${TARGET}-error`).isHidden(), true);
       assert.equal(
@@ -599,7 +576,6 @@ describe("Remember my setup (#296)", () => {
         null,
       );
       const held = await build(page);
-      assert.equal(held.config.character.weaponSkill, 310);
       assert.equal(held.config.target.level, 62);
       assert.deepEqual(errors, []);
     } finally {
@@ -638,7 +614,7 @@ describe("Remember my setup (#296)", () => {
   test("Reset while idle, then Undo during a run: the config at once, the run settings when the run stops (N8, A8)", async () => {
     const { context, page, errors } = await open(1440, "#character/stats");
     try {
-      await set(page, "#character/stats", HASTE, "5");
+      await set(page, "#fight", TARGET, "62");
       await set(page, "#fight", LENGTH, "120");
       await set(page, "#fight", "#run-seed", "4242");
       await page.waitForTimeout(SETTLE);
@@ -650,7 +626,7 @@ describe("Remember my setup (#296)", () => {
       await page.locator("#stop-button").waitFor({ state: "visible" });
       await go(page, "#character/stats", "#cfg-undo");
       await page.locator("#cfg-undo").click();
-      assert.equal(await value(page, "#character/stats", HASTE), "5");
+      assert.equal(await value(page, "#fight", TARGET), "62");
       assert.equal(
         await value(page, "#fight", LENGTH),
         String(D.run.duration),
@@ -661,7 +637,7 @@ describe("Remember my setup (#296)", () => {
       assert.equal(await value(page, "#fight", LENGTH), "120");
       assert.equal(await value(page, "#fight", "#run-seed"), "4242");
       const kept = decodeSetup(await saved(page), { strict: false }).setup;
-      assert.equal(kept.config.character.haste, 0.05);
+      assert.equal(kept.config.target.level, 62);
       assert.equal(kept.run.duration, 120);
       assert.equal(kept.run.seed, 4242);
       assert.deepEqual(errors, []);

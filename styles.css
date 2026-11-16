@@ -2362,21 +2362,9 @@ a.pill-button {
   white-space: pre-line;
 }
 
-/* The first-load stats line (race, attack power, crit, hit) stays one line
-   below 64em. The summary takes the chevron's column and the type is
-   0.65rem, so that line fits at 360 and 390. A longer line may wrap.
-   The wide layout keeps 0.85rem. */
-@media (width < 64em) {
-  .character-row:has(#character-stats-summary) {
-    grid-template-areas:
-      "name chip go"
-      "summary summary summary";
-  }
-
-  #character-stats-summary {
-    font-size: 0.65rem;
-  }
-}
+/* The typed stats sheet is gone (PR7), so the cramped phone Stats
+   summary is gone too. The Stats row uses the same type as the other
+   Character rows and may wrap. */
 
 .character-row-go {
   grid-area: go;
@@ -2420,6 +2408,21 @@ a.pill-button {
 
 .rotation-pick-panel .field {
   margin-top: 0;
+}
+
+/* Weapon-type mismatch next to the preset (#406 P2). coordinator
+   call 16 Nov (James delegated). */
+.rotation-weapon-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+}
+
+.rotation-weapon-note[hidden] {
+  display: none;
+}
+
+.rotation-weapon-note .text-link {
+  margin-left: 0.35rem;
 }
 
 /* The preset's reference build (#273): the hint or the applied line, with

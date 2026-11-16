@@ -240,8 +240,8 @@
   line-height: 1.25;
   min-width: 0;
   max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: normal;
+  hyphens: auto;
 }
 
 .gear-slot-copy small {
@@ -375,8 +375,7 @@
   margin: 0;
   min-width: 0;
   max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
   text-align: right;
 }
 
@@ -591,6 +590,147 @@
   .gear-combo input,
   .gear-mods select,
   .gear-listbox {
+    border: 1px solid ButtonText;
+  }
+}
+
+/* Mid-word wrapping is only for the stacked list, so the 3-column doll
+   at 1024 / 100% keeps whole words (Fran's N1, #406). The default is
+   overflow-wrap: normal with hyphens: auto. */
+@media (width < 64em) {
+  .gear-slot-copy,
+  .gear-slot-name,
+  .gear-slot-hint,
+  .gear-stat dd,
+  .gear-stat-source {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+@container gear (width < 20rem) {
+  .gear-slot-copy,
+  .gear-slot-name,
+  .gear-slot-hint,
+  .gear-stat dd,
+  .gear-stat-source {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+.gear-legacy {
+  margin: 0 0 0.9rem;
+  padding: 0.75rem;
+  border: 1px solid var(--control);
+  border-radius: 0.5rem;
+  background: var(--slot-well);
+}
+
+.gear-legacy-banner {
+  margin: 0 0 0.75rem;
+}
+
+.gear-legacy-actions,
+.gear-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.gear-builds-panel {
+  margin-top: 0.9rem;
+}
+
+.gear-builds-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+.gear-builds-live {
+  min-height: var(--target);
+  margin: 0 0 0.5rem;
+}
+
+.gear-builds-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.gear-build-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.35rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.gear-build-name {
+  font-weight: 650;
+  overflow-wrap: break-word;
+}
+
+.gear-build-current {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.gear-build-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.gear-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gear-build-btn,
+.gear-save-name {
+  min-height: var(--target);
+  padding: 0 0.75rem;
+  border: 1px solid var(--control);
+  border-radius: 0.5rem;
+  background: var(--slot-well);
+  color: var(--text);
+  font: inherit;
+}
+
+.gear-build-btn {
+  min-width: var(--target);
+}
+
+.gear-save-name {
+  flex: 1 1 8rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gear-builds-panel,
+#gear-build-ui,
+.gear-legacy {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gear-build-btn:focus-visible,
+.gear-save-name:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .gear-build-btn,
+  .gear-save-name,
+  .gear-legacy {
     border: 1px solid ButtonText;
   }
 }

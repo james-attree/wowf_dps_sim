@@ -420,7 +420,7 @@
                   data-help="cfg-race-help"
                 ></select>
                 <p class="field-help" id="cfg-race-help">
-                  Enter your stats without racials; the race adds them.
+                  Your race's bonuses are already included in these stats.
                 </p>
                 <p class="field-error" id="cfg-race-error" hidden></p>
               </div>
@@ -448,156 +448,33 @@
                 </details>
               </div>
             </fieldset>
-            <fieldset
-              class="config-fieldset character-fieldset"
-              data-screen="stats"
-            >
-              <legend>Character stats</legend>
-              <div class="field">
-                <label for="cfg-character-attackPower">Attack power</label>
-                <div class="field-control">
-                  <input
-                    id="cfg-character-attackPower"
-                    name="character.attackPower"
-                    data-field="character.attackPower"
-                    type="number"
-                    inputmode="numeric"
-                    step="1"
-                    min="0"
-                  />
-                </div>
-
-                <p
-                  class="field-error"
-                  id="cfg-character-attackPower-error"
-                  hidden
-                ></p>
-              </div>
-              <div class="field">
-                <label for="cfg-character-critChance"
-                  >Crit chance<span class="visually-hidden">
-                    (percent)</span
-                  ></label
-                >
-                <div class="field-control">
-                  <input
-                    id="cfg-character-critChance"
-                    name="character.critChance"
-                    data-field="character.critChance"
-                    aria-describedby="cfg-character-talent-help"
-                    data-help="cfg-character-talent-help"
-                    type="number"
-                    inputmode="decimal"
-                    step="0.01"
-                    min="0"
-                    data-percent="true"
-                  />
-                  <span class="field-suffix" aria-hidden="true">%</span>
-                </div>
-
-                <p
-                  class="field-error"
-                  id="cfg-character-critChance-error"
-                  hidden
-                ></p>
-              </div>
-              <div class="field">
-                <label for="cfg-character-bonusHitChance"
-                  >Hit chance (bonus)<span class="visually-hidden">
-                    (percent)</span
-                  ></label
-                >
-                <div class="field-control">
-                  <input
-                    id="cfg-character-bonusHitChance"
-                    name="character.bonusHitChance"
-                    data-field="character.bonusHitChance"
-                    aria-describedby="cfg-character-talent-help"
-                    data-help="cfg-character-talent-help"
-                    type="number"
-                    inputmode="decimal"
-                    step="0.01"
-                    min="0"
-                    data-percent="true"
-                  />
-                  <span class="field-suffix" aria-hidden="true">%</span>
-                </div>
-
-                <p
-                  class="field-error"
-                  id="cfg-character-bonusHitChance-error"
-                  hidden
-                ></p>
-              </div>
-              <p class="field-help" id="cfg-character-talent-help">
-                Without talents (the talent tree adds its own).
-              </p>
-              <div class="field">
-                <label for="cfg-character-haste"
-                  >Haste (attack speed)<span class="visually-hidden">
-                    (percent)</span
-                  ></label
-                >
-                <div class="field-control">
-                  <input
-                    id="cfg-character-haste"
-                    name="character.haste"
-                    data-field="character.haste"
-                    aria-describedby="cfg-character-haste-help"
-                    data-help="cfg-character-haste-help"
-                    type="number"
-                    inputmode="decimal"
-                    step="0.01"
-                    min="0"
-                    data-percent="true"
-                  />
-                  <span class="field-suffix" aria-hidden="true">%</span>
-                </div>
-                <p class="field-help" id="cfg-character-haste-help">
-                  Melee attack speed from gear. Slice and Dice and Blade Flurry
-                  are added in the fight. Haste doesn't change energy or the
-                  global cooldown. Don't include Wind Blessed; the race adds it.
-                </p>
-                <p
-                  class="field-error"
-                  id="cfg-character-haste-error"
-                  hidden
-                ></p>
-              </div>
-              <!-- #318: blank follows the level; the view writes the
-                   placeholder, the bounds and the help from the form's
-                   levels (js/config-form.js levelsInfo). -->
-              <div class="field">
-                <label for="cfg-character-weaponSkill">Weapon skill</label>
-                <div class="field-control">
-                  <input
-                    id="cfg-character-weaponSkill"
-                    name="character.weaponSkill"
-                    data-field="character.weaponSkill"
-                    data-optional="true"
-                    aria-describedby="cfg-character-weaponSkill-help"
-                    data-help="cfg-character-weaponSkill-help"
-                    type="number"
-                    inputmode="numeric"
-                    step="1"
-                  />
-                </div>
-                <p class="field-help" id="cfg-character-weaponSkill-help"></p>
-                <p
-                  class="field-error"
-                  id="cfg-character-weaponSkill-error"
-                  hidden
-                ></p>
-              </div>
-            </fieldset>
-            <fieldset class="gear-screen-wrap" data-screen="gear">
+            <fieldset class="gear-screen-wrap" data-screen="gear stats">
               <legend class="visually-hidden">Paper doll</legend>
               <div id="gear-screen" class="gear-screen">
-                <p id="gear-lead" class="gear-lead"></p>
+                <div id="gear-legacy" class="gear-legacy" hidden>
+                  <p id="gear-legacy-banner" class="gear-legacy-banner"></p>
+                  <div class="gear-legacy-actions">
+                    <button
+                      type="button"
+                      id="gear-start-p1"
+                      class="gear-build-btn"
+                    >
+                      Start from wowsims P1 gear
+                    </button>
+                    <button
+                      type="button"
+                      id="gear-start-empty"
+                      class="gear-build-btn"
+                    >
+                      Start an empty gear build
+                    </button>
+                  </div>
+                </div>
+                <p id="gear-lead" class="gear-lead" data-screen="gear"></p>
                 <p id="gear-mh-block" class="gear-warn" hidden></p>
                 <p id="gear-level-block" class="gear-warn" hidden></p>
                 <div id="gear-build-ui" class="gear-layout">
-                  <div class="panel gear-doll-panel">
+                  <div class="panel gear-doll-panel" data-screen="gear">
                     <div class="gear-doll" id="gear-doll">
                       <div
                         class="gear-slots gear-slots-left"
@@ -903,7 +780,7 @@
                     </div>
                     <div id="gear-picker" class="gear-picker" hidden>
                       <div class="gear-picker-head">
-                        <h3 id="gear-picker-title">Search a slot</h3>
+                        <h2 id="gear-picker-title">Search a slot</h2>
                         <button
                           class="gear-picker-close"
                           id="gear-picker-close"
@@ -1003,6 +880,42 @@
                       </div>
                     </div>
                   </aside>
+
+                  <section
+                    class="panel gear-builds-panel"
+                    id="gear-builds"
+                    aria-labelledby="gear-builds-title"
+                  >
+                    <h2 id="gear-builds-title" class="gear-builds-title">
+                      Gear builds
+                    </h2>
+                    <p
+                      id="gear-builds-live"
+                      class="gear-builds-live"
+                      role="status"
+                      aria-live="polite"
+                    ></p>
+                    <ul id="gear-builds-list" class="gear-builds-list"></ul>
+                    <div class="gear-save-row">
+                      <label for="gear-save-name" class="visually-hidden"
+                        >Name for this gear build</label
+                      >
+                      <input
+                        id="gear-save-name"
+                        class="gear-save-name"
+                        type="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                      <button
+                        type="button"
+                        id="gear-save-build"
+                        class="gear-build-btn"
+                      >
+                        Save current as a gear build
+                      </button>
+                    </div>
+                  </section>
                 </div>
                 <p class="gear-credit" id="gear-credit">
                   Item data from
@@ -1019,97 +932,6 @@
             <div class="hands" data-screen="gear">
               <fieldset class="config-fieldset hand-fieldset">
                 <legend>Main hand</legend>
-                <div class="field">
-                  <label for="cfg-weapons-mainHand-type">Type</label>
-                  <select
-                    id="cfg-weapons-mainHand-type"
-                    name="weapons.mainHand.type"
-                    data-field="weapons.mainHand.type"
-                    aria-describedby="cfg-weapons-mainHand-type-help"
-                    data-help="cfg-weapons-mainHand-type-help"
-                  >
-                    <option value="dagger">Dagger</option>
-                    <option value="sword">Sword</option>
-                    <option value="mace">Mace</option>
-                    <option value="axe">Axe</option>
-                    <option value="fist">Fist weapon</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <p class="field-help" id="cfg-weapons-mainHand-type-help">
-                    Dagger uses 1.7 s normalized speed for abilities; others use
-                    2.4 s. Also enables weapon-type talents.
-                  </p>
-                  <p
-                    class="field-error"
-                    id="cfg-weapons-mainHand-type-error"
-                    hidden
-                  ></p>
-                </div>
-                <div class="field-pair">
-                  <div class="field">
-                    <label for="cfg-weapons-mainHand-min">Min damage</label>
-                    <div class="field-control">
-                      <input
-                        id="cfg-weapons-mainHand-min"
-                        name="weapons.mainHand.min"
-                        data-field="weapons.mainHand.min"
-                        type="number"
-                        inputmode="numeric"
-                        step="1"
-                        min="0"
-                      />
-                    </div>
-
-                    <p
-                      class="field-error"
-                      id="cfg-weapons-mainHand-min-error"
-                      hidden
-                    ></p>
-                  </div>
-                  <div class="field">
-                    <label for="cfg-weapons-mainHand-max">Max damage</label>
-                    <div class="field-control">
-                      <input
-                        id="cfg-weapons-mainHand-max"
-                        name="weapons.mainHand.max"
-                        data-field="weapons.mainHand.max"
-                        type="number"
-                        inputmode="numeric"
-                        step="1"
-                        min="0"
-                      />
-                    </div>
-
-                    <p
-                      class="field-error"
-                      id="cfg-weapons-mainHand-max-error"
-                      hidden
-                    ></p>
-                  </div>
-                </div>
-                <div class="field">
-                  <label for="cfg-weapons-mainHand-speed"
-                    >Speed<span class="visually-hidden"> (seconds)</span></label
-                  >
-                  <div class="field-control">
-                    <input
-                      id="cfg-weapons-mainHand-speed"
-                      name="weapons.mainHand.speed"
-                      data-field="weapons.mainHand.speed"
-                      type="number"
-                      inputmode="decimal"
-                      step="0.1"
-                      min="0"
-                    />
-                    <span class="field-suffix" aria-hidden="true">s</span>
-                  </div>
-
-                  <p
-                    class="field-error"
-                    id="cfg-weapons-mainHand-speed-error"
-                    hidden
-                  ></p>
-                </div>
                 <div class="field poison-field">
                   <label for="cfg-poisons-mainHand">Poison</label>
                   <select
@@ -1159,96 +981,6 @@
               </fieldset>
               <fieldset class="config-fieldset hand-fieldset">
                 <legend>Off hand</legend>
-                <div class="field">
-                  <label for="cfg-weapons-offHand-type">Type</label>
-                  <select
-                    id="cfg-weapons-offHand-type"
-                    name="weapons.offHand.type"
-                    data-field="weapons.offHand.type"
-                    aria-describedby="cfg-weapons-offHand-type-help"
-                    data-help="cfg-weapons-offHand-type-help"
-                  >
-                    <option value="dagger">Dagger</option>
-                    <option value="sword">Sword</option>
-                    <option value="mace">Mace</option>
-                    <option value="axe">Axe</option>
-                    <option value="fist">Fist weapon</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <p class="field-help" id="cfg-weapons-offHand-type-help">
-                    Enables weapon-type talents (e.g. Sword Specialization).
-                  </p>
-                  <p
-                    class="field-error"
-                    id="cfg-weapons-offHand-type-error"
-                    hidden
-                  ></p>
-                </div>
-                <div class="field-pair">
-                  <div class="field">
-                    <label for="cfg-weapons-offHand-min">Min damage</label>
-                    <div class="field-control">
-                      <input
-                        id="cfg-weapons-offHand-min"
-                        name="weapons.offHand.min"
-                        data-field="weapons.offHand.min"
-                        type="number"
-                        inputmode="numeric"
-                        step="1"
-                        min="0"
-                      />
-                    </div>
-
-                    <p
-                      class="field-error"
-                      id="cfg-weapons-offHand-min-error"
-                      hidden
-                    ></p>
-                  </div>
-                  <div class="field">
-                    <label for="cfg-weapons-offHand-max">Max damage</label>
-                    <div class="field-control">
-                      <input
-                        id="cfg-weapons-offHand-max"
-                        name="weapons.offHand.max"
-                        data-field="weapons.offHand.max"
-                        type="number"
-                        inputmode="numeric"
-                        step="1"
-                        min="0"
-                      />
-                    </div>
-
-                    <p
-                      class="field-error"
-                      id="cfg-weapons-offHand-max-error"
-                      hidden
-                    ></p>
-                  </div>
-                </div>
-                <div class="field">
-                  <label for="cfg-weapons-offHand-speed"
-                    >Speed<span class="visually-hidden"> (seconds)</span></label
-                  >
-                  <div class="field-control">
-                    <input
-                      id="cfg-weapons-offHand-speed"
-                      name="weapons.offHand.speed"
-                      data-field="weapons.offHand.speed"
-                      type="number"
-                      inputmode="decimal"
-                      step="0.1"
-                      min="0"
-                    />
-                    <span class="field-suffix" aria-hidden="true">s</span>
-                  </div>
-
-                  <p
-                    class="field-error"
-                    id="cfg-weapons-offHand-speed-error"
-                    hidden
-                  ></p>
-                </div>
                 <div class="field poison-field">
                   <label for="cfg-poisons-offHand">Poison</label>
                   <select
@@ -1408,6 +1140,25 @@
                 aria-describedby="cfg-rotation-summary"
               ></select>
             </div>
+            <!-- Weapon-type mismatch next to the preset (Fran's P2,
+                 #406). coordinator call 16 Nov (James delegated). The
+                 expected type comes from ability-data requires on the
+                 rotation's actions; the note does not block Run and
+                 does not change gear. js/views/rotation-weapon-note.js
+                 draws js/rotation-weapon-mismatch.js's slice. -->
+            <p
+              id="cfg-rotation-weapon-note"
+              class="rotation-weapon-note"
+              hidden
+            >
+              <span id="cfg-rotation-weapon-note-text"></span>
+              <a
+                id="cfg-rotation-weapon-note-gear"
+                class="text-link"
+                href="#character/gear"
+                >Go to Gear</a
+              >
+            </p>
           </div>
           <!-- The preset's reference build (#273): what the preset was built
                for and a button that applies it, then what was set, with

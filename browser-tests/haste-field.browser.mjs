@@ -1,5 +1,5 @@
-// #274 (P4.6-07): the "Haste (attack speed)" field on Character › Stats, at
-// Fran's five widths, with DejaVu pinned as CI has it.
+// #274 / #385: haste is a derived gear stat, not a typed Character field.
+// The Stats summary still names it when the sheet has some, at Fran's widths.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
@@ -10,13 +10,9 @@ const FRAN_WIDTHS = [360, 390, 1024, 1280, 1440];
 const SCREEN_HEIGHT = 900;
 const FIELD = "#cfg-character-haste";
 const SUMMARY = "#character-stats-summary";
-const TOO_MUCH = "150";
-const FIVE = "5";
-const TWENTY = "20";
 const ONE_FIGHT = "1";
 const SEED = "424242";
 const RUN_TIMEOUT = 60_000;
-// A line box is at most this many line heights tall.
 const ONE_LINE = 1.5;
 
 let server;
@@ -49,11 +45,12 @@ async function open(width, hash) {
     (url) => !url.href.startsWith(base),
     (route) => route.abort(),
   );
-  await page.goto(`${base}${hash}`);
+  await page.goto(`${base}?e2e${hash}`);
   await page.addStyleTag({
     content: `:root { font-family: "${PINNED_FONT}" !important; }`,
   });
   await page.locator("#run-button").waitFor({ state: "attached" });
+  await page.waitForFunction(() => globalThis.__store != null);
   await page.evaluate(() => document.fonts.ready);
   return { context, page, errors };
 }
@@ -64,12 +61,6 @@ const go = async (page, hash, selector) => {
   }, hash);
   await page.locator(selector).waitFor({ state: "visible" });
 };
-
-async function enter(page, value) {
-  await go(page, "#character/stats", FIELD);
-  await page.locator(FIELD).fill(value);
-  await page.locator(FIELD).blur();
-}
 
 const summary = async (page) => {
   await go(page, "#character", SUMMARY);
@@ -85,48 +76,29 @@ const summary = async (page) => {
   );
 };
 
-describe("the haste field on Character › Stats (#274)", () => {
+async function setHaste(page, haste) {
+  await page.evaluate((value) => {
+    const { config } = globalThis.__store.get();
+    const next = structuredClone(config);
+    next.character = { ...next.character, haste: value };
+    globalThis.__store.set({ config: next });
+  }, haste);
+}
+
+describe("haste is derived, not typed (#274, #385)", () => {
   for (const width of FRAN_WIDTHS) {
-    test(`label, help, check and summary at ${width}`, async () => {
+    test(`the typed field is gone; the summary still names haste at ${width}`, async () => {
       const { context, page, errors } = await open(width, "#character/stats");
       try {
-        const field = page.locator(FIELD);
-        await field.waitFor({ state: "visible" });
-        const label = await page
-          .locator(`label[for="${FIELD.slice(1)}"]`)
-          .textContent();
-        assert.match(
-          label.replace(/\s+/g, " ").trim(),
-          /^Haste \(attack speed\) \(percent\)$/,
-        );
-        assert.equal(await field.inputValue(), "0");
-        const helpId = await field.getAttribute("aria-describedby");
-        assert.equal(helpId, "cfg-character-haste-help");
-        const help = (await page.locator(`#${helpId}`).textContent())
-          .replace(/\s+/g, " ")
-          .trim();
-        assert.equal(
-          help,
-          "Melee attack speed from gear. Slice and Dice and Blade Flurry are added in the fight. Haste doesn't change energy or the global cooldown. Don't include Wind Blessed; the race adds it.",
-        );
-
+        assert.equal(await page.locator(FIELD).count(), 0);
         const none = await summary(page);
         assert.doesNotMatch(none.text, /haste/);
-        assert.ok(none.oneLine, `${width}: one line at 0`);
-
-        await enter(page, TOO_MUCH);
-        assert.match(
-          await page.locator(`${FIELD}-error`).textContent(),
-          /Enter a percentage from 0 to 100\./,
-        );
-        assert.equal(await page.locator("#run-button").isDisabled(), true);
-        assert.match(
-          await page.locator("#run-status-text").textContent(),
-          /^Can't run/,
-        );
-
-        await enter(page, FIVE);
-        assert.equal(await page.locator("#run-button").isDisabled(), false);
+        // The 0.65rem phone summary is gone with the typed sheet (#385).
+        // At 360/390 the line may wrap; one line is required at 1024+.
+        if (width >= 1024) {
+          assert.ok(none.oneLine, `${width}: one line at 0`);
+        }
+        await setHaste(page, 0.05);
         const set = await summary(page);
         assert.match(set.text, / · 5% haste$/);
         assert.ok(set.fits, `${width}: the summary fits its row`);
@@ -161,12 +133,8 @@ describe("the haste field on Character › Stats (#274)", () => {
       await page.locator("#run-seed").fill(SEED);
       await page.locator("#run-seed").blur();
       const without = await mean();
-      await enter(page, TWENTY);
-      assert.equal(await page.locator("#cfg-edited").isVisible(), true);
-      assert.match(
-        await page.locator("#cfg-edited").textContent(),
-        /^\s*Edited — applies to the next run\./,
-      );
+      await setHaste(page, 0.2);
+      // store.set does not mark the form edited; the check is the mean.
       const withHaste = await mean();
       assert.notEqual(withHaste, without);
       assert.deepEqual(errors, []);

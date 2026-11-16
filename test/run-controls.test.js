@@ -1832,13 +1832,14 @@ describe("the narrow control bar (#153, Scout)", () => {
 });
 
 describe("Run never starts with stale settings (#247)", () => {
-  const MIN = "weapons.mainHand.min";
-  const MAX = "weapons.mainHand.max";
-  const PAIR_MIN = 50;
-  const PAIR_MAX = 40;
-  const FIXED_MAX = 60;
-  const MAX_ID = "cfg-weapons-mainHand-max";
-  const MIN_ID = "cfg-weapons-mainHand-min";
+  // The typed weapon sheet is gone (#385). target.level is still a field
+  // Run must check before it starts.
+  const FIELD = "target.level";
+  const FIELD_ID = "cfg-target-level";
+  const VALID = 63;
+  const INVALID = 0;
+  const OTHER = "poisons.mainHand";
+  const OTHER_ID = "cfg-poisons-mainHand";
   // The bar, with the form's model on the same store, as js/main.js wires
   // them; the stand-in form fields are marked as the form view marks them.
   const wired = () => {
@@ -1852,8 +1853,8 @@ describe("Run never starts with stale settings (#247)", () => {
     const mark = () => {
       const { errors } = page.store.get().form;
       for (const [path, id] of [
-        [MIN, MIN_ID],
-        [MAX, MAX_ID],
+        [FIELD, FIELD_ID],
+        [OTHER, OTHER_ID],
       ]) {
         el(id).setAttribute("aria-invalid", path in errors ? "true" : null);
       }
@@ -1861,13 +1862,11 @@ describe("Run never starts with stale settings (#247)", () => {
     page.store.subscribe(mark);
     return { page, form, el, doc };
   };
-  // A typed edit Run has not seen: Min 50 and Max 60 committed, then 40
-  // typed in Max. Fran's #247 repro (Min 50, Max 40, then 5 and 50 in Min)
-  // no longer leaves one: a pair in error is checked as typed (#240 N2).
+  // A typed edit Run has not seen: a valid target level committed, then
+  // an out-of-range value typed in and not yet checked.
   const repro = ({ form }) => {
-    form.change(MAX, FIXED_MAX);
-    form.change(MIN, PAIR_MIN);
-    form.input(MAX, PAIR_MAX);
+    form.change(FIELD, VALID);
+    form.input(FIELD, INVALID);
   };
 
   it("pressing Run checks the typed field; blocked, it keeps focus off Run and sends it to the field to fix", () => {
@@ -1878,8 +1877,8 @@ describe("Run never starts with stale settings (#247)", () => {
     const press = el("run-button").fire("mousedown");
     assert.equal(blocked(page.store.get()), true, "checked again");
     assert.equal(press.prevented, 1, "focus stays off the button");
-    assert.equal(el(MAX_ID).focused, 1, "the field the footer names");
-    assert.equal(el(MIN_ID).focused, 0);
+    assert.equal(el(FIELD_ID).focused, 1, "the field the footer names");
+    assert.equal(el(OTHER_ID).focused, 0);
     el("run-button").fire("click");
     assert.equal(page.store.get().run.state, "idle", "no run");
     assert.equal(page.store.get().run.snapshot, null);
@@ -1891,55 +1890,49 @@ describe("Run never starts with stale settings (#247)", () => {
     repro(wiring);
     el("run-button").fire("click");
     assert.equal(page.store.get().run.state, "idle", "blocked, so no run");
-    assert.equal(el(MAX_ID).focused, 1);
-    form.input(MAX, FIXED_MAX);
+    assert.equal(el(FIELD_ID).focused, 1);
+    form.input(FIELD, VALID);
     el("run-button").fire("mousedown");
     el("run-button").fire("click");
     assert.equal(page.store.get().run.state, "running");
     const { snapshot } = page.store.get().run;
-    assert.equal(snapshot.weapons.mainHand.min, PAIR_MIN);
-    assert.equal(snapshot.weapons.mainHand.max, FIXED_MAX);
+    assert.equal(snapshot.target.level, VALID);
   });
 
   it("the Fix link goes to the field the footer lists first (nit 4)", () => {
     const wiring = wired();
     const { page, form, el } = wiring;
-    form.change(MIN, PAIR_MIN);
-    form.change(MAX, PAIR_MAX);
-    assert.equal(firstFormError(page.store.get().form), MAX);
+    form.change(FIELD, INVALID);
+    assert.equal(firstFormError(page.store.get().form), FIELD);
     const event = el("run-errors-link").fire("click");
     assert.equal(event.prevented, 1);
-    assert.equal(el(MAX_ID).focused, 1, "the Max, which holds the message");
-    assert.equal(el(MIN_ID).focused, 0, "not the marked Min");
+    assert.equal(el(FIELD_ID).focused, 1, "the field the footer names");
+    assert.equal(el(OTHER_ID).focused, 0);
   });
 
   it("firstFormError is the first error with a message, in the footer's order", () => {
     assert.equal(firstFormError({ errors: {} }), null);
     assert.equal(firstFormError(undefined), null);
-    assert.equal(firstFormError({ errors: { [MIN]: null } }), null);
+    assert.equal(firstFormError({ errors: { [FIELD]: null } }), null);
     assert.equal(
-      firstFormError({ errors: { [MAX]: "Pair.", [MIN]: null } }),
-      MAX,
+      firstFormError({ errors: { [OTHER]: "Poison.", [FIELD]: "Range." } }),
+      OTHER,
     );
-    assert.equal(
-      firstFormError({ errors: { [MIN]: null, [MAX]: "Pair.", a: "A." } }),
-      MAX,
-    );
+    assert.equal(firstFormError({ errors: { [FIELD]: "Range." } }), FIELD);
   });
 
   it("a press on a disabled Run sends focus to the field to fix, not the page (#240 N5)", () => {
     const wiring = wired();
     const { page, form, el } = wiring;
-    form.change(MIN, PAIR_MIN);
-    form.change(MAX, PAIR_MAX);
+    form.change(FIELD, INVALID);
     assert.equal(el("run-button").disabled, true);
     el("run-bar").fire("pointerdown", {
       target: el("run-button"),
       button: 2,
     });
-    assert.equal(el(MAX_ID).focused, 0, "not the right button");
+    assert.equal(el(FIELD_ID).focused, 0, "not the right button");
     el("run-bar").fire("pointerdown", { target: el("run-button"), button: 0 });
-    assert.equal(el(MAX_ID).focused, 1, "the field the footer names");
+    assert.equal(el(FIELD_ID).focused, 1, "the field the footer names");
     assert.equal(page.store.get().run.state, "idle");
   });
 
@@ -1954,19 +1947,19 @@ describe("Run never starts with stale settings (#247)", () => {
     el("run-button").focus();
     doc.fire("focusout", { relatedTarget: el("run-button") });
     flush();
-    assert.equal(el(MAX_ID).focused, 0, "Run is not blocked yet");
+    assert.equal(el(FIELD_ID).focused, 0, "Run is not blocked yet");
     form.commitEdits();
     assert.equal(el("run-button").disabled, true, "the check blocks Run");
     flush();
-    assert.equal(el(MAX_ID).focused, 1, "a stranded Run hands focus on");
+    assert.equal(el(FIELD_ID).focused, 1, "a stranded Run hands focus on");
     doc.activeElement = doc.body;
     doc.fire("focusout", { relatedTarget: el("run-button") });
     flush();
-    assert.equal(el(MAX_ID).focused, 2, "focus dropped to the page");
+    assert.equal(el(FIELD_ID).focused, 2, "focus dropped to the page");
     doc.activeElement = doc.body;
-    doc.fire("focusout", { relatedTarget: el(MIN_ID) });
+    doc.fire("focusout", { relatedTarget: el(OTHER_ID) });
     flush();
-    assert.equal(el(MAX_ID).focused, 2, "only focus bound for Run");
+    assert.equal(el(FIELD_ID).focused, 2, "only focus bound for Run");
   });
 
   it("only the main button presses Run (#240 N4)", () => {

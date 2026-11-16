@@ -11,6 +11,7 @@ import { buildLabel, poisonName } from "./build-label.js";
 import { createConfigForm } from "./config-form.js";
 import { createLiveRun } from "./live-run.js";
 import { createPresetBuild } from "./preset-build.js";
+import { createRotationWeaponNote } from "./rotation-weapon-mismatch.js";
 import {
   createStartPreset,
   opensFirst,
@@ -34,6 +35,7 @@ import { createConfigFormView } from "./views/config-form.js";
 import { createControlsView } from "./views/controls.js";
 import { keepFocusInView } from "./views/focus-in-view.js";
 import { createPresetBuildView } from "./views/preset-build.js";
+import { createRotationWeaponNoteView } from "./views/rotation-weapon-note.js";
 import { createStartPresetView } from "./views/start-preset.js";
 import { createResultsView } from "./views/results.js";
 import { createResultsCardView } from "./views/results-card.js";
@@ -96,6 +98,8 @@ const client = new BatchClient();
 
 const store = createStore({
   config,
+  gearMessage: "",
+  weaponMismatch: null,
   run: {
     mode,
     fightMode: "scripted",
@@ -165,6 +169,9 @@ mountSavedSetup(win, store, {
 const builder = createRotationBuilder(store, formActions);
 // The preset's reference build under the Rotation select (#273).
 const presetBuild = createPresetBuild(store, formActions);
+// Weapon-type mismatch note next to the Rotation preset (#406 P2).
+// coordinator call 16 Nov (James delegated).
+createRotationWeaponNote(store);
 // Start from a preset (#323): open on a first visit (the page started from
 // the defaults, Custom not chosen before; its own small key, not the save),
 // folded into the Starting point row after a pick. A press on
@@ -208,7 +215,11 @@ const renders = {
     createGearScreenView(
       document,
       store,
-      createGearActions(store, { searchStart: 2, resultCap: 20 }),
+      createGearActions(store, {
+        searchStart: 2,
+        resultCap: 20,
+        now: () => Date.now(),
+      }),
     );
     createStartPresetView(document, store, {
       pick: start.pick,
@@ -219,6 +230,7 @@ const renders = {
   rotation: () => {
     createRotationBuilderView(document, store, builder);
     createPresetBuildView(document, store);
+    createRotationWeaponNoteView(document, store);
     // The Run bar is outside the areas: it stays on every screen. It is
     // mounted here to keep the views' order (their store subscriptions) as
     // it was before #239. Run checks the form's typed-in fields first (#247).

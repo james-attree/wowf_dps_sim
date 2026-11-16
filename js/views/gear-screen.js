@@ -1,6 +1,5 @@
-// The #297 PR6 gear screen: paper doll, ARIA 1.2 combobox search, and the
-// derived stats panel on #character/gear. Saved builds and the read-only
-// legacy-sheet screen stay in PR7.
+// The gear screen: paper doll, search, read-only stats, saved builds, and
+// the read-only legacy-sheet banner.
 
 import { attachIconFallback, iconUrl } from "../icons.js";
 import { NOT_WIDE_QUERY, WIDE_QUERY } from "./breakpoints.js";
@@ -59,6 +58,14 @@ export function createGearScreenView(doc, store, actions) {
   const notHelp = $("gear-not-modelled-help");
   const notList = $("gear-not-modelled-list");
   const credit = $("gear-credit");
+  const legacy = $("gear-legacy");
+  const legacyBanner = $("gear-legacy-banner");
+  const startP1 = $("gear-start-p1");
+  const startEmpty = $("gear-start-empty");
+  const buildsList = $("gear-builds-list");
+  const buildsLive = $("gear-builds-live");
+  const saveName = $("gear-save-name");
+  const saveButton = $("gear-save-build");
   const slotButtons = [
     ...(doc.querySelectorAll("#gear-doll [data-slot]") ?? []),
   ];
@@ -347,7 +354,7 @@ export function createGearScreenView(doc, store, actions) {
     lastStatus = EMPTY_VALUE;
     show(picker, true);
     setPickerChrome(true);
-    write(pickerTitle, actions.slotLabel(slot));
+    write(pickerTitle, `Choose ${actions.slotLabel(slot).toLowerCase()}`);
     write(searchLabel, `Search ${actions.slotLabel(slot).toLowerCase()} items`);
     if (search !== null) {
       search.value = EMPTY_VALUE;
@@ -413,9 +420,11 @@ export function createGearScreenView(doc, store, actions) {
     }
     write(
       statsNote,
-      view.race
-        ? `Read-only. Level ${view.level} ${view.race} + this gear. ${copy.TALENT_NOTE}`
-        : `Read-only. Level ${view.level} + this gear. ${copy.TALENT_NOTE}`,
+      view.legacy
+        ? copy.LEGACY_BANNER
+        : view.race
+          ? `Read-only. Level ${view.level} ${view.race} + this gear. ${copy.TALENT_NOTE}`
+          : `Read-only. Level ${view.level} + this gear. ${copy.TALENT_NOTE}`,
     );
     statsList.replaceChildren();
     for (const row of view.stats) {
@@ -469,6 +478,65 @@ export function createGearScreenView(doc, store, actions) {
     creditReady = true;
   }
 
+  function drawLegacy(view) {
+    show(legacy, view.legacy);
+    write(legacyBanner, view.legacyBanner);
+    if (startP1 !== null) {
+      write(startP1, copy.START_P1);
+    }
+    if (startEmpty !== null) {
+      write(startEmpty, copy.START_EMPTY);
+    }
+  }
+
+  function drawBuilds() {
+    if (buildsList === null) {
+      return;
+    }
+    write(buildsLive, actions.gearMessage());
+    const rows = actions.listedBuilds();
+    buildsList.replaceChildren();
+    for (const build of rows) {
+      const item = doc.createElement("li");
+      item.className = "gear-build-row";
+      item.setAttribute("data-build-id", build.id);
+      const name = doc.createElement("div");
+      name.className = "gear-build-name";
+      const label = doc.createElement("span");
+      label.textContent = build.name;
+      name.append(label);
+      if (build.currentLabel) {
+        const mark = doc.createElement("span");
+        mark.className = "gear-build-current";
+        mark.textContent = build.currentLabel;
+        name.append(mark);
+      }
+      const actionsRow = doc.createElement("div");
+      actionsRow.className = "gear-build-actions";
+      const load = doc.createElement("button");
+      load.type = "button";
+      load.className = "gear-build-btn";
+      load.setAttribute("data-act", "load");
+      load.textContent = "Load";
+      actionsRow.append(load);
+      if (!build.builtin) {
+        const rename = doc.createElement("button");
+        rename.type = "button";
+        rename.className = "gear-build-btn";
+        rename.setAttribute("data-act", "rename");
+        rename.textContent = "Rename";
+        const remove = doc.createElement("button");
+        remove.type = "button";
+        remove.className = "gear-build-btn";
+        remove.setAttribute("data-act", "remove");
+        remove.textContent = "Delete";
+        actionsRow.append(rename, remove);
+      }
+      item.append(name, actionsRow);
+      buildsList.append(item);
+    }
+  }
+
   function draw() {
     const route = store.get().route;
     const onGear = route?.area === "character" && route?.sub === "gear";
@@ -484,19 +552,20 @@ export function createGearScreenView(doc, store, actions) {
     show(mhBlock, view.emptyMainHand);
     write(levelBlock, view.levelBlockText);
     show(levelBlock, view.levelBlocked);
-    show(buildUi, view.showDoll);
-    if (view.showDoll) {
-      for (const button of slotButtons) {
-        const row = view.rows[button.getAttribute("data-slot")];
-        if (row) {
-          paintSlot(button, row);
-        }
-      }
-      paintStats(view);
-      if (openSlot !== null) {
-        drawMods(view.rows[openSlot]);
+    show(buildUi, true);
+    for (const button of slotButtons) {
+      button.hidden = !view.showDoll;
+      const row = view.rows[button.getAttribute("data-slot")];
+      if (row && view.showDoll) {
+        paintSlot(button, row);
       }
     }
+    paintStats(view);
+    if (view.showDoll && openSlot !== null) {
+      drawMods(view.rows[openSlot]);
+    }
+    drawLegacy(view);
+    drawBuilds();
     drawCredit();
   }
 
@@ -592,12 +661,77 @@ export function createGearScreenView(doc, store, actions) {
   // without a second copy of 64em. The picker is styled in CSS.
   win?.matchMedia?.(WIDE_QUERY);
 
+  startP1?.addEventListener("click", () => actions.startP1());
+  startEmpty?.addEventListener("click", () => actions.startEmpty());
+  saveButton?.addEventListener("click", () => {
+    actions.saveBuild(saveName?.value ?? EMPTY_VALUE);
+    if (saveName && actions.gearMessage() === "Gear build saved.") {
+      saveName.value = EMPTY_VALUE;
+    }
+    drawBuilds();
+  });
+  buildsList?.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-act]");
+    const row = event.target.closest("[data-build-id]");
+    if (!button || !row) {
+      return;
+    }
+    const id = row.getAttribute("data-build-id");
+    const act = button.getAttribute("data-act");
+    if (act === "load") {
+      actions.loadBuild(id);
+      return;
+    }
+    if (act === "remove") {
+      actions.removeBuild(id);
+      drawBuilds();
+      return;
+    }
+    if (act === "rename") {
+      beginRename(row, id);
+    }
+  });
+
+  function beginRename(row, id) {
+    const actionsRow = row.querySelector(".gear-build-actions");
+    const field = doc.createElement("input");
+    field.type = "text";
+    field.className = "gear-save-name";
+    field.value =
+      row.querySelector(".gear-build-name span")?.textContent ?? EMPTY_VALUE;
+    field.setAttribute("aria-label", "New name");
+    const confirm = doc.createElement("button");
+    confirm.type = "button";
+    confirm.className = "gear-build-btn";
+    confirm.textContent = "Save name";
+    const finish = (ok) => {
+      if (ok) {
+        actions.renameBuild(id, field.value);
+      }
+      drawBuilds();
+    };
+    confirm.addEventListener("click", () => finish(true));
+    field.addEventListener("keydown", (event) => {
+      if (event.key === KEY.escape) {
+        event.preventDefault();
+        finish(false);
+      } else if (event.key === KEY.enter) {
+        event.preventDefault();
+        finish(true);
+      }
+    });
+    actionsRow?.replaceChildren(field, confirm);
+    field.focus();
+    field.select();
+  }
+
   draw();
   store.subscribe(({ changed }) => {
     if (
       changed.includes("route") ||
       changed.includes("config") ||
-      changed.includes("form")
+      changed.includes("form") ||
+      changed.includes("gearMessage")
     ) {
       draw();
     }

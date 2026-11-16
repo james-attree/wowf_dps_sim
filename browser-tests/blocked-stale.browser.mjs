@@ -19,9 +19,10 @@ const BATCH_FIGHTS = "5";
 const BATCH_SECONDS = "30";
 const RUN_TIMEOUT = 60_000;
 const SETTLE = 3000;
-// Attack power, raised by this after both runs: both results out of date.
-const AP_STEP = 10;
-const BAD_AP = "-5";
+// Target level, set after both runs: both results out of date.
+const STALE_LEVEL = "62";
+const BAD_TARGET = "0";
+const TARGET = "#cfg-target-level";
 const BAD_LENGTH = "0";
 const BAD_SEED = "abc";
 const N_SEED = "259";
@@ -31,7 +32,6 @@ const TOP_LEVEL = "60";
 // A rule's condition left empty is a rotation error.
 const RULE = "#rotation/rule/6";
 const CONDITION = "input.cond-value";
-const AP = '[name="character.attackPower"]';
 
 let server;
 let base;
@@ -128,9 +128,8 @@ async function keepBoth(page) {
     null,
     { timeout: RUN_TIMEOUT },
   );
-  await go(page, "#character/stats");
-  const ap = page.locator(AP);
-  await setField(ap, String(Number(await ap.inputValue()) + AP_STEP));
+  await go(page, "#fight");
+  await setField(page.locator(TARGET), STALE_LEVEL);
 }
 
 // What each surface says now, read where it is without moving to it.
@@ -239,13 +238,13 @@ for (const size of [WIDE, PHONE]) {
         }
         await talents(page, false);
         await expect(page, null, "talents fixed", { card });
-        await go(page, "#character/stats");
-        const ap = page.locator(AP);
-        const goodAp = await ap.inputValue();
-        await setField(ap, BAD_AP);
-        await expect(page, "1 setting", "stats", { card });
-        await setField(ap, goodAp);
-        await expect(page, null, "stats fixed", { card });
+        await go(page, "#fight");
+        const field = page.locator(TARGET);
+        const good = await field.inputValue();
+        await setField(field, BAD_TARGET);
+        await expect(page, "1 setting", "target", { card });
+        await setField(field, good);
+        await expect(page, null, "target fixed", { card });
 
         // P1: the causes named together.
         const value = await rotation(page, true);

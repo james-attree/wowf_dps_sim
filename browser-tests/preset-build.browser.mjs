@@ -151,12 +151,15 @@ async function setSelect(page, hash, selector, value) {
 }
 
 const gear = async (page) => {
-  await go(page, "#character/gear", "#cfg-weapons-mainHand-type");
+  await go(page, "#character/gear", "#gear-slot-mainHand");
   return page.evaluate(() => {
-    const value = (id) => document.getElementById(id).value;
+    const value = (id) => document.getElementById(id)?.value ?? null;
+    const slot = (id) =>
+      document.querySelector(`#${id} .gear-slot-name`)?.textContent.trim() ??
+      null;
     return {
-      mainHand: value("cfg-weapons-mainHand-type"),
-      offHand: value("cfg-weapons-offHand-type"),
+      mainHand: slot("gear-slot-mainHand"),
+      offHand: slot("gear-slot-offHand"),
       mainPoison: value("cfg-poisons-mainHand"),
       offPoison: value("cfg-poisons-offHand"),
     };
@@ -281,7 +284,7 @@ describe("The reference build's hint (#273)", () => {
       await setSelect(
         page,
         "#character/gear",
-        "#cfg-weapons-mainHand-type",
+        "#cfg-poisons-mainHand",
         "sword",
       );
       await toRotation(page);
@@ -289,7 +292,7 @@ describe("The reference build's hint (#273)", () => {
       await setSelect(
         page,
         "#character/gear",
-        "#cfg-weapons-mainHand-type",
+        "#cfg-poisons-mainHand",
         "dagger",
       );
       const power = Number(

@@ -16,7 +16,6 @@ const WIDTH = 1024;
 const PHONE = 360;
 const SCREEN_HEIGHT = 900;
 const ASSASSINATION = "assassination-daggers";
-const HASTE = "5";
 const RACE = "human";
 const FIGHT_SECONDS = "4";
 const FIGHTS = "2";
@@ -202,8 +201,6 @@ describe("Phase 5 keyboard wrap-up (#285)", () => {
 
       await tabUntil(page, "cfg-race", "Race");
       await page.locator("#cfg-race").selectOption(RACE);
-      await tabUntil(page, "cfg-character-haste", "Haste");
-      await page.locator("#cfg-character-haste").fill(HASTE);
       await page.keyboard.press("Tab");
 
       await tabUntil(page, (now) => now.area === "rotation", "Rotation nav");
@@ -328,15 +325,12 @@ describe("Phase 5 keyboard wrap-up (#285)", () => {
         );
         const after = await opened.evaluate(() => ({
           search: globalThis.location.search,
-          haste: globalThis.document.getElementById("cfg-character-haste")
-            ?.value,
           race: globalThis.document.getElementById("cfg-race")?.value,
           link: new globalThis.URL(globalThis.location.href).searchParams.get(
             "s",
           ),
         }));
         assert.equal(after.link, null);
-        assert.equal(after.haste, HASTE);
         assert.equal(after.race, RACE);
         await opened.locator("body").press("Tab");
         await tabUntil(opened, "share-banner-close", "Dismiss on a v2 load");

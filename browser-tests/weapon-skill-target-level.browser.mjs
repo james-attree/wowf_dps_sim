@@ -18,7 +18,6 @@ const NB = "\u00A0";
 const SKILL = "#cfg-character-weaponSkill";
 const TARGET = "#cfg-target-level";
 const TYPED_STAYS = "Typed values stay fixed when you change level.";
-const SKILL_HELP = `Leave blank for 300 (your level${NB}×${NB}5). At most 350 at level 60. Applies to both hands. ${TYPED_STAYS}`;
 const TARGET_HELP = `Leave blank for 63 (your level${NB}+${NB}3, a raid boss). From 1 to 63. Higher levels mean more misses and glancing blows. ${TYPED_STAYS}`;
 const SUMMARY = "#character-stats-summary";
 const STATS_CHIP = "#character-stats-status";
@@ -26,8 +25,6 @@ const RUN_SUMMARY = "#run-summary";
 const RUN_STATUS = "#run-status-text";
 const NOTE = "#fight-target";
 const LEVEL = "#talents-level";
-const SKILL_ERROR =
-  "Weapon skill must be a whole number from 1 to 350 at level 60.";
 const TARGET_ERROR = "Target level must be a whole number from 1 to 63.";
 const badge = (area) => `[data-nav-area="${area}"] .area-nav-badge`;
 // Rounding slack for a box edge, not a layout allowance.
@@ -56,7 +53,7 @@ async function open(
   width,
   text,
   address = `${base}#character/stats`,
-  ready = SKILL,
+  ready = "#cfg-race",
 ) {
   const context = await browser.newContext({
     viewport: { width, height: SCREEN_HEIGHT },
@@ -158,88 +155,29 @@ const GOOD = {
   textFits: true,
 };
 
-describe("Weapon skill on Character › Stats (#318)", () => {
-  for (const width of WIDTHS) {
-    for (const text of TEXT_SIZES) {
-      test(`blank, errors and layout at ${width} wide, ${text} text`, async () => {
-        const { context, page, errors } = await open(width, text);
-        try {
-          const skill = page.locator(SKILL);
-          assert.equal(
-            await textOf(page, `label[for="${SKILL.slice(1)}"]`),
-            "Weapon skill",
-          );
-          // Target level is Fight's, not Character's (qa-319 P1).
-          assert.equal(
-            await page.locator(`#area-character ${TARGET}`).count(),
-            0,
-          );
-          assert.equal(
-            await page
-              .locator("#area-character legend", { hasText: /enemy/i })
-              .count(),
-            0,
-          );
-          // Blank shows the value it gives.
-          assert.equal(await skill.inputValue(), "");
-          assert.equal(await skill.getAttribute("placeholder"), "300");
-          assert.equal(await skill.getAttribute("max"), "350");
-          assert.equal(await textOf(page, `${SKILL}-help`), SKILL_HELP);
-          assert.equal(
-            await skill.getAttribute("aria-describedby"),
-            "cfg-character-weaponSkill-help",
-          );
-          assert.deepEqual(await layout(page, SKILL), GOOD, "blank");
-
-          // Past the bounds: the form's error style, Run is off, and the
-          // error is Character's, on the Stats row's chip.
-          await enter(page, SKILL, "351");
-          assert.equal(
-            await textOf(page, `${SKILL}-error`),
-            `⚠ ${SKILL_ERROR}`,
-          );
-          assert.equal(await skill.getAttribute("aria-invalid"), "true");
-          assert.equal(await page.locator("#run-button").isDisabled(), true);
-          const fixes = (
-            await page.locator("#cfg-fix-list a").allTextContents()
-          ).map(clean);
-          assert.ok(
-            fixes.some((line) => line.startsWith("Weapon skill")),
-            fixes.join(" | "),
-          );
-          assert.deepEqual(await layout(page, SKILL), GOOD, "in error");
-          assert.equal(await page.locator(badge("fight")).isHidden(), true);
-
-          // Text that is not a number is not blank.
-          await skill.focus();
-          await skill.fill("");
-          await page.keyboard.type("e");
-          await skill.blur();
-          assert.equal(
-            await textOf(page, `${SKILL}-error`),
-            "⚠ Enter a number, or leave it blank.",
-          );
-
-          // In bounds: no errors, Run is back, and the Stats row names it
-          // (#319) and still fits.
-          await enter(page, SKILL, "320");
-          assert.equal(await page.locator(`${SKILL}-error`).isHidden(), true);
-          assert.equal(await page.locator("#run-button").isDisabled(), false);
-          const typed = await summary(page);
-          assert.match(typed.text, / · 320 weapon skill$/);
-          assert.ok(typed.fits, `${width} ${text}: the summary fits its row`);
-          await go(page, "#character/stats", SKILL);
-          await enter(page, SKILL, "");
-          assert.equal(await skill.getAttribute("aria-invalid"), null);
-          const blank = await summary(page);
-          assert.doesNotMatch(blank.text, /weapon skill|target|enemy/i);
-          assert.deepEqual(errors, []);
-        } finally {
-          await context.close();
-        }
+describe("Weapon skill on Character › Stats (#318, #385)", () => {
+  test("the typed weapon skill field is gone; a config skill still shows in the summary", async () => {
+    const { context, page, errors } = await open(WIDTHS[2], TEXT_SIZES[0]);
+    try {
+      await go(page, "#character/stats", "#cfg-race");
+      assert.equal(await page.locator(SKILL).count(), 0);
+      // Target level is Fight's, not Character's (qa-319 P1).
+      assert.equal(await page.locator(`#area-character ${TARGET}`).count(), 0);
+      await page.goto(`${base}?e2e#character`);
+      await page.waitForFunction(() => globalThis.__store != null);
+      await page.evaluate(() => {
+        const { config } = globalThis.__store.get();
+        const next = structuredClone(config);
+        next.character = { ...next.character, weaponSkill: 315 };
+        globalThis.__store.set({ config: next });
       });
+      const stats = (await summary(page)).text;
+      assert.match(stats, / · 315 weapon skill$/);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
     }
-  }
+  });
 });
 
 describe("Target level in Fight, next to its note (qa-319 P1)", () => {
@@ -384,7 +322,7 @@ describe("Target level in Fight, next to its note (qa-319 P1)", () => {
       );
       try {
         await enter(page, TARGET, "64");
-        await go(page, "#character/stats", SKILL);
+        await go(page, "#character/stats", "#cfg-race");
         // The form footer's link.
         const link = page.locator("#cfg-fix-list a", {
           hasText: "Target level",
@@ -396,7 +334,7 @@ describe("Target level in Fight, next to its note (qa-319 P1)", () => {
           TARGET.slice(1),
         );
         // The Run panel's "Fix" link.
-        await go(page, "#character/stats", SKILL);
+        await go(page, "#character/stats", "#cfg-race");
         const fix = page.locator("#run-errors-link");
         if (await fix.isVisible()) {
           await fix.click();
@@ -415,16 +353,14 @@ describe("Target level in Fight, next to its note (qa-319 P1)", () => {
   }
 });
 
-describe("Weapon skill and Target level together (#318)", () => {
-  test("350 typed, level 40 then back to 60: an error, then 350 again", async () => {
+describe("Weapon skill and Target level together (#318, #385)", () => {
+  test("a typed target level stays through a level change; gear builds block Run under 60", async () => {
     const { context, page, errors } = await open(WIDTHS[2], TEXT_SIZES[0]);
     try {
-      await enter(page, SKILL, "350");
       await go(page, "#fight", TARGET);
       await enter(page, TARGET, "62");
       const setLevel = async (level) => {
         await go(page, "#character/talents", LEVEL);
-        // Empty the 51-point page default so level 40 is legal (#333).
         if (level === "40") {
           await page.locator("#talents-reset").click();
           await page.waitForFunction(() =>
@@ -434,37 +370,15 @@ describe("Weapon skill and Target level together (#318)", () => {
           );
         }
         await enter(page, LEVEL, level);
-        await go(page, "#character/stats", SKILL);
       };
       await setLevel("40");
-      assert.equal(await page.locator(SKILL).inputValue(), "350");
-      assert.equal(
-        await textOf(page, `${SKILL}-error`),
-        "⚠ Weapon skill must be a whole number from 1 to 250 at level 40.",
-      );
-      assert.equal(await page.locator(SKILL).getAttribute("max"), "250");
-      assert.equal(
-        await page.locator(SKILL).getAttribute("placeholder"),
-        "200",
-      );
+      // A gear build cannot run under 60 (coordinator call 16 Nov,
+      // James delegated). A typed target level stays.
       assert.equal(await page.locator("#run-button").isDisabled(), true);
       await go(page, "#fight", TARGET);
       assert.equal(await page.locator(TARGET).inputValue(), "62");
-      assert.equal(
-        await page.locator(TARGET).getAttribute("placeholder"),
-        "43",
-      );
       await setLevel("60");
-      assert.equal(await page.locator(SKILL).inputValue(), "350");
-      assert.equal(await page.locator(`${SKILL}-error`).isHidden(), true);
-      assert.equal(
-        await page.locator(SKILL).getAttribute("aria-invalid"),
-        null,
-      );
-      assert.equal(await page.locator(SKILL).getAttribute("max"), "350");
       assert.equal(await page.locator("#run-button").isDisabled(), false);
-      const stats = (await summary(page)).text;
-      assert.match(stats, / · 350 weapon skill$/);
       await go(page, "#fight", TARGET);
       assert.equal(await page.locator(TARGET).inputValue(), "62");
       assert.match(
@@ -477,7 +391,7 @@ describe("Weapon skill and Target level together (#318)", () => {
     }
   });
 
-  test("a share link fills both fields", async () => {
+  test("a share link carries a config weapon skill and a typed target level", async () => {
     const d = setupDefaults();
     const address = shareUrl(`${base}#character/stats`, {
       ...d,
@@ -493,8 +407,9 @@ describe("Weapon skill and Target level together (#318)", () => {
       `${address}#character/stats`,
     );
     try {
-      assert.equal(await page.locator(SKILL).inputValue(), "315");
+      assert.equal(await page.locator(SKILL).count(), 0);
       assert.equal(await page.locator("#run-button").isDisabled(), false);
+      assert.match((await summary(page)).text, / · 315 weapon skill$/);
       await go(page, "#fight", TARGET);
       assert.equal(await page.locator(TARGET).inputValue(), "62");
       assert.match(
@@ -507,16 +422,14 @@ describe("Weapon skill and Target level together (#318)", () => {
     }
   });
 
-  test("Copy link carries both typed values to a new page", async () => {
+  test("Copy link carries a typed target level to a new page", async () => {
     const { context, page, errors } = await open(WIDTHS[2], TEXT_SIZES[0]);
     try {
       await context.grantPermissions(["clipboard-read", "clipboard-write"], {
         origin: base,
       });
-      await enter(page, SKILL, "310");
       await go(page, "#fight", TARGET);
       await enter(page, TARGET, "61");
-      // Copy link to this build (the header's), then open what it copied.
       await page.locator("#share-link-header").click();
       await page.waitForFunction(
         () => document.getElementById("run-announce").textContent !== "",
@@ -526,10 +439,8 @@ describe("Weapon skill and Target level together (#318)", () => {
       );
       const fresh = await context.newPage();
       fresh.on("pageerror", (error) => errors.push(error.message));
-      await fresh.goto(`${link}#character/stats`);
-      await fresh.locator(SKILL).waitFor({ state: "visible" });
-      assert.equal(await fresh.locator(SKILL).inputValue(), "310");
-      await go(fresh, "#fight", TARGET);
+      await fresh.goto(`${link}#fight`);
+      await fresh.locator(TARGET).waitFor({ state: "visible" });
       assert.equal(await fresh.locator(TARGET).inputValue(), "61");
       assert.match(
         await textOf(fresh, RUN_SUMMARY),

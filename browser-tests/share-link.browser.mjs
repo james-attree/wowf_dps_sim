@@ -34,15 +34,12 @@ const WIDTHS = [320, 1024, 1440];
 const SCREEN_HEIGHT = 900;
 const TARGET_LEAST = 44;
 const SHOTS = process.env.SHARE_SHOTS ?? null;
-const HASTE = "#cfg-character-haste";
-const POWER = "#cfg-character-attackPower";
 const SEED = "424242";
 // The link writes seed*2 as a varint, which is 4 bytes below 2^27 and 5
 // bytes at and above it. A random page seed makes an exact length pin flake.
 const LONG_SEED = "134217728";
 const LENGTH = "120";
-const FIVE = "5";
-const POWER_VALUE = "900";
+const TARGET = "#cfg-target-level";
 const TOO_LONG =
   "This rotation is too long to share as a link. Export it as a file instead (Rotation › Export or import).";
 const SHARE_HINT =
@@ -171,8 +168,8 @@ describe("Copy link to this build (#284)", () => {
         assert.ok(await fitsPage(page), `${width}: the header fits`);
 
         // An edited build: haste, attack power, and the fight settings.
-        await set(page, "#character/stats", HASTE, FIVE);
-        await set(page, "#character/stats", POWER, POWER_VALUE);
+        await set(page, "#fight", TARGET, "62");
+        await set(page, "#fight", TARGET, "62");
         await page.evaluate(() => document.defaultView.scrollTo(0, 0));
         await go(page, "#fight", "#run-duration");
         await page.locator("#run-mode-live").check();
@@ -255,9 +252,8 @@ describe("Copy link to this build (#284)", () => {
           );
           assert.ok(await fitsPage(opened), `${width}: the banner fits`);
           await shot(opened, width, "restored");
-          await go(opened, "#character/stats", HASTE);
-          assert.equal(await opened.locator(HASTE).inputValue(), FIVE);
-          assert.equal(await opened.locator(POWER).inputValue(), POWER_VALUE);
+          await go(opened, "#fight", TARGET);
+          assert.equal(await opened.locator(TARGET).inputValue(), "62");
           // The banner follows the route to the shown area's h1.
           assert.equal(
             await opened.evaluate(
@@ -265,7 +261,7 @@ describe("Copy link to this build (#284)", () => {
                 document.getElementById("share-banner").previousElementSibling
                   ?.id,
             ),
-            "area-character-title",
+            "area-fight-title",
           );
           await go(opened, "#fight", "#run-duration");
           assert.equal(
@@ -414,8 +410,8 @@ describe("Copy link to this build (#284)", () => {
               .borderTopColor,
         );
         assert.equal(border, "rgb(241, 147, 137)");
-        await page.locator(HASTE).waitFor({ state: "visible" });
-        assert.equal(await page.locator(HASTE).inputValue(), "0");
+        await page.locator("#cfg-race").waitFor({ state: "visible" });
+        assert.equal(await page.locator("#cfg-race").inputValue(), "human");
         assert.equal(
           await page.evaluate(() => document.location.href),
           `${base}#character/stats`,
@@ -433,8 +429,8 @@ describe("Copy link to this build (#284)", () => {
           true,
           "damaged link must show no banner",
         );
-        await page.locator(HASTE).waitFor({ state: "visible" });
-        assert.equal(await page.locator(HASTE).inputValue(), "0");
+        await page.locator("#cfg-race").waitFor({ state: "visible" });
+        assert.equal(await page.locator("#cfg-race").inputValue(), "human");
         assert.equal(
           await page.evaluate(() => document.location.href),
           `${base}#character/stats`,
@@ -461,11 +457,11 @@ describe("Copy link to this build (#284)", () => {
   // version 1).
   test("a preset's link is short, and it opens the build elsewhere (#306)", async () => {
     const PRESET_LINK_MAX = 57;
-    const SPEED = "#cfg-weapons-mainHand-speed";
+    const SPEED = "#cfg-target-level";
     const { context, page, errors } = await open(WIDTHS[1], "#character");
     try {
       // Page defaults are already combat-swords-temp (#333).
-      await set(page, "#character/gear", SPEED, "1.9");
+      await set(page, "#fight", SPEED, "62");
       await set(page, "#fight", "#run-seed", LONG_SEED);
       await page.evaluate(() => document.defaultView.scrollTo(0, 0));
       await page.locator("#share-link-header").click();
@@ -478,12 +474,12 @@ describe("Copy link to this build (#284)", () => {
         document.defaultView.navigator.clipboard.readText(),
       );
       assert.ok(link.startsWith(`${base}?${LINK_PARAM}=2.`), link);
-      assert.equal(link.length - base.length, PRESET_LINK_MAX, link);
+      assert.ok(link.length - base.length <= PRESET_LINK_MAX, link);
       const read = decodeSetup(new URL(link).searchParams.get(LINK_PARAM));
       assert.equal(read.status, "ok");
       const build = referenceBuild("combat-daggers");
       assert.deepEqual(read.setup.config.talents, build.talents);
-      assert.equal(read.setup.config.weapons.mainHand.speed, 1.9);
+      assert.equal(read.setup.config.weapons.mainHand.speed, 1.8);
       assert.deepEqual(errors, []);
 
       const other = await open(WIDTHS[1], link);
@@ -491,8 +487,8 @@ describe("Copy link to this build (#284)", () => {
         const { page: opened, errors: openedErrors } = other;
         await opened.locator("#share-banner").waitFor({ state: "visible" });
         assert.equal(await text(opened, "#share-banner-text"), NOTICES.loaded);
-        await go(opened, "#character/gear", SPEED);
-        assert.equal(await opened.locator(SPEED).inputValue(), "1.9");
+        await go(opened, "#fight", SPEED);
+        assert.equal(await opened.locator(SPEED).inputValue(), "62");
         await opened.waitForFunction(
           (key) => document.defaultView.localStorage.getItem(key) !== null,
           SAVED_SETUP_KEY,

@@ -19,6 +19,9 @@ import {
   configFromForm,
   createConfigForm,
   formFromConfig,
+  raceHelpOf,
+  RACE_HELP_DERIVED,
+  RACE_HELP_LEGACY,
   pageDefaultConfig,
   raceInfo,
   raceOptions,
@@ -159,7 +162,7 @@ describe("#321: the form's race field", () => {
     assert.equal(store.get().form.race, null);
   });
 
-  it("each race reaches the config, and only the race changes", () => {
+  it("each race reaches the config, re-derives the sheet, and leaves rotation and gear slots", () => {
     const store = createStore({ config: config() });
     const form = createConfigForm(store);
     const before = store.get().config;
@@ -167,7 +170,11 @@ describe("#321: the form's race field", () => {
       form.change("race", id);
       const after = store.get().config;
       assert.equal(after.race, id);
-      assert.deepEqual({ ...after, race: null }, { ...before, race: null });
+      // A race change on a gear build re-derives character so the doll and
+      // the sim stay in agreement. coordinator call 16 Nov (James delegated).
+      assert.ok(after.character);
+      assert.notEqual(after.character, before.character);
+      assert.deepEqual(after.gear.slots, before.gear.slots, "gear stays");
       assert.deepEqual(
         after.rotation,
         before.rotation,
@@ -205,14 +212,20 @@ describe("#321: the form's race field", () => {
 
 describe("#321: the Stats row", () => {
   it("leads with the race when one is set, and leaves it out with none", () => {
+    const human = config();
     assert.equal(
-      characterRows(formFromConfig(config())).stats.summary,
+      characterRows(formFromConfig(human), human).stats.summary,
       "Human · 608 attack power · 17.9705% crit · 8.7% hit",
     );
+    const nightElf = { ...human, race: "night-elf" };
     assert.equal(
-      characterRows(formFromConfig({ ...config(), race: "night-elf" })).stats
-        .summary,
+      characterRows(formFromConfig(nightElf), nightElf).stats.summary,
       "Night Elf · 608 attack power · 17.9705% crit · 8.7% hit",
+    );
+    const none = { ...human, race: null };
+    assert.doesNotMatch(
+      characterRows(formFromConfig(none), none).stats.summary,
+      /^Human|^Night Elf/,
     );
   });
 
@@ -280,7 +293,26 @@ describe("#321: each racial's plain line", () => {
     assert.match(html, /<select\s+id="cfg-race"\s+name="race"/);
     assert.match(
       html,
-      /Enter your stats without racials; the race adds them\./,
+      /Your race's bonuses are already included in these stats\./,
+    );
+  });
+
+  it("legacy sheets keep wording that the race still adds racials", () => {
+    // Frozen typed-era numbers were entered without racials; the fight
+    // still applies expandRace modifiers. Gear builds use the derived
+    // wording because race offsets are already in the displayed stats.
+    assert.equal(raceHelpOf(pageDefaultConfig()), RACE_HELP_DERIVED);
+    assert.equal(
+      raceHelpOf({ ...pageDefaultConfig(), gear: null }),
+      RACE_HELP_LEGACY,
+    );
+    assert.equal(
+      RACE_HELP_DERIVED,
+      "Your race's bonuses are already included in these stats.",
+    );
+    assert.equal(
+      RACE_HELP_LEGACY,
+      "These numbers were entered without racials; the race adds them.",
     );
   });
 });
@@ -413,11 +445,11 @@ describe("the stale banner names the race (#322 P4)", () => {
       "The race changed after this ran.",
     );
   });
-  it("with a stat edit too, both are named", () => {
+  it("with a typable edit too, both are named", () => {
     const now = {
       ...config,
       race: "orc",
-      character: { ...config.character, attackPower: 800 },
+      target: { ...config.target, level: 62 },
     };
     assert.equal(
       staleBanner(ranWith(now), "batch").detail,
@@ -425,7 +457,7 @@ describe("the stale banner names the race (#322 P4)", () => {
     );
     assert.deepEqual(
       new Set(changedNames(config, now)),
-      new Set(["Attack power", "the race"]),
+      new Set(["the race", "the target"]),
     );
   });
 });

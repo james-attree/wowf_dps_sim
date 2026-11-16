@@ -13,12 +13,6 @@ import { startStaticServer } from "../scripts/serve.mjs";
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const WIDTHS = [1280, 390, 360];
 const SCREEN_HEIGHT = 900;
-// A pair the form refuses (Max under Min), then a Min that is invalid on its
-// own (not whole) and so leaves the Max fine.
-const PAIR_MIN = "50";
-const PAIR_MAX = "40";
-const NOT_WHOLE = "1.5";
-
 let server;
 let base;
 let browser;
@@ -53,7 +47,7 @@ async function open(width) {
         : route.abort(),
   );
   // The weapons' fields are on Character's Gear and weapons (#244, UX6).
-  await page.goto(`${base}#character/gear`);
+  await page.goto(`${base}#fight`);
   await page.locator("#run-button").waitFor({ state: "visible" });
   return { context, page, errors };
 }
@@ -92,32 +86,22 @@ function agree(state, step) {
 
 describe("Run's blocked check is its count (#237)", () => {
   for (const width of WIDTHS) {
-    test(`a Min typed invalid after its pair's error, at ${width}`, async () => {
+    test(`a target level typed invalid is counted as typed, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
-      const min = page.locator("#cfg-weapons-mainHand-min");
-      const max = page.locator("#cfg-weapons-mainHand-max");
-      await min.fill(PAIR_MIN);
-      await min.blur();
-      await max.fill(PAIR_MAX);
-      await max.blur();
-      const pair = await read(page);
-      agree(pair, "the pair's error");
-      assert.equal(pair.runCount, 1, "the Max's error, once");
-
-      await min.click();
-      await min.fill(NOT_WHOLE);
-      const typing = await read(page);
-      agree(typing, "typing");
-      // A pair in error is checked as typed (#240, Fran's #249 N1): the
-      // Min's own message takes the pair's at once.
-      assert.equal(typing.runCount, 1, "the Min's own error, as typed");
-      assert.equal(await min.getAttribute("aria-invalid"), "true");
-
-      await min.blur();
+      const field = page.locator("#cfg-target-level");
+      await field.fill("0");
+      await field.blur();
       const committed = await read(page);
       agree(committed, "committed");
-      assert.equal(committed.runCount, 1, "the Min's own error");
-      assert.equal(await min.getAttribute("aria-invalid"), "true");
+      assert.equal(committed.runCount, 1, "the field's error, once");
+      assert.equal(await field.getAttribute("aria-invalid"), "true");
+
+      await field.click();
+      await field.fill("4.5");
+      const typing = await read(page);
+      agree(typing, "typing");
+      assert.equal(typing.runCount, 1, "still invalid as typed");
+      assert.equal(await field.getAttribute("aria-invalid"), "true");
       assert.deepEqual(errors, []);
       await context.close();
     });

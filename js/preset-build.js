@@ -79,6 +79,11 @@ const nounOf = (type, many) => {
 };
 const article = (word) => (/^[aeiou]/i.test(word) ? "an" : "a");
 
+// Shared wording for the rotation weapon-mismatch note
+// (js/rotation-weapon-mismatch.js).
+export const weaponNoun = nounOf;
+export const weaponArticle = article;
+
 // "a", "a and b", "a, b and c".
 export function listText(items) {
   if (items.length <= 1) {

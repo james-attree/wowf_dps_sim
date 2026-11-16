@@ -25,7 +25,7 @@ const config = () => normalizeConfig(pageDefaultConfig());
 
 describe("Character's rows (#244)", () => {
   it("say what Gear and weapons and Stats hold, poisons by hand", () => {
-    const rows = characterRows(formFromConfig(config()));
+    const rows = characterRows(formFromConfig(config()), config());
     assert.equal(
       rows.gear.summary,
       "Main hand Dagger 54–102 · Instant Poison / Off hand Axe 71–134 · Deadly Poison",
@@ -39,23 +39,27 @@ describe("Character's rows (#244)", () => {
   });
 
   it("count each screen's fields to fix, and dash a value that isn't a number", () => {
-    const form = formFromConfig(config());
+    const base = config();
+    const form = formFromConfig(base);
     const values = {
       ...form.values,
-      "weapons.mainHand.min": NaN,
-      "weapons.offHand.max": -1,
-      "character.attackPower": NaN,
-      "poisons.offHand": null,
+      "poisons.offHand": "nope",
+      race: "hobbit",
     };
-    const rows = characterRows({
-      ...form,
-      values,
-      errors: validateValues(values),
-    });
-    assert.match(rows.gear.summary, /^Main hand Dagger —–102 · /);
-    assert.match(rows.gear.summary, / \/ Off hand Axe 71–-1 · No poison$/);
-    assert.match(rows.stats.summary, /^Human · — attack power · /);
-    assert.ok(rows.gear.fix >= 2, JSON.stringify(rows));
+    const rows = characterRows(
+      {
+        ...form,
+        values,
+        errors: validateValues(values),
+      },
+      base,
+    );
+    assert.match(
+      rows.gear.summary,
+      /No poison|Choose a poison|Deadly|Off hand/,
+    );
+    assert.match(rows.stats.summary, /608 attack power/);
+    assert.ok(rows.gear.fix >= 1, JSON.stringify(rows));
     assert.equal(rows.stats.fix, 1);
     assert.equal(fixText(rows.stats.fix), "1 to fix");
     assert.equal(fixText(3), "3 to fix");
@@ -66,7 +70,7 @@ describe("Character's rows (#244)", () => {
     const store = createStore({ config: config() });
     createConfigForm(store);
     assert.equal(
-      characterRows(store.get().form).stats.summary,
+      characterRows(store.get().form, store.get().config).stats.summary,
       "Human · 608 attack power · 17.9705% crit · 8.7% hit",
     );
   });

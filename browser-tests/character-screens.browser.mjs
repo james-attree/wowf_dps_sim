@@ -26,14 +26,14 @@ const ROWS = [
     title: "Gear and weapons",
     summary:
       "Main hand Dagger 54–102 · Instant Poison / Off hand Axe 71–134 · Deadly Poison",
-    field: "#cfg-weapons-mainHand-min",
+    field: "#gear-slot-mainHand",
   },
   {
     row: "character-row-stats",
     hash: "#character/stats",
     title: "Stats",
     summary: "Human · 608 attack power · 17.9705% crit · 8.7% hit",
-    field: "#cfg-character-attackPower",
+    field: "#cfg-race",
   },
   {
     row: "talents-edit",
@@ -188,9 +188,8 @@ for (const width of [WIDE, PHONE]) {
       const { context, page, errors } = await open(width, "#character/gear");
       try {
         const chip = page.locator("#character-gear-status");
-        await page.fill("#cfg-weapons-mainHand-min", "50");
-        await page.fill("#cfg-weapons-mainHand-max", "40");
-        await page.locator("#cfg-weapons-mainHand-max").blur();
+        await page.click("#gear-slot-mainHand");
+        await page.locator("#gear-opt-empty").click();
         await page.click("#character-back");
         await hashIs(page, "#character");
         await chip.waitFor({ state: "visible" });
