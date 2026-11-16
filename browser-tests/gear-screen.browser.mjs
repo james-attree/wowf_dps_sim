@@ -358,6 +358,123 @@ describe("gear screen paper doll (#384)", () => {
       await context.close();
     }
   });
+
+  test("empty main hand disables Run with a clear reason", async () => {
+    // coordinator call 16 Nov (James delegated).
+    const { context, page, errors } = await open(1280);
+    try {
+      await page.click("#gear-slot-mainHand");
+      await page.locator("#gear-opt-empty").click();
+      assert.equal(await page.locator("#run-button").isDisabled(), true);
+      const reason =
+        (await page.locator("#run-reason").innerText()) +
+        " " +
+        (await page.locator("#run-status-text").innerText()) +
+        " " +
+        (await page.locator("#cfg-form-error").innerText()) +
+        " " +
+        (await page.locator("#gear-mh-block").innerText());
+      assert.match(reason, /Equip a main-hand weapon|Can't run|setting/);
+      const weapons = await page.evaluate(
+        () => globalThis.__store.get().config.weapons,
+      );
+      assert.equal(weapons.mainHand, null);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("empty off hand leaves Run on and clears the axe from config", async () => {
+    // coordinator call 16 Nov (James delegated): MH-only, do not block Run.
+    const { context, page, errors } = await open(1280);
+    try {
+      assert.equal(await page.locator("#run-button").isDisabled(), false);
+      await page.click("#gear-slot-offHand");
+      await page.locator("#gear-opt-empty").click();
+      assert.equal(
+        (
+          await page.locator("#gear-slot-offHand .gear-slot-name").innerText()
+        ).trim(),
+        "Empty",
+      );
+      assert.equal(await page.locator("#run-button").isDisabled(), false);
+      const weapons = await page.evaluate(
+        () => globalThis.__store.get().config.weapons,
+      );
+      assert.equal(weapons.offHand, null);
+      assert.ok(weapons.mainHand);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("the phone picker is a dialog above the dock (P2)", async () => {
+    const { context, page, errors } = await open(360);
+    try {
+      await page.click("#gear-slot-chest");
+      const picker = page.locator("#gear-picker");
+      await picker.waitFor({ state: "visible" });
+      assert.equal(await picker.getAttribute("role"), "dialog");
+      assert.equal(await picker.getAttribute("aria-modal"), "true");
+      const stack = await page.evaluate(() => {
+        const picker = document.getElementById("gear-picker");
+        const dock = document.getElementById("run-bar");
+        const nav = document.getElementById("area-nav");
+        const z = (el) => Number.parseFloat(getComputedStyle(el).zIndex);
+        const suffix = document.getElementById("gear-suffix");
+        const suffixBox = suffix.getBoundingClientRect();
+        const dockBox = dock.getBoundingClientRect();
+        return {
+          pickerZ: z(picker),
+          dockZ: z(dock),
+          navZ: z(nav),
+          suffixBottom: suffixBox.bottom,
+          dockTop: dockBox.top,
+        };
+      });
+      assert.ok(stack.pickerZ > stack.dockZ, "picker above the dock");
+      assert.ok(stack.pickerZ > stack.navZ, "picker above the nav");
+      assert.ok(
+        stack.suffixBottom <= stack.dockTop + 1,
+        "suffix is not under the dock",
+      );
+      const last = page
+        .locator("#gear-picker select, #gear-picker-close")
+        .last();
+      await last.focus();
+      await page.keyboard.press("Tab");
+      const stayed = await page.evaluate(() =>
+        document.getElementById("gear-picker").contains(document.activeElement),
+      );
+      assert.equal(stayed, true, "Tab is trapped in the phone picker");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("right-hand slots stay icon-left when the 20rem fallback stacks (P3)", async () => {
+    const { context, page, errors } = await open(1024, "150%");
+    try {
+      const side = await page.evaluate(() => {
+        const face = document.querySelector("#gear-slot-hands .gear-slot-face");
+        const name = document.querySelector("#gear-slot-hands .gear-slot-name");
+        return {
+          face: face.getBoundingClientRect().left,
+          name: name.getBoundingClientRect().left,
+          figure: getComputedStyle(document.getElementById("gear-figure"))
+            .display,
+        };
+      });
+      assert.equal(side.figure, "none");
+      assert.ok(side.face < side.name, "hands icon is on the left");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
 });
 
 describe("gear screen overflow, targets and axe (#384)", () => {

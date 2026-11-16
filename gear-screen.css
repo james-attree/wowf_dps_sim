@@ -88,41 +88,6 @@
   }
 }
 
-/* When the form is narrower than 20rem (a 64em viewport at 150% text, with
-   the results rail still beside it), fall back to the stacked list. */
-@container gear (width < 20rem) {
-  .gear-figure {
-    display: none;
-  }
-
-  .gear-doll {
-    grid-template-columns: 1fr;
-  }
-
-  .gear-slots-left,
-  .gear-slots-right,
-  .gear-weapons {
-    display: contents;
-  }
-
-  .gear-row,
-  .gear-slots-right .gear-row,
-  .gear-weapons .gear-row {
-    grid-template-columns: var(--target) minmax(0, 1fr);
-    padding: 0.25rem 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .gear-slots-right .gear-slot-face {
-    order: 0;
-  }
-
-  .gear-slots-right .gear-slot-copy {
-    order: 0;
-    text-align: left;
-  }
-}
-
 .gear-slots {
   display: flex;
   flex-direction: column;
@@ -308,6 +273,43 @@
 
   .gear-figure {
     display: none;
+  }
+
+  .gear-slots-left,
+  .gear-slots-right,
+  .gear-weapons {
+    display: contents;
+  }
+
+  .gear-row,
+  .gear-slots-right .gear-row,
+  .gear-weapons .gear-row {
+    grid-template-columns: var(--target) minmax(0, 1fr);
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .gear-slots-right .gear-slot-face {
+    order: 0;
+  }
+
+  .gear-slots-right .gear-slot-copy {
+    order: 0;
+    text-align: left;
+  }
+}
+
+/* Below .gear-slots-right so the stacked-list reset wins at 1024 / 150%
+   (Fran's #405 P3). */
+/* When the form is narrower than 20rem (a 64em viewport at 150% text, with
+   the results rail still beside it), fall back to the stacked list. */
+@container gear (width < 20rem) {
+  .gear-figure {
+    display: none;
+  }
+
+  .gear-doll {
+    grid-template-columns: 1fr;
   }
 
   .gear-slots-left,
@@ -557,11 +559,13 @@
   .gear-picker:not([hidden]) {
     position: fixed;
     inset: 0;
-    z-index: 8;
+    /* Above the run dock (20) and the area nav (21). */
+    z-index: 30;
     margin: 0;
     border-radius: 0;
     overflow: auto;
     padding-top: 0.9rem;
+    padding-bottom: calc(var(--chrome-bottom) + 0.9rem);
   }
 
   .gear-listbox {

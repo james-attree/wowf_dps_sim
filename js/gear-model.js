@@ -103,13 +103,23 @@ export function configWithGear(config, slots) {
   try {
     const derived = sheetFromGear(gear, { race: config.race ?? "human" });
     next.character = { ...next.character, ...derived.character };
+    // The doll and the sim must never disagree: an empty hand is null
+    // here, not the previous weapon. coordinator call 16 Nov (James
+    // delegated), per the Q10 ruling of 15 Nov. Empty MH blocks Run;
+    // empty OH runs main-hand only (legal since #390).
     next.weapons = {
-      mainHand: derived.weapons.mainHand ?? next.weapons.mainHand,
-      offHand: derived.weapons.offHand ?? next.weapons.offHand,
+      mainHand: derived.weapons.mainHand,
+      offHand: derived.weapons.offHand,
     };
   } catch {
-    // A conflict in another slot must not drop the player's pick. The
-    // typed weapons stay until the build derives again.
+    // A conflict in another slot must not drop the player's pick, but
+    // an empty hand is still cleared so the sim cannot swing it.
+    if (!gear.slots.mainHand) {
+      next.weapons.mainHand = null;
+    }
+    if (!gear.slots.offHand) {
+      next.weapons.offHand = null;
+    }
   }
   return next;
 }

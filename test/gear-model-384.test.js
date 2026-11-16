@@ -3,7 +3,14 @@ import { describe, it } from "node:test";
 import enchants from "../data/items/enchants.json" with { type: "json" };
 import items from "../data/items/rogue-items.json" with { type: "json" };
 import suffixes from "../data/items/suffixes.json" with { type: "json" };
-import { pageDefaultConfig } from "../js/config-form.js";
+import {
+  FORM_ERROR,
+  nextRunConfig,
+  pageDefaultConfig,
+} from "../js/config-form.js";
+import { createGearActions } from "../js/gear-actions.js";
+import { runFight } from "../js/fight.js";
+import { normalizeConfig } from "../js/sim-config.js";
 import { GEAR_SLOTS } from "../js/gear-build.js";
 import {
   CREDIT_HREF,
@@ -20,6 +27,22 @@ import {
 import { CONFLICT_COPY, indexTables } from "../js/gear-search.js";
 
 const tables = indexTables({ items, enchants, suffixes });
+
+function storeOf(config) {
+  let state = { config, form: { revision: 0, errors: {} } };
+  return {
+    get: () => state,
+    set(patch) {
+      state = { ...state, ...patch };
+    },
+  };
+}
+
+function handCasts(result, pattern) {
+  return Object.entries(result.abilities).reduce((sum, [name, row]) => {
+    return pattern.test(name) ? sum + (row.casts ?? 0) : sum;
+  }, 0);
+}
 
 function named(name) {
   for (const item of tables.items.values()) {
@@ -71,19 +94,16 @@ describe("gear view model (#384)", () => {
     assert.equal(CREDIT_HREF, "https://github.com/wowsims/forever");
   });
 
-  it("warns when the main hand is emptied and keeps a runnable sheet (M13)", () => {
-    // Mutant M13: clearing the main hand writes weapons.mainHand = null,
-    // which normalizeConfig refuses, or the warning is omitted.
+  it("warns when the main hand is emptied and clears it from config (M13)", () => {
+    // Mutant M13: clearing the main hand keeps the previous dagger, so the
+    // doll and the sim disagree, or the warning is omitted.
+    // coordinator call 16 Nov (James delegated).
     const config = pageDefaultConfig();
     const slots = setSlot(config.gear.slots, "mainHand", null);
     assert.equal(slots.mainHand, undefined);
     const next = configWithGear(config, slots);
     assert.equal(next.gear.slots.mainHand, undefined);
-    assert.ok(
-      next.weapons.mainHand,
-      "the last main hand is kept so the form can still commit",
-    );
-    assert.equal(next.weapons.mainHand.min, 54);
+    assert.equal(next.weapons.mainHand, null);
     const view = gearViewModel(next, tables);
     assert.equal(view.emptyMainHand, true);
     assert.equal(view.emptyMainHandText, EMPTY_MH);
@@ -93,16 +113,62 @@ describe("gear view model (#384)", () => {
   });
 
   it("lets the off hand go empty once PR3 has landed (M14)", () => {
-    // Mutant M14: emptying the off hand is refused, or the row still
-    // shows Dark Iron Destroyer.
+    // Mutant M14: emptying the off hand is refused, or the previous axe
+    // stays in config, or the row still shows Dark Iron Destroyer.
     const config = pageDefaultConfig();
     const next = configWithGear(
       config,
       setSlot(config.gear.slots, "offHand", null),
     );
+    assert.equal(next.weapons.offHand, null);
+    assert.ok(next.weapons.mainHand);
     const view = gearViewModel(next, tables);
     assert.equal(view.rows.offHand.empty, true);
     assert.equal(view.emptyMainHand, false);
+  });
+
+  it("an empty main hand disables Run with a clear reason", () => {
+    // coordinator call 16 Nov (James delegated), per the Q10 ruling of
+    // 15 Nov: an empty MH blocks Run; the doll and the sim never disagree.
+    const store = storeOf(pageDefaultConfig());
+    const actions = createGearActions(store, {
+      searchStart: 2,
+      resultCap: 20,
+    });
+    actions.applySlots(
+      setSlot(store.get().config.gear.slots, "mainHand", null),
+    );
+    const { config, form } = store.get();
+    assert.equal(config.weapons.mainHand, null);
+    assert.equal(config.gear.slots.mainHand, undefined);
+    assert.match(form.errors[FORM_ERROR], /Equip a main-hand weapon/);
+    assert.equal(nextRunConfig(store.get()), null);
+  });
+
+  it("an empty off hand runs main-hand only, not the P1 DPS", () => {
+    // coordinator call 16 Nov (James delegated): clear the OH from config;
+    // don't block Run; 0 OH swings; DPS differs from P1 (331.62).
+    const p1Config = pageDefaultConfig();
+    const store = storeOf(p1Config);
+    const actions = createGearActions(store, {
+      searchStart: 2,
+      resultCap: 20,
+    });
+    actions.applySlots(setSlot(p1Config.gear.slots, "offHand", null));
+    const { config, form } = store.get();
+    assert.equal(config.weapons.offHand, null);
+    assert.equal(form.errors[FORM_ERROR], undefined);
+    const runnable = nextRunConfig(store.get());
+    assert.ok(runnable);
+    assert.equal(runnable.weapons.offHand, null);
+    assert.equal(normalizeConfig(config).weapons.offHand, null);
+    const p1 = runFight({ seed: 1, duration: 30, config: p1Config });
+    const one = runFight({ seed: 1, duration: 30, config: runnable });
+    assert.equal(Number(p1.dps.toFixed(2)), 331.62);
+    assert.notEqual(Number(one.dps.toFixed(2)), 331.62);
+    assert.ok(handCasts(p1, /off-hand/i) > 0);
+    assert.equal(handCasts(one, /off-hand/i), 0);
+    assert.ok(handCasts(one, /main-hand/i) > 0);
   });
 
   it("equipping a different legal item updates the derived sheet (M15)", () => {

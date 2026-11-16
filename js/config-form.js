@@ -124,6 +124,38 @@ function gearFieldsEdited(next, base) {
 export const FORM_ERROR = "form";
 
 const HANDS = ["mainHand", "offHand"];
+const WEAPON_FIELD_KEYS = ["type", "min", "max", "speed"];
+const EMPTY_MH = "Equip a main-hand weapon.";
+
+// An empty off hand is a legal config (PR3 / #390) and must not fail the
+// field checks or block Run. An empty main hand is null and blocks Run
+// with this reason. coordinator call 16 Nov (James delegated), per the
+// Q10 ruling of 15 Nov.
+function handIsEmpty(values, hand) {
+  return WEAPON_FIELD_KEYS.every((key) => {
+    const value = values[`weapons.${hand}.${key}`];
+    return value == null || value === "";
+  });
+}
+
+function writeHands(config, values) {
+  if (config.weapons == null) {
+    config.weapons = {};
+  }
+  for (const hand of HANDS) {
+    if (handIsEmpty(values, hand)) {
+      config.weapons[hand] = null;
+      continue;
+    }
+    if (config.weapons[hand] == null) {
+      config.weapons[hand] = {};
+    }
+    for (const key of WEAPON_FIELD_KEYS) {
+      write(config, `weapons.${hand}.${key}`, values[`weapons.${hand}.${key}`]);
+    }
+  }
+}
+
 // The fields a blank leaves to follow the level (#318): null in the config
 // and the form while blank.
 export const OPTIONAL_FIELDS = Object.freeze([
@@ -492,7 +524,14 @@ export function formValues(config) {
 // (levelsInfo of the config's level).
 export function validateValues(values, levels = levelsInfo()) {
   const errors = {};
+  if (handIsEmpty(values, "mainHand")) {
+    errors[FORM_ERROR] = `This setup can't run: ${EMPTY_MH}`;
+  }
   for (const { path, check } of FORM_FIELDS) {
+    const hand = path.startsWith("weapons.") ? path.split(".")[1] : null;
+    if (hand && handIsEmpty(values, hand)) {
+      continue;
+    }
     const message = check(values[path], values, levels);
     if (message !== "") {
       errors[path] = message;
@@ -677,17 +716,25 @@ export function formFromConfig(config, revision = 0) {
 // the form does not edit: the target (always from behind, fromBehind), and the build, config.talents and
 // config.talentLevel, which the talent tree owns (#204); the form used to
 // rebuild the talents from a select and wiped any other build). normalizeConfig checks it: the
-// backstop behind the field checks, so a config it refuses never reaches the
-// store. Throws what normalizeConfig throws.
+// backstop behind the field checks, so a config it refuses normally never
+// reaches the store. The one exception is an empty main hand on the paper
+// doll: that config is stored with weapons.mainHand = null so the doll and
+// the sim cannot disagree, and Run is blocked with this reason.
+// coordinator call 16 Nov (James delegated). Throws what normalizeConfig
+// throws.
 export function configFromForm(form, base) {
   const config = copy(base);
   for (const path of FIELD_PATHS) {
+    if (path.startsWith("weapons.")) {
+      continue;
+    }
     write(config, path, form.values[path]);
   }
+  writeHands(config, form.values);
   config.rotation = rotationOf(form.rotationChoice, form.imported, form.drafts);
   // Typing the sheet or a weapon's damage leaves the gear list. A race
   // change, weapon skill, and target level do not.
-  // coordinator call 16 Nov (James delegated 15 Nov).
+  // coordinator call 16 Nov (James delegated).
   if (config.gear != null && gearFieldsEdited(config, base)) {
     delete config.gear;
   }

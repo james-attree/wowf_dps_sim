@@ -3,7 +3,7 @@
 // legacy-sheet screen stay in PR7.
 
 import { attachIconFallback, iconUrl } from "../icons.js";
-import { WIDE_QUERY } from "./breakpoints.js";
+import { NOT_WIDE_QUERY, WIDE_QUERY } from "./breakpoints.js";
 
 const NONE = -1;
 const FIRST = 0;
@@ -18,6 +18,7 @@ const KEY = Object.freeze({
   escape: "Escape",
   home: "Home",
   end: "End",
+  tab: "Tab",
 });
 
 function write(node, text) {
@@ -73,6 +74,36 @@ export function createGearScreenView(doc, store, actions) {
   const currentSlots = () => actions.currentSlots();
   const copy = actions.copy;
 
+  function phonePicker() {
+    return win?.matchMedia?.(NOT_WIDE_QUERY).matches === true;
+  }
+
+  function pickerFocusables() {
+    if (picker == null) {
+      return [];
+    }
+    return [
+      ...picker.querySelectorAll(
+        "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      ),
+    ].filter((node) => !node.hidden && node.getClientRects().length > 0);
+  }
+
+  function setPickerChrome(on) {
+    if (picker == null) {
+      return;
+    }
+    if (on && phonePicker()) {
+      picker.setAttribute("role", "dialog");
+      picker.setAttribute("aria-modal", "true");
+      picker.setAttribute("aria-labelledby", "gear-picker-title");
+    } else {
+      picker.removeAttribute("role");
+      picker.removeAttribute("aria-modal");
+      picker.removeAttribute("aria-labelledby");
+    }
+  }
+
   function closePicker() {
     const was = openSlot;
     openSlot = null;
@@ -81,6 +112,7 @@ export function createGearScreenView(doc, store, actions) {
     active = NONE;
     lastStatus = EMPTY_VALUE;
     show(picker, false);
+    setPickerChrome(false);
     if (search !== null) {
       search.value = EMPTY_VALUE;
       search.setAttribute("aria-expanded", "false");
@@ -314,6 +346,7 @@ export function createGearScreenView(doc, store, actions) {
     query = EMPTY_VALUE;
     lastStatus = EMPTY_VALUE;
     show(picker, true);
+    setPickerChrome(true);
     write(pickerTitle, actions.slotLabel(slot));
     write(searchLabel, `Search ${actions.slotLabel(slot).toLowerCase()} items`);
     if (search !== null) {
@@ -514,6 +547,23 @@ export function createGearScreenView(doc, store, actions) {
     if (event.key === KEY.escape && event.target !== search) {
       event.preventDefault();
       closePicker();
+      return;
+    }
+    if (event.key !== KEY.tab || picker.hidden || !phonePicker()) {
+      return;
+    }
+    const items = pickerFocusables();
+    if (items.length === 0) {
+      return;
+    }
+    const first = items[FIRST];
+    const last = items[items.length - STEP];
+    if (event.shiftKey && doc.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && doc.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
   });
   enchantSelect?.addEventListener("change", () => applyMod());

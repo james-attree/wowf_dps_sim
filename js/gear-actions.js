@@ -1,7 +1,7 @@
 // Host actions for the #297 PR6 gear screen. The view may not import these
 // modules, so js/main.js hands this object to js/views/gear-screen.js.
 
-import { formFromConfig, fromBehind } from "./config-form.js";
+import { FORM_ERROR, formFromConfig, fromBehind } from "./config-form.js";
 import { configWithGear, gearViewModel, setSlot } from "./gear-model.js";
 import {
   CREDIT_AFTER,
@@ -70,13 +70,24 @@ export function createGearActions(store, { searchStart, resultCap }) {
     },
     applySlots(nextSlots) {
       const now = store.get();
-      const config = normalizeConfig(
-        fromBehind(configWithGear(now.config, nextSlots)),
-      );
+      const drafted = fromBehind(configWithGear(now.config, nextSlots));
+      const errors = {};
+      let config;
+      try {
+        config = normalizeConfig(drafted);
+      } catch (error) {
+        // Empty main hand: persist the doll and a null hand so a run cannot
+        // still swing the weapon the user cleared. Run is blocked with the
+        // engine's reason. coordinator call 16 Nov (James delegated).
+        config = drafted;
+        errors[FORM_ERROR] =
+          `This setup can't run: ${error instanceof Error ? error.message : String(error)}`;
+      }
       store.set({
         config,
         form: {
           ...formFromConfig(config, (now.form?.revision ?? FIRST) + STEP),
+          errors,
           canUndo: false,
         },
       });
