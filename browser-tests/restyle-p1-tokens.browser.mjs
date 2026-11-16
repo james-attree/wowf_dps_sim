@@ -1,6 +1,7 @@
 // Restyle C, phase 1: C tokens, self-hosted Cinzel on headings, and
 // Fran's 360 / 150% wrap check. Do not pin Cinzel (or DejaVu) in
 // metric-stable asserts; assert tokens, font load, and wrapping.
+// #396 N2/M6 (phase 2): also fail if body text or buttons switch to Cinzel.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
@@ -275,6 +276,42 @@ describe("restyle C phase 1 tokens and heading font", () => {
       assert.ok(fonts.labelled.length > 0, "no visible section labels");
       for (const label of fonts.labelled) {
         assert.equal(label.color, header, label.name);
+      }
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("body, buttons, fields and table cells are not Cinzel", async () => {
+    const { context, page, errors } = await open(
+      1280,
+      "100%",
+      "#results/weights",
+    );
+    try {
+      const families = await page.evaluate(() => {
+        const family = (node) =>
+          node ? globalThis.getComputedStyle(node).fontFamily : null;
+        return {
+          body: family(globalThis.document.body),
+          button: family(
+            globalThis.document.querySelector(
+              "button, .run-button, .pill-button",
+            ),
+          ),
+          field: family(
+            globalThis.document.querySelector(
+              "input:not([type='hidden']), select, textarea",
+            ),
+          ),
+          cell: family(globalThis.document.querySelector("th, td")),
+        };
+      });
+      const cinzel = /(?:^|,)\s*["']?Cinzel["']?\s*(?:,|$)/i;
+      for (const [name, family] of Object.entries(families)) {
+        assert.ok(family, `missing ${name}`);
+        assert.doesNotMatch(family, cinzel, `${name}: ${family}`);
       }
       assert.equal(errors.length, 0, errors.join("\n"));
     } finally {
