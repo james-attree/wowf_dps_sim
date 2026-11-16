@@ -15,6 +15,7 @@ import {
   warningsText,
   talentErrorCount,
   isLocked,
+  MANUAL_AVERAGE_REASON,
   parseRunField,
   summaryText,
 } from "./run-model.js";
@@ -83,8 +84,12 @@ export { NARROW_QUERY };
 export function createControlsView(doc, store, actions = {}) {
   const $ = (id) => doc.querySelector(`#${id}`);
   const bar = $("run-controls");
+  const runMode = $("run-mode");
   const modeLive = $("run-mode-live");
   const modeBatch = $("run-mode-batch");
+  const batchReason = $("run-mode-batch-reason");
+  const modeAnnounce = $("run-mode-announce");
+  let wasManual = false;
   const iterationsField = $("run-iterations-field");
   const inputs = Object.fromEntries(
     FIELDS.map((name) => [name, $(`run-${name}`)]),
@@ -220,7 +225,32 @@ export function createControlsView(doc, store, actions = {}) {
     modeLive.checked = run.mode === "live";
     modeBatch.checked = run.mode === "batch";
     modeLive.disabled = locked;
-    modeBatch.disabled = locked;
+    const manual = run.fightMode === "manual";
+    modeBatch.disabled = locked || manual;
+    if (batchReason !== null) {
+      batchReason.hidden = !manual;
+      batchReason.textContent = manual ? MANUAL_AVERAGE_REASON : "";
+    }
+    if (manual) {
+      modeBatch.setAttribute("aria-describedby", "run-mode-batch-reason");
+    } else {
+      modeBatch.removeAttribute("aria-describedby");
+    }
+    if (runMode !== null) {
+      if (manual) {
+        runMode.setAttribute("aria-describedby", "run-mode-batch-reason");
+      } else {
+        runMode.removeAttribute("aria-describedby");
+      }
+    }
+    if (modeAnnounce !== null) {
+      if (manual && !wasManual) {
+        modeAnnounce.textContent = MANUAL_AVERAGE_REASON;
+      } else if (!manual) {
+        modeAnnounce.textContent = "";
+      }
+    }
+    wasManual = manual;
     iterationsField.hidden = run.mode !== "batch";
     newSeed.disabled = locked;
     for (const name of FIELDS) {

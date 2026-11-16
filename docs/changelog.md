@@ -1,5 +1,9 @@
 # Changelog
 
+## #388
+
+Selecting Manual also selects Live fight, in the same turn, and the Run button uses the live label. Average stays disabled while Manual is selected, with the reason "Manual fights are live, step by step". Choosing Scripted leaves Live selected. Reset to defaults returns Scripted and Average. coordinator call 15 Nov (James delegated).
+
 ## #403
 
 Non-text component edges that were still hard-coded `#54452b` or `#81745c` now use `--control` (`#7d6c50`), so they meet 3:1 against their backgrounds (WCAG 1.4.11). The leftover text uses (`.value-divider`, the inactive sort icon) move to `--text-muted`, which stays above 4.5:1. `--connector-unlit` stays `#54452b` for the decorative unlit talent path. coordinator call 16 Nov (James delegated).
