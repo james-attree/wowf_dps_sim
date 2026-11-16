@@ -4,11 +4,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
-import {
-  createConfigForm,
-  nextRunConfig,
-  pageDefaultConfig,
-} from "../js/config-form.js";
+import { LEGACY_DAGGER_PRESET } from "../data/legacy-sheets.js";
+import { createConfigForm, nextRunConfig } from "../js/config-form.js";
+import { legacyPageConfig } from "../js/legacy-page.js";
 import { createPresetBuild } from "../js/preset-build.js";
 import { referenceBuild } from "../js/rotation-presets.js";
 import { createStore } from "../js/store.js";
@@ -17,11 +15,17 @@ const DAGGERS = "combat-daggers";
 
 describe("Combat daggers character sheet (#340)", () => {
   it("uses character.dagger attack power and crit, and keeps the 59-111 off hand", () => {
-    const build = referenceBuild(DAGGERS);
-    assert.deepEqual(build.character, {
-      attackPower: k("character.dagger.attackPower"),
-      critChance: k("character.dagger.critChance"),
-    });
+    const build = LEGACY_DAGGER_PRESET;
+    assert.deepEqual(
+      {
+        attackPower: build.character.attackPower,
+        critChance: build.character.critChance,
+      },
+      {
+        attackPower: k("character.dagger.attackPower"),
+        critChance: k("character.dagger.critChance"),
+      },
+    );
     assert.equal(k("presetReferenceBuild.daggerCharacter"), "character.dagger");
     assert.deepEqual(build.weapons.offHand, {
       ...k("presetReferenceBuild.daggerOffHand"),
@@ -46,7 +50,21 @@ describe("Combat daggers character sheet (#340)", () => {
   });
 
   it("a pick writes the dagger sheet onto the config", () => {
-    const store = createStore({ config: pageDefaultConfig() });
+    const swords = legacyPageConfig();
+    const store = createStore({
+      config: {
+        ...swords,
+        character: {
+          ...swords.character,
+          attackPower: k("character.dagger.attackPower"),
+          critChance: k("character.dagger.critChance"),
+        },
+        weapons: {
+          mainHand: { ...LEGACY_DAGGER_PRESET.weapons.mainHand },
+          offHand: { ...LEGACY_DAGGER_PRESET.weapons.offHand },
+        },
+      },
+    });
     const form = createConfigForm(store);
     const build = createPresetBuild(store, form);
     assert.equal(build.pick(DAGGERS, "Combat daggers"), true);

@@ -213,7 +213,7 @@ for (const width of [WIDE, PHONE]) {
         });
         assert.deepEqual(await axOf(page, "#talents-edit"), {
           name: "Talents",
-          description: "Combat 16/35/0 · 51/51",
+          description: "Combat 13/35/3 · 51/51",
         });
         assert.deepEqual(errors, []);
       } finally {

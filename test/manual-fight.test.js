@@ -164,8 +164,8 @@ describe("manual fight block reasons (#348)", () => {
       duration: 30,
       config: presetConfig("assassination-daggers", {
         weapons: {
-          ...referenceBuild("assassination-daggers").weapons,
-          offHand: referenceBuild("combat-swords-temp").weapons.offHand,
+          ...legacyPresetGear("assassination-daggers").weapons,
+          offHand: legacyPresetGear("combat-swords-temp").weapons.offHand,
         },
       }),
     });

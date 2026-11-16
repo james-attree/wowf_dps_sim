@@ -22,3 +22,31 @@ Presets no longer set weapons or the character sheet. Goldens keep the old
 weapons and sheets from `data/legacy-sheets.js`. Old `?s=2` links still
 decode against that legacy page. The read-only "sheet from an older link"
 screen is left for PR5.
+
+### Expectations retuned (coordinator call 16 Nov, James delegated 15 Nov, option A)
+
+Group 1 is pinned to `data/legacy-sheets.js`. No expected number in these
+files changed: `weapon-skill-target-level`, `combat-daggers-sheet`,
+`subtlety-daggers`, `assassination-daggers`, `weights-support`,
+`weights-model`, `manual-fight`.
+
+Group 2, old → new:
+
+- `build-label.test.js`: page label `Combat 16/35/0 · 51/51 · Combat swords (temporary) · Instant MH, Deadly OH` → `Combat 13/35/3 · 51/51 · Combat daggers · Instant MH, Deadly OH`.
+- `results-panel.test.js`: the build name in two fight lines, `Combat swords (temporary)` → `Combat daggers`. The `16/35/0` stays; that fixture still uses the reference talent build.
+- `config-form.test.js`: rotation choice `combat-swords-temp` → `combat-daggers` (two tests). The summary name and rule count follow Combat daggers. The speed test sets the main hand to a sword first, so 2.4 then 1.7 stay. The level-40 custom build clears the per-hand skill of 300 so the lower cap still accepts the config.
+- `talent-tree.test.js`: page summary `Combat 16/35/0 · 51/51` → `Combat 13/35/3 · 51/51`. Empty setups clear weapon skill 300 before a lower level. The reference-build summary stays `16/35/0`.
+- `rotation-builder.test.js`: the two draft tests write the draft onto `combat-daggers` instead of `combat-swords-temp`. The restored rotation is the dagger list (`sinister-strike` → `backstab` in the builder slot). `blood-fury` at index 9 stays.
+- `start-preset.test.js`: the open card `combat-swords-temp` / `Combat swords (temporary)` → `combat-daggers` / `Combat daggers`. Custom's talent line `16/35/0` → `13/35/3`. A Combat swords pick leaves the page weapons and the sheet (attack power stays the edited 1234, not 767). The race test clears human before it expects a missing race. The level-40 undo clears weapon skill 300 first.
+- `live-view.test.js`: the stub document accepts a text node in `append`. No expected string changed.
+
+`preset-build.test.js` asserts that applying each preset leaves the weapons
+and the character sheet unchanged (James, 15 Nov 2026, issue #297,
+requirement 5, which supersedes James, 10 Nov 2026, issue #340).
+
+Browser expectations that moved with the same default:
+
+- `character-screens.browser.mjs`: talents chip `Combat 16/35/0 · 51/51` → `Combat 13/35/3 · 51/51`.
+- `share-link.browser.mjs`: the preset link's talents are Combat daggers, not Combat swords. A rotation edit of the page default encodes to 75 characters past the origin, was 64 when the page was the codec baseline.
+- `saved-setup.browser.mjs`: Reset and a storage failure that reloads the page show the new sheet (608 attack power, 0.179705 crit, 0.087 hit, human) without the baked expertise 11, which the form does not keep. A broken save still opens the legacy sheet.
+- `haste-field.browser.mjs`: the stats summary is not required to stay on one line at 360 and 390. It still is at 1024.

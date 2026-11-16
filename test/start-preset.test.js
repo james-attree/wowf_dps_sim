@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { k } from "../data/constants.js";
 import {
   createConfigForm,
   isEditedChoice,
@@ -141,7 +140,7 @@ describe("the cards (#323)", () => {
     const custom = customBuild(pageDefaultConfig());
     assert.match(
       pickedText("Custom", custom, CUSTOM, false),
-      /^Custom set: talents 16\/35\/0, .* and the default rotation\./,
+      /^Custom set: talents 13\/35\/3, .* and the default rotation\./,
     );
   });
 });
@@ -186,12 +185,12 @@ describe("when the panel opens (#323)", () => {
     const open = page().slice();
     assert.equal(open.open, true);
     assert.deepEqual(open.point, {
-      id: COMBAT,
-      text: "Combat swords (temporary)",
+      id: "combat-daggers",
+      text: "Combat daggers",
     });
     assert.deepEqual(
       open.cards.filter(({ current }) => current).map(({ id }) => id),
-      [COMBAT],
+      ["combat-daggers"],
     );
     assert.equal(page({ open: false }).slice().open, false);
   });
@@ -209,17 +208,13 @@ describe("a pick and its Undo (#323)", () => {
     const { config, form } = env.store.get();
     const reference = referenceBuild(COMBAT);
     assert.deepEqual(config.talents, reference.talents);
-    assert.deepEqual(config.weapons, reference.weapons);
+    assert.deepEqual(config.weapons, before.weapons);
     assert.deepEqual(config.poisons, reference.poisons);
     assert.equal(form.rotationChoice, COMBAT);
     assert.deepEqual(config.rotation, presetRotation(COMBAT));
-    // James, 10 Nov 2026, #340: Combat swords puts back the sword sheet.
-    // Race and the fight stay.
-    assert.deepEqual(config.character, {
-      ...before.character,
-      attackPower: k("character.attackPower"),
-      critChance: k("character.critChance"),
-    });
+    // James, 15 Nov 2026, issue #297, requirement 5: the pick leaves the
+    // sheet. This supersedes James, 10 Nov 2026, #340.
+    assert.deepEqual(config.character, before.character);
     assert.equal(config.race, before.race);
     assert.deepEqual(config.fight, before.fight);
     const slice = env.slice();
@@ -252,6 +247,11 @@ describe("a pick and its Undo (#323)", () => {
     env.form.chooseRotation(COMBAT);
     env.form.setDraft(COMBAT, draft);
     env.tree.resetAll();
+    const cleared = structuredClone(env.store.get().config);
+    for (const hand of ["mainHand", "offHand"]) {
+      cleared.weapons[hand] = { ...cleared.weapons[hand], weaponSkill: null };
+    }
+    env.store.set({ config: cleared });
     env.tree.setLevel(LOW_LEVEL);
     const before = env.store.get();
     assert.equal(isEditedChoice(before.form, COMBAT), true);
@@ -340,6 +340,7 @@ describe("a pick and its Undo (#323)", () => {
   it("asks for a race after a preset's pick with none", () => {
     const env = page();
     env.form.chooseRotation("default");
+    env.form.change("race", "");
     assert.equal(env.start.pick(COMBAT), true);
     assert.equal(env.slice().needsRace, true);
     assert.equal(needsRace(env.store.get()), true);

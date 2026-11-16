@@ -14,6 +14,8 @@ import {
   encodeSetup,
   setupDefaults,
 } from "../js/build-codec.js";
+import { pageDefaultConfig } from "../js/config-form.js";
+import { normalizeConfig } from "../js/sim-config.js";
 import { SAVED_SETUP_KEY } from "../js/saved-setup.js";
 import { k } from "../data/constants.js";
 
@@ -175,6 +177,10 @@ async function build(page) {
 }
 
 const D = setupDefaults();
+const PAGE = normalizeConfig(pageDefaultConfig());
+// Reset writes the form, which has no expertise field, so the baked 11 is dropped.
+const PAGE_FORM = structuredClone(PAGE);
+delete PAGE_FORM.character.expertise;
 
 describe("Remember my setup (#296)", () => {
   for (const width of WIDTHS) {
@@ -245,7 +251,7 @@ describe("Remember my setup (#296)", () => {
           String(D.config.talentLevel),
         );
         const reset = await build(page);
-        assert.deepEqual(reset.config, D.config);
+        assert.deepEqual(reset.config, PAGE_FORM);
         assert.equal(reset.run.duration, D.run.duration);
         // #320 B1: the refresh after Reset saves nothing (no new seed).
         await page.waitForTimeout(LOAD_SETTLE);
@@ -283,7 +289,7 @@ describe("Remember my setup (#296)", () => {
           assert.equal(held.config.character.haste, 0.05);
           assert.equal(held.run.duration, 120);
         } else {
-          assert.deepEqual(held.config, D.config);
+          assert.deepEqual(held.config, PAGE_FORM);
           assert.equal(held.run.duration, D.run.duration);
         }
         assert.deepEqual(errors, []);

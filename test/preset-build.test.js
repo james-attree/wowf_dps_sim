@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { LEGACY_SWORD } from "../data/legacy-sheets.js";
+import { LEGACY_SWORD, legacyPresetGear } from "../data/legacy-sheets.js";
 import { describe, it } from "node:test";
 import {
   createConfigForm,
@@ -341,7 +341,7 @@ describe("apply and Undo (#273)", () => {
     env.build.apply();
     // A point the tree lets go (nothing above needs Venom); the 50 points
     // left are held back from the config, and Undo still closes.
-    env.tree.remove("assassination.malice");
+    env.tree.remove("combat.adrenaline-rush");
     assert.equal(env.said().applied, null);
   });
 
@@ -515,10 +515,44 @@ const SIGNATURES = {
 const SEED = 1;
 const FIGHT_SECONDS = 120;
 
+describe("a preset leaves weapons and the sheet (#297)", () => {
+  // James, 15 Nov 2026, issue #297, requirement 5. This supersedes
+  // James, 10 Nov 2026, issue #340, which put a sword or dagger sheet on
+  // the preset.
+  for (const id of [
+    "combat-swords-temp",
+    "combat-daggers",
+    "assassination-daggers",
+    "subtlety-daggers",
+  ]) {
+    it(`applying ${id} keeps the weapons and the character sheet`, () => {
+      const env = page();
+      const before = nextRunConfig(env.store.get());
+      env.store.set({
+        config: { ...env.store.get().config, talents: {} },
+      });
+      env.form.chooseRotation(id);
+      assert.equal(env.build.apply(), true);
+      const after = nextRunConfig(env.store.get());
+      assert.deepEqual(after.weapons, before.weapons);
+      assert.deepEqual(after.character, before.character);
+    });
+  }
+});
+
 describe("the applied build fights (#273)", () => {
   for (const id of PRESETS) {
     it(`${id}: its abilities are cast after the button`, () => {
       const env = page();
+      const gear = legacyPresetGear(id);
+      env.form.change("weapons.mainHand.type", gear.weapons.mainHand.type);
+      env.form.change("weapons.offHand.type", gear.weapons.offHand.type);
+      env.form.change("weapons.mainHand.min", gear.weapons.mainHand.min);
+      env.form.change("weapons.mainHand.max", gear.weapons.mainHand.max);
+      env.form.change("weapons.mainHand.speed", gear.weapons.mainHand.speed);
+      env.form.change("weapons.offHand.min", gear.weapons.offHand.min);
+      env.form.change("weapons.offHand.max", gear.weapons.offHand.max);
+      env.form.change("weapons.offHand.speed", gear.weapons.offHand.speed);
       env.form.chooseRotation(id);
       env.build.apply();
       const fight = createFight(SEED, nextRunConfig(env.store.get()));

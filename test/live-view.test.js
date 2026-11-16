@@ -686,8 +686,12 @@ describe("icons on the live page (stub DOM)", () => {
     }
 
     append(...nodes) {
-      for (const node of nodes) {
-        node.remove();
+      for (const entry of nodes) {
+        const node =
+          typeof entry === "string"
+            ? Object.assign(new StubElement("#text"), { textContent: entry })
+            : entry;
+        if (typeof node.remove === "function") node.remove();
         node.parent = this;
         this.children.push(node);
       }

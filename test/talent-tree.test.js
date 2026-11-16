@@ -23,7 +23,16 @@ import {
 
 // Mechanical cases start empty. Page-default coverage is the first test below.
 function emptyConfig() {
-  return { ...pageDefaultConfig(), talents: {}, talentLevel: 60 };
+  const page = pageDefaultConfig();
+  return {
+    ...page,
+    talents: {},
+    talentLevel: 60,
+    weapons: {
+      mainHand: { ...page.weapons.mainHand, weaponSkill: null },
+      offHand: { ...page.weapons.offHand, weaponSkill: null },
+    },
+  };
 }
 
 function setup(config = emptyConfig()) {
@@ -54,7 +63,7 @@ describe("talent tree model (#204)", () => {
       [17, 19, 18],
     );
     const page = setup(pageDefaultConfig());
-    assert.equal(page.talents().view.summary, "Combat 16/35/0 · 51/51");
+    assert.equal(page.talents().view.summary, "Combat 13/35/3 · 51/51");
     assert.equal(page.talents().view.pointsLine, "51 of 51 spent, 0 left");
     assert.deepEqual(page.config().talents, pageDefaultConfig().talents);
   });
@@ -477,9 +486,7 @@ describe("talent tree model (#204)", () => {
 
 describe("the talent tree and the stats form share the config (#204, #151)", () => {
   it("a field edit keeps the tree's custom build", () => {
-    const store = createStore({
-      config: { ...pageDefaultConfig(), talents: {}, talentLevel: 60 },
-    });
+    const store = createStore({ config: emptyConfig() });
     const tree = createTalentTree(store);
     tree.setLevel("40");
     assert.equal(tree.add("combat.efficient-strikes"), true);
