@@ -71,16 +71,50 @@ async function open(width, { text = "100%", reduced = false } = {}) {
 async function startManual(page, durationSeconds) {
   await page.locator("#fight-mode-manual").check();
   await page.locator("#manual-board").waitFor({ state: "visible" });
-  const live = page.locator("#run-mode-live");
-  if (await live.count()) {
-    await live.check();
-  }
+  await page.waitForFunction(() => {
+    const live = globalThis.document.getElementById("run-mode-live");
+    return live?.checked === true;
+  });
   if (durationSeconds != null) {
     await setDuration(page, durationSeconds);
   }
   await page.locator("#run-button").click();
   await page.locator(".manual-slot").first().waitFor({ state: "visible" });
 }
+
+describe("selecting Manual also selects Live (#388)", () => {
+  test("Manual alone checks Live, labels Run, and starts the board", async () => {
+    const { context, page, errors } = await open(1024);
+    try {
+      const manual = page.locator("#fight-mode-manual");
+      await manual.focus();
+      await manual.press("Space");
+      await page.waitForFunction(() => {
+        const live = globalThis.document.getElementById("run-mode-live");
+        const button = globalThis.document.getElementById("run-button");
+        return live?.checked === true && button?.textContent?.trim() === "Run";
+      });
+      assert.equal(await page.locator("#run-mode-batch").isDisabled(), true);
+      assert.equal(
+        await page.locator("#run-mode-batch").getAttribute("aria-describedby"),
+        "run-mode-batch-reason",
+      );
+      assert.equal(
+        await page.locator("#run-mode-batch-reason").textContent(),
+        "Manual fights are live, step by step",
+      );
+      assert.equal(
+        await page.evaluate(() => globalThis.document.activeElement?.id),
+        "fight-mode-manual",
+      );
+      await page.locator("#run-button").click();
+      await page.locator(".manual-slot").first().waitFor({ state: "visible" });
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});
 
 describe("Manual fight board layout and behaviour (#348)", () => {
   for (const text of ["100%", "150%"]) {

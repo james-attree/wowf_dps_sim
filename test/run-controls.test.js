@@ -9,7 +9,11 @@ import {
 } from "../js/config-form.js";
 import { runFight } from "../js/fight.js";
 import { createLiveRun } from "../js/live-run.js";
-import { createRunActions, emptyBatch } from "../js/run-actions.js";
+import {
+  applyFightMode,
+  createRunActions,
+  emptyBatch,
+} from "../js/run-actions.js";
 import { createStore } from "../js/store.js";
 import { NOT_WIDE_QUERY } from "../js/views/breakpoints.js";
 import { editedSinceRun } from "../js/views/config-form.js";
@@ -22,6 +26,7 @@ import {
 import {
   BATCH_HELP,
   LIVE_HELP,
+  MANUAL_AVERAGE_REASON,
   MAX_SEED,
   NO_DPS,
   dockDps,
@@ -2216,5 +2221,103 @@ describe("#296 ruling A2: the run settings' defaults for Reset to defaults", () 
     assert.equal(actions.restoreSettings({ ...run, mode: "batch" }), false);
     assert.equal(store.get().run, run);
     assert.equal(actions.restoreSettings(null), false);
+  });
+});
+
+describe("selecting Manual also selects Live (#388)", () => {
+  it("setFightMode('manual') sets run.mode to live, and does nothing while locked", () => {
+    const { store, actions } = setup();
+    actions.setMode("batch");
+    assert.equal(store.get().run.mode, "batch");
+    actions.setFightMode("manual");
+    assert.equal(store.get().run.fightMode, "manual");
+    assert.equal(store.get().run.mode, "live");
+    actions.run();
+    assert.equal(store.get().run.state, "running");
+    const during = store.get().run;
+    actions.setFightMode("manual");
+    assert.equal(store.get().run, during);
+    actions.setFightMode("scripted");
+    assert.equal(store.get().run, during);
+  });
+
+  it("Scripted leaves Live selected, and Average works again after that", () => {
+    const { store, actions } = setup();
+    actions.setMode("batch");
+    actions.setFightMode("manual");
+    actions.setFightMode("scripted");
+    assert.equal(store.get().run.fightMode, "scripted");
+    assert.equal(store.get().run.mode, "live");
+    actions.setMode("batch");
+    assert.equal(store.get().run.mode, "batch");
+  });
+
+  it("Average cannot be applied while Manual is selected", () => {
+    const { store, actions } = setup();
+    actions.setFightMode("manual");
+    actions.setMode("batch");
+    assert.equal(store.get().run.mode, "live");
+    assert.equal(store.get().run.fightMode, "manual");
+  });
+
+  it("reset settings returns Scripted and batch", () => {
+    const { store, actions } = setup();
+    actions.setMode("batch");
+    actions.setFightMode("manual");
+    actions.resetSettings();
+    assert.equal(store.get().run.fightMode, "scripted");
+    assert.equal(store.get().run.mode, "batch");
+  });
+
+  it("applyFightMode couples a future Manual load that is still batch", () => {
+    const loaded = applyFightMode({
+      fightMode: "manual",
+      mode: "batch",
+      state: "idle",
+    });
+    assert.equal(loaded.fightMode, "manual");
+    assert.equal(loaded.mode, "live");
+    assert.equal(loaded.state, "idle");
+    const live = applyFightMode({
+      fightMode: "manual",
+      mode: "live",
+      state: "paused",
+    });
+    assert.equal(live.state, "paused");
+    const scripted = applyFightMode({
+      fightMode: "scripted",
+      mode: "batch",
+      state: "idle",
+    });
+    assert.equal(scripted.mode, "batch");
+  });
+
+  it("the Average radio is disabled with the visible reason, and focus stays on Manual", () => {
+    const page = setup();
+    page.actions.setMode("batch");
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    const manual = el("fight-mode-manual");
+    manual.focus();
+    page.actions.setFightMode("manual");
+    assert.equal(el("run-mode-live").checked, true);
+    assert.equal(el("run-mode-batch").checked, false);
+    assert.equal(el("run-mode-batch").disabled, true);
+    assert.equal(
+      el("run-mode-batch").getAttribute("aria-describedby"),
+      "run-mode-batch-reason",
+    );
+    assert.equal(el("run-mode-batch-reason").hidden, false);
+    assert.equal(
+      el("run-mode-batch-reason").textContent,
+      MANUAL_AVERAGE_REASON,
+    );
+    assert.equal(el("run-button").textContent.trim(), "Run");
+    assert.equal(doc.activeElement, manual);
+    page.actions.setFightMode("scripted");
+    assert.equal(el("run-mode-batch").disabled, false);
+    assert.equal(el("run-mode-batch").getAttribute("aria-describedby"), null);
+    assert.equal(el("run-mode-batch-reason").hidden, true);
+    assert.equal(el("run-mode-live").checked, true);
   });
 });
