@@ -3,11 +3,16 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-// #403: leftover component edges must use --control and keep 3:1
-// against the backgrounds they actually sit on (WCAG 1.4.11). Text
-// that used the same leftover hex must keep 4.5:1 on --text-muted.
-// --connector-unlit stays the decorative unlit path and is not a
-// component edge.
+// #403 / #412: leftover component edges must resolve to a colour that
+// keeps 3:1 against the background they sit on (WCAG 1.4.11). Text that
+// used the leftover hex must keep 4.5:1. --connector-unlit stays the
+// decorative unlit path and is not a component edge.
+//
+// #412 (Kira N1): comments are stripped one at a time, so a match can
+// never span from an earlier /* across a rule to a later */.
+// #412 (Kira N2): each guarded rule's edge or foreground is resolved
+// (following var() through custom properties) rather than banning only
+// the two old hexes.
 
 const STYLES = readFileSync(
   fileURLToPath(new URL("../styles.css", import.meta.url)),
@@ -22,12 +27,25 @@ const TREE = readFileSync(
   "utf8",
 );
 
-const HEX = /^#([0-9a-fA-F]{6})$/;
+const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const CONTROL = "#7d6c50";
 const OLD_EDGE = "#54452b";
-const OLD_TEXT = "#81745c";
 const NON_TEXT = 3;
 const TEXT = 4.5;
+
+const FILES = Object.freeze({
+  "styles.css": STYLES,
+  "rotation-builder.css": ROTATION,
+  "talent-tree.css": TREE,
+});
+
+// One comment at a time: *? ends at the first */, so a comment can never
+// start at an earlier /* and swallow a later rule to a later */ (#412 N1).
+const ONE_COMMENT = /\/\*[\s\S]*?\*\//g;
+
+export function stripComments(css) {
+  return css.replace(ONE_COMMENT, "");
+}
 
 function srgbChannel(value) {
   const channel = value / 255;
@@ -36,10 +54,23 @@ function srgbChannel(value) {
     : ((channel + 0.055) / 1.055) ** 2.4;
 }
 
+function expandHex(value) {
+  const match = HEX.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+  const digits = match[1];
+  if (digits.length === 6) {
+    return `#${digits.toLowerCase()}`;
+  }
+  const [r, g, b] = digits;
+  return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+}
+
 function luminance(hex) {
-  const match = HEX.exec(hex);
-  assert.ok(match, `not a 6-digit hex colour: ${hex}`);
-  const n = Number.parseInt(match[1], 16);
+  const expanded = expandHex(hex);
+  assert.ok(expanded, `not a hex colour: ${hex}`);
+  const n = Number.parseInt(expanded.slice(1), 16);
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
   const b = n & 255;
@@ -55,9 +86,56 @@ export function contrastRatio(foreground, background) {
   return (high + 0.05) / (low + 0.05);
 }
 
+function cssTokens(value) {
+  const parts = [];
+  let i = 0;
+  while (i < value.length) {
+    while (i < value.length && /\s/.test(value[i])) {
+      i += 1;
+    }
+    if (i >= value.length) {
+      break;
+    }
+    if (value.startsWith("var(", i)) {
+      let depth = 0;
+      let j = i;
+      for (; j < value.length; j += 1) {
+        if (value[j] === "(") {
+          depth += 1;
+        } else if (value[j] === ")") {
+          depth -= 1;
+          if (depth === 0) {
+            j += 1;
+            break;
+          }
+        }
+      }
+      parts.push(value.slice(i, j));
+      i = j;
+    } else {
+      let j = i;
+      while (j < value.length && !/\s/.test(value[j])) {
+        j += 1;
+      }
+      parts.push(value.slice(i, j));
+      i = j;
+    }
+  }
+  return parts;
+}
+
+function colourToken(value) {
+  for (const part of cssTokens(value).toReversed()) {
+    if (part.startsWith("var(") || expandHex(part)) {
+      return part;
+    }
+  }
+  return null;
+}
+
 function rootTokens(css) {
   const start = css.indexOf(":root {");
-  assert.ok(start >= 0, ":root token block");
+  assert.ok(start >= 0, ":root token block is missing from styles.css");
   let depth = 0;
   let end = start;
   for (let i = start; i < css.length; i += 1) {
@@ -71,7 +149,7 @@ function rootTokens(css) {
       }
     }
   }
-  const block = css.slice(start, end + 1);
+  const block = stripComments(css.slice(start, end + 1));
   const tokens = new Map();
   for (const line of block.split("\n")) {
     const match = line.match(/^\s*(--[\w-]+):\s*([^;]+);/);
@@ -83,119 +161,494 @@ function rootTokens(css) {
   return tokens;
 }
 
-function resolve(tokens, name, seen = new Set()) {
-  const raw = tokens.get(name);
-  assert.ok(raw, `missing token ${name}`);
-  if (HEX.test(raw)) {
-    return raw.toLowerCase();
+export function resolveColor(value, tokens, seen = new Set()) {
+  const trimmed = value.trim();
+  const hex = expandHex(trimmed);
+  if (hex) {
+    return hex;
   }
-  const ref = raw.match(/^var\((--[\w-]+)\)$/);
-  assert.ok(ref, `${name} is not a hex or a var() alias: ${raw}`);
-  assert.equal(seen.has(name), false, `token cycle at ${name}`);
-  seen.add(name);
-  return resolve(tokens, ref[1], seen);
+  const ref = trimmed.match(/^var\(\s*(--[\w-]+)\s*(?:,\s*(.+))?\s*\)$/s);
+  assert.ok(ref, `cannot resolve colour ${JSON.stringify(value)}`);
+  const name = ref[1];
+  const fallback = ref[2];
+  if (tokens.has(name)) {
+    assert.equal(seen.has(name), false, `token cycle at ${name}`);
+    seen.add(name);
+    return resolveColor(tokens.get(name), tokens, seen);
+  }
+  assert.ok(fallback !== undefined, `custom property ${name} is not defined`);
+  return resolveColor(fallback.trim(), tokens, seen);
+}
+
+function splitSelectors(prelude) {
+  const parts = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < prelude.length; i += 1) {
+    const char = prelude[i];
+    if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      depth -= 1;
+    } else if (char === "," && depth === 0) {
+      parts.push(prelude.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(prelude.slice(start).trim());
+  return parts.filter((part) => part !== "");
+}
+
+function parseDeclarations(body) {
+  const decls = new Map();
+  for (const part of body.split(";")) {
+    const cut = part.indexOf(":");
+    if (cut < 0) {
+      continue;
+    }
+    const property = part.slice(0, cut).trim().toLowerCase();
+    const value = part.slice(cut + 1).trim();
+    if (property === "" || property.includes("{") || value.includes("{")) {
+      continue;
+    }
+    decls.set(property, value);
+  }
+  return decls;
+}
+
+function walkRules(css, rules = []) {
+  let i = 0;
+  const length = css.length;
+  while (i < length) {
+    while (i < length && /\s/.test(css[i])) {
+      i += 1;
+    }
+    if (i >= length) {
+      break;
+    }
+    const open = css.indexOf("{", i);
+    if (open < 0) {
+      break;
+    }
+    const prelude = css.slice(i, open).trim();
+    let depth = 0;
+    let close = open;
+    for (let at = open; at < length; at += 1) {
+      if (css[at] === "{") {
+        depth += 1;
+      } else if (css[at] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          close = at;
+          break;
+        }
+      }
+    }
+    const body = css.slice(open + 1, close);
+    if (prelude.startsWith("@")) {
+      const kind = prelude.split(/\s+/, 1)[0];
+      if (
+        kind === "@media" ||
+        kind === "@container" ||
+        kind === "@supports" ||
+        kind === "@layer"
+      ) {
+        walkRules(body, rules);
+      }
+    } else if (prelude !== "") {
+      rules.push({
+        selectors: splitSelectors(prelude),
+        decls: parseDeclarations(body),
+      });
+    }
+    i = close + 1;
+  }
+  return rules;
+}
+
+function declarationsFor(css, selector) {
+  const rules = walkRules(stripComments(css));
+  const merged = new Map();
+  let found = false;
+  for (const rule of rules) {
+    if (rule.selectors.includes(selector)) {
+      found = true;
+      for (const [property, value] of rule.decls) {
+        merged.set(property, value);
+      }
+    }
+  }
+  return found ? merged : null;
+}
+
+function declaredEdge(decls) {
+  if (decls.has("border-color")) {
+    return decls.get("border-color");
+  }
+  if (decls.has("border-top-color")) {
+    return decls.get("border-top-color");
+  }
+  for (const property of [
+    "border",
+    "border-top",
+    "border-right",
+    "border-bottom",
+    "border-left",
+  ]) {
+    if (decls.has(property)) {
+      const colour = colourToken(decls.get(property));
+      if (colour) {
+        return colour;
+      }
+    }
+  }
+  return null;
+}
+
+function declaredFill(decls) {
+  const raw = decls.get("background-color") ?? decls.get("background");
+  if (!raw) {
+    return null;
+  }
+  return colourToken(raw);
+}
+
+// Each row of the #403 contrast table. `background` is the fill or the
+// parent immediately behind the edge when the rule itself has no fill.
+const EDGE_RULES = Object.freeze([
+  {
+    name: ".chip",
+    selector: ".chip",
+    file: "rotation-builder.css",
+    background: "#15120d",
+  },
+  {
+    name: ".rule-icon",
+    selector: ".rule-icon",
+    file: "rotation-builder.css",
+    background: "var(--surface-raised)",
+  },
+  {
+    name: ".live-indicator.is-paused",
+    selector: ".live-indicator.is-paused",
+    file: "styles.css",
+    background: "#292114",
+  },
+  {
+    name: ".config-edited",
+    selector: ".config-edited",
+    file: "styles.css",
+    background: "#292114",
+  },
+  {
+    name: ".config-toast",
+    selector: ".config-toast",
+    file: "styles.css",
+    background: "#2a2419",
+  },
+  {
+    name: ".talent-rank",
+    selector: ".talent-rank",
+    file: "talent-tree.css",
+    background: "#100f0c",
+  },
+  {
+    name: ".talent-lock",
+    selector: ".talent-lock",
+    file: "talent-tree.css",
+    background: "#100f0c",
+  },
+  {
+    name: ".lg",
+    selector: ".lg",
+    file: "talent-tree.css",
+    background: "#100f0c",
+  },
+  {
+    name: ".tag-noDps",
+    selector: ".tag-noDps",
+    file: "talent-tree.css",
+    background: "var(--tooltip-bg)",
+  },
+  {
+    name: ".tag-classic",
+    selector: ".tag-classic",
+    file: "talent-tree.css",
+    background: "var(--tooltip-bg)",
+  },
+  {
+    name: ".talents-tab-points",
+    selector: ".talents-tab-points",
+    file: "talent-tree.css",
+    background: "#13110d",
+  },
+  {
+    name: ".talent-cov.is-notsim",
+    selector: ".talent-cov.is-notsim",
+    file: "talent-tree.css",
+    background: "#2a2112",
+  },
+  {
+    name: ".lg-cov.is-notsim",
+    selector: ".lg-cov.is-notsim",
+    file: "talent-tree.css",
+    background: "#2a2112",
+  },
+  {
+    name: ".results-progress",
+    selector: ".results-progress progress",
+    file: "styles.css",
+    background: "#120f0b",
+  },
+  {
+    name: ".previous-label",
+    selector: ".previous-label",
+    file: "styles.css",
+    background: "#15120e",
+  },
+]);
+
+const TEXT_RULES = Object.freeze([
+  {
+    name: ".value-divider",
+    selector: ".value-divider",
+    file: "styles.css",
+    background: "var(--surface-raised)",
+  },
+  {
+    name: "inactive sort icon",
+    selector: 'th[aria-sort="none"] .sort-icon::after',
+    file: "styles.css",
+    background: "var(--surface-raised)",
+  },
+]);
+
+function ruleColour(files, tokens, rule, kind) {
+  const css = files[rule.file];
+  assert.ok(css !== undefined, `no CSS loaded for ${rule.file}`);
+  const decls = declarationsFor(css, rule.selector);
+  assert.ok(
+    decls,
+    `guarded rule ${rule.name} (${rule.selector}) was not found in ${rule.file}`,
+  );
+  const raw =
+    kind === "text" ? (decls.get("color") ?? null) : declaredEdge(decls);
+  assert.ok(
+    raw,
+    `guarded rule ${rule.name} (${rule.selector}) has no ${kind === "text" ? "foreground" : "edge"} colour in ${rule.file}`,
+  );
+  const foreground = resolveColor(raw, tokens);
+  const fill = declaredFill(decls);
+  const background = resolveColor(fill ?? rule.background, tokens);
+  return {
+    foreground,
+    background,
+    raw,
+    ratio: contrastRatio(foreground, background),
+  };
+}
+
+function edgeProblems(files) {
+  const tokens = rootTokens(files["styles.css"]);
+  const problems = [];
+  for (const rule of EDGE_RULES) {
+    try {
+      const { foreground, background, raw, ratio } = ruleColour(
+        files,
+        tokens,
+        rule,
+        "edge",
+      );
+      if (ratio < NON_TEXT) {
+        problems.push(
+          `${rule.name}: resolved ${raw} → ${foreground} on ${background} is ${ratio.toFixed(2)}:1 (need ${NON_TEXT}:1)`,
+        );
+      }
+    } catch (error) {
+      problems.push(`${rule.name}: ${error.message}`);
+    }
+  }
+  return problems;
+}
+
+function textProblems(files) {
+  const tokens = rootTokens(files["styles.css"]);
+  const problems = [];
+  for (const rule of TEXT_RULES) {
+    try {
+      const { foreground, background, raw, ratio } = ruleColour(
+        files,
+        tokens,
+        rule,
+        "text",
+      );
+      if (ratio < TEXT) {
+        problems.push(
+          `${rule.name}: resolved ${raw} → ${foreground} on ${background} is ${ratio.toFixed(2)}:1 (need ${TEXT}:1)`,
+        );
+      }
+    } catch (error) {
+      problems.push(`${rule.name}: ${error.message}`);
+    }
+  }
+  return problems;
 }
 
 const tokens = rootTokens(STYLES);
-const control = resolve(tokens, "--control");
-const muted = resolve(tokens, "--text-muted");
-const page = resolve(tokens, "--page");
-const surface = resolve(tokens, "--surface");
-const raised = resolve(tokens, "--surface-raised");
-const tooltip = resolve(tokens, "--tooltip-bg");
+const control = resolveColor("var(--control)", tokens);
 
-// Actual fills and parents the leftover edges sat on, from the component
-// rules (not only the token surfaces).
-const EDGE_BACKGROUNDS = Object.freeze([
-  ["--page", page],
-  ["--surface", surface],
-  ["--surface-raised", raised],
-  ["--tooltip-bg", tooltip],
-  [".chip fill #15120d", "#15120d"],
-  [".live-indicator.is-paused / .config-edited #292114", "#292114"],
-  [".config-toast #2a2419", "#2a2419"],
-  [".results-progress #120f0b", "#120f0b"],
-  [".previous-label #15120e", "#15120e"],
-  [".talent-rank / .talent-lock / .lg #100f0c", "#100f0c"],
-  [".talent-tree / selected tab #13110d", "#13110d"],
-  [".talent-cov.is-notsim #2a2112", "#2a2112"],
-]);
+describe("comment stripping (#412 N1)", () => {
+  it("strips one comment at a time and cannot span across comments", () => {
+    const css = `/* earlier note */
+.rule-icon {
+  border: 1px solid #54452b;
+}
+/* historical: was #54452b */
+`;
+    const stripped = stripComments(css);
+    assert.match(
+      stripped,
+      /border:\s*1px solid #54452b/,
+      "a hex between two comments must remain after stripping",
+    );
+    assert.doesNotMatch(stripped, /\/\*/);
+    // The #403 allow-regex lazily ran from any earlier /* to a later */,
+    // so it swallowed the rule's hex as if it were inside a comment.
+    const spanning = /\/\*[\s\S]*?#54452b[\s\S]*?\*\//gi;
+    assert.doesNotMatch(
+      css.replaceAll(spanning, ""),
+      /#54452b/,
+      "sanity: the old spanning regex would have hidden this hex",
+    );
+  });
+});
 
-const TEXT_BACKGROUNDS = Object.freeze([
-  [".value-divider on --surface-raised", raised],
-  ["inactive sort icon on --surface-raised", raised],
-  ["inactive sort icon on --page", page],
-]);
-
-describe("non-text contrast of --control (#403)", () => {
+describe("resolved edge colours (#412 N2 / #403)", () => {
   it("resolves --control to the control-border token, not the unlit path", () => {
     assert.equal(control, CONTROL);
-    assert.equal(resolve(tokens, "--control-border"), CONTROL);
-    assert.equal(resolve(tokens, "--connector-unlit"), OLD_EDGE.toLowerCase());
-    assert.notEqual(control, resolve(tokens, "--connector-unlit"));
+    assert.equal(resolveColor("var(--control-border)", tokens), CONTROL);
+    assert.equal(resolveColor("var(--connector-unlit)", tokens), OLD_EDGE);
+    assert.notEqual(control, resolveColor("var(--connector-unlit)", tokens));
   });
 
-  it("keeps at least 3:1 against every background these edges sit on", () => {
-    for (const [use, background] of EDGE_BACKGROUNDS) {
-      const ratio = contrastRatio(control, background);
-      assert.ok(
-        ratio >= NON_TEXT,
-        `${use}: --control ${control} on ${background} is ${ratio.toFixed(2)}:1`,
-      );
-    }
+  it("every guarded edge is at least 3:1 against that rule's background", () => {
+    const problems = edgeProblems(FILES);
+    assert.deepEqual(problems, [], problems.join("\n"));
   });
 
-  it("M: reverting --control to #54452b fails the 3:1 chip check", () => {
-    const chip = "#15120d";
-    assert.ok(contrastRatio(control, chip) >= NON_TEXT);
-    const reverted = contrastRatio(OLD_EDGE, chip);
+  it("every guarded text use is at least 4.5:1 against that rule's background", () => {
+    const problems = textProblems(FILES);
+    assert.deepEqual(problems, [], problems.join("\n"));
+  });
+
+  it("fails loudly when a guarded rule is missing", () => {
+    const files = {
+      ...FILES,
+      "rotation-builder.css": FILES["rotation-builder.css"].replaceAll(
+        /\.chip\s*\{[\s\S]*?\n\}/g,
+        "",
+      ),
+    };
+    const problems = edgeProblems(files);
     assert.ok(
-      reverted < NON_TEXT,
-      `reverted chip edge should be under 3:1, got ${reverted.toFixed(2)}:1`,
+      problems.some((line) => /chip/i.test(line) && /not found/i.test(line)),
+      `expected a missing .chip rule, got:\n${problems.join("\n")}`,
     );
-    // The known leftover: 2.01:1 on the chip fill.
-    assert.ok(reverted > 2 && reverted < 2.1);
   });
 });
 
-describe("text contrast of --text-muted (#403)", () => {
-  it("keeps at least 4.5:1 where leftover #81745c was used as text", () => {
-    for (const [use, background] of TEXT_BACKGROUNDS) {
-      const ratio = contrastRatio(muted, background);
-      assert.ok(
-        ratio >= TEXT,
-        `${use}: --text-muted ${muted} on ${background} is ${ratio.toFixed(2)}:1`,
-      );
-      assert.ok(
-        contrastRatio(OLD_TEXT, background) < TEXT,
-        `${use}: leftover #81745c was already under 4.5:1 and must not return`,
-      );
-    }
+describe("Kira's mutants now fail (#412)", () => {
+  it("M: #54452b back on .rule-icon fails the resolved 3:1 check", () => {
+    const source = FILES["rotation-builder.css"];
+    const mutated = source.replace(
+      ".rule-icon {\n  margin-top: 6px;\n  border-radius: 6px;\n  border: 1px solid var(--control);\n}",
+      ".rule-icon {\n  margin-top: 6px;\n  border-radius: 6px;\n  border: 1px solid #54452b;\n}",
+    );
+    assert.notEqual(mutated, source);
+    const problems = edgeProblems({
+      ...FILES,
+      "rotation-builder.css": mutated,
+    });
+    assert.ok(
+      problems.some((line) => line.includes(".rule-icon") && /3:1/.test(line)),
+      `expected a 3:1 failure for .rule-icon, got:\n${problems.join("\n")}`,
+    );
+  });
+
+  it("M: #3a3020 on .tag-classic fails the resolved 3:1 check", () => {
+    const source = FILES["talent-tree.css"];
+    const mutated = source.replace(
+      ".tag-classic {\n  border-color: var(--control);\n",
+      ".tag-classic {\n  border-color: #3a3020;\n",
+    );
+    assert.notEqual(mutated, source);
+    const problems = edgeProblems({ ...FILES, "talent-tree.css": mutated });
+    assert.ok(
+      problems.some(
+        (line) => line.includes(".tag-classic") && /3:1/.test(line),
+      ),
+      `expected a 3:1 failure for .tag-classic, got:\n${problems.join("\n")}`,
+    );
+  });
+
+  it("M: var(--connector-unlit) on .live-indicator.is-paused fails the resolved 3:1 check", () => {
+    const source = FILES["styles.css"];
+    const mutated = source.replace(
+      ".live-indicator.is-paused {\n  border-color: var(--control);\n",
+      ".live-indicator.is-paused {\n  border-color: var(--connector-unlit);\n",
+    );
+    assert.notEqual(mutated, source);
+    const problems = edgeProblems({ ...FILES, "styles.css": mutated });
+    assert.ok(
+      problems.some(
+        (line) =>
+          line.includes(".live-indicator.is-paused") && /3:1/.test(line),
+      ),
+      `expected a 3:1 failure for .live-indicator.is-paused, got:\n${problems.join("\n")}`,
+    );
+  });
+
+  it("M: a deleted .chip border rule fails loudly", () => {
+    const source = FILES["rotation-builder.css"];
+    const mutated = source.replace(
+      "  border: 1px solid var(--control);\n  border-radius: 999px;\n  background: #15120d;\n",
+      "  border-radius: 999px;\n  background: #15120d;\n",
+    );
+    assert.notEqual(mutated, source);
+    const problems = edgeProblems({
+      ...FILES,
+      "rotation-builder.css": mutated,
+    });
+    assert.ok(
+      problems.some(
+        (line) => /chip/i.test(line) && /no edge colour|not found/i.test(line),
+      ),
+      `expected a missing .chip edge colour, got:\n${problems.join("\n")}`,
+    );
   });
 });
 
-describe("leftover hexes are off component edges (#403)", () => {
-  const sources = [
-    ["styles.css", STYLES],
-    ["rotation-builder.css", ROTATION],
-    ["talent-tree.css", TREE],
-  ];
-
-  it("does not hard-code #81745c", () => {
-    for (const [name, css] of sources) {
-      assert.doesNotMatch(css, /#81745c/i, `${name} still hard-codes #81745c`);
+describe("leftover hexes after per-comment stripping (#403 / #412 N1)", () => {
+  it("does not hard-code #81745c outside comments", () => {
+    for (const [name, css] of Object.entries(FILES)) {
+      assert.doesNotMatch(
+        stripComments(css),
+        /#81745c/i,
+        `${name} still hard-codes #81745c`,
+      );
     }
   });
 
   it("keeps #54452b only as --connector-unlit", () => {
-    const allowed =
-      /\/\*[\s\S]*?#54452b[\s\S]*?\*\/|--connector-unlit:\s*#54452b;/gi;
-    for (const [name, css] of sources) {
-      const leftover = css.replaceAll(allowed, "");
+    for (const [name, css] of Object.entries(FILES)) {
+      const leftover = stripComments(css).replace(
+        /--connector-unlit:\s*#54452b;/g,
+        "",
+      );
       assert.doesNotMatch(
         leftover,
         /#54452b/i,
-        `${name} still uses #54452b outside --connector-unlit and comments`,
+        `${name} still uses #54452b outside --connector-unlit`,
       );
     }
     assert.match(STYLES, /--connector-unlit:\s*#54452b;/);
