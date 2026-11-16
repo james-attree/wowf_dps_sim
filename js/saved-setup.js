@@ -1,3 +1,11 @@
+export {
+  listGearBuilds,
+  loadGearBuild,
+  removeGearBuild,
+  renameGearBuild,
+  saveGearBuild,
+} from "./gear-store.js";
+
 // "Remember my setup" (#296, P5-11): the page's one saved setup, kept in
 // localStorage so a refresh, or coming back later, shows the fields as they
 // were left.

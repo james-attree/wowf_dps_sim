@@ -457,7 +457,7 @@ describe("Copy link to this build (#284)", () => {
   // opens that build in a fresh browser (the saved setup it leaves is still
   // version 1).
   test("a preset's link is short, and it opens the build elsewhere (#306)", async () => {
-    const PRESET_LINK_MAX = 64;
+    const PRESET_LINK_MAX = 57;
     const SPEED = "#cfg-weapons-mainHand-speed";
     const { context, page, errors } = await open(WIDTHS[1], "#character");
     try {
@@ -474,10 +474,7 @@ describe("Copy link to this build (#284)", () => {
         document.defaultView.navigator.clipboard.readText(),
       );
       assert.ok(link.startsWith(`${base}?${LINK_PARAM}=2.`), link);
-      assert.ok(
-        link.length - base.length <= PRESET_LINK_MAX,
-        `${link.length - base.length}: ${link}`,
-      );
+      assert.equal(link.length - base.length, PRESET_LINK_MAX, link);
       const read = decodeSetup(new URL(link).searchParams.get(LINK_PARAM));
       assert.equal(read.status, "ok");
       const build = referenceBuild("combat-daggers");
@@ -511,7 +508,7 @@ describe("Copy link to this build (#284)", () => {
     }
   });
   test("a rule deleted in the builder still gives a short link (#330 B1)", async () => {
-    const PRESET_LINK_MAX = 75;
+    const PRESET_LINK_MAX = 37;
     const { context, page, errors } = await open(WIDTHS[1], "#character");
     try {
       // Page defaults are already combat-swords-temp (#333).
@@ -536,10 +533,7 @@ describe("Copy link to this build (#284)", () => {
         document.defaultView.navigator.clipboard.readText(),
       );
       assert.ok(link.startsWith(`${base}?${LINK_PARAM}=2.`), link);
-      assert.ok(
-        link.length - base.length <= PRESET_LINK_MAX,
-        `${link.length - base.length}: ${link}`,
-      );
+      assert.equal(link.length - base.length, PRESET_LINK_MAX, link);
       const { rotation } = decodeSetup(
         new URL(link).searchParams.get(LINK_PARAM),
       ).setup.config;

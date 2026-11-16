@@ -14,6 +14,14 @@ import {
   COMBAT_DAGGERS_340_FROZEN,
   SUBTLETY_DAGGERS_340_FROZEN,
 } from "../data/link-bases-pr4-frozen.js";
+import {
+  ASSASSINATION_DAGGERS_297_FROZEN,
+  COMBAT_DAGGERS_297_FROZEN,
+  SUBTLETY_DAGGERS_297_FROZEN,
+} from "../data/link-bases-pr5-frozen.js";
+import { GEAR_SLOTS } from "./gear-build.js";
+import { sheetFromGear, sheetIsDerived } from "./gear-sheet.js";
+import { GEAR_MARKER_P1_BSCOMBAT_92E67A7A } from "../data/gear-marker.js";
 
 // The short share link's body (#306): version 2 of the build codec's text,
 // "2.<base64url bytes>". js/build-codec.js owns the text, the checks and the
@@ -34,6 +42,11 @@ import {
 //              each a talent whose rank differs from the base's (0 removes)
 //   talentLevel varint
 //   poisons    two varints, LINK_POISONS indexes (0 is None)
+//   gear       appended (#383). varint slot mask (GEAR_SLOTS order), then
+//              for each set bit: item id, enchant id (0 is none), suffix id
+//              (0 is none). A link with this part carries no character or
+//              weapons part. The page derives those through deriveSheet.
+//              Race and level stay on the character.
 //   rotation   varint tag: 2e, LINK_BASES[e]'s rotation; 1, the base's
 //              rotation with its rules listed (varint count, then 2i for the
 //              base's rule i, or 2n+1 and n bytes of one rule's JSON); 5,
@@ -124,15 +137,32 @@ export const LINK_BASES = Object.freeze([
   }),
   Object.freeze({
     id: "combat-daggers-297",
-    preset: "combat-daggers",
+    // Frozen at #383. Old links that named this index keep the sword-filled
+    // base the preset used before gear. Not selectable.
+    frozen: COMBAT_DAGGERS_297_FROZEN,
   }),
   Object.freeze({
     id: "assassination-daggers-297",
-    preset: "assassination-daggers",
+    frozen: ASSASSINATION_DAGGERS_297_FROZEN,
   }),
   Object.freeze({
     id: "subtlety-daggers-297",
+    frozen: SUBTLETY_DAGGERS_297_FROZEN,
+  }),
+  Object.freeze({
+    id: "combat-daggers-383",
+    preset: "combat-daggers",
+    noWeapons: true,
+  }),
+  Object.freeze({
+    id: "assassination-daggers-383",
+    preset: "assassination-daggers",
+    noWeapons: true,
+  }),
+  Object.freeze({
+    id: "subtlety-daggers-383",
     preset: "subtlety-daggers",
+    noWeapons: true,
   }),
 ]);
 
@@ -254,6 +284,7 @@ const PARTS = Object.freeze([
   "duration",
   "iterations",
   "seed",
+  "gear",
 ]);
 // [field, scale, nullable]
 const CHARACTER_FIELDS = Object.freeze([
@@ -428,7 +459,13 @@ export function baseContent(entry, defaultsConfig) {
   // A preset no longer carries weapons. The base then keeps the page's
   // weapons, which a link diffs against.
   if (build.weapons) picked.weapons = build.weapons;
-  return clone({ ...own, ...picked, rotation: presetRotation(entry.preset) });
+  const content = clone({
+    ...own,
+    ...picked,
+    rotation: presetRotation(entry.preset),
+  });
+  if (entry.noWeapons) delete content.weapons;
+  return content;
 }
 
 function writeRules(out, rules, baseRules) {
@@ -544,10 +581,33 @@ function writeBody(setup, defaults, index, bases) {
   const { config, run } = setup;
   const base = bases[index];
   const page = defaults.config;
+  let gearThrows = false;
+  if (config.gear != null) {
+    try {
+      sheetFromGear(config.gear, { race: config.race });
+    } catch {
+      gearThrows = true;
+    }
+  }
+  const derived = config.gear != null && sheetIsDerived(config);
+  const hasGear = derived || gearThrows;
+  const skillSheet = derived
+    ? sheetFromGear(config.gear, { race: config.race })
+    : null;
+  const skillChanged =
+    derived &&
+    HANDS.some((hand) => {
+      const now = config.weapons?.[hand]?.weaponSkill;
+      const was = skillSheet.weapons?.[hand]?.weaponSkill;
+      return now !== was;
+    });
   const changed = {
     race: config.race !== page.race,
-    character: !same(config.character, page.character),
-    weapons: !same(config.weapons, base.weapons),
+    character:
+      (!hasGear && !same(config.character, page.character)) ||
+      (hasGear && config.character.weaponSkill !== page.character.weaponSkill),
+    weapons: skillChanged || (!hasGear && !same(config.weapons, base.weapons)),
+    gear: hasGear,
     target:
       config.target.level !== page.target.level ||
       config.target.armor !== page.target.armor,
@@ -567,9 +627,10 @@ function writeBody(setup, defaults, index, bases) {
   );
   if (changed.race) w.uint(indexIn(LINK_RACES, config.race, "race"));
   if (changed.character) {
-    const fields = CHARACTER_FIELDS.filter(
-      ([name]) => config.character[name] !== page.character[name],
-    );
+    const fields = CHARACTER_FIELDS.filter(([name]) => {
+      if (hasGear && name !== "weaponSkill") return false;
+      return config.character[name] !== page.character[name];
+    });
     w.uint(
       CHARACTER_FIELDS.reduce(
         (m, field, i) => m + (fields.includes(field) ? C.radix ** i : 0),
@@ -585,18 +646,29 @@ function writeBody(setup, defaults, index, bases) {
     let mask = 0;
     const writes = [];
     HANDS.forEach((hand, h) => {
-      const now = config.weapons[hand];
-      const was = base.weapons[hand];
-      WEAPON_FIELDS.forEach(([name, scale], f) => {
-        if (now[name] === was[name]) return;
-        mask += C.radix ** (h * C.handBits + f);
-        writes.push(() => w.num(now[name], scale));
-      });
-      if (now.type !== was.type) {
-        mask += C.radix ** (h * C.handBits + C.typeBit);
-        writes.push(() =>
-          w.uint(indexIn(LINK_WEAPON_TYPES, now.type, "weapon type")),
-        );
+      const now = config.weapons?.[hand];
+      if (!hasGear) {
+        const was = base.weapons?.[hand] ?? {};
+        if (now == null) {
+          throw new RangeError(`No link code for an empty ${hand}.`);
+        }
+        WEAPON_FIELDS.forEach(([name, scale], f) => {
+          if (now[name] === was[name]) return;
+          mask += C.radix ** (h * C.handBits + f);
+          writes.push(() => w.num(now[name], scale));
+        });
+        if (now.type !== was.type) {
+          mask += C.radix ** (h * C.handBits + C.typeBit);
+          writes.push(() =>
+            w.uint(indexIn(LINK_WEAPON_TYPES, now.type, "weapon type")),
+          );
+        }
+      }
+      const skill = now?.weaponSkill;
+      const derivedSkill = skillSheet?.weapons?.[hand]?.weaponSkill;
+      if (derived && skill !== derivedSkill) {
+        mask += C.radix ** (SKILL_BIT + h);
+        writes.push(() => w.optional(skill, 1));
       }
     });
     w.uint(mask);
@@ -643,7 +715,48 @@ function writeBody(setup, defaults, index, bases) {
   if (changed.duration) w.num(run.duration, DURATION_SCALE);
   if (changed.iterations) w.num(run.iterations, 1);
   if (changed.seed) w.optional(run.seed, 1);
+  if (changed.gear) writeGear(w, config.gear);
   return w.bytes;
+}
+
+function sameSlot(left, right) {
+  if (left == null || right == null) return left == null && right == null;
+  return (
+    left.item === right.item &&
+    (left.enchant ?? null) === (right.enchant ?? null) &&
+    (left.suffix ?? null) === (right.suffix ?? null)
+  );
+}
+
+function isMarker(slots) {
+  const frozen = GEAR_MARKER_P1_BSCOMBAT_92E67A7A.slots;
+  return GEAR_SLOTS.every((slot) => sameSlot(slots?.[slot], frozen[slot]));
+}
+
+// Per-hand weapon skill sits after the existing 8 weapon bits, so an old
+// weapons mask is unchanged. Written only beside gear.
+const SKILL_BIT = HANDS.length * C.handBits;
+
+function writeGear(w, gear) {
+  const slots = gear.slots ?? {};
+  if (isMarker(slots)) {
+    w.uint(0);
+    return;
+  }
+  let mask = 0;
+  const rows = [];
+  GEAR_SLOTS.forEach((slot, i) => {
+    const entry = slots[slot];
+    if (entry == null || entry.item == null) return;
+    mask += C.radix ** i;
+    rows.push(entry);
+  });
+  w.uint(mask);
+  for (const entry of rows) {
+    w.uint(entry.item);
+    w.uint(entry.enchant ?? 0);
+    w.uint(entry.suffix ?? 0);
+  }
 }
 
 function sorted(map) {
@@ -698,7 +811,7 @@ function readBody(r, defaults) {
     ...clone(page),
     talents: clone(base.talents),
     talentLevel: base.talentLevel,
-    weapons: clone(base.weapons),
+    weapons: base.weapons === undefined ? undefined : clone(base.weapons),
     poisons: clone(base.poisons),
     rotation: clone(base.rotation),
   };
@@ -711,16 +824,22 @@ function readBody(r, defaults) {
       config.character[name] = nullable ? r.optional(scale) : r.num(scale);
     });
   }
+  const handSkills = {};
   if (has("weapons")) {
-    const fields = r.mask(HANDS.length * C.handBits);
+    if (config.weapons == null) {
+      config.weapons = { mainHand: {}, offHand: {} };
+    }
+    const weaponFields = r.mask(SKILL_BIT + HANDS.length);
     HANDS.forEach((hand, h) => {
+      if (config.weapons[hand] == null) config.weapons[hand] = {};
       WEAPON_FIELDS.forEach(([name, scale], f) => {
-        if (bit(fields, h * C.handBits + f))
+        if (bit(weaponFields, h * C.handBits + f))
           config.weapons[hand][name] = r.num(scale);
       });
-      if (bit(fields, h * C.handBits + C.typeBit)) {
+      if (bit(weaponFields, h * C.handBits + C.typeBit)) {
         config.weapons[hand].type = r.pick(LINK_WEAPON_TYPES);
       }
+      if (bit(weaponFields, SKILL_BIT + h)) handSkills[hand] = r.optional(1);
     });
   }
   if (has("target")) {
@@ -751,8 +870,50 @@ function readBody(r, defaults) {
   if (has("duration")) run.duration = r.num(DURATION_SCALE);
   if (has("iterations")) run.iterations = r.num(1);
   if (has("seed")) run.seed = r.optional(1);
+  if (has("gear")) {
+    config.gear = readGear(r);
+    try {
+      const sheet = sheetFromGear(config.gear, { race: config.race });
+      const weaponSkill = config.character.weaponSkill;
+      config.character = {
+        ...config.character,
+        ...sheet.character,
+      };
+      if (weaponSkill !== undefined) config.character.weaponSkill = weaponSkill;
+      config.weapons = sheet.weapons;
+      for (const [hand, skill] of Object.entries(handSkills)) {
+        if (config.weapons[hand] == null) throw new LinkError("corrupt");
+        config.weapons[hand] = { ...config.weapons[hand], weaponSkill: skill };
+      }
+    } catch (error) {
+      if (error instanceof LinkError) throw error;
+      throw new LinkError("corrupt");
+    }
+  }
   if (!r.done) throw new LinkError("corrupt");
   return { config, run };
+}
+
+function readGear(r) {
+  const mask = r.mask(GEAR_SLOTS.length);
+  if (mask === 0) {
+    return {
+      slots: JSON.parse(JSON.stringify(GEAR_MARKER_P1_BSCOMBAT_92E67A7A.slots)),
+    };
+  }
+  const slots = {};
+  GEAR_SLOTS.forEach((slot, i) => {
+    if (!bit(mask, i)) return;
+    const item = r.uint();
+    const enchant = r.uint();
+    const suffix = r.uint();
+    slots[slot] = {
+      item,
+      enchant: enchant === 0 ? null : enchant,
+      suffix: suffix === 0 ? null : suffix,
+    };
+  });
+  return { slots };
 }
 
 function toBase64Url(bytes) {

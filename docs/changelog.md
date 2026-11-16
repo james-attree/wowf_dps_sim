@@ -1,5 +1,28 @@
 # Changelog
 
+## #297 PR5
+
+A share link can carry gear. The part is appended: a slot mask, then each worn item's id, enchant (0 is none) and suffix (0 is none). A gear link has no character or weapons part. Decode derives the sheet. Race and level stay on the character. The first-load link is 9 characters (`2.DYEgBQA`). Old links and saves decode to the same config as before, and `isLegacySheet` marks them. The read-only screen for that sheet is PR7.
+
+`wowf_dps_sim.setup` accepts an optional `config.gear`. `wowf_dps_sim.gear` stores named item builds (`js/gear-store.js`). Reset to defaults does not remove them. PR6 and PR7 consume that store. A save, rename or remove that does not reach storage returns `{ ok: false, reason: "storage" }`. A stored change returns `{ ok: true, build }` (remove returns `{ ok: true }`). Empty names, duplicate names and rename collisions are left to the gear screen.
+
+`combat-swords-temp-337` stays live so the legacy sword link stays `2.BgA`. The `-297` dagger bases are frozen. New links use the no-weapon `-383` bases.
+
+An empty gear slot mask is `GEAR_MARKER_P1_BSCOMBAT_92E67A7A`, the frozen `p1_bscombat` list at wowsims commit `92e67a7ae61f984e8a1fc006ebdeb012f31ac7d1`, not the current page default (coordinator call 16 Nov, James delegated 15 Nov). Typing the sheet or a weapon's damage drops gear and the link carries character and weapons again. Weapon skill and target level stay beside gear. The first-load link is 9 characters (`2.DYEgBQA`), was 133.
+
+Browser short-link lengths, characters after the address (old → new): a preset with the main-hand speed edited 64 → 57; a deleted rotation rule 75 → 37.
+
+Dropping gear because the sheet or a weapon was edited is not a separate settings change in the out-of-date line. A gear edit that keeps a gear list still is.
+
+Saved-setup `PAGE_FORM` (old → new): the page-default link decode without `character.expertise` and without per-hand `weaponSkill` → the full first-load config, expertise 11 and weapon skill 300 on both hands. Reset matches that config, and seed 1 / 300 s is 307.2716836384642.
+
+Share-link lock expectations (old → new), coordinator call 16 Nov (James delegated 15 Nov), in `test/short-links-306.test.js` only:
+
+- A preset rotation on the default build was `length <= 8` for every preset. Combat swords stays `2.BgA` (5). Combat daggers is `2.BpABA6gDYKMCDg` (16, ceiling 24). Assassination daggers is `2.DgT_AcgB9gKIBAK0AdAC9AMC` (26). Subtlety daggers is `2.DwT_AcgB9gKIBAK0AdAC9AMC` (26).
+- `LOCKED_CONTENT` gains hashes for `combat-daggers-383`, `assassination-daggers-383` and `subtlety-daggers-383`. No existing hash changed.
+- The frozen `subtlety-daggers-297` base stays locked. The last base was `subtlety-daggers-297` → `subtlety-daggers-383`.
+- The `newer` probe was part bit 12 (`bytes(0, 0x80, 0x20)`) → part bit 13 (`bytes(0, 0x80, 0x40)`). Bit 12 is the gear part.
+
 ## #297 PR4
 
 The page default moves from sword Combat to dagger Combat. The main hand is

@@ -7,7 +7,7 @@ import { defaultConfig } from "./sim-config.js";
 // setups still diff against this, so an old ?s=2 link opens the config
 // it produced then. The page's first load is pageDefaultConfig(), not this.
 // coordinator call 15 Nov (James delegated): Q3's read-only "sheet from an
-// older link" screen is PR5. This only keeps the numbers the same.
+// older link" screen is PR7. This only keeps the numbers the same.
 export function legacyPageConfig() {
   const build = referenceBuild("combat-swords-temp");
   const base = defaultConfig();
