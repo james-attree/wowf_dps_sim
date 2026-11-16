@@ -10,7 +10,7 @@ Race is still on Character. Changing it re-derives `config.character` so the dol
 
 Gear builds need level-60 base stats: Run is blocked with "Base stats are only known for level 60." `data/constants.js` `sheet.classBase` is a single level-60 rogue row (wowsims `ClassBaseStats ClassRogue`); `deriveSheet` refuses any other level because levels 1–59 have no curve in this snapshot. A legacy sheet still runs at any level. An empty main hand still blocks Run; an empty off hand is still MH-only (coordinator call 16 Nov, James delegated, settled in PR6).
 
-Presets still leave gear alone (no behaviour change here). #398 shipped James's direction: "Remove the link between weapons and talent/rotation choices." The 10 Nov preset-sheet rulings (dagger presets set the dagger sheet; non-dagger presets reset to the sword sheet) are superseded by it. coordinator call 16 Nov (James delegated).
+Presets still leave gear alone (no behaviour change here; #398 shipped it). coordinator call 16 Nov (James delegated). James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov preset-sets-weapons rulings)
 
 The item picker's title is an `h2` so the heading order stays intact with the picker open. The 3-column doll at 1024 / 100% does not mid-word wrap; `overflow-wrap: anywhere` is only in the stacked phone and narrow-container layouts.
 
