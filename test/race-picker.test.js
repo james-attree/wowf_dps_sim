@@ -166,6 +166,11 @@ describe("#321: the form's race field", () => {
     const store = createStore({ config: config() });
     const form = createConfigForm(store);
     const before = store.get().config;
+    // Night Elf on the P1 gear build. Skipping the re-derive leaves 608.
+    assert.equal(before.character.attackPower, 608);
+    form.change("race", "night-elf");
+    assert.equal(store.get().config.character.attackPower, 610);
+    form.change("race", "human");
     for (const id of RACE_IDS) {
       form.change("race", id);
       const after = store.get().config;
