@@ -9,6 +9,7 @@ import {
 } from "../js/config-form.js";
 import { createPresetBuild } from "../js/preset-build.js";
 import { createStore } from "../js/store.js";
+import { runFight } from "../js/fight.js";
 
 describe("a preset leaves the character sheet (#297)", () => {
   it("keeps the page sheet when Combat swords is picked after Combat daggers", () => {
@@ -26,5 +27,23 @@ describe("a preset leaves the character sheet (#297)", () => {
     assert.equal(after.critChance, before.critChance);
     assert.equal(after.attackPower, 608);
     assert.deepEqual(nextRunConfig(store.get()).weapons, beforeWeapons);
+  });
+
+  it("Reset restores the first-load config and its seed-1 DPS", () => {
+    const fresh = pageDefaultConfig();
+    const store = createStore({
+      config: {
+        ...fresh,
+        character: { ...fresh.character, attackPower: 900 },
+      },
+    });
+    const form = createConfigForm(store);
+    form.reset();
+    const config = store.get().config;
+    assert.deepEqual(config, fresh);
+    assert.equal(
+      runFight({ seed: 1, duration: 300, config }).dps,
+      307.2716836384642,
+    );
   });
 });

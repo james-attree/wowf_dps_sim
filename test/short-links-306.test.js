@@ -226,13 +226,27 @@ describe("short links: version 2 round trip (#306)", () => {
 
   it("a preset's rotation on the default build is one tag", () => {
     const d = setupDefaults();
+    // coordinator call 16 Nov (James delegated 15 Nov). The live dagger
+    // bases have no weapons, so the legacy swords are written too.
+    // combat-daggers was <= 8; it is now this text, 16, under 24.
+    // The other two dagger presets encode to 26.
+    const pinned = {
+      "combat-swords-temp": "2.BgA",
+      "combat-daggers": "2.BpABA6gDYKMCDg",
+      "assassination-daggers": "2.DgT_AcgB9gKIBAK0AdAC9AMC",
+      "subtlety-daggers": "2.DwT_AcgB9gKIBAK0AdAC9AMC",
+    };
     for (const { id } of listPresets()) {
       const setup = {
         config: { ...d.config, ...presetConfig(id) },
         run: d.run,
       };
       const text = encodeLink(setup);
-      assert.ok(text.length <= 8, `${id}: ${text}`);
+      assert.equal(text, pinned[id], id);
+      if (id === "combat-daggers") {
+        assert.equal(text.length, 16);
+        assert.ok(text.length <= 24);
+      }
       assert.deepEqual(decodeSetup(text).setup, setup);
     }
   });
@@ -458,6 +472,12 @@ const LOCKED_CONTENT = {
     "bf27c96eab5f9e5d6b99e74ec8cbc7b863831d828c23ba682c5a3f6fb1f727b6",
   "subtlety-daggers-297":
     "c96fb5c29db2a7088341daad4e4bcef50dd191c7323be13577b5dce38e99c890",
+  "combat-daggers-383":
+    "7c72f9842043975a6d4595e03926881876437b142e02a0d7bdbd4b24cc758185",
+  "assassination-daggers-383":
+    "c634768f7fe07c654d6e69914cd72a64628044b6171fb30566c6e47c45d78549",
+  "subtlety-daggers-383":
+    "070e73898c624e1213634d41aa5062ed52bafebc49e6cb04220ea7a417f11652",
 };
 
 const canonical = (value) =>
@@ -565,8 +585,17 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
     assert.equal(entry.id, "subtlety-daggers-340");
     assert.ok(entry.frozen);
     assert.equal(entry.preset, undefined);
+    const frozen297 = LINK_BASES.find(
+      (base) => base.id === "subtlety-daggers-297",
+    );
+    assert.ok(frozen297.frozen);
+    assert.equal(frozen297.preset, undefined);
+    assert.equal(
+      hash(baseContent(frozen297, setupDefaults().config)),
+      LOCKED_CONTENT["subtlety-daggers-297"],
+    );
     const live = LINK_BASES.at(-1);
-    assert.equal(live.id, "subtlety-daggers-297");
+    assert.equal(live.id, "subtlety-daggers-383");
     assert.equal(live.preset, "subtlety-daggers");
     assert.equal(
       hash(baseContent(entry, setupDefaults().config)),
@@ -609,7 +638,7 @@ describe("short links: newer and damaged version 2 links (#306)", () => {
     const newer = [
       `${LINK_VERSION + 1}.AAAA`,
       bytes(LINK_BASES.length, 0), // a base this version lacks
-      bytes(0, 0x80, 0x20), // part bit 12
+      bytes(0, 0x80, 0x40), // part bit 13; bit 12 is the gear part (#383)
       bytes(0, 1, LINK_RACES.length), // a race index past the list
       bytes(0, 0x10, 1, ...varint(LINK_TALENTS.length * 8 + 1)), // a later talent
       bytes(0, 0x80, 1, LINK_BASES.length * 2), // a later base's rotation

@@ -481,7 +481,14 @@ function readRotation(input, defaults) {
 // for a value of the wrong type and a RangeError for a value out of range, an
 // unknown field, or an unknown talent, and the message names the field.
 export function normalizeConfig(config, catalogue = talentCatalogue) {
-  const given = readObject(config, "config", SECTIONS);
+  const gear = isPlainObject(config) ? config.gear : undefined;
+  const withoutGear =
+    gear === undefined || !isPlainObject(config)
+      ? config
+      : Object.fromEntries(
+          Object.entries(config).filter(([key]) => key !== "gear"),
+        );
+  const given = readObject(withoutGear, "config", SECTIONS);
   const defaults = defaultConfig();
   const talents = readTalents(given.talents, catalogue);
   // The character level (#290) first: the weapon skill's cap depends on it.
@@ -490,7 +497,7 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
     talents,
     defaults.talentLevel,
   );
-  return {
+  const out = {
     race: readChoice(
       given.race,
       "config.race",
@@ -506,4 +513,34 @@ export function normalizeConfig(config, catalogue = talentCatalogue) {
     poisons: readPoisons(given.poisons, defaults.poisons),
     rotation: readRotation(given.rotation, defaults.rotation),
   };
+  if (gear !== undefined) {
+    out.gear = readGear(gear);
+  }
+  return out;
+}
+
+// Items only. Absent means no gear key. Slot ids are checked when a link or
+// save is applied (js/gear-sheet.js); this only keeps the object.
+function readGear(value) {
+  const gear = readObject(value, "config.gear", ["slots"]);
+  const slots = readObject(gear.slots ?? {}, "config.gear.slots", [
+    "head",
+    "neck",
+    "shoulder",
+    "back",
+    "chest",
+    "wrist",
+    "hands",
+    "waist",
+    "legs",
+    "feet",
+    "finger1",
+    "finger2",
+    "trinket1",
+    "trinket2",
+    "mainHand",
+    "offHand",
+    "ranged",
+  ]);
+  return { slots };
 }
