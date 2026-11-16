@@ -37,6 +37,9 @@ const SHOTS = process.env.SHARE_SHOTS ?? null;
 const HASTE = "#cfg-character-haste";
 const POWER = "#cfg-character-attackPower";
 const SEED = "424242";
+// The link writes seed*2 as a varint, which is 4 bytes below 2^27 and 5
+// bytes at and above it. A random page seed makes an exact length pin flake.
+const LONG_SEED = "134217728";
 const LENGTH = "120";
 const FIVE = "5";
 const POWER_VALUE = "900";
@@ -463,6 +466,7 @@ describe("Copy link to this build (#284)", () => {
     try {
       // Page defaults are already combat-swords-temp (#333).
       await set(page, "#character/gear", SPEED, "1.9");
+      await set(page, "#fight", "#run-seed", LONG_SEED);
       await page.evaluate(() => document.defaultView.scrollTo(0, 0));
       await page.locator("#share-link-header").click();
       await page.waitForFunction(
@@ -521,6 +525,7 @@ describe("Copy link to this build (#284)", () => {
           document.querySelectorAll("#rotation-builder li.rule").length === n,
         before - 1,
       );
+      await set(page, "#fight", "#run-seed", LONG_SEED);
       await go(page, "#character", "#share-link-header");
       await page.evaluate(() => document.defaultView.scrollTo(0, 0));
       await page.locator("#share-link-header").click();
