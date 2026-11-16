@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
+import { legacyPresetGear } from "../data/legacy-sheets.js";
 import { openCore } from "../js/core/fight.js";
 import { createFight, fightResult, runFight } from "../js/fight.js";
 import {
@@ -17,7 +18,7 @@ function presetConfig(id, extra = {}) {
   return loadPreset(id, {
     talents: build.talents,
     talentLevel: build.talentLevel,
-    weapons: build.weapons,
+    weapons: legacyPresetGear(id).weapons,
     poisons: build.poisons,
     character: build.character,
     ...extra,
@@ -163,8 +164,8 @@ describe("manual fight block reasons (#348)", () => {
       duration: 30,
       config: presetConfig("assassination-daggers", {
         weapons: {
-          ...referenceBuild("assassination-daggers").weapons,
-          offHand: referenceBuild("combat-swords-temp").weapons.offHand,
+          ...legacyPresetGear("assassination-daggers").weapons,
+          offHand: legacyPresetGear("combat-swords-temp").weapons.offHand,
         },
       }),
     });
@@ -410,7 +411,7 @@ describe("manual fight event names and reason times (#348)", () => {
     );
     assert.equal(sndCast.name, "Slice and Dice");
     assert.equal(sndAura.name, "Slice and Dice");
-    const speed = referenceBuild("combat-swords-temp").weapons.mainHand.speed;
+    const speed = legacyPresetGear("combat-swords-temp").weapons.mainHand.speed;
     let white = null;
     let poison = null;
     let stacks = null;

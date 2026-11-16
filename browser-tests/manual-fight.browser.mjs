@@ -734,7 +734,11 @@ describe("arming off-GCD abilities on the board (#372)", () => {
         await cold.click();
         assert.equal(await cold.getAttribute("aria-pressed"), "false");
         await page.locator("#manual-well").focus();
-        await page.keyboard.press("9");
+        // Mutilate is not on the board: the page off hand is an axe, and a
+        // preset does not equip weapons, so Cold Blood is key 8, not 9.
+        const key = await cold.getAttribute("data-key");
+        assert.equal(key, "8");
+        await page.keyboard.press(key);
         assert.equal(await cold.getAttribute("aria-pressed"), "true");
         assert.match(
           await cold.locator(".manual-slot-note").textContent(),

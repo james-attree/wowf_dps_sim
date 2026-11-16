@@ -28,9 +28,12 @@ describe("Character's rows (#244)", () => {
     const rows = characterRows(formFromConfig(config()));
     assert.equal(
       rows.gear.summary,
-      "Main hand Sword 100–187 · Instant Poison / Off hand Sword 90–168 · Deadly Poison",
+      "Main hand Dagger 54–102 · Instant Poison / Off hand Axe 71–134 · Deadly Poison",
     );
-    assert.equal(rows.stats.summary, "767 attack power · 22.45% crit · 7% hit");
+    assert.equal(
+      rows.stats.summary,
+      "Human · 608 attack power · 17.9705% crit · 8.7% hit",
+    );
     assert.equal(rows.gear.fix, 0);
     assert.equal(rows.stats.fix, 0);
   });
@@ -49,9 +52,9 @@ describe("Character's rows (#244)", () => {
       values,
       errors: validateValues(values),
     });
-    assert.match(rows.gear.summary, /^Main hand Sword —–187 · /);
-    assert.match(rows.gear.summary, / \/ Off hand Sword 90–-1 · No poison$/);
-    assert.match(rows.stats.summary, /^— attack power · /);
+    assert.match(rows.gear.summary, /^Main hand Dagger —–102 · /);
+    assert.match(rows.gear.summary, / \/ Off hand Axe 71–-1 · No poison$/);
+    assert.match(rows.stats.summary, /^Human · — attack power · /);
     assert.ok(rows.gear.fix >= 2, JSON.stringify(rows));
     assert.equal(rows.stats.fix, 1);
     assert.equal(fixText(rows.stats.fix), "1 to fix");
@@ -64,7 +67,7 @@ describe("Character's rows (#244)", () => {
     createConfigForm(store);
     assert.equal(
       characterRows(store.get().form).stats.summary,
-      "767 attack power · 22.45% crit · 7% hit",
+      "Human · 608 attack power · 17.9705% crit · 8.7% hit",
     );
   });
 });

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
+import { legacyPresetGear } from "../data/legacy-sheets.js";
 import { RACIAL_EFFECTS } from "../data/racial-effects.js";
 import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { abilityCatalogue } from "../js/abilities.js";
@@ -61,8 +62,8 @@ function presetConfig(id, race = null) {
     talents: { ...build.talents },
     talentLevel: build.talentLevel,
     weapons: {
-      mainHand: { ...build.weapons.mainHand },
-      offHand: { ...build.weapons.offHand },
+      mainHand: { ...legacyPresetGear(id).weapons.mainHand },
+      offHand: { ...legacyPresetGear(id).weapons.offHand },
     },
     poisons: { ...build.poisons },
     rotation: presetRotation(id),

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { referenceBuild } from "../data/reference-build.js";
-import { pageDefaultConfig } from "../js/config-form.js";
+import { legacyPageConfig } from "../js/legacy-page.js";
 import { emptyRan, emptyWeights } from "../js/run-actions.js";
 import { weightsCapNote } from "../js/weights-support.js";
 import { blocked, WEIGHTS_KEEP_AWAKE } from "../js/views/run-model.js";
@@ -75,7 +75,7 @@ function resultOf(over = {}) {
 function state({
   status = "done",
   result = resultOf(),
-  config = pageDefaultConfig(),
+  config = legacyPageConfig(),
   now = config,
   duration = DURATION,
   progress = null,
@@ -258,7 +258,7 @@ describe("stat weights model (#282)", () => {
   });
 
   it("Decision 2 and 7: cancel and run fields do not, by themselves, mark stale", () => {
-    const same = pageDefaultConfig();
+    const same = legacyPageConfig();
     const cancelled = state({ status: "cancelled", config: same, now: same });
     assert.equal(isStale(cancelled, "weights"), false);
     const model = weightsModel(cancelled);
@@ -273,7 +273,7 @@ describe("stat weights model (#282)", () => {
     longer.run.duration = DURATION + DURATION;
     longer.run.seed = SEED + SEED;
     assert.equal(isStale(longer, "weights"), false);
-    const edited = pageDefaultConfig();
+    const edited = legacyPageConfig();
     edited.character = { ...edited.character, attackPower: 1600 };
     const stale = state({ status: "cancelled", config: same, now: edited });
     assert.equal(isStale(stale, "weights"), true);
@@ -309,7 +309,7 @@ describe("stat weights model (#282)", () => {
   });
 
   it("a one-sided haste row states the side that ran and the bound", () => {
-    const config = pageDefaultConfig();
+    const config = legacyPageConfig();
     assert.equal(config.character.haste, 0);
     assert.equal(
       oneSidedNote("haste", jobs, config),
@@ -413,7 +413,7 @@ describe("stat weights model (#282)", () => {
   });
 
   it("a stale table keeps the cap note from the run's config after hit or levels change", () => {
-    const ranWith = { ...pageDefaultConfig(), talents: referenceBuild() };
+    const ranWith = { ...legacyPageConfig(), talents: referenceBuild() };
     ranWith.character = { ...ranWith.character };
     const afterLevel = structuredClone(ranWith);
     afterLevel.target = { ...afterLevel.target, level: 60 };
@@ -497,11 +497,11 @@ describe("stat weights across screens (#283)", () => {
     const staleRunning = state({
       status: "running",
       progress: { completed: 3, total: 9 },
-      now: { ...pageDefaultConfig(), character: { attackPower: 200 } },
+      now: { ...legacyPageConfig(), character: { attackPower: 200 } },
     });
     assert.equal(weightsCardLine(staleRunning), weightsCardLine(running));
     const stale = state({
-      now: { ...pageDefaultConfig(), character: { attackPower: 200 } },
+      now: { ...legacyPageConfig(), character: { attackPower: 200 } },
     });
     assert.match(weightsCardLine(stale), /changed after this ran\.$/);
     assert.equal(

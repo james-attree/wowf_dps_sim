@@ -21,10 +21,10 @@ import {
   formFromConfig,
   levelsInfo,
   nextRunConfig,
-  pageDefaultConfig,
   validateValues,
 } from "../js/config-form.js";
 import { targetLevel } from "../js/levels.js";
+import { legacyPageConfig } from "../js/legacy-page.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
 import { createTalentTree } from "../js/talent-tree.js";
@@ -53,7 +53,7 @@ const LOW_LEVEL = 40;
 const { min: TARGET_MIN, max: TARGET_MAX } = k("target.levelRange");
 const RUN = { mode: "batch", duration: 300, iterations: 1000, seed: null };
 
-function setup(config = pageDefaultConfig()) {
+function setup(config = legacyPageConfig()) {
   const store = createStore({ config: normalizeConfig(config) });
   const actions = createConfigForm(store);
   return { store, actions, form: () => store.get().form };
@@ -82,12 +82,12 @@ describe("the bounds are the engine's (#318)", () => {
       (weaponSkill, talentLevel = MAX_LEVEL) =>
       () =>
         normalizeConfig({
-          ...pageDefaultConfig(),
+          ...legacyPageConfig(),
           // Page defaults spend 51 points (#333); empty talents when the
           // level can't hold them so the weapon-skill bounds stay in view.
-          talents: talentLevel < MAX_LEVEL ? {} : pageDefaultConfig().talents,
+          talents: talentLevel < MAX_LEVEL ? {} : legacyPageConfig().talents,
           talentLevel,
-          character: { ...pageDefaultConfig().character, weaponSkill },
+          character: { ...legacyPageConfig().character, weaponSkill },
         });
     for (const level of [LOW_LEVEL, MAX_LEVEL]) {
       const { min, max } = levelsInfo(level).weaponSkill;
@@ -108,8 +108,8 @@ describe("the bounds are the engine's (#318)", () => {
     assert.equal(levelsInfo(MAX_LEVEL).targetLevel.blank, 63);
     const at = (level) => () =>
       normalizeConfig({
-        ...pageDefaultConfig(),
-        target: { ...pageDefaultConfig().target, level },
+        ...legacyPageConfig(),
+        target: { ...legacyPageConfig().target, level },
       });
     assert.doesNotThrow(at(TARGET_MIN));
     assert.doesNotThrow(at(TARGET_MAX));
@@ -254,7 +254,7 @@ describe("the form: blank is the default (#318)", () => {
 
   it("validateValues checks the weapon skill at the level it is given", () => {
     const values = {
-      ...formFromConfig(normalizeConfig(pageDefaultConfig())).values,
+      ...formFromConfig(normalizeConfig(legacyPageConfig())).values,
       [SKILL]: 300,
     };
     assert.equal(

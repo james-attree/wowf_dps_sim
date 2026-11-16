@@ -139,9 +139,12 @@ export function startCards(presets = listPresets()) {
       return {
         id: preset.id,
         name: preset.name,
-        detail: [...lead, points, weaponsText(build.weapons), poisons].join(
-          DOT,
-        ),
+        detail: [
+          ...lead,
+          points,
+          ...(build.weapons ? [weaponsText(build.weapons)] : []),
+          poisons,
+        ].join(DOT),
         short: points,
       };
     });
@@ -165,7 +168,7 @@ export function leadText(presets = listPresets()) {
   // default level so the Custom-only start screen still reads sensibly.
   const level =
     levels.length === 0 ? k("character.level") : Math.max(...levels);
-  return `Each sets talents, weapons, poisons and the rotation for a level${"\u00a0"}${level} rogue.`;
+  return `Each sets talents, poisons and the rotation for a level${"\u00a0"}${level} rogue.`;
 }
 
 // After a preset's pick, with no race chosen: its racial rules (Blood

@@ -9,6 +9,7 @@ import {
   referenceBuild as presetReferenceBuild,
 } from "../js/rotation-presets.js";
 import { defaultDaggerConfig } from "../js/sim-config.js";
+import { LEGACY_DAGGER_PRESET, LEGACY_SWORD } from "../data/legacy-sheets.js";
 
 // Golden-seed regression fixtures (#77, #85). Each case pins the full result of
 // runFight({ seed, duration }), or of a scripted-cast fight (see
@@ -380,9 +381,10 @@ export const GOLDEN_CASES = deepFreeze([
         talents: { ...build.talents },
         talentLevel: build.talentLevel,
         weapons: {
-          mainHand: { ...build.weapons.mainHand },
-          offHand: { ...build.weapons.offHand },
+          mainHand: { ...LEGACY_SWORD.weapons.mainHand },
+          offHand: { ...LEGACY_SWORD.weapons.offHand },
         },
+        character: { ...LEGACY_SWORD.character },
         poisons: { ...build.poisons },
       });
     })(),
@@ -398,11 +400,11 @@ export const GOLDEN_CASES = deepFreeze([
         talents: { ...build.talents },
         talentLevel: build.talentLevel,
         weapons: {
-          mainHand: { ...build.weapons.mainHand },
-          offHand: { ...build.weapons.offHand },
+          mainHand: { ...LEGACY_DAGGER_PRESET.weapons.mainHand },
+          offHand: { ...LEGACY_DAGGER_PRESET.weapons.offHand },
         },
         poisons: { ...build.poisons },
-        character: { ...build.character },
+        character: { ...LEGACY_DAGGER_PRESET.character },
       });
     })(),
   },
@@ -417,11 +419,11 @@ export const GOLDEN_CASES = deepFreeze([
         talents: { ...build.talents },
         talentLevel: build.talentLevel,
         weapons: {
-          mainHand: { ...build.weapons.mainHand },
-          offHand: { ...build.weapons.offHand },
+          mainHand: { ...LEGACY_DAGGER_PRESET.weapons.mainHand },
+          offHand: { ...LEGACY_DAGGER_PRESET.weapons.offHand },
         },
         poisons: { ...build.poisons },
-        character: { ...build.character },
+        character: { ...LEGACY_DAGGER_PRESET.character },
       });
     })(),
   },
@@ -435,11 +437,11 @@ export const GOLDEN_CASES = deepFreeze([
         talents: { ...build.talents },
         talentLevel: build.talentLevel,
         weapons: {
-          mainHand: { ...build.weapons.mainHand },
-          offHand: { ...build.weapons.offHand },
+          mainHand: { ...LEGACY_DAGGER_PRESET.weapons.mainHand },
+          offHand: { ...LEGACY_DAGGER_PRESET.weapons.offHand },
         },
         poisons: { ...build.poisons },
-        character: { ...build.character },
+        character: { ...LEGACY_DAGGER_PRESET.character },
       });
     })(),
   },

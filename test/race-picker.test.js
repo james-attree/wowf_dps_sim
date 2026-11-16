@@ -149,8 +149,8 @@ describe("#321: the form's race field", () => {
   it("starts with no race and writes config.race; None writes null", () => {
     const store = createStore({ config: config() });
     const form = createConfigForm(store);
-    assert.equal(store.get().form.values.race, null);
-    assert.equal(store.get().form.race, null);
+    assert.equal(store.get().form.values.race, "human");
+    assert.equal(store.get().form.race.name, "Human");
     form.change("race", "orc");
     assert.equal(store.get().config.race, "orc");
     assert.equal(store.get().form.race.name, "Orc");
@@ -194,9 +194,9 @@ describe("#321: the form's race field", () => {
     const form = createConfigForm(store);
     form.change("race", "undead");
     form.reset();
-    assert.equal(store.get().config.race, null);
-    assert.equal(store.get().form.values.race, null);
-    assert.equal(store.get().form.race, null);
+    assert.equal(store.get().config.race, "human");
+    assert.equal(store.get().form.values.race, "human");
+    assert.equal(store.get().form.race.name, "Human");
     form.undo();
     assert.equal(store.get().config.race, "undead");
     assert.equal(store.get().form.race.name, "Undead");
@@ -207,12 +207,12 @@ describe("#321: the Stats row", () => {
   it("leads with the race when one is set, and leaves it out with none", () => {
     assert.equal(
       characterRows(formFromConfig(config())).stats.summary,
-      "767 attack power · 22.45% crit · 7% hit",
+      "Human · 608 attack power · 17.9705% crit · 8.7% hit",
     );
     assert.equal(
       characterRows(formFromConfig({ ...config(), race: "night-elf" })).stats
         .summary,
-      "Night Elf · 767 attack power · 22.45% crit · 7% hit",
+      "Night Elf · 608 attack power · 17.9705% crit · 8.7% hit",
     );
   });
 
@@ -386,7 +386,7 @@ describe("#321: the race in the saved setup", () => {
     assert.ok(storage.items.has(SAVED_SETUP_KEY));
     form.reset();
     timers.advance(DELAY);
-    assert.equal(store.get().config.race, null);
+    assert.equal(store.get().config.race, "human");
     assert.equal(storage.items.has(SAVED_SETUP_KEY), false);
     saved.stop();
   });

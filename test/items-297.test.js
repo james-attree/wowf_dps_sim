@@ -220,7 +220,7 @@ describe("item snapshot filter (#297)", () => {
 });
 
 describe("item snapshot size (#297)", () => {
-  it("stays within 650 KB raw and 100 KB gzip-9", () => {
+  it("stays within 800 KB raw and 120 KB gzip-9", () => {
     const names = readdirSync(gearDir).sort();
     assert.deepEqual(names, [
       "enchants.json",

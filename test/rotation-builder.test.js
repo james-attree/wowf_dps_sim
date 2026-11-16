@@ -692,27 +692,28 @@ describe("the config form's drafts (#217)", () => {
 
   it("a valid draft is the config's rotation; dropping it restores the origin", () => {
     const { store, form } = fresh();
-    const draft = draftOf(PAGE_ROTATION, uidOf);
+    const pageRotation = presetRotation("combat-daggers");
+    const draft = draftOf(pageRotation, uidOf);
     // Page rotation: [racials…, slice-and-dice, adrenaline-rush, blade-flurry, …]
     // Move first rule (blood-fury) to index 9 (last).
     draft.rules = moveRule(draft.rules, 0, 9);
-    form.setDraft("combat-swords-temp", draft);
+    form.setDraft("combat-daggers", draft);
     assert.equal(store.get().config.rotation.rules[9].action, "blood-fury");
-    assert.equal(store.get().form.rotationChoice, "combat-swords-temp");
-    form.setDraft("combat-swords-temp", null);
-    assert.deepEqual(store.get().config.rotation, PAGE_ROTATION);
+    assert.equal(store.get().form.rotationChoice, "combat-daggers");
+    form.setDraft("combat-daggers", null);
+    assert.deepEqual(store.get().config.rotation, pageRotation);
     assert.deepEqual(store.get().form.drafts, {});
   });
 
   it("an invalid draft keeps its last valid version in the config", () => {
     const { store, form } = fresh();
-    const draft = draftOf(PAGE_ROTATION, uidOf);
+    const draft = draftOf(presetRotation("combat-daggers"), uidOf);
     draft.rules = moveRule(draft.rules, 0, 9);
-    form.setDraft("combat-swords-temp", draft);
+    form.setDraft("combat-daggers", draft);
     const valid = store.get().config.rotation;
     const bad = { ...draft, rules: [...draft.rules] };
     bad.rules[0] = { ...bad.rules[0], action: "no-such-ability" };
-    form.setDraft("combat-swords-temp", bad);
+    form.setDraft("combat-daggers", bad);
     assert.deepEqual(store.get().config.rotation, valid);
     assert.ok(store.get().form.rotationErrors.length > 0);
     assert.match(store.get().form.summary.stale, /so the sim keeps this/);

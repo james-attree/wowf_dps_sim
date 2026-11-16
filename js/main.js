@@ -1,5 +1,6 @@
 import { BatchClient } from "./batch-client.js";
 import {
+  freshPageSetup,
   resolveInitialSetup,
   setupFromState,
   shareUrl,
@@ -80,6 +81,7 @@ const storage = storageOf(win);
 const initial = resolveInitialSetup({
   search: location?.search ?? "",
   saved: readSavedSetup(storage),
+  fresh: freshPageSetup(),
 });
 if (initial.hadLink) {
   history?.replaceState(history.state, "", withoutLinkParam(location.href));

@@ -152,11 +152,15 @@ export function checkReferenceBuild(presetId, build) {
     }
   }
   problems.push(...poisonProblems(presetId, build.poisons));
-  if (!isObject(build.weapons)) {
-    problems.push("weapons is not an object.");
-  } else {
-    for (const hand of HANDS) {
-      problems.push(...weaponProblems(hand, build.weapons[hand]));
+  // James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
+  // A preset does not carry weapons. An entry that still has them (a fixture) is still checked.
+  if (build.weapons !== undefined) {
+    if (!isObject(build.weapons)) {
+      problems.push("weapons is not an object.");
+    } else {
+      for (const hand of HANDS) {
+        problems.push(...weaponProblems(hand, build.weapons[hand]));
+      }
     }
   }
   return problems;
@@ -184,13 +188,17 @@ export function referenceBuild(presetId) {
   const copy = {
     ...build,
     talents: { ...build.talents },
-    weapons: {
+    poisons: { ...build.poisons },
+  };
+  if (build.weapons) {
+    copy.weapons = {
       mainHand: { ...build.weapons.mainHand },
       offHand: { ...build.weapons.offHand },
-    },
-    poisons: { ...build.poisons },
-    ...(build.character ? { character: { ...build.character } } : {}),
-  };
+    };
+  }
+  if (build.character) {
+    copy.character = { ...build.character };
+  }
   return copy;
 }
 
@@ -213,6 +221,14 @@ export function talentDifferences(build, talents = {}) {
 
 export function weaponTypeDifferences(build, weapons = {}) {
   const current = isObject(weapons) ? weapons : {};
+  if (!build.weapons) {
+    return Object.fromEntries(
+      HANDS.map((hand) => [
+        hand,
+        { reference: null, current: current[hand]?.type, same: true },
+      ]),
+    );
+  }
   return Object.fromEntries(
     HANDS.map((hand) => {
       const reference = build.weapons[hand].type;

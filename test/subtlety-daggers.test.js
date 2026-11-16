@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { k } from "../data/constants.js";
+import { LEGACY_DAGGER_PRESET } from "../data/legacy-sheets.js";
 import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { buildProblems } from "../js/talent-build.js";
 import { pointsText } from "../js/preset-build.js";
@@ -14,12 +15,19 @@ describe("Subtlety daggers (#340)", () => {
     assert.ok(ROTATION_PRESETS.some((preset) => preset.id === ID));
     const build = referenceBuild(ID);
     assert.deepEqual(build.poisons, { mainHand: "instant", offHand: "deadly" });
-    assert.deepEqual(build.character, {
-      attackPower: k("character.dagger.attackPower"),
-      critChance: k("character.dagger.critChance"),
-    });
-    assert.equal(build.weapons.mainHand.type, "dagger");
-    assert.equal(build.weapons.offHand.min, 59);
+    const gear = LEGACY_DAGGER_PRESET;
+    assert.deepEqual(
+      {
+        attackPower: gear.character.attackPower,
+        critChance: gear.character.critChance,
+      },
+      {
+        attackPower: k("character.dagger.attackPower"),
+        critChance: k("character.dagger.critChance"),
+      },
+    );
+    assert.equal(gear.weapons.mainHand.type, "dagger");
+    assert.equal(gear.weapons.offHand.min, 59);
     assert.equal(pointsText(build.talents), "12/8/31");
     assert.deepEqual(buildProblems(build.talents, { talentLevel: 60 }), []);
   });
