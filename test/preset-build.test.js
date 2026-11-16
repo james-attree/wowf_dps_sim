@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { LEGACY_SWORD } from "../data/legacy-sheets.js";
 import { describe, it } from "node:test";
 import {
   createConfigForm,
@@ -75,23 +76,20 @@ describe("text (#273)", () => {
   it("lists parts with commas and and", () => {
     assert.equal(listText(["talents"]), "talents");
     assert.equal(listText(["talents", "poisons"]), "talents and poisons");
-    assert.equal(listText(BUILD_PARTS), "talents, weapons and poisons");
+    assert.equal(listText(BUILD_PARTS), "talents and poisons");
   });
 
   it("labels name only the parts that differ", () => {
     assert.equal(buttonLabel(["talents"]), "Use its talents too");
     assert.equal(buttonLabel(["weapons"]), "Use its weapons too");
     assert.equal(buttonLabel(["poisons"]), "Use its poisons too");
-    assert.equal(
-      buttonLabel(BUILD_PARTS),
-      "Use its talents, weapons and poisons too",
-    );
+    assert.equal(buttonLabel(BUILD_PARTS), "Use its talents and poisons too");
   });
 
   it("names the trees and weapons, kept on one line", () => {
     const build = referenceBuild("combat-swords-temp");
     assert.equal(treeText(build.talents), `Combat${NBSP}16/35/0`);
-    assert.equal(weaponsText(build.weapons), "two swords");
+    assert.equal(weaponsText(LEGACY_SWORD.weapons), "two swords");
     assert.equal(
       weaponsText({ mainHand: { type: "sword" }, offHand: { type: "axe" } }),
       "a sword and an axe",
@@ -105,13 +103,10 @@ describe("text (#273)", () => {
   it("the hint says the level below 60 and the poisons when they differ", () => {
     const build = referenceBuild("combat-swords-temp");
     const none = { talents: true, weapons: true, poisons: false, level: false };
-    assert.equal(
-      hintText(build, none),
-      `Built for Combat${NBSP}16/35/0 with two swords.`,
-    );
+    assert.equal(hintText(build, none), `Built for Combat${NBSP}16/35/0.`);
     assert.equal(
       hintText(build, { ...none, level: true, poisons: true }),
-      `Built for Combat${NBSP}16/35/0 at level${NBSP}60 with two swords, Instant Poison on the main hand and Deadly Poison on the off hand.`,
+      `Built for Combat${NBSP}16/35/0 at level${NBSP}60, Instant Poison on the main hand and Deadly Poison on the off hand.`,
     );
   });
 
@@ -124,11 +119,11 @@ describe("text (#273)", () => {
     );
     assert.equal(
       appliedText(build, BUILD_PARTS, true),
-      `Talents, weapons and poisons set to the Combat swords build. Level set to${NBSP}60.`,
+      `Talents and poisons set to the Combat swords build. Level set to${NBSP}60.`,
     );
     assert.equal(
       announceText(build, BUILD_PARTS, false),
-      "Talents, weapons and poisons replaced.",
+      "Talents and poisons replaced.",
     );
     assert.equal(
       announceText(build, ["talents"], true),
@@ -183,10 +178,7 @@ describe("matching (#273)", () => {
     assert.equal(env.said().hint.label, "Use its talents and poisons too");
     // All three.
     env.form.change("weapons.mainHand.type", "sword");
-    assert.equal(
-      env.said().hint.label,
-      "Use its talents, weapons and poisons too",
-    );
+    assert.equal(env.said().hint.label, "Use its talents and poisons too");
     // Apply, then put back the old weapons and poisons by hand: talents
     // match, so weapons and poisons only.
     env.build.apply();
@@ -254,7 +246,7 @@ describe("matching (#273)", () => {
 });
 
 describe("apply and Undo (#273)", () => {
-  it.skip("replaces talents, weapons and poisons, leaves the stats (skipped: needs a second distinct preset after #333; only combat-swords-temp is live)", () => {
+  it.skip("replaces talents and poisons, leaves the stats (skipped: needs a second distinct preset after #333; only combat-swords-temp is live)", () => {
     const env = page();
     env.form.change("character.attackPower", 1234);
     env.form.change("poisons.offHand", "instant");
@@ -277,9 +269,9 @@ describe("apply and Undo (#273)", () => {
     assert.equal(said.hint, null);
     assert.equal(
       said.applied.text,
-      "Talents, weapons and poisons set to the Assassination daggers build.",
+      "Talents and poisons set to the Assassination daggers build.",
     );
-    assert.equal(said.announce.text, "Talents, weapons and poisons replaced.");
+    assert.equal(said.announce.text, "Talents and poisons replaced.");
     assert.equal(said.focus.target, "undo");
   });
 
@@ -297,8 +289,8 @@ describe("apply and Undo (#273)", () => {
     assert.equal(config.talentLevel, before.talentLevel);
     const said = env.said();
     assert.equal(said.applied, null);
-    assert.equal(said.hint.label, "Use its talents, weapons and poisons too");
-    assert.equal(said.announce.text, "Talents, weapons and poisons put back.");
+    assert.equal(said.hint.label, "Use its talents and poisons too");
+    assert.equal(said.announce.text, "Talents and poisons put back.");
     assert.equal(said.focus.target, "button");
     // One step: a second Undo does nothing.
     assert.equal(env.build.undo(), false);

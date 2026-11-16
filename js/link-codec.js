@@ -9,6 +9,11 @@ import {
   DEFAULTS_FROZEN,
   COMBAT_SWORDS_TEMP_FROZEN,
 } from "../data/link-bases-frozen.js";
+import {
+  ASSASSINATION_DAGGERS_340_FROZEN,
+  COMBAT_DAGGERS_340_FROZEN,
+  SUBTLETY_DAGGERS_340_FROZEN,
+} from "../data/link-bases-pr4-frozen.js";
 
 // The short share link's body (#306): version 2 of the build codec's text,
 // "2.<base64url bytes>". js/build-codec.js owns the text, the checks and the
@@ -100,21 +105,33 @@ export const LINK_BASES = Object.freeze([
   }),
   Object.freeze({
     id: "combat-swords-temp-337",
+    // Still the live base. Preset weapons are gone, and the link fills
+    // them from the legacy sword page, which is this base's old content.
     preset: "combat-swords-temp",
   }),
   Object.freeze({
     id: "combat-daggers-340",
-    // TR-10 / #340. Appended. The frozen id "combat-daggers" stays the #328 snapshot.
-    preset: "combat-daggers",
+    // Frozen at #297 PR4. The frozen id stays the #340 snapshot.
+    frozen: COMBAT_DAGGERS_340_FROZEN,
   }),
   Object.freeze({
     id: "assassination-daggers-340",
-    // TR-10 / #340. Appended. The frozen id "assassination-daggers" stays the old snapshot.
-    preset: "assassination-daggers",
+    frozen: ASSASSINATION_DAGGERS_340_FROZEN,
   }),
   Object.freeze({
     id: "subtlety-daggers-340",
-    // #340. Appended. The frozen id "subtlety-daggers" stays the old snapshot.
+    frozen: SUBTLETY_DAGGERS_340_FROZEN,
+  }),
+  Object.freeze({
+    id: "combat-daggers-297",
+    preset: "combat-daggers",
+  }),
+  Object.freeze({
+    id: "assassination-daggers-297",
+    preset: "assassination-daggers",
+  }),
+  Object.freeze({
+    id: "subtlety-daggers-297",
     preset: "subtlety-daggers",
   }),
 ]);
@@ -401,15 +418,15 @@ export function baseContent(entry, defaultsConfig) {
   };
   if (entry.preset === undefined) return clone(own);
   const build = referenceBuild(entry.preset);
-  const picked =
-    build === null
-      ? own
-      : {
-          talents: build.talents,
-          talentLevel: build.talentLevel,
-          weapons: build.weapons,
-          poisons: build.poisons,
-        };
+  if (build === null) return clone(own);
+  const picked = {
+    talents: build.talents,
+    talentLevel: build.talentLevel,
+    poisons: build.poisons,
+  };
+  // A preset no longer carries weapons (James, 15 Nov 2026, #297). The
+  // base then keeps the page's weapons, which a link diffs against.
+  if (build.weapons) picked.weapons = build.weapons;
   return clone({ ...own, ...picked, rotation: presetRotation(entry.preset) });
 }
 

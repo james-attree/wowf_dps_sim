@@ -1,5 +1,4 @@
 import { poisonName } from "./build-label.js";
-import { k } from "../data/constants.js";
 import {
   isEditedChoice,
   originRotation,
@@ -61,7 +60,9 @@ const NBSP = "\u00a0";
 const WEAPON_FIELDS = ["type", "min", "max", "speed"];
 
 // The parts of a build the button replaces, in the order they are named.
-export const BUILD_PARTS = ["talents", "weapons", "poisons"];
+// James, 15 Nov 2026, issue #297, requirement 5: a preset sets talents and
+// poisons (and the rotation). It does not set weapons or the sheet.
+export const BUILD_PARTS = ["talents", "poisons"];
 
 // A weapon type as the hint names it: "dagger", "two daggers".
 const WEAPON_NOUNS = {
@@ -204,7 +205,8 @@ export function hintText(build, differences, names = poisonName) {
   const poisons = differences.poisons
     ? `, ${names(referencePoison(build, "mainHand"))} on the main hand and ${names(referencePoison(build, "offHand"))} on the off hand`
     : "";
-  return `Built for ${treeText(build.talents)}${level} with ${weaponsText(build.weapons)}${poisons}.`;
+  const weapons = build.weapons ? ` with ${weaponsText(build.weapons)}` : "";
+  return `Built for ${treeText(build.talents)}${level}${weapons}${poisons}.`;
 }
 
 const levelSentence = (build) => `Level set to${NBSP}${build.talentLevel}.`;
@@ -278,20 +280,17 @@ export function hintOf(state) {
 export function buildValues(build) {
   const values = {};
   for (const hand of HANDS) {
-    const weapon = referenceWeapon(build, hand);
-    for (const field of WEAPON_FIELDS) {
-      values[`weapons.${hand}.${field}`] = weapon[field];
-    }
     values[`poisons.${hand}`] = referencePoison(build, hand);
   }
-  if (build.character) {
-    values["character.attackPower"] = build.character.attackPower;
-    values["character.critChance"] = build.character.critChance;
-  } else {
-    // James, 10 Nov 2026, issue #340: a non-dagger preset puts back the
-    // sword sheet. Combat swords has no character of its own.
-    values["character.attackPower"] = k("character.attackPower");
-    values["character.critChance"] = k("character.critChance");
+  // Weapons and the sheet stay as the player left them. James, 15 Nov 2026,
+  // issue #297, requirement 5, supersedes James, 10 Nov 2026, issue #340.
+  if (build.weapons) {
+    for (const hand of HANDS) {
+      const weapon = referenceWeapon(build, hand);
+      for (const field of WEAPON_FIELDS) {
+        values[`weapons.${hand}.${field}`] = weapon[field];
+      }
+    }
   }
   return values;
 }
@@ -299,6 +298,9 @@ export function buildValues(build) {
 // Whether the weapons' fields differ from the build's: a type, or a damage
 // or speed as a number (a field's value is its text).
 export function weaponValuesDiffer(build, current) {
+  if (!build.weapons) {
+    return false;
+  }
   const wanted = buildValues(build);
   const now = savedValues(current);
   return Object.keys(wanted)
@@ -393,7 +395,7 @@ export function pickedText(
   const points = pointsText(build.talents);
   const says = {
     talents: points === "" ? "no talents" : `talents ${points}`,
-    weapons: weaponsText(build.weapons),
+    weapons: build.weapons ? weaponsText(build.weapons) : "your weapons",
     poisons: poisonsText(build.poisons),
     [ROTATION_PART]:
       choice === CUSTOM ? "the default rotation" : "its rotation",

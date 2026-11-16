@@ -18,39 +18,10 @@ function deepFreeze(value) {
   return value;
 }
 
-const swordHand = (hand) => {
-  const { type, min, max, speed } = k(`weapon.${hand}`);
-  return { min, max, speed, type };
-};
-
-// assumption: MH/OH sword damage and speed from the prior Combat swords
-// preset / page defaults until James sends a sim share link (#333).
-const SWORDS = {
-  mainHand: swordHand("mainHand"),
-  offHand: swordHand("offHand"),
-};
-
-// #328's Combat daggers weapons, still in data: Perdition's Blade
-// (weapon.dagger.mainHand) and the unnamed 59–111 off hand
-// (presetReferenceBuild.daggerOffHand). James, 10 Nov 2026, issue #340: use
-// those daggers. James, 10 Nov 2026, issue #340: the sheet is character.dagger
-// (Core Hound Tooth's attack power and crit) even though the off hand is the
-// unnamed 59-111. presetReferenceBuild.daggerCharacter records that assumption.
-const daggerHand = (id) => {
-  const { type, min, max, speed } = k(id);
-  return { min, max, speed, type };
-};
-
-const DAGGERS = {
-  mainHand: daggerHand("weapon.dagger.mainHand"),
-  offHand: daggerHand("presetReferenceBuild.daggerOffHand"),
-};
-
-const daggerSheetId = k("presetReferenceBuild.daggerCharacter");
-const DAGGER_SHEET = {
-  attackPower: k(`${daggerSheetId}.attackPower`),
-  critChance: k(`${daggerSheetId}.critChance`),
-};
+// James, 15 Nov 2026, issue #297, requirement 5: presets set talents, poisons
+// and the rotation, not weapons or the character sheet. That supersedes
+// James, 10 Nov 2026, issue #340 (the dagger sheet and the unnamed off hand).
+// Those values are frozen in data/legacy-sheets.js for the goldens.
 
 // Glyphs and the query string are ignored by decodeBuildLink.
 const COMBAT_DAGGERS_LINK =
@@ -80,37 +51,32 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     name: "Combat swords (temporary, #333)",
     talentLevel: LEVEL_60,
     talents: combatReferenceTalents(),
-    weapons: SWORDS,
     poisons: poisonsOf("combat-swords-temp"),
   },
   "combat-daggers": {
     name: "Combat daggers (#340)",
     talentLevel: LEVEL_60,
     talents: talentsFromLink(COMBAT_DAGGERS_LINK),
-    weapons: DAGGERS,
-    // Combat daggers uses Instant MH / Deadly OH (James 11 Nov 2026 ruling).
+    // James 11 Nov 2026: Instant on the main hand, Deadly on the off hand.
+    // Weapons and the character sheet are not part of the preset (James,
+    // 15 Nov 2026, issue #297, requirement 5). That supersedes the 10 Nov
+    // dagger-sheet ruling. The old numbers live in data/legacy-sheets.js.
     poisons: poisonsOf("combat-daggers"),
-    character: DAGGER_SHEET,
   },
   "assassination-daggers": {
     name: "Assassination daggers (#340)",
     talentLevel: LEVEL_60,
     talents: talentsFromLink(ASSASSINATION_DAGGERS_LINK),
-    weapons: DAGGERS,
-    // Assassination daggers uses Instant MH / Deadly OH (James 11 Nov 2026 confirmation).
+    // James 11 Nov 2026: Instant on the main hand, Deadly on the off hand.
     poisons: poisonsOf("assassination-daggers"),
-    character: DAGGER_SHEET,
   },
   "subtlety-daggers": {
     name: "Subtlety daggers (#340)",
     talentLevel: LEVEL_60,
     talents: talentsFromLink(SUBTLETY_DAGGERS_LINK),
-    weapons: DAGGERS,
     // Assumption (dev choice): Subtlety daggers uses Instant MH / Deadly OH,
     // matching the Combat and Assassination dagger presets. James has not
-    // ruled Subtlety poisons. Cf. his 1 Nov ruling for the historical #273
-    // reference builds.
+    // ruled Subtlety poisons.
     poisons: poisonsOf("subtlety-daggers"),
-    character: DAGGER_SHEET,
   },
 });

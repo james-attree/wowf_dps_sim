@@ -150,46 +150,70 @@ describe("config round trip (#297 PR3)", () => {
 });
 
 describe("off-hand roll with no off hand (#297 PR3)", () => {
-  it("is a no-op for a cast that skips offHandAllowed", () => {
+  it("draws nothing and does not throw on each off-hand path", () => {
     const rogue = new Rogue(normalizeConfig({ weapons: { offHand: null } }));
     const simulation = new Simulation(rogue, { seed: 1 });
-    let rolled = false;
-    const strike = simulation.resolveStrike(
-      { id: "forced-off", name: "Forced off", hand: "offHand" },
-      () => {
-        rolled = true;
-        return 50;
-      },
-    );
-    assert.equal(rolled, false);
+    let draws = 0;
+    const rng = simulation.rng;
+    simulation.rng = () => {
+      draws += 1;
+      return rng();
+    };
+    rogue.rng = simulation.rng;
+    const source = { id: "forced-off", name: "Forced off", hand: "offHand" };
+    let strike;
+    assert.doesNotThrow(() => {
+      strike = simulation.resolveStrike(source, () => {
+        throw new TypeError("off-hand damage was rolled");
+      });
+    });
+    assert.equal(draws, 0);
     assert.equal(strike.landed, false);
     assert.equal(strike.damage, 0);
-    assert.equal(simulation.abilityStats["forced-off"], undefined);
+    let attack;
+    assert.doesNotThrow(() => {
+      attack = simulation.resolveAttack(source, "weapon", 40);
+    });
+    assert.equal(draws, 0);
+    assert.equal(attack.damage, 0);
     assert.equal(rogue.rollWeaponDamageForSkill("offHand"), 0);
     const definition = ABILITY_DEFINITIONS.find(
       (entry) => entry.damage?.kind === "bothHands",
     );
     const ability = new Ability(definition, rogue);
-    assert.equal(ability.offHandAllowed(rogue), false);
-    simulation.resolveStrike = (source) => {
-      if (source.hand === "offHand") {
-        throw new Error("off hand rolled");
-      }
-      return { landed: true, outcome: "hit", damage: 1, status: "Hit" };
+    const calls = [];
+    const real = simulation.resolveStrike.bind(simulation);
+    simulation.resolveStrike = (who, roll) => {
+      calls.push(who.hand ?? who);
+      return real(who, roll);
     };
-    const cast = ability.castBothHands(simulation, null, 0);
-    assert.equal(cast.landed, true);
-    simulation.procs.onSwing(
-      { id: "off-hand", name: "Off-hand", hand: "offHand" },
-      { landed: true, outcome: "hit", damage: 10 },
-      false,
+    assert.doesNotThrow(() => ability.castBothHands(simulation, null, 0));
+    assert.equal(calls.includes("offHand"), false);
+    const afterCast = draws;
+    simulation.procs.procs = [{ id: "forced" }];
+    simulation.procs.dispatch = () => {
+      throw new TypeError("off-hand proc ran");
+    };
+    const swing = {
+      id: "off-hand",
+      name: "Off-hand",
+      hand: "offHand",
+    };
+    assert.doesNotThrow(() =>
+      simulation.procs.onSwing(
+        swing,
+        { landed: true, outcome: "hit", damage: 10 },
+        false,
+      ),
     );
-    simulation.procs.onStrike(
-      { id: definition.id, name: ability.name, hand: "offHand" },
-      { landed: true, outcome: "hit", damage: 10 },
-      true,
+    assert.doesNotThrow(() =>
+      simulation.procs.onStrike(
+        { id: definition.id, name: ability.name, hand: "offHand" },
+        { landed: true, outcome: "hit", damage: 10 },
+        true,
+      ),
     );
-    assert.equal(simulation.abilityStats["off-hand"], undefined);
+    assert.equal(draws, afterCast);
   });
 });
 

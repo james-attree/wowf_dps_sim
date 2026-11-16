@@ -1,0 +1,1863 @@
+{
+  "short-seed-1-10s": {
+    "race": null,
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {},
+    "talentLevel": 60,
+    "poisons": { "mainHand": null, "offHand": null },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "five-minute-seed-1-300s": {
+    "race": null,
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {},
+    "talentLevel": 60,
+    "poisons": { "mainHand": null, "offHand": null },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "other-seed-12345-90s": {
+    "race": null,
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {},
+    "talentLevel": 60,
+    "poisons": { "mainHand": null, "offHand": null },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "scripted-finishers-in-budget-seed-68-50s": {
+    "race": null,
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {},
+    "talentLevel": 60,
+    "poisons": { "mainHand": null, "offHand": null },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "talented-build-seed-107-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.improved-sprint": 2,
+      "combat.composure": 2,
+      "combat.flawless-execution": 1,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.dual-wield-specialization": 2,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.flash-of-steel": 5,
+      "combat.adrenaline-rush": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": null, "offHand": null },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "poisons-instant-deadly-seed-107-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.improved-sprint": 2,
+      "combat.composure": 2,
+      "combat.flawless-execution": 1,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.dual-wield-specialization": 2,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.flash-of-steel": 5,
+      "combat.adrenaline-rush": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "assassination-build-seed-266-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.improved-gouge": 3,
+      "assassination.remorseless-attacks": 2,
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-expose-armor": 2,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "assassination.vile-poisons": 5,
+      "assassination.cold-blood": 1,
+      "assassination.improved-poisons": 5,
+      "assassination.relentless-strikes": 5,
+      "assassination.improved-kidney-shot": 2,
+      "assassination.seal-fate": 3,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.precision": 2
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "mutilate-daggers-seed-267-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 769,
+      "critChance": 0.2214,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 73, "max": 137, "speed": 1.8, "type": "dagger" },
+      "offHand": { "min": 57, "max": 107, "speed": 1.6, "type": "dagger" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.improved-gouge": 2,
+      "assassination.remorseless-attacks": 2,
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-expose-armor": 2,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "assassination.vile-poisons": 5,
+      "assassination.cold-blood": 1,
+      "assassination.improved-poisons": 5,
+      "assassination.relentless-strikes": 5,
+      "assassination.venom": 1,
+      "assassination.improved-kidney-shot": 2,
+      "assassination.seal-fate": 3,
+      "assassination.mutilate": 1,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.precision": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Eviscerate at 5 CP, otherwise Mutilate",
+      "rules": [
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        {
+          "action": "mutilate",
+          "conditions": [{ "type": "abilityGranted", "ability": "mutilate" }]
+        }
+      ]
+    }
+  },
+  "subtlety-build-seed-269-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 769,
+      "critChance": 0.2214,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 73, "max": 137, "speed": 1.8, "type": "dagger" },
+      "offHand": { "min": 57, "max": 107, "speed": 1.6, "type": "dagger" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "assassination.vile-poisons": 4,
+      "subtlety.setup": 3,
+      "subtlety.opportunity": 5,
+      "subtlety.dirty-deeds": 2,
+      "subtlety.camouflage": 2,
+      "subtlety.improved-ambush": 3,
+      "subtlety.dirty-tricks": 2,
+      "subtlety.initiative": 3,
+      "subtlety.premeditation": 1,
+      "subtlety.serrated-blades": 3,
+      "subtlety.elusiveness": 2,
+      "subtlety.ghostly-strike": 1,
+      "subtlety.heightened-senses": 2,
+      "subtlety.preparation": 1,
+      "subtlety.hemorrhage": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": null, "offHand": null },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Rupture, Eviscerate, Hemorrhage, then Backstab",
+      "rules": [
+        {
+          "action": "rupture",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "debuffRemaining",
+              "debuff": "rupture",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        {
+          "action": "hemorrhage",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "hemorrhage" },
+            { "type": "comboPoints", "op": "<", "value": 5 },
+            {
+              "type": "debuffRemaining",
+              "debuff": "hemorrhage",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "backstab",
+          "conditions": [{ "type": "comboPoints", "op": "<", "value": 5 }]
+        }
+      ]
+    }
+  },
+  "preparation-subtlety-seed-270-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 769,
+      "critChance": 0.2214,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 73, "max": 137, "speed": 1.8, "type": "dagger" },
+      "offHand": { "min": 57, "max": 107, "speed": 1.6, "type": "dagger" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "assassination.vile-poisons": 4,
+      "subtlety.setup": 3,
+      "subtlety.opportunity": 5,
+      "subtlety.dirty-deeds": 2,
+      "subtlety.camouflage": 2,
+      "subtlety.improved-ambush": 3,
+      "subtlety.dirty-tricks": 2,
+      "subtlety.initiative": 3,
+      "subtlety.premeditation": 1,
+      "subtlety.serrated-blades": 3,
+      "subtlety.elusiveness": 2,
+      "subtlety.ghostly-strike": 1,
+      "subtlety.heightened-senses": 2,
+      "subtlety.preparation": 1,
+      "subtlety.hemorrhage": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": null, "offHand": null },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Ghostly Strike, Preparation, then the Subtlety rotation",
+      "rules": [
+        {
+          "action": "ghostly-strike",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "ghostly-strike" },
+            { "type": "comboPoints", "op": "<", "value": 5 },
+            { "type": "cooldownReady", "ability": "ghostly-strike" }
+          ]
+        },
+        {
+          "action": "preparation",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "preparation" },
+            {
+              "type": "cooldownReady",
+              "ability": "ghostly-strike",
+              "ready": false
+            },
+            { "type": "cooldownReady", "ability": "preparation" }
+          ]
+        },
+        {
+          "action": "rupture",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "debuffRemaining",
+              "debuff": "rupture",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        {
+          "action": "hemorrhage",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "hemorrhage" },
+            { "type": "comboPoints", "op": "<", "value": 5 },
+            {
+              "type": "debuffRemaining",
+              "debuff": "hemorrhage",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "backstab",
+          "conditions": [{ "type": "comboPoints", "op": "<", "value": 5 }]
+        }
+      ]
+    }
+  },
+  "race-human-seed-277-60s": {
+    "race": "human",
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.improved-sprint": 2,
+      "combat.composure": 2,
+      "combat.flawless-execution": 1,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.dual-wield-specialization": 2,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.flash-of-steel": 5,
+      "combat.adrenaline-rush": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "race-dwarf-seed-277-60s": {
+    "race": "dwarf",
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.improved-sprint": 2,
+      "combat.composure": 2,
+      "combat.flawless-execution": 1,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.dual-wield-specialization": 2,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.flash-of-steel": 5,
+      "combat.adrenaline-rush": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "race-skyborne-windshaper-seed-277-60s": {
+    "race": "skyborne-windshaper",
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.improved-sprint": 2,
+      "combat.composure": 2,
+      "combat.flawless-execution": 1,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.dual-wield-specialization": 2,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.flash-of-steel": 5,
+      "combat.adrenaline-rush": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Default (Combat)",
+      "rules": [
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<=",
+              "value": 5
+            },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 100
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [{ "type": "comboPoints", "op": ">=", "value": 5 }]
+        },
+        { "action": "sinister-strike", "conditions": [] }
+      ]
+    }
+  },
+  "race-gnome-vigor-seed-277-60s": {
+    "race": "gnome",
+    "character": {
+      "attackPower": 769,
+      "critChance": 0.2214,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 73, "max": 137, "speed": 1.8, "type": "dagger" },
+      "offHand": { "min": 57, "max": 107, "speed": 1.6, "type": "dagger" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.improved-gouge": 2,
+      "assassination.remorseless-attacks": 2,
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-expose-armor": 2,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "assassination.vile-poisons": 5,
+      "assassination.cold-blood": 1,
+      "assassination.improved-poisons": 5,
+      "assassination.relentless-strikes": 5,
+      "assassination.venom": 1,
+      "assassination.improved-kidney-shot": 2,
+      "assassination.seal-fate": 3,
+      "assassination.mutilate": 1,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.precision": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Pool to the cap for 10 s, then Eviscerate at 5 CP, otherwise Mutilate",
+      "rules": [
+        {
+          "action": "eviscerate",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            { "type": "fightTime", "op": ">=", "value": 10 }
+          ]
+        },
+        {
+          "action": "mutilate",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "mutilate" },
+            { "type": "fightTime", "op": ">=", "value": 10 }
+          ]
+        }
+      ]
+    }
+  },
+  "combat-swords-temp-preset-seed-142-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 767,
+      "critChance": 0.2245,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 100, "max": 187, "speed": 2.6, "type": "sword" },
+      "offHand": { "min": 90, "max": 168, "speed": 2.5, "type": "sword" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.improved-sprint": 2,
+      "combat.composure": 2,
+      "combat.flawless-execution": 1,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.dual-wield-specialization": 2,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.flash-of-steel": 5,
+      "combat.adrenaline-rush": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Combat swords (temporary)",
+      "rules": [
+        {
+          "action": "blood-fury",
+          "conditions": [{ "type": "abilityGranted", "ability": "blood-fury" }]
+        },
+        {
+          "action": "elunes-light",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "elunes-light" }
+          ]
+        },
+        {
+          "action": "berserking",
+          "conditions": [{ "type": "abilityGranted", "ability": "berserking" }]
+        },
+        {
+          "action": "eureka",
+          "conditions": [{ "type": "abilityGranted", "ability": "eureka" }]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 3 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": "<",
+              "value": 25
+            },
+            { "type": "auraActive", "aura": "slice-and-dice" }
+          ]
+        },
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            { "type": "auraActive", "aura": "slice-and-dice" }
+          ]
+        },
+        {
+          "action": "shank",
+          "conditions": [
+            { "type": "cooldownReady", "ability": "shank" },
+            { "type": "resource", "resource": "energy", "op": "<", "value": 50 }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">=",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "action": "sinister-strike",
+          "conditions": [{ "type": "comboPoints", "op": "<", "value": 5 }]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 3 },
+            { "type": "energyToCap", "op": "<", "value": 1 }
+          ]
+        }
+      ]
+    }
+  },
+  "combat-daggers-preset-seed-142-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 769,
+      "critChance": 0.2214,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 73, "max": 137, "speed": 1.8, "type": "dagger" },
+      "offHand": { "min": 59, "max": 111, "speed": 1.6, "type": "dagger" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.lethality": 2,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "combat.improved-sprint": 2,
+      "combat.composure": 2,
+      "combat.flawless-execution": 1,
+      "combat.weapon-expertise": 2,
+      "combat.aggression": 3,
+      "combat.dual-wield-specialization": 2,
+      "combat.blade-flurry": 1,
+      "combat.hack-and-slash": 5,
+      "combat.flash-of-steel": 5,
+      "combat.adrenaline-rush": 1,
+      "subtlety.opportunity": 3
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Combat daggers",
+      "rules": [
+        {
+          "action": "blood-fury",
+          "conditions": [{ "type": "abilityGranted", "ability": "blood-fury" }]
+        },
+        {
+          "action": "elunes-light",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "elunes-light" }
+          ]
+        },
+        {
+          "action": "berserking",
+          "conditions": [{ "type": "abilityGranted", "ability": "berserking" }]
+        },
+        {
+          "action": "eureka",
+          "conditions": [{ "type": "abilityGranted", "ability": "eureka" }]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 3 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "action": "adrenaline-rush",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "adrenaline-rush" },
+            { "type": "cooldownReady", "ability": "adrenaline-rush" },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": "<",
+              "value": 25
+            },
+            { "type": "auraActive", "aura": "slice-and-dice" }
+          ]
+        },
+        {
+          "action": "blade-flurry",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "blade-flurry" },
+            { "type": "cooldownReady", "ability": "blade-flurry" },
+            { "type": "auraActive", "aura": "slice-and-dice" }
+          ]
+        },
+        {
+          "action": "shank",
+          "conditions": [
+            { "type": "cooldownReady", "ability": "shank" },
+            { "type": "resource", "resource": "energy", "op": "<", "value": 50 }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 5 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">=",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "action": "backstab",
+          "conditions": [{ "type": "comboPoints", "op": "<", "value": 5 }]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 3 },
+            { "type": "energyToCap", "op": "<", "value": 1 }
+          ]
+        }
+      ]
+    }
+  },
+  "assassination-daggers-preset-seed-142-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 769,
+      "critChance": 0.2214,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 73, "max": 137, "speed": 1.8, "type": "dagger" },
+      "offHand": { "min": 59, "max": 111, "speed": 1.6, "type": "dagger" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.vigor": 2,
+      "assassination.blood-splatter": 1,
+      "assassination.lethality": 2,
+      "assassination.vile-poisons": 5,
+      "assassination.cold-blood": 1,
+      "assassination.improved-poisons": 5,
+      "assassination.relentless-strikes": 5,
+      "assassination.venom": 1,
+      "assassination.seal-fate": 3,
+      "assassination.mutilate": 1,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.puncturing-wounds": 3,
+      "combat.precision": 3,
+      "subtlety.opportunity": 3
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Assassination daggers",
+      "rules": [
+        {
+          "action": "blood-fury",
+          "conditions": [{ "type": "abilityGranted", "ability": "blood-fury" }]
+        },
+        {
+          "action": "elunes-light",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "elunes-light" }
+          ]
+        },
+        {
+          "action": "berserking",
+          "conditions": [{ "type": "abilityGranted", "ability": "berserking" }]
+        },
+        {
+          "action": "eureka",
+          "conditions": [{ "type": "abilityGranted", "ability": "eureka" }]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 4 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "action": "rupture",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 4 },
+            {
+              "type": "debuffRemaining",
+              "debuff": "rupture",
+              "op": "<",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "action": "eviscerate",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 4 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": ">",
+              "value": 10
+            },
+            {
+              "type": "debuffRemaining",
+              "debuff": "rupture",
+              "op": ">",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "action": "cold-blood",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "cold-blood" },
+            { "type": "cooldownReady", "ability": "cold-blood" }
+          ]
+        },
+        {
+          "action": "mutilate",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "mutilate" },
+            { "type": "comboPoints", "op": "<", "value": 4 },
+            {
+              "type": "resource",
+              "resource": "energy",
+              "op": ">=",
+              "value": 50
+            }
+          ]
+        },
+        {
+          "action": "shank",
+          "conditions": [
+            { "type": "cooldownReady", "ability": "shank" },
+            { "type": "resource", "resource": "energy", "op": "<", "value": 50 }
+          ]
+        }
+      ]
+    }
+  },
+  "subtlety-daggers-preset-seed-142-60s": {
+    "race": null,
+    "character": {
+      "attackPower": 769,
+      "critChance": 0.2214,
+      "bonusHitChance": 0.07,
+      "haste": 0,
+      "weaponSkill": null
+    },
+    "weapons": {
+      "mainHand": { "min": 73, "max": 137, "speed": 1.8, "type": "dagger" },
+      "offHand": { "min": 59, "max": 111, "speed": 1.6, "type": "dagger" }
+    },
+    "target": { "behind": true, "level": null, "armor": null },
+    "talents": {
+      "assassination.malice": 5,
+      "assassination.ruthlessness": 3,
+      "assassination.improved-slice-and-dice": 3,
+      "assassination.blood-splatter": 1,
+      "combat.coup-de-grace": 3,
+      "combat.efficient-strikes": 2,
+      "combat.precision": 3,
+      "subtlety.master-of-deception": 2,
+      "subtlety.opportunity": 5,
+      "subtlety.dirty-deeds": 2,
+      "subtlety.camouflage": 3,
+      "subtlety.improved-ambush": 3,
+      "subtlety.initiative": 3,
+      "subtlety.premeditation": 1,
+      "subtlety.serrated-blades": 3,
+      "subtlety.ghostly-strike": 1,
+      "subtlety.preparation": 1,
+      "subtlety.hemorrhage": 1,
+      "subtlety.boot-knife": 5,
+      "subtlety.death-mark": 1
+    },
+    "talentLevel": 60,
+    "poisons": { "mainHand": "instant", "offHand": "deadly" },
+    "rotation": {
+      "schemaVersion": 1,
+      "name": "Subtlety daggers",
+      "rules": [
+        {
+          "action": "blood-fury",
+          "conditions": [{ "type": "abilityGranted", "ability": "blood-fury" }]
+        },
+        {
+          "action": "elunes-light",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "elunes-light" }
+          ]
+        },
+        {
+          "action": "berserking",
+          "conditions": [{ "type": "abilityGranted", "ability": "berserking" }]
+        },
+        {
+          "action": "eureka",
+          "conditions": [{ "type": "abilityGranted", "ability": "eureka" }]
+        },
+        {
+          "action": "premeditation",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "premeditation" },
+            { "type": "cooldownReady", "ability": "premeditation" }
+          ]
+        },
+        {
+          "action": "preparation",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "preparation" },
+            { "type": "cooldownReady", "ability": "preparation" }
+          ]
+        },
+        {
+          "action": "slice-and-dice",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 4 },
+            {
+              "type": "auraRemaining",
+              "aura": "slice-and-dice",
+              "op": "<",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "action": "rupture",
+          "conditions": [
+            { "type": "comboPoints", "op": ">=", "value": 4 },
+            {
+              "type": "debuffRemaining",
+              "debuff": "rupture",
+              "op": "<",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "action": "death-mark",
+          "conditions": [
+            { "type": "abilityGranted", "ability": "death-mark" },
+            { "type": "cooldownReady", "ability": "death-mark" },
+            { "type": "comboPoints", "op": ">=", "value": 4 },
+            {
+              "type": "debuffRemaining",
+              "debuff": "garrote",
+              "op": ">",
+              "value": 6
+            },
+            {
+              "type": "debuffRemaining",
+              "debuff": "rupture",
+              "op": ">",
+              "value": 6
+            }
+          ]
+        },
+        {
+          "action": "ghostly-strike",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "ghostly-strike" },
+            { "type": "cooldownReady", "ability": "ghostly-strike" },
+            { "type": "debuffActive", "debuff": "garrote", "active": false }
+          ]
+        },
+        { "action": "garrote", "conditions": [] },
+        {
+          "action": "shank",
+          "conditions": [
+            { "type": "cooldownReady", "ability": "shank" },
+            { "type": "resource", "resource": "energy", "op": "<", "value": 50 }
+          ]
+        },
+        {
+          "action": "hemorrhage",
+          "conditions": [
+            { "type": "abilityUnlocked", "ability": "hemorrhage" },
+            { "type": "comboPoints", "op": "<", "value": 4 }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { k } from "../data/constants.js";
 import { pageDefaultConfig } from "./config-form.js";
+import { legacyPageConfig } from "./legacy-page.js";
 import { normalizeConfig } from "./sim-config.js";
 import { validateBuild } from "./talent-build.js";
 import { LINK_VERSION, decodeLinkBody, encodeLinkBody } from "./link-codec.js";
@@ -74,7 +75,14 @@ export function runDefaults() {
   };
 }
 
+// What a link or a save diffs against. This stays the pre-PR4 page, so an
+// old ?s=2 link or save still decodes to the config it produced then.
 export function setupDefaults() {
+  return { config: legacyPageConfig(), run: runDefaults() };
+}
+
+// What the page opens on when there is no link and no save.
+export function freshPageSetup() {
   return { config: pageDefaultConfig(), run: runDefaults() };
 }
 
@@ -387,6 +395,7 @@ export function resolveInitialSetup({
   search = "",
   saved = null,
   defaults = setupDefaults(),
+  fresh = null,
 } = {}) {
   const link = new URLSearchParams(search).get(LINK_PARAM);
   let notice = null;
@@ -410,5 +419,5 @@ export function resolveInitialSetup({
     const found = { setup: read.setup, source: "saved", notice, hadLink };
     return read.reset === undefined ? found : { ...found, reset: read.reset };
   }
-  return { setup: defaults, source: "defaults", notice, hadLink };
+  return { setup: fresh ?? defaults, source: "defaults", notice, hadLink };
 }
