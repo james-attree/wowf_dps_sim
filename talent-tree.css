@@ -407,9 +407,7 @@
   container-type: inline-size;
   margin-top: 12px;
   padding: 12px;
-  border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--surface-raised);
   font-size: 0.85rem;
   line-height: 1.45;
 }

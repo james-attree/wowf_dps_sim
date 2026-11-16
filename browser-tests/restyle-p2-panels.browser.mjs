@@ -56,10 +56,16 @@ after(async () => {
   await new Promise((done) => server?.close(done) ?? done());
 });
 
-async function open(width, text, hash = "#character", { reducedMotion } = {}) {
+async function open(
+  width,
+  text,
+  hash = "#character",
+  { reducedMotion, forcedColors } = {},
+) {
   const context = await browser.newContext({
     viewport: { width, height: SCREEN_HEIGHT },
     reducedMotion: reducedMotion ? "reduce" : "no-preference",
+    ...(forcedColors ? { forcedColors } : {}),
   });
   const page = await context.newPage();
   const errors = [];
@@ -144,6 +150,53 @@ async function cssUses(page, selector, property, token) {
   );
 }
 
+async function stylesCssUses(page, selector, property, token) {
+  return page.evaluate(
+    ({ selector, property, token }) => {
+      const found = [];
+      const walk = (rules) => {
+        for (const rule of rules) {
+          if (rule.type === globalThis.CSSRule.MEDIA_RULE) {
+            walk(rule.cssRules);
+            continue;
+          }
+          if (rule.type !== globalThis.CSSRule.STYLE_RULE) {
+            continue;
+          }
+          const selectors = rule.selectorText
+            .split(",")
+            .map((part) => part.trim());
+          if (!selectors.includes(selector)) {
+            continue;
+          }
+          const value =
+            rule.style.getPropertyValue(property) ||
+            rule.style.getPropertyValue("outline") ||
+            "";
+          if (value.includes(token)) {
+            found.push(value);
+          }
+        }
+      };
+      for (const sheet of globalThis.document.styleSheets) {
+        const href = sheet.href ?? "";
+        if (!href.endsWith("styles.css")) {
+          continue;
+        }
+        let rules;
+        try {
+          rules = sheet.cssRules;
+        } catch {
+          continue;
+        }
+        walk(rules);
+      }
+      return found;
+    },
+    { selector, property, token },
+  );
+}
+
 describe("restyle C phase 2 panels and buttons", () => {
   test("focus rings use --focus and stay when a slot is armed", async () => {
     const { context, page, errors } = await open(1280, "100%", "#fight");
@@ -177,6 +230,16 @@ describe("restyle C phase 2 panels and buttons", () => {
         "var(--focus)",
       );
       assert.ok(focusRules.length > 0, "no :focus-visible rule uses --focus");
+      const runFocus = await stylesCssUses(
+        page,
+        ".run-button:focus-visible",
+        "outline",
+        "var(--focus)",
+      );
+      assert.ok(
+        runFocus.length > 0,
+        "styles.css Run focus is not the --focus token",
+      );
 
       const armed = await page.evaluate(() => {
         const node = globalThis.document.createElement("button");
@@ -199,6 +262,83 @@ describe("restyle C phase 2 panels and buttons", () => {
       assert.equal(armed.outlineColor, focus);
       assert.equal(armed.borderTopWidth, "3px");
       assert.match(armed.boxShadow, /inset/);
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("forced colours map Run's focus ring to ButtonText", async () => {
+    const { context, page, errors } = await open(1280, "100%", "#fight", {
+      forcedColors: "active",
+    });
+    try {
+      await page.locator("#run-button").press("Tab");
+      await page.locator("#run-button").press("Shift+Tab");
+      const run = await page.evaluate(() => {
+        const btn = globalThis.document.getElementById("run-button");
+        if (!btn.matches(":focus-visible, :focus")) {
+          btn.focus();
+        }
+        return {
+          focused: btn.matches(":focus-visible, :focus"),
+          outlineColor: globalThis.getComputedStyle(btn).outlineColor,
+          outlineStyle: globalThis.getComputedStyle(btn).outlineStyle,
+        };
+      });
+      if (!run.focused) {
+        await page.locator("#run-button").focus();
+        await page.keyboard.press("Shift+Tab");
+        await page.keyboard.press("Tab");
+      }
+      const colors = await page.evaluate(() => {
+        const btn = globalThis.document.getElementById("run-button");
+        const probe = globalThis.document.createElement("div");
+        probe.style.outlineColor = "ButtonText";
+        globalThis.document.body.append(probe);
+        const buttonText = globalThis.getComputedStyle(probe).outlineColor;
+        probe.remove();
+        return {
+          outlineColor: globalThis.getComputedStyle(btn).outlineColor,
+          outlineStyle: globalThis.getComputedStyle(btn).outlineStyle,
+          buttonText,
+        };
+      });
+      assert.notEqual(colors.outlineStyle, "none");
+      assert.equal(colors.outlineColor, colors.buttonText);
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("forced colours map the armed border to Mark", async () => {
+    const { context, page, errors } = await open(1280, "100%", "#fight", {
+      forcedColors: "active",
+    });
+    try {
+      const armed = await page.evaluate(() => {
+        const node = globalThis.document.createElement("button");
+        node.className = "manual-slot is-armed";
+        node.type = "button";
+        node.textContent = "Probe";
+        globalThis.document.body.append(node);
+        const style = globalThis.getComputedStyle(node);
+        const probe = globalThis.document.createElement("div");
+        probe.style.borderColor = "Mark";
+        globalThis.document.body.append(probe);
+        const mark = globalThis.getComputedStyle(probe).borderTopColor;
+        const out = {
+          borderColor: style.borderTopColor,
+          borderWidth: style.borderTopWidth,
+          mark,
+        };
+        node.remove();
+        probe.remove();
+        return out;
+      });
+      assert.equal(armed.borderWidth, "3px");
+      assert.equal(armed.borderColor, armed.mark);
       assert.equal(errors.length, 0, errors.join("\n"));
     } finally {
       await context.close();

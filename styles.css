@@ -1948,6 +1948,90 @@ h3 {
   line-height: 1.4;
 }
 
+/* Shared tooltip well for poisons, talent detail, and later item tips (#393).
+   CSS frames only: no ripped background. Quality colours use --q-* tokens;
+   quality is also named in text (Q4). Default edge is gold (--trim);
+   a well may take a quality edge with data-quality. */
+.wow-tooltip {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 12px;
+  overflow-wrap: break-word;
+  background: var(--tooltip-bg);
+  color: var(--text);
+  border: 1px solid var(--trim);
+  border-radius: 12px;
+}
+
+.wow-tooltip[data-quality="poor"] {
+  border-color: var(--q-poor);
+}
+.wow-tooltip[data-quality="common"] {
+  border-color: var(--q-common);
+}
+.wow-tooltip[data-quality="uncommon"] {
+  border-color: var(--q-uncommon);
+}
+.wow-tooltip[data-quality="rare"] {
+  border-color: var(--q-rare);
+}
+.wow-tooltip[data-quality="epic"] {
+  border-color: var(--q-epic);
+}
+.wow-tooltip[data-quality="legendary"] {
+  border-color: var(--q-legendary);
+}
+.wow-tooltip[data-quality="artifact"] {
+  border-color: var(--q-artifact);
+}
+.wow-tooltip[data-quality="heirloom"] {
+  border-color: var(--q-heirloom);
+}
+
+.q-poor {
+  color: var(--q-poor);
+}
+.q-common {
+  color: var(--q-common);
+}
+.q-uncommon {
+  color: var(--q-uncommon);
+}
+.q-rare {
+  color: var(--q-rare);
+}
+.q-epic {
+  color: var(--q-epic);
+}
+.q-legendary {
+  color: var(--q-legendary);
+}
+.q-artifact {
+  color: var(--q-artifact);
+}
+.q-heirloom {
+  color: var(--q-heirloom);
+}
+
+.wow-tooltip-name {
+  font-weight: 700;
+}
+
+.wow-tooltip-quality {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.wow-tooltip-bind,
+.wow-tooltip-slot,
+.wow-tooltip-armour,
+.wow-tooltip-stats,
+.wow-tooltip-set,
+.wow-tooltip-requires,
+.wow-tooltip-enchant {
+  color: var(--q-uncommon);
+}
+
 .field-error {
   color: #f19389;
   font-size: 0.78rem;
@@ -4591,5 +4675,11 @@ th[aria-sort="ascending"] {
     .area-nav a[aria-current="page"] {
       box-shadow: inset 3px 0 0 ButtonText;
     }
+  }
+
+  .wow-tooltip {
+    background: Canvas;
+    color: CanvasText;
+    border-color: ButtonText;
   }
 }
