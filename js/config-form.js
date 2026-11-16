@@ -562,6 +562,19 @@ export function summaryOf(rotation, { talents = null, errors = 0 } = {}) {
   };
 }
 
+// Race field help (#406 P1). A derived gear build already includes the
+// race's base-stat offsets in the displayed numbers. A legacy sheet is
+// a frozen typed-era row: those numbers were entered without racials,
+// and the fight still adds the race's modifiers.
+export const RACE_HELP_DERIVED =
+  "Your race's bonuses are already included in these stats.";
+export const RACE_HELP_LEGACY =
+  "These numbers were entered without racials; the race adds them.";
+
+export function raceHelpOf(config) {
+  return config?.gear == null ? RACE_HELP_LEGACY : RACE_HELP_DERIVED;
+}
+
 // The form slice that shows `config`, with no errors.
 export function formFromConfig(config, revision = 0) {
   const { rotationChoice, imported } = rotationChoiceOf(config.rotation);
@@ -605,7 +618,7 @@ export function formWithGearErrors(form, config) {
       delete errors[FORM_ERROR];
     }
   }
-  return { ...form, errors };
+  return { ...form, errors, raceHelp: raceHelpOf(config) };
 }
 
 // The config the form describes, on top of `base` (which keeps the sections

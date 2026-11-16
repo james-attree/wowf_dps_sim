@@ -804,6 +804,14 @@ export function createConfigFormView(doc, store, actions) {
     } else if (!state.canUndo && previous?.canUndo) {
       hideToast();
     }
+    const raceHelp = $("cfg-race-help");
+    if (
+      raceHelp !== null &&
+      state.raceHelp &&
+      raceHelp.textContent !== state.raceHelp
+    ) {
+      raceHelp.textContent = state.raceHelp;
+    }
   }
 
   for (const [path, control] of controls) {

@@ -19,6 +19,9 @@ import {
   configFromForm,
   createConfigForm,
   formFromConfig,
+  raceHelpOf,
+  RACE_HELP_DERIVED,
+  RACE_HELP_LEGACY,
   pageDefaultConfig,
   raceInfo,
   raceOptions,
@@ -290,7 +293,26 @@ describe("#321: each racial's plain line", () => {
     assert.match(html, /<select\s+id="cfg-race"\s+name="race"/);
     assert.match(
       html,
-      /Enter your stats without racials; the race adds them\./,
+      /Your race's bonuses are already included in these stats\./,
+    );
+  });
+
+  it("legacy sheets keep wording that the race still adds racials", () => {
+    // Frozen typed-era numbers were entered without racials; the fight
+    // still applies expandRace modifiers. Gear builds use the derived
+    // wording because race offsets are already in the displayed stats.
+    assert.equal(raceHelpOf(pageDefaultConfig()), RACE_HELP_DERIVED);
+    assert.equal(
+      raceHelpOf({ ...pageDefaultConfig(), gear: null }),
+      RACE_HELP_LEGACY,
+    );
+    assert.equal(
+      RACE_HELP_DERIVED,
+      "Your race's bonuses are already included in these stats.",
+    );
+    assert.equal(
+      RACE_HELP_LEGACY,
+      "These numbers were entered without racials; the race adds them.",
     );
   });
 });

@@ -28,7 +28,9 @@ const SHOWN_CHIPS = ["Simulated", "Not simulated yet"];
 // The folded summary's least height: a 44 px touch target.
 const TARGET = 44;
 const SUMMARY = "#character-stats-summary";
-const HELP = "Enter your stats without racials; the race adds them.";
+const HELP = "Your race's bonuses are already included in these stats.";
+const LEGACY_HELP =
+  "These numbers were entered without racials; the race adds them.";
 const PAGE_STATS = "608 attack power · 17.9705% crit · 8.7% hit";
 // Race change re-derives the sheet (PR7). Night Elf is not the human P1 numbers.
 // coordinator call 16 Nov (James delegated).
@@ -497,5 +499,23 @@ describe("#280: the rotation builder and the race", () => {
         }
       });
     }
+  }
+});
+
+test("a legacy sheet tells you the race still adds racials", async () => {
+  const { context, page, errors } = await open(
+    1280,
+    "100%",
+    `${base}?s=2.BgA#character/stats`,
+  );
+  try {
+    await page.locator("#gear-legacy").waitFor({ state: "visible" });
+    assert.equal(
+      clean(await page.locator("#cfg-race-help").textContent()),
+      LEGACY_HELP,
+    );
+    assert.deepEqual(errors, []);
+  } finally {
+    await context.close();
   }
 });

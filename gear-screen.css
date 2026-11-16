@@ -240,7 +240,8 @@
   line-height: 1.25;
   min-width: 0;
   max-width: 100%;
-  overflow-wrap: break-word;
+  overflow-wrap: normal;
+  hyphens: auto;
 }
 
 .gear-slot-copy small {
@@ -594,7 +595,8 @@
 }
 
 /* Mid-word wrapping is only for the stacked list, so the 3-column doll
-   at 1024 / 100% keeps whole words (Fran's N). */
+   at 1024 / 100% keeps whole words (Fran's N1, #406). The default is
+   overflow-wrap: normal with hyphens: auto. */
 @media (width < 64em) {
   .gear-slot-copy,
   .gear-slot-name,

@@ -12,7 +12,11 @@ Gear builds need level-60 base stats: Run is blocked with "Base stats are only k
 
 Presets still leave gear alone (no behaviour change here; #398 shipped it). coordinator call 16 Nov (James delegated). James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov preset-sets-weapons rulings)
 
-The item picker's title is an `h2` so the heading order stays intact with the picker open. The 3-column doll at 1024 / 100% does not mid-word wrap; `overflow-wrap: anywhere` is only in the stacked phone and narrow-container layouts.
+The item picker's title is an `h2` so the heading order stays intact with the picker open. It names the slot with a verb: "Choose main hand", "Choose chest". The 3-column doll at 1024 / 100% does not mid-word wrap (`overflow-wrap: normal; hyphens: auto`). `overflow-wrap: anywhere` is only in the stacked phone and narrow-container layouts.
+
+Race help on Character › Stats is "Your race's bonuses are already included in these stats." On a legacy sheet it is "These numbers were entered without racials; the race adds them." because those frozen numbers were typed without racials and the fight still adds the race's modifiers.
+
+When the chosen rotation's abilities require a weapon type (ability-data `requiresMainHand` / `requiresOffHand`) and the equipped hand does not match, a short note appears next to the Rotation preset, for example "This preset's rotation uses daggers; your main hand is a sword.", followed by a Go to Gear link. It does not block Run and does not change gear. A preset whose actions have no such requirement (Combat swords) does not raise this note. coordinator call 16 Nov (James delegated).
 
 ## #297 PR6
 

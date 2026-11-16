@@ -420,7 +420,7 @@
                   data-help="cfg-race-help"
                 ></select>
                 <p class="field-help" id="cfg-race-help">
-                  Enter your stats without racials; the race adds them.
+                  Your race's bonuses are already included in these stats.
                 </p>
                 <p class="field-error" id="cfg-race-error" hidden></p>
               </div>
@@ -1140,6 +1140,25 @@
                 aria-describedby="cfg-rotation-summary"
               ></select>
             </div>
+            <!-- Weapon-type mismatch next to the preset (Fran's P2,
+                 #406). coordinator call 16 Nov (James delegated). The
+                 expected type comes from ability-data requires on the
+                 rotation's actions; the note does not block Run and
+                 does not change gear. js/views/rotation-weapon-note.js
+                 draws js/rotation-weapon-mismatch.js's slice. -->
+            <p
+              id="cfg-rotation-weapon-note"
+              class="rotation-weapon-note"
+              hidden
+            >
+              <span id="cfg-rotation-weapon-note-text"></span>
+              <a
+                id="cfg-rotation-weapon-note-gear"
+                class="text-link"
+                href="#character/gear"
+                >Go to Gear</a
+              >
+            </p>
           </div>
           <!-- The preset's reference build (#273): what the preset was built
                for and a button that applies it, then what was set, with

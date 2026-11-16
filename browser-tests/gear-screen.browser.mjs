@@ -641,6 +641,28 @@ describe("read-only stats and gear builds (#385)", () => {
     }
   });
 
+  test("the picker title names the slot with a verb", async () => {
+    const { context, page, errors } = await open(1280);
+    try {
+      await page.click("#gear-slot-mainHand");
+      await page.locator("#gear-picker").waitFor({ state: "visible" });
+      assert.equal(
+        (await page.locator("#gear-picker-title").innerText()).trim(),
+        "Choose main hand",
+      );
+      await page.keyboard.press("Escape");
+      await page.click("#gear-slot-chest");
+      await page.locator("#gear-picker").waitFor({ state: "visible" });
+      assert.equal(
+        (await page.locator("#gear-picker-title").innerText()).trim(),
+        "Choose chest",
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
   test("the picker's heading does not skip a level with the picker open", async () => {
     const { context, page, errors } = await open(1280);
     try {
@@ -695,8 +717,8 @@ describe("read-only stats and gear builds (#385)", () => {
         "none",
         "the 3-column figure is shown",
       );
-      assert.notEqual(wrap.name.overflowWrap, "anywhere");
-      assert.notEqual(wrap.copy.overflowWrap, "anywhere");
+      assert.equal(wrap.name.overflowWrap, "normal");
+      assert.equal(wrap.copy.overflowWrap, "normal");
       assert.notEqual(wrap.name.wordBreak, "break-word");
       assert.notEqual(wrap.copy.wordBreak, "break-word");
       assert.deepEqual(errors, []);

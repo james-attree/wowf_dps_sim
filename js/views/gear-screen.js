@@ -354,7 +354,7 @@ export function createGearScreenView(doc, store, actions) {
     lastStatus = EMPTY_VALUE;
     show(picker, true);
     setPickerChrome(true);
-    write(pickerTitle, actions.slotLabel(slot));
+    write(pickerTitle, `Choose ${actions.slotLabel(slot).toLowerCase()}`);
     write(searchLabel, `Search ${actions.slotLabel(slot).toLowerCase()} items`);
     if (search !== null) {
       search.value = EMPTY_VALUE;

@@ -82,4 +82,22 @@ describe("the cramped phone stats summary is gone (#385)", () => {
       );
     }
   });
+
+  it("the default 3-column slot names wrap at word boundaries, not mid-word", () => {
+    const media = GEAR_CSS.indexOf("@media (width < 64em)");
+    const marker = "overflow-wrap: normal";
+    const start = GEAR_CSS.lastIndexOf(
+      ".gear-slot-copy,",
+      GEAR_CSS.indexOf(marker),
+    );
+    assert.ok(
+      start >= 0 && start < media,
+      "default slot wrap is before the stacked media rule",
+    );
+    const first = GEAR_CSS.slice(start, GEAR_CSS.indexOf("}", start) + 1);
+    assert.match(first, /overflow-wrap:\s*normal/);
+    assert.match(first, /hyphens:\s*auto/);
+    assert.doesNotMatch(first, /overflow-wrap:\s*break-word/);
+    assert.doesNotMatch(first, /overflow-wrap:\s*anywhere/);
+  });
 });

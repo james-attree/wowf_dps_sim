@@ -2410,6 +2410,21 @@ a.pill-button {
   margin-top: 0;
 }
 
+/* Weapon-type mismatch next to the preset (#406 P2). coordinator
+   call 16 Nov (James delegated). */
+.rotation-weapon-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+}
+
+.rotation-weapon-note[hidden] {
+  display: none;
+}
+
+.rotation-weapon-note .text-link {
+  margin-left: 0.35rem;
+}
+
 /* The preset's reference build (#273): the hint or the applied line, with
    its button beside it while they fit and under it when they do not. No
    fixed widths: the text and the button wrap, so it holds at 320 wide and
