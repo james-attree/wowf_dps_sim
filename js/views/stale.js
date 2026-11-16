@@ -87,7 +87,18 @@ export function changedNames(before, after) {
     ...Object.keys(before ?? {}),
     ...Object.keys(after ?? {}),
   ]);
+  // Typing the sheet or a weapon drops config.gear as a side effect. That
+  // drop is not its own settings change. A gear edit that leaves gear in
+  // place, or removes it with nothing else changed, still counts.
+  // coordinator call 16 Nov (James delegated 15 Nov).
+  const gearDropped = before?.gear != null && after?.gear == null;
+  const gearOnly =
+    gearDropped &&
+    [...keys].every((key) => key === "gear" || same(before?.[key], after?.[key]));
   for (const key of keys) {
+    if (key === "gear" && gearDropped && !gearOnly) {
+      continue;
+    }
     const a = before?.[key];
     const b = after?.[key];
     if (same(a, b)) {

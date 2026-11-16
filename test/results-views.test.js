@@ -110,6 +110,25 @@ describe("stale state (#242)", () => {
     assert.deepEqual(staleKinds(noFights), []);
   });
 
+  it("a gear drop beside a sheet edit is not its own settings change", () => {
+    const before = config();
+    const dropped = edited();
+    delete dropped.gear;
+    assert.deepEqual(changedNames(before, dropped), ["Attack power"]);
+    assert.equal(
+      staleBanner(state({ ranWith: before, now: dropped }), "batch").short,
+      "Attack power changed after this ran.",
+    );
+    const swapped = config();
+    swapped.gear = {
+      slots: {
+        ...swapped.gear.slots,
+        head: { item: 1, enchant: null, suffix: null },
+      },
+    };
+    assert.ok(changedNames(before, swapped).includes("the settings"));
+  });
+
   it("names what changed, two at most", () => {
     const a = config();
     const b = edited();

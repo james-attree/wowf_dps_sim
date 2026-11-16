@@ -12,6 +12,10 @@ An empty gear slot mask is `GEAR_MARKER_P1_BSCOMBAT_92E67A7A`, the frozen `p1_bs
 
 Browser short-link lengths, characters after the address (old → new): a preset with the main-hand speed edited 64 → 57; a deleted rotation rule 75 → 37.
 
+Dropping gear because the sheet or a weapon was edited is not a separate settings change in the out-of-date line. A gear edit that keeps a gear list still is.
+
+Saved-setup `PAGE_FORM` (old → new): the page-default link decode without `character.expertise` and without per-hand `weaponSkill` → the full first-load config, expertise 11 and weapon skill 300 on both hands. Reset matches that config, and seed 1 / 300 s is 307.2716836384642.
+
 Share-link lock expectations (old → new), coordinator call 16 Nov (James delegated 15 Nov), in `test/short-links-306.test.js` only:
 
 - A preset rotation on the default build was `length <= 8` for every preset. Combat swords stays `2.BgA` (5). Combat daggers is `2.BpABA6gDYKMCDg` (16, ceiling 24). Assassination daggers is `2.DgT_AcgB9gKIBAK0AdAC9AMC` (26). Subtlety daggers is `2.DwT_AcgB9gKIBAK0AdAC9AMC` (26).
