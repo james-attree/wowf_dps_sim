@@ -222,6 +222,45 @@ describe("restyle C phase 3 tooltips and quality colours", () => {
       );
       assert.ok(bgRule.length > 0, "well background is not --tooltip-bg");
       assert.ok(edgeRule.length > 0, "well edge is not --trim");
+
+      const leak = await page.evaluate(() => {
+        const text = globalThis.document.getElementById(
+          "cfg-poisons-mainHand-tooltip-text",
+        );
+        const details = globalThis.document.getElementById(
+          "cfg-poisons-mainHand-tooltip",
+        );
+        const summary = details.querySelector("summary");
+        const other = globalThis.document.querySelector(
+          ".site-footer p, .field-help, p.talent-detail-empty",
+        );
+        const well = globalThis.getComputedStyle(text);
+        const summaryStyle = globalThis.getComputedStyle(summary);
+        const otherStyle = other ? globalThis.getComputedStyle(other) : null;
+        return {
+          wellRadius: well.borderTopLeftRadius,
+          summaryBg: summaryStyle.backgroundColor,
+          summaryBorder: summaryStyle.borderTopColor,
+          summaryTag: summary.tagName,
+          otherBg: otherStyle?.backgroundColor ?? null,
+          otherBorder: otherStyle?.borderTopColor ?? null,
+          otherTag: other?.tagName ?? null,
+        };
+      });
+      assert.equal(leak.wellRadius, "12px");
+      assert.notEqual(leak.summaryBg, bg, "summary has the tooltip well");
+      assert.notEqual(leak.summaryBorder, trim, "summary has the gold edge");
+      assert.equal(leak.summaryTag, "SUMMARY");
+      if (leak.otherBg !== null) {
+        assert.notEqual(leak.otherBg, bg, "a non-tooltip p has the well");
+      }
+      const radiusRule = await stylesCssUses(
+        page,
+        ".wow-tooltip",
+        "border-radius",
+        "12px",
+      );
+      assert.ok(radiusRule.length > 0, "well radius is not 12px");
       assert.equal(errors.length, 0, errors.join("\n"));
     } finally {
       await context.close();
@@ -353,6 +392,73 @@ describe("restyle C phase 3 tooltips and quality colours", () => {
         [],
         "quality colour used without a quality word",
       );
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("talent and poison names carry no quality colour", async () => {
+    const { context, page, errors } = await open(
+      1280,
+      "100%",
+      "#character/gear",
+    );
+    try {
+      const qualities = {
+        poor: await tokenColor(page, "--q-poor"),
+        common: await tokenColor(page, "--q-common"),
+        uncommon: await tokenColor(page, "--q-uncommon"),
+        rare: await tokenColor(page, "--q-rare"),
+        epic: await tokenColor(page, "--q-epic"),
+        legendary: await tokenColor(page, "--q-legendary"),
+        artifact: await tokenColor(page, "--q-artifact"),
+        heirloom: await tokenColor(page, "--q-heirloom"),
+      };
+      await page.selectOption("#cfg-poisons-mainHand", "instant");
+      await page.locator("#cfg-poisons-mainHand-tooltip").evaluate((node) => {
+        node.open = true;
+      });
+      await page.evaluate(() => {
+        globalThis.location.hash = "#character/talents";
+      });
+      await page.waitForFunction(() => globalThis.__store != null);
+      const talent = page.locator(".talent").filter({ visible: true }).first();
+      if ((await talent.count()) > 0) {
+        await talent.click();
+      }
+      const painted = await page.evaluate((tokens) => {
+        const names = [
+          globalThis.document.getElementById("cfg-poisons-mainHand"),
+          globalThis.document.getElementById(
+            "cfg-poisons-mainHand-tooltip-text",
+          ),
+          globalThis.document.getElementById("talents-detail-heading"),
+        ].filter(Boolean);
+        const qualityValues = Object.values(tokens);
+        return names.map((node) => {
+          const color = globalThis.getComputedStyle(node).color;
+          return {
+            id: node.id,
+            className: node.className,
+            color,
+            qualityClass:
+              /\bq-(?:poor|common|uncommon|rare|epic|legendary|artifact|heirloom)\b/.test(
+                node.className,
+              ),
+            qualityColor: qualityValues.includes(color),
+          };
+        });
+      }, qualities);
+      assert.ok(painted.length >= 2, "missing poison or talent name");
+      for (const node of painted) {
+        assert.equal(node.qualityClass, false, `${node.id} has a q-* class`);
+        assert.equal(
+          node.qualityColor,
+          false,
+          `${node.id} is painted in a quality colour`,
+        );
+      }
       assert.equal(errors.length, 0, errors.join("\n"));
     } finally {
       await context.close();

@@ -427,6 +427,20 @@ describe("restyle C phase 2 panels and buttons", () => {
         };
       });
       assert.equal(metrics.wrap, "wrap");
+      const wrapRule = await stylesCssUses(
+        page,
+        ".result-switch",
+        "flex-wrap",
+        "wrap",
+      );
+      assert.ok(wrapRule.length > 0, "result switch is not specified wrap");
+      const minRule = await stylesCssUses(
+        page,
+        ".result-switch-link",
+        "min-width",
+        "6.25rem",
+      );
+      assert.ok(minRule.length > 0, "result switch min-width is not 6.25rem");
       assert.ok(metrics.links.length > 0, "no switch links");
       for (const link of metrics.links) {
         assert.ok(link.width + SLACK >= SWITCH_MIN, `width ${link.width}`);

@@ -172,7 +172,7 @@ h1,
   font-family: var(--font-display);
   font-size: clamp(1.5rem, 4vw, 1.9rem);
   font-weight: 700;
-  letter-spacing: -0.055em;
+  letter-spacing: normal;
   line-height: 1.05;
 }
 
@@ -1579,9 +1579,12 @@ h3 {
 .site-footer {
   width: min(100%, 760px);
   margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
   color: var(--text-muted);
+  font-family: var(--font-ui);
   font-size: 0.75rem;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .site-footer p + p {
@@ -1599,7 +1602,7 @@ h3 {
 }
 
 .site-footer a:hover {
-  color: #f3eee2;
+  color: var(--text);
 }
 
 .site-footer a:focus-visible {
@@ -1625,7 +1628,7 @@ h3 {
 
 .chart .chart-mean,
 .chart .chart-mean-label {
-  color: #f3eee2;
+  color: var(--text);
 }
 
 .chart .chart-ci-band,
@@ -1638,7 +1641,7 @@ h3 {
 }
 
 .chart .chart-axis-title {
-  color: #f3eee2;
+  color: var(--text);
 }
 
 .chart-table {
@@ -2929,7 +2932,7 @@ a.pill-button {
 }
 .results-table tbody tr:last-child td,
 .results-table tbody tr:last-child th {
-  border-bottom-color: #81745c;
+  border-bottom-color: var(--control);
 }
 .results-table tfoot th,
 .results-table tfoot td {
@@ -3226,7 +3229,7 @@ th[aria-sort="ascending"] {
 .area-title {
   margin-bottom: 12px;
   font-size: 1.25rem;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.015em;
   box-shadow: 0 1px 0 var(--trim);
 }
 
@@ -3254,7 +3257,7 @@ th[aria-sort="ascending"] {
 }
 
 .area-nav a:hover {
-  color: #f3eee2;
+  color: var(--text);
 }
 
 .area-nav a:focus-visible {
@@ -3459,7 +3462,7 @@ th[aria-sort="ascending"] {
     min-height: 48px;
     padding: 0 12px;
     border-radius: 10px;
-    color: #f3eee2;
+    color: var(--text);
     font-size: 0.9375rem;
   }
 
