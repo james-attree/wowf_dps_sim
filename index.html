@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="talent-tree.css" />
     <link rel="stylesheet" href="rotation-builder.css" />
+    <link rel="stylesheet" href="gear-screen.css" />
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
@@ -589,6 +590,432 @@
                 ></p>
               </div>
             </fieldset>
+            <fieldset class="gear-screen-wrap" data-screen="gear">
+              <legend class="visually-hidden">Paper doll</legend>
+              <div id="gear-screen" class="gear-screen">
+                <p id="gear-lead" class="gear-lead"></p>
+                <p id="gear-mh-block" class="gear-warn" hidden></p>
+                <p id="gear-level-block" class="gear-warn" hidden></p>
+                <div id="gear-build-ui" class="gear-layout">
+                  <div class="panel gear-doll-panel">
+                    <div class="gear-doll" id="gear-doll">
+                      <div
+                        class="gear-slots gear-slots-left"
+                        id="gear-slots-left"
+                      >
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="head"
+                          id="gear-slot-head"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Hd</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Head</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="neck"
+                          id="gear-slot-neck"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Nk</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Neck</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="shoulder"
+                          id="gear-slot-shoulder"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Sh</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint"
+                              >Shoulder</small
+                            ></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="back"
+                          id="gear-slot-back"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Bk</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Back</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="chest"
+                          id="gear-slot-chest"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Ch</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Chest</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="wrist"
+                          id="gear-slot-wrist"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Wr</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Wrist</small></span
+                          >
+                        </button>
+                      </div>
+                      <div
+                        class="gear-figure"
+                        id="gear-figure"
+                        role="img"
+                        aria-label="Character figure, a decorative silhouette only"
+                      >
+                        <div class="gear-silhouette" aria-hidden="true"></div>
+                        <p class="gear-figure-caption" aria-hidden="true">
+                          Silhouette only — no game art
+                        </p>
+                      </div>
+                      <div
+                        class="gear-slots gear-slots-right"
+                        id="gear-slots-right"
+                      >
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="hands"
+                          id="gear-slot-hands"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Ha</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Hands</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="waist"
+                          id="gear-slot-waist"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Wz</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Waist</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="legs"
+                          id="gear-slot-legs"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Lg</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Legs</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="feet"
+                          id="gear-slot-feet"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Ft</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Feet</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="finger1"
+                          id="gear-slot-finger1"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >F1</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Finger</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="trinket1"
+                          id="gear-slot-trinket1"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >T1</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Trinket</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="finger2"
+                          id="gear-slot-finger2"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >F2</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Finger</small></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="trinket2"
+                          id="gear-slot-trinket2"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >T2</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Trinket</small></span
+                          >
+                        </button>
+                      </div>
+                      <div class="gear-weapons" id="gear-weapons">
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="mainHand"
+                          id="gear-slot-mainHand"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >MH</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint"
+                              >Main hand</small
+                            ></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="offHand"
+                          id="gear-slot-offHand"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >OH</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint"
+                              >Off hand</small
+                            ></span
+                          >
+                        </button>
+                        <button
+                          class="gear-row"
+                          type="button"
+                          data-slot="ranged"
+                          id="gear-slot-ranged"
+                        >
+                          <span class="gear-slot-face" aria-hidden="true"
+                            ><img alt="" hidden /><span class="gear-slot-glyph"
+                              >Rg</span
+                            ></span
+                          >
+                          <span class="gear-slot-copy"
+                            ><span class="gear-slot-name">Empty</span
+                            ><small class="gear-slot-hint">Ranged</small></span
+                          >
+                        </button>
+                      </div>
+                    </div>
+                    <div id="gear-picker" class="gear-picker" hidden>
+                      <div class="gear-picker-head">
+                        <h3 id="gear-picker-title">Search a slot</h3>
+                        <button
+                          class="gear-picker-close"
+                          id="gear-picker-close"
+                          type="button"
+                        >
+                          Close
+                        </button>
+                      </div>
+                      <div class="gear-combo">
+                        <label
+                          for="gear-search"
+                          class="visually-hidden"
+                          id="gear-search-label"
+                          >Search items</label
+                        >
+                        <input
+                          id="gear-search"
+                          type="search"
+                          autocomplete="off"
+                          spellcheck="false"
+                          role="combobox"
+                          aria-expanded="false"
+                          aria-controls="gear-list"
+                          aria-autocomplete="list"
+                          aria-haspopup="listbox"
+                        />
+                        <button
+                          class="gear-search-clear"
+                          id="gear-search-clear"
+                          type="button"
+                          aria-label="Clear search"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <ul
+                        class="gear-listbox"
+                        id="gear-list"
+                        role="listbox"
+                        aria-label="Items"
+                      ></ul>
+                      <p
+                        class="gear-note"
+                        id="gear-search-status"
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                      ></p>
+                      <div
+                        id="gear-item-tooltip"
+                        class="wow-tooltip"
+                        hidden
+                      ></div>
+                      <div class="gear-mods" id="gear-mods">
+                        <div>
+                          <label for="gear-enchant">Enchant</label>
+                          <select id="gear-enchant"></select>
+                        </div>
+                        <div>
+                          <label for="gear-suffix">Random suffix</label>
+                          <select id="gear-suffix"></select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <aside
+                    class="panel gear-stats-panel"
+                    id="gear-stats"
+                    aria-labelledby="gear-stats-title"
+                  >
+                    <h2 id="gear-stats-title" class="gear-stats-title">
+                      Stats
+                    </h2>
+                    <p id="gear-stats-note" class="gear-stats-note"></p>
+                    <dl id="gear-stats-list" class="gear-stats-list"></dl>
+                    <div
+                      class="gear-not-modelled"
+                      id="gear-not-modelled"
+                      hidden
+                    >
+                      <button
+                        class="gear-chip"
+                        id="gear-not-modelled-chip"
+                        type="button"
+                        aria-expanded="false"
+                        aria-controls="gear-not-modelled-body"
+                      ></button>
+                      <div id="gear-not-modelled-body" hidden>
+                        <p
+                          id="gear-not-modelled-help"
+                          class="gear-not-modelled-help"
+                        ></p>
+                        <ul
+                          id="gear-not-modelled-list"
+                          class="gear-not-modelled-list"
+                        ></ul>
+                      </div>
+                    </div>
+                  </aside>
+                </div>
+                <p class="gear-credit" id="gear-credit">
+                  Item data from
+                  <a
+                    href="https://github.com/wowsims/forever"
+                    id="gear-credit-link"
+                    >wowsims/forever</a
+                  >
+                  (MIT).
+                </p>
+              </div>
+            </fieldset>
+
             <div class="hands" data-screen="gear">
               <fieldset class="config-fieldset hand-fieldset">
                 <legend>Main hand</legend>

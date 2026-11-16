@@ -84,7 +84,8 @@ describe("dev package", () => {
 
     const withoutCredit = html
       .replaceAll("https://talentsforever.com/", "")
-      .replaceAll("https://creativecommons.org/licenses/by/4.0/", "");
+      .replaceAll("https://creativecommons.org/licenses/by/4.0/", "")
+      .replaceAll("https://github.com/wowsims/forever", "");
     assert.doesNotMatch(withoutCredit, /https?:/);
   });
 });

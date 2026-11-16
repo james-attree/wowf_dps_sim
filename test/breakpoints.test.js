@@ -38,6 +38,7 @@ describe("the narrow breakpoint", () => {
       "../styles.css",
       "../talent-tree.css",
       "../rotation-builder.css",
+      "../gear-screen.css",
     ]) {
       const css = await read(file);
       const queries = [...css.matchAll(/@(?:media|container)([^{]+)\{/g)].map(
@@ -116,6 +117,24 @@ describe("the narrow breakpoint", () => {
       query.trim(),
     );
     assert.deepEqual(queries, [NARROW_QUERY]);
+    assert.doesNotMatch(css, /\b520px\b/);
+  });
+
+  it("gear-screen.css uses the shared wide query and its complement (#384)", async () => {
+    const css = await read("../gear-screen.css");
+    const queries = [...css.matchAll(/@media ([^{]+)\{/g)].map(([, query]) =>
+      query.trim(),
+    );
+    const wide = queries.filter((query) => /^\(width >/.test(query));
+    const below = queries.filter((query) => /^\(width </.test(query));
+    assert.ok(wide.length >= 1, "the paper doll at 64em");
+    for (const query of wide) {
+      assert.equal(query, WIDE_QUERY);
+    }
+    assert.ok(below.length >= 1, "the one-column rows and the phone picker");
+    for (const query of below) {
+      assert.equal(query, NOT_WIDE_QUERY);
+    }
     assert.doesNotMatch(css, /\b520px\b/);
   });
 

@@ -1,0 +1,592 @@
+/* #297 PR6: paper doll, search picker and derived stats panel.
+   Tokens only; quality is also named in text. Breakpoints are the shared
+   64em queries in js/views/breakpoints.js. */
+
+.gear-screen-wrap,
+.gear-screen,
+.gear-layout,
+.gear-doll-panel,
+.gear-stats-panel,
+.gear-doll,
+.gear-slots,
+.gear-row,
+.gear-slot-copy,
+.gear-slot-name,
+.gear-slot-hint {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gear-screen-wrap {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.gear-screen {
+  --slot-well: #120f0b;
+  --radius-slot: 2px;
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: gear;
+}
+
+.gear-lead,
+.gear-note,
+.gear-credit,
+.gear-stat .gear-stat-source {
+  color: var(--muted);
+}
+
+.gear-lead,
+.gear-warn {
+  margin: 0;
+}
+
+.gear-warn {
+  color: var(--error);
+}
+
+.gear-layout {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+@media (width >= 64em) {
+  /* Stats sit under the doll. A side column does not fit beside the
+     3-column doll once the results rail is taken into account. */
+  .gear-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gear-doll {
+    width: 100%;
+  }
+}
+
+.gear-doll {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+@media (width >= 64em) {
+  .gear-doll {
+    grid-template-columns: minmax(var(--target), 1fr) minmax(6rem, 1fr) minmax(
+        var(--target),
+        1fr
+      );
+  }
+
+  .gear-weapons {
+    grid-column: 1 / -1;
+  }
+}
+
+/* When the form is narrower than 20rem (a 64em viewport at 150% text, with
+   the results rail still beside it), fall back to the stacked list. */
+@container gear (width < 20rem) {
+  .gear-figure {
+    display: none;
+  }
+
+  .gear-doll {
+    grid-template-columns: 1fr;
+  }
+
+  .gear-slots-left,
+  .gear-slots-right,
+  .gear-weapons {
+    display: contents;
+  }
+
+  .gear-row,
+  .gear-slots-right .gear-row,
+  .gear-weapons .gear-row {
+    grid-template-columns: var(--target) minmax(0, 1fr);
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .gear-slots-right .gear-slot-face {
+    order: 0;
+  }
+
+  .gear-slots-right .gear-slot-copy {
+    order: 0;
+    text-align: left;
+  }
+}
+
+.gear-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.gear-figure {
+  width: 100%;
+  min-height: 18rem;
+  margin: 0 auto;
+  justify-self: center;
+  align-self: stretch;
+  background:
+    radial-gradient(ellipse at 50% 30%, #2a2418 0%, transparent 55%),
+    var(--raised);
+  box-shadow: 0 0 0 1px var(--control);
+  border-radius: 0.75rem;
+  position: relative;
+}
+
+.gear-silhouette {
+  position: absolute;
+  inset: 12% 28% 8%;
+  background: color-mix(in srgb, var(--muted) 28%, var(--slot-well));
+  clip-path: polygon(
+    50% 0,
+    68% 12%,
+    66% 28%,
+    80% 42%,
+    72% 44%,
+    70% 100%,
+    30% 100%,
+    28% 44%,
+    20% 42%,
+    34% 28%,
+    32% 12%
+  );
+}
+
+.gear-figure-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.4rem;
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.gear-row {
+  display: grid;
+  grid-template-columns: var(--target) minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.gear-slots-right .gear-row {
+  grid-template-columns: minmax(0, 1fr) var(--target);
+}
+
+.gear-slots-right .gear-slot-face {
+  order: 2;
+}
+
+.gear-slots-right .gear-slot-copy {
+  order: 1;
+  text-align: right;
+}
+
+.gear-slot-face {
+  position: relative;
+  width: var(--target);
+  height: var(--target);
+  border: 2px solid var(--control);
+  border-radius: var(--radius-slot);
+  background: var(--slot-well);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--muted);
+  overflow: hidden;
+  flex: 0 0 var(--target);
+}
+
+.gear-slot-face img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gear-row[data-quality="poor"] .gear-slot-face {
+  border-color: var(--q-poor);
+  color: var(--q-poor);
+}
+
+.gear-row[data-quality="common"] .gear-slot-face {
+  border-color: var(--q-common);
+  color: var(--q-common);
+}
+
+.gear-row[data-quality="uncommon"] .gear-slot-face {
+  border-color: var(--q-uncommon);
+  color: var(--q-uncommon);
+}
+
+.gear-row[data-quality="rare"] .gear-slot-face {
+  border-color: var(--q-rare);
+  color: var(--q-rare);
+}
+
+.gear-row[data-quality="epic"] .gear-slot-face {
+  border-color: var(--q-epic);
+  color: var(--q-epic);
+}
+
+.gear-row[data-quality="legendary"] .gear-slot-face {
+  border-color: var(--q-legendary);
+  color: var(--q-legendary);
+}
+
+.gear-row[data-quality="artifact"] .gear-slot-face {
+  border-color: var(--q-artifact);
+  color: var(--q-artifact);
+}
+
+.gear-row[data-quality="heirloom"] .gear-slot-face {
+  border-color: var(--q-heirloom);
+  color: var(--q-heirloom);
+}
+
+.gear-slot-copy,
+.gear-slot-name,
+.gear-slot-hint {
+  font-size: 0.82rem;
+  line-height: 1.25;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.gear-slot-copy small {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.gear-row.is-conflict .gear-slot-copy small {
+  color: var(--error);
+}
+
+.gear-weapons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.gear-weapons .gear-row {
+  flex: 1 1 12rem;
+  max-width: 100%;
+}
+
+@media (width < 64em) {
+  .gear-doll {
+    grid-template-columns: 1fr;
+  }
+
+  .gear-figure {
+    display: none;
+  }
+
+  .gear-slots-left,
+  .gear-slots-right,
+  .gear-weapons {
+    display: contents;
+  }
+
+  .gear-row,
+  .gear-slots-right .gear-row,
+  .gear-weapons .gear-row {
+    grid-template-columns: var(--target) minmax(0, 1fr);
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .gear-slots-right .gear-slot-face {
+    order: 0;
+  }
+
+  .gear-slots-right .gear-slot-copy {
+    order: 0;
+    text-align: left;
+  }
+}
+
+.gear-stats-title {
+  margin: 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--trim);
+  color: var(--header);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.gear-stats-note {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--muted);
+}
+
+.gear-stats-list {
+  margin: 0;
+}
+
+.gear-stat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.15rem 0.6rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gear-stat dt {
+  font-weight: 600;
+}
+
+.gear-stat dd,
+.gear-stat-source {
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: right;
+}
+
+.gear-stat-source {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.gear-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: var(--target);
+  min-width: var(--target);
+  padding: 0 0.75rem;
+  border: 1px solid var(--error);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--error);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gear-not-modelled {
+  margin: 0.7rem 0 0;
+}
+
+.gear-not-modelled-help,
+.gear-not-modelled-list {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.gear-not-modelled-list {
+  padding-left: 1.1rem;
+}
+
+.gear-credit {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+}
+
+.gear-credit a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+}
+
+.gear-picker {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--page);
+}
+
+.gear-picker[hidden] {
+  display: none;
+}
+
+.gear-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.gear-picker-head h3 {
+  margin: 0;
+  color: var(--header);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.gear-picker-close,
+.gear-search-clear,
+.gear-clear-conflict {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target);
+  min-width: var(--target);
+  padding: 0 0.85rem;
+  border: 1px solid var(--control);
+  border-radius: var(--radius, 999px);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gear-combo {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.gear-combo input {
+  flex: 1;
+  min-height: var(--target);
+  min-width: 0;
+  padding: 0 0.7rem;
+  border: 1px solid var(--control);
+  border-radius: 0.5rem;
+  background: var(--slot-well);
+  color: var(--text);
+  font: inherit;
+}
+
+.gear-listbox {
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  border: 1px solid var(--control);
+  border-radius: 0.5rem;
+  background: var(--tooltip-bg);
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.gear-listbox [role="option"] {
+  display: grid;
+  grid-template-columns: var(--target) minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+  width: 100%;
+  min-height: var(--target);
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.gear-listbox [role="option"][aria-selected="true"],
+.gear-listbox [role="option"]:hover {
+  background: var(--raised);
+}
+
+.gear-option-meta {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.gear-mods {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.gear-mods label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.gear-mods select {
+  display: block;
+  width: 100%;
+  min-height: var(--target);
+  padding: 0 0.5rem;
+  border: 1px solid var(--control);
+  border-radius: 0.5rem;
+  background: var(--slot-well);
+  color: var(--text);
+  font: inherit;
+}
+
+@media (width < 64em) {
+  .gear-picker:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 8;
+    margin: 0;
+    border-radius: 0;
+    overflow: auto;
+    padding-top: 0.9rem;
+  }
+
+  .gear-listbox {
+    max-height: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gear-picker,
+  .gear-row,
+  .gear-listbox [role="option"] {
+    transition: none;
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .gear-slot-face,
+  .gear-chip,
+  .gear-picker-close,
+  .gear-search-clear,
+  .gear-clear-conflict,
+  .gear-combo input,
+  .gear-mods select,
+  .gear-listbox {
+    border: 1px solid ButtonText;
+  }
+}
