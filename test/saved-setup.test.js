@@ -641,6 +641,55 @@ describe("#296 ruling A2: Reset to defaults resets the run settings too, and Und
     saved.stop();
   });
 
+  it("changing the fight mode after Reset retires the pending Undo", () => {
+    const store = pageStore();
+    const timers = fakeTimers();
+    const form = createConfigForm(store);
+    const calls = [];
+    const run = {
+      calls,
+      resetSettings() {
+        calls.push("reset");
+        const { run: current } = store.get();
+        const before = {
+          mode: current.mode,
+          fightMode: current.fightMode,
+          duration: current.duration,
+        };
+        store.set({
+          run: {
+            ...current,
+            mode: "batch",
+            fightMode: "scripted",
+            duration: 300,
+          },
+        });
+        return before;
+      },
+      restoreSettings(before) {
+        calls.push("restore");
+        store.set({ run: { ...store.get().run, ...before } });
+        return true;
+      },
+    };
+    const saved = mount(store, memoryStorage(), timers, form, run);
+    store.set({
+      run: {
+        ...store.get().run,
+        mode: "live",
+        fightMode: "scripted",
+        duration: 60,
+      },
+    });
+    form.reset();
+    store.set({ run: { ...store.get().run, fightMode: "manual" } });
+    assert.equal(form.undo(), true);
+    assert.deepEqual(calls, ["reset"]);
+    assert.equal(store.get().run.fightMode, "manual");
+    assert.equal(store.get().run.duration, 300);
+    saved.stop();
+  });
+
   it("a Reset while a run is on (resetSettings gives null) resets the config only, and Undo restores the config only", () => {
     const store = pageStore();
     const timers = fakeTimers();
