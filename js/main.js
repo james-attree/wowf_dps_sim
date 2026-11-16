@@ -20,6 +20,7 @@ import {
 } from "./start-preset.js";
 import { createRotationBuilder } from "./rotation-builder.js";
 import {
+  applyFightMode,
   createRunActions,
   emptyBatch,
   emptyRan,
@@ -100,7 +101,7 @@ const store = createStore({
   config,
   gearMessage: "",
   weaponMismatch: null,
-  run: {
+  run: applyFightMode({
     mode,
     fightMode: "scripted",
     state: "idle",
@@ -116,7 +117,7 @@ const store = createStore({
     stoppedAt: null,
     shown: false,
     snapshot: null,
-  },
+  }),
   batch: emptyBatch(client.mode),
   weights: emptyWeights(),
   frame: 0,

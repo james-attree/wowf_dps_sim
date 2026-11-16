@@ -445,6 +445,9 @@ const withTarget = (text, form) => {
 export const AVERAGE_NAME = "Average";
 export const RUN_AVERAGE = "Run average";
 export const LIVE_NAME = "Live fight";
+// Shown while Manual is selected, so Average cannot be chosen.
+// coordinator call 15 Nov (James delegated), issue #388.
+export const MANUAL_AVERAGE_REASON = "Manual fights are live, step by step";
 
 function liveModel(state) {
   const { run, results } = state;
