@@ -20,35 +20,15 @@ import { rotationWarnings, sameRuleKey } from "./rotation-warnings.js";
 import { P1_BACKSTAB_COMBAT } from "../data/p1-backstab-combat.js";
 import p1Gear from "../data/gear/p1-bscombat.gear.json" with { type: "json" };
 import { GEAR_SLOTS } from "./gear-build.js";
+import {
+  configWithGear,
+  EMPTY_MH,
+  LEVEL_BLOCK,
+  gearRunError,
+  gearRunErrors,
+} from "./gear-model.js";
 import { defaultConfig, normalizeConfig } from "./sim-config.js";
 import { formErrorCount } from "./views/run-model.js";
-
-const GEAR_SHEET_KEYS = [
-  "attackPower",
-  "critChance",
-  "bonusHitChance",
-  "haste",
-  "expertise",
-];
-const GEAR_WEAPON_KEYS = ["min", "max", "speed", "type"];
-
-function gearFieldsEdited(next, base) {
-  for (const key of GEAR_SHEET_KEYS) {
-    if (next.character?.[key] !== base.character?.[key]) return true;
-  }
-  for (const hand of ["mainHand", "offHand"]) {
-    const left = next.weapons?.[hand] ?? null;
-    const right = base.weapons?.[hand] ?? null;
-    if (left == null || right == null) {
-      if (left !== right) return true;
-      continue;
-    }
-    for (const key of GEAR_WEAPON_KEYS) {
-      if (left[key] !== right[key]) return true;
-    }
-  }
-  return false;
-}
 
 // The stats form's model (Phase 3, #151, roadmap task U2): everything the
 // "Fight setup" form does except drawing it. No DOM, no clock, so it runs and
@@ -123,52 +103,20 @@ function gearFieldsEdited(next, base) {
 
 export const FORM_ERROR = "form";
 
+export function isGearRunFormError(message) {
+  return (
+    message === `This setup can't run: ${EMPTY_MH}` ||
+    message === `This setup can't run: ${LEVEL_BLOCK}`
+  );
+}
+
 const HANDS = ["mainHand", "offHand"];
-const WEAPON_FIELD_KEYS = ["type", "min", "max", "speed"];
-const EMPTY_MH = "Equip a main-hand weapon.";
-
-// An empty off hand is a legal config (PR3 / #390) and must not fail the
-// field checks or block Run. An empty main hand is null and blocks Run
-// with this reason. coordinator call 16 Nov (James delegated), per the
-// Q10 ruling of 15 Nov.
-function handIsEmpty(values, hand) {
-  return WEAPON_FIELD_KEYS.every((key) => {
-    const value = values[`weapons.${hand}.${key}`];
-    return value == null || value === "";
-  });
-}
-
-function writeHands(config, values) {
-  if (config.weapons == null) {
-    config.weapons = {};
-  }
-  for (const hand of HANDS) {
-    if (handIsEmpty(values, hand)) {
-      config.weapons[hand] = null;
-      continue;
-    }
-    if (config.weapons[hand] == null) {
-      config.weapons[hand] = {};
-    }
-    for (const key of WEAPON_FIELD_KEYS) {
-      write(config, `weapons.${hand}.${key}`, values[`weapons.${hand}.${key}`]);
-    }
-  }
-}
-
 // The fields a blank leaves to follow the level (#318): null in the config
 // and the form while blank.
-export const OPTIONAL_FIELDS = Object.freeze([
-  "character.weaponSkill",
-  "target.level",
-]);
+export const OPTIONAL_FIELDS = Object.freeze(["target.level"]);
 // The lowest weapon skill the engine takes (js/sim-config.js
 // CHARACTER_LIMITS.weaponSkill; test/config-form.test.js holds them to it).
 export const MIN_WEAPON_SKILL = 1;
-const PERCENT_MESSAGE = "Enter a percentage from 0 to 100.";
-const NUMBER_MESSAGE = "Enter a number.";
-const WHOLE_MESSAGE = "Use a whole number, 0 or more.";
-
 // What a blank weapon skill and target level are at a config's level, and
 // their bounds (#318; the engine's: js/attack-resolver.js defaultWeaponSkill
 // and maxWeaponSkill, js/levels.js targetLevel, target.levelRange).
@@ -214,53 +162,6 @@ function optionalCheck(rangeMessage, inRange) {
 // Every field the form edits, in page order, with its check. A check gets the
 // value, all values and levelsInfo() of the config's level, and returns a
 // message, or "" when the value is fine.
-function numberCheck(rangeMessage, inRange) {
-  return (value) => {
-    if (typeof value !== "number" || Number.isNaN(value)) {
-      return NUMBER_MESSAGE;
-    }
-    return Number.isFinite(value) && inRange(value) ? "" : rangeMessage;
-  };
-}
-const chance = numberCheck(
-  PERCENT_MESSAGE,
-  (value) => value >= 0 && value <= 1,
-);
-const whole = numberCheck(
-  WHOLE_MESSAGE,
-  (value) => value >= 0 && Number.isInteger(value),
-);
-
-function weaponFields(hand) {
-  const path = `weapons.${hand}`;
-  return [
-    {
-      path: `${path}.type`,
-      check: (value) =>
-        k("config.weaponTypes").includes(value) ? "" : "Choose a weapon type.",
-    },
-    { path: `${path}.min`, check: whole },
-    {
-      path: `${path}.max`,
-      check: (value, values) => {
-        const own = whole(value);
-        const min = values[`${path}.min`];
-        if (own !== "" || whole(min) !== "" || value >= min) {
-          return own;
-        }
-        return `Max damage must be at least the min damage (${min}).`;
-      },
-    },
-    {
-      path: `${path}.speed`,
-      check: numberCheck(
-        `Speed must be at least ${k("config.minWeaponSpeed")} s.`,
-        (value) => value >= k("config.minWeaponSpeed"),
-      ),
-    },
-  ];
-}
-
 export const FORM_FIELDS = Object.freeze(
   [
     // The race (#321): a race id from js/racials.js, or null for none. A
@@ -273,27 +174,9 @@ export const FORM_FIELDS = Object.freeze(
           ? ""
           : "Choose a race.",
     },
-    {
-      path: "character.attackPower",
-      check: numberCheck(
-        "Attack power can't be negative.",
-        (value) => value >= 0,
-      ),
-    },
-    { path: "character.critChance", check: chance },
-    { path: "character.bonusHitChance", check: chance },
-    // A fraction of attack speed, entered as a percent like the chances
-    // (#274): Classic haste, attacks only.
-    { path: "character.haste", check: chance },
-    // Blank is level x 5; at most level x 5 + 50, the engine's cap (#318).
-    {
-      path: "character.weaponSkill",
-      check: optionalCheck(
-        ({ level, weaponSkill: { min, max } }) =>
-          `Weapon skill must be a whole number from ${min} to ${max} at level ${level}.`,
-        (value, { weaponSkill: { min, max } }) => isWholeIn(value, min, max),
-      ),
-    },
+    // Character stats and typed weapons are gone (PR7): they are derived
+    // from gear, or frozen on a legacy sheet. Race stays. Target level
+    // stays on Fight (#318).
     // Blank is your level + 3 (#318).
     {
       path: "target.level",
@@ -303,7 +186,7 @@ export const FORM_FIELDS = Object.freeze(
         (value, { targetLevel: { min, max } }) => isWholeIn(value, min, max),
       ),
     },
-    ...HANDS.flatMap(weaponFields),
+    // Typed weapon fields removed in PR7; poisons stay.
     // The poison selects (#152). A select cannot hold anything else, so this
     // only catches a value set from outside the page.
     ...HANDS.map((hand) => ({
@@ -348,7 +231,7 @@ export function pageDefaultConfig() {
     talentLevel: build.talentLevel,
     poisons: { ...build.poisons },
     rotation: presetRotation("combat-daggers"),
-    gear: pageGear(),
+    gear: pageDefaultGear(),
   });
 }
 
@@ -359,7 +242,7 @@ export function setPageGearForTest(gear) {
   pageGearOverride = gear;
 }
 
-function pageGear() {
+export function pageDefaultGear() {
   if (pageGearOverride != null) return pageGearOverride;
   const slots = {};
   p1Gear.items.forEach((entry, index) => {
@@ -524,21 +407,14 @@ export function formValues(config) {
 // (levelsInfo of the config's level).
 export function validateValues(values, levels = levelsInfo()) {
   const errors = {};
-  if (handIsEmpty(values, "mainHand")) {
-    errors[FORM_ERROR] = `This setup can't run: ${EMPTY_MH}`;
-  }
   for (const { path, check } of FORM_FIELDS) {
-    const hand = path.startsWith("weapons.") ? path.split(".")[1] : null;
-    if (hand && handIsEmpty(values, hand)) {
-      continue;
-    }
     const message = check(values[path], values, levels);
     if (message !== "") {
       errors[path] = message;
       // Only "at least the min damage" is the pair's error; a Max that is
       // wrong on its own leaves the Min alone.
       const min = pairedMin(path);
-      if (min !== null && whole(values[path]) === "" && !(min in errors)) {
+      if (min !== null && !(min in errors)) {
         errors[min] = null;
       }
     }
@@ -689,27 +565,47 @@ export function summaryOf(rotation, { talents = null, errors = 0 } = {}) {
 // The form slice that shows `config`, with no errors.
 export function formFromConfig(config, revision = 0) {
   const { rotationChoice, imported } = rotationChoiceOf(config.rotation);
-  return {
-    values: formValues(config),
-    errors: {},
-    edited: [],
-    rotationChoice,
-    imported,
-    drafts: {},
-    rotationErrors: [],
-    exportOff: null,
-    rotationWarnings: rotationWarnings(config.rotation),
-    importStatus: null,
-    rotationOptions: rotationOptions(imported),
-    summary: summaryOf(config.rotation, { talents: talentState(config) }),
-    poisonOptions: poisonOptions(),
-    poisons: poisonsInfo(formValues(config)),
-    raceOptions: raceOptions(),
-    race: raceInfo(config.race, raceCatalogue, RACIAL_EFFECTS, config.rotation),
-    levels: levelsInfo(characterLevel(config)),
-    revision,
-    canUndo: false,
-  };
+  return formWithGearErrors(
+    {
+      values: formValues(config),
+      errors: {},
+      edited: [],
+      rotationChoice,
+      imported,
+      drafts: {},
+      rotationErrors: [],
+      exportOff: null,
+      rotationWarnings: rotationWarnings(config.rotation),
+      importStatus: null,
+      rotationOptions: rotationOptions(imported),
+      summary: summaryOf(config.rotation, { talents: talentState(config) }),
+      poisonOptions: poisonOptions(),
+      poisons: poisonsInfo(formValues(config)),
+      raceOptions: raceOptions(),
+      race: raceInfo(
+        config.race,
+        raceCatalogue,
+        RACIAL_EFFECTS,
+        config.rotation,
+      ),
+      levels: levelsInfo(characterLevel(config)),
+      revision,
+      canUndo: false,
+    },
+    config,
+  );
+}
+
+export function formWithGearErrors(form, config) {
+  const errors = { ...form.errors, ...gearRunErrors(config) };
+  const reason = gearRunError(config);
+  if (!reason) {
+    const message = errors[FORM_ERROR];
+    if (isGearRunFormError(message)) {
+      delete errors[FORM_ERROR];
+    }
+  }
+  return { ...form, errors };
 }
 
 // The config the form describes, on top of `base` (which keeps the sections
@@ -724,21 +620,34 @@ export function formFromConfig(config, revision = 0) {
 // throws.
 export function configFromForm(form, base) {
   const config = copy(base);
+  const previousRace = config.race;
   for (const path of FIELD_PATHS) {
-    if (path.startsWith("weapons.")) {
-      continue;
-    }
     write(config, path, form.values[path]);
   }
-  writeHands(config, form.values);
   config.rotation = rotationOf(form.rotationChoice, form.imported, form.drafts);
-  // Typing the sheet or a weapon's damage leaves the gear list. A race
-  // change, weapon skill, and target level do not.
+  // A race change on a gear build re-derives the sheet so the doll and
+  // the sim stay in agreement. It does not drop config.gear.
   // coordinator call 16 Nov (James delegated).
-  if (config.gear != null && gearFieldsEdited(config, base)) {
-    delete config.gear;
+  if (config.gear != null && config.race !== previousRace) {
+    const derived = fromBehind(configWithGear(config, config.gear.slots));
+    try {
+      return normalizeConfig(derived);
+    } catch (error) {
+      // Empty main hand is stored unnormalized and blocks Run.
+      if (gearRunError(derived)) {
+        return derived;
+      }
+      throw error;
+    }
   }
-  return normalizeConfig(fromBehind(config));
+  try {
+    return normalizeConfig(fromBehind(config));
+  } catch (error) {
+    if (gearRunError(config)) {
+      return fromBehind(config);
+    }
+    throw error;
+  }
 }
 
 // What #153's Run starts: a snapshot of the store's config, or null while the
@@ -750,7 +659,7 @@ export function configFromForm(form, base) {
 // but not yet checked (form.edited) is not in the config either, so that is
 // null too: a run never uses a config the fields do not show (#247).
 export function nextRunConfig(state) {
-  if (formErrorCount(state.form) > 0) {
+  if (formErrorCount(state.form) > 0 || gearRunError(state.config)) {
     return null;
   }
   if ((state.form?.edited?.length ?? 0) > 0) {
@@ -864,37 +773,43 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
       next.drafts,
     );
     const check = rotationCheck(next);
+    const written = config ?? store.get().config;
     store.batch(() => {
       store.set({
-        form: {
-          ...next,
-          errors,
-          edited: [],
-          rotationErrors: check.errors,
-          rotationWarnings: check.warnings,
-          exportOff:
-            check.errors.length > 0 ? exportOffText(check.errors.length) : null,
-          rotationOptions: rotationOptions(next.imported, next.drafts),
-          summary: summaryOf(rotation, {
-            talents: talentState(config ?? store.get().config),
-            errors: check.errors.length,
-          }),
-          poisons: poisonsInfo(next.values),
-          // The same object while it says the same, so the view redraws
-          // the racials only when the race, or what the run's rotation
-          // casts, changes.
-          race: sameRace(
-            next.race,
-            raceInfo(
-              next.values.race,
-              raceCatalogue,
-              RACIAL_EFFECTS,
-              (config ?? store.get().config).rotation,
+        form: formWithGearErrors(
+          {
+            ...next,
+            errors,
+            edited: [],
+            rotationErrors: check.errors,
+            rotationWarnings: check.warnings,
+            exportOff:
+              check.errors.length > 0
+                ? exportOffText(check.errors.length)
+                : null,
+            rotationOptions: rotationOptions(next.imported, next.drafts),
+            summary: summaryOf(rotation, {
+              talents: talentState(written),
+              errors: check.errors.length,
+            }),
+            poisons: poisonsInfo(next.values),
+            // The same object while it says the same, so the view redraws
+            // the racials only when the race, or what the run's rotation
+            // casts, changes.
+            race: sameRace(
+              next.race,
+              raceInfo(
+                next.values.race,
+                raceCatalogue,
+                RACIAL_EFFECTS,
+                written.rotation,
+              ),
             ),
-          ),
-          levels: levelsInfo(characterLevel(config ?? store.get().config)),
-          canUndo: false,
-        },
+            levels: levelsInfo(characterLevel(written)),
+            canUndo: false,
+          },
+          written,
+        ),
       });
       if (config !== null) {
         store.set({ config });
@@ -957,18 +872,27 @@ export function createConfigForm(store, { defaults = pageDefaultConfig } = {}) {
     // the new one is an error (the talent tree leaves the config's blank),
     // and one back under it is fine again, so the config takes it.
     if (levelChanged) {
-      const path = "character.weaponSkill";
-      const message = validateValues(now.values, levelsNow())[path];
-      if (message !== now.errors[path]) {
-        const errors = { ...now.errors };
-        if (message === undefined) {
-          delete errors[path];
-        } else {
-          errors[path] = message;
-        }
-        commit({ ...now, errors });
-        return;
-      }
+      // Gear builds are level 60 only; legacy sheets still run at any
+      // level. The tree already wrote talentLevel, so only the form's
+      // run error is refreshed — commit() would rewrite the config and
+      // close a pick's Undo. coordinator call 16 Nov (James delegated).
+      store.set({
+        form: formWithGearErrors(
+          {
+            ...now,
+            levels: levelsInfo(characterLevel(config)),
+            summary: summaryOf(
+              rotationOf(now.rotationChoice, now.imported, now.drafts),
+              {
+                talents: talentState(config),
+                errors: now.rotationErrors.length,
+              },
+            ),
+          },
+          config,
+        ),
+      });
+      return;
     }
     store.set({
       form: {

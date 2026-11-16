@@ -29,8 +29,8 @@ const LARGE_TEXT = ["200%", "250%"];
 const EDGE = 0.5;
 const BAD_LENGTH = "0";
 const BAD_SEED = "abc";
-const BAD_AP = "-5";
-const AP = '[name="character.attackPower"]';
+const BAD_TARGET = "0";
+const TARGET = "#cfg-target-level";
 // Two points in Malice, then a level whose cap they are over.
 const TALENT = 'button.talent[data-id="assassination.malice"]';
 const TALENT_POINTS = 2;
@@ -139,8 +139,7 @@ async function breakAll(page) {
   await go(page, "#fight");
   await setField(page.locator("#run-duration"), BAD_LENGTH);
   await setField(page.locator("#run-seed"), BAD_SEED);
-  await go(page, "#character/stats");
-  await setField(page.locator(AP), BAD_AP);
+  await setField(page.locator(TARGET), BAD_TARGET);
 }
 
 // The dock's Fix link's text, as drawn: its lines and their box; the line
@@ -385,8 +384,9 @@ describe("the stats footer's run field links (Fran's #260 check)", () => {
       const { context, page, errors } = await open(size, "#fight");
       try {
         await setField(page.locator("#run-seed"), BAD_SEED);
+        await go(page, "#fight");
+        await setField(page.locator(TARGET), BAD_TARGET);
         await go(page, "#character/stats");
-        await setField(page.locator(AP), BAD_AP);
         const link = page
           .locator("#cfg-fix-list a")
           .filter({ hasText: "Fight, Seed" });

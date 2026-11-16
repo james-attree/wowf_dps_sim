@@ -30,6 +30,9 @@ const TARGET = 44;
 const SUMMARY = "#character-stats-summary";
 const HELP = "Enter your stats without racials; the race adds them.";
 const PAGE_STATS = "608 attack power · 17.9705% crit · 8.7% hit";
+// Race change re-derives the sheet (PR7). Night Elf is not the human P1 numbers.
+// coordinator call 16 Nov (James delegated).
+const NIGHT_ELF_STATS = "610 attack power · 18.143% crit · 8.7% hit";
 const LEGACY_STATS = "767 attack power · 22.45% crit · 7% hit";
 const CHIPS = ["Simulated", "No DPS effect", "Not simulated yet"];
 const SETTLE = k("ui.saveSetupMs") + 400;
@@ -260,7 +263,7 @@ describe("#321: the Race picker", () => {
           more = await folded(page);
           assert.equal(more.open, false);
           await page.locator(RACE).selectOption("night-elf");
-          assert.equal(await summary(page), `Night Elf · ${PAGE_STATS}`);
+          assert.equal(await summary(page), `Night Elf · ${NIGHT_ELF_STATS}`);
           await page.locator(RACE).selectOption("");
           assert.equal(await page.locator(RACIALS).isHidden(), true);
           assert.equal(await summary(page), PAGE_STATS);

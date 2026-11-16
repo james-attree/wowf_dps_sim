@@ -28,10 +28,7 @@ const LABELS = {
   results: "Results",
 };
 // Max under Min: an error in the Character area.
-const PAIR_MIN = "50";
-const PAIR_MAX = "40";
-const MIN = "#cfg-weapons-mainHand-min";
-const MAX = "#cfg-weapons-mainHand-max";
+const TARGET = "#cfg-target-level";
 // The narrow widths, where the nav is a bar at the bottom of the screen.
 const BOTTOM_NAV_WIDTHS = [390, 360];
 // Enough Tab presses to go through an area's controls.
@@ -197,27 +194,26 @@ for (const width of WIDTHS) {
     });
 
     test("the Fix link shows the area its field is in", async () => {
-      // Main hand's fields are on Gear and weapons (#244, UX6).
-      const { context, page, errors } = await open(width, "#character/gear");
-      await page.locator(MIN).fill(PAIR_MIN);
-      await page.locator(MIN).blur();
-      await page.locator(MAX).fill(PAIR_MAX);
-      await page.locator(MAX).blur();
-      const badge = page.locator('[data-nav-area="character"] [data-badge]');
+      const { context, page, errors } = await open(width, "#fight");
+      await page.locator(TARGET).fill("0");
+      await page.locator(TARGET).blur();
+      const badge = page.locator('[data-nav-area="fight"] [data-badge]');
       assert.equal(await badge.isVisible(), true);
       assert.match(await badge.textContent(), /^1 error$/);
       await page.locator('[data-nav-area="results"]').click();
       await assertAt(page, "results");
       // The Run bar stays on every area; its Fix link sends the focus to
-      // the first setting to fix (#247), on Character's Gear and weapons.
+      // the first setting to fix (#247), on Fight.
       await page.locator("#run-errors-link").click();
       await page.waitForFunction(
-        () => globalThis.location.hash === "#character/gear",
+        () =>
+          globalThis.location.hash === "#fight" ||
+          globalThis.location.hash.startsWith("#fight/"),
       );
       const state = await read(page);
-      assert.deepEqual(state.shown, ["character"]);
-      assert.equal(state.title, `Gear and weapons · ${APP_TITLE}`);
-      assert.equal(`#${state.focus}`, MAX);
+      assert.deepEqual(state.shown, ["fight"]);
+      assert.match(state.title, /Fight/);
+      assert.equal(`#${state.focus}`, TARGET);
       assert.deepEqual(errors, []);
       await context.close();
     });

@@ -24,6 +24,13 @@ export const SCREENS = Object.freeze({
 });
 
 const ONE = 1;
+// Empty main hand and the level-60 gear-build block live on the form as
+// FORM_ERROR. The copy matches js/config-form.js isGearRunFormError
+// (views cannot import that module). coordinator call 16 Nov (James delegated).
+const GEAR_RUN_FORM = Object.freeze([
+  "This setup can't run: Equip a main-hand weapon.",
+  "This setup can't run: Gear stats are level 60 only for now.",
+]);
 // No haste: the Stats summary leaves it out (#274).
 const NO_HASTE = 0;
 const DASH = "—";
@@ -55,11 +62,20 @@ const capital = (text) =>
 // Poison" and "767 attack power · 22.45% crit · 7% hit", led by the race
 // when one is set (#321), then haste and weapon skill only when set; a value that is not a number yet is a dash.
 // Target level is Fight's (#318): the run summary names it.
-export function characterRows(form) {
+export function characterRows(form, config = null) {
   const values = form?.values ?? {};
+  const weapons = config?.weapons ?? {};
+  const character = config?.character ?? {};
+  const poisons = config?.poisons ?? {};
   const fix = { gear: 0, stats: 0 };
   for (const [path, message] of Object.entries(form?.errors ?? {})) {
-    const screen = screenOfPath(path);
+    // Empty main hand and the level-60 gear-build block live on the form
+    // as FORM_ERROR, which is not a field path. Count them on Gear.
+    // coordinator call 16 Nov (James delegated).
+    const screen =
+      path === "form" && GEAR_RUN_FORM.includes(message)
+        ? "gear"
+        : screenOfPath(path);
     if (screen !== null && message !== null) {
       fix[screen] += ONE;
     }
@@ -73,10 +89,16 @@ export function characterRows(form) {
       ? "No poison"
       : (options.find((option) => option.id === id)?.label ?? capital(id));
   const hand = ({ key, name }) => {
-    const at = (part) => values[`weapons.${key}.${part}`];
-    return `${name} ${capital(at("type"))} ${numberText(at("min"))}–${numberText(at("max"))} · ${poisonText(values[`poisons.${key}`])}`;
+    const weapon = weapons[key];
+    const type = weapon?.type ?? values[`weapons.${key}.type`];
+    const min = weapon?.min ?? values[`weapons.${key}.min`];
+    const max = weapon?.max ?? values[`weapons.${key}.max`];
+    if (type == null && min == null && max == null && !weapon) {
+      return `${name} Empty · ${poisonText(poisons[key] ?? values[`poisons.${key}`])}`;
+    }
+    return `${name} ${capital(type)} ${numberText(min)}–${numberText(max)} · ${poisonText(poisons[key] ?? values[`poisons.${key}`])}`;
   };
-  const race = values.race ?? null;
+  const race = config?.race ?? values.race ?? null;
   const raceName =
     race === null
       ? null
@@ -89,17 +111,18 @@ export function characterRows(form) {
       summary: [
         // No race is left out, as no haste is.
         ...(raceName === null ? [] : [raceName]),
-        `${numberText(values["character.attackPower"])} attack power`,
-        `${percentText(values["character.critChance"])} crit`,
-        `${percentText(values["character.bonusHitChance"])} hit`,
-        // Left out at none (Fran 7), so the 360 summary keeps its one line.
-        ...(values["character.haste"] > NO_HASTE
-          ? [`${percentText(values["character.haste"])} haste`]
+        `${numberText(character.attackPower ?? values["character.attackPower"])} attack power`,
+        `${percentText(character.critChance ?? values["character.critChance"])} crit`,
+        `${percentText(character.bonusHitChance ?? values["character.bonusHitChance"])} hit`,
+        ...((character.haste ?? values["character.haste"]) > NO_HASTE
+          ? [
+              `${percentText(character.haste ?? values["character.haste"])} haste`,
+            ]
           : []),
-        // Only when typed (#318, Scout's ruling on #319): blank follows the
-        // level and is left out, as no haste is.
-        ...(isNumber(values["character.weaponSkill"])
-          ? [`${values["character.weaponSkill"]} weapon skill`]
+        ...(isNumber(character.weaponSkill ?? values["character.weaponSkill"])
+          ? [
+              `${character.weaponSkill ?? values["character.weaponSkill"]} weapon skill`,
+            ]
           : []),
       ].join(" · "),
       fix: fix.stats,
@@ -173,7 +196,7 @@ export function createCharacterScreensView(doc, store, { setOpen }) {
   }
 
   function drawRows(state) {
-    const { gear, stats } = characterRows(state.form);
+    const { gear, stats } = characterRows(state.form, state.config);
     write(summaries.gear, gear.summary);
     write(summaries.stats, stats.summary);
     chip("gear", fixText(gear.fix));

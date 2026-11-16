@@ -529,9 +529,9 @@ describe("#296: Reset to defaults clears the save; an area's own reset saves", (
       timers,
       form,
     });
-    form.change("character.haste", 0.05);
+    form.change("target.level", 62);
     timers.advance(DELAY);
-    assert.equal(readBack(savedOf(storage)).config.character.haste, 0.05);
+    assert.equal(readBack(savedOf(storage)).config.target.level, 62);
     form.reset();
     timers.advance(DELAY);
     assert.equal(savedOf(storage), null);
@@ -541,7 +541,7 @@ describe("#296: Reset to defaults clears the save; an area's own reset saves", (
     );
     form.undo();
     timers.advance(DELAY);
-    assert.equal(readBack(savedOf(storage)).config.character.haste, 0.05);
+    assert.equal(readBack(savedOf(storage)).config.target.level, 62);
     saved.stop();
   });
 });
@@ -583,7 +583,7 @@ describe("#296 ruling A2: Reset to defaults resets the run settings too, and Und
     const run = runSettings(store);
     const saved = mount(store, storage, timers, form, run);
     store.set({ run: { ...store.get().run, mode: "live", duration: 60 } });
-    form.change("character.haste", 0.05);
+    form.change("target.level", 62);
     timers.advance(DELAY);
     form.reset();
     timers.advance(DELAY);
@@ -591,8 +591,8 @@ describe("#296 ruling A2: Reset to defaults resets the run settings too, and Und
     assert.equal(store.get().run.mode, "batch");
     assert.equal(store.get().run.duration, 300);
     assert.equal(
-      store.get().config.character.haste,
-      setupDefaults().config.character.haste,
+      store.get().config.target.level,
+      setupDefaults().config.target.level,
     );
     assert.equal(savedOf(storage), null);
     saved.stop();
@@ -606,7 +606,7 @@ describe("#296 ruling A2: Reset to defaults resets the run settings too, and Und
     const run = runSettings(store);
     const saved = mount(store, storage, timers, form, run);
     store.set({ run: { ...store.get().run, mode: "live", duration: 60 } });
-    form.change("character.haste", 0.05);
+    form.change("target.level", 62);
     form.reset();
     assert.equal(form.undo(), true);
     timers.advance(DELAY);
@@ -614,7 +614,7 @@ describe("#296 ruling A2: Reset to defaults resets the run settings too, and Und
     assert.equal(store.get().run.mode, "live");
     assert.equal(store.get().run.duration, 60);
     const back = readBack(savedOf(storage));
-    assert.equal(back.config.character.haste, 0.05);
+    assert.equal(back.config.target.level, 62);
     assert.equal(back.run.mode, "live");
     assert.equal(back.run.duration, 60);
     saved.stop();
@@ -651,11 +651,11 @@ describe("#296 ruling A2: Reset to defaults resets the run settings too, and Und
       restoreSettings: () => (calls.push("restore"), true),
     };
     const saved = mount(store, memoryStorage(), timers, form, run);
-    form.change("character.haste", 0.05);
+    form.change("target.level", 62);
     form.reset();
     assert.equal(form.undo(), true);
     assert.deepEqual(calls, ["reset"]);
-    assert.equal(store.get().config.character.haste, 0.05);
+    assert.equal(store.get().config.target.level, 62);
     saved.stop();
   });
 });
@@ -858,31 +858,24 @@ describe("#320 B1: opening the page with no change writes nothing (Kira's QA)", 
   it("#319's weapon skill and target level round-trip through the save: typed, then blank (null)", () => {
     const storage = memoryStorage();
     const page = load(storage);
-    page.form.change("character.weaponSkill", 310);
     page.form.change("target.level", 62);
     page.timers.advance(DELAY);
     page.saved.stop();
     const typed = readBack(savedOf(storage));
-    assert.equal(typed.config.character.weaponSkill, 310);
     assert.equal(typed.config.target.level, 62);
     const again = load(storage);
     again.timers.advance(DELAY * 4);
     const { form, config } = again.store.get();
-    assert.equal(form.values["character.weaponSkill"], 310);
     assert.equal(form.values["target.level"], 62);
-    assert.equal(config.character.weaponSkill, 310);
     assert.equal(config.target.level, 62);
     // Blank: the field's text "" is null, which follows the level.
-    again.form.change("character.weaponSkill", "");
     again.form.change("target.level", "");
     again.timers.advance(DELAY);
     again.saved.stop();
     const blank = readBack(savedOf(storage));
-    assert.equal(blank.config.character.weaponSkill, null);
     assert.equal(blank.config.target.level, null);
     const third = load(storage);
     third.timers.advance(DELAY * 4);
-    assert.equal(third.store.get().form.values["character.weaponSkill"], null);
     assert.equal(third.store.get().form.values["target.level"], null);
     assert.deepEqual(third.store.get().form.errors, {});
     third.saved.stop();
@@ -893,10 +886,10 @@ describe("#320 B1: opening the page with no change writes nothing (Kira's QA)", 
       const storage = memoryStorage({ [SAVED_SETUP_KEY]: text });
       const page = load(storage);
       page.timers.advance(DELAY * 4);
-      page.form.change("character.haste", 0.06);
+      page.form.change("target.level", 61);
       page.timers.advance(DELAY);
       assert.equal(storage.writes, 1, text);
-      assert.equal(readBack(savedOf(storage)).config.character.haste, 0.06);
+      assert.equal(readBack(savedOf(storage)).config.target.level, 61);
       page.saved.stop();
     }
   });
@@ -924,7 +917,7 @@ describe("#320 B1: opening the page with no change writes nothing (Kira's QA)", 
   it("after Reset to defaults, a pageshow and then a refresh (a new seed) save nothing", () => {
     const storage = memoryStorage();
     const page = load(storage);
-    page.form.change("character.haste", 0.05);
+    page.form.change("target.level", 62);
     page.timers.advance(DELAY);
     assert.notEqual(savedOf(storage), null);
     page.form.reset();
@@ -968,14 +961,14 @@ describe("#320 N4: pageshow puts a field in error back to the build's value", ()
   it("the stats form: a field in error shows the build again, with no error; the build is not touched", () => {
     const store = pageStore();
     const form = createConfigForm(store);
-    form.change("character.haste", 0.05);
-    form.change("character.haste", -0.05);
+    form.change("target.level", 62);
+    form.change("target.level", 0);
     assert.notDeepEqual(store.get().form.errors, {});
     const config = store.get().config;
     redrawInputs(store);
     const after = store.get();
     assert.deepEqual(after.form.errors, {});
-    assert.equal(after.form.values["character.haste"], 0.05);
+    assert.equal(after.form.values["target.level"], 62);
     assert.equal(after.config, config);
   });
 
@@ -999,17 +992,14 @@ describe("#320 N4: pageshow puts a field in error back to the build's value", ()
   it("#319's target level in error shows the build's (blank) again; a weapon skill in error its typed build value", () => {
     const store = pageStore();
     const form = createConfigForm(store);
-    form.change("character.weaponSkill", 310);
-    form.change("character.weaponSkill", 999);
+    form.change("target.level", 62);
     form.change("target.level", 99);
-    assert.ok(store.get().form.errors["character.weaponSkill"]);
     assert.ok(store.get().form.errors["target.level"]);
     const config = store.get().config;
     redrawInputs(store);
     const after = store.get();
     assert.deepEqual(after.form.errors, {});
-    assert.equal(after.form.values["character.weaponSkill"], 310);
-    assert.equal(after.form.values["target.level"], null);
+    assert.equal(after.form.values["target.level"], 62);
     assert.equal(after.config, config);
   });
 
@@ -1057,7 +1047,7 @@ describe("#320 N8 (assumption A8): an Undo during a run puts the run settings ba
       runSettings: runSettings(store),
     });
     store.set({ run: { ...store.get().run, mode: "live", duration: 60 } });
-    form.change("character.haste", 0.05);
+    form.change("target.level", 62);
     timers.advance(DELAY);
     return { storage, store, timers, form, saved };
   }
@@ -1067,7 +1057,7 @@ describe("#320 N8 (assumption A8): an Undo during a run puts the run settings ba
     form.reset();
     setState(store, "running");
     assert.equal(form.undo(), true);
-    assert.equal(store.get().config.character.haste, 0.05);
+    assert.equal(store.get().config.target.level, 62);
     assert.equal(store.get().run.duration, 300, "not while the run is on");
     setState(store, "paused");
     assert.equal(store.get().run.duration, 300);
@@ -1076,7 +1066,7 @@ describe("#320 N8 (assumption A8): an Undo during a run puts the run settings ba
     assert.equal(store.get().run.duration, 60);
     timers.advance(DELAY);
     const back = readBack(savedOf(storage));
-    assert.equal(back.config.character.haste, 0.05);
+    assert.equal(back.config.target.level, 62);
     assert.equal(back.run.duration, 60);
     // Once: a later run leaves the settings alone.
     store.set({ run: { ...store.get().run, duration: 90 } });

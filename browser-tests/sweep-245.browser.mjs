@@ -650,7 +650,6 @@ describe("an Ambush rule in the builder (#245, James's ruling)", () => {
   test.skip("on a dagger build it shows no warning or note (skipped: Ambush needs talent retune for 70755, see #335)", async () => {
     const { context, page, errors } = await open(WIDE, "#character/gear");
     try {
-      await page.selectOption("#cfg-weapons-mainHand-type", "dagger");
       await addRule(page, "ambush");
       const seen = await builderNotes(page);
       assert.match(seen.lastName, /Rule 8: Ambush/);
@@ -709,7 +708,6 @@ describe("an Ambush rule has no hint chip or hint (#264)", () => {
     test(`at ${size.width}`, async () => {
       const { context, page, errors } = await open(size, "#character/gear");
       try {
-        await page.selectOption("#cfg-weapons-mainHand-type", "dagger");
         assert.deepEqual(await hintParts(page, "ambush"), {
           card: 0,
           editor: 0,
@@ -726,18 +724,12 @@ describe("an Ambush rule has no hint chip or hint (#264)", () => {
 
 // Every number field the app has, broken: 12 settings (Fran's #263 check
 // had "Fix 12 issues" and "Fix 10 settings" over the nav at 360).
-const STATS_FIELDS = [
-  "cfg-character-attackPower",
-  "cfg-character-critChance",
-  "cfg-character-bonusHitChance",
-];
-const GEAR_FIELDS = ["min", "max", "speed"].flatMap((part) => [
-  `cfg-weapons-mainHand-${part}`,
-  `cfg-weapons-offHand-${part}`,
-]);
+const STATS_FIELDS = [];
+const GEAR_FIELDS = [];
+const FIGHT_FIELDS = ["cfg-target-level"];
 const RUN_FIELDS = ["run-duration", "run-seed", "run-iterations"];
 const BAD_NUMBER = "-99999";
-const ALL_BROKEN = STATS_FIELDS.length + GEAR_FIELDS.length + RUN_FIELDS.length;
+const ALL_BROKEN = FIGHT_FIELDS.length + RUN_FIELDS.length;
 
 async function breakEveryField(page) {
   await page.evaluate(() => {
@@ -755,6 +747,9 @@ async function breakEveryField(page) {
   await page.evaluate(() => {
     document.location.hash = "#fight";
   });
+  for (const id of FIGHT_FIELDS) {
+    await setField(page, `#${id}`, BAD_NUMBER);
+  }
   for (const id of RUN_FIELDS) {
     await setField(page, `#${id}`, BAD_NUMBER);
   }

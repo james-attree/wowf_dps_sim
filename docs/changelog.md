@@ -1,5 +1,27 @@
 # Changelog
 
+## #297 PR7
+
+Read-only stats and named gear builds (issue #385). The typed character sheet, the weapon form and the cramped phone Stats summary are gone. Stats on Character › Stats are derived from the equipped gear. A legacy sheet (an older link or save) is read-only, with a banner and a way to start from the wowsims Forever P1 default or from an empty set.
+
+Named builds: save, load, rename and delete. Empty or whitespace names, duplicate names and rename collisions are rejected in the UI and model layer (`js/gear-builds.js`). The store is not edited and never throws. A `{ ok: false, reason: "storage" }` result is shown in an accessible live message (`#gear-builds-live`). Reset to defaults clears the setup on screen and does not remove saved builds.
+
+Race is still on Character. Changing it re-derives `config.character` so the doll and the sim stay in agreement; it does not drop `config.gear`. coordinator call 16 Nov (James delegated).
+
+Gear builds are level 60 only: Run is blocked with "Gear stats are level 60 only for now." A legacy sheet still runs at any level. An empty main hand still blocks Run; an empty off hand is still MH-only (coordinator call 16 Nov, James delegated, settled in PR6).
+
+The item picker's title is an `h2` so the heading order stays intact with the picker open. The 3-column doll at 1024 / 100% does not mid-word wrap; `overflow-wrap: anywhere` is only in the stacked phone and narrow-container layouts.
+
+## #297 PR6
+
+The Character › Gear screen is a paper doll and a type-to-search item picker (issue #384, pull request #405). Stats on the gear screen are derived from the equipped items. The wowsims Forever P1 default is already on the page: The Lobotomizer (dagger) in the main hand, Dark Iron Destroyer (axe) in the off hand, human, seed 1 / 300 s is 307.27 DPS.
+
+An empty main hand blocks Run: "This setup can't run: Equip a main-hand weapon." An empty off hand is legal and runs main-hand only; the doll and the sim agree. coordinator call 16 Nov (James delegated), per the Q10 ruling of 15 Nov.
+
+On a phone the picker is a dialog with a focus trap and sits above the run dock (Fran's P2). The stacked-list `@container` reset stays below the `.gear-slots-right` / `<64em` media rule so right-hand icons stay on the left when the 20rem fallback stacks (Fran's P3).
+
+Chip contrast is left to #403.
+
 ## #297 PR5
 
 A share link can carry gear. The part is appended: a slot mask, then each worn item's id, enchant (0 is none) and suffix (0 is none). A gear link has no character or weapons part. Decode derives the sheet. Race and level stay on the character. The first-load link is 9 characters (`2.DYEgBQA`). Old links and saves decode to the same config as before, and `isLegacySheet` marks them. The read-only screen for that sheet is PR7.

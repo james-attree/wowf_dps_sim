@@ -26,8 +26,7 @@ const RUN_TIMEOUT = 60_000;
 const TAP_GUARD_WAIT_MS = 600;
 const WIDEST_DPS = "123,456.7";
 const PHONE_FONT_CSS = ':root { font-family: "Liberation Sans" !important; }';
-const MIN = "#cfg-weapons-mainHand-min";
-const MAX = "#cfg-weapons-mainHand-max";
+const TARGET = "#cfg-target-level";
 
 let server;
 let base;
@@ -258,12 +257,9 @@ for (const width of PHONE_WIDTHS) {
         assertDpsShown(batch, "batch");
 
         // Blocked, with the widest status.
-        await toArea(page, "character");
-        // Main hand's fields are on Gear and weapons (#244, UX6).
-        await page.locator("#character-row-gear").click();
-        await page.locator(MIN).fill("50");
-        await page.locator(MAX).fill("40");
-        await page.locator(MAX).blur();
+        await toArea(page, "fight");
+        await page.locator(TARGET).fill("0");
+        await page.locator(TARGET).blur();
         await statusIs(page, /^Can't run/);
         assertDpsShown(await dock(page), "blocked");
         assert.deepEqual(errors, []);

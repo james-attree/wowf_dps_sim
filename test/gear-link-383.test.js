@@ -100,40 +100,35 @@ describe("the frozen P1 gear marker (#383)", () => {
   });
 });
 
-describe("typing the sheet leaves gear (#383)", () => {
-  it("a typed attack power drops gear and matches a sheet link", () => {
+describe("the typed sheet is gone; leftover values do not drop gear (#383, #385)", () => {
+  it("a leftover attack power on the form does not drop gear", () => {
     const page = freshPageSetup();
     const form = formFromConfig(page.config);
     form.values["character.attackPower"] = 900;
     const next = configFromForm(form, page.config);
-    assert.equal(next.gear, undefined);
-    assert.equal(next.character.attackPower, 900);
-    const text = encodeLink({ ...page, config: next });
-    assert.equal(text, encodeLink({ ...page, config: { ...next } }));
-    const bare = structuredClone(next);
-    assert.equal(encodeLink({ ...page, config: bare }), text);
-    assert.equal(decodeSetup(text).setup.config.gear, undefined);
-    assert.equal(decodeSetup(text).setup.config.character.attackPower, 900);
+    assert.ok(next.gear);
+    assert.deepEqual(next.gear.slots, page.config.gear.slots);
+    assert.notEqual(next.character.attackPower, 900);
   });
 
-  it("a typed weapon speed drops gear the same way", () => {
+  it("a leftover weapon speed on the form does not drop gear", () => {
     const page = freshPageSetup();
     const form = formFromConfig(page.config);
     form.values["weapons.mainHand.speed"] = 1.9;
     const next = configFromForm(form, page.config);
-    assert.equal(next.gear, undefined);
-    assert.equal(next.weapons.mainHand.speed, 1.9);
-    const text = encodeLink({ ...page, config: next });
-    assert.equal(decodeSetup(text).setup.config.weapons.mainHand.speed, 1.9);
-    assert.equal(decodeSetup(text).setup.config.gear, undefined);
+    assert.ok(next.gear);
+    assert.equal(
+      next.weapons.mainHand.speed,
+      page.config.weapons.mainHand.speed,
+    );
   });
 
-  it("weapon skill and target level survive beside gear, link and save", () => {
+  it("target level survives beside gear, link and save; a config weapon skill does too", () => {
     const page = freshPageSetup();
     const form = formFromConfig(page.config);
-    form.values["character.weaponSkill"] = 305;
     form.values["target.level"] = 63;
     const next = configFromForm(form, page.config);
+    next.character = { ...next.character, weaponSkill: 305 };
     next.weapons.mainHand = { ...next.weapons.mainHand, weaponSkill: 310 };
     assert.ok(next.gear);
     for (const text of [

@@ -204,10 +204,13 @@ const rotation = async (page) => {
 
 const gear = (page) =>
   page.evaluate(() => {
-    const value = (id) => document.getElementById(id).value;
+    const value = (id) => document.getElementById(id)?.value ?? null;
+    const slot = (id) =>
+      document.querySelector(`#${id} .gear-slot-name`)?.textContent.trim() ??
+      null;
     return {
-      mainHand: value("cfg-weapons-mainHand-type"),
-      offHand: value("cfg-weapons-offHand-type"),
+      mainHand: slot("gear-slot-mainHand"),
+      offHand: slot("gear-slot-offHand"),
       mainPoison: value("cfg-poisons-mainHand"),
       offPoison: value("cfg-poisons-offHand"),
     };
@@ -393,8 +396,8 @@ describe("Start from a preset (#323)", () => {
       assert.equal(await focused(page), "start-row");
 
       // An edit makes it Edited; a press on Combat puts it back, clean.
-      await go(page, "#character/gear", "#cfg-weapons-mainHand-type");
-      await page.selectOption("#cfg-weapons-mainHand-type", "dagger");
+      await go(page, "#character/gear", "#cfg-poisons-mainHand");
+      await page.selectOption("#cfg-poisons-mainHand", "crippling");
       await go(page, "#character", ROW);
       assert.equal(
         await text(page, "#start-summary"),
@@ -407,8 +410,11 @@ describe("Start from a preset (#323)", () => {
       await page.locator(card(COMBAT)).click();
       await page.locator(APPLIED).waitFor({ state: "visible" });
       assert.equal(await text(page, "#start-summary"), "Combat swords");
-      await go(page, "#character/gear", "#cfg-weapons-mainHand-type");
-      assert.equal((await gear(page)).mainHand, "sword");
+      await go(page, "#character/gear", "#cfg-poisons-mainHand");
+      // Presets no longer set weapons; P1 gear stays on the doll.
+      const worn = await gear(page);
+      assert.match(worn.mainHand, /Lobotomizer/);
+      assert.equal(worn.mainPoison, "instant");
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
@@ -690,9 +696,9 @@ describe("Start from a preset (#323)", () => {
       await announcedAs(page, whole);
 
       // The weapon speed edited, the same card again: the weapons alone.
-      await go(page, "#character/gear", "#cfg-weapons-mainHand-speed");
-      await page.fill("#cfg-weapons-mainHand-speed", "2.9");
-      await page.locator("#cfg-weapons-mainHand-speed").press("Tab");
+      await go(page, "#character/gear", "#cfg-poisons-mainHand");
+      await page.selectOption("#cfg-poisons-mainHand", "wound");
+      await page.locator("#cfg-poisons-mainHand").press("Tab");
       await go(page, "#character/start", card(ASSASSINATION));
       await page.locator(card(ASSASSINATION)).click();
       await page.locator(APPLIED).waitFor({ state: "visible" });

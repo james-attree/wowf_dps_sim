@@ -1,8 +1,8 @@
-// View model for the #297 PR6 paper doll and the derived stats panel.
-// Pure: no DOM. Applying a slot writes config.gear and, when the build
-// still derives, the sheet and weapons. Typing the sheet or a weapon in
-// the existing form still drops config.gear
-// (coordinator call 16 Nov (James delegated)).
+// View model for the paper doll, the read-only derived stats panel, and
+// the gear-build run blocks. Pure: no DOM. Applying a slot writes
+// config.gear and the derived sheet and weapons. Race changes re-derive
+// the sheet. The typed character sheet is gone in PR7.
+// coordinator call 16 Nov (James delegated).
 
 import { k } from "../data/constants.js";
 import { isLegacySheet } from "./build-codec.js";
@@ -27,7 +27,7 @@ import {
   suffixesForItem,
 } from "./gear-search.js";
 
-const V1_LEVEL = k("items.v1Level");
+export const V1_LEVEL = k("items.v1Level");
 const PERCENT_DECIMALS = 1;
 const PERCENT = k("sheet.percent");
 const EMPTY_MH = "Equip a main-hand weapon.";
@@ -346,6 +346,96 @@ function rowFor(slot, slots, tables) {
   };
 }
 
+export const LEGACY_BANNER =
+  "Sheet from an older link or save. These numbers are frozen from a link or save that still carries typed stats, so they replay exactly as they did. They are not a Forever item set and cannot be edited slot by slot. They are not the page default.";
+export const START_P1 = "Start from wowsims P1 gear";
+export const START_EMPTY = "Start an empty gear build";
+
+// Reason Run is blocked on a gear build, or "" when it can run.
+// Legacy sheets still run at any level. coordinator call 16 Nov
+// (James delegated), per the Q10 ruling of 15 Nov.
+export function gearRunError(config) {
+  if (isLegacySheet(config)) {
+    return "";
+  }
+  if (characterLevel(config) !== V1_LEVEL) {
+    return LEVEL_BLOCK;
+  }
+  if (config.weapons?.mainHand == null) {
+    return EMPTY_MH;
+  }
+  return "";
+}
+
+export function gearRunErrors(config) {
+  const reason = gearRunError(config);
+  return reason ? { form: `This setup can't run: ${reason}` } : {};
+}
+
+function frozenWeaponLine(weapon) {
+  if (!weapon) {
+    return EMPTY_COPY;
+  }
+  return `${weapon.min}${MINUS}${weapon.max}, ${weapon.speed} s, ${weapon.type}`;
+}
+
+// Read-only rows for a legacy sheet: the frozen numbers, not deriveSheet.
+export function legacyRows(config) {
+  const character = config?.character ?? {};
+  const weapons = config?.weapons ?? {};
+  const rows = [
+    {
+      id: "attackPower",
+      label: "Attack power",
+      value: String(character.attackPower ?? MINUS),
+      source: "From an older link or save",
+    },
+    {
+      id: "critChance",
+      label: "Crit",
+      value: formatSheetPercent(character.critChance),
+      source: "From an older link or save",
+    },
+    {
+      id: "bonusHitChance",
+      label: "Hit",
+      value: formatSheetPercent(character.bonusHitChance),
+      source: "From an older link or save",
+    },
+  ];
+  if (character.haste) {
+    rows.push({
+      id: "haste",
+      label: "Haste",
+      value: formatSheetPercent(character.haste),
+      source: "From an older link or save",
+    });
+  }
+  if (character.expertise != null) {
+    rows.push({
+      id: "expertise",
+      label: "Expertise",
+      value: String(character.expertise),
+      source: "From an older link or save",
+    });
+  }
+  rows.push(
+    {
+      id: "mainHand",
+      label: "Main hand",
+      value: frozenWeaponLine(weapons.mainHand),
+      source: "",
+    },
+    {
+      id: "offHand",
+      label: "Off hand",
+      value: frozenWeaponLine(weapons.offHand),
+      source: "",
+    },
+  );
+  return rows;
+}
+
 export function gearLead(config) {
   const level = characterLevel(config);
   const race = raceName(config.race);
@@ -377,6 +467,7 @@ export function gearViewModel(config, tables) {
   const notModelled = derived?.notModelled ?? [];
   return {
     legacy,
+    legacyBanner: legacy ? LEGACY_BANNER : "",
     showDoll: !legacy,
     lead: gearLead(config),
     emptyMainHand,
@@ -389,7 +480,7 @@ export function gearViewModel(config, tables) {
     left: LEFT_SLOTS.map((slot) => rows[slot]),
     right: RIGHT_SLOTS.map((slot) => rows[slot]),
     weapons: WEAPON_SLOTS.map((slot) => rows[slot]),
-    stats: derivedRows(derived),
+    stats: legacy ? legacyRows(config) : derivedRows(derived),
     notModelled,
     notModelledCount: notModelled.length,
     notModelledLabel:

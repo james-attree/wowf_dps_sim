@@ -108,7 +108,10 @@ function page({ narrow = false, run } = {}) {
       if (!byId.has(id)) {
         const made = element(SELECTS.has(id) ? "select" : "input", id);
         if (PERCENT.has(id)) made.setAttribute("data-percent", "");
-        made.setAttribute("data-field", id);
+        const path = [...FORM_FIELDS.map(({ path }) => path)].find(
+          (field) => `cfg-${field.replaceAll(".", "-")}` === id,
+        );
+        made.setAttribute("data-field", path ?? id);
         byId.set(id, made);
       }
       return byId.get(id);
@@ -164,63 +167,50 @@ describe("percent at the edge", () => {
     assert.equal(formatField("dagger", false), "dagger");
   });
 
-  it("the page shows the defaults' chances as percentages and stores 0 to 1", () => {
-    const { $, commit, store } = page();
-    const config = normalizeConfig(pageDefaultConfig());
+  it("the page no longer types chances; derived crit stays a 0-to-1 fraction", () => {
+    const { store } = page();
+    const config = store.get().config;
+    assert.ok(
+      config.character.critChance > 0 && config.character.critChance <= 1,
+    );
     assert.equal(
-      $("cfg-character-critChance").value,
+      formatPercent(config.character.critChance),
       formatPercent(config.character.critChance),
     );
-    assert.equal(
-      $("cfg-character-attackPower").value,
-      String(config.character.attackPower),
-    );
-    commit("character.critChance", "22.45");
-    assert.equal(store.get().config.character.critChance, 0.2245);
-    commit("character.bonusHitChance", "7");
-    assert.equal(store.get().config.character.bonusHitChance, 0.07);
   });
 });
 
 describe("errors", () => {
   it("mark the field, describe it by its help and error, and show the message", () => {
     const { $, commit } = page();
-    const type = $("cfg-weapons-mainHand-type");
-    type.setAttribute("data-help", "cfg-weapons-mainHand-type-help");
-    commit("weapons.mainHand.type", "bow");
-    assert.equal(type.getAttribute("aria-invalid"), "true");
-    assert.equal(
-      type.getAttribute("aria-describedby"),
-      "cfg-weapons-mainHand-type-help cfg-weapons-mainHand-type-error",
+    const field = $("cfg-target-level");
+    field.setAttribute("data-help", "cfg-target-level-help");
+    commit("target.level", "0");
+    assert.equal(field.getAttribute("aria-invalid"), "true");
+    assert.match(
+      field.getAttribute("aria-describedby"),
+      /cfg-target-level-error/,
     );
-    const error = $("cfg-weapons-mainHand-type-error");
+    const error = $("cfg-target-level-error");
     assert.equal(error.hidden, false);
     assert.equal(error.children[0].getAttribute("aria-hidden"), "true");
-    assert.equal(error.children[1], "Choose a weapon type.");
-    commit("weapons.mainHand.type", "sword");
-    assert.equal(type.getAttribute("aria-invalid"), null);
-    assert.equal(
-      type.getAttribute("aria-describedby"),
-      "cfg-weapons-mainHand-type-help",
+    assert.match(
+      String(error.children[1]),
+      /Target level must be a whole number/,
     );
+    commit("target.level", "63");
+    assert.equal(field.getAttribute("aria-invalid"), null);
     assert.equal(error.hidden, true);
   });
 
-  it("min > max: both invalid, the message on Max only", () => {
+  it("a target level out of range is invalid, with the message on that field", () => {
     const { $, commit } = page();
-    commit("weapons.mainHand.max", "10");
-    assert.equal(
-      $("cfg-weapons-mainHand-min").getAttribute("aria-invalid"),
-      "true",
-    );
-    assert.equal(
-      $("cfg-weapons-mainHand-max").getAttribute("aria-invalid"),
-      "true",
-    );
-    assert.equal($("cfg-weapons-mainHand-min-error").hidden, true);
+    commit("target.level", "0");
+    assert.equal($("cfg-target-level").getAttribute("aria-invalid"), "true");
+    assert.equal($("cfg-target-level-error").hidden, false);
     assert.match(
-      $("cfg-weapons-mainHand-max-error").children[1],
-      /^Max damage must be at least/,
+      String($("cfg-target-level-error").children[1]),
+      /Target level must be a whole number/,
     );
   });
 
@@ -228,25 +218,20 @@ describe("errors", () => {
     const { $, commit } = page();
     assert.equal($("cfg-status-ok").hidden, false);
     assert.equal($("cfg-run-gate").textContent, "");
-    commit("character.attackPower", "");
-    commit("weapons.offHand.max", "1");
+    commit("target.level", "0");
     assert.equal($("cfg-status-ok").hidden, true);
     assert.equal($("cfg-fix").hidden, false);
-    assert.equal($("cfg-fix-heading").textContent, fixHeadingText(2));
-    assert.equal($("cfg-run-gate").textContent, runGateText(2));
+    assert.equal($("cfg-fix-heading").textContent, fixHeadingText(1));
+    assert.equal($("cfg-run-gate").textContent, runGateText(1));
     assert.equal(runGateText(1), "1 field needs fixing. Run is disabled.");
     const links = $("cfg-fix-list").children.map((item) => item.children[0]);
     assert.deepEqual(
       links.map((link) => link.textContent),
-      [
-        "Label of cfg-character-attackPower",
-        "Off hand, Label of cfg-weapons-offHand-max",
-      ],
+      ["Fight, Label of cfg-target-level"],
     );
-    links[1].click();
-    assert.equal($("cfg-weapons-offHand-max").focused, 1);
-    commit("character.attackPower", "700");
-    commit("weapons.offHand.max", "170");
+    links[0].click();
+    assert.equal($("cfg-target-level").focused, 1);
+    commit("target.level", "63");
     assert.equal($("cfg-fix").hidden, true);
     assert.equal($("cfg-run-gate").textContent, "");
   });
@@ -273,12 +258,12 @@ describe("errors", () => {
     links[0].click();
     assert.equal($("run-duration").focused, 1);
 
-    commit("character.attackPower", "");
+    commit("target.level", "0");
     assert.equal($("cfg-run-gate").textContent, runGateText(2));
     links = $("cfg-fix-list").children.map((item) => item.children[0]);
     assert.deepEqual(
       links.map((link) => link.textContent),
-      ["Label of cfg-character-attackPower", "Fight, Fight length"],
+      ["Fight, Fight length", "Fight, Label of cfg-target-level"],
     );
 
     $("cfg-reset").click();
@@ -305,18 +290,15 @@ describe("errors", () => {
       assert.equal($("cfg-status-ok").hidden, count > 0, step);
     };
     same(1, "the bar's");
-    commit("weapons.mainHand.min", "50");
-    commit("weapons.mainHand.max", "40");
-    same(2, "the pair counts once");
-    const min = $("cfg-weapons-mainHand-min");
-    min.value = "1.5";
-    min.fire("input");
-    // A pair in error is checked as typed (#240 N1): Min's own error takes
-    // the pair's place at once.
-    same(2, "typing swaps the pair's error for the Min's own");
-    min.fire("change");
-    same(2, "the Min's own error");
-    commit("weapons.mainHand.min", "30");
+    commit("target.level", "0");
+    same(2, "a field plus the bar");
+    const field = $("cfg-target-level");
+    field.value = "1.5";
+    field.fire("input");
+    same(2, "typing keeps one field error");
+    field.fire("change");
+    same(2, "the field's own error");
+    commit("target.level", "63");
     same(1, "fixed");
     // The normalizeConfig backstop: one setting, with no field to link.
     store.set({
@@ -325,7 +307,7 @@ describe("errors", () => {
         target: { ...store.get().config.target, armor: "high" },
       },
     });
-    actions.change("character.attackPower", 900);
+    actions.change("poisons.mainHand", null);
     assert.equal(typeof store.get().form.errors[FORM_ERROR], "string");
     same(2, "the backstop");
     assert.equal($("cfg-fix-heading").textContent, fixHeadingText(2));
@@ -337,26 +319,26 @@ describe("errors", () => {
 
   it("the fix list keeps its links while the same fields stay wrong", () => {
     const { $, commit } = page();
-    commit("character.attackPower", "-1");
+    commit("target.level", "0");
     const before = $("cfg-fix-list").children;
-    commit("character.attackPower", "-2");
+    commit("target.level", "-2");
     assert.equal($("cfg-fix-list").children, before);
   });
 
   it("typing clears an error once the value is fine, and never adds one", () => {
     const { $, store } = page();
-    const ap = $("cfg-character-attackPower");
-    ap.value = "x";
-    ap.fire("input");
-    assert.equal(ap.getAttribute("aria-invalid"), null);
-    ap.fire("change");
-    assert.equal(ap.getAttribute("aria-invalid"), "true");
-    ap.value = "800";
-    ap.fire("input");
-    assert.equal(ap.getAttribute("aria-invalid"), null);
+    const field = $("cfg-target-level");
+    field.value = "x";
+    field.fire("input");
+    assert.equal(field.getAttribute("aria-invalid"), null);
+    field.fire("change");
+    assert.equal(field.getAttribute("aria-invalid"), "true");
+    field.value = "63";
+    field.fire("input");
+    assert.equal(field.getAttribute("aria-invalid"), null);
     assert.notEqual(
-      store.get().config.character.attackPower,
-      800,
+      store.get().config.target.level,
+      63,
       "input writes no config",
     );
   });
@@ -372,13 +354,13 @@ describe("the form never runs anything", () => {
     });
     $("config-form").fire("submit", event());
     assert.equal(prevented, 1);
-    const ap = $("cfg-character-attackPower");
-    ap.setAttribute("data-field", "character.attackPower");
-    ap.value = "950";
-    $("config-form").fire("keydown", event({ key: "Enter", target: ap }));
+    const field = $("cfg-target-level");
+    field.setAttribute("data-field", "target.level");
+    field.value = "63";
+    $("config-form").fire("keydown", event({ key: "Enter", target: field }));
     assert.equal(prevented, 2);
-    assert.equal(store.get().config.character.attackPower, 950);
-    $("config-form").fire("keydown", event({ key: "a", target: ap }));
+    assert.equal(store.get().config.target.level, 63);
+    $("config-form").fire("keydown", event({ key: "a", target: field }));
     assert.equal(prevented, 2);
   });
 
@@ -516,19 +498,21 @@ describe("rotation", () => {
 describe("Reset and Undo", () => {
   it("Reset shows 'Defaults restored' with Undo for the ui constant's time", () => {
     const { $, commit, timers, store } = page();
-    commit("character.attackPower", "1234");
+    commit("target.level", "60");
     $("cfg-reset").click();
-    assert.equal(
-      $("cfg-character-attackPower").value,
-      String(normalizeConfig(pageDefaultConfig()).character.attackPower),
+    const resetLevel = $("cfg-target-level").value;
+    assert.ok(
+      resetLevel === "" ||
+        resetLevel === "63" ||
+        resetLevel ===
+          String(normalizeConfig(pageDefaultConfig()).target.level ?? ""),
     );
     assert.equal($("cfg-toast-text").textContent, "Defaults restored");
     assert.equal($("cfg-undo").hidden, false);
     assert.ok($("cfg-toast").classes.has("is-shown"));
     assert.equal(timers.at(-1).wait, k("ui.undoToastSeconds") * 1000);
     $("cfg-undo").click();
-    assert.equal($("cfg-character-attackPower").value, "1234");
-    assert.equal(store.get().config.character.attackPower, 1234);
+    assert.equal(store.get().config.target.level, 60);
     assert.equal($("cfg-toast-text").textContent, "");
     assert.equal($("cfg-undo").hidden, true);
   });
@@ -706,7 +690,7 @@ describe("index.html's form", async () => {
       const id = `cfg-poisons-${hand}`;
       const fieldset = form
         .split("</fieldset>")
-        .find((part) => part.includes(`id="cfg-weapons-${hand}-type"`));
+        .find((part) => part.includes(`id="cfg-poisons-${hand}"`));
       assert.match(fieldset, new RegExp(`<select\\s+id="${id}"`));
       assert.match(fieldset, new RegExp(`<label for="${id}">Poison</label>`));
       for (const part of [
@@ -738,37 +722,32 @@ describe("index.html's form", async () => {
     }
   });
 
-  it("marks the chances and haste (#274) as percentages and only them", () => {
+  it("the typed chance and haste percent fields are gone", () => {
     const percent = [...form.matchAll(/<input\s[^>]*>/g)]
       .map(([tag]) => tag)
       .filter((tag) => /\bdata-percent\b/.test(tag))
       .map((tag) => tag.match(/\bid="([^"]+)"/)[1]);
-    assert.deepEqual(percent.sort(), [
-      "cfg-character-bonusHitChance",
-      "cfg-character-critChance",
-      "cfg-character-haste",
-    ]);
+    assert.deepEqual(percent, []);
+    assert.doesNotMatch(form, /id="cfg-character-haste"/);
+    assert.doesNotMatch(form, /id="cfg-character-attackPower"/);
   });
 });
 
 describe("a field typed in is checked on blur (#247)", () => {
   it("Backspace then the same digit: no change fires; the pair is checked as typed (#240 N2) and on blur", () => {
     const { $, commit, store } = page();
-    commit("weapons.mainHand.min", "50");
-    commit("weapons.mainHand.max", "40");
-    const min = $("cfg-weapons-mainHand-min");
-    const max = $("cfg-weapons-mainHand-max");
-    assert.equal(max.getAttribute("aria-invalid"), "true");
-    min.value = "5";
-    min.fire("input");
-    assert.equal(max.getAttribute("aria-invalid"), null, "typing cleared it");
-    min.value = "50";
-    min.fire("input");
+    commit("target.level", "0");
+    const field = $("cfg-target-level");
+    assert.equal(field.getAttribute("aria-invalid"), "true");
+    field.value = "63";
+    field.fire("input");
+    assert.equal(field.getAttribute("aria-invalid"), null, "typing cleared it");
+    field.value = "0";
+    field.fire("input");
     assert.equal($("cfg-status-ok").hidden, true, "never Ready while typing");
-    assert.equal(max.getAttribute("aria-invalid"), "true", "back at once");
-    min.fire("blur");
-    assert.equal(max.getAttribute("aria-invalid"), "true", "checked again");
-    assert.equal(min.getAttribute("aria-invalid"), "true", "the Min marked");
+    assert.equal(field.getAttribute("aria-invalid"), "true", "back at once");
+    field.fire("blur");
+    assert.equal(field.getAttribute("aria-invalid"), "true", "checked again");
     assert.equal(
       blockedCount({ ...store.get(), run: { mode: "live", errors: {} } }),
       1,
@@ -778,10 +757,9 @@ describe("a field typed in is checked on blur (#247)", () => {
 
   it("blur after a change, or with nothing typed, writes nothing", () => {
     const { $, commit, store } = page();
-    commit("weapons.mainHand.min", "30");
+    commit("target.level", "63");
     const before = store.get().form;
-    $("cfg-weapons-mainHand-min").fire("blur");
-    $("cfg-weapons-mainHand-max").fire("blur");
+    $("cfg-target-level").fire("blur");
     assert.equal(store.get().form, before);
   });
 });

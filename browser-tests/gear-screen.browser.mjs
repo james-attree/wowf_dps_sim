@@ -559,3 +559,278 @@ describe("gear screen overflow, targets and axe (#384)", () => {
     }
   });
 });
+
+describe("read-only stats and gear builds (#385)", () => {
+  test("the typed sheet and the 0.65rem phone summary are gone", async () => {
+    const { context, page, errors } = await open(
+      360,
+      "100%",
+      "#character/stats",
+    );
+    try {
+      assert.equal(await page.locator("#cfg-character-attackPower").count(), 0);
+      assert.equal(await page.locator("#cfg-character-haste").count(), 0);
+      assert.equal(await page.locator("#cfg-weapons-mainHand-min").count(), 0);
+      const size = await page.evaluate(() => {
+        const node = document.getElementById("character-stats-summary");
+        return getComputedStyle(node).fontSize;
+      });
+      const root = await page.evaluate(() =>
+        Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+      );
+      assert.ok(
+        Number.parseFloat(size) / root > 0.7,
+        `summary is not the cramped 0.65rem size (got ${size} over ${root})`,
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("Tab from the last picker control wraps to the first, and Shift+Tab the other way (N1)", async () => {
+    const { context, page, errors } = await open(360);
+    try {
+      await page.click("#gear-slot-chest");
+      const picker = page.locator("#gear-picker");
+      await picker.waitFor({ state: "visible" });
+      const count = await page.evaluate(() => {
+        const items = (function tabbable() {
+          const root = document.getElementById("gear-picker");
+          return [
+            ...root.querySelectorAll(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+            ),
+          ].filter((node) => {
+            if (node.disabled || node.hidden) return false;
+            const style = getComputedStyle(node);
+            if (style.display === "none" || style.visibility === "hidden") {
+              return false;
+            }
+            return node.tabIndex >= 0;
+          });
+        })();
+        items[0]?.setAttribute("data-trap", "first");
+        items.at(-1)?.setAttribute("data-trap", "last");
+        return items.length;
+      });
+      assert.ok(count >= 2, "the picker has more than one tab stop");
+      await page.evaluate(() => {
+        document.querySelector("#gear-picker [data-trap=last]").focus();
+      });
+      await page.keyboard.press("Tab");
+      assert.equal(
+        await page.evaluate(() =>
+          document.activeElement?.getAttribute("data-trap"),
+        ),
+        "first",
+      );
+      await page.evaluate(() => {
+        document.querySelector("#gear-picker [data-trap=first]").focus();
+      });
+      await page.keyboard.press("Shift+Tab");
+      assert.equal(
+        await page.evaluate(() =>
+          document.activeElement?.getAttribute("data-trap"),
+        ),
+        "last",
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("the picker's heading does not skip a level with the picker open", async () => {
+    const { context, page, errors } = await open(1280);
+    try {
+      await page.click("#gear-slot-chest");
+      await page.locator("#gear-picker").waitFor({ state: "visible" });
+      const ranks = await page.evaluate(() =>
+        [...document.querySelectorAll("h1, h2, h3, h4, h5, h6")]
+          .filter((node) => {
+            const style = getComputedStyle(node);
+            const box = node.getBoundingClientRect();
+            return (
+              style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              box.height > 0 &&
+              box.width > 0
+            );
+          })
+          .map((node) => Number(node.tagName.slice(1))),
+      );
+      assert.ok(ranks.includes(2), "the picker title is an h2");
+      for (let i = 1; i < ranks.length; i += 1) {
+        assert.ok(
+          ranks[i] <= ranks[i - 1] + 1,
+          `heading order ${ranks.join(" → ")} skips a level`,
+        );
+      }
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("the 3-column doll at 1024 / 100% does not mid-word wrap", async () => {
+    const { context, page, errors } = await open(1024, "100%");
+    try {
+      const wrap = await page.evaluate(() => {
+        const name = document.querySelector("#gear-slot-head .gear-slot-name");
+        const copy = document.querySelector("#gear-slot-head .gear-slot-copy");
+        const style = (node) => {
+          const computed = getComputedStyle(node);
+          return {
+            overflowWrap: computed.overflowWrap,
+            wordBreak: computed.wordBreak,
+            display: getComputedStyle(document.getElementById("gear-figure"))
+              .display,
+          };
+        };
+        return { name: style(name), copy: style(copy) };
+      });
+      assert.notEqual(
+        wrap.name.display,
+        "none",
+        "the 3-column figure is shown",
+      );
+      assert.notEqual(wrap.name.overflowWrap, "anywhere");
+      assert.notEqual(wrap.copy.overflowWrap, "anywhere");
+      assert.notEqual(wrap.name.wordBreak, "break-word");
+      assert.notEqual(wrap.copy.wordBreak, "break-word");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("builds can be saved, loaded, renamed and deleted, with name guards", async () => {
+    const { context, page, errors } = await open(1280);
+    try {
+      await page.fill("#gear-save-name", "   ");
+      await page.click("#gear-save-build");
+      assert.match(
+        await page.locator("#gear-builds-live").innerText(),
+        /Enter a name/,
+      );
+      await page.fill("#gear-save-name", "Raid P1");
+      await page.click("#gear-save-build");
+      await page.waitForFunction(() =>
+        document
+          .getElementById("gear-builds-live")
+          .textContent.includes("saved"),
+      );
+      const names = await page
+        .locator(".gear-build-name span")
+        .allTextContents();
+      assert.ok(names.some((name) => name.includes("Raid P1")));
+      await page.fill("#gear-save-name", "Raid P1");
+      await page.click("#gear-save-build");
+      assert.match(
+        await page.locator("#gear-builds-live").innerText(),
+        /already exists/,
+      );
+      const row = page.locator(".gear-build-row", { hasText: "Raid P1" });
+      await row.locator("button[data-act='rename']").click();
+      await page
+        .locator(".gear-build-row input[aria-label='New name']")
+        .fill("Raid P1b");
+      await page
+        .locator(".gear-build-row button", { hasText: "Save name" })
+        .click();
+      await page.waitForFunction(() =>
+        document.body.innerText.includes("Raid P1b"),
+      );
+      await page
+        .locator(".gear-build-row", { hasText: "Raid P1b" })
+        .locator("button[data-act='remove']")
+        .click();
+      await page.waitForFunction(
+        () => !document.body.innerText.includes("Raid P1b"),
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("a storage failure is shown in the live region", async () => {
+    const { context, page, errors } = await open(1280);
+    try {
+      await page.evaluate(() => {
+        const storage = document.defaultView.localStorage;
+        storage.setItem = () => {
+          throw new Error("full");
+        };
+      });
+      await page.fill("#gear-save-name", "Full store");
+      await page.click("#gear-save-build");
+      const live = page.locator("#gear-builds-live");
+      await live.waitFor({ state: "visible" });
+      assert.match(await live.innerText(), /could not be saved/);
+      assert.equal(await live.getAttribute("role"), "status");
+      const polite = await live.getAttribute("aria-live");
+      assert.ok(polite === "polite" || polite === "assertive");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("a gear build at level 40 blocks Run; a legacy sheet does not", async () => {
+    const { context, page, errors } = await open(
+      1280,
+      "100%",
+      "#character/gear",
+    );
+    try {
+      await page.evaluate(() => {
+        document.location.hash = "#character/talents";
+      });
+      await page.locator("#talents-level").waitFor({ state: "visible" });
+      await page.locator("#talents-reset").click();
+      await page.waitForFunction(() =>
+        /\b0 of \d+/.test(
+          document.querySelector("#talents-points")?.textContent ?? "",
+        ),
+      );
+      await page.fill("#talents-level", "40");
+      await page.locator("#talents-level").blur();
+      assert.equal(await page.locator("#run-button").isDisabled(), true);
+      await page.evaluate(() => {
+        document.location.hash = "#character/gear";
+      });
+      await page.locator("#gear-level-block").waitFor({ state: "visible" });
+      assert.match(
+        await page.locator("#gear-level-block").innerText(),
+        /level 60 only/,
+      );
+      await page.evaluate(() => {
+        document.location.hash = "#character/talents";
+      });
+      await page.locator("#talents-level").waitFor({ state: "visible" });
+      await page.evaluate(() => {
+        const { config } = globalThis.__store.get();
+        const next = structuredClone(config);
+        delete next.gear;
+        globalThis.__store.set({ config: next });
+      });
+      // store.set of config alone does not refresh form errors; change the
+      // level so the talent subscription re-runs formWithGearErrors.
+      await page.fill("#talents-level", "41");
+      await page.locator("#talents-level").blur();
+      await page.fill("#talents-level", "40");
+      await page.locator("#talents-level").blur();
+      // A legacy sheet still runs at any level.
+      assert.equal(await page.locator("#run-button").isDisabled(), false);
+      await page.evaluate(() => {
+        document.location.hash = "#character/stats";
+      });
+      await page.locator("#gear-legacy").waitFor({ state: "visible" });
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+});

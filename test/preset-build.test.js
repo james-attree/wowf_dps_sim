@@ -543,14 +543,18 @@ describe("the applied build fights (#273)", () => {
     it(`${id}: its abilities are cast after the button`, () => {
       const env = page();
       const gear = legacyPresetGear(id);
-      env.form.change("weapons.mainHand.type", gear.weapons.mainHand.type);
-      env.form.change("weapons.offHand.type", gear.weapons.offHand.type);
-      env.form.change("weapons.mainHand.min", gear.weapons.mainHand.min);
-      env.form.change("weapons.mainHand.max", gear.weapons.mainHand.max);
-      env.form.change("weapons.mainHand.speed", gear.weapons.mainHand.speed);
-      env.form.change("weapons.offHand.min", gear.weapons.offHand.min);
-      env.form.change("weapons.offHand.max", gear.weapons.offHand.max);
-      env.form.change("weapons.offHand.speed", gear.weapons.offHand.speed);
+      // The typed weapon fields are gone (#385). A legacy sheet still
+      // carries the preset's weapons for the signature-ability fight.
+      const next = structuredClone(env.store.get().config);
+      next.weapons = {
+        mainHand: { ...gear.weapons.mainHand },
+        offHand: { ...gear.weapons.offHand },
+      };
+      if (gear.character) {
+        next.character = { ...gear.character };
+      }
+      delete next.gear;
+      env.store.set({ config: next });
       env.form.chooseRotation(id);
       env.build.apply();
       const fight = createFight(SEED, nextRunConfig(env.store.get()));

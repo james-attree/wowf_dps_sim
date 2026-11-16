@@ -19,23 +19,18 @@ import { startStaticServer } from "../scripts/serve.mjs";
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const WIDTHS = [1280, 390, 360];
 const SCREEN_HEIGHT = 900;
-// The pair the form refuses: Max under Min.
-const PAIR_MIN = "50";
-const PAIR_MAX = "40";
-// Min's last digit: Backspace, then this, gives back PAIR_MIN.
-const LAST_DIGIT = "0";
-// Not whole: invalid on its own, so the pair's check does not apply.
+// Target level is still typable (#385). 0 is out of range; 62 is a
+// legal typed level (blank follows the character and is 63).
+const INVALID = "0";
+const VALID = "62";
 const NOT_WHOLE = "4.5";
-// A Max that fixes the pair.
-const FIXED_MAX = "60";
 // Long enough for a started run to show.
 const SETTLE_MS = 300;
 // N6's run: one seeded fight, so two runs of the same settings agree.
 const N6_SEED = "424242";
 const N6_FIGHTS = "1";
 const BATCH_TIMEOUT = 60_000;
-const MIN = "#cfg-weapons-mainHand-min";
-const MAX = "#cfg-weapons-mainHand-max";
+const FIELD = "#cfg-target-level";
 
 let server;
 let base;
@@ -70,21 +65,16 @@ async function open(width) {
         ? route.fulfill({ status: 200, contentType: "image/jpeg", body: ICON })
         : route.abort(),
   );
-  // The weapons' fields are on Character's Gear and weapons (#244, UX6).
-  await page.goto(`${base}#character/gear`);
+  await page.goto(`${base}#fight`);
   await page.locator("#run-button").waitFor({ state: "visible" });
   return { context, page, errors };
 }
 
-// Min 50 and Max 40, each committed by clicking away: the pair's error.
-async function pairError(page) {
-  const min = page.locator(MIN);
-  const max = page.locator(MAX);
-  await min.fill(PAIR_MIN);
-  await min.blur();
-  await max.fill(PAIR_MAX);
-  await max.blur();
-  return { min, max };
+async function fieldError(page) {
+  const field = page.locator(FIELD);
+  await field.fill(INVALID);
+  await field.blur();
+  return field;
 }
 
 // What Run, the Fix link and the footer say, and where focus is.
@@ -133,142 +123,105 @@ function agree(state, step) {
 
 describe("Run never starts with stale settings (#247)", () => {
   for (const width of WIDTHS) {
-    test(`Fran's repro: Backspace then the same digit in Min, then Run, at ${width}`, async () => {
+    test(`an invalid target level blocks Run, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
-      const { min, max } = await pairError(page);
+      const field = await fieldError(page);
       const before = await read(page);
-      agree(before, "the pair's error");
+      agree(before, "the field's error");
       assert.match(before.status, /^Can't run/);
-
-      await min.click();
-      await min.press("End");
-      await min.press("Backspace");
-      assert.equal((await read(page)).runCount, 0, "Min 5 passes");
-      await min.press(LAST_DIGIT);
-      assert.equal(await min.inputValue(), PAIR_MIN, "Min reads 50 again");
-      // #240 N2: the pair is checked as typed, so 50 again is not Ready.
-      const typed = await read(page);
-      agree(typed, "50 typed back");
-      assert.equal(typed.runCount, 1, "the pair's error is back");
-      assert.match(typed.status, /^Can't run/);
-      // A press on the disabled Run (Chrome sends it no click, and drops
-      // focus to the page): #240 N5 sends focus to the field to fix.
       await page.locator("#run-button").click({ force: true });
       await page.waitForTimeout(SETTLE_MS);
-
       const after = await read(page);
-      assert.equal(await min.inputValue(), PAIR_MIN);
-      assert.equal(await max.inputValue(), PAIR_MAX);
+      assert.equal(await field.inputValue(), INVALID);
       assert.match(after.status, /^Can't run/, "no run started");
       assert.equal(await page.locator("#pause-button").isEnabled(), false);
       agree(after, "after Run");
-      assert.equal(after.runCount, 1, "the pair's error, checked again");
-      // Nit 2: focus goes to the first setting to fix, not the page.
-      assert.equal(after.focus, MAX.slice(1), "focus on the field to fix");
-      assert.equal(after.footerFirst, MAX, "the field the footer names");
+      assert.equal(after.runCount, 1);
+      assert.equal(after.focus, FIELD.slice(1), "focus on the field to fix");
+      assert.equal(after.footerFirst, FIELD, "the field the footer names");
       assert.deepEqual(errors, []);
       await context.close();
     });
 
-    test(`the same digit typed back, then blur, at ${width}`, async () => {
+    test(`a valid value typed over an error clears it, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
-      const { min } = await pairError(page);
-      await min.click();
-      await min.press("End");
-      await min.press("Backspace");
+      const field = await fieldError(page);
+      await field.click();
+      await field.fill(VALID);
       const typing = await read(page);
       agree(typing, "typing a value that passes");
       assert.equal(typing.runCount, 0);
-      await min.press(LAST_DIGIT);
-      assert.equal((await read(page)).runCount, 1, "#240 N2: checked as typed");
-      await min.blur();
+      await field.blur();
       const blurred = await read(page);
       agree(blurred, "blurred");
-      assert.equal(blurred.runCount, 1, "checked on blur with no change");
-      assert.equal(
-        await page.locator(MAX).getAttribute("aria-invalid"),
-        "true",
-      );
+      assert.equal(blurred.runCount, 0);
+      assert.equal(await field.getAttribute("aria-invalid"), null);
       assert.deepEqual(errors, []);
       await context.close();
     });
 
     test(`a blocked Run sends focus to the first setting to fix, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
-      const min = page.locator(MIN);
-      const max = page.locator(MAX);
-      await max.fill(FIXED_MAX);
-      await max.blur();
-      await min.fill(PAIR_MIN);
-      await min.blur();
-      // A field not in error is not marked while typed: Run checks it.
-      await max.click();
-      await max.fill(PAIR_MAX);
-      assert.equal((await read(page)).disabled, false, "typing adds no error");
+      const field = page.locator(FIELD);
+      await field.fill(VALID);
+      await field.blur();
+      await field.click();
+      await field.fill(INVALID);
+      assert.equal(
+        (await read(page)).disabled,
+        false,
+        "typing adds no error yet",
+      );
       await page.locator("#run-button").click();
       await page.waitForTimeout(SETTLE_MS);
       const state = await read(page);
       assert.match(state.status, /^Can't run/, "no run started");
       agree(state, "after Run");
-      assert.equal(state.focus, MAX.slice(1), "nit 2: not the page body");
-      assert.equal(state.footerFirst, MAX, "the field the footer names");
+      assert.equal(state.focus, FIELD.slice(1), "nit 2: not the page body");
+      assert.equal(state.footerFirst, FIELD, "the field the footer names");
       assert.deepEqual(errors, []);
       await context.close();
     });
 
     test(`the Fix link goes to the field the footer names, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
-      await pairError(page);
+      await fieldError(page);
       const state = await read(page);
-      assert.equal(state.footerFirst, MAX);
-      assert.match(state.footerText, /^Main hand, Max damage/);
+      assert.equal(state.footerFirst, FIELD);
       await page.locator("#run-errors-link").click();
-      assert.equal((await read(page)).focus, MAX.slice(1), "nit 4");
+      assert.equal((await read(page)).focus, FIELD.slice(1), "nit 4");
       assert.deepEqual(errors, []);
       await context.close();
     });
 
-    test(`Max typed invalid on its own swaps the pair's error for its own, at ${width}`, async () => {
+    test(`a not-whole target level is its own error as typed, at ${width}`, async () => {
       const { context, page, errors } = await open(width);
-      const { max } = await pairError(page);
-      await max.click();
-      await max.fill("");
-      await max.pressSequentially(NOT_WHOLE);
+      const field = await fieldError(page);
+      await field.click();
+      await field.fill("");
+      await field.pressSequentially(NOT_WHOLE);
       const typing = await read(page);
-      agree(typing, "typing 4.5 into Max");
-      // #240 N1: the Max's own message at once, not a lingering pair's.
-      assert.equal(typing.runCount, 1, "the Max's own error, as typed");
-      assert.doesNotMatch(typing.footerText, /at least the min/);
-      assert.equal(await max.getAttribute("aria-invalid"), "true");
-      assert.equal(
-        await page.locator(MIN).getAttribute("aria-invalid"),
-        null,
-        "the Min is no longer marked",
-      );
-      await max.blur();
+      agree(typing, "typing 4.5");
+      assert.equal(typing.runCount, 1, "the field's own error, as typed");
+      assert.equal(await field.getAttribute("aria-invalid"), "true");
+      await field.blur();
       const committed = await read(page);
       agree(committed, "committed");
-      assert.equal(committed.runCount, 1, "the Max's own error, still");
-      assert.equal(await max.getAttribute("aria-invalid"), "true");
+      assert.equal(committed.runCount, 1);
+      assert.equal(await field.getAttribute("aria-invalid"), "true");
       assert.deepEqual(errors, []);
       await context.close();
     });
   }
 
-  // #240 N6: the run after the fix is one seeded fight, and its mean is the
-  // one of the same fight with 50 and 60 committed directly, not the one with
-  // the last valid Max (Min 50 and the page's own Max).
+  // #240 N6: the run after the typo is fixed uses the typed target level,
+  // not the blank default (63).
   async function oneFight(page) {
     await (await settingsField(page, "run-mode-batch")).check();
     await (await settingsField(page, "run-iterations")).fill(N6_FIGHTS);
     const seed = await settingsField(page, "run-seed");
     await seed.fill(N6_SEED);
     await seed.blur();
-    // Back from Fight (#245) to the weapons' fields.
-    await page.evaluate(() => {
-      globalThis.location.hash = "#character/gear";
-    });
-    await page.locator(MIN).waitFor({ state: "visible" });
   }
   async function meanOf(page) {
     await page.waitForFunction(
@@ -282,12 +235,12 @@ describe("Run never starts with stale settings (#247)", () => {
     const status = await page.locator("#run-status-text").textContent();
     return /([\d,.]+) DPS mean/.exec(status)[1];
   }
-  async function committedRun(values) {
+  async function committedRun(value) {
     const { context, page } = await open(WIDTHS[0]);
     await oneFight(page);
-    for (const [selector, value] of values) {
-      await page.locator(selector).fill(value);
-      await page.locator(selector).blur();
+    if (value !== null) {
+      await page.locator(FIELD).fill(value);
+      await page.locator(FIELD).blur();
     }
     await page.locator("#run-button").click();
     const mean = await meanOf(page);
@@ -295,24 +248,19 @@ describe("Run never starts with stale settings (#247)", () => {
     return mean;
   }
 
-  test("a run after the repro is fixed uses what the fields show (#240 N6)", async () => {
+  test("a run after the typo is fixed uses what the fields show (#240 N6)", async () => {
     const { context, page, errors } = await open(WIDTHS[0]);
     await oneFight(page);
-    const { min, max } = await pairError(page);
-    await max.click();
-    await max.fill(FIXED_MAX);
+    const field = await fieldError(page);
+    await field.fill(VALID);
     await page.locator("#run-button").click();
     const mean = await meanOf(page);
-    assert.equal(await min.inputValue(), PAIR_MIN);
-    assert.equal(await max.inputValue(), FIXED_MAX);
+    assert.equal(await field.inputValue(), VALID);
     assert.deepEqual(errors, []);
     await context.close();
-    const shown = await committedRun([
-      [MIN, PAIR_MIN],
-      [MAX, FIXED_MAX],
-    ]);
-    const stale = await committedRun([[MIN, PAIR_MIN]]);
+    const shown = await committedRun(VALID);
+    const stale = await committedRun(null);
     assert.notEqual(shown, stale, "the two settings give two means");
-    assert.equal(mean, shown, "the run used Min 50 and Max 60");
+    assert.equal(mean, shown, "the run used target level 62");
   });
 });

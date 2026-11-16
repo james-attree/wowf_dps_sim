@@ -61,18 +61,11 @@ describe("the form fills from the store's config", () => {
   it("shows the page defaults with no errors and the default rotation", () => {
     const { form, config } = setup();
     assert.deepEqual(form().errors, {});
-    assert.equal(
-      form().values["character.attackPower"],
-      config().character.attackPower,
-    );
-    assert.equal(
-      form().values["character.critChance"],
-      config().character.critChance,
-    );
-    assert.equal(
-      form().values["weapons.mainHand.type"],
-      config().weapons.mainHand.type,
-    );
+    assert.equal(config().character.attackPower, 608);
+    assert.equal(form().values.race, config().race);
+    assert.equal(form().values["poisons.mainHand"], config().poisons.mainHand);
+    assert.ok(!("character.attackPower" in form().values));
+    assert.ok(!("weapons.mainHand.type" in form().values));
     assert.equal(form().rotationChoice, "combat-daggers");
     assert.equal(form().summary.name, presetRotation("combat-daggers").name);
     assert.equal(
@@ -85,25 +78,7 @@ describe("the form fills from the store's config", () => {
   it("edits every config field Fran lists, and no fight length", () => {
     assert.deepEqual(
       FORM_FIELDS.map(({ path }) => path),
-      [
-        "race",
-        "character.attackPower",
-        "character.critChance",
-        "character.bonusHitChance",
-        "character.haste",
-        "character.weaponSkill",
-        "target.level",
-        "weapons.mainHand.type",
-        "weapons.mainHand.min",
-        "weapons.mainHand.max",
-        "weapons.mainHand.speed",
-        "weapons.offHand.type",
-        "weapons.offHand.min",
-        "weapons.offHand.max",
-        "weapons.offHand.speed",
-        "poisons.mainHand",
-        "poisons.offHand",
-      ],
+      ["race", "target.level", "poisons.mainHand", "poisons.offHand"],
     );
     assert.ok(!FORM_FIELDS.some(({ path }) => /duration|length/i.test(path)));
   });
@@ -122,19 +97,10 @@ describe("the form fills from the store's config", () => {
 describe("field checks (Fran's notes, section 3)", () => {
   const valid = () => formFromConfig(normalizeConfig(defaultConfig())).values;
   const cases = [
-    ["character.attackPower", Number.NaN, "Enter a number."],
-    ["character.attackPower", -1, "Attack power can't be negative."],
-    ["character.critChance", 1.2, "Enter a percentage from 0 to 100."],
-    ["character.bonusHitChance", -0.01, "Enter a percentage from 0 to 100."],
-    ["weapons.mainHand.min", 1.5, "Use a whole number, 0 or more."],
-    ["weapons.offHand.max", -3, "Use a whole number, 0 or more."],
-    [
-      "weapons.mainHand.speed",
-      0.05,
-      `Speed must be at least ${k("config.minWeaponSpeed")} s.`,
-    ],
-    ["weapons.offHand.speed", Number.NaN, "Enter a number."],
-    ["weapons.mainHand.type", "bow", "Choose a weapon type."],
+    ["race", "hobbit", "Choose a race."],
+    ["target.level", Number.NaN, "Enter a number, or leave it blank."],
+    ["poisons.mainHand", "venom", "Choose a poison."],
+    ["poisons.offHand", "venom", "Choose a poison."],
   ];
   for (const [path, value, message] of cases) {
     it(`${path} = ${value}: "${message}"`, () => {
@@ -146,43 +112,30 @@ describe("field checks (Fran's notes, section 3)", () => {
   it("refuses an infinite value (1e999 typed)", () => {
     const errors = validateValues({
       ...valid(),
-      "character.attackPower": Number.POSITIVE_INFINITY,
+      "target.level": Number.POSITIVE_INFINITY,
     });
-    assert.deepEqual(Object.keys(errors), ["character.attackPower"]);
+    assert.deepEqual(Object.keys(errors), ["target.level"]);
   });
 
-  it("accepts the edges: 0 and 100 percent, the minimum speed, min equal to max", () => {
-    const values = {
-      ...valid(),
-      "character.critChance": 0,
-      "character.bonusHitChance": 1,
-      "weapons.mainHand.speed": k("config.minWeaponSpeed"),
-      "weapons.mainHand.min": 120,
-      "weapons.mainHand.max": 120,
-    };
-    assert.deepEqual(validateValues(values), {});
+  it("accepts a blank target level and every in-range whole number", () => {
+    assert.deepEqual(validateValues({ ...valid(), "target.level": null }), {});
+    assert.deepEqual(validateValues({ ...valid(), "target.level": 63 }), {});
   });
 
-  it("puts min > max on the Max, with the Min marked but unmessaged", () => {
+  it("a target level out of range is one setting to fix", () => {
     const errors = validateValues({
       ...valid(),
-      "weapons.offHand.min": 90,
-      "weapons.offHand.max": 50,
+      "target.level": 0,
     });
-    assert.deepEqual(errors, {
-      "weapons.offHand.max": "Max damage must be at least the min damage (90).",
-      "weapons.offHand.min": null,
-    });
+    assert.equal(Object.keys(errors).length, 1);
+    assert.match(errors["target.level"], /Target level must be a whole number/);
     assert.equal(formErrorCount({ errors }), 1);
   });
 
-  it("offers every weapon type the engine knows, and only those", () => {
-    for (const type of k("config.weaponTypes")) {
-      assert.deepEqual(
-        validateValues({ ...valid(), "weapons.mainHand.type": type }),
-        {},
-      );
-    }
+  it("the typed weapon list is gone; remaining fields stay valid at the defaults", () => {
+    assert.ok(!FORM_FIELDS.some(({ path }) => path.startsWith("weapons.")));
+    assert.ok(!FORM_FIELDS.some(({ path }) => path.startsWith("character.")));
+    assert.deepEqual(validateValues(valid()), {});
   });
 });
 
@@ -190,47 +143,46 @@ describe("an invalid value never reaches the config", () => {
   it("change with a bad value sets the error and leaves config alone", () => {
     const { actions, form, config } = setup();
     const before = config();
-    actions.change("character.critChance", 1.5);
+    actions.change("target.level", Number.NaN);
     assert.equal(
-      form().errors["character.critChance"],
-      "Enter a percentage from 0 to 100.",
+      form().errors["target.level"],
+      "Enter a number, or leave it blank.",
     );
-    assert.equal(form().values["character.critChance"], 1.5);
     assert.equal(config(), before);
   });
 
   it("a good edit elsewhere waits while any field is invalid, then lands with the fix", () => {
     const { actions, config } = setup();
     const before = config();
-    actions.change("character.attackPower", Number.NaN);
-    actions.change("character.critChance", 0.3);
+    actions.change("target.level", Number.NaN);
+    actions.change("poisons.mainHand", null);
     assert.equal(config(), before);
-    actions.change("character.attackPower", 900);
-    assert.equal(config().character.attackPower, 900);
-    assert.equal(config().character.critChance, 0.3);
+    actions.change("target.level", 63);
+    assert.equal(config().target.level, 63);
+    assert.equal(config().poisons.mainHand, null);
   });
 
   it("input clears a field's error once valid, and never adds one", () => {
     const { actions, form, config } = setup();
     const before = config();
-    actions.input("character.attackPower", Number.NaN);
+    actions.input("target.level", Number.NaN);
     assert.deepEqual(form().errors, {});
     assert.equal(config(), before, "typing writes no config");
-    actions.change("character.attackPower", -5);
-    actions.input("character.attackPower", -6);
-    assert.equal(
-      form().errors["character.attackPower"],
-      "Attack power can't be negative.",
+    actions.change("target.level", 0);
+    actions.input("target.level", -1);
+    assert.match(
+      form().errors["target.level"],
+      /Target level must be a whole number/,
     );
-    actions.input("character.attackPower", 6);
+    actions.input("target.level", 63);
     assert.deepEqual(form().errors, {});
   });
 
-  it("fixing the Min clears the pair's error", () => {
+  it("fixing a bad target level clears the error", () => {
     const { actions, form } = setup();
-    actions.change("weapons.mainHand.max", 50);
+    actions.change("target.level", 0);
     assert.equal(formErrorCount({ errors: form().errors }), 1);
-    actions.input("weapons.mainHand.min", 40);
+    actions.input("target.level", 63);
     assert.deepEqual(form().errors, {});
   });
 
@@ -246,7 +198,7 @@ describe("an invalid value never reaches the config", () => {
       },
     });
     const before = store.get().config;
-    actions.change("character.attackPower", 900);
+    actions.change("poisons.mainHand", null);
     assert.match(
       store.get().form.errors[FORM_ERROR],
       /^This setup can't run: /,
@@ -256,15 +208,11 @@ describe("an invalid value never reaches the config", () => {
   });
 });
 
-describe("a null Min never stands alone (#237)", () => {
-  const MIN = "weapons.mainHand.min";
-  const MAX = "weapons.mainHand.max";
-  // Max under Min: the pair's error, on the Max, with the Min marked.
-  const PAIR_MIN = 50;
-  const PAIR_MAX = 40;
-  // Invalid on its own (not whole), so the Max is fine again.
+describe("a bad target level never stands alone (#237, re-pointed from the typed Min pair)", () => {
+  const FIELD = "target.level";
+  const BAD = 0;
   const NOT_WHOLE = 1.5;
-  const FIXED_MIN = 30;
+  const FIXED = 63;
   const run = { mode: "live", errors: {} };
   const check = (store, count, step) => {
     const state = { ...store.get(), run };
@@ -278,41 +226,26 @@ describe("a null Min never stands alone (#237)", () => {
     );
   };
 
-  it("typing a Min invalid on its own in a pair in error gives its own message at once (#240 N1)", () => {
+  it("typing a bad target level is checked as typed and stays one blocked setting (#240 N1)", () => {
     const { store, actions, form } = setup();
-    actions.change(MIN, PAIR_MIN);
-    actions.change(MAX, PAIR_MAX);
-    assert.equal(form().errors[MIN], null);
-    assert.match(form().errors[MAX], /at least the min damage/);
-    check(store, 1, "the pair");
-    actions.input(MIN, NOT_WHOLE);
-    assert.equal(typeof form().errors[MIN], "string", "checked as typed");
-    assert.ok(!(MAX in form().errors), "the pair's error goes");
+    actions.change(FIELD, BAD);
+    assert.match(form().errors[FIELD], /Target level must be a whole number/);
+    check(store, 1, "bad");
+    actions.input(FIELD, NOT_WHOLE);
+    assert.equal(typeof form().errors[FIELD], "string", "checked as typed");
     check(store, 1, "typing");
-    actions.change(MIN, NOT_WHOLE);
-    assert.equal(typeof form().errors[MIN], "string");
+    actions.change(FIELD, NOT_WHOLE);
+    assert.equal(typeof form().errors[FIELD], "string");
     check(store, 1, "committed");
   });
 
-  it("every typed Min after the pair's error keeps the count and blocked as one", () => {
-    for (const typed of [
-      NOT_WHOLE,
-      Number.NaN,
-      -1,
-      PAIR_MAX,
-      FIXED_MIN,
-      PAIR_MIN,
-    ]) {
+  it("every typed target level keeps the count and blocked as one", () => {
+    for (const typed of [NOT_WHOLE, Number.NaN, -1, BAD, FIXED]) {
       const { store, actions } = setup();
-      actions.change(MIN, PAIR_MIN);
-      actions.change(MAX, PAIR_MAX);
-      actions.input(MIN, typed);
-      // A pair in error is checked as typed (#240 N1, N2): only a Min that
-      // passes on its own and with the Max (40 or 30) clears it.
-      const passes = typed === PAIR_MAX || typed === FIXED_MIN;
+      actions.change(FIELD, BAD);
+      actions.input(FIELD, typed);
+      const passes = typed === FIXED;
       check(store, passes ? 0 : 1, `typed ${typed}`);
-      actions.input(MAX, typed);
-      check(store, formErrorCount(store.get().form), `then Max ${typed}`);
     }
   });
 
@@ -324,10 +257,10 @@ describe("a null Min never stands alone (#237)", () => {
         target: { ...store.get().config.target, armor: "high" },
       },
     });
-    actions.change("character.attackPower", 900);
+    actions.change("poisons.mainHand", null);
     assert.deepEqual(Object.keys(form().errors), [FORM_ERROR]);
     check(store, 1, "the backstop");
-    actions.change("character.attackPower", -1);
+    actions.change("target.level", BAD);
     assert.ok(!(FORM_ERROR in form().errors), "a field error replaces it");
     check(store, 1, "a field instead");
   });
@@ -337,7 +270,7 @@ describe("changes apply to the next run", () => {
   it("nextRunConfig is null while the form has errors", () => {
     const { store, actions } = setup();
     assert.notEqual(nextRunConfig(store.get()), null);
-    actions.change("weapons.mainHand.speed", 0);
+    actions.change("target.level", 0);
     assert.equal(nextRunConfig(store.get()), null);
   });
 
@@ -348,29 +281,36 @@ describe("changes apply to the next run", () => {
       duration: 60,
       config: nextRunConfig(store.get()),
     });
-    actions.change("character.attackPower", 1500);
+    actions.change("poisons.mainHand", null);
     const next = nextRunConfig(store.get());
     const second = runFight({ seed: SEED, duration: 60, config: next });
-    assert.equal(second.config.character.attackPower, 1500);
-    assert.ok(second.totalDamage > first.totalDamage);
+    assert.equal(second.config.poisons.mainHand, null);
+    assert.ok(second.totalDamage !== first.totalDamage);
   });
 
-  it("a chance is stored 0 to 1: 22.45 % is 0.2245", () => {
-    const { store, actions } = setup();
-    actions.change("character.critChance", 22.45 / 100);
-    assert.equal(nextRunConfig(store.get()).character.critChance, 0.2245);
+  it("derived crit stays a 0-to-1 chance from gear, not a typed percent", () => {
+    const { store } = setup();
+    const crit = nextRunConfig(store.get()).character.critChance;
+    assert.ok(crit > 0 && crit <= 1);
+    assert.ok(!FORM_FIELDS.some(({ path }) => path === "character.critChance"));
   });
 
-  it("a main-hand dagger gives 1.7 normalized speed; the off hand does not change it", () => {
-    const { store, actions } = setup();
-    const speed = () =>
-      createFight(SEED, nextRunConfig(store.get())).rogue.normalizedWeaponSpeed;
-    actions.change("weapons.mainHand.type", "sword");
-    assert.equal(speed(), 2.4);
-    actions.change("weapons.offHand.type", "dagger");
-    assert.equal(speed(), 2.4);
-    actions.change("weapons.mainHand.type", "dagger");
-    assert.equal(speed(), 1.7);
+  it("a main-hand dagger gives 1.7 normalized speed; a sword gives 2.4", () => {
+    const { store } = setup();
+    const speed = (config) =>
+      createFight(SEED, config).rogue.normalizedWeaponSpeed;
+    const dagger = nextRunConfig(store.get());
+    assert.equal(dagger.weapons.mainHand.type, "dagger");
+    assert.equal(speed(dagger), 1.7);
+    const sword = {
+      ...dagger,
+      weapons: {
+        ...dagger.weapons,
+        mainHand: { ...dagger.weapons.mainHand, type: "sword" },
+      },
+    };
+    // A typed type-change is gone; the engine still normalizes by type.
+    assert.equal(speed(normalizeConfig(sword)), 2.4);
   });
 });
 
@@ -400,12 +340,15 @@ describe("talents: the talent tree owns the build (#204)", () => {
       }),
     });
     const actions = createConfigForm(store);
-    actions.change("character.attackPower", 1000);
-    assert.equal(store.get().config.character.attackPower, 1000);
+    actions.change("poisons.mainHand", null);
+    assert.equal(store.get().config.poisons.mainHand, null);
     assert.deepEqual(store.get().config.talents, custom());
     assert.equal(store.get().config.talentLevel, 40);
-    actions.input("character.critChance", 0.25);
-    actions.change("character.critChance", 0.25);
+    actions.input("poisons.offHand", store.get().config.poisons.offHand);
+    actions.change(
+      "poisons.offHand",
+      store.get().form.values["poisons.offHand"],
+    );
     assert.deepEqual(store.get().config.talents, custom());
   });
 
@@ -689,7 +632,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     // The Run bar counts what blocks Run, all of it: a refused file blocks
     // nothing, and a bad field still counts once, however long the list.
     assert.equal(blockedCount({ ...store.get(), run: {} }), 0);
-    actions.change("character.critChance", 1.5);
+    actions.change("target.level", 0);
     assert.equal(blockedCount({ ...store.get(), run: {} }), 1);
   });
 
@@ -764,14 +707,14 @@ describe("rotation: one source of truth, config.rotation", () => {
 describe("Reset to defaults and Undo", () => {
   it("Reset restores the defaults and clears errors; Undo puts everything back", () => {
     const { store, actions, form } = setup();
-    actions.change("character.attackPower", 1000);
+    actions.change("poisons.mainHand", null);
     store.set({
       config: normalizeConfig({
         ...store.get().config,
         talents: dataBuild.referenceBuild(),
       }),
     });
-    actions.change("weapons.mainHand.max", 1);
+    actions.change("target.level", 63);
     const editedForm = form();
     const editedConfig = store.get().config;
     actions.reset();
@@ -790,7 +733,7 @@ describe("Reset to defaults and Undo", () => {
   it("any other action ends the Undo offer", () => {
     const { actions, form } = setup();
     actions.reset();
-    actions.input("character.attackPower", 5);
+    actions.input("target.level", 63);
     assert.equal(form().canUndo, false);
     assert.equal(actions.undo(), false);
   });
@@ -801,70 +744,52 @@ describe("Reset to defaults and Undo", () => {
 });
 
 describe("a field typed in is checked again before it is used (#247)", () => {
-  const MIN = "weapons.mainHand.min";
-  const MAX = "weapons.mainHand.max";
-  const PAIR_MIN = 50;
-  const PAIR_MAX = 40;
-  // Backspace on 50: a Min the pair passes with.
-  const BACKSPACED = 5;
+  const FIELD = "target.level";
+  const BAD = 0;
   const NOT_WHOLE = 4.5;
-  const FIXED_MAX = 60;
+  const FIXED = 63;
   const run = { mode: "live", errors: {} };
-  // Fran's repro, in the model: Min 50 and Max 40 committed, then Backspace
-  // and 0 in Min, which gives back 50 with no change.
-  const repro = () => {
-    const page = setup();
-    page.actions.change(MIN, PAIR_MIN);
-    page.actions.change(MAX, PAIR_MAX);
-    page.actions.input(MIN, BACKSPACED);
-    page.actions.input(MIN, PAIR_MIN);
-    return page;
-  };
 
   it("a field typed invalid that was not in error: no config to run until it is checked", () => {
     const { store, actions, form, config } = setup();
-    actions.change(MAX, FIXED_MAX);
-    actions.change(MIN, PAIR_MIN);
     const stale = config();
-    actions.input(MAX, PAIR_MAX);
-    assert.deepEqual(form().errors, {}, "typing never adds one");
+    actions.input(FIELD, BAD);
+    assert.deepEqual(
+      Object.fromEntries(
+        Object.entries(form().errors).filter(([key]) => key === FIELD),
+      ),
+      {},
+      "typing never adds one",
+    );
     assert.equal(
       nextRunConfig({ ...store.get(), run }),
       null,
       "never the config the fields don't show",
     );
     actions.commitEdits();
-    assert.match(form().errors[MAX], /at least the min damage/);
+    assert.match(form().errors[FIELD], /Target level must be a whole number/);
     assert.equal(config(), stale, "the config is not written");
   });
 
   it("typing marks the field edited; a commit clears it", () => {
     const { actions, form } = setup();
     assert.deepEqual(form().edited, []);
-    actions.input(MIN, BACKSPACED);
-    actions.input(MIN, BACKSPACED);
-    assert.deepEqual(form().edited, [MIN], "once per field");
-    actions.change(MIN, BACKSPACED);
+    actions.input(FIELD, FIXED);
+    actions.input(FIELD, FIXED);
+    assert.deepEqual(form().edited, [FIELD], "once per field");
+    actions.change(FIELD, FIXED);
     assert.deepEqual(form().edited, []);
   });
 
-  it("Fran's repro: the pair's error is back as Min reads 50 again (#240 N2), and commitEdits keeps it", () => {
-    const { store, actions, form, config } = repro();
+  it("Fran's repro: a bad value stays blocked across commitEdits (#240 N2, re-pointed)", () => {
+    const { store, actions, form, config } = setup();
+    actions.change(FIELD, BAD);
     const stale = config();
-    assert.match(form().errors[MAX], /at least the min damage/);
-    assert.equal(form().errors[MIN], null);
+    assert.match(form().errors[FIELD], /Target level must be a whole number/);
     assert.equal(blocked({ ...store.get(), run }), true, "never Ready");
-    assert.equal(form().values[MIN], PAIR_MIN);
-    assert.equal(form().values[MAX], PAIR_MAX);
-    assert.notEqual(stale.weapons.mainHand.max, PAIR_MAX, "the old Max");
-    assert.equal(
-      nextRunConfig({ ...store.get(), run }),
-      null,
-      "never the config the fields don't show",
-    );
+    assert.equal(nextRunConfig({ ...store.get(), run }), null);
     actions.commitEdits();
-    assert.match(form().errors[MAX], /at least the min damage/);
-    assert.equal(form().errors[MIN], null);
+    assert.match(form().errors[FIELD], /Target level must be a whole number/);
     assert.deepEqual(form().edited, []);
     assert.equal(blocked({ ...store.get(), run }), true);
     assert.equal(nextRunConfig({ ...store.get(), run }), null);
@@ -872,15 +797,14 @@ describe("a field typed in is checked again before it is used (#247)", () => {
   });
 
   it("checking a passing edit writes the config the fields show", () => {
-    const { store, actions, form, config } = repro();
-    actions.input(MAX, FIXED_MAX);
-    assert.deepEqual(form().edited, [MIN, MAX]);
+    const { store, actions, form, config } = setup();
+    actions.input(FIELD, FIXED);
+    assert.deepEqual(form().edited, [FIELD]);
     actions.commitEdits();
-    assert.deepEqual(form().errors, {});
+    assert.ok(!form().errors[FIELD]);
     const next = nextRunConfig({ ...store.get(), run });
-    assert.equal(next.weapons.mainHand.min, PAIR_MIN);
-    assert.equal(next.weapons.mainHand.max, FIXED_MAX);
-    assert.equal(config().weapons.mainHand.max, FIXED_MAX);
+    assert.equal(next.target.level, FIXED);
+    assert.equal(config().target.level, FIXED);
   });
 
   it("commitEdits with nothing typed writes nothing", () => {
@@ -891,14 +815,19 @@ describe("a field typed in is checked again before it is used (#247)", () => {
   });
 
   it("any commit checks the typed fields too, not only the one changed", () => {
-    const { actions, form, config } = repro();
+    const { actions, form, config } = setup();
     const stale = config();
+    actions.input(FIELD, BAD);
     const other = form().rotationOptions.find(
       ({ id }) => id !== form().rotationChoice,
     );
     actions.chooseRotation(other.id);
-    assert.match(form().errors[MAX], /at least the min damage/);
-    assert.equal(config().weapons, stale.weapons, "no stale pair written");
+    assert.match(form().errors[FIELD], /Target level must be a whole number/);
+    assert.equal(
+      config().target.level,
+      stale.target.level,
+      "no stale value written",
+    );
   });
 
   it("nextRunConfig counts as Run does: formErrorCount (nit 3)", () => {
@@ -908,66 +837,59 @@ describe("a field typed in is checked again before it is used (#247)", () => {
       form: { ...store.get().form, errors },
       run,
     });
-    assert.equal(nextRunConfig(state({ [MAX]: "Pair." })), null);
-    // A lone null (never written now, #237) is no setting to fix: Run is
-    // enabled, so the run starts.
-    const lone = state({ [MIN]: null });
+    assert.equal(nextRunConfig(state({ [FIELD]: "Bad." })), null);
+    const lone = state({ [FIELD]: null });
     assert.equal(blocked(lone), false);
     assert.notEqual(nextRunConfig(lone), null);
   });
 
-  it("Max typed invalid on its own swaps the pair's error for its own (nit 5; #240 N1)", () => {
+  it("a field typed invalid on its own keeps one blocked setting (nit 5; #240 N1)", () => {
     const { store, actions, form } = setup();
-    actions.change(MIN, PAIR_MIN);
-    actions.change(MAX, PAIR_MAX);
-    actions.input(MAX, NOT_WHOLE);
-    assert.doesNotMatch(
-      form().errors[MAX],
-      /at least the min/,
-      "no stale pair message",
-    );
-    assert.ok(!(MIN in form().errors));
+    actions.change(FIELD, BAD);
+    actions.input(FIELD, NOT_WHOLE);
+    assert.equal(typeof form().errors[FIELD], "string");
     assert.equal(formErrorCount(form()), 1);
     assert.equal(blocked({ ...store.get(), run }), true);
-    actions.change(MAX, NOT_WHOLE);
-    assert.equal(typeof form().errors[MAX], "string");
-    assert.doesNotMatch(form().errors[MAX], /at least the min/);
-    assert.ok(!(MIN in form().errors));
+    actions.change(FIELD, NOT_WHOLE);
+    assert.equal(typeof form().errors[FIELD], "string");
   });
 
   it("a field in error is checked as typed: its message follows the value (#240 N1)", () => {
-    const TYPED_MAX = 45;
     const { store, actions, form } = setup();
-    actions.change(MIN, PAIR_MIN);
-    actions.change(MAX, NOT_WHOLE);
-    assert.match(form().errors[MAX], /whole number/);
-    actions.input(MAX, TYPED_MAX);
-    assert.match(form().errors[MAX], /at least the min damage/, "no blur");
-    assert.equal(form().errors[MIN], null);
-    actions.input(MAX, FIXED_MAX);
-    assert.deepEqual(form().errors, {});
+    actions.change(FIELD, NOT_WHOLE);
+    assert.match(form().errors[FIELD], /number/);
+    actions.input(FIELD, BAD);
+    assert.match(
+      form().errors[FIELD],
+      /Target level must be a whole number/,
+      "no blur",
+    );
+    actions.input(FIELD, FIXED);
+    assert.ok(!form().errors[FIELD]);
     assert.equal(blocked({ ...store.get(), run }), false);
-    actions.input(MAX, PAIR_MAX);
-    assert.match(form().errors[MAX], /at least the min damage/, "back again");
+    actions.input(FIELD, BAD);
+    assert.match(
+      form().errors[FIELD],
+      /Target level must be a whole number/,
+      "back again",
+    );
   });
 
   it("a field not in error when typing began is still never marked by typing", () => {
     const { actions, form } = setup();
-    actions.change(MIN, PAIR_MIN);
-    actions.input("character.attackPower", -1);
-    assert.deepEqual(form().errors, {});
+    actions.change("poisons.mainHand", null);
+    actions.input(FIELD, BAD);
+    assert.ok(!form().errors[FIELD]);
     actions.commitEdits();
-    assert.equal(typeof form().errors["character.attackPower"], "string");
+    assert.equal(typeof form().errors[FIELD], "string");
   });
 
-  it("a typed Max still under the Min keeps the pair's error", () => {
+  it("a typed value still out of range keeps the error", () => {
     const { actions, form } = setup();
-    actions.change(MIN, PAIR_MIN);
-    actions.change(MAX, PAIR_MAX);
-    actions.input(MAX, BACKSPACED);
-    assert.match(form().errors[MAX], /at least the min damage/);
-    assert.equal(form().errors[MIN], null);
-    actions.input(MAX, FIXED_MAX);
-    assert.deepEqual(form().errors, {});
+    actions.change(FIELD, BAD);
+    actions.input(FIELD, -1);
+    assert.match(form().errors[FIELD], /Target level must be a whole number/);
+    actions.input(FIELD, FIXED);
+    assert.ok(!form().errors[FIELD]);
   });
 });

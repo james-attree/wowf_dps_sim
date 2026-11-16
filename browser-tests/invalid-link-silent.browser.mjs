@@ -18,7 +18,7 @@ import { SAVED_SETUP_KEY } from "../js/saved-setup.js";
 
 const WIDTH = 1024;
 const SCREEN_HEIGHT = 900;
-const HASTE = "#cfg-character-haste";
+const RACE = "#cfg-race";
 
 let server;
 let base;
@@ -52,7 +52,7 @@ async function open(address) {
   await page.goto(address.startsWith("http") ? address : `${base}${address}`, {
     waitUntil: "domcontentloaded",
   });
-  await page.locator(HASTE).waitFor({ state: "visible" });
+  await page.locator(RACE).waitFor({ state: "visible" });
   return { context, page, errors };
 }
 
@@ -103,7 +103,7 @@ describe("invalid and garbage share links stay silent (Kira N3 / Scout #332)", (
           true,
           `${label}: banner must stay hidden`,
         );
-        assert.equal(await page.locator(HASTE).inputValue(), "0");
+        assert.equal(await page.locator(RACE).inputValue(), "human");
         assert.equal(
           await page.evaluate(() => document.location.href),
           `${base}#character/stats`,
@@ -120,10 +120,7 @@ describe("invalid and garbage share links stay silent (Kira N3 / Scout #332)", (
       ...setupDefaults(),
       config: {
         ...setupDefaults().config,
-        character: {
-          ...setupDefaults().config.character,
-          attackPower: 900,
-        },
+        race: "orc",
       },
     });
     const bad = v1({ era: SETUP_ERA, config: { race: "not-a-race" } });
@@ -143,14 +140,11 @@ describe("invalid and garbage share links stay silent (Kira N3 / Scout #332)", (
       await page.goto(`${base}?${LINK_PARAM}=${bad}#character/stats`, {
         waitUntil: "domcontentloaded",
       });
-      await page.locator("#cfg-character-attackPower").waitFor({
+      await page.locator(RACE).waitFor({
         state: "visible",
       });
       assert.equal(await page.locator("#share-banner").isHidden(), true);
-      assert.equal(
-        await page.locator("#cfg-character-attackPower").inputValue(),
-        "900",
-      );
+      assert.equal(await page.locator(RACE).inputValue(), "orc");
       assert.deepEqual(errors, []);
     } finally {
       await context.close();

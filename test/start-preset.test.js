@@ -395,7 +395,7 @@ describe("the config form's part (#323)", () => {
 
   it("applyBuild with a rotation sets it, a field in error or not", () => {
     const env = page();
-    env.form.change("character.attackPower", "not a number");
+    env.form.change("target.level", 0);
     assert.ok(Object.keys(env.store.get().form.errors).length > 0);
     const build = referenceBuild(COMBAT);
     env.form.applyBuild({

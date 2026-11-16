@@ -32,11 +32,9 @@ const SETTLE_MS = 400;
 const RUN_TIMEOUT = 60_000;
 const BATCH_FIGHTS = "5";
 const SHORT_FIGHT_SECONDS = "4";
-const ATTACK_POWER = "#cfg-character-attackPower";
-const MIN = "#cfg-weapons-mainHand-min";
-const MAX = "#cfg-weapons-mainHand-max";
-const PAIR_MIN = "50";
-const PAIR_MAX = "40";
+const RACE = "#cfg-race";
+const TARGET = "#cfg-target-level";
+const INVALID = "0";
 // The widest summary the dock has (Fran's #252 note).
 const LONG = { iterations: "100000", duration: "3600", seed: "4294967295" };
 // The accessibility snapshot shows no-break spaces as spaces.
@@ -306,11 +304,9 @@ describe("out of date after an edit (#242)", () => {
       const card = page.locator("#results-card");
       assert.doesNotMatch(await card.innerText(), /Out of date/);
 
-      await page.fill(ATTACK_POWER, "1234");
-      await page.press(ATTACK_POWER, "Tab");
+      await page.locator(RACE).selectOption("orc");
       await page.waitForTimeout(SETTLE_MS);
-      await page.fill(ATTACK_POWER, "1300");
-      await page.press(ATTACK_POWER, "Tab");
+      await page.locator(RACE).selectOption("undead");
       await page.waitForTimeout(SETTLE_MS);
       const messages = await said(page);
       assert.equal(
@@ -321,7 +317,7 @@ describe("out of date after an edit (#242)", () => {
       // The desktop column's card (comment c).
       assert.match(
         await card.innerText(),
-        /Out of date — Run again\.\s+Attack power changed after this ran\./,
+        /Out of date — Run again\.\s+The race(?:, .+)? changed after this ran\./,
       );
       assert.match(
         await page.locator("#run-status-text").textContent(),
@@ -332,9 +328,9 @@ describe("out of date after an edit (#242)", () => {
       await toArea(page, "results");
       const banner = page.locator("#results-average-stale");
       assert.equal(await banner.isVisible(), true);
-      assert.equal(
+      assert.match(
         (await banner.innerText()).replace(/\s+/g, " "),
-        "Out of date — Run again. You changed Attack power after this ran, so these numbers are for the old settings.",
+        /Out of date — Run again\. You changed the race(?:, .+)? after this ran, so these numbers are for the old settings\./,
       );
       assert.equal(
         (await page.locator("#results-average-run").textContent()).trim(),
@@ -358,28 +354,22 @@ for (const width of MOUSE_WIDTHS) {
       try {
         await observeRunAnnounce(page);
         for (const button of ["right", "middle"]) {
-          await toScreen(page, "#character/gear");
-          await page.fill(MAX, PAIR_MAX);
-          await page.fill(MIN, PAIR_MIN);
-          await toScreen(page, "#character/stats");
-          // Typed, not committed: the focus is in Attack power.
-          await page.locator(ATTACK_POWER).focus();
-          await page.locator(ATTACK_POWER).pressSequentially("9");
-          const before = await page.inputValue(ATTACK_POWER);
+          await toScreen(page, "#fight");
+          // Typed, not committed: the focus is in Target level.
+          await page.locator(TARGET).focus();
+          await page.locator(TARGET).fill("");
+          await page.locator(TARGET).pressSequentially("9");
+          const before = await page.inputValue(TARGET);
           await pressRun(page, button);
-          assert.equal(
-            await focusId(page),
-            "cfg-character-attackPower",
-            button,
-          );
-          assert.equal(await page.inputValue(ATTACK_POWER), before, button);
+          assert.equal(await focusId(page), "cfg-target-level", button);
+          assert.equal(await page.inputValue(TARGET), before, button);
           assert.doesNotMatch(
             await page.locator("#run-status-text").textContent(),
             /^Running/,
             `${button}: no run`,
           );
-          await toScreen(page, "#character/gear");
-          await page.fill(MIN, "");
+          await toScreen(page, "#fight");
+          await page.fill(TARGET, "");
         }
         assert.deepEqual(errors, []);
       } finally {
@@ -389,29 +379,24 @@ for (const width of MOUSE_WIDTHS) {
 
     test("a middle or right press on a disabled Run leaves the focus where it was", async () => {
       const { context, page, errors } = await open(width, {
-        hash: "#character/gear",
+        hash: "#fight",
       });
       try {
-        await page.fill(MIN, PAIR_MIN);
-        await page.fill(MAX, PAIR_MAX);
-        await page.locator(MAX).blur();
+        await page.fill(TARGET, INVALID);
+        await page.locator(TARGET).blur();
         await page.waitForTimeout(SETTLE_MS);
         await toScreen(page, "#character/stats");
         assert.equal(await page.isDisabled("#run-button"), true);
         for (const button of ["middle", "right"]) {
-          await page.locator(ATTACK_POWER).focus();
+          await page.locator(RACE).focus();
           await pressRun(page, button);
-          assert.equal(
-            await focusId(page),
-            "cfg-character-attackPower",
-            button,
-          );
+          assert.equal(await focusId(page), "cfg-race", button);
         }
         // The main button still sends the focus to the setting to fix.
-        await page.locator(ATTACK_POWER).focus();
+        await page.locator(RACE).focus();
         await pressRun(page, "left");
         assert.notEqual(await focusId(page), "");
-        assert.notEqual(await focusId(page), "cfg-character-attackPower");
+        assert.notEqual(await focusId(page), "cfg-race");
         assert.deepEqual(errors, []);
       } finally {
         await context.close();

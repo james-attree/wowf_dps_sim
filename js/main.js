@@ -96,6 +96,7 @@ const client = new BatchClient();
 
 const store = createStore({
   config,
+  gearMessage: "",
   run: {
     mode,
     fightMode: "scripted",
@@ -208,7 +209,11 @@ const renders = {
     createGearScreenView(
       document,
       store,
-      createGearActions(store, { searchStart: 2, resultCap: 20 }),
+      createGearActions(store, {
+        searchStart: 2,
+        resultCap: 20,
+        now: () => Date.now(),
+      }),
     );
     createStartPresetView(document, store, {
       pick: start.pick,

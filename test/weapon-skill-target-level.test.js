@@ -180,26 +180,22 @@ describe("the bounds are the engine's (#318)", () => {
 });
 
 describe("the form: blank is the default (#318)", () => {
-  it("both start blank (null) and say what blank is", () => {
+  it("target level starts blank (null) and says what blank is; weapon skill is not a field", () => {
     const { form } = setup();
-    assert.deepEqual(OPTIONAL_FIELDS, [SKILL, TARGET]);
-    assert.equal(form().values[SKILL], null);
+    assert.deepEqual(OPTIONAL_FIELDS, [TARGET]);
+    assert.ok(!Object.hasOwn(form().values, SKILL));
     assert.equal(form().values[TARGET], null);
     assert.equal(form().levels.weaponSkill.blank, 300);
     assert.equal(form().levels.targetLevel.blank, 63);
     assert.deepEqual(form().errors, {});
   });
 
-  it("a typed value reaches the config; blank again is null", () => {
+  it("a typed target level reaches the config; blank again is null", () => {
     const { store, actions } = setup();
-    actions.change(SKILL, 310);
     actions.change(TARGET, 61);
-    assert.equal(store.get().config.character.weaponSkill, 310);
     assert.equal(store.get().config.target.level, 61);
     assert.deepEqual(store.get().form.errors, {});
-    actions.change(SKILL, null);
     actions.change(TARGET, "");
-    assert.equal(store.get().config.character.weaponSkill, null);
     assert.equal(store.get().config.target.level, null);
     assert.equal(store.get().form.values[TARGET], null);
     assert.notEqual(nextRunConfig(store.get()), null);
@@ -207,22 +203,6 @@ describe("the form: blank is the default (#318)", () => {
 
   it("a value out of bounds, not whole or not a number is a plain error, and Run is off", () => {
     const cases = [
-      [
-        SKILL,
-        351,
-        "Weapon skill must be a whole number from 1 to 350 at level 60.",
-      ],
-      [
-        SKILL,
-        0,
-        "Weapon skill must be a whole number from 1 to 350 at level 60.",
-      ],
-      [
-        SKILL,
-        305.5,
-        "Weapon skill must be a whole number from 1 to 350 at level 60.",
-      ],
-      [SKILL, Number.NaN, "Enter a number, or leave it blank."],
       [TARGET, 64, "Target level must be a whole number from 1 to 63."],
       [TARGET, 0, "Target level must be a whole number from 1 to 63."],
       [TARGET, 62.5, "Target level must be a whole number from 1 to 63."],
@@ -241,8 +221,6 @@ describe("the form: blank is the default (#318)", () => {
 
   it("the lowest and highest values pass", () => {
     for (const [path, value] of [
-      [SKILL, 1],
-      [SKILL, 350],
       [TARGET, TARGET_MIN],
       [TARGET, TARGET_MAX],
     ]) {
@@ -252,33 +230,40 @@ describe("the form: blank is the default (#318)", () => {
     }
   });
 
-  it("validateValues checks the weapon skill at the level it is given", () => {
-    const values = {
-      ...formFromConfig(normalizeConfig(legacyPageConfig())).values,
-      [SKILL]: 300,
-    };
+  it("validateValues no longer checks a weapon skill field; the engine still bounds the config", () => {
+    const values = formFromConfig(normalizeConfig(legacyPageConfig())).values;
     assert.equal(
       validateValues(values, levelsInfo(MAX_LEVEL))[SKILL],
       undefined,
     );
     assert.equal(
-      validateValues(values, levelsInfo(LOW_LEVEL))[SKILL],
-      "Weapon skill must be a whole number from 1 to 250 at level 40.",
+      validateValues({ ...values, [SKILL]: 300 }, levelsInfo(LOW_LEVEL))[SKILL],
+      undefined,
+    );
+    assert.throws(() =>
+      normalizeConfig({
+        ...legacyPageConfig(),
+        talents: {},
+        talentLevel: LOW_LEVEL,
+        character: { ...legacyPageConfig().character, weaponSkill: 300 },
+      }),
     );
   });
 
-  it("the Stats summary names a typed weapon skill, as haste, and never the target (#319, qa-319 P1)", () => {
+  it("the Stats summary names a config weapon skill, as haste, and never the target (#319, qa-319 P1)", () => {
     const { store, actions } = setup();
-    const summary = () => characterRows(store.get().form).stats.summary;
+    const summary = (config = store.get().config) =>
+      characterRows(store.get().form, config).stats.summary;
     assert.doesNotMatch(summary(), /weapon skill|target|enemy/);
-    actions.change(SKILL, 315);
-    assert.match(summary(), / · 7% hit · 315 weapon skill$/);
+    const withSkill = structuredClone(store.get().config);
+    withSkill.character.weaponSkill = 315;
+    assert.match(summary(withSkill), / · 7% hit · 315 weapon skill$/);
     actions.change(TARGET, 62);
-    assert.match(summary(), / · 7% hit · 315 weapon skill$/);
-    actions.change("character.haste", 0.05);
-    assert.match(summary(), / · 5% haste · 315 weapon skill$/);
-    actions.change(SKILL, null);
-    assert.doesNotMatch(summary(), /weapon skill|target|enemy/);
+    assert.match(summary(withSkill), / · 7% hit · 315 weapon skill$/);
+    withSkill.character.haste = 0.05;
+    assert.match(summary(withSkill), / · 5% haste · 315 weapon skill$/);
+    withSkill.character.weaponSkill = null;
+    assert.doesNotMatch(summary(withSkill), /weapon skill|target|enemy/);
   });
 
   // Its "·" follows a no-break space, so a wrapped line never starts with it
@@ -312,26 +297,22 @@ describe("the form: blank is the default (#318)", () => {
     assert.doesNotMatch(summaryText(state().run), /target/);
   });
 
-  it("a weapon skill error is Character's (the Stats chip); a target level one is Fight's", () => {
+  it("a target level error is Fight's (the weapon skill field is gone)", () => {
     const { store, actions } = setup();
     const at = () => ({ ...store.get(), run: { ...RUN, errors: {} } });
-    actions.change(SKILL, 999);
-    assert.equal(characterRows(store.get().form).stats.fix, 1);
-    assert.equal(formStatus(at()).errors, 1);
-    assert.equal(fightStatus(at()).errors, 0);
     actions.change(TARGET, 99);
-    assert.equal(characterRows(store.get().form).stats.fix, 1);
-    assert.equal(formStatus(at()).errors, 1);
+    assert.equal(
+      characterRows(store.get().form, store.get().config).stats.fix,
+      0,
+    );
+    assert.equal(formStatus(at()).errors, 0);
     assert.equal(fightStatus(at()).errors, 1);
-    // Every error is in exactly one area: they add up to Run's count.
     assert.equal(
       formStatus(at()).errors + fightStatus(at()).errors,
       blockedCount(at()),
     );
-    actions.change(SKILL, null);
-    assert.equal(characterRows(store.get().form).stats.fix, 0);
-    assert.equal(formStatus(at()).errors, 0);
-    assert.equal(fightStatus(at()).errors, 1);
+    actions.change(TARGET, null);
+    assert.equal(fightStatus(at()).errors, 0);
   });
 });
 
@@ -349,50 +330,49 @@ describe("the level moves the weapon skill's cap (#318)", () => {
     assert.deepEqual(store.get().form.errors, {});
   });
 
-  it("a typed skill over the lower level's cap is an error and blocks Run, and is fine again back at 60", () => {
-    const { store, actions } = setup();
+  it("dropping the level no longer puts a weapon skill error on the form", () => {
+    const { store } = setup();
     const tree = createTalentTree(store);
     tree.resetAll();
-    actions.change(SKILL, 350);
+    const next = structuredClone(store.get().config);
+    next.character = { ...next.character, weaponSkill: 350 };
+    store.set({ config: next });
     assert.doesNotThrow(() => tree.setLevel(String(LOW_LEVEL)));
     assert.equal(store.get().config.talentLevel, LOW_LEVEL);
-    // The config stays one the engine runs; the form keeps what was typed.
-    assert.equal(store.get().config.character.weaponSkill, null);
-    assert.doesNotThrow(() => normalizeConfig(store.get().config));
-    assert.equal(store.get().form.values[SKILL], 350);
-    assert.equal(
-      store.get().form.errors[SKILL],
-      "Weapon skill must be a whole number from 1 to 250 at level 40.",
+    assert.ok(!Object.hasOwn(store.get().form.values, SKILL));
+    assert.equal(store.get().form.errors[SKILL], undefined);
+    // The engine still refuses a skill past the cap (the bounds describe).
+    assert.throws(
+      () =>
+        normalizeConfig({
+          ...legacyPageConfig(),
+          talents: {},
+          talentLevel: LOW_LEVEL,
+          character: { ...legacyPageConfig().character, weaponSkill: 350 },
+        }),
+      RangeError,
     );
-    assert.equal(nextRunConfig(store.get()), null);
-    tree.setLevel(String(MAX_LEVEL));
-    assert.equal(store.get().config.talentLevel, MAX_LEVEL);
-    assert.deepEqual(store.get().form.errors, {});
-    assert.equal(store.get().form.values[SKILL], 350);
-    assert.equal(store.get().form.levels.weaponSkill.max, 350);
-    assert.equal(store.get().config.character.weaponSkill, 350);
-    assert.notEqual(nextRunConfig(store.get()), null);
   });
 
-  it("a typed target level stays fixed through a level change, and so does 350 once back at 60", () => {
+  it("a typed target level stays fixed through a level change", () => {
     const { store, actions } = setup();
     const tree = createTalentTree(store);
     tree.resetAll();
-    actions.change(SKILL, 350);
     actions.change(TARGET, 62);
     for (const level of [LOW_LEVEL, MAX_LEVEL]) {
       assert.doesNotThrow(() => tree.setLevel(String(level)));
       assert.equal(store.get().config.target.level, 62, `level ${level}`);
       assert.equal(store.get().form.values[TARGET], 62, `level ${level}`);
     }
-    assert.equal(store.get().config.character.weaponSkill, 350);
   });
 
-  it("a typed skill under the lower cap stays as typed", () => {
-    const { store, actions } = setup();
+  it("a config skill under the lower cap stays as set", () => {
+    const { store } = setup();
     const tree = createTalentTree(store);
     tree.resetAll();
-    actions.change(SKILL, 240);
+    const next = structuredClone(store.get().config);
+    next.character = { ...next.character, weaponSkill: 240 };
+    store.set({ config: normalizeConfig(next) });
     tree.setLevel(String(LOW_LEVEL));
     assert.equal(store.get().config.character.weaponSkill, 240);
     assert.deepEqual(store.get().form.errors, {});
@@ -407,9 +387,11 @@ describe("share links (#318)", () => {
     assert.equal(payloadOf(text).config, undefined);
   });
 
-  it("typed values are in the link, alone, and round-trip into the form", () => {
+  it("a config weapon skill and a typed target level are in the link and round-trip", () => {
     const { store, actions } = setup();
-    actions.change(SKILL, 315);
+    const next = structuredClone(store.get().config);
+    next.character = { ...next.character, weaponSkill: 315 };
+    store.set({ config: normalizeConfig(next) });
     actions.change(TARGET, 62);
     const text = encodeSetup(setupFromState({ ...store.get(), run: RUN }));
     assert.deepEqual(payloadOf(text).config, {
@@ -421,15 +403,24 @@ describe("share links (#318)", () => {
     assert.equal(read.setup.config.character.weaponSkill, 315);
     assert.equal(read.setup.config.target.level, 62);
     const back = setup(read.setup.config);
-    assert.equal(back.form().values[SKILL], 315);
+    assert.ok(!Object.hasOwn(back.form().values, SKILL));
     assert.equal(back.form().values[TARGET], 62);
+    assert.equal(back.store.get().config.character.weaponSkill, 315);
     assert.deepEqual(back.form().errors, {});
   });
 
   it("blank again after a typed value is out of the link again", () => {
     const { store, actions } = setup();
-    actions.change(SKILL, 315);
-    actions.change(SKILL, null);
+    const next = structuredClone(store.get().config);
+    next.character = { ...next.character, weaponSkill: 315 };
+    store.set({ config: normalizeConfig(next) });
+    next.character = { ...store.get().config.character, weaponSkill: null };
+    store.set({
+      config: normalizeConfig({
+        ...store.get().config,
+        character: next.character,
+      }),
+    });
     actions.change(TARGET, 50);
     actions.change(TARGET, null);
     assert.equal(

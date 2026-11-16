@@ -159,7 +159,7 @@ describe("#321: the form's race field", () => {
     assert.equal(store.get().form.race, null);
   });
 
-  it("each race reaches the config, and only the race changes", () => {
+  it("each race reaches the config, re-derives the sheet, and leaves rotation and gear slots", () => {
     const store = createStore({ config: config() });
     const form = createConfigForm(store);
     const before = store.get().config;
@@ -167,7 +167,11 @@ describe("#321: the form's race field", () => {
       form.change("race", id);
       const after = store.get().config;
       assert.equal(after.race, id);
-      assert.deepEqual({ ...after, race: null }, { ...before, race: null });
+      // A race change on a gear build re-derives character so the doll and
+      // the sim stay in agreement. coordinator call 16 Nov (James delegated).
+      assert.ok(after.character);
+      assert.notEqual(after.character, before.character);
+      assert.deepEqual(after.gear.slots, before.gear.slots, "gear stays");
       assert.deepEqual(
         after.rotation,
         before.rotation,
@@ -205,14 +209,20 @@ describe("#321: the form's race field", () => {
 
 describe("#321: the Stats row", () => {
   it("leads with the race when one is set, and leaves it out with none", () => {
+    const human = config();
     assert.equal(
-      characterRows(formFromConfig(config())).stats.summary,
+      characterRows(formFromConfig(human), human).stats.summary,
       "Human · 608 attack power · 17.9705% crit · 8.7% hit",
     );
+    const nightElf = { ...human, race: "night-elf" };
     assert.equal(
-      characterRows(formFromConfig({ ...config(), race: "night-elf" })).stats
-        .summary,
+      characterRows(formFromConfig(nightElf), nightElf).stats.summary,
       "Night Elf · 608 attack power · 17.9705% crit · 8.7% hit",
+    );
+    const none = { ...human, race: null };
+    assert.doesNotMatch(
+      characterRows(formFromConfig(none), none).stats.summary,
+      /^Human|^Night Elf/,
     );
   });
 
