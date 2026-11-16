@@ -84,9 +84,12 @@ export { NARROW_QUERY };
 export function createControlsView(doc, store, actions = {}) {
   const $ = (id) => doc.querySelector(`#${id}`);
   const bar = $("run-controls");
+  const runMode = $("run-mode");
   const modeLive = $("run-mode-live");
   const modeBatch = $("run-mode-batch");
   const batchReason = $("run-mode-batch-reason");
+  const modeAnnounce = $("run-mode-announce");
+  let wasManual = false;
   const iterationsField = $("run-iterations-field");
   const inputs = Object.fromEntries(
     FIELDS.map((name) => [name, $(`run-${name}`)]),
@@ -233,6 +236,21 @@ export function createControlsView(doc, store, actions = {}) {
     } else {
       modeBatch.removeAttribute("aria-describedby");
     }
+    if (runMode !== null) {
+      if (manual) {
+        runMode.setAttribute("aria-describedby", "run-mode-batch-reason");
+      } else {
+        runMode.removeAttribute("aria-describedby");
+      }
+    }
+    if (modeAnnounce !== null) {
+      if (manual && !wasManual) {
+        modeAnnounce.textContent = MANUAL_AVERAGE_REASON;
+      } else if (!manual) {
+        modeAnnounce.textContent = "";
+      }
+    }
+    wasManual = manual;
     iterationsField.hidden = run.mode !== "batch";
     newSeed.disabled = locked;
     for (const name of FIELDS) {
