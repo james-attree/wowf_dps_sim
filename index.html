@@ -1272,7 +1272,7 @@
                 <span>Manual</span>
               </label>
             </fieldset>
-            <fieldset class="run-mode">
+            <fieldset class="run-mode" id="run-mode">
               <legend>Run type</legend>
               <label class="run-mode-pill">
                 <input
@@ -1293,6 +1293,12 @@
                 />
                 <span>Live fight</span>
               </label>
+              <p id="run-mode-batch-reason" class="run-mode-reason" hidden></p>
+              <p
+                id="run-mode-announce"
+                class="visually-hidden"
+                role="status"
+              ></p>
             </fieldset>
             <div class="run-field">
               <label for="run-duration">Fight length (s)</label>

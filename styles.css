@@ -399,6 +399,14 @@ h3 {
   white-space: nowrap;
 }
 
+.run-mode-reason {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
 .fight-settings .run-field {
   min-width: 0;
   max-width: 100%;

@@ -196,8 +196,24 @@ export function redrawInputs(store) {
 
 // The run settings Reset to defaults sets, as text to compare by value (a
 // pageshow redraw makes a new run slice with the same values).
-const runSettingsOf = ({ mode, duration, iterations, seed, fields, errors }) =>
-  JSON.stringify({ mode, duration, iterations, seed, fields, errors });
+const runSettingsOf = ({
+  mode,
+  fightMode,
+  duration,
+  iterations,
+  seed,
+  fields,
+  errors,
+}) =>
+  JSON.stringify({
+    mode,
+    fightMode,
+    duration,
+    iterations,
+    seed,
+    fields,
+    errors,
+  });
 
 // The page's wiring (js/main.js): save on change; a share link opened on load
 // (initial.source "link") is saved at once; leaving the page writes what is

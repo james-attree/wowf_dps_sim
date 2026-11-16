@@ -74,6 +74,16 @@ export function emptyWeights() {
   };
 }
 
+// Manual is a live fight. A load or a patch that still says batch is
+// rewritten to live. Scripted runs are left as they are.
+// coordinator call 15 Nov (James delegated), issue #388.
+export function applyFightMode(run, liveState = run?.state ?? "idle") {
+  if (run?.fightMode === "manual" && run.mode !== "live") {
+    return { ...run, mode: "live", state: liveState };
+  }
+  return run;
+}
+
 export function createRunActions({
   store,
   live,
@@ -87,7 +97,9 @@ export function createRunActions({
 }) {
   const run = () => store.get().run;
   const setRun = (patch) =>
-    store.update((state) => ({ run: { ...state.run, ...patch } }));
+    store.update((state) => ({
+      run: applyFightMode({ ...state.run, ...patch }, live.state),
+    }));
   const setBatch = (patch) =>
     store.update((state) => ({ batch: { ...state.batch, ...patch } }));
   const locked = () => run().state === "running" || run().state === "paused";
@@ -433,7 +445,8 @@ export function createRunActions({
       if (locked()) {
         return null;
       }
-      const { mode, duration, iterations, seed, fields, errors } = run();
+      const { mode, fightMode, duration, iterations, seed, fields, errors } =
+        run();
       const next = {
         duration: k("batch.duration"),
         iterations: k("fight.iterations"),
@@ -441,6 +454,7 @@ export function createRunActions({
       };
       setRun({
         mode: "batch",
+        fightMode: "scripted",
         state: store.get().batch.status,
         ...next,
         fields: {
@@ -450,7 +464,7 @@ export function createRunActions({
         },
         errors: {},
       });
-      return { mode, duration, iterations, seed, fields, errors };
+      return { mode, fightMode, duration, iterations, seed, fields, errors };
     },
     // Undo after Reset to defaults: put back what resetSettings returned.
     // False (nothing changes) while a run is on or with nothing to restore.
@@ -458,9 +472,11 @@ export function createRunActions({
       if (locked() || before === null || before === undefined) {
         return false;
       }
-      const { mode, duration, iterations, seed, fields, errors } = before;
+      const { mode, fightMode, duration, iterations, seed, fields, errors } =
+        before;
       setRun({
         mode,
+        fightMode,
         state: mode === "batch" ? store.get().batch.status : live.state,
         duration,
         iterations,
