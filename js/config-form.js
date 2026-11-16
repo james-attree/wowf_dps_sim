@@ -320,7 +320,15 @@ export function pageDefaultConfig() {
   });
 }
 
+let pageGearOverride = null;
+
+// Tests swap the page's gear list without touching the frozen marker.
+export function setPageGearForTest(gear) {
+  pageGearOverride = gear;
+}
+
 function pageGear() {
+  if (pageGearOverride != null) return pageGearOverride;
   const slots = {};
   p1Gear.items.forEach((entry, index) => {
     slots[GEAR_SLOTS[index]] = {

@@ -2,9 +2,9 @@
 
 ## #297 PR5
 
-A share link can carry gear. The part is appended: a slot mask, then each worn item's id, enchant (0 is none) and suffix (0 is none). A gear link has no character or weapons part. Decode derives the sheet. Race and level stay on the character. The first-load link is 133 base64url characters. Old links and saves decode to the same config as before, and `isLegacySheet` marks them. The read-only screen for that sheet is PR7.
+A share link can carry gear. The part is appended: a slot mask, then each worn item's id, enchant (0 is none) and suffix (0 is none). A gear link has no character or weapons part. Decode derives the sheet. Race and level stay on the character. The first-load link is 9 characters (`2.DYEgBQA`). Old links and saves decode to the same config as before, and `isLegacySheet` marks them. The read-only screen for that sheet is PR7.
 
-`wowf_dps_sim.setup` accepts an optional `config.gear`. `wowf_dps_sim.gear` stores named item builds (`js/gear-store.js`). Reset to defaults does not remove them. PR6 and PR7 consume that store.
+`wowf_dps_sim.setup` accepts an optional `config.gear`. `wowf_dps_sim.gear` stores named item builds (`js/gear-store.js`). Reset to defaults does not remove them. PR6 and PR7 consume that store. A save, rename or remove that does not reach storage returns `{ ok: false, reason: "storage" }`. A stored change returns `{ ok: true, build }` (remove returns `{ ok: true }`). Empty names, duplicate names and rename collisions are left to the gear screen.
 
 `combat-swords-temp-337` stays live so the legacy sword link stays `2.BgA`. The `-297` dagger bases are frozen. New links use the no-weapon `-383` bases.
 

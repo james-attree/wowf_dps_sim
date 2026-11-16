@@ -9,7 +9,12 @@ import {
   isLegacySheet,
 } from "../js/build-codec.js";
 import { GEAR_SLOTS } from "../js/gear-build.js";
-import { configFromForm, formFromConfig } from "../js/config-form.js";
+import {
+  configFromForm,
+  formFromConfig,
+  pageDefaultConfig,
+  setPageGearForTest,
+} from "../js/config-form.js";
 import { GEAR_MARKER_P1_BSCOMBAT_92E67A7A } from "../data/gear-marker.js";
 import { runFight } from "../js/fight.js";
 import { createHash } from "node:crypto";
@@ -59,6 +64,28 @@ describe("the frozen P1 gear marker (#383)", () => {
       GEAR_MARKER_P1_BSCOMBAT_92E67A7A.commit,
       "92e67a7ae61f984e8a1fc006ebdeb012f31ac7d1",
     );
+  });
+
+  it("an empty slot mask stays the frozen list when the page default changes", () => {
+    const other = {
+      slots: { mainHand: { item: 25, enchant: null, suffix: null } },
+    };
+    setPageGearForTest(other);
+    try {
+      assert.deepEqual(pageDefaultConfig().gear, other);
+      const page = freshPageSetup();
+      page.config.gear = {
+        slots: structuredClone(GEAR_MARKER_P1_BSCOMBAT_92E67A7A.slots),
+      };
+      const read = decodeSetup(encodeLink(page));
+      assert.equal(read.status, "ok");
+      assert.deepEqual(
+        read.setup.config.gear.slots,
+        GEAR_MARKER_P1_BSCOMBAT_92E67A7A.slots,
+      );
+    } finally {
+      setPageGearForTest(null);
+    }
   });
 
   it("an empty slot mask round-trips to that frozen list", () => {

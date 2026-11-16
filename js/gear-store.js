@@ -3,7 +3,11 @@ import { k } from "../data/constants.js";
 // Named gear builds, separate from the one saved setup (#296) and from
 // presets. Items only: race and level stay on the character. Reset to
 // defaults clears wowf_dps_sim.setup and leaves this key. Missing, refused
-// or full storage fails silently. PR6 and PR7 (Bonnie) consume this API.
+// or full storage does not throw. save, rename and remove then return
+// { ok: false, reason: "storage" }. A stored change returns
+// { ok: true, build } (remove returns { ok: true }). PR6 and PR7 (Bonnie)
+// consume this API. Empty names, duplicate names and rename collisions are
+// the gear screen's job.
 
 function storageOf(storage) {
   if (storage !== undefined) return storage;
@@ -68,10 +72,19 @@ export function loadGearBuild(id, storage) {
   return found === undefined ? null : copyBuild(found);
 }
 
+function storageFailure() {
+  return { ok: false, reason: "storage" };
+}
+
+function storageMissing(storage) {
+  return storageOf(storage) === null;
+}
+
 export function saveGearBuild(build, storage, now = 0) {
   if (!build || typeof build.name !== "string" || build.slots == null) {
-    return null;
+    return { ok: false, reason: "invalid" };
   }
+  if (storageMissing(storage)) return storageFailure();
   const doc = readDoc(storage);
   const id =
     typeof build.id === "string" && build.id !== "" ? build.id : newId(doc);
@@ -84,27 +97,33 @@ export function saveGearBuild(build, storage, now = 0) {
   const index = doc.builds.findIndex((item) => item.id === id);
   if (index >= 0) doc.builds[index] = next;
   else doc.builds.push(next);
-  writeDoc(storage, doc);
-  return copyBuild(next);
+  if (!writeDoc(storage, doc)) return storageFailure();
+  return { ok: true, build: copyBuild(next) };
 }
 
 export function renameGearBuild(id, name, storage, now = 0) {
+  if (storageMissing(storage)) return storageFailure();
   const doc = readDoc(storage);
   const found = doc.builds.find((build) => build.id === id);
-  if (!found || typeof name !== "string") return null;
+  if (!found || typeof name !== "string") {
+    return { ok: false, reason: "missing" };
+  }
   found.name = name;
   found.updated = now;
-  writeDoc(storage, doc);
-  return copyBuild(found);
+  if (!writeDoc(storage, doc)) return storageFailure();
+  return { ok: true, build: copyBuild(found) };
 }
 
 export function removeGearBuild(id, storage) {
+  if (storageMissing(storage)) return storageFailure();
   const doc = readDoc(storage);
   const next = doc.builds.filter((build) => build.id !== id);
-  if (next.length === doc.builds.length) return false;
+  if (next.length === doc.builds.length) {
+    return { ok: false, reason: "missing" };
+  }
   doc.builds = next;
-  writeDoc(storage, doc);
-  return true;
+  if (!writeDoc(storage, doc)) return storageFailure();
+  return { ok: true };
 }
 
 function newId(doc) {

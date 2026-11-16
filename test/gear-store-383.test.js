@@ -33,9 +33,10 @@ describe("named gear builds (#383)", () => {
   it("saves a build", () => {
     const storage = memory();
     const saved = saveGearBuild({ name: "P1", slots }, storage);
-    assert.equal(saved.name, "P1");
-    assert.deepEqual(saved.slots, slots);
-    assert.equal(typeof saved.id, "string");
+    assert.equal(saved.ok, true);
+    assert.equal(saved.build.name, "P1");
+    assert.deepEqual(saved.build.slots, slots);
+    assert.equal(typeof saved.build.id, "string");
   });
 
   it("lists builds", () => {
@@ -50,33 +51,71 @@ describe("named gear builds (#383)", () => {
   it("loads a build", () => {
     const storage = memory();
     const saved = saveGearBuild({ name: "P1", slots }, storage);
-    assert.deepEqual(loadGearBuild(saved.id, storage).slots, slots);
+    assert.deepEqual(loadGearBuild(saved.build.id, storage).slots, slots);
     assert.equal(loadGearBuild("missing", storage), null);
   });
 
   it("renames a build", () => {
     const storage = memory();
     const saved = saveGearBuild({ name: "P1", slots }, storage);
-    const renamed = renameGearBuild(saved.id, "Raid", storage);
-    assert.equal(renamed.name, "Raid");
-    assert.equal(loadGearBuild(saved.id, storage).name, "Raid");
+    const renamed = renameGearBuild(saved.build.id, "Raid", storage);
+    assert.equal(renamed.ok, true);
+    assert.equal(renamed.build.name, "Raid");
+    assert.equal(loadGearBuild(saved.build.id, storage).name, "Raid");
   });
 
   it("removes a build", () => {
     const storage = memory();
     const saved = saveGearBuild({ name: "P1", slots }, storage);
-    assert.equal(removeGearBuild(saved.id, storage), true);
+    assert.deepEqual(removeGearBuild(saved.build.id, storage), { ok: true });
     assert.deepEqual(listGearBuilds(storage), []);
   });
 
-  it("missing, throwing or full storage does not throw", () => {
+  it("a missing store does not throw and does not report a save", () => {
     assert.deepEqual(listGearBuilds(null), []);
-    assert.equal(saveGearBuild({ name: "P1", slots }, null).name, "P1");
-    assert.deepEqual(listGearBuilds(null), []);
+    assert.deepEqual(saveGearBuild({ name: "P1", slots }, null), {
+      ok: false,
+      reason: "storage",
+    });
+    assert.deepEqual(renameGearBuild("gear-1", "Raid", null), {
+      ok: false,
+      reason: "storage",
+    });
+    assert.deepEqual(removeGearBuild("gear-1", null), {
+      ok: false,
+      reason: "storage",
+    });
+  });
+
+  it("a throwing store does not throw and does not report a save", () => {
+    const storage = memory({ fail: "write" });
     assert.doesNotThrow(() => listGearBuilds(memory({ fail: "read" })));
-    assert.doesNotThrow(() =>
-      saveGearBuild({ name: "P1", slots }, memory({ fail: "write" })),
-    );
+    assert.deepEqual(saveGearBuild({ name: "P1", slots }, storage), {
+      ok: false,
+      reason: "storage",
+    });
+    assert.deepEqual(listGearBuilds(storage), []);
+  });
+
+  it("a full store does not report a save, rename or remove", () => {
+    const storage = memory();
+    const saved = saveGearBuild({ name: "P1", slots }, storage);
+    storage.setItem = () => {
+      throw new Error("full");
+    };
+    assert.deepEqual(saveGearBuild({ name: "Next", slots }, storage), {
+      ok: false,
+      reason: "storage",
+    });
+    assert.deepEqual(renameGearBuild(saved.build.id, "Raid", storage), {
+      ok: false,
+      reason: "storage",
+    });
+    assert.deepEqual(removeGearBuild(saved.build.id, storage), {
+      ok: false,
+      reason: "storage",
+    });
+    assert.equal(loadGearBuild(saved.build.id, storage).name, "P1");
   });
 
   it("reset to defaults leaves the gear key", () => {
