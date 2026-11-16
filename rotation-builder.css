@@ -188,7 +188,7 @@
 }
 .rule.is-alt {
   margin-left: 24px;
-  border-left: 3px solid #8f7a4d;
+  border-left: 3px solid var(--control);
 }
 .rule.is-alt::before {
   content: "";
@@ -197,8 +197,8 @@
   top: -9px;
   width: 12px;
   height: 28px;
-  border-left: 2px solid #8f7a4d;
-  border-bottom: 2px solid #8f7a4d;
+  border-left: 2px solid var(--control);
+  border-bottom: 2px solid var(--control);
   border-bottom-left-radius: 6px;
 }
 .rule.has-error {
@@ -303,10 +303,10 @@
   overflow-wrap: anywhere;
 }
 .chip.is-alt {
-  border-color: #8f7a4d;
+  border-color: var(--control);
 }
 .chip.is-skip {
-  color: #f3eee2;
+  color: var(--text);
   border-color: #81745c;
   border-style: dashed;
 }
