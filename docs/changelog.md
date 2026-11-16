@@ -8,6 +8,13 @@ A share link can carry gear. The part is appended: a slot mask, then each worn i
 
 `combat-swords-temp-337` stays live so the legacy sword link stays `2.BgA`. The `-297` dagger bases are frozen. New links use the no-weapon `-383` bases.
 
+Share-link lock expectations (old → new), coordinator call 16 Nov (James delegated 15 Nov), in `test/short-links-306.test.js` only:
+
+- A preset rotation on the default build was `length <= 8` for every preset. Combat swords stays `2.BgA` (5). Combat daggers is `2.BpABA6gDYKMCDg` (16, ceiling 24). Assassination daggers is `2.DgT_AcgB9gKIBAK0AdAC9AMC` (26). Subtlety daggers is `2.DwT_AcgB9gKIBAK0AdAC9AMC` (26).
+- `LOCKED_CONTENT` gains hashes for `combat-daggers-383`, `assassination-daggers-383` and `subtlety-daggers-383`. No existing hash changed.
+- The frozen `subtlety-daggers-297` base stays locked. The last base was `subtlety-daggers-297` → `subtlety-daggers-383`.
+- The `newer` probe was part bit 12 (`bytes(0, 0x80, 0x20)`) → part bit 13 (`bytes(0, 0x80, 0x40)`). Bit 12 is the gear part.
+
 ## #297 PR4
 
 The page default moves from sword Combat to dagger Combat. The main hand is
