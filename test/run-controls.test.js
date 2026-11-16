@@ -2320,4 +2320,24 @@ describe("selecting Manual also selects Live (#388)", () => {
     assert.equal(el("run-mode-batch-reason").hidden, true);
     assert.equal(el("run-mode-live").checked, true);
   });
+
+  it("the Run type fieldset describes Average's reason only while Manual is on, and announces it once", () => {
+    const page = setup();
+    page.actions.setMode("batch");
+    const { doc, el } = standIn();
+    createControlsView(doc, page.store, page.actions);
+    assert.equal(el("run-mode").getAttribute("aria-describedby"), null);
+    assert.equal(el("run-mode-announce").textContent, "");
+    page.actions.setFightMode("manual");
+    assert.equal(
+      el("run-mode").getAttribute("aria-describedby"),
+      "run-mode-batch-reason",
+    );
+    assert.equal(el("run-mode-announce").textContent, MANUAL_AVERAGE_REASON);
+    page.actions.edit("duration", { text: "30", value: 30, error: null });
+    assert.equal(el("run-mode-announce").textContent, MANUAL_AVERAGE_REASON);
+    page.actions.setFightMode("scripted");
+    assert.equal(el("run-mode").getAttribute("aria-describedby"), null);
+    assert.equal(el("run-mode-announce").textContent, "");
+  });
 });

@@ -104,8 +104,36 @@ describe("selecting Manual also selects Live (#388)", () => {
         "Manual fights are live, step by step",
       );
       assert.equal(
+        await page.locator("#run-mode").getAttribute("aria-describedby"),
+        "run-mode-batch-reason",
+      );
+      assert.equal(
+        await page.locator("#run-mode-announce").textContent(),
+        "Manual fights are live, step by step",
+      );
+      assert.equal(
         await page.evaluate(() => globalThis.document.activeElement?.id),
         "fight-mode-manual",
+      );
+      await page.locator("#fight-mode-scripted").check();
+      assert.equal(
+        await page.locator("#run-mode").getAttribute("aria-describedby"),
+        null,
+      );
+      assert.equal(await page.locator("#run-mode-announce").textContent(), "");
+      await page.locator("#fight-mode-manual").focus();
+      await page.locator("#fight-mode-manual").press("Space");
+      await page.waitForFunction(() => {
+        const live = globalThis.document.getElementById("run-mode-live");
+        return live?.checked === true;
+      });
+      assert.equal(
+        await page.locator("#run-mode").getAttribute("aria-describedby"),
+        "run-mode-batch-reason",
+      );
+      assert.equal(
+        await page.locator("#run-mode-announce").textContent(),
+        "Manual fights are live, step by step",
       );
       await page.locator("#run-button").click();
       await page.locator(".manual-slot").first().waitFor({ state: "visible" });
