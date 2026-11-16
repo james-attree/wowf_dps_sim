@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CONSTANTS, k } from "../data/constants.js";
+import { LEGACY_DAGGER_PRESET } from "../data/legacy-sheets.js";
 import { ROTATION_PRESETS } from "../data/rotation-presets.js";
 import { buildProblems } from "../js/talent-build.js";
 import { pointsText } from "../js/preset-build.js";
@@ -41,7 +42,8 @@ describe("Assassination daggers (#340)", () => {
 
   it("uses the dagger pair and the character.dagger sheet", () => {
     const build = referenceBuild(ID);
-    assert.deepEqual(build.weapons, {
+    const gear = LEGACY_DAGGER_PRESET;
+    assert.deepEqual(gear.weapons, {
       mainHand: {
         min: k("weapon.dagger.mainHand").min,
         max: k("weapon.dagger.mainHand").max,
@@ -50,10 +52,16 @@ describe("Assassination daggers (#340)", () => {
       },
       offHand: { ...k("presetReferenceBuild.daggerOffHand") },
     });
-    assert.deepEqual(build.character, {
-      attackPower: k("character.dagger.attackPower"),
-      critChance: k("character.dagger.critChance"),
-    });
+    assert.deepEqual(
+      {
+        attackPower: gear.character.attackPower,
+        critChance: gear.character.critChance,
+      },
+      {
+        attackPower: k("character.dagger.attackPower"),
+        critChance: k("character.dagger.critChance"),
+      },
+    );
     assert.equal(pointsText(build.talents), "37/11/3");
     assert.deepEqual(buildProblems(build.talents, { talentLevel: 60 }), []);
     assert.equal(build.talents["assassination.mutilate"], 1);

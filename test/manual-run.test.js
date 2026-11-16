@@ -2,6 +2,7 @@
 // never invents combat.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { legacyPresetGear } from "../data/legacy-sheets.js";
 import { createManualRun } from "../js/manual-run.js";
 import { loadPreset, referenceBuild } from "../js/rotation-presets.js";
 import {
@@ -15,9 +16,9 @@ function presetConfig(id, extra = {}) {
   return loadPreset(id, {
     talents: build.talents,
     talentLevel: build.talentLevel,
-    weapons: build.weapons,
+    weapons: legacyPresetGear(id).weapons,
     poisons: build.poisons,
-    character: build.character,
+    character: legacyPresetGear(id).character,
     ...extra,
   });
 }

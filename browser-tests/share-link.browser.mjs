@@ -480,7 +480,7 @@ describe("Copy link to this build (#284)", () => {
       );
       const read = decodeSetup(new URL(link).searchParams.get(LINK_PARAM));
       assert.equal(read.status, "ok");
-      const build = referenceBuild("combat-swords-temp");
+      const build = referenceBuild("combat-daggers");
       assert.deepEqual(read.setup.config.talents, build.talents);
       assert.equal(read.setup.config.weapons.mainHand.speed, 1.9);
       assert.deepEqual(errors, []);
@@ -511,7 +511,7 @@ describe("Copy link to this build (#284)", () => {
     }
   });
   test("a rule deleted in the builder still gives a short link (#330 B1)", async () => {
-    const PRESET_LINK_MAX = 64;
+    const PRESET_LINK_MAX = 75;
     const { context, page, errors } = await open(WIDTHS[1], "#character");
     try {
       // Page defaults are already combat-swords-temp (#333).
@@ -543,7 +543,7 @@ describe("Copy link to this build (#284)", () => {
       const { rotation } = decodeSetup(
         new URL(link).searchParams.get(LINK_PARAM),
       ).setup.config;
-      const preset = presetRotation("combat-swords-temp");
+      const preset = presetRotation("combat-daggers");
       assert.equal(rotation.name, editedName(preset.name));
       assert.deepEqual(rotation.rules, preset.rules.slice(1));
       assert.deepEqual(errors, []);

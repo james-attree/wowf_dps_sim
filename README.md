@@ -32,11 +32,18 @@ Combat rotation (`config.rotation`, `js/rotation-default.js`, cast by
 finisher combo points Slice and Dice when it has less than 1 s left, or 5 s or
 less with full energy (the old combat-swords rules from #122 to #310, #173), else Cold Blood
 when the build grants it and Eviscerate; otherwise Sinister Strike. The page
-does not start there. `pageDefaultConfig()` is the temporary Combat swords
-preset (`combat-swords-temp`, 1.60.1.70755): Instant Poison on the main hand,
-Deadly Poison on the off hand, and Shank when energy is below 50. Combat
-daggers (`combat-daggers`, #340) is a second preset: that rotation with
-Backstab instead of Sinister Strike. Assassination daggers
+does not start there. `pageDefaultConfig()` is the Combat daggers preset
+on wowsims Forever Backstab Combat gear (pinned
+`92e67a7ae61f984e8a1fc006ebdeb012f31ac7d1`,
+`p1_bscombat.gear.json`): a level-60 human, 608 attack power, 17.97% crit
+(17.9705% on the Stats row), 8.7% hit. The main hand is The Lobotomizer, a
+dagger (54–102 at 1.8). The off hand is Dark Iron Destroyer, an axe (71–134
+at 2.4), so Hack and Slash procs. Instant Poison is on the main hand and
+Deadly Poison on the off hand. The default preset moved from sword Combat
+to dagger Combat. A five-minute fight at seed 1 does 307.27 DPS; the
+previous sword Combat page default did 323.47 DPS on that same fight.
+Combat daggers (`combat-daggers`, #340) is that rotation: Backstab instead
+of Sinister Strike. Assassination daggers
 (`assassination-daggers`, #340) is a third: finishers at 4 combo points,
 Mutilate, and Shank below 50 energy. `dataVersion`
 is `2026-11-04+1.60.1.70755`. A rotation

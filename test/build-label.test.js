@@ -26,7 +26,7 @@ describe("buildLabel (#154)", () => {
   it("labels the page-default temporary Combat swords build", () => {
     assert.equal(
       buildLabel(pageDefaultConfig()),
-      "Combat 16/35/0 · 51/51 · Combat swords (temporary) · Instant MH, Deadly OH",
+      "Combat 13/35/3 · 51/51 · Combat daggers · Instant MH, Deadly OH",
     );
   });
 

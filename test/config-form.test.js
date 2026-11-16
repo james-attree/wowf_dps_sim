@@ -73,14 +73,11 @@ describe("the form fills from the store's config", () => {
       form().values["weapons.mainHand.type"],
       config().weapons.mainHand.type,
     );
-    assert.equal(form().rotationChoice, "combat-swords-temp");
-    assert.equal(
-      form().summary.name,
-      presetRotation("combat-swords-temp").name,
-    );
+    assert.equal(form().rotationChoice, "combat-daggers");
+    assert.equal(form().summary.name, presetRotation("combat-daggers").name);
     assert.equal(
       form().summary.rules.length,
-      presetRotation("combat-swords-temp").rules.length,
+      presetRotation("combat-daggers").rules.length,
     );
     assert.equal(form().canUndo, false);
   });
@@ -368,6 +365,7 @@ describe("changes apply to the next run", () => {
     const { store, actions } = setup();
     const speed = () =>
       createFight(SEED, nextRunConfig(store.get())).rogue.normalizedWeaponSpeed;
+    actions.change("weapons.mainHand.type", "sword");
     assert.equal(speed(), 2.4);
     actions.change("weapons.offHand.type", "dagger");
     assert.equal(speed(), 2.4);
@@ -389,6 +387,16 @@ describe("talents: the talent tree owns the build (#204)", () => {
         ...pageDefaultConfig(),
         talents: custom(),
         talentLevel: 40,
+        weapons: {
+          mainHand: {
+            ...pageDefaultConfig().weapons.mainHand,
+            weaponSkill: null,
+          },
+          offHand: {
+            ...pageDefaultConfig().weapons.offHand,
+            weaponSkill: null,
+          },
+        },
       }),
     });
     const actions = createConfigForm(store);
@@ -576,7 +584,7 @@ describe("rotation: one source of truth, config.rotation", () => {
     const before = store.get().config;
     assert.equal(actions.importText("{ nope"), false);
     assert.equal(store.get().config, before);
-    assert.equal(form().rotationChoice, "combat-swords-temp");
+    assert.equal(form().rotationChoice, "combat-daggers");
     assert.equal(form().importStatus.ok, false);
     assert.equal(
       form().importStatus.message,

@@ -17,6 +17,7 @@ import { skipOf, talentState } from "./rotation-skips.js";
 import { summarizeRule } from "./rotation-summary.js";
 import { validateRotation } from "./rotation-validator.js";
 import { rotationWarnings, sameRuleKey } from "./rotation-warnings.js";
+import { P1_BACKSTAB_COMBAT } from "../data/p1-backstab-combat.js";
 import { defaultConfig, normalizeConfig } from "./sim-config.js";
 import { formErrorCount } from "./views/run-model.js";
 
@@ -262,23 +263,30 @@ function pairedMin(path) {
   return path.endsWith(".max") ? path.replace(/\.max$/, ".min") : null;
 }
 
-// The config the page starts with and Reset restores: James's temporary
-// Combat swords preset (TR-03 / #333) — talents, weapons, Instant MH / Deadly
-// OH poisons, and its rotation. Race is left unset (the preset does not set
-// one). The engine's defaultConfig() keeps empty talents and no poisons so
-// engine goldens that omit a config stay put.
+// The config the page starts with and Reset restores. coordinator call
+// 15 Nov (James delegated), Q1 option B: wowsims Forever Backstab Combat
+// gear, human, derived through deriveSheet (data/p1-backstab-combat.js),
+// with the Combat daggers preset (Backstab; Instant on the main hand and
+// Deadly on the off hand, James 11 Nov 2026). The main hand is The
+// Lobotomizer, a dagger. The off hand is Dark Iron Destroyer, an axe, so
+// Hack and Slash procs follow James, 10 Nov 2026. The engine's
+// defaultConfig() stays the untalented sword sheet, so goldens that omit
+// a config stay put. An old link still diffs against legacyPageConfig().
 export function pageDefaultConfig() {
-  const build = referenceBuild("combat-swords-temp");
+  const build = referenceBuild("combat-daggers");
+  const sheet = P1_BACKSTAB_COMBAT;
   return fromBehind({
     ...defaultConfig(),
+    race: "human",
+    character: { ...defaultConfig().character, ...sheet.character },
+    weapons: {
+      mainHand: { ...sheet.weapons.mainHand },
+      offHand: { ...sheet.weapons.offHand },
+    },
     talents: { ...build.talents },
     talentLevel: build.talentLevel,
-    weapons: {
-      mainHand: { ...build.weapons.mainHand },
-      offHand: { ...build.weapons.offHand },
-    },
     poisons: { ...build.poisons },
-    rotation: presetRotation("combat-swords-temp"),
+    rotation: presetRotation("combat-daggers"),
   });
 }
 

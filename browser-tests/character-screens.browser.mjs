@@ -25,14 +25,14 @@ const ROWS = [
     hash: "#character/gear",
     title: "Gear and weapons",
     summary:
-      "Main hand Sword 100–187 · Instant Poison / Off hand Sword 90–168 · Deadly Poison",
+      "Main hand Dagger 54–102 · Instant Poison / Off hand Axe 71–134 · Deadly Poison",
     field: "#cfg-weapons-mainHand-min",
   },
   {
     row: "character-row-stats",
     hash: "#character/stats",
     title: "Stats",
-    summary: "767 attack power · 22.45% crit · 7% hit",
+    summary: "Human · 608 attack power · 17.9705% crit · 8.7% hit",
     field: "#cfg-character-attackPower",
   },
   {
@@ -213,7 +213,7 @@ for (const width of [WIDE, PHONE]) {
         });
         assert.deepEqual(await axOf(page, "#talents-edit"), {
           name: "Talents",
-          description: "Combat 16/35/0 · 51/51",
+          description: "Combat 13/35/3 · 51/51",
         });
         assert.deepEqual(errors, []);
       } finally {

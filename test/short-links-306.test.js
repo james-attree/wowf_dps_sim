@@ -30,6 +30,7 @@ import {
 import { editedName } from "../js/config-form.js";
 import { listPresets, presetRotation } from "../js/rotation-presets.js";
 import { referenceBuild } from "../js/preset-reference-builds.js";
+import { LEGACY_SWORD } from "../data/legacy-sheets.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { talentCatalogue } from "../js/talents.js";
 import { raceCatalogue } from "../js/racials.js";
@@ -55,8 +56,8 @@ function presetConfig(id) {
     talents: { ...build.talents },
     talentLevel: build.talentLevel,
     weapons: {
-      mainHand: { ...build.weapons.mainHand },
-      offHand: { ...build.weapons.offHand },
+      mainHand: { ...(build.weapons ?? LEGACY_SWORD.weapons).mainHand },
+      offHand: { ...(build.weapons ?? LEGACY_SWORD.weapons).offHand },
     },
     poisons: { ...build.poisons },
     rotation: presetRotation(id),
@@ -451,6 +452,12 @@ const LOCKED_CONTENT = {
     "d43d91675ba900ede17a30b222851989642700ada384bf70784b14aef8d6b6d9",
   "subtlety-daggers-340":
     "315547f0dcb9f1b06cab15b2288e7cd182d74d1cef80f5b64badd71ee5d7bfd3",
+  "combat-daggers-297":
+    "88f97e6bde193847ed9b30af10524f0e3240d8cc6a0ad2d047bfef02ef377a77",
+  "assassination-daggers-297":
+    "bf27c96eab5f9e5d6b99e74ec8cbc7b863831d828c23ba682c5a3f6fb1f727b6",
+  "subtlety-daggers-297":
+    "c96fb5c29db2a7088341daad4e4bcef50dd191c7323be13577b5dce38e99c890",
 };
 
 const canonical = (value) =>
@@ -532,8 +539,8 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
   it("locks the Combat daggers share-link base (#340)", () => {
     const entry = LINK_BASES.find((base) => base.id === "combat-daggers-340");
     assert.equal(entry.id, "combat-daggers-340");
-    assert.equal(entry.preset, "combat-daggers");
-    assert.equal(entry.frozen, undefined);
+    assert.ok(entry.frozen);
+    assert.equal(entry.preset, undefined);
     assert.equal(
       hash(baseContent(entry, setupDefaults().config)),
       LOCKED_CONTENT["combat-daggers-340"],
@@ -545,8 +552,8 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
       (base) => base.id === "assassination-daggers-340",
     );
     assert.equal(entry.id, "assassination-daggers-340");
-    assert.equal(entry.preset, "assassination-daggers");
-    assert.equal(entry.frozen, undefined);
+    assert.ok(entry.frozen);
+    assert.equal(entry.preset, undefined);
     assert.equal(
       hash(baseContent(entry, setupDefaults().config)),
       LOCKED_CONTENT["assassination-daggers-340"],
@@ -554,10 +561,13 @@ describe("short links: the frozen lists and bases (#306, ruling (b))", () => {
   });
 
   it("locks the Subtlety daggers share-link base (#340)", () => {
-    const entry = LINK_BASES.at(-1);
+    const entry = LINK_BASES.find((base) => base.id === "subtlety-daggers-340");
     assert.equal(entry.id, "subtlety-daggers-340");
-    assert.equal(entry.preset, "subtlety-daggers");
-    assert.equal(entry.frozen, undefined);
+    assert.ok(entry.frozen);
+    assert.equal(entry.preset, undefined);
+    const live = LINK_BASES.at(-1);
+    assert.equal(live.id, "subtlety-daggers-297");
+    assert.equal(live.preset, "subtlety-daggers");
     assert.equal(
       hash(baseContent(entry, setupDefaults().config)),
       LOCKED_CONTENT["subtlety-daggers-340"],

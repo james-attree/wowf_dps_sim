@@ -29,7 +29,8 @@ const SHOWN_CHIPS = ["Simulated", "Not simulated yet"];
 const TARGET = 44;
 const SUMMARY = "#character-stats-summary";
 const HELP = "Enter your stats without racials; the race adds them.";
-const STATS_LINE = "767 attack power · 22.45% crit · 7% hit";
+const PAGE_STATS = "608 attack power · 17.9705% crit · 8.7% hit";
+const LEGACY_STATS = "767 attack power · 22.45% crit · 7% hit";
 const CHIPS = ["Simulated", "No DPS effect", "Not simulated yet"];
 const SETTLE = k("ui.saveSetupMs") + 400;
 const RUN_TIMEOUT = 60_000;
@@ -193,9 +194,9 @@ describe("#321: the Race picker", () => {
             assert.equal(label, race.name);
             assert.equal(group, race.faction);
           }
-          assert.equal(await page.locator(RACE).inputValue(), "");
-          assert.equal(await page.locator(RACIALS).isHidden(), true);
-          assert.equal(await summary(page), STATS_LINE);
+          assert.equal(await page.locator(RACE).inputValue(), "human");
+          assert.equal(await page.locator(RACIALS).isHidden(), false);
+          assert.equal(await summary(page), `Human · ${PAGE_STATS}`);
 
           for (const race of raceCatalogue.races) {
             await page.locator(RACE).selectOption(race.id);
@@ -259,10 +260,10 @@ describe("#321: the Race picker", () => {
           more = await folded(page);
           assert.equal(more.open, false);
           await page.locator(RACE).selectOption("night-elf");
-          assert.equal(await summary(page), `Night Elf · ${STATS_LINE}`);
+          assert.equal(await summary(page), `Night Elf · ${PAGE_STATS}`);
           await page.locator(RACE).selectOption("");
           assert.equal(await page.locator(RACIALS).isHidden(), true);
-          assert.equal(await summary(page), STATS_LINE);
+          assert.equal(await summary(page), PAGE_STATS);
           assert.deepEqual(errors, []);
         } finally {
           await context.close();
@@ -301,10 +302,10 @@ describe("#321: the race is kept, cleared, and reaches the run", () => {
       await page.goto(`${base}#character/stats`);
       await pin(page, TEXT_SIZES[1]);
       assert.equal(await page.locator(RACE).inputValue(), "gnome");
-      assert.equal(await summary(page), `Gnome · ${STATS_LINE}`);
+      assert.equal(await summary(page), `Gnome · ${LEGACY_STATS}`);
       await page.locator("#cfg-reset").click();
-      assert.equal(await page.locator(RACE).inputValue(), "");
-      assert.equal(await page.locator(RACIALS).isHidden(), true);
+      assert.equal(await page.locator(RACE).inputValue(), "human");
+      assert.equal(await page.locator(RACIALS).isHidden(), false);
       await page.waitForTimeout(SETTLE);
       assert.equal(
         await build(page),
@@ -313,7 +314,7 @@ describe("#321: the race is kept, cleared, and reaches the run", () => {
       );
       await page.reload();
       await pin(page, TEXT_SIZES[1]);
-      assert.equal(await page.locator(RACE).inputValue(), "");
+      assert.equal(await page.locator(RACE).inputValue(), "human");
       assert.deepEqual(errors, []);
     } finally {
       await context.close();
