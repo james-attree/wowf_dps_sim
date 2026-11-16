@@ -1,5 +1,9 @@
 # Changelog
 
+## #403
+
+Non-text component edges that were still hard-coded `#54452b` or `#81745c` now use `--control` (`#7d6c50`), so they meet 3:1 against their backgrounds (WCAG 1.4.11). The leftover text uses (`.value-divider`, the inactive sort icon) move to `--text-muted`, which stays above 4.5:1. `--connector-unlit` stays `#54452b` for the decorative unlit talent path. coordinator call 16 Nov (James delegated).
+
 ## #297 PR7
 
 Read-only stats and named gear builds (issue #385). The typed character sheet, the weapon form and the cramped phone Stats summary are gone. Stats on Character › Stats are derived from the equipped gear. A legacy sheet (an older link or save) is read-only, with a banner and a way to start from the wowsims Forever P1 default or from an empty set.
@@ -8,7 +12,7 @@ Named builds: save, load, rename and delete. Empty or whitespace names, duplicat
 
 Race is still on Character. Changing it re-derives `config.character` so the doll and the sim stay in agreement; it does not drop `config.gear`. The out-of-date banner names only what the user changed (the race), not derived attack power or crit. coordinator call 16 Nov, James delegated 15 Nov.
 
-Gear builds need level-60 base stats: Run is blocked with "Base stats are only known for level 60." `data/constants.js` `sheet.classBase` is a single level-60 rogue row (wowsims `ClassBaseStats ClassRogue`); `deriveSheet` refuses any other level because levels 1–59 have no curve in this snapshot. Only level 60 runs a gear build, because only level-60 base stats are known. coordinator call 16 Nov, James delegated 15 Nov. A legacy sheet still runs at any level. An empty main hand still blocks Run; an empty off hand is still MH-only (coordinator call 16 Nov, James delegated, settled in PR6).
+Gear builds need level-60 base stats: Run is blocked with "Base stats are only known for level 60." `data/constants.js` `sheet.classBase` is a single level-60 rogue row (wowsims `ClassBaseStats ClassRogue`); `deriveSheet` refuses any other level because levels 1–59 have no curve in this snapshot. coordinator call 16 Nov, James delegated 15 Nov. A legacy sheet still runs at any level. An empty main hand still blocks Run; an empty off hand is still MH-only (coordinator call 16 Nov, James delegated, settled in PR6).
 
 Presets leave gear alone (no behaviour change here; #398 shipped it). coordinator call 16 Nov, James delegated 15 Nov. James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
 

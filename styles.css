@@ -218,7 +218,7 @@ h3 {
 }
 
 .live-indicator.is-paused {
-  border-color: #54452b;
+  border-color: var(--control);
   background: #292114;
   color: var(--accent);
 }
@@ -1024,7 +1024,7 @@ h3 {
 
 .value-divider {
   padding: 0 2px;
-  color: #81745c;
+  color: var(--text-muted);
 }
 
 .combo-meter {
@@ -2228,7 +2228,7 @@ a.pill-button {
   display: inline-block;
   margin-top: 6px;
   padding: 3px 10px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
   border-radius: 999px;
   background: #292114;
   color: var(--accent);
@@ -2258,7 +2258,7 @@ a.pill-button {
   align-items: center;
   gap: 8px;
   padding: 3px 4px 3px 12px;
-  border: 1px solid #54452b;
+  border: 1px solid var(--control);
   border-radius: 999px;
   background: #2a2419;
   color: #e7ddc9;
@@ -2841,7 +2841,7 @@ a.pill-button {
   width: 100%;
   height: 12px;
   appearance: none;
-  border: 1px solid #81745c;
+  border: 1px solid var(--control);
   border-radius: 999px;
   background: #120f0b;
   overflow: hidden;
@@ -2981,7 +2981,7 @@ a.pill-button {
 }
 th[aria-sort="none"] .sort-icon::after {
   content: "↕";
-  color: #81745c;
+  color: var(--text-muted);
 }
 th[aria-sort="descending"] .sort-icon::after {
   content: "▼";
@@ -3202,7 +3202,7 @@ th[aria-sort="ascending"] {
   display: inline-block;
   margin-bottom: 6px;
   padding: 2px 8px;
-  border: 1px solid #81745c;
+  border: 1px solid var(--control);
   border-radius: 999px;
   color: #f3eee2;
   background: #15120e;
