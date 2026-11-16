@@ -33,7 +33,7 @@ const ROUTES = [
   "#fight",
   "#results",
 ];
-const FAVICON_GOLD = "#e7bd55";
+const FAVICON_GOLD = "#e8c547";
 const CONNECTOR_UNLIT = "rgb(84, 69, 43)";
 
 let server;
@@ -312,7 +312,7 @@ describe("restyle C #395 part a leftovers", () => {
     }
   });
 
-  test("the favicon gold is #e7bd55", async () => {
+  test("the favicon gold is #e8c547", async () => {
     const svg = await readFile(new URL("../img/favicon.svg", import.meta.url), {
       encoding: "utf8",
     });
@@ -324,7 +324,7 @@ describe("restyle C #395 part a leftovers", () => {
       2,
       svg,
     );
-    assert.equal(svg.includes("#e8c547"), false, "favicon uses token gold");
+    assert.equal(svg.includes("#e7bd55"), false, "favicon uses the old gold");
   });
 
   test("the checked run-mode pill has a --trim border", async () => {
