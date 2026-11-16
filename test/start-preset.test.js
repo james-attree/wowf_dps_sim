@@ -212,8 +212,8 @@ describe("a pick and its Undo (#323)", () => {
     assert.deepEqual(config.poisons, reference.poisons);
     assert.equal(form.rotationChoice, COMBAT);
     assert.deepEqual(config.rotation, presetRotation(COMBAT));
-    // James, 15 Nov 2026, issue #297, requirement 5: the pick leaves the
-    // sheet. This supersedes James, 10 Nov 2026, #340.
+    // James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
+    // The pick leaves the sheet.
     assert.deepEqual(config.character, before.character);
     assert.equal(config.race, before.race);
     assert.deepEqual(config.fight, before.fight);

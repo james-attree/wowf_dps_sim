@@ -424,8 +424,9 @@ export function baseContent(entry, defaultsConfig) {
     talentLevel: build.talentLevel,
     poisons: build.poisons,
   };
-  // A preset no longer carries weapons (James, 15 Nov 2026, #297). The
-  // base then keeps the page's weapons, which a link diffs against.
+  // James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
+  // A preset no longer carries weapons. The base then keeps the page's
+  // weapons, which a link diffs against.
   if (build.weapons) picked.weapons = build.weapons;
   return clone({ ...own, ...picked, rotation: presetRotation(entry.preset) });
 }

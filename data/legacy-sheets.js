@@ -1,11 +1,11 @@
 import { k } from "./constants.js";
 
 // The weapons and character sheet the preset goldens ran with before presets
-// stopped setting either (James, 15 Nov 2026, issue #297, requirement 5).
+// stopped setting either.
+// James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
 // Every number is a k() id, so this file does not retype a value.
-// James, 10 Nov 2026, issue #340 (the dagger sheet and the unnamed off hand)
-// is superseded by that 15 Nov requirement. The rows stay so these goldens
-// and an old link still resolve to the same engine input.
+// The rows stay so these goldens and an old link still resolve to the same
+// engine input.
 
 function hand(id) {
   const { min, max, speed, type } = k(id);

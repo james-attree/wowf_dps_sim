@@ -41,13 +41,14 @@ Group 2, old → new:
 - `live-view.test.js`: the stub document accepts a text node in `append`. No expected string changed.
 
 `preset-build.test.js` asserts that applying each preset leaves the weapons
-and the character sheet unchanged (James, 15 Nov 2026, issue #297,
-requirement 5, which supersedes James, 10 Nov 2026, issue #340).
+and the character sheet unchanged. James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
 
 Browser expectations that moved with the same default:
 
 - `character-screens.browser.mjs`: talents chip `Combat 16/35/0 · 51/51` → `Combat 13/35/3 · 51/51`.
-- `share-link.browser.mjs`: the preset link's talents are Combat daggers, not Combat swords. A rotation edit of the page default encodes to 75 characters past the origin, was 64 when the page was the codec baseline.
+- `share-link.browser.mjs`: the preset link's talents are Combat daggers, not Combat swords. The encoded length of the first-load deleted-rule share link, measured past the origin, is 75. It was 64 when the page was the codec baseline. `PRESET_LINK_MAX` is still 64.
 - `saved-setup.browser.mjs`: Reset and a storage failure that reloads the page show the new sheet (608 attack power, 0.179705 crit, 0.087 hit, human) without the baked expertise 11 and without per-hand weapon skill 300. The version 2 link does not carry those fields; the version 1 save does. A broken save still opens the legacy sheet.
 - `haste-field.browser.mjs`: the one-line check stays at 360 and 390. The stats summary uses the full row and 0.65rem below 64em so the no-haste line fits.
 - `manual-fight.browser.mjs`: Cold Blood's key is `9` → `8`. Mutilate is not on the board when the off hand is an axe.
+
+Lowering the talent level now blanks a per-hand weapon skill above the new level's cap (coordinator call 16 Nov, James delegated 15 Nov).

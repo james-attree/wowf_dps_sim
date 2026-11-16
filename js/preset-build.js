@@ -60,8 +60,8 @@ const NBSP = "\u00a0";
 const WEAPON_FIELDS = ["type", "min", "max", "speed"];
 
 // The parts of a build the button replaces, in the order they are named.
-// James, 15 Nov 2026, issue #297, requirement 5: a preset sets talents and
-// poisons (and the rotation). It does not set weapons or the sheet.
+// James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
+// A preset sets talents and poisons (and the rotation). It does not set weapons or the sheet.
 export const BUILD_PARTS = ["talents", "poisons"];
 
 // A weapon type as the hint names it: "dagger", "two daggers".
@@ -282,8 +282,8 @@ export function buildValues(build) {
   for (const hand of HANDS) {
     values[`poisons.${hand}`] = referencePoison(build, hand);
   }
-  // Weapons and the sheet stay as the player left them. James, 15 Nov 2026,
-  // issue #297, requirement 5, supersedes James, 10 Nov 2026, issue #340.
+  // Weapons and the sheet stay as the player left them.
+  // James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
   if (build.weapons) {
     for (const hand of HANDS) {
       const weapon = referenceWeapon(build, hand);

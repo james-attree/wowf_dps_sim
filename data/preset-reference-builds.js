@@ -18,10 +18,9 @@ function deepFreeze(value) {
   return value;
 }
 
-// James, 15 Nov 2026, issue #297, requirement 5: presets set talents, poisons
-// and the rotation, not weapons or the character sheet. That supersedes
-// James, 10 Nov 2026, issue #340 (the dagger sheet and the unnamed off hand).
-// Those values are frozen in data/legacy-sheets.js for the goldens.
+// James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
+// Presets set talents, poisons and the rotation, not weapons or the character
+// sheet. Those values are frozen in data/legacy-sheets.js for the goldens.
 
 // Glyphs and the query string are ignored by decodeBuildLink.
 const COMBAT_DAGGERS_LINK =
@@ -58,9 +57,9 @@ export const PRESET_REFERENCE_BUILDS = deepFreeze({
     talentLevel: LEVEL_60,
     talents: talentsFromLink(COMBAT_DAGGERS_LINK),
     // James 11 Nov 2026: Instant on the main hand, Deadly on the off hand.
-    // Weapons and the character sheet are not part of the preset (James,
-    // 15 Nov 2026, issue #297, requirement 5). That supersedes the 10 Nov
-    // dagger-sheet ruling. The old numbers live in data/legacy-sheets.js.
+    // Weapons and the character sheet are not part of the preset.
+    // James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
+    // The old numbers live in data/legacy-sheets.js.
     poisons: poisonsOf("combat-daggers"),
   },
   "assassination-daggers": {

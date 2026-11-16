@@ -152,8 +152,8 @@ export function checkReferenceBuild(presetId, build) {
     }
   }
   problems.push(...poisonProblems(presetId, build.poisons));
-  // James, 15 Nov 2026, issue #297, requirement 5: a preset does not carry
-  // weapons. An entry that still has them (a fixture) is still checked.
+  // James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
+  // A preset does not carry weapons. An entry that still has them (a fixture) is still checked.
   if (build.weapons !== undefined) {
     if (!isObject(build.weapons)) {
       problems.push("weapons is not an object.");

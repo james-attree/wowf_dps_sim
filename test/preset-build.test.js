@@ -516,9 +516,7 @@ const SEED = 1;
 const FIGHT_SECONDS = 120;
 
 describe("a preset leaves weapons and the sheet (#297)", () => {
-  // James, 15 Nov 2026, issue #297, requirement 5. This supersedes
-  // James, 10 Nov 2026, issue #340, which put a sword or dagger sheet on
-  // the preset.
+  // James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
   for (const id of [
     "combat-swords-temp",
     "combat-daggers",

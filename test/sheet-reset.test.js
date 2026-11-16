@@ -1,6 +1,5 @@
-// James, 15 Nov 2026, issue #297, requirement 5: a preset does not set the
-// character sheet. This supersedes James, 10 Nov 2026, issue #340, which
-// put the sword sheet back when a non-dagger preset was picked.
+// James 15 Nov 2026, to the coordinator: 'Remove the link between weapons and talent/rotation choices.' (supersedes the 10 Nov #340 preset-sets-weapons rulings)
+// A preset does not set the character sheet.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
