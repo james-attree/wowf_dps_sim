@@ -445,7 +445,8 @@ export function createRunActions({
       if (locked()) {
         return null;
       }
-      const { mode, duration, iterations, seed, fields, errors } = run();
+      const { mode, fightMode, duration, iterations, seed, fields, errors } =
+        run();
       const next = {
         duration: k("batch.duration"),
         iterations: k("fight.iterations"),
@@ -463,7 +464,7 @@ export function createRunActions({
         },
         errors: {},
       });
-      return { mode, duration, iterations, seed, fields, errors };
+      return { mode, fightMode, duration, iterations, seed, fields, errors };
     },
     // Undo after Reset to defaults: put back what resetSettings returned.
     // False (nothing changes) while a run is on or with nothing to restore.
@@ -471,9 +472,11 @@ export function createRunActions({
       if (locked() || before === null || before === undefined) {
         return false;
       }
-      const { mode, duration, iterations, seed, fields, errors } = before;
+      const { mode, fightMode, duration, iterations, seed, fields, errors } =
+        before;
       setRun({
         mode,
+        fightMode,
         state: mode === "batch" ? store.get().batch.status : live.state,
         duration,
         iterations,
