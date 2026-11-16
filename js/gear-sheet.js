@@ -16,6 +16,43 @@ export function expertiseRating(fraction) {
 // The engine sheet for a gear build. Race and level stay on the character
 // (coordinator call 15 Nov (James delegated), Q5). Throws when the build
 // does not check out: an unknown item, an illegal slot, a bad enchant.
+const SHEET_KEYS = [
+  "attackPower",
+  "critChance",
+  "bonusHitChance",
+  "haste",
+  "expertise",
+];
+const WEAPON_KEYS = ["min", "max", "speed", "type"];
+
+// True when the combat stats and the weapon damage still come from `gear`.
+// Per-hand weapon skill and the character's weapon skill are not part of
+// that check: they can sit on a gear-derived sheet.
+export function sheetIsDerived(config) {
+  if (config?.gear == null) return false;
+  let derived;
+  try {
+    derived = sheetFromGear(config.gear, { race: config.race });
+  } catch {
+    return false;
+  }
+  for (const key of SHEET_KEYS) {
+    if (config.character?.[key] !== derived.character[key]) return false;
+  }
+  for (const hand of ["mainHand", "offHand"]) {
+    const now = config.weapons?.[hand] ?? null;
+    const was = derived.weapons[hand];
+    if (now == null || was == null) {
+      if (now !== was) return false;
+      continue;
+    }
+    for (const key of WEAPON_KEYS) {
+      if (now[key] !== was[key]) return false;
+    }
+  }
+  return true;
+}
+
 export function sheetFromGear(gear, { race = "human" } = {}) {
   const derived = deriveSheet(
     gear,

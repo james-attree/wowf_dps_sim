@@ -23,6 +23,33 @@ import { GEAR_SLOTS } from "./gear-build.js";
 import { defaultConfig, normalizeConfig } from "./sim-config.js";
 import { formErrorCount } from "./views/run-model.js";
 
+const GEAR_SHEET_KEYS = [
+  "attackPower",
+  "critChance",
+  "bonusHitChance",
+  "haste",
+  "expertise",
+];
+const GEAR_WEAPON_KEYS = ["min", "max", "speed", "type"];
+
+function gearFieldsEdited(next, base) {
+  for (const key of GEAR_SHEET_KEYS) {
+    if (next.character?.[key] !== base.character?.[key]) return true;
+  }
+  for (const hand of ["mainHand", "offHand"]) {
+    const left = next.weapons?.[hand] ?? null;
+    const right = base.weapons?.[hand] ?? null;
+    if (left == null || right == null) {
+      if (left !== right) return true;
+      continue;
+    }
+    for (const key of GEAR_WEAPON_KEYS) {
+      if (left[key] !== right[key]) return true;
+    }
+  }
+  return false;
+}
+
 // The stats form's model (Phase 3, #151, roadmap task U2): everything the
 // "Fight setup" form does except drawing it. No DOM, no clock, so it runs and
 // is tested in Node like the engine. js/main.js makes one with the page's store
@@ -650,6 +677,12 @@ export function configFromForm(form, base) {
     write(config, path, form.values[path]);
   }
   config.rotation = rotationOf(form.rotationChoice, form.imported, form.drafts);
+  // Typing the sheet or a weapon's damage leaves the gear list. A race
+  // change, weapon skill, and target level do not.
+  // coordinator call 16 Nov (James delegated 15 Nov).
+  if (config.gear != null && gearFieldsEdited(config, base)) {
+    delete config.gear;
+  }
   return normalizeConfig(fromBehind(config));
 }
 

@@ -9,7 +9,10 @@ import {
   isLegacySheet,
 } from "../js/build-codec.js";
 import { GEAR_SLOTS } from "../js/gear-build.js";
+import { configFromForm, formFromConfig } from "../js/config-form.js";
+import { GEAR_MARKER_P1_BSCOMBAT_92E67A7A } from "../data/gear-marker.js";
 import { runFight } from "../js/fight.js";
+import { createHash } from "node:crypto";
 
 const before = JSON.parse(
   readFileSync(
@@ -18,8 +21,10 @@ const before = JSON.parse(
   ),
 );
 
-const P1_LINK_LENGTH = 133;
-const P1_LINK_CEILING = 160;
+const P1_LINK_LENGTH = 9;
+const P1_LINK_CEILING = 24;
+const MARKER_SLOTS_HASH =
+  "987cf6bb4457587c0375fc1e693f64e360978633d337cec7fb92f011cdb72312";
 
 describe("old links and saves stay byte-identical (#383)", () => {
   for (const text of Object.keys(before)) {
@@ -33,6 +38,89 @@ describe("old links and saves stay byte-identical (#383)", () => {
         assert.equal(isLegacySheet(read.setup.config), true);
     });
   }
+});
+
+describe("the frozen P1 gear marker (#383)", () => {
+  it("locks the exact p1_bscombat slots", () => {
+    const canonical = JSON.stringify(
+      GEAR_MARKER_P1_BSCOMBAT_92E67A7A.slots,
+      (key, value) =>
+        value !== null && typeof value === "object" && !Array.isArray(value)
+          ? Object.fromEntries(
+              Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)),
+            )
+          : value,
+    );
+    assert.equal(
+      createHash("sha256").update(canonical).digest("hex"),
+      MARKER_SLOTS_HASH,
+    );
+    assert.equal(
+      GEAR_MARKER_P1_BSCOMBAT_92E67A7A.commit,
+      "92e67a7ae61f984e8a1fc006ebdeb012f31ac7d1",
+    );
+  });
+
+  it("an empty slot mask round-trips to that frozen list", () => {
+    const page = freshPageSetup();
+    const read = decodeSetup(encodeLink(page));
+    assert.equal(read.status, "ok");
+    assert.deepEqual(
+      read.setup.config.gear.slots,
+      GEAR_MARKER_P1_BSCOMBAT_92E67A7A.slots,
+    );
+    assert.equal(encodeLink(page), "2.DYEgBQA");
+  });
+});
+
+describe("typing the sheet leaves gear (#383)", () => {
+  it("a typed attack power drops gear and matches a sheet link", () => {
+    const page = freshPageSetup();
+    const form = formFromConfig(page.config);
+    form.values["character.attackPower"] = 900;
+    const next = configFromForm(form, page.config);
+    assert.equal(next.gear, undefined);
+    assert.equal(next.character.attackPower, 900);
+    const text = encodeLink({ ...page, config: next });
+    assert.equal(text, encodeLink({ ...page, config: { ...next } }));
+    const bare = structuredClone(next);
+    assert.equal(encodeLink({ ...page, config: bare }), text);
+    assert.equal(decodeSetup(text).setup.config.gear, undefined);
+    assert.equal(decodeSetup(text).setup.config.character.attackPower, 900);
+  });
+
+  it("a typed weapon speed drops gear the same way", () => {
+    const page = freshPageSetup();
+    const form = formFromConfig(page.config);
+    form.values["weapons.mainHand.speed"] = 1.9;
+    const next = configFromForm(form, page.config);
+    assert.equal(next.gear, undefined);
+    assert.equal(next.weapons.mainHand.speed, 1.9);
+    const text = encodeLink({ ...page, config: next });
+    assert.equal(decodeSetup(text).setup.config.weapons.mainHand.speed, 1.9);
+    assert.equal(decodeSetup(text).setup.config.gear, undefined);
+  });
+
+  it("weapon skill and target level survive beside gear, link and save", () => {
+    const page = freshPageSetup();
+    const form = formFromConfig(page.config);
+    form.values["character.weaponSkill"] = 305;
+    form.values["target.level"] = 63;
+    const next = configFromForm(form, page.config);
+    next.weapons.mainHand = { ...next.weapons.mainHand, weaponSkill: 310 };
+    assert.ok(next.gear);
+    for (const text of [
+      encodeLink({ ...page, config: next }),
+      encodeSetup({ ...page, config: next }),
+    ]) {
+      const read = decodeSetup(text);
+      assert.equal(read.status, "ok");
+      assert.equal(read.setup.config.character.weaponSkill, 305);
+      assert.equal(read.setup.config.weapons.mainHand.weaponSkill, 310);
+      assert.equal(read.setup.config.target.level, 63);
+      assert.deepEqual(read.setup.config.gear.slots, next.gear.slots);
+    }
+  });
 });
 
 describe("gear on the share link (#383)", () => {

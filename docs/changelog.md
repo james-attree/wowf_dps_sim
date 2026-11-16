@@ -8,6 +8,10 @@ A share link can carry gear. The part is appended: a slot mask, then each worn i
 
 `combat-swords-temp-337` stays live so the legacy sword link stays `2.BgA`. The `-297` dagger bases are frozen. New links use the no-weapon `-383` bases.
 
+An empty gear slot mask is `GEAR_MARKER_P1_BSCOMBAT_92E67A7A`, the frozen `p1_bscombat` list at wowsims commit `92e67a7ae61f984e8a1fc006ebdeb012f31ac7d1`, not the current page default (coordinator call 16 Nov, James delegated 15 Nov). Typing the sheet or a weapon's damage drops gear and the link carries character and weapons again. Weapon skill and target level stay beside gear. The first-load link is 9 characters (`2.DYEgBQA`), was 133.
+
+Browser short-link lengths, characters after the address (old → new): a preset with the main-hand speed edited 64 → 57; a deleted rotation rule 75 → 37.
+
 Share-link lock expectations (old → new), coordinator call 16 Nov (James delegated 15 Nov), in `test/short-links-306.test.js` only:
 
 - A preset rotation on the default build was `length <= 8` for every preset. Combat swords stays `2.BgA` (5). Combat daggers is `2.BpABA6gDYKMCDg` (16, ceiling 24). Assassination daggers is `2.DgT_AcgB9gKIBAK0AdAC9AMC` (26). Subtlety daggers is `2.DwT_AcgB9gKIBAK0AdAC9AMC` (26).

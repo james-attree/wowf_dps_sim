@@ -2799,6 +2799,14 @@ export const CONSTANTS = {
     "js/simulation.js. character.expertise is rating. Omitted or 0 adds nothing, so a fight from before this field is unchanged. Not measured.",
     false,
   ),
+  "gear.marker.p1Bscombat": entry(
+    "GEAR_MARKER_P1_BSCOMBAT_92E67A7A",
+    "–",
+    ASSUMPTION,
+    "Developer, 16 Nov 2026, issue #383: an empty gear-part slot mask means the frozen wowsims Forever Backstab Combat list p1_bscombat at 92e67a7ae61f984e8a1fc006ebdeb012f31ac7d1 (data/gear/p1-bscombat.gear.json). coordinator call 16 Nov (James delegated 15 Nov). It does not mean the current page default",
+    "data/gear-marker.js GEAR_MARKER_P1_BSCOMBAT_92E67A7A. js/link-codec.js writes that mask only when the worn slots equal this list. Not a game number.",
+    false,
+  ),
   "gear.schema": entry(
     1,
     "–",

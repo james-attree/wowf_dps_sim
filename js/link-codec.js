@@ -20,7 +20,8 @@ import {
   SUBTLETY_DAGGERS_297_FROZEN,
 } from "../data/link-bases-pr5-frozen.js";
 import { GEAR_SLOTS } from "./gear-build.js";
-import { sheetFromGear } from "./gear-sheet.js";
+import { sheetFromGear, sheetIsDerived } from "./gear-sheet.js";
+import { GEAR_MARKER_P1_BSCOMBAT_92E67A7A } from "../data/gear-marker.js";
 
 // The short share link's body (#306): version 2 of the build codec's text,
 // "2.<base64url bytes>". js/build-codec.js owns the text, the checks and the
@@ -580,11 +581,32 @@ function writeBody(setup, defaults, index, bases) {
   const { config, run } = setup;
   const base = bases[index];
   const page = defaults.config;
-  const hasGear = config.gear != null;
+  let gearThrows = false;
+  if (config.gear != null) {
+    try {
+      sheetFromGear(config.gear, { race: config.race });
+    } catch {
+      gearThrows = true;
+    }
+  }
+  const derived = config.gear != null && sheetIsDerived(config);
+  const hasGear = derived || gearThrows;
+  const skillSheet = derived
+    ? sheetFromGear(config.gear, { race: config.race })
+    : null;
+  const skillChanged =
+    derived &&
+    HANDS.some((hand) => {
+      const now = config.weapons?.[hand]?.weaponSkill;
+      const was = skillSheet.weapons?.[hand]?.weaponSkill;
+      return now !== was;
+    });
   const changed = {
     race: config.race !== page.race,
-    character: !hasGear && !same(config.character, page.character),
-    weapons: !hasGear && !same(config.weapons, base.weapons),
+    character:
+      (!hasGear && !same(config.character, page.character)) ||
+      (hasGear && config.character.weaponSkill !== page.character.weaponSkill),
+    weapons: skillChanged || (!hasGear && !same(config.weapons, base.weapons)),
     gear: hasGear,
     target:
       config.target.level !== page.target.level ||
@@ -605,9 +627,10 @@ function writeBody(setup, defaults, index, bases) {
   );
   if (changed.race) w.uint(indexIn(LINK_RACES, config.race, "race"));
   if (changed.character) {
-    const fields = CHARACTER_FIELDS.filter(
-      ([name]) => config.character[name] !== page.character[name],
-    );
+    const fields = CHARACTER_FIELDS.filter(([name]) => {
+      if (hasGear && name !== "weaponSkill") return false;
+      return config.character[name] !== page.character[name];
+    });
     w.uint(
       CHARACTER_FIELDS.reduce(
         (m, field, i) => m + (fields.includes(field) ? C.radix ** i : 0),
@@ -624,20 +647,28 @@ function writeBody(setup, defaults, index, bases) {
     const writes = [];
     HANDS.forEach((hand, h) => {
       const now = config.weapons?.[hand];
-      const was = base.weapons?.[hand] ?? {};
-      if (now == null) {
-        throw new RangeError(`No link code for an empty ${hand}.`);
+      if (!hasGear) {
+        const was = base.weapons?.[hand] ?? {};
+        if (now == null) {
+          throw new RangeError(`No link code for an empty ${hand}.`);
+        }
+        WEAPON_FIELDS.forEach(([name, scale], f) => {
+          if (now[name] === was[name]) return;
+          mask += C.radix ** (h * C.handBits + f);
+          writes.push(() => w.num(now[name], scale));
+        });
+        if (now.type !== was.type) {
+          mask += C.radix ** (h * C.handBits + C.typeBit);
+          writes.push(() =>
+            w.uint(indexIn(LINK_WEAPON_TYPES, now.type, "weapon type")),
+          );
+        }
       }
-      WEAPON_FIELDS.forEach(([name, scale], f) => {
-        if (now[name] === was[name]) return;
-        mask += C.radix ** (h * C.handBits + f);
-        writes.push(() => w.num(now[name], scale));
-      });
-      if (now.type !== was.type) {
-        mask += C.radix ** (h * C.handBits + C.typeBit);
-        writes.push(() =>
-          w.uint(indexIn(LINK_WEAPON_TYPES, now.type, "weapon type")),
-        );
+      const skill = now?.weaponSkill;
+      const derivedSkill = skillSheet?.weapons?.[hand]?.weaponSkill;
+      if (derived && skill !== derivedSkill) {
+        mask += C.radix ** (SKILL_BIT + h);
+        writes.push(() => w.optional(skill, 1));
       }
     });
     w.uint(mask);
@@ -688,8 +719,30 @@ function writeBody(setup, defaults, index, bases) {
   return w.bytes;
 }
 
+function sameSlot(left, right) {
+  if (left == null || right == null) return left == null && right == null;
+  return (
+    left.item === right.item &&
+    (left.enchant ?? null) === (right.enchant ?? null) &&
+    (left.suffix ?? null) === (right.suffix ?? null)
+  );
+}
+
+function isMarker(slots) {
+  const frozen = GEAR_MARKER_P1_BSCOMBAT_92E67A7A.slots;
+  return GEAR_SLOTS.every((slot) => sameSlot(slots?.[slot], frozen[slot]));
+}
+
+// Per-hand weapon skill sits after the existing 8 weapon bits, so an old
+// weapons mask is unchanged. Written only beside gear.
+const SKILL_BIT = HANDS.length * C.handBits;
+
 function writeGear(w, gear) {
   const slots = gear.slots ?? {};
+  if (isMarker(slots)) {
+    w.uint(0);
+    return;
+  }
   let mask = 0;
   const rows = [];
   GEAR_SLOTS.forEach((slot, i) => {
@@ -771,19 +824,22 @@ function readBody(r, defaults) {
       config.character[name] = nullable ? r.optional(scale) : r.num(scale);
     });
   }
+  const handSkills = {};
   if (has("weapons")) {
     if (config.weapons == null) {
       config.weapons = { mainHand: {}, offHand: {} };
     }
-    const fields = r.mask(HANDS.length * C.handBits);
+    const weaponFields = r.mask(SKILL_BIT + HANDS.length);
     HANDS.forEach((hand, h) => {
+      if (config.weapons[hand] == null) config.weapons[hand] = {};
       WEAPON_FIELDS.forEach(([name, scale], f) => {
-        if (bit(fields, h * C.handBits + f))
+        if (bit(weaponFields, h * C.handBits + f))
           config.weapons[hand][name] = r.num(scale);
       });
-      if (bit(fields, h * C.handBits + C.typeBit)) {
+      if (bit(weaponFields, h * C.handBits + C.typeBit)) {
         config.weapons[hand].type = r.pick(LINK_WEAPON_TYPES);
       }
+      if (bit(weaponFields, SKILL_BIT + h)) handSkills[hand] = r.optional(1);
     });
   }
   if (has("target")) {
@@ -815,16 +871,22 @@ function readBody(r, defaults) {
   if (has("iterations")) run.iterations = r.num(1);
   if (has("seed")) run.seed = r.optional(1);
   if (has("gear")) {
-    if (has("character") || has("weapons")) throw new LinkError("corrupt");
     config.gear = readGear(r);
     try {
       const sheet = sheetFromGear(config.gear, { race: config.race });
+      const weaponSkill = config.character.weaponSkill;
       config.character = {
         ...config.character,
         ...sheet.character,
       };
+      if (weaponSkill !== undefined) config.character.weaponSkill = weaponSkill;
       config.weapons = sheet.weapons;
-    } catch {
+      for (const [hand, skill] of Object.entries(handSkills)) {
+        if (config.weapons[hand] == null) throw new LinkError("corrupt");
+        config.weapons[hand] = { ...config.weapons[hand], weaponSkill: skill };
+      }
+    } catch (error) {
+      if (error instanceof LinkError) throw error;
       throw new LinkError("corrupt");
     }
   }
@@ -834,6 +896,11 @@ function readBody(r, defaults) {
 
 function readGear(r) {
   const mask = r.mask(GEAR_SLOTS.length);
+  if (mask === 0) {
+    return {
+      slots: JSON.parse(JSON.stringify(GEAR_MARKER_P1_BSCOMBAT_92E67A7A.slots)),
+    };
+  }
   const slots = {};
   GEAR_SLOTS.forEach((slot, i) => {
     if (!bit(mask, i)) return;
