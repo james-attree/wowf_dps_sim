@@ -94,7 +94,9 @@ export function changedNames(before, after) {
   const gearDropped = before?.gear != null && after?.gear == null;
   const gearOnly =
     gearDropped &&
-    [...keys].every((key) => key === "gear" || same(before?.[key], after?.[key]));
+    [...keys].every(
+      (key) => key === "gear" || same(before?.[key], after?.[key]),
+    );
   for (const key of keys) {
     if (key === "gear" && gearDropped && !gearOnly) {
       continue;
