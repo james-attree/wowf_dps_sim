@@ -123,48 +123,41 @@ const savedWith = (payload) => ({
 
 describe("#326 item 1: a touch Fix shows its field above the dock", () => {
   for (const text of TEXT_SIZES) {
-    for (const [field, area, value] of [
-      [SKILL, "#character/stats", "351"],
-      [TARGET, "#fight", "64"],
-    ]) {
-      const run = field === SKILL ? test.skip : test;
-      run(
-        `${field} at 320 wide, ${text} text${field === SKILL ? " (skipped: the typed weapon skill field is gone)" : ""}`,
-        async () => {
-          const session = await open(320, text, area, {
-            context: { hasTouch: true, isMobile: true },
-          });
-          const { page } = session;
-          await enter(page, field, value);
-          await go(page, "#character/stats");
-          await page.locator("#run-errors-link").tap();
-          await page.waitForFunction(
-            (id) => document.activeElement?.id === id,
-            field.slice(1),
-          );
-          await page.waitForTimeout(500);
-          const box = await page.evaluate((id) => {
-            const error = document.getElementById(`${id}-error`);
-            const strip = document
-              .getElementById("run-bar")
-              .getBoundingClientRect();
-            const nav = document
-              .getElementById("area-nav")
-              .getBoundingClientRect();
-            return {
-              bottom: error.getBoundingClientRect().bottom,
-              dock: Math.min(strip.top, nav.top),
-              top: error.getBoundingClientRect().top,
-            };
-          }, field.slice(1));
-          assert.ok(box.top >= -EDGE, `error starts on screen: ${box.top}`);
-          assert.ok(
-            box.bottom <= box.dock + EDGE,
-            `error ${box.bottom} over the dock at ${box.dock}`,
-          );
-          await done(session);
-        },
-      );
+    for (const [field, area, value] of [[TARGET, "#fight", "64"]]) {
+      test(`${field} at 320 wide, ${text} text`, async () => {
+        const session = await open(320, text, area, {
+          context: { hasTouch: true, isMobile: true },
+        });
+        const { page } = session;
+        await enter(page, field, value);
+        await go(page, "#character/stats");
+        await page.locator("#run-errors-link").tap();
+        await page.waitForFunction(
+          (id) => document.activeElement?.id === id,
+          field.slice(1),
+        );
+        await page.waitForTimeout(500);
+        const box = await page.evaluate((id) => {
+          const error = document.getElementById(`${id}-error`);
+          const strip = document
+            .getElementById("run-bar")
+            .getBoundingClientRect();
+          const nav = document
+            .getElementById("area-nav")
+            .getBoundingClientRect();
+          return {
+            bottom: error.getBoundingClientRect().bottom,
+            dock: Math.min(strip.top, nav.top),
+            top: error.getBoundingClientRect().top,
+          };
+        }, field.slice(1));
+        assert.ok(box.top >= -EDGE, `error starts on screen: ${box.top}`);
+        assert.ok(
+          box.bottom <= box.dock + EDGE,
+          `error ${box.bottom} over the dock at ${box.dock}`,
+        );
+        await done(session);
+      });
     }
   }
 });
