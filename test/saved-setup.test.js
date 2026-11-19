@@ -1146,4 +1146,52 @@ describe("#320 N8 (assumption A8): an Undo during a run puts the run settings ba
     setState(store, "idle");
     assert.equal(store.get().run.duration, 300);
   });
+
+  it("a soft-reset on load writes the repaired save once", () => {
+    const damaged = `${SETUP_VERSION}.${Buffer.from(
+      JSON.stringify({
+        era: SETUP_ERA,
+        config: { target: { level: 62, armor: -1 } },
+      }),
+    ).toString("base64url")}`;
+    const initial = resolveInitialSetup({ saved: damaged });
+    assert.deepEqual(initial.reset, ["target.armor"]);
+    const store = pageStore(initial.setup);
+    const storage = memoryStorage({ [SAVED_SETUP_KEY]: damaged });
+    const saved = mountSavedSetup(null, store, {
+      initial,
+      storage,
+      timers: fakeTimers(),
+    });
+    const written = savedOf(storage);
+    assert.notEqual(written, damaged);
+    const back = decodeSetup(written, { strict: false });
+    assert.equal(back.reset, undefined);
+    assert.equal(back.setup.config.target.level, 62);
+    assert.equal(
+      back.setup.config.target.armor,
+      initial.setup.config.target.armor,
+    );
+    saved.stop();
+  });
+
+  it("a soft-reset that also carries an unknown field is not rewritten", () => {
+    const damaged = `${SETUP_VERSION}.${Buffer.from(
+      JSON.stringify({
+        era: SETUP_ERA,
+        config: { target: { armor: -1 }, futureThing: 1 },
+      }),
+    ).toString("base64url")}`;
+    const initial = resolveInitialSetup({ saved: damaged });
+    assert.equal(initial.unknown, true);
+    const storage = memoryStorage({ [SAVED_SETUP_KEY]: damaged });
+    const saved = mountSavedSetup(null, pageStore(initial.setup), {
+      initial,
+      storage,
+      timers: fakeTimers(),
+    });
+    assert.equal(savedOf(storage), damaged);
+    assert.equal(storage.writes, 0);
+    saved.stop();
+  });
 });

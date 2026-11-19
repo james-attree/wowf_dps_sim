@@ -127,35 +127,44 @@ describe("#326 item 1: a touch Fix shows its field above the dock", () => {
       [SKILL, "#character/stats", "351"],
       [TARGET, "#fight", "64"],
     ]) {
-      test.skip(`${field} at 320 wide, ${text} text (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)`, async () => {
-        const session = await open(320, text, area, {
-          context: { hasTouch: true, isMobile: true },
-        });
-        const { page } = session;
-        await enter(page, field, value);
-        await go(page, "#character/stats");
-        await page.locator("#run-errors-link").tap();
-        await page.waitForFunction(
-          (id) => document.activeElement?.id === id,
-          field.slice(1),
-        );
-        await page.waitForTimeout(500);
-        const box = await page.evaluate((id) => {
-          const error = document.getElementById(`${id}-error`);
-          const dock = document.getElementById("run-bar");
-          return {
-            bottom: error.getBoundingClientRect().bottom,
-            dock: dock.getBoundingClientRect().top,
-            top: error.getBoundingClientRect().top,
-          };
-        }, field.slice(1));
-        assert.ok(box.top >= -EDGE, `error starts on screen: ${box.top}`);
-        assert.ok(
-          box.bottom <= box.dock + EDGE,
-          `error ${box.bottom} over the dock at ${box.dock}`,
-        );
-        await done(session);
-      });
+      const run = field === SKILL ? test.skip : test;
+      run(
+        `${field} at 320 wide, ${text} text${field === SKILL ? " (skipped: the typed weapon skill field is gone)" : ""}`,
+        async () => {
+          const session = await open(320, text, area, {
+            context: { hasTouch: true, isMobile: true },
+          });
+          const { page } = session;
+          await enter(page, field, value);
+          await go(page, "#character/stats");
+          await page.locator("#run-errors-link").tap();
+          await page.waitForFunction(
+            (id) => document.activeElement?.id === id,
+            field.slice(1),
+          );
+          await page.waitForTimeout(500);
+          const box = await page.evaluate((id) => {
+            const error = document.getElementById(`${id}-error`);
+            const strip = document
+              .getElementById("run-bar")
+              .getBoundingClientRect();
+            const nav = document
+              .getElementById("area-nav")
+              .getBoundingClientRect();
+            return {
+              bottom: error.getBoundingClientRect().bottom,
+              dock: Math.min(strip.top, nav.top),
+              top: error.getBoundingClientRect().top,
+            };
+          }, field.slice(1));
+          assert.ok(box.top >= -EDGE, `error starts on screen: ${box.top}`);
+          assert.ok(
+            box.bottom <= box.dock + EDGE,
+            `error ${box.bottom} over the dock at ${box.dock}`,
+          );
+          await done(session);
+        },
+      );
     }
   }
 });
@@ -433,6 +442,24 @@ describe("#326 items 9 to 12: Copy link", () => {
 });
 
 describe("#326 item 13: a save's unreadable field is named", () => {
+  test("an armour of -1 shows the banner once, and the repaired save stays", async () => {
+    const session = await open(1024, "100%", "#fight", {
+      init: savedWith({ config: { target: { level: 62, armor: -1 } } }),
+    });
+    const { page } = session;
+    await page.locator("#share-banner").waitFor({ state: "visible" });
+    assert.equal(
+      await textOf(page, "#share-banner-text"),
+      "Part of your saved setup couldn't be read, so the target's armour is back to its default.",
+    );
+    assert.equal(await page.locator(TARGET).inputValue(), "62");
+    await page.reload();
+    await page.locator("#run-button").waitFor({ state: "attached" });
+    assert.equal(await page.locator("#share-banner").isHidden(), true);
+    assert.equal(await page.locator(TARGET).inputValue(), "62");
+    await done(session);
+  });
+
   test.skip("an armour of -1 keeps the level and says the armour reset (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const session = await open(1024, "100%", "#fight", {
       init: savedWith({ config: { target: { level: 62, armor: -1 } } }),

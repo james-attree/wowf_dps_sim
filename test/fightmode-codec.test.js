@@ -189,6 +189,29 @@ describe("codec pins from #275 (#330 N3/N4, #343 N2–N4)", () => {
     assert.equal(opened.notice, null);
   });
 
+  it("a save reads Manual leniently, and a bad or absent fightMode is Scripted", () => {
+    const manual = decodeSetup(encodeSetup(manualOf(scripted())), {
+      strict: false,
+    });
+    assert.equal(manual.status, "ok");
+    assert.equal(manual.setup.run.fightMode, "manual");
+
+    const damaged = JSON.parse(
+      Buffer.from(encodeSetup(scripted()).slice(2), "base64url").toString(),
+    );
+    damaged.run.fightMode = "sideways";
+    const invalid = decodeSetup(
+      `${SETUP_VERSION}.${Buffer.from(JSON.stringify(damaged)).toString("base64url")}`,
+      { strict: false },
+    );
+    assert.equal(invalid.setup.run.fightMode, undefined);
+    assert.ok(invalid.reset.includes("run.fightMode"));
+
+    const absent = decodeSetup(encodeSetup(scripted()), { strict: false });
+    assert.equal(absent.setup.run.fightMode, undefined);
+    assert.equal(absent.reset, undefined);
+  });
+
   it("explicit era 0 is invalid, and a later era is invalid rather than newer (#343 N4)", () => {
     const body = (era) => {
       const payload = JSON.stringify({ era, run: { duration: 90 } });

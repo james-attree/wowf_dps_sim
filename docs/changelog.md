@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 7d
+
+The leftover "Undo closes on a reload" browser test runs again, against the current Subtlety daggers card. The touch Fix check measures the phone dock (the run strip and the area nav), not the strip alone. A saved setup that soft-resets a known field is rewritten, so the banner shows once; a save that also carries an unknown field is left as it is. Picking Custom when only the level changes says "Level set to 60. Nothing else changed." A lenient save read covers Manual, a bad fight mode, and no fight mode. coordinator call 19 Nov (James delegated).
+
 ## #287 PR4
 
 A GCD or cooldown refusal, and the Manual "Wait until … ready" label, round the time left up to the next tenth, so a remainder under a tenth reads "0.1 s" and never "0.0 s" while it still applies. The label and the "On cooldown, … left" refusal show the same tenth. An exact tenth stays that tenth. The run clock still floors its tenths. coordinator call 19 Nov (James delegated).

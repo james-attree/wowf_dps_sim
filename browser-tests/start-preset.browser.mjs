@@ -667,7 +667,7 @@ describe("Start from a preset (#323)", () => {
     }
   });
 
-  test.skip("Undo closes on a reload; the pick stays (it is saved) (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
+  test("Undo closes on a reload; the pick stays (it is saved)", async () => {
     const { context, page, errors } = await open(WIDE);
     try {
       await page.locator(card(SUBTLETY)).click();
@@ -677,7 +677,7 @@ describe("Start from a preset (#323)", () => {
       await page.locator(ROW).waitFor({ state: "visible" });
       assert.equal(await shown(page, APPLIED), false, "no Undo");
       assert.equal(await shown(page, PANEL), false, "a saved setup: folded");
-      assert.equal(await text(page, "#start-summary"), "Subtlety");
+      assert.equal(await text(page, "#start-summary"), "Subtlety daggers");
       assert.equal(await rotation(page), SUBTLETY);
       assert.deepEqual(errors, []);
     } finally {
