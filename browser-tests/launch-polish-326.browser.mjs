@@ -137,20 +137,36 @@ describe("#326 item 1: a touch Fix shows its field above the dock", () => {
           field.slice(1),
         );
         await page.waitForTimeout(500);
+        // The phone puts the nav under the strip, so min() is the strip and a
+        // revert to #run-bar still passes. This fixture lifts the nav above
+        // the strip, so the dock edge is the nav. coordinator call 19 Nov
+        // (James delegated).
         const box = await page.evaluate((id) => {
+          const style = document.createElement("style");
+          style.textContent =
+            "#run-bar { bottom: 0 !important; top: auto !important; }";
+          document.head.append(style);
           const error = document.getElementById(`${id}-error`);
-          const strip = document
-            .getElementById("run-bar")
-            .getBoundingClientRect();
-          const nav = document
-            .getElementById("area-nav")
-            .getBoundingClientRect();
+          const navEl = document.getElementById("area-nav");
+          const stripEl = document.getElementById("run-bar");
+          // Sit the nav in the gap under the error and above the strip.
+          navEl.style.top = `${error.getBoundingClientRect().bottom + 12}px`;
+          navEl.style.bottom = "auto";
+          const strip = stripEl.getBoundingClientRect();
+          const nav = navEl.getBoundingClientRect();
           return {
             bottom: error.getBoundingClientRect().bottom,
             dock: Math.min(strip.top, nav.top),
+            strip: strip.top,
+            nav: nav.top,
             top: error.getBoundingClientRect().top,
           };
         }, field.slice(1));
+        assert.ok(
+          box.nav < box.strip,
+          `nav ${box.nav} sits above the strip ${box.strip}`,
+        );
+        assert.equal(box.dock, box.nav);
         assert.ok(box.top >= -EDGE, `error starts on screen: ${box.top}`);
         assert.ok(
           box.bottom <= box.dock + EDGE,
