@@ -111,7 +111,7 @@ describe("Manual board formatters (#348)", () => {
         slots,
         10,
       ),
-      "Wait until Adrenaline Rush ready (12.4 s)",
+      "Wait until Adrenaline Rush ready (12.5 s)",
     );
     assert.equal(
       waitLabel(

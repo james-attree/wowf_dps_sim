@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { legacyPresetGear } from "../data/legacy-sheets.js";
 import { createManualFight } from "../js/manual-fight.js";
+import { waitLabel } from "../js/views/manual-format.js";
 import { refusalTime } from "../js/views/run-model.js";
 import { loadPreset, referenceBuild } from "../js/rotation-presets.js";
 
@@ -38,5 +39,53 @@ describe("refusal time (#287)", () => {
     assert.ok(cold.reason.seconds < 0.1);
     assert.equal(cold.reason.text, "GCD, 0.1 s left");
     manual.dispose();
+  });
+
+  it("shows the same tenth on the Wait label and the cooldown refusal", () => {
+    const slots = [{ abilityId: "blade-flurry", name: "Blade Flurry" }];
+    const now = 10;
+    for (const left of [0.05, 0.15]) {
+      const label = waitLabel(
+        {
+          kind: "cooldown",
+          available: true,
+          abilityId: "blade-flurry",
+          readyAt: now + left,
+        },
+        slots,
+        now,
+      );
+      const refusal = `On cooldown, ${refusalTime(left)} left`;
+      assert.equal(
+        label.match(/\(([^)]+)\)$/)[1],
+        refusal.match(/, (.+) left$/)[1],
+      );
+    }
+    assert.equal(
+      waitLabel(
+        {
+          kind: "cooldown",
+          available: true,
+          abilityId: "blade-flurry",
+          readyAt: now + 0.05,
+        },
+        slots,
+        now,
+      ),
+      "Wait until Blade Flurry ready (0.1 s)",
+    );
+    assert.equal(
+      waitLabel(
+        {
+          kind: "cooldown",
+          available: true,
+          abilityId: "blade-flurry",
+          readyAt: now + 0.15,
+        },
+        slots,
+        now,
+      ),
+      "Wait until Blade Flurry ready (0.2 s)",
+    );
   });
 });

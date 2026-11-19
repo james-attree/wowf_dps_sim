@@ -2,7 +2,7 @@
 
 ## #287 PR4
 
-A GCD or cooldown refusal rounds the time left up to the next tenth, so a remainder under a tenth reads "0.1 s" and never "0.0 s" while the refusal applies. An exact tenth stays that tenth. The run clock still floors its tenths. coordinator call 19 Nov (James delegated).
+A GCD or cooldown refusal, and the Manual "Wait until … ready" label, round the time left up to the next tenth, so a remainder under a tenth reads "0.1 s" and never "0.0 s" while it still applies. The label and the "On cooldown, … left" refusal show the same tenth. An exact tenth stays that tenth. The run clock still floors its tenths. coordinator call 19 Nov (James delegated).
 
 ## #287 PR1
 
