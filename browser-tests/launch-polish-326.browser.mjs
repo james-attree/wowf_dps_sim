@@ -176,6 +176,43 @@ describe("#326 item 1: a touch Fix shows its field above the dock", () => {
       });
     }
   }
+
+  test("the real phone dock clears the error at 320, 100% text", async () => {
+    const session = await open(320, "100%", "#fight", {
+      context: { hasTouch: true, isMobile: true },
+    });
+    const { page } = session;
+    await enter(page, TARGET, "64");
+    await go(page, "#character/stats");
+    await page.locator("#run-errors-link").tap();
+    await page.waitForFunction(
+      (id) => document.activeElement?.id === id,
+      TARGET.slice(1),
+    );
+    await page.waitForTimeout(500);
+    const box = await page.evaluate((id) => {
+      const error = document.getElementById(`${id}-error`);
+      const strip = document.getElementById("run-bar").getBoundingClientRect();
+      const nav = document.getElementById("area-nav").getBoundingClientRect();
+      return {
+        bottom: error.getBoundingClientRect().bottom,
+        dock: Math.min(strip.top, nav.top),
+        strip: strip.top,
+        nav: nav.top,
+        top: error.getBoundingClientRect().top,
+      };
+    }, TARGET.slice(1));
+    assert.ok(
+      box.nav > box.strip,
+      `the real nav ${box.nav} sits under the strip ${box.strip}`,
+    );
+    assert.ok(box.top >= -EDGE, `error starts on screen: ${box.top}`);
+    assert.ok(
+      box.bottom <= box.dock + EDGE,
+      `error ${box.bottom} over the real dock at ${box.dock}`,
+    );
+    await done(session);
+  });
 });
 
 describe("#326 item 2: the area labels keep to one line with a badge", () => {
