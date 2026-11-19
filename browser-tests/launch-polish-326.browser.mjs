@@ -123,11 +123,8 @@ const savedWith = (payload) => ({
 
 describe("#326 item 1: a touch Fix shows its field above the dock", () => {
   for (const text of TEXT_SIZES) {
-    for (const [field, area, value] of [
-      [SKILL, "#character/stats", "351"],
-      [TARGET, "#fight", "64"],
-    ]) {
-      test.skip(`${field} at 320 wide, ${text} text (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)`, async () => {
+    for (const [field, area, value] of [[TARGET, "#fight", "64"]]) {
+      test(`${field} at 320 wide, ${text} text`, async () => {
         const session = await open(320, text, area, {
           context: { hasTouch: true, isMobile: true },
         });
@@ -140,15 +137,36 @@ describe("#326 item 1: a touch Fix shows its field above the dock", () => {
           field.slice(1),
         );
         await page.waitForTimeout(500);
+        // The phone puts the nav under the strip, so min() is the strip and a
+        // revert to #run-bar still passes. This fixture lifts the nav above
+        // the strip, so the dock edge is the nav. coordinator call 19 Nov
+        // (James delegated).
         const box = await page.evaluate((id) => {
+          const style = document.createElement("style");
+          style.textContent =
+            "#run-bar { bottom: 0 !important; top: auto !important; }";
+          document.head.append(style);
           const error = document.getElementById(`${id}-error`);
-          const dock = document.getElementById("run-bar");
+          const navEl = document.getElementById("area-nav");
+          const stripEl = document.getElementById("run-bar");
+          // Sit the nav in the gap under the error and above the strip.
+          navEl.style.top = `${error.getBoundingClientRect().bottom + 12}px`;
+          navEl.style.bottom = "auto";
+          const strip = stripEl.getBoundingClientRect();
+          const nav = navEl.getBoundingClientRect();
           return {
             bottom: error.getBoundingClientRect().bottom,
-            dock: dock.getBoundingClientRect().top,
+            dock: Math.min(strip.top, nav.top),
+            strip: strip.top,
+            nav: nav.top,
             top: error.getBoundingClientRect().top,
           };
         }, field.slice(1));
+        assert.ok(
+          box.nav < box.strip,
+          `nav ${box.nav} sits above the strip ${box.strip}`,
+        );
+        assert.equal(box.dock, box.nav);
         assert.ok(box.top >= -EDGE, `error starts on screen: ${box.top}`);
         assert.ok(
           box.bottom <= box.dock + EDGE,
@@ -433,7 +451,7 @@ describe("#326 items 9 to 12: Copy link", () => {
 });
 
 describe("#326 item 13: a save's unreadable field is named", () => {
-  test.skip("an armour of -1 keeps the level and says the armour reset (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
+  test("an armour of -1 shows the banner once, and the repaired save stays", async () => {
     const session = await open(1024, "100%", "#fight", {
       init: savedWith({ config: { target: { level: 62, armor: -1 } } }),
     });
@@ -443,6 +461,10 @@ describe("#326 item 13: a save's unreadable field is named", () => {
       await textOf(page, "#share-banner-text"),
       "Part of your saved setup couldn't be read, so the target's armour is back to its default.",
     );
+    assert.equal(await page.locator(TARGET).inputValue(), "62");
+    await page.reload();
+    await page.locator("#run-button").waitFor({ state: "attached" });
+    assert.equal(await page.locator("#share-banner").isHidden(), true);
     assert.equal(await page.locator(TARGET).inputValue(), "62");
     await done(session);
   });

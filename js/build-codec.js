@@ -389,8 +389,13 @@ function readLenient(payload, defaults) {
   }
   try {
     const setup = { config: checkLiveCatalogue(config), run };
-    return reset.length === 0
-      ? { status: "ok", setup }
+    const unknown = hasUnknown(payload, {
+      config: defaults.config,
+      run: defaults.run,
+    });
+    if (reset.length === 0) return { status: "ok", setup };
+    return unknown
+      ? { status: "ok", setup, reset, unknown: true }
       : { status: "ok", setup, reset };
   } catch (error) {
     if (isCatalogueError(error)) return discard();
@@ -464,7 +469,10 @@ export function resolveInitialSetup({
   if (saved !== null && saved !== undefined) {
     const read = decodeSetup(saved, { strict: false, defaults });
     const found = { setup: read.setup, source: "saved", notice, hadLink };
-    return read.reset === undefined ? found : { ...found, reset: read.reset };
+    if (read.reset === undefined) return found;
+    return read.unknown === true
+      ? { ...found, reset: read.reset, unknown: true }
+      : { ...found, reset: read.reset };
   }
   return { setup: fresh ?? defaults, source: "defaults", notice, hadLink };
 }
