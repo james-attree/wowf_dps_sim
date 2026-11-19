@@ -2478,9 +2478,9 @@ a.pill-button {
 /* Start from a preset (#323, Fran's design/preset-first): the cards at the
    top of the Character list on a first visit, and on #character/start.
    One card across, two from 28rem; in rem, so bigger text gets fewer
-   across. In a narrow panel (a phone, or larger text) the compact grid
-   keeps all five above the dock: two across, each card's name and builder
-   only, and the lead's second sentence left out. */
+   across. In a narrow panel (a phone at 100% or 150% text) the compact
+   grid keeps all five above the dock: two across, each card's name and
+   builder only, and the lead's second sentence left out. */
 .start-panel {
   container: start / inline-size;
   margin: 0 0 1rem;
@@ -2654,12 +2654,16 @@ a.pill-button {
   }
 }
 
-/* The compact grid: a panel under 16 of its text's em wide (a phone at
-   150% text), where four full cards would run under the dock. One card
-   a line each: its name, then its points, and the lead's second sentence
-   left out. */
-@container start (width < 16rem) {
-  /* Tighter rows so five cards fit above the dock (#329, Fran's P1). */
+/* Compact start cards on a phone viewport (32.5em is the page's phone
+   query, in the initial font, so 100% and 150% text both see it). Short
+   labels, tighter padding, and two columns when the container is at
+   least 11rem: wide enough for two touch targets, but not two overflowing
+   columns at 200% text. The race field stays a full target. #329. */
+@media (width < 32.5em) {
+  .start-panel {
+    padding-block: 0.25rem;
+  }
+
   .start-cards {
     gap: 0.25rem;
   }
@@ -2670,11 +2674,17 @@ a.pill-button {
     align-items: baseline;
     gap: 0 0.5rem;
     padding: 0.375rem 0.625rem;
-    padding-block: 0.25rem;
+    padding-block: 0.15rem;
+  }
+
+  .start-title {
+    font-size: 1rem;
   }
 
   .start-lead {
     margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1.25;
   }
 
   .start-card-detail,
@@ -2685,6 +2695,25 @@ a.pill-button {
   .start-card-short {
     display: inline;
     margin-top: 0;
+  }
+
+  .start-race {
+    gap: 0.25rem 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .start-race select {
+    flex: 1 1 8rem;
+  }
+
+  @container start (width >= 11rem) {
+    .start-cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .start-cards > li:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
   }
 }
 
@@ -4074,6 +4103,38 @@ th[aria-sort="ascending"] {
   max-width: 100%;
   min-height: var(--target);
   text-align: center;
+}
+
+/* On a phone, an icon-sized control so "Copy link to this build" does
+   not wrap under the title and eat the start cards' space (#329, #299). */
+@media (width < 32.5em) {
+  .simulator-header .share-button {
+    position: relative;
+    flex: 0 0 var(--target);
+    width: var(--target);
+    padding-inline: 0;
+  }
+
+  .simulator-header .share-button-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .simulator-header .share-button::before {
+    content: "";
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M6.5 3.5H4A2.5 2.5 0 0 0 1.5 6v6A2.5 2.5 0 0 0 4 14.5h6A2.5 2.5 0 0 0 12.5 12V9.5h-1.5V12A1 1 0 0 1 10 13H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5zm3-2h5v5h-1.5V4.06l-5.22 5.22-1.06-1.06L12.94 3H9.5z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M6.5 3.5H4A2.5 2.5 0 0 0 1.5 6v6A2.5 2.5 0 0 0 4 14.5h6A2.5 2.5 0 0 0 12.5 12V9.5h-1.5V12A1 1 0 0 1 10 13H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5zm3-2h5v5h-1.5V4.06l-5.22 5.22-1.06-1.06L12.94 3H9.5z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
 }
 
 .share-feedback {

@@ -1,5 +1,9 @@
 # Changelog
 
+## Phone dock overlap
+
+The five start-preset cards and the race field under them sit above the phone dock again at 320 / 100% and at 360 / 100% and 150% text. The compact grid is two across on a narrow phone, including at 100% text, and the header share control is icon-sized so the title stays on one line. Follow-up to #329. coordinator call 19 Nov (James delegated).
+
 ## #388
 
 Selecting Manual also selects Live fight, in the same turn, and the Run button uses the live label. Average stays disabled while Manual is selected, with the reason "Manual fights are live, step by step". Choosing Scripted leaves Live selected. Reset to defaults returns Scripted and Average. coordinator call 15 Nov (James delegated).
