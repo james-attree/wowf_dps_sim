@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 PR3
+
+Enchant hints wrap with `overflow-wrap: break-word`, so a long name such as Lesser Arcane Amalgamation is not clipped on the 3-column doll at 1024 / 100% text. Item names keep whole-word wrapping. Start-card names use `break-word` and `hyphens: auto` (the page language is set) so a word that fits the column stays whole, and the race field keeps a real margin above the phone dock under Inter and under DejaVu. coordinator call 19 Nov (James delegated). Fran's #417 N1. Kira's #417 N4.
+
 ## Phone dock overlap
 
 The five start-preset cards and the race field under them sit above the phone dock again at 320 / 100% and at 360 / 100% and 150% text. The compact grid is two across on a narrow phone, including at 100% text, and the header share control is icon-sized so the title stays on one line. Long card names wrap inside the column instead of clipping, each card's accessible name is the full label, and the share icon keeps a tooltip and paints in forced colours. Follow-up to #329. coordinator call 19 Nov (James delegated).
