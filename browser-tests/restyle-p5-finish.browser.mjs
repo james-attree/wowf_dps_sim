@@ -515,6 +515,47 @@ describe("restyle C #395 part a leftovers", () => {
     }
   });
 
+  test("forced colours paint the header share icon with ButtonText at 360", async () => {
+    const { context, page, errors } = await open(360, "100%", "#character", {
+      forcedColors: "active",
+    });
+    try {
+      const buttonText = await systemColor(
+        page,
+        "backgroundColor",
+        "ButtonText",
+      );
+      const icon = await page
+        .locator(".simulator-header .share-button")
+        .evaluate((node) => {
+          const computed = globalThis.getComputedStyle(node, "::before");
+          return {
+            backgroundColor: computed.backgroundColor,
+            width: computed.width,
+            height: computed.height,
+            content: computed.content,
+          };
+        });
+      assert.notEqual(icon.content, "none");
+      assert.ok(parseFloat(icon.width) > 0, "share icon has a width");
+      assert.equal(icon.backgroundColor, buttonText);
+      const specified = await stylesCssUses(
+        page,
+        ".simulator-header .share-button::before",
+        "background-color",
+        "ButtonText",
+        "styles.css",
+      );
+      assert.ok(
+        specified.length > 0,
+        "forced-colours share icon is not ButtonText",
+      );
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
   test("reduced motion leaves the leftover chrome in place", async () => {
     const { context, page, errors } = await open(1280, "100%", "#fight", {
       reducedMotion: true,
