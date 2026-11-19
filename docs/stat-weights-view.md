@@ -2,9 +2,9 @@
 
 The Results area's third kept view, at `#results/weights`. The engine that
 produces the numbers is `js/stat-weights.js` (issue #374); this document is
-the view's contract. Product copy uses **about 73 s**, not 70 s, for the
-default 9 × 1,000 fights. Precise is not offered yet, so it is not in the
-idle copy.
+the view's contract. The old plan said about 70 s. Product copy uses the
+current figure, **about 73 s**, for the default 9 × 1,000 fights. Precise is
+not offered yet, so it is not in the idle copy.
 
 ## Coordinator calls, 15 Nov (James delegated)
 
