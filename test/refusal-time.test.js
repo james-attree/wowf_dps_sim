@@ -14,6 +14,9 @@ describe("refusal time (#287)", () => {
     assert.equal(refusalTime(0.15), "0.2 s");
     assert.equal(refusalTime(1), "1.0 s");
     assert.equal(refusalTime(0.30000000000000004), "0.3 s");
+    assert.equal(refusalTime(0), "0.0 s");
+    assert.equal(refusalTime(1e-12), "0.1 s");
+    assert.equal(refusalTime(1e-10), "0.1 s");
   });
 
   it("reads a GCD under a tenth as 0.1 s left", () => {
