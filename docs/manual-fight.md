@@ -132,8 +132,13 @@ combo points, energy. The strings are "Not available at this level", "Not
 granted by this build", "Needs a dagger in the main hand", "Needs daggers in
 both hands", "Needs Ambush window", "GCD, {time} left", "On cooldown, {time}
 left", "Needs combo points", "Not enough energy", "Already at 40+ energy",
-"Nothing on cooldown", "The fight is over". `{time}` is floored tenths:
-`12.4 s` under 60 s, and `MM:SS.s` from 60 s.
+"Nothing on cooldown", "The fight is over". `{time}` rounds up to the next
+tenth, so a remainder under a tenth reads `0.1 s` and never `0.0 s` while the
+refusal applies. An exact tenth stays that tenth. The Manual "Wait until …
+ready" label uses that same tenth, so it matches "On cooldown, {time} left"
+at the same instant. Under 60 s that is `12.5 s` for 12.49 s left; from 60 s
+it is `MM:SS.s`. The run clock still floors its tenths. coordinator call 19
+Nov (James delegated).
 
 A cast during a GCD that the clock has not already left is refused. A wait
 whose target is past the end still runs, stops at the end, and returns
