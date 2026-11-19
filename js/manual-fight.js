@@ -13,7 +13,7 @@ import { createLiveFeed, procName } from "./live-feed.js";
 import { raceCatalogue } from "./racials.js";
 import { rotationHost } from "./rotation-host.js";
 import { snapshot } from "./snapshot.js";
-import { remainingTime } from "./views/run-model.js";
+import { refusalTime } from "./views/run-model.js";
 
 const RUN_OPTIONS = ["seed", "duration", "config"];
 
@@ -125,11 +125,11 @@ function blockReason(ability, rogue, sim) {
     return reason("aura", TEXT.aura);
   }
   if (ability.triggersGcd && sim.gcd > k("sim.tickEpsilon")) {
-    return reason("gcd", `GCD, ${remainingTime(sim.gcd)} left`, sim.gcd);
+    return reason("gcd", `GCD, ${refusalTime(sim.gcd)} left`, sim.gcd);
   }
   if (ability.onCooldown(rogue, sim)) {
     const left = sim.cooldowns[ability.id] ?? 0;
-    return reason("cooldown", `On cooldown, ${remainingTime(left)} left`, left);
+    return reason("cooldown", `On cooldown, ${refusalTime(left)} left`, left);
   }
   if (ability.spender && ability.pool(ability.spendResource).value < 1) {
     return reason("combo-points", TEXT.combo);
@@ -605,7 +605,7 @@ export function createManualFight(options) {
         : endsAt === null
           ? 0
           : Math.max(0, endsAt - core.time);
-    return reason("gcd", `GCD, ${remainingTime(left)} left`, left);
+    return reason("gcd", `GCD, ${refusalTime(left)} left`, left);
   }
 
   // James, 11 Nov 2026 ruling. On-GCD stays uncastable for the
@@ -738,7 +738,7 @@ export function createManualFight(options) {
         blockReason(ability, rogue, sim) ??
           reason(
             "cooldown",
-            `On cooldown, ${remainingTime(sim.cooldowns[ability.id] ?? 0)} left`,
+            `On cooldown, ${refusalTime(sim.cooldowns[ability.id] ?? 0)} left`,
             sim.cooldowns[ability.id] ?? 0,
           ),
       );

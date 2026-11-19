@@ -57,6 +57,24 @@ export function remainingTime(seconds) {
   return `${String(minutes).padStart(2, "0")}:${rest.padStart(4, "0")}`;
 }
 
+// A GCD or cooldown refusal. Tenths round up, so a remainder under a tenth
+// still reads "0.1 s" while the refusal applies. An exact tenth stays put:
+// the cut sits a tiny step under the raw product. coordinator call 19 Nov
+// (James delegated). The run clock keeps remainingTime's floor.
+export function refusalTime(seconds) {
+  const safe = Math.max(seconds, 0);
+  let tenths = Math.ceil(safe * 10 - 1e-9);
+  if (safe > 0 && tenths < 1) {
+    tenths = 1;
+  }
+  const minutes = Math.floor(tenths / 600);
+  const rest = ((tenths % 600) / 10).toFixed(1);
+  if (minutes === 0) {
+    return `${rest} s`;
+  }
+  return `${String(minutes).padStart(2, "0")}:${rest.padStart(4, "0")}`;
+}
+
 // "1 minute 12" for 72.4 s, "12 seconds" under a minute, "5 minutes" on the
 // minute (#45, Fran: not "5 minutes 0"): what is announced.
 export function spokenTime(seconds) {

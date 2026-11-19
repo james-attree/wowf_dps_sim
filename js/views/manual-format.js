@@ -2,7 +2,7 @@
 // (Fran spec §2.6, §2.7, §3.3, §3.4). No engine imports.
 import { formatNumber } from "../charts.js";
 import { iconUrl, spellIconUrl } from "../icons.js";
-import { clock, remainingTime, spokenTenths } from "./run-model.js";
+import { clock, refusalTime, spokenTenths } from "./run-model.js";
 import { logRowReading } from "./visualiser.js";
 
 export const ENERGY_WAIT_TARGET = 40;
@@ -119,7 +119,7 @@ export function waitLabel(wait, slots, now) {
   const slot = slots.find((item) => item.abilityId === wait.abilityId);
   const name = slot?.name ?? "";
   const left = Math.max(0, (wait.readyAt ?? now) - now);
-  return `Wait until ${name} ready (${remainingTime(left)})`;
+  return `Wait until ${name} ready (${refusalTime(left)})`;
 }
 
 export function slotCooldownText(seconds) {
