@@ -112,12 +112,12 @@
   line-height: 1.45;
 }
 .rot-banner.is-error {
-  border-color: #7a3b34;
+  border-color: var(--error-border);
   background: #2a1613;
   color: #f19389;
 }
 .rot-banner.is-warning {
-  border-color: #6b5426;
+  border-color: var(--warning-border);
   background: #2a2112;
   color: #f0c46a;
 }
@@ -202,10 +202,10 @@
   border-bottom-left-radius: 6px;
 }
 .rule.has-error {
-  border-color: #7a3b34;
+  border-color: var(--error-border);
 }
 .rule.has-warning {
-  border-color: #6b5426;
+  border-color: var(--warning-border);
 }
 .rule.is-skipped .rule-icon {
   filter: grayscale(1);
@@ -312,16 +312,16 @@
 }
 .chip.is-ok {
   color: #b9d99a;
-  border-color: #4a5a37;
+  border-color: var(--ok-border);
 }
 .chip.is-error {
   color: #f19389;
-  border-color: #7a3b34;
+  border-color: var(--error-border);
   background: #2a1613;
 }
 .chip.is-warning {
   color: #f0c46a;
-  border-color: #6b5426;
+  border-color: var(--warning-border);
   background: #2a2112;
 }
 .rule-move {
@@ -418,7 +418,7 @@
   gap: 4px;
 }
 .cond.has-error {
-  border-color: #7a3b34;
+  border-color: var(--error-border);
 }
 /* The fields take the line beside "IF" and the remove button while they fit
    their widest select ("Race or talent granted", #280); when they

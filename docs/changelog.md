@@ -4,6 +4,10 @@
 
 Enchant hints wrap with `overflow-wrap: break-word`, so a long name such as Lesser Arcane Amalgamation is not clipped on the 3-column doll at 1024 / 100% text. Item names keep whole-word wrapping. Start-card names use `break-word` and `hyphens: auto` (the page language is set) so a word that fits the column stays whole, and the race field keeps a real margin above the phone dock under Inter and under DejaVu. coordinator call 19 Nov (James delegated). Fran's #417 N1. Kira's #417 N4.
 
+## #287 PR2
+
+Status chip and rule borders (ok, error, warning) use shared tokens so every edge is at least 3:1 against its fill, the card, and the page (WCAG 1.4.11). Covers `.chip.is-ok`, `.chip.is-error`, `.chip.is-warning`, `.rule.has-error`, `.rule.has-warning`, `.cond.has-error`, and `.rot-banner.is-error` / `.is-warning`. `--connector-unlit` is unchanged. Closes Kira's #413 N1. coordinator call 19 Nov (James delegated).
+
 ## #287 PR4
 
 A GCD or cooldown refusal, and the Manual "Wait until … ready" label, round the time left up to the next tenth, so a remainder under a tenth reads "0.1 s" and never "0.0 s" while it still applies. The label and the "On cooldown, … left" refusal show the same tenth. An exact tenth stays that tenth. The run clock still floors its tenths. coordinator call 19 Nov (James delegated).
