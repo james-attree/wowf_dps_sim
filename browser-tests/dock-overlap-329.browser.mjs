@@ -113,6 +113,65 @@ describe("start cards stay above the phone dock (#329)", () => {
           race.bottom <= foot + SLACK,
           `${name}: the race field over the dock (${race.bottom} against ${foot})`,
         );
+        const clipped = await page.evaluate((slack) => {
+          const issues = [];
+          for (const button of document.querySelectorAll(
+            "#start-cards button",
+          )) {
+            const card = button.getBoundingClientRect();
+            if (button.scrollWidth > button.clientWidth + slack) {
+              issues.push(
+                `${button.id}: scrollWidth ${button.scrollWidth} > clientWidth ${button.clientWidth}`,
+              );
+            }
+            // A name's own scrollWidth can be 0 or can match a box that
+            // has already grown past the card, so also compare each
+            // visible label's line boxes to the card edge.
+            for (const node of button.querySelectorAll(
+              ".start-card-name, .start-card-short, .start-card-detail, .start-card-edited",
+            )) {
+              if (getComputedStyle(node).display === "none") {
+                continue;
+              }
+              for (const rect of node.getClientRects()) {
+                if (rect.width <= 0 || rect.height <= 0) {
+                  continue;
+                }
+                if (
+                  rect.right > card.right + slack ||
+                  rect.left < card.left - slack
+                ) {
+                  issues.push(
+                    `${button.id}: label ${rect.right} outside card ${card.right}`,
+                  );
+                }
+              }
+            }
+          }
+          return issues;
+        }, SLACK);
+        assert.deepEqual(clipped, [], `${name}: ${clipped.join("; ")}`);
+        // Full name stays in the accessibility tree (visually hidden
+        // detail on the compact grid), and the visible short label is
+        // still in that name (WCAG 2.5.3).
+        assert.equal(
+          await page
+            .getByRole("button", {
+              name: /Assassination daggers 37\/11\/3 Mutilate · 37\/11\/3 · Instant \/ Deadly/,
+            })
+            .count(),
+          1,
+          `${name}: Assassination card has its full accessible name`,
+        );
+        assert.equal(
+          await page
+            .getByRole("button", {
+              name: /Custom 16\/35\/0 The page defaults/,
+            })
+            .count(),
+          1,
+          `${name}: Custom card has its full accessible name`,
+        );
       } finally {
         await context.close();
       }

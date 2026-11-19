@@ -389,6 +389,14 @@ describe("stat weights across screens (#283)", () => {
   test("the card and badge do not overflow the five review widths", async () => {
     const { context, page, errors } = await open(1440, { hash: "#character" });
     try {
+      // Inter is not on CI; DejaVu Sans, its fallback, is wider. A long
+      // start-card name in the two-column grid overflowed the viewport
+      // at 360 / 150% under DejaVu (scrollWidth 363). Pin it so the
+      // check matches CI.
+      await page.addStyleTag({
+        content: `:root { font-family: "DejaVu Sans" !important; }`,
+      });
+      await page.evaluate(() => document.fonts.ready);
       const cardStates = [
         { status: "done", result: doneResult },
         {
@@ -403,6 +411,7 @@ describe("stat weights across screens (#283)", () => {
           await page.addStyleTag({
             content: `html { font-size: ${text} !important; }`,
           });
+          await page.evaluate(() => document.fonts.ready);
           for (const width of WIDTHS) {
             await page.setViewportSize({ width, height: SCREEN_HEIGHT });
             const box = await page.evaluate(() => {
