@@ -4,6 +4,12 @@
 
 The five start-preset cards and the race field under them sit above the phone dock again at 320 / 100% and at 360 / 100% and 150% text. The compact grid is two across on a narrow phone, including at 100% text, and the header share control is icon-sized so the title stays on one line. Long card names wrap inside the column instead of clipping, each card's accessible name is the full label, and the share icon keeps a tooltip and paints in forced colours. Follow-up to #329. coordinator call 19 Nov (James delegated).
 
+## #287 PR1
+
+A share link and a saved setup keep Manual. The link grows a `manual` part at bit 13, with no payload. Manual writes that part and not the `mode` part, because Manual is live. Scripted writes nothing new, so old links stay the same bytes and still read as Scripted. A link that carries both `manual` and `mode` is corrupt (coordinator call 19 Nov (James delegated)). Ignoring that corrupt link silently is the coordinator's #332 ruling. A part bit past `manual` (bit 14, `bytes(0, 0x80, 0x80, 0x01)`) is still `newer`. The saved setup writes `run.fightMode` only when it is `manual`; a reload opens Manual and Live. coordinator call 19 Nov (James delegated).
+
+#287 item #327 N1 (weapon skill focus order) is closed with no change. Weapon skill is no longer a typed field, so the item no longer applies. coordinator call, 19 Nov (James delegated).
+
 ## #388
 
 Selecting Manual also selects Live fight, in the same turn, and the Run button uses the live label. Average stays disabled while Manual is selected, with the reason "Manual fights are live, step by step". Choosing Scripted leaves Live selected. Reset to defaults returns Scripted and Average. coordinator call 15 Nov (James delegated).
