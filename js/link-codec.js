@@ -49,8 +49,10 @@ import { GEAR_MARKER_P1_BSCOMBAT_92E67A7A } from "../data/gear-marker.js";
 //              Race and level stay on the character.
 //   manual     appended (#287). No payload. Present means fightMode manual
 //              and mode live. The mode part is not written beside it.
-//              A link with both manual and mode is corrupt. Absent means
-//              Scripted. coordinator call 19 Nov (James delegated).
+//              A link with both manual and mode is corrupt (coordinator
+//              call 19 Nov (James delegated)). Ignoring that corrupt link
+//              silently is the coordinator's #332 ruling. Absent means
+//              Scripted.
 //   rotation   varint tag: 2e, LINK_BASES[e]'s rotation; 1, the base's
 //              rotation with its rules listed (varint count, then 2i for the
 //              base's rule i, or 2n+1 and n bytes of one rule's JSON); 5,

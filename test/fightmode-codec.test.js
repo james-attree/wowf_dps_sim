@@ -58,6 +58,8 @@ describe("fight mode in the link and the save (#287)", () => {
     assert.equal(old.setup.run.mode, "batch");
   });
 
+  // Both parts are corrupt: coordinator call 19 Nov (James delegated).
+  // Ignoring that link silently is the coordinator's #332 ruling.
   it("a link with both manual and mode is corrupt and ignored", () => {
     // base 0, part bits 8 (mode) and 13 (manual), then live's mode index.
     const text = `2.${Buffer.from([0, 0x80, 66, 1]).toString("base64url")}`;

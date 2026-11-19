@@ -2,9 +2,9 @@
 
 ## #287 PR1
 
-A share link and a saved setup keep Manual. The link grows a `manual` part at bit 13, with no payload. Manual writes that part and not the `mode` part, because Manual is live. Scripted writes nothing new, so old links stay the same bytes and still read as Scripted. A link with both `manual` and `mode` is corrupt and is ignored, under James's 5 Nov invalid-link rule. A part bit past `manual` (bit 14, `bytes(0, 0x80, 0x80, 0x01)`) is still `newer`. The saved setup writes `run.fightMode` only when it is `manual`; a reload opens Manual and Live. coordinator call 19 Nov (James delegated).
+A share link and a saved setup keep Manual. The link grows a `manual` part at bit 13, with no payload. Manual writes that part and not the `mode` part, because Manual is live. Scripted writes nothing new, so old links stay the same bytes and still read as Scripted. A link that carries both `manual` and `mode` is corrupt (coordinator call 19 Nov (James delegated)). Ignoring that corrupt link silently is the coordinator's #332 ruling. A part bit past `manual` (bit 14, `bytes(0, 0x80, 0x80, 0x01)`) is still `newer`. The saved setup writes `run.fightMode` only when it is `manual`; a reload opens Manual and Live. coordinator call 19 Nov (James delegated).
 
-#287 item #327 N1 (weapon skill focus order) is closed with no change. Weapon skill is no longer a typed field, so the item no longer applies. coordinator call, 19 Nov.
+#287 item #327 N1 (weapon skill focus order) is closed with no change. Weapon skill is no longer a typed field, so the item no longer applies. coordinator call, 19 Nov (James delegated).
 
 ## #388
 
