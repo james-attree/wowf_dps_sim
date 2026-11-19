@@ -47,6 +47,12 @@ import { GEAR_MARKER_P1_BSCOMBAT_92E67A7A } from "../data/gear-marker.js";
 //              (0 is none). A link with this part carries no character or
 //              weapons part. The page derives those through deriveSheet.
 //              Race and level stay on the character.
+//   manual     appended (#287). No payload. Present means fightMode manual
+//              and mode live. The mode part is not written beside it.
+//              A link with both manual and mode is corrupt (coordinator
+//              call 19 Nov (James delegated)). Ignoring that corrupt link
+//              silently is the coordinator's #332 ruling. Absent means
+//              Scripted.
 //   rotation   varint tag: 2e, LINK_BASES[e]'s rotation; 1, the base's
 //              rotation with its rules listed (varint count, then 2i for the
 //              base's rule i, or 2n+1 and n bytes of one rule's JSON); 5,
@@ -285,6 +291,7 @@ const PARTS = Object.freeze([
   "iterations",
   "seed",
   "gear",
+  "manual",
 ]);
 // [field, scale, nullable]
 const CHARACTER_FIELDS = Object.freeze([
@@ -615,10 +622,11 @@ function writeBody(setup, defaults, index, bases) {
     talentLevel: config.talentLevel !== base.talentLevel,
     poisons: !same(config.poisons, base.poisons),
     rotation: !same(config.rotation, base.rotation),
-    mode: run.mode !== defaults.run.mode,
+    mode: run.fightMode !== "manual" && run.mode !== defaults.run.mode,
     duration: run.duration !== defaults.run.duration,
     iterations: run.iterations !== defaults.run.iterations,
     seed: run.seed !== defaults.run.seed,
+    manual: run.fightMode === "manual",
   };
   const w = new Writer();
   w.uint(index);
@@ -867,6 +875,11 @@ function readBody(r, defaults) {
   }
   if (has("rotation")) config.rotation = readRotation(r, base, bases);
   if (has("mode")) run.mode = r.pick(LINK_RUN_MODES);
+  if (has("manual")) {
+    if (has("mode")) throw new LinkError("corrupt");
+    run.fightMode = "manual";
+    run.mode = "live";
+  }
   if (has("duration")) run.duration = r.num(DURATION_SCALE);
   if (has("iterations")) run.iterations = r.num(1);
   if (has("seed")) run.seed = r.optional(1);

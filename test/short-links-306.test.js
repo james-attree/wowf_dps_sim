@@ -638,7 +638,7 @@ describe("short links: newer and damaged version 2 links (#306)", () => {
     const newer = [
       `${LINK_VERSION + 1}.AAAA`,
       bytes(LINK_BASES.length, 0), // a base this version lacks
-      bytes(0, 0x80, 0x40), // part bit 13; bit 12 is the gear part (#383)
+      bytes(0, 0x80, 0x80, 0x01), // part bit 14; bit 13 is the manual part (#287)
       bytes(0, 1, LINK_RACES.length), // a race index past the list
       bytes(0, 0x10, 1, ...varint(LINK_TALENTS.length * 8 + 1)), // a later talent
       bytes(0, 0x80, 1, LINK_BASES.length * 2), // a later base's rotation

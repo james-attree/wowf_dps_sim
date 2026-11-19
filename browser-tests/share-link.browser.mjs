@@ -546,4 +546,91 @@ describe("Copy link to this build (#284)", () => {
       await context.close();
     }
   });
+
+  test("deleting a rule with Manual still copies a 37-character link (#287)", async () => {
+    const PRESET_LINK_MAX = 37;
+    const { context, page, errors } = await open(WIDTHS[1], "#fight");
+    try {
+      await page.locator("#fight-mode-manual").check();
+      await page.waitForFunction(() => {
+        const live = document.getElementById("run-mode-live");
+        return live?.checked === true;
+      });
+      await go(page, "#rotation", "#rotation-builder");
+      const rules = page.locator("#rotation-builder li.rule");
+      const before = await rules.count();
+      await rules.first().locator("[data-key$='.del']").click();
+      await page.waitForFunction(
+        (n) =>
+          document.querySelectorAll("#rotation-builder li.rule").length === n,
+        before - 1,
+      );
+      await set(page, "#fight", "#run-seed", LONG_SEED);
+      await go(page, "#character", "#share-link-header");
+      await page.evaluate(() => document.defaultView.scrollTo(0, 0));
+      await page.locator("#share-link-header").click();
+      await page.waitForFunction(
+        (copied) =>
+          document.getElementById("run-announce").textContent === copied,
+        COPIED_TEXT,
+      );
+      const link = await page.evaluate(() =>
+        document.defaultView.navigator.clipboard.readText(),
+      );
+      assert.equal(link.length - base.length, PRESET_LINK_MAX, link);
+      const read = decodeSetup(new URL(link).searchParams.get(LINK_PARAM));
+      assert.equal(read.setup.run.fightMode, "manual");
+      assert.equal(read.setup.run.mode, "live");
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("choosing Manual, then reloading, opens Manual and Live (#287)", async () => {
+    const { context, page, errors } = await open(WIDTHS[1], "#fight");
+    try {
+      await page.locator("#fight-mode-manual").check();
+      await page.waitForFunction(() => {
+        const saved =
+          document.defaultView.localStorage.getItem("wowf_dps_sim.setup");
+        if (typeof saved !== "string" || !saved.startsWith("1.")) return false;
+        const body = saved.slice(2).replace(/-/g, "+").replace(/_/g, "/");
+        const padded = body + "=".repeat((4 - (body.length % 4)) % 4);
+        const json = JSON.parse(document.defaultView.atob(padded));
+        return json.run?.fightMode === "manual";
+      });
+      await page.reload({ waitUntil: "networkidle" });
+      await page.locator("#fight-mode-manual").waitFor({ state: "visible" });
+      await page.waitForFunction(() => {
+        const manual = document.getElementById("fight-mode-manual");
+        const live = document.getElementById("run-mode-live");
+        const average = document.getElementById("run-mode-batch");
+        return (
+          manual?.checked === true &&
+          live?.checked === true &&
+          average?.disabled === true
+        );
+      });
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("an invalid link shows no banner (#343 N3)", async () => {
+    const invalid =
+      "1.eyJjb25maWciOnsiY2hhcmFjdGVyIjp7ImF0dGFja1Bvd2VyIjo5MDAsImhhc3RlIjowLjA1fSwicG9pc29ucyI6eyJtYWluSGFuZCI6ImRlYWRseSIsIm9mZkhhbmQiOiJpbnN0YW50In19LCJydW4iOnsibW9kZSI6ImxpdmUiLCJkdXJhdGlvbiI6MTIwLCJpdGVyYXRpb25zIjo1MDAsInNlZWQiOjd9fQ";
+    const { context, page, errors } = await open(
+      WIDTHS[1],
+      `?${LINK_PARAM}=${invalid}`,
+    );
+    try {
+      await page.locator("#run-button").waitFor({ state: "visible" });
+      assert.equal(await page.locator("#share-banner").isHidden(), true);
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  });
 });

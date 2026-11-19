@@ -70,6 +70,7 @@ const OPTIONAL = new Set([
   "config.weapons.mainHand.weaponSkill",
   "config.weapons.offHand.weaponSkill",
   "config.gear",
+  "run.fightMode",
 ]);
 // In Node, browsers and workers alike.
 const { atob, btoa, TextDecoder, TextEncoder, URL, URLSearchParams } =
@@ -211,7 +212,15 @@ function takeEra(payload) {
 // null (the page draws one).
 function checkRun(run) {
   if (!RUN_MODES.includes(run.mode)) return null;
+  if (
+    run.fightMode !== undefined &&
+    run.fightMode !== "manual" &&
+    run.fightMode !== "scripted"
+  ) {
+    return null;
+  }
   const out = { mode: run.mode };
+  if (run.fightMode === "manual") out.fightMode = "manual";
   for (const name of ["duration", "iterations", "seed"]) {
     const value = run[name];
     if (name === "seed" && value === null) {
@@ -370,6 +379,14 @@ function readLenient(payload, defaults) {
       Object.assign(run, checked);
     }
   }
+  if (givenRun.fightMode !== undefined) {
+    const checked = checkRun({ ...run, fightMode: givenRun.fightMode });
+    if (checked === null) {
+      reset.push("run.fightMode");
+    } else {
+      Object.assign(run, checked);
+    }
+  }
   try {
     const setup = { config: checkLiveCatalogue(config), run };
     return reset.length === 0
@@ -390,6 +407,7 @@ export function setupFromState({ config, run }) {
       duration: run.duration,
       iterations: run.iterations,
       seed: run.seed,
+      ...(run.fightMode === "manual" ? { fightMode: "manual" } : {}),
     },
   };
 }
