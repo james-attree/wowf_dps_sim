@@ -4614,6 +4614,6 @@ Progress counts variants that run, not a fixed 10. At haste 0 that is 9 (base, a
 
 The issue's "1 batch vs N worker chunks" is read as the runner's slice size (1, N, Infinity) and the worker path versus the main-thread path. There is no multi-worker parallelism. That reading is an assumption: coordinator call 15 Nov (James delegated).
 
-**Runtime.** The plan's "about 70 s" is replaced by a measurement. Re-measured after the fractional weapon roll (#374 follow-up) on Node v22.23.4, 4 vCPU: the default 9 × 1,000 fights of 300 s, seed 107, temporary Combat swords reference build, Instant Poison on both hands, took 73.1 s. Those weapons are integers, so this run uses the integer die.
+**Runtime.** The plan's old figure was about 70 s. The current measurement, re-measured after the fractional weapon roll (#374 follow-up) on Node v22.23.4, 4 vCPU, is 73.1 s: the default 9 × 1,000 fights of 300 s, seed 107, temporary Combat swords reference build, Instant Poison on both hands. Those weapons are integers, so this run uses the integer die.
 
 **Manual bench, not a test.** On that same run the hit row's half-width was 10.0% of its DPS per point (0.167 on 1.670 DPS per percentage point). The fight count stays 1,000 and the seed stays 107: coordinator call 15 Nov (James delegated). Haste on that run was one-sided and its half-width was 19.9% of its DPS per point (0.314 on 1.572). The interval is reported: coordinator call 15 Nov (James delegated). Precise is 4,000 fights (`statWeights.preciseIterations`); the page does not offer it yet.
