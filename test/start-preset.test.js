@@ -496,6 +496,35 @@ describe("the words for every change (#325 P1)", () => {
     assert.equal(env.store.get().presetBuild.announce.text, "Level put back.");
   });
 
+  it("Custom from level 30 names only the level when nothing else changed", () => {
+    const env = page();
+    env.form.chooseRotation("default");
+    const config = structuredClone(env.store.get().config);
+    config.talentLevel = 30;
+    env.store.set({ config });
+    assert.equal(env.start.pick(CUSTOM), true);
+    const said = env.store.get().presetBuild;
+    assert.equal(said.applied.undoName, "Undo: put back your level");
+    assert.equal(said.applied.text, "Level set to 60. Nothing else changed.");
+    assert.equal(said.announce.text, said.applied.text);
+    assert.equal(env.store.get().config.talentLevel, 60);
+  });
+
+  it("a Custom pick that changes more than the level still lists it", () => {
+    const env = page();
+    env.form.chooseRotation("default");
+    const config = structuredClone(env.store.get().config);
+    config.talentLevel = 30;
+    env.store.set({ config });
+    env.form.change("poisons.mainHand", "wound");
+    assert.equal(env.start.pick(CUSTOM), true);
+    const text = env.store.get().presetBuild.applied.text;
+    assert.match(text, /^Custom set: /);
+    assert.match(text, /Instant and Deadly poisons/);
+    assert.match(text, /level.60/);
+    assert.doesNotMatch(text, /^Level set to /);
+  });
+
   it("a preset's level can't drop under its points, so only Custom differs by the level alone", () => {
     const env = page();
     env.start.pick(COMBAT);

@@ -237,6 +237,12 @@ export function mountSavedSetup(
   const saved = createSavedSetup({ store, storage, delay, timers });
   if (initial?.source === "link") {
     saved.save();
+  } else if (initial?.reset?.length > 0 && initial.unknown !== true) {
+    // A soft-reset repaired known fields. Write that repaired setup so the
+    // banner shows once. A save that also carries unknown fields is left
+    // as it is: rewriting it would drop them. coordinator call 19 Nov
+    // (James delegated).
+    saved.save();
   } else {
     // A save, the defaults, or a save the page cannot read (newer, broken):
     // storage keeps its bytes until the user changes something (#320 B1).

@@ -626,7 +626,12 @@ export function createPresetBuild(
     const named = again ? parts : [...BUILD_PARTS, ROTATION_PART];
     const drafts = { ...(state.form.drafts ?? {}) };
     delete drafts[pickRotation(choice)];
-    const text = pickedText(name, build, choice, level, named);
+    // Only the level moved: say that, and not the whole card. coordinator
+    // call 19 Nov (James delegated).
+    const text =
+      parts.length === 0 && level
+        ? `Level set to ${build.talentLevel}. Nothing else changed.`
+        : pickedText(name, build, choice, level, named);
     return replace({
       build,
       parts,
