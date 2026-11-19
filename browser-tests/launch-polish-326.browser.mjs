@@ -469,20 +469,6 @@ describe("#326 item 13: a save's unreadable field is named", () => {
     await done(session);
   });
 
-  test.skip("an armour of -1 keeps the level and says the armour reset (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
-    const session = await open(1024, "100%", "#fight", {
-      init: savedWith({ config: { target: { level: 62, armor: -1 } } }),
-    });
-    const { page } = session;
-    await page.locator("#share-banner").waitFor({ state: "visible" });
-    assert.equal(
-      await textOf(page, "#share-banner-text"),
-      "Part of your saved setup couldn't be read, so the target's armour is back to its default.",
-    );
-    assert.equal(await page.locator(TARGET).inputValue(), "62");
-    await done(session);
-  });
-
   // Fran's qa-327 P2: each stat named, and only what was reset.
   test.skip("an attack power of -5 alone is named, the weapon skill kept (skipped: multi-preset pick/hint cases wait on later preset TRs after #333)", async () => {
     const session = await open(1024, "100%", "#character/stats", {

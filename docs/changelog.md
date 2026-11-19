@@ -2,7 +2,7 @@
 
 ## #287 7d
 
-The leftover "Undo closes on a reload" browser test runs again, against the current Subtlety daggers card. The touch Fix check measures the phone dock (the run strip and the area nav), not the strip alone. The two weapon-skill cases are gone: `#cfg-character-weaponSkill` is no longer on the page. The target-level cases at 100% and 150% cover that dock measurement. A saved setup that soft-resets a known field is rewritten, so the banner shows once; a save that also carries an unknown field is left as it is. Picking Custom when only the level changes says "Level set to 60. Nothing else changed." A lenient save read covers Manual, a bad fight mode, and no fight mode. coordinator call 19 Nov (James delegated).
+The leftover "Undo closes on a reload" browser test runs again, against the current Subtlety daggers card. The touch Fix check measures the phone dock (the run strip and the area nav), not the strip alone. The two weapon-skill cases are gone: `#cfg-character-weaponSkill` is no longer on the page. The target-level cases at 100% and 150% cover that dock measurement. The skipped armour-of--1 browser case is retired; the unit test that a soft-reset writes the repaired save covers it. A saved setup that soft-resets a known field is rewritten, so the banner shows once; a save that also carries an unknown field is left as it is. Picking Custom when only the level changes says "Level set to 60. Nothing else changed." A lenient save read covers Manual, a bad fight mode, and no fight mode. coordinator call 19 Nov (James delegated).
 
 ## #287 PR2
 
