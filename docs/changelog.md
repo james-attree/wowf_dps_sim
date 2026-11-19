@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 PR2
+
+Status chip and rule borders (ok, error, warning) use shared tokens so every edge is at least 3:1 against its fill, the card, and the page (WCAG 1.4.11). Covers `.chip.is-ok`, `.chip.is-error`, `.chip.is-warning`, `.rule.has-error`, `.rule.has-warning`, `.cond.has-error`, and `.rot-banner.is-error` / `.is-warning`. `--connector-unlit` is unchanged. Closes Kira's #413 N1. coordinator call 19 Nov (James delegated).
+
 ## Phone dock overlap
 
 The five start-preset cards and the race field under them sit above the phone dock again at 320 / 100% and at 360 / 100% and 150% text. The compact grid is two across on a narrow phone, including at 100% text, and the header share control is icon-sized so the title stays on one line. Long card names wrap inside the column instead of clipping, each card's accessible name is the full label, and the share icon keeps a tooltip and paints in forced colours. Follow-up to #329. coordinator call 19 Nov (James delegated).
