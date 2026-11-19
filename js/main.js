@@ -94,7 +94,7 @@ if (initial.hadLink) {
 const { config } = initial.setup;
 const drawSeed = () => crypto.getRandomValues(new Uint32Array(1))[0];
 const seed = initial.setup.run.seed ?? drawSeed();
-const { mode, duration, iterations } = initial.setup.run;
+const { mode, duration, iterations, fightMode } = initial.setup.run;
 const client = new BatchClient();
 
 const store = createStore({
@@ -103,7 +103,7 @@ const store = createStore({
   weaponMismatch: null,
   run: applyFightMode({
     mode,
-    fightMode: "scripted",
+    fightMode: fightMode === "manual" ? "manual" : "scripted",
     state: "idle",
     seed,
     duration,

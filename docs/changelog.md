@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 PR1
+
+A share link and a saved setup keep Manual. The link grows a `manual` part at bit 13, with no payload. Manual writes that part and not the `mode` part, because Manual is live. Scripted writes nothing new, so old links stay the same bytes and still read as Scripted. A link with both `manual` and `mode` is corrupt and is ignored, under James's 5 Nov invalid-link rule. A part bit past `manual` (bit 14, `bytes(0, 0x80, 0x80, 0x01)`) is still `newer`. The saved setup writes `run.fightMode` only when it is `manual`; a reload opens Manual and Live. coordinator call 19 Nov (James delegated).
+
 ## #388
 
 Selecting Manual also selects Live fight, in the same turn, and the Run button uses the live label. Average stays disabled while Manual is selected, with the reason "Manual fights are live, step by step". Choosing Scripted leaves Live selected. Reset to defaults returns Scripted and Average. coordinator call 15 Nov (James delegated).
