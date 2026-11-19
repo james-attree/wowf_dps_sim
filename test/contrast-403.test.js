@@ -13,6 +13,10 @@ import { fileURLToPath } from "node:url";
 // #412 (Kira N2): each guarded rule's edge or foreground is resolved
 // (following var() through custom properties) rather than banning only
 // the two old hexes.
+//
+// #287 PR 2 (Kira's #413 N1): status chip and rule borders resolve
+// through --ok-border, --error-border and --warning-border, and stay
+// at least 3:1 against their fill, the card, and the page.
 
 const STYLES = readFileSync(
   fileURLToPath(new URL("../styles.css", import.meta.url)),
@@ -323,6 +327,74 @@ const EDGE_RULES = Object.freeze([
     background: "#15120d",
   },
   {
+    name: ".chip.is-alt",
+    selector: ".chip.is-alt",
+    file: "rotation-builder.css",
+    background: "#15120d",
+  },
+  {
+    name: ".chip.is-skip",
+    selector: ".chip.is-skip",
+    file: "rotation-builder.css",
+    background: "#15120d",
+  },
+  {
+    name: ".chip.is-ok",
+    selector: ".chip.is-ok",
+    file: "rotation-builder.css",
+    background: "#15120d",
+    against: ["var(--surface-raised)", "var(--page)"],
+  },
+  {
+    name: ".chip.is-error",
+    selector: ".chip.is-error",
+    file: "rotation-builder.css",
+    background: "#2a1613",
+    against: ["var(--surface-raised)", "var(--page)"],
+  },
+  {
+    name: ".chip.is-warning",
+    selector: ".chip.is-warning",
+    file: "rotation-builder.css",
+    background: "#2a2112",
+    against: ["var(--surface-raised)", "var(--page)"],
+  },
+  {
+    name: ".rule.has-error",
+    selector: ".rule.has-error",
+    file: "rotation-builder.css",
+    background: "var(--surface-raised)",
+    against: ["var(--page)"],
+  },
+  {
+    name: ".rule.has-warning",
+    selector: ".rule.has-warning",
+    file: "rotation-builder.css",
+    background: "var(--surface-raised)",
+    against: ["var(--page)"],
+  },
+  {
+    name: ".cond.has-error",
+    selector: ".cond.has-error",
+    file: "rotation-builder.css",
+    background: "var(--surface)",
+    against: ["var(--page)"],
+  },
+  {
+    name: ".rot-banner.is-error",
+    selector: ".rot-banner.is-error",
+    file: "rotation-builder.css",
+    background: "#2a1613",
+    against: ["var(--surface-raised)", "var(--page)"],
+  },
+  {
+    name: ".rot-banner.is-warning",
+    selector: ".rot-banner.is-warning",
+    file: "rotation-builder.css",
+    background: "#2a2112",
+    against: ["var(--surface-raised)", "var(--page)"],
+  },
+  {
     name: ".rule-icon",
     selector: ".rule-icon",
     file: "rotation-builder.css",
@@ -464,6 +536,15 @@ function edgeProblems(files) {
           `${rule.name}: resolved ${raw} → ${foreground} on ${background} is ${ratio.toFixed(2)}:1 (need ${NON_TEXT}:1)`,
         );
       }
+      for (const extra of rule.against ?? []) {
+        const adjacent = resolveColor(extra, tokens);
+        const adjacentRatio = contrastRatio(foreground, adjacent);
+        if (adjacentRatio < NON_TEXT) {
+          problems.push(
+            `${rule.name}: resolved ${raw} → ${foreground} on adjacent ${adjacent} is ${adjacentRatio.toFixed(2)}:1 (need ${NON_TEXT}:1)`,
+          );
+        }
+      }
     } catch (error) {
       problems.push(`${rule.name}: ${error.message}`);
     }
@@ -529,6 +610,12 @@ describe("resolved edge colours (#412 N2 / #403)", () => {
     assert.equal(resolveColor("var(--control-border)", tokens), CONTROL);
     assert.equal(resolveColor("var(--connector-unlit)", tokens), OLD_EDGE);
     assert.notEqual(control, resolveColor("var(--connector-unlit)", tokens));
+  });
+
+  it("resolves status borders through the shared tokens (#287 PR 2)", () => {
+    assert.equal(resolveColor("var(--ok-border)", tokens), "#5e7149");
+    assert.equal(resolveColor("var(--error-border)", tokens), "#9f564e");
+    assert.equal(resolveColor("var(--warning-border)", tokens), "#866a34");
   });
 
   it("every guarded edge is at least 3:1 against that rule's background", () => {
@@ -628,6 +715,82 @@ describe("Kira's mutants now fail (#412)", () => {
   });
 });
 
+describe("status border mutants now fail (#287 PR 2 / #413 N1)", () => {
+  it("M: #4a5a37 back on .chip.is-ok fails the resolved 3:1 check", () => {
+    const source = FILES["rotation-builder.css"];
+    const mutated = source.replace(
+      ".chip.is-ok {\n  color: #b9d99a;\n  border-color: var(--ok-border);\n}",
+      ".chip.is-ok {\n  color: #b9d99a;\n  border-color: #4a5a37;\n}",
+    );
+    assert.notEqual(mutated, source);
+    const problems = edgeProblems({
+      ...FILES,
+      "rotation-builder.css": mutated,
+    });
+    assert.ok(
+      problems.some((line) => line.includes(".chip.is-ok") && /3:1/.test(line)),
+      `expected a 3:1 failure for .chip.is-ok, got:\n${problems.join("\n")}`,
+    );
+  });
+
+  it("M: #7a3b34 back on .chip.is-error fails the resolved 3:1 check", () => {
+    const source = FILES["rotation-builder.css"];
+    const mutated = source.replace(
+      ".chip.is-error {\n  color: #f19389;\n  border-color: var(--error-border);\n",
+      ".chip.is-error {\n  color: #f19389;\n  border-color: #7a3b34;\n",
+    );
+    assert.notEqual(mutated, source);
+    const problems = edgeProblems({
+      ...FILES,
+      "rotation-builder.css": mutated,
+    });
+    assert.ok(
+      problems.some(
+        (line) => line.includes(".chip.is-error") && /3:1/.test(line),
+      ),
+      `expected a 3:1 failure for .chip.is-error, got:\n${problems.join("\n")}`,
+    );
+  });
+
+  it("M: #6b5426 back on .chip.is-warning fails the resolved 3:1 check", () => {
+    const source = FILES["rotation-builder.css"];
+    const mutated = source.replace(
+      ".chip.is-warning {\n  color: #f0c46a;\n  border-color: var(--warning-border);\n",
+      ".chip.is-warning {\n  color: #f0c46a;\n  border-color: #6b5426;\n",
+    );
+    assert.notEqual(mutated, source);
+    const problems = edgeProblems({
+      ...FILES,
+      "rotation-builder.css": mutated,
+    });
+    assert.ok(
+      problems.some(
+        (line) => line.includes(".chip.is-warning") && /3:1/.test(line),
+      ),
+      `expected a 3:1 failure for .chip.is-warning, got:\n${problems.join("\n")}`,
+    );
+  });
+
+  it("M: #7a3b34 back on .rule.has-error fails the resolved 3:1 check", () => {
+    const source = FILES["rotation-builder.css"];
+    const mutated = source.replace(
+      ".rule.has-error {\n  border-color: var(--error-border);\n}",
+      ".rule.has-error {\n  border-color: #7a3b34;\n}",
+    );
+    assert.notEqual(mutated, source);
+    const problems = edgeProblems({
+      ...FILES,
+      "rotation-builder.css": mutated,
+    });
+    assert.ok(
+      problems.some(
+        (line) => line.includes(".rule.has-error") && /3:1/.test(line),
+      ),
+      `expected a 3:1 failure for .rule.has-error, got:\n${problems.join("\n")}`,
+    );
+  });
+});
+
 describe("leftover hexes after per-comment stripping (#403 / #412 N1)", () => {
   it("does not hard-code #81745c outside comments", () => {
     for (const [name, css] of Object.entries(FILES)) {
@@ -635,6 +798,17 @@ describe("leftover hexes after per-comment stripping (#403 / #412 N1)", () => {
         stripComments(css),
         /#81745c/i,
         `${name} still hard-codes #81745c`,
+      );
+    }
+  });
+
+  it("does not hard-code the old status borders outside comments", () => {
+    for (const [name, css] of Object.entries(FILES)) {
+      const leftover = stripComments(css);
+      assert.doesNotMatch(
+        leftover,
+        /#4a5a37|#7a3b34|#6b5426/i,
+        `${name} still hard-codes an old status border`,
       );
     }
   });
