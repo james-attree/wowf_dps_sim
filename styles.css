@@ -91,6 +91,12 @@
      the lightest, up to 3.77:1 on the page. */
   --control-border: #7d6c50;
   --control: var(--control-border);
+  /* Status edges (ok, error, warning). Each keeps at least 3:1 against
+     its own fill, against --surface-raised and against the page
+     (WCAG 1.4.11; #287 PR 2, Kira's #413 N1). */
+  --ok-border: #5e7149;
+  --error-border: #9f564e;
+  --warning-border: #866a34;
   /* Unlit talent connectors: decorative structure at 2.03:1, not held
      to WCAG 1.4.11. The painted colour is unchanged. */
   --connector-unlit: #54452b;
