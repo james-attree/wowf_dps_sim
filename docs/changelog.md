@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 PR4
+
+A GCD or cooldown refusal rounds the time left up to the next tenth, so a remainder under a tenth reads "0.1 s" and never "0.0 s" while the refusal applies. An exact tenth stays that tenth. The run clock still floors its tenths. coordinator call 19 Nov (James delegated).
+
 ## #287 PR1
 
 A share link and a saved setup keep Manual. The link grows a `manual` part at bit 13, with no payload. Manual writes that part and not the `mode` part, because Manual is live. Scripted writes nothing new, so old links stay the same bytes and still read as Scripted. A link that carries both `manual` and `mode` is corrupt (coordinator call 19 Nov (James delegated)). Ignoring that corrupt link silently is the coordinator's #332 ruling. A part bit past `manual` (bit 14, `bytes(0, 0x80, 0x80, 0x01)`) is still `newer`. The saved setup writes `run.fightMode` only when it is `manual`; a reload opens Manual and Live. coordinator call 19 Nov (James delegated).
