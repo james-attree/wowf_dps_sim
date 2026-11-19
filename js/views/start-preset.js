@@ -51,7 +51,7 @@ export function createStartPresetView(doc, store, actions) {
     detail.className = "start-card-detail";
     const short = doc.createElement("span");
     short.className = "start-card-short";
-    button.replaceChildren(name, edited, detail, short);
+    button.replaceChildren(name, edited, short, detail);
     button.addEventListener("click", () => actions.pick(id));
     item.append(button);
     buttons.set(id, { button, name, edited, detail, short });
