@@ -89,11 +89,8 @@ not part of the board.
 Review's damage breakdown leaves out abilities that dealt 0 damage. The
 timing list still shows every cast. Floats fade to 0.65 opacity, where each
 tone keeps 4.5:1 on the well, and are hidden when the rise ends. Slot names
-wrap inside their slot. Known long names use soft hyphens on the painted
-label only, so a mid-word break does not leave a single letter; aria-labels
-and announcements keep the plain name (Fran #426 N1). Ready slots and Waits
-have a hover look on pointer devices. coordinator call 19 Nov (James
-delegated).
+wrap inside their slot. Ready slots and Waits have a hover look on pointer
+devices. coordinator call 19 Nov (James delegated).
 
 ## API
 

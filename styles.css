@@ -4649,9 +4649,7 @@ th[aria-sort="ascending"] {
   /* A long name such as Premeditation wraps inside its slot at 150% text
      instead of running into the next slot (#287 PR 5, Fran's #369 item 6).
      The name may use most of the slot's side padding before a word
-     breaks. Known long names also carry soft hyphens from the view
-     (Fran #426 N1), because hyphens: auto does not paint in this
-     Chrome. */
+     breaks. */
   max-width: calc(100% + 0.5rem);
   margin-inline: -0.25rem;
   overflow-wrap: break-word;
@@ -4659,14 +4657,6 @@ th[aria-sort="ascending"] {
   font-size: 0.8125rem;
   font-weight: 650;
   text-align: center;
-}
-
-/* Compact slot names (Fran #426 N1). The page's narrow query (32.5em)
-   covers 100% and 150% text at the phone widths. */
-@media (width < 32.5em) {
-  .manual-slot-name {
-    font-size: 0.75rem;
-  }
 }
 
 .manual-slot[aria-pressed="true"],
