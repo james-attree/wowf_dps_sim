@@ -181,19 +181,21 @@ export function fillRaceSelect(doc, select, groups) {
 // A racial's chip (#321), in the poisons' and #280's words.
 export const RACIAL_CHIPS = Object.freeze({
   simulated: "Simulated",
+  simulatedNotCast: "Simulated · not cast",
   off: "No DPS effect",
   later: "Not simulated yet",
 });
 // An on-use racial needs a rule that casts it (#278). Each preset rotation
 // opens with one per on-use racial, guarded by "ability granted" (#315,
 // data/rotation-presets.js onUseRacialRules); the default rotation has none.
-// The second sentence says whether the rotation the run uses casts it.
-export const ON_USE_NOTE = "The preset rotations use it on cooldown.";
-export const ON_USE_CAST = {
-  yes: "Your rotation casts it.",
-  no: "Your rotation has no rule for it, so it isn't used.",
-  unknown: "Your own rotation needs a rule to cast it.",
-};
+// One sentence says that and whether the rotation the run uses casts it
+// (#287 PR 7b, #322 N).
+export const ON_USE_CAST = Object.freeze({
+  yes: "Your rotation casts it on cooldown, as the preset rotations do.",
+  no: "The preset rotations use it on cooldown, but yours has no rule for it, so it isn't used.",
+  unknown:
+    "The preset rotations use it on cooldown, and your own rotation needs a rule to cast it.",
+});
 
 const pluralType = (type) => `${capitalised(type)}s`;
 
@@ -230,21 +232,24 @@ const slugOf = (id) => String(id ?? "").replace(/^[^.]*\./, "");
 
 // The chip of a racial from the model's raceInfo(): which of RACIAL_CHIPS,
 // as { kind, text }. A mob-type racial against the page's target does
-// nothing, as one with no DPS effect.
-export function racialChip({ status }) {
+// nothing, as one with no DPS effect. A simulated on-use racial the
+// rotation has no rule for keeps the simulated kind but says it is not
+// cast (#287 PR 7b, #322 N).
+export function racialChip({ status, onUse, casts = null }) {
   const kind =
     status === "simulated"
       ? "simulated"
       : status === "notSimulated"
         ? "later"
         : "off";
-  return { kind, text: RACIAL_CHIPS[kind] };
+  const notCast = kind === "simulated" && onUse && casts === false;
+  return { kind, text: RACIAL_CHIPS[notCast ? "simulatedNotCast" : kind] };
 }
 
 // The plain line under a racial's name: what it does. One with no DPS
 // effect gives the effects data's reason; the rest give the rogue's line
 // (ROGUE_LINES, else the racial's own text), one not simulated yet adds why,
-// an on-use racial adds ON_USE_NOTE and whether the rotation casts it
+// an on-use racial adds whether the rotation casts it (ON_USE_CAST)
 // (casts: true, false, or null for not known), and a mob-type racial the
 // targets it is for.
 export function racialLineText({
@@ -275,7 +280,7 @@ export function racialLineText({
         : casts
           ? ON_USE_CAST.yes
           : ON_USE_CAST.no;
-    return `${text} ${ON_USE_NOTE} ${cast}`;
+    return `${text} ${cast}`;
   }
   return text;
 }

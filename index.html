@@ -410,7 +410,10 @@
                  the form's raceOptions and the racials from its race
                  (js/config-form.js raceInfo). -->
             <fieldset class="config-fieldset race-fieldset" data-screen="stats">
-              <legend>Race</legend>
+              <!-- The label names the select; the legend is hidden, as the
+                   Paper doll's is, so "Race" is not shown twice
+                   (#287 PR 7b, #322 N). -->
+              <legend class="visually-hidden" aria-hidden="true">Race</legend>
               <div class="field race-field">
                 <label for="cfg-race">Race</label>
                 <select

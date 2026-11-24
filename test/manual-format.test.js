@@ -203,6 +203,10 @@ describe("Manual board formatters (#348)", () => {
     ]);
     const pw = { kind: "proc", procName: "Puncturing Wounds" };
     assert.equal(wellCopy(pw), "Puncturing Wounds · +1 combo point");
+    // Fran's #426 N2 (#287 PR 7b): one stack is singular.
+    const poised = { kind: "aura", name: "Poised", stacks: 1 };
+    assert.equal(wellCopy(poised), "Poised · 1 stack");
+    assert.equal(wellCopy({ ...poised, stacks: 3 }), "Poised · 3 stacks");
     const blocked = {
       kind: "blocked",
       name: "Eviscerate",

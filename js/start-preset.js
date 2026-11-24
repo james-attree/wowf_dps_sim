@@ -1,6 +1,6 @@
 import { k } from "../data/constants.js";
 import { ABILITY_DEFINITIONS } from "./ability-data.js";
-import { isEditedChoice } from "./config-form.js";
+import { isEditedChoice, pageDefaultConfig } from "./config-form.js";
 import {
   CUSTOM,
   buildDifferences,
@@ -59,9 +59,6 @@ export const START_KEY = "wowf_dps_sim.start";
 export const CUSTOM_CHOSEN = "custom";
 
 const CUSTOM_NAME = "Custom";
-const CUSTOM_DETAIL =
-  "The page defaults: temporary Combat swords talents and rotation";
-const CUSTOM_SHORT = "16/35/0";
 const EDITED = " · Edited";
 const DOT = " · ";
 
@@ -148,13 +145,16 @@ export function startCards(presets = listPresets()) {
         short: points,
       };
     });
+  // Custom is the page defaults, named from them so the card cannot go
+  // stale when the defaults move (#287 PR 7b).
+  const defaults = pageDefaultConfig();
   return [
     ...cards,
     {
       id: CUSTOM,
       name: CUSTOM_NAME,
-      detail: CUSTOM_DETAIL,
-      short: CUSTOM_SHORT,
+      detail: `The page defaults: ${defaults.rotation.name} talents and rotation`,
+      short: pointsText(defaults.talents),
     },
   ];
 }

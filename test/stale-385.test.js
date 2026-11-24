@@ -15,7 +15,7 @@ const SKIP =
 
 function preludeAndChangedNames(source) {
   const start = source.indexOf("const STAT_NAMES = Object.freeze({");
-  const end = source.indexOf('\n// "Attack power"', start);
+  const end = source.indexOf('\n// "attack power"', start);
   assert.ok(start >= 0 && end > start, "changedNames block bounds");
   // From STAT_NAMES through changedNames, up to namesText.
   const midEnd = source.indexOf("\nexport function namesText", start);
@@ -55,7 +55,7 @@ describe("stale banner names only user changes (#385)", () => {
     assert.match(SOURCE, SKIP);
   });
 
-  it("M: dropping the derived-stat skip names Attack power on a race change", () => {
+  it("M: dropping the derived-stat skip names attack power on a race change", () => {
     assert.match(SOURCE, SKIP);
     const mutant = SOURCE.replace(SKIP, "");
     assert.notEqual(mutant, SOURCE);
@@ -64,9 +64,37 @@ describe("stale banner names only user changes (#385)", () => {
     assert.deepEqual(runChangedNames(SOURCE, before, after), ["the race"]);
     const named = runChangedNames(mutant, before, after);
     assert.ok(
-      named.includes("Attack power"),
-      `mutant should name Attack power, got ${JSON.stringify(named)}`,
+      named.includes("attack power"),
+      `mutant should name attack power, got ${JSON.stringify(named)}`,
     );
     assert.ok(named.includes("the race"));
+  });
+
+  it("stat names are lower case mid-sentence (#287 PR 7b, #327 N8)", () => {
+    const before = pageDefaultConfig();
+    const unskipped = SOURCE.replace(SKIP, "");
+    const named = runChangedNames(
+      unskipped,
+      before,
+      withRaceAndDerivedSheet(before),
+    );
+    assert.deepEqual(
+      named.filter((name) => name !== "the race"),
+      ["attack power", "crit chance"],
+    );
+    const sheet = (part, step) => ({
+      ...before,
+      character: {
+        ...before.character,
+        [part]: (before.character[part] ?? 0) + step,
+      },
+    });
+    assert.deepEqual(runChangedNames(unskipped, before, sheet("haste", 1)), [
+      "haste",
+    ]);
+    assert.deepEqual(
+      runChangedNames(unskipped, before, sheet("bonusHitChance", 0.01)),
+      ["hit chance"],
+    );
   });
 });

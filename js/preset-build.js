@@ -202,16 +202,31 @@ export function weaponsText(weapons) {
 // (#273 watch out) and the note is for the data's readers.
 export const shortName = (build) => build.name.replace(/\s*\(.*\)\s*$/, "");
 
+// The parts a hint names as already matching, in this order (#287 PR 7b,
+// #308 N2). Weapons are not a build part since presets stopped setting gear.
+const MATCH_PARTS = Object.freeze(["talents", "poisons", "level"]);
+
+// "Your poisons and level already match.", "Your level already matches.",
+// or "" when nothing matches.
+function matchSentence(differences) {
+  const same = MATCH_PARTS.filter((part) => !differences[part]);
+  if (same.length === 0) {
+    return "";
+  }
+  const verb = same.length === 1 && same[0] === "level" ? "matches" : "match";
+  return ` Your ${listText(same)} already ${verb}.`;
+}
+
 // The hint under the select: "Built for Assassination 41/10/0 with two
 // daggers." Below the build's level it says the level ("at level 60"); while
-// the poisons differ it names them.
+// the poisons differ it names them. Then the parts that already match.
 export function hintText(build, differences, names = poisonName) {
   const level = differences.level ? ` at level${NBSP}${build.talentLevel}` : "";
   const poisons = differences.poisons
     ? `, ${names(referencePoison(build, "mainHand"))} on the main hand and ${names(referencePoison(build, "offHand"))} on the off hand`
     : "";
   const weapons = build.weapons ? ` with ${weaponsText(build.weapons)}` : "";
-  return `Built for ${treeText(build.talents)}${level}${weapons}${poisons}.`;
+  return `Built for ${treeText(build.talents)}${level}${weapons}${poisons}.${matchSentence(differences)}`;
 }
 
 const levelSentence = (build) => `Level set to${NBSP}${build.talentLevel}.`;

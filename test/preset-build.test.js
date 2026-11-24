@@ -103,11 +103,61 @@ describe("text (#273)", () => {
   it("the hint says the level below 60 and the poisons when they differ", () => {
     const build = referenceBuild("combat-swords-temp");
     const none = { talents: true, weapons: true, poisons: false, level: false };
-    assert.equal(hintText(build, none), `Built for Combat${NBSP}16/35/0.`);
+    assert.equal(
+      hintText(build, none),
+      `Built for Combat${NBSP}16/35/0. Your poisons and level already match.`,
+    );
     assert.equal(
       hintText(build, { ...none, level: true, poisons: true }),
       `Built for Combat${NBSP}16/35/0 at level${NBSP}60, Instant Poison on the main hand and Deadly Poison on the off hand.`,
     );
+  });
+
+  it("the hint names the parts that already match (#287 PR 7b, #308 N2)", () => {
+    const build = { ...referenceBuild("combat-swords-temp"), weapons: null };
+    const lead = `Built for Combat${NBSP}16/35/0`;
+    const poisons =
+      ", Instant Poison on the main hand and Deadly Poison on the off hand";
+    const level = ` at level${NBSP}60`;
+    const all = { talents: true, poisons: true, level: true };
+    const cases = [
+      [
+        { ...all, talents: false },
+        `${lead}${level}${poisons}. Your talents already match.`,
+      ],
+      [
+        { ...all, poisons: false },
+        `${lead}${level}. Your poisons already match.`,
+      ],
+      [
+        { ...all, level: false },
+        `${lead}${poisons}. Your level already matches.`,
+      ],
+      [
+        { talents: false, poisons: false, level: true },
+        `${lead}${level}. Your talents and poisons already match.`,
+      ],
+      [
+        { talents: false, poisons: true, level: false },
+        `${lead}${poisons}. Your talents and level already match.`,
+      ],
+      [
+        { talents: true, poisons: false, level: false },
+        `${lead}. Your poisons and level already match.`,
+      ],
+      [
+        { talents: false, poisons: false, level: false },
+        `${lead}. Your talents, poisons and level already match.`,
+      ],
+      [all, `${lead}${level}${poisons}.`],
+    ];
+    for (const [differences, want] of cases) {
+      assert.equal(
+        hintText(build, differences),
+        want,
+        JSON.stringify(differences),
+      );
+    }
   });
 
   it("the applied line, announcement and Undo name", () => {

@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 PR 7b
+
+Wording fixes from Fran's 7b copy spec, and Fran's #426 N2. An on-use racial the engine models but the rotation has no rule for now has the chip "Simulated · not cast" instead of "Simulated" (#322 N). Its line is one sentence per case: "Your rotation casts it on cooldown, as the preset rotations do.", "The preset rotations use it on cooldown, but yours has no rule for it, so it isn't used." and "The preset rotations use it on cooldown, and your own rotation needs a rule to cast it." (#322 N). The Stats race fieldset's legend is visually hidden and `aria-hidden`, as the Paper doll's is, so "Race" shows once, as the select's label (#322 N). Stat names in the out-of-date banner are lower case mid-sentence ("You changed attack power after this ran …"), and the short line still capitalises (#327 N8). The Custom start card's short line and detail come from the page defaults, so they read "13/35/3" and "The page defaults: Combat daggers talents and rotation" instead of "16/35/0" and "temporary Combat swords". The preset hint names the parts that already match, e.g. "… Your talents and level already match." (#308 N2). The manual well says "Poised · 1 stack" and "N stacks" (Fran's #426 N2). `docs/manual-fight.md` has a "Known gap: Premeditation has no number key" section. Folding the repeated "Not your race" rule chips into the context line is not in this PR. Coordinator call 24 Nov (James delegated).
+
 ## #287 PR3
 
 Enchant hints wrap with `overflow-wrap: break-word`, so a long name such as Lesser Arcane Amalgamation is not clipped on the 3-column doll at 1024 / 100% text. Item names keep whole-word wrapping. Start-card names use `break-word` and `hyphens: auto` (the page language is set) so a word that fits the column stays whole, and the race field keeps a real margin above the phone dock under Inter and under DejaVu. coordinator call 19 Nov (James delegated). Fran's #417 N1. Kira's #417 N4.
