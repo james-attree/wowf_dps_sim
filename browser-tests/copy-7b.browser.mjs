@@ -1,6 +1,6 @@
 // #287 PR 7b, Fran's copy spec: on Character › Stats the race fieldset
-// shows "Race" once (the select's label; the legend is visually hidden and
-// aria-hidden), an Orc on the empty default rotation gets the
+// has no legend and is named by the select's visible "Race" label (Fran's
+// ruling), an Orc on the empty default rotation gets the
 // "Simulated · not cast" chip and the one-sentence on-use line, and a
 // preset that casts Blood Fury keeps "Simulated". The Custom start card
 // shows the page defaults' talents. With only the poisons edited, the
@@ -114,7 +114,7 @@ describe("#287 PR 7b copy on Stats, Rotation and the start panel", () => {
   for (const { font, text, width } of cases) {
     const label = `${width}, ${text} text, ${font ?? "Inter"}`;
 
-    test(`race shown once, and the not-cast chip at ${label}`, async () => {
+    test(`race named by its label, and the not-cast chip at ${label}`, async () => {
       const { context, page, errors } = await open(
         width,
         text,
@@ -123,35 +123,42 @@ describe("#287 PR 7b copy on Stats, Rotation and the start panel", () => {
       );
       try {
         await page.locator(RACE).waitFor({ state: "visible" });
+        // Fran's ruling: no legend. The fieldset also holds the racials, so
+        // it stays a group, named by the visible "Race" label.
         const fieldset = await page.locator(RACE).evaluate((select) => {
           const set = select.closest("fieldset");
-          const legend = set.querySelector("legend");
-          const box = legend.getBoundingClientRect();
-          const style = globalThis.getComputedStyle(legend);
-          const shown = [...set.querySelectorAll("legend, label")].filter(
-            (node) =>
-              node.textContent.trim() === "Race" &&
-              globalThis.getComputedStyle(node).clipPath !== "inset(50%)",
-          );
           return {
-            hidden: legend.getAttribute("aria-hidden"),
-            // .visually-hidden: out of flow and clipped to nothing (the
-            // fieldset's legend padding keeps its box a few pixels wide).
-            legendClipped:
-              style.position === "absolute" &&
-              style.clipPath === "inset(50%)" &&
-              box.height <= 1,
-            shown: shown.map((node) => node.tagName),
+            legends: set.querySelectorAll("legend").length,
+            labelledBy: set.getAttribute("aria-labelledby"),
+            label: globalThis.document.getElementById(
+              set.getAttribute("aria-labelledby") ?? "",
+            )?.htmlFor,
           };
         });
-        assert.equal(fieldset.hidden, "true");
-        assert.ok(fieldset.legendClipped, "the legend is visually hidden");
-        assert.deepEqual(fieldset.shown, ["LABEL"]);
-        assert.equal(
-          await page
-            .getByRole("combobox", { name: "Race", exact: true })
-            .count(),
-          1,
+        assert.deepEqual(fieldset, {
+          legends: 0,
+          labelledBy: "cfg-race-label",
+          label: "cfg-race",
+        });
+        // The computed accessible tree: one group and one combobox are named
+        // "Race", and nothing else is (text runs aside).
+        const cdp = await page.context().newCDPSession(page);
+        const { nodes } = await cdp.send("Accessibility.getFullAXTree");
+        await cdp.detach();
+        const named = nodes
+          .filter(
+            (node) =>
+              !node.ignored &&
+              node.name?.value === "Race" &&
+              !["StaticText", "InlineTextBox"].includes(node.role?.value),
+          )
+          .map((node) => node.role?.value)
+          .sort();
+        assert.deepEqual(named, ["combobox", "group"]);
+        const tree = await page.locator(".race-fieldset").ariaSnapshot();
+        assert.match(
+          tree,
+          /^- group "Race":\n {2}- text: Race\n {2}- combobox "Race"/,
         );
 
         await page.locator(RACE).selectOption("orc");

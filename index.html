@@ -409,13 +409,16 @@
             <!-- #321: the race (config.race). The view fills the select from
                  the form's raceOptions and the racials from its race
                  (js/config-form.js raceInfo). -->
-            <fieldset class="config-fieldset race-fieldset" data-screen="stats">
-              <!-- The label names the select; the legend is hidden, as the
-                   Paper doll's is, so "Race" is not shown twice
-                   (#287 PR 7b, #322 N). -->
-              <legend class="visually-hidden" aria-hidden="true">Race</legend>
+            <!-- No legend: the visible "Race" label names both the select
+                 and, through aria-labelledby, the group, which also holds
+                 the racials (Fran's ruling on #287 PR 7b, #322 N). -->
+            <fieldset
+              class="config-fieldset race-fieldset"
+              data-screen="stats"
+              aria-labelledby="cfg-race-label"
+            >
               <div class="field race-field">
-                <label for="cfg-race">Race</label>
+                <label for="cfg-race" id="cfg-race-label">Race</label>
                 <select
                   id="cfg-race"
                   name="race"

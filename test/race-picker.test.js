@@ -304,12 +304,14 @@ describe("#321: each racial's plain line", () => {
       new URL("../index.html", import.meta.url),
       "utf8",
     );
-    assert.match(html, /<label for="cfg-race">Race<\/label>/);
-    // #287 PR 7b: the Stats fieldset's legend is hidden, so "Race" is not
-    // shown twice.
     assert.match(
       html,
-      /<legend class="visually-hidden" aria-hidden="true">Race<\/legend>\s*<div class="field race-field">/,
+      /<label for="cfg-race" id="cfg-race-label">Race<\/label>/,
+    );
+    // #287 PR 7b (Fran's ruling): no legend; the label names the group.
+    assert.match(
+      html,
+      /<fieldset\s+class="config-fieldset race-fieldset"\s+data-screen="stats"\s+aria-labelledby="cfg-race-label"\s*>\s*<div class="field race-field">/,
     );
     assert.match(html, /<select\s+id="cfg-race"\s+name="race"/);
     assert.match(
