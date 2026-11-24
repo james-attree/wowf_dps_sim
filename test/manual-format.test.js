@@ -23,6 +23,8 @@ import {
   ARMED_LABEL,
   wellIsCrit,
   slotAccessibleName,
+  slotDisplayName,
+  stripSoftHyphens,
   slotIconSrc,
   auraIconSrc,
   disabledWaitReason,
@@ -622,15 +624,51 @@ describe("Manual board polish (#287 PR 5)", () => {
   });
 
   it("keeps skipped reasons ahead of the quiet casts", () => {
+    const line = announceLine({
+      skipped: [{ abilityId: "cold-blood", reason: "On cooldown, 3.0 s left" }],
+      lastAction: { ok: true },
+      events: PREMED_PREP,
+    });
+    // Fran #426 N3: a full stop after the skipped reason, before the casts.
+    // The space-only join is the mutant this kills.
     assert.equal(
-      announceLine({
-        skipped: [
-          { abilityId: "cold-blood", reason: "On cooldown, 3.0 s left" },
-        ],
-        lastAction: { ok: true },
-        events: PREMED_PREP,
-      }),
+      line,
+      "On cooldown, 3.0 s left. Premeditation, cast. Preparation, cast",
+    );
+    assert.notEqual(
+      line,
       "On cooldown, 3.0 s left Premeditation, cast. Preparation, cast",
+    );
+  });
+
+  it("soft-hyphenates known long slot labels and keeps the plain name", () => {
+    assert.equal(
+      slotDisplayName("premeditation", "Premeditation"),
+      "Pre\u00ADmedi\u00ADta\u00ADtion",
+    );
+    assert.equal(
+      stripSoftHyphens(slotDisplayName("premeditation", "Premeditation")),
+      "Premeditation",
+    );
+    assert.equal(
+      stripSoftHyphens(slotDisplayName("eviscerate", "Eviscerate")),
+      "Eviscerate",
+    );
+    assert.equal(slotDisplayName("kick", "Kick"), "Kick");
+    assert.equal(
+      slotAccessibleName(
+        "1",
+        slotDisplayName("premeditation", "Premeditation"),
+      ),
+      "1 Premeditation",
+    );
+    assert.equal(
+      announceLine({ lastAction: { ok: true }, events: PREMED_PREP }),
+      "Premeditation, cast. Preparation, cast",
+    );
+    assert.doesNotMatch(
+      announceLine({ lastAction: { ok: true }, events: PREMED_PREP }),
+      /\u00AD/,
     );
   });
 });

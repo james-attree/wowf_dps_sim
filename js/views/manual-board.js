@@ -26,6 +26,7 @@ import {
   reviewTimingRows,
   slotAccessibleName,
   slotCooldownText,
+  slotDisplayName,
   slotIconSrc,
   waitLabel,
   wellIsCrit,
@@ -153,7 +154,7 @@ function fillBar(
     );
     const name = html.createElement("span");
     name.className = "manual-slot-name";
-    name.textContent = slot.name;
+    name.textContent = slotDisplayName(slot.abilityId, slot.name);
     const note = html.createElement("span");
     note.className = "manual-slot-note";
     const cd = row?.cooldownRemaining ?? 0;
@@ -165,12 +166,10 @@ function fillBar(
       button.setAttribute("aria-describedby", descId);
     }
     const keybind = index < KEY_SLOTS ? KEYS[index] : "";
-    if (keybind || reason || isArmed) {
-      button.setAttribute(
-        "aria-label",
-        slotAccessibleName(keybind, slot.name, reason, isArmed),
-      );
-    }
+    button.setAttribute(
+      "aria-label",
+      slotAccessibleName(keybind, slot.name, reason, isArmed),
+    );
     if (note.textContent) {
       button.append(key, " ", well, name, " ", note);
     } else {

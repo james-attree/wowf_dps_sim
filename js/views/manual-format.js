@@ -296,8 +296,40 @@ export function auraIconSrc(
   return null;
 }
 
+// Soft hyphens for known long slot labels, used only where the board
+// paints `.manual-slot-name`. Aria-labels and announcements keep the
+// plain name (Fran #426 N1). Breaks avoid a single-letter leftover.
+const SLOT_DISPLAY_NAMES = Object.freeze({
+  premeditation: "Pre\u00ADmedi\u00ADta\u00ADtion",
+  preparation: "Pre\u00ADpara\u00ADtion",
+  hemorrhage: "Hemor\u00ADrhage",
+  eviscerate: "Evis\u00ADcer\u00ADate",
+  backstab: "Back\u00ADstab",
+  garrote: "Gar\u00ADrote",
+  ambush: "Am\u00ADbush",
+  "sinister-strike": "Sin\u00ADis\u00ADter Strike",
+  rupture: "Rup\u00ADture",
+  "ghostly-strike": "Ghost\u00ADly Strike",
+  "adrenaline-rush": "Adren\u00ADa\u00ADline Rush",
+  "blade-flurry": "Blade Flur\u00ADry",
+  "kidney-shot": "Kid\u00ADney Shot",
+  "expose-armor": "Ex\u00ADpose Armor",
+  shadowstep: "Shadow\u00ADstep",
+  "cloak-of-shadows": "Cloak of Shad\u00ADows",
+  riposte: "Ri\u00ADposte",
+});
+
+export function slotDisplayName(abilityId, name) {
+  return SLOT_DISPLAY_NAMES[abilityId] ?? name;
+}
+
+export function stripSoftHyphens(name) {
+  return name.replaceAll("\u00AD", "");
+}
+
 export function slotAccessibleName(key, name, reason, armed = false) {
-  const lead = key ? `${key} ${name}` : name;
+  const plain = stripSoftHyphens(name);
+  const lead = key ? `${key} ${plain}` : plain;
   if (armed) {
     return reason
       ? `${lead} ${ARMED_LABEL} ${reason}`
@@ -469,7 +501,7 @@ export function announceLine(manual) {
   } else {
     line = latestAnnouncement(manual.events ?? []) ?? "";
   }
-  return skipped ? (line ? `${skipped} ${line}` : skipped) : line;
+  return skipped ? (line ? `${skipped}. ${line}` : skipped) : line;
 }
 
 // logRowReading is imported so a typo in the tenths math can be compared in tests.

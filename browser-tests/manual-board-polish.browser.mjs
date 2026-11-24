@@ -1,10 +1,12 @@
-// #287 PR 5 (#425): Manual board polish with item 7c. On the Subtlety
-// daggers board: long slot names wrap inside their slot at 100% and 150%
-// text, under Inter and under DejaVu as CI has it; Review leaves out 0-damage
+// #287 PR 5 (#425, Fran #426 follow-up): Manual board polish with item 7c.
+// On the Subtlety daggers board: long slot names wrap inside their slot at
+// 100% and 150% text, under Inter and under DejaVu as CI has it, with no
+// single-letter leftover on a mid-word break; Review leaves out 0-damage
 // rows; a fading float keeps 4.5:1 on the well and is hidden at the end;
 // the board's live region names quiet casts (#369 N4) and skipped armed
-// reasons (#373 item 4); forced colours paint the board's labels at 4.5:1
-// (#373 item 5); slots and Waits have a pointer hover (#373 item 6).
+// reasons (#373 item 4), with a full stop after a skipped reason (N3);
+// forced colours paint the board's labels at 4.5:1 (#373 item 5); slots
+// and Waits have a pointer hover (#373 item 6).
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -18,7 +20,7 @@ const AXE = await readFile(
 );
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const PINNED_FONT = "DejaVu Sans";
-const PHONES = [360, 390];
+const PHONES = [320, 360, 390];
 const TEXT_SIZES = ["100%", "150%"];
 const SCREEN_HEIGHT = 900;
 const WIDE = 1280;
@@ -139,7 +141,7 @@ const CONTRAST_SOURCE = `
   };
 `;
 
-describe("Manual slot names wrap inside the slot (#287 PR 5)", () => {
+describe("Manual slot names wrap inside the slot (#287 PR 5, #426 N1)", () => {
   for (const font of [null, PINNED_FONT]) {
     for (const text of TEXT_SIZES) {
       const label = font ?? "the page font";
@@ -156,7 +158,51 @@ describe("Manual slot names wrap inside the slot (#287 PR 5)", () => {
             const metrics = await page.evaluate(
               ({ slack, least }) => {
                 const doc = globalThis.document;
-                const spill = [...doc.querySelectorAll(".manual-slot")]
+                const lineOrphans = (name) => {
+                  const node = [...name.childNodes].find(
+                    (item) => item.nodeType === 3,
+                  );
+                  if (!node) {
+                    return [];
+                  }
+                  const value = node.nodeValue ?? "";
+                  const lines = new Map();
+                  const topKey = (top) => {
+                    for (const key of lines.keys()) {
+                      if (Math.abs(key - top) < 1) {
+                        return key;
+                      }
+                    }
+                    return top;
+                  };
+                  for (let i = 0; i < value.length; i += 1) {
+                    const ch = value[i];
+                    const range = doc.createRange();
+                    range.setStart(node, i);
+                    range.setEnd(node, i + 1);
+                    const rect = range.getBoundingClientRect();
+                    if (rect.width === 0 && ch === "\u00AD") {
+                      continue;
+                    }
+                    const key = topKey(rect.top);
+                    if (!lines.has(key)) {
+                      lines.set(key, []);
+                    }
+                    lines.get(key).push(ch);
+                  }
+                  const orphans = [];
+                  for (const chars of lines.values()) {
+                    const letters = chars
+                      .filter((ch) => ch !== "\u00AD" && /\p{L}/u.test(ch))
+                      .join("");
+                    if (letters.length === 1) {
+                      orphans.push(letters);
+                    }
+                  }
+                  return orphans;
+                };
+                const slots = [...doc.querySelectorAll(".manual-slot")];
+                const spill = slots
                   .map((slot) => {
                     const name = slot.querySelector(".manual-slot-name");
                     const box = slot.getBoundingClientRect();
@@ -172,8 +218,21 @@ describe("Manual slot names wrap inside the slot (#287 PR 5)", () => {
                     };
                   })
                   .filter((row) => row.out || row.w < least || row.h < least);
+                const orphans = slots.flatMap((slot) => {
+                  const name = slot.querySelector(".manual-slot-name");
+                  return lineOrphans(name).map((line) => ({
+                    text: name.textContent.replaceAll("\u00AD", ""),
+                    line,
+                    breaks: name.textContent,
+                  }));
+                });
+                const aria = slots
+                  .map((slot) => slot.getAttribute("aria-label") ?? "")
+                  .filter((label) => label.includes("\u00AD"));
                 return {
                   spill,
+                  orphans,
+                  aria,
                   premed:
                     doc.querySelector(
                       '.manual-slot[data-ability-id="premeditation"]',
@@ -187,6 +246,8 @@ describe("Manual slot names wrap inside the slot (#287 PR 5)", () => {
             );
             assert.equal(metrics.premed, true, "Premeditation is on the bar");
             assert.deepEqual(metrics.spill, [], `${width}px`);
+            assert.deepEqual(metrics.orphans, [], `${width}px orphan`);
+            assert.deepEqual(metrics.aria, [], `${width}px aria`);
             assert.ok(
               metrics.scroll <= 1,
               `${width}px scrolls ${metrics.scroll}`,
@@ -271,7 +332,7 @@ describe("Review and the board's live region (#287 PR 5, 7c)", () => {
       });
       assert.equal(
         await page.locator("#manual-announce").textContent(),
-        "On cooldown, 3.0 s left Premeditation, cast. Preparation, cast",
+        "On cooldown, 3.0 s left. Premeditation, cast. Preparation, cast",
       );
       assert.equal(
         await page.locator("#manual-announce").getAttribute("role"),
