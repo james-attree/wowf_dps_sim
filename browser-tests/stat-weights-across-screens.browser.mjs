@@ -193,6 +193,33 @@ async function clockBox(page) {
 }
 
 describe("stat weights across screens (#283)", () => {
+  for (const width of [360, 1024]) {
+    test(`the Results link names the count with a space at ${width}`, async () => {
+      const { context, page, errors } = await open(width);
+      try {
+        await runGoing(page);
+        await assert.equal(await resultsNav(page).count(), 1);
+        const words = await page
+          .locator('a[data-nav-area="results"] .visually-hidden')
+          .textContent();
+        await assert.equal(words, " stat weights running");
+        const visible = await page
+          .locator('a[data-nav-area="results"]')
+          .evaluate((el) => {
+            const copy = el.cloneNode(true);
+            for (const hidden of copy.querySelectorAll(".visually-hidden")) {
+              hidden.remove();
+            }
+            return copy.textContent.replace(/\s+/g, "");
+          });
+        await assert.equal(visible, "Results3/9");
+        await assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
   for (const text of ["100%", "150%"]) {
     test(`leaving the screen shows the Results progress badge at 360 / ${text}`, async () => {
       const { context, page, errors } = await open(360, { text });

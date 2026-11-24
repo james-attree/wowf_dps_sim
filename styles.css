@@ -2556,10 +2556,14 @@ a.pill-button {
   font-weight: 650;
   /* min-width: auto would keep a long first word (Assassination,
      (temporary)) as wide as its glyphs, so the two-column grid clips
-     it at 360 / 150% and, in CI's DejaVu, overflows the viewport. */
+     it at 360 / 150% and, in CI's DejaVu, overflows the viewport.
+     overflow-wrap: break-word keeps a word whole when it fits the
+     column; hyphens: auto (html lang is set) hyphenates when it does
+     not. Fran's #417 N1. */
   min-width: 0;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .start-card-edited {
@@ -2668,17 +2672,18 @@ a.pill-button {
 
 /* Compact typography: short labels, tighter padding, a slightly smaller
    name so a long first word can wrap inside the column without clipping
-   (#417) and without pushing the race field under the dock. The phone
-   query (32.5em, in the initial font) covers 100% and 150% text. The
-   container query restores the same typography when the start column
-   itself is under 16rem (a 1024 / 150% window), as on main before this
-   PR. Two columns stay phone-only, and only when the container is at
-   least 11rem: wide enough for two touch targets, but not two
-   overflowing columns at 200% text. The race field stays a full
-   target. #329. */
+   (#417) and without pushing the race field under the dock. Title and
+   panel spacing stay tight so the race field keeps a real margin above
+   the dock under DejaVu (Kira's #417 N4). The phone query (32.5em, in
+   the initial font) covers 100% and 150% text. The container query
+   restores the same typography when the start column itself is under
+   16rem (a 1024 / 150% window). Two columns stay phone-only, and only
+   when the container is at least 11rem: wide enough for two touch
+   targets, but not two overflowing columns at 200% text. The race
+   field stays a full target. #329. */
 @media (width < 32.5em) {
   .start-panel {
-    padding-block: 0.25rem;
+    padding-block: 0.125rem;
   }
 
   .start-cards {
@@ -2696,6 +2701,7 @@ a.pill-button {
 
   .start-title {
     font-size: 1rem;
+    margin-bottom: 0;
   }
 
   .start-lead {
@@ -2750,7 +2756,7 @@ a.pill-button {
 
 @container start (width < 16rem) {
   .start-panel {
-    padding-block: 0.25rem;
+    padding-block: 0.125rem;
   }
 
   .start-cards {
@@ -2768,6 +2774,7 @@ a.pill-button {
 
   .start-title {
     font-size: 1rem;
+    margin-bottom: 0;
   }
 
   .start-lead {
