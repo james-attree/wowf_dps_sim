@@ -244,6 +244,13 @@
   hyphens: auto;
 }
 
+/* A long enchant name (Lesser Arcane Amalgamation) must wrap inside the
+   3-column doll instead of clipping against the silhouette. Names keep
+   whole-word wrapping. #287 PR 3. */
+.gear-slot-hint {
+  overflow-wrap: break-word;
+}
+
 .gear-slot-copy small {
   display: block;
   color: var(--muted);
@@ -596,11 +603,11 @@
 
 /* Mid-word wrapping is only for the stacked list, so the 3-column doll
    at 1024 / 100% keeps whole words (Fran's N1, #406). The default is
-   overflow-wrap: normal with hyphens: auto. */
+   overflow-wrap: normal with hyphens: auto. Enchant hints stay on
+   break-word in every layout, including the tight 3-column doll. */
 @media (width < 64em) {
   .gear-slot-copy,
   .gear-slot-name,
-  .gear-slot-hint,
   .gear-stat dd,
   .gear-stat-source {
     overflow-wrap: anywhere;
@@ -611,7 +618,6 @@
 @container gear (width < 20rem) {
   .gear-slot-copy,
   .gear-slot-name,
-  .gear-slot-hint,
   .gear-stat dd,
   .gear-stat-source {
     overflow-wrap: anywhere;

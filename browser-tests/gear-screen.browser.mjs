@@ -856,3 +856,99 @@ describe("read-only stats and gear builds (#385)", () => {
     }
   });
 });
+
+describe("enchant hints wrap instead of clipping (#287 PR 3)", () => {
+  for (const textSize of TEXT) {
+    test(`Lesser Arcane Amalgamation is not clipped at 1024 / ${textSize}`, async () => {
+      const { context, page, errors } = await open(1024, textSize);
+      try {
+        const report = await page.evaluate((slack) => {
+          const hints = [...document.querySelectorAll(".gear-slot-hint")].map(
+            (hint) => {
+              const copy =
+                hint.closest(".gear-slot-copy") ?? hint.parentElement;
+              const row = hint.closest(".gear-row");
+              const style = getComputedStyle(hint);
+              const copyBox = copy.getBoundingClientRect();
+              const overflow = [...hint.getClientRects()]
+                .filter((rect) => rect.width > 0 && rect.height > 0)
+                .filter(
+                  (rect) =>
+                    rect.right > copyBox.right + slack ||
+                    rect.left < copyBox.left - slack,
+                );
+              return {
+                slot: row?.id ?? "",
+                text: hint.textContent.trim(),
+                overflowWrap: style.overflowWrap,
+                scrollWidth: hint.scrollWidth,
+                clientWidth: hint.clientWidth,
+                clipped:
+                  hint.scrollWidth > hint.clientWidth + slack ||
+                  overflow.length > 0,
+              };
+            },
+          );
+          const names = [...document.querySelectorAll(".gear-slot-name")].map(
+            (node) => getComputedStyle(node).overflowWrap,
+          );
+          return {
+            figure: getComputedStyle(document.getElementById("gear-figure"))
+              .display,
+            hints,
+            nameWrap: names[0] ?? null,
+            pageOverflow:
+              document.documentElement.scrollWidth >
+              document.documentElement.clientWidth + slack,
+          };
+        }, 1);
+        const amalgam = report.hints.filter((hint) =>
+          /Lesser Arcane Amalgamation/i.test(hint.text),
+        );
+        assert.ok(
+          amalgam.length >= 2,
+          "Head and Legs show Lesser Arcane Amalgamation",
+        );
+        for (const hint of amalgam) {
+          assert.equal(
+            hint.clipped,
+            false,
+            `${hint.slot} clipped (${hint.scrollWidth} > ${hint.clientWidth})`,
+          );
+          assert.equal(
+            hint.overflowWrap,
+            "break-word",
+            `${hint.slot} hint uses break-word`,
+          );
+        }
+        for (const hint of report.hints) {
+          assert.equal(
+            hint.clipped,
+            false,
+            `${hint.slot} hint clipped (${hint.scrollWidth} > ${hint.clientWidth})`,
+          );
+        }
+        if (textSize === "100%") {
+          assert.notEqual(
+            report.figure,
+            "none",
+            "the 3-column figure is shown",
+          );
+          assert.equal(
+            report.nameWrap,
+            "normal",
+            "item names keep whole-word wrapping",
+          );
+        }
+        assert.equal(
+          report.pageOverflow,
+          false,
+          "the page does not scroll sideways",
+        );
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+});
