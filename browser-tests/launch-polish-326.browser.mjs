@@ -215,6 +215,86 @@ describe("#326 item 1: a touch Fix shows its field above the dock", () => {
   });
 });
 
+describe("#287 PR6: a nav label does not break a word", () => {
+  test("every nav label keeps each word on one line at 320, 150% text", async () => {
+    const session = await open(320, "150%", "#character/talents");
+    const { page } = session;
+    await enter(page, "#talents-level", "30");
+    await page
+      .locator('#area-nav a[data-nav-area="character"] [data-badge]')
+      .waitFor();
+    const broken = await page.evaluate(() => {
+      const wordsOf = (label) => {
+        const node = label.firstChild;
+        const text = node?.textContent ?? "";
+        const brokenWords = [];
+        for (const match of text.matchAll(/\S+/g)) {
+          const range = document.createRange();
+          range.setStart(node, match.index);
+          range.setEnd(node, match.index + match[0].length);
+          if (range.getClientRects().length !== 1) brokenWords.push(match[0]);
+        }
+        return brokenWords;
+      };
+      return [...document.querySelectorAll(".area-nav-label")].flatMap(
+        (label) => wordsOf(label),
+      );
+    });
+    assert.deepEqual(broken, []);
+    const css = await page.evaluate(() => {
+      const label = document.querySelector(".area-nav-label");
+      return {
+        overflowWrap: getComputedStyle(label).overflowWrap,
+        flexWrap: getComputedStyle(label.closest("a")).flexWrap,
+      };
+    });
+    assert.equal(css.overflowWrap, "normal");
+    assert.equal(css.flexWrap, "wrap");
+    await done(session);
+  });
+});
+
+describe("#287 PR6: Link copied is said once", () => {
+  test("five clicks say it once, and it clears when the button reverts", async () => {
+    const session = await open(1024, "100%", "#character", {
+      context: { permissions: ["clipboard-read", "clipboard-write"] },
+    });
+    const { page } = session;
+    await page.evaluate(() => {
+      const node = document.getElementById("run-announce");
+      globalThis.said = [];
+      new globalThis.MutationObserver(() => {
+        globalThis.said.push(node.textContent);
+      }).observe(node, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    });
+    const button = page.locator("#share-link-header");
+    for (let i = 0; i < 5; i += 1) {
+      await button.click();
+    }
+    await page.waitForFunction(() => globalThis.said.includes("Link copied"));
+    const said = await page.evaluate(() => globalThis.said.slice());
+    assert.equal(
+      said.filter((line) => line === "Link copied").length,
+      1,
+      said.join(" | "),
+    );
+    await page.waitForFunction(
+      () =>
+        document.getElementById("share-link-header").textContent.trim() ===
+        "Copy link to this build",
+      { timeout: 6000 },
+    );
+    await page.waitForFunction(
+      () => document.getElementById("run-announce").textContent === "",
+    );
+    await done(session);
+  });
+});
+
 describe("#326 item 2: the area labels keep to one line with a badge", () => {
   for (const width of NARROW) {
     for (const text of TEXT_SIZES) {
