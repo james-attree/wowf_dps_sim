@@ -4549,14 +4549,19 @@ th[aria-sort="ascending"] {
   font-weight: 700;
 }
 
+/* The fade stops at 0.65 opacity, where every float tone still keeps 4.5:1
+   on the well, and the float is hidden when the rise ends (#287 PR 5).
+   Floats stay aria-hidden. */
 @keyframes manual-float-rise {
   from {
     opacity: 1;
     transform: translateY(0);
+    visibility: visible;
   }
   to {
-    opacity: 0;
+    opacity: 0.65;
     transform: translateY(-0.75rem);
+    visibility: hidden;
   }
 }
 
@@ -4634,6 +4639,14 @@ th[aria-sort="ascending"] {
 }
 
 .manual-slot-name {
+  /* A long name such as Premeditation wraps inside its slot at 150% text
+     instead of running into the next slot (#287 PR 5, Fran's #369 item 6).
+     The name may use most of the slot's side padding before a word
+     breaks. */
+  max-width: calc(100% + 0.5rem);
+  margin-inline: -0.25rem;
+  overflow-wrap: break-word;
+  hyphens: auto;
   font-size: 0.8125rem;
   font-weight: 650;
   text-align: center;
@@ -4682,6 +4695,21 @@ th[aria-sort="ascending"] {
 .manual-slot[aria-pressed="true"] .manual-slot-key,
 .manual-slot.is-armed .manual-slot-key {
   color: inherit;
+}
+
+/* Hover, on pointer devices only (#373 item 6). Disabled, armed and blocked
+   slots keep their own look. */
+@media (hover: hover) {
+  .manual-slot:not(
+      [aria-disabled="true"],
+      [aria-pressed="true"],
+      .is-armed,
+      .is-blocked
+    ):hover,
+  .manual-wait:not([aria-disabled="true"]):hover {
+    border-color: var(--text-muted);
+    background-color: #2a241b;
+  }
 }
 
 @media (forced-colors: active) {

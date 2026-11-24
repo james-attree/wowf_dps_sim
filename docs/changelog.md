@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 PR 5
+
+Manual board polish, with item 7c folded in. Slot names such as Premeditation wrap inside their slot at 150% text instead of running into the next slot, under Inter and under DejaVu (Fran's #369 item 6). Review's damage breakdown leaves out 0-damage rows such as Preparation and Premeditation, and the timing list keeps them (Fran's #369-r2 note 3). Floats fade to 0.65 opacity, where every tone keeps 4.5:1 on the well, and are hidden when the rise ends, so axe no longer catches one mid-fade (Fran's #366-r2 and #369-r2 notes). The board's live region names a cast that deals no damage, and same-instant quiet casts are read together, e.g. "Premeditation, cast. Preparation, cast" (#369 N4). The skipped-armed announcement has a browser case (#373 item 4). Under forced colours the board's labels are painted at 21:1, and axe's report there reads author colours that are not painted; a browser test now checks the painted colours (#373 item 5). Ready slots and Waits have a hover look on pointer devices (#373 item 6). coordinator call 19 Nov (James delegated).
+
 ## #287 item 8
 
 Docs only. The plan's old stat-weights figure of about 70 s stays on the record, and the current measurement is 73.1 s (the page says about 73 s). The README names the yellow-hit cap as 9% at a +3 target, which is miss plus hit suppression at level 60 against level 63. The roadmap no longer leaves the #285 keyboard test and tap-target audit open: both are in PR #378. The sharing section says a talents-over-cap press shows the notice and does not copy. coordinator call 19 Nov (James delegated).
