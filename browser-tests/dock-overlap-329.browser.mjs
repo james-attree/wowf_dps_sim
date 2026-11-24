@@ -197,6 +197,11 @@ describe("start cards stay above the phone dock (#329)", () => {
             "break-word",
             `${name}: start-card names use break-word, not anywhere`,
           );
+          assert.equal(
+            wrap.hyphens,
+            "auto",
+            `${name}: start-card names hyphenate a word wider than the column (Kira's #423 N1)`,
+          );
           const midWord = await page.evaluate(midWordBreaks, SLACK);
           assert.deepEqual(midWord, [], `${name}: ${midWord.join("; ")}`);
           const proof = await page.evaluate(() => {
