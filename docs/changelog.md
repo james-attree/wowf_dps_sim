@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 PR3
+
+Enchant hints wrap with `overflow-wrap: break-word`, so a long name such as Lesser Arcane Amalgamation is not clipped on the 3-column doll at 1024 / 100% text. Item names keep whole-word wrapping. Start-card names use `break-word` and `hyphens: auto` (the page language is set) so a word that fits the column stays whole, and the race field keeps a real margin above the phone dock under Inter and under DejaVu. coordinator call 19 Nov (James delegated). Fran's #417 N1. Kira's #417 N4.
+
 ## #287 item 8
 
 Docs only. The plan's old stat-weights figure of about 70 s stays on the record, and the current measurement is 73.1 s (the page says about 73 s). The README names the yellow-hit cap as 9% at a +3 target, which is miss plus hit suppression at level 60 against level 63. The roadmap no longer leaves the #285 keyboard test and tap-target audit open: both are in PR #378. The sharing section says a talents-over-cap press shows the notice and does not copy. Item 8 also added the real 320px dock-clearance browser test (Kira's #424 N1). coordinator call 19 Nov (James delegated).
