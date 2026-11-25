@@ -265,7 +265,7 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
       }
     }
     doc.title = titleFor(next);
-    placeRunColumn(doc, next.area);
+    placeRunColumn(doc, next.area, next.sub);
     store.set({ route: Object.freeze({ ...next }), routeBy: by });
     if (from !== next.area && from !== null) {
       win.scrollTo?.(PAGE_TOP, PAGE_TOP);
@@ -467,7 +467,11 @@ export function mountRouter(doc, store, registry, { panels = {} } = {}) {
       section.render(shells.get(section.area), store);
     }
     show(next, "none");
-    stopWatching = watchReadingOrder(doc, () => route?.area ?? null);
+    stopWatching = watchReadingOrder(
+      doc,
+      () => route?.area ?? null,
+      () => route?.sub ?? null,
+    );
     win.addEventListener("hashchange", onHashChange);
     doc.addEventListener?.(REVEAL_EVENT, onReveal);
   }

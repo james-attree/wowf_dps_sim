@@ -6,7 +6,12 @@
 // 1024 wide) nothing changes: the trees wrap or stack and the run column
 // stays sticky on the right. Gear keeps the side column at 1280. A phone
 // keeps the tree tabs. Inter is not on CI; DejaVu Sans, its fallback, is
-// pinned, and the page's own font stack is checked too.
+// pinned, and the page's own font stack is checked too. The reading order
+// follows the bar (Fran's #437 P1, WCAG 2.4.3; coordinator call 25 Nov, James
+// delegated): from 80em on Talents the Run column comes before the area in
+// the page, so the first Tab after the nav and the header lands in it, as on
+// Results from 64em; below 80em, or on leaving Talents, it goes back after
+// the areas.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
@@ -27,6 +32,7 @@ const TARGET = 44;
 const THREE_UP_LEAST = 768;
 const TALENTS = "#character/talents";
 const GEAR = "#character/gear";
+const RESULTS = "#results";
 // Rounding slack for a box edge, not a layout allowance.
 const EDGE = 1;
 
@@ -208,6 +214,160 @@ describe("three talent trees across from 80em (#263)", () => {
           assert.equal(seen.trees, 1, "one tree");
           assert.deepEqual(seen.small, []);
           assert.equal(seen.sideways, 0);
+          assert.deepEqual(errors, []);
+        } finally {
+          await context.close();
+        }
+      });
+    }
+  }
+});
+
+// Where the Run column is in the page against the shown area, and where
+// one Tab from the header's share button lands.
+const order = (page) =>
+  page.evaluate(() => {
+    const doc = globalThis.document;
+    const column = doc.getElementById("run-column");
+    const areas = [...doc.querySelectorAll("[data-area]")];
+    const shown = areas.find((area) => !area.hidden);
+    const FOLLOWING = 4;
+    return {
+      before: Boolean(column.compareDocumentPosition(shown) & FOLLOWING),
+      afterAll: areas.at(-1).nextElementSibling === column,
+    };
+  });
+
+async function tabFromHeader(page) {
+  await page.locator("#share-link-header").focus();
+  await page.keyboard.press("Tab");
+  return page.evaluate(() => {
+    const doc = globalThis.document;
+    const at = doc.activeElement;
+    return {
+      inColumn: doc.getElementById("run-column").contains(at),
+      inArea: at.closest("[data-area]")?.id ?? null,
+    };
+  });
+}
+
+async function go(page, hash) {
+  await page.evaluate((to) => {
+    globalThis.location.hash = to;
+  }, hash);
+  await page.waitForFunction((to) => globalThis.location.hash === to, hash);
+  await page.evaluate(
+    () =>
+      new Promise((done) =>
+        globalThis.requestAnimationFrame(() =>
+          globalThis.requestAnimationFrame(done),
+        ),
+      ),
+  );
+}
+
+async function resize(page, width) {
+  await page.setViewportSize({ width, height: HEIGHT });
+  await page.waitForFunction((to) => globalThis.innerWidth === to, width);
+  await page.evaluate(
+    () =>
+      new Promise((done) =>
+        globalThis.requestAnimationFrame(() =>
+          globalThis.requestAnimationFrame(done),
+        ),
+      ),
+  );
+}
+
+describe("the reading order follows the Talents bar (#437 P1)", () => {
+  for (const text of TEXT_SIZES) {
+    test(`at ${TALENTS_3UP_PX} the first Tab after the header is in the Run bar, ${text} text`, async () => {
+      const { context, page, errors } = await open(
+        { width: TALENTS_3UP_PX, height: HEIGHT },
+        text,
+        PINNED_FONT,
+      );
+      try {
+        assert.equal((await order(page)).before, true);
+        const tab = await tabFromHeader(page);
+        assert.equal(tab.inColumn, true, JSON.stringify(tab));
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+
+    for (const width of [JUST_UNDER, LAPTOP]) {
+      test(`at ${width} the column stays after the areas on Talents, ${text} text`, async () => {
+        const { context, page, errors } = await open(
+          { width, height: HEIGHT },
+          text,
+          PINNED_FONT,
+        );
+        try {
+          const seen = await order(page);
+          assert.equal(seen.before, false);
+          assert.equal(seen.afterAll, true);
+          const tab = await tabFromHeader(page);
+          assert.equal(tab.inColumn, false, JSON.stringify(tab));
+          assert.equal(tab.inArea, "area-character");
+          assert.deepEqual(errors, []);
+        } finally {
+          await context.close();
+        }
+      });
+    }
+
+    test(`leaving Talents for Gear at ${TALENTS_3UP_PX} puts the column back, ${text} text`, async () => {
+      const { context, page, errors } = await open(
+        { width: TALENTS_3UP_PX, height: HEIGHT },
+        text,
+        PINNED_FONT,
+      );
+      try {
+        assert.equal((await order(page)).before, true);
+        await go(page, GEAR);
+        assert.equal((await order(page)).afterAll, true);
+        await go(page, TALENTS);
+        assert.equal((await order(page)).before, true);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+
+    test(`resizing across 80em on Talents moves the column, ${text} text`, async () => {
+      const { context, page, errors } = await open(
+        { width: TALENTS_3UP_PX, height: HEIGHT },
+        text,
+        PINNED_FONT,
+      );
+      try {
+        assert.equal((await order(page)).before, true);
+        await resize(page, JUST_UNDER);
+        assert.equal((await order(page)).afterAll, true);
+        await resize(page, TALENTS_3UP_PX);
+        assert.equal((await order(page)).before, true);
+        assert.deepEqual(errors, []);
+      } finally {
+        await context.close();
+      }
+    });
+
+    for (const width of [LAPTOP, TALENTS_3UP_PX]) {
+      test(`Results keeps the column first at ${width}, ${text} text`, async () => {
+        const { context, page, errors } = await open(
+          { width, height: HEIGHT },
+          text,
+          PINNED_FONT,
+          RESULTS,
+        );
+        try {
+          assert.equal((await order(page)).before, true);
+          const tab = await tabFromHeader(page);
+          assert.equal(tab.inColumn, true, JSON.stringify(tab));
+          await go(page, GEAR);
+          assert.equal((await order(page)).afterAll, true);
           assert.deepEqual(errors, []);
         } finally {
           await context.close();
