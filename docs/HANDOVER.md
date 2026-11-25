@@ -1,6 +1,6 @@
 # Handover
 
-Where the work stands on main at `590c00c8` (#434), written 25 Nov 2026.
+Where the work stands on main at `bc73c00a` (#438), written 25 Nov 2026.
 PR numbers and merge commits below were checked against GitHub. Anything not
 checked that way is marked unverified.
 
@@ -19,6 +19,7 @@ One line each, from the PR title. The parenthetical is the merge commit.
 - [#429](https://github.com/james-attree/wowf_dps_sim/pull/429) `a729d48c` — #287 PR 7a: compact layout tests and dedupe.
 - [#431](https://github.com/james-attree/wowf_dps_sim/pull/431) `dde81bbe` — #287 PR 7b: copy fixes.
 - [#434](https://github.com/james-attree/wowf_dps_sim/pull/434) `590c00c8` — #287 7a layout follow-up: phone condition ✕ on the first line when it fits; pin the phone header and the board's bottom padding (#432). Closes #432. Ships #322 phone ✕, the #299 P5 header pin, and Kira's #429 N2 board-padding pin.
+- [#438](https://github.com/james-attree/wowf_dps_sim/pull/438) `bc73c00a` — Fold stat-weight names above the figures so DPS and AP stay on one line (#436, #376 item 2). Closes #436. Also the header share icon when the header is 24em or tighter (#434 N1).
 
 Earlier, from [changelog](changelog.md) and [roadmap](roadmap.md): #287 PR1
 keeps Manual on the share link and in a saved setup (a link with both
@@ -46,15 +47,14 @@ your race" rule chips into the context line (stretch item 6) is called out
 there as not in that PR, so it did not ship.
 
 #434 shipped #322 phone ✕, the #299 P5 header pin, and Kira's #429 N2
-board-padding pin. Two layout items stay leftovers, for the reasons in
-#434's "Out" section:
+board-padding pin. #438 shipped #376 item 2 as the name-above fold (the
+stat name on its own line, the folded CI and the AP figure nowrap on the
+next). One layout item stays a leftover:
 
 - #263 trees 2+1. Showing three across at 1280 and 1440 needs a wider
   Talents column, which is a layout redesign, and Fran accepted 2+1 for
-  launch.
-- #376 item 2. `nowrap` squeezes the stat names at 360 / 150% and scrolls
-  the page sideways at 320 / 150%, so it needs a design call such as a
-  3-column fold.
+  launch. [#437](https://github.com/james-attree/wowf_dps_sim/pull/437)
+  (#263, three trees across from 80em) is still open.
 
 ## Known limits
 
@@ -74,9 +74,12 @@ board-padding pin. Two layout items stay leftovers, for the reasons in
   lower slot row under the dock. Pre-existing. #429 did not change the
   screen: the row scrolls clear, and a browser test pins the scrolled and
   Tab positions.
-- **Kira #434 N1 (also noted for Fran in the #434 body).** The header
-  share button wraps under the title at 1024px and 150% text. It also wraps
-  at 521 / 150% under DejaVu (122px). Pre-existing, and still open.
+- **Kira #434 N1 (also noted for Fran in the #434 body).** Fixed in #438
+  (`bc73c00a`). The #438 PR body says a `sim-header` container query at
+  24em reuses the phone icon button, so the text label no longer wraps
+  under the title at 1024 / 150% Inter or at 521 / 150% DejaVu. Mutant 6 in
+  that PR drops the query and both wraps come back. This note did not
+  remeasure those widths.
 - **#431 Kira N1 / M6.** `startCards()` builds the Custom card from
   `pageDefaultConfig()` (`js/start-preset.js`). The unit test still expects
   the literals `"13/35/3"` and `"The page defaults: Combat daggers talents
