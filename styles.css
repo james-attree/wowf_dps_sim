@@ -3959,7 +3959,9 @@ th[aria-sort="ascending"] {
 
 .weights-table th,
 .weights-table td {
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .weights-table .num {
@@ -3968,6 +3970,20 @@ th[aria-sort="ascending"] {
 
 .weights-stat-name {
   display: block;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+/* Keep the folded CI and the numeric AP figure on one line at every
+   width. "Not measured" lives on these cells too; the fold's padding
+   leaves enough room at the tightest phone text size. */
+.weights-table .weights-ci-folded,
+.weights-table .weights-dps-point,
+.weights-table .weights-ci-text,
+.weights-table .weights-ap {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .weights-row-note,
@@ -4031,6 +4047,95 @@ th[aria-sort="ascending"] {
 
 :root.reduce-motion .weights-table .weights-ci-bar {
   display: none;
+}
+
+/* #376 item 2, Option B: a name-above fold when the Results shell is a
+   single column and the table is tighter than 30em. em follows the
+   container's font-size, so it tracks 150% text. At 64em and up the
+   four-column table is unchanged. coordinator call 25 Nov
+   (James delegated). */
+@media (width < 64em) {
+  #results-weights {
+    container-type: inline-size;
+    container-name: weights;
+  }
+
+  @container weights (width <= 30em) {
+    #results-weights-table.weights-table {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    #results-weights-table.weights-table caption {
+      display: block;
+    }
+
+    #results-weights-table.weights-table thead,
+    #results-weights-table.weights-table tbody {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    #results-weights-table.weights-table tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      justify-content: space-between;
+      column-gap: 0.75rem;
+      align-items: baseline;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    #results-weights-table.weights-table th,
+    #results-weights-table.weights-table td {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    /* The ± column is already folded into the DPS cell below 64em.
+       Do not let display:block on th/td bring it back into the grid. */
+    #results-weights-table.weights-table th.weights-ci-col,
+    #results-weights-table.weights-table td.weights-ci-col {
+      display: none;
+    }
+
+    #results-weights-table.weights-table th:first-child,
+    #results-weights-table.weights-table thead th:first-child {
+      grid-column: 1 / -1;
+      text-align: left;
+      padding-bottom: 0.15rem;
+      border-bottom: 0;
+      width: auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    #results-weights-table.weights-table .weights-dps,
+    #results-weights-table.weights-table thead th:nth-child(2) {
+      text-align: left;
+      padding-top: 0;
+      padding-inline: 0;
+    }
+
+    #results-weights-table.weights-table .weights-ap,
+    #results-weights-table.weights-table thead th:last-child {
+      text-align: right;
+      white-space: nowrap;
+      padding-top: 0;
+      padding-inline: 0;
+    }
+
+    /* "DPS per point" may wrap at words; the figures themselves stay
+       nowrap. */
+    #results-weights-table.weights-table thead th:nth-child(2) {
+      white-space: normal;
+    }
+  }
 }
 
 /* Out of date: the result stays, with what changed since it ran. */
@@ -4154,6 +4259,8 @@ th[aria-sort="ascending"] {
 .simulator-header {
   flex-wrap: wrap;
   gap: 0.5rem 0.75rem;
+  container-type: inline-size;
+  container-name: sim-header;
 }
 
 .share-button {
@@ -4166,6 +4273,41 @@ th[aria-sort="ascending"] {
 /* On a phone, an icon-sized control so "Copy link to this build" does
    not wrap under the title and eat the start cards' space (#329, #299). */
 @media (width < 32.5em) {
+  .simulator-header .share-button {
+    position: relative;
+    flex: 0 0 var(--target);
+    width: var(--target);
+    padding-inline: 0;
+  }
+
+  .simulator-header .share-button-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .simulator-header .share-button::before {
+    content: "";
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M6.5 3.5H4A2.5 2.5 0 0 0 1.5 6v6A2.5 2.5 0 0 0 4 14.5h6A2.5 2.5 0 0 0 12.5 12V9.5h-1.5V12A1 1 0 0 1 10 13H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5zm3-2h5v5h-1.5V4.06l-5.22 5.22-1.06-1.06L12.94 3H9.5z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='black' d='M6.5 3.5H4A2.5 2.5 0 0 0 1.5 6v6A2.5 2.5 0 0 0 4 14.5h6A2.5 2.5 0 0 0 12.5 12V9.5h-1.5V12A1 1 0 0 1 10 13H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5zm3-2h5v5h-1.5V4.06l-5.22 5.22-1.06-1.06L12.94 3H9.5z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+}
+
+/* Reuse the phone icon treatment when the header itself is tighter
+   than 24em, so the text label does not wrap under the title at 150%
+   text on a desktop column or just past the phone query (Kira's #434
+   N1). The width < 32.5em rule above is unchanged. coordinator call
+   25 Nov (James delegated). */
+@container sim-header (width <= 24em) {
   .simulator-header .share-button {
     position: relative;
     flex: 0 0 var(--target);
