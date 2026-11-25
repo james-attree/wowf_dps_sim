@@ -54,12 +54,19 @@ after(async () => {
 
 async function open(
   width,
-  { text = "100%", font = null, forcedColors = null, e2e = false } = {},
+  {
+    text = "100%",
+    font = null,
+    forcedColors = null,
+    e2e = false,
+    hasTouch = false,
+  } = {},
 ) {
   const context = await browser.newContext({
     viewport: { width, height: SCREEN_HEIGHT },
     reducedMotion: "no-preference",
     ...(forcedColors ? { forcedColors } : {}),
+    ...(hasTouch ? { hasTouch: true } : {}),
   });
   const page = await context.newPage();
   const errors = [];
@@ -479,6 +486,41 @@ describe("Forced colours and hover on the Manual board (#287 PR 5, 7c)", () => {
       const disabledRest = await look(disabled);
       await disabled.hover({ force: true });
       assert.deepEqual(await look(disabled), disabledRest);
+      assert.equal(errors.length, 0, errors.join("\n"));
+    } finally {
+      await context.close();
+    }
+  });
+
+  // The existing hover test uses a pointer that can hover, so dropping
+  // `@media (hover: hover)` still passes it. A hasTouch context is
+  // hover: none here (Kira's #426 N1). CDP setEmulatedMedia did not
+  // change that feature in this Chrome.
+  test("a ready slot does not take the hover look when hover is none", async () => {
+    const { context, page, errors } = await open(WIDE, { hasTouch: true });
+    try {
+      await startManual(page, "30");
+      assert.equal(
+        await page.evaluate(
+          () => globalThis.matchMedia("(hover: hover)").matches,
+        ),
+        false,
+      );
+      const ready = page.locator(
+        '.manual-slot[data-ability-id="sinister-strike"]',
+      );
+      const look = () =>
+        ready.evaluate((node) => {
+          const style = globalThis.getComputedStyle(node);
+          return {
+            border: style.borderTopColor,
+            background: style.backgroundColor,
+          };
+        });
+      await page.mouse.move(0, 0);
+      const rest = await look();
+      await ready.hover();
+      assert.deepEqual(await look(), rest);
       assert.equal(errors.length, 0, errors.join("\n"));
     } finally {
       await context.close();

@@ -281,24 +281,31 @@
           aria-labelledby="start-title"
           hidden
         >
-          <h2 id="start-title" class="start-title">Start from a preset</h2>
-          <p class="start-lead">
-            <span id="start-lead"></span
-            ><span class="start-lead-more">
-              Your stats and race stay yours; change anything after.</span
-            >
-          </p>
-          <ul
-            id="start-cards"
-            class="start-cards"
-            aria-labelledby="start-title"
-          ></ul>
-          <div class="start-race">
-            <label for="start-race">Race</label>
-            <select id="start-race" aria-describedby="start-race-note"></select>
-            <a id="start-race-note" class="text-link" href="#character/stats"
-              >Its racials are on Stats</a
-            >
+          <!-- The compact start typography is one block in styles.css,
+               on the start-compact container this names (#287 PR 7a). -->
+          <div class="start-body">
+            <h2 id="start-title" class="start-title">Start from a preset</h2>
+            <p class="start-lead">
+              <span id="start-lead"></span
+              ><span class="start-lead-more">
+                Your stats and race stay yours; change anything after.</span
+              >
+            </p>
+            <ul
+              id="start-cards"
+              class="start-cards"
+              aria-labelledby="start-title"
+            ></ul>
+            <div class="start-race">
+              <label for="start-race">Race</label>
+              <select
+                id="start-race"
+                aria-describedby="start-race-note"
+              ></select>
+              <a id="start-race-note" class="text-link" href="#character/stats"
+                >Its racials are on Stats</a
+              >
+            </div>
           </div>
         </section>
         <div id="start-applied" class="start-done" hidden>

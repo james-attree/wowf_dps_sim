@@ -2672,75 +2672,31 @@ a.pill-button {
 
 /* Compact typography: short labels, tighter padding, a slightly smaller
    name so a long first word can wrap inside the column without clipping
-   (#417) and without pushing the race field under the dock. Title and
-   panel spacing stay tight so the race field keeps a real margin above
-   the dock under DejaVu (Kira's #417 N4). The phone query (32.5em, in
-   the initial font) covers 100% and 150% text. The container query
-   restores the same typography when the start column itself is under
-   16rem (a 1024 / 150% window). Two columns stay phone-only, and only
-   when the container is at least 11rem: wide enough for two touch
-   targets, but not two overflowing columns at 200% text. The race
-   field stays a full target. #329. */
+   (#417) and without pushing the race field under the dock. #329.
+   Title and panel spacing stay tight so the race field keeps a real
+   margin above the dock under DejaVu (Kira's #417 N4). Two queries turn
+   it on, and the rules live once, in the start-compact block below
+   (Kira's #417 N6, #287 PR 7a). CSS cannot join a page query
+   and a container query with "or", so each one names .start-body as the
+   start-compact container instead:
+   - the phone query (32.5em, in the initial font), at 100% and 150% text;
+   - the start column itself under 16rem (a 1024 / 150% window).
+   Only the phone query tightens the panel's own padding: a container
+   query cannot style its own container. Two columns stay phone-only, and
+   only when the container is at least 11rem: wide enough for two touch
+   targets, but not two overflowing columns at 200% text. The race field
+   stays a full target. */
+.start-body {
+  container-type: inline-size;
+}
+
 @media (width < 32.5em) {
   .start-panel {
     padding-block: 0.125rem;
   }
 
-  .start-cards {
-    gap: 0.25rem;
-  }
-
-  .start-card {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0 0.5rem;
-    padding: 0.375rem 0.625rem;
-    padding-block: 0.15rem;
-  }
-
-  .start-title {
-    font-size: 1rem;
-    margin-bottom: 0;
-  }
-
-  .start-lead {
-    margin-bottom: 0;
-    font-size: 0.75rem;
-    line-height: 1.25;
-  }
-
-  .start-card-name {
-    font-size: 0.875rem;
-  }
-
-  .start-lead-more {
-    display: none;
-  }
-
-  /* Keep the full detail in the accessibility tree; the short label
-     stays the visible one. display: none would drop it from the name. */
-  .start-card-detail {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .start-card-short {
-    display: inline;
-    margin-top: 0;
-  }
-
-  .start-race {
-    gap: 0.25rem 0.5rem;
-    margin-top: 0.25rem;
-  }
-
-  .start-race select {
-    flex: 1 1 8rem;
+  .start-body {
+    container-name: start-compact;
   }
 
   @container start (width >= 11rem) {
@@ -2755,10 +2711,12 @@ a.pill-button {
 }
 
 @container start (width < 16rem) {
-  .start-panel {
-    padding-block: 0.125rem;
+  .start-body {
+    container-name: start-compact;
   }
+}
 
+@container start-compact (width >= 0) {
   .start-cards {
     gap: 0.25rem;
   }
@@ -4705,7 +4663,8 @@ th[aria-sort="ascending"] {
 }
 
 /* Hover, on pointer devices only (#373 item 6). Disabled, armed and blocked
-   slots keep their own look. */
+   slots keep their own look. The media query is covered by a hover: none
+   browser case (Kira's #426 N1). */
 @media (hover: hover) {
   .manual-slot:not(
       [aria-disabled="true"],
