@@ -1,5 +1,9 @@
 # Changelog
 
+## Handover
+
+The handover note now records #434 (`590c00c8`): #322 phone ✕ and the #299 P5 header pin shipped, and #263 trees 2+1 and #376 item 2 did not. #398 (`94841dcf`) is recorded as merged. The header share button still wraps at 1024px and 150% text.
+
 ## #287 7a layout follow-up (#432)
 
 On a phone, a rotation condition's remove button (✕) stays at the end of the condition's first line wherever the type select's longest choice ("Race or talent granted") still fits beside it, instead of always taking a line of its own under the fields (#322 N, Fran's phone ✕). That saves about 50 px per condition from 360 wide. At 320 the button still drops under the fields, and no select is cut short of its longest choice (#244). The button keeps its 44 px target. New browser tests pin the phone header on one line with the icon-sized share button from #417 (#299 P5), and the manual board's own bottom padding at the dock's height (Kira's #429 N2). Left out: #263's 2+1 talent trees (three across needs a wider Talents column, a layout redesign; Fran accepted 2+1 for launch) and #376 item 2 (keeping the folded CI and AP figures on one line overflows at 320 / 150% text and squeezes the stat names; it needs a design call).
