@@ -328,9 +328,13 @@ export function wellIsCrit(manual) {
   return latestWellEvent(manual.events ?? [])?.outcome === "crit";
 }
 
+// An ability that dealt no damage (Preparation, Premeditation, a poison
+// that never ticked) stays in the timing list but not in the damage
+// breakdown (#287 PR 5, Fran's #369-r2 note 3).
 export function reviewBreakdownRows(result) {
   const duration = result.duration ?? 0;
   return Object.entries(result.abilities ?? {})
+    .filter(([, row]) => (row.damage ?? 0) > 0)
     .map(([name, row]) => {
       const damage = row.damage ?? 0;
       const dps = duration > 0 ? damage / duration : 0;
@@ -355,7 +359,16 @@ export function reviewTimingRows(result) {
     }));
 }
 
+// A cast with no damage of its own (Premeditation, Preparation, Slice and
+// Dice) is recorded as a 0-damage row whose outcome is "cast" (#369 N4).
+export function isQuietCast(event) {
+  return event.kind === "damage" && event.outcome === "cast";
+}
+
 export function announceCopy(event) {
+  if (isQuietCast(event)) {
+    return event.name ? `${event.name}, cast` : null;
+  }
   if (event.kind === "blocked") {
     return `Blocked, ${event.name}, ${event.reason}`;
   }
@@ -380,11 +393,33 @@ export function latestWellEvent(events) {
   return null;
 }
 
+// Quiet casts at the same instant are read together, oldest first, e.g.
+// "Premeditation, cast. Preparation, cast" (#369 N4). The run stops at a
+// hit, crit, proc or Blocked, or at an earlier instant.
+function sameInstantQuietCasts(events, last) {
+  const copies = [];
+  for (let i = last; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event.t !== events[last].t) {
+      break;
+    }
+    const copy = announceCopy(event);
+    if (copy == null) {
+      continue;
+    }
+    if (!isQuietCast(event)) {
+      break;
+    }
+    copies.unshift(copy);
+  }
+  return copies.join(". ");
+}
+
 export function latestAnnouncement(events) {
   for (let i = events.length - 1; i >= 0; i -= 1) {
     const copy = announceCopy(events[i]);
     if (copy) {
-      return copy;
+      return isQuietCast(events[i]) ? sameInstantQuietCasts(events, i) : copy;
     }
   }
   return null;
@@ -439,7 +474,7 @@ export function announceLine(manual) {
   } else {
     line = latestAnnouncement(manual.events ?? []) ?? "";
   }
-  return skipped ? (line ? `${skipped} ${line}` : skipped) : line;
+  return skipped ? (line ? `${skipped}. ${line}` : skipped) : line;
 }
 
 // logRowReading is imported so a typo in the tenths math can be compared in tests.

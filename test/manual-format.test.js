@@ -17,6 +17,9 @@ import {
   floatCopies,
   wellLine,
   announceLine,
+  announceCopy,
+  isQuietCast,
+  latestAnnouncement,
   ARMED_LABEL,
   wellIsCrit,
   slotAccessibleName,
@@ -488,6 +491,155 @@ describe("Manual board formatters (#348)", () => {
         events: [],
       }),
       "On cooldown, 3.0 s left",
+    );
+  });
+});
+
+// Real event rows from a Subtlety daggers board: Premeditation armed, then
+// Preparation pressed at 00:00.0 (#287 PR 5, 7c).
+const PREMED_PREP = [
+  {
+    t: 0,
+    kind: "damage",
+    abilityId: "main-hand",
+    source: "white-mh",
+    amount: 76,
+    outcome: "glance",
+    name: "Main-hand",
+  },
+  {
+    t: 0,
+    kind: "cast",
+    abilityId: "premeditation",
+    outcome: "cast",
+    amount: 0,
+    name: "Premeditation",
+  },
+  { t: 0, kind: "aura", name: "Poised", stacks: 1, change: "expire" },
+  {
+    t: 0,
+    kind: "damage",
+    abilityId: "premeditation",
+    source: "ability",
+    amount: 0,
+    outcome: "cast",
+    name: "Premeditation",
+  },
+  { t: 0, kind: "cp", abilityId: "premeditation", amount: 2, outcome: "gain" },
+  {
+    t: 0,
+    kind: "cast",
+    abilityId: "preparation",
+    outcome: "cast",
+    amount: 0,
+    name: "Preparation",
+  },
+  {
+    t: 0,
+    kind: "damage",
+    abilityId: "preparation",
+    source: "ability",
+    amount: 0,
+    outcome: "cast",
+    name: "Preparation",
+  },
+];
+
+describe("Manual board polish (#287 PR 5)", () => {
+  it("leaves 0-damage abilities out of the Review breakdown, not the timing", () => {
+    const result = {
+      duration: 1,
+      dps: 131.7,
+      abilities: {
+        "Main-hand": { damage: 87.2 },
+        Premeditation: { damage: 0 },
+        Preparation: { damage: 0 },
+        "Off-hand": { damage: 44.5 },
+        "Deadly Poison": { damage: 0 },
+        "Slice and Dice": {},
+      },
+      log: [
+        { time: 0.5, name: "Off-hand" },
+        { time: 0, name: "Preparation" },
+        { time: 0, name: "Premeditation" },
+        { time: 0, name: "Main-hand" },
+      ],
+    };
+    assert.deepEqual(
+      reviewBreakdownRows(result).map((row) => row.text),
+      ["Main-hand · 87 · 87.2 DPS", "Off-hand · 45 · 44.5 DPS"],
+    );
+    assert.deepEqual(
+      reviewTimingRows(result).map((row) => row.name),
+      ["Main-hand", "Premeditation", "Preparation", "Off-hand"],
+    );
+    assert.deepEqual(
+      reviewBreakdownRows({ duration: 1, abilities: { Preparation: {} } }),
+      [],
+    );
+  });
+
+  it("treats only a 0-damage cast row as a quiet cast", () => {
+    assert.equal(isQuietCast(PREMED_PREP[3]), true);
+    assert.equal(isQuietCast(PREMED_PREP[1]), false);
+    assert.equal(isQuietCast(PREMED_PREP[0]), false);
+    assert.equal(announceCopy(PREMED_PREP[3]), "Premeditation, cast");
+    assert.equal(announceCopy(PREMED_PREP[1]), null);
+    assert.equal(
+      announceCopy({ kind: "damage", outcome: "cast", amount: 0 }),
+      null,
+    );
+  });
+
+  it("announces same-instant quiet casts together, oldest first (#369 N4)", () => {
+    assert.equal(
+      announceLine({ lastAction: { ok: true }, events: PREMED_PREP }),
+      "Premeditation, cast. Preparation, cast",
+    );
+    assert.equal(
+      latestAnnouncement(PREMED_PREP.slice(0, 5)),
+      "Premeditation, cast",
+    );
+  });
+
+  it("stops the quiet run at a hit or at an earlier instant", () => {
+    const hit = {
+      t: 0,
+      kind: "damage",
+      source: "ability",
+      amount: 240,
+      outcome: "hit",
+      name: "Sinister Strike",
+    };
+    assert.equal(
+      latestAnnouncement([PREMED_PREP[3], hit, PREMED_PREP[6]]),
+      "Preparation, cast",
+    );
+    assert.equal(
+      latestAnnouncement([PREMED_PREP[3], { ...PREMED_PREP[6], t: 1 }]),
+      "Preparation, cast",
+    );
+    assert.equal(
+      latestAnnouncement([PREMED_PREP[3], hit]),
+      "Sinister Strike, hit",
+    );
+  });
+
+  it("keeps skipped reasons ahead of the quiet casts", () => {
+    const line = announceLine({
+      skipped: [{ abilityId: "cold-blood", reason: "On cooldown, 3.0 s left" }],
+      lastAction: { ok: true },
+      events: PREMED_PREP,
+    });
+    // Fran #426 N3: a full stop after the skipped reason, before the casts.
+    // The space-only join is the mutant this kills.
+    assert.equal(
+      line,
+      "On cooldown, 3.0 s left. Premeditation, cast. Preparation, cast",
+    );
+    assert.notEqual(
+      line,
+      "On cooldown, 3.0 s left Premeditation, cast. Preparation, cast",
     );
   });
 });

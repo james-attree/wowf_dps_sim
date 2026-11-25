@@ -74,6 +74,24 @@ from the set.
 A direct `host.cast` of an off-GCD ability that is on cooldown records a
 Blocked entry. That path is API only; it comes from Kira's #369 N1.
 
+## Board polish (#287 PR 5)
+
+The board's own live region, `#manual-announce`, names a cast that deals no
+damage of its own (Premeditation, Preparation, Slice and Dice), for example
+"Preparation, cast". Quiet casts at the same instant are read together,
+oldest first: arming Premeditation and then pressing Preparation reads
+"Premeditation, cast. Preparation, cast". A skipped reason takes a full
+stop before those casts, e.g. "On cooldown, 3.0 s left. Premeditation,
+cast. Preparation, cast" (Fran #426 N3). Hits, crits, procs and Blocked
+are read as before (#369 N4). The page's own announcer and the nav are
+not part of the board.
+
+Review's damage breakdown leaves out abilities that dealt 0 damage. The
+timing list still shows every cast. Floats fade to 0.65 opacity, where each
+tone keeps 4.5:1 on the well, and are hidden when the rise ends. Slot names
+wrap inside their slot. Ready slots and Waits have a hover look on pointer
+devices. coordinator call 19 Nov (James delegated).
+
 ## Known gap: Premeditation has no number key
 
 The board gives number keys to the first ten slots only (`1`–`9` and `0`;
