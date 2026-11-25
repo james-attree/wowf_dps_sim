@@ -1,12 +1,16 @@
 # Changelog
 
+## Handover, #437
+
+The handover note records #437 (`e52f5572`): three talent trees across from 80em. No layout leftovers from that list remain. coordinator call 25 Nov (James delegated).
+
 ## Handover
 
-The handover note now records #434 (`590c00c8`): #322 phone ✕ and the #299 P5 header pin shipped, and #263 trees 2+1 and #376 item 2 did not. #398 (`94841dcf`) is recorded as merged. The header share-button wrap at 1024px and 150% text is fixed in #438.
+The handover note now records #434 (`590c00c8`): #322 phone ✕ and the #299 P5 header pin shipped, and #376 item 2, left out of #434, shipped in #438 as the name-above fold. #263, three trees across from 80em, shipped in #437. #398 (`94841dcf`) is recorded as merged. The header share-button wrap at 1024px and 150% text is fixed in #438.
 
 ## Handover, #438
 
-The handover note records #438 (`bc73c00a`): #376 item 2 shipped as the name-above fold, and the header share wrap at 1024 / 150% and at 521 / 150% under DejaVu is fixed there. #437 (#263, three trees across) is still open. coordinator call 25 Nov (James delegated).
+The handover note records #438 (`bc73c00a`): #376 item 2 shipped as the name-above fold, and the header share wrap at 1024 / 150% and at 521 / 150% under DejaVu is fixed there. #263 (three trees across) later shipped in #437. coordinator call 25 Nov (James delegated).
 
 ## #263 three talent trees across
 
