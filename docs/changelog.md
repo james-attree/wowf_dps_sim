@@ -22,7 +22,7 @@ Enchant hints wrap with `overflow-wrap: break-word`, so a long name such as Less
 
 ## #287 item 8
 
-Docs only. The plan's old stat-weights figure of about 70 s stays on the record, and the current measurement is 73.1 s (the page says about 73 s). The README names the yellow-hit cap as 9% at a +3 target, which is miss plus hit suppression at level 60 against level 63. The roadmap no longer leaves the #285 keyboard test and tap-target audit open: both are in PR #378. The sharing section says a talents-over-cap press shows the notice and does not copy. Item 8 also added the real 320px dock-clearance browser test (Kira's #424 N1). coordinator call 19 Nov (James delegated).
+The plan's old stat-weights figure of about 70 s stays on the record, and the current measurement is 73.1 s (the page says about 73 s). This entry is documentation. The README names the yellow-hit cap as 9% at a +3 target, which is miss plus hit suppression at level 60 against level 63. The roadmap no longer leaves the #285 keyboard test and tap-target audit open: both are in PR #378. The sharing section says a talents-over-cap press shows the notice and does not copy. Item 8 also added the real 320px dock-clearance browser test (Kira's #424 N1). coordinator call 19 Nov (James delegated).
 
 ## #287 PR6
 
