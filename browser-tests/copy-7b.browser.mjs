@@ -1,6 +1,6 @@
 // #287 PR 7b, Fran's copy spec: on Character › Stats the race fieldset
-// has no legend and is named by the select's visible "Race" label (Fran's
-// ruling), an Orc on the empty default rotation gets the
+// has no legend and no group name, so "Race" is said once, by the select's
+// visible label (Fran's ruling), an Orc on the empty default rotation gets the
 // "Simulated · not cast" chip and the one-sentence on-use line, and a
 // preset that casts Blood Fury keeps "Simulated". The Custom start card
 // shows the page defaults' talents. With only the poisons edited, the
@@ -114,7 +114,7 @@ describe("#287 PR 7b copy on Stats, Rotation and the start panel", () => {
   for (const { font, text, width } of cases) {
     const label = `${width}, ${text} text, ${font ?? "Inter"}`;
 
-    test(`race named by its label, and the not-cast chip at ${label}`, async () => {
+    test(`race said once, by the select, and the not-cast chip at ${label}`, async () => {
       const { context, page, errors } = await open(
         width,
         text,
@@ -123,25 +123,23 @@ describe("#287 PR 7b copy on Stats, Rotation and the start panel", () => {
       );
       try {
         await page.locator(RACE).waitFor({ state: "visible" });
-        // Fran's ruling: no legend. The fieldset also holds the racials, so
-        // it stays a group, named by the visible "Race" label.
+        // Fran's ruling: no legend and no group name. "Race" is said once,
+        // by the select's visible label.
         const fieldset = await page.locator(RACE).evaluate((select) => {
           const set = select.closest("fieldset");
           return {
             legends: set.querySelectorAll("legend").length,
+            label: set.getAttribute("aria-label"),
             labelledBy: set.getAttribute("aria-labelledby"),
-            label: globalThis.document.getElementById(
-              set.getAttribute("aria-labelledby") ?? "",
-            )?.htmlFor,
           };
         });
         assert.deepEqual(fieldset, {
           legends: 0,
-          labelledBy: "cfg-race-label",
-          label: "cfg-race",
+          label: null,
+          labelledBy: null,
         });
-        // The computed accessible tree: one group and one combobox are named
-        // "Race", and nothing else is (text runs aside).
+        // The computed accessible tree: only the combobox is named "Race"
+        // (text runs aside), and the fieldset's group has no name.
         const cdp = await page.context().newCDPSession(page);
         const { nodes } = await cdp.send("Accessibility.getFullAXTree");
         await cdp.detach();
@@ -152,13 +150,16 @@ describe("#287 PR 7b copy on Stats, Rotation and the start panel", () => {
               node.name?.value === "Race" &&
               !["StaticText", "InlineTextBox"].includes(node.role?.value),
           )
-          .map((node) => node.role?.value)
-          .sort();
-        assert.deepEqual(named, ["combobox", "group"]);
+          .map((node) => node.role?.value);
+        assert.deepEqual(named, ["combobox"]);
+        assert.equal(
+          await page.getByRole("group", { name: "Race" }).count(),
+          0,
+        );
         const tree = await page.locator(".race-fieldset").ariaSnapshot();
         assert.match(
           tree,
-          /^- group "Race":\n {2}- text: Race\n {2}- combobox "Race"/,
+          /^- group:\n {2}- text: Race\n {2}- combobox "Race"/,
         );
 
         await page.locator(RACE).selectOption("orc");
