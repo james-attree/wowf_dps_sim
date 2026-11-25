@@ -7,6 +7,9 @@ import {
   NARROW_PX,
   NARROW_QUERY,
   NOT_WIDE_QUERY,
+  TALENTS_3UP_EM,
+  TALENTS_3UP_PX,
+  TALENTS_3UP_QUERY,
   WIDE_EM,
   WIDE_PX,
   WIDE_QUERY,
@@ -158,7 +161,9 @@ describe("the narrow breakpoint", () => {
     const queries = [...css.matchAll(/@media ([^{]+)\{/g)].map(([, query]) =>
       query.trim(),
     );
-    const wide = queries.filter((query) => /^\(width >/.test(query));
+    const wide = queries.filter(
+      (query) => /^\(width >/.test(query) && query !== TALENTS_3UP_QUERY,
+    );
     assert.ok(wide.length >= 1, "the desktop layout");
     for (const query of wide) {
       assert.equal(query, WIDE_QUERY);
@@ -170,5 +175,20 @@ describe("the narrow breakpoint", () => {
     for (const query of below) {
       assert.equal(query, NOT_WIDE_QUERY);
     }
+  });
+
+  it("styles.css has the one three-trees query, at 80em (#263)", async () => {
+    assert.equal(TALENTS_3UP_PX, 1280);
+    assert.equal(TALENTS_3UP_EM * DEFAULT_TEXT_PX, TALENTS_3UP_PX);
+    assert.equal(TALENTS_3UP_QUERY, "(width >= 80em)");
+    const css = await read("../styles.css");
+    const queries = [...css.matchAll(/@media ([^{]+)\{/g)].map(([, query]) =>
+      query.trim(),
+    );
+    assert.equal(
+      queries.filter((query) => query === TALENTS_3UP_QUERY).length,
+      1,
+      "the Talents screen's wide layout",
+    );
   });
 });

@@ -1,5 +1,9 @@
 # Changelog
 
+## #263 three talent trees across
+
+From 80em (1280 px at the default text size), on the Talents screen only, the Run column becomes a full-width bar above the area, as it already does on Results from 64em. The talent trees then get the whole simulator track and sit three across at 1280, 1440 and 1920 wide, at 100% and 150% text, instead of two and one (or stacked at 150%). The three tracks keep a floor of 15.5rem capped at 248 px, a little over a tree's smallest width, because the 44 px tiles don't grow with the text. On Talents at 1280 and up, the Run bar scrolls away with the page instead of staying beside the trees. Below 80em nothing changes, and Gear, Stats and Start keep the side column. `js/views/breakpoints.js` gains the `TALENTS_3UP_QUERY` pin, `(width >= 80em)`, which `test/breakpoints.test.js` checks against `styles.css`. Fran's #263 spec, Option 1, CSS only (coordinator call 25 Nov, James delegated).
+
 ## Handover
 
 The handover note now records #434 (`590c00c8`): #322 phone ✕ and the #299 P5 header pin shipped, and #263 trees 2+1 and #376 item 2 did not. #398 (`94841dcf`) is recorded as merged. The header share button still wraps at 1024px and 150% text.
