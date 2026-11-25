@@ -2,7 +2,11 @@
 
 ## Handover
 
-The handover note now records #434 (`590c00c8`): #322 phone ✕ and the #299 P5 header pin shipped, and #263 trees 2+1 and #376 item 2 did not. #398 (`94841dcf`) is recorded as merged. The header share button still wraps at 1024px and 150% text.
+The handover note now records #434 (`590c00c8`): #322 phone ✕ and the #299 P5 header pin shipped, and #263 trees 2+1 and #376 item 2 did not. #398 (`94841dcf`) is recorded as merged. The header share-button wrap at 1024px and 150% text is fixed in #438.
+
+## Handover, #438
+
+The handover note records #438 (`bc73c00a`): #376 item 2 shipped as the name-above fold, and the header share wrap at 1024 / 150% and at 521 / 150% under DejaVu is fixed there. #437 (#263, three trees across) is still open. coordinator call 25 Nov (James delegated).
 
 ## #436, #376 item 2
 
