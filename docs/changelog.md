@@ -1,5 +1,9 @@
 # Changelog
 
+## #287 PR 5
+
+Manual board polish, with item 7c folded in. Slot names such as Premeditation wrap inside their slot at 150% text instead of running into the next slot, under Inter and under DejaVu (Fran's #369 item 6). Review's damage breakdown leaves out 0-damage rows such as Preparation and Premeditation, and the timing list keeps them (Fran's #369-r2 note 3). Floats fade to 0.65 opacity, where every tone keeps 4.5:1 on the well, and are hidden when the rise ends, so axe no longer catches one mid-fade (Fran's #366-r2 and #369-r2 notes). The board's live region names a cast that deals no damage, and same-instant quiet casts are read together, e.g. "Premeditation, cast. Preparation, cast" (#369 N4). The skipped-armed announcement has a browser case (#373 item 4). Under forced colours the board's labels are painted at 21:1, and axe's report there reads author colours that are not painted; a browser test now checks the painted colours (#373 item 5). Ready slots and Waits have a hover look on pointer devices (#373 item 6). A skipped reason in `#manual-announce` takes a full stop before the quiet casts, e.g. "On cooldown, 3.0 s left. Premeditation, cast. Preparation, cast" (Fran #426 N3). coordinator call 19 Nov (James delegated).
+
 ## #287 PR3
 
 Enchant hints wrap with `overflow-wrap: break-word`, so a long name such as Lesser Arcane Amalgamation is not clipped on the 3-column doll at 1024 / 100% text. Item names keep whole-word wrapping. Start-card names use `break-word` and `hyphens: auto` (the page language is set) so a word that fits the column stays whole, and the race field keeps a real margin above the phone dock under Inter and under DejaVu. coordinator call 19 Nov (James delegated). Fran's #417 N1. Kira's #417 N4.
