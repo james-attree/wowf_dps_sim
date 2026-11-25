@@ -35,8 +35,6 @@ import { characterRows } from "../js/views/character-screens.js";
 import { changedNames, namesText, staleBanner } from "../js/views/stale.js";
 import {
   NO_RACE_LABEL,
-  ON_USE_CAST,
-  ON_USE_NOTE,
   RACIAL_CHIPS,
   racialChip,
   racialLineText,
@@ -267,7 +265,19 @@ describe("#321: each racial's plain line", () => {
     // Not known: the line says the presets cast it and yours needs a rule.
     assert.equal(
       racialLineText(fury),
-      `${ROGUE_LINES["blood-fury"]} ${ON_USE_NOTE} ${ON_USE_CAST.unknown}`,
+      `${ROGUE_LINES["blood-fury"]} The preset rotations use it on cooldown, and your own rotation needs a rule to cast it.`,
+    );
+    // #287 PR 7b: modelled, but the rotation has no rule for it.
+    assert.equal(
+      racialChip({ ...fury, casts: false }).text,
+      "Simulated · not cast",
+    );
+    assert.equal(racialChip({ ...fury, casts: false }).kind, "simulated");
+    assert.equal(racialChip({ ...fury, casts: true }).text, "Simulated");
+    // A passive simulated racial has no cast to miss.
+    assert.equal(
+      racialChip({ ...fury, onUse: false, casts: false }).text,
+      "Simulated",
     );
     for (const racial of all.filter(({ status }) => status === "noDpsEffect")) {
       assert.equal(racialChip(racial).text, "No DPS effect");
@@ -295,6 +305,12 @@ describe("#321: each racial's plain line", () => {
       "utf8",
     );
     assert.match(html, /<label for="cfg-race">Race<\/label>/);
+    // #287 PR 7b (Fran's ruling): no legend and no group name, so "Race"
+    // is said once, by the select's label.
+    assert.match(
+      html,
+      /<fieldset class="config-fieldset race-fieldset" data-screen="stats">\s*<div class="field race-field">/,
+    );
     assert.match(html, /<select\s+id="cfg-race"\s+name="race"/);
     assert.match(
       html,

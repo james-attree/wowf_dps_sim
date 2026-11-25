@@ -13,14 +13,15 @@
 
 const KINDS = Object.freeze(["batch", "live", "weights"]);
 
-// What a config's parts are called in "You changed Attack power after this
-// ran". The character's stats each have their own name; a part not named
+// What a config's parts are called in "You changed attack power after this
+// ran": mid-sentence, so lower case; the short line capitalises the first
+// (#287 PR 7b, #327 N8). The character's stats each have their own name; a part not named
 // here is "the settings".
 const STAT_NAMES = Object.freeze({
-  attackPower: "Attack power",
-  critChance: "Crit chance",
-  bonusHitChance: "Hit chance",
-  haste: "Haste",
+  attackPower: "attack power",
+  critChance: "crit chance",
+  bonusHitChance: "hit chance",
+  haste: "haste",
 });
 // AP, crit, hit, haste, expertise and weapon skill are derived from gear
 // and race; they are not user settings. A race change must name only the
@@ -85,7 +86,7 @@ export const staleKinds = (state) =>
 export const anyStale = (state) => staleKinds(state).length > NONE;
 
 // The names of what changed between two configs, in the config's order and
-// each once: ["Attack power", "the rotation"]. The talents come first, so
+// each once: ["attack power", "the rotation"]. The talents come first, so
 // "and other settings" never hides them (#326, item 16; Fran's qa-308 #4).
 export function changedNames(before, after) {
   const names = [];
@@ -143,7 +144,7 @@ export function changedNames(before, after) {
     : names;
 }
 
-// "Attack power", "Attack power and the rotation", "Attack power, the
+// "attack power", "attack power and the rotation", "attack power, the
 // rotation and other settings".
 export function namesText(names) {
   if (names.length === NONE) {

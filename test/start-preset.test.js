@@ -104,9 +104,14 @@ describe("the cards (#323)", () => {
     assert.equal(cards[3].detail, "Hemorrhage · 12/8/31 · Instant / Deadly");
     assert.deepEqual(
       cards.map(({ short }) => short),
-      ["37/11/3", "16/35/0", "13/35/3", "12/8/31", "16/35/0"],
+      ["37/11/3", "16/35/0", "13/35/3", "12/8/31", "13/35/3"],
     );
-    assert.match(cards.at(-1).detail, /page defaults/i);
+    // #287 PR 7b: Custom is named from the page defaults, not a stale copy.
+    assert.equal(
+      cards.at(-1).detail,
+      "The page defaults: Combat daggers talents and rotation",
+    );
+    assert.equal(cards.at(-1).short, pointsText(pageDefaultConfig().talents));
   });
 
   it("names the temporary Combat swords builder", () => {

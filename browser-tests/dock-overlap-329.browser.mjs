@@ -299,7 +299,7 @@ describe("start cards stay above the phone dock (#329)", () => {
           assert.equal(
             await page
               .getByRole("button", {
-                name: /Custom 16\/35\/0 The page defaults/,
+                name: /Custom 13\/35\/3 The page defaults: Combat daggers talents and rotation/,
               })
               .count(),
             1,

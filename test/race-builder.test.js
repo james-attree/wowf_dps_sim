@@ -43,8 +43,7 @@ import { validateRotation } from "../js/rotation-validator.js";
 import { normalizeConfig } from "../js/sim-config.js";
 import { createStore } from "../js/store.js";
 import {
-  ON_USE_CAST,
-  ON_USE_NOTE,
+  racialChip,
   racialLineText,
   ROGUE_LINES,
 } from "../js/views/config-form.js";
@@ -280,15 +279,16 @@ describe("#322: the on-use line says what the rotation does", () => {
     assert.equal(preset.casts, true);
     assert.equal(
       racialLineText(preset),
-      `${ROGUE_LINES["blood-fury"]} ${ON_USE_NOTE} ${ON_USE_CAST.yes}`,
+      `${ROGUE_LINES["blood-fury"]} Your rotation casts it on cooldown, as the preset rotations do.`,
     );
+    assert.equal(racialChip(preset).text, "Simulated");
     const plain = fury(defaultRotation());
     assert.equal(plain.casts, false);
     assert.equal(
       racialLineText(plain),
-      `${ROGUE_LINES["blood-fury"]} ${ON_USE_NOTE} ${ON_USE_CAST.no}`,
+      `${ROGUE_LINES["blood-fury"]} The preset rotations use it on cooldown, but yours has no rule for it, so it isn't used.`,
     );
-    assert.equal(ON_USE_NOTE, "The preset rotations use it on cooldown.");
+    assert.equal(racialChip(plain).text, "Simulated · not cast");
     assert.doesNotMatch(racialLineText(plain), /built-in rotations don't/);
   });
 
@@ -297,7 +297,7 @@ describe("#322: the on-use line says what the rotation does", () => {
     const line = () =>
       store.get().form.race.racials.find((r) => r.id === "orc.blood-fury")
         .casts;
-    // Page default is the temp Combat swords preset (casts on-use racials).
+    // The page default, Combat daggers, casts on-use racials.
     assert.equal(line(), true);
     form.chooseRotation("default");
     assert.equal(line(), false);

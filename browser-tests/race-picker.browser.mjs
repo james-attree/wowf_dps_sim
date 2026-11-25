@@ -427,7 +427,7 @@ describe("#280: the rotation builder and the race", () => {
           await page.locator(RACIALS).waitFor({ state: "visible" });
           assert.match(
             clean(await furyLine(page)),
-            /The preset rotations use it on cooldown\. Your rotation casts it\.$/,
+            /Your rotation casts it on cooldown, as the preset rotations do\.$/,
           );
           await go(page, "#rotation", ADD);
           assert.ok((await addOptions(page)).includes(FURY));
@@ -474,7 +474,7 @@ describe("#280: the rotation builder and the race", () => {
           await go(page, "#character/stats", RACE);
           assert.match(
             clean(await furyLine(page)),
-            /The preset rotations use it on cooldown\. Your rotation casts it\.$/,
+            /Your rotation casts it on cooldown, as the preset rotations do\.$/,
           );
           // No race: not offered, and the preset's rule says whose it is.
           await page.locator(RACE).selectOption("");

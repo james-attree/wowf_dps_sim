@@ -416,8 +416,10 @@
             <!-- #321: the race (config.race). The view fills the select from
                  the form's raceOptions and the racials from its race
                  (js/config-form.js raceInfo). -->
+            <!-- No legend and no group name: "Race" is said once, by the
+                 select's visible label (Fran's ruling on #287 PR 7b, #322 N).
+                 The fieldset also holds the racials, so it stays. -->
             <fieldset class="config-fieldset race-fieldset" data-screen="stats">
-              <legend>Race</legend>
               <div class="field race-field">
                 <label for="cfg-race">Race</label>
                 <select

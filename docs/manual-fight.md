@@ -45,7 +45,7 @@ Only abilities that are ready right now (`peekState` / `getState`
 `castable`) can be armed. Coordinator calls: Preparation is on the GCD per
 `abilities.offGcd`, so it cannot be armed; Premeditation then Preparation
 then Premeditation is no longer possible from the board; and slot 13
-(Premeditation) has no number key, which is pending James. Arming
+(Premeditation) has no number key (see Known gap below). Arming
 Premeditation and then pressing Preparation still lands both at the same
 instant. The engine still allows same-instant off-GCD presses (James,
 11 Nov 2026 ruling, #367 / `peekState`), but the board does not use that
@@ -91,6 +91,17 @@ timing list still shows every cast. Floats fade to 0.65 opacity, where each
 tone keeps 4.5:1 on the well, and are hidden when the rise ends. Slot names
 wrap inside their slot. Ready slots and Waits have a hover look on pointer
 devices. coordinator call 19 Nov (James delegated).
+
+## Known gap: Premeditation has no number key
+
+The board gives number keys to the first ten slots only (`1`–`9` and `0`;
+`KEY_SLOTS` in `js/views/manual-format.js`, `KEYS` in `js/views/manual-board.js`).
+Premeditation is off the GCD. On the Subtlety daggers bar it is slot 13, so it
+has no number key; you click the slot to arm it. The same ten-key cap also
+leaves slots 11, 12 and 14 (Expose Armor, Ghostly Strike and Preparation)
+without a key on that bar. James has not ruled on a key for Premeditation,
+or on whether later slots should share the `1`–`0` row. This is a documented
+gap, not a change in this PR.
 
 ## API
 

@@ -164,12 +164,17 @@ export function damageText(amount) {
   return formatNumber(Math.floor(amount), INTEGER_DECIMALS);
 }
 
+// "1 stack", "2 stacks" (Fran's #426 N2, #287 PR 7b).
+const ONE_STACK = 1;
+const stacksText = (stacks) =>
+  `${stacks} ${stacks === ONE_STACK ? "stack" : "stacks"}`;
+
 export function wellCopy(event) {
   if (event.kind === "blocked") {
     return `Blocked · ${event.name} — ${event.reason}.`;
   }
   if (event.kind === "aura" && event.stacks != null) {
-    return `${event.name} · ${event.stacks} stacks`;
+    return `${event.name} · ${stacksText(event.stacks)}`;
   }
   if (event.kind === "cp" && event.procName) {
     return `${event.procName} · +1 combo point`;

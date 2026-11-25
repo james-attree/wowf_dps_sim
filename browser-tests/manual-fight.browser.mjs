@@ -19,6 +19,11 @@ const PHONE = [360, 390];
 const SCREEN_HEIGHT = 900;
 const TARGET_PX = 44;
 const COLUMNS = 3;
+// The Review test's seed. Its 1 s fight is only the main-hand swing at 0 s
+// and the off-hand swing at 0.5 s. Since #426, Review leaves out 0-damage
+// rows, so a seed where both miss (seed 3, for one) leaves the breakdown
+// empty. Seed 1 lands an off-hand hit (#287 PR 7b, the #431 CI flake).
+const REVIEW_SEED = "1";
 
 let server;
 let base;
@@ -533,7 +538,10 @@ describe("Manual fight board layout and behaviour (#348)", () => {
     try {
       await page.locator("#run-duration").fill("1");
       await page.locator("#run-duration").press("Tab");
+      await page.locator("#run-seed").fill(REVIEW_SEED);
+      await page.locator("#run-seed").press("Tab");
       await startManual(page);
+      assert.equal(await page.locator("#run-seed").inputValue(), REVIEW_SEED);
       await page.locator(".manual-wait[data-wait-kind='time']").click();
       await page.locator(".manual-wait[data-wait-kind='time']").click();
       await page.locator("#manual-review").waitFor({ state: "visible" });
