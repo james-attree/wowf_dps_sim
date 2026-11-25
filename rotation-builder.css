@@ -613,14 +613,17 @@
   .cond-and {
     display: none;
   }
-  /* A phone's line can't hold the type select and the remove button side by
-     side, so the fields take the whole line and the button sits under them. */
-  .cond-row > .cond-fields {
-    flex-basis: 100%;
-  }
+  /* The fields start at the type select's longest choice ("Race or talent
+     granted"), so the remove button stays on the first line, at its end,
+     wherever that still fits beside it, and only drops under the fields
+     on the narrowest phones (#322 N, Fran's phone ✕). The select is never
+     cut short of that choice (#244). */
   .cond-type,
   .cond-type select {
     width: 100%;
+  }
+  .cond-type select {
+    min-width: max-content;
   }
   /* A field starts at its select's own width (its longest choice) and
      grows to fill the line, so two short ones share a line and a long one

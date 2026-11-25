@@ -2,7 +2,8 @@
 // lower slot row at 360 and 320 / 150% text. That is the board's first view
 // after Start, which is taller than the window. The lower row and the Waits
 // must still scroll clear of the dock: by scrolling, by Tab (html's
-// scroll-padding), and after a press re-renders the board. 320, 360 and
+// scroll-padding), and after a press re-renders the board. The board's own
+// bottom padding is pinned to the dock's height (Kira's #429 N2, #432). 320, 360 and
 // 390, at 100% and 150% text, under Inter and with DejaVu pinned as CI has it.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -17,6 +18,8 @@ const HEIGHT = 844;
 const SEED = "1";
 // html's scroll-padding leaves 12px over the dock; allow 4px of rounding.
 const MIN_GAP = 8;
+// Rounding slack for a box edge, not a layout allowance.
+const EDGE = 1;
 
 let server;
 let base;
@@ -137,6 +140,17 @@ describe("the manual board's lower rows clear the phone dock (#287 PR 7a)", () =
         assert.ok(
           bare.waits <= bare.dock - MIN_GAP,
           `Wait row ${bare.waits} vs dock ${bare.dock} without the footer`,
+        );
+        // Kira's #429 N2 (#432): body's phone padding also leaves room under
+        // the board, so the checks above pass without the board's own. Pin
+        // it: the board's padding-bottom is at least the dock's height.
+        const room = await page.locator(".manual-board").evaluate((board) => ({
+          padding: parseFloat(globalThis.getComputedStyle(board).paddingBottom),
+          window: globalThis.innerHeight,
+        }));
+        assert.ok(
+          room.padding >= room.window - bare.dock - EDGE,
+          `board padding ${room.padding} vs dock ${room.window - bare.dock}`,
         );
 
         // Tab from the first slot through every slot and Wait: each lands
