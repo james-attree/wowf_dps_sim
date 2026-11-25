@@ -203,7 +203,8 @@ is `{ value, unit, source, ref, note, retune }`. Engine code reads the number
 with `k(id)`, which returns `value` or throws if the id is unknown. Keep raw
 numbers out of engine modules and out of this README. Formulas in
 [docs/mechanics.md](docs/mechanics.md) are written against those ids. The
-phased plan is in [docs/roadmap.md](docs/roadmap.md).
+phased plan is in [docs/roadmap.md](docs/roadmap.md). Where the work stands
+after 19 Nov 2026 is in [docs/HANDOVER.md](docs/HANDOVER.md).
 
 `source` is one of:
 
