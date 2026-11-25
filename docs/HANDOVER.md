@@ -1,6 +1,6 @@
 # Handover
 
-Where the work stands on main at `bc73c00a` (#438), written 25 Nov 2026.
+Where the work stands on main at `e52f5572` (#437), written 25 Nov 2026.
 PR numbers and merge commits below were checked against GitHub. Anything not
 checked that way is marked unverified.
 
@@ -20,6 +20,7 @@ One line each, from the PR title. The parenthetical is the merge commit.
 - [#431](https://github.com/james-attree/wowf_dps_sim/pull/431) `dde81bbe` — #287 PR 7b: copy fixes.
 - [#434](https://github.com/james-attree/wowf_dps_sim/pull/434) `590c00c8` — #287 7a layout follow-up: phone condition ✕ on the first line when it fits; pin the phone header and the board's bottom padding (#432). Closes #432. Ships #322 phone ✕, the #299 P5 header pin, and Kira's #429 N2 board-padding pin.
 - [#438](https://github.com/james-attree/wowf_dps_sim/pull/438) `bc73c00a` — Fold stat-weight names above the figures so DPS and AP stay on one line (#436, #376 item 2). Closes #436. Also the header share icon when the header is 24em or tighter (#434 N1).
+- [#437](https://github.com/james-attree/wowf_dps_sim/pull/437) `e52f5572` — #263 Talents: three trees across from 80em.
 
 Earlier, from [changelog](changelog.md) and [roadmap](roadmap.md): #287 PR1
 keeps Manual on the share link and in a saved setup (a link with both
@@ -49,12 +50,9 @@ there as not in that PR, so it did not ship.
 #434 shipped #322 phone ✕, the #299 P5 header pin, and Kira's #429 N2
 board-padding pin. #438 shipped #376 item 2 as the name-above fold (the
 stat name on its own line, the folded CI and the AP figure nowrap on the
-next). One layout item stays a leftover:
-
-- #263 trees 2+1. Showing three across at 1280 and 1440 needs a wider
-  Talents column, which is a layout redesign, and Fran accepted 2+1 for
-  launch. [#437](https://github.com/james-attree/wowf_dps_sim/pull/437)
-  (#263, three trees across from 80em) is still open.
+next). #437 shipped #263: three trees across from 80em (1280 px at the
+default text size), on the Talents screen only. No layout leftovers from
+that list remain.
 
 ## Known limits
 
