@@ -4663,7 +4663,8 @@ th[aria-sort="ascending"] {
 }
 
 /* Hover, on pointer devices only (#373 item 6). Disabled, armed and blocked
-   slots keep their own look. */
+   slots keep their own look. The media query is covered by a hover: none
+   browser case (Kira's #426 N1). */
 @media (hover: hover) {
   .manual-slot:not(
       [aria-disabled="true"],
