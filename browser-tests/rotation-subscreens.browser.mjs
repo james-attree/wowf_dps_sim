@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { chromium } from "playwright-core";
 import { startStaticServer } from "../scripts/serve.mjs";
+import { TALENTS_3UP_PX } from "../js/views/breakpoints.js";
 
 const ICON = await readFile(new URL("../img/backstab.jpg", import.meta.url));
 const FONT_CSS = ':root { font-family: "DejaVu Sans" !important; }';
@@ -50,6 +51,10 @@ const WIDE_SCREENS = [
   "#fight",
 ];
 const MAX_TABS = 40;
+// From 80em the Talents screen draws the Run column as a bar above the
+// area, so the column comes first there, as on Results (#263; Fran's #437
+// P1; coordinator call 25 Nov, James delegated).
+const TALENTS = "#character/talents";
 
 let server;
 let base;
@@ -493,7 +498,8 @@ for (const [width, height] of [
       // tab order wherever it is) would slip past them (#245, Fran's #256
       // check): there is none, on any screen.
       assert.deepEqual(await positiveTabindex(page), [], `at ${width}`);
-      // Every wide screen off Results (#244, UX6): in the page, its back
+      // Every wide screen off Results (#244, UX6), but Talents from 80em
+      // (the bar above, #437 P1): in the page, its back
       // link (if it has one), then its h1, then the Run column; tabbing on
       // from its area's link in the nav reaches the back link, else the
       // area, before the Run button.
@@ -522,7 +528,8 @@ for (const [width, height] of [
               h1First: before(title, column),
             };
           }, area);
-          assert.equal(order.h1First, true, `${hash} at ${width}`);
+          const bar = hash === TALENTS && width >= TALENTS_3UP_PX;
+          assert.equal(order.h1First, !bar, `${hash} at ${width}`);
           assert.deepEqual(await positiveTabindex(page), [], hash);
           if (order.back !== null) {
             assert.equal(order.backFirst, true, `${hash} at ${width}`);
@@ -546,7 +553,17 @@ for (const [width, height] of [
           const firstIn = stops.findIndex((stop) => stop.inArea);
           const firstRun = stops.findIndex((stop) => stop.run);
           assert.ok(firstIn !== -1, `${hash}: ${shown}`);
-          assert.ok(firstRun === -1 || firstIn < firstRun, `${hash}: ${shown}`);
+          if (bar) {
+            assert.ok(
+              firstRun !== -1 && firstRun < firstIn,
+              `${hash}: ${shown}`,
+            );
+          } else {
+            assert.ok(
+              firstRun === -1 || firstIn < firstRun,
+              `${hash}: ${shown}`,
+            );
+          }
           // Fight's fields are its tab stops again (#245), before Run.
           if (hash === FIGHT) {
             assert.deepEqual(

@@ -298,13 +298,15 @@ describe("the reading order follows the Talents bar (#437 P1)", () => {
     });
 
     for (const width of [JUST_UNDER, LAPTOP]) {
-      test(`at ${width} the column stays after the areas on Talents, ${text} text`, async () => {
+      test(`at ${width} the order is unchanged from main: the column after the areas on Talents, ${text} text`, async () => {
         const { context, page, errors } = await open(
           { width, height: HEIGHT },
           text,
           PINNED_FONT,
         );
         try {
+          // As on main: the column is the last thing after every area, and
+          // a Tab from the header goes into the area, not the column.
           const seen = await order(page);
           assert.equal(seen.before, false);
           assert.equal(seen.afterAll, true);
@@ -336,18 +338,24 @@ describe("the reading order follows the Talents bar (#437 P1)", () => {
       }
     });
 
-    test(`resizing across 80em on Talents moves the column, ${text} text`, async () => {
+    test(`resizing across 80em on Talents moves the column and keeps the focus, ${text} text`, async () => {
       const { context, page, errors } = await open(
         { width: TALENTS_3UP_PX, height: HEIGHT },
         text,
         PINNED_FONT,
       );
+      const focused = () =>
+        page.evaluate(() => globalThis.document.activeElement?.id ?? null);
       try {
         assert.equal((await order(page)).before, true);
+        // Focus in the column stays on the same control as it moves (Fran).
+        await page.locator("#run-button").focus();
         await resize(page, JUST_UNDER);
         assert.equal((await order(page)).afterAll, true);
+        assert.equal(await focused(), "run-button");
         await resize(page, TALENTS_3UP_PX);
         assert.equal((await order(page)).before, true);
+        assert.equal(await focused(), "run-button");
         assert.deepEqual(errors, []);
       } finally {
         await context.close();
