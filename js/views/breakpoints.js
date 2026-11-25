@@ -24,3 +24,11 @@ export const WIDE_EM = 64;
 export const WIDE_PX = WIDE_EM * DEFAULT_TEXT_PX;
 export const WIDE_QUERY = `(width >= ${WIDE_EM}em)`;
 export const NOT_WIDE_QUERY = `(width < ${WIDE_EM}em)`;
+
+// Three talent trees side by side (#263; Fran's spec, Option 1). From 80em
+// (1280 px) the Talents screen moves the results column to a bar above the
+// area, as Results does from 64em, so the trees fit three across.
+// styles.css repeats the query; test/breakpoints.test.js pins the two.
+export const TALENTS_3UP_EM = 80;
+export const TALENTS_3UP_PX = TALENTS_3UP_EM * DEFAULT_TEXT_PX;
+export const TALENTS_3UP_QUERY = `(width >= ${TALENTS_3UP_EM}em)`;

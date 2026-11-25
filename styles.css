@@ -3721,6 +3721,74 @@ th[aria-sort="ascending"] {
   }
 }
 
+/* Three talent trees side by side (#263; Fran's spec, Option 1;
+   coordinator call 25 Nov, James delegated). From 80em, on the Talents
+   screen only, the run column moves to a full-width bar above the area, as
+   it does on Results from 64em, so the trees get the whole track and fit
+   three across, at 150% text too. Three tracks, not auto-fit, so a wide
+   grid does not keep an empty fourth. Each track's floor is 15.5rem, capped
+   at its default size, a little over a tree's smallest width, since the
+   tiles do not grow with the text: three trees fit at 150% text, and never
+   squeeze their tiles. Below 80em nothing changes: the trees wrap two and
+   one, or stack, as before. */
+@media (width >= 80em) {
+  .simulator:has(> #area-character:not([hidden])):has(
+      #talent-tree:not([hidden])
+    ) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .simulator:has(> #area-character:not([hidden])):has(
+      #talent-tree:not([hidden])
+    )
+    > .run-column {
+    position: static;
+    grid-column: 1;
+    grid-row: 2;
+    max-height: none;
+    margin-top: 0;
+    overflow-y: visible;
+  }
+
+  .simulator:has(> #area-character:not([hidden])):has(
+      #talent-tree:not([hidden])
+    )
+    > .area {
+    grid-row: 3;
+  }
+
+  .simulator:has(> #area-character:not([hidden])):has(
+      #talent-tree:not([hidden])
+    )
+    .run-buttons {
+    display: flex;
+    flex: 0 1 auto;
+  }
+
+  .simulator:has(> #area-character:not([hidden])):has(
+      #talent-tree:not([hidden])
+    )
+    .run-buttons
+    button {
+    text-wrap: nowrap;
+  }
+
+  .simulator:has(> #area-character:not([hidden])):has(
+      #talent-tree:not([hidden])
+    )
+    .run-controls {
+    margin-bottom: 12px;
+  }
+
+  .simulator:has(> #area-character:not([hidden])):has(
+      #talent-tree:not([hidden])
+    )
+    .talent-trees {
+    grid-template-columns: repeat(3, minmax(min(15.5rem, 248px), 1fr));
+  }
+}
+
 @container area (width < 47.5rem) {
   .cooldown-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
