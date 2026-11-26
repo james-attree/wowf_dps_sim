@@ -1,5 +1,9 @@
 # Changelog
 
+## Premeditation key
+
+James, 26 Nov 2026 ruling: Premeditation has no number key; it is click only. On 19 Nov James chose to keep the Subtlety poisons as they are for now (Instant main hand, Deadly off hand); there is no mechanics ruling.
+
 ## Handover, #437
 
 The handover note records #437 (`e52f5572`): three talent trees across from 80em. No layout leftovers from that list remain. coordinator call 25 Nov (James delegated).

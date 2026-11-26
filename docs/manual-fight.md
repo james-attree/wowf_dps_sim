@@ -99,9 +99,9 @@ The board gives number keys to the first ten slots only (`1`–`9` and `0`;
 Premeditation is off the GCD. On the Subtlety daggers bar it is slot 13, so it
 has no number key; you click the slot to arm it. The same ten-key cap also
 leaves slots 11, 12 and 14 (Expose Armor, Ghostly Strike and Preparation)
-without a key on that bar. James has not ruled on a key for Premeditation,
-or on whether later slots should share the `1`–`0` row. This is a documented
-gap, not a change in this PR.
+without a key on that bar. James, 26 Nov 2026 ruling: Premeditation has no
+number key; it is click only. Whether later slots share the `1`–`0` row is
+not part of that ruling.
 
 ## API
 
