@@ -103,17 +103,16 @@ and rotation"` (`test/start-preset.test.js`). The Custom short line is
 
 ## Open decisions
 
-Undecided. None of these is a decision by James.
+No final ruling by James is recorded for the items below.
 
 - Subtlety poisons. The page assumes Instant on the main hand and Deadly on
   the off hand. `docs/rotation.md` says James has not ruled Subtlety poisons.
-- A Premeditation number key (#373 N1). The gap is in
-  [manual-fight.md](manual-fight.md): number keys cover the first ten slots
-  only, and Premeditation is slot 13 on the Subtlety daggers bar. That doc
-  says James has not ruled on a key, or on whether later slots share the
-  `1`–`0` row.
+  On 19 Nov James chose to keep them as they are for now (Instant main hand,
+  Deadly off hand); there is no mechanics ruling.
 - The restyle milestone. No recorded decision was found in the changelog.
   What the milestone contains was not verified against a GitHub milestone.
+
+Resolved, not open: James ruled 26 Nov: Premeditation has no number key; it is click only.
 
 Resolved, not open: #398 is merged (`94841dcf`, #297 PR4) and shipped
 James's sentence "Remove the link between weapons and talent/rotation
