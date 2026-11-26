@@ -103,7 +103,7 @@ and rotation"` (`test/start-preset.test.js`). The Custom short line is
 
 ## Open decisions
 
-None of the open items below is a decision by James yet.
+No final ruling by James is recorded for the items below.
 
 - Subtlety poisons. The page assumes Instant on the main hand and Deadly on
   the off hand. `docs/rotation.md` says James has not ruled Subtlety poisons.
